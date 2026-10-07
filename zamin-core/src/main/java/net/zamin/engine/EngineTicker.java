@@ -32,6 +32,7 @@ final class EngineTicker {
     private final CountDownLatch stopped = new CountDownLatch(1);
     private volatile Thread tickThread;
     private volatile long lastTickOverrunNanos;
+    private boolean tickedOnce;
 
     EngineTicker(int tickRateHz) {
         this.tickIntervalNanos = TimeUnit.SECONDS.toNanos(1) / tickRateHz;
@@ -62,11 +63,15 @@ final class EngineTicker {
             if (now - nextTick > tickIntervalNanos) {
                 final long overrun = now - nextTick;
                 lastTickOverrunNanos = overrun;
-                LOGGER.warning(() -> "Simulation fell behind by "
-                        + TimeUnit.NANOSECONDS.toMillis(overrun)
-                        + " ms; skipping missed ticks (no burst catch-up)");
+                if (tickedOnce) {
+                    // The first tick after boot routinely overruns (class loading); warn later.
+                    LOGGER.warning(() -> "Simulation fell behind by "
+                            + TimeUnit.NANOSECONDS.toMillis(overrun)
+                            + " ms; skipping missed ticks (no burst catch-up)");
+                }
                 nextTick = now; // snap forward instead of accumulating debt
             }
+            tickedOnce = true;
             tickOnce();
             nextTick += tickIntervalNanos;
         }

@@ -81,7 +81,12 @@ final class LauncherRuntime {
                     default -> LOGGER.warning(() -> "Unknown command: " + command + " (try 'help')");
                 }
             }
+        } catch (IOException ignored) {
+            // Console unavailable (e.g. daemonized process): fall through to latch wait.
         }
+        // Console EOF or closure: the server keeps serving until stopped by signal
+        // or shutdown call. A closed console must never stop a live server.
+        server.awaitShutdown();
     }
 
     private void printHelp() {
