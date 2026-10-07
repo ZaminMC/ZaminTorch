@@ -327,6 +327,45 @@ Destroy Entities for the absorbed entity and an Entity Metadata update for
 the surviving stack (partial merges update both). Bounded O(n²) per tick is
 accepted at slice scale; the entity-system slice revisits it.
 
+## 10k. Slice #11 — furnace smelting (implemented status)
+
+The furnace is a world-owned block entity (`FurnaceBlockEntity` +
+`FurnaceManager`, tick-confined like the item system): three slots in the
+community-verified layout (0 input, 1 fuel, 2 output — minecraft-data
+`windows.json`, corroborated by mineflayer's furnace plugin) plus the
+historical 1.8 burn/cook state machine. One fuel unit ignites only when a
+smelt is possible; a 200-tick cook cycle produces one result and interruptions
+reset the progress (the historical `furnaceCookTime` reset). Fuel values and
+smelting results are the minimal registry-gated subset of the canonical 1.8
+tables (coal 1600 = 8 smelts, planks/log 300, stick 100, wooden tools 200;
+iron ore -> ingot, cobblestone -> stone) — minecraft-data carries NO
+smelting/fuel table for pc/1.8 (full-tree search), so provenance is the
+Minecraft Wiki values, embedded with attribution like the behavior table.
+
+Wire: Open Window "minecraft:furnace" (3 own slots) then a 39-slot Window
+Items (3 furnace + 27 main + 9 hotbar); the per-tick viewer fan-out diffs the
+block entity's slot/property serials and sends only moved values — Window
+Property 0x31 (fuel left, fuel max, progress, progress max, community-verified
+order). Clicks play the shared cursor rules (`WindowClicks` made public);
+shift-click routes smeltables to the input, fuel to the fuel slot, and refuses
+everything else without shuffling the inventory. Closing the window leaves the
+furnace's contents inside (historical container behavior); survival-breaking
+the furnace spills all three slots into the world (post-break hook on
+`BlockInteractionService`); creative breaking discards the state silently.
+
+Persistence: ZFD v1 (`FurnaceDataStore`, one file per world) with the same
+durability rules as ZWD/ZPD — atomic move writes, corrupt quarantine, unknown
+saved items dropped loudly. Save points are the engine's saveAllNow
+(shutdown, console save). Charcoal (log -> coal metadata 1) is deliberately
+deferred: the ItemStack model carries damage only on durability-bound items;
+it lands with the item-metadata slice. Iron ingot registered (legacy 265),
+which unlocked the four iron tool recipes + shears in the regenerated recipe
+set (18 -> 23, community data). Tests: furnace state machine (8), manager +
+ZFD round trip (4), engine restart proof, full wire integration with a real
+10-second smelt + live property stream (172 total, 0 failures); live process
+smoke: place -> open -> shift-click -> burn/cook deltas on the wire -> ingot
+out -> contents survive close + reopen (FURNACE_SMOKE_DONE).
+
 ## 11. Known risks
 
 - 1.8.8 client quirks not obvious from protocol docs (e.g. exact chunk/lighting expectations) — mitigated by scripted-client tests + real client validation.

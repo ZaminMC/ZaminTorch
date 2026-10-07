@@ -64,6 +64,30 @@ public final class BuiltinRecipes {
             },
                     res("minecraft:furnace", 1, 0)),
             CraftingRecipe.shaped(new Ingredient[][] {
+                    { ing("minecraft:iron_ingot", false, 0) },
+                    { ing("minecraft:stick", false, 0) },
+                    { ing("minecraft:stick", false, 0) }
+            },
+                    res("minecraft:iron_shovel", 1, 0)),
+            CraftingRecipe.shaped(new Ingredient[][] {
+                    { ing("minecraft:iron_ingot", false, 0), ing("minecraft:iron_ingot", false, 0), ing("minecraft:iron_ingot", false, 0) },
+                    { null, ing("minecraft:stick", false, 0), null },
+                    { null, ing("minecraft:stick", false, 0), null }
+            },
+                    res("minecraft:iron_pickaxe", 1, 0)),
+            CraftingRecipe.shaped(new Ingredient[][] {
+                    { ing("minecraft:iron_ingot", false, 0), ing("minecraft:iron_ingot", false, 0) },
+                    { ing("minecraft:iron_ingot", false, 0), ing("minecraft:stick", false, 0) },
+                    { null, ing("minecraft:stick", false, 0) }
+            },
+                    res("minecraft:iron_axe", 1, 0)),
+            CraftingRecipe.shaped(new Ingredient[][] {
+                    { ing("minecraft:iron_ingot", false, 0) },
+                    { ing("minecraft:iron_ingot", false, 0) },
+                    { ing("minecraft:stick", false, 0) }
+            },
+                    res("minecraft:iron_sword", 1, 0)),
+            CraftingRecipe.shaped(new Ingredient[][] {
                     { ing("minecraft:oak_planks", true, 0) },
                     { ing("minecraft:oak_planks", true, 0) },
                     { ing("minecraft:stick", false, 0) }
@@ -139,6 +163,11 @@ public final class BuiltinRecipes {
                     { ing("minecraft:oak_planks", false, 0) },
                     { ing("minecraft:oak_planks", false, 0) }
             },
-                    res("minecraft:stick", 4, 0))
+                    res("minecraft:stick", 4, 0)),
+            CraftingRecipe.shaped(new Ingredient[][] {
+                    { null, ing("minecraft:iron_ingot", false, 0) },
+                    { ing("minecraft:iron_ingot", false, 0), null }
+            },
+                    res("minecraft:shears", 1, 0))
     );
 }

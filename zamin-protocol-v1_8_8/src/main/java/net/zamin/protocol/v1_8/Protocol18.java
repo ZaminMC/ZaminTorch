@@ -29,6 +29,7 @@ final class Protocol18 {
     static final int S2C_BLOCK_CHANGE = 0x23;
     static final int S2C_SET_SLOT = 0x2F;
     static final int S2C_WINDOW_ITEMS = 0x30;
+    static final int S2C_WINDOW_PROPERTY = 0x31;
     static final int S2C_CONFIRM_TRANSACTION = 0x32;
     static final int S2C_OPEN_WINDOW = 0x2D;
     static final int S2C_CLOSE_WINDOW = 0x2E;
@@ -98,4 +99,24 @@ final class Protocol18 {
     static final int TABLE_WIRE_SLOT_HOTBAR_FIRST = 37;
     static final int TABLE_WIRE_SLOT_HOTBAR_LAST = 45;
     static final int TABLE_WIRE_SLOT_HOTBAR_BASE = 37;
+
+    // Furnace container window layout (protocol 47, community-verified via
+    // windows.json + mineflayer: 0 input ("smelted"), 1 fuel, 2 result,
+    // 3-29 main, 30-38 hotbar — 39 slots).
+    static final String FURNACE_WINDOW_TYPE = "minecraft:furnace";
+    static final String FURNACE_WINDOW_TITLE = "{\"text\":\"Furnace\"}";
+    static final int FURNACE_WINDOW_SLOTS = 39;
+    static final int FURNACE_WIRE_SLOT_MAIN_FIRST = 3;
+    static final int FURNACE_WIRE_SLOT_MAIN_LAST = 29;
+    static final int FURNACE_WIRE_SLOT_HOTBAR_FIRST = 30;
+    static final int FURNACE_WIRE_SLOT_HOTBAR_LAST = 38;
+    static final int FURNACE_WIRE_SLOT_HOTBAR_BASE = 30;
+
+    // Furnace window properties (community-verified order: fuel left,
+    // fuel max, progress, progress max; values in ticks).
+    static final int FURNACE_PROP_BURN_REMAINING = 0;
+    static final int FURNACE_PROP_BURN_TOTAL = 1;
+    static final int FURNACE_PROP_COOK = 2;
+    static final int FURNACE_PROP_COOK_TOTAL = 3;
+    static final int FURNACE_PROP_COUNT = 4;
 }

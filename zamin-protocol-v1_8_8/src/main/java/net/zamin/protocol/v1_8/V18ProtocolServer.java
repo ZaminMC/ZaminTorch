@@ -164,6 +164,17 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                 }
             }
         });
+        // Furnace windows: the engine fans a per-tick view out to the open
+        // viewer; the connection diffs the block entity's serials and sends
+        // only moved properties/slots (the historical detectAndSendChanges).
+        server.addFurnaceViewListener((viewer, position, furnace) -> {
+            for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                if (connection.currentSession() == viewer) {
+                    connection.sendFurnaceViewTick(channelOf(connection),
+                            viewer.openContainerWindowId(), furnace);
+                }
+            }
+        });
         LOGGER.info(() -> "1.8.8 protocol listening on " + server.config().host() + ":" + server.config().port());
     }
 

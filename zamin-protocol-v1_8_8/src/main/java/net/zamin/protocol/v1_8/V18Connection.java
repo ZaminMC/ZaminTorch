@@ -71,6 +71,11 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     // Remote player entity ids as seen by THIS client (observer-local id space).
     private final java.util.Map<UUID, Integer> remoteEntityIds = new java.util.concurrent.ConcurrentHashMap<>();
     private final java.util.Set<UUID> visibleRemotePlayers = java.util.Collections.synchronizedSet(new java.util.HashSet<>());
+    // Furnace-window sync state: the serials last seen by this client, so the
+    // per-tick view only sends what actually moved (one open container at a time).
+    private int furnaceSlotsSynced = -1;
+    private int furnacePropsSynced = -1;
+    private final int[] furnacePropsSent = new int[Protocol18.FURNACE_PROP_COUNT];
 
     V18Connection(V18ProtocolServer adapter, EngineServer engine) {
         this.adapter = adapter;
@@ -452,8 +457,17 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         }
         final var held = creativeHeld;
         try {
-            engine.useItemOnBlock(player, target, face, held, windowId ->
-                    sendCraftingTableWindow(adapter.channelOf(this), player, windowId));
+            engine.useItemOnBlock(player, target, face, held, windowId -> {
+                // The engine recorded the container kind before dispatching the
+                // callback; the adapter picks the matching Open Window flavor.
+                Channel channel = adapter.channelOf(this);
+                if (player.openContainerKind()
+                        == net.zamin.engine.player.PlayerSession.ContainerKind.FURNACE) {
+                    sendFurnaceWindow(channel, player, windowId);
+                } else {
+                    sendCraftingTableWindow(channel, player, windowId);
+                }
+            });
         } catch (IllegalArgumentException outOfWorld) {
             LOGGER.fine(() -> "Ignored use at out-of-world position from " + player.name());
         }
@@ -478,6 +492,71 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeByte(10); // the GUI's own slots: result + 3x3 grid
         channel.writeAndFlush(out);
         sendContainerWindowItems(channel, windowId, player);
+    }
+
+    /**
+     * Open Window (0x2D) for the furnace, followed by the authoritative
+     * 39-slot contents. Resets the per-tick sync state so the first view sends
+     * everything. Called on the tick thread by the engine's open dispatch.
+     */
+    private void sendFurnaceWindow(Channel channel, PlayerSession player, int windowId) {
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        furnaceSlotsSynced = -1;
+        furnacePropsSynced = -1;
+        java.util.Arrays.fill(furnacePropsSent, -1);
+        ByteBuf out = Unpooled.buffer(48);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_OPEN_WINDOW);
+        out.writeByte(windowId);
+        ByteBufOps.writeString(out, Protocol18.FURNACE_WINDOW_TYPE);
+        ByteBufOps.writeString(out, Protocol18.FURNACE_WINDOW_TITLE);
+        out.writeByte(3); // the GUI's own slots: input, fuel, output
+        channel.writeAndFlush(out);
+        sendContainerWindowItems(channel, windowId, player);
+    }
+
+    /** One furnace window property (0x31, community-verified layout). Any thread. */
+    private void sendWindowProperty(Channel channel, int windowId, int property, int value) {
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(8);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_WINDOW_PROPERTY);
+        out.writeByte(windowId);
+        out.writeShort(property);
+        out.writeShort(value);
+        channel.writeAndFlush(out);
+    }
+
+    /**
+     * Per-tick furnace view (engine fan-out to the open viewer): sends window
+     * properties whose values moved and a full 39-slot Window Items resync
+     * when the furnace's slots changed. Tick-thread context.
+     */
+    void sendFurnaceViewTick(Channel channel, int windowId,
+                             net.zamin.engine.furnace.FurnaceBlockEntity furnace) {
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        if (furnace.propsSerial() != furnacePropsSynced) {
+            furnacePropsSynced = furnace.propsSerial();
+            int[] values = {
+                    furnace.burnTimeRemaining(),
+                    furnace.burnTimeTotal(),
+                    furnace.cookTime(),
+                    net.zamin.engine.furnace.FurnaceRecipes.COOK_TICKS};
+            for (int property = 0; property < values.length; property++) {
+                if (values[property] != furnacePropsSent[property]) {
+                    furnacePropsSent[property] = values[property];
+                    sendWindowProperty(channel, windowId, property, values[property]);
+                }
+            }
+        }
+        if (furnace.slotsSerial() != furnaceSlotsSynced) {
+            furnaceSlotsSynced = furnace.slotsSerial();
+            sendFurnaceWindowItems(channel, windowId, furnace, session);
+        }
     }
 
     private void applyPosition(Channel channel, PlayerSession player, ByteBuf packet) {
@@ -761,11 +840,29 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     }
 
     /**
-     * Full authoritative sync of an open container window (crafting table):
-     * 46 slots — 0 result preview, 1-9 the 3x3 grid, 10-36 main, 37-45 hotbar.
-     * Any thread; owner supplies the session state.
+     * Full authoritative sync of an open container window; the layout follows
+     * the container kind (crafting table 46 slots, furnace 39 slots). Any
+     * thread; owner supplies the session state.
      */
     void sendContainerWindowItems(Channel channel, int windowId, PlayerSession player) {
+        if (player.openContainerKind()
+                == net.zamin.engine.player.PlayerSession.ContainerKind.FURNACE) {
+            var position = player.openContainerPosition();
+            var furnace = position == null ? null : engine.furnaces().peek(position);
+            if (furnace != null) {
+                sendFurnaceWindowItems(channel, windowId, furnace, player);
+            }
+            return;
+        }
+        sendCraftingTableWindowItems(channel, windowId, player);
+    }
+
+    /**
+     * Full authoritative sync of the crafting-table window: 46 slots — 0
+     * result preview, 1-9 the 3x3 grid, 10-36 main, 37-45 hotbar. Any thread;
+     * owner supplies the session state.
+     */
+    private void sendCraftingTableWindowItems(Channel channel, int windowId, PlayerSession player) {
         if (channel == null || !channel.isActive() || state != WireState.PLAY) {
             return;
         }
@@ -779,6 +876,38 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         net.zamin.api.ItemStack result = engine.containerResult(player);
         for (int wireSlot = 0; wireSlot < Protocol18.TABLE_WINDOW_SLOTS; wireSlot++) {
             writeSlot(out, containerSlotForWireSlot(wireSlot, slots, grid, result));
+        }
+        channel.writeAndFlush(out);
+    }
+
+    /**
+     * Full authoritative sync of the furnace window: 39 slots — 0 input,
+     * 1 fuel, 2 output (the block entity's world state), 3-29 main, 30-38
+     * hotbar (the viewer's inventory). Any thread.
+     */
+    private void sendFurnaceWindowItems(Channel channel, int windowId,
+                                        net.zamin.engine.furnace.FurnaceBlockEntity furnace,
+                                        PlayerSession player) {
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(96);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_WINDOW_ITEMS);
+        out.writeByte(windowId);
+        out.writeShort(Protocol18.FURNACE_WINDOW_SLOTS);
+        var furnaceSlots = furnace.snapshotSlots();
+        java.util.List<net.zamin.api.ItemStack> inventory =
+                player == null ? java.util.List.of() : player.inventory().snapshot();
+        for (int wireSlot = 0; wireSlot < Protocol18.FURNACE_WINDOW_SLOTS; wireSlot++) {
+            net.zamin.api.ItemStack stack;
+            if (wireSlot <= 2) {
+                stack = furnaceSlots[wireSlot];
+            } else if (wireSlot <= Protocol18.FURNACE_WIRE_SLOT_MAIN_LAST) {
+                stack = inventory.get(wireSlot + 6); // main inventory: engine 9-35
+            } else {
+                stack = inventory.get(wireSlot - Protocol18.FURNACE_WIRE_SLOT_HOTBAR_BASE);
+            }
+            writeSlot(out, stack);
         }
         channel.writeAndFlush(out);
     }

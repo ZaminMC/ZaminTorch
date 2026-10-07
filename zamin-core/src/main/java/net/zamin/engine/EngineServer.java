@@ -11,6 +11,9 @@ import net.zamin.engine.config.EngineConfig;
 import net.zamin.engine.crafting.CraftingService;
 import net.zamin.engine.entity.ItemEntity;
 import net.zamin.engine.entity.ItemEntityManager;
+import net.zamin.engine.furnace.FurnaceBlockEntity;
+import net.zamin.engine.furnace.FurnaceDataStore;
+import net.zamin.engine.furnace.FurnaceManager;
 import net.zamin.engine.interaction.DropService;
 import net.zamin.engine.net.ClientLink;
 import net.zamin.engine.net.EngineBridge;
@@ -70,6 +73,12 @@ public final class EngineServer implements Server, EngineBridge {
     private static final int TABLE_WIRE_SLOT_GRID_LAST = 9;
     private static final int TABLE_WIRE_SLOT_HOTBAR_FIRST = 37;
     private static final int TABLE_WIRE_SLOT_HOTBAR_LAST = 45;
+    /** Furnace container window wire slots (protocol 47, community-verified GUI). */
+    private static final int FURNACE_WIRE_SLOT_LAST = 2; // 0 input, 1 fuel, 2 output
+    private static final int FURNACE_WIRE_SLOT_MAIN_FIRST = 3;
+    private static final int FURNACE_WIRE_SLOT_MAIN_LAST = 29;
+    private static final int FURNACE_WIRE_SLOT_HOTBAR_FIRST = 30;
+    private static final int FURNACE_WIRE_SLOT_HOTBAR_LAST = 38;
     /** Craft-all guard: even a 3x3 grid cannot chain more crafts than this. */
     private static final int CRAFT_ALL_LIMIT = 64;
     /** Wire window ids: 0 = player inventory; containers get ids from this counter (u8). */
@@ -93,11 +102,14 @@ public final class EngineServer implements Server, EngineBridge {
     private final CraftingService crafting = CraftingService.builtin();
     private WorldStorage worldStorage;
     private PlayerDataStore playerStore;
+    private FurnaceManager furnaceManager;
+    private FurnaceDataStore furnaceStore;
     private volatile ItemEntityManager itemEntities;
     private final java.util.List<WorldChangeListener> worldListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     private final java.util.List<ChatListener> chatListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     private final java.util.List<ItemEntityManager.Listener> itemListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     private final java.util.List<InventoryListener> inventoryListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
+    private final java.util.List<FurnaceViewListener> furnaceViewListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
 
     /** Entity ids for engine-global entities (items); player wire ids stay adapter-local. */
     private static final int ENTITY_ID_BASE = 100_000;
@@ -158,11 +170,23 @@ public final class EngineServer implements Server, EngineBridge {
                         ENTITY_ID_BASE);
                 this.itemEntities = itemEntities;
                 itemEntities.addListener(new ItemEventDispatch());
-                ticker.setTickHandler(() -> itemEntities.tick(players.all()));
+                // Furnace block entities: world-state simulation, ZFD persistence.
+                furnaceManager = new FurnaceManager();
+                furnaceStore = new FurnaceDataStore(java.nio.file.Path.of(
+                        config.dataDir(), "worlds", config.worldName(), "furnaces.bin"));
+                furnaceManager.restoreAll(furnaceStore.load());
+                ticker.setTickHandler(() -> {
+                    furnaceManager.tick(world, itemEntities);
+                    itemEntities.tick(players.all());
+                    tickFurnaceViewers();
+                });
                 blockInteraction = new BlockInteractionService(world, ticker, this::publishBlockChange,
                         config.gamemode(), new DropService(), itemEntities,
                         type -> blockRegistry.lookup(type.identifier()),
                         this::publishInventoryChanged);
+                // A survival-broken furnace spills its slots into the world first.
+                blockInteraction.setBlockBrokenListener(position ->
+                        furnaceManager.onBlockBroken(position, itemEntities));
                 CommandService commands = new CommandService();
                 registerBuiltinCommands(commands);
                 chatService = new ChatService(ticker, commands, this::publishChat);
@@ -331,6 +355,40 @@ public final class EngineServer implements Server, EngineBridge {
         inventoryListeners.add(listener);
     }
 
+    /** A per-tick furnace-window view: the adapter diffs serials and syncs the wire. */
+    public interface FurnaceViewListener {
+        void onFurnaceViewTick(PlayerSession viewer, net.zamin.api.BlockPosition position,
+                               FurnaceBlockEntity furnace);
+    }
+
+    /** Registers an internal furnace-view observer (e.g. the protocol adapter's sync). */
+    public void addFurnaceViewListener(FurnaceViewListener listener) {
+        furnaceViewListeners.add(listener);
+    }
+
+    /** Fans per-tick furnace-window views out to the open viewer(s). Tick-thread context. */
+    private void tickFurnaceViewers() {
+        for (PlayerSession session : players.all()) {
+            if (session.openContainerKind() != PlayerSession.ContainerKind.FURNACE
+                    || session.openContainerWindowId() < 0) {
+                continue;
+            }
+            var position = session.openContainerPosition();
+            FurnaceBlockEntity furnace = position == null ? null : furnaceManager.peek(position);
+            if (furnace == null) {
+                continue;
+            }
+            for (FurnaceViewListener listener : furnaceViewListeners) {
+                listener.onFurnaceViewTick(session, position, furnace);
+            }
+        }
+    }
+
+    /** The simulation-owned furnace block entities (present once the world is up). */
+    public FurnaceManager furnaces() {
+        return furnaceManager;
+    }
+
     private void publishInventoryChanged(PlayerSession player) {
         for (InventoryListener listener : inventoryListeners) {
             listener.onInventoryChanged(player);
@@ -420,7 +478,11 @@ public final class EngineServer implements Server, EngineBridge {
             } else if (windowId == WIRE_WINDOW_PLAYER) {
                 accepted = clickPlayerWindowOnTick(session, wireSlot, button, mode);
             } else if (windowId == session.openContainerWindowId()) {
-                accepted = clickContainerWindowOnTick(session, wireSlot, button, mode);
+                accepted = switch (session.openContainerKind()) {
+                    case CRAFTING_TABLE -> clickContainerWindowOnTick(session, wireSlot, button, mode);
+                    case FURNACE -> clickFurnaceWindowOnTick(session, wireSlot, button, mode);
+                    default -> false;
+                };
             }
             // Unknown window ids: rejected per packet, the resync restores truth.
         } catch (IllegalArgumentException invalid) {
@@ -595,7 +657,9 @@ public final class EngineServer implements Server, EngineBridge {
         }
     }
 
-    /** Wire slot -> engine slot mapping for the player inventory window; -1 when out of engine scope. */
+    /**
+     * Wire slot -&gt; engine slot mapping for the player inventory window; -1 when out of engine scope.
+     */
     private static int engineSlotOf(int wireSlot) {
         if (wireSlot >= 9 && wireSlot <= 35) {
             return wireSlot;                 // main inventory
@@ -604,6 +668,97 @@ public final class EngineServer implements Server, EngineBridge {
             return wireSlot - 36;            // hotbar
         }
         return -1;                           // craft/armor slots or outside
+    }
+
+    /**
+     * Wire slot -&gt; engine slot inside a furnace container window (3-29 maps to
+     * main inventory engine slots 9-35; 30-38 to hotbar 0-8); -1 for the
+     * furnace's own three slots.
+     */
+    private static int furnaceEngineSlotOf(int wireSlot) {
+        if (wireSlot >= FURNACE_WIRE_SLOT_MAIN_FIRST && wireSlot <= FURNACE_WIRE_SLOT_MAIN_LAST) {
+            return wireSlot + 6;             // main inventory (engine 9-35)
+        }
+        if (wireSlot >= FURNACE_WIRE_SLOT_HOTBAR_FIRST && wireSlot <= FURNACE_WIRE_SLOT_HOTBAR_LAST) {
+            return wireSlot - FURNACE_WIRE_SLOT_HOTBAR_FIRST; // hotbar (engine 0-8)
+        }
+        return -1;
+    }
+
+    /**
+     * Click routing for the open furnace container window (protocol 47
+     * community-verified GUI: 0 input, 1 fuel, 2 output, 3-29 main inventory,
+     * 30-38 hotbar). Tick-thread context.
+     */
+    private boolean clickFurnaceWindowOnTick(PlayerSession session, int wireSlot, int button,
+                                             int mode) {
+        var inventory = session.inventory();
+        var position = session.openContainerPosition();
+        var furnace = position == null ? null : furnaceManager.peek(position);
+        if (furnace == null) {
+            return false; // stale window (state discarded): rejected, resync restores
+        }
+        switch (mode) {
+            case 0 -> {
+                if (wireSlot >= 0 && wireSlot <= FURNACE_WIRE_SLOT_LAST) {
+                    furnaceManager.clickSlot(furnace, wireSlot, button, inventory);
+                    return true;
+                }
+                int engineSlot = furnaceEngineSlotOf(wireSlot);
+                if (engineSlot >= 0) {
+                    inventory.clickSlot(engineSlot, button);
+                    return true;
+                }
+                return false;
+            }
+            case 1 -> {
+                if (wireSlot >= 0 && wireSlot <= FURNACE_WIRE_SLOT_LAST) {
+                    return furnaceManager.quickMove(furnace, wireSlot, true, -1, inventory);
+                }
+                int engineSlot = furnaceEngineSlotOf(wireSlot);
+                if (engineSlot >= 0) {
+                    return furnaceManager.quickMove(furnace, -1, false, engineSlot, inventory);
+                }
+                return false;
+            }
+            case 2 -> {
+                // Number keys exchange main inventory and hotbar only; furnace
+                // slots are rejected per packet (the resync restores truth).
+                int engineSlot = furnaceEngineSlotOf(wireSlot);
+                if (engineSlot >= net.zamin.engine.player.PlayerInventory.HOTBAR_SLOTS
+                        && button >= 0 && button < 9) {
+                    inventory.swapWithHotbar(engineSlot, button);
+                    return true;
+                }
+                return false;
+            }
+            case 3 -> {
+                return false; // middle-click clone: rejected in survival
+            }
+            case 4 -> {
+                if (wireSlot >= 0 && wireSlot <= FURNACE_WIRE_SLOT_LAST) {
+                    net.zamin.api.ItemStack dropped =
+                            furnaceManager.dropFromSlot(furnace, wireSlot, button != 0);
+                    if (!dropped.isEmpty()) {
+                        throwFromPlayer(session, dropped);
+                    }
+                    return true;
+                }
+                int engineSlot = furnaceEngineSlotOf(wireSlot);
+                if (engineSlot >= 0) {
+                    net.zamin.api.ItemStack dropped =
+                            inventory.dropFromSlot(engineSlot, button != 0);
+                    if (!dropped.isEmpty()) {
+                        throwFromPlayer(session, dropped);
+                    }
+                    return true;
+                }
+                return false;
+            }
+            default -> {
+                return false; // drag painting (5) / unknown mode: rejected
+            }
+        }
     }
 
     /**
@@ -716,6 +871,10 @@ public final class EngineServer implements Server, EngineBridge {
                                       int face, java.util.Optional<net.zamin.api.BlockType> creativeHeld,
                                       java.util.function.IntConsumer onTableOpened) {
         net.zamin.api.BlockType current = world.getBlock(clicked);
+        if (current.identifier().equals(net.zamin.engine.block.BuiltinBlocks.FURNACE.identifier())) {
+            openFurnaceOnTick(session, clicked, onTableOpened);
+            return;
+        }
         if (current.identifier().equals(net.zamin.engine.block.BuiltinBlocks.CRAFTING_TABLE.identifier())) {
             openCraftingTableOnTick(session, onTableOpened);
             return;
@@ -732,11 +891,7 @@ public final class EngineServer implements Server, EngineBridge {
      */
     private void openCraftingTableOnTick(PlayerSession session,
                                          java.util.function.IntConsumer onTableOpened) {
-        // A stale open container (re-open without a close) returns its grid first.
-        if (session.openContainerWindowId() >= 0) {
-            throwOverflow(session, session.tableCrafting().returnAllTo(session.inventory()));
-            session.closeContainerWindow();
-        }
+        closeOpenContainerOnTick(session);
         // Opening a container closes the player inventory window (historical):
         // the 2x2 grid returns to the inventory, nothing is lost.
         throwOverflow(session, session.crafting().returnAllTo(session.inventory()));
@@ -744,10 +899,46 @@ public final class EngineServer implements Server, EngineBridge {
         int windowId = nextContainerWindowId;
         nextContainerWindowId = nextContainerWindowId >= LAST_CONTAINER_WINDOW_ID
                 ? FIRST_CONTAINER_WINDOW_ID : nextContainerWindowId + 1;
-        session.openContainerWindow(windowId);
+        session.openContainerWindow(windowId, PlayerSession.ContainerKind.CRAFTING_TABLE, null);
         // The adapter must send Open Window before any slot data: the client
         // ignores Window Items for a window id it does not know yet.
         onTableOpened.accept(windowId);
+    }
+
+    /**
+     * Opens the furnace container at the clicked block: assigns the wire
+     * window id, lazily creates the block-entity state, closes any carried
+     * window state first, and reports the id for the adapter's Open Window +
+     * slot sync. The furnace's slots live in the world — closing the window
+     * later leaves them inside (the historical container behavior).
+     * Tick-thread context.
+     */
+    private void openFurnaceOnTick(PlayerSession session, net.zamin.api.BlockPosition position,
+                                   java.util.function.IntConsumer onTableOpened) {
+        closeOpenContainerOnTick(session);
+        throwOverflow(session, session.crafting().returnAllTo(session.inventory()));
+
+        FurnaceBlockEntity furnace = furnaceManager.getOrCreate(position);
+        int windowId = nextContainerWindowId;
+        nextContainerWindowId = nextContainerWindowId >= LAST_CONTAINER_WINDOW_ID
+                ? FIRST_CONTAINER_WINDOW_ID : nextContainerWindowId + 1;
+        session.openContainerWindow(windowId, PlayerSession.ContainerKind.FURNACE, position);
+        onTableOpened.accept(windowId);
+    }
+
+    /**
+     * A stale open container (re-open without a close) releases what it
+     * carries: the crafting table's 3x3 grid returns to the inventory; a
+     * furnace keeps its slots in the world. Tick-thread context.
+     */
+    private void closeOpenContainerOnTick(PlayerSession session) {
+        if (session.openContainerWindowId() < 0) {
+            return;
+        }
+        if (session.openContainerKind() == PlayerSession.ContainerKind.CRAFTING_TABLE) {
+            throwOverflow(session, session.tableCrafting().returnAllTo(session.inventory()));
+        }
+        session.closeContainerWindow();
     }
 
     /** Throws each overflow stack into the world at the player (nothing is lost). */
@@ -778,8 +969,10 @@ public final class EngineServer implements Server, EngineBridge {
 
     /**
      * Cursor + crafting grids back into the inventory; overflow is thrown.
-     * With {@code containerToo} the open container's 3x3 grid returns as well
-     * and its window state clears. Tick-thread context.
+     * With {@code containerToo} the open container releases its carried state
+     * as well: the crafting table's 3x3 grid returns to the inventory, while a
+     * furnace's three slots stay inside the furnace (historical container
+     * behavior) and persist with the world. Tick-thread context.
      */
     private void returnWindowCarriedItems(PlayerSession session, boolean containerToo) {
         net.zamin.api.ItemStack leftover = session.inventory().returnCursor();
@@ -788,7 +981,9 @@ public final class EngineServer implements Server, EngineBridge {
         }
         throwOverflow(session, session.crafting().returnAllTo(session.inventory()));
         if (containerToo && session.openContainerWindowId() >= 0) {
-            throwOverflow(session, session.tableCrafting().returnAllTo(session.inventory()));
+            if (session.openContainerKind() == PlayerSession.ContainerKind.CRAFTING_TABLE) {
+                throwOverflow(session, session.tableCrafting().returnAllTo(session.inventory()));
+            }
             session.closeContainerWindow();
         }
     }
@@ -910,6 +1105,9 @@ public final class EngineServer implements Server, EngineBridge {
         ticker.submit(() -> {
             try {
                 worldStorage.save(world.snapshotDeltas());
+                if (furnaceStore != null && furnaceManager != null) {
+                    furnaceStore.save(furnaceManager.snapshot());
+                }
             } finally {
                 saved.countDown();
             }
