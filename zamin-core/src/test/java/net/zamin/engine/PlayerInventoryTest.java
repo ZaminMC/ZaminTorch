@@ -171,4 +171,145 @@ class PlayerInventoryTest {
         assertTrue(rePicked.isEmpty());
         assertEquals(10, inventory.held().damage(), "pickup restores the same worn tool");
     }
+
+    // ------------------------------------------------------------------ window clicks
+
+    @Test
+    void leftClickPicksUpAndPlacesAWholeStack() {
+        PlayerInventory inventory = new PlayerInventory();
+        inventory.pickUp(ItemStack.of(BuiltinItems.DIRT, 10));
+
+        inventory.clickSlot(0, 0); // left click: pick up
+        assertTrue(inventory.held().isEmpty());
+        assertEquals(10, inventory.cursor().count());
+
+        inventory.clickSlot(5, 0); // place into main slot 5
+        assertTrue(inventory.cursor().isEmpty());
+        assertEquals(10, inventory.snapshot().get(5).count());
+    }
+
+    @Test
+    void leftClickMergesMatchingStacksAndSwapsMismatchedOnes() {
+        PlayerInventory inventory = new PlayerInventory();
+        inventory.pickUp(ItemStack.of(BuiltinItems.DIRT, 60));
+        inventory.pickUp(ItemStack.of(BuiltinItems.DIRT, 8)); // slot 1: 8 dirt
+        inventory.clickSlot(0, 0); // cursor: 60 dirt
+
+        inventory.clickSlot(2, 0); // place 60 into empty slot 2
+        inventory.clickSlot(2, 0); // pick the 60 back up
+        inventory.clickSlot(1, 0); // merge into the 8-stack: 4 spill over on the cursor
+        assertEquals(64, inventory.snapshot().get(1).count());
+        assertEquals(4, inventory.cursor().count());
+
+        inventory.clickSlot(0, 0); // cursor: 4 dirt; slot 0 empty -> place
+        assertTrue(inventory.cursor().isEmpty());
+        assertEquals(4, inventory.snapshot().get(0).count());
+
+        // pick the 4 back up; a full matching stack is a no-op merge (historical)
+        inventory.clickSlot(0, 0);
+        inventory.clickSlot(1, 0);
+        assertEquals(4, inventory.cursor().count());
+        assertEquals(64, inventory.snapshot().get(1).count());
+
+        // mismatched stacks swap between cursor and slot
+        inventory.pickUp(ItemStack.of(BuiltinItems.OAK_LOG, 2)); // lands in the next empty slot (0)
+        inventory.clickSlot(0, 0); // cursor 4 dirt vs logs: swap -> cursor carries the logs
+        assertTrue(inventory.cursor().type().equals(BuiltinItems.OAK_LOG));
+        inventory.clickSlot(1, 0); // swap the logs with the full dirt stack
+        assertEquals(BuiltinItems.OAK_LOG, inventory.snapshot().get(1).type());
+        assertEquals(64, inventory.cursor().count());
+    }
+
+    @Test
+    void rightClickSplitsHalfAndPlacesOne() {
+        PlayerInventory inventory = new PlayerInventory();
+        inventory.pickUp(ItemStack.of(BuiltinItems.DIRT, 11));
+        inventory.clickSlot(0, 1); // right click: take half, rounding up
+        assertEquals(6, inventory.cursor().count());
+        assertEquals(5, inventory.held().count());
+
+        inventory.clickSlot(3, 1); // place ONE into empty slot 3
+        assertEquals(1, inventory.snapshot().get(3).count());
+        assertEquals(5, inventory.cursor().count());
+
+        inventory.clickSlot(3, 1); // place another one on top
+        assertEquals(2, inventory.snapshot().get(3).count());
+        assertEquals(4, inventory.cursor().count());
+    }
+
+    @Test
+    void quickMoveSwitchesRangesAndPreservesOrder() {
+        PlayerInventory inventory = new PlayerInventory();
+        inventory.pickUp(ItemStack.of(BuiltinItems.DIRT, 30));  // hotbar 0
+        inventory.pickUp(ItemStack.of(BuiltinItems.COBBLESTONE, 5)); // hotbar 1
+
+        inventory.quickMove(0); // shift-click hotbar -> main
+        assertTrue(inventory.snapshot().get(0).isEmpty());
+        assertEquals(30, inventory.snapshot().get(9).count()); // first main slot
+
+        inventory.quickMove(9); // shift-click main -> hotbar: tops up matching stacks first
+        assertTrue(inventory.snapshot().get(9).isEmpty());
+        assertEquals(30, inventory.snapshot().get(0).count()); // first empty hotbar slot
+    }
+
+    @Test
+    void numberKeySwapsMainWithHotbar() {
+        PlayerInventory inventory = new PlayerInventory();
+        inventory.pickUp(ItemStack.of(BuiltinItems.DIRT, 3));  // hotbar 0
+        inventory.pickUp(ItemStack.of(BuiltinItems.COBBLESTONE, 4)); // hotbar 1
+
+        inventory.swapWithHotbar(9, 1); // main slot 9 (empty) <-> hotbar 1
+        assertTrue(inventory.snapshot().get(1).isEmpty());
+        assertEquals(4, inventory.snapshot().get(9).count());
+
+        inventory.swapWithHotbar(9, 1); // swap back
+        assertEquals(4, inventory.snapshot().get(1).count());
+        assertTrue(inventory.snapshot().get(9).isEmpty());
+    }
+
+    @Test
+    void dropClickThrowsFromAnySlot() {
+        PlayerInventory inventory = new PlayerInventory();
+        for (int i = 0; i < PlayerInventory.HOTBAR_SLOTS; i++) {
+            inventory.pickUp(ItemStack.of(BuiltinItems.OAK_LOG, 64)); // fills hotbar 0-8
+        }
+        inventory.pickUp(ItemStack.of(BuiltinItems.DIRT, 10)); // spills into main slot 9
+
+        assertEquals(1, inventory.dropFromSlot(9, false).count()); // button 0: one
+        assertEquals(9, inventory.snapshot().get(9).count());
+        assertEquals(9, inventory.dropFromSlot(9, true).count()); // button 1: the rest
+        assertTrue(inventory.snapshot().get(9).isEmpty());
+        assertTrue(inventory.dropFromSlot(9, true).isEmpty()); // nothing left to drop
+    }
+
+    @Test
+    void cursorReturnsToTheInventoryAndOverflowIsReported() {
+        PlayerInventory inventory = new PlayerInventory();
+        inventory.pickUp(ItemStack.of(BuiltinItems.DIRT, 10));
+        inventory.clickSlot(0, 0); // cursor: 10 dirt
+        assertTrue(inventory.returnCursor().isEmpty());
+        assertEquals(10, inventory.held().count());
+        assertTrue(inventory.cursor().isEmpty());
+
+        // a cursor stack that cannot fully fit reports the remainder
+        inventory.clickSlot(0, 0); // cursor: 10 dirt (hotbar 0 emptied)
+        for (int i = 0; i < PlayerInventory.TOTAL_SLOTS; i++) {
+            inventory.pickUp(ItemStack.of(BuiltinItems.OAK_LOG, 64)); // fills every slot incl. 0
+        }
+        assertEquals(10, inventory.returnCursor().count(), "no slot fits: remainder to the world");
+    }
+
+    @Test
+    void invalidClicksAreRejectedWithoutStateChanges() {
+        PlayerInventory inventory = new PlayerInventory();
+        inventory.pickUp(ItemStack.of(BuiltinItems.DIRT, 5));
+        assertThrows(IllegalArgumentException.class, () -> inventory.clickSlot(-1, 0));
+        assertThrows(IllegalArgumentException.class, () -> inventory.clickSlot(36, 0));
+        assertThrows(IllegalArgumentException.class, () -> inventory.clickSlot(0, 2));
+        assertThrows(IllegalArgumentException.class, () -> inventory.quickMove(40));
+        assertThrows(IllegalArgumentException.class, () -> inventory.swapWithHotbar(0, 1)); // hotbar target
+        assertThrows(IllegalArgumentException.class, () -> inventory.swapWithHotbar(9, 9));
+        assertEquals(5, inventory.held().count());
+        assertTrue(inventory.cursor().isEmpty());
+    }
 }

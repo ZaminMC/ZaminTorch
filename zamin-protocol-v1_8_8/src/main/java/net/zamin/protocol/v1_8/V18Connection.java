@@ -306,6 +306,8 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 short slot = packet.readShort();
                 engine.heldItemChange(player, slot);
             }
+            case Protocol18.C2S_WINDOW_CLICK -> handleWindowClick(channel, player, packet);
+            case Protocol18.C2S_CLOSE_WINDOW -> engine.closeWindow(player);
             case Protocol18.C2S_PLAYER_DIGGING -> handleDigging(player, packet);
             case Protocol18.C2S_PLAYER_BLOCK_PLACEMENT -> handleBlockPlacement(player, packet);
             default -> {
@@ -321,6 +323,65 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         if (pendingKeepAlive == id) {
             pendingKeepAlive = -1;
         }
+    }
+
+    /**
+     * Click Window (0x0E, community-verified layout: u8 window, i16 slot,
+     * i8 button, i16 action, i8 mode, claimed slot). The engine owns the
+     * verdict; the confirm and the authoritative cursor state follow here.
+     */
+    private void handleWindowClick(Channel channel, PlayerSession player, ByteBuf packet) {
+        packet.readUnsignedByte();  // window id: only window 0 exists
+        int wireSlot = packet.readShort();
+        int button = packet.readByte();
+        int actionNumber = packet.readShort();
+        int mode = packet.readByte();
+        readClaimedSlot(packet);    // the client's predicted stack: informational only
+        engine.windowClick(player, wireSlot, button, mode, accepted -> {
+            // Runs on the tick thread after the semantic operation.
+            sendConfirmTransaction(channel, actionNumber, accepted);
+            sendCursorSlot(channel, player);
+        });
+    }
+
+    /** Skips the 1.8 slot encoding the click claims to carry. */
+    private static void readClaimedSlot(ByteBuf packet) {
+        short id = packet.readShort();
+        if (id == -1) {
+            return;
+        }
+        packet.readByte();              // count
+        packet.readShort();             // damage
+        int nbt = packet.readShort();   // NBT length (-1 = none)
+        if (nbt > 0) {
+            packet.skipBytes(nbt);
+        }
+    }
+
+    /** Confirm Transaction (0x32): the client reverts its prediction on rejection. */
+    private void sendConfirmTransaction(Channel channel, int actionNumber, boolean accepted) {
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(8);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_CONFIRM_TRANSACTION);
+        out.writeByte(Protocol18.INVENTORY_WINDOW_ID);
+        out.writeShort(actionNumber);
+        out.writeBoolean(accepted);
+        channel.writeAndFlush(out);
+    }
+
+    /** Authoritative cursor stack (Set Slot with window -1, slot -1). Any thread. */
+    private void sendCursorSlot(Channel channel, PlayerSession player) {
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(16);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_SET_SLOT);
+        out.writeByte(-1);          // window: cursor
+        out.writeShort(-1);         // slot: cursor
+        writeSlot(out, player.inventory().cursor());
+        channel.writeAndFlush(out);
     }
 
     private void handleDigging(PlayerSession player, ByteBuf packet) {

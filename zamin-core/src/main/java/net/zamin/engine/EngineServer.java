@@ -218,7 +218,7 @@ public final class EngineServer implements Server, EngineBridge {
         for (PlayerSession session : players.all()) {
             try {
                 session.markDisconnecting();
-                persistPlayer(session);
+                persistPlayerNow(session);
                 players.unregister(session);
                 session.link().kick("Server closed");
             } catch (RuntimeException e) {
@@ -342,23 +342,129 @@ public final class EngineServer implements Server, EngineBridge {
             if (dropped.isEmpty()) {
                 return;
             }
-            // Historical throw: look direction, ~0.3 speed, small upward bias.
-            double yaw = Math.toRadians(session.rotation().yaw());
-            double pitch = Math.toRadians(session.rotation().pitch());
-            double dx = -Math.sin(yaw) * Math.cos(pitch);
-            double dy = -Math.sin(pitch);
-            double dz = Math.cos(yaw) * Math.cos(pitch);
-            double speed = 0.3;
-            var itemEntitiesManager = itemEntities;
-            if (itemEntitiesManager == null) {
-                return;
+            throwFromPlayer(session, dropped);
+            publishInventoryChanged(session);
+        });
+    }
+
+    /** Historical throw: look direction, ~0.3 speed, small upward bias. */
+    private void throwFromPlayer(PlayerSession session, net.zamin.api.ItemStack dropped) {
+        double yaw = Math.toRadians(session.rotation().yaw());
+        double pitch = Math.toRadians(session.rotation().pitch());
+        double dx = -Math.sin(yaw) * Math.cos(pitch);
+        double dy = -Math.sin(pitch);
+        double dz = Math.cos(yaw) * Math.cos(pitch);
+        double speed = 0.3;
+        var itemEntitiesManager = itemEntities;
+        if (itemEntitiesManager == null) {
+            return;
+        }
+        var eye = session.position();
+        ItemEntity entity = itemEntitiesManager.spawnThrown(
+                new net.zamin.api.Position(
+                        eye.x() + dx * 0.4, eye.y() + 1.62 + dy * 0.4, eye.z() + dz * 0.4),
+                dropped);
+        entity.setVelocity(dx * speed, dy * speed + 0.1, dz * speed);
+    }
+
+    /**
+     * A window click in the player inventory (mode/button from the historical
+     * wire): the semantic operation runs on the tick thread, the verdict goes
+     * back through {@code result}, and the inventory re-syncs after every
+     * click so the client never keeps predicted state. Safe from any thread.
+     */
+    @Override
+    public void windowClick(PlayerSession session, int wireSlot, int button, int mode,
+                            java.util.function.Consumer<Boolean> result) {
+        Objects.requireNonNull(session, "session");
+        Objects.requireNonNull(result, "result");
+        ticker.submit(() -> windowClickOnTick(session, wireSlot, button, mode, result));
+    }
+
+    /** Wire slot -> engine slot mapping for the player inventory window; -1 when out of engine scope. */
+    private static int engineSlotOf(int wireSlot) {
+        if (wireSlot >= 9 && wireSlot <= 35) {
+            return wireSlot;                 // main inventory
+        }
+        if (wireSlot >= 36 && wireSlot <= 44) {
+            return wireSlot - 36;            // hotbar
+        }
+        return -1;                           // craft/armor slots or outside
+    }
+
+    private void windowClickOnTick(PlayerSession session, int wireSlot, int button, int mode,
+                                   java.util.function.Consumer<Boolean> result) {
+        var inventory = session.inventory();
+        boolean accepted = false;
+        try {
+            switch (mode) {
+                case 0 -> {
+                    int engineSlot = engineSlotOf(wireSlot);
+                    if (engineSlot >= 0) {
+                        inventory.clickSlot(engineSlot, button);
+                        accepted = true;
+                    }
+                }
+                case 1 -> {
+                    int engineSlot = engineSlotOf(wireSlot);
+                    if (engineSlot >= 0) {
+                        inventory.quickMove(engineSlot);
+                        accepted = true;
+                    }
+                }
+                case 2 -> {
+                    int engineSlot = engineSlotOf(wireSlot);
+                    if (engineSlot >= 0 && button >= 0 && button < 9) {
+                        inventory.swapWithHotbar(engineSlot, button);
+                        accepted = true;
+                    }
+                }
+                case 3 -> {
+                    // Middle-click clone is a creative-only gesture: rejected in survival.
+                }
+                case 4 -> {
+                    int engineSlot = engineSlotOf(wireSlot);
+                    if (engineSlot >= 0) {
+                        net.zamin.api.ItemStack dropped = inventory.dropFromSlot(engineSlot, button != 0);
+                        if (!dropped.isEmpty()) {
+                            throwFromPlayer(session, dropped);
+                        }
+                        accepted = true;
+                    }
+                }
+                case 5 -> {
+                    // Drag painting: rejected per packet; the end-of-drag resync
+                    // restores the authoritative state on the client.
+                }
+                default -> {
+                    // Unknown mode: rejected.
+                }
             }
-            var eye = session.position();
-            ItemEntity entity = itemEntitiesManager.spawnThrown(
-                    new net.zamin.api.Position(
-                            eye.x() + dx * 0.4, eye.y() + 1.62 + dy * 0.4, eye.z() + dz * 0.4),
-                    dropped);
-            entity.setVelocity(dx * speed, dy * speed + 0.1, dz * speed);
+            if (wireSlot == -999 && !inventory.cursor().isEmpty()) {
+                // Clicking outside the window throws the carried stack.
+                net.zamin.api.ItemStack carried = inventory.cursor();
+                throwFromPlayer(session, carried);
+                inventory.returnCursor();
+                accepted = true;
+            }
+        } catch (IllegalArgumentException invalid) {
+            accepted = false; // a broken click must not damage the session (§54)
+        }
+        result.accept(accepted);
+        publishInventoryChanged(session);
+    }
+
+    /**
+     * The player closed the inventory window: the carried cursor stack returns
+     * to the inventory; a remainder is thrown into the world. Safe from any thread.
+     */
+    public void closeWindow(PlayerSession session) {
+        Objects.requireNonNull(session, "session");
+        ticker.submit(() -> {
+            net.zamin.api.ItemStack leftover = session.inventory().returnCursor();
+            if (!leftover.isEmpty()) {
+                throwFromPlayer(session, leftover);
+            }
             publishInventoryChanged(session);
         });
     }
@@ -615,6 +721,36 @@ public final class EngineServer implements Server, EngineBridge {
         }
     }
 
+    /**
+     * Shutdown variant: submits the cursor-return + persist onto the tick thread
+     * and waits, so the tick loop's ordering guarantees hold and the save is
+     * durable before the loop stops.
+     */
+    private void persistPlayerNow(PlayerSession session) {
+        if (playerStore == null || ticker == null) {
+            return;
+        }
+        java.util.concurrent.CountDownLatch done = new java.util.concurrent.CountDownLatch(1);
+        ticker.submit(() -> {
+            try {
+                net.zamin.api.ItemStack leftover = session.inventory().returnCursor();
+                if (!leftover.isEmpty()) {
+                    throwFromPlayer(session, leftover);
+                }
+                persistPlayer(session);
+            } finally {
+                done.countDown();
+            }
+        });
+        try {
+            if (!done.await(2, java.util.concurrent.TimeUnit.SECONDS)) {
+                LOGGER.warning("Player save did not complete within 2s for " + session.name());
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
     @Override
     public void joinCompleted(PlayerSession session) {
         session.markPlaying();
@@ -636,9 +772,17 @@ public final class EngineServer implements Server, EngineBridge {
         session.markDisconnected();
         players.unregister(session);
         // Persist on the tick thread so the save is ordered after any queued
-        // inventory work for this player (pickup, wear, give).
+        // inventory work for this player (pickup, wear, give). A carried cursor
+        // stack goes back into the inventory first; a remainder is thrown so
+        // nothing is lost (historical behavior for leaving with a held stack).
         if (ticker != null) {
-            ticker.submit(() -> persistPlayer(session));
+            ticker.submit(() -> {
+                net.zamin.api.ItemStack leftover = session.inventory().returnCursor();
+                if (!leftover.isEmpty()) {
+                    throwFromPlayer(session, leftover);
+                }
+                persistPlayer(session);
+            });
         }
         LOGGER.info(() -> "Player disconnected: " + session.name() + " (" + reason + ")");
     }

@@ -29,6 +29,7 @@ final class Protocol18 {
     static final int S2C_BLOCK_CHANGE = 0x23;
     static final int S2C_SET_SLOT = 0x2F;
     static final int S2C_WINDOW_ITEMS = 0x30;
+    static final int S2C_CONFIRM_TRANSACTION = 0x32;
     static final int S2C_NAMED_SPAWN = 0x0C;
     static final int S2C_CHUNK_DATA = 0x21;
     static final int S2C_UNLOAD_CHUNK = 0x1D;
@@ -43,6 +44,8 @@ final class Protocol18 {
     static final int C2S_PLAYER_DIGGING = 0x07;
     static final int C2S_PLAYER_BLOCK_PLACEMENT = 0x08;
     static final int C2S_HELD_ITEM_CHANGE = 0x09;
+    static final int C2S_CLOSE_WINDOW = 0x0D;
+    static final int C2S_WINDOW_CLICK = 0x0E;
     static final int C2S_CLIENT_SETTINGS = 0x15;
     static final int C2S_CLIENT_STATUS = 0x16;
     static final int C2S_PLAYER = 0x0F;

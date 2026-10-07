@@ -156,9 +156,8 @@ smoke repeats it against the launcher):
   x|z|y; the verified protocol 47 layout is x:26 | y:12 | z:26. Self-
   consistent scripted tests could not catch this — the live process could.
 
-Explicitly NOT yet: inventory UI click handling (window clicks are
-accepted-and-ignored with authoritative re-sync), crafting, item NBT beyond
-durability damage, player-data persistence, item merging, physics beyond
+Explicitly NOT yet: crafting (window clicks in craft slots are rejected),
+item NBT beyond durability damage, item merging, physics beyond
 gravity+drag, permissions, lighting, mobs, Anvil import, plugin API.
 
 ## 10e. Slice #5 — tools & harvest (implemented status)
@@ -211,6 +210,35 @@ live restart smoke:
   tools. Unresolvable saved items are dropped loudly, not fatally. The
   initial chunk view is centered on the player's actual position (spawn for
   fresh players), not unconditionally on the world spawn.
+
+## 10g. Slice #7 — inventory window clicks (implemented status)
+
+The player's own 36-slot inventory is now clickable; the engine decides and
+the client reverts on rejection (§429 semantics, community-verified wire
+layouts for Click Window 0x0E and Confirm Transaction 0x32):
+
+- **Cursor model** (§433 family): the inventory owns a cursor stack.
+  Left/right clicks pick up, place, merge into matching (damage-equal)
+  stacks, split half (rounding up) and swap mismatches — the historical
+  behaviors, pinned by unit tests. A full matching stack is a no-op merge,
+  not a swap, as historically.
+- **Quick move** (shift-click): whole stacks swap ranges between hotbar and
+  main inventory, matching stacks topped up first, then empty slots.
+- **Number keys** (mode 2): main slot <-> hotbar exchange.
+- **Drop gestures**: mode 4 throws one unit or the whole clicked slot in the
+  look direction; clicking outside the window (slot -999) throws the carried
+  cursor stack; closing the window (0x0D) returns the cursor to the
+  inventory, overflow thrown so nothing is lost. Disconnects do the same
+  before the persistence snapshot.
+- **Every click answers** Confirm Transaction with the action number
+  (accepted) and the authoritative cursor Set Slot (window -1), followed by
+  a full Window Items re-sync — the client never keeps predicted state.
+- **Rejected** (transaction declined): clicks in craft/armor slots (crafting
+  is a later slice), middle-click clone, drag painting (mode 5), unknown
+  modes, out-of-range slots. Rejections re-sync too, so the client recovers.
+
+Wire order per click is pinned by the integration test; the live smoke ran
+/give -> shift-click -> pickup -> place -> craft-reject over a real process.
 
 ## 11. Known risks
 
