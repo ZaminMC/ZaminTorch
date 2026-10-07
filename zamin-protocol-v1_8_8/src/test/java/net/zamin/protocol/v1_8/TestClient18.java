@@ -221,6 +221,37 @@ final class TestClient18 implements AutoCloseable {
         throw new IOException("Timed out waiting for packet id " + expectedId);
     }
 
+    void sendDigging(int status, int x, int y, int z, int face) throws IOException {
+        ByteBuf body = Unpooled.buffer(24);
+        ByteBufOps.writeVarInt(body, Protocol18.C2S_PLAYER_DIGGING);
+        body.writeByte(status);
+        ByteBufOps.writePackedBlockPosition(body, x, y, z);
+        body.writeByte(face);
+        sendPacket(bodyToBytes(body));
+    }
+
+    void sendBlockPlacement(int x, int y, int z, int face, int heldItemId) throws IOException {
+        ByteBuf body = Unpooled.buffer(24);
+        ByteBufOps.writeVarInt(body, Protocol18.C2S_PLAYER_BLOCK_PLACEMENT);
+        ByteBufOps.writePackedBlockPosition(body, x, y, z);
+        body.writeByte(face);
+        body.writeShort(heldItemId);  // 1.8 slot: id
+        body.writeByte(1);            // count
+        body.writeShort(0);           // metadata
+        body.writeShort(0);           // nbt: none
+        sendPacket(bodyToBytes(body));
+    }
+
+    /** Reads a Block Change packet, returning {x, y, z, legacyId}. */
+    int[] readBlockChange(long timeoutMs) throws IOException {
+        byte[] payload = readPacketOfType(Protocol18.S2C_BLOCK_CHANGE, timeoutMs);
+        ByteBuf buffer = Unpooled.wrappedBuffer(payload);
+        ByteBufOps.readVarInt(buffer); // packet id
+        int[] pos = ByteBufOps.readPackedBlockPosition(buffer);
+        int legacy = ByteBufOps.readVarInt(buffer);
+        return new int[]{pos[0], pos[1], pos[2], legacy};
+    }
+
     @Override
     public void close() throws IOException {
         socket.close();

@@ -19,6 +19,7 @@ final class Protocol18 {
     static final int S2C_SPAWN_POSITION = 0x05;
     static final int S2C_UPDATE_HEALTH = 0x06;
     static final int S2C_PLAYER_POSITION_AND_LOOK = 0x08;
+    static final int S2C_BLOCK_CHANGE = 0x23;
     static final int S2C_CHUNK_DATA = 0x21;
     static final int S2C_UNLOAD_CHUNK = 0x1D;
     static final int S2C_DISCONNECT = 0x40;

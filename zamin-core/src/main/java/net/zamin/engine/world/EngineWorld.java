@@ -118,6 +118,11 @@ public final class EngineWorld implements World {
         return chunks.get(position.packed());
     }
 
+    /** The canonical air identity of this world (single source for emptiness checks). */
+    public BlockType airType() {
+        return air;
+    }
+
     public int loadedChunkCount() {
         return chunks.size();
     }

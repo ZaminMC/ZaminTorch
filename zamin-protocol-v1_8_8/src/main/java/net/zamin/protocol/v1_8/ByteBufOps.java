@@ -85,7 +85,12 @@ final class ByteBufOps {
         out.writeLong(packed);
     }
 
-    static int readVarIntLength(ByteBuf in) {
-        return readVarInt(in);
+    /** @return {x, y, z} decoded from a packed long block position of this protocol. */
+    static int[] readPackedBlockPosition(ByteBuf in) {
+        long packed = in.readLong();
+        int x = (int) (packed >> 38);
+        int y = (int) (packed << 52 >> 52);
+        int z = (int) (packed << 26 >> 38);
+        return new int[]{x, y, z};
     }
 }

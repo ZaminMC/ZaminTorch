@@ -18,6 +18,8 @@ import net.zamin.engine.world.FlatWorldGenerator;
 import net.zamin.engine.block.BlockRegistryBuilder;
 import net.zamin.engine.block.BuiltinBlocks;
 import net.zamin.engine.block.BlockRegistryBuilder.FrozenBlockRegistry;
+import net.zamin.engine.interaction.BlockInteractionService;
+import net.zamin.engine.world.WorldChangeListener;
 
 import java.util.Collection;
 import java.util.Objects;
@@ -54,6 +56,8 @@ public final class EngineServer implements Server, EngineBridge {
     private FrozenBlockRegistry blockRegistry;
     private EngineWorld world;
     private EngineTicker ticker;
+    private BlockInteractionService blockInteraction;
+    private final java.util.List<WorldChangeListener> worldListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
 
     public EngineServer(EngineConfig config) {
         this.config = Objects.requireNonNull(config, "config");
@@ -95,6 +99,7 @@ public final class EngineServer implements Server, EngineBridge {
                 world = new EngineWorld(config.worldName(), blockRegistry, generator, owner);
                 pregenerateSpawnArea(world);
                 ticker.attachWorld(world);
+                blockInteraction = new BlockInteractionService(world, ticker, this::publishBlockChange);
                 worldReady.countDown();
                 ticker.runLoop(); // blocks until stop
             } catch (Throwable t) {
@@ -217,6 +222,22 @@ public final class EngineServer implements Server, EngineBridge {
 
     public PlayerRegistry playerRegistry() {
         return players;
+    }
+
+    /** The semantic entry point for player-driven block changes. */
+    public BlockInteractionService blockInteraction() {
+        return blockInteraction;
+    }
+
+    /** Registers an internal world observer (e.g. the protocol adapter's sync). */
+    public void addWorldListener(WorldChangeListener listener) {
+        worldListeners.add(listener);
+    }
+
+    private void publishBlockChange(BlockInteractionService.BlockChange change) {
+        for (WorldChangeListener listener : worldListeners) {
+            listener.onBlockChanged(world, change.position(), change.newType());
+        }
     }
 
     // ------------------------------------------------------------------ EngineBridge
