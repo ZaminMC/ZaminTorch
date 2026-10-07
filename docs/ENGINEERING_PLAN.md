@@ -238,7 +238,41 @@ layouts for Click Window 0x0E and Confirm Transaction 0x32):
   modes, out-of-range slots. Rejections re-sync too, so the client recovers.
 
 Wire order per click is pinned by the integration test; the live smoke ran
-/give -> shift-click -> pickup -> place -> craft-reject over a real process.
+/give -> shift-click -> pickup -> place over a real process (craft-grid clicks
+are accepted window state since slice #8).
+
+## 10h. Slice #8 — crafting (implemented status)
+
+**Status: implemented, 141 automated tests green, live smoke green
+(CRAFT_SMOKE_DONE), pushed.**
+
+- **Data (hard rule honored):** BuiltinRecipes generated from
+  PrismarineJS/minecraft-data `data/pc/1.8/recipes.json` (MIT; attribution in
+  the generated file). Filter: 2x2-fit + registered items -> the four vanilla
+  recipes (log->planks x4, 2x1 planks->sticks x4, 2x2 planks->crafting table,
+  coal+stick->torch x4). Tool-repair recipes (dynamic durability result) and
+  variant-result recipes (non-oak planks) are excluded with documented
+  reasons; regenerate with scripts/gen-recipes.py when the registry grows.
+- **Matching:** trimmed shaped patterns match the grid's non-empty bounding
+  box in normal or horizontally mirrored orientation (vanilla never flips
+  vertically — pinned by tests); interior null cells demand empty cells;
+  shapeless recipes match as multisets; bare-id ingredients accept any
+  metadata, (id, metadata) ingredients demand the exact damage-field value.
+- **Model:** CraftingGrid (4 cells, row-major) is player window state beside
+  PlayerInventory; the one cursor is shared via WindowClicks (click semantics
+  extracted so both containers play identical rules). Grid contents are
+  transient: window close, disconnect and shutdown return them to the
+  inventory, overflow is thrown — nothing is lost, nothing persists.
+- **Engine routing:** result-slot clicks craft once into the cursor (empty or
+  matching cursor only; refusals decline the transaction and resync); each
+  craft consumes one unit per non-empty cell; shift-click craft-all chains
+  while the grid still matches (smallest cell stack governs the length; a
+  remainder stays in the cell); number-key swaps and middle-click on the
+  crafting area are rejected with resync.
+- **Wire:** Window Items (0x30) now carries the result preview in wire slot 0
+  and the grid in 1-4 (45-slot layout complete); LegacyBlockIds gained stick
+  280, crafting_table 58, torch 50; placement/mining work for the two new
+  blocks through the existing registries and behavior table.
 
 ## 11. Known risks
 
