@@ -38,6 +38,16 @@ public interface EngineBridge {
     /** The client disconnected (cleanly or by error). Engine-side cleanup follows. */
     void clientDisconnected(PlayerSession session, String reason);
 
+    /**
+     * A window click in the player inventory window: the adapter reports the
+     * raw click (historical wire slot, button, mode, action number); the engine
+     * applies the semantic operation on the simulation context and reports the
+     * verdict through {@code result} (accepted / rejected), after which the
+     * adapter confirms the action number and re-syncs the affected slots.
+     */
+    void windowClick(PlayerSession session, int wireSlot, int button, int mode,
+                     java.util.function.Consumer<Boolean> result);
+
     /** Result of {@link #joinRequest}. */
     sealed interface JoinResult permits Accepted, Rejected {
     }

@@ -276,6 +276,52 @@ final class TestClient18 implements AutoCloseable {
         sendPacket(bodyToBytes(body));
     }
 
+    /** Sends a Click Window packet (community-verified protocol 47 layout). */
+    void sendWindowClick(int wireSlot, int button, int mode, int actionNumber) throws IOException {
+        ByteBuf body = Unpooled.buffer(24);
+        ByteBufOps.writeVarInt(body, Protocol18.C2S_WINDOW_CLICK);
+        body.writeByte(Protocol18.INVENTORY_WINDOW_ID);
+        body.writeShort(wireSlot);
+        body.writeByte(button);
+        body.writeShort(actionNumber);
+        body.writeByte(mode);
+        body.writeShort(-1); // claimed item: empty (tests never predict)
+        sendPacket(bodyToBytes(body));
+    }
+
+    /** Reads a Confirm Transaction packet, returning {windowId, actionNumber, accepted}. */
+    int[] readConfirmTransaction(long timeoutMs) throws IOException {
+        byte[] payload = readPacketOfType(Protocol18.S2C_CONFIRM_TRANSACTION, timeoutMs);
+        ByteBuf buffer = Unpooled.wrappedBuffer(payload);
+        ByteBufOps.readVarInt(buffer); // packet id
+        int windowId = buffer.readByte();
+        int action = buffer.readShort();
+        boolean accepted = buffer.readBoolean();
+        return new int[]{windowId, action, accepted ? 1 : 0};
+    }
+
+    /** Reads the cursor Set Slot (window -1, slot -1), returning {slot, itemId, count}. */
+    int[] readCursorSlot(long timeoutMs) throws IOException {
+        long deadline = System.currentTimeMillis() + timeoutMs;
+        while (System.currentTimeMillis() < deadline) {
+            byte[] payload = readPacket();
+            ByteBuf buffer = Unpooled.wrappedBuffer(payload);
+            int id = ByteBufOps.readVarInt(buffer);
+            if (id != Protocol18.S2C_SET_SLOT) {
+                continue;
+            }
+            int windowId = buffer.readByte();
+            int slot = buffer.readShort();
+            if (windowId != -1 || slot != -1) {
+                continue; // some other slot update (not expected in this suite)
+            }
+            int itemId = buffer.readShort();
+            int count = itemId == -1 ? -1 : buffer.readUnsignedByte();
+            return new int[]{slot, itemId, count};
+        }
+        throw new IOException("Timed out waiting for cursor slot");
+    }
+
     /** Reads a Spawn Entity packet for an item, returning {entityId, type, x32, y32, z32, data, vx, vy, vz}. */
     int[] readSpawnItem(long timeoutMs) throws IOException {
         byte[] payload = readPacketOfType(Protocol18.S2C_SPAWN_ENTITY, timeoutMs);
