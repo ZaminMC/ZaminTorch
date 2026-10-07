@@ -212,7 +212,10 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 sendSpawnPosition(channel);
                 sendTimeUpdate(channel);
                 chunkTracker = new ChunkTracker(engine, channel);
-                chunkTracker.sendInitial(engine.world().spawnPosition().toBlockPosition().chunkPosition());
+                // Center the initial view on the session's actual position: the
+                // world spawn for fresh players, the saved spot for returning ones.
+                chunkTracker.sendInitial(accepted.session().position()
+                        .toBlockPosition().chunkPosition());
                 sendInitialPositionAndLook(channel);
                 sendWindowItems(channel, accepted.session().inventory().snapshot());
                 engine.joinCompleted(accepted.session());

@@ -13,8 +13,10 @@ import net.zamin.engine.entity.ItemEntityManager;
 import net.zamin.engine.interaction.DropService;
 import net.zamin.engine.net.ClientLink;
 import net.zamin.engine.net.EngineBridge;
+import net.zamin.engine.player.PlayerDataStore;
 import net.zamin.engine.player.PlayerRegistry;
 import net.zamin.engine.player.PlayerSession;
+import net.zamin.engine.player.PlayerSnapshot;
 import net.zamin.engine.world.EngineChunk;
 import net.zamin.engine.world.EngineWorld;
 import net.zamin.engine.world.DeltaWorldStorage;
@@ -68,6 +70,7 @@ public final class EngineServer implements Server, EngineBridge {
     private BlockInteractionService blockInteraction;
     private ChatService chatService;
     private WorldStorage worldStorage;
+    private PlayerDataStore playerStore;
     private volatile ItemEntityManager itemEntities;
     private final java.util.List<WorldChangeListener> worldListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     private final java.util.List<ChatListener> chatListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
@@ -111,6 +114,9 @@ public final class EngineServer implements Server, EngineBridge {
         Thread boot = new Thread(() -> {
             try {
                 ticker = new EngineTicker(config.tickRateHz());
+                // Player persistence: one ZPD file per identity under <dataDir>/players.
+                playerStore = new PlayerDataStore(
+                        java.nio.file.Path.of(config.dataDir(), "players"));
                 // Ticker thread constructs the world so it is the owner from the start.
                 Thread owner = Thread.currentThread();
                 FlatWorldGenerator generator = new FlatWorldGenerator(blockRegistry, 4);
@@ -207,10 +213,12 @@ public final class EngineServer implements Server, EngineBridge {
             }
         }
 
-        // 2. engine-side player cleanup
+        // 2. engine-side player cleanup (each leaving player's state is persisted
+        //    so a restart continues their survival exactly where it stopped)
         for (PlayerSession session : players.all()) {
             try {
                 session.markDisconnecting();
+                persistPlayer(session);
                 players.unregister(session);
                 session.link().kick("Server closed");
             } catch (RuntimeException e) {
@@ -521,12 +529,89 @@ public final class EngineServer implements Server, EngineBridge {
             if (existing.isPresent()) {
                 return new EngineBridge.Rejected("You are already connected");
             }
+            // Returning players re-enter at their saved spot (§407 spirit: restart
+            // survival). The small per-player file read happens on the joining
+            // channel's event loop - one seek-and-read, no gameplay lock held.
+            Optional<PlayerSnapshot> saved = playerStore == null
+                    ? Optional.empty() : playerStore.load(offlineUuid);
             PlayerSession session = new PlayerSession(offlineUuid, username, link);
             players.register(session);
             session.authenticate();
-            session.beginJoin(world, world.spawnPosition());
-            LOGGER.info(() -> "Player joined: " + username + " (" + offlineUuid + ")");
+            Position spawn = saved.map(PlayerSnapshot::position)
+                    .orElseGet(world::spawnPosition);
+            session.beginJoin(world, spawn);
+            saved.ifPresent(snapshot -> restorePlayer(session, snapshot));
+            LOGGER.info(() -> "Player joined: " + username + " (" + offlineUuid + ")"
+                    + saved.map(s -> " [restored]").orElse(""));
             return new EngineBridge.Accepted(session);
+        }
+    }
+
+    /**
+     * Applies a saved snapshot to a joining session: look, inventory, held slot.
+     * Position already came through beginJoin. Saved items the current registry
+     * cannot resolve are dropped with a warning - the world moved on, the rest
+     * of the survival state stays intact.
+     */
+    private void restorePlayer(PlayerSession session, PlayerSnapshot snapshot) {
+        session.applyMovement(session.position(), snapshot.rotation(), true);
+        java.util.List<net.zamin.api.ItemStack> restored = new java.util.ArrayList<>(
+                java.util.Collections.nCopies(net.zamin.engine.player.PlayerInventory.TOTAL_SLOTS,
+                        net.zamin.api.ItemStack.EMPTY));
+        for (PlayerSnapshot.SlotStack saved : snapshot.slots()) {
+            Optional<net.zamin.api.ItemType> type =
+                    net.zamin.engine.item.BuiltinItems.lookup(saved.item());
+            if (type.isEmpty()) {
+                LOGGER.warning(() -> "Saved item no longer registered, dropped: " + saved.item());
+                continue;
+            }
+            try {
+                restored.set(saved.slot(), net.zamin.api.ItemStack.of(type.get(), saved.count())
+                        .withDamage(saved.damage()));
+            } catch (IllegalArgumentException invalid) {
+                LOGGER.warning(() -> "Saved slot dropped (invalid values): " + saved + " - "
+                        + invalid.getMessage());
+            }
+        }
+        try {
+            session.inventory().restore(restored, snapshot.heldSlot());
+        } catch (IllegalArgumentException invalid) {
+            LOGGER.warning("Inventory restore rejected for " + session.name() + ": "
+                    + invalid.getMessage());
+        }
+    }
+
+    /** The persistable view of a live session (position is volatile-read, inventory snapshotted). */
+    private PlayerSnapshot snapshotOf(PlayerSession session) {
+        java.util.List<PlayerSnapshot.SlotStack> filled = new java.util.ArrayList<>();
+        java.util.List<net.zamin.api.ItemStack> slots = session.inventory().snapshot();
+        for (int i = 0; i < slots.size(); i++) {
+            net.zamin.api.ItemStack stack = slots.get(i);
+            if (stack.isEmpty()) {
+                continue;
+            }
+            filled.add(new PlayerSnapshot.SlotStack(i, stack.type().identifier(),
+                    stack.count(), stack.damage()));
+        }
+        return new PlayerSnapshot(session.uuid(), session.name(), session.position(),
+                session.rotation(), session.inventory().heldSlot(), filled);
+    }
+
+    /**
+     * Persists one player's state. Runs on the tick thread when called through
+     * {@link #clientDisconnected} (ordered after any pending inventory work);
+     * direct calls from shutdown are safe because the tick loop no longer
+     * mutates player state at that point.
+     */
+    private void persistPlayer(PlayerSession session) {
+        if (playerStore == null) {
+            return;
+        }
+        try {
+            playerStore.save(snapshotOf(session));
+        } catch (RuntimeException e) {
+            LOGGER.log(java.util.logging.Level.WARNING,
+                    "Player save failed for " + session.name(), e);
         }
     }
 
@@ -550,6 +635,11 @@ public final class EngineServer implements Server, EngineBridge {
         session.markDisconnecting();
         session.markDisconnected();
         players.unregister(session);
+        // Persist on the tick thread so the save is ordered after any queued
+        // inventory work for this player (pickup, wear, give).
+        if (ticker != null) {
+            ticker.submit(() -> persistPlayer(session));
+        }
         LOGGER.info(() -> "Player disconnected: " + session.name() + " (" + reason + ")");
     }
 

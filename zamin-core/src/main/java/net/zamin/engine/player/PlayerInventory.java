@@ -148,6 +148,26 @@ public final class PlayerInventory {
         return true;
     }
 
+    /**
+     * Semantic restore from persisted state (join of a returning player):
+     * replaces the whole contents. Unresolvable saved items are dropped loudly
+     * by the caller before this runs, so the list is exactly TOTAL_SLOTS long.
+     * Atomic: a rejected restore leaves the inventory untouched.
+     */
+    public void restore(List<ItemStack> restored, int heldSlot) {
+        if (restored.size() != TOTAL_SLOTS) {
+            throw new IllegalArgumentException(
+                    "Restore requires exactly " + TOTAL_SLOTS + " slots: " + restored.size());
+        }
+        if (heldSlot < 0 || heldSlot >= HOTBAR_SLOTS) {
+            throw new IllegalArgumentException("Held slot out of range: " + heldSlot);
+        }
+        for (int i = 0; i < TOTAL_SLOTS; i++) {
+            slots[i] = restored.get(i);
+        }
+        this.heldSlot = heldSlot;
+    }
+
     /** Read-only slot snapshot for synchronization; callers must not mutate it. */
     public List<ItemStack> snapshot() {
         return List.of(slots.clone());
