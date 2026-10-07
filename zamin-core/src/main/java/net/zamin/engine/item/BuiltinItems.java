@@ -49,6 +49,12 @@ public final class BuiltinItems {
             Identifier.parse("minecraft:coal"), "Coal", 64);
     public static final EngineItemType DIAMOND = new EngineItemType(
             Identifier.parse("minecraft:diamond"), "Diamond", 64);
+    // Smelted materials (furnace slice): iron ingot unlocks the iron tool tier.
+    public static final EngineItemType IRON_INGOT = new EngineItemType(
+            Identifier.parse("minecraft:iron_ingot"), "Iron Ingot", 64);
+    // Smelting result of cobblestone; places the stone block like any block item.
+    public static final EngineItemType STONE = new EngineItemType(
+            Identifier.parse("minecraft:stone"), "Stone", 64);
 
     // Ore blocks that drop themselves (iron ore historically needs smelting).
     public static final EngineItemType COAL_ORE = new EngineItemType(
@@ -132,7 +138,7 @@ public final class BuiltinItems {
         for (EngineItemType type : new EngineItemType[] {
                 DIRT, COBBLESTONE, OAK_PLANKS, OAK_LOG,
                 STICK, CRAFTING_TABLE, TORCH, FURNACE, CHEST,
-                COAL, DIAMOND, COAL_ORE, IRON_ORE, DIAMOND_ORE,
+                COAL, DIAMOND, IRON_INGOT, STONE, COAL_ORE, IRON_ORE, DIAMOND_ORE,
                 WOODEN_PICKAXE, STONE_PICKAXE, IRON_PICKAXE, DIAMOND_PICKAXE, GOLDEN_PICKAXE,
                 WOODEN_AXE, STONE_AXE, IRON_AXE, DIAMOND_AXE, GOLDEN_AXE,
                 WOODEN_SHOVEL, STONE_SHOVEL, IRON_SHOVEL, DIAMOND_SHOVEL, GOLDEN_SHOVEL,

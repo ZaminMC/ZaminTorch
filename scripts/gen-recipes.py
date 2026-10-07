@@ -27,6 +27,7 @@ OUT = ("/home/z/my-project/ZaminTorch/zamin-core/src/main/java/"
 REGISTERED = {
     "minecraft:dirt", "minecraft:cobblestone", "minecraft:oak_planks",
     "minecraft:oak_log", "minecraft:coal", "minecraft:diamond",
+    "minecraft:iron_ingot", "minecraft:stone",
     "minecraft:coal_ore", "minecraft:iron_ore", "minecraft:diamond_ore",
     "minecraft:stick", "minecraft:crafting_table", "minecraft:torch",
     "minecraft:furnace", "minecraft:chest",

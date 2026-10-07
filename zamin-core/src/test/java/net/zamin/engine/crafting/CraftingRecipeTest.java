@@ -36,10 +36,10 @@ class CraftingRecipeTest {
 
     @Test
     void builtinSetIsTheRegisteredVanillaRecipes() {
-        // planks, sticks, table, torch, furnace, chest + 12 tools (wood/stone/
-        // diamond x pickaxe/axe/shovel/sword; iron needs smelting, gold needs
-        // gold ingot — neither item exists in the registry yet).
-        assertEquals(18, BuiltinRecipes.ALL.size());
+        // planks, sticks, table, torch, furnace, chest, 16 tools (wood/stone/
+        // iron/diamond x pickaxe/axe/shovel/sword) + shears. Gold still needs
+        // gold ingot — no gold ore item exists in the registry yet.
+        assertEquals(23, BuiltinRecipes.ALL.size());
         for (CraftingRecipe recipe : BuiltinRecipes.ALL) {
             assertTrue(recipe.isShaped(), "the dataset encodes all of these as shaped");
         }

@@ -59,6 +59,8 @@ public final class BlockInteractionService {
     private final java.util.function.Function<net.zamin.api.ItemType,
             java.util.Optional<BlockType>> blockItemResolver;
     private final java.util.function.Consumer<PlayerSession> inventorySync;
+    /** Post-break hook (furnace spill, future block entities). Tick-thread context. */
+    private volatile java.util.function.Consumer<BlockPosition> blockBrokenListener;
 
     /** Active survival mining sessions, keyed by player. Tick-thread confined. */
     private final Map<UUID, MiningSession> miningSessions = new HashMap<>();
@@ -201,6 +203,10 @@ public final class BlockInteractionService {
         commit(target, world.airType());
         publishDrops(target, current, held);
         wearHeldTool(player, behavior);
+        Consumer<BlockPosition> listener = blockBrokenListener;
+        if (listener != null) {
+            listener.accept(target); // container spill runs after the block is gone
+        }
     }
 
     /**
@@ -217,6 +223,15 @@ public final class BlockInteractionService {
             // Worn or broken: the client's held slot is now stale, re-sync it.
             inventorySync.accept(player);
         }
+    }
+
+    /**
+     * Registers a post-break hook invoked on the tick thread after a survival
+     * break commits (the broken block's position). Used by the engine to spill
+     * container contents (furnace slots) into the world.
+     */
+    public void setBlockBrokenListener(java.util.function.Consumer<BlockPosition> listener) {
+        this.blockBrokenListener = listener;
     }
 
     private void placeOnTick(PlayerSession player, BlockPosition clicked, int face, BlockType held) {

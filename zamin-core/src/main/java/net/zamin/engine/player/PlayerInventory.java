@@ -141,8 +141,12 @@ public final class PlayerInventory {
         WindowClicks.click(slots, engineSlot, button, cursorBox());
     }
 
-    /** The one shared cursor, packaged for window-op collaborators (same package). */
-    WindowClicks.CursorBox cursorBox() {
+    /**
+     * The one shared cursor, packaged for window-op collaborators. Public
+     * because cross-package containers (the furnace block entity) play by the
+     * identical click semantics — the single cursor is an engine-wide contract.
+     */
+    public WindowClicks.CursorBox cursorBox() {
         return new WindowClicks.CursorBox() {
             @Override
             public ItemStack get() {

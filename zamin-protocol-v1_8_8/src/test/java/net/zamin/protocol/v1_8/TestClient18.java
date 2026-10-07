@@ -462,13 +462,38 @@ final class TestClient18 implements AutoCloseable {
 
     /** Reads a Window Items packet for an explicit window id into a slot table. */
     int[][] readWindowSlotTable(long timeoutMs, int expectedWindowId) throws IOException {
-        byte[] payload = readPacketOfType(Protocol18.S2C_WINDOW_ITEMS, timeoutMs);
-        ByteBuf buffer = Unpooled.wrappedBuffer(payload);
-        ByteBufOps.readVarInt(buffer); // packet id
-        int windowId = buffer.readByte();
-        if (windowId != expectedWindowId) {
-            throw new IOException("Unexpected window id " + windowId);
-        }
+        return readWindowSlotTable(timeoutMs, expectedWindowId, false);
+    }
+
+    /**
+     * Reads a Window Items packet for an explicit window id. With
+     * {@code drainStale} (a live container closing while its per-tick sync
+     * packets are still in flight), Window Items for other window ids are
+     * skipped instead of failing the read.
+     */
+    int[][] readWindowSlotTable(long timeoutMs, int expectedWindowId, boolean drainStale)
+            throws IOException {
+        long deadline = System.currentTimeMillis() + timeoutMs;
+        do {
+            byte[] payload = readPacketOfType(Protocol18.S2C_WINDOW_ITEMS,
+                    Math.max(1, deadline - System.currentTimeMillis()));
+            ByteBuf buffer = Unpooled.wrappedBuffer(payload);
+            ByteBufOps.readVarInt(buffer); // packet id
+            int windowId = buffer.readByte();
+            if (windowId != expectedWindowId) {
+                if (drainStale) {
+                    readSlotTablePayload(buffer); // skip and keep draining
+                    continue;
+                }
+                throw new IOException("Unexpected window id " + windowId);
+            }
+            return readSlotTablePayload(buffer);
+        } while (System.currentTimeMillis() < deadline);
+        throw new IOException("Timed out waiting for window " + expectedWindowId);
+    }
+
+    /** Consumes a slot table payload (count + encoded stacks) and returns it. */
+    private static int[][] readSlotTablePayload(ByteBuf buffer) {
         int count = buffer.readShort();
         int[][] table = new int[count][];
         for (int i = 0; i < count; i++) {
@@ -486,6 +511,36 @@ final class TestClient18 implements AutoCloseable {
             table[i] = new int[]{id, stackCount, damage};
         }
         return table;
+    }
+
+    /**
+     * Reads one Window Property packet (0x31), returning
+     * {windowId, property, value}.
+     */
+    int[] readWindowProperty(long timeoutMs) throws IOException {
+        byte[] payload = readPacketOfType(Protocol18.S2C_WINDOW_PROPERTY, timeoutMs);
+        ByteBuf buffer = Unpooled.wrappedBuffer(payload);
+        ByteBufOps.readVarInt(buffer); // packet id
+        int windowId = buffer.readUnsignedByte();
+        int property = buffer.readShort();
+        int value = buffer.readShort();
+        return new int[]{windowId, property, value};
+    }
+
+    /**
+     * Reads Window Property packets until one matching the expected property
+     * arrives. Intermediate properties are discarded (they all arrive on the
+     * smelting path).
+     */
+    int[] readWindowProperty(long timeoutMs, int expectedProperty) throws IOException {
+        long deadline = System.currentTimeMillis() + timeoutMs;
+        while (System.currentTimeMillis() < deadline) {
+            int[] property = readWindowProperty(Math.max(1, deadline - System.currentTimeMillis()));
+            if (property[1] == expectedProperty) {
+                return property;
+            }
+        }
+        throw new IOException("Timed out waiting for window property " + expectedProperty);
     }
 
     @Override

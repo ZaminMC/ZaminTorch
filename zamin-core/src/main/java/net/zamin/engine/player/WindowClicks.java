@@ -4,28 +4,28 @@ import net.zamin.api.ItemStack;
 
 /**
  * The historical 1.8 cursor-click semantics for window slot arrays, shared by
- * every slot container that plays in the player inventory window (the 36-slot
- * inventory, the 2x2 crafting grid). One mouse means one cursor: every
- * container mutates the same cursor through the caller's box.
+ * every slot container that plays in a window (the 36-slot inventory, the
+ * crafting grids, the furnace's three slots). One mouse means one cursor:
+ * every container mutates the same cursor through the caller's box.
  *
  * <p>Left click: pick up, place, merge into matching stacks, swap on
  * mismatch. Right click: take half (rounding up), place one, merge one,
  * swap. Clicks that change nothing (empty onto empty) leave all state
  * untouched.</p>
  */
-final class WindowClicks {
+public final class WindowClicks {
 
     private WindowClicks() {
     }
 
     /** Read/write access to the one shared cursor stack. */
-    interface CursorBox {
+    public interface CursorBox {
         ItemStack get();
 
         void set(ItemStack stack);
     }
 
-    static void click(ItemStack[] slots, int index, int button, CursorBox cursor) {
+    public static void click(ItemStack[] slots, int index, int button, CursorBox cursor) {
         if (index < 0 || index >= slots.length) {
             throw new IllegalArgumentException("Slot out of range: " + index);
         }
@@ -83,7 +83,7 @@ final class WindowClicks {
         }
     }
 
-    static boolean stacksMergeable(ItemStack a, ItemStack b) {
+    public static boolean stacksMergeable(ItemStack a, ItemStack b) {
         return a.type().equals(b.type()) && a.damage() == b.damage();
     }
 }

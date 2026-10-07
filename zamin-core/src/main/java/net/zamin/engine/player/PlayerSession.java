@@ -32,8 +32,21 @@ public final class PlayerSession implements net.zamin.api.Player {
     private volatile Position position = Position.ZERO; // replaced at spawn
     private volatile Rotation rotation = Rotation.ZERO;
     private volatile boolean onGround = true;
-    /** The open container window id (crafting table), or -1 when none. Tick-thread written, volatile-read by the adapter's sync. */
+    /** The open container window id (crafting table, furnace), or -1 when none. Tick-thread written, volatile-read by the adapter's sync. */
     private volatile int containerWindowId = -1;
+    /** Which container the open window is (routes wire layout + click semantics). */
+    private volatile ContainerKind containerKind = ContainerKind.NONE;
+    /** The block the open container belongs to (furnace state lookup); null otherwise. */
+    private volatile net.zamin.api.BlockPosition containerPosition;
+
+    /** The kinds of container windows a session can hold open. */
+    public enum ContainerKind {
+        NONE,
+        /** The 3x3 crafting table (10-slot GUI, grid state lives in the session). */
+        CRAFTING_TABLE,
+        /** The furnace (3-slot GUI, slot state lives in the world at containerPosition). */
+        FURNACE
+    }
 
     public PlayerSession(UUID uuid, String name, ClientLink link) {
         this.uuid = Objects.requireNonNull(uuid, "uuid");
@@ -84,17 +97,36 @@ public final class PlayerSession implements net.zamin.api.Player {
         return containerWindowId;
     }
 
+    /** @return which container the open window is (never null). */
+    public ContainerKind openContainerKind() {
+        return containerKind;
+    }
+
+    /** @return the block the open container belongs to, or null for the crafting table. */
+    public net.zamin.api.BlockPosition openContainerPosition() {
+        return containerPosition;
+    }
+
     /** Marks the container window as open (engine-assigned id &gt; 0). */
-    public void openContainerWindow(int windowId) {
+    public void openContainerWindow(int windowId, ContainerKind kind,
+                                    net.zamin.api.BlockPosition position) {
         if (windowId <= 0) {
             throw new IllegalArgumentException("Container window ids start at 1: " + windowId);
         }
+        Objects.requireNonNull(kind, "kind");
+        if (kind == ContainerKind.NONE) {
+            throw new IllegalArgumentException("NONE cannot open a window");
+        }
         this.containerWindowId = windowId;
+        this.containerKind = kind;
+        this.containerPosition = position;
     }
 
     /** Marks the container window as closed (no container open). */
     public void closeContainerWindow() {
         this.containerWindowId = -1;
+        this.containerKind = ContainerKind.NONE;
+        this.containerPosition = null;
     }
 
     public PlayerState state() {
