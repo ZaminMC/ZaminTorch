@@ -14,6 +14,7 @@ bin/
 
 # Runtime data (worlds, logs, crash reports) - never commit generated server data
 run/
+worlds/
 logs/
 crash-reports/
 

@@ -4,6 +4,8 @@ import net.zamin.api.BlockPosition;
 import net.zamin.api.Identifier;
 import net.zamin.api.Position;
 import net.zamin.engine.block.BuiltinBlocks;
+
+import java.nio.file.Path;
 import net.zamin.engine.config.EngineConfig;
 import net.zamin.engine.net.ClientLink;
 import net.zamin.engine.net.EngineBridge;
@@ -26,8 +28,12 @@ class BlockInteractionAcceptanceTest {
 
     private EngineServer server;
 
+    @org.junit.jupiter.api.io.TempDir
+    Path dataDir;
+
     private EngineServer boot() throws InterruptedException {
-        EngineConfig config = new EngineConfig("127.0.0.1", 0, "itest", "it", 20, 4, 20);
+        EngineConfig config = new EngineConfig("127.0.0.1", 0, "itest", "it", 20, 4, 20,
+                dataDir.toString());
         EngineServer started = new EngineServer(config);
         started.start();
         return started;

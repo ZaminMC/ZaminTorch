@@ -20,9 +20,16 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class ShutdownAcceptanceTest {
 
+    @org.junit.jupiter.api.io.TempDir
+    java.nio.file.Path dataDirOne;
+
+    @org.junit.jupiter.api.io.TempDir
+    java.nio.file.Path dataDirTwo;
+
     @Test
     void shutdownWithConnectedClientCompletesCleanly() throws Exception {
-        EngineConfig config = new EngineConfig("127.0.0.1", 0, "world", "shutdown test", 20, 2, 20);
+        EngineConfig config = new EngineConfig("127.0.0.1", 0, "world", "shutdown test", 20, 2, 20,
+                dataDirOne.toString());
         EngineServer server = new EngineServer(config);
         server.start();
         V18ProtocolServer adapter = new V18ProtocolServer(server, 250);
@@ -65,7 +72,8 @@ class ShutdownAcceptanceTest {
 
     @Test
     void shutdownWithoutClientsIsImmediate() throws Exception {
-        EngineConfig config = new EngineConfig("127.0.0.1", 0, "world2", "shutdown test 2", 20, 2, 20);
+        EngineConfig config = new EngineConfig("127.0.0.1", 0, "world2", "shutdown test 2", 20, 2, 20,
+                dataDirTwo.toString());
         EngineServer server = new EngineServer(config);
         server.start();
         V18ProtocolServer adapter = new V18ProtocolServer(server, 250);

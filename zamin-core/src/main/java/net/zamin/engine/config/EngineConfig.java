@@ -14,6 +14,7 @@ import java.util.Objects;
  * @param maxPlayers       maximum simultaneously active players
  * @param viewDistance     view distance in chunks (server-enforced, not client)
  * @param tickRateHz       simulation ticks per second (20 for the 1.8.8 target)
+ * @param dataDir          directory for world persistence
  */
 public record EngineConfig(
         String host,
@@ -22,7 +23,8 @@ public record EngineConfig(
         String motd,
         int maxPlayers,
         int viewDistance,
-        int tickRateHz
+        int tickRateHz,
+        String dataDir
 ) {
 
     public EngineConfig {
@@ -41,11 +43,15 @@ public record EngineConfig(
         if (tickRateHz < 1 || tickRateHz > 100) {
             throw new IllegalArgumentException("tickRateHz out of range: " + tickRateHz);
         }
+        Objects.requireNonNull(dataDir, "dataDir");
+        if (dataDir.isBlank()) {
+            throw new IllegalArgumentException("dataDir must not be blank");
+        }
     }
 
     public static EngineConfig defaults() {
         return new EngineConfig("0.0.0.0", 25565, "world",
-                "A ZaminTorch server", 20, 4, 20);
+                "A ZaminTorch server", 20, 4, 20, ".");
     }
 
     /** The file operators edit. Subsystems never read this file directly. */
