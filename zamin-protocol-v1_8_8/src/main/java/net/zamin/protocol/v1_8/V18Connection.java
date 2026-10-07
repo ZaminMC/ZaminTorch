@@ -65,6 +65,9 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     private volatile long keepAliveSentAt;
 
     private ChunkTracker chunkTracker;
+    // Remote player entity ids as seen by THIS client (observer-local id space).
+    private final java.util.Map<UUID, Integer> remoteEntityIds = new java.util.concurrent.ConcurrentHashMap<>();
+    private final java.util.Set<UUID> visibleRemotePlayers = java.util.Collections.synchronizedSet(new java.util.HashSet<>());
 
     V18Connection(V18ProtocolServer adapter, EngineServer engine) {
         this.adapter = adapter;
@@ -76,11 +79,14 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     @Override
     public void channelInactive(ChannelHandlerContext ctx) {
         PlayerSession current = session;
+        UUID departedUuid = null;
         if (current != null) {
+            departedUuid = current.uuid();
             session = null;
             engine.clientDisconnected(current, "connection closed");
         }
         adapter.forget(this);
+        adapter.playerLeft(departedUuid);
     }
 
     @Override
@@ -207,6 +213,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 sendInitialPositionAndLook(channel);
                 engine.joinCompleted(accepted.session());
                 startKeepAlive(channel);
+                adapter.playerEnteredPlay(this);
             }
         });
     }
@@ -282,7 +289,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             case Protocol18.C2S_PLAYER -> packet.readBoolean(); // ground state only; no position change
             case Protocol18.C2S_CHAT_MESSAGE -> {
                 String message = ByteBufOps.readString(packet, 256);
-                LOGGER.info(() -> "Chat (no broadcast in slice 1) from " + player.name() + ": " + message);
+                engine.chatService().submitChat(player, message);
             }
             case Protocol18.C2S_CLIENT_SETTINGS, Protocol18.C2S_HELD_ITEM_CHANGE,
                  Protocol18.C2S_CLIENT_STATUS -> {
@@ -383,6 +390,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         if (chunkTracker != null) {
             chunkTracker.updateCenter(newChunk);
         }
+        adapter.broadcastMovement(player);
     }
 
     private boolean isSaneMovement(PlayerSession player, Position position, Rotation rotation) {
@@ -454,6 +462,100 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         } else {
             sendLoginDisconnect(channel, reason);
         }
+    }
+
+    // ------------------------------------------------------------------ chat + players
+
+    /** Delivers a chat line to this client. Any thread. */
+    void sendChatLine(String text, int position) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(64 + text.length());
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_CHAT);
+        ByteBufOps.writeString(out, "{\"text\":\"" + jsonEscape(text) + "\"}");
+        out.writeByte(position);
+        channel.writeAndFlush(out);
+    }
+
+    private static String jsonEscape(String text) {
+        return text.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", " ");
+    }
+
+    /**
+     * Ensures this client sees {@code other} as an entity, spawning when newly visible.
+     * Called during join exchange and movement sync.
+     */
+    void trackPlayer(PlayerSession other) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY || other == session) {
+            return;
+        }
+        if (!visibleRemotePlayers.add(other.uuid())) {
+            return; // already tracked
+        }
+        int entityId = remoteEntityIds.computeIfAbsent(other.uuid(),
+                uuid -> adapter.nextEntityId());
+        Position pos = other.position();
+        ByteBuf out = Unpooled.buffer(48);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_NAMED_SPAWN);
+        ByteBufOps.writeVarInt(out, entityId);
+        ByteBufOps.writeString(out, other.uuid().toString());
+        out.writeInt((int) Math.floor(pos.x() * 32.0));
+        out.writeInt((int) Math.floor(pos.y() * 32.0));
+        out.writeInt((int) Math.floor(pos.z() * 32.0));
+        out.writeByte((int) (other.rotation().yaw() * 256.0f / 360.0f));
+        out.writeByte((int) (other.rotation().pitch() * 256.0f / 360.0f));
+        out.writeShort(0); // held item: none
+        out.writeByte(0xFF); // metadata terminator: no metadata entries
+        channel.writeAndFlush(out);
+    }
+
+    /** Removes a remote player entity from this client (logout or move-away). */
+    void untrackPlayer(UUID remoteUuid) {
+        if (!visibleRemotePlayers.remove(remoteUuid)) {
+            return;
+        }
+        Integer entityId = remoteEntityIds.remove(remoteUuid);
+        Channel channel = adapter.channelOf(this);
+        if (entityId == null || channel == null || !channel.isActive()) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(8);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_DESTROY_ENTITIES);
+        ByteBufOps.writeVarInt(out, 1);
+        ByteBufOps.writeVarInt(out, entityId);
+        channel.writeAndFlush(out);
+    }
+
+    /** Sends an absolute-position teleport for a tracked remote player. */
+    void sendRemoteTeleport(PlayerSession other) {
+        Channel channel = adapter.channelOf(this);
+        Integer entityId = remoteEntityIds.get(other.uuid());
+        if (channel == null || !channel.isActive() || entityId == null || other == session) {
+            return;
+        }
+        Position pos = other.position();
+        ByteBuf out = Unpooled.buffer(40);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_ENTITY_TELEPORT);
+        ByteBufOps.writeVarInt(out, entityId);
+        out.writeInt((int) Math.floor(pos.x() * 32.0));
+        out.writeInt((int) Math.floor(pos.y() * 32.0));
+        out.writeInt((int) Math.floor(pos.z() * 32.0));
+        out.writeByte((int) (other.rotation().yaw() * 256.0f / 360.0f) & 0xFF);
+        out.writeByte((int) (other.rotation().pitch() * 256.0f / 360.0f) & 0xFF);
+        out.writeBoolean(other.onGround());
+        channel.writeAndFlush(out);
+    }
+
+    UUID sessionUuid() {
+        PlayerSession current = session;
+        return current == null ? null : current.uuid();
+    }
+
+    PlayerSession currentSession() {
+        return session;
     }
 
     // ------------------------------------------------------------------ outgoing sync

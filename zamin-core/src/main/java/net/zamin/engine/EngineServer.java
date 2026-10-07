@@ -20,6 +20,9 @@ import net.zamin.engine.world.WorldStorage;
 import net.zamin.engine.world.WorldDeltaSnapshot;
 import net.zamin.engine.block.BlockRegistryBuilder;
 import net.zamin.engine.block.BuiltinBlocks;
+import net.zamin.engine.chat.ChatListener;
+import net.zamin.engine.chat.ChatService;
+import net.zamin.engine.chat.CommandService;
 import net.zamin.engine.block.BlockRegistryBuilder.FrozenBlockRegistry;
 import net.zamin.engine.interaction.BlockInteractionService;
 import net.zamin.engine.world.WorldChangeListener;
@@ -60,8 +63,10 @@ public final class EngineServer implements Server, EngineBridge {
     private EngineWorld world;
     private EngineTicker ticker;
     private BlockInteractionService blockInteraction;
+    private ChatService chatService;
     private WorldStorage worldStorage;
     private final java.util.List<WorldChangeListener> worldListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
+    private final java.util.List<ChatListener> chatListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
 
     public EngineServer(EngineConfig config) {
         this.config = Objects.requireNonNull(config, "config");
@@ -110,6 +115,9 @@ public final class EngineServer implements Server, EngineBridge {
                 pregenerateSpawnArea(world);
                 ticker.attachWorld(world);
                 blockInteraction = new BlockInteractionService(world, ticker, this::publishBlockChange);
+                CommandService commands = new CommandService();
+                registerBuiltinCommands(commands);
+                chatService = new ChatService(ticker, commands, this::publishChat);
                 worldReady.countDown();
                 ticker.runLoop(); // blocks until stop
             } catch (Throwable t) {
@@ -246,6 +254,39 @@ public final class EngineServer implements Server, EngineBridge {
     /** The semantic entry point for player-driven block changes. */
     public BlockInteractionService blockInteraction() {
         return blockInteraction;
+    }
+
+    /** The semantic chat entry point: validation, commands, audience. */
+    public ChatService chatService() {
+        return chatService;
+    }
+
+    /** Registers an internal chat delivery observer (e.g. the protocol adapter). */
+    public void addChatListener(ChatListener listener) {
+        chatListeners.add(listener);
+    }
+
+    private void registerBuiltinCommands(CommandService commands) {
+        commands.register(new CommandService.Command("help", "List commands",
+                (sender, args) -> {
+                    StringBuilder text = new StringBuilder("Commands:");
+                    for (CommandService.Command command : commands.all()) {
+                        text.append(" /").append(command.name()).append(" (").append(command.description()).append(")");
+                    }
+                    return text.toString();
+                }));
+        commands.register(new CommandService.Command("ping", "Check server responsiveness",
+                (sender, args) -> "pong"));
+    }
+
+    private void publishChat(ChatService.ChatEvent event) {
+        for (ChatListener listener : chatListeners) {
+            if (event instanceof ChatService.PublicChat publicChat) {
+                listener.onChatMessage(publicChat.sender(), publicChat.content());
+            } else if (event instanceof ChatService.SystemToPlayer system) {
+                listener.onSystemMessage(system.recipient(), system.content());
+            }
+        }
     }
 
     /**

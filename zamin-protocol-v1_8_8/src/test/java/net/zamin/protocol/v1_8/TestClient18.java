@@ -242,6 +242,21 @@ final class TestClient18 implements AutoCloseable {
         sendPacket(bodyToBytes(body));
     }
 
+    void sendChat(String text) throws IOException {
+        ByteBuf body = Unpooled.buffer(16 + text.length());
+        ByteBufOps.writeVarInt(body, Protocol18.C2S_CHAT_MESSAGE);
+        ByteBufOps.writeString(body, text);
+        sendPacket(bodyToBytes(body));
+    }
+
+    /** Reads a Chat packet, returning the raw JSON text. */
+    String readChatLine(long timeoutMs) throws IOException {
+        byte[] payload = readPacketOfType(Protocol18.S2C_CHAT, timeoutMs);
+        ByteBuf buffer = Unpooled.wrappedBuffer(payload);
+        ByteBufOps.readVarInt(buffer); // packet id
+        return ByteBufOps.readString(buffer, 4096);
+    }
+
     /** Reads a Block Change packet, returning {x, y, z, legacyId}. */
     int[] readBlockChange(long timeoutMs) throws IOException {
         byte[] payload = readPacketOfType(Protocol18.S2C_BLOCK_CHANGE, timeoutMs);
