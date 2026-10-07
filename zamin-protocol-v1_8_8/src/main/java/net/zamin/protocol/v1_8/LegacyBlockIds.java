@@ -41,6 +41,9 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:stick"), 280),
             // smelted materials (furnace slice)
             Map.entry(Identifier.parse("minecraft:iron_ingot"), 265),
+            // foods (community foods.json legacy ids)
+            Map.entry(Identifier.parse("minecraft:beef"), 363),
+            Map.entry(Identifier.parse("minecraft:cooked_beef"), 364),
             // pickaxes (dataset-verified ids and durabilities)
             Map.entry(Identifier.parse("minecraft:wooden_pickaxe"), 270),
             Map.entry(Identifier.parse("minecraft:stone_pickaxe"), 274),

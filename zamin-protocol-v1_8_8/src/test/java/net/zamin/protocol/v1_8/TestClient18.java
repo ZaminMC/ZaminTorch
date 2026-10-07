@@ -543,6 +543,49 @@ final class TestClient18 implements AutoCloseable {
         throw new IOException("Timed out waiting for window property " + expectedProperty);
     }
 
+    /** Reads an Update Health packet (0x06), returning {health, food, saturation}. */
+    double[] readUpdateHealth(long timeoutMs) throws IOException {
+        byte[] payload = readPacketOfType(Protocol18.S2C_UPDATE_HEALTH, timeoutMs);
+        ByteBuf buffer = Unpooled.wrappedBuffer(payload);
+        ByteBufOps.readVarInt(buffer); // packet id
+        float health = buffer.readFloat();
+        int food = ByteBufOps.readVarInt(buffer);
+        float saturation = buffer.readFloat();
+        return new double[]{health, food, saturation};
+    }
+
+    /** Reads a Combat Event packet (0x42) type 2, returning {eventType, playerId}. */
+    int[] readCombatEvent(long timeoutMs) throws IOException {
+        byte[] payload = readPacketOfType(Protocol18.S2C_COMBAT_EVENT, timeoutMs);
+        ByteBuf buffer = Unpooled.wrappedBuffer(payload);
+        ByteBufOps.readVarInt(buffer); // packet id
+        int event = ByteBufOps.readVarInt(buffer);
+        if (event != Protocol18.COMBAT_EVENT_ENTITY_DIED) {
+            throw new IOException("Unexpected combat event " + event);
+        }
+        int playerId = ByteBufOps.readVarInt(buffer);
+        return new int[]{event, playerId};
+    }
+
+    /** Reads a Respawn packet (0x07), returning {dimension, difficulty, gamemode}. */
+    int[] readRespawn(long timeoutMs) throws IOException {
+        byte[] payload = readPacketOfType(Protocol18.S2C_RESPAWN, timeoutMs);
+        ByteBuf buffer = Unpooled.wrappedBuffer(payload);
+        ByteBufOps.readVarInt(buffer); // packet id
+        int dimension = buffer.readInt();
+        int difficulty = buffer.readUnsignedByte();
+        int gamemode = buffer.readUnsignedByte();
+        return new int[]{dimension, difficulty, gamemode};
+    }
+
+    /** Sends Client Status (0x16) — action 0 performs the respawn. */
+    void sendClientStatus(int action) throws IOException {
+        ByteBuf body = Unpooled.buffer(4);
+        ByteBufOps.writeVarInt(body, Protocol18.C2S_CLIENT_STATUS);
+        ByteBufOps.writeVarInt(body, action);
+        sendPacket(bodyToBytes(body));
+    }
+
     @Override
     public void close() throws IOException {
         socket.close();

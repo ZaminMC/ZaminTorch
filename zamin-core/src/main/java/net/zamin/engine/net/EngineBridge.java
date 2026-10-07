@@ -68,6 +68,27 @@ public interface EngineBridge {
      */
     void closeWindow(PlayerSession session, int windowId);
 
+    /**
+     * A right-click use in the air (block placement packet with the -1
+     * position sentinel, or face 255 against a block): the engine decides on
+     * the simulation context what the held item does — food starts the
+     * server-side eat timer, everything else is a no-op yet.
+     */
+    void useItem(PlayerSession session);
+
+    /**
+     * The client released a use (dig status 5): an unfinished eat cancels; a
+     * completed one is already applied by the tick timer.
+     */
+    void releaseUsingItem(PlayerSession session);
+
+    /**
+     * The client asked to respawn (client status action 0) after dying: the
+     * engine resets the body and anchors the player at spawn on the
+     * simulation context; the adapter then re-anchors the wire.
+     */
+    void performRespawn(PlayerSession session);
+
     /** Result of {@link #joinRequest}. */
     sealed interface JoinResult permits Accepted, Rejected {
     }

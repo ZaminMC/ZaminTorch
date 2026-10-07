@@ -3,6 +3,7 @@ package net.zamin.engine;
 import net.zamin.api.Player;
 import net.zamin.api.PlayerState;
 import net.zamin.api.Position;
+import net.zamin.api.ItemStack;
 import net.zamin.api.Rotation;
 import net.zamin.api.Server;
 import net.zamin.api.ServerState;
@@ -14,6 +15,7 @@ import net.zamin.engine.entity.ItemEntityManager;
 import net.zamin.engine.furnace.FurnaceBlockEntity;
 import net.zamin.engine.furnace.FurnaceDataStore;
 import net.zamin.engine.furnace.FurnaceManager;
+import net.zamin.engine.item.Foods;
 import net.zamin.engine.interaction.DropService;
 import net.zamin.engine.net.ClientLink;
 import net.zamin.engine.net.EngineBridge;
@@ -110,6 +112,7 @@ public final class EngineServer implements Server, EngineBridge {
     private final java.util.List<ItemEntityManager.Listener> itemListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     private final java.util.List<InventoryListener> inventoryListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     private final java.util.List<FurnaceViewListener> furnaceViewListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
+    private final java.util.List<SurvivalListener> survivalListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
 
     /** Entity ids for engine-global entities (items); player wire ids stay adapter-local. */
     private static final int ENTITY_ID_BASE = 100_000;
@@ -179,6 +182,7 @@ public final class EngineServer implements Server, EngineBridge {
                     furnaceManager.tick(world, itemEntities);
                     itemEntities.tick(players.all());
                     tickFurnaceViewers();
+                    tickPlayerBodies();
                 });
                 blockInteraction = new BlockInteractionService(world, ticker, this::publishBlockChange,
                         config.gamemode(), new DropService(), itemEntities,
@@ -389,6 +393,187 @@ public final class EngineServer implements Server, EngineBridge {
         return furnaceManager;
     }
 
+    /** Observers of the survival body (health sync, death, respawn anchors). */
+    public interface SurvivalListener {
+        /** A body value changed (health, food, saturation) — re-sync the client. */
+        void onBodyChanged(PlayerSession player);
+
+        /** The player died: the adapter tells the client (combat event). */
+        void onDied(PlayerSession player);
+
+        /** The player respawned at spawn: the adapter re-anchors the wire. */
+        void onRespawned(PlayerSession player, net.zamin.api.Position spawn);
+    }
+
+    /** Registers an internal survival observer (e.g. the protocol adapter's sync). */
+    public void addSurvivalListener(SurvivalListener listener) {
+        survivalListeners.add(listener);
+    }
+
+    private void publishBodyChanged(PlayerSession player) {
+        for (SurvivalListener listener : survivalListeners) {
+            listener.onBodyChanged(player);
+        }
+    }
+
+    private void publishDied(PlayerSession player) {
+        for (SurvivalListener listener : survivalListeners) {
+            listener.onDied(player);
+        }
+    }
+
+    private void publishRespawned(PlayerSession player) {
+        for (SurvivalListener listener : survivalListeners) {
+            listener.onRespawned(player, world.spawnPosition());
+        }
+    }
+
+    // ------------------------------------------------------------------ survival body
+
+    /**
+     * The per-tick survival body simulation for every playing player: the
+     * server-side eat timer, the historical food economy (exhaustion points
+     * drain saturation then hunger; regen at food &gt;= 18 costs exhaustion;
+     * starvation on easy floors at 10 hearts) and landing fall damage.
+     * Tick-thread context.
+     */
+    private void tickPlayerBodies() {
+        for (PlayerSession session : players.all()) {
+            if (session.state() != PlayerState.PLAYING || session.dead()) {
+                continue;
+            }
+            tickEating(session);
+            tickFoodEconomy(session);
+            tickLanding(session);
+        }
+    }
+
+    /** The 32-tick server-side eat timer: completion consumes and nourishes. */
+    private void tickEating(PlayerSession session) {
+        if (!session.eating()) {
+            return;
+        }
+        var held = session.inventory().held();
+        if (held.isEmpty() || Foods.nutritionOf(held.type()).isEmpty()) {
+            session.cancelEating(); // the held item changed mid-eat
+            return;
+        }
+        if (session.advanceEating() < Foods.EAT_TICKS) {
+            return;
+        }
+        session.cancelEating();
+        var nutrition = Foods.nutritionOf(held.type()).orElseThrow();
+        if (session.food() >= net.zamin.engine.player.PlayerSession.MAX_FOOD) {
+            return; // already full (the start check cannot fully guard the window)
+        }
+        session.inventory().consumeHeld(1);
+        int newFood = Math.min(net.zamin.engine.player.PlayerSession.MAX_FOOD,
+                session.food() + nutrition.foodPoints());
+        float newSaturation = Math.min(newFood,
+                session.saturation() + nutrition.saturation());
+        session.setBody(session.health(), newFood, newSaturation);
+        publishInventoryChanged(session);
+        publishBodyChanged(session);
+    }
+
+    /** The historical 1.8 FoodStats loop on easy difficulty. */
+    private void tickFoodEconomy(PlayerSession session) {
+        if (session.exhaustion() >= PlayerSession.EXHAUSTION_COST) {
+            session.setExhaustion(session.exhaustion() - PlayerSession.EXHAUSTION_COST);
+            if (session.saturation() > 0) {
+                session.setBody(session.health(), session.food(),
+                        Math.max(0.0f, session.saturation() - 1));
+            } else if (session.food() > 0) {
+                session.setBody(session.health(), session.food() - 1, session.saturation());
+            }
+            publishBodyChanged(session);
+        }
+        if (session.food() >= 18 && session.health() < PlayerSession.MAX_HEALTH) {
+            session.advanceBodyTimer();
+            if (session.bodyTimer() >= PlayerSession.BODY_TIMER_PERIOD) {
+                session.resetBodyTimer();
+                session.setBody(Math.min(PlayerSession.MAX_HEALTH, session.health() + 1),
+                        session.food(), session.saturation());
+                session.addExhaustion(3.0f); // the historical regen cost
+                publishBodyChanged(session);
+            }
+        } else if (session.food() == 0) {
+            session.advanceBodyTimer();
+            if (session.bodyTimer() >= PlayerSession.BODY_TIMER_PERIOD) {
+                session.resetBodyTimer();
+                if (session.health() > PlayerSession.STARVATION_FLOOR) {
+                    damageOnTick(session, 1.0f); // easy difficulty: cannot kill
+                }
+            }
+        } else {
+            session.resetBodyTimer();
+        }
+    }
+
+    /** Landing damage: falls beyond three blocks hurt ceil(distance - 3). */
+    private void tickLanding(PlayerSession session) {
+        if (!session.onGround()) {
+            return;
+        }
+        float distance = session.consumeFallDistance();
+        if (distance > PlayerSession.SAFE_FALL_DISTANCE) {
+            damageOnTick(session, (float) Math.ceil(distance - PlayerSession.SAFE_FALL_DISTANCE));
+        }
+    }
+
+    /**
+     * The semantic damage entry (fall, starvation; combat arrives later).
+     * Safe from any thread: the application runs on the tick thread.
+     */
+    public void damage(PlayerSession session, float amount) {
+        Objects.requireNonNull(session, "session");
+        ticker.submit(() -> damageOnTick(session, amount));
+    }
+
+    private void damageOnTick(PlayerSession session, float amount) {
+        if (session.dead() || session.state() != PlayerState.PLAYING) {
+            return;
+        }
+        session.hurt(amount);
+        if (session.health() <= 0) {
+            dieOnTick(session);
+        } else {
+            publishBodyChanged(session);
+        }
+    }
+
+    /**
+     * Death: carried window state returns, the whole inventory (and cursor)
+     * scatters at the body with the historical pop, the body marks dead. The
+     * client learns through the survival listener (combat event + health 0).
+     * Tick-thread context.
+     */
+    private void dieOnTick(PlayerSession session) {
+        session.markDead();
+        returnWindowCarriedItems(session, true);
+        var slots = session.inventory().snapshot();
+        for (int slot = 0; slot < slots.size(); slot++) {
+            ItemStack dropped = session.inventory().dropFromSlot(slot, true);
+            spawnDeathDrop(session, dropped);
+        }
+        spawnDeathDrop(session, session.inventory().takeCursor());
+        publishInventoryChanged(session);
+        publishBodyChanged(session);
+        publishDied(session);
+        LOGGER.info(() -> "Player died: " + session.name());
+    }
+
+    /** Death drops scatter around the body with a small random pop. */
+    private void spawnDeathDrop(PlayerSession session, ItemStack stack) {
+        if (stack.isEmpty() || itemEntities == null) {
+            return;
+        }
+        var origin = session.position();
+        ItemEntity entity = itemEntities.spawnThrown(
+                new net.zamin.api.Position(origin.x(), origin.y() + 1.0, origin.z()), stack);
+        entity.setVelocity((Math.random() - 0.5) * 0.2, 0.2, (Math.random() - 0.5) * 0.2);
+    }
+
     private void publishInventoryChanged(PlayerSession player) {
         for (InventoryListener listener : inventoryListeners) {
             listener.onInventoryChanged(player);
@@ -398,16 +583,78 @@ public final class EngineServer implements Server, EngineBridge {
     /**
      * Applies a validated held-slot change. The owning channel loop provides
      * ordering; the mutation itself is simulation-confined. Safe from any thread.
+     * Switching slots cancels an in-progress eat (the historical rule).
      */
     public void heldItemChange(PlayerSession session, int hotbarSlot) {
         Objects.requireNonNull(session, "session");
         ticker.submit(() -> {
             try {
                 session.inventory().selectHotbarSlot(hotbarSlot);
+                session.cancelEating();
             } catch (IllegalArgumentException invalidSlot) {
                 LOGGER.fine(() -> "Rejected held-slot change " + hotbarSlot + " from "
                         + session.name());
             }
+        });
+    }
+
+    // ------------------------------------------------------------------ eating + respawn
+
+    /**
+     * A right-click use in the air: the held item decides the semantics —
+     * food starts the 32-tick eat timer when the player is hungry; everything
+     * else is a no-op this slice. Safe from any thread.
+     */
+    @Override
+    public void useItem(PlayerSession session) {
+        Objects.requireNonNull(session, "session");
+        ticker.submit(() -> {
+            if (session.dead() || session.state() != PlayerState.PLAYING) {
+                return;
+            }
+            ItemStack held = session.inventory().held();
+            if (held.isEmpty() || Foods.nutritionOf(held.type()).isEmpty()) {
+                return; // nothing edible held: nothing to use yet
+            }
+            if (session.food() >= net.zamin.engine.player.PlayerSession.MAX_FOOD) {
+                return; // not hungry: the historical refusal
+            }
+            session.beginEating();
+        });
+    }
+
+    /**
+     * The client released a use (dig status 5): an unfinished eat cancels; a
+     * finished one was already applied by the tick timer. Safe from any thread.
+     */
+    @Override
+    public void releaseUsingItem(PlayerSession session) {
+        Objects.requireNonNull(session, "session");
+        ticker.submit(() -> {
+            if (session.eating() && session.eatingTicks() < Foods.EAT_TICKS) {
+                session.cancelEating(); // released early: the historical cancel
+            }
+        });
+    }
+
+    /**
+     * The client asked to respawn after dying: the body resets (full health,
+     * food, saturation) and the adapter re-anchors the wire at world spawn.
+     * Safe from any thread.
+     */
+    @Override
+    public void performRespawn(PlayerSession session) {
+        Objects.requireNonNull(session, "session");
+        ticker.submit(() -> {
+            if (!session.dead()) {
+                return; // respawn requests only answer deaths
+            }
+            session.resetBody();
+            session.cancelEating();
+            publishInventoryChanged(session);
+            publishBodyChanged(session);
+            publishRespawned(session);
+            LOGGER.info(() -> "Player respawned: " + session.name());
         });
     }
 
@@ -1207,6 +1454,7 @@ public final class EngineServer implements Server, EngineBridge {
             LOGGER.warning("Inventory restore rejected for " + session.name() + ": "
                     + invalid.getMessage());
         }
+        session.setBody(snapshot.health(), snapshot.food(), snapshot.saturation());
     }
 
     /** The persistable view of a live session (position is volatile-read, inventory snapshotted). */
@@ -1222,7 +1470,8 @@ public final class EngineServer implements Server, EngineBridge {
                     stack.count(), stack.damage()));
         }
         return new PlayerSnapshot(session.uuid(), session.name(), session.position(),
-                session.rotation(), session.inventory().heldSlot(), filled);
+                session.rotation(), session.inventory().heldSlot(), filled,
+                session.health(), session.food(), session.saturation());
     }
 
     /**

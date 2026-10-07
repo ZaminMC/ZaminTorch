@@ -48,6 +48,34 @@ public final class PlayerSession implements net.zamin.api.Player {
         FURNACE
     }
 
+    // --- survival body state (§436 family) ---------------------------------
+    // Mutated by the simulation context (the engine's body tick and damage
+    // entry points); volatile for the adapter's cross-thread health syncs.
+
+    /** Historical defaults: full hearts, full hunger, 5 saturation. */
+    public static final float MAX_HEALTH = 20.0f;
+    public static final int MAX_FOOD = 20;
+    public static final float DEFAULT_SATURATION = 5.0f;
+    /** The exhaustion point that costs one saturation or food unit (historical 4.0). */
+    public static final float EXHAUSTION_COST = 4.0f;
+    /** Regen/starvation cadence: one point every 80 ticks (4 s). */
+    public static final int BODY_TIMER_PERIOD = 80;
+    /** Easy difficulty's starvation floor (the death-by-hunger guard). */
+    public static final float STARVATION_FLOOR = 10.0f;
+    /** Falls further than this hurt: damage = ceil(distance - SAFE_FALL). */
+    public static final float SAFE_FALL_DISTANCE = 3.0f;
+
+    private volatile float health = MAX_HEALTH;
+    private volatile int food = MAX_FOOD;
+    private volatile float saturation = DEFAULT_SATURATION;
+    private float exhaustion;
+    private int bodyTimer; // shared regen/starve cadence counter
+    private float fallDistance;
+    private volatile boolean dead;
+    // Eating: the server runs its own 32-tick timer, started by the use-item
+    // gesture; the client's release (dig status 5) cancels when unfinished.
+    private int eatingTicks = -1;
+
     public PlayerSession(UUID uuid, String name, ClientLink link) {
         this.uuid = Objects.requireNonNull(uuid, "uuid");
         this.name = Objects.requireNonNull(name, "name");
@@ -149,6 +177,127 @@ public final class PlayerSession implements net.zamin.api.Player {
         return onGround;
     }
 
+    // --- body read/write (simulation context) -------------------------------
+
+    public float health() {
+        return health;
+    }
+
+    public int food() {
+        return food;
+    }
+
+    public float saturation() {
+        return saturation;
+    }
+
+    public boolean dead() {
+        return dead;
+    }
+
+    public boolean eating() {
+        return eatingTicks >= 0;
+    }
+
+    public int eatingTicks() {
+        return eatingTicks;
+    }
+
+    /** Applies a damage amount (already computed by the caller); clamps at 0. */
+    public void hurt(float amount) {
+        if (amount <= 0 || dead) {
+            return;
+        }
+        health = Math.max(0.0f, health - amount);
+    }
+
+    /** Direct body write for engine commands (eat, regen, respawn, restore). */
+    public void setBody(float newHealth, int newFood, float newSaturation) {
+        this.health = Math.max(0.0f, Math.min(MAX_HEALTH, newHealth));
+        this.food = Math.max(0, Math.min(MAX_FOOD, newFood));
+        this.saturation = Math.max(0.0f, newSaturation);
+    }
+
+    public void markDead() {
+        this.dead = true;
+        this.eatingTicks = -1;
+    }
+
+    /** Full body reset (respawn, fresh join). */
+    public void resetBody() {
+        this.health = MAX_HEALTH;
+        this.food = MAX_FOOD;
+        this.saturation = DEFAULT_SATURATION;
+        this.exhaustion = 0;
+        this.bodyTimer = 0;
+        this.fallDistance = 0;
+        this.dead = false;
+        this.eatingTicks = -1;
+    }
+
+    /** Exhaustion accrual (regen hearts; more sources arrive with combat). */
+    public void addExhaustion(float amount) {
+        exhaustion += amount;
+    }
+
+    /** @return the pending exhaustion (tick consumes it through the food rules). */
+    public float exhaustion() {
+        return exhaustion;
+    }
+
+    public void setExhaustion(float value) {
+        this.exhaustion = Math.max(0.0f, value);
+    }
+
+    public void advanceBodyTimer() {
+        bodyTimer++;
+    }
+
+    public void resetBodyTimer() {
+        bodyTimer = 0;
+    }
+
+    public int bodyTimer() {
+        return bodyTimer;
+    }
+
+    /** Starts the eat timer (simulation context; validated by the engine). */
+    public void beginEating() {
+        this.eatingTicks = 0;
+    }
+
+    /** @return the incremented eat tick count (the engine compares to the duration). */
+    public int advanceEating() {
+        return ++eatingTicks;
+    }
+
+    public void cancelEating() {
+        this.eatingTicks = -1;
+    }
+
+    /**
+     * Fall tracking from movement proposals (the owning channel loop provides
+     * ordering). Falling accumulates distance; upward motion does not add;
+     * landing resets. The tick thread reads and clears the accumulated
+     * distance when it applies landing damage.
+     */
+    public void noteFall(double previousY, double newY, boolean landed) {
+        if (landed) {
+            if (newY < previousY) {
+                fallDistance += (float) (previousY - newY);
+            }
+        } else if (newY < previousY) {
+            fallDistance += (float) (previousY - newY);
+        }
+    }
+
+    /** @return the accumulated fall distance, clearing it (tick-thread landing). */
+    public float consumeFallDistance() {
+        float distance = fallDistance;
+        fallDistance = 0;
+        return distance;
+    }
+
     // --- state transitions (engine-owned; only EngineServer may call these) ---
 
     public void authenticate() {
@@ -182,11 +331,16 @@ public final class PlayerSession implements net.zamin.api.Player {
 
     /**
      * Applies a validated movement proposal. Called by the engine when a proposal
-     * passes validation; the owning channel loop provides ordering.
+     * passes validation; the owning channel loop provides ordering. Fall
+     * distance accumulates from airborne descent (the tick thread consumes it
+     * on landing).
      */
     public void applyMovement(Position position, Rotation rotation, boolean onGround) {
         if (!position.isFinite() || !rotation.isFinite()) {
             throw new IllegalArgumentException("Movement proposal contains non-finite values");
+        }
+        if (!this.onGround) {
+            noteFall(this.position.y(), position.y(), onGround);
         }
         this.position = position;
         this.rotation = rotation;

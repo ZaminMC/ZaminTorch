@@ -56,6 +56,12 @@ public final class BuiltinItems {
     public static final EngineItemType STONE = new EngineItemType(
             Identifier.parse("minecraft:stone"), "Stone", 64);
 
+    // Edible items (community foods.json): raw beef smelts into steak.
+    public static final EngineItemType BEEF = new EngineItemType(
+            Identifier.parse("minecraft:beef"), "Beef", 64);
+    public static final EngineItemType COOKED_BEEF = new EngineItemType(
+            Identifier.parse("minecraft:cooked_beef"), "Steak", 64);
+
     // Ore blocks that drop themselves (iron ore historically needs smelting).
     public static final EngineItemType COAL_ORE = new EngineItemType(
             Identifier.parse("minecraft:coal_ore"), "Coal Ore", 64);
@@ -138,7 +144,8 @@ public final class BuiltinItems {
         for (EngineItemType type : new EngineItemType[] {
                 DIRT, COBBLESTONE, OAK_PLANKS, OAK_LOG,
                 STICK, CRAFTING_TABLE, TORCH, FURNACE, CHEST,
-                COAL, DIAMOND, IRON_INGOT, STONE, COAL_ORE, IRON_ORE, DIAMOND_ORE,
+                COAL, DIAMOND, IRON_INGOT, STONE, BEEF, COOKED_BEEF,
+                COAL_ORE, IRON_ORE, DIAMOND_ORE,
                 WOODEN_PICKAXE, STONE_PICKAXE, IRON_PICKAXE, DIAMOND_PICKAXE, GOLDEN_PICKAXE,
                 WOODEN_AXE, STONE_AXE, IRON_AXE, DIAMOND_AXE, GOLDEN_AXE,
                 WOODEN_SHOVEL, STONE_SHOVEL, IRON_SHOVEL, DIAMOND_SHOVEL, GOLDEN_SHOVEL,

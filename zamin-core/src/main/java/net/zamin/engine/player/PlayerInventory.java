@@ -303,6 +303,16 @@ public final class PlayerInventory {
     }
 
     /**
+     * Takes the cursor stack as-is (the death drop): the cursor becomes empty
+     * and the stack is handed out, bypassing the inventory fill.
+     */
+    public ItemStack takeCursor() {
+        ItemStack carried = cursor;
+        cursor = ItemStack.EMPTY;
+        return carried;
+    }
+
+    /**
      * Semantic restore from persisted state (join of a returning player):
      * replaces the whole contents. Unresolvable saved items are dropped loudly
      * by the caller before this runs, so the list is exactly TOTAL_SLOTS long.

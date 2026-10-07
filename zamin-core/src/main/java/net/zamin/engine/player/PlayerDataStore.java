@@ -20,12 +20,13 @@ import java.util.UUID;
 import java.util.logging.Logger;
 
 /**
- * File-backed player data store ("ZPD" format, version 1), one file per player.
+ * File-backed player data store ("ZPD" format, version 2), one file per player.
  *
- * <p>Layout: magic 'Z','P','D',1 - name(string) - x(double) y(double) z(double)
+ * <p>Layout: magic 'Z','P','D',2 - name(string) - x(double) y(double) z(double)
  * - yaw(float) pitch(float) - heldSlot(varint) - slots(varint count of non-empty
  * entries; each: slot(varint) + item identifier(string) + count(varint) +
- * damage(varint)).</p>
+ * damage(varint)) - health(float) food(varint) saturation(float). Version 1
+ * files (pre-body) load with the historical defaults (20 / 20 / 5).</p>
  *
  * <p>The same durability rules as the world store: writes are atomic (temp file
  * then atomic move), corrupt files load as absent and are preserved beside the
@@ -37,7 +38,7 @@ public final class PlayerDataStore {
     private static final int MAGIC_0 = 'Z';
     private static final int MAGIC_1 = 'P';
     private static final int MAGIC_2 = 'D';
-    private static final int FORMAT_VERSION = 1;
+    private static final int FORMAT_VERSION = 2;
 
     private final Path directory;
 
@@ -71,6 +72,9 @@ public final class PlayerDataStore {
                     writeVarInt(out, stack.count());
                     writeVarInt(out, stack.damage());
                 }
+                out.writeFloat(snapshot.health());
+                writeVarInt(out, snapshot.food());
+                out.writeFloat(snapshot.saturation());
             }
             Files.move(temp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
         } catch (IOException e) {
@@ -106,7 +110,18 @@ public final class PlayerDataStore {
                 int damage = readVarInt(in);
                 stacks.add(new PlayerSnapshot.SlotStack(slot, item, count, damage));
             }
-            return Optional.of(new PlayerSnapshot(uuid, name, position, rotation, heldSlot, stacks));
+            // Version 1 predates the body: defaults apply (the historical state
+            // of every player before survival had hunger).
+            float health = PlayerSnapshot.LEGACY_HEALTH;
+            int food = PlayerSnapshot.LEGACY_FOOD;
+            float saturation = PlayerSnapshot.LEGACY_SATURATION;
+            if (version >= 2) {
+                health = in.readFloat();
+                food = readVarInt(in);
+                saturation = in.readFloat();
+            }
+            return Optional.of(new PlayerSnapshot(uuid, name, position, rotation, heldSlot,
+                    stacks, health, food, saturation));
         } catch (IOException | RuntimeException corrupt) {
             // A malformed value (bad identifier, out-of-range slot) is corruption
             // just as much as a broken header: quarantine, then treat as absent.
