@@ -19,8 +19,9 @@ stable Zamin API  ← plugins / future compatibility layers
 
 Early development. See [docs/ENGINEERING_PLAN.md](docs/ENGINEERING_PLAN.md) for the
 current architecture, decisions and milestones. The current milestone is
-**Vertical Slice #1**: a real 1.8.8 client can connect, log in, spawn into a flat
-world, move, and disconnect cleanly.
+**Slice #4 — survival loop**: a real 1.8.8 client can mine with server-validated
+timing, chase and collect drops, and place from its inventory; the full loop is
+proven over the wire and against a live process.
 
 | Feature        | Status      |
 |----------------|-------------|
@@ -32,7 +33,11 @@ world, move, and disconnect cleanly.
 | World persistence (delta store) | implemented |
 | Chat + basic commands | implemented |
 | Two-player visibility sync | implemented |
-| Survival mechanics, drops, inventory | planned |
+| Survival mining (server-validated timing) | implemented |
+| Block drops + item entities | implemented |
+| Player inventory (hotbar/main) + pickup | implemented |
+| Inventory UI clicks, item NBT | planned |
+| Tools & harvest classes | planned |
 | Mobs/entities/AI | planned |
 | Anvil world format import | planned (compatibility adapter) |
 | Minestom integration | deferred (see ADR in plan) |
