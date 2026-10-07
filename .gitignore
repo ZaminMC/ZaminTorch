@@ -27,3 +27,10 @@ run/
 # Runtime artifacts
 launcher.pid
 run/
+build/
+.gradle/
+run/
+*.log
+players/
+launcher.pid
+zamin.properties

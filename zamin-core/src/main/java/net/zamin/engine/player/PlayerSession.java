@@ -23,7 +23,8 @@ public final class PlayerSession implements net.zamin.api.Player {
     private final String name;
     private final ClientLink link;
     private final PlayerInventory inventory = new PlayerInventory();
-    private final CraftingGrid crafting = new CraftingGrid();
+    private final CraftingGrid crafting = new CraftingGrid();          // window 0: 2x2
+    private final CraftingGrid tableCrafting = new CraftingGrid(3, 3); // container: 3x3
     private volatile World world;
     private volatile PlayerState state = PlayerState.CONNECTING;
 
@@ -31,6 +32,8 @@ public final class PlayerSession implements net.zamin.api.Player {
     private volatile Position position = Position.ZERO; // replaced at spawn
     private volatile Rotation rotation = Rotation.ZERO;
     private volatile boolean onGround = true;
+    /** The open container window id (crafting table), or -1 when none. Tick-thread written, volatile-read by the adapter's sync. */
+    private volatile int containerWindowId = -1;
 
     public PlayerSession(UUID uuid, String name, ClientLink link) {
         this.uuid = Objects.requireNonNull(uuid, "uuid");
@@ -65,6 +68,33 @@ public final class PlayerSession implements net.zamin.api.Player {
      */
     public CraftingGrid crafting() {
         return crafting;
+    }
+
+    /**
+     * The crafting table's 3x3 grid, used while a table container window is
+     * open. Same ownership discipline as the inventory: tick-thread mutations
+     * only; contents are transient window state, never persisted.
+     */
+    public CraftingGrid tableCrafting() {
+        return tableCrafting;
+    }
+
+    /** @return the open container window id, or -1 when no container is open. */
+    public int openContainerWindowId() {
+        return containerWindowId;
+    }
+
+    /** Marks the container window as open (engine-assigned id &gt; 0). */
+    public void openContainerWindow(int windowId) {
+        if (windowId <= 0) {
+            throw new IllegalArgumentException("Container window ids start at 1: " + windowId);
+        }
+        this.containerWindowId = windowId;
+    }
+
+    /** Marks the container window as closed (no container open). */
+    public void closeContainerWindow() {
+        this.containerWindowId = -1;
     }
 
     public PlayerState state() {

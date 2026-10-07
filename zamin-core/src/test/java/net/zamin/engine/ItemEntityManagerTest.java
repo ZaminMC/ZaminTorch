@@ -178,4 +178,63 @@ class ItemEntityManagerTest {
         assertEquals(1, events.removed);
         assertEquals("despawned", events.removeReasons.get(0));
     }
+
+    @Test
+    void nearbySameItemsMergeIntoTheOlderEntity() {
+        Events events = new Events();
+        ItemEntityManager manager = new ItemEntityManager(GROUND, new Random(1), 1);
+        manager.addListener(events);
+
+        // Same spot: the older entity (lower id) is deterministic keeper.
+        ItemEntity older = manager.spawnThrown(new Position(2.5, 4.2, 2.5),
+                ItemStack.of(BuiltinItems.DIRT, 3));
+        ItemEntity younger = manager.spawnThrown(new Position(2.5, 4.2, 2.5),
+                ItemStack.of(BuiltinItems.DIRT, 5));
+        assertTrue(younger.entityId() > older.entityId());
+
+        manager.tick(List.of());
+        assertEquals(1, manager.size(), "the younger entity was absorbed");
+        assertEquals(8, older.stack().count(), "the stacks combined");
+        assertTrue(events.removeReasons.contains("merged"));
+        assertEquals(0, events.collected);
+    }
+
+    @Test
+    void differentItemsNeverMerge() {
+        ItemEntityManager manager = new ItemEntityManager(GROUND, new Random(1), 1);
+        manager.spawnThrown(new Position(2.5, 4.2, 2.5), ItemStack.of(BuiltinItems.DIRT, 3));
+        manager.spawnThrown(new Position(2.5, 4.2, 2.5), ItemStack.of(BuiltinItems.OAK_LOG, 5));
+
+        manager.tick(List.of());
+        assertEquals(2, manager.size(), "dirt and logs stay separate");
+    }
+
+    @Test
+    void mergeCapsAtTheStackLimitAndKeepsTheRemainder() {
+        Events events = new Events();
+        ItemEntityManager manager = new ItemEntityManager(GROUND, new Random(1), 1);
+        manager.addListener(events);
+
+        ItemEntity older = manager.spawnThrown(new Position(2.5, 4.2, 2.5),
+                ItemStack.of(BuiltinItems.DIRT, 60));
+        manager.spawnThrown(new Position(2.5, 4.2, 2.5), ItemStack.of(BuiltinItems.DIRT, 10));
+
+        manager.tick(List.of());
+        assertEquals(2, manager.size(), "a partial merge keeps the remainder alive");
+        assertEquals(64, older.stack().count(), "the keeper filled to the limit");
+        ItemEntity remainder = manager.all().stream()
+                .filter(e -> e.entityId() != older.entityId())
+                .findFirst().orElseThrow();
+        assertEquals(6, remainder.stack().count(), "10 - 4 moved");
+    }
+
+    @Test
+    void distantItemsDoNotMerge() {
+        ItemEntityManager manager = new ItemEntityManager(GROUND, new Random(1), 1);
+        manager.spawnThrown(new Position(2.5, 4.2, 2.5), ItemStack.of(BuiltinItems.DIRT, 3));
+        manager.spawnThrown(new Position(6.5, 4.2, 2.5), ItemStack.of(BuiltinItems.DIRT, 5));
+
+        manager.tick(List.of());
+        assertEquals(2, manager.size(), "out of the historical 0.5 search box");
+    }
 }

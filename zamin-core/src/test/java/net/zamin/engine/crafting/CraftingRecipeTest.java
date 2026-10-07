@@ -35,12 +35,131 @@ class CraftingRecipeTest {
     // ---- builtin set -------------------------------------------------------
 
     @Test
-    void builtinSetIsTheFourRegisteredVanillaRecipes() {
-        assertEquals(4, BuiltinRecipes.ALL.size(), "log->planks, coal+stick->torch, "
-                + "2x2 planks->table, 2x1 planks->sticks");
+    void builtinSetIsTheRegisteredVanillaRecipes() {
+        // planks, sticks, table, torch, furnace, chest + 12 tools (wood/stone/
+        // diamond x pickaxe/axe/shovel/sword; iron needs smelting, gold needs
+        // gold ingot — neither item exists in the registry yet).
+        assertEquals(18, BuiltinRecipes.ALL.size());
         for (CraftingRecipe recipe : BuiltinRecipes.ALL) {
-            assertTrue(recipe.isShaped(), "the 2x2 reachable builtin recipes are shaped");
+            assertTrue(recipe.isShaped(), "the dataset encodes all of these as shaped");
         }
+    }
+
+    // ---- 3x3 crafting-table matching ---------------------------------------
+
+    private static ItemStack[] grid3x3(ItemStack... cells) {
+        if (cells.length != 9) {
+            throw new IllegalArgumentException("a 3x3 grid needs 9 cells");
+        }
+        return cells;
+    }
+
+    private static ItemStack stick(int count) {
+        return ItemStack.of(BuiltinItems.STICK, count);
+    }
+
+    private static ItemStack cobble(int count) {
+        return ItemStack.of(BuiltinItems.COBBLESTONE, count);
+    }
+
+    @Test
+    void furnaceRingCraftsOnThe3x3GridOnly() {
+        CraftingService service = CraftingService.builtin();
+        var result = service.resultOf3x3(grid3x3(
+                cobble(1), cobble(1), cobble(1),
+                cobble(1), EMPTY, cobble(1),
+                cobble(1), cobble(1), cobble(1)));
+        assertTrue(result.isPresent());
+        assertEquals(BuiltinItems.FURNACE, result.orElseThrow().type());
+        // the same ring in a 2x2 grid is impossible: bounding box 3 > 2
+        assertTrue(service.resultOf(grid(planks(1), planks(1), planks(1), planks(1))).isPresent(),
+                "2x2 recipes still work");
+        // an off-center ring (shifted up-left, row 0 empty) still matches:
+        // the bounding box is what counts
+        var shifted = service.resultOf3x3(grid3x3(
+                cobble(1), cobble(1), cobble(1),
+                cobble(1), EMPTY, cobble(1),
+                cobble(1), cobble(1), cobble(1)));
+        assertTrue(shifted.isPresent());
+        // a filled center breaks the ring (no empty pattern cell satisfied)
+        var filled = service.resultOf3x3(grid3x3(
+                cobble(1), cobble(1), cobble(1),
+                cobble(1), cobble(1), cobble(1),
+                cobble(1), cobble(1), cobble(1)));
+        assertTrue(filled.isEmpty(), "8 of 9 cells match no recipe");
+    }
+
+    @Test
+    void chestRingCraftsOnThe3x3Grid() {
+        CraftingService service = CraftingService.builtin();
+        var result = service.resultOf3x3(grid3x3(
+                planks(1), planks(1), planks(1),
+                planks(1), EMPTY, planks(1),
+                planks(1), planks(1), planks(1)));
+        assertTrue(result.isPresent());
+        assertEquals(BuiltinItems.CHEST, result.orElseThrow().type());
+    }
+
+    @Test
+    void woodenPickaxeCraftsFromIts3x3Pattern() {
+        CraftingService service = CraftingService.builtin();
+        var result = service.resultOf3x3(grid3x3(
+                planks(1), planks(1), planks(1),
+                EMPTY, stick(1), EMPTY,
+                EMPTY, stick(1), EMPTY));
+        assertTrue(result.isPresent());
+        assertEquals(BuiltinItems.WOODEN_PICKAXE, result.orElseThrow().type());
+        assertEquals(1, result.orElseThrow().count());
+    }
+
+    @Test
+    void woodenAxeMatchesMirroredOnThe3x3Grid() {
+        CraftingService service = CraftingService.builtin();
+        // dataset pattern: PP / PS / .S  (2 wide, 3 tall)
+        var normal = service.resultOf3x3(grid3x3(
+                planks(1), planks(1), EMPTY,
+                planks(1), stick(1), EMPTY,
+                EMPTY, stick(1), EMPTY));
+        assertTrue(normal.isPresent(), "normal orientation");
+        assertEquals(BuiltinItems.WOODEN_AXE, normal.orElseThrow().type());
+        // mirrored: PP / SP / S.
+        var mirrored = service.resultOf3x3(grid3x3(
+                planks(1), planks(1), EMPTY,
+                stick(1), planks(1), EMPTY,
+                stick(1), EMPTY, EMPTY));
+        assertTrue(mirrored.isPresent(), "horizontal mirror");
+        assertEquals(BuiltinItems.WOODEN_AXE, mirrored.orElseThrow().type());
+        // a vertical flip never matches (vanilla mirrors horizontally only)
+        var flipped = service.resultOf3x3(grid3x3(
+                EMPTY, stick(1), EMPTY,
+                planks(1), stick(1), EMPTY,
+                planks(1), planks(1), EMPTY));
+        assertTrue(flipped.isEmpty(), "vanilla never flips vertically");
+    }
+
+    @Test
+    void misalignedGridInputIsRejectedLoudly() {
+        CraftingService service = CraftingService.builtin();
+        // a 9-cell snapshot against the 2x2 matcher cannot arise from a real
+        // 2x2 grid; the contract keeps such call sites loud instead of silent
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class,
+                () -> service.resultOf(grid3x3(
+                        planks(1), planks(1), planks(1),
+                        EMPTY, stick(1), EMPTY,
+                        EMPTY, stick(1), EMPTY)));
+    }
+
+    @Test
+    void smallPatternsMatchAnywhereInThe3x3Grid() {
+        CraftingService service = CraftingService.builtin();
+        // log -> planks, parked in the bottom-right corner of the table grid
+        var result = service.resultOf3x3(grid3x3(
+                EMPTY, EMPTY, EMPTY,
+                EMPTY, EMPTY, EMPTY,
+                EMPTY, EMPTY, log(1)));
+        assertTrue(result.isPresent(), "bounding-box matching is position-free");
+        assertEquals(BuiltinItems.OAK_PLANKS, result.orElseThrow().type());
+        assertEquals(4, result.orElseThrow().count());
     }
 
     @Test

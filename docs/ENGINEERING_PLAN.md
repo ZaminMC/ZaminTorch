@@ -274,6 +274,59 @@ are accepted window state since slice #8).
   280, crafting_table 58, torch 50; placement/mining work for the two new
   blocks through the existing registries and behavior table.
 
+## 10i. Slice #9 — crafting table container (implemented status)
+
+**Status: implemented, 158 automated tests green, live smoke green
+(CRAFT_TABLE_SMOKE_DONE).**
+
+The crafting table is now a real container: right-clicking a placed table
+opens the historical 10-slot GUI and unlocks every 3x3 recipe the registry
+can serve.
+
+- **Use dispatch** (`EngineBridge.useItemOnBlock`): a right-click on a block
+  is decided on the simulation context — a crafting-table target opens the
+  container, anything else degrades to the existing placement proposal
+  (survival consumes from the authoritative inventory, creative places the
+  client-claimed block). The old adapter-side mode branch is gone; both game
+  modes route through the one engine decision.
+- **Container windows** (`PlayerSession`): one open container window id
+  (engine-allocated per-server counter, u8 wire range) with its own 3x3
+  `CraftingGrid`. Opening a container closes the player window historically:
+  the 2x2 grid returns to the inventory, the cursor carries over (one mouse),
+  a stale open container returns its grid first. Close returns cursor +
+  container grid, overflow thrown — nothing is lost, nothing persists.
+- **Wire** (community-verified protocol 47): Open Window 0x2D
+  (`minecraft:crafting_table`, 10 GUI slots) sent before the 46-slot Window
+  Items (0 result, 1-9 grid, 10-36 main = engine 9-35, 37-45 hotbar = engine
+  0-8) — order matters, the client ignores slot data for unknown window ids.
+  Click Window now carries the window id through routing; Confirm Transaction
+  echoes it; Close Window closes whichever window was addressed. While a
+  container is open, inventory-change syncs target the container window.
+- **Recipes**: the generator now keeps patterns up to 3x3 (one list serves
+  both grids — the bounding-box matcher keeps 3x3 patterns from matching 2x2
+  and lets small patterns match anywhere in the bigger grid). This also fixed
+  a real generator bug: pattern cells that must stay empty were treated as
+  unregistered ingredients, silently dropping every recipe with interior
+  holes. The set grew from 4 to 18 recipes: all pickaxes/axes/shovels/swords
+  for wood, stone and diamond, plus furnace and chest (registered blocks with
+  dataset behavior: furnace 3.5 rock pickaxe-required, chest 2.5 wood).
+  Iron/gold tools stay excluded — their ingot ingredients do not exist in the
+  registry yet (smelting slice).
+
+## 10j. Slice #10 — item entity merging (implemented status)
+
+Dropped stacks combine as they did historically: every tick, item entities
+whose boxes come within the 1.8 search expansion (`getEntityBoundingBox()
+.expand(0.5)` — axis distance <= 0.5 + both half-extents) and carry
+mergeable stacks (same item, same damage) combine. The younger entity
+(higher engine id, deterministic) empties into the older one, capped at the
+stack limit; a partial remainder keeps the younger entity alive with the
+rest — no duplication, no loss. Pickup delay does not block combining
+(freshly dropped items visibly merge, the historical behavior). Observers see
+Destroy Entities for the absorbed entity and an Entity Metadata update for
+the surviving stack (partial merges update both). Bounded O(n²) per tick is
+accepted at slice scale; the entity-system slice revisits it.
+
 ## 11. Known risks
 
 - 1.8.8 client quirks not obvious from protocol docs (e.g. exact chunk/lighting expectations) — mitigated by scripted-client tests + real client validation.

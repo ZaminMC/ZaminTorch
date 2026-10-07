@@ -64,8 +64,21 @@ public final class EngineServer implements Server, EngineBridge {
     private static final int WIRE_SLOT_RESULT = 0;
     private static final int WIRE_SLOT_CRAFT_FIRST = 1;
     private static final int WIRE_SLOT_CRAFT_LAST = 4;
-    /** Craft-all guard: a 2x2 grid can never chain more crafts than this. */
+    /** Crafting-table container window wire slots (protocol 47, 10-slot GUI). */
+    private static final int TABLE_WIRE_SLOT_RESULT = 0;
+    private static final int TABLE_WIRE_SLOT_GRID_FIRST = 1;
+    private static final int TABLE_WIRE_SLOT_GRID_LAST = 9;
+    private static final int TABLE_WIRE_SLOT_HOTBAR_FIRST = 37;
+    private static final int TABLE_WIRE_SLOT_HOTBAR_LAST = 45;
+    /** Craft-all guard: even a 3x3 grid cannot chain more crafts than this. */
     private static final int CRAFT_ALL_LIMIT = 64;
+    /** Wire window ids: 0 = player inventory; containers get ids from this counter (u8). */
+    private static final int WIRE_WINDOW_PLAYER = 0;
+    private static final int FIRST_CONTAINER_WINDOW_ID = 1;
+    private static final int LAST_CONTAINER_WINDOW_ID = 255;
+
+    /** Tick-thread confined; ids are handed out on the simulation context only. */
+    private int nextContainerWindowId = FIRST_CONTAINER_WINDOW_ID;
 
     private final EngineConfig config;
     private final PlayerRegistry players = new PlayerRegistry();
@@ -377,17 +390,209 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /**
-     * A window click in the player inventory (mode/button from the historical
-     * wire): the semantic operation runs on the tick thread, the verdict goes
-     * back through {@code result}, and the inventory re-syncs after every
-     * click so the client never keeps predicted state. Safe from any thread.
+     * A window click in an open window (window 0 = player inventory, or the
+     * session's open container): the semantic operation runs on the tick
+     * thread, the verdict goes back through {@code result}, and the affected
+     * window re-syncs after every click so the client never keeps predicted
+     * state. Safe from any thread.
      */
     @Override
-    public void windowClick(PlayerSession session, int wireSlot, int button, int mode,
-                            java.util.function.Consumer<Boolean> result) {
+    public void windowClick(PlayerSession session, int windowId, int wireSlot, int button,
+                            int mode, java.util.function.Consumer<Boolean> result) {
         Objects.requireNonNull(session, "session");
         Objects.requireNonNull(result, "result");
-        ticker.submit(() -> windowClickOnTick(session, wireSlot, button, mode, result));
+        ticker.submit(() -> windowClickOnTick(session, windowId, wireSlot, button, mode, result));
+    }
+
+    private void windowClickOnTick(PlayerSession session, int windowId, int wireSlot, int button,
+                                   int mode, java.util.function.Consumer<Boolean> result) {
+        var inventory = session.inventory();
+        boolean accepted = false;
+        try {
+            if (wireSlot == -999) {
+                // Clicking outside the window throws the carried stack.
+                if (!inventory.cursor().isEmpty()) {
+                    net.zamin.api.ItemStack carried = inventory.cursor();
+                    throwFromPlayer(session, carried);
+                    inventory.returnCursor();
+                    accepted = true;
+                }
+            } else if (windowId == WIRE_WINDOW_PLAYER) {
+                accepted = clickPlayerWindowOnTick(session, wireSlot, button, mode);
+            } else if (windowId == session.openContainerWindowId()) {
+                accepted = clickContainerWindowOnTick(session, wireSlot, button, mode);
+            }
+            // Unknown window ids: rejected per packet, the resync restores truth.
+        } catch (IllegalArgumentException invalid) {
+            accepted = false; // a broken click must not damage the session (§54)
+        }
+        result.accept(accepted);
+        publishInventoryChanged(session);
+    }
+
+    /** Click routing for the player inventory window (window 0). Tick-thread context. */
+    private boolean clickPlayerWindowOnTick(PlayerSession session, int wireSlot, int button,
+                                            int mode) {
+        var inventory = session.inventory();
+        var grid = session.crafting();
+        switch (mode) {
+            case 0 -> {
+                if (wireSlot == WIRE_SLOT_RESULT) {
+                    // Historical result-slot behavior: both buttons craft once
+                    // into the cursor; a refused take (mismatched or
+                    // overflowing cursor) reverts the client's prediction.
+                    return takeCraftingResult(session, grid, inventory);
+                } else if (wireSlot >= WIRE_SLOT_CRAFT_FIRST && wireSlot <= WIRE_SLOT_CRAFT_LAST) {
+                    grid.clickCell(wireSlot - WIRE_SLOT_CRAFT_FIRST, button, inventory);
+                    return true;
+                } else {
+                    int engineSlot = engineSlotOf(wireSlot);
+                    if (engineSlot >= 0) {
+                        inventory.clickSlot(engineSlot, button);
+                        return true;
+                    }
+                }
+                return false;
+            }
+            case 1 -> {
+                if (wireSlot == WIRE_SLOT_RESULT) {
+                    craftAllIntoInventory(session, grid, inventory);
+                    return true;
+                } else if (wireSlot >= WIRE_SLOT_CRAFT_FIRST && wireSlot <= WIRE_SLOT_CRAFT_LAST) {
+                    grid.quickMoveTo(wireSlot - WIRE_SLOT_CRAFT_FIRST, inventory);
+                    return true;
+                } else {
+                    int engineSlot = engineSlotOf(wireSlot);
+                    if (engineSlot >= 0) {
+                        inventory.quickMove(engineSlot);
+                        return true;
+                    }
+                }
+                return false;
+            }
+            case 2 -> {
+                // Number-key swaps on the crafting area are a later gesture;
+                // rejected per packet, the resync restores the truth.
+                int engineSlot = engineSlotOf(wireSlot);
+                if (engineSlot >= 0 && button >= 0 && button < 9) {
+                    inventory.swapWithHotbar(engineSlot, button);
+                    return true;
+                }
+                return false;
+            }
+            case 3 -> {
+                // Middle-click clone is a creative-only gesture: rejected in survival.
+                return false;
+            }
+            case 4 -> {
+                if (wireSlot >= WIRE_SLOT_CRAFT_FIRST && wireSlot <= WIRE_SLOT_CRAFT_LAST) {
+                    net.zamin.api.ItemStack dropped = grid.dropFromCell(
+                            wireSlot - WIRE_SLOT_CRAFT_FIRST, button != 0);
+                    if (!dropped.isEmpty()) {
+                        throwFromPlayer(session, dropped);
+                    }
+                    return true;
+                }
+                int engineSlot = engineSlotOf(wireSlot);
+                if (engineSlot >= 0) {
+                    net.zamin.api.ItemStack dropped = inventory.dropFromSlot(engineSlot, button != 0);
+                    if (!dropped.isEmpty()) {
+                        throwFromPlayer(session, dropped);
+                    }
+                    return true;
+                }
+                return false;
+            }
+            case 5 -> {
+                // Drag painting: rejected per packet; the end-of-drag resync
+                // restores the authoritative state on the client.
+                return false;
+            }
+            default -> {
+                return false; // unknown mode: rejected
+            }
+        }
+    }
+
+    /**
+     * Click routing for the open crafting-table container window (protocol 47
+     * 10-slot GUI: 0 result, 1-9 grid, 10-36 main inventory, 37-45 hotbar).
+     * Tick-thread context.
+     */
+    private boolean clickContainerWindowOnTick(PlayerSession session, int wireSlot, int button,
+                                               int mode) {
+        var inventory = session.inventory();
+        var grid = session.tableCrafting();
+        switch (mode) {
+            case 0 -> {
+                if (wireSlot == TABLE_WIRE_SLOT_RESULT) {
+                    return takeCraftingResult(session, grid, inventory);
+                } else if (wireSlot >= TABLE_WIRE_SLOT_GRID_FIRST
+                        && wireSlot <= TABLE_WIRE_SLOT_GRID_LAST) {
+                    grid.clickCell(wireSlot - TABLE_WIRE_SLOT_GRID_FIRST, button, inventory);
+                    return true;
+                }
+                int engineSlot = tableEngineSlotOf(wireSlot);
+                if (engineSlot >= 0) {
+                    inventory.clickSlot(engineSlot, button);
+                    return true;
+                }
+                return false;
+            }
+            case 1 -> {
+                if (wireSlot == TABLE_WIRE_SLOT_RESULT) {
+                    craftAllIntoInventory(session, grid, inventory);
+                    return true;
+                } else if (wireSlot >= TABLE_WIRE_SLOT_GRID_FIRST
+                        && wireSlot <= TABLE_WIRE_SLOT_GRID_LAST) {
+                    grid.quickMoveTo(wireSlot - TABLE_WIRE_SLOT_GRID_FIRST, inventory);
+                    return true;
+                }
+                int engineSlot = tableEngineSlotOf(wireSlot);
+                if (engineSlot >= 0) {
+                    inventory.quickMove(engineSlot);
+                    return true;
+                }
+                return false;
+            }
+            case 2 -> {
+                // Number keys exchange main inventory and hotbar only; grid and
+                // result slots are rejected per packet.
+                int engineSlot = tableEngineSlotOf(wireSlot);
+                if (engineSlot >= net.zamin.engine.player.PlayerInventory.HOTBAR_SLOTS
+                        && button >= 0 && button < 9) {
+                    inventory.swapWithHotbar(engineSlot, button);
+                    return true;
+                }
+                return false;
+            }
+            case 3 -> {
+                return false; // middle-click clone: rejected in survival
+            }
+            case 4 -> {
+                if (wireSlot >= TABLE_WIRE_SLOT_GRID_FIRST
+                        && wireSlot <= TABLE_WIRE_SLOT_GRID_LAST) {
+                    net.zamin.api.ItemStack dropped = grid.dropFromCell(
+                            wireSlot - TABLE_WIRE_SLOT_GRID_FIRST, button != 0);
+                    if (!dropped.isEmpty()) {
+                        throwFromPlayer(session, dropped);
+                    }
+                    return true;
+                }
+                int engineSlot = tableEngineSlotOf(wireSlot);
+                if (engineSlot >= 0) {
+                    net.zamin.api.ItemStack dropped = inventory.dropFromSlot(engineSlot, button != 0);
+                    if (!dropped.isEmpty()) {
+                        throwFromPlayer(session, dropped);
+                    }
+                    return true;
+                }
+                return false;
+            }
+            default -> {
+                return false; // drag painting (5) / unknown mode: rejected
+            }
+        }
     }
 
     /** Wire slot -> engine slot mapping for the player inventory window; -1 when out of engine scope. */
@@ -401,96 +606,19 @@ public final class EngineServer implements Server, EngineBridge {
         return -1;                           // craft/armor slots or outside
     }
 
-    private void windowClickOnTick(PlayerSession session, int wireSlot, int button, int mode,
-                                   java.util.function.Consumer<Boolean> result) {
-        var inventory = session.inventory();
-        var grid = session.crafting();
-        boolean accepted = false;
-        try {
-            switch (mode) {
-                case 0 -> {
-                    if (wireSlot == WIRE_SLOT_RESULT) {
-                        // Historical result-slot behavior: both buttons craft once
-                        // into the cursor; a refused take (mismatched or
-                        // overflowing cursor) reverts the client's prediction.
-                        accepted = takeCraftingResult(session, grid, inventory);
-                    } else if (wireSlot >= WIRE_SLOT_CRAFT_FIRST && wireSlot <= WIRE_SLOT_CRAFT_LAST) {
-                        grid.clickCell(wireSlot - WIRE_SLOT_CRAFT_FIRST, button, inventory);
-                        accepted = true;
-                    } else {
-                        int engineSlot = engineSlotOf(wireSlot);
-                        if (engineSlot >= 0) {
-                            inventory.clickSlot(engineSlot, button);
-                            accepted = true;
-                        }
-                    }
-                }
-                case 1 -> {
-                    if (wireSlot == WIRE_SLOT_RESULT) {
-                        craftAllIntoInventory(session, grid, inventory);
-                        accepted = true;
-                    } else if (wireSlot >= WIRE_SLOT_CRAFT_FIRST && wireSlot <= WIRE_SLOT_CRAFT_LAST) {
-                        grid.quickMoveTo(wireSlot - WIRE_SLOT_CRAFT_FIRST, inventory);
-                        accepted = true;
-                    } else {
-                        int engineSlot = engineSlotOf(wireSlot);
-                        if (engineSlot >= 0) {
-                            inventory.quickMove(engineSlot);
-                            accepted = true;
-                        }
-                    }
-                }
-                case 2 -> {
-                    // Number-key swaps on the crafting area are a later gesture;
-                    // rejected per packet, the resync restores the truth.
-                    int engineSlot = engineSlotOf(wireSlot);
-                    if (engineSlot >= 0 && button >= 0 && button < 9) {
-                        inventory.swapWithHotbar(engineSlot, button);
-                        accepted = true;
-                    }
-                }
-                case 3 -> {
-                    // Middle-click clone is a creative-only gesture: rejected in survival.
-                }
-                case 4 -> {
-                    if (wireSlot >= WIRE_SLOT_CRAFT_FIRST && wireSlot <= WIRE_SLOT_CRAFT_LAST) {
-                        net.zamin.api.ItemStack dropped = grid.dropFromCell(
-                                wireSlot - WIRE_SLOT_CRAFT_FIRST, button != 0);
-                        if (!dropped.isEmpty()) {
-                            throwFromPlayer(session, dropped);
-                        }
-                        accepted = true;
-                    } else {
-                        int engineSlot = engineSlotOf(wireSlot);
-                        if (engineSlot >= 0) {
-                            net.zamin.api.ItemStack dropped = inventory.dropFromSlot(engineSlot, button != 0);
-                            if (!dropped.isEmpty()) {
-                                throwFromPlayer(session, dropped);
-                            }
-                            accepted = true;
-                        }
-                    }
-                }
-                case 5 -> {
-                    // Drag painting: rejected per packet; the end-of-drag resync
-                    // restores the authoritative state on the client.
-                }
-                default -> {
-                    // Unknown mode: rejected.
-                }
-            }
-            if (wireSlot == -999 && !inventory.cursor().isEmpty()) {
-                // Clicking outside the window throws the carried stack.
-                net.zamin.api.ItemStack carried = inventory.cursor();
-                throwFromPlayer(session, carried);
-                inventory.returnCursor();
-                accepted = true;
-            }
-        } catch (IllegalArgumentException invalid) {
-            accepted = false; // a broken click must not damage the session (§54)
+    /**
+     * Wire slot -> engine inventory slot inside a container window (10-36 maps
+     * to main inventory engine slots 9-35; 37-45 to hotbar 0-8); -1 for the
+     * container's own result/grid slots.
+     */
+    private static int tableEngineSlotOf(int wireSlot) {
+        if (wireSlot >= TABLE_WIRE_SLOT_GRID_LAST + 1 && wireSlot <= TABLE_WIRE_SLOT_GRID_LAST + 27) {
+            return wireSlot - 1;             // main inventory (engine 9-35)
         }
-        result.accept(accepted);
-        publishInventoryChanged(session);
+        if (wireSlot >= TABLE_WIRE_SLOT_HOTBAR_FIRST && wireSlot <= TABLE_WIRE_SLOT_HOTBAR_LAST) {
+            return wireSlot - TABLE_WIRE_SLOT_HOTBAR_FIRST; // hotbar (engine 0-8)
+        }
+        return -1;
     }
 
     /**
@@ -500,8 +628,7 @@ public final class EngineServer implements Server, EngineBridge {
      */
     private boolean takeCraftingResult(PlayerSession session, net.zamin.engine.player.CraftingGrid grid,
                                        net.zamin.engine.player.PlayerInventory inventory) {
-        net.zamin.api.ItemStack result = crafting.resultOf(grid.snapshotArray())
-                .orElse(net.zamin.api.ItemStack.EMPTY);
+        net.zamin.api.ItemStack result = craftingResultOf(grid);
         if (result.isEmpty()) {
             return true; // nothing crafted: an accepted no-op, the resync realigns
         }
@@ -510,6 +637,15 @@ public final class EngineServer implements Server, EngineBridge {
         }
         grid.consumeOne();
         return true;
+    }
+
+    /** The preview over a grid of either shape (2x2 player window, 3x3 table). */
+    private net.zamin.api.ItemStack craftingResultOf(net.zamin.engine.player.CraftingGrid grid) {
+        var snapshot = grid.snapshotArray();
+        return (grid.cols() == 3
+                        ? crafting.resultOf3x3(snapshot)
+                        : crafting.resultOf(snapshot))
+                .orElse(net.zamin.api.ItemStack.EMPTY);
     }
 
     /**
@@ -521,8 +657,7 @@ public final class EngineServer implements Server, EngineBridge {
     private void craftAllIntoInventory(PlayerSession session, net.zamin.engine.player.CraftingGrid grid,
                                        net.zamin.engine.player.PlayerInventory inventory) {
         for (int craft = 0; craft < CRAFT_ALL_LIMIT; craft++) {
-            net.zamin.api.ItemStack result = crafting.resultOf(grid.snapshotArray())
-                    .orElse(net.zamin.api.ItemStack.EMPTY);
+            net.zamin.api.ItemStack result = craftingResultOf(grid);
             if (result.isEmpty()) {
                 return;
             }
@@ -547,26 +682,114 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /**
-     * The player closed the inventory window: the carried cursor stack and the
-     * crafting grid return to the inventory; remainders are thrown into the
-     * world so nothing is lost. Safe from any thread.
+     * The crafting-table preview for wire sync (container wire slot 0), empty
+     * while no container is open. Same thread discipline as
+     * {@link #craftingResult}.
      */
-    public void closeWindow(PlayerSession session) {
+    public net.zamin.api.ItemStack containerResult(PlayerSession session) {
+        Objects.requireNonNull(session, "session");
+        if (session.openContainerWindowId() < 0) {
+            return net.zamin.api.ItemStack.EMPTY;
+        }
+        return crafting.resultOf3x3(session.tableCrafting().snapshotArray())
+                .orElse(net.zamin.api.ItemStack.EMPTY);
+    }
+
+    /**
+     * A right-click use on a block (§215 family): the engine decides on the
+     * simulation context whether the target block opens a container window
+     * (the crafting table) or the use degrades to a placement proposal. Safe
+     * from any thread.
+     */
+    @Override
+    public void useItemOnBlock(PlayerSession session, net.zamin.api.BlockPosition clicked, int face,
+                               java.util.Optional<net.zamin.api.BlockType> creativeHeld,
+                               java.util.function.IntConsumer onTableOpened) {
+        Objects.requireNonNull(session, "session");
+        Objects.requireNonNull(clicked, "clicked");
+        Objects.requireNonNull(creativeHeld, "creativeHeld");
+        Objects.requireNonNull(onTableOpened, "onTableOpened");
+        ticker.submit(() -> useItemOnBlockOnTick(session, clicked, face, creativeHeld, onTableOpened));
+    }
+
+    private void useItemOnBlockOnTick(PlayerSession session, net.zamin.api.BlockPosition clicked,
+                                      int face, java.util.Optional<net.zamin.api.BlockType> creativeHeld,
+                                      java.util.function.IntConsumer onTableOpened) {
+        net.zamin.api.BlockType current = world.getBlock(clicked);
+        if (current.identifier().equals(net.zamin.engine.block.BuiltinBlocks.CRAFTING_TABLE.identifier())) {
+            openCraftingTableOnTick(session, onTableOpened);
+            return;
+        }
+        blockInteraction.placeFromUseOnTick(session, clicked, face, creativeHeld);
+    }
+
+    /**
+     * Opens the crafting-table container: assigns the wire window id, returns
+     * any carried window state (the historical container change closes the
+     * previous window; the one cursor carries over — one mouse), and reports
+     * the id so the adapter can send Open Window followed by the authoritative
+     * window contents. Tick-thread context.
+     */
+    private void openCraftingTableOnTick(PlayerSession session,
+                                         java.util.function.IntConsumer onTableOpened) {
+        // A stale open container (re-open without a close) returns its grid first.
+        if (session.openContainerWindowId() >= 0) {
+            throwOverflow(session, session.tableCrafting().returnAllTo(session.inventory()));
+            session.closeContainerWindow();
+        }
+        // Opening a container closes the player inventory window (historical):
+        // the 2x2 grid returns to the inventory, nothing is lost.
+        throwOverflow(session, session.crafting().returnAllTo(session.inventory()));
+
+        int windowId = nextContainerWindowId;
+        nextContainerWindowId = nextContainerWindowId >= LAST_CONTAINER_WINDOW_ID
+                ? FIRST_CONTAINER_WINDOW_ID : nextContainerWindowId + 1;
+        session.openContainerWindow(windowId);
+        // The adapter must send Open Window before any slot data: the client
+        // ignores Window Items for a window id it does not know yet.
+        onTableOpened.accept(windowId);
+    }
+
+    /** Throws each overflow stack into the world at the player (nothing is lost). */
+    private void throwOverflow(PlayerSession session, java.util.List<net.zamin.api.ItemStack> overflow) {
+        for (net.zamin.api.ItemStack stack : overflow) {
+            throwFromPlayer(session, stack);
+        }
+    }
+
+    /**
+     * The client closed a window: carried window state returns to the
+     * inventory; remainders are thrown into the world so nothing is lost.
+     * Safe from any thread.
+     */
+    @Override
+    public void closeWindow(PlayerSession session, int windowId) {
         Objects.requireNonNull(session, "session");
         ticker.submit(() -> {
-            returnWindowCarriedItems(session);
+            if (windowId == WIRE_WINDOW_PLAYER) {
+                returnWindowCarriedItems(session, false);
+            } else if (windowId == session.openContainerWindowId()) {
+                returnWindowCarriedItems(session, true);
+                session.closeContainerWindow();
+            }
             publishInventoryChanged(session);
         });
     }
 
-    /** Cursor + crafting grid back into the inventory; overflow is thrown. Tick-thread context. */
-    private void returnWindowCarriedItems(PlayerSession session) {
+    /**
+     * Cursor + crafting grids back into the inventory; overflow is thrown.
+     * With {@code containerToo} the open container's 3x3 grid returns as well
+     * and its window state clears. Tick-thread context.
+     */
+    private void returnWindowCarriedItems(PlayerSession session, boolean containerToo) {
         net.zamin.api.ItemStack leftover = session.inventory().returnCursor();
         if (!leftover.isEmpty()) {
             throwFromPlayer(session, leftover);
         }
-        for (net.zamin.api.ItemStack overflow : session.crafting().returnAllTo(session.inventory())) {
-            throwFromPlayer(session, overflow);
+        throwOverflow(session, session.crafting().returnAllTo(session.inventory()));
+        if (containerToo && session.openContainerWindowId() >= 0) {
+            throwOverflow(session, session.tableCrafting().returnAllTo(session.inventory()));
+            session.closeContainerWindow();
         }
     }
 
@@ -834,7 +1057,7 @@ public final class EngineServer implements Server, EngineBridge {
         java.util.concurrent.CountDownLatch done = new java.util.concurrent.CountDownLatch(1);
         ticker.submit(() -> {
             try {
-                returnWindowCarriedItems(session);
+                returnWindowCarriedItems(session, true);
                 persistPlayer(session);
             } finally {
                 done.countDown();
@@ -875,7 +1098,7 @@ public final class EngineServer implements Server, EngineBridge {
         // nothing is lost (historical behavior for leaving with a held stack).
         if (ticker != null) {
             ticker.submit(() -> {
-                returnWindowCarriedItems(session);
+                returnWindowCarriedItems(session, true);
                 persistPlayer(session);
             });
         }

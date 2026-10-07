@@ -33,6 +33,8 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:oak_log"), 17),     // dataset/legacy name: "log"
             Map.entry(Identifier.parse("minecraft:crafting_table"), 58),
             Map.entry(Identifier.parse("minecraft:torch"), 50),
+            Map.entry(Identifier.parse("minecraft:furnace"), 61),
+            Map.entry(Identifier.parse("minecraft:chest"), 54),
             // items yielded by mining and crafting
             Map.entry(Identifier.parse("minecraft:coal"), 263),
             Map.entry(Identifier.parse("minecraft:diamond"), 264),

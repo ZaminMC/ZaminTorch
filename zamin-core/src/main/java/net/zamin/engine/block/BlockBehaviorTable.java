@@ -70,6 +70,18 @@ public final class BlockBehaviorTable {
                     new BlockBehavior(0.0, true, false, "wood", 0,
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:torch"), 1)))),
 
+            // Community data (pc/1.8 blocks.json): furnace hardness 3.5, material
+            // rock, pickaxe required (harvestTools: all pickaxe tiers), drops
+            // itself; chest hardness 2.5, material wood, no tool requirement,
+            // drops itself.
+            Map.entry(Identifier.parse("minecraft:furnace"),
+                    new BlockBehavior(3.5, true, true, "rock", 1,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:furnace"), 1)))),
+
+            Map.entry(Identifier.parse("minecraft:chest"),
+                    new BlockBehavior(2.5, true, false, "wood", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:chest"), 1)))),
+
             Map.entry(Identifier.parse("minecraft:coal_ore"),
                     new BlockBehavior(3.0, true, true, "rock", 1,
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:coal"), 1)))),

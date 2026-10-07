@@ -39,14 +39,34 @@ public interface EngineBridge {
     void clientDisconnected(PlayerSession session, String reason);
 
     /**
-     * A window click in the player inventory window: the adapter reports the
-     * raw click (historical wire slot, button, mode, action number); the engine
-     * applies the semantic operation on the simulation context and reports the
-     * verdict through {@code result} (accepted / rejected), after which the
-     * adapter confirms the action number and re-syncs the affected slots.
+     * A window click in an open window (window 0 = player inventory, or the
+     * session's open container): the adapter reports the raw click (historical
+     * wire slot, button, mode, action number); the engine applies the semantic
+     * operation on the simulation context and reports the verdict through
+     * {@code result} (accepted / rejected), after which the adapter confirms
+     * the action number and re-syncs the affected slots.
      */
-    void windowClick(PlayerSession session, int wireSlot, int button, int mode,
+    void windowClick(PlayerSession session, int windowId, int wireSlot, int button, int mode,
                      java.util.function.Consumer<Boolean> result);
+
+    /**
+     * A right-click use on a block (§215 family). The engine decides on the
+     * simulation context: a block with a container interface (the crafting
+     * table) opens its window and reports the id through {@code onTableOpened};
+     * otherwise the use degrades to a placement proposal — survival consumes
+     * from the authoritative inventory, creative places the client-claimed
+     * block (empty optional = no block held).
+     */
+    void useItemOnBlock(PlayerSession session, net.zamin.api.BlockPosition clicked, int face,
+                        java.util.Optional<net.zamin.api.BlockType> creativeHeld,
+                        java.util.function.IntConsumer onTableOpened);
+
+    /**
+     * The client closed a window (player inventory, or the open container).
+     * Carried window state returns to the inventory; overflow is thrown into
+     * the world so nothing is lost.
+     */
+    void closeWindow(PlayerSession session, int windowId);
 
     /** Result of {@link #joinRequest}. */
     sealed interface JoinResult permits Accepted, Rejected {

@@ -32,6 +32,12 @@ public final class BuiltinBlocks {
             Identifier.parse("minecraft:crafting_table"), "Crafting Table");
     public static final EngineBlockType TORCH = new EngineBlockType(
             Identifier.parse("minecraft:torch"), "Torch");
+    // 3x3 crafting-table unlocks (community-data recipes): the furnace and the
+    // chest are the two ring-pattern results whose ingredients the registry has.
+    public static final EngineBlockType FURNACE = new EngineBlockType(
+            Identifier.parse("minecraft:furnace"), "Furnace");
+    public static final EngineBlockType CHEST = new EngineBlockType(
+            Identifier.parse("minecraft:chest"), "Chest");
 
     private BuiltinBlocks() {
     }
@@ -47,6 +53,8 @@ public final class BuiltinBlocks {
                 .register(IRON_ORE)
                 .register(DIAMOND_ORE)
                 .register(CRAFTING_TABLE)
-                .register(TORCH);
+                .register(TORCH)
+                .register(FURNACE)
+                .register(CHEST);
     }
 }

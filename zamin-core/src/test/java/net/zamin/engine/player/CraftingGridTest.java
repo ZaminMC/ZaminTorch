@@ -216,4 +216,70 @@ class CraftingGridTest {
         assertTrue(column.isEmpty(), "one unit left each cell");
         assertEquals(4, crafter.cursor().count());
     }
+
+    // ---- 3x3 crafting-table grid --------------------------------------------
+
+    @Test
+    void tableGridHoldsNineCellsRowMajor() {
+        CraftingGrid grid = new CraftingGrid(3, 3);
+        assertEquals(9, grid.size());
+        assertEquals(3, grid.rows());
+        assertEquals(3, grid.cols());
+
+        PlayerInventory inventory = new PlayerInventory();
+        inventory.pickUp(planks(3));
+        inventory.clickSlot(0, 0);
+        grid.clickCell(2, 0, inventory); // whole stack into cell 2 (r0c2)
+        assertEquals(3, grid.cell(2).count());
+        assertTrue(grid.cell(0).isEmpty());
+        assertTrue(grid.cell(8).isEmpty());
+    }
+
+    @Test
+    void tableGridClicksPlayTheSameCursorRules() {
+        CraftingGrid grid = new CraftingGrid(3, 3);
+        PlayerInventory inventory = new PlayerInventory();
+        inventory.pickUp(planks(4));
+        inventory.clickSlot(0, 0); // 4 planks on the cursor
+
+        grid.clickCell(0, 1, inventory); // right click: 1 plank into r0c0
+        grid.clickCell(4, 1, inventory); // 1 into the center (r1c1)
+        assertEquals(1, grid.cell(0).count());
+        assertEquals(1, grid.cell(4).count());
+        assertEquals(2, inventory.cursor().count());
+
+        // park the cursor stack (empty cursor = pickup clicks)
+        inventory.clickSlot(0, 0);
+        assertTrue(inventory.cursor().isEmpty());
+        grid.clickCell(0, 0, inventory); // left click: the cell's stack comes back
+        assertTrue(grid.cell(0).isEmpty());
+        assertEquals(1, inventory.cursor().count());
+    }
+
+    @Test
+    void tableGridConsumesAndReturnsAllNineCells() {
+        CraftingGrid grid = new CraftingGrid(3, 3);
+        PlayerInventory inventory = new PlayerInventory();
+        inventory.pickUp(planks(9));
+        inventory.clickSlot(0, 0); // 9 planks on the cursor
+
+        for (int cell = 0; cell < 9; cell++) {
+            grid.clickCell(cell, 1, inventory); // one plank per cell
+        }
+        assertTrue(inventory.cursor().isEmpty(), "all 9 planks placed");
+
+        // consume: every non-empty cell loses one unit
+        grid.consumeOne();
+        for (int cell = 0; cell < 9; cell++) {
+            assertTrue(grid.cell(cell).isEmpty(), "cell " + cell + " consumed");
+        }
+    }
+
+    @Test
+    void tableGridShapeIsBoundedToThree() {
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class,
+                () -> new CraftingGrid(4, 3));
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class,
+                () -> new CraftingGrid(0, 3));
+    }
 }

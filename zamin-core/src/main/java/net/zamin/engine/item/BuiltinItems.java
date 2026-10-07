@@ -38,6 +38,11 @@ public final class BuiltinItems {
             Identifier.parse("minecraft:crafting_table"), "Crafting Table", 64);
     public static final EngineItemType TORCH = new EngineItemType(
             Identifier.parse("minecraft:torch"), "Torch", 64);
+    // Craftable blocks unlocked by the 3x3 crafting table (legacy 61 / 54).
+    public static final EngineItemType FURNACE = new EngineItemType(
+            Identifier.parse("minecraft:furnace"), "Furnace", 64);
+    public static final EngineItemType CHEST = new EngineItemType(
+            Identifier.parse("minecraft:chest"), "Chest", 64);
 
     // Materials yielded by tool-gated mining (legacy ids: coal 263, diamond 264).
     public static final EngineItemType COAL = new EngineItemType(
@@ -126,7 +131,7 @@ public final class BuiltinItems {
         Map<Identifier, ItemType> map = new TreeMap<>();
         for (EngineItemType type : new EngineItemType[] {
                 DIRT, COBBLESTONE, OAK_PLANKS, OAK_LOG,
-                STICK, CRAFTING_TABLE, TORCH,
+                STICK, CRAFTING_TABLE, TORCH, FURNACE, CHEST,
                 COAL, DIAMOND, COAL_ORE, IRON_ORE, DIAMOND_ORE,
                 WOODEN_PICKAXE, STONE_PICKAXE, IRON_PICKAXE, DIAMOND_PICKAXE, GOLDEN_PICKAXE,
                 WOODEN_AXE, STONE_AXE, IRON_AXE, DIAMOND_AXE, GOLDEN_AXE,
