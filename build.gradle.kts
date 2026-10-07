@@ -1,6 +1,8 @@
-plugins {
-    id("java")
-}
+import org.gradle.api.plugins.JavaPluginExtension
+
+// The root aggregator applies no Java plugin: it carries no sources, and an
+// unconfigured compile task would bind to the daemon JVM instead of the
+// Java 21 toolchain (a JRE-only host would then fail on capability checks).
 
 allprojects {
     group = "net.zamin"
@@ -14,7 +16,7 @@ allprojects {
 subprojects {
     apply(plugin = "java-library")
 
-    java {
+    extensions.configure<JavaPluginExtension> {
         toolchain {
             languageVersion = JavaLanguageVersion.of(21)
         }

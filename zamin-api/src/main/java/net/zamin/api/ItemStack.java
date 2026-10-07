@@ -13,18 +13,26 @@ import java.util.Objects;
  * ({@link #EMPTY}) exists; every subsystem must treat emptiness through
  * {@link #isEmpty()}, never by inventing null conventions.</p>
  *
- * @param type  the item identity; {@code null} only for the canonical empty stack
- * @param count units held; {@code 0} only for the canonical empty stack
+ * <p>Durability damage travels with the stack (the historical wire carries it
+ * per slot and per item entity), so it is part of the value: a worn pickaxe
+ * and a fresh one are different stacks. Non-durable items always carry
+ * {@code damage == 0}.</p>
+ *
+ * @param type   the item identity; {@code null} only for the canonical empty stack
+ * @param count  units held; {@code 0} only for the canonical empty stack
+ * @param damage accumulated durability damage; always {@code 0} for empty
+ *               stacks and non-durable items
  */
-public record ItemStack(ItemType type, int count) {
+public record ItemStack(ItemType type, int count, int damage) {
 
     /** The single canonical empty stack (§427). */
     public static final ItemStack EMPTY = new ItemStack(null, 0);
 
     public ItemStack {
         if (type == null) {
-            if (count != 0) {
-                throw new IllegalArgumentException("A stack without a type must be empty (count " + count + ")");
+            if (count != 0 || damage != 0) {
+                throw new IllegalArgumentException("A stack without a type must be empty (count "
+                        + count + ", damage " + damage + ")");
             }
         } else {
             if (count < 1) {
@@ -35,7 +43,24 @@ public record ItemStack(ItemType type, int count) {
                         + " exceeds max stack size " + type.maxStackSize()
                         + " of " + type.identifier());
             }
+            if (damage < 0) {
+                throw new IllegalArgumentException("Stack damage must not be negative: " + damage);
+            }
+            int maxDurability = type.maxDurability();
+            if (maxDurability <= 0 && damage != 0) {
+                throw new IllegalArgumentException(
+                        type.identifier() + " is not durability-bound and cannot carry damage");
+            }
+            if (maxDurability > 0 && damage > maxDurability) {
+                throw new IllegalArgumentException("Stack damage " + damage
+                        + " exceeds max durability " + maxDurability + " of " + type.identifier());
+            }
         }
+    }
+
+    /** A fresh stack with no damage. */
+    public ItemStack(ItemType type, int count) {
+        this(type, count, 0);
     }
 
     public static ItemStack of(ItemType type, int count) {
@@ -52,26 +77,40 @@ public record ItemStack(ItemType type, int count) {
     }
 
     /**
-     * @return a stack of the same type with {@code newCount} units, or the
-     *         canonical empty stack when it would hold nothing.
+     * @return a stack of the same type and damage with {@code newCount} units,
+     *         or the canonical empty stack when it would hold nothing.
      */
     public ItemStack withCount(int newCount) {
         if (newCount <= 0) {
             return isEmpty() ? this : EMPTY;
         }
-        return new ItemStack(type, newCount);
+        return new ItemStack(type, newCount, damage);
+    }
+
+    /**
+     * @return a stack of the same type and count with the given damage. Used by
+     *         validated durability wear; breaking (damage reaching the limit)
+     *         is an inventory decision, not a value transformation.
+     */
+    public ItemStack withDamage(int newDamage) {
+        if (isEmpty()) {
+            return this;
+        }
+        return new ItemStack(type, count, newDamage);
     }
 
     /**
      * @return a stack holding up to {@code amount} units taken from the top of
      *         this stack (used by validated pickup/split operations), and this
      *         stack reduced accordingly is produced via {@link #withCount}.
+     *         Damage carries over: splitting a stack of one worn tool yields
+     *         the same worn tool.
      */
     public ItemStack split(int amount) {
         if (isEmpty() || amount <= 0) {
             return EMPTY;
         }
         int taken = Math.min(Math.min(amount, count), type.maxStackSize());
-        return new ItemStack(type, taken);
+        return new ItemStack(type, taken, damage);
     }
 }

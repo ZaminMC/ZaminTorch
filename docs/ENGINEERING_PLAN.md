@@ -156,11 +156,40 @@ smoke repeats it against the launcher):
   x|z|y; the verified protocol 47 layout is x:26 | y:12 | z:26. Self-
   consistent scripted tests could not catch this — the live process could.
 
-Explicitly NOT yet: tools/harvest classes (the behavior table's tool hook is
-the only placeholder), inventory UI click handling (window clicks are
-accepted-and-ignored with authoritative re-sync), crafting, item NBT,
-player-data persistence, item merging, physics beyond gravity+drag,
-permissions, lighting, mobs, Anvil import, plugin API.
+Explicitly NOT yet: inventory UI click handling (window clicks are
+accepted-and-ignored with authoritative re-sync), crafting, item NBT beyond
+durability damage, player-data persistence, item merging, physics beyond
+gravity+drag, permissions, lighting, mobs, Anvil import, plugin API.
+
+## 10e. Slice #5 — tools & harvest (implemented status)
+
+The tool system completes the survival mining loop; every value is the
+community dataset's (ADR-0002) and pinned by tests:
+
+- **Tool identity** (§426): 21 tools registered (5 pickaxes / axes / shovels /
+  swords, shears) with `ToolSpec` (class + material). Materials carry the
+  dataset's speed multipliers (wood 2x, stone 4x, iron 6x, diamond 8x, gold
+  12x), harvest tiers (1-4; gold stays tier 1) and durability limits (59 /
+  131 / 250 / 1561 / 32, shears 238). Tool items stack to one; the 1.8
+  adapter maps their dataset-verified legacy ids (270, 274, 257, ... 359).
+- **Harvest gating** (§424/§434): blocks gain `harvestLevel`; the ore ladder
+  coal (tier 1) -> iron (tier 2, drops itself) -> diamond (tier 3, drops the
+  gem) is gated exactly as the dataset's `harvestTools` maps describe. The
+  wrong tier still breaks the block, historically yielding nothing.
+- **Mining speed**: a matching tool class accelerates the dig by its material
+  multiplier (tier-independent, as historically — a wooden pickaxe digs
+  diamond ore fast but yields nothing). Break ticks are now
+  `ceil(hardness * (harvest ? 30 : 100) / speed)`.
+- **Durability**: stacks carry damage (wire: the historical per-slot damage
+  field; value semantics: a worn tool stays worn through split/drop/pickup).
+  One successful dig of a hardness>0 block wears the held tool by one; at the
+  limit the tool leaves the hand (slot empty + authoritative re-sync).
+  Creative players never wear tools.
+- **/give** (§521): administrative item source (`/give <name> [count]`) —
+  the way to obtain tools until crafting and inventory clicks exist.
+- Wire order is pinned by the integration test: commit -> drop spawn ->
+  durability re-sync; the live smoke proved a shovel dig commits at 350 ms
+  where a hand needs 525 ms, with wear accumulating across digs.
 
 ## 11. Known risks
 

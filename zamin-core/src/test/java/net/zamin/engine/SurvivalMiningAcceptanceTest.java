@@ -14,6 +14,8 @@ import java.nio.file.Path;
 import java.util.UUID;
 import java.util.function.BooleanSupplier;
 
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 /**
  * Behavioral scenarios for survival mining (§93/§614): the client proposes
  * start/abort/finish; the server validates reach, diggability and elapsed time
@@ -183,6 +185,97 @@ class SurvivalMiningAcceptanceTest {
         server.blockInteraction().submitMiningFinished(player, bedrock);
         await(() -> server.world().getBlock(bedrock).equals(BuiltinBlocks.BEDROCK),
                 "bedrock survives a dig attempt");
+        server.shutdown(null);
+    }
+
+    // ------------------------------------------------------------------ tools slice
+
+    @Test
+    void pickaxeMinesStoneFasterAndDropsCobblestone() throws Exception {
+        server = boot();
+        PlayerSession player = join("PickaxeMiner");
+        assertTrue(player.inventory()
+                .pickUp(net.zamin.api.ItemStack.of(net.zamin.engine.item.BuiltinItems.WOODEN_PICKAXE))
+                .isEmpty(), "test grants the tool into the held hotbar slot");
+
+        BlockPosition stone = new BlockPosition(2, 5, 2);
+        seedBlock(player, stone, BuiltinBlocks.STONE);
+
+        server.blockInteraction().submitMiningStart(player, stone);
+        // Stone with a wooden pickaxe: 1.5 * 30 / 2 = 23 ticks nominal (1.15s),
+        // lenient floor 70% (805ms). Historically a third of the hand time.
+        Thread.sleep(1_200);
+        server.blockInteraction().submitMiningFinished(player, stone);
+        await(() -> server.world().getBlock(stone).equals(BuiltinBlocks.AIR),
+                "pickaxe dig commits break");
+
+        await(() -> server.itemEntities().size() == 1
+                        && server.itemEntities().all().get(0).stack().type().identifier()
+                                .toString().equals("minecraft:cobblestone"),
+                "cobblestone drop spawned");
+        org.junit.jupiter.api.Assertions.assertEquals(1, player.inventory().held().damage(),
+                "one successful dig wears the tool by one durability unit");
+        server.shutdown(null);
+    }
+
+    @Test
+    void ironOreNeedsAStoneTierPickaxe() throws Exception {
+        server = boot();
+        PlayerSession wooden = join("WoodMiner");
+        assertTrue(wooden.inventory()
+                .pickUp(net.zamin.api.ItemStack.of(net.zamin.engine.item.BuiltinItems.WOODEN_PICKAXE))
+                .isEmpty());
+
+        BlockPosition ore = new BlockPosition(2, 5, 3);
+        seedBlock(wooden, ore, BuiltinBlocks.IRON_ORE);
+
+        // The wooden pickaxe class-matches (2x speed) but cannot harvest iron ore:
+        // 3 * 100 / 2 = 150 ticks nominal (7.5s), floor 5.25s - the full slow dig.
+        server.blockInteraction().submitMiningStart(wooden, ore);
+        Thread.sleep(5_400);
+        server.blockInteraction().submitMiningFinished(wooden, ore);
+        await(() -> server.world().getBlock(ore).equals(BuiltinBlocks.AIR),
+                "breakable even with the wrong tier");
+        org.junit.jupiter.api.Assertions.assertEquals(0, server.itemEntities().size(),
+                "no drop without the required harvest tier");
+
+        // A stone-tier pickaxe harvests: 3 * 30 / 4 = 23 ticks (1.15s).
+        PlayerSession stoned = join("StoneMiner");
+        assertTrue(stoned.inventory()
+                .pickUp(net.zamin.api.ItemStack.of(net.zamin.engine.item.BuiltinItems.STONE_PICKAXE))
+                .isEmpty());
+        BlockPosition ore2 = new BlockPosition(2, 5, 3); // within 4.5 survival reach of spawn
+        seedBlock(stoned, ore2, BuiltinBlocks.IRON_ORE);
+        server.blockInteraction().submitMiningStart(stoned, ore2);
+        Thread.sleep(1_200);
+        server.blockInteraction().submitMiningFinished(stoned, ore2);
+        await(() -> server.world().getBlock(ore2).equals(BuiltinBlocks.AIR), "stone-tier dig commits");
+
+        await(() -> server.itemEntities().all().stream().anyMatch(entity ->
+                        entity.stack().type().identifier().toString().equals("minecraft:iron_ore")),
+                "iron ore drops itself to a stone-tier pickaxe");
+        server.shutdown(null);
+    }
+
+    @Test
+    void aToolAtItsDurabilityLimitBreaksInTheHand() throws Exception {
+        server = boot();
+        PlayerSession player = join("ToolBreaker");
+        player.inventory().pickUp(
+                net.zamin.api.ItemStack.of(net.zamin.engine.item.BuiltinItems.GOLDEN_PICKAXE));
+        // Wear the golden pickaxe (32 durability) to one point before breaking.
+        while (player.inventory().held().damage() < 31) {
+            player.inventory().damageHeld(1);
+        }
+
+        BlockPosition stone = new BlockPosition(2, 5, 2); // within 4.5 survival reach of spawn
+        seedBlock(player, stone, BuiltinBlocks.STONE);
+        server.blockInteraction().submitMiningStart(player, stone);
+        Thread.sleep(1_200); // golden pickaxe on stone: 1.5 * 30 / 12 = 4 ticks, floor 140ms
+        server.blockInteraction().submitMiningFinished(player, stone);
+        await(() -> server.world().getBlock(stone).equals(BuiltinBlocks.AIR), "dig commits");
+
+        await(() -> player.inventory().held().isEmpty(), "the final wear point breaks the tool");
         server.shutdown(null);
     }
 

@@ -25,4 +25,14 @@ public interface ItemType {
     default int maxStackSize() {
         return 64;
     }
+
+    /**
+     * Maximum damage (used durability) this item can carry before it breaks.
+     * {@code 0} means the item is not durability-bound: stacks of it never
+     * carry damage. Tools expose their material's limit here (wood 59,
+     * stone 131, iron 250, diamond 1561, gold 32, shears 238).
+     */
+    default int maxDurability() {
+        return 0;
+    }
 }

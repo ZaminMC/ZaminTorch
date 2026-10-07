@@ -19,6 +19,14 @@ public final class BuiltinBlocks {
     public static final EngineBlockType BEDROCK = new EngineBlockType(
             Identifier.parse("minecraft:bedrock"), "Bedrock");
 
+    // Ore ladder for harvest gating: coal (tier 1) -> iron (tier 2) -> diamond (tier 3).
+    public static final EngineBlockType COAL_ORE = new EngineBlockType(
+            Identifier.parse("minecraft:coal_ore"), "Coal Ore");
+    public static final EngineBlockType IRON_ORE = new EngineBlockType(
+            Identifier.parse("minecraft:iron_ore"), "Iron Ore");
+    public static final EngineBlockType DIAMOND_ORE = new EngineBlockType(
+            Identifier.parse("minecraft:diamond_ore"), "Diamond Ore");
+
     private BuiltinBlocks() {
     }
 
@@ -28,6 +36,9 @@ public final class BuiltinBlocks {
                 .register(STONE)
                 .register(GRASS_BLOCK)
                 .register(DIRT)
-                .register(BEDROCK);
+                .register(BEDROCK)
+                .register(COAL_ORE)
+                .register(IRON_ORE)
+                .register(DIAMOND_ORE);
     }
 }
