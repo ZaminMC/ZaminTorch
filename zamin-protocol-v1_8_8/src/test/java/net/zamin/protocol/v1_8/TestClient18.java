@@ -418,6 +418,45 @@ final class TestClient18 implements AutoCloseable {
         return new int[]{entityId, itemId, count};
     }
 
+    /** Sends Close Window (0x0D) for the player inventory window. */
+    void sendCloseWindow() throws IOException {
+        ByteBuf body = Unpooled.buffer(4);
+        ByteBufOps.writeVarInt(body, Protocol18.C2S_CLOSE_WINDOW);
+        body.writeByte(Protocol18.INVENTORY_WINDOW_ID);
+        sendPacket(bodyToBytes(body));
+    }
+
+    /**
+     * Reads a Window Items packet into a full per-wire-slot table:
+     * {@code table[wireSlot] = {itemId, count, damage}}, itemId -1 when empty.
+     */
+    int[][] readWindowSlotTable(long timeoutMs) throws IOException {
+        byte[] payload = readPacketOfType(Protocol18.S2C_WINDOW_ITEMS, timeoutMs);
+        ByteBuf buffer = Unpooled.wrappedBuffer(payload);
+        ByteBufOps.readVarInt(buffer); // packet id
+        int windowId = buffer.readByte();
+        if (windowId != Protocol18.INVENTORY_WINDOW_ID) {
+            throw new IOException("Unexpected window id " + windowId);
+        }
+        int count = buffer.readShort();
+        int[][] table = new int[count][];
+        for (int i = 0; i < count; i++) {
+            int id = buffer.readShort();
+            if (id == -1) {
+                table[i] = new int[]{-1, 0, 0};
+                continue;
+            }
+            int stackCount = buffer.readUnsignedByte();
+            int damage = buffer.readShort();
+            int nbt = buffer.readShort();
+            if (nbt > 0) {
+                buffer.readBytes(new byte[nbt]);
+            }
+            table[i] = new int[]{id, stackCount, damage};
+        }
+        return table;
+    }
+
     @Override
     public void close() throws IOException {
         socket.close();

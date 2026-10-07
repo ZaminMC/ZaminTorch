@@ -134,58 +134,51 @@ public final class PlayerInventory {
      * Semantic left/right click on one inventory slot (window click mode 0).
      * Implements the historical cursor model: pick up, place, merge into
      * matching stacks, split half on right click, swap on mismatch. Invalid
-     * slots and no-op clicks leave everything untouched.
+     * slots and no-op clicks leave everything untouched. The semantics live
+     * in {@link WindowClicks} so the crafting grid plays by identical rules.
      */
     public void clickSlot(int engineSlot, int button) {
-        if (engineSlot < 0 || engineSlot >= TOTAL_SLOTS) {
-            throw new IllegalArgumentException("Slot out of range: " + engineSlot);
-        }
-        if (button != 0 && button != 1) {
-            throw new IllegalArgumentException("Click button must be 0 or 1: " + button);
-        }
-        ItemStack slot = slots[engineSlot];
-        if (button == 0) {
-            if (cursor.isEmpty()) {
-                if (slot.isEmpty()) {
-                    return; // clicking an empty slot with an empty hand: no-op
-                }
-                cursor = slot;
-                slots[engineSlot] = ItemStack.EMPTY;
-            } else if (slot.isEmpty()) {
-                slots[engineSlot] = cursor;
-                cursor = ItemStack.EMPTY;
-            } else if (stacksMergeable(slot, cursor)) {
-                int capacity = slot.type().maxStackSize() - slot.count();
-                int moved = Math.min(capacity, cursor.count());
-                slots[engineSlot] = new ItemStack(slot.type(), slot.count() + moved, slot.damage());
-                cursor = cursor.withCount(cursor.count() - moved);
-            } else {
-                slots[engineSlot] = cursor;
-                cursor = slot; // mismatch: historical swap
-            }
-        } else {
-            if (cursor.isEmpty()) {
-                if (slot.isEmpty()) {
-                    return;
-                }
-                int taken = (slot.count() + 1) / 2; // historical: right click takes half, rounding up
-                cursor = new ItemStack(slot.type(), taken, slot.damage());
-                slots[engineSlot] = slot.withCount(slot.count() - taken);
-            } else if (slot.isEmpty()) {
-                slots[engineSlot] = cursor.withCount(1);
-                cursor = cursor.withCount(cursor.count() - 1);
-            } else if (stacksMergeable(slot, cursor) && slot.count() < slot.type().maxStackSize()) {
-                slots[engineSlot] = new ItemStack(slot.type(), slot.count() + 1, slot.damage());
-                cursor = cursor.withCount(cursor.count() - 1);
-            } else {
-                slots[engineSlot] = cursor;
-                cursor = slot;
-            }
-        }
+        WindowClicks.click(slots, engineSlot, button, cursorBox());
     }
 
-    private static boolean stacksMergeable(ItemStack a, ItemStack b) {
-        return a.type().equals(b.type()) && a.damage() == b.damage();
+    /** The one shared cursor, packaged for window-op collaborators (same package). */
+    WindowClicks.CursorBox cursorBox() {
+        return new WindowClicks.CursorBox() {
+            @Override
+            public ItemStack get() {
+                return cursor;
+            }
+
+            @Override
+            public void set(ItemStack stack) {
+                cursor = stack;
+            }
+        };
+    }
+
+    /**
+     * Historical result-slot pickup: a crafting result moves onto the cursor
+     * (empty cursor takes it; a matching cursor absorbs it while it fits).
+     * Anything else — mismatched cursor, overflowing stack — is refused and
+     * the caller rejects the click so the client reverts its prediction.
+     *
+     * @return whether the cursor took the result.
+     */
+    public boolean takeResultToCursor(ItemStack result) {
+        Objects.requireNonNull(result, "result");
+        if (result.isEmpty()) {
+            return true; // nothing to take: an accepted no-op
+        }
+        if (cursor.isEmpty()) {
+            cursor = result;
+            return true;
+        }
+        if (WindowClicks.stacksMergeable(cursor, result)
+                && cursor.count() + result.count() <= cursor.type().maxStackSize()) {
+            cursor = cursor.withCount(cursor.count() + result.count());
+            return true;
+        }
+        return false;
     }
 
     /**
@@ -210,7 +203,7 @@ public final class PlayerInventory {
         // 1. top up matching stacks inside the target range
         for (int i = rangeStart; i < rangeEnd && !remaining.isEmpty(); i++) {
             ItemStack current = slots[i];
-            if (!current.isEmpty() && stacksMergeable(current, remaining)
+            if (!current.isEmpty() && WindowClicks.stacksMergeable(current, remaining)
                     && current.count() < current.type().maxStackSize()) {
                 int capacity = current.type().maxStackSize() - current.count();
                 int moved = Math.min(capacity, remaining.count());

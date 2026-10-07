@@ -217,7 +217,9 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 chunkTracker.sendInitial(accepted.session().position()
                         .toBlockPosition().chunkPosition());
                 sendInitialPositionAndLook(channel);
-                sendWindowItems(channel, accepted.session().inventory().snapshot());
+                sendWindowItems(channel, accepted.session().inventory().snapshot(),
+                        accepted.session().crafting().snapshot(),
+                        engine.craftingResult(accepted.session()));
                 engine.joinCompleted(accepted.session());
                 startKeepAlive(channel);
                 adapter.playerEnteredPlay(this);
@@ -688,7 +690,9 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     }
 
     /** Full authoritative inventory sync for window 0. Any thread; owner supplies the snapshot. */
-    void sendWindowItems(Channel channel, java.util.List<net.zamin.api.ItemStack> engineSlots) {
+    void sendWindowItems(Channel channel, java.util.List<net.zamin.api.ItemStack> engineSlots,
+                         java.util.List<net.zamin.api.ItemStack> craftCells,
+                         net.zamin.api.ItemStack craftingResult) {
         if (channel == null || !channel.isActive() || state != WireState.PLAY) {
             return;
         }
@@ -697,20 +701,31 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeByte(Protocol18.INVENTORY_WINDOW_ID);
         out.writeShort(Protocol18.INVENTORY_WINDOW_SLOTS);
         for (int wireSlot = 0; wireSlot < Protocol18.INVENTORY_WINDOW_SLOTS; wireSlot++) {
-            // Wire 9-35 = engine main 9-35; wire 36-44 = engine hotbar 0-8; others empty.
-            net.zamin.api.ItemStack stack = engineSlotForWireSlot(wireSlot, engineSlots);
+            // Wire 0 = crafting result preview; 1-4 = the 2x2 grid (row-major);
+            // 9-35 = engine main 9-35; 36-44 = engine hotbar 0-8; armor empty.
+            net.zamin.api.ItemStack stack = engineSlotForWireSlot(wireSlot, engineSlots,
+                    craftCells, craftingResult);
             writeSlot(out, stack);
         }
         channel.writeAndFlush(out);
     }
 
     private static net.zamin.api.ItemStack engineSlotForWireSlot(
-            int wireSlot, java.util.List<net.zamin.api.ItemStack> engineSlots) {
+            int wireSlot, java.util.List<net.zamin.api.ItemStack> engineSlots,
+            java.util.List<net.zamin.api.ItemStack> craftCells,
+            net.zamin.api.ItemStack craftingResult) {
+        if (wireSlot == Protocol18.WIRE_SLOT_RESULT) {
+            return craftingResult;
+        }
+        if (wireSlot >= Protocol18.WIRE_SLOT_CRAFT_FIRST
+                && wireSlot <= Protocol18.WIRE_SLOT_CRAFT_LAST) {
+            return craftCells.get(wireSlot - Protocol18.WIRE_SLOT_CRAFT_FIRST);
+        }
         int engineSlot = switch (wireSlot) {
             case 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26,
                  27, 28, 29, 30, 31, 32, 33, 34, 35 -> wireSlot;
             case 36, 37, 38, 39, 40, 41, 42, 43, 44 -> wireSlot - Protocol18.WIRE_SLOT_HOTBAR_BASE;
-            default -> -1; // craft/armor slots are out of scope this slice
+            default -> -1; // armor slots are out of scope this slice
         };
         return engineSlot < 0 ? net.zamin.api.ItemStack.EMPTY : engineSlots.get(engineSlot);
     }

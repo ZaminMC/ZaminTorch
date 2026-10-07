@@ -31,9 +31,12 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:iron_ore"), 15),
             Map.entry(Identifier.parse("minecraft:diamond_ore"), 56),
             Map.entry(Identifier.parse("minecraft:oak_log"), 17),     // dataset/legacy name: "log"
-            // items yielded by mining
+            Map.entry(Identifier.parse("minecraft:crafting_table"), 58),
+            Map.entry(Identifier.parse("minecraft:torch"), 50),
+            // items yielded by mining and crafting
             Map.entry(Identifier.parse("minecraft:coal"), 263),
             Map.entry(Identifier.parse("minecraft:diamond"), 264),
+            Map.entry(Identifier.parse("minecraft:stick"), 280),
             // pickaxes (dataset-verified ids and durabilities)
             Map.entry(Identifier.parse("minecraft:wooden_pickaxe"), 270),
             Map.entry(Identifier.parse("minecraft:stone_pickaxe"), 274),

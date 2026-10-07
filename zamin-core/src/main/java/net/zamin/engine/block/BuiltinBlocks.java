@@ -27,6 +27,12 @@ public final class BuiltinBlocks {
     public static final EngineBlockType DIAMOND_ORE = new EngineBlockType(
             Identifier.parse("minecraft:diamond_ore"), "Diamond Ore");
 
+    // Craftable blocks (community-data recipes place their results here).
+    public static final EngineBlockType CRAFTING_TABLE = new EngineBlockType(
+            Identifier.parse("minecraft:crafting_table"), "Crafting Table");
+    public static final EngineBlockType TORCH = new EngineBlockType(
+            Identifier.parse("minecraft:torch"), "Torch");
+
     private BuiltinBlocks() {
     }
 
@@ -39,6 +45,8 @@ public final class BuiltinBlocks {
                 .register(BEDROCK)
                 .register(COAL_ORE)
                 .register(IRON_ORE)
-                .register(DIAMOND_ORE);
+                .register(DIAMOND_ORE)
+                .register(CRAFTING_TABLE)
+                .register(TORCH);
     }
 }

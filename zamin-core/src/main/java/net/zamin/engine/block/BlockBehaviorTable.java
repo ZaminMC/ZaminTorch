@@ -59,6 +59,17 @@ public final class BlockBehaviorTable {
                     new BlockBehavior(2.0, true, false, "wood", 0,
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:oak_log"), 1)))),
 
+            // Community data (pc/1.8 blocks.json): crafting_table hardness 2.5,
+            // material wood, no harvest requirement, drops itself; torch is
+            // instant-break (hardness 0) and drops itself.
+            Map.entry(Identifier.parse("minecraft:crafting_table"),
+                    new BlockBehavior(2.5, true, false, "wood", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:crafting_table"), 1)))),
+
+            Map.entry(Identifier.parse("minecraft:torch"),
+                    new BlockBehavior(0.0, true, false, "wood", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:torch"), 1)))),
+
             Map.entry(Identifier.parse("minecraft:coal_ore"),
                     new BlockBehavior(3.0, true, true, "rock", 1,
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:coal"), 1)))),

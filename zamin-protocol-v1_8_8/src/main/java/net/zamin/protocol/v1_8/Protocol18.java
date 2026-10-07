@@ -79,5 +79,8 @@ final class Protocol18 {
     // 0 craft result, 1-4 craft grid, 5-8 armor, 9-35 main, 36-44 hotbar.
     static final int INVENTORY_WINDOW_ID = 0;
     static final int INVENTORY_WINDOW_SLOTS = 45;
+    static final int WIRE_SLOT_RESULT = 0;
+    static final int WIRE_SLOT_CRAFT_FIRST = 1;
+    static final int WIRE_SLOT_CRAFT_LAST = 4;
     static final int WIRE_SLOT_HOTBAR_BASE = 36;
 }

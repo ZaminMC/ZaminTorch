@@ -23,6 +23,7 @@ public final class PlayerSession implements net.zamin.api.Player {
     private final String name;
     private final ClientLink link;
     private final PlayerInventory inventory = new PlayerInventory();
+    private final CraftingGrid crafting = new CraftingGrid();
     private volatile World world;
     private volatile PlayerState state = PlayerState.CONNECTING;
 
@@ -56,6 +57,14 @@ public final class PlayerSession implements net.zamin.api.Player {
      */
     public PlayerInventory inventory() {
         return inventory;
+    }
+
+    /**
+     * The player's 2x2 crafting grid (window state beside the inventory).
+     * Same ownership discipline as the inventory: tick-thread mutations only.
+     */
+    public CraftingGrid crafting() {
+        return crafting;
     }
 
     public PlayerState state() {

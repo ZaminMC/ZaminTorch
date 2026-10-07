@@ -17,7 +17,7 @@ class BlockRegistryTest {
         FrozenBlockRegistry registry = BuiltinBlocks.registerAll(new BlockRegistryBuilder()).freeze();
         assertTrue(registry.lookup(Identifier.parse("minecraft:stone")).isPresent());
         assertTrue(registry.lookup(Identifier.parse("minecraft:air")).isPresent());
-        assertEquals(8, registry.all().size()); // built-ins + the ore ladder
+        assertEquals(10, registry.all().size()); // built-ins + ore ladder + craftable blocks
     }
 
     @Test
