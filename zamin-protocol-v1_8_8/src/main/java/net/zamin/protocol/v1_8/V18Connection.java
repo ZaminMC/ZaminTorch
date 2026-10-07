@@ -68,6 +68,8 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     private ChunkTracker chunkTracker;
     /** This client's own wire entity id (allocated at Join Game). */
     private volatile int ownEntityId = -1;
+    /** The position this client was last teleported to (respawn): movement near it skips the distance sanity check. */
+    private volatile net.zamin.api.Position lastTeleportAnchor;
     // Remote player entity ids as seen by THIS client (observer-local id space).
     private final java.util.Map<UUID, Integer> remoteEntityIds = new java.util.concurrent.ConcurrentHashMap<>();
     private final java.util.Set<UUID> visibleRemotePlayers = java.util.Collections.synchronizedSet(new java.util.HashSet<>());
@@ -225,6 +227,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 sendWindowItems(channel, accepted.session().inventory().snapshot(),
                         accepted.session().crafting().snapshot(),
                         engine.craftingResult(accepted.session()));
+                sendUpdateHealth(accepted.session()); // the body's authoritative baseline
                 engine.joinCompleted(accepted.session());
                 startKeepAlive(channel);
                 adapter.playerEnteredPlay(this);
@@ -240,7 +243,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeInt(entityId);
         out.writeByte(engine.config().gamemode().legacyId());
         out.writeByte(0);                 // dimension: overworld
-        out.writeByte(0);                 // difficulty: peaceful (no mob expectations yet)
+        out.writeByte(Protocol18.DIFFICULTY_EASY); // easy: hunger behaves, no mobs yet
         out.writeByte(0);                 // max players (legacy field, unused by client)
         ByteBufOps.writeString(out, Protocol18.LEVEL_TYPE_FLAT);
         out.writeBoolean(false);          // reduced debug info
@@ -306,9 +309,10 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 String message = ByteBufOps.readString(packet, 256);
                 engine.chatService().submitChat(player, message);
             }
-            case Protocol18.C2S_CLIENT_SETTINGS, Protocol18.C2S_CLIENT_STATUS -> {
-                // Accepted and ignored: they carry no gameplay semantics yet.
+            case Protocol18.C2S_CLIENT_SETTINGS -> {
+                // Accepted and ignored: it carries no gameplay semantics yet.
             }
+            case Protocol18.C2S_CLIENT_STATUS -> handleClientStatus(player, packet);
             case Protocol18.C2S_HELD_ITEM_CHANGE -> {
                 short slot = packet.readShort();
                 engine.heldItemChange(player, slot);
@@ -330,6 +334,84 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         if (pendingKeepAlive == id) {
             pendingKeepAlive = -1;
         }
+    }
+
+    /** Client Status (0x16): action 0 = perform respawn after dying. */
+    private void handleClientStatus(PlayerSession player, ByteBuf packet) {
+        int action = ByteBufOps.readVarInt(packet);
+        if (action == 0) {
+            engine.performRespawn(player);
+        }
+        // 1 request stats / 2 open inventory achievement: no semantics yet.
+    }
+
+    /**
+     * Update Health (0x06, community-verified layout: f32 health, varint food,
+     * f32 saturation). The client's hearts and hunger bar follow this packet.
+     * Any thread.
+     */
+    void sendUpdateHealth(PlayerSession player) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(16);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_UPDATE_HEALTH);
+        out.writeFloat(player.health());
+        ByteBufOps.writeVarInt(out, player.food());
+        out.writeFloat(player.saturation());
+        channel.writeAndFlush(out);
+    }
+
+    /**
+     * Combat Event (0x42) type 2 — the client shows the death screen. Vanilla
+     * fields: playerId (this client's wire entity id), entityId (the killer;
+     * self here — no combat yet), death message. Any thread.
+     */
+    void sendDeath(PlayerSession player) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(64);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_COMBAT_EVENT);
+        ByteBufOps.writeVarInt(out, Protocol18.COMBAT_EVENT_ENTITY_DIED);
+        ByteBufOps.writeVarInt(out, ownEntityId);
+        out.writeInt(ownEntityId);
+        ByteBufOps.writeString(out, "{\"text\":\"" + player.name() + " died\"}");
+        channel.writeAndFlush(out);
+    }
+
+    /**
+     * The respawn wire sequence (after the engine reset the body): Respawn
+     * packet (0x07), the spawn chunk view re-sent fresh, the authoritative
+     * position at spawn, health, and the emptied inventory. Any thread; the
+     * engine publishes respawned first.
+     */
+    void sendRespawnSequence(PlayerSession player) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(32);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_RESPAWN);
+        out.writeInt(0); // dimension: overworld
+        out.writeByte(Protocol18.DIFFICULTY_EASY);
+        out.writeByte(engine.config().gamemode().legacyId());
+        ByteBufOps.writeString(out, Protocol18.LEVEL_TYPE_FLAT);
+        channel.writeAndFlush(out);
+
+        if (chunkTracker != null) {
+            var spawn = engine.world().spawnPosition();
+            chunkTracker.respawnAt(spawn.toBlockPosition().chunkPosition());
+        }
+        // A teleport-sized jump follows: the movement sanity check accepts the
+        // client's acknowledgment at the anchor it was just given.
+        lastTeleportAnchor = player.position();
+        sendPositionAndLook(channel, player.position(), player.rotation(), true);
+        sendUpdateHealth(player);
+        sendWindowItems(channel, player.inventory().snapshot(),
+                player.crafting().snapshot(), engine.craftingResult(player));
     }
 
     /**
@@ -419,8 +501,8 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 case 2 -> engine.blockInteraction().submitMiningFinished(player, target);
                 case 3 -> engine.dropHeld(player, true);  // drop whole held stack (Ctrl+Q)
                 case 4 -> engine.dropHeld(player, false); // drop one held item (Q)
+                case 5 -> engine.releaseUsingItem(player); // released a use (eat cancel)
                 default -> {
-                    // 5 (bow release / eating finish) arrives with the food/combat slice.
                 }
             }
         } catch (IllegalArgumentException outOfWorld) {
@@ -429,15 +511,22 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     }
 
     private void handleBlockPlacement(PlayerSession player, ByteBuf packet) {
-        int[] clicked = ByteBufOps.readPackedBlockPosition(packet);
+        long rawPosition = packet.readLong();
         int face = packet.readByte();
         // 1.8 slot: short id, byte count, short metadata, optional NBT. In creative
         // the client's claimed item is authoritative (client-side creative
         // inventory); in survival the engine validates its own inventory instead.
         short heldId = packet.readShort();
+        // The -1 sentinel position (and face 255 against a block) mean "use the
+        // held item" rather than "place on a block": the eating path.
+        if (rawPosition == -1L || face == 255) {
+            engine.useItem(player);
+            return;
+        }
         if (face < 0 || face > 5) {
             return; // invalid face: nothing to place
         }
+        int[] clicked = ByteBufOps.decodePackedBlockPosition(rawPosition);
         net.zamin.api.BlockPosition target =
                 new net.zamin.api.BlockPosition(clicked[0], clicked[1], clicked[2]);
         // A right-click use: the engine decides on the simulation context whether
@@ -608,6 +697,13 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             return false;
         }
         Position current = player.position();
+        net.zamin.api.Position anchor = lastTeleportAnchor;
+        if (anchor != null
+                && Math.abs(position.x() - anchor.x()) < 2.0
+                && Math.abs(position.y() - anchor.y()) < 2.0
+                && Math.abs(position.z() - anchor.z()) < 2.0) {
+            return true; // the acknowledgment of a server-ordered teleport
+        }
         if (position.distanceSquared(current) > MAX_MOVE_DELTA * MAX_MOVE_DELTA) {
             return false; // teleport-sized jumps are not movement; slice 1 rejects silently
         }
@@ -1121,6 +1217,18 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 }
                 sendChunk(position, true);
             });
+        }
+
+        /**
+         * Re-anchors the view after a respawn: everything is re-sent around
+         * the new center (duplicate Chunk Data is harmless — the client
+         * overwrites), and stale far-chunk unload state is dropped.
+         */
+        void respawnAt(ChunkPosition center) {
+            synchronized (sent) {
+                sent.clear();
+            }
+            sendInitial(center);
         }
 
         void updateCenter(ChunkPosition center) {

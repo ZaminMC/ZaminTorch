@@ -19,6 +19,7 @@ final class Protocol18 {
     static final int S2C_TIME_UPDATE = 0x03;
     static final int S2C_SPAWN_POSITION = 0x05;
     static final int S2C_UPDATE_HEALTH = 0x06;
+    static final int S2C_RESPAWN = 0x07;
     static final int S2C_PLAYER_POSITION_AND_LOOK = 0x08;
     static final int S2C_COLLECT_ITEM = 0x0D;
     static final int S2C_SPAWN_ENTITY = 0x0E;
@@ -37,6 +38,9 @@ final class Protocol18 {
     static final int S2C_CHUNK_DATA = 0x21;
     static final int S2C_UNLOAD_CHUNK = 0x1D;
     static final int S2C_DISCONNECT = 0x40;
+    static final int S2C_COMBAT_EVENT = 0x42;
+    /** Combat event 2 = entity died (playerId varint, entityId i32, message). */
+    static final int COMBAT_EVENT_ENTITY_DIED = 2;
 
     // Serverbound play packet ids (protocol 47)
     static final int C2S_KEEP_ALIVE = 0x00;
@@ -69,6 +73,8 @@ final class Protocol18 {
     static final int GAMEMODE_CREATIVE = 1;
     static final String LEVEL_TYPE_FLAT = "flat";
     static final int BIOME_PLAINS = 1;
+    /** Easy difficulty: hunger behaves, starvation cannot kill (floor 10). */
+    static final int DIFFICULTY_EASY = 1;
 
     // Object types of the Spawn Entity packet (protocol 47)
     static final int OBJECT_ITEM = 1;

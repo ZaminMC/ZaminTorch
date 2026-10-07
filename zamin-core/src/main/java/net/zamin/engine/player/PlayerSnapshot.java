@@ -10,19 +10,29 @@ import java.util.UUID;
 /**
  * The persistable state of one player, as a pure value: everything needed to
  * put a returning player back where survival left them (position, look,
- * inventory, selected hotbar slot). Decoupled from the live {@link PlayerSession}
- * so snapshots can be taken without touching session internals.
+ * inventory, selected hotbar slot, body). Decoupled from the live
+ * {@link PlayerSession} so snapshots can be taken without touching session
+ * internals.
  *
- * @param uuid     the offline-mode identity (file key)
- * @param name     display name at save time (diagnostics; identity is the uuid)
- * @param position the saved feet position
- * @param rotation the saved look angles
- * @param heldSlot the selected hotbar slot 0-8
- * @param slots    the non-empty inventory contents; each entry names its own
- *                 engine slot index (0-8 hotbar, 9-35 main)
+ * @param uuid       the offline-mode identity (file key)
+ * @param name       display name at save time (diagnostics; identity is the uuid)
+ * @param position   the saved feet position
+ * @param rotation   the saved look angles
+ * @param heldSlot   the selected hotbar slot 0-8
+ * @param slots      the non-empty inventory contents; each entry names its own
+ *                   engine slot index (0-8 hotbar, 9-35 main)
+ * @param health     the saved health (0-20)
+ * @param food       the saved hunger (0-20)
+ * @param saturation the saved saturation (>= 0)
  */
 public record PlayerSnapshot(UUID uuid, String name, Position position, Rotation rotation,
-                             int heldSlot, List<SlotStack> slots) {
+                             int heldSlot, List<SlotStack> slots,
+                             float health, int food, float saturation) {
+
+    /** Historical defaults for snapshots saved before the body existed (ZPD v1). */
+    public static final float LEGACY_HEALTH = PlayerSession.MAX_HEALTH;
+    public static final int LEGACY_FOOD = PlayerSession.MAX_FOOD;
+    public static final float LEGACY_SATURATION = PlayerSession.DEFAULT_SATURATION;
 
     /** One non-empty saved slot: engine slot index and its stack value. */
     public record SlotStack(int slot, Identifier item, int count, int damage) {

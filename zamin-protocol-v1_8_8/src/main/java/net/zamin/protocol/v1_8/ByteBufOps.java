@@ -92,6 +92,11 @@ final class ByteBufOps {
     /** @return {x, y, z} decoded from the packed long block position of this protocol. */
     static int[] readPackedBlockPosition(ByteBuf in) {
         long packed = in.readLong();
+        return decodePackedBlockPosition(packed);
+    }
+
+    /** @return {x, y, z} decoded from an already-read packed position long. */
+    static int[] decodePackedBlockPosition(long packed) {
         int x = (int) (packed >> 38);                    // high 26 bits, sign-extended
         int y = (int) (((packed >>> 26) & 0xFFF) << 20 >> 20); // middle 12 bits, sign-extended
         int z = (int) (packed << 38 >> 38);              // low 26 bits, sign-extended

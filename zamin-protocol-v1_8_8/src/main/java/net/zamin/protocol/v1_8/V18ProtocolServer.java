@@ -175,6 +175,37 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                 }
             }
         });
+        // Survival body: health changes re-sync the client, deaths send the
+        // combat event, respawns drive the full re-anchor sequence.
+        server.addSurvivalListener(new net.zamin.engine.EngineServer.SurvivalListener() {
+            @Override
+            public void onBodyChanged(net.zamin.engine.player.PlayerSession player) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    if (connection.currentSession() == player) {
+                        connection.sendUpdateHealth(player);
+                    }
+                }
+            }
+
+            @Override
+            public void onDied(net.zamin.engine.player.PlayerSession player) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    if (connection.currentSession() == player) {
+                        connection.sendDeath(player);
+                    }
+                }
+            }
+
+            @Override
+            public void onRespawned(net.zamin.engine.player.PlayerSession player,
+                                    net.zamin.api.Position spawn) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    if (connection.currentSession() == player) {
+                        connection.sendRespawnSequence(player);
+                    }
+                }
+            }
+        });
         LOGGER.info(() -> "1.8.8 protocol listening on " + server.config().host() + ":" + server.config().port());
     }
 

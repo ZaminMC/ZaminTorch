@@ -366,6 +366,42 @@ ZFD round trip (4), engine restart proof, full wire integration with a real
 smoke: place -> open -> shift-click -> burn/cook deltas on the wire -> ingot
 out -> contents survive close + reopen (FURNACE_SMOKE_DONE).
 
+## 10l. Slice #12 — survival body (implemented status)
+
+The player is now a body: health, hunger, saturation and exhaustion live on
+the session with the historical 1.8 FoodStats economy. Eating is
+server-authoritative — the use-item gesture (block placement with the -1
+position sentinel, or face 255) starts a 32-tick server-side timer that
+consumes one unit and applies the community foods.json values (beef 3/1.8,
+steak 8/12.8, MIT attribution); releasing early (dig status 5), switching
+slots, or dying cancels. Exhaustion accrues from regeneration (3.0 per
+heart); 4.0 exhaustion points drain one saturation unit, then one hunger
+unit. Food >= 18 regenerates one health every 80 ticks; hunger 0 starves one
+heart per 80 ticks down to the easy-difficulty floor of 10 — Join Game now
+announces difficulty 1 (easy), the right fit for a world without mobs yet.
+
+Falls hurt from movement proposals alone: airborne descent accumulates fall
+distance per-player; landing applies ceil(distance - 3) on the tick thread.
+Death (health 0) returns carried window state, scatters the whole inventory
+and cursor as item entities at the body, and tells the client through Combat
+Event 0x42 type 2 (community-verified layout). The respawn gesture (Client
+Status 0x16 action 0) resets the body at full health/food/saturation and the
+adapter re-anchors the wire: Respawn 0x07, a fresh spawn chunk view, the
+authoritative position-and-look (the movement sanity check accepts the
+acknowledgment at the teleport anchor), health, and the emptied inventory.
+
+Persistence moved to ZPD v2: health, food and saturation ride the snapshot
+(version 1 files load with the historical 20/20/5 defaults). Wire: Update
+Health 0x06 (f32 health, varint food, f32 saturation — community-verified)
+follows join, damage, eating, regen and respawn. Tests: BodySurvivalAcceptance
+(5 on a real ticker — eat/refusal/cancel, exhaustion + regen, starvation
+floor, fall damage, death + respawn), BodyIntegrationTest over a real socket
+(3 — fall sync, death + combat event + full respawn re-anchor, silent
+refusals); 180 total, 0 failures. Live smoke on a real process: baseline
+20/20 -> scripted fall to 8.0 -> second fall kills -> Update Health 0 +
+Combat Event -> respawn gesture -> Respawn + re-anchor + health 20
+(BODY_SMOKE_DONE).
+
 ## 11. Known risks
 
 - 1.8.8 client quirks not obvious from protocol docs (e.g. exact chunk/lighting expectations) — mitigated by scripted-client tests + real client validation.
