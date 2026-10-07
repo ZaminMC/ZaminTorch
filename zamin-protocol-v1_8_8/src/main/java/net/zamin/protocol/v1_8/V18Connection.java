@@ -223,7 +223,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBuf out = Unpooled.buffer(32);
         ByteBufOps.writeVarInt(out, Protocol18.S2C_JOIN_GAME);
         out.writeInt(entityId);
-        out.writeByte(Protocol18.GAMEMODE_CREATIVE);
+        out.writeByte(engine.config().gamemode().legacyId());
         out.writeByte(0);                 // dimension: overworld
         out.writeByte(0);                 // difficulty: peaceful (no mob expectations yet)
         out.writeByte(0);                 // max players (legacy field, unused by client)
@@ -315,15 +315,26 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     private void handleDigging(PlayerSession player, ByteBuf packet) {
         int status = packet.readByte();
         int[] pos = ByteBufOps.readPackedBlockPosition(packet);
-        // Creative breaking is instant on "started digging". Other statuses carry
-        // no slice-2 semantics yet (survival mining comes with drops/duration).
-        if (status == 0 || status == 2) {
-            try {
-                engine.blockInteraction().submitBreak(player,
-                        new net.zamin.api.BlockPosition(pos[0], pos[1], pos[2]));
-            } catch (IllegalArgumentException outOfWorld) {
-                LOGGER.fine(() -> "Ignored digging at out-of-world position from " + player.name());
+        boolean creative = engine.config().gamemode() == net.zamin.engine.config.GameMode.CREATIVE;
+        try {
+            var target = new net.zamin.api.BlockPosition(pos[0], pos[1], pos[2]);
+            if (creative) {
+                // Creative breaking is instant on "started digging".
+                if (status == 0 || status == 2) {
+                    engine.blockInteraction().submitCreativeBreak(player, target);
+                }
+                return;
             }
+            switch (status) {
+                case 0 -> engine.blockInteraction().submitMiningStart(player, target);
+                case 1 -> engine.blockInteraction().submitMiningAborted(player);
+                case 2 -> engine.blockInteraction().submitMiningFinished(player, target);
+                default -> {
+                    // 3/4 (drop held) and 5 (bow/eat finish) arrive with the inventory slice.
+                }
+            }
+        } catch (IllegalArgumentException outOfWorld) {
+            LOGGER.fine(() -> "Ignored digging at out-of-world position from " + player.name());
         }
     }
 

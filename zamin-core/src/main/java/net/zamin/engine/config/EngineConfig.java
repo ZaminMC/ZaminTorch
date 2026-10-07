@@ -15,6 +15,7 @@ import java.util.Objects;
  * @param viewDistance     view distance in chunks (server-enforced, not client)
  * @param tickRateHz       simulation ticks per second (20 for the 1.8.8 target)
  * @param dataDir          directory for world persistence
+ * @param gamemode         the server-wide player game mode (survival/creative)
  */
 public record EngineConfig(
         String host,
@@ -24,12 +25,21 @@ public record EngineConfig(
         int maxPlayers,
         int viewDistance,
         int tickRateHz,
-        String dataDir
+        String dataDir,
+        GameMode gamemode
 ) {
+
+    /** Compatibility constructor for callers that do not care about the mode. */
+    public EngineConfig(String host, int port, String worldName, String motd,
+                        int maxPlayers, int viewDistance, int tickRateHz, String dataDir) {
+        this(host, port, worldName, motd, maxPlayers, viewDistance, tickRateHz,
+                dataDir, GameMode.SURVIVAL);
+    }
 
     public EngineConfig {
         Objects.requireNonNull(host, "host");
         Objects.requireNonNull(worldName, "worldName");
+        Objects.requireNonNull(gamemode, "gamemode");
         Objects.requireNonNull(motd, "motd");
         if (port < 0 || port > 65535) {
             throw new IllegalArgumentException("port out of range: " + port);
@@ -51,7 +61,7 @@ public record EngineConfig(
 
     public static EngineConfig defaults() {
         return new EngineConfig("0.0.0.0", 25565, "world",
-                "A ZaminTorch server", 20, 4, 20, ".");
+                "A ZaminTorch server", 20, 4, 20, ".", GameMode.SURVIVAL);
     }
 
     /** The file operators edit. Subsystems never read this file directly. */

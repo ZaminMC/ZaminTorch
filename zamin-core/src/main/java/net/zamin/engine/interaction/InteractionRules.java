@@ -10,6 +10,8 @@ import net.zamin.api.Position;
 final class InteractionRules {
 
     static final double CREATIVE_REACH_SQ = 6.0 * 6.0;
+    /** Historical survival block-interaction distance from the eye. */
+    static final double SURVIVAL_REACH_SQ = 4.5 * 4.5;
     static final double EYE_HEIGHT = 1.62;
     static final double PLAYER_HALF_WIDTH = 0.3;
     static final double PLAYER_HEIGHT = 1.8;
@@ -19,13 +21,23 @@ final class InteractionRules {
 
     /** @return whether the position is within creative reach of the player's eye. */
     static boolean withinReach(Position playerPosition, BlockPosition target) {
+        return withinReachSquared(playerPosition, target, CREATIVE_REACH_SQ);
+    }
+
+    /** @return whether the position is within survival reach of the player's eye. */
+    static boolean withinSurvivalReach(Position playerPosition, BlockPosition target) {
+        return withinReachSquared(playerPosition, target, SURVIVAL_REACH_SQ);
+    }
+
+    private static boolean withinReachSquared(Position playerPosition, BlockPosition target,
+                                              double reachSquared) {
         double eyeX = playerPosition.x();
         double eyeY = playerPosition.y() + EYE_HEIGHT;
         double eyeZ = playerPosition.z();
         double dx = (target.x() + 0.5) - eyeX;
         double dy = (target.y() + 0.5) - eyeY;
         double dz = (target.z() + 0.5) - eyeZ;
-        return dx * dx + dy * dy + dz * dz <= CREATIVE_REACH_SQ;
+        return dx * dx + dy * dy + dz * dz <= reachSquared;
     }
 
     /** @return whether the block AABB intersects the player's bounding box. */

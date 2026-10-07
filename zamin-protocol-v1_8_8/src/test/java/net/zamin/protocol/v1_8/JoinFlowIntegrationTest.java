@@ -10,6 +10,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 
+import java.nio.file.Path;
 import java.util.function.BooleanSupplier;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -27,10 +28,13 @@ class JoinFlowIntegrationTest {
     private EngineServer server;
     private V18ProtocolServer adapter;
 
+    @org.junit.jupiter.api.io.TempDir
+    static Path dataDir;
+
     @BeforeAll
     void bootServer() throws Exception {
         EngineConfig config = new EngineConfig(
-                "127.0.0.1", 0, "world", "ZaminTorch test", 20, 4, 20, ".");
+                "127.0.0.1", 0, "world", "ZaminTorch test", 20, 4, 20, dataDir.toString());
         server = new EngineServer(config);
         server.start();
         adapter = new V18ProtocolServer(server, 250); // fast keep-alive cycle for tests
@@ -144,21 +148,23 @@ class JoinFlowIntegrationTest {
             client.readUntilPositionAndLook();
             PlayerSession builder = awaitPlayer("Builder");
 
-            // Place stone on top of the grass at (2,4,2) via the top face.
-            client.sendBlockPlacement(2, 4, 2, 1, 1); // held item: stone (legacy 1)
+            // Place dirt on top of the grass at (2,4,2) via the top face.
+            client.sendBlockPlacement(2, 4, 2, 1, 3); // held item: dirt (legacy 3)
             awaitCondition(() -> server.world().getBlock(new net.zamin.api.BlockPosition(2, 5, 2))
-                            .identifier().toString().equals("minecraft:stone"),
-                    "stone committed in world");
+                            .identifier().toString().equals("minecraft:dirt"),
+                    "dirt committed in world");
 
-            // The committed change echoes back as a Block Change packet.
             int[] echo = client.readBlockChange(5_000);
             assertEquals(2, echo[0]);
             assertEquals(5, echo[1]);
             assertEquals(2, echo[2]);
-            assertEquals(1, echo[3]);
+            assertEquals(3, echo[3]);
 
-            // Creative break is instant on "started digging".
+            // Survival dig: the server only commits a finish after the historical
+            // duration (dirt by hand: 15 ticks = 750ms; lenient floor 525ms).
             client.sendDigging(0, 2, 5, 2, 1);
+            Thread.sleep(900);
+            client.sendDigging(2, 2, 5, 2, 1);
             awaitCondition(() -> server.world().getBlock(new net.zamin.api.BlockPosition(2, 5, 2))
                             .identifier().toString().equals("minecraft:air"),
                     "block removed from world");
@@ -166,8 +172,8 @@ class JoinFlowIntegrationTest {
             assertEquals(0, removal[3]);
 
             // Placement inside the player's own body is rejected silently.
-            client.sendBlockPlacement(0, 4, 0, 1, 1);
-            client.sendDigging(0, 2, 5, 2, 1); // idempotent: breaking air changes nothing
+            client.sendBlockPlacement(0, 4, 0, 1, 3);
+            client.sendDigging(0, 2, 5, 2, 1); // idempotent: mining air opens no session
             awaitCondition(() -> server.world().getBlock(new net.zamin.api.BlockPosition(0, 5, 0))
                             .identifier().toString().equals("minecraft:air"),
                     "placement into player rejected");
