@@ -22,6 +22,7 @@ public final class PlayerSession implements net.zamin.api.Player {
     private final UUID uuid;
     private final String name;
     private final ClientLink link;
+    private final PlayerInventory inventory = new PlayerInventory();
     private volatile World world;
     private volatile PlayerState state = PlayerState.CONNECTING;
 
@@ -46,6 +47,15 @@ public final class PlayerSession implements net.zamin.api.Player {
 
     public ClientLink link() {
         return link;
+    }
+
+    /**
+     * The authoritative inventory. Mutations run on the simulation context only
+     * (via engine-submitted tasks); reads for wire sync must treat the snapshot
+     * accordingly.
+     */
+    public PlayerInventory inventory() {
+        return inventory;
     }
 
     public PlayerState state() {

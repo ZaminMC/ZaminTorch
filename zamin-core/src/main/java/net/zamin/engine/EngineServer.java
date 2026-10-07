@@ -8,6 +8,9 @@ import net.zamin.api.Server;
 import net.zamin.api.ServerState;
 import net.zamin.api.World;
 import net.zamin.engine.config.EngineConfig;
+import net.zamin.engine.entity.ItemEntity;
+import net.zamin.engine.entity.ItemEntityManager;
+import net.zamin.engine.interaction.DropService;
 import net.zamin.engine.net.ClientLink;
 import net.zamin.engine.net.EngineBridge;
 import net.zamin.engine.player.PlayerRegistry;
@@ -65,8 +68,13 @@ public final class EngineServer implements Server, EngineBridge {
     private BlockInteractionService blockInteraction;
     private ChatService chatService;
     private WorldStorage worldStorage;
+    private volatile ItemEntityManager itemEntities;
     private final java.util.List<WorldChangeListener> worldListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     private final java.util.List<ChatListener> chatListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
+    private final java.util.List<ItemEntityManager.Listener> itemListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    /** Entity ids for engine-global entities (items); player wire ids stay adapter-local. */
+    private static final int ENTITY_ID_BASE = 100_000;
 
     public EngineServer(EngineConfig config) {
         this.config = Objects.requireNonNull(config, "config");
@@ -114,8 +122,16 @@ public final class EngineServer implements Server, EngineBridge {
                 worldStorage.load().ifPresent(world::applyDeltas);
                 pregenerateSpawnArea(world);
                 ticker.attachWorld(world);
+                // Item entities and drops: simulation-owned systems on the world owner.
+                ItemEntityManager itemEntities = new ItemEntityManager(
+                        (x, y, z) -> !world.getBlock(blockAt(x, y, z)).equals(world.airType()),
+                        new java.util.Random(),
+                        ENTITY_ID_BASE);
+                this.itemEntities = itemEntities;
+                itemEntities.addListener(new ItemEventDispatch());
+                ticker.setTickHandler(() -> itemEntities.tick(players.all()));
                 blockInteraction = new BlockInteractionService(world, ticker, this::publishBlockChange,
-                        config.gamemode());
+                        config.gamemode(), new DropService(), itemEntities);
                 CommandService commands = new CommandService();
                 registerBuiltinCommands(commands);
                 chatService = new ChatService(ticker, commands, this::publishChat);
@@ -262,6 +278,101 @@ public final class EngineServer implements Server, EngineBridge {
         return chatService;
     }
 
+    /** The simulation-owned item entity manager (present once the world is up). */
+    public ItemEntityManager itemEntities() {
+        return itemEntities;
+    }
+
+    /** Registers an internal item-entity observer (e.g. the protocol adapter's sync). */
+    public void addItemListener(ItemEntityManager.Listener listener) {
+        itemListeners.add(listener);
+    }
+
+    /**
+     * Applies a validated held-slot change. The owning channel loop provides
+     * ordering; the mutation itself is simulation-confined. Safe from any thread.
+     */
+    public void heldItemChange(PlayerSession session, int hotbarSlot) {
+        Objects.requireNonNull(session, "session");
+        ticker.submit(() -> {
+            try {
+                session.inventory().selectHotbarSlot(hotbarSlot);
+            } catch (IllegalArgumentException invalidSlot) {
+                LOGGER.fine(() -> "Rejected held-slot change " + hotbarSlot + " from "
+                        + session.name());
+            }
+        });
+    }
+
+    /**
+     * Semantic drop from the held slot (historical Q / Ctrl+Q): removes the
+     * units, spawns a thrown item entity in the look direction. Safe from any thread.
+     */
+    public void dropHeld(PlayerSession session, boolean entireStack) {
+        Objects.requireNonNull(session, "session");
+        ticker.submit(() -> {
+            net.zamin.api.ItemStack dropped = session.inventory().dropHeld(entireStack);
+            if (dropped.isEmpty()) {
+                return;
+            }
+            // Historical throw: look direction, ~0.3 speed, small upward bias.
+            double yaw = Math.toRadians(session.rotation().yaw());
+            double pitch = Math.toRadians(session.rotation().pitch());
+            double dx = -Math.sin(yaw) * Math.cos(pitch);
+            double dy = -Math.sin(pitch);
+            double dz = Math.cos(yaw) * Math.cos(pitch);
+            double speed = 0.3;
+            var itemEntitiesManager = itemEntities;
+            if (itemEntitiesManager == null) {
+                return;
+            }
+            var eye = session.position();
+            ItemEntity entity = itemEntitiesManager.spawnThrown(
+                    new net.zamin.api.Position(
+                            eye.x() + dx * 0.4, eye.y() + 1.62 + dy * 0.4, eye.z() + dz * 0.4),
+                    dropped);
+            entity.setVelocity(dx * speed, dy * speed + 0.1, dz * speed);
+        });
+    }
+
+    /** Fans item-entity events out to registered observers (tick-thread context). */
+    private final class ItemEventDispatch implements ItemEntityManager.Listener {
+        @Override
+        public void onItemSpawned(ItemEntity entity) {
+            for (ItemEntityManager.Listener listener : itemListeners) {
+                listener.onItemSpawned(entity);
+            }
+        }
+
+        @Override
+        public void onItemMoved(ItemEntity entity) {
+            for (ItemEntityManager.Listener listener : itemListeners) {
+                listener.onItemMoved(entity);
+            }
+        }
+
+        @Override
+        public void onItemCollected(ItemEntity entity, PlayerSession collector, int collectedCount) {
+            for (ItemEntityManager.Listener listener : itemListeners) {
+                listener.onItemCollected(entity, collector, collectedCount);
+            }
+        }
+
+        @Override
+        public void onItemStackChanged(ItemEntity entity) {
+            for (ItemEntityManager.Listener listener : itemListeners) {
+                listener.onItemStackChanged(entity);
+            }
+        }
+
+        @Override
+        public void onItemRemoved(ItemEntity entity, String reason) {
+            for (ItemEntityManager.Listener listener : itemListeners) {
+                listener.onItemRemoved(entity, reason);
+            }
+        }
+    }
+
     /** Registers an internal chat delivery observer (e.g. the protocol adapter). */
     public void addChatListener(ChatListener listener) {
         chatListeners.add(listener);
@@ -386,6 +497,12 @@ public final class EngineServer implements Server, EngineBridge {
     /** Checks whether the chunk containing the position is available read-only. */
     public EngineChunk peekChunk(net.zamin.api.ChunkPosition position) {
         return world.peek(position);
+    }
+
+    /** Floor-to-block-position helper for double-space queries. */
+    private static net.zamin.api.BlockPosition blockAt(double x, double y, double z) {
+        return new net.zamin.api.BlockPosition(
+                (int) Math.floor(x), (int) Math.floor(y), (int) Math.floor(z));
     }
 
     /**

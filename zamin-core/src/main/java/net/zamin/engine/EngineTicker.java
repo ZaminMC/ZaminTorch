@@ -2,6 +2,7 @@ package net.zamin.engine;
 
 import net.zamin.engine.world.EngineWorld;
 
+import java.util.Objects;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
@@ -26,6 +27,7 @@ public final class EngineTicker {
     private static final Logger LOGGER = Logger.getLogger(EngineTicker.class.getName());
 
     private volatile EngineWorld world;
+    private volatile Runnable tickHandler;
     private final long tickIntervalNanos;
     private final AtomicBoolean running = new AtomicBoolean(false);
     private final Queue<Runnable> pendingWork = new ConcurrentLinkedQueue<>();
@@ -92,12 +94,25 @@ public final class EngineTicker {
         pendingWork.add(work);
     }
 
+    /**
+     * Sets the per-tick simulation hook (runs after deferred work, once per tick,
+     * on the owning thread). Used for entity systems (§447); the world's time
+     * tick remains unconditional.
+     */
+    public void setTickHandler(Runnable handler) {
+        this.tickHandler = Objects.requireNonNull(handler, "handler");
+    }
+
     private void tickOnce() {
         Runnable work;
         while ((work = pendingWork.poll()) != null) {
             work.run();
         }
         world.tickTime();
+        Runnable handler = tickHandler;
+        if (handler != null) {
+            handler.run();
+        }
     }
 
     Thread ownerThread() {
