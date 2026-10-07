@@ -23,6 +23,29 @@ The vision expects Minestom as foundational infrastructure. Current finding:
 
 **Decision:** Slice #1 implements a dedicated 1.8.8 *protocol adapter* (its own module, on Netty) and a minimal Zamin world model. The engine keeps clean boundaries (no protocol types leak into gameplay; no gameplay knows the wire). Minestom is introduced at the moment its capabilities are genuinely needed — first candidate: the modern-protocol milestone — through a dedicated integration module (`zamin-minestom`), so the engine core does not change. This is a documented, evidence-based deviation (§34/§35/§184), not an abandonment of the Minestom boundary. Re-evaluate at the modern-protocol milestone.
 
+## 3b. Community reuse (ADR-0002 — evaluated per the reuse rule)
+
+Standing rule: before building anything, search for community solutions and
+make them fit instead of writing replacements. Evaluation of the Minestom
+ecosystem index and related candidates, against the current slices:
+
+| Candidate | Verdict | Trigger to revisit |
+| --- | --- | --- |
+| Minestom | Deferred (ADR-0001 stands; networking single-version 1.21.x, second world model) | Modern-protocol milestone |
+| hollow-cube/polar | Not now: ZWD v1 persistence implemented + test-proven; Polar stores modern flattened data needing 1.8 conversion | Multi-world / format milestone |
+| mworzala/canvas | Exact fit at Anvil import (§541) | Anvil milestone |
+| BlueDragonMC/SteelWorldGen | Real terrain gen is a later slice; flat gen is the deterministic fixture | Terrain-gen slice |
+| TogAr2/MinestomPvP, VanillaReimplementation | Minestom-tied; combat out of scope; VRI is behavioral reference reading only | Combat slice |
+| Incendo/cloud-minestom | Two commands exist; a command framework is machinery without a workload (§31) | When commands grow |
+| Shynixn/MCCoroutine, KotStom | Kotlin — engine is pure Java 21 | Stack change only |
+| stomui, hephaestus-engine, WorldSeedEntityEngine | Chest GUIs / custom entity visuals, out of scope | UI/custom-entity slices |
+| **PrismarineJS/minecraft-data** (MIT, 948★, active) | **ADOPTED**: block behavior data (hardness/drops/materials for pc/1.8) embedded as a generated table with attribution; protocol 47 packet layouts and the position bitfield verified against it — it caught a real wire bug (packed position x:26|y:12|z:26) | Every new data need first |
+| Querz/NBT (MIT) | Logged for Anvil import | Anvil milestone |
+
+No Java binding of minecraft-data exists; embedding a generated, attributed
+subset is the established JVM-engine pattern (Glowstone/Nukkit tables).
+Dependency additions still require the §31 justification rule.
+
 ## 4. Module structure & dependency direction
 
 ```
@@ -98,7 +121,46 @@ timeout kick, clean disconnect, clean shutdown under load, rejection paths
 - **Chat & commands**: validated chat, semantic command parsing, private command feedback (§351/§521).
 - **Multiplayer visibility**: mutual spawn exchange, movement teleports within view distance, destroy on departure (§322 core loop).
 
-Explicitly NOT yet: survival mining/drops, item entities, full inventory model, permissions, lighting, mobs, Anvil import, plugin API.
+## 10d. Slice #4 — survival loop (implemented status)
+
+The vertical survival loop is implemented and test-proven end to end
+(`SurvivalFlowIntegrationTest` drives it over a real socket; a live process
+smoke repeats it against the launcher):
+
+- **Survival mining** (§441 spirit): start/abort/finish proposed by the client,
+  validated server-side — reach (4.5), diggability, and elapsed time against
+  the historical break duration (hardness × 30 ticks harvestable / × 100
+  otherwise, 70% network leniency). Too-fast finishes are rejected and the
+  authoritative state is re-synced so clients never keep ghost blocks. Stone
+  by hand takes 7.5s and yields nothing, as historically.
+- **Block behavior data** (§424/§434): `BlockBehaviorTable` generated from the
+  community dataset (see ADR-0002) — hardness, material, harvest gating and
+  drops per registered block. `DropService` turns committed breaks into item
+  entities; placement consumes from the authoritative inventory (§430/§431/§432).
+- **Item entities** (§445/§449/§450): engine-global ids, simulation-owned
+  lifecycle — gravity with epsilon-correct ground snap, pickup delay (10
+  ticks block drops / 40 player-thrown), despawn at 6000 ticks, validated
+  pickup (§433) with partial pickup keeping the remainder in the world.
+- **Player inventory** (§428–§432): 36 slots with explicit hotbar/main
+  semantics, semantic operations only (pickUp / consumeHeld / dropHeld /
+  selectHotbarSlot), historical fill order (stacks, then empty slots, hotbar
+  first). Window Items (0x30) full sync of the 45-slot window on change;
+  Set Slot available for targeted updates.
+- **Wire additions** (all community-verified against protocol 47 data): Spawn
+  Entity (0x0E object 1) with objectData item id + pop velocity and item
+  metadata (slot type, index 10, 0x7F terminator — which also fixed the
+  named-spawn terminator that sent 0xFF), Collect Item (0x0D) + Destroy
+  Entities, Entity Teleport for moving items, Held Item Change tracking,
+  digging statuses 3/4 as semantic Q/Ctrl+Q drops.
+- **Wire bug fixed by live smoke**: the packed block position layout was
+  x|z|y; the verified protocol 47 layout is x:26 | y:12 | z:26. Self-
+  consistent scripted tests could not catch this — the live process could.
+
+Explicitly NOT yet: tools/harvest classes (the behavior table's tool hook is
+the only placeholder), inventory UI click handling (window clicks are
+accepted-and-ignored with authoritative re-sync), crafting, item NBT,
+player-data persistence, item merging, physics beyond gravity+drag,
+permissions, lighting, mobs, Anvil import, plugin API.
 
 ## 11. Known risks
 

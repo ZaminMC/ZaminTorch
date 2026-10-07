@@ -79,18 +79,22 @@ final class ByteBufOps {
         return value;
     }
 
-    /** Packs a block position (x 26 bits, z 26 bits, y 12 bits) as this version expects. */
+    /**
+     * Packs a block position in the protocol 47 layout (community-verified,
+     * PrismarineJS/minecraft-data): x 26 bits (high, signed), y 12 bits
+     * (middle, signed), z 26 bits (low, signed).
+     */
     static void writePackedBlockPosition(ByteBuf out, int x, int y, int z) {
-        long packed = ((long) (x & 0x3FFFFFF) << 38) | ((long) (z & 0x3FFFFFF) << 12) | (y & 0xFFF);
+        long packed = ((long) (x & 0x3FFFFFF) << 38) | ((long) (y & 0xFFF) << 26) | (z & 0x3FFFFFF);
         out.writeLong(packed);
     }
 
-    /** @return {x, y, z} decoded from a packed long block position of this protocol. */
+    /** @return {x, y, z} decoded from the packed long block position of this protocol. */
     static int[] readPackedBlockPosition(ByteBuf in) {
         long packed = in.readLong();
-        int x = (int) (packed >> 38);
-        int y = (int) (packed << 52 >> 52);
-        int z = (int) (packed << 26 >> 38);
+        int x = (int) (packed >> 38);                    // high 26 bits, sign-extended
+        int y = (int) (((packed >>> 26) & 0xFFF) << 20 >> 20); // middle 12 bits, sign-extended
+        int z = (int) (packed << 38 >> 38);              // low 26 bits, sign-extended
         return new int[]{x, y, z};
     }
 }

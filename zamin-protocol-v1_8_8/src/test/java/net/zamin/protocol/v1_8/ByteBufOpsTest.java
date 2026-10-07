@@ -62,15 +62,23 @@ class ByteBufOpsTest {
 
     @Test
     void packedBlockPositionRoundTrips() {
+        // Protocol 47 layout (community-verified): x 26 (high) | y 12 (middle) | z 26 (low).
         ByteBuf buffer = Unpooled.buffer(16);
         ByteBufOps.writePackedBlockPosition(buffer, 123456, 200, -98765);
         long packed = buffer.readLong();
-        int x = (int) (packed >> 38);
-        int y = (int) (packed << 52 >> 52);
-        int z = (int) (packed << 26 >> 38);
-        assertEquals(123456, x);
-        assertEquals(200, y);
-        assertEquals(-98765, z);
+        assertEquals((123456L << 38) | (200L << 26) | (-98765L & 0x3FFFFFF), packed,
+                "bit layout must be x:26 | y:12 | z:26");
+        buffer.release();
+    }
+
+    @Test
+    void packedBlockPositionDecodesSignExtendedCoordinates() {
+        ByteBuf buffer = Unpooled.buffer(16);
+        ByteBufOps.writePackedBlockPosition(buffer, -1, 63, -300000);
+        int[] decoded = ByteBufOps.readPackedBlockPosition(buffer);
+        assertEquals(-1, decoded[0]);
+        assertEquals(63, decoded[1]);
+        assertEquals(-300000, decoded[2]);
         buffer.release();
     }
 }
