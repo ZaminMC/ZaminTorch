@@ -14,7 +14,10 @@ import net.zamin.engine.player.PlayerRegistry;
 import net.zamin.engine.player.PlayerSession;
 import net.zamin.engine.world.EngineChunk;
 import net.zamin.engine.world.EngineWorld;
+import net.zamin.engine.world.DeltaWorldStorage;
 import net.zamin.engine.world.FlatWorldGenerator;
+import net.zamin.engine.world.WorldStorage;
+import net.zamin.engine.world.WorldDeltaSnapshot;
 import net.zamin.engine.block.BlockRegistryBuilder;
 import net.zamin.engine.block.BuiltinBlocks;
 import net.zamin.engine.block.BlockRegistryBuilder.FrozenBlockRegistry;
@@ -57,6 +60,7 @@ public final class EngineServer implements Server, EngineBridge {
     private EngineWorld world;
     private EngineTicker ticker;
     private BlockInteractionService blockInteraction;
+    private WorldStorage worldStorage;
     private final java.util.List<WorldChangeListener> worldListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
 
     public EngineServer(EngineConfig config) {
@@ -97,6 +101,12 @@ public final class EngineServer implements Server, EngineBridge {
                 Thread owner = Thread.currentThread();
                 FlatWorldGenerator generator = new FlatWorldGenerator(blockRegistry, 4);
                 world = new EngineWorld(config.worldName(), blockRegistry, generator, owner);
+                // Persistence: load saved deltas before any chunk generates so the
+                // spawn area is already the survived world (§407 restart proof).
+                worldStorage = new DeltaWorldStorage(
+                        java.nio.file.Path.of(config.dataDir(), "worlds", config.worldName(), "zamin-delta.bin"),
+                        identifier -> blockRegistry.require(identifier));
+                worldStorage.load().ifPresent(world::applyDeltas);
                 pregenerateSpawnArea(world);
                 ticker.attachWorld(world);
                 blockInteraction = new BlockInteractionService(world, ticker, this::publishBlockChange);
@@ -180,7 +190,16 @@ public final class EngineServer implements Server, EngineBridge {
             }
         }
 
-        // 3. stop simulation
+        // 3. flush world state while the tick thread is still alive (consistent snapshot)
+        if (ticker != null && world != null) {
+            try {
+                saveAllNow();
+            } catch (RuntimeException e) {
+                LOGGER.log(java.util.logging.Level.SEVERE, "World save during shutdown failed", e);
+            }
+        }
+
+        // 4. stop simulation
         if (ticker != null) {
             ticker.stop();
             try {
@@ -227,6 +246,31 @@ public final class EngineServer implements Server, EngineBridge {
     /** The semantic entry point for player-driven block changes. */
     public BlockInteractionService blockInteraction() {
         return blockInteraction;
+    }
+
+    /**
+     * Persists world state on the owning tick thread (consistent snapshot) and
+     * waits for durability. Safe from any thread; no-op if the world is absent.
+     */
+    public void saveAllNow() {
+        if (world == null || ticker == null) {
+            return;
+        }
+        java.util.concurrent.CountDownLatch saved = new java.util.concurrent.CountDownLatch(1);
+        ticker.submit(() -> {
+            try {
+                worldStorage.save(world.snapshotDeltas());
+            } finally {
+                saved.countDown();
+            }
+        });
+        try {
+            if (!saved.await(10, java.util.concurrent.TimeUnit.SECONDS)) {
+                LOGGER.warning("World save did not complete within 10s");
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     /** Registers an internal world observer (e.g. the protocol adapter's sync). */

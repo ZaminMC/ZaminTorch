@@ -8,6 +8,7 @@ import net.zamin.api.Identifier;
 import net.zamin.api.Position;
 import net.zamin.api.World;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
@@ -32,6 +33,9 @@ public final class EngineWorld implements World {
     private final FlatWorldGenerator generator;
     private final Thread owner;
     private final Map<Long, EngineChunk> chunks = new ConcurrentHashMap<>();
+    // Persisted player-caused changes, owned by the simulation thread. Keyed by
+    // chunk, then by local block index (y<<8 | z<<4 | x).
+    private final Map<Long, Map<Integer, BlockType>> deltas = new ConcurrentHashMap<>();
 
     private volatile Position spawnPosition;
     private volatile long timeOfDay;
@@ -87,7 +91,21 @@ public final class EngineWorld implements World {
         Objects.requireNonNull(type, "type");
         requireOwnership("setBlock");
         EngineChunk chunk = getOrGenerate(position.chunkPosition());
-        return chunk.setBlock(position.localX(), position.y(), position.localZ(), type);
+        boolean changed = chunk.setBlock(position.localX(), position.y(), position.localZ(), type);
+        if (changed) {
+            // Deltas are the persistence projection of runtime changes (slice 2).
+            recordDelta(position.chunkPosition(), localIndex(position.localX(), position.y(), position.localZ()), type);
+        }
+        return changed;
+    }
+
+    private void recordDelta(ChunkPosition chunkPosition, int localIndex, BlockType type) {
+        deltas.computeIfAbsent(chunkPosition.packed(), key -> new HashMap<>())
+                .put(localIndex, type);
+    }
+
+    private static int localIndex(int localX, int y, int localZ) {
+        return ((y & 0xF) << 8) | (localZ << 4) | localX;
     }
 
     @Override
@@ -109,6 +127,14 @@ public final class EngineWorld implements World {
         }
         EngineChunk chunk = new EngineChunk(position, air);
         generator.generate(chunk);
+        // Persisted deltas override freshly generated terrain at the same positions.
+        Map<Integer, BlockType> chunkDeltas = deltas.get(key);
+        if (chunkDeltas != null) {
+            for (Map.Entry<Integer, BlockType> entry : chunkDeltas.entrySet()) {
+                int index = entry.getKey();
+                chunk.setBlock(index & 0xF, (index >> 8) & 0xF, (index >> 4) & 0xF, entry.getValue());
+            }
+        }
         EngineChunk raced = chunks.putIfAbsent(key, chunk);
         return raced != null ? raced : chunk;
     }
@@ -121,6 +147,29 @@ public final class EngineWorld implements World {
     /** The canonical air identity of this world (single source for emptiness checks). */
     public BlockType airType() {
         return air;
+    }
+
+    /** Applies a loaded delta snapshot. Owner-thread only, before chunks generate. */
+    public void applyDeltas(WorldDeltaSnapshot snapshot) {
+        requireOwnership("applyDeltas");
+        for (Map.Entry<Long, Map<Integer, BlockType>> entry : snapshot.deltas().entrySet()) {
+            deltas.computeIfAbsent(entry.getKey(), key -> new HashMap<>())
+                    .putAll(entry.getValue());
+        }
+        this.totalTicks = snapshot.totalTicks();
+        this.timeOfDay = snapshot.timeOfDay();
+    }
+
+    /** Consistent delta view for persistence. Owner-thread only. */
+    public WorldDeltaSnapshot snapshotDeltas() {
+        requireOwnership("snapshotDeltas");
+        Map<Long, Map<Integer, BlockType>> copy = new HashMap<>();
+        deltas.forEach((chunkKey, entries) -> copy.put(chunkKey, Map.copyOf(entries)));
+        return new WorldDeltaSnapshot(totalTicks, timeOfDay, Map.copyOf(copy));
+    }
+
+    public int deltaCount() {
+        return deltas.values().stream().mapToInt(Map::size).sum();
     }
 
     public int loadedChunkCount() {

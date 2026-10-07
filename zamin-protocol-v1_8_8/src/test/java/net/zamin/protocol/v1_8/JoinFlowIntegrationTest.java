@@ -30,7 +30,7 @@ class JoinFlowIntegrationTest {
     @BeforeAll
     void bootServer() throws Exception {
         EngineConfig config = new EngineConfig(
-                "127.0.0.1", 0, "world", "ZaminTorch test", 20, 4, 20);
+                "127.0.0.1", 0, "world", "ZaminTorch test", 20, 4, 20, ".");
         server = new EngineServer(config);
         server.start();
         adapter = new V18ProtocolServer(server, 250); // fast keep-alive cycle for tests

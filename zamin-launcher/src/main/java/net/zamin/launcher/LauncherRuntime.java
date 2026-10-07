@@ -78,6 +78,10 @@ final class LauncherRuntime {
                     }
                     case "state" -> LOGGER.info(() -> "Server state: " + server.state()
                             + ", players=" + server.players().size());
+                    case "save" -> {
+                        server.saveAllNow();
+                        LOGGER.info("World saved");
+                    }
                     default -> LOGGER.warning(() -> "Unknown command: " + command + " (try 'help')");
                 }
             }
@@ -90,6 +94,6 @@ final class LauncherRuntime {
     }
 
     private void printHelp() {
-        LOGGER.info("Commands: help, state, stop");
+        LOGGER.info("Commands: help, state, save, stop");
     }
 }
