@@ -73,11 +73,13 @@ class WindowClickIntegrationTest extends ProtocolTestBase {
             assertEquals(1, swapped[0], "number-key swap accepted");
             assertEquals(36, swapped[3], "both swap sides are empty: the dirt stays put");
 
-            // craft-grid clicks are rejected: not accepted, state unchanged
+            // craft-grid clicks are accepted window state now: an empty-hand
+            // click on an empty cell is an accepted no-op and the state resyncs
             client.sendWindowClick(1, 0, 0, 0); // craft grid slot
-            int[] rejected = readClickResponse(client);
-            assertEquals(0, rejected[0], "craft slot click rejected");
-            assertEquals(36, rejected[3], "the authoritative state still holds the dirt");
+            int[] craftNoop = readClickResponse(client);
+            assertEquals(1, craftNoop[0], "craft slot click accepted");
+            assertEquals(-1, craftNoop[1], "cursor still empty");
+            assertEquals(36, craftNoop[3], "the authoritative state still holds the dirt");
 
             // drag painting rejected as well
             client.sendWindowClick(-1, 0, 5, 5);

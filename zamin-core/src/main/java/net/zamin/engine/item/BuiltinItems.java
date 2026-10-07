@@ -30,6 +30,15 @@ public final class BuiltinItems {
     public static final EngineItemType OAK_LOG = new EngineItemType(
             Identifier.parse("minecraft:oak_log"), "Oak Log", 64);
 
+    // Crafting results (community-data recipes): stick 280, crafting table 58,
+    // torch 50 on the legacy wire.
+    public static final EngineItemType STICK = new EngineItemType(
+            Identifier.parse("minecraft:stick"), "Stick", 64);
+    public static final EngineItemType CRAFTING_TABLE = new EngineItemType(
+            Identifier.parse("minecraft:crafting_table"), "Crafting Table", 64);
+    public static final EngineItemType TORCH = new EngineItemType(
+            Identifier.parse("minecraft:torch"), "Torch", 64);
+
     // Materials yielded by tool-gated mining (legacy ids: coal 263, diamond 264).
     public static final EngineItemType COAL = new EngineItemType(
             Identifier.parse("minecraft:coal"), "Coal", 64);
@@ -117,6 +126,7 @@ public final class BuiltinItems {
         Map<Identifier, ItemType> map = new TreeMap<>();
         for (EngineItemType type : new EngineItemType[] {
                 DIRT, COBBLESTONE, OAK_PLANKS, OAK_LOG,
+                STICK, CRAFTING_TABLE, TORCH,
                 COAL, DIAMOND, COAL_ORE, IRON_ORE, DIAMOND_ORE,
                 WOODEN_PICKAXE, STONE_PICKAXE, IRON_PICKAXE, DIAMOND_PICKAXE, GOLDEN_PICKAXE,
                 WOODEN_AXE, STONE_AXE, IRON_AXE, DIAMOND_AXE, GOLDEN_AXE,

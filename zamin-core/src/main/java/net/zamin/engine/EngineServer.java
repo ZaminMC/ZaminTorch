@@ -8,6 +8,7 @@ import net.zamin.api.Server;
 import net.zamin.api.ServerState;
 import net.zamin.api.World;
 import net.zamin.engine.config.EngineConfig;
+import net.zamin.engine.crafting.CraftingService;
 import net.zamin.engine.entity.ItemEntity;
 import net.zamin.engine.entity.ItemEntityManager;
 import net.zamin.engine.interaction.DropService;
@@ -59,6 +60,13 @@ public final class EngineServer implements Server, EngineBridge {
     private static final Pattern VALID_NAME = Pattern.compile("^[A-Za-z0-9_]{1,16}$");
     private static final long BOOT_TIMEOUT_MS = 30_000;
 
+    /** Player-window wire slots for the crafting area (window 0, protocol 47). */
+    private static final int WIRE_SLOT_RESULT = 0;
+    private static final int WIRE_SLOT_CRAFT_FIRST = 1;
+    private static final int WIRE_SLOT_CRAFT_LAST = 4;
+    /** Craft-all guard: a 2x2 grid can never chain more crafts than this. */
+    private static final int CRAFT_ALL_LIMIT = 64;
+
     private final EngineConfig config;
     private final PlayerRegistry players = new PlayerRegistry();
     private final AtomicReference<ServerState> state = new AtomicReference<>(ServerState.NEW);
@@ -69,6 +77,7 @@ public final class EngineServer implements Server, EngineBridge {
     private EngineTicker ticker;
     private BlockInteractionService blockInteraction;
     private ChatService chatService;
+    private final CraftingService crafting = CraftingService.builtin();
     private WorldStorage worldStorage;
     private PlayerDataStore playerStore;
     private volatile ItemEntityManager itemEntities;
@@ -395,24 +404,45 @@ public final class EngineServer implements Server, EngineBridge {
     private void windowClickOnTick(PlayerSession session, int wireSlot, int button, int mode,
                                    java.util.function.Consumer<Boolean> result) {
         var inventory = session.inventory();
+        var grid = session.crafting();
         boolean accepted = false;
         try {
             switch (mode) {
                 case 0 -> {
-                    int engineSlot = engineSlotOf(wireSlot);
-                    if (engineSlot >= 0) {
-                        inventory.clickSlot(engineSlot, button);
+                    if (wireSlot == WIRE_SLOT_RESULT) {
+                        // Historical result-slot behavior: both buttons craft once
+                        // into the cursor; a refused take (mismatched or
+                        // overflowing cursor) reverts the client's prediction.
+                        accepted = takeCraftingResult(session, grid, inventory);
+                    } else if (wireSlot >= WIRE_SLOT_CRAFT_FIRST && wireSlot <= WIRE_SLOT_CRAFT_LAST) {
+                        grid.clickCell(wireSlot - WIRE_SLOT_CRAFT_FIRST, button, inventory);
                         accepted = true;
+                    } else {
+                        int engineSlot = engineSlotOf(wireSlot);
+                        if (engineSlot >= 0) {
+                            inventory.clickSlot(engineSlot, button);
+                            accepted = true;
+                        }
                     }
                 }
                 case 1 -> {
-                    int engineSlot = engineSlotOf(wireSlot);
-                    if (engineSlot >= 0) {
-                        inventory.quickMove(engineSlot);
+                    if (wireSlot == WIRE_SLOT_RESULT) {
+                        craftAllIntoInventory(session, grid, inventory);
                         accepted = true;
+                    } else if (wireSlot >= WIRE_SLOT_CRAFT_FIRST && wireSlot <= WIRE_SLOT_CRAFT_LAST) {
+                        grid.quickMoveTo(wireSlot - WIRE_SLOT_CRAFT_FIRST, inventory);
+                        accepted = true;
+                    } else {
+                        int engineSlot = engineSlotOf(wireSlot);
+                        if (engineSlot >= 0) {
+                            inventory.quickMove(engineSlot);
+                            accepted = true;
+                        }
                     }
                 }
                 case 2 -> {
+                    // Number-key swaps on the crafting area are a later gesture;
+                    // rejected per packet, the resync restores the truth.
                     int engineSlot = engineSlotOf(wireSlot);
                     if (engineSlot >= 0 && button >= 0 && button < 9) {
                         inventory.swapWithHotbar(engineSlot, button);
@@ -423,13 +453,22 @@ public final class EngineServer implements Server, EngineBridge {
                     // Middle-click clone is a creative-only gesture: rejected in survival.
                 }
                 case 4 -> {
-                    int engineSlot = engineSlotOf(wireSlot);
-                    if (engineSlot >= 0) {
-                        net.zamin.api.ItemStack dropped = inventory.dropFromSlot(engineSlot, button != 0);
+                    if (wireSlot >= WIRE_SLOT_CRAFT_FIRST && wireSlot <= WIRE_SLOT_CRAFT_LAST) {
+                        net.zamin.api.ItemStack dropped = grid.dropFromCell(
+                                wireSlot - WIRE_SLOT_CRAFT_FIRST, button != 0);
                         if (!dropped.isEmpty()) {
                             throwFromPlayer(session, dropped);
                         }
                         accepted = true;
+                    } else {
+                        int engineSlot = engineSlotOf(wireSlot);
+                        if (engineSlot >= 0) {
+                            net.zamin.api.ItemStack dropped = inventory.dropFromSlot(engineSlot, button != 0);
+                            if (!dropped.isEmpty()) {
+                                throwFromPlayer(session, dropped);
+                            }
+                            accepted = true;
+                        }
                     }
                 }
                 case 5 -> {
@@ -455,18 +494,80 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /**
-     * The player closed the inventory window: the carried cursor stack returns
-     * to the inventory; a remainder is thrown into the world. Safe from any thread.
+     * Result-slot pickup (mode 0 on wire slot 0): the previewed result moves
+     * onto the cursor and one unit leaves every non-empty grid cell — atomic,
+     * historical. A refused cursor take rejects the click unchanged.
+     */
+    private boolean takeCraftingResult(PlayerSession session, net.zamin.engine.player.CraftingGrid grid,
+                                       net.zamin.engine.player.PlayerInventory inventory) {
+        net.zamin.api.ItemStack result = crafting.resultOf(grid.snapshotArray())
+                .orElse(net.zamin.api.ItemStack.EMPTY);
+        if (result.isEmpty()) {
+            return true; // nothing crafted: an accepted no-op, the resync realigns
+        }
+        if (!inventory.takeResultToCursor(result)) {
+            return false;
+        }
+        grid.consumeOne();
+        return true;
+    }
+
+    /**
+     * Craft-all (shift-click on the result): repeats the single craft into the
+     * inventory until the grid no longer matches or the inventory cannot
+     * absorb the next result (the historical stop). A thrown remainder ends
+     * the chain so a full inventory never spins the loop.
+     */
+    private void craftAllIntoInventory(PlayerSession session, net.zamin.engine.player.CraftingGrid grid,
+                                       net.zamin.engine.player.PlayerInventory inventory) {
+        for (int craft = 0; craft < CRAFT_ALL_LIMIT; craft++) {
+            net.zamin.api.ItemStack result = crafting.resultOf(grid.snapshotArray())
+                    .orElse(net.zamin.api.ItemStack.EMPTY);
+            if (result.isEmpty()) {
+                return;
+            }
+            grid.consumeOne();
+            net.zamin.api.ItemStack remainder = inventory.pickUp(result);
+            if (!remainder.isEmpty()) {
+                throwFromPlayer(session, remainder);
+                return;
+            }
+        }
+    }
+
+    /**
+     * The crafting preview for wire sync (window slot 0). Call on the tick
+     * thread or before a session's first grid mutation (both call sites of the
+     * adapter qualify); the read is a pure match over a snapshot.
+     */
+    public net.zamin.api.ItemStack craftingResult(PlayerSession session) {
+        Objects.requireNonNull(session, "session");
+        return crafting.resultOf(session.crafting().snapshotArray())
+                .orElse(net.zamin.api.ItemStack.EMPTY);
+    }
+
+    /**
+     * The player closed the inventory window: the carried cursor stack and the
+     * crafting grid return to the inventory; remainders are thrown into the
+     * world so nothing is lost. Safe from any thread.
      */
     public void closeWindow(PlayerSession session) {
         Objects.requireNonNull(session, "session");
         ticker.submit(() -> {
-            net.zamin.api.ItemStack leftover = session.inventory().returnCursor();
-            if (!leftover.isEmpty()) {
-                throwFromPlayer(session, leftover);
-            }
+            returnWindowCarriedItems(session);
             publishInventoryChanged(session);
         });
+    }
+
+    /** Cursor + crafting grid back into the inventory; overflow is thrown. Tick-thread context. */
+    private void returnWindowCarriedItems(PlayerSession session) {
+        net.zamin.api.ItemStack leftover = session.inventory().returnCursor();
+        if (!leftover.isEmpty()) {
+            throwFromPlayer(session, leftover);
+        }
+        for (net.zamin.api.ItemStack overflow : session.crafting().returnAllTo(session.inventory())) {
+            throwFromPlayer(session, overflow);
+        }
     }
 
     /** Fans item-entity events out to registered observers (tick-thread context). */
@@ -733,10 +834,7 @@ public final class EngineServer implements Server, EngineBridge {
         java.util.concurrent.CountDownLatch done = new java.util.concurrent.CountDownLatch(1);
         ticker.submit(() -> {
             try {
-                net.zamin.api.ItemStack leftover = session.inventory().returnCursor();
-                if (!leftover.isEmpty()) {
-                    throwFromPlayer(session, leftover);
-                }
+                returnWindowCarriedItems(session);
                 persistPlayer(session);
             } finally {
                 done.countDown();
@@ -777,10 +875,7 @@ public final class EngineServer implements Server, EngineBridge {
         // nothing is lost (historical behavior for leaving with a held stack).
         if (ticker != null) {
             ticker.submit(() -> {
-                net.zamin.api.ItemStack leftover = session.inventory().returnCursor();
-                if (!leftover.isEmpty()) {
-                    throwFromPlayer(session, leftover);
-                }
+                returnWindowCarriedItems(session);
                 persistPlayer(session);
             });
         }

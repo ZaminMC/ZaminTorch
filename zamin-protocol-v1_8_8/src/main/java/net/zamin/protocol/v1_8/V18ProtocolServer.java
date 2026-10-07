@@ -151,7 +151,9 @@ public final class V18ProtocolServer implements ProtocolAdapter {
             for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
                 if (connection.currentSession() == player) {
                     connection.sendWindowItems(channelOf(connection),
-                            player.inventory().snapshot());
+                            player.inventory().snapshot(),
+                            player.crafting().snapshot(),
+                            server.craftingResult(player));
                 }
             }
         });
