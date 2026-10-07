@@ -114,7 +114,8 @@ public final class EngineServer implements Server, EngineBridge {
                 worldStorage.load().ifPresent(world::applyDeltas);
                 pregenerateSpawnArea(world);
                 ticker.attachWorld(world);
-                blockInteraction = new BlockInteractionService(world, ticker, this::publishBlockChange);
+                blockInteraction = new BlockInteractionService(world, ticker, this::publishBlockChange,
+                        config.gamemode());
                 CommandService commands = new CommandService();
                 registerBuiltinCommands(commands);
                 chatService = new ChatService(ticker, commands, this::publishChat);

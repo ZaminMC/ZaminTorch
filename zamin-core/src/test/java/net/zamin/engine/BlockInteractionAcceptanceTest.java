@@ -33,7 +33,7 @@ class BlockInteractionAcceptanceTest {
 
     private EngineServer boot() throws InterruptedException {
         EngineConfig config = new EngineConfig("127.0.0.1", 0, "itest", "it", 20, 4, 20,
-                dataDir.toString());
+                dataDir.toString(), net.zamin.engine.config.GameMode.CREATIVE);
         EngineServer started = new EngineServer(config);
         started.start();
         return started;
@@ -70,7 +70,7 @@ class BlockInteractionAcceptanceTest {
         server.blockInteraction().submitPlace(player, new BlockPosition(2, 4, 2), 1, BuiltinBlocks.STONE);
         await(() -> server.world().getBlock(target).equals(BuiltinBlocks.STONE), "stone placed");
 
-        server.blockInteraction().submitBreak(player, target);
+        server.blockInteraction().submitCreativeBreak(player, target);
         await(() -> server.world().getBlock(target).equals(BuiltinBlocks.AIR), "stone broken");
 
         server.shutdown(null);
@@ -95,7 +95,7 @@ class BlockInteractionAcceptanceTest {
         server.requestChunkLoad(far.chunkPosition(), chunk -> { });
         await(() -> server.world().isChunkLoaded(far.chunkPosition()), "chunk loaded");
         // Breaking something far outside reach must be rejected (no crash, no change).
-        server.blockInteraction().submitBreak(player, far);
+        server.blockInteraction().submitCreativeBreak(player, far);
         await(() -> server.world().getBlock(far).equals(BuiltinBlocks.AIR), "far air block stays air");
         server.shutdown(null);
     }

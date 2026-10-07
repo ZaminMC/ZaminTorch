@@ -37,7 +37,8 @@ public final class ConfigLoader {
                 intOf(properties, "max-players", 20),
                 intOf(properties, "view-distance", 4),
                 intOf(properties, "tick-rate", 20),
-                string(properties, "data-dir", "."));
+                string(properties, "data-dir", "."),
+                GameMode.parse(string(properties, "gamemode", "survival")));
     }
 
     public static void writeDefault(Path file) throws IOException {
@@ -51,6 +52,7 @@ public final class ConfigLoader {
         properties.setProperty("view-distance", String.valueOf(defaults.viewDistance()));
         properties.setProperty("tick-rate", String.valueOf(defaults.tickRateHz()));
         properties.setProperty("data-dir", defaults.dataDir());
+        properties.setProperty("gamemode", defaults.gamemode().name().toLowerCase());
         try (var out = Files.newOutputStream(file)) {
             properties.store(out, "ZaminTorch server configuration");
         }
