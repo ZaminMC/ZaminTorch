@@ -11,7 +11,9 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.util.concurrent.GlobalEventExecutor;
+import net.zamin.api.ChunkPosition;
 import net.zamin.engine.EngineServer;
+import net.zamin.engine.player.PlayerSession;
 import net.zamin.engine.net.ProtocolAdapter;
 
 import java.util.Map;
@@ -89,6 +91,22 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                 connection.sendBlockChange(position, type);
             }
         });
+        // Chat delivery: engine decides audience/validity, adapter renders.
+        server.addChatListener(new net.zamin.engine.chat.ChatListener() {
+            @Override
+            public void onChatMessage(net.zamin.engine.player.PlayerSession sender, String content) {
+                broadcastChat("<" + sender.name() + "> " + content);
+            }
+
+            @Override
+            public void onSystemMessage(net.zamin.engine.player.PlayerSession recipient, String content) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    if (connection.currentSession() == recipient) {
+                        connection.sendChatLine(content, 0);
+                    }
+                }
+            }
+        });
         LOGGER.info(() -> "1.8.8 protocol listening on " + server.config().host() + ":" + server.config().port());
     }
 
@@ -117,6 +135,55 @@ public final class V18ProtocolServer implements ProtocolAdapter {
 
     int nextEntityId() {
         return entityIds.incrementAndGet();
+    }
+
+    /**
+     * Mutual visibility exchange after a connection reached PLAY: existing
+     * players are spawned for the newcomer and the newcomer for them.
+     */
+    void playerEnteredPlay(V18Connection newcomer) {
+        for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+            if (connection == newcomer || connection.currentSession() == null) {
+                continue;
+            }
+            newcomer.trackPlayer(connection.currentSession());
+            connection.trackPlayer(newcomer.currentSession());
+        }
+    }
+
+    /** Broadcasts a remote player's authoritative position to observers in range. */
+    void broadcastMovement(PlayerSession mover) {
+        var moverChunk = mover.position().toBlockPosition().chunkPosition();
+        long viewSq = (long) engine.config().viewDistance() * engine.config().viewDistance();
+        for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+            PlayerSession observer = connection.currentSession();
+            if (observer == null || observer == mover) {
+                continue;
+            }
+            var observerChunk = observer.position().toBlockPosition().chunkPosition();
+            if (moverChunk.distanceSquared(observerChunk) <= viewSq) {
+                connection.trackPlayer(mover);
+                connection.sendRemoteTeleport(mover);
+            } else {
+                connection.untrackPlayer(mover.uuid()); // fell out of range
+            }
+        }
+    }
+
+    /** Removes a departed player's entity from every observer. */
+    void playerLeft(java.util.UUID departedUuid) {
+        if (departedUuid == null) {
+            return;
+        }
+        for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+            connection.untrackPlayer(departedUuid);
+        }
+    }
+
+    private void broadcastChat(String text) {
+        for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+            connection.sendChatLine(text, 0);
+        }
     }
 
     Channel channelOf(V18Connection connection) {

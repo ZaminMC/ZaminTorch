@@ -15,11 +15,15 @@ final class Protocol18 {
     // Clientbound play packet ids (protocol 47)
     static final int S2C_KEEP_ALIVE = 0x00;
     static final int S2C_JOIN_GAME = 0x01;
+    static final int S2C_CHAT = 0x02;
     static final int S2C_TIME_UPDATE = 0x03;
     static final int S2C_SPAWN_POSITION = 0x05;
     static final int S2C_UPDATE_HEALTH = 0x06;
     static final int S2C_PLAYER_POSITION_AND_LOOK = 0x08;
     static final int S2C_BLOCK_CHANGE = 0x23;
+    static final int S2C_NAMED_SPAWN = 0x0C;
+    static final int S2C_ENTITY_TELEPORT = 0x18;
+    static final int S2C_DESTROY_ENTITIES = 0x13;
     static final int S2C_CHUNK_DATA = 0x21;
     static final int S2C_UNLOAD_CHUNK = 0x1D;
     static final int S2C_DISCONNECT = 0x40;
