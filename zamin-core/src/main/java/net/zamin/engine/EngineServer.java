@@ -118,12 +118,14 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     private void pregenerateSpawnArea(EngineWorld engineWorld) {
-        // Deterministic fixture: a small spawn area guarantees chunks exist before
-        // any client arrives; the adapter requests additional chunks on demand.
+        // Pregenerate the full initial view: the join sequence can then send every
+        // chunk synchronously, so a client never waits past its position packet for
+        // spawn-adjacent chunks. Larger play areas load on demand via requestChunkLoad.
         Position spawn = engineWorld.spawnPosition();
         var center = spawn.toBlockPosition().chunkPosition();
-        for (int dx = -1; dx <= 1; dx++) {
-            for (int dz = -1; dz <= 1; dz++) {
+        int radius = config.viewDistance();
+        for (int dx = -radius; dx <= radius; dx++) {
+            for (int dz = -radius; dz <= radius; dz++) {
                 engineWorld.getOrGenerate(new net.zamin.api.ChunkPosition(center.x() + dx, center.z() + dz));
             }
         }
