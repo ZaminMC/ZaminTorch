@@ -28,10 +28,13 @@ world, move, and disconnect cleanly.
 | 1.8.8 handshake/status/login | implemented |
 | Flat world + chunks | implemented |
 | Player movement tracking | implemented |
-| Block placement/breaking | planned (Slice #2) |
-| Persistence | planned (Slice #2) |
-| Chat/commands | planned (Slice #3) |
-| Mobs/entities | planned |
+| Block placement/breaking (creative) | implemented |
+| World persistence (delta store) | implemented |
+| Chat + basic commands | implemented |
+| Two-player visibility sync | implemented |
+| Survival mechanics, drops, inventory | planned |
+| Mobs/entities/AI | planned |
+| Anvil world format import | planned (compatibility adapter) |
 | Minestom integration | deferred (see ADR in plan) |
 
 This table reflects tested behavior only; nothing is marked implemented without an
@@ -49,7 +52,9 @@ Requirements: Java 21.
 
 The development server reads `zamin.properties` from the working directory
 (a default is created on first start) and listens for 1.8.8 clients on the
-configured port.
+configured port. Console commands: `help`, `state`, `save`, `stop`. In-game:
+`/help`, `/ping`. World changes are persisted to `worlds/<world>/zamin-delta.bin`
+and survive restarts.
 
 ## Modules
 
