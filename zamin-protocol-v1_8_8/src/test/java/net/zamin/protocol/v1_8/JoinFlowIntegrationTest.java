@@ -136,6 +136,46 @@ class JoinFlowIntegrationTest {
     }
 
     @Test
+    void placingAndBreakingBlocksEchoesWorldChanges() throws Exception {
+        try (TestClient18 client = new TestClient18("127.0.0.1", adapter.boundPort())) {
+            client.sendHandshake(47, 2);
+            client.sendLoginStart("Builder");
+            client.readLoginSuccess();
+            client.readUntilPositionAndLook();
+            PlayerSession builder = awaitPlayer("Builder");
+
+            // Place stone on top of the grass at (2,4,2) via the top face.
+            client.sendBlockPlacement(2, 4, 2, 1, 1); // held item: stone (legacy 1)
+            awaitCondition(() -> server.world().getBlock(new net.zamin.api.BlockPosition(2, 5, 2))
+                            .identifier().toString().equals("minecraft:stone"),
+                    "stone committed in world");
+
+            // The committed change echoes back as a Block Change packet.
+            int[] echo = client.readBlockChange(5_000);
+            assertEquals(2, echo[0]);
+            assertEquals(5, echo[1]);
+            assertEquals(2, echo[2]);
+            assertEquals(1, echo[3]);
+
+            // Creative break is instant on "started digging".
+            client.sendDigging(0, 2, 5, 2, 1);
+            awaitCondition(() -> server.world().getBlock(new net.zamin.api.BlockPosition(2, 5, 2))
+                            .identifier().toString().equals("minecraft:air"),
+                    "block removed from world");
+            int[] removal = client.readBlockChange(5_000);
+            assertEquals(0, removal[3]);
+
+            // Placement inside the player's own body is rejected silently.
+            client.sendBlockPlacement(0, 4, 0, 1, 1);
+            client.sendDigging(0, 2, 5, 2, 1); // idempotent: breaking air changes nothing
+            awaitCondition(() -> server.world().getBlock(new net.zamin.api.BlockPosition(0, 5, 0))
+                            .identifier().toString().equals("minecraft:air"),
+                    "placement into player rejected");
+        }
+        awaitCondition(() -> server.players().isEmpty(), "player removed after disconnect");
+    }
+
+    @Test
     void shutdownWhileClientConnectedIsClean() throws Exception {
         // This test runs last on its own server instance via separate boot to avoid
         // affecting others: we simulate by checking adapter lifecycle contract only.

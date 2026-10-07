@@ -21,7 +21,7 @@ import java.util.logging.Logger;
  *       the work queue; it runs at the start of the next tick.</li>
  * </ul>
  */
-final class EngineTicker {
+public final class EngineTicker {
 
     private static final Logger LOGGER = Logger.getLogger(EngineTicker.class.getName());
 
@@ -39,7 +39,7 @@ final class EngineTicker {
     }
 
     /** Attaches the world this ticker owns. Called once, on the tick thread, before the loop starts. */
-    void attachWorld(EngineWorld world) {
+    public void attachWorld(EngineWorld world) {
         if (this.world != null) {
             throw new IllegalStateException("World already attached");
         }
@@ -88,7 +88,7 @@ final class EngineTicker {
     }
 
     /** Enqueues work to run at the start of the next tick. Safe from any thread. */
-    void submit(Runnable work) {
+    public void submit(Runnable work) {
         pendingWork.add(work);
     }
 

@@ -13,6 +13,8 @@ import net.zamin.engine.net.EngineBridge;
 import net.zamin.engine.player.PlayerSession;
 import net.zamin.engine.world.EngineChunk;
 
+import net.zamin.api.BlockPosition;
+import net.zamin.api.BlockType;
 import net.zamin.api.ChunkPosition;
 import net.zamin.api.Position;
 import net.zamin.api.Rotation;
@@ -286,9 +288,8 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                  Protocol18.C2S_CLIENT_STATUS -> {
                 // Accepted and ignored: they carry no slice-1 gameplay semantics yet.
             }
-            case Protocol18.C2S_PLAYER_DIGGING, Protocol18.C2S_PLAYER_BLOCK_PLACEMENT -> {
-                // Slice #2: interaction intents will route through the engine, not here.
-            }
+            case Protocol18.C2S_PLAYER_DIGGING -> handleDigging(player, packet);
+            case Protocol18.C2S_PLAYER_BLOCK_PLACEMENT -> handleBlockPlacement(player, packet);
             default -> {
                 // Unknown play packet: ignore, as the historical server does, but make it observable.
                 LOGGER.fine(() -> "Ignored play packet id 0x" + Integer.toHexString(packetId)
@@ -301,6 +302,47 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         int id = ByteBufOps.readVarInt(packet);
         if (pendingKeepAlive == id) {
             pendingKeepAlive = -1;
+        }
+    }
+
+    private void handleDigging(PlayerSession player, ByteBuf packet) {
+        int status = packet.readByte();
+        int[] pos = ByteBufOps.readPackedBlockPosition(packet);
+        // Creative breaking is instant on "started digging". Other statuses carry
+        // no slice-2 semantics yet (survival mining comes with drops/duration).
+        if (status == 0 || status == 2) {
+            try {
+                engine.blockInteraction().submitBreak(player,
+                        new net.zamin.api.BlockPosition(pos[0], pos[1], pos[2]));
+            } catch (IllegalArgumentException outOfWorld) {
+                LOGGER.fine(() -> "Ignored digging at out-of-world position from " + player.name());
+            }
+        }
+    }
+
+    private void handleBlockPlacement(PlayerSession player, ByteBuf packet) {
+        int[] clicked = ByteBufOps.readPackedBlockPosition(packet);
+        int face = packet.readByte();
+        // 1.8 slot: short id, byte count, short metadata, optional NBT. We only
+        // need the id to know what the client is holding; metadata stays 0-scope.
+        short heldId = packet.readShort();
+        if (heldId <= 0 || face < 0 || face > 5) {
+            return; // empty hand or invalid face: nothing to place
+        }
+        net.zamin.api.Identifier heldIdentifier =
+                LegacyBlockIds.identifierOf(heldId & 0xFFFF).orElse(null);
+        if (heldIdentifier == null) {
+            LOGGER.fine(() -> "Ignored placement of unmapped item " + heldId
+                    + " from " + player.name());
+            return;
+        }
+        try {
+            engine.blockInteraction().submitPlace(player,
+                    new net.zamin.api.BlockPosition(clicked[0], clicked[1], clicked[2]),
+                    face,
+                    engine.blockRegistry().require(heldIdentifier));
+        } catch (IllegalArgumentException outOfWorld) {
+            LOGGER.fine(() -> "Ignored placement at out-of-world position from " + player.name());
         }
     }
 
@@ -414,6 +456,30 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         }
     }
 
+    // ------------------------------------------------------------------ outgoing sync
+
+    /**
+     * Pushes a committed world change to this client if the chunk is visible.
+     * Called on the simulation thread by the adapter's broadcast; Netty writes
+     * are thread-safe, tracker reads are synchronized.
+     */
+    void sendBlockChange(BlockPosition position, BlockType type) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        Integer legacy = LegacyBlockIds.legacyId(type.identifier()).orElse(null);
+        if (legacy == null || chunkTracker == null
+                || !chunkTracker.hasChunk(position.chunkPosition().packed())) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(16);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_BLOCK_CHANGE);
+        ByteBufOps.writePackedBlockPosition(out, position.x(), position.y(), position.z());
+        ByteBufOps.writeVarInt(out, legacy); // metadata 0 -> legacy id alone
+        channel.writeAndFlush(out);
+    }
+
     // ------------------------------------------------------------------ chunk tracking
 
     /**
@@ -438,7 +504,9 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             centerX = center.x();
             centerZ = center.z();
             forEachInRadius(engine.config().viewDistance(), position -> {
-                sent.add(position.packed());
+                synchronized (sent) {
+                    sent.add(position.packed());
+                }
                 sendChunk(position, true);
             });
         }
@@ -452,6 +520,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             int view = engine.config().viewDistance();
 
             // Unload first: chunks that fell out of range (with one chunk of hysteresis).
+            synchronized (sent) {
             sent.removeIf(packed -> {
                 ChunkPosition position = ChunkPosition.unpack(packed);
                 if (position.distanceSquared(center) > (long) (view + 1) * (view + 1)) {
@@ -463,10 +532,21 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
 
             // Send chunks that are newly visible.
             forEachInRadius(view, position -> {
-                if (sent.add(position.packed())) {
+                boolean newlySent;
+                synchronized (sent) {
+                    newlySent = sent.add(position.packed());
+                }
+                if (newlySent) {
                     sendChunk(position, false);
                 }
             });
+            }
+        }
+
+        boolean hasChunk(long packed) {
+            synchronized (sent) {
+                return sent.contains(packed);
+            }
         }
 
         private void forEachInRadius(int radius, java.util.function.Consumer<ChunkPosition> action) {
