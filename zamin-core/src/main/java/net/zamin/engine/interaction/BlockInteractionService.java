@@ -3,14 +3,18 @@ package net.zamin.engine.interaction;
 import net.zamin.api.BlockPosition;
 import net.zamin.api.BlockType;
 import net.zamin.api.ItemType;
+import net.zamin.api.ItemStack;
 import net.zamin.engine.EngineTicker;
 import net.zamin.engine.block.BlockBehavior;
 import net.zamin.engine.block.BlockBehaviorTable;
 import net.zamin.engine.config.GameMode;
+import net.zamin.engine.entity.ItemEntity;
+import net.zamin.engine.entity.ItemEntityManager;
 import net.zamin.engine.player.PlayerSession;
 import net.zamin.engine.world.EngineWorld;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
@@ -50,6 +54,8 @@ public final class BlockInteractionService {
     private final EngineTicker ticker;
     private final Consumer<BlockChange> publisher;
     private final GameMode gameMode;
+    private final DropService dropService;
+    private final ItemEntityManager itemEntities;
 
     /** Active survival mining sessions, keyed by player. Tick-thread confined. */
     private final Map<UUID, MiningSession> miningSessions = new HashMap<>();
@@ -63,11 +69,14 @@ public final class BlockInteractionService {
     }
 
     public BlockInteractionService(EngineWorld world, EngineTicker ticker,
-                                   Consumer<BlockChange> publisher, GameMode gameMode) {
+                                   Consumer<BlockChange> publisher, GameMode gameMode,
+                                   DropService dropService, ItemEntityManager itemEntities) {
         this.world = Objects.requireNonNull(world, "world");
         this.ticker = Objects.requireNonNull(ticker, "ticker");
         this.publisher = Objects.requireNonNull(publisher, "publisher");
         this.gameMode = Objects.requireNonNull(gameMode, "gameMode");
+        this.dropService = Objects.requireNonNull(dropService, "dropService");
+        this.itemEntities = Objects.requireNonNull(itemEntities, "itemEntities");
     }
 
     /** Requests an instant (creative) break. Safe from any thread. */
@@ -157,7 +166,8 @@ public final class BlockInteractionService {
             return;
         }
         long elapsedNanos = System.nanoTime() - session.startedNanos();
-        boolean canHarvest = BlockBehaviorTable.canHarvest(behavior, heldItemOf(player));
+        ItemType held = heldItemOf(player);
+        boolean canHarvest = BlockBehaviorTable.canHarvest(behavior, held);
         int requiredTicks = behavior.breakTicks(canHarvest);
         long minimumNanos = (long) (requiredTicks * TICK_NANOS * MINING_TIMING_LENIENCY);
         if (elapsedNanos < minimumNanos) {
@@ -167,6 +177,7 @@ public final class BlockInteractionService {
             return;
         }
         commit(target, world.airType());
+        publishDrops(target, current, held);
     }
 
     private void placeOnTick(PlayerSession player, BlockPosition clicked, int face, BlockType held) {
@@ -196,16 +207,30 @@ public final class BlockInteractionService {
         publisher.accept(new BlockChange(position, type));
     }
 
+    /** Drop calculation (§434): committed break -&gt; drops -&gt; item entities. */
+    private void publishDrops(BlockPosition broken, BlockType brokenType, ItemType heldTool) {
+        List<ItemStack> drops = dropService.dropsFor(brokenType, heldTool);
+        if (drops.isEmpty()) {
+            return;
+        }
+        // The manager positions drops around the block's center from its min corner.
+        var blockOrigin = new net.zamin.api.Position(broken.x(), broken.y(), broken.z());
+        for (ItemStack drop : drops) {
+            itemEntities.spawnDropAtBlock(blockOrigin, drop, ItemEntity.PICKUP_DELAY_DROP_TICKS);
+        }
+    }
+
     /** Re-publishes the authoritative current state so clients drop predictions. */
     private void resync(BlockPosition position) {
         publisher.accept(new BlockChange(position, world.getBlock(position)));
     }
 
     /**
-     * The item the player currently holds. The inventory model lands with the
-     * drops slice; until then the engine reads null (bare hand) directly.
+     * The item the player currently holds, read from the authoritative inventory.
+     * Bare hand is the canonical empty item (null).
      */
     private ItemType heldItemOf(PlayerSession player) {
-        return null;
+        ItemStack held = player.inventory().held();
+        return held.isEmpty() ? null : held.type();
     }
 }

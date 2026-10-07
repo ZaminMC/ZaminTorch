@@ -56,10 +56,11 @@ class SurvivalMiningAcceptanceTest {
         throw new AssertionError("Condition not met in time: " + description);
     }
 
-    /** Places a dirt block at the given position through the authoritative path. */
-    private void seedBlock(PlayerSession player, BlockPosition at) throws InterruptedException {
-        server.blockInteraction().submitPlace(player, at.offset(0, -1, 0), 1, BuiltinBlocks.DIRT);
-        await(() -> server.world().getBlock(at).equals(BuiltinBlocks.DIRT), "dirt seeded at " + at);
+    /** Places a block of the given type at the position through the authoritative path. */
+    private void seedBlock(PlayerSession player, BlockPosition at,
+                           net.zamin.api.BlockType type) throws InterruptedException {
+        server.blockInteraction().submitPlace(player, at.offset(0, -1, 0), 1, type);
+        await(() -> server.world().getBlock(at).equals(type), "seeded at " + at);
     }
 
     @Test
@@ -67,7 +68,7 @@ class SurvivalMiningAcceptanceTest {
         server = boot();
         PlayerSession player = join("Miner");
         BlockPosition target = new BlockPosition(2, 5, 2);
-        seedBlock(player, target);
+        seedBlock(player, target, BuiltinBlocks.DIRT);
 
         server.blockInteraction().submitMiningStart(player, target);
         // dirt by hand: 15 ticks nominal (750ms); lenient floor 70% (525ms). Wait past it.
@@ -79,11 +80,52 @@ class SurvivalMiningAcceptanceTest {
     }
 
     @Test
+    void breakingGrassSpawnsDirtDrop() throws Exception {
+        server = boot();
+        PlayerSession player = join("DropTaker");
+        // The surface grass itself, no seeding needed.
+        BlockPosition grass = new BlockPosition(2, 4, 2);
+        server.requestChunkLoad(grass.chunkPosition(), chunk -> { });
+        await(() -> server.world().isChunkLoaded(grass.chunkPosition()), "chunk loaded");
+        assertEquals(BuiltinBlocks.GRASS_BLOCK, server.world().getBlock(grass));
+
+        server.blockInteraction().submitMiningStart(player, grass);
+        Thread.sleep(900); // grass by hand: 18 ticks nominal, floor 546ms
+        server.blockInteraction().submitMiningFinished(player, grass);
+        await(() -> server.world().getBlock(grass).equals(BuiltinBlocks.AIR), "grass broken");
+
+        await(() -> !server.itemEntities().all().isEmpty()
+                        && server.itemEntities().all().get(0).stack().type().identifier()
+                                .toString().equals("minecraft:dirt"),
+                "dirt drop spawned");
+        assertEquals(1, server.itemEntities().all().get(0).stack().count());
+        server.shutdown(null);
+    }
+
+    @Test
+    void breakingStoneByHandYieldsNothing() throws Exception {
+        server = boot();
+        PlayerSession player = join("BareHands");
+        BlockPosition stone = new BlockPosition(2, 5, 2);
+        seedBlock(player, stone, BuiltinBlocks.STONE);
+
+        server.blockInteraction().submitMiningStart(player, stone);
+        // Stone by hand is not harvestable: 150 ticks nominal (7.5s), floor 5.25s.
+        Thread.sleep(5_400);
+        server.blockInteraction().submitMiningFinished(player, stone);
+        await(() -> server.world().getBlock(stone).equals(BuiltinBlocks.AIR),
+                "stone breaks (slowly) even without a tool");
+        org.junit.jupiter.api.Assertions.assertEquals(0, server.itemEntities().size(),
+                "no drop without a harvest tool (historical behavior)");
+        server.shutdown(null);
+    }
+
+    @Test
     void tooFastFinishIsRejectedAndResynced() throws Exception {
         server = boot();
         PlayerSession player = join("Hasty");
         BlockPosition target = new BlockPosition(3, 5, 2);
-        seedBlock(player, target);
+        seedBlock(player, target, BuiltinBlocks.DIRT);
 
         long baseline;
         var resyncs = new java.util.concurrent.atomic.AtomicInteger();
@@ -102,7 +144,7 @@ class SurvivalMiningAcceptanceTest {
         server = boot();
         PlayerSession player = join("Abandoner");
         BlockPosition target = new BlockPosition(4, 5, 2);
-        seedBlock(player, target);
+        seedBlock(player, target, BuiltinBlocks.DIRT);
 
         server.blockInteraction().submitMiningStart(player, target);
         Thread.sleep(100);
@@ -119,7 +161,7 @@ class SurvivalMiningAcceptanceTest {
         server = boot();
         PlayerSession player = join("Sneaky");
         BlockPosition target = new BlockPosition(5, 5, 2);
-        seedBlock(player, target);
+        seedBlock(player, target, BuiltinBlocks.DIRT);
 
         server.blockInteraction().submitMiningFinished(player, target); // never started
         await(() -> server.world().getBlock(target).equals(BuiltinBlocks.DIRT),
