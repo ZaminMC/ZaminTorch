@@ -91,7 +91,14 @@ sync (full view, synchronous), movement tracking with validation, keep-alive wit
 timeout kick, clean disconnect, clean shutdown under load, rejection paths
 (outdated client, invalid/duplicate name) leave the server healthy.
 
-Explicitly NOT in Slice #1 (§150 honesty): block placement/breaking, inventories, chat/commands, persistence, multiplayer sync, entities, Minestom integration, performance claims.
+## 10c. Slices #2/#3 — implemented status
+
+- **Block interaction**: creative placement/breaking through the single semantic entry point (`BlockInteractionService`), reach + collision validation, tick-thread commit, Block Change sync to clients with the chunk visible. (§215/§216/§227)
+- **Persistence**: versioned world delta store (`ZWD` v1), atomic writes, corruption quarantine, deltas applied over regenerated terrain; restart survival proven by test (§407). Anvil import remains future compatibility work (§541) — this format never claims to be it.
+- **Chat & commands**: validated chat, semantic command parsing, private command feedback (§351/§521).
+- **Multiplayer visibility**: mutual spawn exchange, movement teleports within view distance, destroy on departure (§322 core loop).
+
+Explicitly NOT yet: survival mining/drops, item entities, full inventory model, permissions, lighting, mobs, Anvil import, plugin API.
 
 ## 11. Known risks
 
