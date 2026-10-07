@@ -4,6 +4,8 @@ import net.zamin.api.ServerState;
 import net.zamin.engine.EngineServer;
 import net.zamin.engine.config.ConfigLoader;
 import net.zamin.engine.config.EngineConfig;
+import net.zamin.engine.net.ProtocolAdapter;
+import net.zamin.protocol.v1_8.V18ProtocolServer;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -32,15 +34,17 @@ final class LauncherRuntime {
     void run() throws Exception {
         EngineConfig config = loadConfig();
         EngineServer server = new EngineServer(config);
+        ProtocolAdapter adapter = new V18ProtocolServer(server);
 
         // Shutdown must work from signals as well as the console command (§121).
-        Thread shutdownHook = new Thread(() -> server.shutdown(null), "zamin-shutdown-hook");
+        Thread shutdownHook = new Thread(() -> server.shutdown(adapter::shutdown), "zamin-shutdown-hook");
         Runtime.getRuntime().addShutdownHook(shutdownHook);
 
         server.start();
-        LOGGER.info(() -> "Engine running (" + server.state() + "); waiting for protocol adapter wiring");
+        adapter.start(server);
+        LOGGER.info(() -> "Server ready: " + adapter.protocolName() + " on port " + config.port());
 
-        runConsole(server);
+        runConsole(server, adapter);
     }
 
     private EngineConfig loadConfig() throws IOException {
@@ -58,7 +62,7 @@ final class LauncherRuntime {
     }
 
     /** Minimal console: reads lines, supports the first administrative commands (§305). */
-    private void runConsole(EngineServer server) throws IOException {
+    private void runConsole(EngineServer server, ProtocolAdapter adapter) throws IOException {
         LOGGER.info("Console ready. Type 'help' for commands.");
         try (BufferedReader reader = new BufferedReader(
                 new InputStreamReader(System.in, StandardCharsets.UTF_8))) {
@@ -69,7 +73,7 @@ final class LauncherRuntime {
                     case "", "help" -> printHelp();
                     case "stop", "shutdown" -> {
                         LOGGER.info("Stop requested from console");
-                        server.shutdown(null);
+                        server.shutdown(adapter::shutdown);
                         return;
                     }
                     case "state" -> LOGGER.info(() -> "Server state: " + server.state()
