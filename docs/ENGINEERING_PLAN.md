@@ -191,6 +191,27 @@ community dataset's (ADR-0002) and pinned by tests:
   durability re-sync; the live smoke proved a shovel dig commits at 350 ms
   where a hand needs 525 ms, with wear accumulating across digs.
 
+## 10f. Slice #6 — player-data persistence (implemented status)
+
+A returning player continues survival exactly where they left it; the
+restart proof of §407 now covers personal state, pinned by test and by a
+live restart smoke:
+
+- **ZPD v1** (`PlayerDataStore`, one file per identity under
+  `<dataDir>/players/<uuid>.zpd`): name, position, rotation, held slot and
+  the non-empty inventory slots (identifier + count + damage — tool wear
+  travels with the stack). Same durability rules as the world store: atomic
+  temp-file writes, corrupt files quarantined beside the storage path and
+  loaded as absent, loud save failures.
+- **When**: on disconnect (tick-thread, ordered after any queued inventory
+  work) and for still-connected players during shutdown.
+- **Restore on join**: the saved spot replaces the spawn anchor, look
+  angles, inventory and hotbar selection are applied before the join
+  sequence, so the client's first Window Items already shows the restored
+  tools. Unresolvable saved items are dropped loudly, not fatally. The
+  initial chunk view is centered on the player's actual position (spawn for
+  fresh players), not unconditionally on the world spawn.
+
 ## 11. Known risks
 
 - 1.8.8 client quirks not obvious from protocol docs (e.g. exact chunk/lighting expectations) — mitigated by scripted-client tests + real client validation.
