@@ -60,8 +60,13 @@ Dependency rules enforced: API never depends on core/adapters; core never depend
 
 ## 8. Concurrency strategy (Slice #1 scale)
 
-- Correct serial execution first (§178). The simulation runs a dedicated engine tick loop; protocol I/O runs on Netty event loops; all gameplay mutations from network threads enter the engine through a single ordered command queue (ownership boundary, §46). No distributed locks, no speculative parallelism. The queue boundary is where later parallel domains will attach.
-- Bounded queues with a drop/disconnect policy for runaway clients (§120).
+Implemented ownership model (amended from the original "single command queue" draft, per §34/§184 — the queue was machinery without a current workload):
+
+- The **simulation tick thread owns world state**; the world enforces this (mutation from a foreign thread throws) and the tick loop runs fixed-rate with a no-burst catch-up policy (overruns are logged, never executed in bulk).
+- **Per-channel ordering**: each connection's packets are processed on its Netty event loop, so per-player state updates are naturally ordered without locks. Identity-critical operations (join/reject) are atomic through the player registry; per-player position is volatile engine state written only by the owning channel loop.
+- **World chunk generation** is ownership-respecting: network threads request loads through `EngineServer.requestChunkLoad`, which executes generation on the world owner and calls back there.
+- Chunk reads for network serialization are safe because published chunks are immutable at rest in Slice #1; this constraint must be revisited (snapshot-per-tick) when block-mutating gameplay lands (tracked TODO in EngineWorld).
+- A general engine work queue exists on the ticker for deferred engine work; a full command-queue model arrives with cross-entity gameplay, not before.
 
 ## 9. Testing strategy
 
@@ -76,6 +81,15 @@ Dependency rules enforced: API never depends on core/adapters; core never depend
 3. Failure paths (invalid handshake, disconnect mid-login, malformed packet) leave the server healthy (§320).
 4. `./gradlew test` proves the above without a human clicking.
 5. Shutdown is clean: network stops, no leaked threads, process exits (§121).
+
+## 10b. Slice #1 — implemented status
+
+All acceptance criteria of §10 are implemented and covered by automated tests
+(`JoinFlowIntegrationTest`, `ShutdownAcceptanceTest`, unit suites): typed config,
+lifecycle state machine, 1.8.8 handshake/status/login, flat world, spawn chunk
+sync (full view, synchronous), movement tracking with validation, keep-alive with
+timeout kick, clean disconnect, clean shutdown under load, rejection paths
+(outdated client, invalid/duplicate name) leave the server healthy.
 
 Explicitly NOT in Slice #1 (§150 honesty): block placement/breaking, inventories, chat/commands, persistence, multiplayer sync, entities, Minestom integration, performance claims.
 
