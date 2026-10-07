@@ -17,7 +17,7 @@ import java.util.UUID;
  * the wire; the engine only uses it to push engine-decided lifecycle actions
  * (kick). Gameplay never sees transport objects.</p>
  */
-public final class PlayerSession {
+public final class PlayerSession implements net.zamin.api.Player {
 
     private final UUID uuid;
     private final String name;

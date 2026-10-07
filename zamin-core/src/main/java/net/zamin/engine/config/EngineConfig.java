@@ -29,7 +29,7 @@ public record EngineConfig(
         Objects.requireNonNull(host, "host");
         Objects.requireNonNull(worldName, "worldName");
         Objects.requireNonNull(motd, "motd");
-        if (port < 1 || port > 65535) {
+        if (port < 0 || port > 65535) {
             throw new IllegalArgumentException("port out of range: " + port);
         }
         if (maxPlayers < 1 || maxPlayers > 100_000) {

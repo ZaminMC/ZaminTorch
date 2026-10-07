@@ -274,13 +274,28 @@ public final class EngineServer implements Server, EngineBridge {
         LOGGER.info(() -> "Player disconnected: " + session.name() + " (" + reason + ")");
     }
 
-    /** For tests: force a state. */
-    void forceStateForTest(ServerState forced) {
-        state.set(forced);
-    }
-
     /** Checks whether the chunk containing the position is available read-only. */
     public EngineChunk peekChunk(net.zamin.api.ChunkPosition position) {
         return world.peek(position);
+    }
+
+    /**
+     * Ensures a chunk is loaded without violating world ownership: generation is
+     * scheduled onto the world's owner thread and the callback runs there.
+     * Safe to call from any thread. If the chunk already exists, the callback
+     * runs immediately on the caller's thread.
+     */
+    public void requestChunkLoad(net.zamin.api.ChunkPosition position,
+                                 java.util.function.Consumer<EngineChunk> onLoaded) {
+        Objects.requireNonNull(onLoaded, "onLoaded");
+        EngineChunk existing = world.peek(position);
+        if (existing != null) {
+            onLoaded.accept(existing);
+            return;
+        }
+        ticker.submit(() -> {
+            EngineChunk chunk = world.getOrGenerate(position);
+            onLoaded.accept(chunk);
+        });
     }
 }
