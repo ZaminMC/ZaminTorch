@@ -11,14 +11,24 @@ public final class EngineItemType implements ItemType {
     private final Identifier identifier;
     private final String displayName;
     private final int maxStackSize;
+    private final int maxDurability;
 
     public EngineItemType(Identifier identifier, String displayName, int maxStackSize) {
+        this(identifier, displayName, maxStackSize, 0);
+    }
+
+    public EngineItemType(Identifier identifier, String displayName, int maxStackSize,
+                          int maxDurability) {
         this.identifier = Objects.requireNonNull(identifier, "identifier");
         this.displayName = Objects.requireNonNull(displayName, "displayName");
         if (maxStackSize < 1 || maxStackSize > 99) {
             throw new IllegalArgumentException("maxStackSize out of range: " + maxStackSize);
         }
+        if (maxDurability < 0) {
+            throw new IllegalArgumentException("maxDurability must not be negative: " + maxDurability);
+        }
         this.maxStackSize = maxStackSize;
+        this.maxDurability = maxDurability;
     }
 
     @Override
@@ -34,6 +44,11 @@ public final class EngineItemType implements ItemType {
     @Override
     public int maxStackSize() {
         return maxStackSize;
+    }
+
+    @Override
+    public int maxDurability() {
+        return maxDurability;
     }
 
     @Override

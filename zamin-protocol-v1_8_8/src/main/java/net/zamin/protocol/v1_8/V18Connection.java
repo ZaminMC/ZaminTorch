@@ -681,7 +681,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         }
         out.writeShort(legacy);
         out.writeByte(stack.count());
-        out.writeShort(0); // damage/metadata
+        out.writeShort(stack.damage()); // durability damage rides the historical damage field
         out.writeShort(-1); // no NBT
     }
 

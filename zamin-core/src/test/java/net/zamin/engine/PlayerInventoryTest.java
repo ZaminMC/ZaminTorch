@@ -117,4 +117,58 @@ class PlayerInventoryTest {
         assertEquals(0, inventory.heldSlot());
         assertEquals(7, inventory.held().count());
     }
+
+    @Test
+    void durabilityWearAccumulatesOnTheHeldTool() {
+        PlayerInventory inventory = new PlayerInventory();
+        inventory.pickUp(ItemStack.of(BuiltinItems.WOODEN_PICKAXE)); // 59 durability
+
+        assertTrue(inventory.damageHeld(1));
+        assertEquals(1, inventory.held().damage());
+        assertTrue(inventory.damageHeld(2));
+        assertEquals(3, inventory.held().damage());
+        assertEquals(1, inventory.held().count(), "a worn tool is not consumed, only worn");
+    }
+
+    @Test
+    void toolBreaksAtItsDurabilityLimit() {
+        PlayerInventory inventory = new PlayerInventory();
+        inventory.pickUp(ItemStack.of(BuiltinItems.GOLDEN_PICKAXE)); // 32 durability
+
+        for (int i = 0; i < 31; i++) {
+            assertTrue(inventory.damageHeld(1));
+        }
+        assertEquals(31, inventory.held().damage());
+        // The 32nd wear point breaks it: the slot empties, exactly as historically.
+        assertTrue(inventory.damageHeld(1));
+        assertTrue(inventory.held().isEmpty());
+        // Breaking an empty hand is a no-op.
+        assertEquals(false, inventory.damageHeld(1));
+    }
+
+    @Test
+    void nonDurableItemsAreNeverWorn() {
+        PlayerInventory inventory = new PlayerInventory();
+        inventory.pickUp(ItemStack.of(BuiltinItems.DIRT, 5));
+        assertEquals(false, inventory.damageHeld(1));
+        assertEquals(0, inventory.held().damage());
+        assertEquals(5, inventory.held().count());
+
+        assertThrows(IllegalArgumentException.class, () -> inventory.damageHeld(0));
+    }
+
+    @Test
+    void wornToolKeepsItsDamageThroughSplitAndCountChanges() {
+        PlayerInventory inventory = new PlayerInventory();
+        inventory.pickUp(ItemStack.of(BuiltinItems.IRON_PICKAXE));
+        inventory.damageHeld(10);
+
+        ItemStack thrown = inventory.dropHeld(false); // Q-drop of the stack-of-one
+        assertEquals(10, thrown.damage(), "the thrown tool stays worn");
+        assertTrue(inventory.held().isEmpty());
+
+        ItemStack rePicked = inventory.pickUp(thrown);
+        assertTrue(rePicked.isEmpty());
+        assertEquals(10, inventory.held().damage(), "pickup restores the same worn tool");
+    }
 }

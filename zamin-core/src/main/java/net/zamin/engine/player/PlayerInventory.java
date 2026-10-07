@@ -62,14 +62,18 @@ public final class PlayerInventory {
         }
         ItemStack remaining = stack;
 
-        // 1. top up existing matching stacks (hotbar order, then main)
+        // 1. top up existing matching stacks (hotbar order, then main). Damage
+        // must match too: a worn tool never merges into a fresh one (moot while
+        // tools stack to one, but the rule keeps the merge semantics total).
         for (int i = 0; i < TOTAL_SLOTS && !remaining.isEmpty(); i++) {
             ItemStack current = slots[i];
             if (!current.isEmpty() && current.type().equals(remaining.type())
+                    && current.damage() == remaining.damage()
                     && current.count() < current.type().maxStackSize()) {
                 int capacity = current.type().maxStackSize() - current.count();
                 ItemStack take = remaining.split(capacity);
-                slots[i] = new ItemStack(current.type(), current.count() + take.count());
+                slots[i] = new ItemStack(current.type(), current.count() + take.count(),
+                        current.damage());
                 remaining = remaining.withCount(remaining.count() - take.count());
             }
         }
@@ -116,6 +120,32 @@ public final class PlayerInventory {
         ItemStack dropped = entireStack ? current : current.split(1);
         slots[heldSlot] = current.withCount(current.count() - dropped.count());
         return dropped;
+    }
+
+    /**
+     * Semantic durability wear on the held stack (§432 family): the tool loses
+     * {@code amount} durability units; reaching its limit breaks it and the
+     * slot becomes empty (historical: the tool leaves the hand). Non-durable
+     * items and the empty hand are unaffected.
+     *
+     * @return whether the held slot changed at all (worn or broken), so the
+     *         caller can re-sync the client.
+     */
+    public boolean damageHeld(int amount) {
+        if (amount < 1) {
+            throw new IllegalArgumentException("Damage amount must be positive: " + amount);
+        }
+        ItemStack current = slots[heldSlot];
+        if (current.isEmpty() || current.type().maxDurability() <= 0) {
+            return false;
+        }
+        int newDamage = current.damage() + amount;
+        if (newDamage >= current.type().maxDurability()) {
+            slots[heldSlot] = ItemStack.EMPTY; // the tool breaks
+        } else {
+            slots[heldSlot] = current.withDamage(newDamage);
+        }
+        return true;
     }
 
     /** Read-only slot snapshot for synchronization; callers must not mutate it. */

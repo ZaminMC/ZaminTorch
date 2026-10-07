@@ -410,6 +410,44 @@ public final class EngineServer implements Server, EngineBridge {
                 }));
         commands.register(new CommandService.Command("ping", "Check server responsiveness",
                 (sender, args) -> "pong"));
+        commands.register(new CommandService.Command("give", "Give yourself an item: /give <name> [count]",
+                this::giveCommand));
+    }
+
+    /**
+     * /give &lt;name&gt; [count]: grants the item into the player's inventory
+     * (fill order as pickup). The administrative item source until crafting and
+     * inventory clicks exist; runs on the tick thread through chat dispatch.
+     */
+    private String giveCommand(PlayerSession sender, String[] args) {
+        if (args.length < 1) {
+            return "Usage: /give <item> [count]";
+        }
+        String rawName = args[0];
+        String name = rawName.contains(":") ? rawName : "minecraft:" + rawName;
+        net.zamin.api.ItemType type = net.zamin.engine.item.BuiltinItems.lookup(
+                net.zamin.api.Identifier.parse(name)).orElse(null);
+        if (type == null) {
+            return "Unknown item: " + rawName;
+        }
+        int count = 1;
+        if (args.length >= 2) {
+            try {
+                count = Integer.parseInt(args[1]);
+            } catch (NumberFormatException e) {
+                return "Not a count: " + args[1];
+            }
+            if (count < 1 || count > type.maxStackSize()) {
+                return "Count must be 1.." + type.maxStackSize() + " for " + type.displayName();
+            }
+        }
+        net.zamin.api.ItemStack granted = net.zamin.api.ItemStack.of(type, count);
+        net.zamin.api.ItemStack remainder = sender.inventory().pickUp(granted);
+        publishInventoryChanged(sender);
+        int given = count - remainder.count();
+        return remainder.isEmpty()
+                ? "Given " + given + " x " + type.displayName()
+                : "Inventory full: gave " + given + " of " + count;
     }
 
     private void publishChat(ChatService.ChatEvent event) {

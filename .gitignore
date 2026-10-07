@@ -21,3 +21,9 @@ crash-reports/
 # OS
 .DS_Store
 Thumbs.db
+launcher.pid
+run/
+
+# Runtime artifacts
+launcher.pid
+run/

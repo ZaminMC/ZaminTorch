@@ -186,9 +186,11 @@ public final class BlockInteractionService {
             return;
         }
         long elapsedNanos = System.nanoTime() - session.startedNanos();
-        ItemType held = heldItemOf(player);
+        net.zamin.api.ItemStack heldStack = player.inventory().held();
+        ItemType held = heldStack.isEmpty() ? null : heldStack.type();
         boolean canHarvest = BlockBehaviorTable.canHarvest(behavior, held);
-        int requiredTicks = behavior.breakTicks(canHarvest);
+        double speedMultiplier = BlockBehaviorTable.speedMultiplier(behavior, held);
+        int requiredTicks = behavior.breakTicks(speedMultiplier, canHarvest);
         long minimumNanos = (long) (requiredTicks * TICK_NANOS * MINING_TIMING_LENIENCY);
         if (elapsedNanos < minimumNanos) {
             resync(target); // too fast: undo the client's local prediction (§441 spirit)
@@ -198,6 +200,23 @@ public final class BlockInteractionService {
         }
         commit(target, world.airType());
         publishDrops(target, current, held);
+        wearHeldTool(player, behavior);
+    }
+
+    /**
+     * Historical durability wear: one successful dig of a block with hardness
+     * costs a tool one durability unit (swords cost 2 against entities only,
+     * which is the combat slice's concern). A tool at its limit breaks and
+     * leaves the hand. Creative players never wear tools.
+     */
+    private void wearHeldTool(PlayerSession player, BlockBehavior behavior) {
+        if (gameMode == GameMode.CREATIVE || behavior.hardness() <= 0) {
+            return;
+        }
+        if (player.inventory().damageHeld(1)) {
+            // Worn or broken: the client's held slot is now stale, re-sync it.
+            inventorySync.accept(player);
+        }
     }
 
     private void placeOnTick(PlayerSession player, BlockPosition clicked, int face, BlockType held) {
@@ -267,14 +286,5 @@ public final class BlockInteractionService {
     /** Re-publishes the authoritative current state so clients drop predictions. */
     private void resync(BlockPosition position) {
         publisher.accept(new BlockChange(position, world.getBlock(position)));
-    }
-
-    /**
-     * The item the player currently holds, read from the authoritative inventory.
-     * Bare hand is the canonical empty item (null).
-     */
-    private ItemType heldItemOf(PlayerSession player) {
-        ItemStack held = player.inventory().held();
-        return held.isEmpty() ? null : held.type();
     }
 }

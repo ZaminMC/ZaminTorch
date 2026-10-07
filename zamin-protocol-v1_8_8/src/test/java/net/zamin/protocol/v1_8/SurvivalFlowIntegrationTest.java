@@ -121,4 +121,70 @@ class SurvivalFlowIntegrationTest extends ProtocolTestBase {
         }
         awaitCondition(() -> server.players().isEmpty(), "player removed after disconnect");
     }
+
+    @Test
+    void pickaxeDigsStoneOverTheWireAndWears() throws Exception {
+        try (TestClient18 client = new TestClient18("127.0.0.1", adapter.boundPort())) {
+            client.sendHandshake(47, 2);
+            client.sendLoginStart("Toolman");
+            client.readLoginSuccess();
+            client.readUntilPositionAndLook();
+            awaitPlayer("Toolman");
+            client.readWindowItems(10_000); // join sync: empty inventory
+
+            // /give over chat: the administrative item source (crafting is not built yet).
+            client.sendChat("/give wooden_pickaxe 1");
+            int[] given = client.readWindowItems(10_000);
+            assertEquals(36, given[2]);  // hotbar slot 0 (wire slot 36)
+            assertEquals(270, given[3]); // community-dataset legacy id: wooden_pickaxe
+            assertEquals(1, given[4]);
+            assertEquals(0, given[5]);   // fresh tool carries no damage
+
+            // Seed one stone above ground through the engine's own placement path.
+            // The commit broadcasts a Block Change to every visible client, so this
+            // client must drain that packet before its own dig result is read.
+            var player = server.playerRegistry().byName("Toolman").orElseThrow();
+            var stone = new net.zamin.api.BlockPosition(2, 5, 2);
+            server.blockInteraction().submitPlace(player, stone.offset(0, -1, 0), 1,
+                    net.zamin.engine.block.BuiltinBlocks.STONE);
+            awaitCondition(() -> server.world().getBlock(stone)
+                    .equals(net.zamin.engine.block.BuiltinBlocks.STONE), "stone seeded");
+            int[] seeded = client.readBlockChange(10_000);
+            assertEquals(2, seeded[0]);
+            assertEquals(5, seeded[1]);
+            assertEquals(2, seeded[2]);
+            assertEquals(1, seeded[3]); // legacy stone
+
+            // Mine it with the pickaxe: 1.5 * 30 / 2 = 23 ticks (1.15s), floor 805ms.
+            client.sendDigging(0, 2, 5, 2, 1);
+            Thread.sleep(1_200);
+            client.sendDigging(2, 2, 5, 2, 1);
+
+            int[] removal = client.readBlockChange(10_000);
+            assertEquals(2, removal[0]);
+            assertEquals(5, removal[1]);
+            assertEquals(2, removal[2]);
+            assertEquals(0, removal[3]); // air
+
+            // Wire order mirrors the tick order: commit -> drops -> durability
+            // wear. The harvested drop is cobblestone (legacy 4), not stone.
+            int[] spawn = client.readSpawnItem(10_000);
+            assertEquals(1, spawn[1]);
+            assertEquals(4, spawn[5]);
+            client.readItemMetadata(10_000);
+
+            // The durability wear re-syncs the held slot after the drop packets.
+            int[] worn = client.readWindowItems(10_000);
+            assertEquals(270, worn[3]);
+            assertEquals(1, worn[5], "one dig wears the wooden pickaxe by one unit");
+
+            walkToTheDrop(client);
+            client.readCollectItem(15_000);
+            int[] picked = client.readWindowItems(15_000);
+            assertEquals(270, picked[3]); // the pickaxe is still held...
+            assertEquals(1, picked[5]);   // ...with its wear intact
+            // (the cobblestone landed in hotbar slot 1; the pickaxe stays first)
+        }
+        awaitCondition(() -> server.players().isEmpty(), "player removed after disconnect");
+    }
 }

@@ -310,8 +310,8 @@ final class TestClient18 implements AutoCloseable {
 
     /**
      * Reads a Window Items packet. Returns {windowId, slotCount,
-     * firstNonEmptyWireSlot, firstNonEmptyItemId, firstNonEmptyCount}
-     * (-1 when everything is empty).
+     * firstNonEmptyWireSlot, firstNonEmptyItemId, firstNonEmptyCount,
+     * firstNonEmptyDamage} (-1 when everything is empty).
      */
     int[] readWindowItems(long timeoutMs) throws IOException {
         byte[] payload = readPacketOfType(Protocol18.S2C_WINDOW_ITEMS, timeoutMs);
@@ -319,14 +319,14 @@ final class TestClient18 implements AutoCloseable {
         ByteBufOps.readVarInt(buffer); // packet id
         int windowId = buffer.readByte();
         int count = buffer.readShort();
-        int slot = -1, itemId = -1, itemCount = -1;
+        int slot = -1, itemId = -1, itemCount = -1, itemDamage = -1;
         for (int i = 0; i < count; i++) {
             int id = buffer.readShort();
             if (id == -1) {
                 continue;
             }
             byte stackCount = buffer.readByte();
-            buffer.readShort(); // damage
+            int damage = buffer.readShort();
             int nbt = buffer.readShort();
             if (nbt > 0) {
                 buffer.readBytes(new byte[nbt]); // skip NBT payload (tests never send any)
@@ -335,9 +335,10 @@ final class TestClient18 implements AutoCloseable {
                 slot = i;
                 itemId = id;
                 itemCount = stackCount;
+                itemDamage = damage;
             }
         }
-        return new int[]{windowId, count, slot, itemId, itemCount};
+        return new int[]{windowId, count, slot, itemId, itemCount, itemDamage};
     }
 
     /** Reads an Entity Metadata packet carrying an item slot, returning {entityId, itemId, count}. */
