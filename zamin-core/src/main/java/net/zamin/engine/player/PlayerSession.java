@@ -1,0 +1,122 @@
+package net.zamin.engine.player;
+
+import net.zamin.api.PlayerState;
+import net.zamin.api.Position;
+import net.zamin.api.Rotation;
+import net.zamin.api.World;
+import net.zamin.engine.net.ClientLink;
+
+import java.util.Objects;
+import java.util.UUID;
+
+/**
+ * The engine-side gameplay state of one connected player.
+ *
+ * <p>Ownership: mutated only by the simulation context (through the engine's
+ * command queue). The {@link ClientLink} is the protocol adapter's handle back to
+ * the wire; the engine only uses it to push engine-decided lifecycle actions
+ * (kick). Gameplay never sees transport objects.</p>
+ */
+public final class PlayerSession {
+
+    private final UUID uuid;
+    private final String name;
+    private final ClientLink link;
+    private volatile World world;
+    private volatile PlayerState state = PlayerState.CONNECTING;
+
+    // Position state is written by the simulation context only; volatile for cross-thread reads.
+    private volatile Position position = Position.ZERO; // replaced at spawn
+    private volatile Rotation rotation = Rotation.ZERO;
+    private volatile boolean onGround = true;
+
+    public PlayerSession(UUID uuid, String name, ClientLink link) {
+        this.uuid = Objects.requireNonNull(uuid, "uuid");
+        this.name = Objects.requireNonNull(name, "name");
+        this.link = Objects.requireNonNull(link, "link");
+    }
+
+    public UUID uuid() {
+        return uuid;
+    }
+
+    public String name() {
+        return name;
+    }
+
+    public ClientLink link() {
+        return link;
+    }
+
+    public PlayerState state() {
+        return state;
+    }
+
+    public World world() {
+        return world;
+    }
+
+    public Position position() {
+        return position;
+    }
+
+    public Rotation rotation() {
+        return rotation;
+    }
+
+    public boolean onGround() {
+        return onGround;
+    }
+
+    // --- state transitions (engine-owned; only EngineServer may call these) ---
+
+    public void authenticate() {
+        transition(PlayerState.CONNECTING, PlayerState.AUTHENTICATING);
+    }
+
+    public void beginJoin(World world, Position spawn) {
+        transition(PlayerState.AUTHENTICATING, PlayerState.JOINING);
+        this.world = Objects.requireNonNull(world, "world");
+        this.position = Objects.requireNonNull(spawn, "spawn");
+    }
+
+    public void markPlaying() {
+        transition(PlayerState.JOINING, PlayerState.PLAYING);
+    }
+
+    public void markDisconnecting() {
+        if (state == PlayerState.PLAYING || state == PlayerState.JOINING) {
+            transition(state, PlayerState.DISCONNECTING);
+        }
+    }
+
+    public void markDisconnected() {
+        if (state == PlayerState.DISCONNECTING || state == PlayerState.PLAYING) {
+            transition(state, PlayerState.DISCONNECTED);
+        } else {
+            // Force-terminal state for abnormal paths (rejected during login).
+            state = PlayerState.DISCONNECTED;
+        }
+    }
+
+    /**
+     * Applies a validated movement proposal. Called by the engine when a proposal
+     * passes validation; the owning channel loop provides ordering.
+     */
+    public void applyMovement(Position position, Rotation rotation, boolean onGround) {
+        if (!position.isFinite() || !rotation.isFinite()) {
+            throw new IllegalArgumentException("Movement proposal contains non-finite values");
+        }
+        this.position = position;
+        this.rotation = rotation;
+        this.onGround = onGround;
+    }
+
+    private void transition(PlayerState from, PlayerState to) {
+        if (state != from) {
+            throw new IllegalStateException(
+                    "Player " + name + " cannot transition " + from + " -> " + to + " from " + state);
+        }
+        state = to;
+    }
+}
