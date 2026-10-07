@@ -21,6 +21,9 @@ final class LegacyBlockIds {
             Identifier.parse("minecraft:stone"), 1,
             Identifier.parse("minecraft:grass_block"), 2,
             Identifier.parse("minecraft:dirt"), 3,
+            Identifier.parse("minecraft:cobblestone"), 4,
+            Identifier.parse("minecraft:oak_planks"), 5,   // dataset/legacy name: "planks"
+            Identifier.parse("minecraft:oak_log"), 17,     // dataset/legacy name: "log"
             Identifier.parse("minecraft:bedrock"), 7);
 
     private static final Map<Integer, Identifier> BY_LEGACY_ID = reverse();

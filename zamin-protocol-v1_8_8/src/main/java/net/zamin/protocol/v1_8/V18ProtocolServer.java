@@ -107,6 +107,54 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                 }
             }
         });
+        // Item entities: engine decides lifecycle, adapter renders protocol 47 wire.
+        server.addItemListener(new net.zamin.engine.entity.ItemEntityManager.Listener() {
+            @Override
+            public void onItemSpawned(net.zamin.engine.entity.ItemEntity entity) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendItemSpawn(entity);
+                }
+            }
+
+            @Override
+            public void onItemMoved(net.zamin.engine.entity.ItemEntity entity) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendItemTeleport(entity);
+                }
+            }
+
+            @Override
+            public void onItemCollected(net.zamin.engine.entity.ItemEntity entity,
+                                        net.zamin.engine.player.PlayerSession collector, int count) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendItemCollected(entity.entityId(), collector);
+                }
+            }
+
+            @Override
+            public void onItemStackChanged(net.zamin.engine.entity.ItemEntity entity) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendItemStackUpdate(entity);
+                }
+            }
+
+            @Override
+            public void onItemRemoved(net.zamin.engine.entity.ItemEntity entity, String reason) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendItemRemoved(entity.entityId());
+                }
+            }
+        });
+        // Inventory sync: full authoritative window re-sync on change (simple,
+        // correct; per-slot deltas are an optimization for a later profile).
+        server.addInventoryListener(player -> {
+            for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                if (connection.currentSession() == player) {
+                    connection.sendWindowItems(channelOf(connection),
+                            player.inventory().snapshot());
+                }
+            }
+        });
         LOGGER.info(() -> "1.8.8 protocol listening on " + server.config().host() + ":" + server.config().port());
     }
 

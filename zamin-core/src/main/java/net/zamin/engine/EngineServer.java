@@ -72,6 +72,7 @@ public final class EngineServer implements Server, EngineBridge {
     private final java.util.List<WorldChangeListener> worldListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     private final java.util.List<ChatListener> chatListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     private final java.util.List<ItemEntityManager.Listener> itemListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
+    private final java.util.List<InventoryListener> inventoryListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
 
     /** Entity ids for engine-global entities (items); player wire ids stay adapter-local. */
     private static final int ENTITY_ID_BASE = 100_000;
@@ -131,7 +132,9 @@ public final class EngineServer implements Server, EngineBridge {
                 itemEntities.addListener(new ItemEventDispatch());
                 ticker.setTickHandler(() -> itemEntities.tick(players.all()));
                 blockInteraction = new BlockInteractionService(world, ticker, this::publishBlockChange,
-                        config.gamemode(), new DropService(), itemEntities);
+                        config.gamemode(), new DropService(), itemEntities,
+                        type -> blockRegistry.lookup(type.identifier()),
+                        this::publishInventoryChanged);
                 CommandService commands = new CommandService();
                 registerBuiltinCommands(commands);
                 chatService = new ChatService(ticker, commands, this::publishChat);
@@ -288,6 +291,22 @@ public final class EngineServer implements Server, EngineBridge {
         itemListeners.add(listener);
     }
 
+    /** An inventory content change that observers must re-sync to the client. */
+    public interface InventoryListener {
+        void onInventoryChanged(PlayerSession player);
+    }
+
+    /** Registers an internal inventory observer (e.g. the protocol adapter's sync). */
+    public void addInventoryListener(InventoryListener listener) {
+        inventoryListeners.add(listener);
+    }
+
+    private void publishInventoryChanged(PlayerSession player) {
+        for (InventoryListener listener : inventoryListeners) {
+            listener.onInventoryChanged(player);
+        }
+    }
+
     /**
      * Applies a validated held-slot change. The owning channel loop provides
      * ordering; the mutation itself is simulation-confined. Safe from any thread.
@@ -332,6 +351,7 @@ public final class EngineServer implements Server, EngineBridge {
                             eye.x() + dx * 0.4, eye.y() + 1.62 + dy * 0.4, eye.z() + dz * 0.4),
                     dropped);
             entity.setVelocity(dx * speed, dy * speed + 0.1, dz * speed);
+            publishInventoryChanged(session);
         });
     }
 
@@ -356,6 +376,7 @@ public final class EngineServer implements Server, EngineBridge {
             for (ItemEntityManager.Listener listener : itemListeners) {
                 listener.onItemCollected(entity, collector, collectedCount);
             }
+            publishInventoryChanged(collector); // pickup changed the inventory (§433 sync)
         }
 
         @Override
