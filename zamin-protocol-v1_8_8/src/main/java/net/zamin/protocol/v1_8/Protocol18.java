@@ -30,6 +30,8 @@ final class Protocol18 {
     static final int S2C_SET_SLOT = 0x2F;
     static final int S2C_WINDOW_ITEMS = 0x30;
     static final int S2C_CONFIRM_TRANSACTION = 0x32;
+    static final int S2C_OPEN_WINDOW = 0x2D;
+    static final int S2C_CLOSE_WINDOW = 0x2E;
     static final int S2C_NAMED_SPAWN = 0x0C;
     static final int S2C_CHUNK_DATA = 0x21;
     static final int S2C_UNLOAD_CHUNK = 0x1D;
@@ -83,4 +85,17 @@ final class Protocol18 {
     static final int WIRE_SLOT_CRAFT_FIRST = 1;
     static final int WIRE_SLOT_CRAFT_LAST = 4;
     static final int WIRE_SLOT_HOTBAR_BASE = 36;
+
+    // Crafting-table container window layout (protocol 47, "minecraft:crafting_table"):
+    // 0 craft result, 1-9 craft grid, 10-36 main, 37-45 hotbar (46 slots).
+    static final String TABLE_WINDOW_TYPE = "minecraft:crafting_table";
+    static final String TABLE_WINDOW_TITLE = "{\"text\":\"Crafting\"}";
+    static final int TABLE_WINDOW_SLOTS = 46;
+    static final int TABLE_WIRE_SLOT_GRID_FIRST = 1;
+    static final int TABLE_WIRE_SLOT_GRID_LAST = 9;
+    static final int TABLE_WIRE_SLOT_MAIN_FIRST = 10;
+    static final int TABLE_WIRE_SLOT_MAIN_LAST = 36;
+    static final int TABLE_WIRE_SLOT_HOTBAR_FIRST = 37;
+    static final int TABLE_WIRE_SLOT_HOTBAR_LAST = 45;
+    static final int TABLE_WIRE_SLOT_HOTBAR_BASE = 37;
 }

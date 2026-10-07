@@ -41,7 +41,7 @@ public final class CraftingRecipe {
         }
     }
 
-    private final Ingredient[][] shape;      // non-null for shaped: trimmed rows, <=2x2
+    private final Ingredient[][] shape;      // non-null for shaped: trimmed rows, <=3x3
     private final List<Ingredient> loose;    // non-null for shapeless
     private final Result result;
 
@@ -54,12 +54,12 @@ public final class CraftingRecipe {
     /** A shaped recipe: {@code shape} is the trimmed pattern, null cell = must be empty. */
     public static CraftingRecipe shaped(Ingredient[][] shape, Result result) {
         Objects.requireNonNull(shape, "shape");
-        if (shape.length < 1 || shape.length > 2) {
-            throw new IllegalArgumentException("Shaped recipe rows must be 1..2: " + shape.length);
+        if (shape.length < 1 || shape.length > 3) {
+            throw new IllegalArgumentException("Shaped recipe rows must be 1..3: " + shape.length);
         }
         int width = shape[0].length;
-        if (width < 1 || width > 2) {
-            throw new IllegalArgumentException("Shaped recipe columns must be 1..2: " + width);
+        if (width < 1 || width > 3) {
+            throw new IllegalArgumentException("Shaped recipe columns must be 1..3: " + width);
         }
         for (Ingredient[] row : shape) {
             if (row.length != width) {
@@ -72,9 +72,9 @@ public final class CraftingRecipe {
     /** A shapeless recipe: the ingredients form a multiset rule. */
     public static CraftingRecipe shapeless(List<Ingredient> ingredients, Result result) {
         Objects.requireNonNull(ingredients, "ingredients");
-        if (ingredients.isEmpty() || ingredients.size() > 4) {
+        if (ingredients.isEmpty() || ingredients.size() > 9) {
             throw new IllegalArgumentException(
-                    "Shapeless recipes take 1..4 ingredients: " + ingredients.size());
+                    "Shapeless recipes take 1..9 ingredients: " + ingredients.size());
         }
         return new CraftingRecipe(null, List.copyOf(ingredients), result);
     }
@@ -88,22 +88,38 @@ public final class CraftingRecipe {
     }
 
     /**
-     * @return whether the grid (4 cells, row-major 2x2) matches this recipe.
+     * @return whether the 2x2 grid (4 cells, row-major) matches this recipe.
      *         Deterministic and side-effect free; runs on the simulation thread.
      */
     public boolean matches(ItemStack[] grid) {
-        if (grid == null || grid.length != 4) {
-            throw new IllegalArgumentException("Grid must be the 2x2 player crafting grid");
-        }
-        return shape != null ? matchesShaped(grid) : matchesShapeless(grid);
+        return matches(grid, 2);
     }
 
-    private boolean matchesShaped(ItemStack[] grid) {
+    /**
+     * @return whether the grid ({@code cols} cells per row, row-major) matches
+     *         this recipe. The recipe's trimmed pattern must equal the grid
+     *         content's bounding box, so a 3x3 pattern never matches a 2x2
+     *         grid and small patterns match anywhere in a larger grid — the
+     *         historical bounding-box semantics. Deterministic and
+     *         side-effect free; runs on the simulation thread.
+     */
+    public boolean matches(ItemStack[] grid, int cols) {
+        if (grid == null || grid.length != 4 && grid.length != 9) {
+            throw new IllegalArgumentException("Grid must be a crafting grid (4 or 9 cells)");
+        }
+        if (grid.length % cols != 0) {
+            throw new IllegalArgumentException("Grid length " + grid.length + " is not " + cols + "-aligned");
+        }
+        return shape != null ? matchesShaped(grid, cols) : matchesShapeless(grid);
+    }
+
+    private boolean matchesShaped(ItemStack[] grid, int cols) {
+        int rows = grid.length / cols;
         int minRow = -1, maxRow = -1, minCol = -1, maxCol = -1;
-        for (int index = 0; index < 4; index++) {
+        for (int index = 0; index < grid.length; index++) {
             if (!grid[index].isEmpty()) {
-                int row = index / 2;
-                int col = index % 2;
+                int row = index / cols;
+                int col = index % cols;
                 if (minRow < 0) {
                     minRow = row;
                     maxRow = row;
@@ -125,15 +141,16 @@ public final class CraftingRecipe {
         if (height != shape.length || width != shape[0].length) {
             return false; // the pattern must occupy the full bounding box
         }
-        return cellsAgree(grid, minRow, minCol, false) || cellsAgree(grid, minRow, minCol, true);
+        return cellsAgree(grid, cols, minRow, minCol, false)
+                || cellsAgree(grid, cols, minRow, minCol, true);
     }
 
-    private boolean cellsAgree(ItemStack[] grid, int minRow, int minCol, boolean mirrored) {
+    private boolean cellsAgree(ItemStack[] grid, int cols, int minRow, int minCol, boolean mirrored) {
         for (int row = 0; row < shape.length; row++) {
             for (int col = 0; col < shape[0].length; col++) {
                 int gridRow = minRow + row;
                 int gridCol = minCol + (mirrored ? shape[0].length - 1 - col : col);
-                ItemStack cell = grid[gridRow * 2 + gridCol];
+                ItemStack cell = grid[gridRow * cols + gridCol];
                 Ingredient ingredient = shape[row][col];
                 if (ingredient == null) {
                     if (!cell.isEmpty()) {

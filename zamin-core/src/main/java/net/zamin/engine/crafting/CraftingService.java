@@ -26,20 +26,34 @@ public final class CraftingService {
     }
 
     /**
-     * @return the result stack the grid currently crafts, or empty. The result
-     *         is a preview: taking it costs one unit per non-empty grid cell
-     *         (vanilla consumption), which the caller performs through
+     * @return the result stack the 2x2 grid currently crafts, or empty. The
+     *         result is a preview: taking it costs one unit per non-empty grid
+     *         cell (vanilla consumption), which the caller performs through
      *         {@link net.zamin.engine.player.CraftingGrid#consumeOne()} only
      *         after the take has actually succeeded.
      */
     public Optional<ItemStack> resultOf(ItemStack[] gridSnapshot) {
-        return match(gridSnapshot).map(this::resultStackOf);
+        return resultOf(gridSnapshot, 2);
     }
 
-    /** @return the first matching recipe, or empty (deterministic dataset order). */
+    /** The table form: matching over a 3x3 grid (9 cells, row-major). */
+    public Optional<ItemStack> resultOf3x3(ItemStack[] gridSnapshot) {
+        return resultOf(gridSnapshot, 3);
+    }
+
+    private Optional<ItemStack> resultOf(ItemStack[] gridSnapshot, int cols) {
+        return match(gridSnapshot, cols).map(this::resultStackOf);
+    }
+
+    /** @return the first matching recipe on a 2x2 grid, or empty (dataset order). */
     public Optional<CraftingRecipe> match(ItemStack[] gridSnapshot) {
+        return match(gridSnapshot, 2);
+    }
+
+    /** @return the first matching recipe on the given grid shape, or empty. */
+    public Optional<CraftingRecipe> match(ItemStack[] gridSnapshot, int cols) {
         for (CraftingRecipe recipe : recipes) {
-            if (recipe.matches(gridSnapshot)) {
+            if (recipe.matches(gridSnapshot, cols)) {
                 return Optional.of(recipe);
             }
         }

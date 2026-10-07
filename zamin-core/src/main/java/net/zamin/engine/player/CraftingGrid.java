@@ -7,11 +7,13 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * The player's 2x2 crafting grid: window state beside the inventory (§429).
- * The grid holds the ingredients the player places through window clicks; the
- * result preview is computed by the crafting service from a snapshot, and the
- * consumption happens here ({@link #consumeOne()}), one unit per non-empty
- * cell per craft — the historical cost model.
+ * A crafting grid: window state beside the inventory (§429). Two shapes exist:
+ * the player inventory's 2x2 grid (window 0) and the crafting table's 3x3 grid
+ * (its container window). The grid holds the ingredients the player places
+ * through window clicks; the result preview is computed by the crafting
+ * service from a snapshot, and the consumption happens here
+ * ({@link #consumeOne()}), one unit per non-empty cell per craft — the
+ * historical cost model.
  *
  * <p>Ownership: mutated only by the simulation context, exactly like
  * {@link PlayerInventory}. The grid shares the inventory's cursor (one mouse);
@@ -21,12 +23,43 @@ import java.util.List;
  */
 public final class CraftingGrid {
 
-    public static final int SLOTS = 4; // 2x2, row-major
+    /** Cell count of the player inventory's 2x2 grid (window 0). */
+    public static final int PLAYER_SLOTS = 4;
+    /** Cell count of the crafting table's 3x3 grid (container window). */
+    public static final int TABLE_SLOTS = 9;
 
-    private final ItemStack[] cells = new ItemStack[SLOTS];
+    private final int rows;
+    private final int cols;
+    private final ItemStack[] cells;
 
+    /** The player inventory's 2x2 grid (window 0, row-major). */
     public CraftingGrid() {
+        this(2, 2);
+    }
+
+    /** A grid of the given shape (crafting table: 3x3). */
+    public CraftingGrid(int rows, int cols) {
+        if (rows < 1 || rows > 3 || cols < 1 || cols > 3) {
+            throw new IllegalArgumentException(
+                    "Crafting grid shape must be 1..3 x 1..3: " + rows + "x" + cols);
+        }
+        this.rows = rows;
+        this.cols = cols;
+        this.cells = new ItemStack[rows * cols];
         Arrays.fill(cells, ItemStack.EMPTY);
+    }
+
+    public int rows() {
+        return rows;
+    }
+
+    public int cols() {
+        return cols;
+    }
+
+    /** @return the cell count ({@code rows * cols}). */
+    public int size() {
+        return cells.length;
     }
 
     /** @return the stack in one grid cell (never null; empty when unused). */
@@ -84,7 +117,7 @@ public final class CraftingGrid {
      * transition is atomic from the player's point of view (§431).
      */
     public void consumeOne() {
-        for (int i = 0; i < SLOTS; i++) {
+        for (int i = 0; i < cells.length; i++) {
             if (!cells[i].isEmpty()) {
                 cells[i] = cells[i].withCount(cells[i].count() - 1);
             }
@@ -99,7 +132,7 @@ public final class CraftingGrid {
      */
     public List<ItemStack> returnAllTo(PlayerInventory inventory) {
         List<ItemStack> overflow = new ArrayList<>();
-        for (int i = 0; i < SLOTS; i++) {
+        for (int i = 0; i < cells.length; i++) {
             ItemStack carried = cells[i];
             cells[i] = ItemStack.EMPTY;
             if (carried.isEmpty()) {
@@ -113,12 +146,12 @@ public final class CraftingGrid {
         return overflow;
     }
 
-    /** @return a defensive copy of the cells, index-aligned (row-major 2x2). */
+    /** @return a defensive copy of the cells, index-aligned (row-major). */
     public ItemStack[] snapshotArray() {
         return cells.clone();
     }
 
-    /** @return a defensive copy as a list, index-aligned (row-major 2x2). */
+    /** @return a defensive copy as a list, index-aligned (row-major). */
     public List<ItemStack> snapshot() {
         return new ArrayList<>(List.of(cells));
     }
@@ -133,8 +166,8 @@ public final class CraftingGrid {
         return true;
     }
 
-    private static void rangeCheck(int index) {
-        if (index < 0 || index >= SLOTS) {
+    private void rangeCheck(int index) {
+        if (index < 0 || index >= cells.length) {
             throw new IllegalArgumentException("Crafting grid cell out of range: " + index);
         }
     }

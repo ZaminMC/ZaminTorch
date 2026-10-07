@@ -30,6 +30,12 @@ public final class ItemEntityManager {
     /** Historical pickup proximity: player box grown by 1.0 horizontal, 0.5 vertical. */
     static final double PICKUP_GROWTH_HORIZONTAL = 1.0;
     static final double PICKUP_GROWTH_VERTICAL = 0.5;
+    /**
+     * Historical item-merge search: the entity's bounding box expanded by 0.5
+     * on every side (1.8 {@code getEntityBoundingBox().expand(0.5)}). Two item
+     * entities whose boxes come within that expansion combine.
+     */
+    static final double MERGE_BOX_EXPANSION = 0.5;
 
     private final ItemEntity.Ground ground;
     private final Random random;
@@ -103,8 +109,10 @@ public final class ItemEntityManager {
         return entities.size();
     }
 
-    /** Advances all item entities one tick: physics, pickup checks, despawn. */
+    /** Advances all item entities one tick: merging, physics, pickup checks, despawn. */
     public void tick(Iterable<PlayerSession> players) {
+        mergeNearbyItems();
+
         Iterator<ItemEntity> iterator = entities.iterator();
         while (iterator.hasNext()) {
             ItemEntity entity = iterator.next();
@@ -170,6 +178,87 @@ public final class ItemEntityManager {
         double rangeBottom = playerPosition.y() - PICKUP_GROWTH_VERTICAL;
         double rangeTop = playerPosition.y() + 1.8 + PICKUP_GROWTH_VERTICAL;
         return itemTop > rangeBottom && itemBottom < rangeTop;
+    }
+
+    /**
+     * The historical item combination: every tick, entities whose boxes lie
+     * within {@link #MERGE_BOX_EXPANSION} of each other and carry mergeable
+     * stacks (same item, same damage) combine — the younger entity (higher id,
+     * deterministic) empties into the older one, capped at the stack limit; a
+     * partial remainder keeps the younger entity alive with the rest. Pickup
+     * delay does not block combining (freshly dropped items visibly merge,
+     * the historical behavior). Bounded O(n²) per tick: fine at slice scale,
+     * revisit with the entity-system slice when worlds carry many items.
+     */
+    private void mergeNearbyItems() {
+        List<ItemEntity> absorbed = null;
+        for (int i = 0; i < entities.size(); i++) {
+            ItemEntity keeper = entities.get(i);
+            if (keeper.expired() || (absorbed != null && absorbed.contains(keeper))) {
+                continue;
+            }
+            for (int j = 0; j < entities.size(); j++) {
+                if (j == i) {
+                    continue;
+                }
+                ItemEntity other = entities.get(j);
+                if (other.expired() || (absorbed != null && absorbed.contains(other))) {
+                    continue;
+                }
+                if (other.entityId() < keeper.entityId() || !withinMergeRange(keeper, other)
+                        || !stacksMergeable(keeper.stack(), other.stack())) {
+                    continue;
+                }
+                // "other" (younger) empties into "keeper" (older), capped.
+                int capacity = keeper.stack().type().maxStackSize() - keeper.stack().count();
+                int moved = Math.min(capacity, other.stack().count());
+                if (moved <= 0) {
+                    continue; // keeper's stack is full: nothing combines
+                }
+                keeper.setStack(keeper.stack().withCount(keeper.stack().count() + moved));
+                if (absorbed == null) {
+                    absorbed = new ArrayList<>();
+                }
+                if (moved == other.stack().count()) {
+                    absorbed.add(other);
+                    publishStackChanged(keeper);
+                    publishRemoved(other, "merged");
+                } else {
+                    other.setStack(other.stack().withCount(other.stack().count() - moved));
+                    publishStackChanged(keeper);
+                    publishStackChanged(other);
+                }
+            }
+        }
+        if (absorbed != null) {
+            entities.removeAll(absorbed);
+        }
+    }
+
+    private static boolean withinMergeRange(ItemEntity a, ItemEntity b) {
+        double dx = Math.abs(a.position().x() - b.position().x());
+        double dy = Math.abs(a.position().y() - b.position().y());
+        double dz = Math.abs(a.position().z() - b.position().z());
+        return dx <= MERGE_BOX_EXPANSION + 2 * ItemEntity.HALF_WIDTH
+                && dy <= MERGE_BOX_EXPANSION + 2 * ItemEntity.HALF_HEIGHT
+                && dz <= MERGE_BOX_EXPANSION + 2 * ItemEntity.HALF_WIDTH;
+    }
+
+    /** Same item and same damage: the merge rule the window clicks play too. */
+    private static boolean stacksMergeable(net.zamin.api.ItemStack a, net.zamin.api.ItemStack b) {
+        return a.type().equals(b.type()) && a.damage() == b.damage();
+    }
+
+    private void publishStackChanged(ItemEntity entity) {
+        for (Listener listener : listeners) {
+            listener.onItemStackChanged(entity);
+        }
+    }
+
+    private void publishRemoved(ItemEntity entity, String reason) {
+        for (Listener listener : listeners) {
+            listener.onItemRemoved(entity, reason);
+        }
     }
 
     /** Removes a specific entity (e.g. chunk unload policy later); publishes removal. */

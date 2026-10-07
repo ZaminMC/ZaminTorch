@@ -278,9 +278,15 @@ final class TestClient18 implements AutoCloseable {
 
     /** Sends a Click Window packet (community-verified protocol 47 layout). */
     void sendWindowClick(int wireSlot, int button, int mode, int actionNumber) throws IOException {
+        sendWindowClick(Protocol18.INVENTORY_WINDOW_ID, wireSlot, button, mode, actionNumber);
+    }
+
+    /** Sends a Click Window packet for an explicit window id (containers). */
+    void sendWindowClick(int windowId, int wireSlot, int button, int mode,
+                         int actionNumber) throws IOException {
         ByteBuf body = Unpooled.buffer(24);
         ByteBufOps.writeVarInt(body, Protocol18.C2S_WINDOW_CLICK);
-        body.writeByte(Protocol18.INVENTORY_WINDOW_ID);
+        body.writeByte(windowId);
         body.writeShort(wireSlot);
         body.writeByte(button);
         body.writeShort(actionNumber);
@@ -420,22 +426,47 @@ final class TestClient18 implements AutoCloseable {
 
     /** Sends Close Window (0x0D) for the player inventory window. */
     void sendCloseWindow() throws IOException {
+        sendCloseWindow(Protocol18.INVENTORY_WINDOW_ID);
+    }
+
+    /** Sends Close Window (0x0D) for an explicit window id (containers). */
+    void sendCloseWindow(int windowId) throws IOException {
         ByteBuf body = Unpooled.buffer(4);
         ByteBufOps.writeVarInt(body, Protocol18.C2S_CLOSE_WINDOW);
-        body.writeByte(Protocol18.INVENTORY_WINDOW_ID);
+        body.writeByte(windowId);
         sendPacket(bodyToBytes(body));
     }
 
     /**
-     * Reads a Window Items packet into a full per-wire-slot table:
+     * Reads an Open Window packet, returning {windowId, slotCount} and the
+     * window type string (title skipped).
+     */
+    Object[] readOpenWindow(long timeoutMs) throws IOException {
+        byte[] payload = readPacketOfType(Protocol18.S2C_OPEN_WINDOW, timeoutMs);
+        ByteBuf buffer = Unpooled.wrappedBuffer(payload);
+        ByteBufOps.readVarInt(buffer); // packet id
+        int windowId = buffer.readUnsignedByte();
+        String type = ByteBufOps.readString(buffer, 64);
+        ByteBufOps.readString(buffer, 256); // title
+        int slotCount = buffer.readUnsignedByte();
+        return new Object[]{windowId, type, slotCount};
+    }
+
+    /**
+     * Reads a Window Items packet into a full per-wire-slot table for window 0:
      * {@code table[wireSlot] = {itemId, count, damage}}, itemId -1 when empty.
      */
     int[][] readWindowSlotTable(long timeoutMs) throws IOException {
+        return readWindowSlotTable(timeoutMs, Protocol18.INVENTORY_WINDOW_ID);
+    }
+
+    /** Reads a Window Items packet for an explicit window id into a slot table. */
+    int[][] readWindowSlotTable(long timeoutMs, int expectedWindowId) throws IOException {
         byte[] payload = readPacketOfType(Protocol18.S2C_WINDOW_ITEMS, timeoutMs);
         ByteBuf buffer = Unpooled.wrappedBuffer(payload);
         ByteBufOps.readVarInt(buffer); // packet id
         int windowId = buffer.readByte();
-        if (windowId != Protocol18.INVENTORY_WINDOW_ID) {
+        if (windowId != expectedWindowId) {
             throw new IOException("Unexpected window id " + windowId);
         }
         int count = buffer.readShort();

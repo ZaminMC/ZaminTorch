@@ -147,13 +147,20 @@ public final class V18ProtocolServer implements ProtocolAdapter {
         });
         // Inventory sync: full authoritative window re-sync on change (simple,
         // correct; per-slot deltas are an optimization for a later profile).
+        // While a container (crafting table) is open, its window syncs instead:
+        // the client's visible inventory lives in the container's slot layout.
         server.addInventoryListener(player -> {
+            int openWindow = player.openContainerWindowId();
             for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
                 if (connection.currentSession() == player) {
-                    connection.sendWindowItems(channelOf(connection),
-                            player.inventory().snapshot(),
-                            player.crafting().snapshot(),
-                            server.craftingResult(player));
+                    if (openWindow > 0) {
+                        connection.sendContainerWindowItems(channelOf(connection), openWindow, player);
+                    } else {
+                        connection.sendWindowItems(channelOf(connection),
+                                player.inventory().snapshot(),
+                                player.crafting().snapshot(),
+                                server.craftingResult(player));
+                    }
                 }
             }
         });

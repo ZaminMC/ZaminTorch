@@ -309,7 +309,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 engine.heldItemChange(player, slot);
             }
             case Protocol18.C2S_WINDOW_CLICK -> handleWindowClick(channel, player, packet);
-            case Protocol18.C2S_CLOSE_WINDOW -> engine.closeWindow(player);
+            case Protocol18.C2S_CLOSE_WINDOW -> handleCloseWindow(player, packet);
             case Protocol18.C2S_PLAYER_DIGGING -> handleDigging(player, packet);
             case Protocol18.C2S_PLAYER_BLOCK_PLACEMENT -> handleBlockPlacement(player, packet);
             default -> {
@@ -329,21 +329,29 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
 
     /**
      * Click Window (0x0E, community-verified layout: u8 window, i16 slot,
-     * i8 button, i16 action, i8 mode, claimed slot). The engine owns the
-     * verdict; the confirm and the authoritative cursor state follow here.
+     * i8 button, i16 action, i8 mode, claimed slot). The window id routes the
+     * click (0 = player inventory, containers open through Open Window). The
+     * engine owns the verdict; the confirm (echoing the window id) and the
+     * authoritative cursor state follow here.
      */
     private void handleWindowClick(Channel channel, PlayerSession player, ByteBuf packet) {
-        packet.readUnsignedByte();  // window id: only window 0 exists
+        int windowId = packet.readUnsignedByte();
         int wireSlot = packet.readShort();
         int button = packet.readByte();
         int actionNumber = packet.readShort();
         int mode = packet.readByte();
         readClaimedSlot(packet);    // the client's predicted stack: informational only
-        engine.windowClick(player, wireSlot, button, mode, accepted -> {
+        engine.windowClick(player, windowId, wireSlot, button, mode, accepted -> {
             // Runs on the tick thread after the semantic operation.
-            sendConfirmTransaction(channel, actionNumber, accepted);
+            sendConfirmTransaction(channel, windowId, actionNumber, accepted);
             sendCursorSlot(channel, player);
         });
+    }
+
+    /** Close Window (0x0D): the window id decides whose carried state returns. */
+    private void handleCloseWindow(PlayerSession player, ByteBuf packet) {
+        int windowId = packet.readUnsignedByte();
+        engine.closeWindow(player, windowId);
     }
 
     /** Skips the 1.8 slot encoding the click claims to carry. */
@@ -361,13 +369,14 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     }
 
     /** Confirm Transaction (0x32): the client reverts its prediction on rejection. */
-    private void sendConfirmTransaction(Channel channel, int actionNumber, boolean accepted) {
+    private void sendConfirmTransaction(Channel channel, int windowId, int actionNumber,
+                                        boolean accepted) {
         if (channel == null || !channel.isActive() || state != WireState.PLAY) {
             return;
         }
         ByteBuf out = Unpooled.buffer(8);
         ByteBufOps.writeVarInt(out, Protocol18.S2C_CONFIRM_TRANSACTION);
-        out.writeByte(Protocol18.INVENTORY_WINDOW_ID);
+        out.writeByte(windowId);
         out.writeShort(actionNumber);
         out.writeBoolean(accepted);
         channel.writeAndFlush(out);
@@ -424,30 +433,51 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         if (face < 0 || face > 5) {
             return; // invalid face: nothing to place
         }
-        net.zamin.api.Identifier heldIdentifier = heldId <= 0 ? null
-                : LegacyBlockIds.identifierOf(heldId & 0xFFFF).orElse(null);
-        if (engine.config().gamemode() == GameMode.SURVIVAL) {
-            try {
-                engine.blockInteraction().submitSurvivalPlace(player,
-                        new net.zamin.api.BlockPosition(clicked[0], clicked[1], clicked[2]), face);
-            } catch (IllegalArgumentException outOfWorld) {
-                LOGGER.fine(() -> "Ignored placement at out-of-world position from " + player.name());
+        net.zamin.api.BlockPosition target =
+                new net.zamin.api.BlockPosition(clicked[0], clicked[1], clicked[2]);
+        // A right-click use: the engine decides on the simulation context whether
+        // the target block has a container (crafting table -> Open Window) or the
+        // use degrades to a placement proposal. Creative claims its block on the
+        // wire; survival leaves the decision to the authoritative inventory.
+        java.util.Optional<net.zamin.api.BlockType> creativeHeld = java.util.Optional.empty();
+        if (engine.config().gamemode() == GameMode.CREATIVE && heldId > 0) {
+            net.zamin.api.Identifier heldIdentifier =
+                    LegacyBlockIds.identifierOf(heldId & 0xFFFF).orElse(null);
+            if (heldIdentifier == null) {
+                LOGGER.fine(() -> "Ignored use of unmapped item " + heldId
+                        + " from " + player.name());
+                return;
             }
-            return;
+            creativeHeld = java.util.Optional.of(engine.blockRegistry().require(heldIdentifier));
         }
-        if (heldIdentifier == null) {
-            LOGGER.fine(() -> "Ignored placement of unmapped item " + heldId
-                    + " from " + player.name());
-            return;
-        }
+        final var held = creativeHeld;
         try {
-            engine.blockInteraction().submitPlace(player,
-                    new net.zamin.api.BlockPosition(clicked[0], clicked[1], clicked[2]),
-                    face,
-                    engine.blockRegistry().require(heldIdentifier));
+            engine.useItemOnBlock(player, target, face, held, windowId ->
+                    sendCraftingTableWindow(adapter.channelOf(this), player, windowId));
         } catch (IllegalArgumentException outOfWorld) {
-            LOGGER.fine(() -> "Ignored placement at out-of-world position from " + player.name());
+            LOGGER.fine(() -> "Ignored use at out-of-world position from " + player.name());
         }
+    }
+
+    /**
+     * Open Window (0x2D, community-verified layout: u8 window id, string type,
+     * string title, u8 slot count) for the crafting table, followed by the
+     * authoritative window contents — the order matters, the client ignores
+     * Window Items for a window it has not opened. Called on the tick thread
+     * by the engine's open dispatch.
+     */
+    private void sendCraftingTableWindow(Channel channel, PlayerSession player, int windowId) {
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(48);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_OPEN_WINDOW);
+        out.writeByte(windowId);
+        ByteBufOps.writeString(out, Protocol18.TABLE_WINDOW_TYPE);
+        ByteBufOps.writeString(out, Protocol18.TABLE_WINDOW_TITLE);
+        out.writeByte(10); // the GUI's own slots: result + 3x3 grid
+        channel.writeAndFlush(out);
+        sendContainerWindowItems(channel, windowId, player);
     }
 
     private void applyPosition(Channel channel, PlayerSession player, ByteBuf packet) {
@@ -728,6 +758,51 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             default -> -1; // armor slots are out of scope this slice
         };
         return engineSlot < 0 ? net.zamin.api.ItemStack.EMPTY : engineSlots.get(engineSlot);
+    }
+
+    /**
+     * Full authoritative sync of an open container window (crafting table):
+     * 46 slots — 0 result preview, 1-9 the 3x3 grid, 10-36 main, 37-45 hotbar.
+     * Any thread; owner supplies the session state.
+     */
+    void sendContainerWindowItems(Channel channel, int windowId, PlayerSession player) {
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        var engine = this.engine;
+        ByteBuf out = Unpooled.buffer(96);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_WINDOW_ITEMS);
+        out.writeByte(windowId);
+        out.writeShort(Protocol18.TABLE_WINDOW_SLOTS);
+        java.util.List<net.zamin.api.ItemStack> slots = player.inventory().snapshot();
+        java.util.List<net.zamin.api.ItemStack> grid = player.tableCrafting().snapshot();
+        net.zamin.api.ItemStack result = engine.containerResult(player);
+        for (int wireSlot = 0; wireSlot < Protocol18.TABLE_WINDOW_SLOTS; wireSlot++) {
+            writeSlot(out, containerSlotForWireSlot(wireSlot, slots, grid, result));
+        }
+        channel.writeAndFlush(out);
+    }
+
+    private static net.zamin.api.ItemStack containerSlotForWireSlot(
+            int wireSlot, java.util.List<net.zamin.api.ItemStack> engineSlots,
+            java.util.List<net.zamin.api.ItemStack> gridCells,
+            net.zamin.api.ItemStack containerResult) {
+        if (wireSlot == 0) {
+            return containerResult;
+        }
+        if (wireSlot >= Protocol18.TABLE_WIRE_SLOT_GRID_FIRST
+                && wireSlot <= Protocol18.TABLE_WIRE_SLOT_GRID_LAST) {
+            return gridCells.get(wireSlot - Protocol18.TABLE_WIRE_SLOT_GRID_FIRST);
+        }
+        if (wireSlot >= Protocol18.TABLE_WIRE_SLOT_MAIN_FIRST
+                && wireSlot <= Protocol18.TABLE_WIRE_SLOT_MAIN_LAST) {
+            return engineSlots.get(wireSlot - 1); // main inventory: engine 9-35
+        }
+        if (wireSlot >= Protocol18.TABLE_WIRE_SLOT_HOTBAR_FIRST
+                && wireSlot <= Protocol18.TABLE_WIRE_SLOT_HOTBAR_LAST) {
+            return engineSlots.get(wireSlot - Protocol18.TABLE_WIRE_SLOT_HOTBAR_BASE);
+        }
+        return net.zamin.api.ItemStack.EMPTY;
     }
 
     /** Single authoritative slot update in window 0. */

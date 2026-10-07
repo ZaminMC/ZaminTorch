@@ -265,6 +265,24 @@ public final class BlockInteractionService {
         inventorySync.accept(player);
     }
 
+    /**
+     * The placement path of the engine's use-on-block dispatch, run on the
+     * caller's (simulation) context: creative places the client-claimed block,
+     * survival consumes from the authoritative inventory. The engine calls this
+     * from its own tick task after the container check (crafting table) has
+     * ruled out a block GUI. Creative uses with no mappable held block are a
+     * no-op, matching the direct creative path.
+     */
+    public void placeFromUseOnTick(PlayerSession player, BlockPosition clicked, int face,
+                                   java.util.Optional<BlockType> creativeHeld) {
+        if (creativeHeld.isPresent()) {
+            placeOnTick(player, clicked, face, creativeHeld.get());
+        } else if (gameMode == GameMode.SURVIVAL) {
+            survivalPlaceOnTick(player, clicked, face);
+        }
+        // creative with an unmapped/empty held item: a no-op use
+    }
+
     private void commit(BlockPosition position, BlockType type) {
         world.setBlock(position, type);
         publisher.accept(new BlockChange(position, type));
