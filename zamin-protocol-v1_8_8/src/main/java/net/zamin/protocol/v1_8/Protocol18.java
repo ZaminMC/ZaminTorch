@@ -20,10 +20,16 @@ final class Protocol18 {
     static final int S2C_SPAWN_POSITION = 0x05;
     static final int S2C_UPDATE_HEALTH = 0x06;
     static final int S2C_PLAYER_POSITION_AND_LOOK = 0x08;
-    static final int S2C_BLOCK_CHANGE = 0x23;
-    static final int S2C_NAMED_SPAWN = 0x0C;
-    static final int S2C_ENTITY_TELEPORT = 0x18;
+    static final int S2C_COLLECT_ITEM = 0x0D;
+    static final int S2C_SPAWN_ENTITY = 0x0E;
+    static final int S2C_ENTITY_VELOCITY = 0x12;
     static final int S2C_DESTROY_ENTITIES = 0x13;
+    static final int S2C_ENTITY_TELEPORT = 0x18;
+    static final int S2C_ENTITY_METADATA = 0x1C;
+    static final int S2C_BLOCK_CHANGE = 0x23;
+    static final int S2C_SET_SLOT = 0x2F;
+    static final int S2C_WINDOW_ITEMS = 0x30;
+    static final int S2C_NAMED_SPAWN = 0x0C;
     static final int S2C_CHUNK_DATA = 0x21;
     static final int S2C_UNLOAD_CHUNK = 0x1D;
     static final int S2C_DISCONNECT = 0x40;
@@ -57,4 +63,18 @@ final class Protocol18 {
     static final int GAMEMODE_CREATIVE = 1;
     static final String LEVEL_TYPE_FLAT = "flat";
     static final int BIOME_PLAINS = 1;
+
+    // Object types of the Spawn Entity packet (protocol 47)
+    static final int OBJECT_ITEM = 1;
+
+    // Entity metadata (protocol 47): type 5 = item slot, index 10 = item entity stack
+    static final int METADATA_TYPE_SLOT = 5;
+    static final int ITEM_STACK_METADATA_INDEX = 10;
+    static final int METADATA_TERMINATOR = 0x7F;
+
+    // Player inventory window (id 0) layout, historical order:
+    // 0 craft result, 1-4 craft grid, 5-8 armor, 9-35 main, 36-44 hotbar.
+    static final int INVENTORY_WINDOW_ID = 0;
+    static final int INVENTORY_WINDOW_SLOTS = 45;
+    static final int WIRE_SLOT_HOTBAR_BASE = 36;
 }

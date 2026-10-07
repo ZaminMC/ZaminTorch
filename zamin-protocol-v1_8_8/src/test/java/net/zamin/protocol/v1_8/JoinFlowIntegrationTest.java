@@ -37,7 +37,9 @@ class JoinFlowIntegrationTest {
                 "127.0.0.1", 0, "world", "ZaminTorch test", 20, 4, 20, dataDir.toString());
         server = new EngineServer(config);
         server.start();
-        adapter = new V18ProtocolServer(server, 250); // fast keep-alive cycle for tests
+        // 2s cycle: scripted clients only answer keep-alives when a test drives the
+        // exchange, so the survival mining flows (~2s of waiting) must not be kicked.
+        adapter = new V18ProtocolServer(server, 2_000);
         adapter.start(server);
     }
 
@@ -148,35 +150,45 @@ class JoinFlowIntegrationTest {
             client.readUntilPositionAndLook();
             PlayerSession builder = awaitPlayer("Builder");
 
-            // Place dirt on top of the grass at (2,4,2) via the top face.
-            client.sendBlockPlacement(2, 4, 2, 1, 3); // held item: dirt (legacy 3)
-            awaitCondition(() -> server.world().getBlock(new net.zamin.api.BlockPosition(2, 5, 2))
-                            .identifier().toString().equals("minecraft:dirt"),
-                    "dirt committed in world");
+            // Survival: the player has nothing yet, so a placement intent with an
+            // empty authoritative hand must be a no-op (server-side validation,
+            // §430) regardless of what the packet claims.
+            client.sendBlockPlacement(2, 4, 2, 1, 3); // claims dirt it cannot have
+            client.sendDigging(0, 9, 9, 9, 1);
+            Thread.sleep(100);
+            assertEquals("minecraft:air",
+                    server.world().getBlock(new net.zamin.api.BlockPosition(2, 5, 2))
+                            .identifier().toString());
 
+            // Mine the surface grass at (2,4,2) with the server-validated timing
+            // (grass by hand: 18 ticks = 900ms nominal; lenient floor 630ms).
+            client.sendDigging(0, 2, 4, 2, 1);
+            Thread.sleep(950);
+            client.sendDigging(2, 2, 4, 2, 1);
+            awaitCondition(() -> server.world().getBlock(new net.zamin.api.BlockPosition(2, 4, 2))
+                            .identifier().toString().equals("minecraft:air"),
+                    "grass removed from world");
+            int[] removal = client.readBlockChange(5_000);
+            assertEquals(2, removal[0]);
+            assertEquals(4, removal[1]);
+            assertEquals(2, removal[2]);
+            assertEquals(0, removal[3]); // resulting state: air
+
+            // Collect the drop, step out of the hole (a player cannot place a
+            // block into their own bounding box), then refill from distance.
+            walkToTheDrop(client);
+            client.readCollectItem(15_000);
+            client.readWindowItems(15_000); // hotbar now holds dirt
+            client.sendPosition(0.5, 5.0, 0.5, true);
+            client.sendBlockPlacement(2, 3, 2, 1, 3);
+            awaitCondition(() -> server.world().getBlock(new net.zamin.api.BlockPosition(2, 4, 2))
+                            .identifier().toString().equals("minecraft:dirt"),
+                    "dirt placed back from the inventory");
             int[] echo = client.readBlockChange(5_000);
             assertEquals(2, echo[0]);
-            assertEquals(5, echo[1]);
+            assertEquals(4, echo[1]);
             assertEquals(2, echo[2]);
             assertEquals(3, echo[3]);
-
-            // Survival dig: the server only commits a finish after the historical
-            // duration (dirt by hand: 15 ticks = 750ms; lenient floor 525ms).
-            client.sendDigging(0, 2, 5, 2, 1);
-            Thread.sleep(900);
-            client.sendDigging(2, 2, 5, 2, 1);
-            awaitCondition(() -> server.world().getBlock(new net.zamin.api.BlockPosition(2, 5, 2))
-                            .identifier().toString().equals("minecraft:air"),
-                    "block removed from world");
-            int[] removal = client.readBlockChange(5_000);
-            assertEquals(0, removal[3]);
-
-            // Placement inside the player's own body is rejected silently.
-            client.sendBlockPlacement(0, 4, 0, 1, 3);
-            client.sendDigging(0, 2, 5, 2, 1); // idempotent: mining air opens no session
-            awaitCondition(() -> server.world().getBlock(new net.zamin.api.BlockPosition(0, 5, 0))
-                            .identifier().toString().equals("minecraft:air"),
-                    "placement into player rejected");
         }
         awaitCondition(() -> server.players().isEmpty(), "player removed after disconnect");
     }
@@ -189,6 +201,17 @@ class JoinFlowIntegrationTest {
     }
 
     // ---- helpers -------------------------------------------------------------
+
+    /** Chases the one live drop like a real player: waits for it to settle, walks to it. */
+    private void walkToTheDrop(TestClient18 client) throws Exception {
+        awaitCondition(() -> !server.itemEntities().all().isEmpty(), "drop exists");
+        awaitCondition(() -> server.itemEntities().all().stream()
+                .allMatch(net.zamin.engine.entity.ItemEntity::onGround), "drop settled");
+        var drop = server.itemEntities().all().get(0).position();
+        // A real client falls into the mined hole, which is what brings the
+        // resting item into the pickup range around the player's box.
+        client.sendPosition(drop.x(), drop.y() - 0.125, drop.z(), true);
+    }
 
     private PlayerSession awaitPlayer(String name) throws InterruptedException {
         long deadline = System.currentTimeMillis() + 5_000;

@@ -267,6 +267,110 @@ final class TestClient18 implements AutoCloseable {
         return new int[]{pos[0], pos[1], pos[2], legacy};
     }
 
+    // ---- survival slice helpers -------------------------------------------------
+
+    void sendHeldItemChange(int slot) throws IOException {
+        ByteBuf body = Unpooled.buffer(6);
+        ByteBufOps.writeVarInt(body, Protocol18.C2S_HELD_ITEM_CHANGE);
+        body.writeShort(slot);
+        sendPacket(bodyToBytes(body));
+    }
+
+    /** Reads a Spawn Entity packet for an item, returning {entityId, type, x32, y32, z32, data, vx, vy, vz}. */
+    int[] readSpawnItem(long timeoutMs) throws IOException {
+        byte[] payload = readPacketOfType(Protocol18.S2C_SPAWN_ENTITY, timeoutMs);
+        ByteBuf buffer = Unpooled.wrappedBuffer(payload);
+        ByteBufOps.readVarInt(buffer); // packet id
+        int entityId = ByteBufOps.readVarInt(buffer);
+        int type = buffer.readByte();
+        int x = buffer.readInt();
+        int y = buffer.readInt();
+        int z = buffer.readInt();
+        buffer.readByte(); // pitch
+        buffer.readByte(); // yaw
+        int data = buffer.readInt();
+        int vx = 0, vy = 0, vz = 0;
+        if (data != 0) {
+            vx = buffer.readShort();
+            vy = buffer.readShort();
+            vz = buffer.readShort();
+        }
+        return new int[]{entityId, type, x, y, z, data, vx, vy, vz};
+    }
+
+    /** Reads a Collect Item packet, returning {collectedEntityId, collectorEntityId}. */
+    int[] readCollectItem(long timeoutMs) throws IOException {
+        byte[] payload = readPacketOfType(Protocol18.S2C_COLLECT_ITEM, timeoutMs);
+        ByteBuf buffer = Unpooled.wrappedBuffer(payload);
+        ByteBufOps.readVarInt(buffer); // packet id
+        int collected = ByteBufOps.readVarInt(buffer);
+        int collector = ByteBufOps.readVarInt(buffer);
+        return new int[]{collected, collector};
+    }
+
+    /**
+     * Reads a Window Items packet. Returns {windowId, slotCount,
+     * firstNonEmptyWireSlot, firstNonEmptyItemId, firstNonEmptyCount}
+     * (-1 when everything is empty).
+     */
+    int[] readWindowItems(long timeoutMs) throws IOException {
+        byte[] payload = readPacketOfType(Protocol18.S2C_WINDOW_ITEMS, timeoutMs);
+        ByteBuf buffer = Unpooled.wrappedBuffer(payload);
+        ByteBufOps.readVarInt(buffer); // packet id
+        int windowId = buffer.readByte();
+        int count = buffer.readShort();
+        int slot = -1, itemId = -1, itemCount = -1;
+        for (int i = 0; i < count; i++) {
+            int id = buffer.readShort();
+            if (id == -1) {
+                continue;
+            }
+            byte stackCount = buffer.readByte();
+            buffer.readShort(); // damage
+            int nbt = buffer.readShort();
+            if (nbt > 0) {
+                buffer.readBytes(new byte[nbt]); // skip NBT payload (tests never send any)
+            }
+            if (slot == -1) {
+                slot = i;
+                itemId = id;
+                itemCount = stackCount;
+            }
+        }
+        return new int[]{windowId, count, slot, itemId, itemCount};
+    }
+
+    /** Reads an Entity Metadata packet carrying an item slot, returning {entityId, itemId, count}. */
+    int[] readItemMetadata(long timeoutMs) throws IOException {
+        byte[] payload = readPacketOfType(Protocol18.S2C_ENTITY_METADATA, timeoutMs);
+        ByteBuf buffer = Unpooled.wrappedBuffer(payload);
+        ByteBufOps.readVarInt(buffer); // packet id
+        int entityId = ByteBufOps.readVarInt(buffer);
+        int itemId = -1, count = -1;
+        while (true) {
+            int header = buffer.readUnsignedByte();
+            if (header == 0x7F) {
+                break; // terminator
+            }
+            int type = header >> 5;
+            if (type == Protocol18.METADATA_TYPE_SLOT) {
+                int id = buffer.readShort();
+                if (id != -1) {
+                    count = buffer.readByte();
+                    buffer.readShort(); // damage
+                    int nbt = buffer.readShort();
+                    if (nbt > 0) {
+                        buffer.readBytes(new byte[nbt]);
+                    }
+                    itemId = id;
+                }
+            } else {
+                throw new IOException("Unexpected metadata type " + type);
+            }
+        }
+        return new int[]{entityId, itemId, count};
+    }
+
     @Override
     public void close() throws IOException {
         socket.close();

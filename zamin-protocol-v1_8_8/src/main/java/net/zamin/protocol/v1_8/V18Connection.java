@@ -9,6 +9,7 @@ import io.netty.channel.SimpleChannelInboundHandler;
 import net.zamin.api.Position;
 import net.zamin.api.Rotation;
 import net.zamin.engine.EngineServer;
+import net.zamin.engine.config.GameMode;
 import net.zamin.engine.net.EngineBridge;
 import net.zamin.engine.player.PlayerSession;
 import net.zamin.engine.world.EngineChunk;
@@ -65,6 +66,8 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     private volatile long keepAliveSentAt;
 
     private ChunkTracker chunkTracker;
+    /** This client's own wire entity id (allocated at Join Game). */
+    private volatile int ownEntityId = -1;
     // Remote player entity ids as seen by THIS client (observer-local id space).
     private final java.util.Map<UUID, Integer> remoteEntityIds = new java.util.concurrent.ConcurrentHashMap<>();
     private final java.util.Set<UUID> visibleRemotePlayers = java.util.Collections.synchronizedSet(new java.util.HashSet<>());
@@ -211,6 +214,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 chunkTracker = new ChunkTracker(engine, channel);
                 chunkTracker.sendInitial(engine.world().spawnPosition().toBlockPosition().chunkPosition());
                 sendInitialPositionAndLook(channel);
+                sendWindowItems(channel, accepted.session().inventory().snapshot());
                 engine.joinCompleted(accepted.session());
                 startKeepAlive(channel);
                 adapter.playerEnteredPlay(this);
@@ -220,6 +224,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
 
     private void sendJoinGame(Channel channel, PlayerSession playerSession) {
         int entityId = adapter.nextEntityId();
+        this.ownEntityId = entityId;
         ByteBuf out = Unpooled.buffer(32);
         ByteBufOps.writeVarInt(out, Protocol18.S2C_JOIN_GAME);
         out.writeInt(entityId);
@@ -291,9 +296,12 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 String message = ByteBufOps.readString(packet, 256);
                 engine.chatService().submitChat(player, message);
             }
-            case Protocol18.C2S_CLIENT_SETTINGS, Protocol18.C2S_HELD_ITEM_CHANGE,
-                 Protocol18.C2S_CLIENT_STATUS -> {
-                // Accepted and ignored: they carry no slice-1 gameplay semantics yet.
+            case Protocol18.C2S_CLIENT_SETTINGS, Protocol18.C2S_CLIENT_STATUS -> {
+                // Accepted and ignored: they carry no gameplay semantics yet.
+            }
+            case Protocol18.C2S_HELD_ITEM_CHANGE -> {
+                short slot = packet.readShort();
+                engine.heldItemChange(player, slot);
             }
             case Protocol18.C2S_PLAYER_DIGGING -> handleDigging(player, packet);
             case Protocol18.C2S_PLAYER_BLOCK_PLACEMENT -> handleBlockPlacement(player, packet);
@@ -329,8 +337,10 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 case 0 -> engine.blockInteraction().submitMiningStart(player, target);
                 case 1 -> engine.blockInteraction().submitMiningAborted(player);
                 case 2 -> engine.blockInteraction().submitMiningFinished(player, target);
+                case 3 -> engine.dropHeld(player, true);  // drop whole held stack (Ctrl+Q)
+                case 4 -> engine.dropHeld(player, false); // drop one held item (Q)
                 default -> {
-                    // 3/4 (drop held) and 5 (bow/eat finish) arrive with the inventory slice.
+                    // 5 (bow release / eating finish) arrives with the food/combat slice.
                 }
             }
         } catch (IllegalArgumentException outOfWorld) {
@@ -341,14 +351,24 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     private void handleBlockPlacement(PlayerSession player, ByteBuf packet) {
         int[] clicked = ByteBufOps.readPackedBlockPosition(packet);
         int face = packet.readByte();
-        // 1.8 slot: short id, byte count, short metadata, optional NBT. We only
-        // need the id to know what the client is holding; metadata stays 0-scope.
+        // 1.8 slot: short id, byte count, short metadata, optional NBT. In creative
+        // the client's claimed item is authoritative (client-side creative
+        // inventory); in survival the engine validates its own inventory instead.
         short heldId = packet.readShort();
-        if (heldId <= 0 || face < 0 || face > 5) {
-            return; // empty hand or invalid face: nothing to place
+        if (face < 0 || face > 5) {
+            return; // invalid face: nothing to place
         }
-        net.zamin.api.Identifier heldIdentifier =
-                LegacyBlockIds.identifierOf(heldId & 0xFFFF).orElse(null);
+        net.zamin.api.Identifier heldIdentifier = heldId <= 0 ? null
+                : LegacyBlockIds.identifierOf(heldId & 0xFFFF).orElse(null);
+        if (engine.config().gamemode() == GameMode.SURVIVAL) {
+            try {
+                engine.blockInteraction().submitSurvivalPlace(player,
+                        new net.zamin.api.BlockPosition(clicked[0], clicked[1], clicked[2]), face);
+            } catch (IllegalArgumentException outOfWorld) {
+                LOGGER.fine(() -> "Ignored placement at out-of-world position from " + player.name());
+            }
+            return;
+        }
         if (heldIdentifier == null) {
             LOGGER.fine(() -> "Ignored placement of unmapped item " + heldId
                     + " from " + player.name());
@@ -519,7 +539,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeByte((int) (other.rotation().yaw() * 256.0f / 360.0f));
         out.writeByte((int) (other.rotation().pitch() * 256.0f / 360.0f));
         out.writeShort(0); // held item: none
-        out.writeByte(0xFF); // metadata terminator: no metadata entries
+        out.writeByte(Protocol18.METADATA_TERMINATOR); // no metadata entries (0x7F, protocol 47)
         channel.writeAndFlush(out);
     }
 
@@ -591,6 +611,202 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writePackedBlockPosition(out, position.x(), position.y(), position.z());
         ByteBufOps.writeVarInt(out, legacy); // metadata 0 -> legacy id alone
         channel.writeAndFlush(out);
+    }
+
+    // ------------------------------------------------------------------ inventory sync
+
+    /**
+     * Maps an engine inventory slot (0-8 hotbar, 9-35 main) to its wire slot in
+     * the player inventory window (hotbar lives at 36-44 in protocol 47).
+     */
+    private static int wireSlotOf(int engineSlot) {
+        return engineSlot < 9 ? Protocol18.WIRE_SLOT_HOTBAR_BASE + engineSlot : engineSlot;
+    }
+
+    /** Full authoritative inventory sync for window 0. Any thread; owner supplies the snapshot. */
+    void sendWindowItems(Channel channel, java.util.List<net.zamin.api.ItemStack> engineSlots) {
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(64 + engineSlots.size() * 6);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_WINDOW_ITEMS);
+        out.writeByte(Protocol18.INVENTORY_WINDOW_ID);
+        out.writeShort(Protocol18.INVENTORY_WINDOW_SLOTS);
+        for (int wireSlot = 0; wireSlot < Protocol18.INVENTORY_WINDOW_SLOTS; wireSlot++) {
+            // Wire 9-35 = engine main 9-35; wire 36-44 = engine hotbar 0-8; others empty.
+            net.zamin.api.ItemStack stack = engineSlotForWireSlot(wireSlot, engineSlots);
+            writeSlot(out, stack);
+        }
+        channel.writeAndFlush(out);
+    }
+
+    private static net.zamin.api.ItemStack engineSlotForWireSlot(
+            int wireSlot, java.util.List<net.zamin.api.ItemStack> engineSlots) {
+        int engineSlot = switch (wireSlot) {
+            case 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26,
+                 27, 28, 29, 30, 31, 32, 33, 34, 35 -> wireSlot;
+            case 36, 37, 38, 39, 40, 41, 42, 43, 44 -> wireSlot - Protocol18.WIRE_SLOT_HOTBAR_BASE;
+            default -> -1; // craft/armor slots are out of scope this slice
+        };
+        return engineSlot < 0 ? net.zamin.api.ItemStack.EMPTY : engineSlots.get(engineSlot);
+    }
+
+    /** Single authoritative slot update in window 0. */
+    void sendSetSlot(net.zamin.api.ItemStack stack, int engineSlot) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(12);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_SET_SLOT);
+        out.writeByte(Protocol18.INVENTORY_WINDOW_ID);
+        out.writeShort(wireSlotOf(engineSlot));
+        writeSlot(out, stack);
+        channel.writeAndFlush(out);
+    }
+
+    /**
+     * 1.8 slot encoding (community-verified): i16 block/item id, -1 = empty;
+     * otherwise i8 count, i16 damage, optional NBT as i16 length (-1 = none).
+     */
+    private static void writeSlot(ByteBuf out, net.zamin.api.ItemStack stack) {
+        if (stack == null || stack.isEmpty()) {
+            out.writeShort(-1);
+            return;
+        }
+        Integer legacy = LegacyBlockIds.legacyId(stack.type().identifier()).orElse(null);
+        if (legacy == null) {
+            out.writeShort(-1); // unmappable item: represent as empty on this wire
+            return;
+        }
+        out.writeShort(legacy);
+        out.writeByte(stack.count());
+        out.writeShort(0); // damage/metadata
+        out.writeShort(-1); // no NBT
+    }
+
+    // ------------------------------------------------------------------ item entity sync
+
+    /** Spawn Entity + item metadata for a new item entity. Any thread. */
+    void sendItemSpawn(net.zamin.engine.entity.ItemEntity entity) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY
+                || chunkTracker == null) {
+            return;
+        }
+        var blockPos = entity.position().toBlockPosition();
+        if (!chunkTracker.hasChunk(blockPos.chunkPosition().packed())) {
+            return; // observer cannot see that chunk yet
+        }
+        Integer legacy = LegacyBlockIds.legacyId(entity.stack().type().identifier()).orElse(null);
+        if (legacy == null) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(48);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_SPAWN_ENTITY);
+        ByteBufOps.writeVarInt(out, entity.entityId());
+        out.writeByte(Protocol18.OBJECT_ITEM);
+        // Historical fixed point: 1/32 block units.
+        out.writeInt((int) Math.floor(entity.position().x() * 32.0));
+        out.writeInt((int) Math.floor(entity.position().y() * 32.0));
+        out.writeInt((int) Math.floor(entity.position().z() * 32.0));
+        out.writeByte(0); // pitch
+        out.writeByte(0); // yaw
+        // Historical object data for items: item id | (metadata << 16); non-zero
+        // objectData also signals that a velocity vector follows.
+        out.writeInt(legacy);
+        out.writeShort((int) Math.floor(entity.velocityX() * 8000.0));
+        out.writeShort((int) Math.floor(entity.velocityY() * 8000.0));
+        out.writeShort((int) Math.floor(entity.velocityZ() * 8000.0));
+        channel.writeAndFlush(out);
+
+        // The item stack itself rides on entity metadata (type slot, index 10).
+        ByteBuf meta = Unpooled.buffer(16);
+        ByteBufOps.writeVarInt(meta, Protocol18.S2C_ENTITY_METADATA);
+        ByteBufOps.writeVarInt(meta, entity.entityId());
+        meta.writeByte((Protocol18.METADATA_TYPE_SLOT << 5) | Protocol18.ITEM_STACK_METADATA_INDEX);
+        writeSlot(meta, entity.stack());
+        meta.writeByte(Protocol18.METADATA_TERMINATOR);
+        channel.writeAndFlush(meta);
+    }
+
+    /** Absolute-position sync for a moving item entity. Any thread. */
+    void sendItemTeleport(net.zamin.engine.entity.ItemEntity entity) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(40);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_ENTITY_TELEPORT);
+        ByteBufOps.writeVarInt(out, entity.entityId());
+        out.writeInt((int) Math.floor(entity.position().x() * 32.0));
+        out.writeInt((int) Math.floor(entity.position().y() * 32.0));
+        out.writeInt((int) Math.floor(entity.position().z() * 32.0));
+        out.writeByte(0);
+        out.writeByte(0);
+        out.writeBoolean(entity.onGround());
+        channel.writeAndFlush(out);
+    }
+
+    /** Updated item stack metadata after a partial pickup. Any thread. */
+    void sendItemStackUpdate(net.zamin.engine.entity.ItemEntity entity) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf meta = Unpooled.buffer(16);
+        ByteBufOps.writeVarInt(meta, Protocol18.S2C_ENTITY_METADATA);
+        ByteBufOps.writeVarInt(meta, entity.entityId());
+        meta.writeByte((Protocol18.METADATA_TYPE_SLOT << 5) | Protocol18.ITEM_STACK_METADATA_INDEX);
+        writeSlot(meta, entity.stack());
+        meta.writeByte(Protocol18.METADATA_TERMINATOR);
+        channel.writeAndFlush(meta);
+    }
+
+    /**
+     * Collect animation + removal for a collected item. Every observer needs
+     * it; the collector's wire entity id differs per observer (own vs remote).
+     */
+    void sendItemCollected(int itemEntityId, PlayerSession collector) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        Integer collectorWireId = wireEntityIdOf(collector);
+        if (collectorWireId == null) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(8);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_COLLECT_ITEM);
+        ByteBufOps.writeVarInt(out, itemEntityId);
+        ByteBufOps.writeVarInt(out, collectorWireId);
+        channel.writeAndFlush(out);
+
+        ByteBuf destroy = Unpooled.buffer(8);
+        ByteBufOps.writeVarInt(destroy, Protocol18.S2C_DESTROY_ENTITIES);
+        ByteBufOps.writeVarInt(destroy, 1);
+        ByteBufOps.writeVarInt(destroy, itemEntityId);
+        channel.writeAndFlush(destroy);
+    }
+
+    /** Removes an item entity from this observer. Any thread. */
+    void sendItemRemoved(int itemEntityId) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(8);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_DESTROY_ENTITIES);
+        ByteBufOps.writeVarInt(out, 1);
+        ByteBufOps.writeVarInt(out, itemEntityId);
+        channel.writeAndFlush(out);
+    }
+
+    private Integer wireEntityIdOf(PlayerSession player) {
+        if (player == session) {
+            return ownEntityId >= 0 ? ownEntityId : null;
+        }
+        return remoteEntityIds.get(player.uuid());
     }
 
     // ------------------------------------------------------------------ chunk tracking

@@ -56,6 +56,9 @@ public final class BlockInteractionService {
     private final GameMode gameMode;
     private final DropService dropService;
     private final ItemEntityManager itemEntities;
+    private final java.util.function.Function<net.zamin.api.ItemType,
+            java.util.Optional<BlockType>> blockItemResolver;
+    private final java.util.function.Consumer<PlayerSession> inventorySync;
 
     /** Active survival mining sessions, keyed by player. Tick-thread confined. */
     private final Map<UUID, MiningSession> miningSessions = new HashMap<>();
@@ -70,13 +73,18 @@ public final class BlockInteractionService {
 
     public BlockInteractionService(EngineWorld world, EngineTicker ticker,
                                    Consumer<BlockChange> publisher, GameMode gameMode,
-                                   DropService dropService, ItemEntityManager itemEntities) {
+                                   DropService dropService, ItemEntityManager itemEntities,
+                                   java.util.function.Function<net.zamin.api.ItemType,
+                                           java.util.Optional<BlockType>> blockItemResolver,
+                                   java.util.function.Consumer<PlayerSession> inventorySync) {
         this.world = Objects.requireNonNull(world, "world");
         this.ticker = Objects.requireNonNull(ticker, "ticker");
         this.publisher = Objects.requireNonNull(publisher, "publisher");
         this.gameMode = Objects.requireNonNull(gameMode, "gameMode");
         this.dropService = Objects.requireNonNull(dropService, "dropService");
         this.itemEntities = Objects.requireNonNull(itemEntities, "itemEntities");
+        this.blockItemResolver = Objects.requireNonNull(blockItemResolver, "blockItemResolver");
+        this.inventorySync = Objects.requireNonNull(inventorySync, "inventorySync");
     }
 
     /** Requests an instant (creative) break. Safe from any thread. */
@@ -107,8 +115,20 @@ public final class BlockInteractionService {
     }
 
     /**
+     * Requests placement from the player's authoritative inventory (§430): the
+     * held stack must be a registered block item; one unit is consumed
+     * atomically with the commit (§431/§432). Safe from any thread.
+     */
+    public void submitSurvivalPlace(PlayerSession player, BlockPosition clicked, int face) {
+        Objects.requireNonNull(player, "player");
+        Objects.requireNonNull(clicked, "clicked");
+        ticker.submit(() -> survivalPlaceOnTick(player, clicked, face));
+    }
+
+    /**
      * Requests placement against the clicked block and face, using the item the
-     * client claims to hold (validated against the registry). Safe from any thread.
+     * client claims to hold (validated against the registry). Creative path.
+     * Safe from any thread.
      */
     public void submitPlace(PlayerSession player, BlockPosition clicked, int face, BlockType held) {
         Objects.requireNonNull(player, "player");
@@ -200,6 +220,30 @@ public final class BlockInteractionService {
             return;
         }
         commit(target, held);
+    }
+
+    private void survivalPlaceOnTick(PlayerSession player, BlockPosition clicked, int face) {
+        net.zamin.api.ItemStack heldStack = player.inventory().held();
+        if (heldStack.isEmpty()) {
+            return; // nothing held: no-op
+        }
+        BlockType heldBlock = blockItemResolver.apply(heldStack.type()).orElse(null);
+        if (heldBlock == null) {
+            LOGGER.fine(() -> "Rejected survival placement of non-block item by " + player.name());
+            return;
+        }
+        BlockPosition target = InteractionRules.offsetByFace(clicked, face);
+        if (target == null
+                || world.getBlock(clicked).equals(world.airType())
+                || !world.getBlock(target).equals(world.airType())
+                || !InteractionRules.withinSurvivalReach(player.position(), target)
+                || InteractionRules.intersectsPlayer(player.position(), target)) {
+            LOGGER.fine(() -> "Rejected survival placement by " + player.name());
+            return;
+        }
+        commit(target, heldBlock);
+        player.inventory().consumeHeld(1); // atomic with the commit above (§431)
+        inventorySync.accept(player);
     }
 
     private void commit(BlockPosition position, BlockType type) {

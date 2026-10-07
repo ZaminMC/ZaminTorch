@@ -104,14 +104,20 @@ public final class EngineTicker {
     }
 
     private void tickOnce() {
-        Runnable work;
-        while ((work = pendingWork.poll()) != null) {
-            work.run();
-        }
-        world.tickTime();
-        Runnable handler = tickHandler;
-        if (handler != null) {
-            handler.run();
+        try {
+            Runnable work;
+            while ((work = pendingWork.poll()) != null) {
+                work.run();
+            }
+            world.tickTime();
+            Runnable handler = tickHandler;
+            if (handler != null) {
+                handler.run();
+            }
+        } catch (Throwable t) {
+            // One failing tick must never kill the simulation (§126): log loudly,
+            // keep the loop alive, and continue with the next tick.
+            LOGGER.log(java.util.logging.Level.SEVERE, "Tick execution failed; skipping tick", t);
         }
     }
 

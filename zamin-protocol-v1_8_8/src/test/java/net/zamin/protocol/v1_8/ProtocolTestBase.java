@@ -28,8 +28,17 @@ abstract class ProtocolTestBase {
                 dataDir.toString());
         server = new EngineServer(config);
         server.start();
-        adapter = new V18ProtocolServer(server, 250);
+        adapter = new V18ProtocolServer(server, keepAliveIntervalMs());
         adapter.start(server);
+    }
+
+    /**
+     * Keep-alive cycle for the shared adapter. Subclasses running long scripted
+     * flows override this: the scripted client only answers keep-alives when a
+     * test explicitly drives the exchange, so slow suites must not be kicked.
+     */
+    protected long keepAliveIntervalMs() {
+        return 250;
     }
 
     @AfterAll
