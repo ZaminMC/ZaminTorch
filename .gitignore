@@ -1,0 +1,22 @@
+# Build
+.gradle/
+build/
+out/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.classpath
+.project
+.settings/
+bin/
+
+# Runtime data (worlds, logs, crash reports) - never commit generated server data
+run/
+logs/
+crash-reports/
+
+# OS
+.DS_Store
+Thumbs.db
