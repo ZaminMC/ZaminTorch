@@ -105,6 +105,18 @@ public final class BuiltinItems {
     public static final EngineItemType DIAMOND_ORE = new EngineItemType(
             Identifier.parse("minecraft:diamond_ore"), "Diamond Ore", 64);
 
+    // Ranged combat (legacy ids from the community dataset: bow 261, arrow
+    // 262, snowball 332, egg 344). The bow wears one durability per full
+    // draw (the historical 384); shards stack to 16.
+    public static final EngineItemType BOW = new EngineItemType(
+            Identifier.parse("minecraft:bow"), "Bow", 1, 384);
+    public static final EngineItemType ARROW = new EngineItemType(
+            Identifier.parse("minecraft:arrow"), "Arrow", 64);
+    public static final EngineItemType SNOWBALL = new EngineItemType(
+            Identifier.parse("minecraft:snowball"), "Snowball", 16);
+    public static final EngineItemType EGG = new EngineItemType(
+            Identifier.parse("minecraft:egg"), "Egg", 16);
+
     // Tools: stack of one, dataset durability. Pickaxes (legacy 270/274/257/278/285).
     public static final EngineItemType WOODEN_PICKAXE = tool("wooden_pickaxe", "Wooden Pickaxe",
             ToolClass.PICKAXE, ToolMaterial.WOOD);
@@ -181,6 +193,7 @@ public final class BuiltinItems {
                 STICK, CRAFTING_TABLE, TORCH, FURNACE, CHEST,
                 COAL, DIAMOND, IRON_INGOT, STONE, SAND, GLASS, GRAVEL, FLINT, BEEF, COOKED_BEEF,
                 PORKCHOP, COOKED_PORKCHOP, RAW_CHICKEN, COOKED_CHICKEN,
+                BOW, ARROW, SNOWBALL, EGG,
                 FEATHER, LEATHER, ROTTEN_FLESH,
                 COAL_ORE, IRON_ORE, DIAMOND_ORE,
                 WOODEN_PICKAXE, STONE_PICKAXE, IRON_PICKAXE, DIAMOND_PICKAXE, GOLDEN_PICKAXE,

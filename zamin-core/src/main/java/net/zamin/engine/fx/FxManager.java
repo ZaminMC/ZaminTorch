@@ -1,5 +1,7 @@
 package net.zamin.engine.fx;
 
+import net.zamin.api.BlockType;
+import net.zamin.api.ItemStack;
 import net.zamin.api.Position;
 
 import java.util.List;
@@ -13,25 +15,25 @@ import java.util.logging.Logger;
  *
  * <p>Design notes:</p>
  * <ul>
- *   <li><b>Engine-side, semantic:</b> the engine says "a stone block broke at
- *       (x,y,z)" through {@link #blockCrack}; the 1.8 adapter decides that this
- *       means the World Particles 0x2B packet {@code blockcrack} with the
- *       block's legacy state id, and the dig sound rides the block-sound map.
- *       Version-neutral core, version-bound translation.</li>
+ *   <li><b>Engine-side, semantic:</b> the engine says "a stone block shattered
+ *       at (x,y,z)" and the 1.8 adapter decides that this means the World
+ *       Particles 0x2B packet {@code blockcrack} carrying the block's legacy
+ *       state id, plus the dig sound from the block-sound map. The wire's
+ *       numeric particle ids and legacy ids never cross into the engine.</li>
+ *   <li><b>Named sounds, not palette ids:</b> 1.8 resolves sound names to
+ *       resources client-side, so the engine carries the historical 1.8 sound
+ *       name strings verbatim (the same choice the mob chatter made).</li>
  *   <li><b>Fire-and-forget:</b> FX are cosmetic; a copy-on-write listener list
  *       keeps the bus lock-free, and every event is best-effort — nothing in
  *       the simulation depends on the wire having rendered it.</li>
- *   <li><b>Named, not positioned-palette:</b> 1.8 resolves sound names to
- *       resources client-side, so the engine carries the historical 1.8 sound
- *       name strings verbatim (the same choice the mob chatter made).</li>
  * </ul>
  */
 public final class FxManager {
 
     private static final Logger LOGGER = Logger.getLogger(FxManager.class.getName());
 
-    /** One broadcast unit: either a sound or a particle burst. */
-    public sealed interface FxEvent permits Sound, Particles {
+    /** One broadcast unit. The adapter translates each kind per its version. */
+    public sealed interface FxEvent permits Sound, BlockShatter, ItemShatter, Poof {
     }
 
     /** A named sound at a position (historical 1.8 resource name). */
@@ -43,34 +45,26 @@ public final class FxManager {
         }
     }
 
-    /**
-     * A particle burst. {@code id} is the protocol's numeric particle id —
-     * a wire-specific datum, but the simplest honest shape: the engine owns a
-     * handful of symbolic constants (declared below) and the adapter
-     * validates its version knows each one before writing. {@code data}
-     * carries the per-particle extra payload (block/item ids for the crack
-     * families); empty for the self-colored kinds.
-     */
-    public record Particles(Position position, int id, boolean longDistance,
-                            float offsetX, float offsetY, float offsetZ,
-                            float speed, int count, int[] data)
-            implements FxEvent {
-        /** The white puff of a projectile or snowball shattering. */
-        public static final int SNOWBALL_POOF = 31;
-        /** The red-flecked crit starburst. */
-        public static final int CRIT = 9;
-        /** The floating heart (regeneration, taming). */
-        public static final int HEART = 34;
-        /** Item break crumbs: data = [itemId, itemMeta]. */
-        public static final int ICON_CRACK = 36;
-        /** Block break shards: data = [blockStateId]. */
-        public static final int BLOCK_CRACK = 37;
-        /** The gray smoke wisp (torch snuff, failed spawn). */
-        public static final int SMOKE = 11;
-
-        public Particles {
+    /** A block shattered into shards (the mining break, the land impact). */
+    public record BlockShatter(Position position, BlockType block) implements FxEvent {
+        public BlockShatter {
             Objects.requireNonNull(position, "position");
-            data = data != null ? data.clone() : new int[0];
+            Objects.requireNonNull(block, "block");
+        }
+    }
+
+    /** An item shattered into crumbs (the eat bite, the tool's death). */
+    public record ItemShatter(Position position, ItemStack stack) implements FxEvent {
+        public ItemShatter {
+            Objects.requireNonNull(position, "position");
+            Objects.requireNonNull(stack, "stack");
+        }
+    }
+
+    /** The white puff (the snowball's splat, the egg's miss). */
+    public record Poof(Position position) implements FxEvent {
+        public Poof {
+            Objects.requireNonNull(position, "position");
         }
     }
 
@@ -96,22 +90,19 @@ public final class FxManager {
         emit(new Sound(position, name, 1.0f, 1.0f));
     }
 
-    /** Emits a block-crack burst for a block state (legacy id | meta &lt;&lt; 12). */
-    public void blockCrack(Position position, int blockStateId) {
-        emit(new Particles(position, Particles.BLOCK_CRACK, false,
-                0.4f, 0.4f, 0.4f, 0.3f, 20, new int[]{blockStateId}));
+    /** Emits a block-shatter burst. Any thread. */
+    public void blockShatter(Position position, BlockType block) {
+        emit(new BlockShatter(position, block));
     }
 
-    /** Emits an item-crack burst for an item (legacy id + variant meta). */
-    public void itemCrack(Position position, int itemId, int itemMeta) {
-        emit(new Particles(position, Particles.ICON_CRACK, false,
-                0.3f, 0.3f, 0.3f, 0.15f, 8, new int[]{itemId, itemMeta}));
+    /** Emits an item-shatter crumb burst. Any thread. */
+    public void itemShatter(Position position, ItemStack stack) {
+        emit(new ItemShatter(position, stack));
     }
 
-    /** Emits the snowball shatter puff. */
-    public void snowballPoof(Position position) {
-        emit(new Particles(position, Particles.SNOWBALL_POOF, false,
-                0.2f, 0.2f, 0.2f, 0.2f, 8, new int[0]));
+    /** Emits the white shatter puff. Any thread. */
+    public void poof(Position position) {
+        emit(new Poof(position));
     }
 
     private void emit(FxEvent event) {

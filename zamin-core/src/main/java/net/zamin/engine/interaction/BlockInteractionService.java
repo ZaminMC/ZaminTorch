@@ -61,6 +61,8 @@ public final class BlockInteractionService {
     private final java.util.function.Consumer<PlayerSession> inventorySync;
     /** Post-break hook (furnace spill, future block entities). Tick-thread context. */
     private volatile java.util.function.Consumer<BlockPosition> blockBrokenListener;
+    /** The world-mutation feedback hook (break/place FX); null until registered. */
+    private volatile java.util.function.Consumer<Commit> commitFeedbackListener;
 
     /** Active survival mining sessions, keyed by player. Tick-thread confined. */
     private final Map<UUID, MiningSession> miningSessions = new HashMap<>();
@@ -311,10 +313,28 @@ public final class BlockInteractionService {
      * The single semantic commit: the world's setBlock dispatches the change
      * event itself (§208 — the world is the source of truth; player- and
      * engine-driven changes reach neighbor updates and client syncs through
-     * the same listener path), so this method only mutates.
+     * the same listener path). The feedback hook (break/place sounds and
+     * particles) fires after the mutation, before the caller continues.
      */
     private void commit(BlockPosition position, BlockType type) {
+        BlockType previous = world.getBlock(position);
         world.setBlock(position, type);
+        java.util.function.Consumer<Commit> feedback = commitFeedbackListener;
+        if (feedback != null && !previous.equals(type)) {
+            feedback.accept(new Commit(position, previous, type));
+        }
+    }
+
+    /** One world mutation with its before/after block states. */
+    public record Commit(BlockPosition position, BlockType previous, BlockType now) {
+    }
+
+    /**
+     * Registers the commit feedback hook (the engine's FX bus wiring). The
+     * consumer runs on the tick thread, directly after the world mutation.
+     */
+    public void setCommitFeedbackListener(java.util.function.Consumer<Commit> listener) {
+        this.commitFeedbackListener = listener;
     }
 
     /** Drop calculation (§434): committed break -&gt; drops -&gt; item entities. */
