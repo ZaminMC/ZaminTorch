@@ -29,7 +29,12 @@ public final class Foods {
 
     private static final Map<net.zamin.api.Identifier, Nutrition> FOODS = Map.of(
             net.zamin.api.Identifier.parse("minecraft:beef"), new Nutrition(3, 1.8f),
-            net.zamin.api.Identifier.parse("minecraft:cooked_beef"), new Nutrition(8, 12.8f));
+            net.zamin.api.Identifier.parse("minecraft:cooked_beef"), new Nutrition(8, 12.8f),
+            net.zamin.api.Identifier.parse("minecraft:porkchop"), new Nutrition(3, 1.8f),
+            net.zamin.api.Identifier.parse("minecraft:cooked_porkchop"), new Nutrition(8, 12.8f),
+            net.zamin.api.Identifier.parse("minecraft:chicken"), new Nutrition(2, 0.6f),
+            net.zamin.api.Identifier.parse("minecraft:cooked_chicken"), new Nutrition(6, 7.2f),
+            net.zamin.api.Identifier.parse("minecraft:rotten_flesh"), new Nutrition(4, 0.8f));
 
     private Foods() {
     }

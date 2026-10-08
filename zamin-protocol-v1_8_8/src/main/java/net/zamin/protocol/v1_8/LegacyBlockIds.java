@@ -46,6 +46,14 @@ final class LegacyBlockIds {
             // foods (community foods.json legacy ids)
             Map.entry(Identifier.parse("minecraft:beef"), 363),
             Map.entry(Identifier.parse("minecraft:cooked_beef"), 364),
+            // mob loot (community items.json legacy ids)
+            Map.entry(Identifier.parse("minecraft:porkchop"), 319),
+            Map.entry(Identifier.parse("minecraft:cooked_porkchop"), 320),
+            Map.entry(Identifier.parse("minecraft:chicken"), 365),   // dataset/legacy name: "chicken"
+            Map.entry(Identifier.parse("minecraft:cooked_chicken"), 366),
+            Map.entry(Identifier.parse("minecraft:feather"), 288),
+            Map.entry(Identifier.parse("minecraft:leather"), 334),
+            Map.entry(Identifier.parse("minecraft:rotten_flesh"), 367),
             // pickaxes (dataset-verified ids and durabilities)
             Map.entry(Identifier.parse("minecraft:wooden_pickaxe"), 270),
             Map.entry(Identifier.parse("minecraft:stone_pickaxe"), 274),

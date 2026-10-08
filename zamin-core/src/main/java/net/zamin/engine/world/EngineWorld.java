@@ -180,7 +180,20 @@ public final class EngineWorld implements World {
     public void tickTime() {
         requireOwnership("tickTime");
         totalTicks++;
-        timeOfDay = (timeOfDay + 1) % 24_000;
+        timeOfDay = (timeOfDay + 1) % DAY_LENGTH_TICKS;
+    }
+
+    /** Historical day length in ticks (the world's own cycle). */
+    public static final long DAY_LENGTH_TICKS = 24_000;
+
+    /**
+     * Moves the day clock (the /time command). Runs on the owning tick context
+     * (the chat dispatch routes through the engine's tick queue); the periodic
+     * cycle sync and hostile spawning read the same field.
+     */
+    public void setTimeOfDay(long timeOfDay) {
+        requireOwnership("setTimeOfDay");
+        this.timeOfDay = timeOfDay % DAY_LENGTH_TICKS;
     }
 
     private void requireOwnership(String operation) {
