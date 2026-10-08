@@ -68,11 +68,18 @@ final class LauncherRuntime {
     /** Minimal console: reads lines, supports the first administrative commands (§305). */
     private void runConsole(EngineServer server, ProtocolAdapter adapter) throws IOException {
         LOGGER.info("Console ready. Type 'help' for commands.");
+        System.out.print("> ");
+        System.out.flush();
         try (BufferedReader reader = new BufferedReader(
                 new InputStreamReader(System.in, StandardCharsets.UTF_8))) {
             String line;
             while (server.state() == ServerState.RUNNING && (line = reader.readLine()) != null) {
                 String command = line.trim().toLowerCase();
+                if (!command.isEmpty()) {
+                    // Acknowledge what the operator typed so interleaved log
+                    // lines never leave a command's fate ambiguous.
+                    LOGGER.info(() -> "Console: " + command);
+                }
                 switch (command) {
                     case "", "help" -> printHelp();
                     case "stop", "shutdown" -> {
@@ -88,6 +95,8 @@ final class LauncherRuntime {
                     }
                     default -> LOGGER.warning(() -> "Unknown command: " + command + " (try 'help')");
                 }
+                System.out.print("> ");
+                System.out.flush();
             }
         } catch (IOException ignored) {
             // Console unavailable (e.g. daemonized process): fall through to latch wait.

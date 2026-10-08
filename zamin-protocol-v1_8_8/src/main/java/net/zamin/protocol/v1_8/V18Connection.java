@@ -102,7 +102,10 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
         // Malformed or broken input fails this connection predictably, never the server (§126).
-        LOGGER.log(Level.FINE, "Connection error from " + ctx.channel().remoteAddress(), cause);
+        // WARNING + stack: an invisible drop is undiagnosable; the console must
+        // say exactly which frame broke the connection (the §54 observer rule).
+        LOGGER.log(Level.WARNING, "Protocol error from " + ctx.channel().remoteAddress()
+                + (session != null ? " (" + session.name() + ")" : ""), cause);
         if (session != null) {
             PlayerSession current = session;
             session = null;
@@ -319,7 +322,13 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 engine.chatService().submitChat(player, message);
             }
             case Protocol18.C2S_CLIENT_SETTINGS -> {
-                // Accepted and ignored: it carries no gameplay semantics yet.
+                // 1.8 layout: locale, view distance, chat mode, colors, skin
+                // parts — no main-hand field (that is 1.9+). Consumed exactly.
+                ByteBufOps.readString(packet, 32);
+                packet.readByte();
+                ByteBufOps.readVarInt(packet);
+                packet.readBoolean();
+                packet.readUnsignedByte();
             }
             case Protocol18.C2S_CLIENT_STATUS -> handleClientStatus(player, packet);
             case Protocol18.C2S_HELD_ITEM_CHANGE -> {
@@ -332,9 +341,66 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             case Protocol18.C2S_PLAYER_BLOCK_PLACEMENT -> handleBlockPlacement(player, packet);
             case Protocol18.C2S_USE_ENTITY -> handleUseEntity(player, packet);
             case Protocol18.C2S_ARM_ANIMATION -> adapter.broadcastArmSwing(this);
+            case Protocol18.C2S_CONFIRM_TRANSACTION -> {
+                // The client's echo of our transaction confirm: consumed, never
+                // authoritative (the server's own confirm decides prediction).
+                packet.readByte();
+                packet.readShort();
+                packet.readBoolean();
+            }
+            case Protocol18.C2S_ENTITY_ACTION -> {
+                // Sneak/sprint/leave-bed/jump: entity id, action, jump boost.
+                ByteBufOps.readVarInt(packet);
+                ByteBufOps.readVarInt(packet);
+                ByteBufOps.readVarInt(packet);
+            }
+            case Protocol18.C2S_STEER_VEHICLE -> {
+                packet.readFloat();
+                packet.readFloat();
+                packet.readUnsignedByte();
+            }
+            case Protocol18.C2S_SET_CREATIVE_SLOT -> {
+                packet.readShort();
+                readClaimedSlot(packet);
+            }
+            case Protocol18.C2S_ENCHANT_ITEM -> {
+                packet.readByte();
+                packet.readByte();
+            }
+            case Protocol18.C2S_UPDATE_SIGN -> {
+                packet.readLong();
+                for (int line = 0; line < 4; line++) {
+                    ByteBufOps.readString(packet, 256);
+                }
+            }
+            case Protocol18.C2S_PLAYER_ABILITIES -> {
+                packet.readByte();
+                packet.readFloat();
+                packet.readFloat();
+            }
+            case Protocol18.C2S_TAB_COMPLETE -> {
+                ByteBufOps.readString(packet, 256);
+                if (packet.isReadable(9)) {
+                    packet.readByte(); // option present flag
+                    packet.readLong();  // the looked-at block position
+                } else if (packet.isReadable()) {
+                    packet.readByte();
+                }
+            }
+            case Protocol18.C2S_PLUGIN_MESSAGE -> {
+                ByteBufOps.readString(packet, 64);
+                // payload: rest of the frame; frames are length-delimited so
+                // skipping by reader index is exact (no length field needed).
+            }
+            case Protocol18.C2S_SPECTATE -> {
+                packet.readLong();
+                packet.readLong();
+            }
+            case Protocol18.C2S_RESOURCE_PACK_STATUS -> ByteBufOps.readVarInt(packet);
             default -> {
-                // Unknown play packet: ignore, as the historical server does, but make it observable.
-                LOGGER.fine(() -> "Ignored play packet id 0x" + Integer.toHexString(packetId)
+                // Unknown play packet: ignore, as the historical server does, but
+                // make it observable (rate-limited by keeping it at FINE).
+                LOGGER.fine(() -> "Ignored unknown play packet id 0x" + Integer.toHexString(packetId)
                         + " from " + player.name());
             }
         }

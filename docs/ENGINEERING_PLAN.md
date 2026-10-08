@@ -599,6 +599,80 @@ Two stale assumptions were updated with the new behavior: the registry
 count (gravel) and the persistence acceptance (a placed stone legitimately
 decays the grass it covers).
 
+## 10r. Slice #18 — light propagation (implemented status)
+
+**Status: implemented; 219 automated tests green at commit; mineflayer
+real-client validation of torch block light and skylight shade PASSED.**
+
+The §475/§476 lighting became real world state: block light and skylight per
+section, the historical model (emission radiates, max(1, filter) per step,
+direct sky columns fall without decrement through filter-0 cells), the
+community dataset's emitLight/filterLight values (torch 14, glass/chest/
+unlit furnace 0, opaque 15), and the wire copying the nibbles verbatim into
+the chunk packets with the bitmask extended by non-default light sections.
+
+- **Correctness first (§476 verbatim):** updates run synchronously inside
+  the world mutation on the tick thread — the standard add/remove BFS pair;
+  NO concurrency, NO batching. Localized propagation, batched updates and
+  parallel chunk work remain the documented follow-up investigations.
+- **The removal sweep's ghost-light fix:** re-add seeds are POSITIONS whose
+  levels are re-read after the sweep finishes — a cell captured as a
+  surviving source early can still be removed by a later branch of the same
+  sweep, and re-adding a stale level resurrected light (caught by the
+  two-source removal test).
+- **Initial compute at generation, before publication (§344):** a chunk
+  becomes visible only fully generated AND fully lit — direct sky columns,
+  emitters, lateral shade, border inflow and shadow re-derivation against
+  already-loaded neighbors.
+- **Transport:** protocol 47 has no light-only packet; every chunk column
+  the engine touched re-sends once per tick through a deduplicated relight
+  queue and the RelightListener path.
+- **Grass upgraded to the historical light gates** (decay < 4, spread ≥ 9,
+  sampled at pos.up() like BlockGrass.updateTick) — the earlier
+  "nothing opaque above" approximation is gone, and cave farms light their
+  grass like the historical game.
+
+## 10s. Slice #19 — item NBT: display names (implemented status)
+
+**Status: implemented; 228 automated tests green; the rename, the named
+drop/collect and the NBT-over-the-wire flows PASSED the mineflayer
+real-client validation.**
+
+- **ItemStack** carries the optional displayName component (sanitized:
+  control characters stripped, 64-char bound, blank clears), carried by
+  every value transformation, and part of the merge identity via
+  ItemStack.mergeable — the historical areItemStacksEqual including NBT —
+  now played by window clicks, inventory pickup, item-entity merging and
+  the furnace output rule.
+- **/rename <name...>** stamps the held stack (the anvil rename without the
+  anvil); no arguments clears.
+- **SlotNbt** (protocol): {display:{Name}} with short-length MODIFIED UTF-8
+  (DataOutput.writeUTF semantics — CESU-8, C0 80 nulls), the exact vanilla
+  NBT string encoding, distinct from the protocol's varint strings.
+  writeSlot emits it only for named stacks; unnamed keeps the TAG_End
+  marker. Structural skip + display-name reader for the test client.
+- **Persistence:** ZPD v3 / ZCD v2 / ZFD v2 carry the optional name per
+  stack (varint-length UTF-8, 0 = none); readers accept all older versions.
+- **Wire bug the real client caught:** Spawn Entity object type 1 is a
+  BOAT in protocol 47 — item drops are object 2 (Item) with objectData
+  item id | (damage << 16). Only an independent protocol parse could see
+  it; the engine's own tests never interpret object types.
+
+## 10t. Slice #20 — the downloadable dev build + update prompt (implemented status)
+
+**Status: implemented; the zip boots standalone (verified) and the update
+prompt verified live against the published release.**
+
+- **serverDist:** one fat jar (every module + netty), OS start scripts
+  (sh/bat/ps1), QUICKSTART and a default configuration, zipped — published
+  as a prerelease on the develop branch's releases.
+- **UpdateChecker:** on boot a daemon thread resolves the latest release
+  tag — the GitHub API first, then the releases.atom feed as the fallback
+  (prereleases included, no API rate limit) — and PROMPTS on a newer tag
+  with the download page. Non-blocking, 2s timeouts, every failure
+  silent-at-FINE: an offline server boots exactly like an online one
+  (the §54 observer rule). Versions compare numerically over vX.Y.Z-dev.N.
+
 ## 11. Known risks
 
 - 1.8.8 client quirks not obvious from protocol docs (e.g. exact chunk/lighting expectations) — mitigated by scripted-client tests + real client validation.
