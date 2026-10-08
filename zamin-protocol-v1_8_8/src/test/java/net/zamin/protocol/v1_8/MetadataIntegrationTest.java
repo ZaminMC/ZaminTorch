@@ -67,7 +67,7 @@ class MetadataIntegrationTest extends ProtocolTestBase {
             // --- a thrown charcoal rides its variant on the entity metadata ---
             client.sendDigging(4, 0, 0, 0, 0); // Q: drop one from the held slot
             int[] spawn = client.readSpawnItem(10_000);
-            assertEquals(1, spawn[1], "the drop is an item entity");
+            assertEquals(Protocol18.OBJECT_ITEM, spawn[1], "the drop is an item entity");
             int[] meta = client.readItemMetadata(10_000);
             assertEquals(COAL, meta[1]);
             assertEquals(1, meta[2], "one unit");
