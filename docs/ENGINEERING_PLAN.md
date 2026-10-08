@@ -717,6 +717,61 @@ exact (index, type) map the vanilla DataWatcher would accept.
   `DataWatcherParityIntegrationTest`; `VanillaParityIntegrationTest`
   (the full serverbound packet tour). 278 green; mineflayer 45/45.
 
+## 10v. Slice #22 — game feel & ranged combat: FX bus, projectiles, posture
+
+**Status: implemented; 287 automated tests green (9 projectile unit + 5
+ranged-acceptance on top of the 273 that stayed). Concepts credited to
+AtlasProjectiles and MinestomParticles/ParticleEmitter, see
+COMMUNITY_REFERENCES.md.**
+
+- **The FX bus (`FxManager`)**: the engine's systems emit *semantic* feedback
+  events — `Sound` (named, the historical 1.8 resource strings), `BlockShatter`,
+  `ItemShatter`, `Poof` — and the 1.8 adapter translates each per its version:
+  sounds ride Named Sound Effect 0x29, shards ride World Particles 0x2B
+  (blockcrack 37 / iconcrack 36 / snowballpoof 31, community particles.json
+  ids), with the crack families' varint data payloads. Identifiers never leak
+  into the wire from the engine; legacy ids never leak into the engine from
+  the wire. Delivery is fire-and-forget with the 64-block feedback cull.
+- **Block feedback**: the block interaction's single `commit` gained a
+  before/after feedback hook — a break emits the shatter burst plus the dig
+  family sound (BlockSoundMap: stone/wood/grass/sand/gravel/glass), a place
+  emits the family sound at the softer place volume. Eating emits crumbs plus
+  `random.eat` every four ticks and `random.burp` on completion, from the
+  mouth height (eye 1.62).
+- **Projectiles** (`ProjectileManager`, its own entity-id band): arrow,
+  snowball, egg with the historical per-tick loop — drag 0.99, arrow gravity
+  0.05 (throwables 0.03), collisions sampled at the midpoint AND the endpoint
+  in flight order (a full-draw arrow crosses ~3 blocks; the endpoint-only
+  check let a ground hit shadow a closer entity — caught by the acceptance
+  test). Arrows stick 1200 ticks; shards shatter with the puff + glass click.
+  Damage: arrows `ceil(speed × 2)` (≥ 1), shards bruise 0 but knock back (the
+  historical snowball). Hits resolve mobs by type box and players by the
+  0.6×1.8 box; the thrower is immune for 5 ticks; the egg hatches a chick on
+  the 1-in-8 roll.
+- **The bow**: use-with-bow starts the draw (ammunition gated in survival),
+  the draw clock advances in the body tick, the release fires `power × 3.0`
+  after the 3-tick minimum, consuming one arrow and one durability (the
+  historical 384). Snowball/egg throw on the press (the historical timing).
+  The launch whooshes `random.bow`.
+- **Posture** (Entity Action 0x0B): sneak/sprint tracked per session; sprint
+  refuses below 7 hunger (the historical gate) and bleeds exhaustion at a
+  flat-rate approximation of the per-meter rule (documented); observers
+  receive the living-flags metadata (crouch 0x02, sprint 0x10) — the mover's
+  own client animates itself.
+- **Wire identity discipline**: projectiles spawn with objectData = the
+  thrower's id *in each observer's id space* — the shooter's own client sees
+  its own wire id, remote observers see the id they already track, mob
+  throwers keep engine ids. Movement rides Entity Teleport (the launch
+  crosses more than the relative-move i8 window per tick).
+- **Tests**: `ProjectileManagerTest` (block shatter vs arrow stick, speed-
+  scaled damage, zero-damage knockback, the immunity window, the chick roll
+  under a fixed seed, the age caps); `RangedCombatAcceptanceTest` on the real
+  ticker (draw → consume → fire → wound, the snowball's press-throw and
+  shatter feedback, break/place FX emission, the posture broadcasts). The
+  timing lesson of slice #4 repeated itself: a "two substeps per tick" first
+  draft doubled gravity and aged entities twice — the tests caught it and the
+  physics stayed one historical step with midpoint sampling.
+
 ## 11. Known risks
 
 - 1.8.8 client quirks not obvious from protocol docs (e.g. exact chunk/lighting expectations) — mitigated by scripted-client tests + real client validation.
