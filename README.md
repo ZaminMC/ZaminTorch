@@ -53,6 +53,9 @@ proven over the wire and against a live process.
 | Mob persistence across restarts (ZMD v1) | implemented |
 | Gravel + flint (first-hit-wins chance drops) | implemented |
 | Real-client validation (mineflayer 1.8.8) | implemented |
+| Sounds + particles (FX bus: dig/eat/bow/shatter feedback) | implemented |
+| Ranged combat: bow (charge), snowball, egg (chick roll) | implemented |
+| Posture sync: sneak/sprint flags to observers | implemented |
 | Item NBT (display names, enchantments) | planned |
 | Anvil world format import | planned (compatibility adapter) |
 | Minestom integration | deferred (see ADR in plan) |
