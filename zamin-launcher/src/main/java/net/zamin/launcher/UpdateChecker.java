@@ -31,9 +31,9 @@ final class UpdateChecker {
     private static final Logger LOGGER = Logger.getLogger(UpdateChecker.class.getName());
     private static final String RELEASES_API =
             "https://api.github.com/repos/ZaminMC/ZaminTorch/releases/latest";
-    /** The HTML page 302-redirects to /tag/vX.Y.Z — a rate-limit-free probe. */
-    private static final String RELEASES_LATEST =
-            "https://github.com/ZaminMC/ZaminTorch/releases/latest";
+    /** The atom feed carries prereleases too and carries no API rate limit. */
+    private static final String RELEASES_ATOM =
+            "https://github.com/ZaminMC/ZaminTorch/releases.atom";
     private static final String RELEASES_PAGE =
             "https://github.com/ZaminMC/ZaminTorch/releases";
 
@@ -44,6 +44,7 @@ final class UpdateChecker {
         if (!started.compareAndSet(false, true)) {
             return;
         }
+        LOGGER.info(() -> "Update check: looking for newer releases (" + BUILD_VERSION + ")");
         Thread worker = new Thread(this::run, "zamin-update-check");
         worker.setDaemon(true); // never keeps the JVM alive on its own
         worker.start();
@@ -53,7 +54,7 @@ final class UpdateChecker {
         try {
             String latest = fetchLatestTag();
             if (latest == null) {
-                latest = fetchLatestTagViaRedirect();
+                latest = fetchLatestTagViaAtom();
             }
             if (latest == null || latest.isBlank()) {
                 LOGGER.fine("Update check: no release information available");
@@ -97,35 +98,47 @@ final class UpdateChecker {
     }
 
     /**
-     * The fallback: a HEAD/GET on the releases/latest page, whose redirect
-     * location ends with the tag. No API rate limit applies to HTML pages,
-     * so this works when the JSON API answers 403.
+     * The fallback: the releases atom feed, whose first entry carries the
+     * newest release's tag (prereleases included, no API rate limit) —
+     * {@code <id>tag:github.com,2008:Repository/<repo>/<tag></id>}.
      */
-    private String fetchLatestTagViaRedirect() {
+    private String fetchLatestTagViaAtom() {
         try {
-            HttpURLConnection connection = (HttpURLConnection) URI.create(RELEASES_LATEST)
+            HttpURLConnection connection = (HttpURLConnection) URI.create(RELEASES_ATOM)
                     .toURL().openConnection();
             connection.setConnectTimeout((int) Duration.ofSeconds(2).toMillis());
             connection.setReadTimeout((int) Duration.ofSeconds(2).toMillis());
-            connection.setInstanceFollowRedirects(false);
             connection.setRequestProperty("User-Agent", "ZaminTorch/" + BUILD_VERSION);
             int status = connection.getResponseCode();
-            if (status == 301 || status == 302) {
-                String location = connection.getHeaderField("Location");
+            if (status != 200) {
+                LOGGER.fine(() -> "Update check: atom feed answered " + status);
                 connection.disconnect();
-                if (location != null) {
-                    int at = location.lastIndexOf('/'); // .../releases/tag/vX.Y.Z
-                    if (at >= 0 && at + 1 < location.length()) {
-                        return location.substring(at + 1);
-                    }
-                }
-            } else {
-                connection.disconnect();
+                return null;
             }
+            String feed = readAll(connection);
+            connection.disconnect();
+            int entryAt = feed.indexOf("<entry>");
+            if (entryAt < 0) {
+                return null;
+            }
+            int idAt = feed.indexOf("<id>tag:github.com,2008:Repository/", entryAt);
+            if (idAt < 0) {
+                return null;
+            }
+            // tag:github.com,2008:Repository/<repoId>/<tag> — the tag is the
+            // LAST segment, not everything after the first slash.
+            int from = idAt + "<id>".length();
+            int to = feed.indexOf('<', from);
+            if (to < 0) {
+                return null;
+            }
+            String id = feed.substring(from, to);
+            int tagAt = id.lastIndexOf('/');
+            return tagAt < 0 ? null : id.substring(tagAt + 1);
         } catch (Exception e) {
-            LOGGER.fine(() -> "Update check: redirect probe failed: " + e.getMessage());
+            LOGGER.fine(() -> "Update check: atom probe failed: " + e.getMessage());
+            return null;
         }
-        return null;
     }
 
     private String readAll(HttpURLConnection connection) throws Exception {

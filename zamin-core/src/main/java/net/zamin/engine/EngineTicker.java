@@ -25,6 +25,8 @@ import java.util.logging.Logger;
 public final class EngineTicker {
 
     private static final Logger LOGGER = Logger.getLogger(EngineTicker.class.getName());
+    /** Overruns below this stay silent: they are the boot-warmup norm. */
+    private static final long WARN_OVERRUN_NANOS = TimeUnit.MILLISECONDS.toNanos(250);
 
     private volatile EngineWorld world;
     private volatile Runnable tickHandler;
@@ -65,8 +67,10 @@ public final class EngineTicker {
             if (now - nextTick > tickIntervalNanos) {
                 final long overrun = now - nextTick;
                 lastTickOverrunNanos = overrun;
-                if (tickedOnce) {
-                    // The first tick after boot routinely overruns (class loading); warn later.
+                // Sub-quarter-second overruns are the boot-warmup norm (class
+                // loading, world pregeneration): warning on them spams the
+                // console without telling the operator anything actionable.
+                if (tickedOnce && overrun > WARN_OVERRUN_NANOS) {
                     LOGGER.warning(() -> "Simulation fell behind by "
                             + TimeUnit.NANOSECONDS.toMillis(overrun)
                             + " ms; skipping missed ticks (no burst catch-up)");

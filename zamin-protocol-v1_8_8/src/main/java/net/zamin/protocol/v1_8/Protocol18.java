@@ -50,22 +50,37 @@ final class Protocol18 {
     /** Combat event 2 = entity died (playerId varint, entityId i32, message). */
     static final int COMBAT_EVENT_ENTITY_DIED = 2;
 
-    // Serverbound play packet ids (protocol 47)
+    // Serverbound play packet ids (protocol 47) — cross-checked against the
+    // community protocol.json (PrismarineJS/minecraft-data) mapping. The
+    // "Player" ground packet lives at 0x03 ("flying"); 0x0F is the client's
+    // Confirm Transaction response. Every id the vanilla 1.8.8 client can
+    // emit is declared here so play-state traffic is never misrouted.
     static final int C2S_KEEP_ALIVE = 0x00;
-    static final int C2S_USE_ENTITY = 0x02;
     static final int C2S_CHAT_MESSAGE = 0x01;
-    static final int C2S_ARM_ANIMATION = 0x0A;
+    static final int C2S_USE_ENTITY = 0x02;
+    static final int C2S_PLAYER = 0x03;
     static final int C2S_PLAYER_POSITION = 0x04;
     static final int C2S_PLAYER_LOOK = 0x05;
     static final int C2S_PLAYER_POSITION_AND_LOOK = 0x06;
     static final int C2S_PLAYER_DIGGING = 0x07;
     static final int C2S_PLAYER_BLOCK_PLACEMENT = 0x08;
     static final int C2S_HELD_ITEM_CHANGE = 0x09;
+    static final int C2S_ARM_ANIMATION = 0x0A;
+    static final int C2S_ENTITY_ACTION = 0x0B;
+    static final int C2S_STEER_VEHICLE = 0x0C;
     static final int C2S_CLOSE_WINDOW = 0x0D;
     static final int C2S_WINDOW_CLICK = 0x0E;
+    static final int C2S_CONFIRM_TRANSACTION = 0x0F;
+    static final int C2S_SET_CREATIVE_SLOT = 0x10;
+    static final int C2S_ENCHANT_ITEM = 0x11;
+    static final int C2S_UPDATE_SIGN = 0x12;
+    static final int C2S_PLAYER_ABILITIES = 0x13;
+    static final int C2S_TAB_COMPLETE = 0x14;
     static final int C2S_CLIENT_SETTINGS = 0x15;
     static final int C2S_CLIENT_STATUS = 0x16;
-    static final int C2S_PLAYER = 0x0F;
+    static final int C2S_PLUGIN_MESSAGE = 0x17;
+    static final int C2S_SPECTATE = 0x18;
+    static final int C2S_RESOURCE_PACK_STATUS = 0x19;
 
     // State-transition ids
     static final int C2S_HANDSHAKE = 0x00;

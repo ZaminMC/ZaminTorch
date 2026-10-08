@@ -58,6 +58,21 @@ proven over the wire and against a live process.
 This table reflects tested behavior only; nothing is marked implemented without an
 automated test proving it.
 
+## Downloading a dev build (no build tools needed)
+
+Grab the latest zip from
+[Releases](https://github.com/ZaminMC/ZaminTorch/releases) (dev builds land
+on the `develop` branch's releases; prereleases included):
+
+1. Unzip. Requires **Java 21+** on the PATH.
+2. `./start.sh` (Linux/macOS), `start.bat` (cmd) or `start.ps1` (PowerShell).
+3. Connect a vanilla 1.8.8 client to port 25565. First boot writes
+   `zamin.properties` and generates the world next to the jar.
+
+The server checks GitHub on boot and **prints an update prompt** when a newer
+release exists — updating means stop, replace the jar, start again. Nothing
+is downloaded or replaced automatically.
+
 ## Building & running
 
 Requirements: Java 21.
@@ -66,6 +81,7 @@ Requirements: Java 21.
 ./gradlew build        # compile + tests
 ./gradlew test         # run unit + integration tests
 ./gradlew :zamin-launcher:runServer   # start a development server
+./gradlew :zamin-launcher:serverDist  # build the release zip
 ```
 
 The development server reads `zamin.properties` from the working directory
