@@ -78,6 +78,24 @@ public final class PlayerSession implements net.zamin.api.Player {
     // gesture; the client's release (dig status 5) cancels when unfinished.
     private int eatingTicks = -1;
 
+    // Posture flags from the Entity Action (0x0B) stream. The client animates
+    // locally; the engine tracks them for the observers' metadata flags, the
+    // sprint exhaustion cost and future movement validation multipliers.
+    private volatile boolean sneaking;
+    private volatile boolean sprinting;
+
+    // Bow charge: begins at the use gesture while a bow is held, ends at the
+    // release gesture; the arrow's launch speed scales with the held duration.
+    private int bowChargeTicks = -1;
+
+    /**
+     * The engine-global entity id (its own id band, disjoint from items, mobs,
+     * falling blocks and projectiles). Assigned once at registration; -1 before.
+     * Combat systems that speak engine-global ids (projectile throwers, future
+     * combat events) use it; the per-observer wire ids remain the adapter's.
+     */
+    private volatile int engineEntityId = -1;
+
     public PlayerSession(UUID uuid, String name, ClientLink link) {
         this.uuid = Objects.requireNonNull(uuid, "uuid");
         this.name = Objects.requireNonNull(name, "name");
@@ -90,6 +108,20 @@ public final class PlayerSession implements net.zamin.api.Player {
 
     public String name() {
         return name;
+    }
+
+    /** The engine-global entity id, or -1 before registration assigns it. */
+    public int engineEntityId() {
+        return engineEntityId;
+    }
+
+    /** Assigns the engine-global entity id (EngineServer registration only, once). */
+    public void assignEngineEntityId(int id) {
+        if (this.engineEntityId != -1 && this.engineEntityId != id) {
+            throw new IllegalStateException("Player " + name + " already owns entity id "
+                    + this.engineEntityId);
+        }
+        this.engineEntityId = id;
     }
 
     public ClientLink link() {
@@ -259,6 +291,7 @@ public final class PlayerSession implements net.zamin.api.Player {
     public void markDead() {
         this.dead = true;
         this.eatingTicks = -1;
+        this.bowChargeTicks = -1;
     }
 
     /** Full body reset (respawn, fresh join). */
@@ -271,6 +304,9 @@ public final class PlayerSession implements net.zamin.api.Player {
         this.fallDistance = 0;
         this.dead = false;
         this.eatingTicks = -1;
+        this.bowChargeTicks = -1;
+        this.sneaking = false;
+        this.sprinting = false;
         resetHurtInvulnerability();
     }
 
@@ -312,6 +348,51 @@ public final class PlayerSession implements net.zamin.api.Player {
 
     public void cancelEating() {
         this.eatingTicks = -1;
+    }
+
+    // --- posture (sneak/sprint) ----------------------------------------------
+
+    /** True while the player holds the sneak action (clients animate locally). */
+    public boolean sneaking() {
+        return sneaking;
+    }
+
+    public void setSneaking(boolean sneaking) {
+        this.sneaking = sneaking;
+    }
+
+    /** True while the player holds the sprint action. */
+    public boolean sprinting() {
+        return sprinting;
+    }
+
+    public void setSprinting(boolean sprinting) {
+        this.sprinting = sprinting;
+    }
+
+    // --- bow charge -----------------------------------------------------------
+
+    /** True between the use gesture and the release while a bow is drawn. */
+    public boolean bowCharging() {
+        return bowChargeTicks >= 0;
+    }
+
+    public int bowChargeTicks() {
+        return bowChargeTicks;
+    }
+
+    /** Starts the bow draw (simulation context; validated by the engine). */
+    public void beginBowCharge() {
+        this.bowChargeTicks = 0;
+    }
+
+    /** @return the incremented draw tick count (the engine scales the launch). */
+    public int advanceBowCharge() {
+        return ++bowChargeTicks;
+    }
+
+    public void cancelBowCharge() {
+        this.bowChargeTicks = -1;
     }
 
     /**
