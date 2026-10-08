@@ -131,7 +131,6 @@ public final class EngineServer implements Server, EngineBridge {
     private BlockUpdateSystem blockUpdateSystem;
     private RandomTickSystem randomTicks;
     private MobDataStore mobStore;
-    private final java.util.List<WorldChangeListener> worldListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     private final java.util.List<ChatListener> chatListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     private final java.util.List<ItemEntityManager.Listener> itemListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     private final java.util.List<MobManager.Listener> mobListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
@@ -249,7 +248,9 @@ public final class EngineServer implements Server, EngineBridge {
                 // gravity/torch/grass rules. Registered as a world listener before
                 // the adapter, so engine-side rules observe every commit first.
                 blockUpdateSystem = new BlockUpdateSystem(world, itemEntities, falling);
-                worldListeners.add(blockUpdateSystem);
+                // The world itself dispatches every committed change (§208): the
+                // neighbor-update system observes player- AND engine-driven changes.
+                world.addChangeListener(blockUpdateSystem);
                 // Random ticks (§471 pattern): grass growth and decay.
                 randomTicks = new RandomTickSystem(world, new java.util.Random());
                 ticker.setTickHandler(() -> {
@@ -266,7 +267,8 @@ public final class EngineServer implements Server, EngineBridge {
                         publishTimeChanged(); // smooth day cycle on every client
                     }
                 });
-                blockInteraction = new BlockInteractionService(world, ticker, this::publishBlockChange,
+                blockInteraction = new BlockInteractionService(world, ticker,
+                        change -> world.republish(change.position()), // the resync path (§441)
                         config.gamemode(), new DropService(new java.util.Random()), itemEntities,
                         type -> blockRegistry.lookup(type.identifier()),
                         this::publishInventoryChanged);
@@ -1918,14 +1920,14 @@ public final class EngineServer implements Server, EngineBridge {
 
     /** Registers an internal world observer (e.g. the protocol adapter's sync). */
     public void addWorldListener(WorldChangeListener listener) {
-        worldListeners.add(listener);
+        if (world == null) {
+            throw new IllegalStateException("World listener registration requires the booted world");
+        }
+        world.addChangeListener(listener);
     }
 
-    private void publishBlockChange(BlockInteractionService.BlockChange change) {
-        for (WorldChangeListener listener : worldListeners) {
-            listener.onBlockChanged(world, change.position(), change.newType());
-        }
-    }
+    // World-change fan-out lives on the world itself (§208): every committed
+    // mutation fires the listeners once, whether a player or a rule drove it.
 
     // ------------------------------------------------------------------ EngineBridge
 

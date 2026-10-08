@@ -221,6 +221,22 @@ final class TestClient18 implements AutoCloseable {
         throw new IOException("Timed out waiting for packet id " + expectedId);
     }
 
+    /** Reads packets until one with any of the expected ids arrives. */
+    byte[] readPacketOfTypes(int[] expectedIds, long timeoutMs) throws IOException {
+        long deadline = System.currentTimeMillis() + timeoutMs;
+        while (System.currentTimeMillis() < deadline) {
+            byte[] payload = readPacket();
+            int id = readPacketId(payload);
+            for (int expectedId : expectedIds) {
+                if (id == expectedId) {
+                    return payload;
+                }
+            }
+        }
+        throw new IOException("Timed out waiting for packet ids "
+                + java.util.Arrays.toString(expectedIds));
+    }
+
     void sendDigging(int status, int x, int y, int z, int face) throws IOException {
         ByteBuf body = Unpooled.buffer(24);
         ByteBufOps.writeVarInt(body, Protocol18.C2S_PLAYER_DIGGING);
@@ -359,6 +375,35 @@ final class TestClient18 implements AutoCloseable {
     }
 
     /** Reads a Destroy Entities packet, returning the destroyed entity ids. */
+    /**
+     * Reads the next Block Change (kind 0: {0,x,y,z,state}) or Destroy
+     * Entities (kind 1: {1,id...}) — engine-driven landings interleave the
+     * two, so one drain loop must consume both without skipping either.
+     */
+    int[] readBlockChangeOrDestroy(long timeoutMs) throws IOException {
+        long deadline = System.currentTimeMillis() + timeoutMs;
+        while (System.currentTimeMillis() < deadline) {
+            byte[] payload = readPacketOfTypes(
+                    new int[]{Protocol18.S2C_BLOCK_CHANGE, Protocol18.S2C_DESTROY_ENTITIES},
+                    Math.max(1, deadline - System.currentTimeMillis()));
+            ByteBuf buffer = Unpooled.wrappedBuffer(payload);
+            int packetId = ByteBufOps.readVarInt(buffer);
+            if (packetId == Protocol18.S2C_BLOCK_CHANGE) {
+                int[] pos = ByteBufOps.readPackedBlockPosition(buffer);
+                int stateId = ByteBufOps.readVarInt(buffer);
+                return new int[]{0, pos[0], pos[1], pos[2], stateId >> 4};
+            }
+            int count = ByteBufOps.readVarInt(buffer);
+            int[] out = new int[1 + count];
+            out[0] = 1;
+            for (int i = 0; i < count; i++) {
+                out[1 + i] = ByteBufOps.readVarInt(buffer);
+            }
+            return out;
+        }
+        throw new IOException("Timed out waiting for a block change or destroy");
+    }
+
     int[] readDestroyEntities(long timeoutMs) throws IOException {
         byte[] payload = readPacketOfType(Protocol18.S2C_DESTROY_ENTITIES, timeoutMs);
         ByteBuf buffer = Unpooled.wrappedBuffer(payload);
@@ -413,6 +458,30 @@ final class TestClient18 implements AutoCloseable {
 
     /** Reads a Block Change packet, returning {x, y, z, legacyId}. The wire
      * carries the packed state (id << 4) | metadata; unpacked here. */
+    /**
+     * Reads Block Change packets until one targets the given position, then
+     * asserts its state. Engine-driven rule changes (grass decay, falling
+     * conversions) share the wire with player-driven commits, so callers must
+     * name the position they wait for instead of counting packets.
+     */
+    int[] readBlockChangeAt(int x, int y, int z, long timeoutMs) throws IOException {
+        return readBlockChangeAt(x, y, z, -1, timeoutMs);
+    }
+
+    /** Position + expected legacy state; state -1 accepts any. */
+    int[] readBlockChangeAt(int x, int y, int z, int expectedLegacy, long timeoutMs) throws IOException {
+        long deadline = System.currentTimeMillis() + timeoutMs;
+        while (System.currentTimeMillis() < deadline) {
+            int[] change = readBlockChange(Math.max(1, deadline - System.currentTimeMillis()));
+            if (change[0] == x && change[1] == y && change[2] == z
+                    && (expectedLegacy < 0 || change[3] == expectedLegacy)) {
+                return change;
+            }
+        }
+        throw new IOException("Timed out waiting for a block change at ("
+                + x + "," + y + "," + z + ") state " + expectedLegacy);
+    }
+
     int[] readBlockChange(long timeoutMs) throws IOException {
         byte[] payload = readPacketOfType(Protocol18.S2C_BLOCK_CHANGE, timeoutMs);
         ByteBuf buffer = Unpooled.wrappedBuffer(payload);
@@ -516,6 +585,38 @@ final class TestClient18 implements AutoCloseable {
             }
         }
         throw new IOException("Timed out waiting for an item spawn with data " + data);
+    }
+
+    /**
+     * Reads a Spawn Entity (0x0E) of the given object type (e.g. 70 = falling
+     * block), returning {entityId, type, x, y, z, objectData, vx, vy, vz}.
+     */
+    int[] readSpawnObjectOfType(int objectType, long timeoutMs) throws IOException {
+        long deadline = System.currentTimeMillis() + timeoutMs;
+        while (System.currentTimeMillis() < deadline) {
+            byte[] payload = readPacketOfType(Protocol18.S2C_SPAWN_ENTITY,
+                    Math.max(1, deadline - System.currentTimeMillis()));
+            ByteBuf buffer = Unpooled.wrappedBuffer(payload);
+            ByteBufOps.readVarInt(buffer); // packet id
+            int entityId = ByteBufOps.readVarInt(buffer);
+            int type = buffer.readByte();
+            int x = buffer.readInt();
+            int y = buffer.readInt();
+            int z = buffer.readInt();
+            buffer.readByte(); // pitch
+            buffer.readByte(); // yaw
+            int data = buffer.readInt();
+            int vx = 0, vy = 0, vz = 0;
+            if (data != 0) {
+                vx = buffer.readShort();
+                vy = buffer.readShort();
+                vz = buffer.readShort();
+            }
+            if (type == objectType) {
+                return new int[]{entityId, type, x, y, z, data, vx, vy, vz};
+            }
+        }
+        throw new IOException("Timed out waiting for a spawn of object type " + objectType);
     }
 
     /** Reads a Collect Item packet, returning {collectedEntityId, collectorEntityId}. */
