@@ -209,6 +209,11 @@ final class TestClient18 implements AutoCloseable {
         throw new IOException("Timed out waiting for position packet");
     }
 
+    /** Raw frame access for diagnostics: one framed packet body (id included). */
+    byte[] readPacketForDiagnostics() throws IOException {
+        return readPacket();
+    }
+
     /** Reads packets until one with the expected id arrives (deadline-bounded). */
     byte[] readPacketOfType(int expectedId, long timeoutMs) throws IOException {
         long deadline = System.currentTimeMillis() + timeoutMs;
