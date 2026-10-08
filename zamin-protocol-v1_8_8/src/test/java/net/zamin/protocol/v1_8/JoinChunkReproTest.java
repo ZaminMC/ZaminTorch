@@ -71,6 +71,7 @@ class JoinChunkReproTest {
             }
         }
         ByteBuf packet = Unpooled.wrappedBuffer(wireChunk);
+        ByteBufOps.readVarInt(packet); // the captured frame INCLUDES the packet id
         int x = packet.readInt();
         int z = packet.readInt();
         boolean groundUp = packet.readBoolean();

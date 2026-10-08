@@ -143,11 +143,11 @@ class ChestIntegrationTest extends ProtocolTestBase {
             assertEquals(0, removal[3], "the chest block is gone");
             // The block's own drop comes first (chest drops itself), then the spill.
             int[] chestDrop = client.readSpawnItem(10_000);
-            assertEquals(1, chestDrop[1], "the block drop is an item entity");
+            assertEquals(Protocol18.OBJECT_ITEM, chestDrop[1], "the block drop is an item entity");
             assertEquals(CHEST, chestDrop[5], "the chest itself dropped");
             client.readItemMetadata(10_000);
             int[] spill = client.readSpawnItem(10_000);
-            assertEquals(1, spill[1], "the spill is an item entity");
+            assertEquals(Protocol18.OBJECT_ITEM, spill[1], "the spill is an item entity");
             assertEquals(DIRT, spill[5], "the dirt spilled out");
             client.readItemMetadata(10_000);
             awaitCondition(() -> server.chests()

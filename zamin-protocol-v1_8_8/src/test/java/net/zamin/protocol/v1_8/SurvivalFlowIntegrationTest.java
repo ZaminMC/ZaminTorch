@@ -27,15 +27,17 @@ class SurvivalFlowIntegrationTest extends ProtocolTestBase {
         return server.playerRegistry().byName(name).orElseThrow();
     }
 
-    /** Chases the one live drop like a real player: waits for it to settle, walks to it. */
-    private void walkToTheDrop(TestClient18 client) throws Exception {
-        awaitCondition(() -> !server.itemEntities().all().isEmpty(), "drop exists");
+    /** Chases the wire-declared drop like a real player: waits for it to settle, walks to it. */
+    private void walkToTheDrop(TestClient18 client, int[] spawn) throws Exception {
+        int entityId = spawn[0];
+        // Settle check is filtered by the entity id we already read from the
+        // wire: the engine list may gain or lose other entities concurrently,
+        // so an index-based peek here raced with removals (the old get(0)).
         awaitCondition(() -> server.itemEntities().all().stream()
-                .allMatch(net.zamin.engine.entity.ItemEntity::onGround), "drop settled");
-        var drop = server.itemEntities().all().get(0).position();
+                .anyMatch(e -> e.entityId() == entityId && e.onGround()), "the drop settled");
         // Stand where the drop rests: a real client falls into the mined hole
         // (gravity), which is what brings the item into pickup range.
-        client.sendPosition(drop.x(), drop.y() - 0.125, drop.z(), true);
+        client.sendPosition(spawn[2] / 32.0, spawn[3] / 32.0 - 0.125, spawn[4] / 32.0, true);
     }
 
     @Test
@@ -62,7 +64,7 @@ class SurvivalFlowIntegrationTest extends ProtocolTestBase {
 
             // The drop arrives as a Spawn Entity (type 1 = item, objectData = dirt).
             int[] spawn = client.readSpawnItem(10_000);
-            assertEquals(1, spawn[1]);
+            assertEquals(Protocol18.OBJECT_ITEM, spawn[1]); // object 2 = Item (boat-era literal retired)
             assertEquals(3, spawn[5]); // objectData: legacy dirt id
             int itemEntityId = spawn[0];
             assertTrue(spawn[6] != 0 || spawn[7] != 0 || spawn[8] != 0,
@@ -74,7 +76,7 @@ class SurvivalFlowIntegrationTest extends ProtocolTestBase {
             assertEquals(1, meta[2]); // one unit
 
             // --- walk onto the item and collect it ---
-            walkToTheDrop(client);
+            walkToTheDrop(client, spawn);
             int[] collect = client.readCollectItem(15_000);
             assertEquals(itemEntityId, collect[0]);
             assertTrue(collect[1] > 0, "collector is a known wire entity");
@@ -98,15 +100,15 @@ class SurvivalFlowIntegrationTest extends ProtocolTestBase {
             Thread.sleep(950); // dirt by hand: 15 ticks nominal (750ms)
             client.sendDigging(2, 2, 4, 2, 1);
             client.readBlockChangeAt(2, 4, 2, 0, 10_000); // air
-            client.readSpawnItem(10_000);   // drop
+            int[] redropped = client.readSpawnItem(10_000); // drop
             client.readItemMetadata(10_000);
-            walkToTheDrop(client);
+            walkToTheDrop(client, redropped);
             client.readCollectItem(15_000);
             client.readWindowItems(15_000); // inventory holds 1 dirt again
 
             client.sendDigging(4, 0, 0, 0, 0); // Q: drop one held item
             int[] thrown = client.readSpawnItem(10_000);
-            assertEquals(1, thrown[1]);
+            assertEquals(Protocol18.OBJECT_ITEM, thrown[1]); // object 2 = Item
             assertTrue(thrown[0] != itemEntityId, "new entity id for the thrown stack");
             int[] emptied = client.readWindowItems(10_000);
             assertEquals(-1, emptied[2]); // hotbar empty after the throw
@@ -153,7 +155,7 @@ class SurvivalFlowIntegrationTest extends ProtocolTestBase {
             // Wire order mirrors the tick order: commit -> drops -> durability
             // wear. The harvested drop is cobblestone (legacy 4), not stone.
             int[] spawn = client.readSpawnItem(10_000);
-            assertEquals(1, spawn[1]);
+            assertEquals(Protocol18.OBJECT_ITEM, spawn[1]); // object 2 = Item (boat-era literal retired)
             assertEquals(4, spawn[5]);
             client.readItemMetadata(10_000);
 
@@ -162,7 +164,7 @@ class SurvivalFlowIntegrationTest extends ProtocolTestBase {
             assertEquals(270, worn[3]);
             assertEquals(1, worn[5], "one dig wears the wooden pickaxe by one unit");
 
-            walkToTheDrop(client);
+            walkToTheDrop(client, spawn);
             client.readCollectItem(15_000);
             int[] picked = client.readWindowItems(15_000);
             assertEquals(270, picked[3]); // the pickaxe is still held...
