@@ -86,8 +86,11 @@ final class Protocol18 {
     /** Easy difficulty: hunger behaves, starvation cannot kill (floor 10). */
     static final int DIFFICULTY_EASY = 1;
 
-    // Object types of the Spawn Entity packet (protocol 47)
-    static final int OBJECT_ITEM = 1;
+    // Object types of the Spawn Entity packet (protocol 47, community
+    // entities.json): 1 = Boat, 2 = Item ("Dropped item") — the item drop's
+    // objectData = legacy item id | (damage << 16), announced like every
+    // non-zero objectData with a velocity triple.
+    static final int OBJECT_ITEM = 2;
     /** Falling block (community entities.json FallingSand): objectData = legacy id | (metadata << 12). */
     static final int OBJECT_FALLING_BLOCK = 70;
 
