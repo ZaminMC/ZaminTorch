@@ -147,9 +147,10 @@ public final class ProjectileManager {
 
     /** One physics pass over every projectile. Tick-thread context. */
     public void tick() {
-        Iterator<ProjectileEntity> iterator = projectiles.iterator();
-        while (iterator.hasNext()) {
-            ProjectileEntity projectile = iterator.next();
+        // Backward index walk: removals mid-tick (shatter, hit, expiry) shift
+        // nothing the loop still needs, and a listener re-entry cannot CME.
+        for (int i = projectiles.size() - 1; i >= 0; i--) {
+            ProjectileEntity projectile = projectiles.get(i);
             if (projectile.inGround()) {
                 projectile.integrate(DRAG, ARROW_GRAVITY); // only the stick clock runs
                 if (projectile.ticksInGround() >= ARROW_GROUND_TICKS) {
@@ -157,23 +158,30 @@ public final class ProjectileManager {
                 }
                 continue;
             }
-            // Two substeps per tick: a full-draw arrow crosses ~3 blocks; the
-            // midpoint sample halves the worst-case tunneling window.
-            boolean resolved = false;
-            for (int substep = 0; substep < 2 && !resolved; substep++) {
-                projectile.integrate(DRAG, gravityOf(projectile.kind()));
-                resolved = step(projectile);
+            // One historical step per tick (drag 0.99, gravity 0.05/0.03),
+            // then collisions sampled at the midpoint AND the endpoint — in
+            // flight order (midpoint first): a full-draw arrow crosses ~3
+            // blocks, and the midpoint halves the worst-case tunneling window
+            // without doubling the physics.
+            Position before = projectile.position();
+            projectile.integrate(DRAG, gravityOf(projectile.kind()));
+            Position after = projectile.position();
+            Position midpoint = new Position(
+                    (before.x() + after.x()) / 2.0,
+                    (before.y() + after.y()) / 2.0,
+                    (before.z() + after.z()) / 2.0);
+            if (resolveCollisions(projectile, midpoint)
+                    || resolveCollisions(projectile, after)) {
+                continue;
             }
-            if (!resolved) {
-                for (Listener listener : listeners) {
-                    listener.onProjectileMoved(projectile);
-                }
-                boolean expired = projectile.kind() == ProjectileEntity.Kind.ARROW
-                        ? projectile.age() >= ARROW_GROUND_TICKS
-                        : projectile.age() >= THROWABLE_AGE_TICKS;
-                if (expired) {
-                    remove(projectile, "expired");
-                }
+            for (Listener listener : listeners) {
+                listener.onProjectileMoved(projectile);
+            }
+            boolean expired = projectile.kind() == ProjectileEntity.Kind.ARROW
+                    ? projectile.age() >= ARROW_GROUND_TICKS
+                    : projectile.age() >= THROWABLE_AGE_TICKS;
+            if (expired) {
+                remove(projectile, "expired");
             }
         }
     }
@@ -183,11 +191,11 @@ public final class ProjectileManager {
     }
 
     /**
-     * One collision substep: entity hits first (the faster resolution), then
-     * blocks. Returns true when the projectile is resolved (removed or landed).
+     * Collisions at one sample point: entity hits first (the faster
+     * resolution), then blocks. Returns true when the projectile is resolved
+     * (removed or landed).
      */
-    private boolean step(ProjectileEntity projectile) {
-        Position point = projectile.position();
+    private boolean resolveCollisions(ProjectileEntity projectile, Position point) {
         // --- entity hit -------------------------------------------------------
         MobEntity mob = hits.mobAt(point);
         if (mob != null && !mob.dead()

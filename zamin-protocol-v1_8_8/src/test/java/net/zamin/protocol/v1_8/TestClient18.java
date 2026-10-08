@@ -491,6 +491,53 @@ final class TestClient18 implements AutoCloseable {
         return new String[]{name, String.valueOf(x), String.valueOf(y), String.valueOf(z)};
     }
 
+    /** Sends the Entity Action posture gesture (0 start-sneak, 2 start-sprint...). */
+    void sendEntityAction(int action) throws IOException {
+        ByteBuf body = Unpooled.buffer(12);
+        ByteBufOps.writeVarInt(body, Protocol18.C2S_ENTITY_ACTION);
+        ByteBufOps.writeVarInt(body, 0); // entity id (the engine ignores it this slice)
+        ByteBufOps.writeVarInt(body, action);
+        ByteBufOps.writeVarInt(body, 0); // jump boost
+        sendPacket(bodyToBytes(body));
+    }
+
+    /**
+     * Reads a World Particles packet, returning
+     * {id, xF, yF, zF, count, data0, data1} — the position as fixed ×32 ints
+     * for assertion stability, the data payload padded with zeros.
+     */
+    int[] readWorldParticles(int particleId, long timeoutMs) throws IOException {
+        long deadline = System.currentTimeMillis() + timeoutMs;
+        while (System.currentTimeMillis() < deadline) {
+            byte[] payload = readPacketOfType(Protocol18.S2C_WORLD_PARTICLES,
+                    Math.max(1, deadline - System.currentTimeMillis()));
+            ByteBuf buffer = Unpooled.wrappedBuffer(payload);
+            ByteBufOps.readVarInt(buffer); // packet id
+            int id = buffer.readInt();
+            buffer.readBoolean(); // longDistance
+            float x = buffer.readFloat();
+            float y = buffer.readFloat();
+            float z = buffer.readFloat();
+            buffer.readFloat(); // offsetX
+            buffer.readFloat(); // offsetY
+            buffer.readFloat(); // offsetZ
+            buffer.readFloat(); // particleData
+            int count = buffer.readInt();
+            int d0 = 0, d1 = 0;
+            if (id == Protocol18.PARTICLE_ICON_CRACK) {
+                d0 = ByteBufOps.readVarInt(buffer);
+                d1 = ByteBufOps.readVarInt(buffer);
+            } else if (id == Protocol18.PARTICLE_BLOCK_CRACK) {
+                d0 = ByteBufOps.readVarInt(buffer);
+            }
+            if (particleId < 0 || id == particleId) {
+                return new int[]{id, (int) (x * 32), (int) (y * 32), (int) (z * 32),
+                        count, d0, d1};
+            }
+        }
+        throw new IOException("Timed out waiting for particle " + particleId);
+    }
+
     /** Reads a Time Update packet, returning {age, timeOfDay}. */
     long[] readTimeUpdate(long timeoutMs) throws IOException {
         byte[] payload = readPacketOfType(Protocol18.S2C_TIME_UPDATE, timeoutMs);
