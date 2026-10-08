@@ -48,6 +48,10 @@ public final class FurnaceRecipes {
             new SmeltResult(Identifier.parse("minecraft:glass"), 1, 0),
             Identifier.parse("minecraft:beef"),
             new SmeltResult(Identifier.parse("minecraft:cooked_beef"), 1, 0),
+            Identifier.parse("minecraft:porkchop"),
+            new SmeltResult(Identifier.parse("minecraft:cooked_porkchop"), 1, 0),
+            Identifier.parse("minecraft:chicken"),
+            new SmeltResult(Identifier.parse("minecraft:cooked_chicken"), 1, 0),
             Identifier.parse("minecraft:oak_log"),
             new SmeltResult(Identifier.parse("minecraft:coal"), 1, 1));
     // The oak_log entry is charcoal: output coal with damage 1, the 1.8 dataset

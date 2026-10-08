@@ -89,6 +89,15 @@ public interface EngineBridge {
      */
     void performRespawn(PlayerSession session);
 
+    /**
+     * A player attacked an entity (Use Entity 0x02, mouse = 1 attack). The
+     * engine validates reach and computes the damage on the simulation
+     * context; knockback, hurt/death events and loot follow from the mob
+     * system. Unknown or out-of-reach targets are silently refused (the
+     * server-side rule the historical client relied on).
+     */
+    void attackEntity(PlayerSession session, int targetEntityId);
+
     /** Result of {@link #joinRequest}. */
     sealed interface JoinResult permits Accepted, Rejected {
     }

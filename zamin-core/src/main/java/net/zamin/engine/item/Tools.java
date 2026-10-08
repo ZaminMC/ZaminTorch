@@ -41,4 +41,40 @@ public final class Tools {
         // necessarily precedes any item lookup) and never mutated afterwards.
         return Optional.ofNullable(SPECS.get(itemType.identifier()));
     }
+
+    /**
+     * The historical 1.8 melee attack damage of a held item (EntityPlayer
+     * attack vs. living entities): the bare hand deals 1, swords and axes
+     * carry their material's bonus. Values per the canonical 1.8 ItemSword /
+     * ItemAxe / ItemPickaxe / ItemSpade damage fields.
+     */
+    public static float attackDamageOf(ItemType itemType) {
+        ToolSpec spec = specOf(itemType).orElse(null);
+        if (spec == null) {
+            return 1.0f; // the bare fist (and non-tools)
+        }
+        ToolMaterial material = spec.material();
+        return switch (spec.toolClass()) {
+            case SWORD -> switch (material) {
+                case WOOD, GOLD -> 4.0f;
+                case STONE -> 5.0f;
+                case IRON -> 6.0f;
+                case DIAMOND -> 7.0f;
+            };
+            case AXE -> switch (material) {
+                case WOOD, GOLD -> 3.0f;
+                case STONE -> 4.0f;
+                case IRON -> 5.0f;
+                case DIAMOND -> 6.0f;
+            };
+            case PICKAXE -> switch (material) {
+                case WOOD, GOLD -> 2.0f;
+                case STONE -> 3.0f;
+                case IRON -> 4.0f;
+                case DIAMOND -> 5.0f;
+            };
+            case SHOVEL -> 1.5f;
+            case SHEARS -> 1.5f;
+        };
+    }
 }

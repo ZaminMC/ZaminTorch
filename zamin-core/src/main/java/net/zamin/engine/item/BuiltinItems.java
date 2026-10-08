@@ -70,6 +70,26 @@ public final class BuiltinItems {
     public static final EngineItemType COOKED_BEEF = new EngineItemType(
             Identifier.parse("minecraft:cooked_beef"), "Steak", 64);
 
+    // Mob loot (legacy ids from the community dataset: porkchop 319, cooked
+    // porkchop 320, raw chicken 365, cooked chicken 366, feather 288,
+    // leather 334, rotten flesh 367). Cooked variants smelt from the raw
+    // ones; raw chicken and rotten flesh are edible (historical risk-free
+    // slice: no poison effects yet).
+    public static final EngineItemType PORKCHOP = new EngineItemType(
+            Identifier.parse("minecraft:porkchop"), "Raw Porkchop", 64);
+    public static final EngineItemType COOKED_PORKCHOP = new EngineItemType(
+            Identifier.parse("minecraft:cooked_porkchop"), "Cooked Porkchop", 64);
+    public static final EngineItemType RAW_CHICKEN = new EngineItemType(
+            Identifier.parse("minecraft:chicken"), "Raw Chicken", 64);
+    public static final EngineItemType COOKED_CHICKEN = new EngineItemType(
+            Identifier.parse("minecraft:cooked_chicken"), "Cooked Chicken", 64);
+    public static final EngineItemType FEATHER = new EngineItemType(
+            Identifier.parse("minecraft:feather"), "Feather", 64);
+    public static final EngineItemType LEATHER = new EngineItemType(
+            Identifier.parse("minecraft:leather"), "Leather", 64);
+    public static final EngineItemType ROTTEN_FLESH = new EngineItemType(
+            Identifier.parse("minecraft:rotten_flesh"), "Rotten Flesh", 64);
+
     // Ore blocks that drop themselves (iron ore historically needs smelting).
     public static final EngineItemType COAL_ORE = new EngineItemType(
             Identifier.parse("minecraft:coal_ore"), "Coal Ore", 64);
@@ -153,6 +173,8 @@ public final class BuiltinItems {
                 DIRT, COBBLESTONE, OAK_PLANKS, OAK_LOG,
                 STICK, CRAFTING_TABLE, TORCH, FURNACE, CHEST,
                 COAL, DIAMOND, IRON_INGOT, STONE, SAND, GLASS, BEEF, COOKED_BEEF,
+                PORKCHOP, COOKED_PORKCHOP, RAW_CHICKEN, COOKED_CHICKEN,
+                FEATHER, LEATHER, ROTTEN_FLESH,
                 COAL_ORE, IRON_ORE, DIAMOND_ORE,
                 WOODEN_PICKAXE, STONE_PICKAXE, IRON_PICKAXE, DIAMOND_PICKAXE, GOLDEN_PICKAXE,
                 WOODEN_AXE, STONE_AXE, IRON_AXE, DIAMOND_AXE, GOLDEN_AXE,

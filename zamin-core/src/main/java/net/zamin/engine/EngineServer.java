@@ -15,6 +15,9 @@ import net.zamin.engine.config.EngineConfig;
 import net.zamin.engine.crafting.CraftingService;
 import net.zamin.engine.entity.ItemEntity;
 import net.zamin.engine.entity.ItemEntityManager;
+import net.zamin.engine.entity.MobEntity;
+import net.zamin.engine.entity.MobManager;
+import net.zamin.engine.entity.MobType;
 import net.zamin.engine.furnace.FurnaceBlockEntity;
 import net.zamin.engine.furnace.FurnaceDataStore;
 import net.zamin.engine.furnace.FurnaceManager;
@@ -118,15 +121,20 @@ public final class EngineServer implements Server, EngineBridge {
     private ChestManager chestManager;
     private ChestDataStore chestStore;
     private volatile ItemEntityManager itemEntities;
+    private volatile MobManager mobManager;
     private final java.util.List<WorldChangeListener> worldListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     private final java.util.List<ChatListener> chatListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     private final java.util.List<ItemEntityManager.Listener> itemListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
+    private final java.util.List<MobManager.Listener> mobListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     private final java.util.List<InventoryListener> inventoryListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     private final java.util.List<FurnaceViewListener> furnaceViewListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     private final java.util.List<SurvivalListener> survivalListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
+    private final java.util.List<TimeListener> timeListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
 
     /** Entity ids for engine-global entities (items); player wire ids stay adapter-local. */
     private static final int ENTITY_ID_BASE = 100_000;
+    /** Mob ids live in a disjoint band above the item ids (one id space, no collision). */
+    private static final int MOB_ID_BASE = ENTITY_ID_BASE + 1_000_000;
 
     public EngineServer(EngineConfig config) {
         this.config = Objects.requireNonNull(config, "config");
@@ -194,12 +202,29 @@ public final class EngineServer implements Server, EngineBridge {
                 chestStore = new ChestDataStore(java.nio.file.Path.of(
                         config.dataDir(), "worlds", config.worldName(), "chests.bin"));
                 chestManager.restoreAll(chestStore.load());
+                // Living mobs: simulation-owned population, loot flows into items.
+                MobManager mobs = new MobManager(
+                        new MobWorldQuery(),
+                        new java.util.Random(),
+                        (position, stack) -> itemEntities.spawnDropAtBlock(position, stack,
+                                ItemEntity.PICKUP_DELAY_DROP_TICKS),
+                        MOB_ID_BASE,
+                        (x, z) -> surfaceY(x, z));
+                this.mobManager = mobs;
+                mobs.addListener(new MobEventDispatch());
+                // Population builds on boot (no persistence this slice, §146
+                // pattern): the maintainer keeps it topped up while players play.
+                mobs.populateInitial(world.spawnPosition());
                 ticker.setTickHandler(() -> {
                     furnaceManager.tick(world, itemEntities);
                     chestManager.tick(world);
                     itemEntities.tick(players.all());
+                    mobs.tick(players.all(), world.timeOfDay());
                     tickFurnaceViewers();
                     tickPlayerBodies();
+                    if (world.totalTicks() % 100 == 0) {
+                        publishTimeChanged(); // smooth day cycle on every client
+                    }
                 });
                 blockInteraction = new BlockInteractionService(world, ticker, this::publishBlockChange,
                         config.gamemode(), new DropService(), itemEntities,
@@ -367,6 +392,32 @@ public final class EngineServer implements Server, EngineBridge {
     /** Registers an internal item-entity observer (e.g. the protocol adapter's sync). */
     public void addItemListener(ItemEntityManager.Listener listener) {
         itemListeners.add(listener);
+    }
+
+    /** The simulation-owned mob manager (present once the world is up). */
+    public MobManager mobs() {
+        return mobManager;
+    }
+
+    /** Registers an internal mob observer (e.g. the protocol adapter's sync). */
+    public void addMobListener(MobManager.Listener listener) {
+        mobListeners.add(listener);
+    }
+
+    /** A world-time change (the /time command, the periodic cycle sync). */
+    public interface TimeListener {
+        void onTimeChanged(long totalTicks, long timeOfDay);
+    }
+
+    /** Registers an internal time observer (e.g. the protocol adapter's sync). */
+    public void addTimeListener(TimeListener listener) {
+        timeListeners.add(listener);
+    }
+
+    private void publishTimeChanged() {
+        for (TimeListener listener : timeListeners) {
+            listener.onTimeChanged(world.totalTicks(), world.timeOfDay());
+        }
     }
 
     /** An inventory content change that observers must re-sync to the client. */
@@ -547,12 +598,59 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /**
-     * The semantic damage entry (fall, starvation; combat arrives later).
-     * Safe from any thread: the application runs on the tick thread.
+     * The semantic damage entry (fall, starvation, mob melee; player melee is
+     * {@link #attackEntity}). Safe from any thread: the application runs on the
+     * tick thread.
      */
     public void damage(PlayerSession session, float amount) {
         Objects.requireNonNull(session, "session");
         ticker.submit(() -> damageOnTick(session, amount));
+    }
+
+    /** Historical 1.8 melee reach from the eyes (the survival attack range). */
+    static final double MELEE_REACH = 3.5;
+    /** Historical attack exhaustion (one swing). */
+    private static final float ATTACK_EXHAUSTION = 0.3f;
+
+    /**
+     * A player attacked an entity (Use Entity 0x02, mouse=1): validates reach,
+     * computes damage from the held item (historical values), applies
+     * knockback along the attacker's look, and charges attack exhaustion.
+     * Safe from any thread; the application runs on the tick thread.
+     */
+    public void attackEntity(PlayerSession attacker, int targetEntityId) {
+        Objects.requireNonNull(attacker, "attacker");
+        ticker.submit(() -> {
+            if (attacker.state() != PlayerState.PLAYING || attacker.dead()
+                    || mobManager == null) {
+                return;
+            }
+            MobEntity mob = mobManager.byId(targetEntityId);
+            if (mob == null || mob.dead()) {
+                return; // already gone: nothing to hit
+            }
+            Position eye = attacker.position();
+            Position target = mob.position();
+            double dx = target.x() - eye.x();
+            double dy = target.y() - eye.y();
+            double dz = target.z() - eye.z();
+            double horizontal = Math.sqrt(dx * dx + dz * dz);
+            if (horizontal > MELEE_REACH + mob.type().width * 0.5
+                    || dy < -2.0 || dy > 4.0) {
+                return; // out of reach: the server-side refusal
+            }
+            ItemStack held = attacker.inventory().held();
+            float damage = net.zamin.engine.item.Tools.attackDamageOf(held.type());
+            // Knockback direction: attacker -> mob (the historical feel).
+            double kbYaw = Math.toDegrees(Math.atan2(-dx, dz));
+            mobManager.hurt(mob, damage, kbYaw);
+            attacker.addExhaustion(ATTACK_EXHAUSTION);
+            // Tool durability: the historical wear on a living-entity hit.
+            if (net.zamin.engine.item.Tools.specOf(held.type()).isPresent()) {
+                attacker.inventory().damageHeld(1);
+                publishInventoryChanged(attacker);
+            }
+        });
     }
 
     private void damageOnTick(PlayerSession session, float amount) {
@@ -1435,6 +1533,114 @@ public final class EngineServer implements Server, EngineBridge {
         }
     }
 
+    /**
+     * Fan-out from the simulation-owned mob system to the observer list —
+     * the same pattern the item-entity system uses (§448): the engine decides
+     * what happened, the listeners decide how it reaches clients. Zombie
+     * melee lands through the survival damage path (same thread, one owner).
+     */
+    private final class MobEventDispatch implements MobManager.Listener {
+        @Override
+        public void onMobSpawned(MobEntity mob) {
+            for (MobManager.Listener listener : mobListeners) {
+                listener.onMobSpawned(mob);
+            }
+        }
+
+        @Override
+        public void onMobMoved(MobEntity mob) {
+            for (MobManager.Listener listener : mobListeners) {
+                listener.onMobMoved(mob);
+            }
+        }
+
+        @Override
+        public void onMobHurt(MobEntity mob) {
+            for (MobManager.Listener listener : mobListeners) {
+                listener.onMobHurt(mob);
+            }
+        }
+
+        @Override
+        public void onMobDied(MobEntity mob) {
+            for (MobManager.Listener listener : mobListeners) {
+                listener.onMobDied(mob);
+            }
+        }
+
+        @Override
+        public void onMobRemoved(MobEntity mob, String reason) {
+            for (MobManager.Listener listener : mobListeners) {
+                listener.onMobRemoved(mob, reason);
+            }
+        }
+
+        @Override
+        public void onMobAttackedPlayer(MobEntity mob, PlayerSession target, float damage) {
+            for (MobManager.Listener listener : mobListeners) {
+                listener.onMobAttackedPlayer(mob, target, damage);
+            }
+            damageOnTick(target, damage); // the same-thread survival damage path
+        }
+
+        @Override
+        public void onMobSound(MobEntity mob, String soundName) {
+            for (MobManager.Listener listener : mobListeners) {
+                listener.onMobSound(mob, soundName);
+            }
+        }
+    }
+
+    /**
+     * The world queries a mob's AI and physics need, answered from the world
+     * the tick thread owns. Called only on the simulation context.
+     */
+    private final class MobWorldQuery implements MobEntity.WorldQuery {
+        @Override
+        public boolean isSolid(double x, double y, double z) {
+            return !world.getBlock(blockAt(x, y, z)).equals(world.airType());
+        }
+
+        @Override
+        public Position nearestPlayer(double x, double y, double z, double range) {
+            PlayerSession best = null;
+            double bestDistance = range * range;
+            for (PlayerSession player : players.all()) {
+                if (player.state() != PlayerState.PLAYING || player.dead()) {
+                    continue;
+                }
+                Position p = player.position();
+                double dx = p.x() - x;
+                double dy = p.y() - y;
+                double dz = p.z() - z;
+                double distance = dx * dx + dy * dy + dz * dz;
+                if (distance <= bestDistance) {
+                    bestDistance = distance;
+                    best = player;
+                }
+            }
+            return best == null ? null : best.position();
+        }
+    }
+
+    /**
+     * Topmost solid block y of a column for population rolls (-1 when the
+     * chunk is absent). All callers run on the simulation context, so a
+     * missing chunk can be generated safely.
+     */
+    private int surfaceY(int x, int z) {
+        EngineChunk chunk = world.peek(new net.zamin.api.ChunkPosition(x >> 4, z >> 4));
+        if (chunk == null) {
+            chunk = world.getOrGenerate(new net.zamin.api.ChunkPosition(x >> 4, z >> 4));
+        }
+        for (int y = EngineChunk.SECTION_COUNT * 16 - 1; y >= 0; y--) {
+            if (!chunk.getBlock(x & 15, y, z & 15).equals(world.airType())) {
+                return y;
+            }
+        }
+        return -1;
+    }
+
     /** Registers an internal chat delivery observer (e.g. the protocol adapter). */
     public void addChatListener(ChatListener listener) {
         chatListeners.add(listener);
@@ -1453,6 +1659,74 @@ public final class EngineServer implements Server, EngineBridge {
                 (sender, args) -> "pong"));
         commands.register(new CommandService.Command("give", "Give yourself an item: /give <name> [count] [metadata]",
                 this::giveCommand));
+        commands.register(new CommandService.Command("time", "Query or set the day: /time query | /time set <day|noon|night|midnight|ticks>",
+                this::timeCommand));
+        commands.register(new CommandService.Command("spawnmob", "Spawn mobs near you: /spawnmob <pig|cow|chicken|zombie> [count]",
+                this::spawnMobCommand));
+    }
+
+    /**
+     * /time query, or /time set &lt;day|noon|night|midnight|ticks&gt;: moves the
+     * world's day clock (the same value Time Update 0x03 carries). Runs on the
+     * tick thread through chat dispatch; every client hears the new time
+     * through the time listeners.
+     */
+    private String timeCommand(PlayerSession sender, String[] args) {
+        if (args.length >= 1 && args[0].equalsIgnoreCase("query")) {
+            return "Time: " + world.timeOfDay() + " / " + MobManager.DAY_LENGTH
+                    + " (total " + world.totalTicks() + ")";
+        }
+        if (args.length < 2 || !args[0].equalsIgnoreCase("set")) {
+            return "Usage: /time query | /time set <day|noon|night|midnight|ticks>";
+        }
+        long timeOfDay;
+        switch (args[1].toLowerCase(java.util.Locale.ROOT)) {
+            case "day" -> timeOfDay = 1_000;
+            case "noon" -> timeOfDay = 6_000;
+            case "night" -> timeOfDay = MobManager.NIGHT_START;
+            case "midnight" -> timeOfDay = 18_000;
+            default -> {
+                try {
+                    timeOfDay = Long.parseLong(args[1]);
+                } catch (NumberFormatException e) {
+                    return "Not a time: " + args[1];
+                }
+            }
+        }
+        if (timeOfDay < 0 || timeOfDay >= MobManager.DAY_LENGTH) {
+            return "Time must be 0.." + (MobManager.DAY_LENGTH - 1);
+        }
+        world.setTimeOfDay(timeOfDay);
+        publishTimeChanged();
+        return "Time set to " + timeOfDay;
+    }
+
+    /**
+     * /spawnmob &lt;pig|cow|chicken|zombie&gt; [count]: spawns a small group of
+     * the kind around the sender on the surface — the controlled entry point
+     * for real-client validation. Runs on the tick thread through chat dispatch.
+     */
+    private String spawnMobCommand(PlayerSession sender, String[] args) {
+        if (args.length < 1) {
+            return "Usage: /spawnmob <pig|cow|chicken|zombie> [count]";
+        }
+        MobType type = MobType.byName(args[0]);
+        if (type == null) {
+            return "Unknown mob: " + args[0];
+        }
+        int count = 1;
+        if (args.length >= 2) {
+            try {
+                count = Integer.parseInt(args[1]);
+            } catch (NumberFormatException e) {
+                return "Not a count: " + args[1];
+            }
+            if (count < 1 || count > 10) {
+                return "Count must be 1..10";
+            }
+        }
+        int spawned = mobManager.spawnGroup(type, sender.position(), count).size();
+        return "Spawned " + spawned + " x " + type.name().toLowerCase(java.util.Locale.ROOT);
     }
 
     /**
