@@ -138,8 +138,8 @@ public final class FurnaceBlockEntity {
         }
         Optional<ItemType> outType = net.zamin.engine.item.BuiltinItems.lookup(result.output());
         return outType.isPresent()
-                && out.type().equals(outType.get())
-                && out.damage() == result.damage()
+                && net.zamin.api.ItemStack.mergeable(out,
+                        new net.zamin.api.ItemStack(outType.get(), 1, result.damage()))
                 && out.count() + result.count() <= out.type().maxStackSize();
     }
 

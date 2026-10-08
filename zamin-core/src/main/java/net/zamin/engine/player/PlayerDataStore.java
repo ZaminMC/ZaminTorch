@@ -20,13 +20,15 @@ import java.util.UUID;
 import java.util.logging.Logger;
 
 /**
- * File-backed player data store ("ZPD" format, version 2), one file per player.
+ * File-backed player data store ("ZPD" format, version 3), one file per player.
  *
- * <p>Layout: magic 'Z','P','D',2 - name(string) - x(double) y(double) z(double)
+ * <p>Layout: magic 'Z','P','D',3 - name(string) - x(double) y(double) z(double)
  * - yaw(float) pitch(float) - heldSlot(varint) - slots(varint count of non-empty
  * entries; each: slot(varint) + item identifier(string) + count(varint) +
- * damage(varint)) - health(float) food(varint) saturation(float). Version 1
- * files (pre-body) load with the historical defaults (20 / 20 / 5).</p>
+ * damage(varint) + displayName(varint-length UTF-8, 0 = none)) - health(float)
+ * food(varint) saturation(float). Version 1 files (pre-body) load with the
+ * historical defaults (20 / 20 / 5); version 2 files (pre-name) load with no
+ * custom names.</p>
  *
  * <p>The same durability rules as the world store: writes are atomic (temp file
  * then atomic move), corrupt files load as absent and are preserved beside the
@@ -38,7 +40,7 @@ public final class PlayerDataStore {
     private static final int MAGIC_0 = 'Z';
     private static final int MAGIC_1 = 'P';
     private static final int MAGIC_2 = 'D';
-    private static final int FORMAT_VERSION = 2;
+    private static final int FORMAT_VERSION = 3;
 
     private final Path directory;
 
@@ -71,6 +73,7 @@ public final class PlayerDataStore {
                     writeString(out, stack.item().toString());
                     writeVarInt(out, stack.count());
                     writeVarInt(out, stack.damage());
+                    writeOptionalString(out, stack.displayName());
                 }
                 out.writeFloat(snapshot.health());
                 writeVarInt(out, snapshot.food());
@@ -93,7 +96,7 @@ public final class PlayerDataStore {
                 throw new IOException("Not a ZPD file");
             }
             int version = in.readByte();
-            if (version != FORMAT_VERSION) {
+            if (version < 1 || version > FORMAT_VERSION) {
                 throw new IOException("Unsupported ZPD version: " + version);
             }
             String name = readString(in);
@@ -108,7 +111,8 @@ public final class PlayerDataStore {
                 Identifier item = Identifier.parse(readString(in));
                 int count = readVarInt(in);
                 int damage = readVarInt(in);
-                stacks.add(new PlayerSnapshot.SlotStack(slot, item, count, damage));
+                String displayName = version >= 3 ? readOptionalString(in) : null;
+                stacks.add(new PlayerSnapshot.SlotStack(slot, item, count, damage, displayName));
             }
             // Version 1 predates the body: defaults apply (the historical state
             // of every player before survival had hunger).
@@ -140,6 +144,25 @@ public final class PlayerDataStore {
 
     private Path fileOf(UUID uuid) {
         return directory.resolve(uuid + ".zpd");
+    }
+
+    /** Varint-length UTF-8; a 0 length is the "absent" marker (never null). */
+    private static void writeOptionalString(DataOutputStream out, String value) throws IOException {
+        if (value == null) {
+            writeVarInt(out, 0);
+            return;
+        }
+        writeString(out, value);
+    }
+
+    private static String readOptionalString(DataInputStream in) throws IOException {
+        int length = readVarInt(in);
+        if (length == 0) {
+            return null;
+        }
+        byte[] bytes = new byte[length];
+        in.readFully(bytes);
+        return new String(bytes, StandardCharsets.UTF_8);
     }
 
     private static void writeString(DataOutputStream out, String value) throws IOException {

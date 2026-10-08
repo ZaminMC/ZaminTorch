@@ -21,12 +21,13 @@ import java.util.Optional;
 import java.util.logging.Logger;
 
 /**
- * File-backed furnace state ("ZFD" format, version 1), one file per world.
+ * File-backed furnace state ("ZFD" format, version 2), one file per world.
  *
  * <p>Layout: magic 'Z','F','D',1 - furnaces(varint count; each: x(i32) y(i32)
  * z(i32) - burnRemaining(varint) burnTotal(varint) cookTime(varint) - slots(3
  * entries; each: present(u8) then item identifier(string) + count(varint) +
- * damage(varint))).</p>
+ * damage(varint) + displayName(varint-length UTF-8, 0 = none)). Version 1
+ * files load unchanged (no custom names).</p>
  *
  * <p>The same durability rules as the world and player stores: writes are
  * atomic (temp file then atomic move), corrupt files load as absent and are
@@ -41,7 +42,7 @@ public final class FurnaceDataStore {
     private static final int MAGIC_0 = 'Z';
     private static final int MAGIC_1 = 'F';
     private static final int MAGIC_2 = 'D';
-    private static final int FORMAT_VERSION = 1;
+    private static final int FORMAT_VERSION = 2;
 
     private final Path file;
 
@@ -81,6 +82,7 @@ public final class FurnaceDataStore {
                             writeString(out, stack.type().identifier().toString());
                             writeVarInt(out, stack.count());
                             writeVarInt(out, stack.damage());
+                            writeOptionalString(out, stack.displayName());
                         }
                     }
                 }
@@ -106,7 +108,7 @@ public final class FurnaceDataStore {
                 throw new IOException("Not a ZFD file");
             }
             int version = in.readByte();
-            if (version != FORMAT_VERSION) {
+            if (version < 1 || version > FORMAT_VERSION) {
                 throw new IOException("Unsupported ZFD version: " + version);
             }
             int count = readVarInt(in);
@@ -124,10 +126,12 @@ public final class FurnaceDataStore {
                         Identifier identifier = Identifier.parse(readString(in));
                         int stackCount = readVarInt(in);
                         int damage = readVarInt(in);
+                        String displayName = version >= 2 ? readOptionalString(in) : null;
                         Optional<ItemType> type = BuiltinItems.lookup(identifier);
                         if (type.isPresent()) {
                             furnace.setSlot(slot,
-                                    ItemStack.of(type.get(), stackCount).withDamage(damage));
+                                    ItemStack.of(type.get(), stackCount)
+                                            .withDamage(damage).withName(displayName));
                         } else {
                             LOGGER.warning("Saved furnace item no longer registered, dropped: "
                                     + identifier);
@@ -152,6 +156,25 @@ public final class FurnaceDataStore {
             }
             return Map.of();
         }
+    }
+
+    /** Varint-length UTF-8; a 0 length is the "absent" marker (never null). */
+    private static void writeOptionalString(DataOutputStream out, String value) throws IOException {
+        if (value == null) {
+            writeVarInt(out, 0);
+            return;
+        }
+        writeString(out, value);
+    }
+
+    private static String readOptionalString(DataInputStream in) throws IOException {
+        int length = readVarInt(in);
+        if (length == 0) {
+            return null;
+        }
+        byte[] bytes = new byte[length];
+        in.readFully(bytes);
+        return new String(bytes, java.nio.charset.StandardCharsets.UTF_8);
     }
 
     private static void writeString(DataOutputStream out, String value) throws IOException {

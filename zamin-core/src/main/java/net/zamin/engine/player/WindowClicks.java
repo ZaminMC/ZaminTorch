@@ -84,6 +84,6 @@ public final class WindowClicks {
     }
 
     public static boolean stacksMergeable(ItemStack a, ItemStack b) {
-        return a.type().equals(b.type()) && a.damage() == b.damage();
+        return ItemStack.mergeable(a, b);
     }
 }

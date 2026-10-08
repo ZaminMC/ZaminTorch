@@ -325,10 +325,7 @@ final class TestClient18 implements AutoCloseable {
                     if (id != -1) {
                         buffer.readByte();
                         buffer.readShort();
-                        int nbt = buffer.readByte();
-                        if (nbt > 0) {
-                            buffer.readBytes(new byte[nbt]);
-                        }
+                        SlotNbt.skip(buffer); // structural parse of the optional NBT
                     }
                 }
                 default -> throw new IOException("Unexpected mob metadata type " + mtype);
@@ -648,10 +645,7 @@ final class TestClient18 implements AutoCloseable {
             }
             byte stackCount = buffer.readByte();
             int damage = buffer.readShort();
-            int nbt = buffer.readByte();
-            if (nbt > 0) {
-                buffer.readBytes(new byte[nbt]); // NBT payload (tests never send any)
-            }
+            SlotNbt.skip(buffer); // structural parse of the optional NBT
             if (slot == -1) {
                 slot = i;
                 itemId = id;
@@ -680,10 +674,7 @@ final class TestClient18 implements AutoCloseable {
                 if (id != -1) {
                     count = buffer.readByte();
                     damage = buffer.readShort();
-                    int nbt = buffer.readByte();
-                    if (nbt > 0) {
-                        buffer.readBytes(new byte[nbt]);
-                    }
+                    SlotNbt.skip(buffer); // structural parse of the optional NBT
                     itemId = id;
                 }
             } else {
@@ -773,13 +764,47 @@ final class TestClient18 implements AutoCloseable {
             }
             int stackCount = buffer.readUnsignedByte();
             int damage = buffer.readShort();
-            int nbt = buffer.readByte();
-            if (nbt > 0) {
-                buffer.readBytes(new byte[nbt]);
-            }
+            SlotNbt.skip(buffer); // structural parse of the optional NBT
             table[i] = new int[]{id, stackCount, damage};
         }
         return table;
+    }
+
+    /**
+     * Reads a Window Items packet and returns each slot's display name (null
+     * when unnamed) — the display.Name assertions of the item-NBT slice.
+     * {@code names[wireSlot]} aligns with {@code table[wireSlot]}.
+     */
+    String[] readWindowSlotNames(long timeoutMs) throws IOException {
+        return readWindowSlotNames(timeoutMs, Protocol18.INVENTORY_WINDOW_ID);
+    }
+
+    String[] readWindowSlotNames(long timeoutMs, int expectedWindowId) throws IOException {
+        long deadline = System.currentTimeMillis() + timeoutMs;
+        do {
+            byte[] payload = readPacketOfType(Protocol18.S2C_WINDOW_ITEMS,
+                    Math.max(1, deadline - System.currentTimeMillis()));
+            ByteBuf buffer = Unpooled.wrappedBuffer(payload);
+            ByteBufOps.readVarInt(buffer); // packet id
+            int windowId = buffer.readByte();
+            if (windowId != expectedWindowId) {
+                readSlotTablePayload(buffer); // skip and keep draining
+                continue;
+            }
+            int count = buffer.readShort();
+            String[] names = new String[count];
+            for (int i = 0; i < count; i++) {
+                int id = buffer.readShort();
+                if (id == -1) {
+                    continue;
+                }
+                buffer.readUnsignedByte();  // count
+                buffer.readShort();         // damage
+                names[i] = SlotNbt.readDisplayName(buffer);
+            }
+            return names;
+        } while (System.currentTimeMillis() < deadline);
+        throw new IOException("Timed out waiting for window " + expectedWindowId);
     }
 
     /**
