@@ -8,6 +8,9 @@ import net.zamin.api.Rotation;
 import net.zamin.api.Server;
 import net.zamin.api.ServerState;
 import net.zamin.api.World;
+import net.zamin.engine.chest.ChestBlockEntity;
+import net.zamin.engine.chest.ChestDataStore;
+import net.zamin.engine.chest.ChestManager;
 import net.zamin.engine.config.EngineConfig;
 import net.zamin.engine.crafting.CraftingService;
 import net.zamin.engine.entity.ItemEntity;
@@ -81,6 +84,12 @@ public final class EngineServer implements Server, EngineBridge {
     private static final int FURNACE_WIRE_SLOT_MAIN_LAST = 29;
     private static final int FURNACE_WIRE_SLOT_HOTBAR_FIRST = 30;
     private static final int FURNACE_WIRE_SLOT_HOTBAR_LAST = 38;
+    /** Chest container window wire slots (protocol 47, community-verified GUI). */
+    private static final int CHEST_WIRE_SLOT_LAST = 26; // 3x9 chest slots
+    private static final int CHEST_WIRE_SLOT_MAIN_FIRST = 27;
+    private static final int CHEST_WIRE_SLOT_MAIN_LAST = 53;
+    private static final int CHEST_WIRE_SLOT_HOTBAR_FIRST = 54;
+    private static final int CHEST_WIRE_SLOT_HOTBAR_LAST = 62;
     /** Craft-all guard: even a 3x3 grid cannot chain more crafts than this. */
     private static final int CRAFT_ALL_LIMIT = 64;
     /** Wire window ids: 0 = player inventory; containers get ids from this counter (u8). */
@@ -106,6 +115,8 @@ public final class EngineServer implements Server, EngineBridge {
     private PlayerDataStore playerStore;
     private FurnaceManager furnaceManager;
     private FurnaceDataStore furnaceStore;
+    private ChestManager chestManager;
+    private ChestDataStore chestStore;
     private volatile ItemEntityManager itemEntities;
     private final java.util.List<WorldChangeListener> worldListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     private final java.util.List<ChatListener> chatListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
@@ -178,8 +189,14 @@ public final class EngineServer implements Server, EngineBridge {
                 furnaceStore = new FurnaceDataStore(java.nio.file.Path.of(
                         config.dataDir(), "worlds", config.worldName(), "furnaces.bin"));
                 furnaceManager.restoreAll(furnaceStore.load());
+                // Chest block entities: world-state containers, ZCD persistence.
+                chestManager = new ChestManager();
+                chestStore = new ChestDataStore(java.nio.file.Path.of(
+                        config.dataDir(), "worlds", config.worldName(), "chests.bin"));
+                chestManager.restoreAll(chestStore.load());
                 ticker.setTickHandler(() -> {
                     furnaceManager.tick(world, itemEntities);
+                    chestManager.tick(world);
                     itemEntities.tick(players.all());
                     tickFurnaceViewers();
                     tickPlayerBodies();
@@ -188,9 +205,12 @@ public final class EngineServer implements Server, EngineBridge {
                         config.gamemode(), new DropService(), itemEntities,
                         type -> blockRegistry.lookup(type.identifier()),
                         this::publishInventoryChanged);
-                // A survival-broken furnace spills its slots into the world first.
-                blockInteraction.setBlockBrokenListener(position ->
-                        furnaceManager.onBlockBroken(position, itemEntities));
+                // A survival-broken furnace spills its slots, and a survival-
+                // broken chest spills its 27, into the world first.
+                blockInteraction.setBlockBrokenListener(position -> {
+                    furnaceManager.onBlockBroken(position, itemEntities);
+                    chestManager.onBlockBroken(position, itemEntities);
+                });
                 CommandService commands = new CommandService();
                 registerBuiltinCommands(commands);
                 chatService = new ChatService(ticker, commands, this::publishChat);
@@ -391,6 +411,11 @@ public final class EngineServer implements Server, EngineBridge {
     /** The simulation-owned furnace block entities (present once the world is up). */
     public FurnaceManager furnaces() {
         return furnaceManager;
+    }
+
+    /** The simulation-owned chest block entities (present once the world is up). */
+    public ChestManager chests() {
+        return chestManager;
     }
 
     /** Observers of the survival body (health sync, death, respawn anchors). */
@@ -728,6 +753,7 @@ public final class EngineServer implements Server, EngineBridge {
                 accepted = switch (session.openContainerKind()) {
                     case CRAFTING_TABLE -> clickContainerWindowOnTick(session, wireSlot, button, mode);
                     case FURNACE -> clickFurnaceWindowOnTick(session, wireSlot, button, mode);
+                    case CHEST -> clickChestWindowOnTick(session, wireSlot, button, mode);
                     default -> false;
                 };
             }
@@ -735,7 +761,15 @@ public final class EngineServer implements Server, EngineBridge {
         } catch (IllegalArgumentException invalid) {
             accepted = false; // a broken click must not damage the session (§54)
         }
-        result.accept(accepted);
+        try {
+            result.accept(accepted);
+        } catch (RuntimeException brokenCallback) {
+            // The adapter's response path must never starve the tick queue or
+            // corrupt session state (§54): the confirm/cursor sends are the
+            // adapter's concern, the authoritative resync below still runs.
+            LOGGER.log(java.util.logging.Level.WARNING,
+                    "Window click callback failed for " + session.name(), brokenCallback);
+        }
         publishInventoryChanged(session);
     }
 
@@ -1009,6 +1043,108 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /**
+     * Wire slot -&gt; engine slot inside a chest container window (27-53 maps
+     * to main inventory engine slots 9-35; 54-62 to hotbar 0-8); -1 for the
+     * chest's own 27 slots.
+     */
+    private static int chestEngineSlotOf(int wireSlot) {
+        if (wireSlot >= CHEST_WIRE_SLOT_MAIN_FIRST && wireSlot <= CHEST_WIRE_SLOT_MAIN_LAST) {
+            return wireSlot - 18;            // main inventory (engine 9-35)
+        }
+        if (wireSlot >= CHEST_WIRE_SLOT_HOTBAR_FIRST && wireSlot <= CHEST_WIRE_SLOT_HOTBAR_LAST) {
+            return wireSlot - CHEST_WIRE_SLOT_HOTBAR_FIRST; // hotbar (engine 0-8)
+        }
+        return -1;
+    }
+
+    /**
+     * Click routing for the open chest container window (protocol 47
+     * community-verified GUI: 0-26 chest, 27-53 main inventory, 54-62 hotbar).
+     * Tick-thread context.
+     */
+    private boolean clickChestWindowOnTick(PlayerSession session, int wireSlot, int button,
+                                           int mode) {
+        var inventory = session.inventory();
+        var position = session.openContainerPosition();
+        var chest = position == null ? null : chestManager.peek(position);
+        if (chest == null) {
+            return false; // stale window (state discarded): rejected, resync restores
+        }
+        switch (mode) {
+            case 0 -> {
+                if (wireSlot >= 0 && wireSlot <= CHEST_WIRE_SLOT_LAST) {
+                    chest.clickSlot(wireSlot, button, inventory);
+                    return true;
+                }
+                int engineSlot = chestEngineSlotOf(wireSlot);
+                if (engineSlot >= 0) {
+                    inventory.clickSlot(engineSlot, button);
+                    return true;
+                }
+                return false;
+            }
+            case 1 -> {
+                if (wireSlot >= 0 && wireSlot <= CHEST_WIRE_SLOT_LAST) {
+                    chest.quickMoveToInventory(wireSlot, inventory);
+                    return true;
+                }
+                int engineSlot = chestEngineSlotOf(wireSlot);
+                if (engineSlot >= 0) {
+                    // Any stack moves in: a chest has no slot filters (the
+                    // historical TileEntityChest). Remainder returns to the slot.
+                    net.zamin.api.ItemStack peek = inventory.snapshot().get(engineSlot);
+                    if (peek.isEmpty()) {
+                        return false; // empty slot shift-click: nothing moves
+                    }
+                    net.zamin.api.ItemStack moving = inventory.dropFromSlot(engineSlot, true);
+                    net.zamin.api.ItemStack remainder = chest.quickMoveIn(moving);
+                    if (!remainder.isEmpty()) {
+                        inventory.pickUp(remainder); // chest full: put the rest back
+                    }
+                    return true;
+                }
+                return false;
+            }
+            case 2 -> {
+                // Number keys exchange main inventory and hotbar only; chest
+                // slots are rejected per packet (the resync restores truth).
+                int engineSlot = chestEngineSlotOf(wireSlot);
+                if (engineSlot >= net.zamin.engine.player.PlayerInventory.HOTBAR_SLOTS
+                        && button >= 0 && button < 9) {
+                    inventory.swapWithHotbar(engineSlot, button);
+                    return true;
+                }
+                return false;
+            }
+            case 3 -> {
+                return false; // middle-click clone: rejected in survival
+            }
+            case 4 -> {
+                if (wireSlot >= 0 && wireSlot <= CHEST_WIRE_SLOT_LAST) {
+                    net.zamin.api.ItemStack dropped = chest.dropFromSlot(wireSlot, button != 0);
+                    if (!dropped.isEmpty()) {
+                        throwFromPlayer(session, dropped);
+                    }
+                    return true;
+                }
+                int engineSlot = chestEngineSlotOf(wireSlot);
+                if (engineSlot >= 0) {
+                    net.zamin.api.ItemStack dropped =
+                            inventory.dropFromSlot(engineSlot, button != 0);
+                    if (!dropped.isEmpty()) {
+                        throwFromPlayer(session, dropped);
+                    }
+                    return true;
+                }
+                return false;
+            }
+            default -> {
+                return false; // drag painting (5) / unknown mode: rejected
+            }
+        }
+    }
+
+    /**
      * Wire slot -> engine inventory slot inside a container window (10-36 maps
      * to main inventory engine slots 9-35; 37-45 to hotbar 0-8); -1 for the
      * container's own result/grid slots.
@@ -1122,6 +1258,10 @@ public final class EngineServer implements Server, EngineBridge {
             openFurnaceOnTick(session, clicked, onTableOpened);
             return;
         }
+        if (current.identifier().equals(net.zamin.engine.block.BuiltinBlocks.CHEST.identifier())) {
+            openChestOnTick(session, clicked, onTableOpened);
+            return;
+        }
         if (current.identifier().equals(net.zamin.engine.block.BuiltinBlocks.CRAFTING_TABLE.identifier())) {
             openCraftingTableOnTick(session, onTableOpened);
             return;
@@ -1170,6 +1310,27 @@ public final class EngineServer implements Server, EngineBridge {
         nextContainerWindowId = nextContainerWindowId >= LAST_CONTAINER_WINDOW_ID
                 ? FIRST_CONTAINER_WINDOW_ID : nextContainerWindowId + 1;
         session.openContainerWindow(windowId, PlayerSession.ContainerKind.FURNACE, position);
+        onTableOpened.accept(windowId);
+    }
+
+    /**
+     * Opens the chest container at the clicked block: assigns the wire window
+     * id, lazily creates the block-entity state, closes any carried window
+     * state first, and reports the id for the adapter's Open Window + slot
+     * sync. The chest's 27 slots live in the world — closing the window later
+     * leaves them inside (the historical container behavior).
+     * Tick-thread context.
+     */
+    private void openChestOnTick(PlayerSession session, net.zamin.api.BlockPosition position,
+                                 java.util.function.IntConsumer onTableOpened) {
+        closeOpenContainerOnTick(session);
+        throwOverflow(session, session.crafting().returnAllTo(session.inventory()));
+
+        chestManager.getOrCreate(position);
+        int windowId = nextContainerWindowId;
+        nextContainerWindowId = nextContainerWindowId >= LAST_CONTAINER_WINDOW_ID
+                ? FIRST_CONTAINER_WINDOW_ID : nextContainerWindowId + 1;
+        session.openContainerWindow(windowId, PlayerSession.ContainerKind.CHEST, position);
         onTableOpened.accept(windowId);
     }
 
@@ -1290,18 +1451,20 @@ public final class EngineServer implements Server, EngineBridge {
                 }));
         commands.register(new CommandService.Command("ping", "Check server responsiveness",
                 (sender, args) -> "pong"));
-        commands.register(new CommandService.Command("give", "Give yourself an item: /give <name> [count]",
+        commands.register(new CommandService.Command("give", "Give yourself an item: /give <name> [count] [metadata]",
                 this::giveCommand));
     }
 
     /**
-     * /give &lt;name&gt; [count]: grants the item into the player's inventory
-     * (fill order as pickup). The administrative item source until crafting and
-     * inventory clicks exist; runs on the tick thread through chat dispatch.
+     * /give &lt;name&gt; [count] [metadata]: grants the item into the player's
+     * inventory (fill order as pickup). The optional metadata is the
+     * historical damage field's variant role — charcoal is {@code /give coal 1
+     * 1} (community items.json variant, the client names it from the value).
+     * Runs on the tick thread through chat dispatch.
      */
     private String giveCommand(PlayerSession sender, String[] args) {
         if (args.length < 1) {
-            return "Usage: /give <item> [count]";
+            return "Usage: /give <item> [count] [metadata]";
         }
         String rawName = args[0];
         String name = rawName.contains(":") ? rawName : "minecraft:" + rawName;
@@ -1321,12 +1484,29 @@ public final class EngineServer implements Server, EngineBridge {
                 return "Count must be 1.." + type.maxStackSize() + " for " + type.displayName();
             }
         }
-        net.zamin.api.ItemStack granted = net.zamin.api.ItemStack.of(type, count);
+        int metadata = 0;
+        if (args.length >= 3) {
+            try {
+                metadata = Integer.parseInt(args[2]);
+            } catch (NumberFormatException e) {
+                return "Not a metadata value: " + args[2];
+            }
+            if (metadata < 0 || metadata > net.zamin.api.ItemStack.MAX_DAMAGE) {
+                return "Metadata must be 0.." + net.zamin.api.ItemStack.MAX_DAMAGE;
+            }
+        }
+        net.zamin.api.ItemStack granted;
+        try {
+            granted = net.zamin.api.ItemStack.of(type, count).withDamage(metadata);
+        } catch (IllegalArgumentException invalidVariant) {
+            return "Cannot grant that metadata: " + invalidVariant.getMessage();
+        }
         net.zamin.api.ItemStack remainder = sender.inventory().pickUp(granted);
         publishInventoryChanged(sender);
         int given = count - remainder.count();
+        String variantName = metadata != 0 ? " (metadata " + metadata + ")" : "";
         return remainder.isEmpty()
-                ? "Given " + given + " x " + type.displayName()
+                ? "Given " + given + " x " + type.displayName() + variantName
                 : "Inventory full: gave " + given + " of " + count;
     }
 
@@ -1354,6 +1534,9 @@ public final class EngineServer implements Server, EngineBridge {
                 worldStorage.save(world.snapshotDeltas());
                 if (furnaceStore != null && furnaceManager != null) {
                     furnaceStore.save(furnaceManager.snapshot());
+                }
+                if (chestStore != null && chestManager != null) {
+                    chestStore.save(chestManager.snapshot());
                 }
             } finally {
                 saved.countDown();

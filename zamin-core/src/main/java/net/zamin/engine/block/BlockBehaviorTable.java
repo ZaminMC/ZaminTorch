@@ -82,6 +82,18 @@ public final class BlockBehaviorTable {
                     new BlockBehavior(2.5, true, false, "wood", 0,
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:chest"), 1)))),
 
+            // Community data (pc/1.8 blocks.json): sand hardness 0.5, material
+            // dirt, no tool requirement, drops itself (metadata 0: normal sand;
+            // red sand is variant 1, /give reachable). Glass hardness 0.3, no
+            // material, drops nothing — the historical shatter (only silk touch
+            // returned glass, which is a later slice).
+            Map.entry(Identifier.parse("minecraft:sand"),
+                    new BlockBehavior(0.5, true, false, "dirt", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:sand"), 1)))),
+
+            Map.entry(Identifier.parse("minecraft:glass"),
+                    new BlockBehavior(0.3, true, false, null, 0, List.of())),
+
             Map.entry(Identifier.parse("minecraft:coal_ore"),
                     new BlockBehavior(3.0, true, true, "rock", 1,
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:coal"), 1)))),

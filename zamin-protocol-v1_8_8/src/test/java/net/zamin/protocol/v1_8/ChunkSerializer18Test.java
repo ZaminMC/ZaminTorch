@@ -13,6 +13,12 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+/**
+ * The protocol 47 chunk payload layout, pinned to the community-verified
+ * packing (prismarine-chunk pc/1.8 is the real client's parser): LE u16
+ * {@code (id << 4) | metadata} per block, y->z->x order, and the three arrays
+ * grouped across the chunk (all blocks, all block light, all sky light).
+ */
 class ChunkSerializer18Test {
 
     private static FrozenBlockRegistry registry;
@@ -39,29 +45,42 @@ class ChunkSerializer18Test {
     }
 
     @Test
-    void serializedSectionCarriesLegacyIdsInProtocolOrder() {
+    void serializedSectionCarriesPackedStateIdsInProtocolOrder() {
         EngineChunk chunk = flatChunk(2, -3);
         byte[] data = ChunkSerializer18.serialize(chunk, true);
-        // Section (8192) + biome array (256).
-        assertEquals(8192 + 256, data.length);
+        // One section: 8192 block bytes + 2048 block light + 2048 sky light,
+        // then the biome array (256).
+        assertEquals(12288 + 256, data.length);
 
-        // Protocol order is y outer, then z, then x: index = y*256 + z*16 + x.
-        // (x=0, z=0): y=0 bedrock, y=1 dirt, y=4 grass, y=5 air.
-        assertEquals(7, data[0] & 0xFF, "bedrock at y=0");
-        assertEquals(3, data[256] & 0xFF, "dirt at y=1");
-        assertEquals(2, data[1024] & 0xFF, "grass at y=4");
-        assertEquals(0, data[1280] & 0xFF, "air above ground");
+        // Protocol order is y outer, then z, then x: block index =
+        // y*256 + z*16 + x; each block is a little-endian u16
+        // (id << 4) | metadata at offset index*2.
+        // (x=0, z=0): y=0 bedrock(7), y=1 dirt(3), y=4 grass(2), y=5 air(0).
+        assertEquals(7, readStateId(data, 0) >> 4, "bedrock id at y=0");
+        assertEquals(3, readStateId(data, 256) >> 4, "dirt id at y=1");
+        assertEquals(2, readStateId(data, 1024) >> 4, "grass id at y=4");
+        assertEquals(0, readStateId(data, 1280) >> 4, "air above ground");
+        assertEquals(0, readStateId(data, 256) & 0xF, "metadata zero this slice");
 
-        // Block light region is zero, skylight region fully lit.
+        // Grouped layout: block light region zero, skylight region fully lit,
+        // biome array right after the skylight region.
+        boolean blockLightZero = true;
+        for (int i = 8192; i < 8192 + 2048; i++) {
+            if (data[i] != 0) {
+                blockLightZero = false;
+                break;
+            }
+        }
+        assertTrue(blockLightZero, "block light must be zero");
         boolean skylightLit = true;
-        for (int i = 4096 + 2048; i < 8192; i++) {
+        for (int i = 10240; i < 12288; i++) {
             if (data[i] != (byte) 0xFF) {
                 skylightLit = false;
                 break;
             }
         }
         assertTrue(skylightLit, "skylight must be fully lit (no lighting simulation yet)");
-        assertEquals(1, data[8192] & 0xFF, "biome plains");
+        assertEquals(1, data[12288] & 0xFF, "biome plains");
     }
 
     @Test
@@ -71,5 +90,10 @@ class ChunkSerializer18Test {
         assertEquals(0, ChunkSerializer18.sectionBitmask(chunk));
         byte[] data = ChunkSerializer18.serialize(chunk, true);
         assertEquals(256, data.length);
+    }
+
+    private static int readStateId(byte[] data, int blockIndex) {
+        int offset = blockIndex * 2;
+        return ((data[offset] & 0xFF) | ((data[offset + 1] & 0xFF) << 8));
     }
 }

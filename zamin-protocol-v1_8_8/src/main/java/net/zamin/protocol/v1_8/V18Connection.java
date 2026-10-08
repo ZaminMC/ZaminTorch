@@ -441,7 +441,13 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         engine.closeWindow(player, windowId);
     }
 
-    /** Skips the 1.8 slot encoding the click claims to carry. */
+    /**
+     * Skips the 1.8 slot encoding the click claims to carry. The NBT marker is
+     * one byte (0 = none, per vanilla {@code readCompoundTag}); a non-zero
+     * marker starts a full NBT compound the engine does not need — the claimed
+     * slot is the click packet's final field and the transport is
+     * length-framed, so leaving it unread is exact and safe.
+     */
     private static void readClaimedSlot(ByteBuf packet) {
         short id = packet.readShort();
         if (id == -1) {
@@ -449,9 +455,8 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         }
         packet.readByte();              // count
         packet.readShort();             // damage
-        int nbt = packet.readShort();   // NBT length (-1 = none)
-        if (nbt > 0) {
-            packet.skipBytes(nbt);
+        if (packet.isReadable()) {
+            packet.readByte();          // NBT marker: 0 = none
         }
     }
 
@@ -550,11 +555,10 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 // The engine recorded the container kind before dispatching the
                 // callback; the adapter picks the matching Open Window flavor.
                 Channel channel = adapter.channelOf(this);
-                if (player.openContainerKind()
-                        == net.zamin.engine.player.PlayerSession.ContainerKind.FURNACE) {
-                    sendFurnaceWindow(channel, player, windowId);
-                } else {
-                    sendCraftingTableWindow(channel, player, windowId);
+                switch (player.openContainerKind()) {
+                    case FURNACE -> sendFurnaceWindow(channel, player, windowId);
+                    case CHEST -> sendChestWindow(channel, player, windowId);
+                    default -> sendCraftingTableWindow(channel, player, windowId);
                 }
             });
         } catch (IllegalArgumentException outOfWorld) {
@@ -601,6 +605,24 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeString(out, Protocol18.FURNACE_WINDOW_TYPE);
         ByteBufOps.writeString(out, Protocol18.FURNACE_WINDOW_TITLE);
         out.writeByte(3); // the GUI's own slots: input, fuel, output
+        channel.writeAndFlush(out);
+        sendContainerWindowItems(channel, windowId, player);
+    }
+
+    /**
+     * Open Window (0x2D) for the chest, followed by the authoritative
+     * 63-slot contents. Called on the tick thread by the engine's open dispatch.
+     */
+    private void sendChestWindow(Channel channel, PlayerSession player, int windowId) {
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(48);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_OPEN_WINDOW);
+        out.writeByte(windowId);
+        ByteBufOps.writeString(out, Protocol18.CHEST_WINDOW_TYPE);
+        ByteBufOps.writeString(out, Protocol18.CHEST_WINDOW_TITLE);
+        out.writeByte(27); // the GUI's own slots: 3 rows of 9
         channel.writeAndFlush(out);
         sendContainerWindowItems(channel, windowId, player);
     }
@@ -880,7 +902,10 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBuf out = Unpooled.buffer(16);
         ByteBufOps.writeVarInt(out, Protocol18.S2C_BLOCK_CHANGE);
         ByteBufOps.writePackedBlockPosition(out, position.x(), position.y(), position.z());
-        ByteBufOps.writeVarInt(out, legacy); // metadata 0 -> legacy id alone
+        // Protocol 47 carries the packed block state (id << 4) | metadata —
+        // community-verified against the real client's registry, where
+        // blocksByStateId[54] is dirt and blocksByStateId[864] is the chest.
+        ByteBufOps.writeVarInt(out, ChunkSerializer18.packedStateId(type));
         channel.writeAndFlush(out);
     }
 
@@ -950,7 +975,48 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             }
             return;
         }
+        if (player.openContainerKind()
+                == net.zamin.engine.player.PlayerSession.ContainerKind.CHEST) {
+            var position = player.openContainerPosition();
+            var chest = position == null ? null : engine.chests().peek(position);
+            if (chest != null) {
+                sendChestWindowItems(channel, windowId, chest, player);
+            }
+            return;
+        }
         sendCraftingTableWindowItems(channel, windowId, player);
+    }
+
+    /**
+     * Full authoritative sync of the chest window: 63 slots — 0-26 the chest's
+     * own state (community-verified layout), 27-53 main inventory (engine
+     * 9-35), 54-62 hotbar (engine 0-8) — the viewer's inventory. Any thread.
+     */
+    private void sendChestWindowItems(Channel channel, int windowId,
+                                      net.zamin.engine.chest.ChestBlockEntity chest,
+                                      PlayerSession player) {
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(96);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_WINDOW_ITEMS);
+        out.writeByte(windowId);
+        out.writeShort(Protocol18.CHEST_WINDOW_SLOTS);
+        var chestSlots = chest.snapshotSlots();
+        java.util.List<net.zamin.api.ItemStack> inventory =
+                player == null ? java.util.List.of() : player.inventory().snapshot();
+        for (int wireSlot = 0; wireSlot < Protocol18.CHEST_WINDOW_SLOTS; wireSlot++) {
+            net.zamin.api.ItemStack stack;
+            if (wireSlot <= Protocol18.CHEST_WIRE_SLOT_LAST) {
+                stack = chestSlots[wireSlot];
+            } else if (wireSlot <= Protocol18.CHEST_WIRE_SLOT_MAIN_LAST) {
+                stack = inventory.get(wireSlot - 18); // main inventory: engine 9-35
+            } else {
+                stack = inventory.get(wireSlot - Protocol18.CHEST_WIRE_SLOT_HOTBAR_BASE);
+            }
+            writeSlot(out, stack);
+        }
+        channel.writeAndFlush(out);
     }
 
     /**
@@ -1045,8 +1111,12 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     }
 
     /**
-     * 1.8 slot encoding (community-verified): i16 block/item id, -1 = empty;
-     * otherwise i8 count, i16 damage, optional NBT as i16 length (-1 = none).
+     * 1.8 slot encoding (community-verified against the real client's parser,
+     * protodef's optionalNbt + vanilla {@code PacketBuffer.writeItemStackToBuffer}):
+     * i16 block/item id, -1 = empty; otherwise i8 count, i16 damage, then the
+     * NBT marker — a single 0x00 byte (TAG_End) when the stack carries no
+     * compound, or a full NBT payload starting with its type byte. Writing the
+     * historical short -1 here desyncs every real parser (mineflayer caught it).
      */
     private static void writeSlot(ByteBuf out, net.zamin.api.ItemStack stack) {
         if (stack == null || stack.isEmpty()) {
@@ -1060,8 +1130,8 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         }
         out.writeShort(legacy);
         out.writeByte(stack.count());
-        out.writeShort(stack.damage()); // durability damage rides the historical damage field
-        out.writeShort(-1); // no NBT
+        out.writeShort(stack.damage()); // durability wear / variant metadata
+        out.writeByte(0); // no NBT: the single TAG_End marker
     }
 
     // ------------------------------------------------------------------ item entity sync

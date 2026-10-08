@@ -56,6 +56,14 @@ public final class BuiltinItems {
     public static final EngineItemType STONE = new EngineItemType(
             Identifier.parse("minecraft:stone"), "Stone", 64);
 
+    // Variant-metadata items (community items.json: coal damage 1 = charcoal,
+    // sand damage 1 = red sand) and the smelting result of sand. Glass places
+    // the glass block like any block item (legacy ids: sand 12, glass 20).
+    public static final EngineItemType SAND = new EngineItemType(
+            Identifier.parse("minecraft:sand"), "Sand", 64);
+    public static final EngineItemType GLASS = new EngineItemType(
+            Identifier.parse("minecraft:glass"), "Glass", 64);
+
     // Edible items (community foods.json): raw beef smelts into steak.
     public static final EngineItemType BEEF = new EngineItemType(
             Identifier.parse("minecraft:beef"), "Beef", 64);
@@ -144,7 +152,7 @@ public final class BuiltinItems {
         for (EngineItemType type : new EngineItemType[] {
                 DIRT, COBBLESTONE, OAK_PLANKS, OAK_LOG,
                 STICK, CRAFTING_TABLE, TORCH, FURNACE, CHEST,
-                COAL, DIAMOND, IRON_INGOT, STONE, BEEF, COOKED_BEEF,
+                COAL, DIAMOND, IRON_INGOT, STONE, SAND, GLASS, BEEF, COOKED_BEEF,
                 COAL_ORE, IRON_ORE, DIAMOND_ORE,
                 WOODEN_PICKAXE, STONE_PICKAXE, IRON_PICKAXE, DIAMOND_PICKAXE, GOLDEN_PICKAXE,
                 WOODEN_AXE, STONE_AXE, IRON_AXE, DIAMOND_AXE, GOLDEN_AXE,

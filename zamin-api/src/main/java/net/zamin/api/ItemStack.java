@@ -13,17 +13,26 @@ import java.util.Objects;
  * ({@link #EMPTY}) exists; every subsystem must treat emptiness through
  * {@link #isEmpty()}, never by inventing null conventions.</p>
  *
- * <p>Durability damage travels with the stack (the historical wire carries it
- * per slot and per item entity), so it is part of the value: a worn pickaxe
- * and a fresh one are different stacks. Non-durable items always carry
- * {@code damage == 0}.</p>
+ * <p>The {@code damage} value is the historical 1.8 stack field (vanilla NBT
+ * names it {@code Damage}) and is dual-role, exactly like the wire that carries
+ * it as one i16 per slot and per item entity: on durability-bound items it is
+ * accumulated wear (a worn pickaxe and a fresh one are different stacks), on
+ * everything else it is the item's variant metadata (charcoal is coal with
+ * damage 1, red sand is sand with damage 1 — the client resolves the variant
+ * name itself from the same field). A stack of coal and a stack of charcoal
+ * are therefore different stacks and never merge, matching the historical
+ * {@code ItemStack.areItemStacksEqual} rules.</p>
  *
  * @param type   the item identity; {@code null} only for the canonical empty stack
  * @param count  units held; {@code 0} only for the canonical empty stack
- * @param damage accumulated durability damage; always {@code 0} for empty
- *               stacks and non-durable items
+ * @param damage durability wear (durable items) or variant metadata (all other
+ *               items); always {@code 0} for empty stacks. Non-negative i16
+ *               range, further bounded by durability where one exists
  */
 public record ItemStack(ItemType type, int count, int damage) {
+
+    /** The wire's i16 damage/metadata ceiling (the historical field width). */
+    public static final int MAX_DAMAGE = 0x7FFF;
 
     /** The single canonical empty stack (§427). */
     public static final ItemStack EMPTY = new ItemStack(null, 0);
@@ -43,14 +52,10 @@ public record ItemStack(ItemType type, int count, int damage) {
                         + " exceeds max stack size " + type.maxStackSize()
                         + " of " + type.identifier());
             }
-            if (damage < 0) {
-                throw new IllegalArgumentException("Stack damage must not be negative: " + damage);
+            if (damage < 0 || damage > MAX_DAMAGE) {
+                throw new IllegalArgumentException("Stack damage/metadata out of i16 range: " + damage);
             }
             int maxDurability = type.maxDurability();
-            if (maxDurability <= 0 && damage != 0) {
-                throw new IllegalArgumentException(
-                        type.identifier() + " is not durability-bound and cannot carry damage");
-            }
             if (maxDurability > 0 && damage > maxDurability) {
                 throw new IllegalArgumentException("Stack damage " + damage
                         + " exceeds max durability " + maxDurability + " of " + type.identifier());
@@ -88,9 +93,11 @@ public record ItemStack(ItemType type, int count, int damage) {
     }
 
     /**
-     * @return a stack of the same type and count with the given damage. Used by
-     *         validated durability wear; breaking (damage reaching the limit)
-     *         is an inventory decision, not a value transformation.
+     * @return a stack of the same type and count with the given damage value.
+     *         Dual-role like the field itself: validated durability wear on
+     *         durable items, variant metadata otherwise (charcoal, red sand).
+     *         Breaking (damage reaching the limit) is an inventory decision,
+     *         not a value transformation.
      */
     public ItemStack withDamage(int newDamage) {
         if (isEmpty()) {

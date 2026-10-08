@@ -44,12 +44,16 @@ public final class FurnaceRecipes {
             new SmeltResult(Identifier.parse("minecraft:iron_ingot"), 1, 0),
             Identifier.parse("minecraft:cobblestone"),
             new SmeltResult(Identifier.parse("minecraft:stone"), 1, 0),
+            Identifier.parse("minecraft:sand"),
+            new SmeltResult(Identifier.parse("minecraft:glass"), 1, 0),
             Identifier.parse("minecraft:beef"),
-            new SmeltResult(Identifier.parse("minecraft:cooked_beef"), 1, 0));
-    // log -> charcoal is deliberately absent: charcoal is coal with metadata 1,
-    // and the ItemStack model carries damage only on durability-bound items.
-    // It arrives with the item-metadata slice, together with sand/glass and
-    // the food outputs the registry grows into.
+            new SmeltResult(Identifier.parse("minecraft:cooked_beef"), 1, 0),
+            Identifier.parse("minecraft:oak_log"),
+            new SmeltResult(Identifier.parse("minecraft:coal"), 1, 1));
+    // The oak_log entry is charcoal: output coal with damage 1, the 1.8 dataset
+    // variant (items.json: coal metadata 1 = "Charcoal"). Charcoal burns like
+    // coal because the fuel table keys by item type; the registry has exactly
+    // one log, so the key covers every log variant the world can produce.
 
     private static final Map<Identifier, Integer> FUEL = Map.ofEntries(
             Map.entry(Identifier.parse("minecraft:coal"), 1600),
