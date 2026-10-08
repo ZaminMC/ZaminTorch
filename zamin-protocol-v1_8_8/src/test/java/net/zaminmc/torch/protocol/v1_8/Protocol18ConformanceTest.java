@@ -62,6 +62,8 @@ class Protocol18ConformanceTest {
         m.put("S2C_EXPLOSION", 0x27);
         m.put("S2C_NAMED_SOUND_EFFECT", 0x29);
         m.put("S2C_WORLD_PARTICLES", 0x2A);
+        m.put("S2C_CHANGE_GAME_STATE", 0x2B);
+        m.put("S2C_PLAYER_ABILITIES", 0x39);
         m.put("S2C_OPEN_WINDOW", 0x2D);
         m.put("S2C_CLOSE_WINDOW", 0x2E);
         m.put("S2C_SET_SLOT", 0x2F);

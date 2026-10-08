@@ -40,6 +40,10 @@ final class Protocol18 {
      * the mineflayer parser tolerated; the real 1.8.8 client would not). */
     static final int S2C_WORLD_PARTICLES = 0x2A;
     static final int S2C_BLOCK_CHANGE = 0x23;
+    static final int S2C_CHANGE_GAME_STATE = 0x2B;
+    /** Change Game State reasons: 3 = change gamemode (value = mode id). */
+    static final int GAME_STATE_CHANGE_GAMEMODE = 3;
+    static final int S2C_PLAYER_ABILITIES = 0x39;
     static final int S2C_SET_SLOT = 0x2F;
     static final int S2C_WINDOW_ITEMS = 0x30;
     static final int S2C_WINDOW_PROPERTY = 0x31;

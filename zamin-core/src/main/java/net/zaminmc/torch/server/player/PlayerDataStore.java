@@ -42,7 +42,7 @@ public final class PlayerDataStore {
     private static final int MAGIC_0 = 'Z';
     private static final int MAGIC_1 = 'P';
     private static final int MAGIC_2 = 'D';
-    private static final int FORMAT_VERSION = 3;
+    private static final int FORMAT_VERSION = 4;
 
     private final Path directory;
 
@@ -80,6 +80,7 @@ public final class PlayerDataStore {
                 out.writeFloat(snapshot.health());
                 writeVarInt(out, snapshot.food());
                 out.writeFloat(snapshot.saturation());
+                out.writeByte(snapshot.gamemodeId());
             }
             Files.move(temp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
         } catch (IOException e) {
@@ -126,8 +127,11 @@ public final class PlayerDataStore {
                 food = readVarInt(in);
                 saturation = in.readFloat();
             }
+            // Version 4 adds the per-player game mode; older saves read as
+            // "unspecified" and the server default applies.
+            int gamemodeId = version >= 4 ? in.readByte() : -1;
             return Optional.of(new PlayerSnapshot(uuid, name, position, rotation, heldSlot,
-                    stacks, health, food, saturation));
+                    stacks, health, food, saturation, gamemodeId));
         } catch (IOException | RuntimeException corrupt) {
             // A malformed value (bad identifier, out-of-range slot) is corruption
             // just as much as a broken header: quarantine, then treat as absent.

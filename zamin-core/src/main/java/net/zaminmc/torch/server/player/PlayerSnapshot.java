@@ -24,10 +24,19 @@ import java.util.UUID;
  * @param health     the saved health (0-20)
  * @param food       the saved hunger (0-20)
  * @param saturation the saved saturation (>= 0)
+ * @param gamemodeId the saved game mode legacy id (-1 = unspecified, ZPD v4+)
  */
 public record PlayerSnapshot(UUID uuid, String name, Position position, Rotation rotation,
                              int heldSlot, List<SlotStack> slots,
-                             float health, int food, float saturation) {
+                             float health, int food, float saturation,
+                             int gamemodeId) {
+
+    /** The pre-gamemode shape (ZPD v1-v3 readers and engine callers without a mode). */
+    public PlayerSnapshot(UUID uuid, String name, Position position, Rotation rotation,
+                          int heldSlot, List<SlotStack> slots,
+                          float health, int food, float saturation) {
+        this(uuid, name, position, rotation, heldSlot, slots, health, food, saturation, -1);
+    }
 
     /** Historical defaults for snapshots saved before the body existed (ZPD v1). */
     public static final float LEGACY_HEALTH = PlayerSession.MAX_HEALTH;

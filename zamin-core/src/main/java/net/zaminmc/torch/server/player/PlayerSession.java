@@ -99,6 +99,15 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
      */
     private volatile int engineEntityId = -1;
 
+    /**
+     * The per-player game mode (the historical per-EntityPlayer theGamemode).
+     * Survives restarts through the personal store; new players inherit the
+     * server default. Tick-thread written, volatile for wire reads.
+     */
+    private volatile net.zaminmc.torch.GameMode gamemode = net.zaminmc.torch.GameMode.SURVIVAL;
+    /** The operator level (0 = player, 4 = console-equivalent). */
+    private volatile int opLevel;
+
     public PlayerSession(UUID uuid, String name, ClientLink link) {
         this.uuid = Objects.requireNonNull(uuid, "uuid");
         this.name = Objects.requireNonNull(name, "name");
@@ -129,6 +138,23 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
 
     public ClientLink link() {
         return link;
+    }
+
+    public net.zaminmc.torch.GameMode gamemode() {
+        return gamemode;
+    }
+
+    /** Tick-thread write only; the wire reads are volatile-safe. */
+    public void setGamemode(net.zaminmc.torch.GameMode mode) {
+        this.gamemode = java.util.Objects.requireNonNull(mode, "mode");
+    }
+
+    public int opLevel() {
+        return opLevel;
+    }
+
+    public void setOpLevel(int level) {
+        this.opLevel = Math.max(0, level);
     }
 
     /**

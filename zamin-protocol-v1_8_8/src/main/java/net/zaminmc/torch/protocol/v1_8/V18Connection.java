@@ -235,6 +235,8 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                         accepted.session().crafting().snapshot(),
                         engine.craftingResult(accepted.session()));
                 sendUpdateHealth(accepted.session()); // the body's authoritative baseline
+                accepted.session().link().updateAbilities(
+                        abilitiesFlagsOf(accepted.session().gamemode())); // flight/invuln grant
                 engine.joinCompleted(accepted.session());
                 startKeepAlive(channel);
                 adapter.playerEnteredPlay(this);
@@ -248,7 +250,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBuf out = Unpooled.buffer(32);
         ByteBufOps.writeVarInt(out, Protocol18.S2C_JOIN_GAME);
         out.writeInt(entityId);
-        out.writeByte(engine.config().gamemode().legacyId());
+        out.writeByte(playerSession.gamemode().legacyId());
         out.writeByte(0);                 // dimension: overworld
         out.writeByte(Protocol18.DIFFICULTY_EASY); // easy: hunger behaves, no mobs yet
         out.writeByte(0);                 // max players (legacy field, unused by client)
@@ -369,10 +371,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 packet.readFloat();
                 packet.readUnsignedByte();
             }
-            case Protocol18.C2S_SET_CREATIVE_SLOT -> {
-                packet.readShort();
-                readClaimedSlot(packet);
-            }
+            case Protocol18.C2S_SET_CREATIVE_SLOT -> handleCreativeSlot(player, packet);
             case Protocol18.C2S_ENCHANT_ITEM -> {
                 packet.readByte();
                 packet.readByte();
@@ -532,9 +531,10 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeVarInt(out, Protocol18.S2C_RESPAWN);
         out.writeInt(0); // dimension: overworld
         out.writeByte(Protocol18.DIFFICULTY_EASY);
-        out.writeByte(engine.config().gamemode().legacyId());
+        out.writeByte(player.gamemode().legacyId());
         ByteBufOps.writeString(out, Protocol18.LEVEL_TYPE_FLAT);
         channel.writeAndFlush(out);
+        player.link().updateAbilities(abilitiesFlagsOf(player.gamemode()));
 
         if (chunkTracker != null) {
             var spawn = engine.world().spawnPosition();
@@ -595,6 +595,36 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         }
     }
 
+    /**
+     * Set Creative Slot (0x10): the creative inventory's write path. The
+     * client is authoritative for its own creative inventory — the engine
+     * mirrors the claimed stack into the mapped engine slot (vanilla
+     * ContainerPlayer mapping). Non-creative sessions are refused silently
+     * (the historical server's guard against faked creative packets).
+     */
+    private void handleCreativeSlot(PlayerSession player, ByteBuf packet) {
+        short wireSlot = packet.readShort();
+        short legacyId = packet.readShort();
+        net.zaminmc.torch.item.ItemStack stack = net.zaminmc.torch.item.ItemStack.EMPTY;
+        if (legacyId > 0) {
+            int count = packet.readUnsignedByte();
+            int damage = packet.readShort();
+            SlotNbt.skip(packet); // the claimed slot's optional NBT marker + compound
+            stack = LegacyBlockIds.identifierOf(legacyId & 0xFFFF)
+                    .flatMap(net.zaminmc.torch.server.item.BuiltinItems::lookup)
+                    .map(type -> {
+                        try {
+                            return net.zaminmc.torch.item.ItemStack.of(type,
+                                    Math.min(64, Math.max(1, count))).withDamage(Math.max(0, damage));
+                        } catch (IllegalArgumentException invalid) {
+                            return net.zaminmc.torch.item.ItemStack.EMPTY;
+                        }
+                    })
+                    .orElse(net.zaminmc.torch.item.ItemStack.EMPTY);
+        }
+        engine.setCreativeSlot(player, wireSlot, stack);
+    }
+
     /** Confirm Transaction (0x32): the client reverts its prediction on rejection. */
     private void sendConfirmTransaction(Channel channel, int windowId, int actionNumber,
                                         boolean accepted) {
@@ -625,14 +655,23 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     private void handleDigging(PlayerSession player, ByteBuf packet) {
         int status = packet.readByte();
         int[] pos = ByteBufOps.readPackedBlockPosition(packet);
-        boolean creative = engine.config().gamemode() == net.zaminmc.torch.GameMode.CREATIVE;
+        net.zaminmc.torch.GameMode mode = player.gamemode();
         try {
             var target = new net.zaminmc.torch.block.BlockPosition(pos[0], pos[1], pos[2]);
-            if (creative) {
+            if (mode == net.zaminmc.torch.GameMode.CREATIVE) {
                 // Creative breaking is instant on "started digging".
                 if (status == 0 || status == 2) {
                     engine.blockInteraction().submitCreativeBreak(player, target);
                 }
+                return;
+            }
+            if (mode == net.zaminmc.torch.GameMode.ADVENTURE
+                    || mode == net.zaminmc.torch.GameMode.SPECTATOR) {
+                // Adventure bodies may not break (the historical canDestroy
+                // rule); spectators own no body at all. Drops still ride.
+                if (status == 3) engine.dropHeld(player, true);
+                if (status == 4) engine.dropHeld(player, false);
+                if (status == 5) engine.releaseUsingItem(player);
                 return;
             }
             switch (status) {
@@ -674,7 +713,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         // use degrades to a placement proposal. Creative claims its block on the
         // wire; survival leaves the decision to the authoritative inventory.
         java.util.Optional<net.zaminmc.torch.block.BlockType> creativeHeld = java.util.Optional.empty();
-        if (engine.config().gamemode() == GameMode.CREATIVE && heldId > 0) {
+        if (player.gamemode() == GameMode.CREATIVE && heldId > 0) {
             net.zaminmc.torch.util.Identifier heldIdentifier =
                     LegacyBlockIds.identifierOf(heldId & 0xFFFF).orElse(null);
             if (heldIdentifier == null) {
@@ -921,6 +960,47 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         } else {
             sendLoginDisconnect(channel, reason);
         }
+    }
+
+    @Override
+    public void updateGamemode(int gamemodeId) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        // Change Game State (0x2B): reason 3 = change gamemode, value = mode id.
+        ByteBuf out = Unpooled.buffer(16);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_CHANGE_GAME_STATE);
+        out.writeByte(Protocol18.GAME_STATE_CHANGE_GAMEMODE);
+        out.writeFloat(gamemodeId);
+        channel.writeAndFlush(out);
+    }
+
+    @Override
+    public void updateAbilities(int flags) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        // Player Abilities (0x39): flags byte + the historical default speeds.
+        ByteBuf out = Unpooled.buffer(16);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_PLAYER_ABILITIES);
+        out.writeByte(flags);
+        out.writeFloat(0.05f); // fly speed
+        out.writeFloat(0.1f);  // field of view modifier (the historical walk speed field)
+        channel.writeAndFlush(out);
+    }
+
+    /** The abilities flag byte for a session's current game mode. */
+    static int abilitiesFlagsOf(net.zaminmc.torch.GameMode mode) {
+        int flags = 0;
+        if (mode == net.zaminmc.torch.GameMode.CREATIVE
+                || mode == net.zaminmc.torch.GameMode.SPECTATOR) {
+            flags |= 0x01; // invulnerable
+            flags |= 0x04; // may fly
+            flags |= 0x08; // instant build (creative; harmless for spectators)
+        }
+        return flags;
     }
 
     // ------------------------------------------------------------------ chat + players
