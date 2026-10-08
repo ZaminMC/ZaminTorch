@@ -32,6 +32,9 @@ final class LauncherRuntime {
     }
 
     void run() throws Exception {
+        // The update prompt fires in the background: boot never waits for it.
+        new UpdateChecker().checkAsync();
+
         EngineConfig config = loadConfig();
         EngineServer server = new EngineServer(config);
         ProtocolAdapter adapter = new V18ProtocolServer(server);
@@ -42,7 +45,8 @@ final class LauncherRuntime {
 
         server.start();
         adapter.start(server);
-        LOGGER.info(() -> "Server ready: " + adapter.protocolName() + " on port " + config.port());
+        LOGGER.info(() -> "Server ready: " + adapter.protocolName() + " on port " + config.port()
+                + " (build " + UpdateChecker.BUILD_VERSION + ")");
 
         runConsole(server, adapter);
     }
