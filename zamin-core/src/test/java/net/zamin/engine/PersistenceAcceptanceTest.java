@@ -37,7 +37,9 @@ class PersistenceAcceptanceTest {
         serverOne.blockInteraction().submitPlace(builder, new BlockPosition(3, 4, 3), 1, BuiltinBlocks.STONE);
         BlockPosition placed = new BlockPosition(3, 5, 3);
         await(() -> serverOne.world().getBlock(placed).equals(BuiltinBlocks.STONE), "stone placed");
-        assertEquals(1, serverOne.world().deltaCount());
+        // Two deltas: the placed stone AND the grass it covers decaying to dirt
+        // (the historical decay, driven by the scheduled block-update system).
+        assertEquals(2, serverOne.world().deltaCount());
 
         serverOne.shutdown(null);
         awaitState(serverOne);
@@ -50,7 +52,7 @@ class PersistenceAcceptanceTest {
 
         await(() -> serverTwo.world().getBlock(placed).equals(BuiltinBlocks.STONE),
                 "placed block survived the restart");
-        assertEquals(1, serverTwo.world().deltaCount());
+        assertEquals(2, serverTwo.world().deltaCount());
         serverTwo.shutdown(null);
         awaitState(serverTwo);
     }

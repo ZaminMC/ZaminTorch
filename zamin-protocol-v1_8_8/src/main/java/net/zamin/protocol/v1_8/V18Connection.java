@@ -1212,19 +1212,29 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
 
     /** Absolute-position sync for a moving item entity. Any thread. */
     void sendItemTeleport(net.zamin.engine.entity.ItemEntity entity) {
+        sendEntityTeleport(entity.entityId(), entity.position(), entity.onGround());
+    }
+
+    /** Absolute-position sync for a moving falling block. Any thread. */
+    void sendFallingTeleport(net.zamin.engine.entity.FallingBlockEntity entity) {
+        sendEntityTeleport(entity.entityId(), entity.position(), entity.onGround());
+    }
+
+    /** Entity Teleport (0x18) shared by every engine-global entity kind. */
+    private void sendEntityTeleport(int entityId, net.zamin.api.Position position, boolean onGround) {
         Channel channel = adapter.channelOf(this);
         if (channel == null || !channel.isActive() || state != WireState.PLAY) {
             return;
         }
         ByteBuf out = Unpooled.buffer(40);
         ByteBufOps.writeVarInt(out, Protocol18.S2C_ENTITY_TELEPORT);
-        ByteBufOps.writeVarInt(out, entity.entityId());
-        out.writeInt((int) Math.floor(entity.position().x() * 32.0));
-        out.writeInt((int) Math.floor(entity.position().y() * 32.0));
-        out.writeInt((int) Math.floor(entity.position().z() * 32.0));
+        ByteBufOps.writeVarInt(out, entityId);
+        out.writeInt((int) Math.floor(position.x() * 32.0));
+        out.writeInt((int) Math.floor(position.y() * 32.0));
+        out.writeInt((int) Math.floor(position.z() * 32.0));
         out.writeByte(0);
         out.writeByte(0);
-        out.writeBoolean(entity.onGround());
+        out.writeBoolean(onGround);
         channel.writeAndFlush(out);
     }
 
@@ -1271,6 +1281,16 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
 
     /** Removes an item entity from this observer. Any thread. */
     void sendItemRemoved(int itemEntityId) {
+        sendDestroyEntities(itemEntityId);
+    }
+
+    /** Removes a falling block from this observer. Any thread. */
+    void sendFallingRemoved(int fallingEntityId) {
+        sendDestroyEntities(fallingEntityId);
+    }
+
+    /** Destroy Entities (0x13) with a single id. Any thread. */
+    private void sendDestroyEntities(int entityId) {
         Channel channel = adapter.channelOf(this);
         if (channel == null || !channel.isActive() || state != WireState.PLAY) {
             return;
@@ -1278,7 +1298,50 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBuf out = Unpooled.buffer(8);
         ByteBufOps.writeVarInt(out, Protocol18.S2C_DESTROY_ENTITIES);
         ByteBufOps.writeVarInt(out, 1);
-        ByteBufOps.writeVarInt(out, itemEntityId);
+        ByteBufOps.writeVarInt(out, entityId);
+        channel.writeAndFlush(out);
+    }
+
+    // ------------------------------------------------------------------ falling block sync
+
+    /**
+     * Spawn Entity (0x0E) object 70 for a new falling block. The objectData
+     * carries the legacy block id (low 12 bits) with the block metadata above
+     * it — the client decodes {@code getStateById(data & 0xFFFF)} into block
+     * id and metadata (verified against the 1.8.9 client's spawn handler);
+     * non-zero objectData means the three velocity shorts follow, exactly like
+     * the item spawn path. Spawn is chunk-gated like the other entities. Any
+     * thread.
+     */
+    void sendFallingSpawn(net.zamin.engine.entity.FallingBlockEntity entity) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY
+                || chunkTracker == null) {
+            return;
+        }
+        var blockPos = entity.position().toBlockPosition();
+        if (!chunkTracker.hasChunk(blockPos.chunkPosition().packed())) {
+            return; // observer cannot see that chunk yet
+        }
+        Integer legacy = LegacyBlockIds.legacyId(entity.blockType().identifier()).orElse(null);
+        if (legacy == null) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(48);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_SPAWN_ENTITY);
+        ByteBufOps.writeVarInt(out, entity.entityId());
+        out.writeByte(Protocol18.OBJECT_FALLING_BLOCK);
+        out.writeInt((int) Math.floor(entity.position().x() * 32.0));
+        out.writeInt((int) Math.floor(entity.position().y() * 32.0));
+        out.writeInt((int) Math.floor(entity.position().z() * 32.0));
+        out.writeByte(0); // pitch
+        out.writeByte(0); // yaw
+        // Historical object data: legacy id | (metadata << 12); metadata 0 this
+        // slice (variant metadata lives on item stacks, the block model is flat).
+        out.writeInt(legacy);
+        out.writeShort(0); // velocity x (falls are vertical)
+        out.writeShort((int) Math.floor(entity.velocityY() * 8000.0));
+        out.writeShort(0); // velocity z
         channel.writeAndFlush(out);
     }
 

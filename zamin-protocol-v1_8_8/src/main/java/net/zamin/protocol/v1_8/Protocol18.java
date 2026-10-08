@@ -88,6 +88,8 @@ final class Protocol18 {
 
     // Object types of the Spawn Entity packet (protocol 47)
     static final int OBJECT_ITEM = 1;
+    /** Falling block (community entities.json FallingSand): objectData = legacy id | (metadata << 12). */
+    static final int OBJECT_FALLING_BLOCK = 70;
 
     // Entity metadata (protocol 47, community-verified type map): value types
     // 0=byte 1=short 2=int 3=float 4=string 5=slot 6=position 7=rotation.

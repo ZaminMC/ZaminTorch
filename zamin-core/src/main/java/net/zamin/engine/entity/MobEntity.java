@@ -187,6 +187,17 @@ public final class MobEntity {
     }
 
     /**
+     * Restores a persisted body: health from the save (clamped into the
+     * historical 1..max range — a corrupt or stale value degrades to a fresh
+     * body, never an immortal or dead one) and the saved facing.
+     */
+    public void restore(float restoredHealth, float restoredYaw) {
+        this.health = Math.max(1.0f, Math.min(type.maxHealth, restoredHealth));
+        this.yaw = restoredYaw;
+        this.headYaw = restoredYaw;
+    }
+
+    /**
      * Advances one tick: timers, mind (goal selection), then body (physics).
      * Returns true when the fixed-point position or rotation changed, so the
      * publisher decides to sync.

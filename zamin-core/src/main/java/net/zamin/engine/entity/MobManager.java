@@ -253,6 +253,52 @@ public final class MobManager {
     }
 
     /**
+     * The persistable view of one live mob (ZMD payload, version 1): kind,
+     * position, facing and remaining health. Dying/dead mobs are not captured
+     * — their loot lands on the tick that finishes the death animation.
+     */
+    public record MobSnapshot(String type, double x, double y, double z, float yaw, float health) {
+    }
+
+    /**
+     * Restores the saved population. Saved kinds the current registry cannot
+     * resolve are dropped with a warning — the registry moved on. Returns
+     * whether any mob was restored (a fresh world boots its own packs).
+     * Tick-thread context.
+     */
+    public boolean restoreAll(List<MobSnapshot> saved) {
+        Objects.requireNonNull(saved, "saved");
+        boolean any = false;
+        for (MobSnapshot snapshot : saved) {
+            MobType type;
+            try {
+                type = MobType.valueOf(snapshot.type());
+            } catch (IllegalArgumentException unknownKind) {
+                LOGGER.warning("Saved mob kind no longer registered, dropped: " + snapshot.type());
+                continue;
+            }
+            MobEntity mob = spawnAt(type, new Position(snapshot.x(), snapshot.y(), snapshot.z()));
+            mob.restore(snapshot.health(), snapshot.yaw());
+            any = true;
+        }
+        return any;
+    }
+
+    /** @return the persistable snapshot of every living mob. Tick-thread context. */
+    public List<MobSnapshot> snapshot() {
+        List<MobSnapshot> saved = new ArrayList<>();
+        for (MobEntity mob : mobs) {
+            if (mob.dead()) {
+                continue; // dying bodies and their loot resolve on the live tick
+            }
+            Position position = mob.position();
+            saved.add(new MobSnapshot(mob.type().name(), position.x(), position.y(),
+                    position.z(), mob.yaw(), mob.health()));
+        }
+        return saved;
+    }
+
+    /**
      * Melee hit from a player: validated damage, knockback, hurt event; the
      * death animation starts here and loot lands when it finishes.
      * Tick-thread context.

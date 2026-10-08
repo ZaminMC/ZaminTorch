@@ -145,6 +145,32 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                 }
             }
         });
+        // Falling blocks: engine decides the §470 transition, adapter renders
+        // Spawn Entity object 70, Entity Teleport and Destroy. The landing's
+        // block change itself rides the world listener.
+        server.addFallingListener(new net.zamin.engine.entity.FallingBlockEntityManager.Listener() {
+            @Override
+            public void onFallingSpawned(net.zamin.engine.entity.FallingBlockEntity entity) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendFallingSpawn(entity);
+                }
+            }
+
+            @Override
+            public void onFallingMoved(net.zamin.engine.entity.FallingBlockEntity entity) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendFallingTeleport(entity);
+                }
+            }
+
+            @Override
+            public void onFallingEnded(net.zamin.engine.entity.FallingBlockEntity entity,
+                                       boolean becameBlock) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendFallingRemoved(entity.entityId());
+                }
+            }
+        });
         // Time Update (0x03): the periodic cycle sync and the /time command
         // ride the same listener — the client's day follows the server's.
         server.addTimeListener((totalTicks, timeOfDay) -> {
@@ -314,6 +340,14 @@ public final class V18ProtocolServer implements ProtocolAdapter {
         if (mobs != null) {
             for (net.zamin.engine.entity.MobEntity mob : mobs.all()) {
                 newcomer.sendMobSpawn(mob);
+            }
+        }
+        // Falling blocks mid-transition when someone joins: spawn them for the
+        // newcomer the same way (a land end broadcasts Destroy to everyone).
+        var falling = engine.fallingEntities();
+        if (falling != null) {
+            for (net.zamin.engine.entity.FallingBlockEntity entity : falling.all()) {
+                newcomer.sendFallingSpawn(entity);
             }
         }
     }

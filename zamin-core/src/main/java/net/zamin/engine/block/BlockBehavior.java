@@ -31,12 +31,30 @@ public record BlockBehavior(
         int harvestLevel,
         List<Drop> drops) {
 
-    /** One yielded item: canonical item identifier and unit count. */
-    public record Drop(Identifier item, int count) {
+    /**
+     * One yielded item: canonical item identifier, unit count, and the
+     * probability the entry yields at all. Entries are rolled in order and the
+     * <b>first successful roll wins</b> — the model of the historical
+     * {@code quantityDropped(Random)} overrides (gravel: 10% flint, otherwise
+     * gravel). Chance 1.0 first entries reproduce the fixed-drop behavior.
+     *
+     * @param item   canonical item identifier
+     * @param count  units yielded when this entry wins
+     * @param chance probability in [0,1] that the roll stops here
+     */
+    public record Drop(Identifier item, int count, double chance) {
         public Drop {
             if (count < 1) {
                 throw new IllegalArgumentException("Drop count must be positive: " + count);
             }
+            if (chance < 0.0 || chance > 1.0) {
+                throw new IllegalArgumentException("Drop chance must be in [0,1]: " + chance);
+            }
+        }
+
+        /** The common fixed drop (always yields). */
+        public Drop(Identifier item, int count) {
+            this(item, count, 1.0);
         }
     }
 
