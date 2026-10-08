@@ -530,6 +530,75 @@ flesh), so pickups, merging and persistence behave exactly like drops.
   hunt, dawn removal, /time), MobIntegrationTest (2 — the full wire flow
   from the client's side, incl. two-observer swing broadcast).
 
+## 10q. Slice #17 — scheduled block updates, falling blocks, grass, mob persistence (implemented status)
+
+**Status: implemented; 246 automated tests green; mineflayer real-client
+validation passed (REAL_CLIENT_VALIDATION_PASSED), including the new flows.**
+
+The world now reacts on its own. The §466 scheduled-update queue, the §470
+block→entity→block transition and the §471 random-tick pattern all landed in
+one batch, plus the mob-persistence debt from slice #16.
+
+- **World-owned change dispatch (§208, the batch's architectural fix):**
+  `EngineWorld.setBlock` fires the change listeners itself — every committed
+  mutation, player-driven or engine-driven, reaches the neighbor-update
+  system and the client syncs exactly once, in world order. Before this fix
+  only `BlockInteractionService.commit` published, so engine-driven changes
+  (conversions, landings, decays, pops) never cascaded and never synced.
+  Listener failures are isolated per listener (§54). The rejected-dig resync
+  path survives as the world's `republish` (the §441 spirit).
+- **Scheduled block updates (§466):** a tick-thread queue with one pending
+  update per position (later requests coalesce; earliest due wins). A commit
+  schedules the position and its six neighbors due the same tick, so a
+  changed block's rules run within one tick of the commit.
+- **Falling blocks (§470):** sand and gravel with air beneath convert into
+  `FallingBlockEntity` (the community 0.98 box, the shared gravity/drag
+  model). Landing re-materializes the block in the first free cell above the
+  hit surface; an occupied landing drops the stack as an item (the historical
+  dropItem); the void takes the entity silently. Wire: Spawn Entity **object
+  70** with the objectData the 1.8.9 client actually decodes —
+  `getStateById(data & 0xFFFF)`, i.e. legacy id in the low 12 bits and
+  metadata above them (verified against the MCP-919 client sources after the
+  wiki variants conflicted) — plus the three velocity shorts (non-zero
+  objectData announces them, exactly like item spawns), Entity Teleports on
+  movement, Destroy on landing; the landing's Block Change rides the world
+  dispatch.
+- **Torch support:** a floor torch over air pops as an item through the
+  standard drop path.
+- **Grass rules (§471 pattern):** random ticks sample three positions per
+  section in every loaded chunk within the historical 128-block player range
+  (an idle world ticks everything — the historical gate bounds work, not
+  semantics). Randomly-ticked grass decays to dirt under an opaque block and
+  makes up to four spread attempts into nearby uncovered dirt (the historical
+  ±1/−3..+1 window). Light levels are approximated by "nothing opaque above"
+  — the flat world carries full skylight and no block-light propagation
+  exists yet (documented simplification).
+- **Gravel + flint:** gravel registered (legacy 13) with the behavior
+  table's first-hit-wins chance rolls — 10% flint (legacy 318), otherwise
+  gravel, the historical `quantityDropped` model; `BlockBehavior.Drop` grew
+  the chance component and DropService the roll.
+- **Mob persistence (ZMD v1):** the population survives restarts through the
+  same durability rules as ZWD/ZFD/ZCD/ZPD (atomic temp-file writes, corrupt
+  quarantine, unknown kinds dropped loudly); boot packs roll only for a fresh
+  world (a restored world keeps its mobs, the maintainer tops it up). A
+  crash-save cannot lose a mid-fall block: `saveAllNow` fast-forwards all
+  falling entities to their landings before snapshotting (blocks persist,
+  entities do not).
+- **Wire checks:** the falling-entity ids live in their own band above the
+  mobs; mineflayer observed the fall (object 70 spawn, the landing block
+  change, the entity destroy) and the torch pop (block change to air + the
+  item entity) with its independent protocol stack.
+
+**Tests:** FallingBlockEntityTest (4 — physics, free landing, occupied
+landing→drop, void), BlockUpdateSystemTest (5 — conversion, coalescing,
+torch pop, decay, glass/torch exceptions), RandomTickSystemTest (3 — decay,
+covered-dirt inertness, spread), MobDataStoreTest (4), plus the wire
+integration FallingBlockIntegrationTest (2 — the full fall over the socket
+incl. object data and landing syncs; the torch pop) — 246 total, 0 failures.
+Two stale assumptions were updated with the new behavior: the registry
+count (gravel) and the persistence acceptance (a placed stone legitimately
+decays the grass it covers).
+
 ## 11. Known risks
 
 - 1.8.8 client quirks not obvious from protocol docs (e.g. exact chunk/lighting expectations) — mitigated by scripted-client tests + real client validation.

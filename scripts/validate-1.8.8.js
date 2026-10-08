@@ -381,6 +381,84 @@ async function main() {
   check('red sand variant (sand metadata 1)', !!redSand && redSand.metadata === 1,
     redSand ? `metadata=${redSand.metadata}` : 'none');
 
+  // ---- 8. falling blocks: object 70 over a real client --------------------
+  // Place sand on the surface beside the bot, remove its support with a real
+  // dig, and watch the block -> entity -> block transition through
+  // mineflayer's own parser: Spawn Entity object 70, then the landing
+  // re-materializes the block.
+  bot.chat('/give sand 2');
+  await sleep(1_000);
+  const fallSandStack = bot.inventory.items().find((it) => it.name === 'sand');
+  check('/give sand for the fall', !!fallSandStack);
+  const fallGround = bot.blockAt(bot.entity.position.offset(-2, -1, 0)); // two out: the anti-glitch box check keeps one-cell placements honest
+  check('fall column reference is solid', !!fallGround && fallGround.boundingBox !== 'empty',
+    fallGround ? fallGround.name : 'null');
+  if (fallSandStack && fallGround) {
+    await bot.equip(fallSandStack, 'hand');
+    await bot.placeBlock(fallGround, new Vec3(0, 1, 0));
+    await sleep(800);
+    const sandBlock = bot.blockAt(fallGround.position.offset(0, 1, 0));
+    check('sand placed with support', !!sandBlock && sandBlock.name === 'sand',
+      sandBlock ? sandBlock.name : 'null');
+    if (sandBlock) {
+      const fallSpawn = waitFor(bot, 'entitySpawn', 10_000,
+        (e) => e.entityType === 70);
+      await bot.dig(fallGround); // the support vanishes -> the block falls
+      const fallArgs = await fallSpawn;
+      const falling = fallArgs && fallArgs[0];
+      check('falling sand arrived as object 70 (community FallingSand id)',
+        !!falling, falling ? `id=${falling.id}` : 'none');
+      await sleep(3_000); // the one-block fall plus the landing commit
+      const landed = bot.blockAt(fallGround.position);
+      check('the fall re-materialized as a sand block',
+        !!landed && landed.name === 'sand', landed ? landed.name : 'null');
+      const fallGone = !falling || !bot.entities[falling.id];
+      check('the falling entity left the client world after landing', fallGone);
+      // Clean up: dig the landed sand so later checks see open ground.
+      if (landed && landed.name === 'sand') {
+        await bot.dig(landed);
+        await sleep(1_000);
+      }
+    }
+  }
+
+  // ---- 9. torch pops without support --------------------------------------
+  bot.chat('/give torch 1');
+  await sleep(1_000);
+  const torchStack = bot.inventory.items().find((it) => it.name === 'torch');
+  check('/give torch for the pop', !!torchStack);
+  const torchGround = bot.blockAt(bot.entity.position.offset(0, -1, -2));
+  if (torchStack && torchGround && torchGround.boundingBox !== 'empty') {
+    await bot.equip(torchStack, 'hand');
+    await bot.placeBlock(torchGround, new Vec3(0, 1, 0));
+    await sleep(800);
+    const torchBlock = bot.blockAt(torchGround.position.offset(0, 1, 0));
+    check('torch placed on the surface', !!torchBlock && torchBlock.name === 'torch',
+      torchBlock ? torchBlock.name : 'null');
+    if (torchBlock) {
+      const popUpdate = waitFor(bot, 'blockUpdate', 10_000,
+        (oldBlock, newBlock) =>
+          newBlock && newBlock.position.equals(torchGround.position.offset(0, 1, 0))
+          && newBlock.name === 'air');
+      const popItem = waitFor(bot, 'entitySpawn', 10_000, (e) => {
+        const stack = e.metadata && e.metadata[10];
+        return stack && stack.name === 'torch';
+      });
+      await bot.dig(torchGround); // the torch's support vanishes
+      const popped = await popUpdate;
+      check('the torch popped to air when support broke', !!popped);
+      const torchDrop = await popItem;
+      // The pop lands beside the bot, so the auto-collector usually wins the
+      // race: either the observed entity or the collected stack proves it.
+      const torchCollected = bot.inventory.items().find((it) => it.name === 'torch');
+      check('the popped torch rode the item-entity path',
+        !!torchDrop || !!torchCollected,
+        torchDrop ? `entity id=${torchDrop[0].id}` : (torchCollected ? 'collected' : 'none'));
+      // Clean the dropped torch out of the way if it stayed in the world.
+      await sleep(1_500);
+    }
+  }
+
   await bot.quit();
   finished = true;
   await sleep(500);

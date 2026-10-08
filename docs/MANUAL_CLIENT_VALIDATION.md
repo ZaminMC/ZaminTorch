@@ -88,6 +88,20 @@ client can judge rendering, sounds and feel.
       inventory, health/food and position are exactly where you left them.
 - [ ] A furnace mid-smelt keeps its fuel/cook state across the restart.
 
+## Falling blocks and block updates
+
+- [ ] Place a sand column two high, dig the block under it: both sands turn
+      into falling entities (you see them fall), land one step down, and the
+      world keeps no ghosts. Red sand (the `/give sand 1 1` variant) falls the
+      same way.
+- [ ] Gravel does it too; digging gravel drops flint about one time in ten.
+- [ ] Break the block under a floor torch: the torch pops as a pickup-able
+      item.
+- [ ] Cover a grass block with stone: within seconds it decays to dirt. Clear
+      a patch to dirt near living grass and wait: grass creeps back.
+- [ ] While a fall is in progress, type `stop`: after a restart the sand is
+      where it was falling to (blocks persist, mid-air entities do not).
+
 ## Known limitations (expected, not bugs)
 
 - No mobs, no day/night lighting simulation (skylight is constant), no

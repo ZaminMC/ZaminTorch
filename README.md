@@ -47,9 +47,11 @@ proven over the wire and against a live process.
 | Living mobs (pig, cow, chicken, zombie) + population | implemented |
 | Melee combat, knockback, mob loot | implemented |
 | Day/night cycle sync + /time + /spawnmob | implemented |
+| Scheduled block updates: falling sand/gravel, torch pop, grass spread/decay | implemented |
+| Mob persistence across restarts (ZMD v1) | implemented |
+| Gravel + flint (first-hit-wins chance drops) | implemented |
 | Real-client validation (mineflayer 1.8.8) | implemented |
 | Item NBT (display names, enchantments) | planned |
-| Mob persistence across restarts | planned (temporary decision, §146 pattern) |
 | Anvil world format import | planned (compatibility adapter) |
 | Minestom integration | deferred (see ADR in plan) |
 
