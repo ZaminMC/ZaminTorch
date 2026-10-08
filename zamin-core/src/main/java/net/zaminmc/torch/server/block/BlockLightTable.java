@@ -59,6 +59,17 @@ public final class BlockLightTable {
             Map.entry(Identifier.parse("minecraft:coal_ore"), new LightData(0, 15)),
             Map.entry(Identifier.parse("minecraft:iron_ore"), new LightData(0, 15)),
             Map.entry(Identifier.parse("minecraft:diamond_ore"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:gold_ore"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:redstone_ore"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:oak_log"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:oak_leaves"), new LightData(1, 1)),
+
+            // The fluids: water attenuates two per cell (dataset filterLight 2)
+            // and emits nothing; lava emits the historical 15 (its glow).
+            Map.entry(Identifier.parse("minecraft:water"), new LightData(0, 2)),
+            Map.entry(Identifier.parse("minecraft:falling_water"), new LightData(0, 2)),
+            Map.entry(Identifier.parse("minecraft:lava"), new LightData(15, 0)),
+            Map.entry(Identifier.parse("minecraft:falling_lava"), new LightData(15, 0)),
             Map.entry(Identifier.parse("minecraft:sand"), new LightData(0, 15)),
             Map.entry(Identifier.parse("minecraft:gravel"), new LightData(0, 15)),
             Map.entry(Identifier.parse("minecraft:crafting_table"), new LightData(0, 15)),
