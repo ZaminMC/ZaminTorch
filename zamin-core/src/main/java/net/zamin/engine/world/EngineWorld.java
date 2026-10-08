@@ -144,6 +144,16 @@ public final class EngineWorld implements World {
         return chunks.get(position.packed());
     }
 
+    /**
+     * Snapshot view of all currently loaded chunks. Tick-thread context only
+     * (the simulation's random-tick and update systems iterate it); the
+     * concurrent map makes an uncoordinated read safe, the iteration order is
+     * unspecified by design.
+     */
+    public java.util.Collection<EngineChunk> loadedChunks() {
+        return java.util.Collections.unmodifiableCollection(chunks.values());
+    }
+
     /** The canonical air identity of this world (single source for emptiness checks). */
     public BlockType airType() {
         return air;

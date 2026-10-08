@@ -44,6 +44,10 @@ public final class BuiltinBlocks {
             Identifier.parse("minecraft:sand"), "Sand");
     public static final EngineBlockType GLASS = new EngineBlockType(
             Identifier.parse("minecraft:glass"), "Glass");
+    // Gravity block (community blocks.json: gravel 0.6 dirt material, drops
+    // itself; the 10% flint roll is the behavior table's chance model).
+    public static final EngineBlockType GRAVEL = new EngineBlockType(
+            Identifier.parse("minecraft:gravel"), "Gravel");
 
     private BuiltinBlocks() {
     }
@@ -63,6 +67,7 @@ public final class BuiltinBlocks {
                 .register(FURNACE)
                 .register(CHEST)
                 .register(SAND)
-                .register(GLASS);
+                .register(GLASS)
+                .register(GRAVEL);
     }
 }

@@ -32,6 +32,7 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:diamond_ore"), 56),
             Map.entry(Identifier.parse("minecraft:oak_log"), 17),     // dataset/legacy name: "log"
             Map.entry(Identifier.parse("minecraft:sand"), 12),        // dataset blocks.json id
+            Map.entry(Identifier.parse("minecraft:gravel"), 13),      // dataset blocks.json id
             Map.entry(Identifier.parse("minecraft:glass"), 20),       // dataset blocks.json id
             Map.entry(Identifier.parse("minecraft:crafting_table"), 58),
             Map.entry(Identifier.parse("minecraft:torch"), 50),
@@ -43,6 +44,7 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:stick"), 280),
             // smelted materials (furnace slice)
             Map.entry(Identifier.parse("minecraft:iron_ingot"), 265),
+            Map.entry(Identifier.parse("minecraft:flint"), 318),      // the 10% gravel roll
             // foods (community foods.json legacy ids)
             Map.entry(Identifier.parse("minecraft:beef"), 363),
             Map.entry(Identifier.parse("minecraft:cooked_beef"), 364),

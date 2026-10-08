@@ -94,6 +94,14 @@ public final class BlockBehaviorTable {
             Map.entry(Identifier.parse("minecraft:glass"),
                     new BlockBehavior(0.3, true, false, null, 0, List.of())),
 
+            // Community data (pc/1.8 blocks.json): gravel 0.6, material dirt,
+            // no tool requirement. Drops model the historical quantityDropped
+            // override: 10% flint, otherwise gravel (first-hit-wins rolls).
+            Map.entry(Identifier.parse("minecraft:gravel"),
+                    new BlockBehavior(0.6, true, false, "dirt", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:flint"), 1, 0.1),
+                                    new BlockBehavior.Drop(Identifier.parse("minecraft:gravel"), 1, 1.0)))),
+
             Map.entry(Identifier.parse("minecraft:coal_ore"),
                     new BlockBehavior(3.0, true, true, "rock", 1,
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:coal"), 1)))),

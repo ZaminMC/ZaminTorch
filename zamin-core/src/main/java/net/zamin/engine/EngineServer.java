@@ -8,13 +8,18 @@ import net.zamin.api.Rotation;
 import net.zamin.api.Server;
 import net.zamin.api.ServerState;
 import net.zamin.api.World;
+import net.zamin.engine.block.BlockUpdateSystem;
+import net.zamin.engine.block.RandomTickSystem;
 import net.zamin.engine.chest.ChestBlockEntity;
 import net.zamin.engine.chest.ChestDataStore;
 import net.zamin.engine.chest.ChestManager;
 import net.zamin.engine.config.EngineConfig;
 import net.zamin.engine.crafting.CraftingService;
+import net.zamin.engine.entity.FallingBlockEntityManager;
+import net.zamin.engine.entity.FallingBlockEntity;
 import net.zamin.engine.entity.ItemEntity;
 import net.zamin.engine.entity.ItemEntityManager;
+import net.zamin.engine.entity.MobDataStore;
 import net.zamin.engine.entity.MobEntity;
 import net.zamin.engine.entity.MobManager;
 import net.zamin.engine.entity.MobType;
@@ -122,10 +127,15 @@ public final class EngineServer implements Server, EngineBridge {
     private ChestDataStore chestStore;
     private volatile ItemEntityManager itemEntities;
     private volatile MobManager mobManager;
+    private volatile FallingBlockEntityManager fallingEntities;
+    private BlockUpdateSystem blockUpdateSystem;
+    private RandomTickSystem randomTicks;
+    private MobDataStore mobStore;
     private final java.util.List<WorldChangeListener> worldListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     private final java.util.List<ChatListener> chatListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     private final java.util.List<ItemEntityManager.Listener> itemListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     private final java.util.List<MobManager.Listener> mobListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
+    private final java.util.List<FallingBlockEntityManager.Listener> fallingListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     private final java.util.List<InventoryListener> inventoryListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     private final java.util.List<FurnaceViewListener> furnaceViewListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     private final java.util.List<SurvivalListener> survivalListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
@@ -135,6 +145,8 @@ public final class EngineServer implements Server, EngineBridge {
     private static final int ENTITY_ID_BASE = 100_000;
     /** Mob ids live in a disjoint band above the item ids (one id space, no collision). */
     private static final int MOB_ID_BASE = ENTITY_ID_BASE + 1_000_000;
+    /** Falling blocks get their own band above the mobs. */
+    private static final int FALLING_ID_BASE = MOB_ID_BASE + 1_000_000;
 
     public EngineServer(EngineConfig config) {
         this.config = Objects.requireNonNull(config, "config");
@@ -212,14 +224,42 @@ public final class EngineServer implements Server, EngineBridge {
                         (x, z) -> surfaceY(x, z));
                 this.mobManager = mobs;
                 mobs.addListener(new MobEventDispatch());
-                // Population builds on boot (no persistence this slice, §146
-                // pattern): the maintainer keeps it topped up while players play.
-                mobs.populateInitial(world.spawnPosition());
+                // Mob persistence (ZMD v1): the population survives restarts; the
+                // boot packs roll only for a fresh world (no restored mobs) — the
+                // maintainer keeps a restored world topped up while players play.
+                mobStore = new MobDataStore(java.nio.file.Path.of(
+                        config.dataDir(), "worlds", config.worldName(), "mobs.bin"));
+                boolean mobsRestored = mobs.restoreAll(mobStore.load());
+                if (!mobsRestored) {
+                    mobs.populateInitial(world.spawnPosition());
+                }
+                // Falling blocks (§470): the block→entity→block transition for
+                // gravity blocks; occupied landings drop as items.
+                FallingBlockEntityManager falling = new FallingBlockEntityManager(
+                        (x, y, z) -> !world.getBlock(blockAt(x, y, z)).equals(world.airType()),
+                        world,
+                        (position, stack) -> itemEntities.spawnDropAtBlock(
+                                new Position(position.x(), position.y(), position.z()), stack,
+                                ItemEntity.PICKUP_DELAY_DROP_TICKS),
+                        new java.util.Random(),
+                        FALLING_ID_BASE);
+                this.fallingEntities = falling;
+                falling.addListener(new FallingEventDispatch());
+                // Scheduled block updates (§466): neighbor notifications drive the
+                // gravity/torch/grass rules. Registered as a world listener before
+                // the adapter, so engine-side rules observe every commit first.
+                blockUpdateSystem = new BlockUpdateSystem(world, itemEntities, falling);
+                worldListeners.add(blockUpdateSystem);
+                // Random ticks (§471 pattern): grass growth and decay.
+                randomTicks = new RandomTickSystem(world, new java.util.Random());
                 ticker.setTickHandler(() -> {
+                    blockUpdateSystem.tick(); // §466: scheduled updates (falls start here)
+                    falling.tick();           // §470: falling physics + landings
                     furnaceManager.tick(world, itemEntities);
                     chestManager.tick(world);
                     itemEntities.tick(players.all());
                     mobs.tick(players.all(), world.timeOfDay());
+                    randomTicks.tick(players.all()); // §471: grass growth/decay
                     tickFurnaceViewers();
                     tickPlayerBodies();
                     if (world.totalTicks() % 100 == 0) {
@@ -227,7 +267,7 @@ public final class EngineServer implements Server, EngineBridge {
                     }
                 });
                 blockInteraction = new BlockInteractionService(world, ticker, this::publishBlockChange,
-                        config.gamemode(), new DropService(), itemEntities,
+                        config.gamemode(), new DropService(new java.util.Random()), itemEntities,
                         type -> blockRegistry.lookup(type.identifier()),
                         this::publishInventoryChanged);
                 // A survival-broken furnace spills its slots, and a survival-
@@ -402,6 +442,21 @@ public final class EngineServer implements Server, EngineBridge {
     /** Registers an internal mob observer (e.g. the protocol adapter's sync). */
     public void addMobListener(MobManager.Listener listener) {
         mobListeners.add(listener);
+    }
+
+    /** The simulation-owned falling-block system (present once the world is up). */
+    public FallingBlockEntityManager fallingEntities() {
+        return fallingEntities;
+    }
+
+    /** Registers an internal falling-block observer (e.g. the protocol adapter's sync). */
+    public void addFallingListener(FallingBlockEntityManager.Listener listener) {
+        fallingListeners.add(listener);
+    }
+
+    /** The scheduled block-update system (exposed for behavioral tests). */
+    public BlockUpdateSystem blockUpdates() {
+        return blockUpdateSystem;
     }
 
     /** A world-time change (the /time command, the periodic cycle sync). */
@@ -1534,6 +1589,35 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /**
+     * Fan-out from the simulation-owned falling-block system to the observer
+     * list — the same pattern the item and mob systems use (§448): the engine
+     * decides what happened, the listeners decide how it reaches clients. The
+     * landing's block change itself rides the world listeners.
+     */
+    private final class FallingEventDispatch implements FallingBlockEntityManager.Listener {
+        @Override
+        public void onFallingSpawned(FallingBlockEntity entity) {
+            for (FallingBlockEntityManager.Listener listener : fallingListeners) {
+                listener.onFallingSpawned(entity);
+            }
+        }
+
+        @Override
+        public void onFallingMoved(FallingBlockEntity entity) {
+            for (FallingBlockEntityManager.Listener listener : fallingListeners) {
+                listener.onFallingMoved(entity);
+            }
+        }
+
+        @Override
+        public void onFallingEnded(FallingBlockEntity entity, boolean becameBlock) {
+            for (FallingBlockEntityManager.Listener listener : fallingListeners) {
+                listener.onFallingEnded(entity, becameBlock);
+            }
+        }
+    }
+
+    /**
      * Fan-out from the simulation-owned mob system to the observer list —
      * the same pattern the item-entity system uses (§448): the engine decides
      * what happened, the listeners decide how it reaches clients. Zombie
@@ -1805,12 +1889,19 @@ public final class EngineServer implements Server, EngineBridge {
         java.util.concurrent.CountDownLatch saved = new java.util.concurrent.CountDownLatch(1);
         ticker.submit(() -> {
             try {
+                // Mid-fall blocks land now: blocks persist, entities do not.
+                if (fallingEntities != null) {
+                    fallingEntities.finishAllFalls();
+                }
                 worldStorage.save(world.snapshotDeltas());
                 if (furnaceStore != null && furnaceManager != null) {
                     furnaceStore.save(furnaceManager.snapshot());
                 }
                 if (chestStore != null && chestManager != null) {
                     chestStore.save(chestManager.snapshot());
+                }
+                if (mobStore != null && mobManager != null) {
+                    mobStore.save(mobManager.snapshot());
                 }
             } finally {
                 saved.countDown();

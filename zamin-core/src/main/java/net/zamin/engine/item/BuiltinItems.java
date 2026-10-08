@@ -64,6 +64,13 @@ public final class BuiltinItems {
     public static final EngineItemType GLASS = new EngineItemType(
             Identifier.parse("minecraft:glass"), "Glass", 64);
 
+    // Gravity-block items (legacy ids: gravel 13; flint 318 is the historical
+    // 10% gravel roll, not a placeable block).
+    public static final EngineItemType GRAVEL = new EngineItemType(
+            Identifier.parse("minecraft:gravel"), "Gravel", 64);
+    public static final EngineItemType FLINT = new EngineItemType(
+            Identifier.parse("minecraft:flint"), "Flint", 64);
+
     // Edible items (community foods.json): raw beef smelts into steak.
     public static final EngineItemType BEEF = new EngineItemType(
             Identifier.parse("minecraft:beef"), "Beef", 64);
@@ -172,7 +179,7 @@ public final class BuiltinItems {
         for (EngineItemType type : new EngineItemType[] {
                 DIRT, COBBLESTONE, OAK_PLANKS, OAK_LOG,
                 STICK, CRAFTING_TABLE, TORCH, FURNACE, CHEST,
-                COAL, DIAMOND, IRON_INGOT, STONE, SAND, GLASS, BEEF, COOKED_BEEF,
+                COAL, DIAMOND, IRON_INGOT, STONE, SAND, GLASS, GRAVEL, FLINT, BEEF, COOKED_BEEF,
                 PORKCHOP, COOKED_PORKCHOP, RAW_CHICKEN, COOKED_CHICKEN,
                 FEATHER, LEATHER, ROTTEN_FLESH,
                 COAL_ORE, IRON_ORE, DIAMOND_ORE,
