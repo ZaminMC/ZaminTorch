@@ -23,10 +23,18 @@ final class Protocol18 {
     static final int S2C_PLAYER_POSITION_AND_LOOK = 0x08;
     static final int S2C_COLLECT_ITEM = 0x0D;
     static final int S2C_SPAWN_ENTITY = 0x0E;
+    static final int S2C_SPAWN_MOB = 0x0F;
+    static final int S2C_ANIMATION = 0x0B;
     static final int S2C_ENTITY_VELOCITY = 0x12;
     static final int S2C_DESTROY_ENTITIES = 0x13;
+    static final int S2C_REL_ENTITY_MOVE = 0x15;
+    static final int S2C_ENTITY_LOOK = 0x16;
+    static final int S2C_REL_ENTITY_MOVE_LOOK = 0x17;
     static final int S2C_ENTITY_TELEPORT = 0x18;
+    static final int S2C_ENTITY_HEAD_LOOK = 0x19;
+    static final int S2C_ENTITY_STATUS = 0x1A;
     static final int S2C_ENTITY_METADATA = 0x1C;
+    static final int S2C_NAMED_SOUND_EFFECT = 0x29;
     static final int S2C_BLOCK_CHANGE = 0x23;
     static final int S2C_SET_SLOT = 0x2F;
     static final int S2C_WINDOW_ITEMS = 0x30;
@@ -44,7 +52,9 @@ final class Protocol18 {
 
     // Serverbound play packet ids (protocol 47)
     static final int C2S_KEEP_ALIVE = 0x00;
+    static final int C2S_USE_ENTITY = 0x02;
     static final int C2S_CHAT_MESSAGE = 0x01;
+    static final int C2S_ARM_ANIMATION = 0x0A;
     static final int C2S_PLAYER_POSITION = 0x04;
     static final int C2S_PLAYER_LOOK = 0x05;
     static final int C2S_PLAYER_POSITION_AND_LOOK = 0x06;
@@ -79,10 +89,30 @@ final class Protocol18 {
     // Object types of the Spawn Entity packet (protocol 47)
     static final int OBJECT_ITEM = 1;
 
-    // Entity metadata (protocol 47): type 5 = item slot, index 10 = item entity stack
+    // Entity metadata (protocol 47, community-verified type map): value types
+    // 0=byte 1=short 2=int 3=float 4=string 5=slot 6=position 7=rotation.
+    // Living entities carry their flags byte at index 0 and health float at
+    // index 7 (the historical DataWatcher layout); item entities carry their
+    // stack slot at index 10.
+    static final int METADATA_TYPE_BYTE = 0;
+    static final int METADATA_TYPE_FLOAT = 3;
     static final int METADATA_TYPE_SLOT = 5;
+    static final int LIVING_FLAGS_METADATA_INDEX = 0;
+    static final int LIVING_HEALTH_METADATA_INDEX = 7;
     static final int ITEM_STACK_METADATA_INDEX = 10;
     static final int METADATA_TERMINATOR = 0x7F;
+
+    // Entity Status (0x1A) codes the client animates from.
+    static final int ENTITY_STATUS_HURT = 2;
+    static final int ENTITY_STATUS_DEAD = 3;
+
+    // Animation (0x0B) code 0 = arm swing.
+    static final int ANIMATION_ARM_SWING = 0;
+
+    // Use Entity (0x02) mouse actions.
+    static final int USE_ENTITY_INTERACT = 0;
+    static final int USE_ENTITY_ATTACK = 1;
+    static final int USE_ENTITY_INTERACT_AT = 2;
 
     // Player inventory window (id 0) layout, historical order:
     // 0 craft result, 1-4 craft grid, 5-8 armor, 9-35 main, 36-44 hotbar.

@@ -263,11 +263,20 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     }
 
     private void sendTimeUpdate(Channel channel) {
-        ByteBuf out = Unpooled.buffer(20);
+        ByteBuf out = Unpooled.buffer(24);
         ByteBufOps.writeVarInt(out, Protocol18.S2C_TIME_UPDATE);
         out.writeLong(engine.world().totalTicks());
         out.writeLong(engine.world().timeOfDay());
         channel.writeAndFlush(out);
+    }
+
+    /** Re-syncs this client's clock (the periodic cycle and the /time command). Any thread. */
+    void sendTimeUpdateNow() {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        sendTimeUpdate(channel);
     }
 
     private void sendInitialPositionAndLook(Channel channel) {
@@ -321,6 +330,8 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             case Protocol18.C2S_CLOSE_WINDOW -> handleCloseWindow(player, packet);
             case Protocol18.C2S_PLAYER_DIGGING -> handleDigging(player, packet);
             case Protocol18.C2S_PLAYER_BLOCK_PLACEMENT -> handleBlockPlacement(player, packet);
+            case Protocol18.C2S_USE_ENTITY -> handleUseEntity(player, packet);
+            case Protocol18.C2S_ARM_ANIMATION -> adapter.broadcastArmSwing(this);
             default -> {
                 // Unknown play packet: ignore, as the historical server does, but make it observable.
                 LOGGER.fine(() -> "Ignored play packet id 0x" + Integer.toHexString(packetId)
@@ -333,6 +344,26 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         int id = ByteBufOps.readVarInt(packet);
         if (pendingKeepAlive == id) {
             pendingKeepAlive = -1;
+        }
+    }
+
+    /**
+     * Use Entity (0x02, community-verified layout: varint target, varint mouse;
+     * mouse 2 "interact at" additionally carries f32 x/y/z). Only the attack
+     * action has gameplay semantics this slice; the interact variants are
+     * consumed and ignored (their bytes are always read so the stream stays
+     * aligned — the desync rule the real client taught us).
+     */
+    private void handleUseEntity(PlayerSession player, ByteBuf packet) {
+        int target = ByteBufOps.readVarInt(packet);
+        int mouse = ByteBufOps.readVarInt(packet);
+        if (mouse == Protocol18.USE_ENTITY_INTERACT_AT) {
+            packet.readFloat();
+            packet.readFloat();
+            packet.readFloat();
+        }
+        if (mouse == Protocol18.USE_ENTITY_ATTACK) {
+            engine.attackEntity(player, target);
         }
     }
 
@@ -1256,6 +1287,189 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             return ownEntityId >= 0 ? ownEntityId : null;
         }
         return remoteEntityIds.get(player.uuid());
+    }
+
+    /** @return this observer's wire id for a remote player, or null when untracked. */
+    Integer remoteWireEntityIdOf(UUID uuid) {
+        return remoteEntityIds.get(uuid);
+    }
+
+    // ------------------------------------------------------------------ mob entity sync
+
+    /**
+     * Last synced fixed-point position per mob id (1/32 units, x|y|z). The
+     * rel-move-look deltas compute against this; entries clear on removal.
+     * Written from the tick thread (manager listeners) and the event loop
+     * (join snapshot), hence concurrent.
+     */
+    private final java.util.concurrent.ConcurrentHashMap<Integer, long[]> mobSyncState =
+            new java.util.concurrent.ConcurrentHashMap<>();
+
+    /**
+     * Spawn Mob (0x0F, community-verified layout: varint id, u8 type, i32 xyz
+     * in 1/32 fixed point, i8 yaw, i8 pitch, i8 headPitch, vec3 i16 velocity
+     * in 1/8000 blocks/tick, trailing metadata) plus the living-entity
+     * metadata: flags byte (index 0) and health float (index 7, the historical
+     * DataWatcher layout). Spawn is chunk-gated like the item entities. Any
+     * thread.
+     */
+    void sendMobSpawn(net.zamin.engine.entity.MobEntity mob) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY
+                || chunkTracker == null) {
+            return;
+        }
+        var blockPos = mob.position().toBlockPosition();
+        if (!chunkTracker.hasChunk(blockPos.chunkPosition().packed())) {
+            return; // observer cannot see that chunk yet
+        }
+        ByteBuf out = Unpooled.buffer(40);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_SPAWN_MOB);
+        ByteBufOps.writeVarInt(out, mob.entityId());
+        out.writeByte(mob.type().legacyTypeId);
+        out.writeInt((int) Math.floor(mob.position().x() * 32.0));
+        out.writeInt((int) Math.floor(mob.position().y() * 32.0));
+        out.writeInt((int) Math.floor(mob.position().z() * 32.0));
+        out.writeByte(angleBytes(mob.yaw()));
+        out.writeByte(0); // pitch: ground mobs look level this slice
+        out.writeByte(angleBytes(mob.headYaw()));
+        out.writeShort(0); // velocity x
+        out.writeShort(0); // velocity y
+        out.writeShort(0); // velocity z
+        // Living-entity metadata: flags byte + health float, then terminator.
+        out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | Protocol18.LIVING_FLAGS_METADATA_INDEX);
+        out.writeByte(0);
+        out.writeByte((Protocol18.METADATA_TYPE_FLOAT << 5) | Protocol18.LIVING_HEALTH_METADATA_INDEX);
+        out.writeFloat(mob.health());
+        out.writeByte(Protocol18.METADATA_TERMINATOR);
+        channel.writeAndFlush(out);
+
+        mobSyncState.put(mob.entityId(), new long[] {
+                (long) Math.floor(mob.position().x() * 32.0),
+                (long) Math.floor(mob.position().y() * 32.0),
+                (long) Math.floor(mob.position().z() * 32.0)});
+    }
+
+    /**
+     * Movement + look sync for a walking mob: Rel Move Look (0x17) when the
+     * fixed-point delta fits the historical i8 1/32 units, Entity Teleport
+     * (0x18) otherwise (large pops: knockback, teleports), plus Entity Head
+     * Look (0x19) whenever the head angle changed. Any thread.
+     */
+    void sendMobMoved(net.zamin.engine.entity.MobEntity mob) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        long[] last = mobSyncState.get(mob.entityId());
+        long x = (long) Math.floor(mob.position().x() * 32.0);
+        long y = (long) Math.floor(mob.position().y() * 32.0);
+        long z = (long) Math.floor(mob.position().z() * 32.0);
+        if (last == null) {
+            return; // not spawned for this observer yet (chunk-gated join race)
+        }
+        long dx = x - last[0];
+        long dy = y - last[1];
+        long dz = z - last[2];
+        boolean moved = dx != 0 || dy != 0 || dz != 0;
+        if (Math.abs(dx) > 127 || Math.abs(dy) > 127 || Math.abs(dz) > 127) {
+            ByteBuf teleport = Unpooled.buffer(40);
+            ByteBufOps.writeVarInt(teleport, Protocol18.S2C_ENTITY_TELEPORT);
+            ByteBufOps.writeVarInt(teleport, mob.entityId());
+            teleport.writeInt((int) x);
+            teleport.writeInt((int) y);
+            teleport.writeInt((int) z);
+            teleport.writeByte(angleBytes(mob.yaw()));
+            teleport.writeByte(0);
+            teleport.writeBoolean(mob.onGround());
+            channel.writeAndFlush(teleport);
+        } else if (moved) {
+            ByteBuf out = Unpooled.buffer(24);
+            ByteBufOps.writeVarInt(out, Protocol18.S2C_REL_ENTITY_MOVE_LOOK);
+            ByteBufOps.writeVarInt(out, mob.entityId());
+            out.writeByte((int) dx);
+            out.writeByte((int) dy);
+            out.writeByte((int) dz);
+            out.writeByte(angleBytes(mob.yaw()));
+            out.writeByte(0); // pitch
+            out.writeBoolean(mob.onGround());
+            channel.writeAndFlush(out);
+        }
+        ByteBuf head = Unpooled.buffer(8);
+        ByteBufOps.writeVarInt(head, Protocol18.S2C_ENTITY_HEAD_LOOK);
+        ByteBufOps.writeVarInt(head, mob.entityId());
+        head.writeByte(angleBytes(mob.headYaw()));
+        channel.writeAndFlush(head);
+
+        last[0] = x;
+        last[1] = y;
+        last[2] = z;
+    }
+
+    /** Entity Status (0x1A): the hurt flash (2) and the death fall (3). Any thread. */
+    void sendMobStatus(net.zamin.engine.entity.MobEntity mob, int status) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(12);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_ENTITY_STATUS);
+        out.writeInt(mob.entityId());
+        out.writeByte(status);
+        channel.writeAndFlush(out);
+    }
+
+    /**
+     * Named Sound Effect (0x29, community-verified layout: string name, i32
+     * xyz at 1/8 block units, f32 volume, u8 pitch): mob hurt/death/chatter
+     * with the historical 1.8 resource names. Any thread.
+     */
+    void sendMobSound(String soundName, Position position, float volume, float pitch) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(32 + soundName.length());
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_NAMED_SOUND_EFFECT);
+        ByteBufOps.writeString(out, soundName);
+        out.writeInt((int) Math.floor(position.x() * 8.0));
+        out.writeInt((int) Math.floor(position.y() * 8.0));
+        out.writeInt((int) Math.floor(position.z() * 8.0));
+        out.writeFloat(volume);
+        out.writeByte(Math.round(pitch * 63.0f)); // u8 0-63 around 1.0 = 63
+        channel.writeAndFlush(out);
+    }
+
+    /** Destroy Entities (0x13) for one removed mob; drops its sync state. Any thread. */
+    void sendMobRemoved(int mobEntityId) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(8);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_DESTROY_ENTITIES);
+        ByteBufOps.writeVarInt(out, 1);
+        ByteBufOps.writeVarInt(out, mobEntityId);
+        channel.writeAndFlush(out);
+        mobSyncState.remove(mobEntityId);
+    }
+
+    /** Animation (0x0B) code 0: the arm swing, aimed at one observer's id space. */
+    void sendAnimation(int observerLocalEntityId) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(8);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_ANIMATION);
+        ByteBufOps.writeVarInt(out, observerLocalEntityId);
+        out.writeByte(Protocol18.ANIMATION_ARM_SWING);
+        channel.writeAndFlush(out);
+    }
+
+    /** Angle float degrees -> the wire's i8 1/256-turn encoding. */
+    private static int angleBytes(float degrees) {
+        return (int) Math.floor(degrees * 256.0f / 360.0f);
     }
 
     // ------------------------------------------------------------------ chunk tracking

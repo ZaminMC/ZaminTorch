@@ -145,6 +145,66 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                 }
             }
         });
+        // Time Update (0x03): the periodic cycle sync and the /time command
+        // ride the same listener — the client's day follows the server's.
+        server.addTimeListener((totalTicks, timeOfDay) -> {
+            for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                connection.sendTimeUpdateNow();
+            }
+        });
+        // Living mobs: engine decides lifecycle, adapter renders protocol 47.
+        server.addMobListener(new net.zamin.engine.entity.MobManager.Listener() {
+            @Override
+            public void onMobSpawned(net.zamin.engine.entity.MobEntity mob) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendMobSpawn(mob);
+                }
+            }
+
+            @Override
+            public void onMobMoved(net.zamin.engine.entity.MobEntity mob) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendMobMoved(mob);
+                }
+            }
+
+            @Override
+            public void onMobHurt(net.zamin.engine.entity.MobEntity mob) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendMobStatus(mob, net.zamin.protocol.v1_8.Protocol18.ENTITY_STATUS_HURT);
+                    connection.sendMobSound(mob.type().hurtSound, mob.position(), 1.0f, 1.0f);
+                }
+            }
+
+            @Override
+            public void onMobDied(net.zamin.engine.entity.MobEntity mob) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendMobStatus(mob, net.zamin.protocol.v1_8.Protocol18.ENTITY_STATUS_DEAD);
+                    connection.sendMobSound(mob.type().deathSound, mob.position(), 1.0f, 1.0f);
+                }
+            }
+
+            @Override
+            public void onMobRemoved(net.zamin.engine.entity.MobEntity mob, String reason) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendMobRemoved(mob.entityId());
+                }
+            }
+
+            @Override
+            public void onMobAttackedPlayer(net.zamin.engine.entity.MobEntity mob,
+                                            net.zamin.engine.player.PlayerSession target, float damage) {
+                // The health sync rides the survival listener; the victim's
+                // hurt sound is client-side historically.
+            }
+
+            @Override
+            public void onMobSound(net.zamin.engine.entity.MobEntity mob, String soundName) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendMobSound(soundName, mob.position(), 1.0f, 1.0f);
+                }
+            }
+        });
         // Inventory sync: full authoritative window re-sync on change (simple,
         // correct; per-slot deltas are an optimization for a later profile).
         // While a container (crafting table) is open, its window syncs instead:
@@ -247,6 +307,31 @@ public final class V18ProtocolServer implements ProtocolAdapter {
             }
             newcomer.trackPlayer(connection.currentSession());
             connection.trackPlayer(newcomer.currentSession());
+        }
+        // The mobs already alive: the newcomer's world snapshot spawns them
+        // (chunk-gated; later spawns broadcast to everyone like the items).
+        var mobs = engine.mobs();
+        if (mobs != null) {
+            for (net.zamin.engine.entity.MobEntity mob : mobs.all()) {
+                newcomer.sendMobSpawn(mob);
+            }
+        }
+    }
+
+    /** A player swung their arm: other observers see the swing animation. */
+    void broadcastArmSwing(V18Connection from) {
+        PlayerSession swinger = from.currentSession();
+        if (swinger == null) {
+            return;
+        }
+        for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+            if (connection == from) {
+                continue;
+            }
+            Integer id = connection.remoteWireEntityIdOf(swinger.uuid());
+            if (id != null) {
+                connection.sendAnimation(id);
+            }
         }
     }
 

@@ -192,10 +192,10 @@ public final class MobManager {
 
             if (mob.deathAnimationFinished()) {
                 iterator.remove();
-                dropLoot(mob);
                 for (Listener listener : listeners) {
                     listener.onMobRemoved(mob, "died");
                 }
+                dropLoot(mob); // the loot lands after the body leaves the wire
                 continue;
             }
 
