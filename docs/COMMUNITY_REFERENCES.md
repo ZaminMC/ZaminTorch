@@ -27,14 +27,14 @@ our protocol layer — only the *ideas* are borrowed.
 | [4drian3d/SignedVelocity](https://github.com/4drian3d/SignedVelocity) | Signed chat result sync | Modern-chat concept; protocol 47 predates signed chat, so nothing to adopt now. |
 | [mworzala/mc_debug_renderer](https://github.com/mworzala/mc_debug_renderer) | Debug visualization | A great idea for our own debugging (rendering pathfinding/light volumes); revisit when the client-side hooking approach fits. |
 | [Mangolise/mango-anti-cheat](https://github.com/Mangolise/mango-anti-cheat) | Anti-cheat | Reference for the movement-validity hardening slice (our `isSaneMovement` grows into a real checker). |
-| [TogAr2/MinestomFluids](https://github.com/TogAr2/MinestomFluids) | Fluid simulation | Reference for the fluids milestone (flow scheduling, source/spreading rules on our block-update queue). |
+| [TogAr2/MinestomFluids](https://github.com/TogAr2/MinestomFluids) | Fluid simulation | **Adopted in shape (slice 10w)**: the pour/spread/dry rule set (down-priority, level decay, sustenance) runs on our scheduled-tick queue as our own implementation. |
 | [AtlasEngineCa/AtlasProjectiles](https://github.com/AtlasEngineCa/AtlasProjectiles) | Projectiles | **Adopted (slice 10v)**: the projectile-manager shape — one simulation-confined owner with launch/physics/removal events fanned to the wire — and the gravity-per-tick thrown-entity loop. Our physics constants, collision sampling and damage rules live in `ProjectileManager`. |
 | [GoldenStack/window](https://github.com/GoldenStack/window), [GoldenStack/trove](https://github.com/GoldenStack/trove), [emortalmc/NBStom](https://github.com/emortalmc/NBStom) | Container/ADT/NBT utilities | `window`: container-layout ergonomics ideas for the remaining GUIs (enchanting, brewing). `trove`/`NBStom`: our SlotNbt stays internal; their readers are references for edge cases. |
 | [LooFifteen/simple-voice-chat-minestom](https://github.com/LooFifteen/simple-voice-chat-minestom) | Voice chat | Out of scope for 1.8.8. |
 | [oglassdev/KotStom](https://github.com/oglassdev/KotStom), [TropicalShadow/minestom-utils](https://github.com/TropicalShadow/minestom-utils), [GhostRider584/axiom-minestom](https://github.com/GhostRider584/axiom-minestom) | Utility layers | Generic utility patterns; nothing concrete until the corresponding features exist. |
 | [aprilthepink/MinestomBasicLight](https://github.com/aprilthepink/MinestomBasicLight) | Light engine | Our light engine (§475/§476) already exceeds it; keep as a cross-check for propagation edge cases. |
 | [kiip1/MineScreen](https://github.com/kiip1/MineScreen) | Screen rendering | Out of scope. |
-| [Kanelucky/MobMind](https://github.com/Kanelucky/MobMind) | Mob AI | Reference for the mob-AI expansion (pathing goals, aggro tables). |
+| [Kanelucky/MobMind](https://github.com/Kanelucky/MobMind) | Mob AI | **Adopted in shape (slice 10w)**: the goal-set layout (wander/panic/chase + kind-specific goals) behind our small deterministic minds. |
 | [smoldermc/mirage](https://github.com/smoldermc/mirage), [everbuild-org/blocks-and-stuff](https://github.com/everbuild-org/blocks-and-stuff), [everbuild-org/minecraft-heads-minestom](https://github.com/everbuild-org/minecraft-heads-minestom) | Misc / cosmetic | Cosmetic layers, deferred. |
 
 ## Policy summary

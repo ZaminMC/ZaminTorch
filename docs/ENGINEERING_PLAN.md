@@ -772,6 +772,50 @@ COMMUNITY_REFERENCES.md.**
   draft doubled gravity and aged entities twice — the tests caught it and the
   physics stayed one historical step with midpoint sampling.
 
+
+## 10w. Slice 10w — fluids & the living night (committed 2026-10-08)
+
+- **Fluids** (behavior shape from TogAr2/MinestomFluids, MIT — own
+  implementation): source/flowing(1-7)/falling state types per fluid with the
+  historical metadata nibble on the wire (still 9/11, flowing 8/10, falling
+  metadata 8); down-priority spread, level decay (water 1, lava 2), cadences
+  (water 5t, lava 30t), sustenance drying, water+lava → obsidian/cobblestone,
+  torch wash-out. Scheduled like the neighbor rules: every committed change
+  wakes the cell and its neighbors; a bounded per-tick drain (see below).
+- **Buckets**: scoop any source (the client's fluid ray targets the fluid
+  block), pour against a clicked face, historical stack swaps
+  (bucket ⇄ water/lava bucket), splash feedback.
+- **Mob AI expansion** (goal shapes from the MobMind reference): skeletons
+  hold a shooting band (close >12, back off <6, shoot 4-15 with a clear-line
+  check through the world query); creepers prime at arm's length (30-tick
+  fuse, abort on escape, index-16 swell metadata) and detonate through
+  `ExplosionService` (the historical 16³ ray fan, hardness-based resistance,
+  one-in-power drop rolls, distance-falloff wounds, per-observer knockback
+  riding the Explosion packet's motion fields); spiders hunt only in the
+  dark (neutral by day — dawn no longer deletes them, it just ends the
+  hunt); sheep shear for 1-3 wool (shears gate + wear, index-16 coat bit)
+  and regrow on the historical 5-10 min window. Walking mobs steer: a
+  blocked walker takes a 45-90° detour for a few ticks (wall-slide) instead
+  of grinding; idle mobs glance at nearby players (LookAtPlayer).
+- **Night raid spawning**: the maintainer's hostile roll now picks among
+  zombie/skeleton/spider (50/30/20) — the cover fire arrives with the melee.
+- **THE REAL-CLIENT LESSONS (three wire bugs mineflayer's lenient parser
+  never caught)**: an Unload Chunk written at 0x1D (Entity Effect on
+  protocol 47 — the client died "3 bytes extra" when a chunk left the view
+  distance; protocol 47 has no unload packet, the client prunes itself);
+  World Particles at 0x2B (Game State Change) instead of 0x2A; and the
+  shared-solidity rewrite dropping the air check — air became solid and the
+  whole simulation petrified (mobs ground-stuck, sand never fell, items
+  never dropped). The new `Protocol18ConformanceTest` pins every S2C
+  constant to the community protocol-47 table so an id drift fails the
+  build, not a session; both scheduled-tick drains are bounded per pass
+  (a future-due entry re-arms to the back — an unbounded drain re-polls it
+  forever and freezes the tick thread at 100% CPU).
+- **Tests**: fluid rules (spread/decay/drying/contact/wash-out), explosion
+  geometry + drop rolls, the skeleton band + LOS, the creeper fuse/abort,
+  spider day-night, sheep shear/regrow, bucket scoop/pour, the conformance
+  table; all 300+ green.
+
 ## 11. Known risks
 
 - 1.8.8 client quirks not obvious from protocol docs (e.g. exact chunk/lighting expectations) — mitigated by scripted-client tests + real client validation.
