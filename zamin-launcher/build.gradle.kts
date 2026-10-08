@@ -26,13 +26,14 @@ tasks.register<JavaExec>("runServer") {
  * compares its build version against the released tag, so this artifact's
  * version constant and the release tag must move together.
  */
-val distVersion = "0.2.0-dev.1"
+val distVersion = "0.2.0-dev.2"
 
 val fatJar = tasks.register<Jar>("fatServerJar") {
     group = "zamin"
     description = "Merges every runtime classpath jar into one launchable server jar."
     archiveFileName.set("zamin-server-$distVersion.jar")
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    dependsOn(tasks.jar) // the launcher jar must exist before it is expanded
     manifest {
         attributes(
             "Main-Class" to "net.zamin.launcher.ZaminLauncher",
