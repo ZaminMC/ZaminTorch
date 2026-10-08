@@ -6,7 +6,7 @@ dependencies {
 
 tasks.withType<Jar>().configureEach {
     manifest {
-        attributes("Main-Class" to "net.zamin.launcher.ZaminLauncher")
+        attributes("Main-Class" to "net.zaminmc.torch.launcher.ZaminLauncher")
     }
 }
 
@@ -14,7 +14,7 @@ tasks.register<JavaExec>("runServer") {
     group = "zamin"
     description = "Starts a ZaminTorch development server."
     classpath = sourceSets["main"].runtimeClasspath
-    mainClass = "net.zamin.launcher.ZaminLauncher"
+    mainClass = "net.zaminmc.torch.launcher.ZaminLauncher"
     workingDir = file("${rootProject.projectDir}/run")
     standardInput = System.`in`
 }
@@ -36,7 +36,7 @@ val fatJar = tasks.register<Jar>("fatServerJar") {
     dependsOn(tasks.jar) // the launcher jar must exist before it is expanded
     manifest {
         attributes(
-            "Main-Class" to "net.zamin.launcher.ZaminLauncher",
+            "Main-Class" to "net.zaminmc.torch.launcher.ZaminLauncher",
             "Implementation-Version" to distVersion,
             "Implementation-Title" to "ZaminTorch",
         )
