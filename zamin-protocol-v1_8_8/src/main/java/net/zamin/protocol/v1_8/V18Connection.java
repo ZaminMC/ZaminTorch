@@ -2086,15 +2086,16 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             centerZ = center.z();
             int view = engine.config().viewDistance();
 
-            // Unload first: chunks that fell out of range (with one chunk of hysteresis).
+            // Unload bookkeeping: chunks that fell out of range (with one
+            // chunk of hysteresis). Protocol 47 has NO unload packet — the
+            // 1.8 client prunes out-of-range chunks itself (the vanilla
+            // server of the era never said goodbye). Sending 0x1D here was
+            // the real-client crash: the client decoded it as Entity Effect
+            // and died on the leftover bytes ("packet 29, 3 bytes extra").
             synchronized (sent) {
             sent.removeIf(packed -> {
                 ChunkPosition position = ChunkPosition.unpack(packed);
-                if (position.distanceSquared(center) > (long) (view + 1) * (view + 1)) {
-                    sendUnload(position);
-                    return true;
-                }
-                return false;
+                return position.distanceSquared(center) > (long) (view + 1) * (view + 1);
             });
 
             // Send chunks that are newly visible.
@@ -2163,17 +2164,6 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             out.writeShort(ChunkSerializer18.sectionBitmask(chunk));
             ByteBufOps.writeVarInt(out, data.length);
             out.writeBytes(data);
-            channel.writeAndFlush(out);
-        }
-
-        private void sendUnload(ChunkPosition position) {
-            if (!channel.isActive()) {
-                return;
-            }
-            ByteBuf out = Unpooled.buffer(12);
-            ByteBufOps.writeVarInt(out, Protocol18.S2C_UNLOAD_CHUNK);
-            out.writeInt(position.x());
-            out.writeInt(position.z());
             channel.writeAndFlush(out);
         }
     }

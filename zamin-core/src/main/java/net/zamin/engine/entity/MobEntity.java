@@ -250,6 +250,10 @@ public final class MobEntity {
         return velocityX;
     }
 
+    public double velocityY() {
+        return velocityY;
+    }
+
     public double velocityZ() {
         return velocityZ;
     }

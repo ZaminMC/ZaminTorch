@@ -125,14 +125,14 @@ class MobEntityTest {
         Position player = new Position(1.0, 4.0, 0.5); // 0.5 blocks away: inside reach
         MobEntity zombie = spawn(MobType.ZOMBIE, new Position(0.5, 4.0, 0.5), 13, worldAt(player));
         zombie.tick();
-        assertTrue(zombie.consumePendingAttack(), "first swing lands immediately in range");
-        assertFalse(zombie.consumePendingAttack(), "the swing was consumed");
-        for (int i = 0; i < MobEntity.ZOMBIE_ATTACK_COOLDOWN - 1; i++) {
+        assertTrue(zombie.consumePendingMeleeAttack(), "first swing lands immediately in range");
+        assertFalse(zombie.consumePendingMeleeAttack(), "the swing was consumed");
+        for (int i = 0; i < MobEntity.MELEE_ATTACK_COOLDOWN - 1; i++) {
             zombie.tick();
-            assertFalse(zombie.consumePendingAttack(), "cooldown suppresses swings");
+            assertFalse(zombie.consumePendingMeleeAttack(), "cooldown suppresses swings");
         }
         zombie.tick();
-        assertTrue(zombie.consumePendingAttack(), "the cooldown elapsed and the swing re-arms");
+        assertTrue(zombie.consumePendingMeleeAttack(), "the cooldown elapsed and the swing re-arms");
     }
 
     @Test
@@ -141,7 +141,7 @@ class MobEntityTest {
         MobEntity zombie = spawn(MobType.ZOMBIE, new Position(0.5, 4.0, 0.5), 17, worldAt(far));
         zombie.tick();
         assertTrue(zombie.mode() != MobEntity.Mode.CHASE, "out of aggro: no chase");
-        assertFalse(zombie.consumePendingAttack(), "no melee out of aggro");
+        assertFalse(zombie.consumePendingMeleeAttack(), "no melee out of aggro");
     }
 
     @Test

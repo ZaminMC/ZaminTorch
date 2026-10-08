@@ -59,6 +59,13 @@ class MobManagerTest {
             playerHits.add(damage);
         }
         @Override public void onMobSound(MobEntity mob, String soundName) { sounds++; }
+        @Override public void onMobRangedAttack(MobEntity mob, Position aimPoint) { }
+        @Override public void onMobFuseChanged(MobEntity mob, boolean priming) { }
+        @Override public void onMobSheared(MobEntity mob, int woolCount) { wool += woolCount; }
+        @Override public void onMobCoatRegrown(MobEntity mob) { regrown++; }
+        @Override public void onMobExploded(MobEntity mob) { explosions++; }
+
+        int wool, regrown, explosions;
     }
 
     private static final class Loot implements MobManager.LootSink {
@@ -208,7 +215,7 @@ class MobManagerTest {
             hit = !events.playerHits.isEmpty();
         }
         assertTrue(hit, "the zombie landed a hit on the adjacent player");
-        assertEquals(MobEntity.ZOMBIE_ATTACK_DAMAGE, events.playerHits.get(0),
+        assertEquals(MobEntity.MELEE_ATTACK_DAMAGE, events.playerHits.get(0),
                 "easy-difficulty zombie damage");
     }
 

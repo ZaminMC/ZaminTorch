@@ -96,7 +96,7 @@ class MobCombatAcceptanceTest {
         standNextTo(server, victim, zombie);
         await(() -> victim.health() < PlayerSession.MAX_HEALTH,
                 "the zombie reached and hurt the player (easy damage 2)");
-        await(() -> victim.health() <= PlayerSession.MAX_HEALTH - MobEntity.ZOMBIE_ATTACK_DAMAGE,
+        await(() -> victim.health() <= PlayerSession.MAX_HEALTH - MobEntity.MELEE_ATTACK_DAMAGE,
                 "the zombie's easy-difficulty damage landed");
         server.shutdown(null);
     }

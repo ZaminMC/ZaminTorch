@@ -103,11 +103,18 @@ public final class BlockUpdateSystem implements WorldChangeListener {
      */
     public void tick() {
         long now = world.totalTicks();
-        Scheduled entry;
-        while ((entry = queue.poll()) != null) {
+        // Bounded drain (the same rule as the fluid system): a future-due
+        // entry re-arms to the back and is re-checked on a later tick - an
+        // unbounded drain would poll the same future-due entry forever.
+        int entries = queue.size();
+        for (int i = 0; i < entries; i++) {
+            Scheduled entry = queue.poll();
+            if (entry == null) {
+                break; // drained everything reachable (defensive)
+            }
             pending.remove(key(entry.position()));
             if (entry.dueTick() > now) {
-                schedule(entry.position(), entry.dueTick()); // re-arm for its due tick
+                schedule(entry.position(), entry.dueTick()); // re-arm, due tick preserved
                 continue;
             }
             runUpdate(entry.position());
