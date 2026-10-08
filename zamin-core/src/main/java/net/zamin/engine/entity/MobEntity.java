@@ -9,12 +9,32 @@ import java.util.Random;
  * One living mob in the world: identity, body, mind and the timers that shape
  * its behavior. The simulation owns it; the wire only observes.
  *
- * <p>AI is deliberately small and deterministic-under-seeded-random: passive
- * kinds wander (idle, then pick a direction and walk) and panic when hurt;
- * the zombie chases the nearest player within its aggro range and attacks in
- * melee with a cooldown. Physics reuses the item-entity model (gravity,
- * drag, epsilon-correct ground snap) and stays marked for the physics slice
- * (horizontal motion here is direct walk-integration, not impulse physics).</p>
+ * <p>AI is a small vanilla-style goal set, deterministic under seeded
+ * random:</p>
+ * <ul>
+ *   <li><b>Passive kinds</b> wander (idle, then pick a direction and walk),
+ *       glance at nearby players while idle (the historical LookAtPlayer),
+ *       and panic when hurt. Sheep additionally carry a wool coat a player
+ *       can shear off; it regrows on a timer.</li>
+ *   <li><b>Zombies</b> chase the nearest player within their aggro range and
+ *       attack in melee with a cooldown.</li>
+ *   <li><b>Skeletons</b> hold a shooting band: they close when the target is
+ *       far, back away when crowded, and loose an arrow when the line of
+ *       sight is clear and the bow is off cooldown.</li>
+ *   <li><b>Creepers</b> chase; at arm's length they stop and prime, and
+ *       after the historical 30-tick fuse they detonate (the manager hears
+ *       it and removes them). A target who retreats past the abort radius
+ *       defuses the creeper.</li>
+ *   <li><b>Spiders</b> hunt like zombies but only in the dark — in daylight
+ *       they are neutral wanderers.</li>
+ * </ul>
+ *
+ * <p>Walking mobs steer: a blocked walker picks a sideways detour heading
+ * for a handful of ticks before re-choosing (the light-touch alternative to
+ * full pathfinding — enough to slide along walls and around corners). Fluid
+ * slows and buoys the body. Physics reuses the item-entity model (gravity,
+ * drag, epsilon ground snap); horizontal motion is direct walk-integration,
+ * not impulse physics, and stays marked for the physics slice.</p>
  */
 public final class MobEntity {
 
@@ -30,36 +50,80 @@ public final class MobEntity {
     public static final int IDLE_TICKS = 60;
     /** Wander leg length (walking one direction, then the roll re-fires). */
     public static final int WANDER_TICKS = 80;
-    /** Zombie aggro radius in blocks (historical follow range). */
-    public static final double ZOMBIE_AGGRO_RANGE = 16.0;
+    /** Hostile aggro radius in blocks (the historical follow range). */
+    public static final double AGGRO_RANGE = 16.0;
     /** Zombie melee reach in blocks (horizontal, center to center-ish). */
-    public static final double ZOMBIE_ATTACK_RANGE = 1.6;
-    /** Vertical spread the zombie tolerates when reaching. */
-    public static final double ZOMBIE_ATTACK_VERTICAL_RANGE = 2.0;
-    /** Historical easy-difficulty zombie attack damage (EntityZombie easy). */
-    public static final float ZOMBIE_ATTACK_DAMAGE = 2.0f;
-    /** Attack cooldown in ticks (historical attack delay). */
-    public static final int ZOMBIE_ATTACK_COOLDOWN = 20;
+    public static final double MELEE_ATTACK_RANGE = 1.6;
+    /** Vertical spread the melee attack tolerates. */
+    public static final double MELEE_ATTACK_VERTICAL_RANGE = 2.0;
+    /** Historical easy-difficulty melee damage of the undead. */
+    public static final float MELEE_ATTACK_DAMAGE = 2.0f;
+    /** Melee cooldown in ticks (historical attack delay). */
+    public static final int MELEE_ATTACK_COOLDOWN = 20;
+    /** Skeleton shooting band: closer than this it backs away. */
+    public static final double SKELETON_TOO_CLOSE = 6.0;
+    /** Skeleton shooting band: farther than this it closes in. */
+    public static final double SKELETON_TOO_FAR = 12.0;
+    /** Skeleton maximum shot range (the historical bow reach). */
+    public static final double SKELETON_SHOOT_RANGE = 15.0;
+    /** Skeleton bow cooldown in ticks (the historical 60-tick attack delay). */
+    public static final int SKELETON_ATTACK_COOLDOWN = 60;
+    /** Skeleton arrow launch speed (blocks per tick). */
+    public static final double SKELETON_ARROW_SPEED = 1.8;
+    /** Creeper ignition distance: inside this it stops and primes. */
+    public static final double CREEPER_PRIME_RANGE = 1.8;
+    /** Creeper prime vertical tolerance. */
+    public static final double CREEPER_PRIME_VERTICAL_RANGE = 2.0;
+    /** Creeper abort radius: the target escaping this far defuses the fuse. */
+    public static final double CREEPER_ABORT_RANGE = 3.5;
+    /** The historical 30-tick fuse (EntityCreeper fuse, 1.5 seconds). */
+    public static final int CREEPER_FUSE_TICKS = 30;
+    /** Sheep wool regrow window (5-10 minutes, the historical grass-eat loop). */
+    public static final int SHEEP_REGROW_MIN_TICKS = 6000;
+    public static final int SHEEP_REGROW_SPREAD_TICKS = 6000;
+    /** Sidestep detour length in ticks (the wall-slide steering window). */
+    public static final int DETOUR_TICKS = 20;
     /** Panic speed multiplier over the kind's walk speed. */
     public static final double PANIC_SPEED_MULTIPLIER = 1.8;
     /** Position epsilon so ground queries see the block *below* the feet. */
     private static final double GROUND_EPSILON = 1.0E-7;
 
-    /** Minimal world query the mob needs (tick-thread context only). */
+    /**
+     * Minimal world query the mob needs (tick-thread context only). The
+     * line and fluid queries default to open/empty so tests and simple
+     * worlds only implement what they use.
+     */
     public interface WorldQuery {
         /** @return whether the block containing this point is solid. */
         boolean isSolid(double x, double y, double z);
 
         /** @return the nearest playing player's position within {@code range} blocks, or null. */
         Position nearestPlayer(double x, double y, double z, double range);
+
+        /**
+         * @return whether nothing solid blocks the straight segment between
+         * the two eye points (the shooter's line-of-sight test).
+         */
+        default boolean clearLine(Position from, Position to) {
+            return true;
+        }
+
+        /** @return whether the block containing this point is a fluid. */
+        default boolean inFluid(double x, double y, double z) {
+            return false;
+        }
     }
 
-    /** What the mob is doing (the small vanilla-style goal set of this slice). */
+    /** What the mob is doing (the vanilla-style goal set of this slice). */
     public enum Mode {
         IDLE,
         WANDER,
         PANIC,
-        CHASE
+        CHASE,
+        /** Skeleton: standing in its shooting band, facing the target. */
+        STRAFE,
+        /** Creeper: primed, fuse burning down. */
+        FUSE
     }
 
     private final int entityId;
@@ -84,6 +148,22 @@ public final class MobEntity {
     private int idleSoundTimer;
     private boolean dead;
     private int deathTicks;
+
+    // Steering: the wall-slide detour (a blocked walker slides along the wall
+    // for a few ticks instead of grinding into it).
+    private float detourYaw;
+    private int detourTicks;
+
+    // Sheep coat.
+    private boolean sheared;
+    private int regrowTimer;
+
+    // Ranged skeleton: a shot armed by the mind, consumed by the manager.
+    private boolean pendingRangedShot;
+    private Position rangedTarget;
+
+    // Primed creeper: the mind arms, the manager detonates and removes.
+    private boolean pendingExplosion;
 
     public MobEntity(int entityId, MobType type, Position position,
                      Random random, WorldQuery world) {
@@ -147,12 +227,27 @@ public final class MobEntity {
         return hurtFlash > 0;
     }
 
-    public double velocityX() {
-        return velocityX;
+    public boolean sheared() {
+        return sheared;
     }
 
-    public double velocityY() {
-        return velocityY;
+    /** @return whether the body is in the primed state (the fuse burning). */
+    public boolean fuseActive() {
+        return mode == Mode.FUSE;
+    }
+
+    /** @return the armed shot's aim point (null when none is pending). */
+    public Position rangedTarget() {
+        return rangedTarget;
+    }
+
+    /** Clears the consumed shot's aim point (package-private: the manager calls). */
+    void clearRangedTarget() {
+        rangedTarget = null;
+    }
+
+    public double velocityX() {
+        return velocityX;
     }
 
     public double velocityZ() {
@@ -165,7 +260,7 @@ public final class MobEntity {
         velocityX = -Math.sin(radians) * 0.4;
         velocityZ = Math.cos(radians) * 0.4;
         velocityY = 0.4;
-        onGround = false;
+        onGround = false; // a primed creeper keeps priming; range governs the abort
     }
 
     /** Applies damage; clamps at zero and starts the death timer at zero health. */
@@ -179,7 +274,7 @@ public final class MobEntity {
             dead = true;
             return;
         }
-        if (!type.hostile) {
+        if (!type.hostile && mode != Mode.PANIC) {
             panicTicks = PANIC_TICKS;
             mode = Mode.PANIC;
             modeTicks = 0;
@@ -198,13 +293,29 @@ public final class MobEntity {
     }
 
     /**
-     * Advances one tick: timers, mind (goal selection), then body (physics).
-     * Returns true when the fixed-point position or rotation changed, so the
-     * publisher decides to sync.
+     * Shears the coat off a wooly kind. Returns whether wool was actually
+     * cut (an already-bald sheep or a bald kind yields nothing); the coat
+     * regrows after the historical 5-10 minute window.
      */
-    public boolean tick() {
+    public boolean shear() {
+        if (!type.traits.shearable() || sheared || dead) {
+            return false;
+        }
+        sheared = true;
+        regrowTimer = SHEEP_REGROW_MIN_TICKS + random.nextInt(SHEEP_REGROW_SPREAD_TICKS);
+        return true;
+    }
+
+    /**
+     * Advances one tick: timers, mind (goal selection), then body (physics).
+     * Day-neutral kinds only hunt while {@code night} is true. Returns true
+     * when the fixed-point position or rotation changed, so the publisher
+     * decides to sync.
+     */
+    public boolean tick(boolean night) {
         long before = fixedPoint();
         float beforeYaw = yaw;
+        float beforeHeadYaw = headYaw;
 
         if (hurtFlash > 0) {
             hurtFlash--;
@@ -212,18 +323,30 @@ public final class MobEntity {
         if (attackCooldown > 0) {
             attackCooldown--;
         }
+        if (sheared && regrowTimer > 0) {
+            regrowTimer--;
+            if (regrowTimer == 0) {
+                sheared = false; // the coat returns; consumeRegrown() hears it
+                regrownThisTick = true;
+            }
+        }
 
         if (dead) {
             deathTicks++;
             velocityX = 0;
             velocityZ = 0;
             velocityY = 0;
-            return fixedPoint() != before || beforeYaw != yaw;
+            return fixedPoint() != before || beforeYaw != yaw || beforeHeadYaw != headYaw;
         }
 
-        tickMind();
+        tickMind(night);
         tickBody();
-        return fixedPoint() != before || beforeYaw != yaw;
+        return fixedPoint() != before || beforeYaw != yaw || beforeHeadYaw != headYaw;
+    }
+
+    /** Day-locked convenience for tests and callers without a clock. */
+    public boolean tick() {
+        return tick(false);
     }
 
     /** @return true when the mob produced an idle chatter sound this tick.
@@ -234,18 +357,43 @@ public final class MobEntity {
             idleSoundTimer--;
             return false;
         }
-        if (!dead) {
+        if (!dead && !type.idleSound.isEmpty()) {
             idleSoundTimer = 160 + random.nextInt(320); // 8-24 s
             return true;
         }
         return false;
     }
 
-    private void tickMind() {
+    /** @return and clears whether a skeleton shot is armed this tick. */
+    public boolean consumePendingRangedShot() {
+        boolean value = pendingRangedShot;
+        pendingRangedShot = false;
+        return value;
+    }
+
+    /** @return and clears whether a primed creeper should detonate this tick. */
+    public boolean consumePendingExplosion() {
+        boolean value = pendingExplosion;
+        pendingExplosion = false;
+        return value;
+    }
+
+    /** @return and clears whether a sheep's coat regrew this tick. */
+    public boolean consumeRegrown() {
+        boolean value = regrownThisTick;
+        regrownThisTick = false;
+        return value;
+    }
+
+    /** Set when a sheep's coat regrew; consumed by the manager. */
+    private boolean regrownThisTick;
+
+    private void tickMind(boolean night) {
         modeTicks++;
 
         Position target = world.nearestPlayer(position.x(), position.y(), position.z(),
-                type.hostile ? ZOMBIE_AGGRO_RANGE : 8.0);
+                type.hostile ? AGGRO_RANGE : 8.0);
+        boolean canHunt = type.hostile && (!type.traits.neutralByDay() || night);
 
         if (panicTicks > 0) {
             panicTicks--;
@@ -260,31 +408,47 @@ public final class MobEntity {
             return;
         }
 
-        if (type.hostile && target != null) {
+        if (canHunt && target != null) {
             double dx = target.x() - position.x();
-            double dz = target.z() - position.z();
             double dy = target.y() - position.y();
+            double dz = target.z() - position.z();
             double horizontal = Math.sqrt(dx * dx + dz * dz);
+
+            if (type.traits.explodes()) {
+                tickCreeperMind(target, horizontal, dy);
+                return;
+            }
+            if (type.traits.ranged()) {
+                tickSkeletonMind(target, horizontal, dy);
+                return;
+            }
+
+            // The melee hunter (zombie, night spider).
             mode = Mode.CHASE;
             yaw = (float) (Math.toDegrees(Math.atan2(-dx, dz)));
             headYaw = yaw;
-            if (horizontal <= ZOMBIE_ATTACK_RANGE && Math.abs(dy) <= ZOMBIE_ATTACK_VERTICAL_RANGE
+            if (horizontal <= MELEE_ATTACK_RANGE && Math.abs(dy) <= MELEE_ATTACK_VERTICAL_RANGE
                     && attackCooldown == 0) {
-                attackCooldown = ZOMBIE_ATTACK_COOLDOWN;
-                // The manager hears the swing through the returned tick result;
-                // the attack lands through attackScheduled below.
-                pendingAttack = true;
+                attackCooldown = MELEE_ATTACK_COOLDOWN;
+                // The manager hears the swing through the pending flag; the
+                // attack lands through consumePendingMeleeAttack below.
+                pendingMeleeAttack = true;
             }
             return;
         }
 
-        if (mode == Mode.CHASE) {
-            mode = Mode.IDLE;
+        if (mode == Mode.CHASE || mode == Mode.STRAFE || mode == Mode.FUSE) {
+            mode = Mode.IDLE; // target lost (or daylight saved the spider)
             modeTicks = 0;
         }
 
         switch (mode) {
             case IDLE -> {
+                // The historical LookAtPlayer: an idle mob glances at a
+                // nearby player now and then.
+                if (target != null && modeTicks % 30 == 0 && random.nextInt(3) == 0) {
+                    headYaw = angleTo(target.x() - position.x(), target.z() - position.z());
+                }
                 if (modeTicks >= IDLE_TICKS + random.nextInt(IDLE_TICKS)) {
                     mode = Mode.WANDER;
                     modeTicks = 0;
@@ -305,19 +469,71 @@ public final class MobEntity {
         }
     }
 
-    /** Set when the zombie's cooldown elapsed inside reach; consumed by the manager. */
-    private boolean pendingAttack;
+    /** The creeper goal: close, stop at arm's length, prime, detonate. */
+    private void tickCreeperMind(Position target, double horizontal, double dy) {
+        yaw = angleTo(target.x() - position.x(), target.z() - position.z());
+        headYaw = yaw;
+        if (mode == Mode.FUSE) {
+            if (horizontal > CREEPER_ABORT_RANGE || Math.abs(dy) > CREEPER_ABORT_RANGE) {
+                mode = Mode.IDLE; // the target slipped away: the fuse dies out
+                modeTicks = 0;
+                return;
+            }
+            if (modeTicks >= CREEPER_FUSE_TICKS) {
+                pendingExplosion = true;
+            }
+            return; // priming creepers stand still (the historical swell)
+        }
+        if (horizontal <= CREEPER_PRIME_RANGE && Math.abs(dy) <= CREEPER_PRIME_VERTICAL_RANGE) {
+            mode = Mode.FUSE;
+            modeTicks = 0;
+        }
+    }
 
-    /** @return and clears whether the zombie should land a melee attack this tick. */
-    public boolean consumePendingAttack() {
-        boolean value = pendingAttack;
-        pendingAttack = false;
+    /** The skeleton goal: hold the shooting band, shoot on a clear line. */
+    private void tickSkeletonMind(Position target, double horizontal, double dy) {
+        yaw = angleTo(target.x() - position.x(), target.z() - position.z());
+        headYaw = yaw;
+        if (horizontal > SKELETON_TOO_FAR) {
+            mode = Mode.CHASE; // close the gap
+        } else if (horizontal < SKELETON_TOO_CLOSE) {
+            mode = Mode.WANDER; // re-rolled below as a retreat heading
+            yaw = angleTo(position.x() - target.x(), position.z() - target.z());
+            headYaw = yaw; // the body backs off, the eyes stay on the target
+        } else {
+            mode = Mode.STRAFE; // in the band: hold and shoot
+        }
+        if (attackCooldown == 0
+                && horizontal <= SKELETON_SHOOT_RANGE
+                && world.clearLine(eyePosition(), target)) {
+            attackCooldown = SKELETON_ATTACK_COOLDOWN + random.nextInt(20);
+            pendingRangedShot = true;
+            rangedTarget = target;
+        }
+    }
+
+    /** @return and clears whether the melee hunter should land a hit this tick. */
+    public boolean consumePendingMeleeAttack() {
+        boolean value = pendingMeleeAttack;
+        pendingMeleeAttack = false;
         return value;
     }
 
+    /** Set when a hunter's cooldown elapsed inside reach; consumed by the manager. */
+    private boolean pendingMeleeAttack;
+
+    /** @return the eye point of the body (the ranged origin). */
+    public Position eyePosition() {
+        return new Position(position.x(), position.y() + type.height * 0.85, position.z());
+    }
+
     private void tickBody() {
-        // Vertical: gravity + ground snap (the item-entity model).
-        if (onGround) {
+        // Vertical: gravity + ground snap (the item-entity model). A body in
+        // fluid sinks slowly and bobs (the historical fluid buoyancy).
+        boolean inFluid = world.inFluid(position.x(), position.y() + 0.2, position.z());
+        if (inFluid) {
+            velocityY = Math.max(velocityY - GRAVITY_PER_TICK, -0.05) * 0.8;
+        } else if (onGround) {
             velocityY = 0.0;
         } else {
             velocityY = (velocityY - GRAVITY_PER_TICK) * 0.98;
@@ -330,17 +546,25 @@ public final class MobEntity {
         } else if (mode == Mode.PANIC) {
             walk = type.walkSpeed * PANIC_SPEED_MULTIPLIER;
         } else if (mode == Mode.CHASE) {
-            walk = type.walkSpeed * 1.1;
+            walk = type.walkSpeed * (type.traits.ranged() ? 1.0 : 1.1);
+        }
+        if (inFluid && walk > 0) {
+            walk *= 0.5; // wading drag
         }
         double moveX = velocityX;
         double moveZ = velocityZ;
         if (walk > 0) {
-            double radians = Math.toRadians(yaw);
+            // A detour overrides the heading while it lasts (the wall slide).
+            float heading = detourTicks > 0 ? detourYaw : yaw;
+            double radians = Math.toRadians(heading);
             moveX += -Math.sin(radians) * walk;
             moveZ += Math.cos(radians) * walk;
+            if (detourTicks > 0) {
+                detourTicks--;
+            }
         }
 
-        double damping = onGround ? 0.6 : 0.98;
+        double damping = inFluid ? 0.8 : (onGround ? 0.6 : 0.98);
         velocityX *= damping;
         velocityZ *= damping;
 
@@ -348,8 +572,9 @@ public final class MobEntity {
         double newY = position.y() + velocityY;
         double newZ = position.z() + moveZ;
 
-        // Ground snap / step handling: walking mobs do not scale walls; a solid
-        // block ahead stops horizontal motion (wall check at feet level).
+        // Ground snap / step handling: walking mobs do not scale walls; a
+        // solid block ahead stops horizontal motion — or the body steers
+        // around it (one-block step up first, then the sideways detour).
         if (world.isSolid(newX, position.y(), newZ)
                 && !world.isSolid(newX, position.y() + 1.0, newZ)
                 && onGround && Math.abs(velocityY) < 0.01) {
@@ -362,6 +587,14 @@ public final class MobEntity {
         } else if (world.isSolid(newX, position.y(), newZ)) {
             newX = position.x();
             newZ = position.z();
+            newY = position.y();
+            if (walk > 0 && detourTicks == 0 && onGround) {
+                // Blocked mid-walk: slide along the wall (a 45-90° turn for
+                // a handful of ticks) before the mind re-chooses.
+                float side = random.nextBoolean() ? 45.0f : -45.0f;
+                detourYaw = yaw + side + (random.nextFloat() * 45.0f - 22.5f);
+                detourTicks = DETOUR_TICKS;
+            }
         }
 
         if (velocityY <= 0 && world.isSolid(newX, newY - GROUND_EPSILON, newZ)) {
@@ -377,6 +610,11 @@ public final class MobEntity {
 
     private float randomDirection() {
         return random.nextFloat() * 360.0f;
+    }
+
+    /** The 1.8 yaw of a facing vector (yaw grows clockwise; -Z is south 0). */
+    private static float angleTo(double dx, double dz) {
+        return (float) Math.toDegrees(Math.atan2(-dx, dz));
     }
 
     private long fixedPoint() {

@@ -35,6 +35,7 @@ final class Protocol18 {
     static final int S2C_ENTITY_STATUS = 0x1A;
     static final int S2C_ENTITY_METADATA = 0x1C;
     static final int S2C_NAMED_SOUND_EFFECT = 0x29;
+    static final int S2C_EXPLOSION = 0x27;
     static final int S2C_WORLD_PARTICLES = 0x2B;
     static final int S2C_BLOCK_CHANGE = 0x23;
     static final int S2C_SET_SLOT = 0x2F;
@@ -133,6 +134,13 @@ final class Protocol18 {
     static final int METADATA_TYPE_SLOT = 5;
     static final int LIVING_FLAGS_METADATA_INDEX = 0;
     static final int LIVING_HEALTH_METADATA_INDEX = 6;
+    /** The kind-status byte index (1.8 DataWatcher 16): creeper swell, sheep coat. */
+    static final int KIND_STATUS_METADATA_INDEX = 16;
+    /** The sheep coat bit inside the kind-status byte (0x10 = sheared). */
+    static final byte SHEEP_STATUS_SHEARED = (byte) 0x10;
+    /** The creeper swell state values (the historical EntityCreeper field). */
+    static final byte CREEPER_FUSE_IDLE = (byte) -1;
+    static final byte CREEPER_FUSE_SWELLING = (byte) 1;
     static final int ITEM_STACK_METADATA_INDEX = 10;
     static final int METADATA_TERMINATOR = 0x7F;
 

@@ -3,6 +3,9 @@ package net.zamin.engine;
 import net.zamin.api.Player;
 import net.zamin.api.PlayerState;
 import net.zamin.api.Position;
+import net.zamin.api.BlockPosition;
+import net.zamin.api.BlockType;
+import net.zamin.api.ItemType;
 import net.zamin.api.ItemStack;
 import net.zamin.api.Rotation;
 import net.zamin.api.Server;
@@ -50,6 +53,10 @@ import net.zamin.engine.world.WorldStorage;
 import net.zamin.engine.world.WorldDeltaSnapshot;
 import net.zamin.engine.block.BlockRegistryBuilder;
 import net.zamin.engine.block.BuiltinBlocks;
+import net.zamin.engine.block.ExplosionService;
+import net.zamin.engine.block.FluidBlocks;
+import net.zamin.engine.block.FluidSystem;
+import net.zamin.engine.block.WorldSolidity;
 import net.zamin.engine.chat.ChatListener;
 import net.zamin.engine.chat.ChatService;
 import net.zamin.engine.chat.CommandService;
@@ -137,12 +144,16 @@ public final class EngineServer implements Server, EngineBridge {
     private volatile MobManager mobManager;
     private volatile FallingBlockEntityManager fallingEntities;
     private BlockUpdateSystem blockUpdateSystem;
+    private FluidSystem fluidSystem;
+    private ExplosionService explosionService;
     private RandomTickSystem randomTicks;
     private net.zamin.engine.world.light.LightEngine lightEngine;
     private MobDataStore mobStore;
     private final java.util.List<ChatListener> chatListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     private final java.util.List<ItemEntityManager.Listener> itemListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     private final java.util.List<MobManager.Listener> mobListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
+    private final java.util.List<MobSwingObserver> swingObservers = new java.util.concurrent.CopyOnWriteArrayList<>();
+    private final java.util.List<ExplosionListener> explosionListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     private final java.util.List<FallingBlockEntityManager.Listener> fallingListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     private final java.util.List<InventoryListener> inventoryListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     private final java.util.List<FurnaceViewListener> furnaceViewListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
@@ -164,6 +175,8 @@ public final class EngineServer implements Server, EngineBridge {
 
     /** The game-feedback bus (sounds, particles); created at boot, read-only after. */
     private final FxManager fxManager = new FxManager();
+    /** The engine's gameplay rolls (tick-thread confined; drops, spawns, floods). */
+    private final java.util.Random gameplayRandom = new java.util.Random();
     /** The airborne projectiles; constructed at boot after the world exists. */
     private volatile ProjectileManager projectileManager;
 
@@ -206,7 +219,8 @@ public final class EngineServer implements Server, EngineBridge {
         // Registry freeze: built-ins registered during boot preparation must be frozen
         // before any world exists (registry lifecycle: create -> register -> freeze).
         if (blockRegistry == null) {
-            blockRegistry = BuiltinBlocks.registerAll(new BlockRegistryBuilder()).freeze();
+            blockRegistry = FluidBlocks.registerAll(
+                    BuiltinBlocks.registerAll(new BlockRegistryBuilder())).freeze();
         }
 
         state.set(ServerState.STARTING);
@@ -242,7 +256,7 @@ public final class EngineServer implements Server, EngineBridge {
                 ticker.attachWorld(world);
                 // Item entities and drops: simulation-owned systems on the world owner.
                 ItemEntityManager itemEntities = new ItemEntityManager(
-                        (x, y, z) -> !world.getBlock(blockAt(x, y, z)).equals(world.airType()),
+                        (x, y, z) -> WorldSolidity.isSolid(world.getBlock(blockAt(x, y, z))),
                         new java.util.Random(),
                         ENTITY_ID_BASE);
                 this.itemEntities = itemEntities;
@@ -279,7 +293,7 @@ public final class EngineServer implements Server, EngineBridge {
                 // Falling blocks (§470): the block→entity→block transition for
                 // gravity blocks; occupied landings drop as items.
                 FallingBlockEntityManager falling = new FallingBlockEntityManager(
-                        (x, y, z) -> !world.getBlock(blockAt(x, y, z)).equals(world.airType()),
+                        (x, y, z) -> WorldSolidity.isSolid(world.getBlock(blockAt(x, y, z))),
                         world,
                         (position, stack) -> itemEntities.spawnDropAtBlock(
                                 new Position(position.x(), position.y(), position.z()), stack,
@@ -295,12 +309,18 @@ public final class EngineServer implements Server, EngineBridge {
                 // The world itself dispatches every committed change (§208): the
                 // neighbor-update system observes player- AND engine-driven changes.
                 world.addChangeListener(blockUpdateSystem);
+                // Fluids (§472 pattern): the scheduled pour/dry/contact system,
+                // waking on every committed change like the neighbor rules do.
+                fluidSystem = new FluidSystem(new FluidWorld(), new FluidSink(itemEntities));
+                world.addChangeListener(fluidSystem);
+                // Explosions: the ray-fan destructor (the creeper's demolition).
+                explosionService = new ExplosionService(new BlastWorld(), new java.util.Random());
                 // Random ticks (§471 pattern): grass growth and decay.
                 randomTicks = new RandomTickSystem(world, new java.util.Random());
                 // Projectiles (arrows, shards): the tick-thread physics system,
                 // with damage semantics staying here in the combat callbacks.
                 ProjectileManager projectiles = new ProjectileManager(
-                        (x, y, z) -> !world.getBlock(blockAt(x, y, z)).equals(world.airType()),
+                        (x, y, z) -> WorldSolidity.isSolid(world.getBlock(blockAt(x, y, z))),
                         new ProjectileHitResolver(),
                         new ProjectileCombatSink(),
                         fxManager,
@@ -310,6 +330,7 @@ public final class EngineServer implements Server, EngineBridge {
                 projectiles.addListener(new ProjectileEventDispatch());
                 ticker.setTickHandler(() -> {
                     blockUpdateSystem.tick(); // §466: scheduled updates (falls start here)
+                    fluidSystem.tick();       // §472 pattern: pours, streams, contact
                     falling.tick();           // §470: falling physics + landings
                     projectileManager.tick(); // ranged combat physics
                     furnaceManager.tick(world, itemEntities);
@@ -1784,7 +1805,106 @@ public final class EngineServer implements Server, EngineBridge {
             openCraftingTableOnTick(session, onTableOpened);
             return;
         }
+        if (useBucketOnTick(session, clicked, face)) {
+            return; // the bucket did its work; no placement proposal follows
+        }
         blockInteraction.placeFromUseOnTick(session, clicked, face, creativeHeld);
+    }
+
+    /**
+     * The bucket flow: an empty bucket scoops a fluid source out of the
+     * aimed cell; a filled bucket pours its source against the clicked face.
+     * Both swap the held stack the historical way (one bucket out, one in).
+     * Returns whether the use was consumed. Tick-thread context.
+     */
+    private boolean useBucketOnTick(PlayerSession session, BlockPosition clicked, int face) {
+        net.zamin.api.ItemType heldType = session.inventory().held().type();
+        String held = heldType.identifier().toString();
+
+        if (held.equals("minecraft:bucket")) {
+            // Scoop: the aimed cell itself must be a source (the client's
+            // fluid ray targets the fluid block directly).
+            BlockType at = world.getBlock(clicked);
+            FluidBlocks.Kind kind = FluidBlocks.kindOf(at.identifier());
+            if (kind == null || !FluidBlocks.isSource(at.identifier())) {
+                return false; // not a source: the historical no-op
+            }
+            ItemType full = kind == FluidBlocks.Kind.WATER
+                    ? net.zamin.engine.item.BuiltinItems.WATER_BUCKET
+                    : net.zamin.engine.item.BuiltinItems.LAVA_BUCKET;
+            session.inventory().consumeHeld(1);
+            throwOverflow(session, java.util.List.of(
+                    session.inventory().pickUp(ItemStack.of(full, 1))));
+            world.setBlock(clicked, world.airType()); // the commit wakes the fluid neighbors
+            fxManager.sound(new Position(clicked.x() + 0.5, clicked.y() + 0.5, clicked.z() + 0.5),
+                    "random.splash", 0.4f, 1.0f);
+            return true;
+        }
+
+        if (held.equals("minecraft:water_bucket") || held.equals("minecraft:lava_bucket")) {
+            // Pour: the source lands against the clicked face; the bucket
+            // empties into the hand the historical way.
+            BlockPosition target = offsetByFace(clicked, face);
+            if (target == null || !world.getBlock(target).equals(world.airType())) {
+                return false; // no open cell: the pour stays in the bucket
+            }
+            FluidBlocks.Kind kind = held.endsWith("water_bucket")
+                    ? FluidBlocks.Kind.WATER : FluidBlocks.Kind.LAVA;
+            world.setBlock(target, FluidBlocks.sourceOf(kind));
+            session.inventory().consumeHeld(1);
+            throwOverflow(session, java.util.List.of(session.inventory().pickUp(
+                    ItemStack.of(net.zamin.engine.item.BuiltinItems.BUCKET, 1))));
+            fxManager.sound(new Position(target.x() + 0.5, target.y() + 0.5, target.z() + 0.5),
+                    "random.splash", 0.4f, kind == FluidBlocks.Kind.WATER ? 1.0f : 0.6f);
+            return true;
+        }
+        return false;
+    }
+
+    /** The 1.8 face-to-offset table (0=-Y, 1=+Y, 2=-Z, 3=+Z, 4=-X, 5=+X). */
+    private static BlockPosition offsetByFace(BlockPosition clicked, int face) {
+        return switch (face) {
+            case 0 -> clicked.offset(0, -1, 0);
+            case 1 -> clicked.offset(0, 1, 0);
+            case 2 -> clicked.offset(0, 0, -1);
+            case 3 -> clicked.offset(0, 0, 1);
+            case 4 -> clicked.offset(-1, 0, 0);
+            case 5 -> clicked.offset(1, 0, 0);
+            default -> null;
+        };
+    }
+
+    /**
+     * A player right-clicked a mob (Use Entity 0x02, mouse 0/2): the shear
+     * path — shears in hand on a wooly kind take its coat. Safe from any
+     * thread; the application runs on the tick thread.
+     */
+    public void interactEntity(PlayerSession player, int targetEntityId) {
+        Objects.requireNonNull(player, "player");
+        ticker.submit(() -> {
+            if (player.state() != PlayerState.PLAYING || player.dead() || mobManager == null) {
+                return;
+            }
+            MobEntity mob = mobManager.byId(targetEntityId);
+            if (mob == null || mob.dead() || mob.type() != MobType.SHEEP) {
+                return;
+            }
+            ItemStack held = player.inventory().held();
+            if (!held.type().identifier().toString().equals("minecraft:shears")) {
+                return; // bare hands do not shear (the historical tool gate)
+            }
+            double dx = mob.position().x() - player.position().x();
+            double dy = mob.position().y() - player.position().y();
+            double dz = mob.position().z() - player.position().z();
+            double horizontal = Math.sqrt(dx * dx + dz * dz);
+            if (horizontal > MELEE_REACH + mob.type().width * 0.5 || dy < -2.0 || dy > 4.0) {
+                return; // out of reach: the server-side refusal
+            }
+            if (mobManager.shear(mob) > 0) {
+                player.inventory().damageHeld(1); // the shears wear one use
+                publishInventoryChanged(player);
+            }
+        });
     }
 
     /**
@@ -2170,16 +2290,99 @@ public final class EngineServer implements Server, EngineBridge {
                 listener.onMobSound(mob, soundName);
             }
         }
+
+        @Override
+        public void onMobRangedAttack(MobEntity mob, Position aimPoint) {
+            // The skeleton loosed: launch the arrow through the projectile
+            // system (the same physics and hit resolution player arrows ride).
+            Position origin = mob.eyePosition();
+            double dx = aimPoint.x() - origin.x();
+            double dy = (aimPoint.y() + 1.0) - origin.y(); // aim at the torso
+            double dz = aimPoint.z() - origin.z();
+            double horizontal = Math.sqrt(dx * dx + dz * dz);
+            float yaw = (float) Math.toDegrees(Math.atan2(-dx, dz));
+            float pitch = (float) -Math.toDegrees(Math.atan2(dy, horizontal));
+            projectileManager.launch(ProjectileEntity.Kind.ARROW, mob.entityId(),
+                    origin, yaw, pitch, MobEntity.SKELETON_ARROW_SPEED);
+            fxManager.sound(mob.position(), "random.bow", 1.0f, 1.0f);
+            publishMobSwing(mob); // the arm swing rides the animation packet
+        }
+
+        @Override
+        public void onMobFuseChanged(MobEntity mob, boolean priming) {
+            for (MobManager.Listener listener : mobListeners) {
+                listener.onMobFuseChanged(mob, priming);
+            }
+        }
+
+        @Override
+        public void onMobSheared(MobEntity mob, int woolCount) {
+            for (MobManager.Listener listener : mobListeners) {
+                listener.onMobSheared(mob, woolCount);
+            }
+        }
+
+        @Override
+        public void onMobCoatRegrown(MobEntity mob) {
+            for (MobManager.Listener listener : mobListeners) {
+                listener.onMobCoatRegrown(mob);
+            }
+        }
+
+        @Override
+        public void onMobExploded(MobEntity mob) {
+            explodeOnTick(mob); // the blast is the engine's: blocks, damage, wire
+        }
+    }
+
+    /** Broadcasts the arm-swing animation of one entity (the ranged shot). */
+    private void publishMobSwing(MobEntity mob) {
+        for (MobSwingObserver observer : swingObservers) {
+            observer.onMobSwing(mob);
+        }
+    }
+
+    /** The wire-side animation observer (the adapter registers one). */
+    public interface MobSwingObserver {
+        void onMobSwing(MobEntity mob);
+    }
+
+    /** Registers an internal swing-animation observer (the protocol adapter). */
+    public void addMobSwingObserver(MobSwingObserver observer) {
+        swingObservers.add(Objects.requireNonNull(observer, "observer"));
     }
 
     /**
-     * The world queries a mob's AI and physics need, answered from the world
-     * the tick thread owns. Called only on the simulation context.
+     * The world queries a mob's mind and physics need, answered from the
+     * world the tick thread owns. Called only on the simulation context.
      */
     private final class MobWorldQuery implements MobEntity.WorldQuery {
         @Override
         public boolean isSolid(double x, double y, double z) {
-            return !world.getBlock(blockAt(x, y, z)).equals(world.airType());
+            return WorldSolidity.isSolid(world.getBlock(blockAt(x, y, z)));
+        }
+
+        @Override
+        public boolean inFluid(double x, double y, double z) {
+            return FluidBlocks.kindOf(world.getBlock(blockAt(x, y, z)).identifier()) != null;
+        }
+
+        @Override
+        public boolean clearLine(Position from, Position to) {
+            // March the segment at half-block steps; one solid sample blocks
+            // the shot (the cheap shooter's ray, exact enough for 1.8 eyes).
+            double dx = to.x() - from.x();
+            double dy = to.y() - from.y();
+            double dz = to.z() - from.z();
+            double length = Math.sqrt(dx * dx + dy * dy + dz * dz);
+            int steps = (int) Math.ceil(length * 2.0);
+            for (int i = 1; i < steps; i++) {
+                double t = i / (double) steps;
+                if (isSolid(from.x() + dx * t, from.y() + dy * t, from.z() + dz * t)) {
+                    return false;
+                }
+            }
+            return true;
         }
 
         @Override
@@ -2202,6 +2405,186 @@ public final class EngineServer implements Server, EngineBridge {
             }
             return best == null ? null : best.position();
         }
+    }
+
+    /** The world adapter the fluid system reads and commits through. */
+    private final class FluidWorld implements FluidSystem.World {
+        @Override
+        public BlockType getBlock(BlockPosition position) {
+            return world.getBlock(position);
+        }
+
+        @Override
+        public void setBlock(BlockPosition position, BlockType type) {
+            world.setBlock(position, type);
+        }
+
+        @Override
+        public BlockType airType() {
+            return world.airType();
+        }
+
+        @Override
+        public long totalTicks() {
+            return world.totalTicks();
+        }
+    }
+
+    /** The fluid feedback: torch wash-out drops and the fizz sound. */
+    private final class FluidSink implements FluidSystem.Sink {
+        private final ItemEntityManager items;
+
+        FluidSink(ItemEntityManager items) {
+            this.items = items;
+        }
+
+        @Override
+        public void popItem(Position at, ItemStack stack) {
+            items.spawnDropAtBlock(at, stack, ItemEntity.PICKUP_DELAY_DROP_TICKS);
+        }
+
+        @Override
+        public void sound(Position at, String name, float volume, float pitch) {
+            fxManager.sound(at, name, volume, pitch);
+        }
+    }
+
+    /** The world adapter the explosion service commits through. */
+    private final class BlastWorld implements ExplosionService.World {
+        @Override
+        public BlockType getBlock(BlockPosition position) {
+            return world.getBlock(position);
+        }
+
+        @Override
+        public boolean setBlock(BlockPosition position, BlockType type) {
+            return world.setBlock(position, type);
+        }
+    }
+
+    /** The wire-side explosion observer (the adapter registers one). */
+    public interface ExplosionListener {
+        void onExplosion(ExplosionEvent event);
+    }
+
+    /** One detonation for the wire: the center, the wire radius, the removed
+     * block offsets (relative i8 triples for the packet) and each hit player's
+     * own knockback vector (the historical per-observer motion). */
+    public record ExplosionEvent(double x, double y, double z, float radius,
+                                 java.util.List<int[]> blockOffsets,
+                                 java.util.Map<UUID, double[]> playerMotion) {
+    }
+
+    /** Registers an internal explosion observer (the protocol adapter). */
+    public void addExplosionListener(ExplosionListener listener) {
+        explosionListeners.add(Objects.requireNonNull(listener, "listener"));
+    }
+
+    /** Historical creeper power (the explosion radius in blocks). */
+    static final float CREEPER_POWER = 3.0f;
+    /** The blast's injury radius: double the power (the historical falloff span). */
+    static final double BLAST_INJURY_RADIUS = CREEPER_POWER * 2.0;
+    /** Point-blank explosion damage on easy difficulty (the historical ~24). */
+    static final float BLAST_MAX_DAMAGE = 24.0f;
+
+    /**
+     * A primed creeper went off: destroy the blast sphere, roll the block
+     * drops, wound players and mobs with distance falloff, and hand the
+     * result to the wire (the Explosion packet carries each player's own
+     * knockback — the client applies it, the historical 1.8 explosion path).
+     * Tick-thread context.
+     */
+    private void explodeOnTick(MobEntity creeper) {
+        Position center = creeper.position();
+        double cx = center.x();
+        double cy = center.y() + 0.5;
+        double cz = center.z();
+        BlockPosition blockCenter = center.toBlockPosition();
+
+        // The destruction (each commit wakes the fluid and neighbor systems).
+        java.util.List<ExplosionService.Destroyed> destroyed =
+                explosionService.detonate(blockCenter, CREEPER_POWER);
+        // The historical drop roll: one block in `power` survives as loot.
+        java.util.List<int[]> blockOffsets = new java.util.ArrayList<>();
+        for (ExplosionService.Destroyed removed : destroyed) {
+            BlockPosition b = removed.position();
+            blockOffsets.add(new int[]{
+                    b.x() - blockCenter.x(), b.y() - blockCenter.y(), b.z() - blockCenter.z()});
+            if (gameplayRandom.nextInt(Math.max(1, (int) CREEPER_POWER)) == 0) {
+                net.zamin.api.ItemType item = net.zamin.engine.item.BuiltinItems.lookup(
+                        removed.type().identifier()).orElse(null);
+                if (item != null) {
+                    itemEntities.spawnDropAtBlock(new Position(b.x() + 0.5, b.y() + 0.5, b.z() + 0.5),
+                            ItemStack.of(item, 1), ItemEntity.PICKUP_DELAY_DROP_TICKS);
+                }
+            }
+        }
+
+        // Player wounds: distance falloff to double the power, then the
+        // historical hurt window and the per-observer knockback vector.
+        java.util.Map<UUID, double[]> motion = new java.util.HashMap<>();
+        for (PlayerSession player : players.all()) {
+            if (player.state() != PlayerState.PLAYING) {
+                continue;
+            }
+            Position p = player.position();
+            double dx = p.x() - cx;
+            double dy = (p.y() + 0.9) - cy;
+            double dz = p.z() - cz;
+            double dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+            if (dist > BLAST_INJURY_RADIUS) {
+                continue;
+            }
+            float damage = (float) ((1 - dist / BLAST_INJURY_RADIUS) * BLAST_MAX_DAMAGE);
+            if (damage <= 0) {
+                continue;
+            }
+            double scale = (1 - dist / BLAST_INJURY_RADIUS) * 1.6;
+            double mx = dist < 0.001 ? 0 : dx / dist * scale;
+            double mz = dist < 0.001 ? 0 : dz / dist * scale;
+            if (!player.hurtInvulnerable() || damage > player.lastHurtDamage()) {
+                float applied = player.hurtInvulnerable()
+                        ? Math.max(0.0f, damage - player.lastHurtDamage()) : damage;
+                player.beginHurtInvulnerability(damage);
+                if (applied > 0) {
+                    player.hurt(applied);
+                }
+                publishPlayerHurt(player);
+                publishKnockback(player, mx, 0.4, mz);
+                if (player.health() <= 0) {
+                    dieOnTick(player);
+                } else {
+                    publishBodyChanged(player);
+                }
+            }
+            motion.put(player.uuid(), new double[]{mx, 0.4, mz});
+        }
+
+        // Mob wounds: the same falloff, through the manager's hurt path.
+        for (MobEntity mob : mobManager.all()) {
+            Position p = mob.position();
+            double dx = p.x() - cx;
+            double dy = (p.y() + mob.type().height * 0.5) - cy;
+            double dz = p.z() - cz;
+            double dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+            if (dist > BLAST_INJURY_RADIUS) {
+                continue;
+            }
+            float damage = (float) ((1 - dist / BLAST_INJURY_RADIUS) * BLAST_MAX_DAMAGE);
+            if (damage <= 0) {
+                continue;
+            }
+            mobManager.hurt(mob, damage,
+                    Math.toDegrees(Math.atan2(-dx, dz))); // knockback away from the blast
+        }
+
+        // The wire: one Explosion packet per observer, motion included.
+        ExplosionEvent event = new ExplosionEvent(cx, cy, cz, CREEPER_POWER,
+                java.util.List.copyOf(blockOffsets), java.util.Map.copyOf(motion));
+        for (ExplosionListener listener : explosionListeners) {
+            listener.onExplosion(event);
+        }
+        LOGGER.fine(() -> "Explosion at " + blockCenter + " removed " + destroyed.size() + " blocks");
     }
 
     /**
@@ -2311,7 +2694,7 @@ public final class EngineServer implements Server, EngineBridge {
 
     private String spawnMobCommand(PlayerSession sender, String[] args) {
         if (args.length < 1) {
-            return "Usage: /spawnmob <pig|cow|chicken|zombie> [count]";
+            return "Usage: /spawnmob <pig|cow|chicken|sheep|zombie|skeleton|creeper|spider> [count]";
         }
         MobType type = MobType.byName(args[0]);
         if (type == null) {

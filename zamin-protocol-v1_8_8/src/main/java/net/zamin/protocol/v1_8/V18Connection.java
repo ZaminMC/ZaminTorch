@@ -10,6 +10,7 @@ import net.zamin.api.Position;
 import net.zamin.api.Rotation;
 import net.zamin.engine.EngineServer;
 import net.zamin.engine.config.GameMode;
+import net.zamin.engine.entity.MobEntity;
 import net.zamin.engine.net.EngineBridge;
 import net.zamin.engine.player.PlayerSession;
 import net.zamin.engine.world.EngineChunk;
@@ -433,6 +434,14 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             packet.readFloat();
             packet.readFloat();
             packet.readFloat();
+            // INTERACT_AT precedes INTERACT for the same click; the interact
+            // work rides the next packet (the shear path), so this one only
+            // consumes its bytes (the desync rule the real client taught us).
+            return;
+        }
+        if (mouse == Protocol18.USE_ENTITY_INTERACT) {
+            engine.interactEntity(player, target);
+            return;
         }
         if (mouse == Protocol18.USE_ENTITY_ATTACK) {
             // The attacker's target id lives in its own observer id space;
@@ -1503,11 +1512,14 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeShort(0); // velocity x
         out.writeShort(0); // velocity y
         out.writeShort(0); // velocity z
-        // Living-entity metadata: flags byte + health float, then terminator.
+        // Living-entity metadata: flags byte + health float, then the kind's
+        // status byte (1.8 DataWatcher 16: the creeper's swell state, the
+        // sheep's coat), then terminator.
         out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | Protocol18.LIVING_FLAGS_METADATA_INDEX);
         out.writeByte(0);
         out.writeByte((Protocol18.METADATA_TYPE_FLOAT << 5) | Protocol18.LIVING_HEALTH_METADATA_INDEX);
         out.writeFloat(mob.health());
+        writeKindStatusMetadata(out, mob);
         out.writeByte(Protocol18.METADATA_TERMINATOR);
         channel.writeAndFlush(out);
 
@@ -1515,6 +1527,95 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 (long) Math.floor(mob.position().x() * 32.0),
                 (long) Math.floor(mob.position().y() * 32.0),
                 (long) Math.floor(mob.position().z() * 32.0)});
+    }
+
+    /** Writes the kind-status metadata entry (creeper swell, sheep coat). */
+    private static void writeKindStatusMetadata(ByteBuf out, MobEntity mob) {
+        Byte kind = kindStatusByteOf(mob);
+        if (kind == null) {
+            return;
+        }
+        out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | Protocol18.KIND_STATUS_METADATA_INDEX);
+        out.writeByte(kind);
+    }
+
+    /** @return the kind-status byte value, or null for kinds without one. */
+    static Byte kindStatusByteOf(MobEntity mob) {
+        return switch (mob.type()) {
+            case CREEPER -> mob.fuseActive()
+                    ? Protocol18.CREEPER_FUSE_SWELLING : Protocol18.CREEPER_FUSE_IDLE;
+            case SHEEP -> mob.sheared() ? Protocol18.SHEEP_STATUS_SHEARED : (byte) 0;
+            default -> null;
+        };
+    }
+
+    /**
+     * Set Entity Metadata (0x1C) for one kind-status change: a creeper
+     * starting or dropping its swell, a sheep losing or regrowing its coat.
+     * Any thread.
+     */
+    void sendMobStatusByte(MobEntity mob, byte value) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(12);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_ENTITY_METADATA);
+        ByteBufOps.writeVarInt(out, mob.entityId());
+        out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | Protocol18.KIND_STATUS_METADATA_INDEX);
+        out.writeByte(value);
+        out.writeByte(Protocol18.METADATA_TERMINATOR);
+        channel.writeAndFlush(out);
+    }
+
+    /**
+     * Animation (0x0B) with animation 0: an entity's arm swing (the
+     * skeleton's bow draw rides it — the client animates the arm). Any thread.
+     */
+    void sendMobSwing(MobEntity mob) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(8);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_ANIMATION);
+        ByteBufOps.writeVarInt(out, mob.entityId());
+        out.writeByte(0); // animation 0: the arm swing
+        channel.writeAndFlush(out);
+    }
+
+    /**
+     * Explosion (0x27, community-verified layout: f32 xyz, f32 radius, i32
+     * count of i8-triplet block offsets, f32 playerMotion xyz — the client
+     * applies its own vector and plays the sound + particles itself). Any
+     * thread.
+     */
+    void sendExplosion(EngineServer.ExplosionEvent event) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        PlayerSession session = currentSession();
+        double[] motion = session == null ? null : event.playerMotion().get(session.uuid());
+        if (motion == null) {
+            motion = new double[3]; // spectators of the blast get the visuals only
+        }
+        ByteBuf out = Unpooled.buffer(64);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_EXPLOSION);
+        out.writeFloat((float) event.x());
+        out.writeFloat((float) event.y());
+        out.writeFloat((float) event.z());
+        out.writeFloat(event.radius());
+        ByteBufOps.writeVarInt(out, event.blockOffsets().size());
+        for (int[] offset : event.blockOffsets()) {
+            out.writeByte(offset[0]);
+            out.writeByte(offset[1]);
+            out.writeByte(offset[2]);
+        }
+        out.writeFloat((float) motion[0]);
+        out.writeFloat((float) motion[1]);
+        out.writeFloat((float) motion[2]);
+        channel.writeAndFlush(out);
     }
 
     /**

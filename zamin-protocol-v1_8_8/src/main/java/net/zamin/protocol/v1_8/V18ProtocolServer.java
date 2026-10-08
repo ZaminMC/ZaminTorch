@@ -247,6 +247,52 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                     connection.sendMobSound(soundName, mob.position(), 1.0f, 1.0f);
                 }
             }
+
+            @Override
+            public void onMobRangedAttack(net.zamin.engine.entity.MobEntity mob,
+                                          net.zamin.api.Position aimPoint) {
+                // The arrow's Spawn Entity rides the projectile listener; the
+                // arm swing rides the swing observer; nothing else needed.
+            }
+
+            @Override
+            public void onMobFuseChanged(net.zamin.engine.entity.MobEntity mob, boolean priming) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendMobStatusByte(mob, priming
+                            ? Protocol18.CREEPER_FUSE_SWELLING : Protocol18.CREEPER_FUSE_IDLE);
+                }
+            }
+
+            @Override
+            public void onMobSheared(net.zamin.engine.entity.MobEntity mob, int woolCount) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendMobStatusByte(mob, Protocol18.SHEEP_STATUS_SHEARED);
+                }
+            }
+
+            @Override
+            public void onMobCoatRegrown(net.zamin.engine.entity.MobEntity mob) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendMobStatusByte(mob, (byte) 0);
+                }
+            }
+
+            @Override
+            public void onMobExploded(net.zamin.engine.entity.MobEntity mob) {
+                // The blast rides the explosion listener (blocks + motion).
+            }
+        });
+        // The skeleton's bow arm (Animation 0x0B) and the creeper's blast
+        // (Explosion 0x27) ride dedicated observers.
+        server.addMobSwingObserver(mob -> {
+            for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                connection.sendMobSwing(mob);
+            }
+        });
+        server.addExplosionListener(event -> {
+            for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                connection.sendExplosion(event);
+            }
         });
         // Inventory sync: full authoritative window re-sync on change (simple,
         // correct; per-slot deltas are an optimization for a later profile).
