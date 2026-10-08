@@ -58,11 +58,7 @@ class SurvivalFlowIntegrationTest extends ProtocolTestBase {
             Thread.sleep(950); // grass by hand: 18 ticks nominal (900ms)
             client.sendDigging(2, 2, 4, 2, 1);
 
-            int[] removal = client.readBlockChange(10_000);
-            assertEquals(2, removal[0]);
-            assertEquals(4, removal[1]);
-            assertEquals(2, removal[2]);
-            assertEquals(0, removal[3]); // the resulting state: air
+            client.readBlockChangeAt(2, 4, 2, 0, 10_000); // the resulting state: air
 
             // The drop arrives as a Spawn Entity (type 1 = item, objectData = dirt).
             int[] spawn = client.readSpawnItem(10_000);
@@ -92,11 +88,7 @@ class SurvivalFlowIntegrationTest extends ProtocolTestBase {
             // place into their own bounding box), then refill from spawn ---
             client.sendPosition(0.5, 5.0, 0.5, true);
             client.sendBlockPlacement(2, 3, 2, 1, 3);
-            int[] placed = client.readBlockChange(10_000);
-            assertEquals(2, placed[0]);
-            assertEquals(4, placed[1]);
-            assertEquals(2, placed[2]);
-            assertEquals(3, placed[3]); // dirt placed
+            client.readBlockChangeAt(2, 4, 2, 3, 10_000); // dirt placed
 
             int[] afterPlace = client.readWindowItems(10_000);
             assertEquals(-1, afterPlace[2]); // consumption emptied the hotbar
@@ -105,7 +97,7 @@ class SurvivalFlowIntegrationTest extends ProtocolTestBase {
             client.sendDigging(0, 2, 4, 2, 1);
             Thread.sleep(950); // dirt by hand: 15 ticks nominal (750ms)
             client.sendDigging(2, 2, 4, 2, 1);
-            client.readBlockChange(10_000); // air
+            client.readBlockChangeAt(2, 4, 2, 0, 10_000); // air
             client.readSpawnItem(10_000);   // drop
             client.readItemMetadata(10_000);
             walkToTheDrop(client);
@@ -149,22 +141,14 @@ class SurvivalFlowIntegrationTest extends ProtocolTestBase {
                     net.zamin.engine.block.BuiltinBlocks.STONE);
             awaitCondition(() -> server.world().getBlock(stone)
                     .equals(net.zamin.engine.block.BuiltinBlocks.STONE), "stone seeded");
-            int[] seeded = client.readBlockChange(10_000);
-            assertEquals(2, seeded[0]);
-            assertEquals(5, seeded[1]);
-            assertEquals(2, seeded[2]);
-            assertEquals(1, seeded[3]); // legacy stone
+            client.readBlockChangeAt(2, 5, 2, 1, 10_000); // legacy stone
 
             // Mine it with the pickaxe: 1.5 * 30 / 2 = 23 ticks (1.15s), floor 805ms.
             client.sendDigging(0, 2, 5, 2, 1);
             Thread.sleep(1_200);
             client.sendDigging(2, 2, 5, 2, 1);
 
-            int[] removal = client.readBlockChange(10_000);
-            assertEquals(2, removal[0]);
-            assertEquals(5, removal[1]);
-            assertEquals(2, removal[2]);
-            assertEquals(0, removal[3]); // air
+            client.readBlockChangeAt(2, 5, 2, 0, 10_000); // air
 
             // Wire order mirrors the tick order: commit -> drops -> durability
             // wear. The harvested drop is cobblestone (legacy 4), not stone.

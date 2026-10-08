@@ -12,6 +12,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Logger;
 
 /**
  * The authoritative state of one world.
@@ -27,12 +28,17 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public final class EngineWorld implements World {
 
+    private static final Logger LOGGER = Logger.getLogger(EngineWorld.class.getName());
+
     private final String name;
     private final BlockRegistry registry;
     private final BlockType air;
     private final FlatWorldGenerator generator;
     private final Thread owner;
     private final Map<Long, EngineChunk> chunks = new ConcurrentHashMap<>();
+    // World change listeners fire on every committed mutation (owner thread).
+    private final java.util.List<WorldChangeListener> changeListeners =
+            new java.util.concurrent.CopyOnWriteArrayList<>();
     // Persisted player-caused changes, owned by the simulation thread. Keyed by
     // chunk, then by local block index (y<<8 | z<<4 | x).
     private final Map<Long, Map<Integer, BlockType>> deltas = new ConcurrentHashMap<>();
@@ -86,6 +92,14 @@ public final class EngineWorld implements World {
         return chunk.getBlock(position.localX(), position.y(), position.localZ());
     }
 
+    /**
+     * Applies one block state. Owner-thread only. On an actual change the
+     * world dispatches its own change event (§208: the world is the source of
+     * truth — every committed change, player-driven or engine-driven, reaches
+     * the neighbor-update system and the client syncs exactly once, in world
+     * order). Listener failures are isolated per listener (§54): one broken
+     * observer cannot corrupt the world mutation or starve the others.
+     */
     @Override
     public boolean setBlock(BlockPosition position, BlockType type) {
         Objects.requireNonNull(type, "type");
@@ -95,8 +109,30 @@ public final class EngineWorld implements World {
         if (changed) {
             // Deltas are the persistence projection of runtime changes (slice 2).
             recordDelta(position.chunkPosition(), localIndex(position.localX(), position.y(), position.localZ()), type);
+            fireChange(position, type);
         }
         return changed;
+    }
+
+    private void fireChange(BlockPosition position, BlockType type) {
+        for (WorldChangeListener listener : changeListeners) {
+            try {
+                listener.onBlockChanged(this, position, type);
+            } catch (RuntimeException listenerFailure) {
+                LOGGER.warning(() -> "World change listener failed at " + position + ": "
+                        + listenerFailure);
+            }
+        }
+    }
+
+    /**
+     * Re-publishes a position's CURRENT state to the change listeners without
+     * a world mutation — the rejected-prediction sync path (§441 spirit): the
+     * authoritative state re-syncs so clients drop ghost blocks.
+     */
+    public void republish(BlockPosition position) {
+        requireOwnership("republish");
+        fireChange(position, getBlock(position));
     }
 
     private void recordDelta(ChunkPosition chunkPosition, int localIndex, BlockType type) {
@@ -152,6 +188,11 @@ public final class EngineWorld implements World {
      */
     public java.util.Collection<EngineChunk> loadedChunks() {
         return java.util.Collections.unmodifiableCollection(chunks.values());
+    }
+
+    /** Registers an engine-internal change observer (update system, adapter sync). */
+    public void addChangeListener(WorldChangeListener listener) {
+        changeListeners.add(java.util.Objects.requireNonNull(listener, "listener"));
     }
 
     /** The canonical air identity of this world (single source for emptiness checks). */

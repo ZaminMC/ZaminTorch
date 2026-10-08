@@ -98,18 +98,15 @@ class MetadataIntegrationTest extends ProtocolTestBase {
 
             // --- place sand on the surface: held slot 0, top face -> (2,5,2) ---
             client.sendBlockPlacement(2, 4, 2, 1, SAND);
-            int[] placed = client.readBlockChange(10_000);
-            assertEquals(2, placed[0]);
-            assertEquals(5, placed[1]);
-            assertEquals(SAND, placed[3]);
+            // The covered grass decays to dirt the same tick; wait for the sand.
+            int[] placed = client.readBlockChangeAt(2, 5, 2, SAND, 10_000);
             client.readWindowSlotTable(10_000); // the held sand was consumed
 
             // --- mine it by hand: 15 ticks nominal (750 ms) ---
             client.sendDigging(0, 2, 5, 2, 1);
             Thread.sleep(850);
             client.sendDigging(2, 2, 5, 2, 1);
-            int[] removal = client.readBlockChange(10_000);
-            assertEquals(0, removal[3], "the sand block is gone");
+            client.readBlockChangeAt(2, 5, 2, 0, 10_000); // the sand block is gone
             int[] spawn = client.readSpawnItem(10_000);
             assertEquals(SAND, spawn[5], "sand drops itself (metadata 0)");
             int[] meta = client.readItemMetadata(10_000);
@@ -119,15 +116,13 @@ class MetadataIntegrationTest extends ProtocolTestBase {
             // --- glass places, then shatters to nothing ---
             client.sendHeldItemChange(1); // the glass stack
             client.sendBlockPlacement(2, 4, 2, 1, GLASS);
-            int[] glassPlaced = client.readBlockChange(10_000);
-            assertEquals(GLASS, glassPlaced[3]);
+            client.readBlockChangeAt(2, 5, 2, GLASS, 10_000); // the glass placed
             client.readWindowSlotTable(10_000); // one glass consumed
 
             client.sendDigging(0, 2, 5, 2, 1);
             Thread.sleep(850); // glass: 9 ticks nominal; the floor keeps it honest
             client.sendDigging(2, 2, 5, 2, 1);
-            int[] glassGone = client.readBlockChange(10_000);
-            assertEquals(0, glassGone[3], "the glass block is gone");
+            client.readBlockChangeAt(2, 5, 2, 0, 10_000); // the glass block is gone
             assertThrows(IOException.class, () -> client.readSpawnItem(1_500),
                     "glass drops nothing (the historical shatter)");
         }

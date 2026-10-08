@@ -162,7 +162,6 @@ public final class BlockInteractionService {
             return; // air or unbreakable: no session (bedrock never opens one)
         }
         if (!InteractionRules.withinSurvivalReach(player.position(), target)) {
-            LOGGER.fine(() -> "Rejected mining start (out of reach) by " + player.name());
             return;
         }
         // (Re)starts the dig; repeated starts restart progress, matching lenient history.
@@ -298,9 +297,14 @@ public final class BlockInteractionService {
         // creative with an unmapped/empty held item: a no-op use
     }
 
+    /**
+     * The single semantic commit: the world's setBlock dispatches the change
+     * event itself (§208 — the world is the source of truth; player- and
+     * engine-driven changes reach neighbor updates and client syncs through
+     * the same listener path), so this method only mutates.
+     */
     private void commit(BlockPosition position, BlockType type) {
         world.setBlock(position, type);
-        publisher.accept(new BlockChange(position, type));
     }
 
     /** Drop calculation (§434): committed break -&gt; drops -&gt; item entities. */
