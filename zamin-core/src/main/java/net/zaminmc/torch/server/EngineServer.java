@@ -37,7 +37,7 @@ import net.zaminmc.torch.server.fx.BlockSoundMap;
 import net.zaminmc.torch.server.fx.FxManager;
 import net.zaminmc.torch.server.item.BuiltinItems;
 import net.zaminmc.torch.server.item.Foods;
-import net.zaminmc.torch.server.config.GameMode;
+import net.zaminmc.torch.GameMode;
 import net.zaminmc.torch.server.interaction.DropService;
 import net.zaminmc.torch.server.net.ClientLink;
 import net.zaminmc.torch.server.net.EngineBridge;
@@ -234,7 +234,7 @@ public final class EngineServer implements Server, EngineBridge {
                 ticker = new EngineTicker(config.tickRateHz());
                 // Player persistence: one ZPD file per identity under <dataDir>/players.
                 playerStore = new PlayerDataStore(
-                        java.nio.file.Path.of(config.dataDir(), "players"));
+                        config.playerDataDir());
                 // Ticker thread constructs the world so it is the owner from the start.
                 Thread owner = Thread.currentThread();
                 FlatWorldGenerator generator = new FlatWorldGenerator(blockRegistry, 4);
@@ -242,7 +242,7 @@ public final class EngineServer implements Server, EngineBridge {
                 // Persistence: load saved deltas before any chunk generates so the
                 // spawn area is already the survived world (§407 restart proof).
                 worldStorage = new DeltaWorldStorage(
-                        java.nio.file.Path.of(config.dataDir(), "worlds", config.worldName(), "zamin-delta.bin"),
+                        config.worldDataDir().resolve("zamin-delta.bin"),
                         identifier -> blockRegistry.require(identifier));
                 worldStorage.load().ifPresent(world::applyDeltas);
                 // Light (§475/§476): derived world state, recomputed on every
@@ -265,13 +265,11 @@ public final class EngineServer implements Server, EngineBridge {
                 itemEntities.addListener(new ItemEventDispatch());
                 // Furnace block entities: world-state simulation, ZFD persistence.
                 furnaceManager = new FurnaceManager();
-                furnaceStore = new FurnaceDataStore(java.nio.file.Path.of(
-                        config.dataDir(), "worlds", config.worldName(), "furnaces.bin"));
+                furnaceStore = new FurnaceDataStore(config.worldDataDir().resolve("furnaces.bin"));
                 furnaceManager.restoreAll(furnaceStore.load());
                 // Chest block entities: world-state containers, ZCD persistence.
                 chestManager = new ChestManager();
-                chestStore = new ChestDataStore(java.nio.file.Path.of(
-                        config.dataDir(), "worlds", config.worldName(), "chests.bin"));
+                chestStore = new ChestDataStore(config.worldDataDir().resolve("chests.bin"));
                 chestManager.restoreAll(chestStore.load());
                 // Living mobs: simulation-owned population, loot flows into items.
                 MobManager mobs = new MobManager(
@@ -286,8 +284,7 @@ public final class EngineServer implements Server, EngineBridge {
                 // Mob persistence (ZMD v1): the population survives restarts; the
                 // boot packs roll only for a fresh world (no restored mobs) — the
                 // maintainer keeps a restored world topped up while players play.
-                mobStore = new MobDataStore(java.nio.file.Path.of(
-                        config.dataDir(), "worlds", config.worldName(), "mobs.bin"));
+                mobStore = new MobDataStore(config.worldDataDir().resolve("mobs.bin"));
                 boolean mobsRestored = mobs.restoreAll(mobStore.load());
                 if (!mobsRestored) {
                     mobs.populateInitial(world.spawnPosition());

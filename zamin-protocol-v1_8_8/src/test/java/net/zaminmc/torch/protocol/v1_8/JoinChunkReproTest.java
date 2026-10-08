@@ -29,13 +29,9 @@ class JoinChunkReproTest {
 
     @Test
     void joinChunkMatchesDirectSerialization() throws Exception {
-        // The launcher's exact config source: zamin.properties with data-dir=.
-        // The launcher's exact config source, with an ephemeral port for the test.
-        EngineConfig launcherConfig = net.zaminmc.torch.server.config.ConfigLoader.loadOrDefault(
-                Path.of("/home/z/my-project/ZaminTorch/run/zamin.properties"));
-        EngineConfig config = new EngineConfig("127.0.0.1", 0, launcherConfig.worldName(),
-                launcherConfig.motd(), launcherConfig.maxPlayers(), launcherConfig.viewDistance(),
-                launcherConfig.tickRateHz(), launcherConfig.dataDir(), launcherConfig.gamemode());
+        // The launcher's property file shape, with an ephemeral port for the test.
+        EngineConfig config = new EngineConfig("127.0.0.1", 0, "world", "ZaminTorch test",
+                20, 4, 20, dataDir.toString());
         EngineServer server = new EngineServer(config);
         server.start();
         V18ProtocolServer adapter = new V18ProtocolServer(server, 250_000);

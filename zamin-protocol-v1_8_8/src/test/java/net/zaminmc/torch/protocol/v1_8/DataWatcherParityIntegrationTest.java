@@ -34,9 +34,10 @@ class DataWatcherParityIntegrationTest extends ProtocolTestBase {
 
             client.sendChat("/spawnmob pig 1");
             client.readWindowItems(5_000); // join tail: authoritative inventory
-            int[][] rows = client.readSpawnMobDataWatcher(5_000);
+            int[][] rows = client.readSpawnMobDataWatcher(5_000, 90); // pig only
 
-            assertEquals(2, rows.length, "flags + health only");
+            assertEquals(2, rows.length,
+                    "flags + health only, got: " + java.util.Arrays.deepToString(rows));
             assertEquals(Protocol18.LIVING_FLAGS_METADATA_INDEX, rows[0][0]);
             assertEquals(Protocol18.METADATA_TYPE_BYTE, rows[0][1]);
             assertEquals(Protocol18.LIVING_HEALTH_METADATA_INDEX, rows[1][0],

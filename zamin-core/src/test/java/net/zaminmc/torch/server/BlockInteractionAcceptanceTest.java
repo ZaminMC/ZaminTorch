@@ -1,5 +1,7 @@
 package net.zaminmc.torch.server;
 
+import net.zaminmc.torch.GameMode;
+
 import net.zaminmc.torch.block.BlockPosition;
 import net.zaminmc.torch.util.Identifier;
 import net.zaminmc.torch.util.Position;
@@ -33,7 +35,7 @@ class BlockInteractionAcceptanceTest {
 
     private EngineServer boot() throws InterruptedException {
         EngineConfig config = new EngineConfig("127.0.0.1", 0, "itest", "it", 20, 4, 20,
-                dataDir.toString(), net.zaminmc.torch.server.config.GameMode.CREATIVE);
+                dataDir.toString(), net.zaminmc.torch.GameMode.CREATIVE);
         EngineServer started = new EngineServer(config);
         started.start();
         return started;
