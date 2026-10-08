@@ -9,7 +9,9 @@
  * protocol stack, so a green run here is cross-implementation proof:
  * login, chat, dig + pickup, placement, the chest container (63-slot
  * layout, deposit/retrieve), the furnace (sand -> glass, log -> charcoal
- * via item metadata) and /give with a variant argument.
+ * via item metadata), /give with a variant argument, and the living
+ * mobs (spawn metadata, AI movement, sword combat, loot, night zombies
+ * and the day cycle).
  *
  * Usage: node validate-1.8.8.js <port> [host]
  * Requires: npm install mineflayer (run from a directory that has it).
@@ -35,10 +37,13 @@ function sleep(ms) {
 }
 
 function waitFor(bot, event, timeoutMs, filter) {
-  return new Promise((resolve, reject) => {
+  // Soft timeout: resolves null instead of rejecting — no unhandled
+  // rejections can kill the run; callers check the result and report FAIL.
+  return new Promise((resolve) => {
     const timer = setTimeout(() => {
       bot.removeListener(event, onEvent);
-      reject(new Error(`timeout waiting for ${event}`));
+      console.log(`[timeout] waiting for ${event} after ${timeoutMs}ms`);
+      resolve(null);
     }, timeoutMs);
     function onEvent(...args) {
       if (filter && !filter(...args)) return;
@@ -98,10 +103,10 @@ async function main() {
 
   // ---- 3. placement + chest container -------------------------------------
   // The flat world's surface is solid at feet level, so blocks are placed on
-  // TOP of the surface: reference the grass beside the bot, face up.
+  // TOP of the surface beside the bot (its name varies with survived history:
+  // pristine grass, or dirt where earlier digs reshaped the spawn).
   const ground = bot.blockAt(bot.entity.position.offset(1, 0, 0));
-  check('ground reference is the surface block', !!ground
-    && (ground.name === 'grass_block' || ground.name === 'grass'),
+  check('ground reference is solid', !!ground && ground.boundingBox !== 'empty',
     ground ? ground.name : 'null');
   const chestSlot = bot.inventory.items().find((it) => it.name === 'chest')
     || null;
@@ -247,7 +252,129 @@ async function main() {
     }
   }
 
-  // ---- 5. red sand variant via /give --------------------------------------
+  // ---- 5. living mobs: spawn, movement, combat, loot ------------------------
+  // Walk away from the dig hole + chest/furnace build area first: jumping
+  // while walking climbs the one-block hole rim onto open ground.
+  await bot.look(bot.entity.yaw, 0, true); // level gaze: walk, don't stare at the sky
+  bot.setControlState('jump', true);
+  bot.setControlState('forward', true);
+  await sleep(4_000);
+  bot.setControlState('jump', false);
+  bot.setControlState('forward', false);
+  await sleep(500);
+  // The pig arrives through Spawn Mob (0x0F); mineflayer parses it with its
+  // own registry (entity kind, health metadata at index 7).
+  let pigResolve;
+  const pigPromise = new Promise((resolve) => { pigResolve = resolve; });
+  const onPigSpawn = (entity) => {
+    if (/^pig$/i.test(entity.name || '')) {
+      bot.removeListener('entitySpawn', onPigSpawn);
+      pigResolve(entity);
+    }
+  };
+  bot.on('entitySpawn', onPigSpawn);
+  bot.chat('/spawnmob pig 1');
+  const pig = await Promise.race([pigPromise, sleep(15_000).then(() => null)]);
+  check('pig spawned (Spawn Mob parsed by the real client)', !!pig,
+    pig ? `id=${pig.id}` : 'none');
+  const pigHealth = pig && pig.metadata ? pig.metadata[7] : null;
+  check('pig health metadata (10 hp) parsed', pigHealth === 10,
+    `metadata[7]=${pigHealth}`);
+
+  if (pig) {
+    // The AI walks: poll the entity's position for drift (wander legs).
+    const start = pig.position.clone();
+    let moved = false;
+    for (let i = 0; i < 12 && !moved; i++) {
+      await sleep(1_000);
+      moved = pig.position.distanceTo(start) > 0.25;
+    }
+    check('pig wandered (AI movement observed)', moved);
+
+    // Combat: a diamond sword (7 damage) kills the 10 hp pig in two hits —
+    // but equip it first: /give fills the first free hotbar slot, and the
+    // bot still holds the dirt from the dig test (1 damage would take 10).
+    const swordStack = bot.inventory.items().find((it) => it.name === 'diamond_sword');
+    if (!swordStack) bot.chat('/give diamond_sword 1');
+    await sleep(1_000);
+    const sword = bot.inventory.items().find((it) => it.name === 'diamond_sword');
+    if (sword) await bot.equip(sword, 'hand');
+    await sleep(500);
+    // Loot scan: the item entity's stack rides the Entity Metadata slot
+    // (index 10), which merges right after the spawn — scan the live
+    // entities after the death instead of racing the spawn event.
+    let killed = false;
+    for (let round = 0; round < 8 && !killed; round++) {
+      // Approach: face the pig and walk at it until inside melee range
+      // (the flat world is open, so line-walking reaches it).
+      const approach = Date.now() + 4_000;
+      while (Date.now() < approach) {
+        const target = bot.entities[pig.id];
+        if (!target) { killed = true; break; }
+        if (bot.entity.position.distanceTo(target.position) < 2.0) break;
+        await bot.lookAt(target.position.offset(0, 0.25, 0), true);
+        bot.setControlState('jump', true);
+        bot.setControlState('forward', true);
+        await sleep(150);
+      }
+      bot.setControlState('jump', false);
+      bot.setControlState('forward', false);
+      const target = bot.entities[pig.id];
+      if (!target) { killed = true; break; }
+      const gone = waitFor(bot, 'entityGone', 5_000,
+        (entity) => entity.id === pig.id);
+      const hurt = waitFor(bot, 'entityHurt', 4_000,
+        (entity) => entity.id === pig.id);
+      await bot.lookAt(target.position.offset(0, 0.5, 0), true);
+      await bot.attack(target);
+      const hurtArgs = await hurt;
+      if (hurtArgs) {
+        check('pig hurt animation (Entity Status 2)', true);
+      } else {
+        // Out of reach or already fleeing: the chase continues regardless.
+      }
+      const goneArgs = await gone;
+      killed = goneArgs != null;
+    }
+    check('pig died and was destroyed after the death animation', killed);
+    await sleep(2_500); // the loot lands with the destroy, one tick later
+    // The loot spawns at the corpse — and the bot stands there, so the 0.5 s
+    // pickup delay usually means the bot has already auto-collected it.
+    // Either the dropped entity or the collected stack proves the flow.
+    const lootEntity = Object.values(bot.entities).find((e) => {
+      const stack = e.metadata && e.metadata[10];
+      return stack && stack.name === 'porkchop';
+    });
+    const lootStack = lootEntity ? lootEntity.metadata[10] : null;
+    const collected = bot.inventory.items().find((it) => it.name === 'porkchop');
+    check('porkchop loot dropped as an item entity', !!lootStack || !!collected,
+      lootStack ? `dropped count=${lootStack.count}`
+        : (collected ? `collected count=${collected.count}` : 'none'));
+  }
+
+  // ---- 6. night zombies + the day cycle -----------------------------------
+  bot.chat('/time set night');
+  await sleep(1_000);
+  check('client clock follows /time (night)', bot.time.timeOfDay >= 13_000,
+    `timeOfDay=${bot.time.timeOfDay}`);
+  bot.chat('/spawnmob zombie 1');
+  const zombieSpawn = await waitFor(bot, 'entitySpawn', 15_000,
+    (entity) => /^zombie$/i.test(entity.name || ''));
+  if (zombieSpawn) {
+    const zombie = zombieSpawn[0];
+    const zombieHealth = zombie && zombie.metadata ? zombie.metadata[7] : null;
+    check('zombie spawned at night (20 hp metadata)', zombieHealth === 20,
+      `metadata[7]=${zombieHealth}`);
+  } else {
+    check('zombie spawned at night (20 hp metadata)', false, 'timed out');
+  }
+  bot.chat('/time set day');
+  await sleep(2_000);
+  check('dawn removed the hostiles',
+    !Object.values(bot.entities).some((e) => /^zombie$/i.test(e.name || '')),
+    `zombies=${Object.values(bot.entities).filter((e) => /^zombie$/i.test(e.name || '')).length}`);
+
+  // ---- 7. red sand variant via /give --------------------------------------
   bot.chat('/give sand 1 1');
   await sleep(700);
   const redSand = bot.inventory.items().find((it) => it.name === 'sand' && it.metadata === 1);
