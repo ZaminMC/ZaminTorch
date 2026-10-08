@@ -116,6 +116,19 @@ public final class BlockBehaviorTable {
                     new BlockBehavior(3.0, true, true, "rock", 3,
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:diamond"), 1)))),
 
+            // The full-world ladder (community blocks.json): gold and redstone
+            // share iron's pickaxe gate; the oak trunk is wood (axe, drops
+            // itself); the canopy shatters like glass (silk touches are later).
+            Map.entry(Identifier.parse("minecraft:gold_ore"),
+                    new BlockBehavior(3.0, true, true, "rock", 3,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:gold_ore"), 1)))),
+            Map.entry(Identifier.parse("minecraft:redstone_ore"),
+                    new BlockBehavior(3.0, true, true, "rock", 3,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:redstone_ore"), 1)))),
+            Map.entry(Identifier.parse("minecraft:oak_leaves"),
+                    new BlockBehavior(0.2, false, true, "leaves", 1,
+                            List.of())),
+
             Map.entry(Identifier.parse("minecraft:bedrock"),
                     BlockBehavior.unbreakable()));
 

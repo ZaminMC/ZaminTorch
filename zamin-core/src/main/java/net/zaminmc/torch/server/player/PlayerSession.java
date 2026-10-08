@@ -108,6 +108,10 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
     /** The operator level (0 = player, 4 = console-equivalent). */
     private volatile int opLevel;
 
+    /** The underwater breath clock: 300 ticks of air (the historical 15 s). */
+    private int airTicks = 300;
+    private int drownTimer;
+
     public PlayerSession(UUID uuid, String name, ClientLink link) {
         this.uuid = Objects.requireNonNull(uuid, "uuid");
         this.name = Objects.requireNonNull(name, "name");
@@ -151,6 +155,24 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
 
     public int opLevel() {
         return opLevel;
+    }
+
+    /**
+     * Advances the breath clock: underwater it drains, out of water it
+     * refills. @return true when a drowning damage tick is due (2 per second
+     * after the air ran out, the historical EntityPlayer rhythm).
+     */
+    public boolean advanceBreath(boolean underwater) {
+        if (!underwater) {
+            airTicks = 300;
+            drownTimer = 0;
+            return false;
+        }
+        if (airTicks > 0) {
+            airTicks--;
+            return false;
+        }
+        return ++drownTimer % 20 == 0;
     }
 
     public void setOpLevel(int level) {

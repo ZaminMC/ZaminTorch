@@ -33,7 +33,7 @@ public final class EngineWorld implements World {
     private final String name;
     private final BlockRegistry registry;
     private final BlockType air;
-    private final FlatWorldGenerator generator;
+    private final WorldGenerator generator;
     private final Thread owner;
     private final Map<Long, EngineChunk> chunks = new ConcurrentHashMap<>();
     // World change listeners fire on every committed mutation (owner thread).
@@ -50,13 +50,13 @@ public final class EngineWorld implements World {
     private volatile long timeOfDay;
     private volatile long totalTicks;
 
-    public EngineWorld(String name, BlockRegistry registry, FlatWorldGenerator generator, Thread owner) {
+    public EngineWorld(String name, BlockRegistry registry, WorldGenerator generator, Thread owner) {
         this.name = Objects.requireNonNull(name, "name");
         this.registry = Objects.requireNonNull(registry, "registry");
         this.generator = Objects.requireNonNull(generator, "generator");
         this.owner = Objects.requireNonNull(owner, "owner");
         this.air = registry.require(Identifier.parse("minecraft:air"));
-        this.spawnPosition = new Position(0.5, generator.groundLevel() + 1.0, 0.5);
+        this.spawnPosition = generator.spawnPosition();
     }
 
     @Override

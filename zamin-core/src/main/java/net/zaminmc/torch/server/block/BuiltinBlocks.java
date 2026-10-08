@@ -26,6 +26,17 @@ public final class BuiltinBlocks {
             Identifier.parse("minecraft:iron_ore"), "Iron Ore");
     public static final EngineBlockType DIAMOND_ORE = new EngineBlockType(
             Identifier.parse("minecraft:diamond_ore"), "Diamond Ore");
+    // The deep ladder for the full-world generator: gold and redstone ride
+    // the same pickaxe gate as iron (community blocks.json), the oak trunk
+    // and canopy fill the surface forests.
+    public static final EngineBlockType GOLD_ORE = new EngineBlockType(
+            Identifier.parse("minecraft:gold_ore"), "Gold Ore");
+    public static final EngineBlockType REDSTONE_ORE = new EngineBlockType(
+            Identifier.parse("minecraft:redstone_ore"), "Redstone Ore");
+    public static final EngineBlockType OAK_LOG = new EngineBlockType(
+            Identifier.parse("minecraft:oak_log"), "Oak Log");
+    public static final EngineBlockType OAK_LEAVES = new EngineBlockType(
+            Identifier.parse("minecraft:oak_leaves"), "Oak Leaves");
 
     // Craftable blocks (community-data recipes place their results here).
     public static final EngineBlockType CRAFTING_TABLE = new EngineBlockType(
@@ -69,6 +80,10 @@ public final class BuiltinBlocks {
                 .register(COAL_ORE)
                 .register(IRON_ORE)
                 .register(DIAMOND_ORE)
+                .register(GOLD_ORE)
+                .register(REDSTONE_ORE)
+                .register(OAK_LOG)
+                .register(OAK_LEAVES)
                 .register(CRAFTING_TABLE)
                 .register(TORCH)
                 .register(FURNACE)

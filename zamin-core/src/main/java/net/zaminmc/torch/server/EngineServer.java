@@ -54,6 +54,8 @@ import net.zaminmc.torch.server.entity.projectile.ProjectileManager;
 import net.zaminmc.torch.server.world.EngineChunk;
 import net.zaminmc.torch.server.world.EngineWorld;
 import net.zaminmc.torch.server.world.DeltaWorldStorage;
+import net.zaminmc.torch.server.world.NormalWorldGenerator;
+import net.zaminmc.torch.server.world.WorldGenerator;
 import net.zaminmc.torch.server.world.FlatWorldGenerator;
 import net.zaminmc.torch.server.world.WorldStorage;
 import net.zaminmc.torch.server.world.WorldDeltaSnapshot;
@@ -245,7 +247,11 @@ public final class EngineServer implements Server, EngineBridge {
                         config.playerDataDir());
                 // Ticker thread constructs the world so it is the owner from the start.
                 Thread owner = Thread.currentThread();
-                FlatWorldGenerator generator = new FlatWorldGenerator(blockRegistry, 4);
+                // level-type decides the terrain: flat keeps the slice fixture,
+                // normal runs the full world (seas, caves, ores, forests).
+                WorldGenerator generator = config.levelType().equals("flat")
+                        ? new FlatWorldGenerator(blockRegistry, 4)
+                        : new NormalWorldGenerator(blockRegistry, config.worldName());
                 world = new EngineWorld(config.worldName(), blockRegistry, generator, owner);
                 // Persistence: load saved deltas before any chunk generates so the
                 // spawn area is already the survived world (§407 restart proof).
@@ -736,6 +742,7 @@ public final class EngineServer implements Server, EngineBridge {
             tickBowCharge(session);
             tickFoodEconomy(session);
             tickLanding(session);
+            tickBreath(session);
             // The sprint exhaustion approximation: the historical rule charges
             // per meter; without a server-side mover, a flat per-tick rate of
             // ~0.6 exhaustion/second tracks the sprinting feel closely enough.
@@ -842,7 +849,31 @@ public final class EngineServer implements Server, EngineBridge {
         }
         float distance = session.consumeFallDistance();
         if (distance > PlayerSession.SAFE_FALL_DISTANCE) {
-            damageOnTick(session, (float) Math.ceil(distance - PlayerSession.SAFE_FALL_DISTANCE));
+            // A body that lands in fluid takes no fall damage (the water break).
+            var feet = session.position().toBlockPosition();
+            var at = world.getBlock(feet);
+            if (FluidBlocks.kindOf(at.identifier()) == null) {
+                damageOnTick(session, (float) Math.ceil(distance - PlayerSession.SAFE_FALL_DISTANCE));
+            }
+        }
+    }
+
+    /**
+     * The underwater breath clock: air drains while the eye sits in fluid;
+     * after the historical 15 seconds the body drowns at 2 damage per second.
+     * Creative and spectator bodies hold no breath.
+     */
+    private void tickBreath(PlayerSession session) {
+        if (session.gamemode() == GameMode.CREATIVE
+                || session.gamemode() == GameMode.SPECTATOR) {
+            return;
+        }
+        Position eye = mouthPosition(session);
+        var at = world.getBlock(new BlockPosition(
+                (int) Math.floor(eye.x()), (int) Math.floor(eye.y()), (int) Math.floor(eye.z())));
+        boolean underwater = FluidBlocks.kindOf(at.identifier()) != null;
+        if (session.advanceBreath(underwater)) {
+            damageOnTick(session, 2.0f);
         }
     }
 
