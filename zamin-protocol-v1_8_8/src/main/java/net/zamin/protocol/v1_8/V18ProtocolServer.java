@@ -91,6 +91,13 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                 connection.sendBlockChange(position, type);
             }
         });
+        // Relight transport (§475): protocol 47 has no light-only packet, so
+        // every chunk column the LightEngine touched re-sends once per tick.
+        server.addRelightListener(position -> {
+            for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                connection.sendChunkRelight(position);
+            }
+        });
         // Chat delivery: engine decides audience/validity, adapter renders.
         server.addChatListener(new net.zamin.engine.chat.ChatListener() {
             @Override

@@ -1165,6 +1165,13 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeByte(0); // no NBT: the single TAG_End marker
     }
 
+    /** Re-sends one tracked chunk column (the relight transport, §475). Tick thread. */
+    void sendChunkRelight(ChunkPosition position) {
+        if (chunkTracker != null) {
+            chunkTracker.resendChunk(position);
+        }
+    }
+
     // ------------------------------------------------------------------ item entity sync
 
     /** Spawn Entity + item metadata for a new item entity. Any thread. */
@@ -1613,6 +1620,18 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         boolean hasChunk(long packed) {
             synchronized (sent) {
                 return sent.contains(packed);
+            }
+        }
+
+        /**
+         * Re-sends one chunk column the observer already tracks — the light
+         * transport (protocol 47 has no light-only packet; a chunk re-send
+         * updates blocks AND both light channels at once). Untracked chunks
+         * are skipped: the observer never sees them.
+         */
+        void resendChunk(ChunkPosition position) {
+            if (hasChunk(position.packed())) {
+                sendChunk(position, false);
             }
         }
 

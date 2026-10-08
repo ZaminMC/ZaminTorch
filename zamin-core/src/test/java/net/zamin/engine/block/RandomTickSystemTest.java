@@ -30,6 +30,13 @@ class RandomTickSystemTest {
         registry = BuiltinBlocks.registerAll(new BlockRegistryBuilder()).freeze();
         world = new EngineWorld("test", registry, new FlatWorldGenerator(registry, 4),
                 Thread.currentThread());
+        // The grass rules read the world's real light storage (§475): attach
+        // the light engine like the server wiring does, BEFORE any chunk
+        // generates, so covered cells are dark instead of implicitly lit.
+        net.zamin.engine.world.light.LightEngine light =
+                new net.zamin.engine.world.light.LightEngine(world);
+        world.addChangeListener(light);
+        world.addChunkLoadListener(light);
     }
 
     @Test

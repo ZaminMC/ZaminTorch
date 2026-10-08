@@ -8,6 +8,8 @@ import net.zamin.api.Rotation;
 import net.zamin.api.Server;
 import net.zamin.api.ServerState;
 import net.zamin.api.World;
+import net.zamin.api.ChunkPosition;
+import net.zamin.api.BlockPosition;
 import net.zamin.engine.block.BlockUpdateSystem;
 import net.zamin.engine.block.RandomTickSystem;
 import net.zamin.engine.chest.ChestBlockEntity;
@@ -130,6 +132,7 @@ public final class EngineServer implements Server, EngineBridge {
     private volatile FallingBlockEntityManager fallingEntities;
     private BlockUpdateSystem blockUpdateSystem;
     private RandomTickSystem randomTicks;
+    private net.zamin.engine.world.light.LightEngine lightEngine;
     private MobDataStore mobStore;
     private final java.util.List<ChatListener> chatListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     private final java.util.List<ItemEntityManager.Listener> itemListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
@@ -139,6 +142,7 @@ public final class EngineServer implements Server, EngineBridge {
     private final java.util.List<FurnaceViewListener> furnaceViewListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     private final java.util.List<SurvivalListener> survivalListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     private final java.util.List<TimeListener> timeListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
+    private final java.util.List<RelightListener> relightListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
 
     /** Entity ids for engine-global entities (items); player wire ids stay adapter-local. */
     private static final int ENTITY_ID_BASE = 100_000;
@@ -194,6 +198,15 @@ public final class EngineServer implements Server, EngineBridge {
                         java.nio.file.Path.of(config.dataDir(), "worlds", config.worldName(), "zamin-delta.bin"),
                         identifier -> blockRegistry.require(identifier));
                 worldStorage.load().ifPresent(world::applyDeltas);
+                // Light (§475/§476): derived world state, recomputed on every
+                // committed change and on chunk generation. Registered FIRST
+                // (before spawn pregeneration) so every generated chunk — boot
+                // area included — publishes already lit (§344: publication
+                // stays atomic), and as the first change listener so its
+                // relight queue batches whole cascades per tick.
+                lightEngine = new net.zamin.engine.world.light.LightEngine(world);
+                world.addChangeListener(lightEngine);
+                world.addChunkLoadListener(lightEngine);
                 pregenerateSpawnArea(world);
                 ticker.attachWorld(world);
                 // Item entities and drops: simulation-owned systems on the world owner.
@@ -263,6 +276,10 @@ public final class EngineServer implements Server, EngineBridge {
                     randomTicks.tick(players.all()); // §471: grass growth/decay
                     tickFurnaceViewers();
                     tickPlayerBodies();
+                    // Relight transport (§475): protocol 47 has no light-only
+                    // packet, so every chunk column the light touched this tick
+                    // re-sends once, deduplicated across the whole cascade.
+                    lightEngine.flushRelight(this::publishChunkRelit);
                     if (world.totalTicks() % 100 == 0) {
                         publishTimeChanged(); // smooth day cycle on every client
                     }
@@ -466,9 +483,29 @@ public final class EngineServer implements Server, EngineBridge {
         void onTimeChanged(long totalTicks, long timeOfDay);
     }
 
+    /**
+     * A chunk column's light changed this tick (§475): the wire transport is a
+     * chunk re-send (protocol 47 has no light-only packet), deduplicated per
+     * tick by the light engine's queue. Positions are chunk columns.
+     */
+    public interface RelightListener {
+        void onChunkRelit(ChunkPosition position);
+    }
+
     /** Registers an internal time observer (e.g. the protocol adapter's sync). */
     public void addTimeListener(TimeListener listener) {
         timeListeners.add(listener);
+    }
+
+    /** Registers the chunk-relight observer (the protocol adapter's resend path). */
+    public void addRelightListener(RelightListener listener) {
+        relightListeners.add(listener);
+    }
+
+    private void publishChunkRelit(ChunkPosition position) {
+        for (RelightListener listener : relightListeners) {
+            listener.onChunkRelit(position);
+        }
     }
 
     private void publishTimeChanged() {
