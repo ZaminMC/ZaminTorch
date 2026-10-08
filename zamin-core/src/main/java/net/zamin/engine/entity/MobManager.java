@@ -133,12 +133,26 @@ public final class MobManager {
      * surface (the command path). Tick-thread context.
      */
     public List<MobEntity> spawnGroup(MobType type, Position center, int count) {
+        return spawnGroupAt(type, center, count, 0, 3);
+    }
+
+    /**
+     * Spawns a group offset randomly from the center within
+     * {@code [minOffset, maxOffset]} blocks. Population maintenance keeps
+     * mobs AWAY from the player (the historical pack distance: 8-20 blocks
+     * out) — spawning on top of the anchor put pigs on the building site and
+     * blocked wire interactions there.
+     */
+    public List<MobEntity> spawnGroupAt(MobType type, Position center, int count,
+                                        int minOffset, int maxOffset) {
         List<MobEntity> spawned = new ArrayList<>();
         for (int i = 0; i < count; i++) {
-            int offsetX = random.nextInt(7) - 3;
-            int offsetZ = random.nextInt(7) - 3;
-            int x = (int) Math.floor(center.x()) + offsetX;
-            int z = (int) Math.floor(center.z()) + offsetZ;
+            // Ring spawn: a random bearing at a distance inside the band —
+            // never closer than minOffset to the anchor.
+            double bearing = random.nextDouble() * Math.PI * 2.0;
+            int distance = minOffset + random.nextInt(maxOffset - minOffset + 1);
+            int x = (int) Math.floor(center.x()) + (int) Math.round(Math.cos(bearing) * distance);
+            int z = (int) Math.floor(center.z()) + (int) Math.round(Math.sin(bearing) * distance);
             int y = surfaceY.apply(x, z);
             if (y < 0) {
                 continue; // no surface in that column (unloaded chunk etc.)
@@ -350,13 +364,13 @@ public final class MobManager {
         }
         if (passive < PASSIVE_CAP && random.nextInt(100) < 40) {
             int deficit = PASSIVE_CAP - passive;
-            spawnGroup(randomPassiveType(), anchor.position(),
-                    Math.min(deficit, 2 + random.nextInt(2)));
+            spawnGroupAt(randomPassiveType(), anchor.position(),
+                    Math.min(deficit, 2 + random.nextInt(2)), 8, 20);
         }
         if (night && hostile < HOSTILE_CAP && random.nextInt(100) < 50) {
             int deficit = HOSTILE_CAP - hostile;
-            spawnGroup(MobType.ZOMBIE, anchor.position(),
-                    Math.min(deficit, 1 + random.nextInt(2)));
+            spawnGroupAt(MobType.ZOMBIE, anchor.position(),
+                    Math.min(deficit, 1 + random.nextInt(2)), 8, 20);
         }
     }
 

@@ -429,8 +429,28 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             packet.readFloat();
         }
         if (mouse == Protocol18.USE_ENTITY_ATTACK) {
+            // The attacker's target id lives in its own observer id space;
+            // resolve a remote PLAYER first (PvP), then fall through to mobs.
+            java.util.UUID remoteUuid = remotePlayerUuidOf(target);
+            if (remoteUuid != null) {
+                PlayerSession victim = engine.playerRegistry().byUuid(remoteUuid).orElse(null);
+                if (victim != null) {
+                    engine.attackPlayer(player, victim);
+                    return;
+                }
+            }
             engine.attackEntity(player, target);
         }
+    }
+
+    /** Reverse lookup of this observer's entity id space (players only). */
+    private java.util.UUID remotePlayerUuidOf(int observerEntityId) {
+        for (java.util.Map.Entry<java.util.UUID, Integer> entry : remoteEntityIds.entrySet()) {
+            if (entry.getValue() == observerEntityId) {
+                return entry.getKey();
+            }
+        }
+        return null;
     }
 
     /** Client Status (0x16): action 0 = perform respawn after dying. */
@@ -1556,6 +1576,56 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeVarInt(out, Protocol18.S2C_ENTITY_STATUS);
         out.writeInt(mob.entityId());
         out.writeByte(status);
+        channel.writeAndFlush(out);
+    }
+
+    /** Entity Status for this client's own body (the hurt flash on being hit). */
+    void sendSelfStatus(int status) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(12);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_ENTITY_STATUS);
+        out.writeInt(ownEntityId);
+        out.writeByte(status);
+        channel.writeAndFlush(out);
+    }
+
+    /** Entity Status for a tracked remote player (the observer's hurt flash). */
+    void sendRemotePlayerStatus(java.util.UUID remoteUuid, int status) {
+        Integer entityId = remoteEntityIds.get(remoteUuid);
+        if (entityId == null) {
+            return; // not visible to this observer
+        }
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(12);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_ENTITY_STATUS);
+        out.writeInt(entityId);
+        out.writeByte(status);
+        channel.writeAndFlush(out);
+    }
+
+    /**
+     * Set Entity Velocity (0x12, community-verified: varint entity id, three
+     * i16 motion components in 1/8000 blocks per tick) — the PvP knockback
+     * rides to the VICTIM only: the client owns its physics and answers with
+     * its own movement packets. Any thread.
+     */
+    void sendSetVelocity(double vx, double vy, double vz) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(12);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_ENTITY_VELOCITY);
+        ByteBufOps.writeVarInt(out, ownEntityId);
+        out.writeShort((int) Math.round(vx * 8000.0));
+        out.writeShort((int) Math.round(vy * 8000.0));
+        out.writeShort((int) Math.round(vz * 8000.0));
         channel.writeAndFlush(out);
     }
 

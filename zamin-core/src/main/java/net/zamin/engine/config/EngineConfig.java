@@ -16,6 +16,7 @@ import java.util.Objects;
  * @param tickRateHz       simulation ticks per second (20 for the 1.8.8 target)
  * @param dataDir          directory for world persistence
  * @param gamemode         the server-wide player game mode (survival/creative)
+ * @param pvp              whether player melee may damage other players
  */
 public record EngineConfig(
         String host,
@@ -26,14 +27,23 @@ public record EngineConfig(
         int viewDistance,
         int tickRateHz,
         String dataDir,
-        GameMode gamemode
+        GameMode gamemode,
+        boolean pvp
 ) {
 
     /** Compatibility constructor for callers that do not care about the mode. */
     public EngineConfig(String host, int port, String worldName, String motd,
                         int maxPlayers, int viewDistance, int tickRateHz, String dataDir) {
         this(host, port, worldName, motd, maxPlayers, viewDistance, tickRateHz,
-                dataDir, GameMode.SURVIVAL);
+                dataDir, GameMode.SURVIVAL, true);
+    }
+
+    /** Compatibility constructor for callers that do not care about the mode. */
+    public EngineConfig(String host, int port, String worldName, String motd,
+                        int maxPlayers, int viewDistance, int tickRateHz, String dataDir,
+                        GameMode gamemode) {
+        this(host, port, worldName, motd, maxPlayers, viewDistance, tickRateHz,
+                dataDir, gamemode, true);
     }
 
     public EngineConfig {
@@ -61,7 +71,7 @@ public record EngineConfig(
 
     public static EngineConfig defaults() {
         return new EngineConfig("0.0.0.0", 25565, "world",
-                "A ZaminTorch server", 20, 4, 20, ".", GameMode.SURVIVAL);
+                "A ZaminTorch server", 20, 4, 20, ".", GameMode.SURVIVAL, true);
     }
 
     /** The file operators edit. Subsystems never read this file directly. */

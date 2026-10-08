@@ -298,6 +298,30 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                     }
                 }
             }
+
+            @Override
+            public void onPlayerHurt(net.zamin.engine.player.PlayerSession player) {
+                // The hurt flash: the victim's own client animates its body;
+                // every observer animates the remote player they track.
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    if (connection.currentSession() == player) {
+                        connection.sendSelfStatus(Protocol18.ENTITY_STATUS_HURT);
+                    } else {
+                        connection.sendRemotePlayerStatus(player.uuid(),
+                                Protocol18.ENTITY_STATUS_HURT);
+                    }
+                }
+            }
+
+            @Override
+            public void onKnockback(net.zamin.engine.player.PlayerSession player,
+                                    double vx, double vy, double vz) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    if (connection.currentSession() == player) {
+                        connection.sendSetVelocity(vx, vy, vz);
+                    }
+                }
+            }
         });
         LOGGER.info(() -> "1.8.8 protocol listening on " + server.config().host() + ":" + server.config().port());
     }

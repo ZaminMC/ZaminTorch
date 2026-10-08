@@ -38,7 +38,8 @@ public final class ConfigLoader {
                 intOf(properties, "view-distance", 4),
                 intOf(properties, "tick-rate", 20),
                 string(properties, "data-dir", "."),
-                GameMode.parse(string(properties, "gamemode", "survival")));
+                GameMode.parse(string(properties, "gamemode", "survival")),
+                boolOf(properties, "pvp", true));
     }
 
     public static void writeDefault(Path file) throws IOException {
@@ -53,6 +54,7 @@ public final class ConfigLoader {
         properties.setProperty("tick-rate", String.valueOf(defaults.tickRateHz()));
         properties.setProperty("data-dir", defaults.dataDir());
         properties.setProperty("gamemode", defaults.gamemode().name().toLowerCase());
+        properties.setProperty("pvp", String.valueOf(defaults.pvp()));
         try (var out = Files.newOutputStream(file)) {
             properties.store(out, "ZaminTorch server configuration");
         }
@@ -74,5 +76,18 @@ public final class ConfigLoader {
             throw new IllegalArgumentException(
                     "Configuration key '" + key + "' is not a number: " + raw, e);
         }
+    }
+
+    private static boolean boolOf(Properties properties, String key, boolean fallback) {
+        String raw = properties.getProperty(key);
+        if (raw == null || raw.isBlank()) {
+            return fallback;
+        }
+        String value = raw.trim().toLowerCase();
+        if ("true".equals(value) || "false".equals(value)) {
+            return Boolean.parseBoolean(value);
+        }
+        throw new IllegalArgumentException(
+                "Configuration key '" + key + "' is not a boolean: " + raw);
     }
 }

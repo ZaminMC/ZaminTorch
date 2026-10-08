@@ -266,12 +266,22 @@ public final class BlockInteractionService {
             return;
         }
         BlockPosition target = InteractionRules.offsetByFace(clicked, face);
-        if (target == null
-                || world.getBlock(clicked).equals(world.airType())
+        if (target == null || world.getBlock(clicked).equals(world.airType())
                 || !world.getBlock(target).equals(world.airType())
                 || !InteractionRules.withinSurvivalReach(player.position(), target)
                 || InteractionRules.intersectsPlayer(player.position(), target)) {
-            LOGGER.fine(() -> "Rejected survival placement by " + player.name());
+            if (target == null) {
+                LOGGER.fine(() -> "Rejected survival placement (bad face) by " + player.name());
+            } else if (world.getBlock(clicked).equals(world.airType())) {
+                LOGGER.fine(() -> "Rejected survival placement (clicked air) by " + player.name());
+            } else if (!world.getBlock(target).equals(world.airType())) {
+                LOGGER.fine(() -> "Rejected survival placement (target not air: "
+                        + world.getBlock(target).identifier() + " at " + target + ") by " + player.name());
+            } else if (!InteractionRules.withinSurvivalReach(player.position(), target)) {
+                LOGGER.fine(() -> "Rejected survival placement (out of reach) by " + player.name());
+            } else {
+                LOGGER.fine(() -> "Rejected survival placement (inside player) by " + player.name());
+            }
             return;
         }
         commit(target, heldBlock);
