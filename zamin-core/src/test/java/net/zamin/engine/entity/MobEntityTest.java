@@ -157,4 +157,45 @@ class MobEntityTest {
         // Window is 8-24 s; 60 s must produce at least two and at most eight.
         assertTrue(sounds >= 2 && sounds <= 8, "ambient chatter cadence, got " + sounds);
     }
+
+    /** Open air everywhere: the pure falling body, the void included. */
+    private static MobEntity.WorldQuery airWorld() {
+        return new MobEntity.WorldQuery() {
+            @Override public boolean isSolid(double x, double y, double z) {
+                return false;
+            }
+
+            @Override public Position nearestPlayer(double x, double y, double z, double range) {
+                return null;
+            }
+        };
+    }
+
+    @Test
+    void fallingIntoTheVoidNeverCrashesTheTick() {
+        // The reported crash: a mob below y=0 asked the world for the block at
+        // y=-2 and the strict BlockPosition bounds threw, killing the whole
+        // tick. The void is open air; the body falls through.
+        MobEntity pig = spawn(MobType.PIG, new Position(0.5, 0.5, 0.5), 11, airWorld());
+        for (int i = 0; i < 30; i++) { // ~28 blocks of fall: below 0, above -64
+            pig.tick();
+        }
+        assertTrue(pig.position().y() < 0.0, "the body fell through the world floor");
+        assertTrue(pig.position().y() > MobEntity.VOID_KILL_Y,
+                "the fall window stayed above the kill plane");
+        assertFalse(pig.dead(), "between 0 and -64 the body only falls");
+    }
+
+    @Test
+    void theVoidConsumesTheBodyPastTheKillPlane() {
+        MobEntity pig = spawn(MobType.PIG,
+                new Position(0.5, MobEntity.VOID_KILL_Y - 1.0, 0.5), 13, airWorld());
+        int ticks = 0;
+        while (!pig.dead() && ticks < 100) {
+            pig.tick();
+            ticks++;
+        }
+        assertTrue(pig.dead(), "the out-of-world damage killed the body");
+        assertTrue(ticks <= 6, "four damage per tick ends a 10-HP body within a few ticks");
+    }
 }

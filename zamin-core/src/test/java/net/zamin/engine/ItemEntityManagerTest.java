@@ -180,6 +180,29 @@ class ItemEntityManagerTest {
     }
 
     @Test
+    void itemsThatFallIntoTheVoidAreRemovedSilently() {
+        Events events = new Events();
+        ItemEntityManager manager = new ItemEntityManager(
+                (x, y, z) -> false, // open air everywhere: the void swallows all
+                new Random(1), 1);
+        manager.addListener(events);
+
+        ItemEntity dropped = manager.spawnDropAtBlock(new Position(2, 0, 2),
+                ItemStack.of(BuiltinItems.DIRT, 1), 0);
+        assertFalse(dropped.inVoid(), "starts inside the world");
+
+        int ticks = 0;
+        while (manager.size() > 0 && ticks < 400) {
+            manager.tick(List.of());
+            ticks++;
+        }
+        assertEquals(0, manager.size(), "the stack fell out of the world");
+        assertEquals(1, events.removed, "the removal fired exactly once");
+        assertEquals(List.of("fell out of world"), events.removeReasons,
+                "the void removal is silent (no drop-back) and names the void");
+    }
+
+    @Test
     void nearbySameItemsMergeIntoTheOlderEntity() {
         Events events = new Events();
         ItemEntityManager manager = new ItemEntityManager(GROUND, new Random(1), 1);

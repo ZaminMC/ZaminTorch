@@ -39,6 +39,8 @@ public final class ProjectileManager {
     static final int THROWABLE_AGE_TICKS = 200;
     /** Ticks a thrower ignores their own projectile (the launch-overlap rule). */
     static final int THROWER_IMMUNITY_TICKS = 5;
+    /** The vanilla kill plane: a projectile below it stops being simulated. */
+    static final double VOID_KILL_Y = -64.0;
     /** The egg's chick roll: one chance in eight (the historical omelet). */
     static final int EGG_HATCH_CHANCE = 8;
 
@@ -165,6 +167,10 @@ public final class ProjectileManager {
             // without doubling the physics.
             Position before = projectile.position();
             projectile.integrate(DRAG, gravityOf(projectile.kind()));
+            if (projectile.position().y() < VOID_KILL_Y) {
+                remove(projectile, "fell out of world"); // the vanilla kill plane
+                continue;
+            }
             Position after = projectile.position();
             Position midpoint = new Position(
                     (before.x() + after.x()) / 2.0,
