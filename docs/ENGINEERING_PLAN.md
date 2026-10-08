@@ -673,6 +673,50 @@ prompt verified live against the published release.**
   silent-at-FINE: an offline server boots exactly like an online one
   (the §54 observer rule). Versions compare numerically over vX.Y.Z-dev.N.
 
+
+## 10u. Slice #21 — PvP combat + the real-client DataWatcher crash (implemented status)
+
+**Status: implemented; 278 automated tests green; the mineflayer
+real-client validation passes 45/45 checks; the crash the slice hunted
+is fixed and released as v0.2.0-dev.3.**
+
+**The crash (the slice's reason to exist):** a real 1.8.8 client died
+~8-9 seconds after joining — the server saw `Connection reset` while
+reading, logged until then at FINE and invisible on dev.1. The new
+WARNING-level protocol-error trace (operator-visible console, the §54
+rule) exposed the truth: the CLIENT was dying first. Chain: the mob
+population maintainer spawns its first pack ~5-10s after the player
+enters play; the Spawn Mob metadata carried health at DataWatcher index
+7; vanilla 1.8's EntityLiving registers health (float) at **6** — index
+7 is the potion color (int) — and the client's updateWatchedObjects
+throws on the index/type mismatch. Mineflayer never caught it because
+protodef does not cross-validate index against type. Fixed (health at
+6) and pinned by `DataWatcherParityIntegrationTest`, which asserts the
+exact (index, type) map the vanilla DataWatcher would accept.
+
+- **The wire-level hardening that made the diagnosis possible:** every
+  serverbound play id the vanilla client can emit is declared and
+  consumed exactly (the old table misrouted Player 0x03 to 0x0F — the
+  Confirm Transaction response); `exceptionCaught` logs WARNING with the
+  stack; the console prints one line per event with a `> ` prompt.
+- **PvP (concepts credited to MinestomPvP, see COMMUNITY_REFERENCES):**
+  Use Entity (attack) resolves the target through the attacker's
+  observer-local id space first (remote players), then mobs; reach,
+  held-item damage, exhaustion and tool wear mirror the mob path; the
+  historical hurt invulnerability window (10 ticks, a weaker hit is
+  absorbed, a stronger one out-damages the difference); knockback rides
+  Set Entity Velocity (0x12) to the victim only (their client owns the
+  physics and answers with movement packets); the hurt flash rides
+  Entity Status to the victim AND every observer; lethal hits run the
+  existing death/respawn path. `pvp` is a config knob (default true).
+- **Mobs:** population maintenance spawns packs 8-20 blocks from the
+  anchor (the historical pack distance) — spawning on top of the player
+  blocked interactions at the spawn site and polluted the validator.
+- **Tests:** `PvpIntegrationTest` (two live clients: hurt → health →
+  velocity ordering, i-frame absorption, a sword kill, the respawn);
+  `DataWatcherParityIntegrationTest`; `VanillaParityIntegrationTest`
+  (the full serverbound packet tour). 278 green; mineflayer 45/45.
+
 ## 11. Known risks
 
 - 1.8.8 client quirks not obvious from protocol docs (e.g. exact chunk/lighting expectations) — mitigated by scripted-client tests + real client validation.

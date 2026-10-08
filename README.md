@@ -46,6 +46,8 @@ proven over the wire and against a live process.
 | Survival body: health/food/fall/death/respawn | implemented |
 | Living mobs (pig, cow, chicken, zombie) + population | implemented |
 | Melee combat, knockback, mob loot | implemented |
+| PvP (player melee, hurt window, knockback, death/respawn) | implemented |
+| Vanilla-DataWatcher metadata parity (real-client crash fix) | implemented |
 | Day/night cycle sync + /time + /spawnmob | implemented |
 | Scheduled block updates: falling sand/gravel, torch pop, grass spread/decay | implemented |
 | Mob persistence across restarts (ZMD v1) | implemented |
