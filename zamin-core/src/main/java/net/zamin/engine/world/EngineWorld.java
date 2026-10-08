@@ -39,6 +39,9 @@ public final class EngineWorld implements World {
     // World change listeners fire on every committed mutation (owner thread).
     private final java.util.List<WorldChangeListener> changeListeners =
             new java.util.concurrent.CopyOnWriteArrayList<>();
+    // Chunk-load listeners fire once per freshly generated chunk, before publication.
+    private final java.util.List<ChunkLoadListener> chunkLoadListeners =
+            new java.util.concurrent.CopyOnWriteArrayList<>();
     // Persisted player-caused changes, owned by the simulation thread. Keyed by
     // chunk, then by local block index (y<<8 | z<<4 | x).
     private final Map<Long, Map<Integer, BlockType>> deltas = new ConcurrentHashMap<>();
@@ -171,6 +174,12 @@ public final class EngineWorld implements World {
                 chunk.setBlock(index & 0xF, (index >> 8) & 0xF, (index >> 4) & 0xF, entry.getValue());
             }
         }
+        // Chunk-load hooks run before publication (§344): the chunk becomes
+        // visible only fully generated AND fully lit. Listeners must not
+        // re-enter generation (they peek neighbors, never create chunks).
+        for (ChunkLoadListener listener : chunkLoadListeners) {
+            listener.onChunkGenerated(this, chunk);
+        }
         EngineChunk raced = chunks.putIfAbsent(key, chunk);
         return raced != null ? raced : chunk;
     }
@@ -195,9 +204,31 @@ public final class EngineWorld implements World {
         changeListeners.add(java.util.Objects.requireNonNull(listener, "listener"));
     }
 
+    /**
+     * Registers an engine-internal chunk-load observer (the light engine).
+     * Fires on the generating thread, before the chunk is visible.
+     */
+    public void addChunkLoadListener(ChunkLoadListener listener) {
+        chunkLoadListeners.add(java.util.Objects.requireNonNull(listener, "listener"));
+    }
+
     /** The canonical air identity of this world (single source for emptiness checks). */
     public BlockType airType() {
         return air;
+    }
+
+    // ------------------------------------------------------------------ light reads (§475)
+
+    /** @return the block light level at the position; 0 outside loaded chunks. */
+    public int blockLightAt(BlockPosition position) {
+        EngineChunk chunk = peek(position.chunkPosition());
+        return chunk == null ? 0 : chunk.blockLight(position.localX(), position.y(), position.localZ());
+    }
+
+    /** @return the skylight level at the position; 15 outside loaded chunks (open sky). */
+    public int skyLightAt(BlockPosition position) {
+        EngineChunk chunk = peek(position.chunkPosition());
+        return chunk == null ? 15 : chunk.skyLight(position.localX(), position.y(), position.localZ());
     }
 
     /** Applies a loaded delta snapshot. Owner-thread only, before chunks generate. */

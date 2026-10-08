@@ -20,9 +20,13 @@ import java.util.Optional;
  * <b>grouped across the whole chunk</b>, not interleaved per section: first
  * every included section's block array, then every section's 2048-byte block
  * light nibbles, then every section's 2048-byte skylight nibbles, then the
- * 256-byte biome array for ground-up chunks. Skylight is sent fully lit: the
- * flat fixture has no lighting simulation yet, and a dark world would be
- * indistinguishable from a broken one.</p>
+ * 256-byte biome array for ground-up chunks. Light comes from the world's
+ * light storage (the LightEngine): the nibble packing (low nibble = even
+ * index, y<<8|z<<4|x) is identical, so the arrays copy verbatim. Sections the
+ * bitmask omits are assumed fully-lit sky by the client (its null-storage
+ * default) — matching the model's implicit defaults — so a section must ride
+ * the wire when its light diverges from that default even if it holds no
+ * blocks (a torch's light in an otherwise empty section).</p>
  */
 final class ChunkSerializer18 {
 
@@ -35,11 +39,17 @@ final class ChunkSerializer18 {
     private ChunkSerializer18() {
     }
 
+    /**
+     * @return the section bitmask: every section with blocks OR non-default
+     *         light. The client reconstructs only masked sections; an unmasked
+     *         section keeps its assumed defaults (blocks air, block light 0,
+     *         skylight 15) — exactly the model's implicit defaults.
+     */
     static int sectionBitmask(EngineChunk chunk) {
         int mask = 0;
         for (int sectionY = 0; sectionY < EngineChunk.SECTION_COUNT; sectionY++) {
             var section = chunk.section(sectionY);
-            if (section != null && !section.isEmpty()) {
+            if ((section != null && !section.isEmpty()) || chunk.sectionNeedsLightWire(sectionY)) {
                 mask |= (1 << sectionY);
             }
         }
@@ -60,19 +70,17 @@ final class ChunkSerializer18 {
                 }
                 writeBlockArray(out, chunk, sectionY);
             }
-            // Pass 2: block light nibbles for every included section (none:
-            // surface world without a lighting simulation).
+            // Pass 2: block light nibbles for every included section, from the
+            // world's light storage (verbatim: identical nibble packing).
             for (int sectionY = 0; sectionY < EngineChunk.SECTION_COUNT; sectionY++) {
                 if ((bitmask & (1 << sectionY)) != 0) {
-                    out.write(new byte[SECTION_LIGHT_BYTES]);
+                    out.write(chunk.blockLightArray(sectionY));
                 }
             }
-            // Pass 3: skylight nibbles for every included section, fully lit.
-            byte[] sky = new byte[SECTION_LIGHT_BYTES];
-            java.util.Arrays.fill(sky, (byte) 0xFF);
+            // Pass 3: skylight nibbles for every included section, same storage.
             for (int sectionY = 0; sectionY < EngineChunk.SECTION_COUNT; sectionY++) {
                 if ((bitmask & (1 << sectionY)) != 0) {
-                    out.write(sky);
+                    out.write(chunk.skyLightArray(sectionY));
                 }
             }
             if (includeBiomes) {
@@ -111,9 +119,5 @@ final class ChunkSerializer18 {
     /** The wire's packed block-state value: {@code (legacy id << 4) | metadata}. */
     static int packedStateId(BlockType type) {
         return legacyStateId(type) << 4;
-    }
-
-    static int estimateSize(int bitmask, boolean includeBiomes) {
-        return Integer.bitCount(bitmask) * SECTION_TOTAL_BYTES + (includeBiomes ? 256 : 0);
     }
 }

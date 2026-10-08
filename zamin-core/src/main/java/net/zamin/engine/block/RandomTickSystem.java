@@ -18,12 +18,13 @@ import java.util.Random;
  * random-tick rules — this slice: grass.
  *
  * <p>Grass rules are the historical 1.8 {@code BlockGrass.updateTick}: decay
- * to dirt under an opaque block; otherwise up to four spread attempts pick a
- * nearby dirt cell (±1 x/z, −3..+1 y) and grow grass into it when nothing
- * opaque covers the target. Light levels are approximated by the same
- * "nothing opaque above" test — the flat world carries full skylight and the
- * engine has no block-light propagation yet (documented simplification, and
- * the reason covered cells never regrow grass).</p>
+ * to dirt when its own light drops below 4; otherwise up to four spread
+ * attempts pick a nearby dirt cell (±1 x/z, −3..+1 y) and grow grass into it
+ * when its light is at least 9 — the historical light gates, now served by
+ * the real light storage (block light + skylight, §475) the LightEngine
+ * maintains. This upgrades the earlier "nothing opaque above" approximation
+ * with the same semantics for covered cells and the added torch-based spread
+ * indoors (cave farms light their grass like the historical game).</p>
  */
 public final class RandomTickSystem {
 
@@ -65,7 +66,10 @@ public final class RandomTickSystem {
         if (!type.identifier().toString().equals("minecraft:grass_block")) {
             return;
         }
-        if (BlockUpdateSystem.isOpaque(world.getBlock(position.offset(0, 1, 0)))) {
+        // The historical light gates, sampled at the cell ABOVE (vanilla
+        // getLightFromNeighborsFor(pos.up()) — opaque cells store no light,
+        // so the gates read the air that would host the sapling/grass top).
+        if (lightAt(position.offset(0, 1, 0)) < 4) {
             world.setBlock(position, BuiltinBlocks.DIRT); // the historical decay
             return;
         }
@@ -80,11 +84,16 @@ public final class RandomTickSystem {
             if (!world.getBlock(target).identifier().toString().equals("minecraft:dirt")) {
                 continue;
             }
-            if (BlockUpdateSystem.isOpaque(world.getBlock(target.offset(0, 1, 0)))) {
+            if (lightAt(target.offset(0, 1, 0)) < 9) {
                 continue;
             }
             world.setBlock(target, BuiltinBlocks.GRASS_BLOCK);
         }
+    }
+
+    /** The historical grass light: the brighter of block light and skylight at the cell. */
+    private int lightAt(BlockPosition position) {
+        return Math.max(world.blockLightAt(position), world.skyLightAt(position));
     }
 
     private boolean withinPlayerRange(ChunkPosition chunk, Iterable<PlayerSession> players) {
