@@ -125,4 +125,17 @@ final class Protocol18 {
     static final int FURNACE_PROP_COOK = 2;
     static final int FURNACE_PROP_COOK_TOTAL = 3;
     static final int FURNACE_PROP_COUNT = 4;
+
+    // Chest container window (protocol 47; community-verified via
+    // prismarine-windows: container slots 0-26, player inventory range start 27
+    // end 62 — main 27-53, hotbar 54-62 — 63 slots total).
+    static final String CHEST_WINDOW_TYPE = "minecraft:chest";
+    static final String CHEST_WINDOW_TITLE = "{\"text\":\"Chest\"}";
+    static final int CHEST_WINDOW_SLOTS = 63;
+    static final int CHEST_WIRE_SLOT_LAST = 26;
+    static final int CHEST_WIRE_SLOT_MAIN_FIRST = 27;
+    static final int CHEST_WIRE_SLOT_MAIN_LAST = 53;
+    static final int CHEST_WIRE_SLOT_HOTBAR_FIRST = 54;
+    static final int CHEST_WIRE_SLOT_HOTBAR_LAST = 62;
+    static final int CHEST_WIRE_SLOT_HOTBAR_BASE = 54;
 }

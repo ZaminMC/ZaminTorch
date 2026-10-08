@@ -402,6 +402,84 @@ refusals); 180 total, 0 failures. Live smoke on a real process: baseline
 Combat Event -> respawn gesture -> Respawn + re-anchor + health 20
 (BODY_SMOKE_DONE).
 
+## 10m. Slice #13 — chest storage container (implemented status)
+
+**Status: implemented, 179 automated tests green, live smoke green
+(CHEST_META_SMOKE_DONE), real-client validated.**
+
+The chest completes the container trio (crafting table, furnace, chest):
+27 world-owned slots (the community-verified 3x9 layout), no tick of its
+own, ZCD v1 persistence (magic 'Z','C','D'), survival-break spill, and the
+63-slot wire window (0-26 chest, 27-53 main inventory, 54-62 hotbar —
+community-verified via prismarine-windows: container slots 0-26, player
+range start 27 end 62). Right-click opens; clicks route through the shared
+WindowClicks semantics; shift-click moves in any stack (a chest has no slot
+filters, unlike the furnace), out to the inventory with the remainder
+staying inside on a full inventory; number keys and middle-click on chest
+slots are rejected per packet. Tests: ChestBlockEntityTest (7 — clicks,
+filter-free quick move, full-chest remainder, drops, serials),
+ChestManagerTest (4 — lazy state, ZCD round trip preserving variants,
+corrupt quarantine, spill), ChestIntegrationTest over a real socket (2 —
+full lifecycle incl. the block's own drop preceding the spill, and the
+full-inventory remainder).
+
+## 10n. Slice #14 — item metadata: charcoal and glass (implemented status)
+
+**Status: implemented, covered by unit + integration + real-client tests.**
+
+The ItemStack damage field is now dual-role, exactly like the historical 1.8
+`Damage` value it carries: durability wear on tools, variant metadata on
+everything else (community items.json: coal metadata 1 = Charcoal, sand
+metadata 1 = Red Sand). Variants never merge with their base item
+(metadata-aware equality was already total through WindowClicks). The
+furnace gained the two metadata unlocks: sand smelts to glass (legacy 20,
+placed like any block item; community blocks.json: hardness 0.3, drops
+nothing — the historical shatter) and logs smelt to charcoal (coal with
+damage 1; charcoal burns like coal through the type-keyed fuel table).
+/give takes an optional metadata argument (`/give coal 5 1`); the wire
+carries the variant everywhere: window slots, item entity slot metadata
+(a thrown charcoal renders as charcoal), ZPD/ZFD/ZCD persistence. Tests:
+ItemStackMetadataTest (5), MetadataSmeltingTest (5), MetadataIntegrationTest
+over a real socket (2 — variant /give + distinct stacks + item-entity
+variant; sand place/drop + glass shatter).
+
+## 10o. Slice #15 — real 1.8.8 client validation (implemented status)
+
+**Status: implemented; 17/17 checks pass (REAL_CLIENT_VALIDATION_PASSED).**
+
+mineflayer — the PrismarineJS community's real Minecraft client
+implementation — now drives a live server as an independent protocol peer
+(scripts/validate-1.8.8.js; run `npm install mineflayer` beside it). Unlike
+the engine's own wire tests (which read what the server wrote), mineflayer
+parses every packet with its own stack, so a green run is cross-
+implementation proof: login/spawn, chat, dig + pickup, placement, the chest
+(63-slot layout, deposit/withdraw preserving the charcoal variant, retain
+across reopen), and the furnace (sand -> glass, log -> charcoal through the
+metadata field). The first run caught three REAL wire bugs our raw-wire
+tests could never see, all fixed and pinned by tests:
+
+1. Chunk payload: blocks must be little-endian u16 `(id << 4) | metadata`
+   (we wrote one byte per block), and the three arrays are grouped across
+   the chunk — all blocks, then all block light, then all sky light — not
+   interleaved per section (ChunkSerializer18Test pins the layout).
+2. Block Change (0x23) carries the packed state `(id << 4) | metadata`:
+   the real client's registry maps state 54 to dirt and 864 to the chest;
+   we sent the raw id (V18Connection, verified empirically via
+   prismarine-registry blocksByStateId).
+3. Slot NBT: "no NBT" is a single 0x00 TAG_End byte (vanilla
+   `PacketBuffer.writeItemStackToBuffer` + protodef optionalNbt), not the
+   short -1 we wrote — which desynced every subsequent packet parse
+   (readClaimedSlot handles the client's claimed-slot byte the same way;
+   the claimed slot is the click packet's final field, so a non-zero
+   marker's NBT payload is left unread, exactly and safely).
+
+It also drove one robustness fix: the engine's window-click verdict callback
+is now isolated — a throwing adapter callback (found via a debug NPE) can no
+longer starve the tick work queue (§54). scripts/SmokeChestMeta.java covers
+the same batch over a raw wire on a real process (CHEST_META_SMOKE_DONE);
+docs/MANUAL_CLIENT_VALIDATION.md is the manual checklist for the real
+Minecraft 1.8.8 client.
+
 ## 11. Known risks
 
 - 1.8.8 client quirks not obvious from protocol docs (e.g. exact chunk/lighting expectations) — mitigated by scripted-client tests + real client validation.

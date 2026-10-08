@@ -45,7 +45,9 @@ public final class PlayerSession implements net.zamin.api.Player {
         /** The 3x3 crafting table (10-slot GUI, grid state lives in the session). */
         CRAFTING_TABLE,
         /** The furnace (3-slot GUI, slot state lives in the world at containerPosition). */
-        FURNACE
+        FURNACE,
+        /** The chest (27-slot GUI, slot state lives in the world at containerPosition). */
+        CHEST
     }
 
     // --- survival body state (§436 family) ---------------------------------

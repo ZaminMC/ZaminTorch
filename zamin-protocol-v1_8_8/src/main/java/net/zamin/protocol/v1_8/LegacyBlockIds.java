@@ -31,6 +31,8 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:iron_ore"), 15),
             Map.entry(Identifier.parse("minecraft:diamond_ore"), 56),
             Map.entry(Identifier.parse("minecraft:oak_log"), 17),     // dataset/legacy name: "log"
+            Map.entry(Identifier.parse("minecraft:sand"), 12),        // dataset blocks.json id
+            Map.entry(Identifier.parse("minecraft:glass"), 20),       // dataset blocks.json id
             Map.entry(Identifier.parse("minecraft:crafting_table"), 58),
             Map.entry(Identifier.parse("minecraft:torch"), 50),
             Map.entry(Identifier.parse("minecraft:furnace"), 61),

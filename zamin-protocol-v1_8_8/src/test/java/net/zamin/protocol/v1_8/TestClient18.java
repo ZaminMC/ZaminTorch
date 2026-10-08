@@ -236,9 +236,11 @@ final class TestClient18 implements AutoCloseable {
         ByteBufOps.writePackedBlockPosition(body, x, y, z);
         body.writeByte(face);
         body.writeShort(heldItemId);  // 1.8 slot: id
-        body.writeByte(1);            // count
-        body.writeShort(0);           // metadata
-        body.writeShort(0);           // nbt: none
+        if (heldItemId >= 0) {
+            body.writeByte(1);        // count
+            body.writeShort(0);       // damage
+            body.writeByte(0);        // NBT marker: 0 = none (TAG_End)
+        }
         sendPacket(bodyToBytes(body));
     }
 
@@ -257,13 +259,15 @@ final class TestClient18 implements AutoCloseable {
         return ByteBufOps.readString(buffer, 4096);
     }
 
-    /** Reads a Block Change packet, returning {x, y, z, legacyId}. */
+    /** Reads a Block Change packet, returning {x, y, z, legacyId}. The wire
+     * carries the packed state (id << 4) | metadata; unpacked here. */
     int[] readBlockChange(long timeoutMs) throws IOException {
         byte[] payload = readPacketOfType(Protocol18.S2C_BLOCK_CHANGE, timeoutMs);
         ByteBuf buffer = Unpooled.wrappedBuffer(payload);
         ByteBufOps.readVarInt(buffer); // packet id
         int[] pos = ByteBufOps.readPackedBlockPosition(buffer);
-        int legacy = ByteBufOps.readVarInt(buffer);
+        int stateId = ByteBufOps.readVarInt(buffer);
+        int legacy = stateId >> 4;
         return new int[]{pos[0], pos[1], pos[2], legacy};
     }
 
@@ -379,9 +383,9 @@ final class TestClient18 implements AutoCloseable {
             }
             byte stackCount = buffer.readByte();
             int damage = buffer.readShort();
-            int nbt = buffer.readShort();
+            int nbt = buffer.readByte();
             if (nbt > 0) {
-                buffer.readBytes(new byte[nbt]); // skip NBT payload (tests never send any)
+                buffer.readBytes(new byte[nbt]); // NBT payload (tests never send any)
             }
             if (slot == -1) {
                 slot = i;
@@ -393,13 +397,13 @@ final class TestClient18 implements AutoCloseable {
         return new int[]{windowId, count, slot, itemId, itemCount, itemDamage};
     }
 
-    /** Reads an Entity Metadata packet carrying an item slot, returning {entityId, itemId, count}. */
+    /** Reads an Entity Metadata packet carrying an item slot, returning {entityId, itemId, count, damage}. */
     int[] readItemMetadata(long timeoutMs) throws IOException {
         byte[] payload = readPacketOfType(Protocol18.S2C_ENTITY_METADATA, timeoutMs);
         ByteBuf buffer = Unpooled.wrappedBuffer(payload);
         ByteBufOps.readVarInt(buffer); // packet id
         int entityId = ByteBufOps.readVarInt(buffer);
-        int itemId = -1, count = -1;
+        int itemId = -1, count = -1, damage = -1;
         while (true) {
             int header = buffer.readUnsignedByte();
             if (header == 0x7F) {
@@ -410,8 +414,8 @@ final class TestClient18 implements AutoCloseable {
                 int id = buffer.readShort();
                 if (id != -1) {
                     count = buffer.readByte();
-                    buffer.readShort(); // damage
-                    int nbt = buffer.readShort();
+                    damage = buffer.readShort();
+                    int nbt = buffer.readByte();
                     if (nbt > 0) {
                         buffer.readBytes(new byte[nbt]);
                     }
@@ -421,7 +425,7 @@ final class TestClient18 implements AutoCloseable {
                 throw new IOException("Unexpected metadata type " + type);
             }
         }
-        return new int[]{entityId, itemId, count};
+        return new int[]{entityId, itemId, count, damage};
     }
 
     /** Sends Close Window (0x0D) for the player inventory window. */
@@ -504,7 +508,7 @@ final class TestClient18 implements AutoCloseable {
             }
             int stackCount = buffer.readUnsignedByte();
             int damage = buffer.readShort();
-            int nbt = buffer.readShort();
+            int nbt = buffer.readByte();
             if (nbt > 0) {
                 buffer.readBytes(new byte[nbt]);
             }

@@ -38,6 +38,12 @@ public final class BuiltinBlocks {
             Identifier.parse("minecraft:furnace"), "Furnace");
     public static final EngineBlockType CHEST = new EngineBlockType(
             Identifier.parse("minecraft:chest"), "Chest");
+    // Smelting and placement blocks (community blocks.json: sand 0.5 dirt
+    // material, glass 0.3 with no drops — the historical shatter).
+    public static final EngineBlockType SAND = new EngineBlockType(
+            Identifier.parse("minecraft:sand"), "Sand");
+    public static final EngineBlockType GLASS = new EngineBlockType(
+            Identifier.parse("minecraft:glass"), "Glass");
 
     private BuiltinBlocks() {
     }
@@ -55,6 +61,8 @@ public final class BuiltinBlocks {
                 .register(CRAFTING_TABLE)
                 .register(TORCH)
                 .register(FURNACE)
-                .register(CHEST);
+                .register(CHEST)
+                .register(SAND)
+                .register(GLASS);
     }
 }
