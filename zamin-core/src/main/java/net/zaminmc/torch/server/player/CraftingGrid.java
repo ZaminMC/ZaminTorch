@@ -69,6 +69,15 @@ public final class CraftingGrid {
     }
 
     /**
+     * Directly sets one grid cell — reserved for the creative inventory's
+     * write path (Set Creative Slot on the craft cells), validated.
+     */
+    public void setCell(int index, ItemStack stack) {
+        rangeCheck(index);
+        cells[index] = stack == null ? ItemStack.EMPTY : stack;
+    }
+
+    /**
      * Semantic left/right click on one grid cell (window click mode 0),
      * sharing the inventory's cursor through the historical click semantics.
      */

@@ -375,8 +375,11 @@ public final class PlayerInventory {
         return List.of(slots.clone());
     }
 
-    /** Directly sets a slot — reserved for explicit engine commands, validated. */
-    void setSlot(int slot, ItemStack stack) {
+    /**
+     * Directly sets a slot — reserved for explicit engine commands (the
+     * creative inventory's write path), validated against the slot range.
+     */
+    public void setSlot(int slot, ItemStack stack) {
         if (slot < 0 || slot >= TOTAL_SLOTS) {
             throw new IllegalArgumentException("Slot out of range: " + slot);
         }

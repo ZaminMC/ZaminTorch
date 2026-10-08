@@ -10,14 +10,24 @@ import java.util.function.BiFunction;
 
 /**
  * Semantic command handling (§521): parsing produces a name + arguments;
- * executors never see the raw string. The first administrative commands are
- * minimal (§305); the registry grows with real requirements only.
+ * executors never see the raw string. Every command carries the operator
+ * level it needs (0 = everyone, 4 = owner); a sender below the level sees
+ * the vanilla "unknown command" refusal, never the command's existence.
  */
 public final class CommandService {
 
-    /** A command: name, description, executor returning feedback for the sender. */
-    public record Command(String name, String description,
-                          BiFunction<PlayerSession, String[], String> executor) {
+    /**
+     * A command: name, description, required operator level, executor
+     * returning the feedback text for the sender (null = silent).
+     */
+    public record Command(String name, String description, int requiredLevel,
+                          BiFunction<CommandSender, String[], String> executor) {
+
+        /** The no-permission shape for simple gameplay commands. */
+        public Command(String name, String description,
+                       BiFunction<CommandSender, String[], String> executor) {
+            this(name, description, 0, executor);
+        }
     }
 
     private final Map<String, Command> commands = new TreeMap<>();
@@ -31,21 +41,27 @@ public final class CommandService {
 
     /** @return the registered command, or null when unknown. */
     public Command lookup(String name) {
-        return commands.get(name);
+        return commands.get(name.toLowerCase());
+    }
+
+    /** @return all registered commands (for /help and tab completion). */
+    public List<Command> all() {
+        return new ArrayList<>(commands.values());
     }
 
     /** Executes a command intent (already identified by the leading slash). */
-    public void dispatch(PlayerSession sender, String rawInput,
-                         java.util.function.BiFunction<PlayerSession, String, Void> feedback) {
+    public void dispatch(CommandSender sender, String rawInput) {
         String line = rawInput.substring(1).trim();
         if (line.isEmpty()) {
-            feedback.apply(sender, "Usage: /<command>");
+            sender.sendMessage("Usage: /<command>");
             return;
         }
         String[] parts = line.split("\\s+");
         Command command = commands.get(parts[0].toLowerCase());
-        if (command == null) {
-            feedback.apply(sender, "Unknown command: " + parts[0] + " (try /help)");
+        if (command == null || sender.opLevel() < command.requiredLevel()) {
+            // Vanilla behavior: an unknown or unauthorized command does not
+            // reveal itself; the refusal text is identical for both.
+            sender.sendMessage("Unknown command. Type \"/help\" for help.");
             return;
         }
         String[] args = new String[Math.max(0, parts.length - 1)];
@@ -58,12 +74,7 @@ public final class CommandService {
             result = "Command failed: " + e.getMessage();
         }
         if (result != null && !result.isEmpty()) {
-            feedback.apply(sender, result);
+            sender.sendMessage(result);
         }
-    }
-
-    /** @return all registered commands (for /help). */
-    public List<Command> all() {
-        return new ArrayList<>(commands.values());
     }
 }

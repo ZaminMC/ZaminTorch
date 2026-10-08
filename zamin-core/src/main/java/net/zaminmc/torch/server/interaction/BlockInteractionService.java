@@ -55,7 +55,8 @@ public final class BlockInteractionService {
     private final EngineWorld world;
     private final EngineTicker ticker;
     private final Consumer<BlockChange> publisher;
-    private final GameMode gameMode;
+    /** Per-player game mode resolver: the session's own mode decides the rule. */
+    private final java.util.function.Function<PlayerSession, GameMode> gameMode;
     private final DropService dropService;
     private final ItemEntityManager itemEntities;
     private final java.util.function.Function<net.zaminmc.torch.item.ItemType,
@@ -78,7 +79,7 @@ public final class BlockInteractionService {
     }
 
     public BlockInteractionService(EngineWorld world, EngineTicker ticker,
-                                   Consumer<BlockChange> publisher, GameMode gameMode,
+                                   Consumer<BlockChange> publisher, java.util.function.Function<PlayerSession, GameMode> gameMode,
                                    DropService dropService, ItemEntityManager itemEntities,
                                    java.util.function.Function<net.zaminmc.torch.item.ItemType,
                                            java.util.Optional<BlockType>> blockItemResolver,
@@ -218,7 +219,8 @@ public final class BlockInteractionService {
      * leaves the hand. Creative players never wear tools.
      */
     private void wearHeldTool(PlayerSession player, BlockBehavior behavior) {
-        if (gameMode == GameMode.CREATIVE || behavior.hardness() <= 0) {
+        GameMode mode = gameMode.apply(player);
+        if (mode == GameMode.CREATIVE || behavior.hardness() <= 0) {
             return;
         }
         if (player.inventory().damageHeld(1)) {
@@ -304,7 +306,7 @@ public final class BlockInteractionService {
                                    java.util.Optional<BlockType> creativeHeld) {
         if (creativeHeld.isPresent()) {
             placeOnTick(player, clicked, face, creativeHeld.get());
-        } else if (gameMode == GameMode.SURVIVAL) {
+        } else if (gameMode.apply(player) == GameMode.SURVIVAL) {
             survivalPlaceOnTick(player, clicked, face);
         }
         // creative with an unmapped/empty held item: a no-op use

@@ -38,7 +38,11 @@ import net.zaminmc.torch.server.fx.FxManager;
 import net.zaminmc.torch.server.item.BuiltinItems;
 import net.zaminmc.torch.server.item.Foods;
 import net.zaminmc.torch.GameMode;
+import net.zaminmc.torch.server.chat.CommandService;
+import net.zaminmc.torch.server.chat.CommandSender;
+import net.zaminmc.torch.server.chat.ConsoleSender;
 import net.zaminmc.torch.server.interaction.DropService;
+import net.zaminmc.torch.server.ops.OpStore;
 import net.zaminmc.torch.server.net.ClientLink;
 import net.zaminmc.torch.server.net.EngineBridge;
 import net.zaminmc.torch.server.player.PlayerDataStore;
@@ -151,6 +155,8 @@ public final class EngineServer implements Server, EngineBridge {
     private RandomTickSystem randomTicks;
     private net.zaminmc.torch.server.world.light.LightEngine lightEngine;
     private MobDataStore mobStore;
+    /** The operator registry (ops.json); loaded at boot, rewritten on /op and /deop. */
+    private OpStore opStore = OpStore.load(java.nio.file.Path.of("ops.json"));
     private final java.util.List<ChatListener> chatListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     private final java.util.List<ItemEntityManager.Listener> itemListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     private final java.util.List<MobManager.Listener> mobListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
@@ -232,7 +238,9 @@ public final class EngineServer implements Server, EngineBridge {
         Thread boot = new Thread(() -> {
             try {
                 ticker = new EngineTicker(config.tickRateHz());
-                // Player persistence: one ZPD file per identity under <dataDir>/players.
+                // The operator registry: ops.json at the server root (Paper layout).
+                opStore = OpStore.load(java.nio.file.Path.of(config.dataDir(), "ops.json"));
+                // Player persistence: one ZPD file per identity under world/playerdata.
                 playerStore = new PlayerDataStore(
                         config.playerDataDir());
                 // Ticker thread constructs the world so it is the owner from the start.
@@ -349,7 +357,7 @@ public final class EngineServer implements Server, EngineBridge {
                 });
                 blockInteraction = new BlockInteractionService(world, ticker,
                         change -> world.republish(change.position()), // the resync path (§441)
-                        config.gamemode(), new DropService(new java.util.Random()), itemEntities,
+                        session -> session.gamemode(), new DropService(new java.util.Random()), itemEntities,
                         type -> blockRegistry.lookup(type.identifier()),
                         this::publishInventoryChanged);
                 // A survival-broken furnace spills its slots, and a survival-
@@ -719,9 +727,10 @@ public final class EngineServer implements Server, EngineBridge {
             }
             session.tickHurtInvulnerability();
             // The vanilla void: below the kill plane the out-of-world damage
-            // lands every tick (the historical outOfWorld rate) until death.
+            // lands every tick (the historical outOfWorld rate) until death —
+            // and it pierces creative invulnerability, the historical rule.
             if (session.position().y() < MobEntity.VOID_KILL_Y) {
-                damageOnTick(session, MobEntity.VOID_DAMAGE_PER_TICK);
+                damageOnTick(session, MobEntity.VOID_DAMAGE_PER_TICK, true);
             }
             tickEating(session);
             tickBowCharge(session);
@@ -730,7 +739,7 @@ public final class EngineServer implements Server, EngineBridge {
             // The sprint exhaustion approximation: the historical rule charges
             // per meter; without a server-side mover, a flat per-tick rate of
             // ~0.6 exhaustion/second tracks the sprinting feel closely enough.
-            if (session.sprinting()) {
+            if (session.sprinting() && session.gamemode() == GameMode.SURVIVAL) {
                 session.addExhaustion(0.03f);
             }
         }
@@ -790,6 +799,10 @@ public final class EngineServer implements Server, EngineBridge {
 
     /** The historical 1.8 FoodStats loop on easy difficulty. */
     private void tickFoodEconomy(PlayerSession session) {
+        if (session.gamemode() != GameMode.SURVIVAL
+                && session.gamemode() != GameMode.ADVENTURE) {
+            return; // creative and spectator bodies carry no hunger
+        }
         if (session.exhaustion() >= PlayerSession.EXHAUSTION_COST) {
             session.setExhaustion(session.exhaustion() - PlayerSession.EXHAUSTION_COST);
             if (session.saturation() > 0) {
@@ -965,7 +978,20 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     private void damageOnTick(PlayerSession session, float amount) {
+        damageOnTick(session, amount, false);
+    }
+
+    /**
+     * The semantic damage entry, with the mode guard: creative and spectator
+     * bodies are invulnerable (the historical rule) — the only bypass is the
+     * void, which consumes even creative bodies past the kill plane.
+     */
+    private void damageOnTick(PlayerSession session, float amount, boolean bypassProtection) {
         if (session.dead() || session.state() != PlayerState.PLAYING) {
+            return;
+        }
+        if (!bypassProtection && (session.gamemode() == GameMode.CREATIVE
+                || session.gamemode() == GameMode.SPECTATOR)) {
             return;
         }
         session.hurt(amount);
@@ -1066,7 +1092,7 @@ public final class EngineServer implements Server, EngineBridge {
                 if (session.bowCharging()) {
                     return; // already drawn
                 }
-                boolean creative = config.gamemode() == GameMode.CREATIVE;
+                boolean creative = session.gamemode() == GameMode.CREATIVE;
                 if (!creative && session.inventory().countOf(BuiltinItems.ARROW) == 0) {
                     return; // no ammunition: the historical refusal
                 }
@@ -1123,7 +1149,7 @@ public final class EngineServer implements Server, EngineBridge {
             return; // the flick: no shot, no wear
         }
         float power = Math.min(1.0f, (float) charge / BOW_FULL_CHARGE_TICKS);
-        boolean creative = config.gamemode() == GameMode.CREATIVE;
+        boolean creative = session.gamemode() == GameMode.CREATIVE;
         if (!creative && !session.inventory().consumeOne(BuiltinItems.ARROW)) {
             return; // the ammunition vanished mid-draw
         }
@@ -1141,7 +1167,7 @@ public final class EngineServer implements Server, EngineBridge {
      * Tick-thread context.
      */
     private void throwShard(PlayerSession session, net.zaminmc.torch.item.ItemType shard) {
-        boolean creative = config.gamemode() == GameMode.CREATIVE;
+        boolean creative = session.gamemode() == GameMode.CREATIVE;
         if (!creative) {
             if (session.inventory().held().type().equals(shard)) {
                 session.inventory().consumeHeld(1);
@@ -2619,20 +2645,262 @@ public final class EngineServer implements Server, EngineBridge {
                 (sender, args) -> {
                     StringBuilder text = new StringBuilder("Commands:");
                     for (CommandService.Command command : commands.all()) {
-                        text.append(" /").append(command.name()).append(" (").append(command.description()).append(")");
+                        if (sender.opLevel() >= command.requiredLevel()) {
+                            text.append(" /").append(command.name())
+                                    .append(" (").append(command.description()).append(")");
+                        }
                     }
                     return text.toString();
                 }));
         commands.register(new CommandService.Command("ping", "Check server responsiveness",
                 (sender, args) -> "pong"));
-        commands.register(new CommandService.Command("give", "Give yourself an item: /give <name> [count] [metadata]",
-                this::giveCommand));
-        commands.register(new CommandService.Command("time", "Query or set the day: /time query | /time set <day|noon|night|midnight|ticks>",
+        commands.register(new CommandService.Command("give",
+                "Give yourself an item: /give <name> [count] [metadata]",
+                playerCommand(this::giveCommand)));
+        commands.register(new CommandService.Command("time",
+                "Query or set the day: /time query | /time set <day|noon|night|midnight|ticks>",
                 this::timeCommand));
         commands.register(new CommandService.Command("rename",
-                "Rename the held item: /rename <name...> (no name clears it)", this::renameCommand));
-        commands.register(new CommandService.Command("spawnmob", "Spawn mobs near you: /spawnmob <pig|cow|chicken|zombie> [count]",
-                this::spawnMobCommand));
+                "Rename the held item: /rename <name...> (no name clears it)",
+                0, playerCommand(this::renameCommand)));
+        commands.register(new CommandService.Command("spawnmob",
+                "Spawn mobs near you: /spawnmob <pig|cow|chicken|zombie|creeper|skeleton|sheep|spider> [count]",
+                playerCommand(this::spawnMobCommand)));
+        // The Paper operator set.
+        commands.register(new CommandService.Command("gamemode",
+                "Change a game mode: /gamemode <survival|creative|adventure|spectator> [player]",
+                2, this::gamemodeCommand));
+        commands.register(new CommandService.Command("op", "Grant operator: /op <player>",
+                3, this::opCommand));
+        commands.register(new CommandService.Command("deop", "Revoke operator: /deop <player>",
+                3, this::deopCommand));
+        commands.register(new CommandService.Command("list", "List online players",
+                (sender, args) -> "There are " + players.all().size() + " of a max of "
+                        + config.maxPlayers() + " players online: "
+                        + players.all().stream().map(PlayerSession::name)
+                                .sorted().reduce((a, b) -> a + ", " + b).orElse("(none)")));
+        commands.register(new CommandService.Command("kick", "Kick a player: /kick <player> [reason]",
+                2, this::kickCommand));
+        commands.register(new CommandService.Command("say", "Broadcast a message: /say <message...>",
+                2, this::sayCommand));
+        commands.register(new CommandService.Command("save", "Save all worlds",
+                4, (sender, args) -> {
+                    saveAllNow();
+                    return "Saved the game";
+                }));
+        commands.register(new CommandService.Command("stop", "Stop the server",
+                4, (sender, args) -> {
+                    LOGGER.info("Stop requested by " + sender.name());
+                    new Thread(() -> shutdown(null), "zamin-command-stop").start();
+                    return "Stopping the server";
+                }));
+        // Community-style single-letter aliases of /gamemode.
+        commands.register(new CommandService.Command("gms", "Shortcut: /gamemode survival",
+                2, (sender, args) -> gamemodeCommand(sender, prepend(args, "survival"))));
+        commands.register(new CommandService.Command("gmc", "Shortcut: /gamemode creative",
+                2, (sender, args) -> gamemodeCommand(sender, prepend(args, "creative"))));
+        commands.register(new CommandService.Command("gma", "Shortcut: /gamemode adventure",
+                2, (sender, args) -> gamemodeCommand(sender, prepend(args, "adventure"))));
+        commands.register(new CommandService.Command("gmsp", "Shortcut: /gamemode spectator",
+                2, (sender, args) -> gamemodeCommand(sender, prepend(args, "spectator"))));
+    }
+
+    private static String[] prepend(String[] args, String first) {
+        String[] all = new String[args.length + 1];
+        all[0] = first;
+        System.arraycopy(args, 0, all, 1, args.length);
+        return all;
+    }
+
+    /** Adapter for gameplay commands that only an in-world player may use. */
+    private static java.util.function.BiFunction<CommandSender, String[], String> playerCommand(
+            java.util.function.BiFunction<PlayerSession, String[], String> executor) {
+        return (sender, args) -> {
+            PlayerSession player = sender.player();
+            if (player == null) {
+                return "This command must be run by a player.";
+            }
+            return executor.apply(player, args);
+        };
+    }
+
+    /**
+     * /gamemode &lt;mode&gt; [player]: switches the per-player game mode.
+     * The target learns through Change Game State 3 + Player Abilities; the
+     * server-side interaction rules follow the session's mode from now on.
+     */
+    private String gamemodeCommand(CommandSender sender, String[] args) {
+        if (args.length == 0) {
+            return "Usage: /gamemode <survival|creative|adventure|spectator> [player]";
+        }
+        GameMode mode;
+        try {
+            mode = GameMode.parse(args[0]);
+        } catch (IllegalArgumentException unknown) {
+            return "Unknown game mode: " + args[0];
+        }
+        PlayerSession target;
+        if (args.length >= 2) {
+            target = players.byName(args[1]).orElse(null);
+            if (target == null) {
+                return "No online player named " + args[1];
+            }
+        } else {
+            if (sender.player() == null) {
+                return "Console must name a player: /gamemode <mode> <player>";
+            }
+            target = sender.player();
+        }
+        setGamemode(target, mode);
+        return "Set " + target.name() + "'s game mode to "
+                + mode.name().toLowerCase(java.util.Locale.ROOT);
+    }
+
+    /** /op &lt;player&gt;: grants the operator level and persists ops.json. */
+    private String opCommand(CommandSender sender, String[] args) {
+        if (args.length < 1) {
+            return "Usage: /op <player>";
+        }
+        PlayerSession target = players.byName(args[0]).orElse(null);
+        if (target == null) {
+            return "No online player named " + args[0];
+        }
+        opStore.op(target.uuid(), target.name(), 4);
+        target.setOpLevel(4);
+        systemMessage(target, "You are now op!");
+        LOGGER.info("Made " + target.name() + " a server operator (by " + sender.name() + ")");
+        return "Made " + target.name() + " a server operator";
+    }
+
+    /** /deop &lt;player&gt;: revokes the operator level and persists ops.json. */
+    private String deopCommand(CommandSender sender, String[] args) {
+        if (args.length < 1) {
+            return "Usage: /deop <player>";
+        }
+        PlayerSession target = players.byName(args[0]).orElse(null);
+        if (target == null) {
+            // Offline revoke: ops.json may still carry the name.
+            return opStore.deop(args[0]) ? "Revoked operator status of " + args[0]
+                    : "No online player named " + args[0];
+        }
+        boolean removed = opStore.deop(target.name());
+        target.setOpLevel(0);
+        systemMessage(target, "You are no longer op!");
+        LOGGER.info("Revoked operator status of " + target.name() + " (by " + sender.name() + ")");
+        return removed ? "Revoked operator status of " + target.name()
+                : target.name() + " was not an operator";
+    }
+
+    /** /kick &lt;player&gt; [reason...]: the disconnect with the operator's words. */
+    private String kickCommand(CommandSender sender, String[] args) {
+        if (args.length < 1) {
+            return "Usage: /kick <player> [reason...]";
+        }
+        PlayerSession target = players.byName(args[0]).orElse(null);
+        if (target == null) {
+            return "No online player named " + args[0];
+        }
+        String reason = args.length >= 2
+                ? String.join(" ", java.util.Arrays.copyOfRange(args, 1, args.length))
+                : "Kicked by an operator.";
+        target.link().kick(reason);
+        return "Kicked " + target.name() + ": " + reason;
+    }
+
+    /** /say &lt;message...&gt;: the historical broadcast with the [Server] tag. */
+    private String sayCommand(CommandSender sender, String[] args) {
+        if (args.length == 0) {
+            return "Usage: /say <message...>";
+        }
+        String line = "[" + sender.name() + "] " + String.join(" ", args);
+        for (PlayerSession player : players.all()) {
+            systemMessage(player, line);
+        }
+        LOGGER.info(line);
+        return null; // the broadcast itself is the feedback
+    }
+
+    /**
+     * Pushes a system line to one player (command feedback, /say, op notes).
+     * Safe from any thread; delivery rides the tick thread like chat.
+     */
+    public void systemMessage(PlayerSession recipient, String content) {
+        ticker.submit(() -> {
+            for (ChatListener listener : chatListeners) {
+                listener.onSystemMessage(recipient, content);
+            }
+        });
+    }
+
+    /**
+     * Switches a player's game mode (the /gamemode path): the session state
+     * flips on the tick thread, then Change Game State 3 + Player Abilities
+     * tell the client, and the body display re-syncs.
+     */
+    public void setGamemode(PlayerSession session, GameMode mode) {
+        java.util.Objects.requireNonNull(session, "session");
+        java.util.Objects.requireNonNull(mode, "mode");
+        ticker.submit(() -> setGamemodeOnTick(session, mode));
+    }
+
+    private void setGamemodeOnTick(PlayerSession session, GameMode mode) {
+        if (session.state() != PlayerState.PLAYING) {
+            return;
+        }
+        session.setGamemode(mode);
+        session.link().updateGamemode(mode.legacyId());
+        // The protocol-47 abilities map: 0x01 invulnerable, 0x04 may-fly,
+        // 0x08 instant build — the historical creative/spectator grant.
+        int flags = 0;
+        if (mode == GameMode.CREATIVE || mode == GameMode.SPECTATOR) {
+            flags |= 0x01 | 0x04 | 0x08;
+        }
+        session.link().updateAbilities(flags);
+        publishBodyChanged(session);
+        LOGGER.info("Game mode of " + session.name() + " set to "
+                + mode.name().toLowerCase(java.util.Locale.ROOT));
+    }
+
+    /**
+     * Set Creative Slot (0x10): the creative inventory's authoritative write.
+     * Creative sessions only; the client-claimed stack lands in the mapped
+     * engine slot (window 0's historical ContainerPlayer mapping). Safe from
+     * any thread; the write runs on the tick thread.
+     */
+    public void setCreativeSlot(PlayerSession session, int wireSlot,
+                                net.zaminmc.torch.item.ItemStack stack) {
+        java.util.Objects.requireNonNull(session, "session");
+        java.util.Objects.requireNonNull(stack, "stack");
+        ticker.submit(() -> setCreativeSlotOnTick(session, wireSlot, stack));
+    }
+
+    private void setCreativeSlotOnTick(PlayerSession session, int wireSlot,
+                                       net.zaminmc.torch.item.ItemStack stack) {
+        if (session.state() != PlayerState.PLAYING
+                || session.gamemode() != GameMode.CREATIVE) {
+            return; // the vanilla guard against faked creative packets
+        }
+        if (wireSlot >= WIRE_SLOT_CRAFT_FIRST && wireSlot <= WIRE_SLOT_CRAFT_LAST) {
+            session.crafting().setCell(wireSlot - WIRE_SLOT_CRAFT_FIRST, stack);
+        } else if (wireSlot >= WIRE_SLOT_CRAFT_LAST + 1 && wireSlot <= WIRE_SLOT_CRAFT_LAST + 4) {
+            return; // armor cells ride the window clicks, not the creative menu
+        } else {
+            int engineSlot = engineSlotOf(wireSlot);
+            if (engineSlot < 0) {
+                return; // result slot and unknown cells: not a creative write
+            }
+            session.inventory().setSlot(engineSlot, stack);
+        }
+        publishInventoryChanged(session);
+    }
+
+    /**
+     * The console command line routed through the same dispatcher the chat
+     * slash commands use (ConsoleSender, full operator level). Safe from any
+     * thread; the dispatch runs on the tick thread like player commands.
+     */
+    public void consoleCommand(String raw) {
+        ticker.submit(() -> chatService.dispatchCommand(new ConsoleSender(), raw));
     }
 
     /**
@@ -2641,7 +2909,7 @@ public final class EngineServer implements Server, EngineBridge {
      * tick thread through chat dispatch; every client hears the new time
      * through the time listeners.
      */
-    private String timeCommand(PlayerSession sender, String[] args) {
+    private String timeCommand(CommandSender sender, String[] args) {
         if (args.length >= 1 && args[0].equalsIgnoreCase("query")) {
             return "Time: " + world.timeOfDay() + " / " + MobManager.DAY_LENGTH
                     + " (total " + world.totalTicks() + ")";
@@ -2869,6 +3137,14 @@ public final class EngineServer implements Server, EngineBridge {
             session.assignEngineEntityId(nextPlayerEntityId++);
             players.register(session);
             session.authenticate();
+            // The personal game mode survives restarts (ZPD v4); a fresh player
+            // inherits the server default from server.properties.
+            session.setGamemode(saved.map(PlayerSnapshot::gamemodeId)
+                    .filter(id -> id >= 0)
+                    .map(GameMode::byLegacyId)
+                    .filter(java.util.Objects::nonNull)
+                    .orElse(config.gamemode()));
+            session.setOpLevel(opStore.level(offlineUuid));
             Position spawn = saved.map(PlayerSnapshot::position)
                     .orElseGet(world::spawnPosition);
             session.beginJoin(world, spawn);
@@ -2928,7 +3204,8 @@ public final class EngineServer implements Server, EngineBridge {
         }
         return new PlayerSnapshot(session.uuid(), session.name(), session.position(),
                 session.rotation(), session.inventory().heldSlot(), filled,
-                session.health(), session.food(), session.saturation());
+                session.health(), session.food(), session.saturation(),
+                session.gamemode().legacyId());
     }
 
     /**

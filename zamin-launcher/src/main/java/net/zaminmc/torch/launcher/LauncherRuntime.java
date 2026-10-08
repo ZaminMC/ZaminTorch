@@ -105,19 +105,24 @@ final class LauncherRuntime {
                     LOGGER.info(() -> "Console: " + command);
                 }
                 switch (command) {
-                    case "", "help" -> printHelp();
+                    case "" -> { /* the bare enter: prompt redraw only */ }
                     case "stop", "shutdown" -> {
                         LOGGER.info("Stop requested from console");
+                        // Direct path: stop must work even if the tick loop is wedged.
                         server.shutdown(adapter::shutdown);
                         return;
                     }
-                    case "state" -> LOGGER.info(() -> "Server state: " + server.state()
-                            + ", players=" + server.players().size());
                     case "save" -> {
                         server.saveAllNow();
                         LOGGER.info("World saved");
                     }
-                    default -> LOGGER.warning(() -> "Unknown command: " + command + " (try 'help')");
+                    case "state" -> LOGGER.info(() -> "Server state: " + server.state()
+                            + ", players=" + server.players().size());
+                    default -> {
+                        // Everything else rides the same dispatcher the chat
+                        // slash commands use (help, gamemode, op, say, ...).
+                        server.consoleCommand(command);
+                    }
                 }
                 System.out.print("> ");
                 System.out.flush();
@@ -128,9 +133,5 @@ final class LauncherRuntime {
         // Console EOF or closure: the server keeps serving until stopped by signal
         // or shutdown call. A closed console must never stop a live server.
         server.awaitShutdown();
-    }
-
-    private void printHelp() {
-        LOGGER.info("Commands: help, state, save, stop");
     }
 }

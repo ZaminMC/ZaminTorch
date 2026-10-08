@@ -54,13 +54,29 @@ public final class ChatService {
             return;
         }
         if (message.startsWith("/")) {
-            commands.dispatch(sender, message, (recipient, content) -> {
-                deliverSystem(recipient, content);
-                return null;
-            });
+            commands.dispatch(new CommandSender() {
+                @Override public String name() { return sender.name(); }
+                @Override public void sendMessage(String content) { deliverSystem(sender, content); }
+                @Override public int opLevel() { return sender.opLevel(); }
+                @Override public PlayerSession player() { return sender; }
+            }, message);
             return;
         }
         publisher.accept(new PublicChat(sender, message));
+    }
+
+    /**
+     * Dispatches a command intent from a non-chat sender (the console).
+     * Same sanitization as chat; feedback flows to the sender directly.
+     * Tick-thread context (run through the ticker).
+     */
+    public void dispatchCommand(CommandSender sender, String raw) {
+        String message = sanitize(raw);
+        if (message.startsWith("/")) {
+            commands.dispatch(sender, message);
+        } else if (!message.isEmpty()) {
+            sender.sendMessage(message); // console echo without a slash
+        }
     }
 
     private void deliverSystem(PlayerSession recipient, String content) {
