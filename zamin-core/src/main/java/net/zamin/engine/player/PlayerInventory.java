@@ -48,6 +48,37 @@ public final class PlayerInventory {
         return heldSlot;
     }
 
+    /**
+     * Total units of one item type across all slots (the bow's ammunition
+     * check). Identity matches by type only; damage/variant stacks count too.
+     */
+    public int countOf(net.zamin.api.ItemType type) {
+        Objects.requireNonNull(type, "type");
+        int total = 0;
+        for (ItemStack slot : slots) {
+            if (!slot.isEmpty() && slot.type().equals(type)) {
+                total += slot.count();
+            }
+        }
+        return total;
+    }
+
+    /**
+     * Consumes one unit of the item type from the first matching slot (slot
+     * order, hotbar first). @return true when a unit was consumed.
+     */
+    public boolean consumeOne(net.zamin.api.ItemType type) {
+        Objects.requireNonNull(type, "type");
+        for (int i = 0; i < slots.length; i++) {
+            ItemStack slot = slots[i];
+            if (!slot.isEmpty() && slot.type().equals(type) && slot.count() > 0) {
+                slots[i] = slot.withCount(slot.count() - 1);
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** Selects the hotbar slot. Invalid selections are rejected, state unchanged (§430). */
     public void selectHotbarSlot(int slot) {
         if (slot < 0 || slot >= HOTBAR_SLOTS) {

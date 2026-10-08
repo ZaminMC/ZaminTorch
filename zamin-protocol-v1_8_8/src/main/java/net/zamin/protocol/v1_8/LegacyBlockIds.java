@@ -81,7 +81,12 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:diamond_sword"), 276),
             Map.entry(Identifier.parse("minecraft:golden_sword"), 283),
             // shears
-            Map.entry(Identifier.parse("minecraft:shears"), 359));
+            Map.entry(Identifier.parse("minecraft:shears"), 359),
+            // ranged combat (community items.json ids, dataset-verified)
+            Map.entry(Identifier.parse("minecraft:bow"), 261),
+            Map.entry(Identifier.parse("minecraft:arrow"), 262),
+            Map.entry(Identifier.parse("minecraft:snowball"), 332),
+            Map.entry(Identifier.parse("minecraft:egg"), 344));
 
     private static final Map<Integer, Identifier> BY_LEGACY_ID = reverse();
 

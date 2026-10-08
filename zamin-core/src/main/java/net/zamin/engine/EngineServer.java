@@ -28,7 +28,11 @@ import net.zamin.engine.entity.MobType;
 import net.zamin.engine.furnace.FurnaceBlockEntity;
 import net.zamin.engine.furnace.FurnaceDataStore;
 import net.zamin.engine.furnace.FurnaceManager;
+import net.zamin.engine.fx.BlockSoundMap;
+import net.zamin.engine.fx.FxManager;
+import net.zamin.engine.item.BuiltinItems;
 import net.zamin.engine.item.Foods;
+import net.zamin.engine.config.GameMode;
 import net.zamin.engine.interaction.DropService;
 import net.zamin.engine.net.ClientLink;
 import net.zamin.engine.net.EngineBridge;
@@ -36,6 +40,8 @@ import net.zamin.engine.player.PlayerDataStore;
 import net.zamin.engine.player.PlayerRegistry;
 import net.zamin.engine.player.PlayerSession;
 import net.zamin.engine.player.PlayerSnapshot;
+import net.zamin.engine.entity.projectile.ProjectileEntity;
+import net.zamin.engine.entity.projectile.ProjectileManager;
 import net.zamin.engine.world.EngineChunk;
 import net.zamin.engine.world.EngineWorld;
 import net.zamin.engine.world.DeltaWorldStorage;
@@ -150,6 +156,20 @@ public final class EngineServer implements Server, EngineBridge {
     private static final int MOB_ID_BASE = ENTITY_ID_BASE + 1_000_000;
     /** Falling blocks get their own band above the mobs. */
     private static final int FALLING_ID_BASE = MOB_ID_BASE + 1_000_000;
+    /** Projectiles (arrows, shards) get the next band. */
+    private static final int PROJECTILE_ID_BASE = FALLING_ID_BASE + 1_000_000;
+    /** Player engine-global ids live above the projectiles (engine-side identity). */
+    private static final int PLAYER_ID_BASE = PROJECTILE_ID_BASE + 1_000_000;
+
+    /** The game-feedback bus (sounds, particles); created at boot, read-only after. */
+    private final FxManager fxManager = new FxManager();
+    /** The airborne projectiles; constructed at boot after the world exists. */
+    private volatile ProjectileManager projectileManager;
+
+    /** The FX pitch/jitter source (cosmetic rolls only, never gameplay rules). */
+    private final java.util.Random fxRandom = new java.util.Random();
+    /** The next engine-global player entity id (the projectile thrower band). */
+    private int nextPlayerEntityId = PLAYER_ID_BASE;
 
     public EngineServer(EngineConfig config) {
         this.config = Objects.requireNonNull(config, "config");
@@ -159,6 +179,16 @@ public final class EngineServer implements Server, EngineBridge {
 
     public EngineConfig config() {
         return config;
+    }
+
+    /** The game-feedback bus (sounds, particles) the adapter subscribes to. */
+    public FxManager fx() {
+        return fxManager;
+    }
+
+    /** The airborne projectiles (engine-side simulation state). */
+    public ProjectileManager projectiles() {
+        return projectileManager;
     }
 
     /**
@@ -266,9 +296,21 @@ public final class EngineServer implements Server, EngineBridge {
                 world.addChangeListener(blockUpdateSystem);
                 // Random ticks (§471 pattern): grass growth and decay.
                 randomTicks = new RandomTickSystem(world, new java.util.Random());
+                // Projectiles (arrows, shards): the tick-thread physics system,
+                // with damage semantics staying here in the combat callbacks.
+                ProjectileManager projectiles = new ProjectileManager(
+                        (x, y, z) -> !world.getBlock(blockAt(x, y, z)).equals(world.airType()),
+                        new ProjectileHitResolver(),
+                        new ProjectileCombatSink(),
+                        fxManager,
+                        new java.util.Random(),
+                        PROJECTILE_ID_BASE);
+                this.projectileManager = projectiles;
+                projectiles.addListener(new ProjectileEventDispatch());
                 ticker.setTickHandler(() -> {
                     blockUpdateSystem.tick(); // §466: scheduled updates (falls start here)
                     falling.tick();           // §470: falling physics + landings
+                    projectileManager.tick(); // ranged combat physics
                     furnaceManager.tick(world, itemEntities);
                     chestManager.tick(world);
                     itemEntities.tick(players.all());
@@ -290,10 +332,32 @@ public final class EngineServer implements Server, EngineBridge {
                         type -> blockRegistry.lookup(type.identifier()),
                         this::publishInventoryChanged);
                 // A survival-broken furnace spills its slots, and a survival-
-                // broken chest spills its 27, into the world first.
+                // broken chest spills its 27, into the world first. The same
+                // hook emits the break/place feedback through the FX bus.
                 blockInteraction.setBlockBrokenListener(position -> {
                     furnaceManager.onBlockBroken(position, itemEntities);
                     chestManager.onBlockBroken(position, itemEntities);
+                });
+                blockInteraction.setCommitFeedbackListener(commit -> {
+                    if (commit.now().equals(world.airType())) {
+                        // A break: the shatter burst plus the dig family sound.
+                        Position center = new Position(commit.position().x() + 0.5,
+                                commit.position().y() + 0.5, commit.position().z() + 0.5);
+                        fxManager.blockShatter(center, commit.previous());
+                        fxManager.sound(center,
+                                BlockSoundMap.digSound(commit.previous().identifier())
+                                        .orElse("dig.stone"), 1.0f,
+                                0.75f + fxRandom.nextFloat() * 0.2f);
+                    } else if (!commit.previous().equals(commit.now())) {
+                        // A place (or replace): the dig family sound at the softer
+                        // historical place volume.
+                        Position center = new Position(commit.position().x() + 0.5,
+                                commit.position().y() + 0.5, commit.position().z() + 0.5);
+                        fxManager.sound(center,
+                                BlockSoundMap.digSound(commit.now().identifier())
+                                        .orElse("dig.stone"), 0.8f,
+                                0.8f + fxRandom.nextFloat() * 0.2f);
+                    }
                 });
                 CommandService commands = new CommandService();
                 registerBuiltinCommands(commands);
@@ -579,11 +643,25 @@ public final class EngineServer implements Server, EngineBridge {
 
         /** The player was knocked back: the victim's client simulates the impulse. */
         void onKnockback(PlayerSession player, double vx, double vy, double vz);
+
+        /**
+         * The player's posture (sneak/sprint) changed: observers need the
+         * living-flags metadata re-broadcast (crouch 0x02, sprint 0x10).
+         * Default no-op so older listeners stay source-compatible.
+         */
+        default void onPostureChanged(PlayerSession player) {
+        }
     }
 
     /** Registers an internal survival observer (e.g. the protocol adapter's sync). */
     public void addSurvivalListener(SurvivalListener listener) {
         survivalListeners.add(listener);
+    }
+
+    private void publishPostureChanged(PlayerSession player) {
+        for (SurvivalListener listener : survivalListeners) {
+            listener.onPostureChanged(player);
+        }
     }
 
     private void publishBodyChanged(PlayerSession player) {
@@ -620,8 +698,22 @@ public final class EngineServer implements Server, EngineBridge {
             }
             session.tickHurtInvulnerability();
             tickEating(session);
+            tickBowCharge(session);
             tickFoodEconomy(session);
             tickLanding(session);
+            // The sprint exhaustion approximation: the historical rule charges
+            // per meter; without a server-side mover, a flat per-tick rate of
+            // ~0.6 exhaustion/second tracks the sprinting feel closely enough.
+            if (session.sprinting()) {
+                session.addExhaustion(0.03f);
+            }
+        }
+    }
+
+    /** The bow's draw clock: charge advances while the use gesture holds. */
+    private void tickBowCharge(PlayerSession session) {
+        if (session.bowCharging()) {
+            session.advanceBowCharge();
         }
     }
 
@@ -635,7 +727,16 @@ public final class EngineServer implements Server, EngineBridge {
             session.cancelEating(); // the held item changed mid-eat
             return;
         }
-        if (session.advanceEating() < Foods.EAT_TICKS) {
+        int ticks = session.advanceEating();
+        if (ticks < Foods.EAT_TICKS) {
+            // The historical eating feedback: crumbs + the eating sound every
+            // four ticks, from the mouth height.
+            if (ticks % 4 == 1) {
+                Position mouth = mouthPosition(session);
+                fxManager.itemShatter(mouth, held);
+                fxManager.sound(mouth, "random.eat", 0.5f,
+                        0.8f + fxRandom.nextFloat() * 0.2f);
+            }
             return;
         }
         session.cancelEating();
@@ -649,8 +750,16 @@ public final class EngineServer implements Server, EngineBridge {
         float newSaturation = Math.min(newFood,
                 session.saturation() + nutrition.saturation());
         session.setBody(session.health(), newFood, newSaturation);
+        fxManager.sound(mouthPosition(session), "random.burp", 0.5f,
+                fxRandom.nextFloat() * 0.1f + 0.9f);
         publishInventoryChanged(session);
         publishBodyChanged(session);
+    }
+
+    /** The eye height (1.62) — where eat sounds and throw gestures originate. */
+    private static Position mouthPosition(PlayerSession session) {
+        Position p = session.position();
+        return new Position(p.x(), p.y() + 1.62, p.z());
     }
 
     /** The historical 1.8 FoodStats loop on easy difficulty. */
@@ -897,12 +1006,23 @@ public final class EngineServer implements Server, EngineBridge {
         });
     }
 
-    // ------------------------------------------------------------------ eating + respawn
+    // -------------------------------------------------------------- using + respawn
+
+    /** Full-draw charge in ticks: the historical 1 second to maximum power. */
+    static final int BOW_FULL_CHARGE_TICKS = 20;
+    /** The minimum draw before an arrow flies (the historical flick guard). */
+    static final int BOW_MIN_CHARGE_TICKS = 3;
+    /** Full-draw arrow launch speed (the historical 3.0 blocks/tick). */
+    static final double BOW_MAX_SPEED = 3.0;
+    /** Shard (snowball/egg) launch speed (the historical 1.5). */
+    static final double SHARD_SPEED = 1.5;
 
     /**
      * A right-click use in the air: the held item decides the semantics —
-     * food starts the 32-tick eat timer when the player is hungry; everything
-     * else is a no-op this slice. Safe from any thread.
+     * the bow begins its draw (ammunition checked in survival), the snowball
+     * and egg throw on the press, food starts the 32-tick eat timer when the
+     * player is hungry; everything else is a no-op this slice. Safe from any
+     * thread.
      */
     @Override
     public void useItem(PlayerSession session) {
@@ -912,8 +1032,30 @@ public final class EngineServer implements Server, EngineBridge {
                 return;
             }
             ItemStack held = session.inventory().held();
-            if (held.isEmpty() || Foods.nutritionOf(held.type()).isEmpty()) {
-                return; // nothing edible held: nothing to use yet
+            if (held.isEmpty()) {
+                return;
+            }
+            // Ranged: the bow starts its draw (the release gesture fires).
+            if (held.type().equals(BuiltinItems.BOW)) {
+                if (session.bowCharging()) {
+                    return; // already drawn
+                }
+                boolean creative = config.gamemode() == GameMode.CREATIVE;
+                if (!creative && session.inventory().countOf(BuiltinItems.ARROW) == 0) {
+                    return; // no ammunition: the historical refusal
+                }
+                session.beginBowCharge();
+                return;
+            }
+            // Shards: the snowball and egg throw on the press (historical timing).
+            if (held.type().equals(BuiltinItems.SNOWBALL)
+                    || held.type().equals(BuiltinItems.EGG)) {
+                throwShard(session, held.type());
+                return;
+            }
+            // Food: the eat timer.
+            if (Foods.nutritionOf(held.type()).isEmpty()) {
+                return;
             }
             if (session.food() >= net.zamin.engine.player.PlayerSession.MAX_FOOD) {
                 return; // not hungry: the historical refusal
@@ -924,15 +1066,116 @@ public final class EngineServer implements Server, EngineBridge {
 
     /**
      * The client released a use (dig status 5): an unfinished eat cancels; a
-     * finished one was already applied by the tick timer. Safe from any thread.
+     * finished one was already applied by the tick timer; a drawn bow fires.
+     * Safe from any thread.
      */
     @Override
     public void releaseUsingItem(PlayerSession session) {
         Objects.requireNonNull(session, "session");
         ticker.submit(() -> {
-            if (session.eating() && session.eatingTicks() < Foods.EAT_TICKS) {
-                session.cancelEating(); // released early: the historical cancel
+            if (session.eating()) {
+                if (session.eatingTicks() < Foods.EAT_TICKS) {
+                    session.cancelEating(); // released early: the historical cancel
+                }
+                return;
             }
+            if (session.bowCharging()) {
+                releaseBow(session);
+            }
+        });
+    }
+
+    /**
+     * The bow's release: power scales with the draw (clamped at one second),
+     * the arrow launches from the eyes, one unit of ammunition and one unit of
+     * durability leave in survival. Tick-thread context.
+     */
+    private void releaseBow(PlayerSession session) {
+        int charge = session.bowChargeTicks();
+        session.cancelBowCharge();
+        if (charge < BOW_MIN_CHARGE_TICKS) {
+            return; // the flick: no shot, no wear
+        }
+        float power = Math.min(1.0f, (float) charge / BOW_FULL_CHARGE_TICKS);
+        boolean creative = config.gamemode() == GameMode.CREATIVE;
+        if (!creative && !session.inventory().consumeOne(BuiltinItems.ARROW)) {
+            return; // the ammunition vanished mid-draw
+        }
+        launchProjectile(session, ProjectileEntity.Kind.ARROW, power * BOW_MAX_SPEED);
+        if (!creative && session.inventory().damageHeld(1)) {
+            // The bow's snap: worn out, the client's held slot re-syncs.
+            publishInventoryChanged(session);
+        }
+        publishInventoryChanged(session);
+    }
+
+    /**
+     * A shard throw: the projectile launches at the historical speed, one
+     * unit leaves the hand in survival, the launch whoosh rides the wire.
+     * Tick-thread context.
+     */
+    private void throwShard(PlayerSession session, net.zamin.api.ItemType shard) {
+        boolean creative = config.gamemode() == GameMode.CREATIVE;
+        if (!creative) {
+            if (session.inventory().held().type().equals(shard)) {
+                session.inventory().consumeHeld(1);
+            } else {
+                return; // the hand changed between press and tick
+            }
+        }
+        launchProjectile(session, shard.equals(BuiltinItems.EGG)
+                ? ProjectileEntity.Kind.EGG : ProjectileEntity.Kind.SNOWBALL, SHARD_SPEED);
+        publishInventoryChanged(session);
+    }
+
+    /**
+     * The shared launch: spawn origin at the eyes, look-vector velocity, the
+     * historical bow-whoosh sound. Tick-thread context.
+     */
+    private void launchProjectile(PlayerSession session, ProjectileEntity.Kind kind,
+                                  double speed) {
+        if (projectileManager == null) {
+            return; // pre-boot guard (tests construct partial engines)
+        }
+        Position eye = mouthPosition(session);
+        ProjectileEntity projectile = projectileManager.launch(kind,
+                session.engineEntityId(), eye,
+                session.rotation().yaw(), session.rotation().pitch(), speed);
+        fxManager.sound(eye, "random.bow", 1.0f,
+                (float) (1.0 / (fxRandom.nextFloat() * 0.4 + 1.2) + speed * 0.1));
+        LOGGER.fine(() -> session.name() + " launched " + projectile.kind()
+                + " (entity " + projectile.entityId() + ")");
+    }
+
+    /**
+     * The Entity Action stream (0x0B): the posture gestures the client's own
+     * physics already animates — the server tracks them for the observers'
+     * flags metadata, the sprint food cost and future movement validation.
+     * Actions: 0 start-sneak, 1 stop-sneak, 2 start-sprint, 3 stop-sprint
+     * (4 jump-with-horse and 5 leave-bed are posture-neutral here). Safe from
+     * any thread.
+     */
+    public void entityAction(PlayerSession session, int action) {
+        Objects.requireNonNull(session, "session");
+        ticker.submit(() -> {
+            boolean before = session.sneaking() || session.sprinting();
+            switch (action) {
+                case 0 -> session.setSneaking(true);
+                case 1 -> session.setSneaking(false);
+                case 2 -> {
+                    // The historical sprint gate: hunger below 7 refuses sprint.
+                    if (session.food() > 6) {
+                        session.setSprinting(true);
+                    }
+                }
+                case 3 -> session.setSprinting(false);
+                default -> {
+                    return;
+                }
+            }
+            // The flags metadata is idempotent; observers re-sync regardless of
+            // whether the posture actually flipped.
+            publishPostureChanged(session);
         });
     }
 
@@ -1738,6 +1981,138 @@ public final class EngineServer implements Server, EngineBridge {
         }
     }
 
+    /** Observers of the projectile system (the protocol adapter's wire sync). */
+    public interface ProjectileListener {
+        void onProjectileSpawned(ProjectileEntity projectile);
+
+        void onProjectileMoved(ProjectileEntity projectile);
+
+        void onProjectileLanded(ProjectileEntity projectile);
+
+        void onProjectileRemoved(ProjectileEntity projectile, String reason);
+    }
+
+    private final java.util.List<ProjectileListener> projectileListeners =
+            new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    /** Registers an internal projectile observer (the protocol adapter). */
+    public void addProjectileListener(ProjectileListener listener) {
+        projectileListeners.add(listener);
+    }
+
+    /** Fan-out from the projectile system to the observer list (§448 pattern). */
+    private final class ProjectileEventDispatch implements ProjectileManager.Listener {
+        @Override
+        public void onProjectileSpawned(ProjectileEntity projectile) {
+            for (ProjectileListener listener : projectileListeners) {
+                listener.onProjectileSpawned(projectile);
+            }
+        }
+
+        @Override
+        public void onProjectileMoved(ProjectileEntity projectile) {
+            for (ProjectileListener listener : projectileListeners) {
+                listener.onProjectileMoved(projectile);
+            }
+        }
+
+        @Override
+        public void onProjectileLanded(ProjectileEntity projectile) {
+            for (ProjectileListener listener : projectileListeners) {
+                listener.onProjectileLanded(projectile);
+            }
+        }
+
+        @Override
+        public void onProjectileRemoved(ProjectileEntity projectile, String reason) {
+            for (ProjectileListener listener : projectileListeners) {
+                listener.onProjectileRemoved(projectile, reason);
+            }
+        }
+    }
+
+    /**
+     * Resolves what a projectile is inside of: the same boxes the melee
+     * checks use (mob type width/height; the 0.6 × 1.8 player box). Tick-thread.
+     */
+    private final class ProjectileHitResolver implements ProjectileManager.HitResolver {
+        @Override
+        public MobEntity mobAt(Position point) {
+            return mobManager.mobAt(point);
+        }
+
+        @Override
+        public PlayerSession playerAt(Position point) {
+            for (PlayerSession player : players.all()) {
+                if (player.state() != PlayerState.PLAYING || player.dead()) {
+                    continue;
+                }
+                Position p = player.position();
+                double dx = point.x() - p.x();
+                double dy = point.y() - p.y();
+                double dz = point.z() - p.z();
+                if (Math.abs(dx) <= 0.3 && Math.abs(dz) <= 0.3 && dy >= -0.2 && dy <= 1.8) {
+                    return player;
+                }
+            }
+            return null;
+        }
+    }
+
+    /**
+     * The projectile combat rules: arrows wound (speed-scaled), shards bruise
+     * (knockback without damage — the historical snowball). Both ride the
+     * same hurt-window, status and knockback packets as the melee paths.
+     */
+    private final class ProjectileCombatSink implements ProjectileManager.CombatSink {
+        @Override
+        public void mobHit(MobEntity mob, float damage, double kbYaw) {
+            mobManager.hurt(mob, damage, kbYaw);
+        }
+
+        @Override
+        public void playerHit(PlayerSession victim, float damage, double kbYaw) {
+            projectileHitPlayerOnTick(victim, damage, kbYaw);
+        }
+
+        @Override
+        public void chickenHatch(Position position) {
+            mobManager.spawnAt(MobType.CHICKEN, position);
+            fxManager.sound(position, "mob.chicken.say", 0.5f, 1.0f);
+            LOGGER.fine(() -> "An egg hatched a chick at " + position);
+        }
+    }
+
+    /**
+     * The zero-reach projectile hit on a player: the projectile already
+     * traveled, so no reach check — but the hurt window, knockback and death
+     * path stay identical to melee PvP. Tick-thread context.
+     */
+    private void projectileHitPlayerOnTick(PlayerSession victim, float damage, double kbYaw) {
+        if (!config.pvp() || victim.dead() || victim.state() != PlayerState.PLAYING) {
+            return;
+        }
+        if (victim.hurtInvulnerable() && damage <= victim.lastHurtDamage()) {
+            return; // absorbed by the hurt window (a bruise out-damages nothing)
+        }
+        float applied = victim.hurtInvulnerable() ? Math.max(0.0f, damage - victim.lastHurtDamage())
+                : damage;
+        victim.beginHurtInvulnerability(Math.max(damage, 0.01f));
+        if (applied > 0) {
+            victim.hurt(applied);
+        }
+        // Knockback along the impact velocity (the historical thrown-entity bruise).
+        double vx = -Math.sin(kbYaw) * 0.4;
+        double vz = Math.cos(kbYaw) * 0.4;
+        publishPlayerHurt(victim);
+        publishKnockback(victim, vx, 0.35, vz);
+        if (victim.health() <= 0) {
+            dieOnTick(victim);
+        } else {
+            publishBodyChanged(victim);
+        }
+    }
+
     /**
      * Fan-out from the simulation-owned mob system to the observer list —
      * the same pattern the item-entity system uses (§448): the engine decides
@@ -2101,6 +2476,9 @@ public final class EngineServer implements Server, EngineBridge {
             Optional<PlayerSnapshot> saved = playerStore == null
                     ? Optional.empty() : playerStore.load(offlineUuid);
             PlayerSession session = new PlayerSession(offlineUuid, username, link);
+            // The engine-global identity (the projectile thrower band) rides in
+            // from here; the wire-local ids remain the adapter's business.
+            session.assignEngineEntityId(nextPlayerEntityId++);
             players.register(session);
             session.authenticate();
             Position spawn = saved.map(PlayerSnapshot::position)

@@ -252,9 +252,9 @@ public final class ProjectileManager {
         return random.nextInt(EGG_HATCH_CHANCE) == 0;
     }
 
-    /** The shard break feedback (the shatter puff + the glassy click). */
+    /** The shard break feedback (the splat puff + the glassy click). */
     private void shatter(ProjectileEntity projectile) {
-        fx.snowballPoof(projectile.position());
+        fx.poof(projectile.position());
         fx.sound(projectile.position(), "random.glass", 0.5f,
                 0.7f + random.nextFloat() * 0.3f);
     }

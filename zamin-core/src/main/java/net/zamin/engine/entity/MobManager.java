@@ -114,6 +114,27 @@ public final class MobManager {
     }
 
     /**
+     * The projectile hit query: the mob whose body box contains the point
+     * (feet-anchored, type width/height), or null. Tick-thread context.
+     */
+    public MobEntity mobAt(Position point) {
+        for (MobEntity mob : mobs) {
+            if (mob.dead()) {
+                continue;
+            }
+            Position p = mob.position();
+            double halfWidth = mob.type().width / 2.0;
+            double dx = Math.abs(point.x() - p.x());
+            double dz = Math.abs(point.z() - p.z());
+            double dy = point.y() - p.y();
+            if (dx <= halfWidth && dz <= halfWidth && dy >= -0.1 && dy <= mob.type().height) {
+                return mob;
+            }
+        }
+        return null;
+    }
+
+    /**
      * Spawns one mob of the kind at the exact position (validated by callers).
      * Tick-thread context.
      */
