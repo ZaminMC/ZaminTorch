@@ -56,6 +56,9 @@ proven over the wire and against a live process.
 | Sounds + particles (FX bus: dig/eat/bow/shatter feedback) | implemented |
 | Ranged combat: bow (charge), snowball, egg (chick roll) | implemented |
 | Posture sync: sneak/sprint flags to observers | implemented |
+| Fluids: pour/spread/dry, falling columns, water+lava contact, buckets | implemented |
+| Mob AI expansion: skeleton archers, creepers (fuse + explosions), night spiders, shearable sheep | implemented |
+| Real-client wire conformance (packet-id table pinned in tests) | implemented |
 | Item NBT (display names, enchantments) | planned |
 | Anvil world format import | planned (compatibility adapter) |
 | Minestom integration | deferred (see ADR in plan) |
