@@ -1439,9 +1439,10 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeInt((int) Math.floor(entity.position().z() * 32.0));
         out.writeByte(0); // pitch
         out.writeByte(0); // yaw
-        // Historical object data: legacy id | (metadata << 12); metadata 0 this
-        // slice (variant metadata lives on item stacks, the block model is flat).
-        out.writeInt(legacy);
+        // Historical object data: legacy id | (metadata << 12). Sand and
+        // gravel carry metadata 0 today; the nibble path exists so a falling
+        // block of any metadata-carrying kind stays truthful on the wire.
+        out.writeInt(legacy | (LegacyBlockIds.metadataOf(entity.blockType().identifier()) << 12));
         out.writeShort(0); // velocity x (falls are vertical)
         out.writeShort((int) Math.floor(entity.velocityY() * 8000.0));
         out.writeShort(0); // velocity z

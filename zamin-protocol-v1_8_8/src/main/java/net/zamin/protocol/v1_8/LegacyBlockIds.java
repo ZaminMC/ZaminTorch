@@ -1,6 +1,7 @@
 package net.zamin.protocol.v1_8;
 
 import net.zamin.api.Identifier;
+import net.zamin.engine.block.FluidBlocks;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -38,6 +39,21 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:torch"), 50),
             Map.entry(Identifier.parse("minecraft:furnace"), 61),
             Map.entry(Identifier.parse("minecraft:chest"), 54),
+            // Fluid-contact products (the historical outcomes) and the sheep's
+            // block-item wool (legacy 35).
+            Map.entry(Identifier.parse("minecraft:obsidian"), 49),
+            Map.entry(Identifier.parse("minecraft:wool"), 35),
+            // Mob loot and fluid handling of the living-night slice
+            // (community items.json ids: bone 352, string 287, gunpowder 289,
+            // mutton 423, cooked mutton 424, buckets 325/326/327).
+            Map.entry(Identifier.parse("minecraft:bone"), 352),
+            Map.entry(Identifier.parse("minecraft:string"), 287),
+            Map.entry(Identifier.parse("minecraft:gunpowder"), 289),
+            Map.entry(Identifier.parse("minecraft:mutton"), 423),
+            Map.entry(Identifier.parse("minecraft:cooked_mutton"), 424),
+            Map.entry(Identifier.parse("minecraft:bucket"), 325),
+            Map.entry(Identifier.parse("minecraft:water_bucket"), 326),
+            Map.entry(Identifier.parse("minecraft:lava_bucket"), 327),
             // items yielded by mining and crafting
             Map.entry(Identifier.parse("minecraft:coal"), 263),
             Map.entry(Identifier.parse("minecraft:diamond"), 264),
@@ -96,9 +112,35 @@ final class LegacyBlockIds {
         return Map.copyOf(reversed);
     }
 
-    /** @return the legacy numeric id, or empty when this adapter cannot represent the type. */
+    /**
+     * @return the legacy numeric id, or empty when this adapter cannot
+     * represent the type. Fluid states resolve programmatically (still 9/11,
+     * flowing 8/10 — the wire family shares one id, the level rides the
+     * metadata nibble via {@link #metadataOf}).
+     */
     static Optional<Integer> legacyId(Identifier identifier) {
-        return Optional.ofNullable(BY_IDENTIFIER.get(identifier));
+        Integer direct = BY_IDENTIFIER.get(identifier);
+        if (direct != null) {
+            return Optional.of(direct);
+        }
+        FluidBlocks.Kind fluid = FluidBlocks.kindOf(identifier);
+        if (fluid == FluidBlocks.Kind.WATER) {
+            return Optional.of(FluidBlocks.isSource(identifier) ? 9 : 8);
+        }
+        if (fluid == FluidBlocks.Kind.LAVA) {
+            return Optional.of(FluidBlocks.isSource(identifier) ? 11 : 10);
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * @return the wire metadata nibble of a block type: the flow level for
+     * fluids (0 source, 1..7 flowing, 8 the falling column — the historical
+     * 1.8 encoding) and 0 for everything else.
+     */
+    static int metadataOf(Identifier identifier) {
+        FluidBlocks.Kind fluid = FluidBlocks.kindOf(identifier);
+        return fluid == null ? 0 : FluidBlocks.levelOf(identifier);
     }
 
     /** @return the canonical identifier for a legacy id, or empty if unknown. */

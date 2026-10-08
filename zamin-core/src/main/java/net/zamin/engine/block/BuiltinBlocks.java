@@ -48,6 +48,13 @@ public final class BuiltinBlocks {
     // itself; the 10% flint roll is the behavior table's chance model).
     public static final EngineBlockType GRAVEL = new EngineBlockType(
             Identifier.parse("minecraft:gravel"), "Gravel");
+    // Fluid-contact products (the historical outcomes): a lava source touched
+    // by water hardens into obsidian (legacy 49), a flowing stream into
+    // cobblestone (legacy 4 — the item registry already carries the item form).
+    public static final EngineBlockType OBSIDIAN = new EngineBlockType(
+            Identifier.parse("minecraft:obsidian"), "Obsidian");
+    public static final EngineBlockType COBBLESTONE = new EngineBlockType(
+            Identifier.parse("minecraft:cobblestone"), "Cobblestone");
 
     private BuiltinBlocks() {
     }
@@ -68,6 +75,8 @@ public final class BuiltinBlocks {
                 .register(CHEST)
                 .register(SAND)
                 .register(GLASS)
-                .register(GRAVEL);
+                .register(GRAVEL)
+                .register(OBSIDIAN)
+                .register(COBBLESTONE);
     }
 }

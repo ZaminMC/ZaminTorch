@@ -100,7 +100,11 @@ final class ChunkSerializer18 {
             for (int z = 0; z < 16; z++) {
                 for (int x = 0; x < 16; x++) {
                     BlockType type = chunk.getBlock(x, (sectionY << 4) | y, z);
-                    int stateId = legacyStateId(type) << 4; // metadata 0 this slice
+                    // (id << 4) | metadata — fluids carry their flow level in
+                    // the nibble (0 source, 1..7 flowing, 8 falling), the
+                    // historical 1.8 encoding; plain blocks ride metadata 0.
+                    int stateId = legacyStateId(type) << 4
+                            | LegacyBlockIds.metadataOf(type.identifier());
                     out.write(stateId & 0xFF);          // low byte first (LE)
                     out.write((stateId >> 8) & 0xFF);
                 }
@@ -118,6 +122,6 @@ final class ChunkSerializer18 {
 
     /** The wire's packed block-state value: {@code (legacy id << 4) | metadata}. */
     static int packedStateId(BlockType type) {
-        return legacyStateId(type) << 4;
+        return legacyStateId(type) << 4 | LegacyBlockIds.metadataOf(type.identifier());
     }
 }

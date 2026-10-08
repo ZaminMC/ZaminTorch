@@ -170,6 +170,33 @@ public final class BuiltinItems {
     public static final EngineItemType SHEARS = tool("shears", "Shears",
             ToolClass.SHEARS, ToolMaterial.IRON, 238);
 
+    // Mob loot of the living-night slice (legacy ids from the community
+    // dataset: bone 352, string 287, gunpowder 289; wool is the sheep's
+    // block-item 35; mutton smelts into the cooked form, 423/424).
+    public static final EngineItemType BONE = new EngineItemType(
+            Identifier.parse("minecraft:bone"), "Bone", 64);
+    public static final EngineItemType STRING = new EngineItemType(
+            Identifier.parse("minecraft:string"), "String", 64);
+    public static final EngineItemType GUNPOWDER = new EngineItemType(
+            Identifier.parse("minecraft:gunpowder"), "Gunpowder", 64);
+    public static final EngineItemType WOOL = new EngineItemType(
+            Identifier.parse("minecraft:wool"), "Wool", 64);
+    public static final EngineItemType MUTTON = new EngineItemType(
+            Identifier.parse("minecraft:mutton"), "Raw Mutton", 64);
+    public static final EngineItemType COOKED_MUTTON = new EngineItemType(
+            Identifier.parse("minecraft:cooked_mutton"), "Cooked Mutton", 64);
+
+    // Fluid handling (legacy ids: bucket 325, water bucket 326, lava bucket
+    // 327). A filled bucket carries its fluid as the identity — the 1.8 way —
+    // and swaps for the empty one on use; the empty bucket fills from any
+    // source block it targets.
+    public static final EngineItemType BUCKET = new EngineItemType(
+            Identifier.parse("minecraft:bucket"), "Bucket", 1);
+    public static final EngineItemType WATER_BUCKET = new EngineItemType(
+            Identifier.parse("minecraft:water_bucket"), "Water Bucket", 1);
+    public static final EngineItemType LAVA_BUCKET = new EngineItemType(
+            Identifier.parse("minecraft:lava_bucket"), "Lava Bucket", 1);
+
     private static final Map<Identifier, ItemType> REGISTRY = build();
 
     private BuiltinItems() {
@@ -200,7 +227,9 @@ public final class BuiltinItems {
                 WOODEN_AXE, STONE_AXE, IRON_AXE, DIAMOND_AXE, GOLDEN_AXE,
                 WOODEN_SHOVEL, STONE_SHOVEL, IRON_SHOVEL, DIAMOND_SHOVEL, GOLDEN_SHOVEL,
                 WOODEN_SWORD, STONE_SWORD, IRON_SWORD, DIAMOND_SWORD, GOLDEN_SWORD,
-                SHEARS}) {
+                SHEARS,
+                BONE, STRING, GUNPOWDER, WOOL, MUTTON, COOKED_MUTTON,
+                BUCKET, WATER_BUCKET, LAVA_BUCKET}) {
             ItemType existing = map.put(type.identifier(), type);
             if (existing != null) {
                 throw new IllegalStateException("Duplicate item type registration: " + type.identifier());
