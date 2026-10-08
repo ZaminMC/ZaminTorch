@@ -34,8 +34,11 @@ public record PlayerSnapshot(UUID uuid, String name, Position position, Rotation
     public static final int LEGACY_FOOD = PlayerSession.MAX_FOOD;
     public static final float LEGACY_SATURATION = PlayerSession.DEFAULT_SATURATION;
 
-    /** One non-empty saved slot: engine slot index and its stack value. */
-    public record SlotStack(int slot, Identifier item, int count, int damage) {
+    /**
+     * One non-empty saved slot: engine slot index and its stack value,
+     * including the optional custom display name (ZPD v3; null in older files).
+     */
+    public record SlotStack(int slot, Identifier item, int count, int damage, String displayName) {
         public SlotStack {
             if (slot < 0 || slot > 35) {
                 throw new IllegalArgumentException("Slot out of range: " + slot);
@@ -46,6 +49,11 @@ public record PlayerSnapshot(UUID uuid, String name, Position position, Rotation
             if (damage < 0) {
                 throw new IllegalArgumentException("Damage must not be negative: " + damage);
             }
+        }
+
+        /** The pre-name shape (ZPD v1/v2 readers, engine callers without a name). */
+        public SlotStack(int slot, Identifier item, int count, int damage) {
+            this(slot, item, count, damage, null);
         }
     }
 }

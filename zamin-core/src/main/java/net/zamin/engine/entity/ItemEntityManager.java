@@ -246,7 +246,7 @@ public final class ItemEntityManager {
 
     /** Same item and same damage: the merge rule the window clicks play too. */
     private static boolean stacksMergeable(net.zamin.api.ItemStack a, net.zamin.api.ItemStack b) {
-        return a.type().equals(b.type()) && a.damage() == b.damage();
+        return net.zamin.api.ItemStack.mergeable(a, b);
     }
 
     private void publishStackChanged(ItemEntity entity) {

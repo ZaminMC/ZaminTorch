@@ -1784,6 +1784,8 @@ public final class EngineServer implements Server, EngineBridge {
                 this::giveCommand));
         commands.register(new CommandService.Command("time", "Query or set the day: /time query | /time set <day|noon|night|midnight|ticks>",
                 this::timeCommand));
+        commands.register(new CommandService.Command("rename",
+                "Rename the held item: /rename <name...> (no name clears it)", this::renameCommand));
         commands.register(new CommandService.Command("spawnmob", "Spawn mobs near you: /spawnmob <pig|cow|chicken|zombie> [count]",
                 this::spawnMobCommand));
     }
@@ -1829,6 +1831,26 @@ public final class EngineServer implements Server, EngineBridge {
      * the kind around the sender on the surface — the controlled entry point
      * for real-client validation. Runs on the tick thread through chat dispatch.
      */
+    /**
+     * /rename &lt;name...&gt;: renames the held stack (the historical
+     * tag.display.Name — the anvil rename without the anvil). Joins arguments
+     * with spaces; no arguments clears the name. The wire carries it as the
+     * slot encoding's NBT compound, so every container, drop and pickup
+     * preserves it. Runs on the tick thread through chat dispatch.
+     */
+    private String renameCommand(PlayerSession sender, String[] args) {
+        if (sender.inventory().held().isEmpty()) {
+            return "Hold an item to rename it";
+        }
+        String name = args.length == 0 ? "" : String.join(" ", args);
+        if (name.length() > net.zamin.api.ItemStack.MAX_NAME_LENGTH) {
+            return "Name too long (max " + net.zamin.api.ItemStack.MAX_NAME_LENGTH + ")";
+        }
+        sender.inventory().renameHeld(name);
+        publishInventoryChanged(sender);
+        return name.isEmpty() ? "Name cleared" : "Renamed to " + name;
+    }
+
     private String spawnMobCommand(PlayerSession sender, String[] args) {
         if (args.length < 1) {
             return "Usage: /spawnmob <pig|cow|chicken|zombie> [count]";
@@ -2054,7 +2076,7 @@ public final class EngineServer implements Server, EngineBridge {
                 continue;
             }
             filled.add(new PlayerSnapshot.SlotStack(i, stack.type().identifier(),
-                    stack.count(), stack.damage()));
+                    stack.count(), stack.damage(), stack.displayName()));
         }
         return new PlayerSnapshot(session.uuid(), session.name(), session.position(),
                 session.rotation(), session.inventory().heldSlot(), filled,

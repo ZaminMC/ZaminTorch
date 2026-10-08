@@ -73,13 +73,11 @@ public final class PlayerInventory {
         // tools stack to one, but the rule keeps the merge semantics total).
         for (int i = 0; i < TOTAL_SLOTS && !remaining.isEmpty(); i++) {
             ItemStack current = slots[i];
-            if (!current.isEmpty() && current.type().equals(remaining.type())
-                    && current.damage() == remaining.damage()
+            if (ItemStack.mergeable(current, remaining)
                     && current.count() < current.type().maxStackSize()) {
                 int capacity = current.type().maxStackSize() - current.count();
                 ItemStack take = remaining.split(capacity);
-                slots[i] = new ItemStack(current.type(), current.count() + take.count(),
-                        current.damage());
+                slots[i] = current.withCount(current.count() + take.count());
                 remaining = remaining.withCount(remaining.count() - take.count());
             }
         }
@@ -118,6 +116,15 @@ public final class PlayerInventory {
      * {@code entireStack} (historical Q vs Ctrl+Q). @return the stack that
      * left the inventory (possibly empty when the hand is empty).
      */
+    /**
+     * Semantic rename of the held stack (§426's item NBT slice): the anvil
+     * rename without the anvil — the display name rides every later wire
+     * encoding and survives containers and drops. Null/blank clears.
+     */
+    public void renameHeld(String name) {
+        slots[heldSlot] = slots[heldSlot].withName(name);
+    }
+
     public ItemStack dropHeld(boolean entireStack) {
         ItemStack current = slots[heldSlot];
         if (current.isEmpty()) {

@@ -1162,7 +1162,11 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeShort(legacy);
         out.writeByte(stack.count());
         out.writeShort(stack.damage()); // durability wear / variant metadata
-        out.writeByte(0); // no NBT: the single TAG_End marker
+        if (SlotNbt.hasPayload(stack.displayName())) {
+            SlotNbt.writeNamed(out, stack.displayName());
+        } else {
+            out.writeByte(0); // no NBT: the single TAG_End marker
+        }
     }
 
     /** Re-sends one tracked chunk column (the relight transport, §475). Tick thread. */
