@@ -573,6 +573,12 @@ public final class EngineServer implements Server, EngineBridge {
 
         /** The player respawned at spawn: the adapter re-anchors the wire. */
         void onRespawned(PlayerSession player, net.zamin.api.Position spawn);
+
+        /** The player took a melee hit: the hurt flash rides the entity status. */
+        void onPlayerHurt(PlayerSession player);
+
+        /** The player was knocked back: the victim's client simulates the impulse. */
+        void onKnockback(PlayerSession player, double vx, double vy, double vz);
     }
 
     /** Registers an internal survival observer (e.g. the protocol adapter's sync). */
@@ -612,6 +618,7 @@ public final class EngineServer implements Server, EngineBridge {
             if (session.state() != PlayerState.PLAYING || session.dead()) {
                 continue;
             }
+            session.tickHurtInvulnerability();
             tickEating(session);
             tickFoodEconomy(session);
             tickLanding(session);
@@ -745,6 +752,81 @@ public final class EngineServer implements Server, EngineBridge {
                 publishInventoryChanged(attacker);
             }
         });
+    }
+
+    /**
+     * A player attacked another player (Use Entity 0x02, mouse=1, resolved
+     * through the attacker's observer id space): the same melee verdicts as
+     * the mob path — reach, held-item damage, exhaustion, tool wear — plus
+     * the historical hurt invulnerability window (a weaker hit inside the
+     * window is absorbed; a stronger one out-damages it) and the knockback
+     * velocity the victim's own client simulates. The victim's client gets
+     * the hurt status, the health re-sync and the velocity; every client
+     * that can see the victim gets the hurt flash. Safe from any thread;
+     * the application runs on the tick thread.
+     */
+    public void attackPlayer(PlayerSession attacker, PlayerSession victim) {
+        Objects.requireNonNull(attacker, "attacker");
+        Objects.requireNonNull(victim, "victim");
+        ticker.submit(() -> {
+            if (!config.pvp() || attacker == victim
+                    || attacker.state() != PlayerState.PLAYING || attacker.dead()
+                    || victim.state() != PlayerState.PLAYING || victim.dead()) {
+                return;
+            }
+            Position eye = attacker.position();
+            Position target = victim.position();
+            double dx = target.x() - eye.x();
+            double dy = target.y() - eye.y();
+            double dz = target.z() - eye.z();
+            double horizontal = Math.sqrt(dx * dx + dz * dz);
+            // The victim's bounding box adds 0.3 to the reach like a mob's width.
+            if (horizontal > MELEE_REACH + 0.3 || dy < -2.0 || dy > 4.0) {
+                return; // out of reach: the server-side refusal
+            }
+            float damage = net.zamin.engine.item.Tools.attackDamageOf(attacker.inventory().held().type());
+            if (victim.hurtInvulnerable()) {
+                if (damage <= victim.lastHurtDamage()) {
+                    return; // absorbed by the hurt window
+                }
+                damage -= victim.lastHurtDamage(); // the historical out-damage rule
+            }
+            final float applied = damage;
+            victim.beginHurtInvulnerability(damage);
+            victim.hurt(damage);
+            attacker.addExhaustion(ATTACK_EXHAUSTION);
+            if (net.zamin.engine.item.Tools.specOf(attacker.inventory().held().type()).isPresent()) {
+                attacker.inventory().damageHeld(1);
+                publishInventoryChanged(attacker);
+            }
+            // Knockback (the historical feel: 0.4 horizontal along the swing,
+            // 0.4 up). The victim's client owns its own physics, so this rides
+            // the wire as a velocity set; observers see the movement packets.
+            double kbYaw = Math.atan2(-dx, dz);
+            double vx = -Math.sin(kbYaw) * 0.4;
+            double vz = Math.cos(kbYaw) * 0.4;
+            publishPlayerHurt(victim);
+            publishKnockback(victim, vx, 0.4, vz);
+            if (victim.health() <= 0) {
+                dieOnTick(victim);
+            } else {
+                publishBodyChanged(victim);
+            }
+            LOGGER.fine(() -> attacker.name() + " hit " + victim.name()
+                    + " for " + applied + " (health " + victim.health() + ")");
+        });
+    }
+
+    private void publishPlayerHurt(PlayerSession victim) {
+        for (SurvivalListener listener : survivalListeners) {
+            listener.onPlayerHurt(victim);
+        }
+    }
+
+    private void publishKnockback(PlayerSession victim, double vx, double vy, double vz) {
+        for (SurvivalListener listener : survivalListeners) {
+            listener.onKnockback(victim, vx, vy, vz);
+        }
     }
 
     private void damageOnTick(PlayerSession session, float amount) {

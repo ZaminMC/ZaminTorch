@@ -213,6 +213,42 @@ public final class PlayerSession implements net.zamin.api.Player {
         health = Math.max(0.0f, health - amount);
     }
 
+    // --- combat invulnerability frames (the historical 10-tick hurt window) ---
+
+    /** Ticks left before the next hit may land; the historical half-second. */
+    public static final int HURT_INVULNERABILITY_TICKS = 10;
+
+    private int hurtInvulnerabilityTicks;
+    private float lastHurtDamage;
+
+    /** Enters the hurt window remembering the damage the frame must out-damage. */
+    public void beginHurtInvulnerability(float damage) {
+        this.hurtInvulnerabilityTicks = HURT_INVULNERABILITY_TICKS;
+        this.lastHurtDamage = damage;
+    }
+
+    /** True while a hit weaker than the frame's damage cannot re-hurt. */
+    public boolean hurtInvulnerable() {
+        return hurtInvulnerabilityTicks > 0;
+    }
+
+    /** The damage the active hurt frame absorbed; a stronger hit out-damages it. */
+    public float lastHurtDamage() {
+        return lastHurtDamage;
+    }
+
+    /** Per-tick decay of the hurt window. Tick-thread context. */
+    public void tickHurtInvulnerability() {
+        if (hurtInvulnerabilityTicks > 0) {
+            hurtInvulnerabilityTicks--;
+        }
+    }
+
+    public void resetHurtInvulnerability() {
+        hurtInvulnerabilityTicks = 0;
+        lastHurtDamage = 0.0f;
+    }
+
     /** Direct body write for engine commands (eat, regen, respawn, restore). */
     public void setBody(float newHealth, int newFood, float newSaturation) {
         this.health = Math.max(0.0f, Math.min(MAX_HEALTH, newHealth));
@@ -235,6 +271,7 @@ public final class PlayerSession implements net.zamin.api.Player {
         this.fallDistance = 0;
         this.dead = false;
         this.eatingTicks = -1;
+        resetHurtInvulnerability();
     }
 
     /** Exhaustion accrual (regen hearts; more sources arrive with combat). */

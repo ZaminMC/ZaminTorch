@@ -339,6 +339,57 @@ final class TestClient18 implements AutoCloseable {
         return new int[]{entityId, type, x, y, z, health};
     }
 
+    /**
+     * Reads a Spawn Mob packet and returns its RAW DataWatcher entries as
+     * {@code {index, type, valueFixed}} rows (floats x100, others as-is).
+     * The regression net for the vanilla client's DataWatcher cross-check:
+     * 1.8's client throws when an entry's type does not match the type its
+     * entity class registered for that index, so a wrong index/type pair
+     * crashes real clients while community parsers sail through.
+     */
+    int[][] readSpawnMobDataWatcher(long timeoutMs) throws IOException {
+        byte[] payload = readPacketOfType(Protocol18.S2C_SPAWN_MOB, timeoutMs);
+        ByteBuf buffer = Unpooled.wrappedBuffer(payload);
+        ByteBufOps.readVarInt(buffer); // packet id
+        ByteBufOps.readVarInt(buffer); // entity id
+        buffer.readByte(); // type
+        buffer.readInt();
+        buffer.readInt();
+        buffer.readInt();
+        buffer.readByte();
+        buffer.readByte();
+        buffer.readByte();
+        buffer.readShort();
+        buffer.readShort();
+        buffer.readShort();
+        java.util.List<int[]> rows = new java.util.ArrayList<>();
+        while (true) {
+            int header = buffer.readUnsignedByte();
+            if (header == Protocol18.METADATA_TERMINATOR) {
+                break;
+            }
+            int type = header >> 5;
+            int index = header & 0x1F;
+            switch (type) {
+                case Protocol18.METADATA_TYPE_BYTE ->
+                        rows.add(new int[]{index, type, buffer.readByte()});
+                case Protocol18.METADATA_TYPE_FLOAT ->
+                        rows.add(new int[]{index, type, Math.round(buffer.readFloat() * 100)});
+                case Protocol18.METADATA_TYPE_SLOT -> {
+                    int id = buffer.readShort();
+                    if (id != -1) {
+                        buffer.readByte();
+                        buffer.readShort();
+                        SlotNbt.skip(buffer);
+                    }
+                    rows.add(new int[]{index, type, id});
+                }
+                default -> throw new IOException("Unexpected metadata type " + type);
+            }
+        }
+        return rows.toArray(new int[0][]);
+    }
+
     /** Reads a Spawn Mob packet of the given legacy type, skipping other spawns. */
     int[] readSpawnMobOfType(int legacyType, long timeoutMs) throws IOException {
         long deadline = System.currentTimeMillis() + timeoutMs;
@@ -875,6 +926,35 @@ final class TestClient18 implements AutoCloseable {
         int difficulty = buffer.readUnsignedByte();
         int gamemode = buffer.readUnsignedByte();
         return new int[]{dimension, difficulty, gamemode};
+    }
+
+    /**
+     * Reads Named Entity Spawn (0x0C): {entityId} — the tracked remote
+     * player's observer-local id, the target space of PvP Use Entity.
+     */
+    int[] readNamedSpawn(long timeoutMs) throws IOException {
+        byte[] payload = readPacketOfType(Protocol18.S2C_NAMED_SPAWN, timeoutMs);
+        ByteBuf buffer = Unpooled.wrappedBuffer(payload);
+        ByteBufOps.readVarInt(buffer); // packet id
+        int entityId = ByteBufOps.readVarInt(buffer);
+        ByteBufOps.readString(buffer, 64); // uuid
+        buffer.readInt();
+        buffer.readInt();
+        buffer.readInt();
+        buffer.readByte();
+        buffer.readByte();
+        buffer.readShort();
+        buffer.readByte(); // metadata terminator
+        return new int[]{entityId};
+    }
+
+    /** Reads Set Entity Velocity (0x12): {entityId, vx, vy, vz} in 1/8000 units. */
+    int[] readEntityVelocity(long timeoutMs) throws IOException {
+        byte[] payload = readPacketOfType(Protocol18.S2C_ENTITY_VELOCITY, timeoutMs);
+        ByteBuf buffer = Unpooled.wrappedBuffer(payload);
+        ByteBufOps.readVarInt(buffer); // packet id
+        int entityId = ByteBufOps.readVarInt(buffer);
+        return new int[]{entityId, buffer.readShort(), buffer.readShort(), buffer.readShort()};
     }
 
     /** Sends Client Status (0x16) — action 0 performs the respawn. */

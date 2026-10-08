@@ -112,13 +112,20 @@ final class Protocol18 {
     // Entity metadata (protocol 47, community-verified type map): value types
     // 0=byte 1=short 2=int 3=float 4=string 5=slot 6=position 7=rotation.
     // Living entities carry their flags byte at index 0 and health float at
-    // index 7 (the historical DataWatcher layout); item entities carry their
-    // stack slot at index 10.
+    // index 6; item entities carry their stack slot at index 10.
+    //
+    // ⚠ Health at index 7 crashed real vanilla clients: 1.8's EntityLiving
+    // DataWatcher registers health (float) at 6 and the potion color (int) at
+    // 7, and the client's updateWatchedObjects throws on an index/type
+    // mismatch — a float at 7 killed the game the moment the first mob
+    // spawned near a player (~8s after join, the population maintainer's
+    // first roll). The community metadata parser never cross-validates
+    // index against type, which is why mineflayer validated this for weeks.
     static final int METADATA_TYPE_BYTE = 0;
     static final int METADATA_TYPE_FLOAT = 3;
     static final int METADATA_TYPE_SLOT = 5;
     static final int LIVING_FLAGS_METADATA_INDEX = 0;
-    static final int LIVING_HEALTH_METADATA_INDEX = 7;
+    static final int LIVING_HEALTH_METADATA_INDEX = 6;
     static final int ITEM_STACK_METADATA_INDEX = 10;
     static final int METADATA_TERMINATOR = 0x7F;
 

@@ -279,9 +279,9 @@ async function main() {
   const pig = await Promise.race([pigPromise, sleep(15_000).then(() => null)]);
   check('pig spawned (Spawn Mob parsed by the real client)', !!pig,
     pig ? `id=${pig.id}` : 'none');
-  const pigHealth = pig && pig.metadata ? pig.metadata[7] : null;
+  const pigHealth = pig && pig.metadata ? pig.metadata[6] : null;
   check('pig health metadata (10 hp) parsed', pigHealth === 10,
-    `metadata[7]=${pigHealth}`);
+    `metadata[6]=${pigHealth}`);
 
   if (pig) {
     // The AI walks: poll the entity's position for drift (wander legs).
@@ -361,9 +361,9 @@ async function main() {
     (entity) => /^zombie$/i.test(entity.name || ''));
   if (zombieSpawn) {
     const zombie = zombieSpawn[0];
-    const zombieHealth = zombie && zombie.metadata ? zombie.metadata[7] : null;
+    const zombieHealth = zombie && zombie.metadata ? zombie.metadata[6] : null;
     check('zombie spawned at night (20 hp metadata)', zombieHealth === 20,
-      `metadata[7]=${zombieHealth}`);
+      `metadata[6]=${zombieHealth}`);
   } else {
     check('zombie spawned at night (20 hp metadata)', false, 'timed out');
   }
