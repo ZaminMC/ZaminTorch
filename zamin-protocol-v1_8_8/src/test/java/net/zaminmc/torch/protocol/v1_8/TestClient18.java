@@ -356,11 +356,25 @@ final class TestClient18 implements AutoCloseable {
      * crashes real clients while community parsers sail through.
      */
     int[][] readSpawnMobDataWatcher(long timeoutMs) throws IOException {
-        byte[] payload = readPacketOfType(Protocol18.S2C_SPAWN_MOB, timeoutMs);
-        ByteBuf buffer = Unpooled.wrappedBuffer(payload);
-        ByteBufOps.readVarInt(buffer); // packet id
-        ByteBufOps.readVarInt(buffer); // entity id
-        buffer.readByte(); // type
+        return readSpawnMobDataWatcher(timeoutMs, -1);
+    }
+
+    /**
+     * Reads the next Spawn Mob whose legacy type matches {@code wantedType}
+     * (natural population spawns may interleave; -1 accepts any kind).
+     */
+    int[][] readSpawnMobDataWatcher(long timeoutMs, int wantedType) throws IOException {
+        long deadline = System.currentTimeMillis() + timeoutMs;
+        while (true) {
+            byte[] payload = readPacketOfType(Protocol18.S2C_SPAWN_MOB,
+                    Math.max(1, deadline - System.currentTimeMillis()));
+            ByteBuf buffer = Unpooled.wrappedBuffer(payload);
+            ByteBufOps.readVarInt(buffer); // packet id
+            ByteBufOps.readVarInt(buffer); // entity id
+            int mobType = buffer.readUnsignedByte();
+            if (wantedType >= 0 && mobType != wantedType) {
+                continue; // a different natural kind: keep waiting for the target
+            }
         buffer.readInt();
         buffer.readInt();
         buffer.readInt();
@@ -394,8 +408,9 @@ final class TestClient18 implements AutoCloseable {
                 }
                 default -> throw new IOException("Unexpected metadata type " + type);
             }
+            }
+            return rows.toArray(new int[0][]);
         }
-        return rows.toArray(new int[0][]);
     }
 
     /** Reads a Spawn Mob packet of the given legacy type, skipping other spawns. */

@@ -1,5 +1,7 @@
 package net.zaminmc.torch.server.config;
 
+import net.zaminmc.torch.GameMode;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
@@ -7,9 +9,11 @@ import java.nio.file.Path;
 import java.util.Properties;
 
 /**
- * Loads {@link EngineConfig} from a Java properties file. Unknown keys are ignored
- * (forward compatibility); every recognized key is validated by the config model
- * itself, so a bad value fails at startup with a clear message instead of at runtime.
+ * Loads {@link EngineConfig} from the historical {@code server.properties}.
+ * Vanilla key names are read as-is (server-port, level-name, gamemode, ...);
+ * unknown keys are ignored for forward compatibility. Every recognized value
+ * is validated by the config model, so a bad value fails at boot with a clear
+ * message instead of surfacing at runtime.
  */
 public final class ConfigLoader {
 
@@ -18,6 +22,8 @@ public final class ConfigLoader {
 
     public static EngineConfig loadOrDefault(Path file) throws IOException {
         if (!Files.exists(file)) {
+            ServerLayout.ensureServerProperties(file.toAbsolutePath().getParent() == null
+                    ? Path.of(".") : file.toAbsolutePath().getParent());
             return EngineConfig.defaults();
         }
         Properties properties = new Properties();
@@ -27,37 +33,39 @@ public final class ConfigLoader {
         return fromProperties(properties);
     }
 
-    /** Visible for tests and for writing the default file. */
+    /** Visible for tests and for boot-time validation messages. */
     public static EngineConfig fromProperties(Properties properties) {
         return new EngineConfig(
-                string(properties, "host", EngineConfig.defaults().host()),
-                intOf(properties, "port", 25565),
-                string(properties, "world-name", EngineConfig.defaults().worldName()),
-                string(properties, "motd", EngineConfig.defaults().motd()),
+                host(properties),
+                intOf(properties, "server-port", 25565),
+                string(properties, "level-name", "world"),
+                string(properties, "motd", "A ZaminTorch Server"),
                 intOf(properties, "max-players", 20),
                 intOf(properties, "view-distance", 4),
                 intOf(properties, "tick-rate", 20),
                 string(properties, "data-dir", "."),
                 GameMode.parse(string(properties, "gamemode", "survival")),
-                boolOf(properties, "pvp", true));
+                boolOf(properties, "pvp", true),
+                levelType(properties),
+                boolOf(properties, "white-list", false));
     }
 
-    public static void writeDefault(Path file) throws IOException {
-        Properties properties = new Properties();
-        EngineConfig defaults = EngineConfig.defaults();
-        properties.setProperty("host", defaults.host());
-        properties.setProperty("port", String.valueOf(defaults.port()));
-        properties.setProperty("world-name", defaults.worldName());
-        properties.setProperty("motd", defaults.motd());
-        properties.setProperty("max-players", String.valueOf(defaults.maxPlayers()));
-        properties.setProperty("view-distance", String.valueOf(defaults.viewDistance()));
-        properties.setProperty("tick-rate", String.valueOf(defaults.tickRateHz()));
-        properties.setProperty("data-dir", defaults.dataDir());
-        properties.setProperty("gamemode", defaults.gamemode().name().toLowerCase());
-        properties.setProperty("pvp", String.valueOf(defaults.pvp()));
-        try (var out = Files.newOutputStream(file)) {
-            properties.store(out, "ZaminTorch server configuration");
-        }
+    /** The bind address: empty means the wildcard (the vanilla convention). */
+    private static String host(Properties properties) {
+        String raw = string(properties, "server-ip", "");
+        return raw.isBlank() ? "0.0.0.0" : raw;
+    }
+
+    /** Accepts the vanilla names and the historical flat/normal ids. */
+    private static String levelType(Properties properties) {
+        String raw = string(properties, "level-type", "normal").toLowerCase();
+        return switch (raw) {
+            case "flat", "default", "normal" -> raw.equals("default") ? "normal" : raw;
+            case "0" -> "normal";
+            case "1" -> "flat";
+            default -> throw new IllegalArgumentException(
+                    "level-type '" + raw + "' is not supported (normal or flat)");
+        };
     }
 
     private static String string(Properties properties, String key, String fallback) {
@@ -74,7 +82,7 @@ public final class ConfigLoader {
             return Integer.parseInt(raw.trim());
         } catch (NumberFormatException e) {
             throw new IllegalArgumentException(
-                    "Configuration key '" + key + "' is not a number: " + raw, e);
+                    "server.properties key '" + key + "' is not a number: " + raw, e);
         }
     }
 
@@ -88,6 +96,6 @@ public final class ConfigLoader {
             return Boolean.parseBoolean(value);
         }
         throw new IllegalArgumentException(
-                "Configuration key '" + key + "' is not a boolean: " + raw);
+                "server.properties key '" + key + "' is not a boolean: " + raw);
     }
 }

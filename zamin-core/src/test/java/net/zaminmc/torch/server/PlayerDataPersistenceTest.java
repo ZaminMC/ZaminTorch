@@ -77,7 +77,7 @@ class PlayerDataPersistenceTest {
         player.applyMovement(new Position(12.5, 5.0, -7.25), new Rotation(97.5f, -18.0f), true);
 
         first.clientDisconnected(player, "test leave");
-        await(() -> Files.exists(dataDir.resolve("players").resolve(PERSISTOR + ".zpd")),
+        await(() -> Files.exists(dataDir.resolve("itest").resolve("playerdata").resolve(PERSISTOR + ".zpd")),
                 "player file written on disconnect");
         first.shutdown(null);
 
@@ -110,7 +110,7 @@ class PlayerDataPersistenceTest {
     @Test
     void corruptPlayerFileQuarantinesAndSpawnsClean() throws Exception {
         EngineServer server = boot();
-        Path players = dataDir.resolve("players");
+        Path players = dataDir.resolve("itest").resolve("playerdata");
         Files.createDirectories(players);
         Files.writeString(players.resolve(CORRUPTED + ".zpd"), "this is not a ZPD file");
 

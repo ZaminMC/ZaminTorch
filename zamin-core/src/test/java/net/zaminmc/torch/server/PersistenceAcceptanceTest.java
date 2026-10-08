@@ -68,7 +68,7 @@ class PersistenceAcceptanceTest {
         server.start();
         server.shutdown(null);
 
-        Path deltaFile = dataDir.resolve("worlds").resolve("corrupt").resolve("zamin-delta.bin");
+        Path deltaFile = dataDir.resolve("corrupt").resolve("data").resolve("zamin-delta.bin");
         java.nio.file.Files.writeString(deltaFile, "this is not a ZWD file");
 
         EngineServer restarted = new EngineServer(config);

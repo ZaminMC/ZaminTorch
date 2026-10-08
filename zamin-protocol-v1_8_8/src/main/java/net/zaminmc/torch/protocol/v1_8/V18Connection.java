@@ -12,7 +12,7 @@ import io.netty.channel.SimpleChannelInboundHandler;
 import net.zaminmc.torch.util.Position;
 import net.zaminmc.torch.util.Rotation;
 import net.zaminmc.torch.server.EngineServer;
-import net.zaminmc.torch.server.config.GameMode;
+import net.zaminmc.torch.GameMode;
 import net.zaminmc.torch.server.entity.MobEntity;
 import net.zaminmc.torch.server.net.EngineBridge;
 import net.zaminmc.torch.server.player.PlayerSession;
@@ -625,7 +625,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     private void handleDigging(PlayerSession player, ByteBuf packet) {
         int status = packet.readByte();
         int[] pos = ByteBufOps.readPackedBlockPosition(packet);
-        boolean creative = engine.config().gamemode() == net.zaminmc.torch.server.config.GameMode.CREATIVE;
+        boolean creative = engine.config().gamemode() == net.zaminmc.torch.GameMode.CREATIVE;
         try {
             var target = new net.zaminmc.torch.block.BlockPosition(pos[0], pos[1], pos[2]);
             if (creative) {

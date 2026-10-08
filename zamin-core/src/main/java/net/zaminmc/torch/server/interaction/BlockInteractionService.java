@@ -9,7 +9,7 @@ import net.zaminmc.torch.item.ItemStack;
 import net.zaminmc.torch.server.EngineTicker;
 import net.zaminmc.torch.server.block.BlockBehavior;
 import net.zaminmc.torch.server.block.BlockBehaviorTable;
-import net.zaminmc.torch.server.config.GameMode;
+import net.zaminmc.torch.GameMode;
 import net.zaminmc.torch.server.entity.ItemEntity;
 import net.zaminmc.torch.server.entity.ItemEntityManager;
 import net.zaminmc.torch.server.player.PlayerSession;
