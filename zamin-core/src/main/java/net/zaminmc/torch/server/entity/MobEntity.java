@@ -173,6 +173,11 @@ public final class MobEntity {
     // Primed creeper: the mind arms, the manager detonates and removes.
     private boolean pendingExplosion;
 
+    // The goal layer (the community PathfinderGoal architecture).
+    private final GoalSelector goals = MobGoals.standard();
+    private Position visibleTarget;
+    private boolean targetHuntable;
+
     public MobEntity(int entityId, MobType type, Position position,
                      Random random, WorldQuery world) {
         this.entityId = entityId;
@@ -406,17 +411,13 @@ public final class MobEntity {
         Position target = world.nearestPlayer(position.x(), position.y(), position.z(),
                 type.hostile ? AGGRO_RANGE : 8.0);
         boolean canHunt = type.hostile && (!type.traits.neutralByDay() || night);
+        this.visibleTarget = target;
+        this.targetHuntable = canHunt;
 
-        if (panicTicks > 0) {
-            panicTicks--;
-            if (mode != Mode.PANIC) {
-                mode = Mode.PANIC;
-                modeTicks = 0;
-            }
-            if (modeTicks == 1) {
-                yaw = randomDirection();
-                headYaw = yaw;
-            }
+        // The goal layer (the community PathfinderGoal architecture): float
+        // and panic claim the body first, the stroll cycle only when no hunt
+        // is on. What remains below is the combat mind.
+        if (goals.tick(this, night)) {
             return;
         }
 
@@ -453,7 +454,52 @@ public final class MobEntity {
             mode = Mode.IDLE; // target lost (or daylight saved the spider)
             modeTicks = 0;
         }
+        // No hunt: the stroll goal owns the idle band this tick.
+        goalTickIdleWander(target);
+    }
 
+    // ------------------------------------------------ goal surface (package-private)
+
+    /** The nearest player this tick (the stroll goal's look-at anchor). */
+    Position nearestVisiblePlayer() {
+        return visibleTarget;
+    }
+
+    boolean goalInFluid() {
+        return world.inFluid(position.x(), position.y() + 0.2, position.z());
+    }
+
+    void goalSwimUp() {
+        velocityY = Math.min(velocityY + 0.05, 0.08);
+        onGround = false;
+    }
+
+    boolean goalPanicking() {
+        return panicTicks > 0;
+    }
+
+    void goalTickPanic() {
+        panicTicks--;
+        if (mode != Mode.PANIC) {
+            mode = Mode.PANIC;
+            modeTicks = 0;
+        }
+        if (modeTicks == 1) {
+            yaw = randomDirection();
+            headYaw = yaw;
+        }
+    }
+
+    /** Whether a hunt target is live this tick (the stroll goal yields). */
+    boolean goalHasTarget(boolean night) {
+        return targetHuntable && visibleTarget != null;
+    }
+
+    void goalTickIdleWander(Position target) {
+        if (mode == Mode.CHASE || mode == Mode.STRAFE || mode == Mode.FUSE) {
+            mode = Mode.IDLE; // target lost (or daylight saved the spider)
+            modeTicks = 0;
+        }
         switch (mode) {
             case IDLE -> {
                 // The historical LookAtPlayer: an idle mob glances at a

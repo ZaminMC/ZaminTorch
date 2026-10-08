@@ -41,6 +41,10 @@ class SurvivalMiningAcceptanceTest {
         return started;
     }
 
+    private net.zaminmc.torch.block.BlockType world0() {
+        return server.world().airType();
+    }
+
     private PlayerSession join(String name) {
         ClientLink link = new ClientLink() {
             @Override public boolean isActive() { return true; }
@@ -156,7 +160,9 @@ class SurvivalMiningAcceptanceTest {
         server.blockInteraction().submitMiningAborted(player);
         Thread.sleep(700); // longer than the full nominal duration
         server.blockInteraction().submitMiningFinished(player, target);
-        await(() -> server.world().getBlock(target).equals(BuiltinBlocks.DIRT),
+        // The dig commit would produce air; a grass random tick may still
+        // claim the exposed dirt, so the invariant is "never air", not "still dirt".
+        await(() -> !server.world().getBlock(target).equals(world0()),
                 "aborted dig does not commit");
         server.shutdown(null);
     }

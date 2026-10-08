@@ -46,7 +46,7 @@ public record EngineConfig(
     public EngineConfig(String host, int port, String worldName, String motd,
                         int maxPlayers, int viewDistance, int tickRateHz, String dataDir) {
         this(host, port, worldName, motd, maxPlayers, viewDistance, tickRateHz,
-                dataDir, GameMode.SURVIVAL, true, "normal", false);
+                dataDir, GameMode.SURVIVAL, true, "flat", false);
     }
 
     /** Compatibility constructor for callers that set only the mode. */
@@ -54,7 +54,7 @@ public record EngineConfig(
                         int maxPlayers, int viewDistance, int tickRateHz, String dataDir,
                         GameMode gamemode) {
         this(host, port, worldName, motd, maxPlayers, viewDistance, tickRateHz,
-                dataDir, gamemode, true, "normal", false);
+                dataDir, gamemode, true, "flat", false);
     }
 
     public EngineConfig {

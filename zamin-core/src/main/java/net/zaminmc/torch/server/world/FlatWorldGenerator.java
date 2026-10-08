@@ -14,7 +14,7 @@ import java.util.Objects;
  * rely on the same known world. Real terrain generation is a later slice with its
  * own dependency analysis.</p>
  */
-public final class FlatWorldGenerator {
+public final class FlatWorldGenerator implements WorldGenerator {
 
     private final BlockRegistry registry;
     private final int groundLevel;

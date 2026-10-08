@@ -104,6 +104,10 @@ public final class BuiltinItems {
             Identifier.parse("minecraft:iron_ore"), "Iron Ore", 64);
     public static final EngineItemType DIAMOND_ORE = new EngineItemType(
             Identifier.parse("minecraft:diamond_ore"), "Diamond Ore", 64);
+    public static final EngineItemType GOLD_ORE = new EngineItemType(
+            Identifier.parse("minecraft:gold_ore"), "Gold Ore", 64);
+    public static final EngineItemType REDSTONE_ORE = new EngineItemType(
+            Identifier.parse("minecraft:redstone_ore"), "Redstone Ore", 64);
 
     // Ranged combat (legacy ids from the community dataset: bow 261, arrow
     // 262, snowball 332, egg 344). The bow wears one durability per full
@@ -222,7 +226,7 @@ public final class BuiltinItems {
                 PORKCHOP, COOKED_PORKCHOP, RAW_CHICKEN, COOKED_CHICKEN,
                 BOW, ARROW, SNOWBALL, EGG,
                 FEATHER, LEATHER, ROTTEN_FLESH,
-                COAL_ORE, IRON_ORE, DIAMOND_ORE,
+                COAL_ORE, IRON_ORE, DIAMOND_ORE, GOLD_ORE, REDSTONE_ORE,
                 WOODEN_PICKAXE, STONE_PICKAXE, IRON_PICKAXE, DIAMOND_PICKAXE, GOLDEN_PICKAXE,
                 WOODEN_AXE, STONE_AXE, IRON_AXE, DIAMOND_AXE, GOLDEN_AXE,
                 WOODEN_SHOVEL, STONE_SHOVEL, IRON_SHOVEL, DIAMOND_SHOVEL, GOLDEN_SHOVEL,
