@@ -251,6 +251,158 @@ final class TestClient18 implements AutoCloseable {
         sendPacket(bodyToBytes(body));
     }
 
+    /** Use Entity (0x02): mouse 0 interact / 1 attack / 2 interact-at (+3 f32). */
+    void sendUseEntity(int target, int mouse) throws IOException {
+        ByteBuf body = Unpooled.buffer(12);
+        ByteBufOps.writeVarInt(body, Protocol18.C2S_USE_ENTITY);
+        ByteBufOps.writeVarInt(body, target);
+        ByteBufOps.writeVarInt(body, mouse);
+        if (mouse == Protocol18.USE_ENTITY_INTERACT_AT) {
+            body.writeFloat(0.5f);
+            body.writeFloat(1.0f);
+            body.writeFloat(0.5f);
+        }
+        sendPacket(bodyToBytes(body));
+    }
+
+    /** Arm Animation (0x0A): the swing gesture, empty payload. */
+    void sendArmAnimation() throws IOException {
+        ByteBuf body = Unpooled.buffer(4);
+        ByteBufOps.writeVarInt(body, Protocol18.C2S_ARM_ANIMATION);
+        sendPacket(bodyToBytes(body));
+    }
+
+    /** Reads a Spawn Mob packet, returning {entityId, type, x32, y32, z32, health}. */
+    int[] readSpawnMob(long timeoutMs) throws IOException {
+        byte[] payload = readPacketOfType(Protocol18.S2C_SPAWN_MOB, timeoutMs);
+        ByteBuf buffer = Unpooled.wrappedBuffer(payload);
+        ByteBufOps.readVarInt(buffer); // packet id
+        int entityId = ByteBufOps.readVarInt(buffer);
+        int type = buffer.readByte() & 0xFF;
+        int x = buffer.readInt();
+        int y = buffer.readInt();
+        int z = buffer.readInt();
+        buffer.readByte(); // yaw
+        buffer.readByte(); // pitch
+        buffer.readByte(); // head pitch
+        buffer.readShort(); // velocity x
+        buffer.readShort(); // velocity y
+        buffer.readShort(); // velocity z
+        int health = -1;
+        while (true) {
+            int header = buffer.readUnsignedByte();
+            if (header == Protocol18.METADATA_TERMINATOR) {
+                break;
+            }
+            int mtype = header >> 5;
+            int index = header & 0x1F;
+            switch (mtype) {
+                case Protocol18.METADATA_TYPE_BYTE -> buffer.readByte();
+                case Protocol18.METADATA_TYPE_FLOAT -> {
+                    float value = buffer.readFloat();
+                    if (index == Protocol18.LIVING_HEALTH_METADATA_INDEX) {
+                        health = (int) value;
+                    }
+                }
+                case Protocol18.METADATA_TYPE_SLOT -> {
+                    int id = buffer.readShort();
+                    if (id != -1) {
+                        buffer.readByte();
+                        buffer.readShort();
+                        int nbt = buffer.readByte();
+                        if (nbt > 0) {
+                            buffer.readBytes(new byte[nbt]);
+                        }
+                    }
+                }
+                default -> throw new IOException("Unexpected mob metadata type " + mtype);
+            }
+        }
+        return new int[]{entityId, type, x, y, z, health};
+    }
+
+    /** Reads a Spawn Mob packet of the given legacy type, skipping other spawns. */
+    int[] readSpawnMobOfType(int legacyType, long timeoutMs) throws IOException {
+        long deadline = System.currentTimeMillis() + timeoutMs;
+        while (System.currentTimeMillis() < deadline) {
+            int[] spawn = readSpawnMob(Math.max(1, deadline - System.currentTimeMillis()));
+            if (spawn[1] == legacyType) {
+                return spawn;
+            }
+        }
+        throw new IOException("Timed out waiting for a mob of type " + legacyType);
+    }
+
+    /** Reads an Entity Status packet, returning {entityId, status}. */
+    int[] readEntityStatus(long timeoutMs) throws IOException {
+        byte[] payload = readPacketOfType(Protocol18.S2C_ENTITY_STATUS, timeoutMs);
+        ByteBuf buffer = Unpooled.wrappedBuffer(payload);
+        ByteBufOps.readVarInt(buffer); // packet id
+        int entityId = buffer.readInt();
+        int status = buffer.readByte();
+        return new int[]{entityId, status};
+    }
+
+    /** Reads a Rel Move Look packet, returning {entityId, dx, dy, dz, onGround}. */
+    int[] readRelMoveLook(long timeoutMs) throws IOException {
+        byte[] payload = readPacketOfType(Protocol18.S2C_REL_ENTITY_MOVE_LOOK, timeoutMs);
+        ByteBuf buffer = Unpooled.wrappedBuffer(payload);
+        ByteBufOps.readVarInt(buffer); // packet id
+        int entityId = ByteBufOps.readVarInt(buffer);
+        int dx = buffer.readByte();
+        int dy = buffer.readByte();
+        int dz = buffer.readByte();
+        buffer.readByte(); // yaw
+        buffer.readByte(); // pitch
+        boolean onGround = buffer.readBoolean();
+        return new int[]{entityId, dx, dy, dz, onGround ? 1 : 0};
+    }
+
+    /** Reads a Destroy Entities packet, returning the destroyed entity ids. */
+    int[] readDestroyEntities(long timeoutMs) throws IOException {
+        byte[] payload = readPacketOfType(Protocol18.S2C_DESTROY_ENTITIES, timeoutMs);
+        ByteBuf buffer = Unpooled.wrappedBuffer(payload);
+        ByteBufOps.readVarInt(buffer); // packet id
+        int count = ByteBufOps.readVarInt(buffer);
+        int[] ids = new int[count];
+        for (int i = 0; i < count; i++) {
+            ids[i] = ByteBufOps.readVarInt(buffer);
+        }
+        return ids;
+    }
+
+    /** Reads an Animation packet, returning {entityId, animation}. */
+    int[] readAnimation(long timeoutMs) throws IOException {
+        byte[] payload = readPacketOfType(Protocol18.S2C_ANIMATION, timeoutMs);
+        ByteBuf buffer = Unpooled.wrappedBuffer(payload);
+        ByteBufOps.readVarInt(buffer); // packet id
+        int entityId = ByteBufOps.readVarInt(buffer);
+        int animation = buffer.readByte() & 0xFF;
+        return new int[]{entityId, animation};
+    }
+
+    /** Reads a Named Sound Effect packet, returning {name, x8, y8, z8}. */
+    String[] readNamedSound(long timeoutMs) throws IOException {
+        byte[] payload = readPacketOfType(Protocol18.S2C_NAMED_SOUND_EFFECT, timeoutMs);
+        ByteBuf buffer = Unpooled.wrappedBuffer(payload);
+        ByteBufOps.readVarInt(buffer); // packet id
+        String name = ByteBufOps.readString(buffer, 256);
+        int x = buffer.readInt();
+        int y = buffer.readInt();
+        int z = buffer.readInt();
+        return new String[]{name, String.valueOf(x), String.valueOf(y), String.valueOf(z)};
+    }
+
+    /** Reads a Time Update packet, returning {age, timeOfDay}. */
+    long[] readTimeUpdate(long timeoutMs) throws IOException {
+        byte[] payload = readPacketOfType(Protocol18.S2C_TIME_UPDATE, timeoutMs);
+        ByteBuf buffer = Unpooled.wrappedBuffer(payload);
+        ByteBufOps.readVarInt(buffer); // packet id
+        long age = buffer.readLong();
+        long timeOfDay = buffer.readLong();
+        return new long[]{age, timeOfDay};
+    }
+
     /** Reads a Chat packet, returning the raw JSON text. */
     String readChatLine(long timeoutMs) throws IOException {
         byte[] payload = readPacketOfType(Protocol18.S2C_CHAT, timeoutMs);
@@ -352,6 +504,18 @@ final class TestClient18 implements AutoCloseable {
             vz = buffer.readShort();
         }
         return new int[]{entityId, type, x, y, z, data, vx, vy, vz};
+    }
+
+    /** Reads a Spawn Entity packet carrying the given object data (legacy item id). */
+    int[] readSpawnItemOfType(int data, long timeoutMs) throws IOException {
+        long deadline = System.currentTimeMillis() + timeoutMs;
+        while (System.currentTimeMillis() < deadline) {
+            int[] spawn = readSpawnItem(Math.max(1, deadline - System.currentTimeMillis()));
+            if (spawn[5] == data) {
+                return spawn;
+            }
+        }
+        throw new IOException("Timed out waiting for an item spawn with data " + data);
     }
 
     /** Reads a Collect Item packet, returning {collectedEntityId, collectorEntityId}. */
