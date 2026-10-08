@@ -39,7 +39,7 @@ ecosystem index and related candidates, against the current slices:
 | Incendo/cloud-minestom | Two commands exist; a command framework is machinery without a workload (§31) | When commands grow |
 | Shynixn/MCCoroutine, KotStom | Kotlin — engine is pure Java 21 | Stack change only |
 | stomui, hephaestus-engine, WorldSeedEntityEngine | Chest GUIs / custom entity visuals, out of scope | UI/custom-entity slices |
-| **PrismarineJS/minecraft-data** (MIT, 948★, active) | **ADOPTED**: block behavior data (hardness/drops/materials for pc/1.8) embedded as a generated table with attribution; protocol 47 packet layouts and the position bitfield verified against it — it caught a real wire bug (packed position x:26|y:12|z:26) | Every new data need first |
+| **PrismarineJS/minecraft-data** (MIT, 948★, active) | **ADOPTED**: block behavior data (hardness/drops/materials for pc/1.8) embedded as a generated table with attribution; protocol 47 packet layouts and the position bitfield verified against it — it caught a real wire bug (packed position x:26|y:12|z:26); entities.json (pc/1.8) carries the mob wire type ids and body sizes for the living-entities slice | Every new data need first |
 | Querz/NBT (MIT) | Logged for Anvil import | Anvil milestone |
 
 No Java binding of minecraft-data exists; embedding a generated, attributed
@@ -479,6 +479,56 @@ longer starve the tick work queue (§54). scripts/SmokeChestMeta.java covers
 the same batch over a raw wire on a real process (CHEST_META_SMOKE_DONE);
 docs/MANUAL_CLIENT_VALIDATION.md is the manual checklist for the real
 Minecraft 1.8.8 client.
+
+## 10p. Slice #16 — living mobs: population, AI and melee combat (implemented status)
+
+**Status: implemented; 228 automated tests green; mineflayer real-client
+validation passed (REAL_CLIENT_VALIDATION_PASSED).**
+
+The world now carries living mobs (pig, cow, chicken, zombie) with the same
+one-owner discipline as every other simulation system. Data first (ADR-0002):
+the wire type ids and body sizes come from the community dataset
+(minecraft-data pc/1.8 entities.json — Zombie 54, Pig 90, Cow 92, Chicken 93);
+health, loot ranges, damage and the sound names mirror the canonical
+historical 1.8 values the dataset does not carry. Loot flows through the item
+entity system (porkchop, beef + leather, raw chicken + feathers, rotten
+flesh), so pickups, merging and persistence behave exactly like drops.
+
+- **Simulation** (`MobEntity`/`MobManager`): gravity with the epsilon-correct
+  ground snap shared with items; a small historical-style goal set — wander,
+  panic when hurt (passive kinds), chase-and-melee for the zombie (16 block
+  aggro, 20 tick cooldown, easy-difficulty 2 damage); the 20-tick death
+  animation before loot + removal; knockback along the attacker-to-mob yaw.
+- **Population**: boot-time packs near spawn; a maintainer tops passives up
+  to a cap (12), spawns zombies only at night (13 000–23 000) up to 6, and
+  despawns anything 96+ blocks from every player (mobs idle when nobody is
+  online). Hostiles vaporize at dawn (no fire visuals yet). Mobs are NOT
+  persisted across restarts this slice — a documented temporary decision
+  (§146 pattern); the population rebuilds on boot.
+- **Combat** (`attackEntity`, Use Entity 0x02 mouse=1): server-validated
+  reach (3.5 + half width), historical damage per held item (fist 1, sword
+  4/5/6/7 by material, axes −1, pickaxes 2-5, shovels/shears 1.5), attack
+  exhaustion 0.3, tool durability wear per living-entity hit. The zombie's
+  melee lands through the same survival damage path as falls.
+- **Wire** (all layouts community-verified against the 1.8 protocol.json):
+  Spawn Mob 0x0F with living metadata (flags byte index 0, health float
+  index 7); Rel Move Look 0x17 with per-observer 1/32 delta tracking (Entity
+  Teleport 0x18 beyond i8 range); Entity Head Look 0x19; Entity Status 0x1A
+  (2 hurt, 3 death); Named Sound Effect 0x29 with the historical resource
+  names (mob.pig.say, mob.zombie.death, …); Destroy 0x13. C2S Arm Animation
+  0x0A broadcasts the swing to other observers through their observer-local
+  ids. Time Update 0x03 now rides a periodic cycle sync and the /time
+  command, so the client's day follows the server.
+- **Commands**: `/time query|set <day|noon|night|midnight|ticks>` and
+  `/spawnmob <pig|cow|chicken|zombie> [count]` — the controlled entry
+  points for real-client validation.
+- **Tests**: MobEntityTest (9 — physics, wander, panic, death timer,
+  knockback, chase, melee cooldown, chatter), MobManagerTest (7 — spawn
+  bookkeeping, death-to-loot flow, loot bounds, dawn/despawn policies,
+  population maintainer, zombie melee), MobCombatAcceptanceTest (5 — sword
+  kill + durability wear over the real ticker, reach refusal, night zombie
+  hunt, dawn removal, /time), MobIntegrationTest (2 — the full wire flow
+  from the client's side, incl. two-observer swing broadcast).
 
 ## 11. Known risks
 

@@ -36,9 +36,20 @@ proven over the wire and against a live process.
 | Survival mining (server-validated timing) | implemented |
 | Block drops + item entities | implemented |
 | Player inventory (hotbar/main) + pickup | implemented |
-| Inventory UI clicks, item NBT | planned |
-| Tools & harvest classes | planned |
-| Mobs/entities/AI | planned |
+| Inventory UI clicks + quick-move/number keys | implemented |
+| Tools & harvest classes (+ durability wear) | implemented |
+| Player data persistence (ZPD v1) | implemented |
+| Crafting (2x2 + 3x3 table) | implemented |
+| Furnace smelting (ZFD persistence) | implemented |
+| Chest storage container (ZCD persistence) | implemented |
+| Item metadata variants (charcoal, red sand) | implemented |
+| Survival body: health/food/fall/death/respawn | implemented |
+| Living mobs (pig, cow, chicken, zombie) + population | implemented |
+| Melee combat, knockback, mob loot | implemented |
+| Day/night cycle sync + /time + /spawnmob | implemented |
+| Real-client validation (mineflayer 1.8.8) | implemented |
+| Item NBT (display names, enchantments) | planned |
+| Mob persistence across restarts | planned (temporary decision, §146 pattern) |
 | Anvil world format import | planned (compatibility adapter) |
 | Minestom integration | deferred (see ADR in plan) |
 
