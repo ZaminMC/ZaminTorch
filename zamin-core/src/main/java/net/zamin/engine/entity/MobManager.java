@@ -63,11 +63,26 @@ public final class MobManager {
 
         void onMobRemoved(MobEntity mob, String reason);
 
-        /** The zombie landed a melee hit on a player (damage already validated). */
+        /** A melee hunter landed a hit on a player (damage already validated). */
         void onMobAttackedPlayer(MobEntity mob, PlayerSession target, float damage);
 
         /** Ambient idle chatter. */
         void onMobSound(MobEntity mob, String soundName);
+
+        /** A skeleton loosed an arrow at the aim point (the launch is the engine's). */
+        void onMobRangedAttack(MobEntity mob, Position aimPoint);
+
+        /** A creeper's prime state flipped (swelling on/off — the wire metadata). */
+        void onMobFuseChanged(MobEntity mob, boolean priming);
+
+        /** A shear took woolCount wool off a sheep. */
+        void onMobSheared(MobEntity mob, int woolCount);
+
+        /** A sheep's coat regrew (the wire metadata clears the sheared bit). */
+        void onMobCoatRegrown(MobEntity mob);
+
+        /** A primed creeper went off (the manager already removed it). */
+        void onMobExploded(MobEntity mob);
     }
 
     private final MobEntity.WorldQuery world;
@@ -198,7 +213,7 @@ public final class MobManager {
      */
     public void populateInitial(Position spawnCenter) {
         int packs = PASSIVE_CAP / 3;
-        MobType[] passives = {MobType.PIG, MobType.COW, MobType.CHICKEN};
+        MobType[] passives = {MobType.PIG, MobType.COW, MobType.CHICKEN, MobType.SHEEP};
         for (int p = 0; p < packs; p++) {
             int dx = random.nextInt(61) - 30;
             int dz = random.nextInt(61) - 30;
@@ -208,9 +223,27 @@ public final class MobManager {
     }
 
     /**
-     * Advances all mobs one tick: mind + body, zombie melee on players,
-     * loot + removal for finished deaths, despawn and the population
-     * maintainer. Tick-thread context.
+     * Shears a sheep on a player's behalf: rolls 1-3 wool, strips the coat,
+     * and reports through {@code onMobSheared} (the caller spawns the drops).
+     * Returns the wool count (0 when the kind is bald or already shorn).
+     * Tick-thread context.
+     */
+    public int shear(MobEntity mob) {
+        Objects.requireNonNull(mob, "mob");
+        if (!mob.shear()) {
+            return 0;
+        }
+        int wool = 1 + random.nextInt(3);
+        for (Listener listener : listeners) {
+            listener.onMobSheared(mob, wool);
+        }
+        return wool;
+    }
+
+    /**
+     * Advances all mobs one tick: mind + body, melee, arrows, fuses, loot
+     * + removal for finished deaths, despawn and the population maintainer.
+     * Tick-thread context.
      */
     public void tick(Iterable<PlayerSession> players, long timeOfDay) {
         // Population maintainer (before per-mob work so a fresh roll ticks next time).
@@ -219,7 +252,7 @@ public final class MobManager {
             maintainPopulation(players, timeOfDay);
         }
 
-        boolean night = timeOfDay >= NIGHT_START && timeOfDay < NIGHT_END;
+        boolean night = isNight(timeOfDay);
 
         Iterator<MobEntity> iterator = mobs.iterator();
         while (iterator.hasNext()) {
@@ -235,12 +268,13 @@ public final class MobManager {
             }
 
             if (mob.dying()) {
-                mob.tick();
+                mob.tick(night);
                 continue;
             }
 
-            // Daytime kills hostile mobs (no fire visuals this slice: they vanish).
-            if (mob.type().hostile && !night) {
+            // Daylight kills the always-hostile kinds (no fire visuals this
+            // slice: they vanish). The day-neutral spider just stops hunting.
+            if (mob.type().hostile && !mob.type().traits.neutralByDay() && !night) {
                 iterator.remove();
                 for (Listener listener : listeners) {
                     listener.onMobRemoved(mob, "dawn");
@@ -265,12 +299,41 @@ public final class MobManager {
                 continue;
             }
 
-            boolean moved = mob.tick();
-            if (mob.consumePendingAttack()) {
+            boolean wasPriming = mob.fuseActive();
+            boolean moved = mob.tick(night);
+            if (wasPriming != mob.fuseActive()) {
+                for (Listener listener : listeners) {
+                    listener.onMobFuseChanged(mob, mob.fuseActive());
+                }
+            }
+            if (mob.consumeRegrown()) {
+                for (Listener listener : listeners) {
+                    listener.onMobCoatRegrown(mob);
+                }
+            }
+            if (mob.consumePendingRangedShot()) {
+                Position aim = mob.rangedTarget();
+                mob.clearRangedTarget();
+                for (Listener listener : listeners) {
+                    listener.onMobRangedAttack(mob, aim);
+                }
+            }
+            if (mob.consumePendingExplosion()) {
+                // The blast replaces the body: no death animation, no loot.
+                iterator.remove();
+                for (Listener listener : listeners) {
+                    listener.onMobRemoved(mob, "exploded");
+                }
+                for (Listener listener : listeners) {
+                    listener.onMobExploded(mob);
+                }
+                continue;
+            }
+            if (mob.consumePendingMeleeAttack()) {
                 PlayerSession target = nearestPlayingPlayer(players, mob);
                 if (target != null && target.health() > 0 && !target.dead()) {
                     for (Listener listener : listeners) {
-                        listener.onMobAttackedPlayer(mob, target, MobEntity.ZOMBIE_ATTACK_DAMAGE);
+                        listener.onMobAttackedPlayer(mob, target, MobEntity.MELEE_ATTACK_DAMAGE);
                     }
                 }
             }
@@ -368,6 +431,11 @@ public final class MobManager {
         }
     }
 
+    /**@return whether the night window is active at the given time of day. */
+    public static boolean isNight(long timeOfDay) {
+        return timeOfDay >= NIGHT_START && timeOfDay < NIGHT_END;
+    }
+
     private void maintainPopulation(Iterable<PlayerSession> players, long timeOfDay) {
         int passive = 0;
         int hostile = 0;
@@ -378,7 +446,7 @@ public final class MobManager {
                 passive++;
             }
         }
-        boolean night = timeOfDay >= NIGHT_START && timeOfDay < NIGHT_END;
+        boolean night = isNight(timeOfDay);
         PlayerSession anchor = randomPlayingPlayer(players);
         if (anchor == null) {
             return; // nobody watching: no spawning
@@ -389,14 +457,16 @@ public final class MobManager {
                     Math.min(deficit, 2 + random.nextInt(2)), 8, 20);
         }
         if (night && hostile < HOSTILE_CAP && random.nextInt(100) < 50) {
-            int deficit = HOSTILE_CAP - hostile;
-            spawnGroupAt(MobType.ZOMBIE, anchor.position(),
-                    Math.min(deficit, 1 + random.nextInt(2)), 8, 20);
+            // The night raid: zombies crowd, skeletons cover, spiders crawl.
+            MobType kind = random.nextInt(100) < 50 ? MobType.ZOMBIE
+                    : random.nextInt(100) < 60 ? MobType.SKELETON : MobType.SPIDER;
+            spawnGroupAt(kind, anchor.position(),
+                    Math.min(HOSTILE_CAP - hostile, 1 + random.nextInt(2)), 8, 20);
         }
     }
 
     private MobType randomPassiveType() {
-        MobType[] passives = {MobType.PIG, MobType.COW, MobType.CHICKEN};
+        MobType[] passives = {MobType.PIG, MobType.COW, MobType.CHICKEN, MobType.SHEEP};
         return passives[random.nextInt(passives.length)];
     }
 
