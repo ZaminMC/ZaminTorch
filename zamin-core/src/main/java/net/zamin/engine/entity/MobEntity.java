@@ -87,6 +87,14 @@ public final class MobEntity {
     public static final double PANIC_SPEED_MULTIPLIER = 1.8;
     /** Position epsilon so ground queries see the block *below* the feet. */
     private static final double GROUND_EPSILON = 1.0E-7;
+    /**
+     * The vanilla kill plane (1.8.8 living entities): below it the
+     * out-of-world damage consumes the body. Between y=0 and here the body
+     * simply falls through the void (no solid block exists below the world).
+     */
+    public static final double VOID_KILL_Y = -64.0;
+    /** The historical DamageSource.outOfWorld rate: four damage (two hearts) per tick. */
+    public static final float VOID_DAMAGE_PER_TICK = 4.0f;
 
     /**
      * Minimal world query the mob needs (tick-thread context only). The
@@ -532,6 +540,12 @@ public final class MobEntity {
     }
 
     private void tickBody() {
+        // The void (1.8.8 EntityLivingBase): past the kill plane the
+        // out-of-world damage lands every tick until death; the body keeps
+        // falling because no block below the world is solid.
+        if (position.y() < VOID_KILL_Y) {
+            hurt(VOID_DAMAGE_PER_TICK);
+        }
         // Vertical: gravity + ground snap (the item-entity model). A body in
         // fluid sinks slowly and bobs (the historical fluid buoyancy).
         boolean inFluid = world.inFluid(position.x(), position.y() + 0.2, position.z());

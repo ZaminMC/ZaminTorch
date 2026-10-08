@@ -256,7 +256,7 @@ public final class EngineServer implements Server, EngineBridge {
                 ticker.attachWorld(world);
                 // Item entities and drops: simulation-owned systems on the world owner.
                 ItemEntityManager itemEntities = new ItemEntityManager(
-                        (x, y, z) -> WorldSolidity.isSolid(world.getBlock(blockAt(x, y, z))),
+                        this::solidAt,
                         new java.util.Random(),
                         ENTITY_ID_BASE);
                 this.itemEntities = itemEntities;
@@ -293,7 +293,7 @@ public final class EngineServer implements Server, EngineBridge {
                 // Falling blocks (§470): the block→entity→block transition for
                 // gravity blocks; occupied landings drop as items.
                 FallingBlockEntityManager falling = new FallingBlockEntityManager(
-                        (x, y, z) -> WorldSolidity.isSolid(world.getBlock(blockAt(x, y, z))),
+                        this::solidAt,
                         world,
                         (position, stack) -> itemEntities.spawnDropAtBlock(
                                 new Position(position.x(), position.y(), position.z()), stack,
@@ -320,7 +320,7 @@ public final class EngineServer implements Server, EngineBridge {
                 // Projectiles (arrows, shards): the tick-thread physics system,
                 // with damage semantics staying here in the combat callbacks.
                 ProjectileManager projectiles = new ProjectileManager(
-                        (x, y, z) -> WorldSolidity.isSolid(world.getBlock(blockAt(x, y, z))),
+                        this::solidAt,
                         new ProjectileHitResolver(),
                         new ProjectileCombatSink(),
                         fxManager,
@@ -719,6 +719,11 @@ public final class EngineServer implements Server, EngineBridge {
                 continue;
             }
             session.tickHurtInvulnerability();
+            // The vanilla void: below the kill plane the out-of-world damage
+            // lands every tick (the historical outOfWorld rate) until death.
+            if (session.position().y() < MobEntity.VOID_KILL_Y) {
+                damageOnTick(session, MobEntity.VOID_DAMAGE_PER_TICK);
+            }
             tickEating(session);
             tickBowCharge(session);
             tickFoodEconomy(session);
@@ -2359,12 +2364,12 @@ public final class EngineServer implements Server, EngineBridge {
     private final class MobWorldQuery implements MobEntity.WorldQuery {
         @Override
         public boolean isSolid(double x, double y, double z) {
-            return WorldSolidity.isSolid(world.getBlock(blockAt(x, y, z)));
+            return solidAt(x, y, z);
         }
 
         @Override
         public boolean inFluid(double x, double y, double z) {
-            return FluidBlocks.kindOf(world.getBlock(blockAt(x, y, z)).identifier()) != null;
+            return fluidAt(x, y, z);
         }
 
         @Override
@@ -3014,6 +3019,28 @@ public final class EngineServer implements Server, EngineBridge {
     private static net.zamin.api.BlockPosition blockAt(double x, double y, double z) {
         return new net.zamin.api.BlockPosition(
                 (int) Math.floor(x), (int) Math.floor(y), (int) Math.floor(z));
+    }
+
+    /**
+     * Bounds-safe solidity for entity physics: the void below the world and
+     * the sky above it hold no blocks (the 1.8 rule — bodies fall through
+     * below y=0 until the kill plane instead of crashing the column lookup).
+     */
+    private boolean solidAt(double x, double y, double z) {
+        if (y < net.zamin.api.BlockPosition.MIN_Y
+                || y > net.zamin.api.BlockPosition.MAX_Y) {
+            return false;
+        }
+        return WorldSolidity.isSolid(world.getBlock(blockAt(x, y, z)));
+    }
+
+    /** Bounds-safe fluid lookup: nothing outside the world column is fluid. */
+    private boolean fluidAt(double x, double y, double z) {
+        if (y < net.zamin.api.BlockPosition.MIN_Y
+                || y > net.zamin.api.BlockPosition.MAX_Y) {
+            return false;
+        }
+        return FluidBlocks.kindOf(world.getBlock(blockAt(x, y, z)).identifier()) != null;
     }
 
     /**

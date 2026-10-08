@@ -86,6 +86,14 @@ public final class ItemEntity {
         return age >= DESPAWN_TICKS;
     }
 
+    /** The vanilla kill plane: an item below it is gone without a drop. */
+    public static final double VOID_KILL_Y = -64.0;
+
+    /** @return true when the body fell out of the world (silent removal due). */
+    public boolean inVoid() {
+        return position.y() < VOID_KILL_Y;
+    }
+
     public void setStack(ItemStack newStack) {
         this.stack = Objects.requireNonNull(newStack, "newStack");
         if (newStack.isEmpty()) {

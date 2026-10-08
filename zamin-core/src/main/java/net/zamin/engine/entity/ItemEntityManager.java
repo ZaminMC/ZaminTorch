@@ -125,6 +125,16 @@ public final class ItemEntityManager {
                 continue;
             }
 
+            if (entity.inVoid()) {
+                // The vanilla void: fell past the kill plane, gone silently
+                // (no drop-back — the stack is out of the world).
+                iterator.remove();
+                for (Listener listener : listeners) {
+                    listener.onItemRemoved(entity, "fell out of world");
+                }
+                continue;
+            }
+
             if (entity.tick(ground)) {
                 for (Listener listener : listeners) {
                     listener.onItemMoved(entity);
