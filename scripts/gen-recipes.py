@@ -177,7 +177,7 @@ def main():
                 print(f"skip unknown recipe form for result {result_id}: {recipe}",
                       file=sys.stderr)
 
-    body = f"""package net.zamin.engine.crafting;
+    body = f"""package net.zaminmc.torch.server.crafting;
 
 import java.util.List;
 
@@ -207,11 +207,11 @@ public final class BuiltinRecipes {{
     }}
 
     private static Ingredient ing(String item, boolean exactMetadata, int metadata) {{
-        return new Ingredient(net.zamin.api.Identifier.parse(item), exactMetadata, metadata);
+        return new Ingredient(net.zaminmc.torch.util.Identifier.parse(item), exactMetadata, metadata);
     }}
 
     private static CraftingRecipe.Result res(String item, int count, int damage) {{
-        return new CraftingRecipe.Result(net.zamin.api.Identifier.parse(item), count, damage);
+        return new CraftingRecipe.Result(net.zaminmc.torch.util.Identifier.parse(item), count, damage);
     }}
 
     /** All generated recipes, in dataset order (deterministic matching). */
