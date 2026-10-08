@@ -131,8 +131,17 @@ public final class FluidSystem implements WorldChangeListener {
     /** Runs every fluid update due this tick. Tick-thread context. */
     public void tick() {
         long now = world.totalTicks();
-        Scheduled entry;
-        while ((entry = queue.poll()) != null) {
+        // Bounded drain: only the entries present at entry may be polled this
+        // pass. A not-yet-due entry re-arms to the BACK of the queue and is
+        // re-checked on a later tick — an unbounded while-loop would poll the
+        // same future-due entry forever (the drain never sees an empty queue),
+        // freezing the tick thread at 100% CPU (the sand-placement freeze).
+        int entries = queue.size();
+        for (int i = 0; i < entries; i++) {
+            Scheduled entry = queue.poll();
+            if (entry == null) {
+                break; // drained everything reachable (defensive)
+            }
             pending.remove(key(entry.position()));
             if (entry.dueTick() > now) {
                 if (pending.add(key(entry.position()))) {

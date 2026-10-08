@@ -70,6 +70,7 @@ class BodySurvivalAcceptanceTest {
         body.setBody(10.0f, 20, 5.0f);
         await(() -> body.health() > 10.0f, "regen started (4 s per heart)");
         await(() -> body.health() >= 12.0f, "two hearts regenerated (8 s)");
+        await(() -> body.health() >= 12.0f, "two hearts regenerated (8 s)");
 
         // Regen exhaustion (3.0 per heart, 4.0 per point) drains saturation.
         await(() -> body.saturation() < 5.0f, "regen exhaustion drained saturation");

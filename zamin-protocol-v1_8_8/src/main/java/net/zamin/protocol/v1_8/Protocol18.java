@@ -36,7 +36,9 @@ final class Protocol18 {
     static final int S2C_ENTITY_METADATA = 0x1C;
     static final int S2C_NAMED_SOUND_EFFECT = 0x29;
     static final int S2C_EXPLOSION = 0x27;
-    static final int S2C_WORLD_PARTICLES = 0x2B;
+    /** World Particles is 0x2A — 0x2B is Game State Change (an off-by-one
+     * the mineflayer parser tolerated; the real 1.8.8 client would not). */
+    static final int S2C_WORLD_PARTICLES = 0x2A;
     static final int S2C_BLOCK_CHANGE = 0x23;
     static final int S2C_SET_SLOT = 0x2F;
     static final int S2C_WINDOW_ITEMS = 0x30;
@@ -46,7 +48,10 @@ final class Protocol18 {
     static final int S2C_CLOSE_WINDOW = 0x2E;
     static final int S2C_NAMED_SPAWN = 0x0C;
     static final int S2C_CHUNK_DATA = 0x21;
-    static final int S2C_UNLOAD_CHUNK = 0x1D;
+    // Protocol 47 has NO unload-chunk packet: the 1.8 client prunes
+    // out-of-range chunks itself (the vanilla server never said goodbye).
+    // 0x1D is Entity Effect — writing a 1.9-style unload there killed real
+    // clients with "Packet 0/29 (ib), 3 bytes extra" (29 decimal = 0x1D).
     static final int S2C_DISCONNECT = 0x40;
     static final int S2C_COMBAT_EVENT = 0x42;
     /** Combat event 2 = entity died (playerId varint, entityId i32, message). */

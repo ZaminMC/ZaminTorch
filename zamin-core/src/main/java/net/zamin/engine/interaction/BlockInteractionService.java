@@ -166,7 +166,6 @@ public final class BlockInteractionService {
         if (!InteractionRules.withinSurvivalReach(player.position(), target)) {
             return;
         }
-        // (Re)starts the dig; repeated starts restart progress, matching lenient history.
         miningSessions.put(player.uuid(), new MiningSession(target, System.nanoTime()));
     }
 

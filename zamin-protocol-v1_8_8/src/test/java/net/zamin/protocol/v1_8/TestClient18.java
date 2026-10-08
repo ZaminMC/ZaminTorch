@@ -84,8 +84,16 @@ final class TestClient18 implements AutoCloseable {
         int length = readVarInt(in);
         byte[] payload = new byte[length];
         in.readFully(payload);
+        if (WIRE_TRACE) {
+            ByteBuf peek = Unpooled.wrappedBuffer(payload);
+            System.out.println("[trace-client] frame len=" + length + " id=0x"
+                    + Integer.toHexString(ByteBufOps.readVarInt(peek)) + " at " + System.currentTimeMillis());
+        }
         return payload;
     }
+
+    static final boolean WIRE_TRACE = Boolean.getBoolean("wireTrace")
+            || System.getenv("WIRE_TRACE") != null;
 
     int readPacketId(byte[] payload) {
         ByteBuf buffer = Unpooled.wrappedBuffer(payload);
@@ -589,6 +597,10 @@ final class TestClient18 implements AutoCloseable {
         int[] pos = ByteBufOps.readPackedBlockPosition(buffer);
         int stateId = ByteBufOps.readVarInt(buffer);
         int legacy = stateId >> 4;
+        if (WIRE_TRACE) {
+            System.out.println("[trace-client] block change parsed x=" + pos[0] + " y=" + pos[1]
+                    + " z=" + pos[2] + " legacy=" + legacy + " raw=" + java.util.Arrays.toString(payload));
+        }
         return new int[]{pos[0], pos[1], pos[2], legacy};
     }
 

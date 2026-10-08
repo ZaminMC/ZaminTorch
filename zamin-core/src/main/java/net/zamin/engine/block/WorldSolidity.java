@@ -1,6 +1,7 @@
 package net.zamin.engine.block;
 
 import net.zamin.api.BlockType;
+import net.zamin.api.Identifier;
 
 import java.util.Objects;
 
@@ -25,7 +26,9 @@ public final class WorldSolidity {
         if (type == null) {
             return false;
         }
-        return !type.identifier().equals(BuiltinBlocks.TORCH.identifier())
-                && !FluidBlocks.isFluid(type.identifier());
+        Identifier id = type.identifier();
+        return !id.equals(BuiltinBlocks.AIR.identifier())
+                && !id.equals(BuiltinBlocks.TORCH.identifier())
+                && !FluidBlocks.isFluid(id);
     }
 }
