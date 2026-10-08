@@ -42,6 +42,7 @@ public final class BlockSoundMap {
 
     /** The dig family sound name for a block identifier; stone is the default. */
     public static Optional<String> digSound(Identifier block) {
-        return Optional.ofNullable(DIG_FAMILY_BY_BLOCK.get(block.value()));
+        return Optional.ofNullable(DIG_FAMILY_BY_BLOCK.get(
+                block.namespace() + ":" + block.value()));
     }
 }

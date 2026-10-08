@@ -35,6 +35,7 @@ final class Protocol18 {
     static final int S2C_ENTITY_STATUS = 0x1A;
     static final int S2C_ENTITY_METADATA = 0x1C;
     static final int S2C_NAMED_SOUND_EFFECT = 0x29;
+    static final int S2C_WORLD_PARTICLES = 0x2B;
     static final int S2C_BLOCK_CHANGE = 0x23;
     static final int S2C_SET_SLOT = 0x2F;
     static final int S2C_WINDOW_ITEMS = 0x30;
@@ -108,6 +109,12 @@ final class Protocol18 {
     static final int OBJECT_ITEM = 2;
     /** Falling block (community entities.json FallingSand): objectData = legacy id | (metadata << 12). */
     static final int OBJECT_FALLING_BLOCK = 70;
+    // Ranged combat objects (community entities.json): the projectile's
+    // objectData carries the thrower's entity id, announced with a velocity
+    // triple like every non-zero objectData.
+    static final int OBJECT_ARROW = 60;
+    static final int OBJECT_SNOWBALL = 61;
+    static final int OBJECT_EGG = 62;
 
     // Entity metadata (protocol 47, community-verified type map): value types
     // 0=byte 1=short 2=int 3=float 4=string 5=slot 6=position 7=rotation.
@@ -128,6 +135,16 @@ final class Protocol18 {
     static final int LIVING_HEALTH_METADATA_INDEX = 6;
     static final int ITEM_STACK_METADATA_INDEX = 10;
     static final int METADATA_TERMINATOR = 0x7F;
+
+    // The living-flags bit map (1.8's Entity flags byte, index 0):
+    // 0x01 burning, 0x02 crouched, 0x08 riding, 0x10 sprinting, 0x20 eating.
+    static final int LIVING_FLAG_SNEAKING = 0x02;
+    static final int LIVING_FLAG_SPRINTING = 0x10;
+
+    // World Particles (0x2B) numeric ids (community particles.json, 1.8).
+    static final int PARTICLE_SNOWBALL_POOF = 31;
+    static final int PARTICLE_ICON_CRACK = 36;   // data: [itemId, itemMeta]
+    static final int PARTICLE_BLOCK_CRACK = 37;  // data: [blockStateId]
 
     // Entity Status (0x1A) codes the client animates from.
     static final int ENTITY_STATUS_HURT = 2;

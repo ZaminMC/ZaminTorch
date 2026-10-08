@@ -54,6 +54,16 @@ public final class V18ProtocolServer implements ProtocolAdapter {
         this.keepAliveIntervalMs = keepAliveIntervalMs;
     }
 
+    /** The engine this adapter bridges into (connection callbacks use it). */
+    EngineServer engine() {
+        return engine;
+    }
+
+    /** The live connection table (channel per connection), read-only view use. */
+    Map<V18Connection, Channel> connections() {
+        return connections;
+    }
+
     @Override
     public String protocolName() {
         return "minecraft-1.8.8";
@@ -320,6 +330,53 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                     if (connection.currentSession() == player) {
                         connection.sendSetVelocity(vx, vy, vz);
                     }
+                }
+            }
+
+            @Override
+            public void onPostureChanged(net.zamin.engine.player.PlayerSession player) {
+                // The posture flags ride Entity Metadata to every observer
+                // except the mover (their client animates itself).
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendPostureMetadata(player);
+                }
+            }
+        });
+        // The FX bus: every engine sound/particle event fans out to the
+        // observers inside its feedback radius, translated per event kind.
+        server.fx().addListener(event -> {
+            for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                connection.deliverFx(event, connection.currentSession());
+            }
+        });
+        // Projectile sync: launch (Spawn Object + velocity), per-tick movement
+        // (Entity Teleport) and removal (Destroy Entities) fan out the same way.
+        server.addProjectileListener(new EngineServer.ProjectileListener() {
+            @Override
+            public void onProjectileSpawned(net.zamin.engine.entity.projectile.ProjectileEntity projectile) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendProjectileSpawned(projectile);
+                }
+            }
+
+            @Override
+            public void onProjectileMoved(net.zamin.engine.entity.projectile.ProjectileEntity projectile) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendProjectileMoved(projectile);
+                }
+            }
+
+            @Override
+            public void onProjectileLanded(net.zamin.engine.entity.projectile.ProjectileEntity projectile) {
+                // A landed arrow just stops receiving teleport syncs; the
+                // clients hold the last position until the destroy arrives.
+            }
+
+            @Override
+            public void onProjectileRemoved(net.zamin.engine.entity.projectile.ProjectileEntity projectile,
+                                            String reason) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendProjectileRemoved(projectile);
                 }
             }
         });

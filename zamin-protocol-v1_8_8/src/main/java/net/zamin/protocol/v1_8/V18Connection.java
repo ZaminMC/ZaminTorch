@@ -351,8 +351,14 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             case Protocol18.C2S_ENTITY_ACTION -> {
                 // Sneak/sprint/leave-bed/jump: entity id, action, jump boost.
                 ByteBufOps.readVarInt(packet);
+                int action = ByteBufOps.readVarInt(packet);
                 ByteBufOps.readVarInt(packet);
-                ByteBufOps.readVarInt(packet);
+                // Posture rides to the engine (the flags metadata + sprint
+                // hunger gate); the client animates its own body meanwhile.
+                PlayerSession current = session;
+                if (current != null && adapter.engine() != null) {
+                    adapter.engine().entityAction(current, action);
+                }
             }
             case Protocol18.C2S_STEER_VEHICLE -> {
                 packet.readFloat();
@@ -1635,6 +1641,14 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
      * with the historical 1.8 resource names. Any thread.
      */
     void sendMobSound(String soundName, Position position, float volume, float pitch) {
+        sendSound(soundName, position, volume, pitch);
+    }
+
+    /**
+     * The generalized Named Sound Effect: one semantic FX bus event becomes
+     * one packet. The pitch encodes into the wire's u8 (63 = 1.0). Any thread.
+     */
+    void sendSound(String soundName, Position position, float volume, float pitch) {
         Channel channel = adapter.channelOf(this);
         if (channel == null || !channel.isActive() || state != WireState.PLAY) {
             return;
@@ -1650,6 +1664,102 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         channel.writeAndFlush(out);
     }
 
+    /**
+     * World Particles (0x2B, community-verified layout: i32 id, bool
+     * longDistance, f32 xyz, f32 offset xyz, f32 data, i32 count, then the
+     * crack families' extra varints). Any thread.
+     */
+    void sendParticles(int particleId, boolean longDistance, Position position,
+                       float offsetX, float offsetY, float offsetZ,
+                       float particleData, int count, int[] data) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(48);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_WORLD_PARTICLES);
+        out.writeInt(particleId);
+        out.writeBoolean(longDistance);
+        out.writeFloat((float) position.x());
+        out.writeFloat((float) position.y());
+        out.writeFloat((float) position.z());
+        out.writeFloat(offsetX);
+        out.writeFloat(offsetY);
+        out.writeFloat(offsetZ);
+        out.writeFloat(particleData);
+        out.writeInt(count);
+        if (particleId == Protocol18.PARTICLE_ICON_CRACK) {
+            // The crumbs: legacy item id and its variant meta.
+            ByteBufOps.writeVarInt(out, data.length > 0 ? data[0] : 0);
+            ByteBufOps.writeVarInt(out, data.length > 1 ? data[1] : 0);
+        } else if (particleId == Protocol18.PARTICLE_BLOCK_CRACK) {
+            // The shards: one combined state varint (id | meta << 12).
+            ByteBufOps.writeVarInt(out, data.length > 0 ? data[0] : 0);
+        }
+        channel.writeAndFlush(out);
+    }
+
+    /**
+     * Delivers one engine FX event to this observer: distance-culled (the
+     * historical 64-block feedback range), translated from the semantic bus
+     * into this protocol's packets. Any thread.
+     */
+    void deliverFx(net.zamin.engine.fx.FxManager.FxEvent event,
+                   net.zamin.engine.player.PlayerSession observer) {
+        if (observer == null) {
+            return;
+        }
+        Position at;
+        if (event instanceof net.zamin.engine.fx.FxManager.Sound sound) {
+            at = sound.position();
+            if (beyondFeedbackRange(observer, at)) {
+                return;
+            }
+            sendSound(sound.name(), sound.position(), sound.volume(), sound.pitch());
+        } else if (event instanceof net.zamin.engine.fx.FxManager.BlockShatter shatter) {
+            at = shatter.position();
+            if (beyondFeedbackRange(observer, at)) {
+                return;
+            }
+            Integer legacy = LegacyBlockIds.legacyId(shatter.block().identifier()).orElse(null);
+            if (legacy == null) {
+                return;
+            }
+            // blockcrack's data varint = (legacy id & 0xFFF) | (meta << 12);
+            // this engine's blocks carry no metadata variants yet.
+            sendParticles(Protocol18.PARTICLE_BLOCK_CRACK, false, at,
+                    0.4f, 0.4f, 0.4f, 0.3f, 20, new int[]{legacy & 0xFFF});
+        } else if (event instanceof net.zamin.engine.fx.FxManager.ItemShatter crumbs) {
+            at = crumbs.position();
+            if (beyondFeedbackRange(observer, at)) {
+                return;
+            }
+            Integer legacy = LegacyBlockIds.legacyId(crumbs.stack().type().identifier()).orElse(null);
+            if (legacy == null) {
+                return;
+            }
+            sendParticles(Protocol18.PARTICLE_ICON_CRACK, false, at,
+                    0.3f, 0.3f, 0.3f, 0.15f, 8,
+                    new int[]{legacy & 0xFFF, crumbs.stack().damage() & 0xF});
+        } else if (event instanceof net.zamin.engine.fx.FxManager.Poof poof) {
+            at = poof.position();
+            if (beyondFeedbackRange(observer, at)) {
+                return;
+            }
+            sendParticles(Protocol18.PARTICLE_SNOWBALL_POOF, false, at,
+                    0.2f, 0.2f, 0.2f, 0.2f, 8, new int[0]);
+        }
+    }
+
+    /** The 64-block feedback radius (sounds and particles). */
+    private static boolean beyondFeedbackRange(PlayerSession observer, Position at) {
+        Position p = observer.position();
+        double dx = at.x() - p.x();
+        double dy = at.y() - p.y();
+        double dz = at.z() - p.z();
+        return dx * dx + dy * dy + dz * dz > 64.0 * 64.0;
+    }
+
     /** Destroy Entities (0x13) for one removed mob; drops its sync state. Any thread. */
     void sendMobRemoved(int mobEntityId) {
         Channel channel = adapter.channelOf(this);
@@ -1662,6 +1772,147 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeVarInt(out, mobEntityId);
         channel.writeAndFlush(out);
         mobSyncState.remove(mobEntityId);
+    }
+
+    // ------------------------------------------------------------------ projectiles
+
+    /**
+     * Spawn Entity (0x0E) for a launched projectile: the object type carries
+     * the kind (arrow 60, snowball 61, egg 62) and objectData the thrower's
+     * id in THIS observer's id space — the thrower's own client sees its own
+     * wire id, other observers see the remote player id, a mob thrower keeps
+     * its engine id. The velocity triple rides along (the client simulates
+     * between syncs). Any thread.
+     */
+    void sendProjectileSpawned(net.zamin.engine.entity.projectile.ProjectileEntity projectile) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        PlayerSession current = session;
+        if (current == null || chunkTracker == null) {
+            return;
+        }
+        var blockPos = projectile.position().toBlockPosition();
+        if (!chunkTracker.hasChunk(blockPos.chunkPosition().packed())) {
+            return; // outside this observer's loaded window
+        }
+        int objectType = switch (projectile.kind()) {
+            case ARROW -> Protocol18.OBJECT_ARROW;
+            case SNOWBALL -> Protocol18.OBJECT_SNOWBALL;
+            case EGG -> Protocol18.OBJECT_EGG;
+        };
+        int throwerWireId = resolveThrowerWireId(current, projectile.throwerId());
+        ByteBuf out = Unpooled.buffer(48);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_SPAWN_ENTITY);
+        ByteBufOps.writeVarInt(out, projectile.entityId());
+        out.writeByte(objectType);
+        out.writeInt((int) Math.floor(projectile.position().x() * 32.0));
+        out.writeInt((int) Math.floor(projectile.position().y() * 32.0));
+        out.writeInt((int) Math.floor(projectile.position().z() * 32.0));
+        out.writeByte(0); // pitch: the client re-aims the model from velocity
+        out.writeByte(0); // yaw
+        out.writeInt(throwerWireId);
+        // The velocity triple: i16 at 1/8000 blocks per tick.
+        out.writeShort((int) Math.round(projectile.velocityX() * 8000.0));
+        out.writeShort((int) Math.round(projectile.velocityY() * 8000.0));
+        out.writeShort((int) Math.round(projectile.velocityZ() * 8000.0));
+        channel.writeAndFlush(out);
+    }
+
+    /**
+     * Entity Teleport (0x18) for a projectile's tick movement: the launch
+     * speed crosses more than the relative-move i8 window in one tick, so the
+     * absolute form is the honest transport. Any thread.
+     */
+    void sendProjectileMoved(net.zamin.engine.entity.projectile.ProjectileEntity projectile) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(40);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_ENTITY_TELEPORT);
+        ByteBufOps.writeVarInt(out, projectile.entityId());
+        out.writeInt((int) Math.floor(projectile.position().x() * 32.0));
+        out.writeInt((int) Math.floor(projectile.position().y() * 32.0));
+        out.writeInt((int) Math.floor(projectile.position().z() * 32.0));
+        out.writeByte(0); // yaw
+        out.writeByte(0); // pitch
+        out.writeBoolean(true); // onGround
+        channel.writeAndFlush(out);
+    }
+
+    /**
+     * The observer-local thrower id: the thrower's own client recognizes its
+     * own wire id; other observers use the remote-player id they already
+     * track; mob throwers keep their engine id (one id space). Unknown
+     * throwers resolve to 0 (the client spawns the projectile without a
+     * shooter link, which it renders identically).
+     */
+    private int resolveThrowerWireId(PlayerSession observer, int throwerEngineId) {
+        if (throwerEngineId < 0) {
+            return 0;
+        }
+        if (observer.engineEntityId() == throwerEngineId) {
+            return ownEntityId; // the shooter IS this client
+        }
+        if (throwerEngineId >= EngineServer.PLAYER_ID_BASE) {
+            for (V18Connection connection : adapter.connections().keySet().toArray(new V18Connection[0])) {
+                PlayerSession candidate = connection.currentSession();
+                if (candidate != null && candidate.engineEntityId() == throwerEngineId) {
+                    Integer wireId = remoteEntityIds.get(candidate.uuid());
+                    return wireId != null ? wireId : 0;
+                }
+            }
+            return 0;
+        }
+        return throwerEngineId; // mobs and engine entities share the id space
+    }
+
+    /**
+     * Destroy Entities (0x13) for a removed projectile (shatter, hit or the
+     * expiry sweeps). Any thread.
+     */
+    void sendProjectileRemoved(net.zamin.engine.entity.projectile.ProjectileEntity projectile) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(8);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_DESTROY_ENTITIES);
+        ByteBufOps.writeVarInt(out, 1);
+        ByteBufOps.writeVarInt(out, projectile.entityId());
+        channel.writeAndFlush(out);
+    }
+
+    /**
+     * The posture broadcast: Entity Metadata (0x1C) for the moving player's
+     * observer-local id carrying the living-flags byte (crouch 0x02, sprint
+     * 0x10). Sent to every OTHER observer — the mover's client animates its
+     * own body. Any thread.
+     */
+    void sendPostureMetadata(PlayerSession mover) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        PlayerSession current = session;
+        if (current == null || current == mover) {
+            return; // the mover's client knows its own posture
+        }
+        Integer wireId = remoteEntityIds.get(mover.uuid());
+        if (wireId == null) {
+            return; // not visible to this observer
+        }
+        int flags = (mover.sneaking() ? Protocol18.LIVING_FLAG_SNEAKING : 0)
+                | (mover.sprinting() ? Protocol18.LIVING_FLAG_SPRINTING : 0);
+        ByteBuf out = Unpooled.buffer(12);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_ENTITY_METADATA);
+        ByteBufOps.writeVarInt(out, wireId);
+        out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | Protocol18.LIVING_FLAGS_METADATA_INDEX);
+        out.writeByte(flags);
+        out.writeByte(Protocol18.METADATA_TERMINATOR);
+        channel.writeAndFlush(out);
     }
 
     /** Animation (0x0B) code 0: the arm swing, aimed at one observer's id space. */

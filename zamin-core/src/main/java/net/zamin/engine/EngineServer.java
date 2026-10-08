@@ -159,7 +159,8 @@ public final class EngineServer implements Server, EngineBridge {
     /** Projectiles (arrows, shards) get the next band. */
     private static final int PROJECTILE_ID_BASE = FALLING_ID_BASE + 1_000_000;
     /** Player engine-global ids live above the projectiles (engine-side identity). */
-    private static final int PLAYER_ID_BASE = PROJECTILE_ID_BASE + 1_000_000;
+    /** The band the adapter recognizes as player ids (public: wire translation). */
+    public static final int PLAYER_ID_BASE = PROJECTILE_ID_BASE + 1_000_000;
 
     /** The game-feedback bus (sounds, particles); created at boot, read-only after. */
     private final FxManager fxManager = new FxManager();
