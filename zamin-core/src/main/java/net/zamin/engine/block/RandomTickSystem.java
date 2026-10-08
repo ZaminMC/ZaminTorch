@@ -90,16 +90,22 @@ public final class RandomTickSystem {
     private boolean withinPlayerRange(ChunkPosition chunk, Iterable<PlayerSession> players) {
         double centerX = chunk.x() * 16 + 8.0;
         double centerZ = chunk.z() * 16 + 8.0;
+        boolean anyPlaying = false;
         for (PlayerSession player : players) {
             if (player.state() != net.zamin.api.PlayerState.PLAYING) {
                 continue;
             }
+            anyPlaying = true;
             double dx = player.position().x() - centerX;
             double dz = player.position().z() - centerZ;
             if (dx * dx + dz * dz <= PLAYER_RANGE * PLAYER_RANGE) {
                 return true;
             }
         }
-        return false;
+        // Nobody watching: the gate collapses and every loaded chunk ticks.
+        // The historical rule exists to bound work at scale, not for semantics;
+        // the slice-scale cost of an idle world is trivial and the world stays
+        // alive for the next visitor. Revisit with the chunk-lifecycle slice.
+        return !anyPlaying;
     }
 }
