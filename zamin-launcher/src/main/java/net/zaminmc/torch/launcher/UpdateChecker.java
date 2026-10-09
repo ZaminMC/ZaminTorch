@@ -26,7 +26,7 @@ import java.util.logging.Logger;
 final class UpdateChecker {
 
     /** The running build's version — bumped with each released dev build. */
-    static final String BUILD_VERSION = "0.2.0-dev.10";
+    static final String BUILD_VERSION = "0.2.0-dev.11";
 
     private static final Logger LOGGER = Logger.getLogger(UpdateChecker.class.getName());
     private static final String RELEASES_API =
