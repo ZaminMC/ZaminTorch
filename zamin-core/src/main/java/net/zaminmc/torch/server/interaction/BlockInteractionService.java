@@ -409,6 +409,13 @@ public final class BlockInteractionService {
         net.zaminmc.torch.item.ItemStack heldStack = player.inventory().held();
         ItemType held = heldStack.isEmpty() ? null : heldStack.type();
         commit(target, world.airType());
+        // The vanilla removedByPlayer exhaustion (0.025 per broken block);
+        // the invulnerable creative body is exempt through the historical
+        // abilities.invulnerable gate in addFatigue.
+        GameMode breakMode = gameMode.apply(player);
+        if (breakMode == GameMode.SURVIVAL || breakMode == GameMode.ADVENTURE) {
+            player.addExhaustion(0.025f);
+        }
         publishDrops(target, current, held);
         wearHeldTool(player, behavior);
         SurvivalXpHook xp = survivalXpListener;

@@ -1048,7 +1048,7 @@ public final class EngineServer implements Server, EngineBridge {
             // and it pierces creative invulnerability, the historical rule.
             if (session.position().y() < MobEntity.VOID_KILL_Y) {
                 damageOnTick(session, MobEntity.VOID_DAMAGE_PER_TICK, true,
-                        "fell out of the world");
+                        "fell out of the world", 0.0f);
             }
             tickEating(session);
             tickBowCharge(session);
@@ -1075,13 +1075,52 @@ public final class EngineServer implements Server, EngineBridge {
                             session.position().y() + 1.0, session.position().z())) {
                 session.resetFallDistance();
             }
-            // The sprint exhaustion approximation: the historical rule charges
-            // per meter; without a server-side mover, a flat per-tick rate of
-            // ~0.6 exhaustion/second tracks the sprinting feel closely enough.
-            if (session.sprinting() && session.gamemode() == GameMode.SURVIVAL) {
-                session.addExhaustion(0.03f);
+            // The movement-exhaustion ledger (the vanilla per-meter rates,
+            // reference/1.8.8 PlayerEntity.tickNonRidingMovementRelatedStats):
+            // swim 0.015/m, sprint 0.1/m, walk 0.01/m — the cm-rounded meter
+            // count times the rate — plus the jump charges (0.2, 0.8
+            // sprinting). Climbing charges nothing (the historical arm).
+            tickMovementExhaustion(session);
+        }
+    }
+
+    /**
+     * The per-meter exhaustion charges from the body's real displacement
+     * (the vanilla addFatigue sites); the invulnerable modes are exempt
+     * (the vanilla abilities.invulnerable gate).
+     * Tick-thread context.
+     */
+    private void tickMovementExhaustion(PlayerSession session) {
+        if (session.gamemode() == GameMode.CREATIVE
+                || session.gamemode() == GameMode.SPECTATOR) {
+            return;
+        }
+        Position at = session.position();
+        if (session.bodyPrevValid()) {
+            double dx = at.x() - session.bodyPrevX();
+            double dy = at.y() - session.bodyPrevY();
+            double dz = at.z() - session.bodyPrevZ();
+            int cm = (int) Math.round(Math.sqrt(dx * dx + dz * dz) * 100.0);
+            if (cm > 0) {
+                if (fluidAt(at.x(), at.y(), at.z())) {
+                    session.addExhaustion(0.015F * cm * 0.01F); // the swim arm
+                } else if (session.onGround()) {
+                    // The walk/sprint split; the ladder arm charges nothing
+                    // and neither does the airborne band (the flown arm).
+                    boolean onLadder = ladderAt(at.x(), at.y(), at.z());
+                    if (!onLadder && session.sprinting()) {
+                        session.addExhaustion(0.099999994F * cm * 0.01F);
+                    } else if (!onLadder) {
+                        session.addExhaustion(0.01F * cm * 0.01F);
+                    }
+                }
+            }
+            // The jump arm: the ground left under rising motion.
+            if (dy > 0 && session.bodyPrevOnGround() && !session.onGround()) {
+                session.addExhaustion(session.sprinting() ? 0.8F : 0.2F);
             }
         }
+        session.captureBodyDelta(at.x(), at.y(), at.z(), session.onGround());
     }
 
     /** The bow's draw clock: charge advances while the use gesture holds. */
@@ -1167,9 +1206,10 @@ public final class EngineServer implements Server, EngineBridge {
                 damageOnTick(session, 1.0f, "went up in flames");
             }
         } else if (session.burning()) {
-            // After leaving the flame the residual burn hurts every second.
+            // After leaving the flame the residual burn hurts every second;
+            // the onFire source carries no exhaustion (the bypass family).
             if (session.advanceFireDamageTimer() % 20 == 0) {
-                damageOnTick(session, 1.0f, "went up in flames");
+                damageOnTick(session, 1.0f, 0.0f, "went up in flames");
             }
         }
         // Fluid contact douses the burn (the historical rule).
@@ -1210,19 +1250,27 @@ public final class EngineServer implements Server, EngineBridge {
         }
     }
 
-    /** The historical 1.8 FoodStats loop on easy difficulty. */
+    /**
+     * The historical FoodStats loop (reference/1.8.8 HungerManager.tick)
+     * across the difficulty floors: the exhaustion point drains saturation
+     * first (never the food level on peaceful), regeneration runs at food
+     * >= 18 and costs 3 exhaustion per heart, and starvation bites per the
+     * difficulty (easy floors at 10 hearts, normal at 1, hard never floors).
+     * Tick-thread context.
+     */
     private void tickFoodEconomy(PlayerSession session) {
         if (session.gamemode() != GameMode.SURVIVAL
                 && session.gamemode() != GameMode.ADVENTURE) {
             return; // creative and spectator bodies carry no hunger
         }
-        if (session.exhaustion() >= PlayerSession.EXHAUSTION_COST) {
+        if (session.exhaustion() > PlayerSession.EXHAUSTION_COST) {
             session.setExhaustion(session.exhaustion() - PlayerSession.EXHAUSTION_COST);
             if (session.saturation() > 0) {
                 session.setBody(session.health(), session.food(),
                         Math.max(0.0f, session.saturation() - 1));
-            } else if (session.food() > 0) {
-                session.setBody(session.health(), session.food() - 1, session.saturation());
+            } else if (difficulty != 0) { // the peaceful arm never drains food
+                session.setBody(session.health(), Math.max(0, session.food() - 1),
+                        session.saturation());
             }
             publishBodyChanged(session);
         }
@@ -1235,12 +1283,15 @@ public final class EngineServer implements Server, EngineBridge {
                 session.addExhaustion(3.0f); // the historical regen cost
                 publishBodyChanged(session);
             }
-        } else if (session.food() == 0) {
+        } else if (session.food() <= 0) {
             session.advanceBodyTimer();
             if (session.bodyTimer() >= PlayerSession.BODY_TIMER_PERIOD) {
                 session.resetBodyTimer();
-                if (session.health() > PlayerSession.STARVATION_FLOOR) {
-                    damageOnTick(session, 1.0f, "starved to death"); // easy: cannot kill
+                // The vanilla bite condition: easy floors at 10 hearts,
+                // normal at 1, hard never floors.
+                if (session.health() > 10.0f || difficulty == 3
+                        || session.health() > 1.0f && difficulty == 2) {
+                    damageOnTick(session, 1.0f, 0.0f, "starved to death");
                 }
             }
         } else {
@@ -1262,9 +1313,11 @@ public final class EngineServer implements Server, EngineBridge {
             var at = world.getBlock(feet);
             if (FluidBlocks.kindOf(at.identifier()) == null
                     && !WorldSolidity.isLadder(at.identifier())) {
+                // The fall damage carries no exhaustion (the vanilla FALL
+                // source's setBypassesArmor zeroes it).
                 damageOnTick(session,
                         (float) Math.ceil(distance - PlayerSession.SAFE_FALL_DISTANCE),
-                        "hit the ground too hard");
+                        0.0f, "hit the ground too hard");
             }
         }
     }
@@ -1284,7 +1337,7 @@ public final class EngineServer implements Server, EngineBridge {
                 (int) Math.floor(eye.x()), (int) Math.floor(eye.y()), (int) Math.floor(eye.z())));
         boolean underwater = FluidBlocks.kindOf(at.identifier()) != null;
         if (session.advanceBreath(underwater)) {
-            damageOnTick(session, 2.0f, "drowned");
+            damageOnTick(session, 2.0f, 0.0f, "drowned"); // the DROWN arm: no exhaustion
         }
     }
 
@@ -1457,14 +1510,27 @@ public final class EngineServer implements Server, EngineBridge {
                 attacker.inventory().damageHeld(1);
                 publishInventoryChanged(attacker);
             }
-            // Knockback (the historical feel: 0.4 horizontal along the swing,
-            // 0.4 up). The victim's client owns its own physics, so this rides
-            // the wire as a velocity set; observers see the movement packets.
-            double kbYaw = Math.atan2(-dx, dz);
-            double vx = -Math.sin(kbYaw) * 0.4;
-            double vz = Math.cos(kbYaw) * 0.4;
+            // Knockback — the vanilla applyKnockback (reference/1.8.8
+            // LivingEntity lines 778-793): the server-known motion halves on
+            // every axis, then the impulse rides the normalized away-
+            // direction (the 1e-4 jitter when the attacker stands inside the
+            // victim), +0.4 up capped at 0.4. The victim's client owns its
+            // physics, so the new motion rides the wire as a velocity set.
+            double kbdx = target.x() - eye.x();
+            double kbdz = target.z() - eye.z();
+            for (double d1 = kbdx, d0 = kbdz; d1 * d1 + d0 * d0 < 1.0E-4; ) {
+                d1 = (fxRandom.nextDouble() - fxRandom.nextDouble()) * 0.01;
+                d0 = (fxRandom.nextDouble() - fxRandom.nextDouble()) * 0.01;
+                kbdx = d1;
+                kbdz = d0;
+            }
+            float f = (float) Math.sqrt(kbdx * kbdx + kbdz * kbdz);
+            double nvx = victim.motionX() / 2.0 + kbdx / f * 0.4;
+            double nvy = Math.min(victim.motionY() / 2.0 + 0.4, 0.4);
+            double nvz = victim.motionZ() / 2.0 + kbdz / f * 0.4;
+            victim.setMotion(nvx, nvy, nvz);
             publishPlayerHurt(victim);
-            publishKnockback(victim, vx, 0.4, vz);
+            publishKnockback(victim, nvx, nvy, nvz);
             if (victim.health() <= 0) {
                 dieOnTick(victim, "was slain by " + attacker.name());
             } else {
@@ -1519,12 +1585,28 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /**
+     * The exhaustion-carrying entry: {@code exhaustionCharge} is the vanilla
+     * {@code source.getExhaustion()} — 0.3 for the ordinary sources (melee,
+     * projectile, explosion, in-fire, cactus), 0.0 for the bypass family
+     * (fall, drown, starve, the on-fire residual, out-of-world).
+     */
+    private void damageOnTick(PlayerSession session, float amount, float exhaustionCharge,
+                              String causeMessage) {
+        damageOnTick(session, amount, false, causeMessage, exhaustionCharge);
+    }
+
+    /**
      * The semantic damage entry, with the mode guard: creative and spectator
      * bodies are invulnerable (the historical rule) — the only bypass is the
      * void, which consumes even creative bodies past the kill plane.
      */
     private void damageOnTick(PlayerSession session, float amount, boolean bypassProtection,
                               String causeMessage) {
+        damageOnTick(session, amount, bypassProtection, causeMessage, 0.3f);
+    }
+
+    private void damageOnTick(PlayerSession session, float amount, boolean bypassProtection,
+                              String causeMessage, float exhaustionCharge) {
         if (session.dead() || session.state() != PlayerState.PLAYING) {
             return;
         }
@@ -1533,6 +1615,11 @@ public final class EngineServer implements Server, EngineBridge {
             return;
         }
         session.hurt(amount);
+        // The vanilla damage exhaustion (EntityLivingBase: addFatigue(source.
+        // getExhaustion()) when the damage lands).
+        if (exhaustionCharge > 0.0f) {
+            session.addExhaustion(exhaustionCharge);
+        }
         if (session.health() <= 0) {
             dieOnTick(session, causeMessage != null ? causeMessage : "died");
         } else {
@@ -4378,11 +4465,18 @@ public final class EngineServer implements Server, EngineBridge {
         if (applied > 0) {
             victim.hurt(applied);
         }
-        // Knockback along the impact velocity (the historical thrown-entity bruise).
-        double vx = -Math.sin(kbYaw) * 0.4;
-        double vz = Math.cos(kbYaw) * 0.4;
+        // Knockback — the same vanilla applyKnockback recipe the melee path
+        // rides (vanilla projectiles knock back through the damage path,
+        // not their own rule): the motion halves, the impulse rides the
+        // impact direction, the rise caps at 0.4.
+        double kbdx = -Math.sin(kbYaw);
+        double kbdz = Math.cos(kbYaw);
+        double nvx = victim.motionX() / 2.0 + kbdx * 0.4;
+        double nvy = Math.min(victim.motionY() / 2.0 + 0.4, 0.4);
+        double nvz = victim.motionZ() / 2.0 + kbdz * 0.4;
+        victim.setMotion(nvx, nvy, nvz);
         publishPlayerHurt(victim);
-        publishKnockback(victim, vx, 0.35, vz);
+        publishKnockback(victim, nvx, nvy, nvz);
         if (victim.health() <= 0) {
             dieOnTick(victim, "was pummeled by " + throwerName(shooterId));
         } else {
