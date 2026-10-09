@@ -144,6 +144,16 @@ public final class BuiltinItems {
     public static final EngineItemType COBBLESTONE_STAIRS = new EngineItemType(
             Identifier.parse("minecraft:cobblestone_stairs"), "Cobblestone Stairs", 64);
 
+    // The vehicle slice (community items.json: rail 66, boat 333, minecart
+    // 328). The boat and the minecart are the placeable spawn items (stack
+    // of one); the rail item places the flat track per the placer's look.
+    public static final EngineItemType RAIL = new EngineItemType(
+            Identifier.parse("minecraft:rail"), "Rail", 64);
+    public static final EngineItemType BOAT = new EngineItemType(
+            Identifier.parse("minecraft:boat"), "Boat", 1);
+    public static final EngineItemType MINECART = new EngineItemType(
+            Identifier.parse("minecraft:minecart"), "Minecart", 1);
+
     // Mob loot (legacy ids from the community dataset: porkchop 319, cooked
     // porkchop 320, raw chicken 365, cooked chicken 366, feather 288,
     // leather 334, rotten flesh 367). Cooked variants smelt from the raw
@@ -365,6 +375,7 @@ public final class BuiltinItems {
                 OAK_DOOR, LADDER, OAK_FENCE, BED,
                 OAK_SLAB, STONE_SLAB, COBBLESTONE_SLAB, SANDSTONE_SLAB,
                 OAK_STAIRS, COBBLESTONE_STAIRS,
+                RAIL, BOAT, MINECART,
                 BONE, STRING, GUNPOWDER, WOOL, MUTTON, COOKED_MUTTON,
                 BUCKET, WATER_BUCKET, LAVA_BUCKET,
                 FLINT_AND_STEEL, GOLD_INGOT,

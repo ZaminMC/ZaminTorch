@@ -223,7 +223,14 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:cobblestone_stairs_east"), 67),
             Map.entry(Identifier.parse("minecraft:cobblestone_stairs_west"), 67),
             Map.entry(Identifier.parse("minecraft:cobblestone_stairs_south"), 67),
-            Map.entry(Identifier.parse("minecraft:cobblestone_stairs_north"), 67));
+            Map.entry(Identifier.parse("minecraft:cobblestone_stairs_north"), 67),
+            // The vehicle slice (community blocks.json + items.json): the
+            // rail block 66 (orientation in the metadata), the boat item
+            // 333, the minecart item 328.
+            Map.entry(Identifier.parse("minecraft:rail"), 66),
+            Map.entry(Identifier.parse("minecraft:rail_ew"), 66),
+            Map.entry(Identifier.parse("minecraft:boat"), 333),
+            Map.entry(Identifier.parse("minecraft:minecart"), 328));
 
     /**
      * Item-form ids that diverge from the block id sharing the identifier
@@ -318,7 +325,9 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:oak_stairs_north"), 3),
             Map.entry(Identifier.parse("minecraft:cobblestone_stairs_west"), 1),
             Map.entry(Identifier.parse("minecraft:cobblestone_stairs_south"), 2),
-            Map.entry(Identifier.parse("minecraft:cobblestone_stairs_north"), 3));
+            Map.entry(Identifier.parse("minecraft:cobblestone_stairs_north"), 3),
+            // The vehicle slice: the rail's flat orientation (0 = NS default).
+            Map.entry(Identifier.parse("minecraft:rail_ew"), 1));
 
     /**
      * @return the wire metadata nibble of a block type: the 1.8 data-value

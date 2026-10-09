@@ -37,7 +37,14 @@ public final class WorldSolidity {
                 && !isLadder(id)
                 && !isOpenDoorHalf(id)
                 && !isFlora(id)
+                && !isRail(id)
                 && !FluidBlocks.isFluid(id);
+    }
+
+    /** The rails (block 66): walk-through track, the minecart reads the axis. */
+    public static boolean isRail(Identifier id) {
+        return id.namespace().equals("minecraft")
+                && (id.value().equals("rail") || id.value().startsWith("rail_"));
     }
 
     /**

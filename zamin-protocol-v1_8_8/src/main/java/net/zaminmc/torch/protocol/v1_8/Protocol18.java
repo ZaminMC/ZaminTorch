@@ -58,6 +58,8 @@ final class Protocol18 {
     /** Update Sign: packed position long, then the four UTF lines (protocol 47). */
     static final int S2C_UPDATE_SIGN = 0x33;
     static final int S2C_NAMED_SPAWN = 0x0C;
+    /** Attach Entity (0x1B, protocol 47): i32 rider, i32 vehicle, u8 leash/riding. */
+    static final int S2C_ATTACH_ENTITY = 0x1B;
     static final int S2C_CHUNK_DATA = 0x21;
     /** Spawn Experience Orb (0x11, protocol 47): varint id, i32 xyz (1/32), i16 count. */
     static final int S2C_SPAWN_XP_ORB = 0x11;
@@ -146,6 +148,9 @@ final class Protocol18 {
     static final int OBJECT_ARROW = 60;
     static final int OBJECT_SNOWBALL = 61;
     static final int OBJECT_EGG = 62;
+    /** The vehicles (community entities.json object types). */
+    static final int OBJECT_BOAT = 1;
+    static final int OBJECT_MINECART = 10;
 
     // Entity metadata (protocol 47, community-verified type map): value types
     // 0=byte 1=short 2=int 3=float 4=string 5=slot 6=position 7=rotation.
@@ -178,6 +183,7 @@ final class Protocol18 {
     // 0x01 burning, 0x02 crouched, 0x08 riding, 0x10 sprinting, 0x20 eating.
     static final int LIVING_FLAG_BURNING = 0x01;
     static final int LIVING_FLAG_SNEAKING = 0x02;
+    static final int LIVING_FLAG_RIDING = 0x08;
     static final int LIVING_FLAG_SPRINTING = 0x10;
 
     // World Particles (0x2B) numeric ids (community particles.json, 1.8).

@@ -506,6 +506,65 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                 }
             }
         });
+        // Vehicle sync: spawn (Spawn Object), per-tick movement (Entity
+        // Teleport + the rider's seat re-anchor), mount/dismount (Attach
+        // Entity + the riding flags), hurt (Entity Status) and break.
+        server.addVehicleListener(new EngineServer.VehicleListener() {
+            @Override
+            public void onVehicleSpawned(net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendVehicleSpawn(vehicle);
+                }
+            }
+
+            @Override
+            public void onVehicleMoved(net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle,
+                                       PlayerSession rider) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendVehicleMoved(vehicle, rider);
+                }
+            }
+
+            @Override
+            public void onVehicleHurt(net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendVehicleStatus(vehicle, Protocol18.ENTITY_STATUS_HURT);
+                }
+            }
+
+            @Override
+            public void onVehicleMounted(net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle,
+                                         PlayerSession rider) {
+                if (rider == null) {
+                    return;
+                }
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendAttachEntity(rider, vehicle.entityId(), true);
+                    connection.sendPostureMetadata(rider); // the riding flag
+                }
+            }
+
+            @Override
+            public void onVehicleDismounted(net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle,
+                                            PlayerSession rider) {
+                if (rider == null) {
+                    return;
+                }
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendAttachEntity(rider, vehicle.entityId(), false);
+                    connection.sendPostureMetadata(rider);
+                }
+                // The ex-rider's own client re-anchors at the exit point.
+                rider.link().resyncPosition();
+            }
+
+            @Override
+            public void onVehicleBroken(net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendVehicleRemoved(vehicle);
+                }
+            }
+        });
         LOGGER.info(() -> "1.8.8 protocol listening on " + server.config().host() + ":" + server.config().port());
     }
 
@@ -562,6 +621,14 @@ public final class V18ProtocolServer implements ProtocolAdapter {
         if (falling != null) {
             for (net.zaminmc.torch.server.entity.FallingBlockEntity entity : falling.all()) {
                 newcomer.sendFallingSpawn(entity);
+            }
+        }
+        // Vehicles mid-ride when someone joins: the bodies spawn for the
+        // newcomer (a mount broadcast rides the Attach packet like always).
+        var vehicles = engine.vehicles();
+        if (vehicles != null) {
+            for (net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle : vehicles.all()) {
+                newcomer.sendVehicleSpawn(vehicle);
             }
         }
     }

@@ -132,6 +132,9 @@ public final class BlockLightTable {
             Map.entry(Identifier.parse("minecraft:cobblestone_stairs_west"), new LightData(0, 15)),
             Map.entry(Identifier.parse("minecraft:cobblestone_stairs_south"), new LightData(0, 15)),
             Map.entry(Identifier.parse("minecraft:cobblestone_stairs_north"), new LightData(0, 15)),
+            // The rails: walk-through track, light passes (the flora rule).
+            Map.entry(Identifier.parse("minecraft:rail"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:rail_ew"), new LightData(0, 0)),
             Map.entry(Identifier.parse("minecraft:bed"), new LightData(0, 0)),
             Map.entry(Identifier.parse("minecraft:bed_west"), new LightData(0, 0)),
             Map.entry(Identifier.parse("minecraft:bed_north"), new LightData(0, 0)),

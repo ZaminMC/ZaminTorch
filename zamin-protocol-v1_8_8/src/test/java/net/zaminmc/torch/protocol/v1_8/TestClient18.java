@@ -374,6 +374,28 @@ final class TestClient18 implements AutoCloseable {
         sendPacket(bodyToBytes(body));
     }
 
+    /** Steer Vehicle (0x0C): the seat's input; flags bit 0x01 jump, 0x02 unmount. */
+    void sendSteerVehicle(float sideways, float forward, int flags) throws IOException {
+        ByteBuf body = Unpooled.buffer(12);
+        ByteBufOps.writeVarInt(body, Protocol18.C2S_STEER_VEHICLE);
+        body.writeFloat(sideways);
+        body.writeFloat(forward);
+        body.writeByte(flags);
+        sendPacket(bodyToBytes(body));
+    }
+
+    /** Set Creative Slot (0x10): the creative-menu pick into a wire slot. */
+    void sendCreativeSlot(int wireSlot, int legacyId) throws IOException {
+        ByteBuf body = Unpooled.buffer(12);
+        ByteBufOps.writeVarInt(body, Protocol18.C2S_SET_CREATIVE_SLOT);
+        body.writeShort(wireSlot);
+        body.writeShort(legacyId);
+        body.writeByte(1);   // count
+        body.writeShort(0);  // damage
+        body.writeByte(0);   // no NBT marker
+        sendPacket(bodyToBytes(body));
+    }
+
     /** Arm Animation (0x0A): the swing gesture, empty payload. */
     void sendArmAnimation() throws IOException {
         ByteBuf body = Unpooled.buffer(4);
@@ -824,6 +846,39 @@ final class TestClient18 implements AutoCloseable {
             }
         }
         throw new IOException("Timed out waiting for a spawn of object type " + objectType);
+    }
+
+    /** Reads an Attach Entity packet, returning {riderId, vehicleId, riding}. */
+    int[] readAttachEntity(long timeoutMs) throws IOException {
+        byte[] payload = readPacketOfType(Protocol18.S2C_ATTACH_ENTITY, timeoutMs);
+        ByteBuf buffer = Unpooled.wrappedBuffer(payload);
+        ByteBufOps.readVarInt(buffer); // packet id
+        int rider = buffer.readInt();
+        int vehicle = buffer.readInt();
+        boolean riding = buffer.readByte() != 0;
+        return new int[]{rider, vehicle, riding ? 1 : 0};
+    }
+
+    /** Reads an Entity Teleport for the given entity, {x32, y32, z32, onGround}. */
+    int[] readEntityTeleportOf(int entityId, long timeoutMs) throws IOException {
+        long deadline = System.currentTimeMillis() + timeoutMs;
+        while (System.currentTimeMillis() < deadline) {
+            byte[] payload = readPacketOfType(Protocol18.S2C_ENTITY_TELEPORT,
+                    Math.max(1, deadline - System.currentTimeMillis()));
+            ByteBuf buffer = Unpooled.wrappedBuffer(payload);
+            ByteBufOps.readVarInt(buffer); // packet id
+            int id = ByteBufOps.readVarInt(buffer);
+            int x = buffer.readInt();
+            int y = buffer.readInt();
+            int z = buffer.readInt();
+            buffer.readByte(); // yaw
+            buffer.readByte(); // pitch
+            boolean onGround = buffer.readBoolean();
+            if (id == entityId) {
+                return new int[]{x, y, z, onGround ? 1 : 0};
+            }
+        }
+        throw new IOException("Timed out waiting for an entity teleport of " + entityId);
     }
 
     /** Reads a Collect Item packet, returning {collectedEntityId, collectorEntityId}. */

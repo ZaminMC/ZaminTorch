@@ -60,6 +60,7 @@ class Protocol18ConformanceTest {
         m.put("S2C_ENTITY_HEAD_LOOK", 0x19);
         m.put("S2C_ENTITY_STATUS", 0x1A);
         m.put("S2C_ENTITY_METADATA", 0x1C);
+        m.put("S2C_ATTACH_ENTITY", 0x1B);
         m.put("S2C_SET_EXPERIENCE", 0x1F);
         m.put("S2C_CHUNK_DATA", 0x21);
         m.put("S2C_BLOCK_CHANGE", 0x23);

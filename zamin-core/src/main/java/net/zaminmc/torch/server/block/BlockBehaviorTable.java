@@ -372,6 +372,15 @@ public final class BlockBehaviorTable {
             Map.entry(Identifier.parse("minecraft:cobblestone_stairs_north"),
                     new BlockBehavior(2.0, true, true, "rock", 1,
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:cobblestone_stairs"), 1)))),
+
+            // Community data (pc/1.8 blocks.json): rail hardness 0.7,
+            // instant-ish, drops itself (any pick breaks it by hand speed).
+            Map.entry(Identifier.parse("minecraft:rail"),
+                    new BlockBehavior(0.7, true, false, "stone", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:rail"), 1)))),
+            Map.entry(Identifier.parse("minecraft:rail_ew"),
+                    new BlockBehavior(0.7, true, false, "stone", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:rail"), 1)))),
             Map.entry(Identifier.parse("minecraft:sugar_cane"),
                     new BlockBehavior(0.0, true, false, "plants", 0,
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:sugar_cane"), 1)))),
