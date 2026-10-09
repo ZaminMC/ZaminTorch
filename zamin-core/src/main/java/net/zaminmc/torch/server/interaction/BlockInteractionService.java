@@ -63,7 +63,7 @@ public final class BlockInteractionService {
             java.util.Optional<BlockType>> blockItemResolver;
     private final java.util.function.Consumer<PlayerSession> inventorySync;
     /** Post-break hook (furnace spill, future block entities). Tick-thread context. */
-    private volatile java.util.function.Consumer<BlockPosition> blockBrokenListener;
+    private volatile java.util.function.BiConsumer<BlockPosition, net.zaminmc.torch.block.BlockType> blockBrokenListener;
     /** The survival-break XP hook (mining awards; creative breaks never fire it). */
     private volatile SurvivalXpHook survivalXpListener;
     /** The world-mutation feedback hook (break/place FX); null until registered. */
@@ -160,12 +160,13 @@ public final class BlockInteractionService {
             LOGGER.fine(() -> "Rejected break (out of reach) by " + player.name());
             return;
         }
+        BlockType previous = world.getBlock(position);
         commit(position, world.airType());
         // The break hook fires in creative too: door halves die as a unit and
         // container contents spill (the historical creative-break behavior).
-        Consumer<BlockPosition> listener = blockBrokenListener;
+        var listener = blockBrokenListener;
         if (listener != null) {
-            listener.accept(position);
+            listener.accept(position, previous);
         }
     }
 
@@ -218,9 +219,9 @@ public final class BlockInteractionService {
         if (xp != null) {
             xp.onSurvivalBreak(player, current, target); // the award sees the broken block
         }
-        Consumer<BlockPosition> listener = blockBrokenListener;
+        var listener = blockBrokenListener;
         if (listener != null) {
-            listener.accept(target); // container spill runs after the block is gone
+            listener.accept(target, current); // container spill runs after the block is gone
         }
     }
 
@@ -242,11 +243,13 @@ public final class BlockInteractionService {
     }
 
     /**
-     * Registers a post-break hook invoked on the tick thread after a survival
-     * break commits (the broken block's position). Used by the engine to spill
-     * container contents (furnace slots) into the world.
+     * Registers a post-break hook invoked on the tick thread after a break
+     * commits (the broken block's position and its pre-break type). Used by
+     * the engine to spill container contents (furnace slots) into the world
+     * and to invalidate bed spawns.
      */
-    public void setBlockBrokenListener(java.util.function.Consumer<BlockPosition> listener) {
+    public void setBlockBrokenListener(
+            java.util.function.BiConsumer<BlockPosition, net.zaminmc.torch.block.BlockType> listener) {
         this.blockBrokenListener = listener;
     }
 

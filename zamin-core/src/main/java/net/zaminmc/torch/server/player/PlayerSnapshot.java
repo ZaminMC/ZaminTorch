@@ -26,11 +26,22 @@ import java.util.UUID;
  * @param saturation the saved saturation (>= 0)
  * @param gamemodeId the saved game mode legacy id (-1 = unspecified, ZPD v4+)
  * @param totalXp    the saved experience points (ZPD v6+; 0 in older files)
+ * @param bedSpawn   the saved bed spawn (ZPD v7+; null in older files or when
+ *                   the player never slept)
  */
 public record PlayerSnapshot(UUID uuid, String name, Position position, Rotation rotation,
                              int heldSlot, List<SlotStack> slots,
                              float health, int food, float saturation,
-                             int gamemodeId, long totalXp) {
+                             int gamemodeId, long totalXp, Position bedSpawn) {
+
+    /** The pre-bed-spawn shape (ZPD v1-v6 readers and engine callers without one). */
+    public PlayerSnapshot(UUID uuid, String name, Position position, Rotation rotation,
+                          int heldSlot, List<SlotStack> slots,
+                          float health, int food, float saturation,
+                          int gamemodeId, long totalXp) {
+        this(uuid, name, position, rotation, heldSlot, slots, health, food, saturation,
+                gamemodeId, totalXp, null);
+    }
 
     /** The pre-XP shape (ZPD v1-v5 readers and engine callers without XP). */
     public PlayerSnapshot(UUID uuid, String name, Position position, Rotation rotation,

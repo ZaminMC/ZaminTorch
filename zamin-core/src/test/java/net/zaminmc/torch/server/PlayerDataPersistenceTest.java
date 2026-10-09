@@ -1,9 +1,11 @@
 package net.zaminmc.torch.server;
 
+import net.zaminmc.torch.block.BlockPosition;
 import net.zaminmc.torch.item.ItemStack;
 import net.zaminmc.torch.util.Position;
 import net.zaminmc.torch.util.Rotation;
 import net.zaminmc.torch.server.config.EngineConfig;
+import net.zaminmc.torch.server.block.BuiltinBlocks;
 import net.zaminmc.torch.server.item.BuiltinItems;
 import net.zaminmc.torch.server.net.ClientLink;
 import net.zaminmc.torch.server.net.EngineBridge;
@@ -93,6 +95,38 @@ class PlayerDataPersistenceTest {
         assertEquals(BuiltinItems.WOODEN_PICKAXE, slots.get(1).type());
         assertEquals(5, slots.get(1).damage(), "tool wear is part of the restored value");
         assertEquals(1, returning.inventory().heldSlot(), "the selected hotbar is restored");
+        second.shutdown(null);
+    }
+
+    @Test
+    void bedSpawnSurvivesARestartAndABrokenBedResetsIt() throws Exception {
+        // --- session 1: the sleep anchor, then leave ---
+        EngineServer first = boot();
+        PlayerSession sleeper = join(first, "Sleeper");
+        await(() -> !sleeper.position().equals(net.zaminmc.torch.util.Position.ZERO),
+                "sleeper positioned");
+        first.blockInteraction().submitPlace(sleeper, new BlockPosition(2, 4, 2), 1,
+                BuiltinBlocks.BED_FOOT_SOUTH);
+        await(() -> first.world().getBlock(new BlockPosition(2, 5, 2))
+                        .equals(BuiltinBlocks.BED_FOOT_SOUTH),
+                "bed placed");
+        // The anchor rides one above the bed block (the sleep rule's cell).
+        sleeper.setBedSpawn(new Position(2.5, 6.0, 2.5));
+        first.clientDisconnected(sleeper, "test leave");
+        await(() -> Files.exists(dataDir.resolve("itest").resolve("playerdata")
+                        .resolve(UUID.nameUUIDFromBytes("OfflinePlayer:Sleeper".getBytes())
+                                + ".zpd")),
+                "sleeper file written");
+        first.shutdown(null);
+
+        // --- session 2: the anchor returns, the bed break resets it ---
+        EngineServer second = boot();
+        PlayerSession returning = join(second, "Sleeper");
+        assertEquals(new Position(2.5, 6.0, 2.5), returning.bedSpawn(),
+                "the bed spawn came back with the player");
+
+        second.blockInteraction().submitCreativeBreak(returning, new BlockPosition(2, 5, 2));
+        await(() -> returning.bedSpawn() == null, "the broken bed reset the spawn");
         second.shutdown(null);
     }
 
