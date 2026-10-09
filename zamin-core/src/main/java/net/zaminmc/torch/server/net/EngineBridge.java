@@ -60,10 +60,13 @@ public interface EngineBridge {
      * table) opens its window and reports the id through {@code onTableOpened};
      * otherwise the use degrades to a placement proposal — survival consumes
      * from the authoritative inventory, creative places the client-claimed
-     * block (empty optional = no block held).
+     * block (empty optional = no block held). {@code cursorY} is the 1.8 C08
+     * cursor byte (the hit offset within the clicked face, 16ths) — the slab
+     * half's placement signal.
      */
     void useItemOnBlock(PlayerSession session, net.zaminmc.torch.block.BlockPosition clicked, int face,
                         java.util.Optional<net.zaminmc.torch.block.BlockType> creativeHeld,
+                        int cursorY,
                         java.util.function.IntConsumer onTableOpened);
 
     /**

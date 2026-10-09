@@ -29,6 +29,23 @@ public final class FallingBlockEntity {
     public interface Ground {
         /** @return whether the block containing this point is solid. */
         boolean isSolid(double x, double y, double z);
+
+        /**
+         * The shape-aware point test (the collision-shape slice); the
+         * default folds to the boolean world for stub grounds.
+         */
+        default boolean isSolidAt(double x, double y, double z) {
+            return isSolid(x, y, z);
+        }
+
+        /**
+         * The top surface of the collision shape in the point's cell; the
+         * default mirrors the boolean world's full-cube snap. Non-solid
+         * cells answer negative infinity.
+         */
+        default double supportY(double x, double y, double z) {
+            return isSolid(x, y, z) ? Math.floor(y) + 1.0 : Double.NEGATIVE_INFINITY;
+        }
     }
 
     /** One physics step's outcome; the manager turns it into world state. */
@@ -97,8 +114,8 @@ public final class FallingBlockEntity {
         velocityY = (velocityY - GRAVITY_PER_TICK) * 0.98;
         double newY = position.y() + velocityY;
         double probeY = newY - HALF_HEIGHT - GROUND_EPSILON;
-        if (velocityY <= 0 && ground.isSolid(position.x(), probeY, position.z())) {
-            int surfaceY = (int) Math.floor(probeY) + 1;
+        if (velocityY <= 0 && ground.isSolidAt(position.x(), probeY, position.z())) {
+            double surfaceY = ground.supportY(position.x(), probeY, position.z());
             position = new Position(position.x(), surfaceY + HALF_HEIGHT, position.z());
             velocityY = 0.0;
             onGround = true;

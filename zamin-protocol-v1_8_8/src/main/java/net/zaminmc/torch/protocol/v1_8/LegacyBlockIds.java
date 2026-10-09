@@ -203,7 +203,27 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:bed_head"), 26),
             Map.entry(Identifier.parse("minecraft:bed_head_west"), 26),
             Map.entry(Identifier.parse("minecraft:bed_head_north"), 26),
-            Map.entry(Identifier.parse("minecraft:bed_head_east"), 26));
+            Map.entry(Identifier.parse("minecraft:bed_head_east"), 26),
+            // The collision-shape slice (community blocks.json): slabs 44
+            // (stone family: 0=stone 1=sandstone 3=cobble; bit 8 = top) and
+            // 126 (wooden: 0=oak); stairs 53 (oak) and 67 (cobble). The
+            // metadata nibble disambiguates via the damage-aware overload.
+            Map.entry(Identifier.parse("minecraft:stone_slab"), 44),
+            Map.entry(Identifier.parse("minecraft:stone_slab_top"), 44),
+            Map.entry(Identifier.parse("minecraft:sandstone_slab"), 44),
+            Map.entry(Identifier.parse("minecraft:sandstone_slab_top"), 44),
+            Map.entry(Identifier.parse("minecraft:cobblestone_slab"), 44),
+            Map.entry(Identifier.parse("minecraft:cobblestone_slab_top"), 44),
+            Map.entry(Identifier.parse("minecraft:oak_slab"), 126),
+            Map.entry(Identifier.parse("minecraft:oak_slab_top"), 126),
+            Map.entry(Identifier.parse("minecraft:oak_stairs_east"), 53),
+            Map.entry(Identifier.parse("minecraft:oak_stairs_west"), 53),
+            Map.entry(Identifier.parse("minecraft:oak_stairs_south"), 53),
+            Map.entry(Identifier.parse("minecraft:oak_stairs_north"), 53),
+            Map.entry(Identifier.parse("minecraft:cobblestone_stairs_east"), 67),
+            Map.entry(Identifier.parse("minecraft:cobblestone_stairs_west"), 67),
+            Map.entry(Identifier.parse("minecraft:cobblestone_stairs_south"), 67),
+            Map.entry(Identifier.parse("minecraft:cobblestone_stairs_north"), 67));
 
     /**
      * Item-form ids that diverge from the block id sharing the identifier
@@ -216,7 +236,13 @@ final class LegacyBlockIds {
             Identifier.parse("minecraft:oak_door"), 324,
             Identifier.parse("minecraft:ladder"), 65,
             Identifier.parse("minecraft:bed"), 355,
-            Identifier.parse("minecraft:sugar_cane"), 338);
+            Identifier.parse("minecraft:sugar_cane"), 338,
+            // The stairs items (the block types carry facing suffixes; the
+            // item keeps the bare historical identifier, item id = block id).
+            Identifier.parse("minecraft:oak_stairs"), 53,
+            Identifier.parse("minecraft:cobblestone_stairs"), 67);
+
+    /** The damage-aware reverse map is declared after {@link #METADATA}. */
 
     private static final Map<Integer, Identifier> BY_LEGACY_ID = reverse();
 
@@ -278,7 +304,21 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:bed_head"), 8),
             Map.entry(Identifier.parse("minecraft:bed_head_west"), 9),
             Map.entry(Identifier.parse("minecraft:bed_head_north"), 10),
-            Map.entry(Identifier.parse("minecraft:bed_head_east"), 11));
+            Map.entry(Identifier.parse("minecraft:bed_head_east"), 11),
+            // The collision-shape slice: slab halves (bit 8) and materials,
+            // the stairs' ascending band (E=0 W=1 S=2 N=3, Bukkit Stairs).
+            Map.entry(Identifier.parse("minecraft:stone_slab_top"), 8),
+            Map.entry(Identifier.parse("minecraft:sandstone_slab"), 1),
+            Map.entry(Identifier.parse("minecraft:sandstone_slab_top"), 9),
+            Map.entry(Identifier.parse("minecraft:cobblestone_slab"), 3),
+            Map.entry(Identifier.parse("minecraft:cobblestone_slab_top"), 11),
+            Map.entry(Identifier.parse("minecraft:oak_slab_top"), 8),
+            Map.entry(Identifier.parse("minecraft:oak_stairs_west"), 1),
+            Map.entry(Identifier.parse("minecraft:oak_stairs_south"), 2),
+            Map.entry(Identifier.parse("minecraft:oak_stairs_north"), 3),
+            Map.entry(Identifier.parse("minecraft:cobblestone_stairs_west"), 1),
+            Map.entry(Identifier.parse("minecraft:cobblestone_stairs_south"), 2),
+            Map.entry(Identifier.parse("minecraft:cobblestone_stairs_north"), 3));
 
     /**
      * @return the wire metadata nibble of a block type: the 1.8 data-value
@@ -294,9 +334,37 @@ final class LegacyBlockIds {
         return fluid == null ? 0 : FluidBlocks.levelOf(identifier);
     }
 
+    /** The damage-aware reverse: (legacy id << 4) | metadata -> identifier. */
+    private static final Map<Integer, Identifier> BY_LEGACY_ID_AND_META = reverseWithMetadata();
+
+    private static Map<Integer, Identifier> reverseWithMetadata() {
+        Map<Integer, Identifier> reversed = new HashMap<>();
+        METADATA.forEach((identifier, meta) -> {
+            Integer legacy = BY_IDENTIFIER.get(identifier);
+            if (legacy != null) {
+                reversed.put((legacy << 4) | (meta & 0xF), identifier);
+            }
+        });
+        return Map.copyOf(reversed);
+    }
+
     /** @return the canonical identifier for a legacy id, or empty if unknown. */
     static Optional<Identifier> identifierOf(int legacyId) {
         return Optional.ofNullable(BY_LEGACY_ID.get(legacyId));
+    }
+
+    /**
+     * The metadata-aware resolution (the collision-shape slice): the slab
+     * family shares legacy ids (44's stone/sandstone/cobble, the top bit),
+     * so the slot's damage field disambiguates wherever the metadata table
+     * has an entry for the pair.
+     */
+    static Optional<Identifier> identifierOf(int legacyId, int damage) {
+        Identifier keyed = BY_LEGACY_ID_AND_META.get((legacyId << 4) | (damage & 0xF));
+        if (keyed != null) {
+            return Optional.of(keyed);
+        }
+        return identifierOf(legacyId);
     }
 
     /**

@@ -109,6 +109,25 @@ public final class MobEntity {
         /** @return whether the block containing this point is solid. */
         boolean isSolid(double x, double y, double z);
 
+        /**
+         * The shape-aware point test (the collision-shape slice): whether
+         * the point lies inside the collision shape of its cell — the
+         * default folds to the boolean world so stub worlds keep their
+         * semantics.
+         */
+        default boolean isSolidAt(double x, double y, double z) {
+            return isSolid(x, y, z);
+        }
+
+        /**
+         * The top surface of the collision shape in the point's cell (the
+         * step/ground target); the default mirrors the boolean world's
+         * full-cube snap. Non-solid cells answer negative infinity.
+         */
+        default double supportY(double x, double y, double z) {
+            return isSolid(x, y, z) ? Math.floor(y) + 1.0 : Double.NEGATIVE_INFINITY;
+        }
+
         /** @return the nearest playing player's position within {@code range} blocks, or null. */
         Position nearestPlayer(double x, double y, double z, double range);
 
@@ -704,18 +723,22 @@ public final class MobEntity {
         double newZ = position.z() + moveZ;
 
         // Ground snap / step handling: walking mobs do not scale walls; a
-        // solid block ahead stops horizontal motion — or the body steers
-        // around it (one-block step up first, then the sideways detour).
-        if (world.isSolid(newX, position.y(), newZ)
-                && !world.isSolid(newX, position.y() + 1.0, newZ)
+        // collision shape in the path stops horizontal motion — or the body
+        // steers around it (a half- or full-block step up first, then the
+        // sideways detour). The step lands on the blocking cell's shape
+        // surface (the slab half or the full cube), never above it: the
+        // 1.5-tall fence refuses a step like a wall.
+        if (world.isSolidAt(newX, position.y(), newZ)
+                && !world.isSolidAt(newX, position.y() + 1.0, newZ)
                 && onGround && Math.abs(velocityY) < 0.01) {
-            newY = Math.floor(newY) + 1.0; // one-block step up, the historical auto-jump
-            if (world.isSolid(newX, newY, newZ)) {
+            newY = world.supportY(newX, position.y() + GROUND_EPSILON, newZ);
+            if (newY - position.y() > 1.0 + GROUND_EPSILON // the fence rule
+                    || world.isSolidAt(newX, newY, newZ)) {
                 newX = position.x();
                 newZ = position.z();
                 newY = position.y();
             }
-        } else if (world.isSolid(newX, position.y(), newZ)) {
+        } else if (world.isSolidAt(newX, position.y(), newZ)) {
             newX = position.x();
             newZ = position.z();
             newY = position.y();
@@ -728,8 +751,8 @@ public final class MobEntity {
             }
         }
 
-        if (velocityY <= 0 && world.isSolid(newX, newY - GROUND_EPSILON, newZ)) {
-            newY = Math.floor(newY - GROUND_EPSILON) + 1.0;
+        if (velocityY <= 0 && world.isSolidAt(newX, newY - GROUND_EPSILON, newZ)) {
+            newY = world.supportY(newX, newY - GROUND_EPSILON, newZ);
             velocityY = 0.0;
             onGround = true;
         } else {

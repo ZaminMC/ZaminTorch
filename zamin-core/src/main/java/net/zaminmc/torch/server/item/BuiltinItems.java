@@ -126,6 +126,24 @@ public final class BuiltinItems {
     public static final EngineItemType BED = new EngineItemType(
             Identifier.parse("minecraft:bed"), "Bed", 1);
 
+    // The collision-shape slice (community items.json: stone slab 44, wooden
+    // slab 126, oak stairs 53, cobble stairs 67 — stack 64 block items). The
+    // slab items share the bottom slab block identifiers; the stairs items
+    // keep the bare identifier while the block types carry facing suffixes
+    // (the sign pattern).
+    public static final EngineItemType OAK_SLAB = new EngineItemType(
+            Identifier.parse("minecraft:oak_slab"), "Oak Slab", 64);
+    public static final EngineItemType STONE_SLAB = new EngineItemType(
+            Identifier.parse("minecraft:stone_slab"), "Stone Slab", 64);
+    public static final EngineItemType COBBLESTONE_SLAB = new EngineItemType(
+            Identifier.parse("minecraft:cobblestone_slab"), "Cobblestone Slab", 64);
+    public static final EngineItemType SANDSTONE_SLAB = new EngineItemType(
+            Identifier.parse("minecraft:sandstone_slab"), "Sandstone Slab", 64);
+    public static final EngineItemType OAK_STAIRS = new EngineItemType(
+            Identifier.parse("minecraft:oak_stairs"), "Oak Stairs", 64);
+    public static final EngineItemType COBBLESTONE_STAIRS = new EngineItemType(
+            Identifier.parse("minecraft:cobblestone_stairs"), "Cobblestone Stairs", 64);
+
     // Mob loot (legacy ids from the community dataset: porkchop 319, cooked
     // porkchop 320, raw chicken 365, cooked chicken 366, feather 288,
     // leather 334, rotten flesh 367). Cooked variants smelt from the raw
@@ -345,6 +363,8 @@ public final class BuiltinItems {
                 WOODEN_HOE, STONE_HOE, IRON_HOE, DIAMOND_HOE, GOLDEN_HOE,
                 WHEAT_SEEDS, WHEAT, BREAD, BONE_MEAL, SIGN,
                 OAK_DOOR, LADDER, OAK_FENCE, BED,
+                OAK_SLAB, STONE_SLAB, COBBLESTONE_SLAB, SANDSTONE_SLAB,
+                OAK_STAIRS, COBBLESTONE_STAIRS,
                 BONE, STRING, GUNPOWDER, WOOL, MUTTON, COOKED_MUTTON,
                 BUCKET, WATER_BUCKET, LAVA_BUCKET,
                 FLINT_AND_STEEL, GOLD_INGOT,

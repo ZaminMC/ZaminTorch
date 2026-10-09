@@ -202,6 +202,42 @@ public final class BuiltinRecipes {
                     ing("minecraft:paper", false, 0),
                     ing("minecraft:paper", false, 0),
                     ing("minecraft:paper", false, 0)),
-                    res("minecraft:book", 1, 0))
+                    res("minecraft:book", 1, 0)),
+            // The collision-shape slice (community recipes.json): a row of
+            // three yields six slabs; the 2x3 stair pattern yields four.
+            CraftingRecipe.shaped(new Ingredient[][] {
+                    { ing("minecraft:oak_planks", false, 0),
+                      ing("minecraft:oak_planks", false, 0),
+                      ing("minecraft:oak_planks", false, 0) }
+            },
+                    res("minecraft:oak_slab", 6, 0)),
+            CraftingRecipe.shaped(new Ingredient[][] {
+                    { ing("minecraft:stone", false, 0),
+                      ing("minecraft:stone", false, 0),
+                      ing("minecraft:stone", false, 0) }
+            },
+                    res("minecraft:stone_slab", 6, 0)),
+            CraftingRecipe.shaped(new Ingredient[][] {
+                    { ing("minecraft:cobblestone", false, 0),
+                      ing("minecraft:cobblestone", false, 0),
+                      ing("minecraft:cobblestone", false, 0) }
+            },
+                    res("minecraft:cobblestone_slab", 6, 0)),
+            CraftingRecipe.shaped(new Ingredient[][] {
+                    { ing("minecraft:sandstone", false, 0),
+                      ing("minecraft:sandstone", false, 0),
+                      ing("minecraft:sandstone", false, 0) }
+            },
+                    res("minecraft:sandstone_slab", 6, 0)),
+            CraftingRecipe.shaped(new Ingredient[][] {
+                    { ing("minecraft:oak_planks", false, 0), null, ing("minecraft:oak_planks", false, 0) },
+                    { ing("minecraft:oak_planks", false, 0), ing("minecraft:oak_planks", false, 0), ing("minecraft:oak_planks", false, 0) }
+            },
+                    res("minecraft:oak_stairs", 4, 0)),
+            CraftingRecipe.shaped(new Ingredient[][] {
+                    { ing("minecraft:cobblestone", false, 0), null, ing("minecraft:cobblestone", false, 0) },
+                    { ing("minecraft:cobblestone", false, 0), ing("minecraft:cobblestone", false, 0), ing("minecraft:cobblestone", false, 0) }
+            },
+                    res("minecraft:cobblestone_stairs", 4, 0))
     );
 }

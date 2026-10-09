@@ -112,6 +112,26 @@ public final class BlockLightTable {
             Map.entry(Identifier.parse("minecraft:oak_door_upper"), new LightData(0, 15)),
             Map.entry(Identifier.parse("minecraft:oak_door_upper_open"), new LightData(0, 15)),
             Map.entry(Identifier.parse("minecraft:oak_fence"), new LightData(0, 15)),
+            // The collision-shape slice: slabs and stairs are opaque partial
+            // cubes — filter 15 like their parent materials (the light
+            // engine's cell model: one value per cell, the half-block nuance
+            // stays out of scope).
+            Map.entry(Identifier.parse("minecraft:oak_slab"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:oak_slab_top"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:stone_slab"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:stone_slab_top"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:cobblestone_slab"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:cobblestone_slab_top"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:sandstone_slab"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:sandstone_slab_top"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:oak_stairs_east"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:oak_stairs_west"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:oak_stairs_south"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:oak_stairs_north"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:cobblestone_stairs_east"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:cobblestone_stairs_west"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:cobblestone_stairs_south"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:cobblestone_stairs_north"), new LightData(0, 15)),
             Map.entry(Identifier.parse("minecraft:bed"), new LightData(0, 0)),
             Map.entry(Identifier.parse("minecraft:bed_west"), new LightData(0, 0)),
             Map.entry(Identifier.parse("minecraft:bed_north"), new LightData(0, 0)),

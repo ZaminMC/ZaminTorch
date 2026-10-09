@@ -205,6 +205,46 @@ public final class BuiltinBlocks {
     public static final EngineBlockType BED_HEAD_EAST = new EngineBlockType(
             Identifier.parse("minecraft:bed_head_east"), "Bed", 11);
 
+    // The collision-shape slice (community blocks.json ids): slabs ride the
+    // historical ids 44 (stone family) and 126 (wooden) with the half in the
+    // metadata nibble (bit 0x8 = top; 44's material 0=stone 1=sandstone
+    // 3=cobble), stairs ride 53 (oak) and 67 (cobble) with the ascending
+    // direction in the metadata (Bukkit's Stairs band E=0 W=1 S=2 N=3).
+    // Each half/facing is its own per-state block type (the fluid model);
+    // the shapes live in WorldSolidity (bottom half, top half, fence 1.5).
+    public static final EngineBlockType OAK_SLAB = new EngineBlockType(
+            Identifier.parse("minecraft:oak_slab"), "Oak Slab");
+    public static final EngineBlockType OAK_SLAB_TOP = new EngineBlockType(
+            Identifier.parse("minecraft:oak_slab_top"), "Oak Slab", 8);
+    public static final EngineBlockType STONE_SLAB = new EngineBlockType(
+            Identifier.parse("minecraft:stone_slab"), "Stone Slab");
+    public static final EngineBlockType STONE_SLAB_TOP = new EngineBlockType(
+            Identifier.parse("minecraft:stone_slab_top"), "Stone Slab", 8);
+    public static final EngineBlockType COBBLESTONE_SLAB = new EngineBlockType(
+            Identifier.parse("minecraft:cobblestone_slab"), "Cobblestone Slab", 3);
+    public static final EngineBlockType COBBLESTONE_SLAB_TOP = new EngineBlockType(
+            Identifier.parse("minecraft:cobblestone_slab_top"), "Cobblestone Slab", 11);
+    public static final EngineBlockType SANDSTONE_SLAB = new EngineBlockType(
+            Identifier.parse("minecraft:sandstone_slab"), "Sandstone Slab", 1);
+    public static final EngineBlockType SANDSTONE_SLAB_TOP = new EngineBlockType(
+            Identifier.parse("minecraft:sandstone_slab_top"), "Sandstone Slab", 9);
+    public static final EngineBlockType OAK_STAIRS_EAST = new EngineBlockType(
+            Identifier.parse("minecraft:oak_stairs_east"), "Oak Stairs");
+    public static final EngineBlockType OAK_STAIRS_WEST = new EngineBlockType(
+            Identifier.parse("minecraft:oak_stairs_west"), "Oak Stairs", 1);
+    public static final EngineBlockType OAK_STAIRS_SOUTH = new EngineBlockType(
+            Identifier.parse("minecraft:oak_stairs_south"), "Oak Stairs", 2);
+    public static final EngineBlockType OAK_STAIRS_NORTH = new EngineBlockType(
+            Identifier.parse("minecraft:oak_stairs_north"), "Oak Stairs", 3);
+    public static final EngineBlockType COBBLESTONE_STAIRS_EAST = new EngineBlockType(
+            Identifier.parse("minecraft:cobblestone_stairs_east"), "Cobblestone Stairs");
+    public static final EngineBlockType COBBLESTONE_STAIRS_WEST = new EngineBlockType(
+            Identifier.parse("minecraft:cobblestone_stairs_west"), "Cobblestone Stairs", 1);
+    public static final EngineBlockType COBBLESTONE_STAIRS_SOUTH = new EngineBlockType(
+            Identifier.parse("minecraft:cobblestone_stairs_south"), "Cobblestone Stairs", 2);
+    public static final EngineBlockType COBBLESTONE_STAIRS_NORTH = new EngineBlockType(
+            Identifier.parse("minecraft:cobblestone_stairs_north"), "Cobblestone Stairs", 3);
+
     private BuiltinBlocks() {
     }
 
@@ -278,6 +318,22 @@ public final class BuiltinBlocks {
                 .register(BED_HEAD_SOUTH)
                 .register(BED_HEAD_WEST)
                 .register(BED_HEAD_NORTH)
-                .register(BED_HEAD_EAST);
+                .register(BED_HEAD_EAST)
+                .register(OAK_SLAB)
+                .register(OAK_SLAB_TOP)
+                .register(STONE_SLAB)
+                .register(STONE_SLAB_TOP)
+                .register(COBBLESTONE_SLAB)
+                .register(COBBLESTONE_SLAB_TOP)
+                .register(SANDSTONE_SLAB)
+                .register(SANDSTONE_SLAB_TOP)
+                .register(OAK_STAIRS_EAST)
+                .register(OAK_STAIRS_WEST)
+                .register(OAK_STAIRS_SOUTH)
+                .register(OAK_STAIRS_NORTH)
+                .register(COBBLESTONE_STAIRS_EAST)
+                .register(COBBLESTONE_STAIRS_WEST)
+                .register(COBBLESTONE_STAIRS_SOUTH)
+                .register(COBBLESTONE_STAIRS_NORTH);
     }
 }

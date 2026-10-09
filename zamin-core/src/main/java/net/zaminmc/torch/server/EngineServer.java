@@ -216,6 +216,9 @@ public final class EngineServer implements Server, EngineBridge {
     /** Experience orbs get the next band above the players. */
     private static final int ORB_ID_BASE = PLAYER_ID_BASE + 1_000_000;
 
+    /** The shared shape-aware physics query (items, falling blocks, projectiles). */
+    private final ShapeGround shapeGround = new ShapeGround();
+
     /** The game-feedback bus (sounds, particles); created at boot, read-only after. */
     private final FxManager fxManager = new FxManager();
     /** The engine's gameplay rolls (tick-thread confined; drops, spawns, floods). */
@@ -313,7 +316,7 @@ public final class EngineServer implements Server, EngineBridge {
                 ticker.attachWorld(world);
                 // Item entities and drops: simulation-owned systems on the world owner.
                 ItemEntityManager itemEntities = new ItemEntityManager(
-                        this::solidAt,
+                        shapeGround,
                         new java.util.Random(),
                         ENTITY_ID_BASE);
                 this.itemEntities = itemEntities;
@@ -351,7 +354,7 @@ public final class EngineServer implements Server, EngineBridge {
                 // Falling blocks (§470): the block→entity→block transition for
                 // gravity blocks; occupied landings drop as items.
                 FallingBlockEntityManager falling = new FallingBlockEntityManager(
-                        this::solidAt,
+                        shapeGround,
                         world,
                         (position, stack) -> itemEntities.spawnDropAtBlock(
                                 new Position(position.x(), position.y(), position.z()), stack,
@@ -384,7 +387,7 @@ public final class EngineServer implements Server, EngineBridge {
                 // Projectiles (arrows, shards): the tick-thread physics system,
                 // with damage semantics staying here in the combat callbacks.
                 ProjectileManager projectiles = new ProjectileManager(
-                        this::solidAt,
+                        shapeGround,
                         new ProjectileHitResolver(),
                         new ProjectileCombatSink(),
                         fxManager,
@@ -2345,19 +2348,27 @@ public final class EngineServer implements Server, EngineBridge {
      * (the crafting table) or the use degrades to a placement proposal. Safe
      * from any thread.
      */
+    public void useItemOnBlock(PlayerSession session, net.zaminmc.torch.block.BlockPosition clicked, int face,
+                               java.util.Optional<net.zaminmc.torch.block.BlockType> creativeHeld,
+                               java.util.function.IntConsumer onTableOpened) {
+        useItemOnBlock(session, clicked, face, creativeHeld, 0, onTableOpened);
+    }
+
     @Override
     public void useItemOnBlock(PlayerSession session, net.zaminmc.torch.block.BlockPosition clicked, int face,
                                java.util.Optional<net.zaminmc.torch.block.BlockType> creativeHeld,
+                               int cursorY,
                                java.util.function.IntConsumer onTableOpened) {
         Objects.requireNonNull(session, "session");
         Objects.requireNonNull(clicked, "clicked");
         Objects.requireNonNull(creativeHeld, "creativeHeld");
         Objects.requireNonNull(onTableOpened, "onTableOpened");
-        ticker.submit(() -> useItemOnBlockOnTick(session, clicked, face, creativeHeld, onTableOpened));
+        ticker.submit(() -> useItemOnBlockOnTick(session, clicked, face, creativeHeld, cursorY, onTableOpened));
     }
 
     private void useItemOnBlockOnTick(PlayerSession session, net.zaminmc.torch.block.BlockPosition clicked,
                                       int face, java.util.Optional<net.zaminmc.torch.block.BlockType> creativeHeld,
+                                      int cursorY,
                                       java.util.function.IntConsumer onTableOpened) {
         net.zaminmc.torch.block.BlockType current = world.getBlock(clicked);
         if (WorldSolidity.isFurnaceBlock(current.identifier())) {
@@ -2418,6 +2429,16 @@ public final class EngineServer implements Server, EngineBridge {
                 || creativeHeld.map(t -> t.identifier().value().equals("bed")).orElse(false)) {
             placeBedOnTick(session, clicked, face, creativeHeld);
             return; // the two-half bed overrides the generic placement
+        }
+        if (heldId.endsWith("_slab")
+                || creativeHeld.map(t -> isSlabIdentifier(t.identifier().value())).orElse(false)) {
+            placeSlabOnTick(session, clicked, face, creativeHeld, cursorY);
+            return; // the half/double rule overrides the generic placement
+        }
+        if (heldId.equals("minecraft:oak_stairs") || heldId.equals("minecraft:cobblestone_stairs")
+                || creativeHeld.map(t -> isStairsIdentifier(t.identifier().value())).orElse(false)) {
+            placeStairsOnTick(session, clicked, face, creativeHeld);
+            return; // the ascending-facing rule overrides the generic placement
         }
         blockInteraction.placeFromUseOnTick(session, clicked, face, creativeHeld);
     }
@@ -2870,6 +2891,160 @@ public final class EngineServer implements Server, EngineBridge {
         BlockType lower = closed[(int) (yaw / 90.0) % 4];
         world.setBlock(target, lower);
         world.setBlock(target.offset(0, 1, 0), BuiltinBlocks.OAK_DOOR_UPPER);
+        if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE) {
+            session.inventory().consumeHeld(1);
+            publishInventoryChanged(session);
+        }
+    }
+
+    /** @return whether the identifier value belongs to the slab family. */
+    private static boolean isSlabIdentifier(String value) {
+        return value.endsWith("_slab") || value.endsWith("_slab_top");
+    }
+
+    /** @return whether the identifier value belongs to the stairs family. */
+    private static boolean isStairsIdentifier(String value) {
+        return value.startsWith("oak_stairs") || value.startsWith("cobblestone_stairs");
+    }
+
+    /**
+     * The slab family of a slab identifier (item or per-state block):
+     * {bottom half, top half, the double-slab block} — the community
+     * doubles are the parent materials (oak double slab = planks, the
+     * stone-family doubles = their cubes).
+     */
+    private static net.zaminmc.torch.block.BlockType[] slabFamilyOf(String value) {
+        if (value.startsWith("oak_slab")) {
+            return new net.zaminmc.torch.block.BlockType[]{
+                    BuiltinBlocks.OAK_SLAB, BuiltinBlocks.OAK_SLAB_TOP, BuiltinBlocks.OAK_PLANKS};
+        }
+        if (value.startsWith("stone_slab")) {
+            return new net.zaminmc.torch.block.BlockType[]{
+                    BuiltinBlocks.STONE_SLAB, BuiltinBlocks.STONE_SLAB_TOP, BuiltinBlocks.STONE};
+        }
+        if (value.startsWith("cobblestone_slab")) {
+            return new net.zaminmc.torch.block.BlockType[]{
+                    BuiltinBlocks.COBBLESTONE_SLAB, BuiltinBlocks.COBBLESTONE_SLAB_TOP,
+                    BuiltinBlocks.COBBLESTONE};
+        }
+        if (value.startsWith("sandstone_slab")) {
+            return new net.zaminmc.torch.block.BlockType[]{
+                    BuiltinBlocks.SANDSTONE_SLAB, BuiltinBlocks.SANDSTONE_SLAB_TOP,
+                    BuiltinBlocks.SANDSTONE};
+        }
+        return null;
+    }
+
+    /**
+     * The stairs family of a stairs identifier: the four ascending states
+     * in the look-band order {south, west, north, east} (the bed band).
+     */
+    private static net.zaminmc.torch.block.BlockType[] stairsFamilyOf(String value) {
+        if (value.startsWith("oak_stairs")) {
+            return new net.zaminmc.torch.block.BlockType[]{
+                    BuiltinBlocks.OAK_STAIRS_SOUTH, BuiltinBlocks.OAK_STAIRS_WEST,
+                    BuiltinBlocks.OAK_STAIRS_NORTH, BuiltinBlocks.OAK_STAIRS_EAST};
+        }
+        if (value.startsWith("cobblestone_stairs")) {
+            return new net.zaminmc.torch.block.BlockType[]{
+                    BuiltinBlocks.COBBLESTONE_STAIRS_SOUTH, BuiltinBlocks.COBBLESTONE_STAIRS_WEST,
+                    BuiltinBlocks.COBBLESTONE_STAIRS_NORTH, BuiltinBlocks.COBBLESTONE_STAIRS_EAST};
+        }
+        return null;
+    }
+
+    /**
+     * The slab placement (the historical ItemStep): the half rides the
+     * clicked face — DOWN hangs the top half, UP lays the bottom, the
+     * sides split on the cursor byte (the hit offset within the face,
+     * 16ths — the upper half of the face means the top slab). A use
+     * against the same family's slab doubles it into the parent block.
+     * Tick-thread context.
+     */
+    private void placeSlabOnTick(PlayerSession session, BlockPosition clicked, int face,
+                                 java.util.Optional<BlockType> creativeHeld, int cursorY) {
+        String held = heldIdentifierOf(session, creativeHeld);
+        net.zaminmc.torch.block.BlockType[] family = held == null ? null : slabFamilyOf(held);
+        if (family == null) {
+            return;
+        }
+        // The vanilla double (the historical ItemBlock.onItemUse): the use
+        // lands on the family's own half — the full block fills the clicked
+        // cell whatever face the cursor says.
+        String stem = family[0].identifier().toString().substring("minecraft:".length());
+        BlockType clickedBlock = world.getBlock(clicked);
+        if (isSlabIdentifier(clickedBlock.identifier().value())
+                && clickedBlock.identifier().value().startsWith(stem)) {
+            if (distanceSquaredEyeToBlock(session.position(), clicked) > 4.5 * 4.5) {
+                return;
+            }
+            world.setBlock(clicked, family[2]);
+            consumePlaced(session, creativeHeld);
+            return;
+        }
+        BlockPosition target = offsetByFace(clicked, face);
+        if (target == null || world.getBlock(clicked).equals(world.airType())) {
+            return;
+        }
+        BlockType existing = world.getBlock(target);
+        if (!existing.equals(world.airType())
+                || distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5
+                || intersectsPlayerBox(session.position(), target)) {
+            return;
+        }
+        if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE
+                && session.inventory().held().isEmpty()) {
+            return;
+        }
+        // Glowstone's BlockStep convention: DOWN face hangs the top half,
+        // UP lays the bottom, the sides split on the cursor's upper half.
+        boolean top = face == 0 || (face != 1 && (cursorY & 0xFF) >= 8);
+        world.setBlock(target, top ? family[1] : family[0]);
+        consumePlaced(session, creativeHeld);
+    }
+
+    /**
+     * The stairs placement (the historical ItemStairs): the ascending
+     * direction follows the placer's cardinal look — the walk-up feel —
+     * with the Bukkit band (E=0 W=1 S=2 N=3). Tick-thread context.
+     */
+    private void placeStairsOnTick(PlayerSession session, BlockPosition clicked, int face,
+                                   java.util.Optional<BlockType> creativeHeld) {
+        String held = heldIdentifierOf(session, creativeHeld);
+        net.zaminmc.torch.block.BlockType[] family = held == null ? null : stairsFamilyOf(held);
+        if (family == null) {
+            return;
+        }
+        BlockPosition target = offsetByFace(clicked, face);
+        if (target == null || world.getBlock(clicked).equals(world.airType())
+                || !world.getBlock(target).equals(world.airType())) {
+            return;
+        }
+        if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5
+                || intersectsPlayerBox(session.position(), target)) {
+            return;
+        }
+        if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE
+                && session.inventory().held().isEmpty()) {
+            return;
+        }
+        double yaw = ((session.rotation().yaw() % 360.0) + 360.0 + 45.0) % 360.0;
+        world.setBlock(target, family[(int) (yaw / 90.0) % 4]);
+        consumePlaced(session, creativeHeld);
+    }
+
+    /** The held identifier: the creative claim first, else the real stack. */
+    private String heldIdentifierOf(PlayerSession session, java.util.Optional<BlockType> creativeHeld) {
+        if (creativeHeld.isPresent()) {
+            return creativeHeld.get().identifier().value();
+        }
+        return session.inventory().held().isEmpty()
+                ? null
+                : session.inventory().held().type().identifier().value();
+    }
+
+    /** The survival consume of one placed item (the shared placement tail). */
+    private void consumePlaced(PlayerSession session, java.util.Optional<BlockType> creativeHeld) {
         if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE) {
             session.inventory().consumeHeld(1);
             publishInventoryChanged(session);
@@ -3459,6 +3634,16 @@ public final class EngineServer implements Server, EngineBridge {
         @Override
         public boolean isSolid(double x, double y, double z) {
             return solidAt(x, y, z);
+        }
+
+        @Override
+        public boolean isSolidAt(double x, double y, double z) {
+            return solidAtPoint(x, y, z);
+        }
+
+        @Override
+        public double supportY(double x, double y, double z) {
+            return supportYAt(x, y, z);
         }
 
         @Override
@@ -4888,6 +5073,65 @@ public final class EngineServer implements Server, EngineBridge {
             return false;
         }
         return WorldSolidity.isSolid(world.getBlock(blockAt(x, y, z)));
+    }
+
+    /**
+     * The shape-aware point test (the collision-shape slice): the same
+     * bounds guard, answered by the block's collision shape at {@code y}
+     * (a bottom slab's upper half is open, a top slab's lower half is open,
+     * the fence fills its cell).
+     */
+    private boolean solidAtPoint(double x, double y, double z) {
+        if (y < net.zaminmc.torch.block.BlockPosition.MIN_Y
+                || y > net.zaminmc.torch.block.BlockPosition.MAX_Y) {
+            return false;
+        }
+        return WorldSolidity.isSolidAt(world.getBlock(blockAt(x, y, z)), y);
+    }
+
+    /**
+     * The shape's top surface in the point's cell (the support bodies rest
+     * on); outside the world column there is no support.
+     */
+    private double supportYAt(double x, double y, double z) {
+        if (y < net.zaminmc.torch.block.BlockPosition.MIN_Y
+                || y > net.zaminmc.torch.block.BlockPosition.MAX_Y) {
+            return Double.NEGATIVE_INFINITY;
+        }
+        return WorldSolidity.supportY(world.getBlock(blockAt(x, y, z)), y);
+    }
+
+    /**
+     * One adapter serves the three physics query interfaces (items, falling
+     * blocks, projectiles): the boolean methods keep the full-cube rule for
+     * existing callers, the shape methods answer the collision-shape slice.
+     */
+    private final class ShapeGround implements
+            ItemEntity.Ground, FallingBlockEntity.Ground, ProjectileManager.SolidQuery {
+        @Override
+        public boolean isSolid(double x, double y, double z) {
+            return solidAt(x, y, z);
+        }
+
+        @Override
+        public boolean solid(double x, double y, double z) {
+            return solidAt(x, y, z);
+        }
+
+        @Override
+        public boolean isSolidAt(double x, double y, double z) {
+            return solidAtPoint(x, y, z);
+        }
+
+        @Override
+        public boolean solidAt(double x, double y, double z) {
+            return solidAtPoint(x, y, z);
+        }
+
+        @Override
+        public double supportY(double x, double y, double z) {
+            return supportYAt(x, y, z);
+        }
     }
 
     /** Bounds-safe fluid lookup: nothing outside the world column is fluid. */
