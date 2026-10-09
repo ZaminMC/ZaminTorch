@@ -245,6 +245,14 @@ public final class BuiltinBlocks {
     public static final EngineBlockType COBBLESTONE_STAIRS_NORTH = new EngineBlockType(
             Identifier.parse("minecraft:cobblestone_stairs_north"), "Cobblestone Stairs", 3);
 
+    // The rail (community blocks.json: block 66, the flat orientation in
+    // the metadata nibble: 0 = north-south, 1 = east-west). Walk-through
+    // (the vanilla rail never blocks a body); the minecart reads the axis.
+    public static final EngineBlockType RAIL = new EngineBlockType(
+            Identifier.parse("minecraft:rail"), "Rail");
+    public static final EngineBlockType RAIL_EW = new EngineBlockType(
+            Identifier.parse("minecraft:rail_ew"), "Rail", 1);
+
     private BuiltinBlocks() {
     }
 
@@ -334,6 +342,8 @@ public final class BuiltinBlocks {
                 .register(COBBLESTONE_STAIRS_EAST)
                 .register(COBBLESTONE_STAIRS_WEST)
                 .register(COBBLESTONE_STAIRS_SOUTH)
-                .register(COBBLESTONE_STAIRS_NORTH);
+                .register(COBBLESTONE_STAIRS_NORTH)
+                .register(RAIL)
+                .register(RAIL_EW);
     }
 }

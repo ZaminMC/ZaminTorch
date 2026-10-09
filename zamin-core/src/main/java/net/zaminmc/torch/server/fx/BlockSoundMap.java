@@ -51,6 +51,8 @@ public final class BlockSoundMap {
             Map.entry("minecraft:cobblestone_stairs_west", "dig.stone"),
             Map.entry("minecraft:cobblestone_stairs_south", "dig.stone"),
             Map.entry("minecraft:cobblestone_stairs_north", "dig.stone"),
+            Map.entry("minecraft:rail", "dig.stone"),
+            Map.entry("minecraft:rail_ew", "dig.stone"),
             Map.entry("minecraft:sugar_cane", "dig.grass"),
             Map.entry("minecraft:cactus", "dig.wool"),
             Map.entry("minecraft:furnace_lit", "dig.stone"),

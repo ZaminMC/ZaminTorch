@@ -61,6 +61,10 @@ import net.zaminmc.torch.server.player.PlayerSession;
 import net.zaminmc.torch.server.player.PlayerSnapshot;
 import net.zaminmc.torch.server.entity.projectile.ProjectileEntity;
 import net.zaminmc.torch.server.entity.projectile.ProjectileManager;
+import net.zaminmc.torch.server.entity.vehicle.BoatEntity;
+import net.zaminmc.torch.server.entity.vehicle.MinecartEntity;
+import net.zaminmc.torch.server.entity.vehicle.VehicleEntity;
+import net.zaminmc.torch.server.entity.vehicle.VehicleManager;
 import net.zaminmc.torch.server.world.EngineChunk;
 import net.zaminmc.torch.server.world.EngineWorld;
 import net.zaminmc.torch.server.world.DeltaWorldStorage;
@@ -215,6 +219,8 @@ public final class EngineServer implements Server, EngineBridge {
     public static final int PLAYER_ID_BASE = PROJECTILE_ID_BASE + 1_000_000;
     /** Experience orbs get the next band above the players. */
     private static final int ORB_ID_BASE = PLAYER_ID_BASE + 1_000_000;
+    /** Vehicles (boats, minecarts) get the band above the orbs. */
+    private static final int VEHICLE_ID_BASE = ORB_ID_BASE + 1_000_000;
 
     /** The shared shape-aware physics query (items, falling blocks, projectiles). */
     private final ShapeGround shapeGround = new ShapeGround();
@@ -225,6 +231,8 @@ public final class EngineServer implements Server, EngineBridge {
     private final java.util.Random gameplayRandom = new java.util.Random();
     /** The airborne projectiles; constructed at boot after the world exists. */
     private volatile ProjectileManager projectileManager;
+    /** The vehicles (boats, minecarts); created at boot, tick-thread owned. */
+    private volatile net.zaminmc.torch.server.entity.vehicle.VehicleManager vehicleManager;
 
     /** The FX pitch/jitter source (cosmetic rolls only, never gameplay rules). */
     private final java.util.Random fxRandom = new java.util.Random();
@@ -395,11 +403,26 @@ public final class EngineServer implements Server, EngineBridge {
                         PROJECTILE_ID_BASE);
                 this.projectileManager = projectiles;
                 projectiles.addListener(new ProjectileEventDispatch());
+                // Vehicles (§ vehicles slice): boats and minecarts on the
+                // shared body model; the engine owns the mounted rider.
+                VehicleManager vehicles = new VehicleManager(
+                        new VehicleWorldQuery(),
+                        vehicle -> itemEntities.spawnDropAtBlock(
+                                new Position(vehicle.position().x(), vehicle.position().y() + 0.3,
+                                        vehicle.position().z()),
+                                vehicleDropStack(vehicle),
+                                ItemEntity.PICKUP_DELAY_DROP_TICKS),
+                        new java.util.Random(),
+                        VEHICLE_ID_BASE);
+                this.vehicleManager = vehicles;
+                vehicles.addListener(new VehicleEventDispatch());
                 ticker.setTickHandler(() -> {
                     blockUpdateSystem.tick(); // §466: scheduled updates (falls start here)
                     fluidSystem.tick();       // §472 pattern: pours, streams, contact
                     falling.tick();           // §470: falling physics + landings
                     projectileManager.tick(); // ranged combat physics
+                    vehicles.tick();          // the boats and minecarts
+                    tickVehicleRiders(vehicles);
                     furnaceManager.tick(world, itemEntities);
                     chestManager.tick(world);
                     signManager.tick(world);
@@ -1242,6 +1265,23 @@ public final class EngineServer implements Server, EngineBridge {
                     || mobManager == null) {
                 return;
             }
+            // Vehicles take the punch first (the breakable bodies).
+            net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle =
+                    vehicleManager != null ? vehicleManager.byId(targetEntityId) : null;
+            if (vehicle != null) {
+                Position eye = attacker.position();
+                Position target = vehicle.position();
+                double dx = target.x() - eye.x();
+                double dy = target.y() - eye.y();
+                double dz = target.z() - eye.z();
+                if (Math.sqrt(dx * dx + dz * dz) > MELEE_REACH + 0.7
+                        || dy < -2.0 || dy > 4.0) {
+                    return; // out of reach: the server-side refusal
+                }
+                vehicleManager.hurt(vehicle, 1.0f);
+                attacker.addExhaustion(ATTACK_EXHAUSTION);
+                return;
+            }
             MobEntity mob = mobManager.byId(targetEntityId);
             if (mob == null || mob.dead()) {
                 return; // already gone: nothing to hit
@@ -1419,6 +1459,13 @@ public final class EngineServer implements Server, EngineBridge {
      */
     private void dieOnTick(PlayerSession session, String causeMessage) {
         session.markDead();
+        // The seat opens on death (the vanilla body leaves the vehicle).
+        if (vehicleManager != null && session.ridingVehicleId() >= 0) {
+            var ridden = vehicleManager.byId(session.ridingVehicleId());
+            if (ridden != null) {
+                vehicleManager.dismount(ridden);
+            }
+        }
         returnWindowCarriedItems(session, true);
         // The death XP scatter (the historical 7-per-level rule, capped at
         // 100) lands at the body before the total resets — vanilla drops the
@@ -2440,6 +2487,21 @@ public final class EngineServer implements Server, EngineBridge {
             placeStairsOnTick(session, clicked, face, creativeHeld);
             return; // the ascending-facing rule overrides the generic placement
         }
+        if (heldId.equals("minecraft:rail")
+                || creativeHeld.map(t -> WorldSolidity.isRail(t.identifier())).orElse(false)) {
+            placeRailOnTick(session, clicked, face, creativeHeld);
+            return; // the rail's look orientation overrides the generic placement
+        }
+        if (heldId.equals("minecraft:boat")
+                || creativeHeld.map(t -> t.identifier().value().equals("boat")).orElse(false)) {
+            spawnVehicleUseOnTick(session, clicked, face, creativeHeld, true);
+            return; // the boat spawns at the water the use names
+        }
+        if (heldId.equals("minecraft:minecart")
+                || creativeHeld.map(t -> t.identifier().value().equals("minecart")).orElse(false)) {
+            spawnVehicleUseOnTick(session, clicked, face, creativeHeld, false);
+            return; // the minecart spawns on the rail the use names
+        }
         blockInteraction.placeFromUseOnTick(session, clicked, face, creativeHeld);
     }
 
@@ -3033,6 +3095,95 @@ public final class EngineServer implements Server, EngineBridge {
         consumePlaced(session, creativeHeld);
     }
 
+    /**
+     * The rail placement (the historical ItemRail): the flat orientation
+     * follows the placer's look (north-south or east-west), the cell must
+     * be open with a solid floor beneath (the vanilla rail gate). Tick-thread.
+     */
+    private void placeRailOnTick(PlayerSession session, BlockPosition clicked, int face,
+                                 java.util.Optional<BlockType> creativeHeld) {
+        BlockPosition target = offsetByFace(clicked, face);
+        if (target == null || world.getBlock(clicked).equals(world.airType())
+                || !world.getBlock(target).equals(world.airType())) {
+            return;
+        }
+        if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5
+                || intersectsPlayerBox(session.position(), target)) {
+            return;
+        }
+        if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE
+                && session.inventory().held().isEmpty()) {
+            return;
+        }
+        BlockType floor = world.getBlock(target.offset(0, -1, 0));
+        if (!WorldSolidity.isSolid(floor)) {
+            return; // the rail needs its solid bed (the vanilla gate)
+        }
+        double yaw = ((session.rotation().yaw() % 360.0) + 360.0 + 45.0) % 360.0;
+        int lookBand = (int) (yaw / 90.0) % 4; // 0=S,1=W,2=N,3=E
+        // The look along an axis lays the track along it: S/N -> north-south.
+        world.setBlock(target, (lookBand == 0 || lookBand == 2)
+                ? BuiltinBlocks.RAIL : BuiltinBlocks.RAIL_EW);
+        consumePlaced(session, creativeHeld);
+    }
+
+    /**
+     * The vehicle spawn use (the historical ItemBoat/ItemMinecart): a boat
+     * spawns at the water the use names (or on the open ground — the 1.8
+     * boats paddle ashore); a minecart only spawns on a rail. Tick-thread.
+     */
+    private void spawnVehicleUseOnTick(PlayerSession session, BlockPosition clicked, int face,
+                                       java.util.Optional<BlockType> creativeHeld, boolean boat) {
+        BlockPosition target = offsetByFace(clicked, face);
+        if (target == null) {
+            return;
+        }
+        if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5) {
+            return;
+        }
+        if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE
+                && session.inventory().held().isEmpty()) {
+            return;
+        }
+        if (vehicleManager == null) {
+            return;
+        }
+        Position spawnAt;
+        if (boat) {
+            // The 1.8 boat raytrace stops AT fluids: the use usually names
+            // the water cell itself (face 1 on its surface), so the clicked
+            // cell wins, then the face-offset cell, then the shore rule.
+            BlockType atClicked = world.getBlock(clicked);
+            BlockType atTarget = world.getBlock(target);
+            if (FluidBlocks.kindOf(atClicked.identifier()) != null) {
+                spawnAt = new Position(clicked.x() + 0.5, clicked.y() + 0.4, clicked.z() + 0.5);
+            } else if (FluidBlocks.kindOf(atTarget.identifier()) != null) {
+                spawnAt = new Position(target.x() + 0.5, target.y() + 0.4, target.z() + 0.5);
+            } else if (atTarget.equals(world.airType())
+                    && WorldSolidity.isSolid(world.getBlock(target.offset(0, -1, 0)))) {
+                spawnAt = new Position(target.x() + 0.5, target.y(), target.z() + 0.5);
+            } else {
+                return; // no water, no open ground: the vanilla refusal
+            }
+        } else {
+            // The minecart's rail: the clicked cell first (the client aims
+            // at the rail's top face, so the offset cell sits above it).
+            BlockPosition railCell = WorldSolidity.isRail(world.getBlock(target).identifier())
+                    ? target
+                    : WorldSolidity.isRail(world.getBlock(clicked).identifier()) ? clicked : null;
+            if (railCell == null) {
+                return; // minecarts only spawn on rails (the vanilla gate)
+            }
+            spawnAt = new Position(railCell.x() + 0.5, railCell.y() + 0.06, railCell.z() + 0.5);
+        }
+        if (boat) {
+            vehicleManager.spawnBoat(spawnAt);
+        } else {
+            vehicleManager.spawnMinecart(spawnAt);
+        }
+        consumePlaced(session, creativeHeld);
+    }
+
     /** The held identifier: the creative claim first, else the real stack. */
     private String heldIdentifierOf(PlayerSession session, java.util.Optional<BlockType> creativeHeld) {
         if (creativeHeld.isPresent()) {
@@ -3089,14 +3240,56 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /**
-     * A player right-clicked a mob (Use Entity 0x02, mouse 0/2): the shear
-     * path — shears in hand on a wooly kind take its coat. Safe from any
-     * thread; the application runs on the tick thread.
+     * The mounted player's steering (Steer Vehicle 0x0C): the input feeds
+     * the ridden vehicle's next tick; the jump bit's unmount flag (0x02)
+     * opens the seat. Safe from any thread; the application runs on the
+     * tick thread.
+     */
+    public void steerVehicle(PlayerSession player, float sideways, float forward,
+                             boolean jump, boolean unmount) {
+        Objects.requireNonNull(player, "player");
+        ticker.submit(() -> {
+            if (player.state() != PlayerState.PLAYING || player.dead()
+                    || vehicleManager == null) {
+                return;
+            }
+            var vehicle = vehicleManager.byId(player.ridingVehicleId());
+            if (vehicle == null) {
+                return; // not riding (or the vehicle broke this tick)
+            }
+            if (unmount) {
+                vehicleManager.dismount(vehicle);
+                return;
+            }
+            vehicle.steer(new net.zaminmc.torch.server.entity.vehicle.VehicleEntity.SteerInput(
+                    sideways, forward, jump, false));
+        });
+    }
+
+    /**
+     * A player right-clicked a mob or vehicle (Use Entity 0x02, mouse 0/2):
+     * a vehicle within reach takes the seat (the mount); a wooly mob with
+     * shears in hand loses its coat. Safe from any thread; the application
+     * runs on the tick thread.
      */
     public void interactEntity(PlayerSession player, int targetEntityId) {
         Objects.requireNonNull(player, "player");
         ticker.submit(() -> {
             if (player.state() != PlayerState.PLAYING || player.dead() || mobManager == null) {
+                return;
+            }
+            // The mount: a vehicle within reach takes the rider (one seat).
+            net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle =
+                    vehicleManager != null ? vehicleManager.byId(targetEntityId) : null;
+            if (vehicle != null) {
+                double dx = vehicle.position().x() - player.position().x();
+                double dy = vehicle.position().y() - player.position().y();
+                double dz = vehicle.position().z() - player.position().z();
+                double horizontal = Math.sqrt(dx * dx + dz * dz);
+                if (horizontal > MELEE_REACH + 0.7 || dy < -2.0 || dy > 4.0) {
+                    return; // out of reach: the server-side refusal
+                }
+                vehicleManager.mount(vehicle, player.engineEntityId());
                 return;
             }
             MobEntity mob = mobManager.byId(targetEntityId);
@@ -3370,6 +3563,177 @@ public final class EngineServer implements Server, EngineBridge {
             for (ProjectileListener listener : projectileListeners) {
                 listener.onProjectileRemoved(projectile, reason);
             }
+        }
+    }
+
+    /** Observers of the vehicle system (the protocol adapter's wire sync). */
+    public interface VehicleListener {
+        void onVehicleSpawned(net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle);
+
+        void onVehicleMoved(net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle,
+                            PlayerSession rider);
+
+        void onVehicleHurt(net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle);
+
+        void onVehicleMounted(net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle,
+                              PlayerSession rider);
+
+        void onVehicleDismounted(net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle,
+                                 PlayerSession rider);
+
+        void onVehicleBroken(net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle);
+    }
+
+    private final java.util.List<VehicleListener> vehicleListeners =
+            new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    /** Registers an internal vehicle observer (the protocol adapter). */
+    public void addVehicleListener(VehicleListener listener) {
+        vehicleListeners.add(listener);
+    }
+
+    /** @return the vehicle system (diagnostics and tests). */
+    public net.zaminmc.torch.server.entity.vehicle.VehicleManager vehicles() {
+        return vehicleManager;
+    }
+
+    /** Fan-out from the vehicle system to the observer list (§448 pattern). */
+    private final class VehicleEventDispatch
+            implements net.zaminmc.torch.server.entity.vehicle.VehicleManager.Listener {
+        @Override
+        public void onVehicleSpawned(net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle) {
+            for (VehicleListener listener : vehicleListeners) {
+                listener.onVehicleSpawned(vehicle);
+            }
+        }
+
+        @Override
+        public void onVehicleMoved(net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle) {
+            // The listener signature carries the vehicle only; the engine
+            // resolves the rider session (null for mobs/unloaded).
+            PlayerSession rider = vehicle.hasPassenger()
+                    ? sessionByEngineId(vehicle.passengerId()) : null;
+            for (VehicleListener listener : vehicleListeners) {
+                listener.onVehicleMoved(vehicle, rider);
+            }
+        }
+
+        @Override
+        public void onVehicleHurt(net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle) {
+            for (VehicleListener listener : vehicleListeners) {
+                listener.onVehicleHurt(vehicle);
+            }
+        }
+
+        @Override
+        public void onVehicleMounted(net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle,
+                                     int riderEngineId) {
+            PlayerSession rider = sessionByEngineId(riderEngineId);
+            if (rider != null) {
+                rider.setRidingVehicleId(vehicle.entityId());
+            }
+            for (VehicleListener listener : vehicleListeners) {
+                listener.onVehicleMounted(vehicle, rider);
+            }
+        }
+
+        @Override
+        public void onVehicleDismounted(net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle,
+                                        int riderEngineId, Position riderExit) {
+            PlayerSession rider = sessionByEngineId(riderEngineId);
+            if (rider != null) {
+                rider.setRidingVehicleId(-1);
+                // The body steps out beside the vehicle (the re-anchor rides
+                // the wire listener's position-and-look).
+                rider.applyMovement(riderExit, rider.rotation(), true);
+                rider.setGraceTicks(40);
+            }
+            for (VehicleListener listener : vehicleListeners) {
+                listener.onVehicleDismounted(vehicle, rider);
+            }
+        }
+
+        @Override
+        public void onVehicleBroken(net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle) {
+            for (VehicleListener listener : vehicleListeners) {
+                listener.onVehicleBroken(vehicle);
+            }
+        }
+    }
+
+    /** @return the session whose engine id matches, or null. */
+    private PlayerSession sessionByEngineId(int engineId) {
+        for (PlayerSession player : players.all()) {
+            if (player.engineEntityId() == engineId) {
+                return player;
+            }
+        }
+        return null;
+    }
+
+    /** The break drop of a vehicle (the vanilla item forms). */
+    private net.zaminmc.torch.item.ItemStack vehicleDropStack(
+            net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle) {
+        return net.zaminmc.torch.item.ItemStack.of(
+                vehicle.kind() == net.zaminmc.torch.server.entity.vehicle.VehicleEntity.Kind.BOAT
+                        ? BuiltinItems.BOAT
+                        : BuiltinItems.MINECART,
+                1);
+    }
+
+    /**
+     * The mounted rider's body rides the seat: the boat's heading follows
+     * the rider's look (the look-steer), and the session position tracks
+     * the vehicle (the wire listener re-anchors the client).
+     */
+    private void tickVehicleRiders(net.zaminmc.torch.server.entity.vehicle.VehicleManager vehicles) {
+        for (net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle : vehicles.all()) {
+            if (!vehicle.hasPassenger()) {
+                continue;
+            }
+            PlayerSession rider = sessionByEngineId(vehicle.passengerId());
+            if (rider == null || rider.dead()) {
+                continue;
+            }
+            if (vehicle instanceof net.zaminmc.torch.server.entity.vehicle.BoatEntity boat) {
+                boat.followRiderLook(rider.rotation());
+            }
+            rider.applyMovement(vehicle.position(), rider.rotation(), vehicle.onGround());
+        }
+    }
+
+    /** The vehicle world query: the shape-aware solids plus rails. */
+    private final class VehicleWorldQuery
+            implements net.zaminmc.torch.server.entity.vehicle.VehicleEntity.WorldQuery {
+        @Override
+        public boolean isSolid(double x, double y, double z) {
+            return solidAt(x, y, z);
+        }
+
+        @Override
+        public boolean isSolidAt(double x, double y, double z) {
+            return solidAtPoint(x, y, z);
+        }
+
+        @Override
+        public boolean inFluid(double x, double y, double z) {
+            return fluidAt(x, y, z);
+        }
+
+        @Override
+        public int railAxisAt(double x, double y, double z) {
+            if (y < net.zaminmc.torch.block.BlockPosition.MIN_Y
+                    || y > net.zaminmc.torch.block.BlockPosition.MAX_Y) {
+                return -1;
+            }
+            Identifier id = world.getBlock(blockAt(x, y, z)).identifier();
+            if (id.equals(BuiltinBlocks.RAIL.identifier())) {
+                return 0; // the north-south rail: travel along Z
+            }
+            if (id.equals(BuiltinBlocks.RAIL_EW.identifier())) {
+                return 1; // the east-west rail: travel along X
+            }
+            return -1;
         }
     }
 
@@ -5012,6 +5376,12 @@ public final class EngineServer implements Server, EngineBridge {
 
     @Override
     public void movementProposal(PlayerSession session, Position position, Rotation rotation, boolean onGround) {
+        // The riding body is the vehicle's: the client sends no position
+        // while mounted, so any stray proposal is discarded (the seat owns
+        // the coordinates — the historical server-authoritative vehicle).
+        if (session.ridingVehicleId() >= 0) {
+            return;
+        }
         // The anti-cheat baseline (the mango-adopted shape): proposals outside
         // the historical physics envelope are dropped and the client is
         // snapped back to the authoritative position — the historical
@@ -5034,6 +5404,13 @@ public final class EngineServer implements Server, EngineBridge {
     public void clientDisconnected(PlayerSession session, String reason) {
         if (session.state() == PlayerState.DISCONNECTED) {
             return;
+        }
+        // The seat opens on disconnect (the vehicle never holds a ghost).
+        if (vehicleManager != null && session.ridingVehicleId() >= 0) {
+            var ridden = vehicleManager.byId(session.ridingVehicleId());
+            if (ridden != null) {
+                vehicleManager.dismount(ridden);
+            }
         }
         session.markDisconnecting();
         session.markDisconnected();

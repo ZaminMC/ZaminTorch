@@ -34,6 +34,8 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
     // Position state is written by the simulation context only; volatile for cross-thread reads.
     private volatile Position position = Position.ZERO; // replaced at spawn
     private volatile Rotation rotation = Rotation.ZERO;
+    /** The vehicle this body rides (engine-global id, -1 = on foot). */
+    private volatile int ridingVehicleId = -1;
     private volatile boolean onGround = true;
     /** The open container window id (crafting table, furnace), or -1 when none. Tick-thread written, volatile-read by the adapter's sync. */
     private volatile int containerWindowId = -1;
@@ -353,6 +355,16 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
 
     public Rotation rotation() {
         return rotation;
+    }
+
+    /** The vehicle this body rides (engine-global id), or -1 on foot. */
+    public int ridingVehicleId() {
+        return ridingVehicleId;
+    }
+
+    /** Tick-thread only: the mount takes the body, the dismount frees it. */
+    public void setRidingVehicleId(int vehicleId) {
+        this.ridingVehicleId = vehicleId;
     }
 
     public boolean onGround() {

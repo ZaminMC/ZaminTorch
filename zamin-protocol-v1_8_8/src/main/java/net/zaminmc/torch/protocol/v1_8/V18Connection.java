@@ -369,9 +369,11 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 }
             }
             case Protocol18.C2S_STEER_VEHICLE -> {
-                packet.readFloat();
-                packet.readFloat();
-                packet.readUnsignedByte();
+                float sideways = packet.readFloat();
+                float forward = packet.readFloat();
+                int flags = packet.readUnsignedByte();
+                engine.steerVehicle(player, sideways, forward,
+                        (flags & 0x01) != 0, (flags & 0x02) != 0);
             }
             case Protocol18.C2S_SET_CREATIVE_SLOT -> handleCreativeSlot(player, packet);
             case Protocol18.C2S_ENCHANT_ITEM -> {
@@ -835,7 +837,11 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                         + " from " + player.name());
                 return;
             }
-            creativeHeld = java.util.Optional.of(engine.blockRegistry().require(heldIdentifier));
+            // Block claims resolve for the placement paths; pure item claims
+            // (flint, buckets, hoes, boat, minecart) leave the block claim
+            // empty — the engine's dispatch keys those uses off the real
+            // held stack, which Set Creative Slot (0x10) already populated.
+            creativeHeld = engine.blockRegistry().lookup(heldIdentifier);
         }
         final var held = creativeHeld;
         try {
@@ -2111,6 +2117,19 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         channel.writeAndFlush(out);
     }
 
+    /** Entity Status (0x1A) for a vehicle body (the hurt flash on a hit). */
+    void sendVehicleStatus(net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle, int status) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(12);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_ENTITY_STATUS);
+        out.writeInt(vehicle.entityId());
+        out.writeByte(status);
+        channel.writeAndFlush(out);
+    }
+
     /** Entity Status for this client's own body (the hurt flash on being hit). */
     void sendSelfStatus(int status) {
         Channel channel = adapter.channelOf(this);
@@ -2412,6 +2431,104 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     }
 
     /**
+     * Spawn Entity (0x0E) for a vehicle: object type 1 = boat, 10 = minecart
+     * (community entities.json), objectData 0 (the velocity rides the
+     * per-tick teleport sync instead). Chunk-gated like every spawn.
+     */
+    void sendVehicleSpawn(net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY
+                || chunkTracker == null) {
+            return;
+        }
+        var blockPos = vehicle.position().toBlockPosition();
+        if (!chunkTracker.hasChunk(blockPos.chunkPosition().packed())) {
+            return; // observer cannot see that chunk yet
+        }
+        int objectType = vehicle.kind() == net.zaminmc.torch.server.entity.vehicle.VehicleEntity.Kind.BOAT
+                ? Protocol18.OBJECT_BOAT
+                : Protocol18.OBJECT_MINECART;
+        ByteBuf out = Unpooled.buffer(40);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_SPAWN_ENTITY);
+        ByteBufOps.writeVarInt(out, vehicle.entityId());
+        out.writeByte(objectType);
+        out.writeInt((int) Math.floor(vehicle.position().x() * 32.0));
+        out.writeInt((int) Math.floor(vehicle.position().y() * 32.0));
+        out.writeInt((int) Math.floor(vehicle.position().z() * 32.0));
+        out.writeByte((int) Math.round(vehicle.rotation().pitch() / 360.0 * 256.0));
+        out.writeByte((int) Math.floor(vehicle.rotation().yaw() * 256.0 / 360.0));
+        out.writeInt(0); // objectData 0: no velocity triple follows
+        channel.writeAndFlush(out);
+    }
+
+    /**
+     * The per-tick vehicle sync: Entity Teleport for the body; the mounted
+     * rider rides along — the rider's own connection gets the absolute
+     * Position-and-Look re-anchor (the server-authoritative seat), every
+     * OTHER observer gets the rider's teleport in its own id space. Any thread.
+     */
+    void sendVehicleMoved(net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle,
+                          PlayerSession rider) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        sendEntityTeleport(vehicle.entityId(), vehicle.position(), vehicle.onGround());
+        if (rider == null) {
+            return;
+        }
+        if (session == rider) {
+            resyncPosition(); // the seat re-anchor: the client's body follows
+            return;
+        }
+        Integer riderWireId = remoteEntityIds.get(rider.uuid());
+        if (riderWireId != null) {
+            sendEntityTeleport(riderWireId, vehicle.position(), vehicle.onGround());
+        }
+    }
+
+    /** Destroy Entities for a broken/removed vehicle. Any thread. */
+    void sendVehicleRemoved(net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(8);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_DESTROY_ENTITIES);
+        ByteBufOps.writeVarInt(out, 1);
+        ByteBufOps.writeVarInt(out, vehicle.entityId());
+        channel.writeAndFlush(out);
+    }
+
+    /**
+     * Attach Entity (0x1B, protocol 47): i32 the attached rider, i32 the
+     * vehicle, u8 riding (1) — a rider id of -1 clears the seat. The rider's
+     * id is observer-local (own entity id on the rider's own connection).
+     */
+    void sendAttachEntity(PlayerSession rider, int vehicleId, boolean riding) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        PlayerSession current = session;
+        Integer riderWireId;
+        if (current == rider) {
+            riderWireId = ownEntityId;
+        } else {
+            riderWireId = remoteEntityIds.get(rider.uuid());
+            if (riderWireId == null) {
+                return; // the rider is not visible to this observer
+            }
+        }
+        ByteBuf out = Unpooled.buffer(12);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_ATTACH_ENTITY);
+        out.writeInt(riderWireId);
+        out.writeInt(vehicleId);
+        out.writeByte(riding ? 1 : 0);
+        channel.writeAndFlush(out);
+    }
+
+    /**
      * The posture broadcast: Entity Metadata (0x1C) for the moving player's
      * observer-local id carrying the living-flags byte (crouch 0x02, sprint
      * 0x10). Sent to every OTHER observer — the mover's client animates its
@@ -2432,7 +2549,8 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         }
         int flags = (mover.sneaking() ? Protocol18.LIVING_FLAG_SNEAKING : 0)
                 | (mover.sprinting() ? Protocol18.LIVING_FLAG_SPRINTING : 0)
-                | (mover.burning() ? Protocol18.LIVING_FLAG_BURNING : 0);
+                | (mover.burning() ? Protocol18.LIVING_FLAG_BURNING : 0)
+                | (mover.ridingVehicleId() >= 0 ? Protocol18.LIVING_FLAG_RIDING : 0);
         ByteBuf out = Unpooled.buffer(12);
         ByteBufOps.writeVarInt(out, Protocol18.S2C_ENTITY_METADATA);
         ByteBufOps.writeVarInt(out, wireId);
