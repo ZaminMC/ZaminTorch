@@ -394,15 +394,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                     session.setFlying((flags & 0x02) != 0);
                 }
             }
-            case Protocol18.C2S_TAB_COMPLETE -> {
-                ByteBufOps.readString(packet, 256);
-                if (packet.isReadable(9)) {
-                    packet.readByte(); // option present flag
-                    packet.readLong();  // the looked-at block position
-                } else if (packet.isReadable()) {
-                    packet.readByte();
-                }
-            }
+            case Protocol18.C2S_TAB_COMPLETE -> handleTabComplete(player, packet);
             case Protocol18.C2S_PLUGIN_MESSAGE -> {
                 ByteBufOps.readString(packet, 64);
                 // payload: rest of the frame; frames are length-delimited so
@@ -631,6 +623,66 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                     .orElse(net.zaminmc.torch.item.ItemStack.EMPTY);
         }
         engine.setCreativeSlot(player, wireSlot, stack);
+    }
+
+    /**
+     * Tab-Complete (0x14): the historical server-side completion. A command
+     * line with no argument yet completes the command names the sender may
+     * use (the op gate hides unauthorized commands, mirroring the dispatcher);
+     * a line with an argument (and plain chat text) completes online player
+     * names against the last token. The reply is Tab-Complete 0x3A with the
+     * matched strings (protocol 47 layout: VarInt count, then strings).
+     */
+    private void handleTabComplete(PlayerSession player, ByteBuf packet) {
+        String text = ByteBufOps.readString(packet, 256);
+        if (packet.isReadable(9)) {
+            packet.readByte(); // option present flag
+            packet.readLong();  // the looked-at block position
+        } else if (packet.isReadable()) {
+            packet.readByte();
+        }
+        java.util.List<String> completions = new java.util.ArrayList<>();
+        if (text.startsWith("/")) {
+            int space = text.indexOf(' ');
+            if (space < 0) {
+                String prefix = text.substring(1).toLowerCase(java.util.Locale.ROOT);
+                for (net.zaminmc.torch.server.chat.CommandService.Command command
+                        : engine.commands().all()) {
+                    if (command.name().startsWith(prefix)
+                            && player.opLevel() >= command.requiredLevel()) {
+                        completions.add("/" + command.name());
+                    }
+                }
+            } else {
+                completePlayerNames(player, text.substring(space + 1), completions);
+            }
+        } else {
+            completePlayerNames(player, text, completions);
+        }
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(64);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_TAB_COMPLETE);
+        ByteBufOps.writeVarInt(out, completions.size());
+        for (String completion : completions) {
+            ByteBufOps.writeString(out, completion);
+        }
+        channel.writeAndFlush(out);
+    }
+
+    /** Adds online players (never the asker) whose name starts the token. */
+    private void completePlayerNames(PlayerSession asker, String token,
+                                     java.util.List<String> completions) {
+        String prefix = token.substring(token.lastIndexOf(' ') + 1)
+                .toLowerCase(java.util.Locale.ROOT);
+        for (PlayerSession candidate : engine.playerRegistry().all()) {
+            if (!candidate.equals(asker) && candidate.name().toLowerCase(java.util.Locale.ROOT)
+                    .startsWith(prefix)) {
+                completions.add(candidate.name());
+            }
+        }
     }
 
     /** Confirm Transaction (0x32): the client reverts its prediction on rejection. */

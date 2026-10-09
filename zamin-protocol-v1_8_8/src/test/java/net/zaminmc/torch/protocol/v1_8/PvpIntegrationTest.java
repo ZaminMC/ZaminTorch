@@ -20,6 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * lethal swing runs the death-and-respawn path end to end.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@org.junit.jupiter.api.TestMethodOrder(org.junit.jupiter.api.MethodOrderer.OrderAnnotation.class)
 class PvpIntegrationTest extends ProtocolTestBase {
 
     @Override
@@ -42,6 +43,7 @@ class PvpIntegrationTest extends ProtocolTestBase {
     }
 
     @Test
+    @org.junit.jupiter.api.Order(1)
     void meleeRidesTheWireAndKillsThroughInvulnerabilityFrames() throws Exception {
         try (TestClient18 alice = new TestClient18("127.0.0.1", adapter.boundPort());
              TestClient18 bob = new TestClient18("127.0.0.1", adapter.boundPort())) {
@@ -113,5 +115,66 @@ class PvpIntegrationTest extends ProtocolTestBase {
             awaitCondition(() -> bobSession.health() == PlayerSession.MAX_HEALTH,
                     "the respawned body is back at full health");
         }
+    }
+
+    @Test
+    @org.junit.jupiter.api.Order(2)
+    void theDeathMessageBroadcastsToTheSurvivor() throws Exception {
+        try (TestClient18 alice = new TestClient18("127.0.0.1", adapter.boundPort());
+             TestClient18 bob = new TestClient18("127.0.0.1", adapter.boundPort())) {
+            alice.sendHandshake(47, 2);
+            alice.sendLoginStart("Alice");
+            alice.readLoginSuccess();
+            alice.readUntilPositionAndLook();
+            PlayerSession aliceSession = awaitPlayer("Alice");
+
+            bob.sendHandshake(47, 2);
+            bob.sendLoginStart("Bob");
+            bob.readLoginSuccess();
+            bob.readUntilPositionAndLook();
+            PlayerSession bobSession = awaitPlayer("Bob");
+            awaitCondition(() -> bobSession.state() == PlayerState.PLAYING
+                    && aliceSession.state() == PlayerState.PLAYING, "both PLAYING");
+
+            int aliceSeesBob = alice.readNamedSpawn(5_000)[0];
+            bob.readNamedSpawn(5_000);
+
+            // Fight 10 blocks off the world spawn: the kill scatters Bob's
+            // inventory as item entities at the death spot, and a later test
+            // in this class spawning at the world spawn must not walk into
+            // that pile (the pickup radius is ~1 block, the walk is honest).
+            alice.walkTo(aliceSession.position().x() + 10,
+                    aliceSession.position().y(), aliceSession.position().z(), true);
+            bob.walkTo(bobSession.position().x() + 10,
+                    bobSession.position().y(), bobSession.position().z(), true);
+            Thread.sleep(200); // let the server accept the moves before combat
+
+            // Sword kill (7 damage: 20 -> dead inside the swing loop), with
+            // the hurt-window spacing the melee test already established.
+            alice.sendChat("/give diamond_sword 1");
+            alice.readWindowItems(5_000);
+            for (int swing = 0; swing < 3; swing++) {
+                alice.sendUseEntity(aliceSeesBob, Protocol18.USE_ENTITY_ATTACK);
+                bob.readEntityStatus(5_000);
+                bob.readEntityVelocity(5_000);
+                bob.readUpdateHealth(5_000);
+                Thread.sleep(HURT_WINDOW_MS);
+            }
+            alice.sendUseEntity(aliceSeesBob, Protocol18.USE_ENTITY_ATTACK);
+            bob.readCombatEvent(5_000);
+
+            // The broadcast: the survivor reads the historical death chat.
+            // The /give feedback line rides the same chat channel, so drain
+            // lines until the death notice arrives (deadline-guarded).
+            long deadline = System.currentTimeMillis() + 10_000;
+            String line = "";
+            while (System.currentTimeMillis() < deadline
+                    && !line.contains("Bob was slain by Alice")) {
+                line = alice.readChatLine(Math.max(1, deadline - System.currentTimeMillis()));
+            }
+            assertTrue(line.contains("Bob was slain by Alice"), line);
+            awaitCondition(bobSession::dead, "the engine marked the body dead");
+        }
+        awaitEmptyServer();
     }
 }
