@@ -101,6 +101,9 @@ public final class BuiltinItems {
             Identifier.parse("minecraft:ladder"), "Ladder", 64);
     public static final EngineItemType OAK_FENCE = new EngineItemType(
             Identifier.parse("minecraft:oak_fence"), "Oak Fence", 64);
+    // The bed item (community items.json: legacy 355) — places both halves.
+    public static final EngineItemType BED = new EngineItemType(
+            Identifier.parse("minecraft:bed"), "Bed", 1);
 
     // Mob loot (legacy ids from the community dataset: porkchop 319, cooked
     // porkchop 320, raw chicken 365, cooked chicken 366, feather 288,
@@ -320,7 +323,7 @@ public final class BuiltinItems {
                 SHEARS,
                 WOODEN_HOE, STONE_HOE, IRON_HOE, DIAMOND_HOE, GOLDEN_HOE,
                 WHEAT_SEEDS, WHEAT, BREAD, BONE_MEAL, SIGN,
-                OAK_DOOR, LADDER, OAK_FENCE,
+                OAK_DOOR, LADDER, OAK_FENCE, BED,
                 BONE, STRING, GUNPOWDER, WOOL, MUTTON, COOKED_MUTTON,
                 BUCKET, WATER_BUCKET, LAVA_BUCKET,
                 TALL_GRASS, DEAD_BUSH, DANDELION, POPPY, SANDSTONE,

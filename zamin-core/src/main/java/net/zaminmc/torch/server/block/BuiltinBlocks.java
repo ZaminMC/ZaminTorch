@@ -160,6 +160,26 @@ public final class BuiltinBlocks {
     public static final EngineBlockType FENCE = new EngineBlockType(
             Identifier.parse("minecraft:oak_fence"), "Oak Fence");
 
+    // The bed (community blocks.json: block 26). The foot's metadata is the
+    // foot-to-head facing (S/W/N/E = 0..3, the sign's band); the head's
+    // metadata adds bit 3 (value 8). Two block types per facing.
+    public static final EngineBlockType BED_FOOT_SOUTH = new EngineBlockType(
+            Identifier.parse("minecraft:bed"), "Bed");
+    public static final EngineBlockType BED_FOOT_WEST = new EngineBlockType(
+            Identifier.parse("minecraft:bed_west"), "Bed", 1);
+    public static final EngineBlockType BED_FOOT_NORTH = new EngineBlockType(
+            Identifier.parse("minecraft:bed_north"), "Bed", 2);
+    public static final EngineBlockType BED_FOOT_EAST = new EngineBlockType(
+            Identifier.parse("minecraft:bed_east"), "Bed", 3);
+    public static final EngineBlockType BED_HEAD_SOUTH = new EngineBlockType(
+            Identifier.parse("minecraft:bed_head"), "Bed", 8);
+    public static final EngineBlockType BED_HEAD_WEST = new EngineBlockType(
+            Identifier.parse("minecraft:bed_head_west"), "Bed", 9);
+    public static final EngineBlockType BED_HEAD_NORTH = new EngineBlockType(
+            Identifier.parse("minecraft:bed_head_north"), "Bed", 10);
+    public static final EngineBlockType BED_HEAD_EAST = new EngineBlockType(
+            Identifier.parse("minecraft:bed_head_east"), "Bed", 11);
+
     private BuiltinBlocks() {
     }
 
@@ -219,6 +239,14 @@ public final class BuiltinBlocks {
                 .register(LADDER_SOUTH)
                 .register(LADDER_WEST)
                 .register(LADDER_EAST)
-                .register(FENCE);
+                .register(FENCE)
+                .register(BED_FOOT_SOUTH)
+                .register(BED_FOOT_WEST)
+                .register(BED_FOOT_NORTH)
+                .register(BED_FOOT_EAST)
+                .register(BED_HEAD_SOUTH)
+                .register(BED_HEAD_WEST)
+                .register(BED_HEAD_NORTH)
+                .register(BED_HEAD_EAST);
     }
 }

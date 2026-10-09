@@ -540,6 +540,20 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
         fallDistance = 0;
     }
 
+    // The bed spawn (the sleeping slice). In-memory for now: the persisted
+    // form rides a ZPD v6 bump with the spawn-persistence slice.
+    private volatile Position bedSpawn;
+
+    /** @return the bed spawn this body slept at, or null for the world spawn. */
+    public Position bedSpawn() {
+        return bedSpawn;
+    }
+
+    /** Sets the bed spawn (the sleeping flow). Tick-thread context. */
+    public void setBedSpawn(Position at) {
+        this.bedSpawn = at;
+    }
+
     // --- state transitions (engine-owned; only EngineServer may call these) ---
 
     public void authenticate() {

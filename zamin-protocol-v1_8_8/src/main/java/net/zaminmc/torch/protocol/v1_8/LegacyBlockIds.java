@@ -179,7 +179,16 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:ladder_south"), 65),
             Map.entry(Identifier.parse("minecraft:ladder_west"), 65),
             Map.entry(Identifier.parse("minecraft:ladder_east"), 65),
-            Map.entry(Identifier.parse("minecraft:oak_fence"), 85));
+            Map.entry(Identifier.parse("minecraft:oak_fence"), 85),
+            // The bed (block 26: facing on the foot, facing|8 on the head)
+            Map.entry(Identifier.parse("minecraft:bed"), 26),
+            Map.entry(Identifier.parse("minecraft:bed_west"), 26),
+            Map.entry(Identifier.parse("minecraft:bed_north"), 26),
+            Map.entry(Identifier.parse("minecraft:bed_east"), 26),
+            Map.entry(Identifier.parse("minecraft:bed_head"), 26),
+            Map.entry(Identifier.parse("minecraft:bed_head_west"), 26),
+            Map.entry(Identifier.parse("minecraft:bed_head_north"), 26),
+            Map.entry(Identifier.parse("minecraft:bed_head_east"), 26));
 
     /**
      * Item-form ids that diverge from the block id sharing the identifier
@@ -190,7 +199,8 @@ final class LegacyBlockIds {
     private static final Map<Identifier, Integer> ITEM_OVERRIDES = Map.of(
             Identifier.parse("minecraft:sign"), 323,
             Identifier.parse("minecraft:oak_door"), 324,
-            Identifier.parse("minecraft:ladder"), 65);
+            Identifier.parse("minecraft:ladder"), 65,
+            Identifier.parse("minecraft:bed"), 355);
 
     private static final Map<Integer, Identifier> BY_LEGACY_ID = reverse();
 
@@ -245,7 +255,14 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:oak_door_upper_open"), 9),
             Map.entry(Identifier.parse("minecraft:ladder_south"), 3),
             Map.entry(Identifier.parse("minecraft:ladder_west"), 4),
-            Map.entry(Identifier.parse("minecraft:ladder_east"), 5));
+            Map.entry(Identifier.parse("minecraft:ladder_east"), 5),
+            Map.entry(Identifier.parse("minecraft:bed_west"), 1),
+            Map.entry(Identifier.parse("minecraft:bed_north"), 2),
+            Map.entry(Identifier.parse("minecraft:bed_east"), 3),
+            Map.entry(Identifier.parse("minecraft:bed_head"), 8),
+            Map.entry(Identifier.parse("minecraft:bed_head_west"), 9),
+            Map.entry(Identifier.parse("minecraft:bed_head_north"), 10),
+            Map.entry(Identifier.parse("minecraft:bed_head_east"), 11));
 
     /**
      * @return the wire metadata nibble of a block type: the 1.8 data-value
