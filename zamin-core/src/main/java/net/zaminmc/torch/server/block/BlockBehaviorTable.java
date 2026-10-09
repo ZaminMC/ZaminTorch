@@ -181,6 +181,38 @@ public final class BlockBehaviorTable {
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:wheat"), 1),
                                     new BlockBehavior.Drop(Identifier.parse("minecraft:wheat_seeds"), 1)))),
 
+            Map.entry(Identifier.parse("minecraft:bed"),
+                    new BlockBehavior(0.2, true, false, "wood", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:bed"), 1)))),
+
+            Map.entry(Identifier.parse("minecraft:bed_west"),
+                    new BlockBehavior(0.2, true, false, "wood", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:bed"), 1)))),
+
+            Map.entry(Identifier.parse("minecraft:bed_north"),
+                    new BlockBehavior(0.2, true, false, "wood", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:bed"), 1)))),
+
+            Map.entry(Identifier.parse("minecraft:bed_east"),
+                    new BlockBehavior(0.2, true, false, "wood", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:bed"), 1)))),
+
+            Map.entry(Identifier.parse("minecraft:bed_head"),
+                    new BlockBehavior(0.2, true, false, "wood", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:bed"), 1)))),
+
+            Map.entry(Identifier.parse("minecraft:bed_head_west"),
+                    new BlockBehavior(0.2, true, false, "wood", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:bed"), 1)))),
+
+            Map.entry(Identifier.parse("minecraft:bed_head_north"),
+                    new BlockBehavior(0.2, true, false, "wood", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:bed"), 1)))),
+
+            Map.entry(Identifier.parse("minecraft:bed_head_east"),
+                    new BlockBehavior(0.2, true, false, "wood", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:bed"), 1)))),
+
             // The standing sign (community blocks.json: hardness 1.0, wood
             // material, drops itself — the sign item, legacy 323).
             Map.entry(Identifier.parse("minecraft:sign"),

@@ -1486,12 +1486,18 @@ public final class EngineServer implements Server, EngineBridge {
             }
             session.resetBody();
             session.cancelEating();
+            // The respawn destination: the bed spawn when the body slept,
+            // otherwise the world spawn. The body moves here so the wire's
+            // re-anchor reads the destination position.
+            Position destination = session.bedSpawn() != null
+                    ? session.bedSpawn() : world.spawnPosition();
+            session.applyMovement(destination, session.rotation(), false);
             // The respawn re-anchor rides the guard's grace window: the client
             // teleports to spawn and its first proposals are position bursts.
             session.setGraceTicks(100);
             publishInventoryChanged(session);
             publishBodyChanged(session);
-            publishRespawned(session);
+            publishRespawned(session, destination);
             LOGGER.info(() -> "Player respawned: " + session.name());
         });
     }
@@ -2142,28 +2148,40 @@ public final class EngineServer implements Server, EngineBridge {
         if (useFarmingOnTick(session, clicked)) {
             return; // the hoe/seed/bone-meal use was consumed
         }
-        if (session.inventory().held().type().identifier().toString()
+        net.zaminmc.torch.item.ItemStack heldNow = session.inventory().held();
+        String heldId = heldNow.isEmpty() ? "" : heldNow.type().identifier().toString();
+        if (heldId
                 .equals("minecraft:sign")
                 || creativeHeld.map(t -> SignManager.isSignType(t)).orElse(false)) {
             placeSignOnTick(session, clicked, face, creativeHeld);
             return; // the sign's facing overrides the generic placement
+        }
+        if (isBedHalf(current)) {
+            sleepOnTick(session, clicked);
+            return; // the bed consumes the right-click (the historical sleep use)
         }
         if (isDoorHalf(current) && !current.identifier().value().startsWith("oak_door_upper")) {
             toggleDoorOnTick(clicked);
             return; // the swing consumes the right-click (the historical door
                     // use: a door swings regardless of what the hand holds)
         }
-        if (session.inventory().held().type().identifier().toString()
+        if (heldId
                 .equals("minecraft:oak_door")
                 || creativeHeld.map(t -> t.identifier().value().equals("oak_door")).orElse(false)) {
             placeDoorOnTick(session, clicked, face, creativeHeld);
             return; // the two-half commit overrides the generic placement
         }
-        if (session.inventory().held().type().identifier().toString()
+        if (heldId
                 .equals("minecraft:ladder")
                 || creativeHeld.map(t -> t.identifier().value().equals("ladder")).orElse(false)) {
             placeLadderOnTick(session, clicked, face, creativeHeld);
             return; // the wall-facing ladder overrides the generic placement
+        }
+        if (heldId
+                .equals("minecraft:bed")
+                || creativeHeld.map(t -> t.identifier().value().equals("bed")).orElse(false)) {
+            placeBedOnTick(session, clicked, face, creativeHeld);
+            return; // the two-half bed overrides the generic placement
         }
         blockInteraction.placeFromUseOnTick(session, clicked, face, creativeHeld);
     }
@@ -2176,7 +2194,11 @@ public final class EngineServer implements Server, EngineBridge {
      * was consumed. Tick-thread context.
      */
     private boolean useFarmingOnTick(PlayerSession session, BlockPosition clicked) {
-        net.zaminmc.torch.item.ItemType heldType = session.inventory().held().type();
+        net.zaminmc.torch.item.ItemStack heldStack = session.inventory().held();
+        if (heldStack.isEmpty()) {
+            return false; // a bare hand never tills, plants or dusts
+        }
+        net.zaminmc.torch.item.ItemType heldType = heldStack.type();
         String held = heldType.identifier().toString();
         if (held.endsWith("_hoe")) {
             BlockType soil = world.getBlock(clicked);
@@ -2231,7 +2253,11 @@ public final class EngineServer implements Server, EngineBridge {
      * Returns whether the use was consumed. Tick-thread context.
      */
     private boolean useBucketOnTick(PlayerSession session, BlockPosition clicked, int face) {
-        net.zaminmc.torch.item.ItemType heldType = session.inventory().held().type();
+        net.zaminmc.torch.item.ItemStack heldStack = session.inventory().held();
+        if (heldStack.isEmpty()) {
+            return false; // a bare hand never scoops or pours
+        }
+        net.zaminmc.torch.item.ItemType heldType = heldStack.type();
         String held = heldType.identifier().toString();
 
         if (held.equals("minecraft:bucket")) {
@@ -2382,6 +2408,86 @@ public final class EngineServer implements Server, EngineBridge {
             session.inventory().consumeHeld(1);
             publishInventoryChanged(session);
         }
+    }
+
+    /** Whether the block type is a bed half (either foot or head). */
+    public static boolean isBedHalf(net.zaminmc.torch.block.BlockType type) {
+        String id = type.identifier().value();
+        return type.identifier().namespace().equals("minecraft")
+                && (id.equals("bed") || id.startsWith("bed_"));
+    }
+
+    /**
+     * The bed placement (the historical ItemBed): the foot at the target and
+     * the head one cell along the placer's look (the head points where the
+     * player faces), both cells open, one item spent in survival.
+     * Tick-thread context.
+     */
+    private void placeBedOnTick(PlayerSession session, BlockPosition clicked, int face,
+                                java.util.Optional<BlockType> creativeHeld) {
+        BlockPosition target = offsetByFace(clicked, face);
+        if (target == null || world.getBlock(clicked).equals(world.airType())
+                || !world.getBlock(target).equals(world.airType())) {
+            return;
+        }
+        if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5
+                || intersectsPlayerBox(session.position(), target)) {
+            return;
+        }
+        // The head cell: one along the look's cardinal (the sign band order
+        // S/W/N/E with offsets +Z/-X/-Z/+X for the look yaw bands).
+        double yaw = ((session.rotation().yaw() % 360.0) + 360.0 + 45.0) % 360.0;
+        int lookBand = (int) (yaw / 90.0) % 4; // 0=S,1=W,2=N,3=E of the look
+        int[][] headOffsets = {{0, 0, 1}, {-1, 0, 0}, {0, 0, -1}, {1, 0, 0}};
+        int[] headOffset = headOffsets[lookBand];
+        BlockPosition head = target.offset(headOffset[0], headOffset[1], headOffset[2]);
+        if (!world.getBlock(head).equals(world.airType())) {
+            return; // no room for the head half
+        }
+        if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE
+                && session.inventory().held().isEmpty()) {
+            return;
+        }
+        BlockType[] foots = {BuiltinBlocks.BED_FOOT_SOUTH, BuiltinBlocks.BED_FOOT_WEST,
+                BuiltinBlocks.BED_FOOT_NORTH, BuiltinBlocks.BED_FOOT_EAST};
+        world.setBlock(target, foots[lookBand]);
+        BlockType[] heads = {BuiltinBlocks.BED_HEAD_SOUTH, BuiltinBlocks.BED_HEAD_WEST,
+                BuiltinBlocks.BED_HEAD_NORTH, BuiltinBlocks.BED_HEAD_EAST};
+        world.setBlock(head, heads[lookBand]);
+        if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE) {
+            session.inventory().consumeHeld(1);
+            publishInventoryChanged(session);
+        }
+    }
+
+    /**
+     * The sleep flow (the historical EntityPlayer.sleepInBedAt): outside the
+     * night window the bed refuses with the vanilla line; inside it, the
+     * body's bed spawn is set, the world jumps to morning, and the weather
+     * clears — the single-player sleep contract this server makes.
+     * Tick-thread context.
+     */
+    private void sleepOnTick(PlayerSession session, BlockPosition clicked) {
+        if (session.state() != PlayerState.PLAYING || session.dead()) {
+            return;
+        }
+        long time = world.timeOfDay();
+        boolean night = time >= MobManager.NIGHT_START && time < MobManager.NIGHT_END;
+        if (!night) {
+            systemMessage(session, "You can only sleep at night");
+            return;
+        }
+        session.setBedSpawn(new Position(clicked.x() + 0.5, clicked.y() + 1.0,
+                clicked.z() + 0.5));
+        systemMessage(session, "Your spawn point has been set");
+        // The morning jump (the historical wake-up at 0) with the cycle sync.
+        world.setTimeOfDay(0);
+        publishTimeChanged();
+        // Sleeping clears the rain (the historical wake-up weather).
+        if (raining) {
+            setWeather(false, -1);
+        }
+        LOGGER.info(() -> session.name() + " slept through the night");
     }
 
     /**
