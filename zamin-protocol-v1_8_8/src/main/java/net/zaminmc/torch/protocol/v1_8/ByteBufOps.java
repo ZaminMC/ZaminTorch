@@ -72,7 +72,12 @@ final class ByteBufOps {
         if (in.readableBytes() < length) {
             throw new IllegalArgumentException("Truncated string (declared " + length + " bytes)");
         }
-        String value = new String(ByteBufUtil.getBytes(in.readBytes(length)), StandardCharsets.UTF_8);
+        // Read straight into a plain array: readBytes(int) would allocate an
+        // intermediate ByteBuf per string packet and the engine never releases
+        // it — the Netty leak detector caught exactly that (chat/settings).
+        byte[] bytes = new byte[length];
+        in.readBytes(bytes);
+        String value = new String(bytes, StandardCharsets.UTF_8);
         if (value.length() > maxLength) {
             throw new IllegalArgumentException("String exceeds maximum length: " + value.length());
         }

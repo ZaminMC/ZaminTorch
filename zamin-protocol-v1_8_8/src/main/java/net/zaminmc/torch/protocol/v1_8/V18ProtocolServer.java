@@ -457,7 +457,7 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                                     net.zaminmc.torch.util.Position spawn) {
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
                     if (connection.currentSession() == player) {
-                        connection.sendRespawnSequence(player);
+                        connection.sendRespawnSequence(player, spawn);
                     }
                 }
             }
