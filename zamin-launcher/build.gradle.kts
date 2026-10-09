@@ -34,6 +34,11 @@ val fatJar = tasks.register<Jar>("fatServerJar") {
     archiveFileName.set("zamin-server-$distVersion.jar")
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     dependsOn(tasks.jar) // the launcher jar must exist before it is expanded
+    // The runtime-classpath module jars are expanded below; without these
+    // dependsOn edges the fat jar can silently embed stale module jars.
+    dependsOn(":zamin-api:jar")
+    dependsOn(":zamin-core:jar")
+    dependsOn(":zamin-protocol-v1_8_8:jar")
     manifest {
         attributes(
             "Main-Class" to "net.zaminmc.torch.launcher.ZaminLauncher",

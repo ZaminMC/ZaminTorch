@@ -16,6 +16,14 @@ public interface WorldGenerator {
     /** The y the spawn anchor rests on (the top solid block of the spawn column). */
     int groundLevel();
 
+    /**
+     * The generator's deterministic seed (the /seed report). The default is
+     * the flat fixture's zero; the full world derives a name-hash seed.
+     */
+    default long seed() {
+        return 0L;
+    }
+
     /** The spawn anchor. Default: the origin column, one above the surface. */
     default Position spawnPosition() {
         return new Position(0.5, groundLevel() + 1.0, 0.5);

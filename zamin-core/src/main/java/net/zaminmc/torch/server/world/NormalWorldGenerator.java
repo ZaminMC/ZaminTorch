@@ -25,6 +25,11 @@ public final class NormalWorldGenerator implements WorldGenerator {
     private final BlockRegistry registry;
     private final long seed;
 
+    @Override
+    public long seed() {
+        return seed;
+    }
+
     private final BlockType air;
     private final BlockType bedrock;
     private final BlockType stone;

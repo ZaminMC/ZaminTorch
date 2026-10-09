@@ -254,7 +254,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeInt(entityId);
         out.writeByte(playerSession.gamemode().legacyId());
         out.writeByte(0);                 // dimension: overworld
-        out.writeByte(Protocol18.DIFFICULTY_EASY); // easy: hunger behaves, no mobs yet
+        out.writeByte(engine.difficulty()); // the runtime difficulty (/difficulty)
         out.writeByte(0);                 // max players (legacy field, unused by client)
         ByteBufOps.writeString(out, engine.config().levelType()); // the configured level-type (client F3 + server list ping)
         out.writeBoolean(false);          // reduced debug info
@@ -533,7 +533,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBuf out = Unpooled.buffer(32);
         ByteBufOps.writeVarInt(out, Protocol18.S2C_RESPAWN);
         out.writeInt(0); // dimension: overworld
-        out.writeByte(Protocol18.DIFFICULTY_EASY);
+        out.writeByte(engine.difficulty());
         out.writeByte(player.gamemode().legacyId());
         ByteBufOps.writeString(out, engine.config().levelType()); // respawn mirrors the join's level-type
         channel.writeAndFlush(out);
@@ -1069,6 +1069,34 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     public boolean isActive() {
         Channel channel = adapter.channelOf(this);
         return channel != null && channel.isActive();
+    }
+
+    @Override
+    public String remoteIp() {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || channel.remoteAddress() == null) {
+            return "";
+        }
+        String text = channel.remoteAddress().toString();
+        // InetSocketAddress prints "/host:port" (or "host/addr:port"): the
+        // ban gate keys on the bare address.
+        int slash = text.lastIndexOf('/');
+        if (slash >= 0) {
+            text = text.substring(slash + 1);
+        }
+        int colon = text.lastIndexOf(':');
+        if (colon >= 0 && text.indexOf(':') == colon) { // ipv4 host:port
+            text = text.substring(0, colon);
+        }
+        return text;
+    }
+
+    @Override
+    public void updateXp() {
+        PlayerSession player = currentSession();
+        if (player != null) {
+            sendSetExperience(player);
+        }
     }
 
     @Override

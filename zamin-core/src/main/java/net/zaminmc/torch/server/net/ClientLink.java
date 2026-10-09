@@ -14,6 +14,14 @@ public interface ClientLink {
     boolean isActive();
 
     /**
+     * @return the connection's remote IP (the /ban-ip gate's key), or an
+     * empty string when the link has no address (engine-internal links).
+     */
+    default String remoteIp() {
+        return "";
+    }
+
+    /**
      * Disconnects the client with the given engine-decided reason.
      * Must be safe to call multiple times; must never block.
      */
@@ -25,6 +33,14 @@ public interface ClientLink {
      * engine-internal links (tests, headless harnesses).
      */
     default void updateGamemode(int gamemodeId) {
+    }
+
+    /**
+     * Re-syncs the player's XP bar (Set Experience 0x1F) after an engine-side
+     * XP mutation (/xp). Safe from any thread; default no-op for
+     * engine-internal links.
+     */
+    default void updateXp() {
     }
 
     /**

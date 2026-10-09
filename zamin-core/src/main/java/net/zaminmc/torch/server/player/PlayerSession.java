@@ -91,6 +91,9 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
     private int bodyTimer; // shared regen/starve cadence counter
     private float fallDistance;
     private volatile boolean dead;
+    // The /reply target: the name of the last player who /tell'd this one.
+    // A name (not a uuid) because the reply may outlive a relogin window.
+    private volatile String lastMessagedBy;
     // Eating: the server runs its own 32-tick timer, started by the use-item
     // gesture; the client's release (dig status 5) cancels when unfinished.
     private int eatingTicks = -1;
@@ -169,6 +172,16 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
     /** @return the level the XP total currently sits at. */
     public int experienceLevel() {
         return net.zaminmc.torch.server.experience.ExperienceMath.levelForTotalXp(totalXp);
+    }
+
+    /** @return the name of the last player who /tell'd this one (the /reply target). */
+    public String lastMessagedBy() {
+        return lastMessagedBy;
+    }
+
+    /** Records the /reply target (the last private-message sender). */
+    public void noteMessagedBy(String name) {
+        this.lastMessagedBy = name;
     }
 
     // --- fire (the burning slice) ---------------------------------------------
