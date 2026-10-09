@@ -34,21 +34,28 @@ import java.util.logging.Logger;
  * historical behavior (§214).</p>
  *
  * <p>Modes (§415 behavior first): creative interaction is instant and
- * inventory-free. Survival mining is server-authoritative: the client proposes
- * start/abort/finish, the server validates reach, diggability and elapsed time
- * before committing; too-fast finishes are rejected and re-synced so clients
- * never keep ghost blocks.</p>
+ * inventory-free. Survival mining is the vanilla 1.8.8 ServerPlayerInteraction-
+ * Manager flow, ported from {@code reference/1.8.8/net/minecraft/server/
+ * ServerPlayerInteractionManager.java}: the client proposes start/abort/finish;
+ * the server accumulates per-tick progress ({@code getMiningSpeed * (elapsed +
+ * 1)}), broadcasts the crack stages, accepts a finish once the accumulated
+ * progress reaches the vanilla 0.7 threshold, and lets an early finish keep
+ * accumulating to 1.0 — the vanilla self-completion instead of a resync (the
+ * honest-but-laggy client's prediction stands, exactly as vanilla).
+ * Instant-progress blocks (torch, flora) break on the START packet like the
+ * vanilla {@code startMiningBlock}.</p>
  */
 public final class BlockInteractionService {
 
     private static final Logger LOGGER = Logger.getLogger(BlockInteractionService.class.getName());
 
     /**
-     * Historical leniency factor for finish timing: network jitter and tick
-     * quantization make exact-duration equality wrong; a finished dig may
-     * complete at ~70% of the nominal duration without being a cheat.
+     * The vanilla finish threshold ({@code ServerPlayerInteractionManager.
+     * finishMiningBlock}: {@code f >= 0.7F} on the accumulated progress, not
+     * wall time — network jitter and tick quantization included, the dig may
+     * legitimately complete at 70% of the nominal duration).
      */
-    static final double MINING_TIMING_LENIENCY = 0.7;
+    static final double VANILLA_FINISH_ACCEPT = 0.7;
 
     // The anti-cheat budgets (the NCP shapes, server-lag simplified to
     // server-side clocks): the rolling break window and the fastplace band.
@@ -59,9 +66,6 @@ public final class BlockInteractionService {
     static final long PLACE_WINDOW_NANOS = 500_000_000L; // 10 ticks
     static final int PLACE_BUDGET = 6;            // places per 10 ticks (NCP FastPlace)
     static final int FASTPLACE_KICK_VIOLATIONS = 10;
-
-    /** Nominal length of one simulation tick in nanoseconds (from the ticker's rate). */
-    private static final long TICK_NANOS = 50_000_000L;
 
     private final EngineWorld world;
     private final EngineTicker ticker;
@@ -79,6 +83,8 @@ public final class BlockInteractionService {
     private volatile SurvivalXpHook survivalXpListener;
     /** The world-mutation feedback hook (break/place FX); null until registered. */
     private volatile java.util.function.Consumer<Commit> commitFeedbackListener;
+    /** The dig-progress broadcast hook (the 0x28 fan-out); null until registered. */
+    private volatile MiningProgressListener miningProgressListener;
 
     /** Active survival mining sessions, keyed by player. Tick-thread confined. */
     private final Map<UUID, MiningSession> miningSessions = new HashMap<>();
@@ -87,8 +93,27 @@ public final class BlockInteractionService {
     public record BlockChange(BlockPosition position, BlockType newType) {
     }
 
-    /** One in-progress survival dig: target and server-received start time. */
-    private record MiningSession(BlockPosition target, long startedNanos) {
+    /**
+     * One survival dig state, the vanilla two-slot model tick-thread confined:
+     * {@code target} is the live dig (the vanilla {@code isMiningBlock}, fed
+     * by START and finished by the finish packet), {@code prevTarget} is an
+     * early-finished dig still accumulating to 1.0 (the vanilla {@code
+     * wasMiningBlock}, which self-completes server-side). Both can coexist per
+     * player, exactly as vanilla. Progress is derived from the world tick
+     * clock ({@code getMiningSpeed * (elapsed + 1)}), never wall time.
+     */
+    private static final class MiningSession {
+        final PlayerSession digger;
+        BlockPosition target;
+        long startTick;
+        int lastStage = -1;
+        BlockPosition prevTarget;
+        long prevStartTick;
+        int prevLastStage = -1;
+
+        MiningSession(PlayerSession digger) {
+            this.digger = digger;
+        }
     }
 
     public BlockInteractionService(EngineWorld world, EngineTicker ticker,
@@ -124,7 +149,7 @@ public final class BlockInteractionService {
     /** Reports an aborted survival dig (client moved away or released). Safe from any thread. */
     public void submitMiningAborted(PlayerSession player) {
         Objects.requireNonNull(player, "player");
-        ticker.submit(() -> miningSessions.remove(player.uuid()));
+        ticker.submit(() -> stopMiningOnTick(player));
     }
 
     /** Reports the completion of a survival dig. Safe from any thread. */
@@ -195,33 +220,164 @@ public final class BlockInteractionService {
         }
     }
 
+    /**
+     * The vanilla {@code startMiningBlock}: opens (or re-targets) the live
+     * dig. Instant-progress blocks break on the START itself; everything else
+     * starts accumulating and broadcasts its initial stage.
+     */
     private void miningStartOnTick(PlayerSession player, BlockPosition target) {
         BlockBehavior behavior = BlockBehaviorTable.of(world.getBlock(target).identifier()).orElse(null);
         if (behavior == null || !behavior.diggable() || behavior.hardness() < 0) {
-            return; // air or unbreakable: no session (bedrock never opens one)
+            return; // air or unbreakable: no dig (bedrock never opens one)
         }
         if (!InteractionRules.withinSurvivalReach(player.position(), target)) {
             return;
         }
-        miningSessions.put(player.uuid(), new MiningSession(target, System.nanoTime()));
+        MiningSession session = miningSessions.computeIfAbsent(player.uuid(),
+                id -> new MiningSession(player));
+        // The vanilla flow: a new START overwrites the live dig without an
+        // animation removal (the old block's overlay dies with its block
+        // change); a pending wasMining accumulation keeps running.
+        session.target = target;
+        session.startTick = world.totalTicks();
+        double perTick = perTickProgress(player, target, behavior);
+        if (perTick >= 1.0) {
+            // The vanilla instant rule: f >= 1.0 at start mines immediately.
+            session.target = null;
+            if (survivalBreakAllowed(player, target)) {
+                tryMineBlock(player, target, behavior);
+            }
+            return;
+        }
+        session.lastStage = (int) (perTick * 10.0);
+        publishProgress(player, target, session.lastStage);
     }
 
+    /**
+     * The vanilla {@code finishMiningBlock}: an accumulated progress of at
+     * least 0.7 mines immediately; an early finish parks the dig as
+     * {@code wasMining} — the tick loop keeps accumulating and self-completes
+     * at 1.0, exactly the vanilla no-resync behavior that keeps an
+     * honest-but-laggy client's prediction standing.
+     */
     private void miningFinishOnTick(PlayerSession player, BlockPosition target) {
-        MiningSession session = miningSessions.remove(player.uuid());
         BlockType current = world.getBlock(target);
         if (current.equals(world.airType())) {
             return; // already gone (race or double finish): no-op
         }
-        if (session == null || !session.target().equals(target)
+        MiningSession session = miningSessions.get(player.uuid());
+        if (session == null || session.target == null || !session.target.equals(target)
                 || !InteractionRules.withinSurvivalReach(player.position(), target)) {
             resync(target);
             LOGGER.fine(() -> "Rejected mining finish (no session/wrong target/out of reach) by "
                     + player.name());
             return;
         }
-        // The nuker guard (the NCP Frequency shape): the rolling 20-tick
-        // budget plus the same-tick different-target signature (Grim's
-        // MultiBreak). Over budget: the dig reverses, the ladder counts.
+        BlockBehavior behavior = BlockBehaviorTable.of(current.identifier()).orElse(null);
+        if (behavior == null || !behavior.diggable()) {
+            resync(target);
+            return;
+        }
+        long elapsedTicks = world.totalTicks() - session.startTick;
+        double progress = perTickProgress(player, target, behavior) * (elapsedTicks + 1);
+        if (progress >= VANILLA_FINISH_ACCEPT) {
+            // The vanilla accepted finish: the animation dies, the block mines.
+            session.target = null;
+            publishProgress(player, target, REMOVAL_STAGE);
+            if (survivalBreakAllowed(player, target)) {
+                tryMineBlock(player, target, behavior);
+            }
+        } else {
+            // The vanilla early finish: the dig keeps accumulating and
+            // self-completes later — no resync (the client's prediction stays).
+            session.prevTarget = session.target;
+            session.prevStartTick = session.startTick;
+            session.prevLastStage = session.lastStage;
+            session.target = null;
+        }
+    }
+
+    /** The vanilla {@code stopMiningBlock}: the live dig ends, its animation clears. */
+    private void stopMiningOnTick(PlayerSession player) {
+        MiningSession session = miningSessions.get(player.uuid());
+        if (session == null) {
+            return;
+        }
+        if (session.target != null) {
+            publishProgress(player, session.target, REMOVAL_STAGE);
+            session.target = null;
+        }
+        // A pending wasMining accumulation keeps running (vanilla leaves it).
+        if (session.prevTarget == null) {
+            miningSessions.remove(player.uuid());
+        }
+    }
+
+    /**
+     * The vanilla interaction-manager tick: the {@code wasMining} slot
+     * self-completes at progress 1.0 (the early-finished dig breaks even if
+     * the client never re-sends), the live slot only broadcasts stages. The
+     * per-tick progress recomputes with the digger's live posture, so diving
+     * or jumping while mining slows the dig exactly as it historically did.
+     */
+    public void tickMining() {
+        for (MiningSession session : miningSessions.values().toArray(new MiningSession[0])) {
+            if (session.prevTarget != null) {
+                BlockBehavior behavior = BlockBehaviorTable.of(
+                        world.getBlock(session.prevTarget).identifier()).orElse(null);
+                if (behavior == null || !behavior.diggable()
+                        || world.getBlock(session.prevTarget).equals(world.airType())) {
+                    session.prevTarget = null; // the target died some other way
+                } else {
+                    long elapsedTicks = world.totalTicks() - session.prevStartTick;
+                    double progress = perTickProgress(session.digger, session.prevTarget, behavior)
+                            * (elapsedTicks + 1);
+                    int stage = (int) (progress * 10.0);
+                    if (stage != session.prevLastStage) {
+                        session.prevLastStage = stage;
+                        publishProgress(session.digger, session.prevTarget, stage);
+                    }
+                    if (progress >= 1.0) {
+                        BlockPosition completed = session.prevTarget;
+                        session.prevTarget = null;
+                        if (survivalBreakAllowed(session.digger, completed)) {
+                            tryMineBlock(session.digger, completed, behavior);
+                        }
+                    }
+                }
+            }
+            if (session.target != null) {
+                BlockType current = world.getBlock(session.target);
+                BlockBehavior behavior = BlockBehaviorTable.of(current.identifier()).orElse(null);
+                if (behavior == null || !behavior.diggable() || current.equals(world.airType())) {
+                    publishProgress(session.digger, session.target, REMOVAL_STAGE);
+                    session.target = null;
+                } else {
+                    long elapsedTicks = world.totalTicks() - session.startTick;
+                    double progress = perTickProgress(session.digger, session.target, behavior)
+                            * (elapsedTicks + 1);
+                    int stage = (int) (progress * 10.0);
+                    if (stage != session.lastStage) {
+                        session.lastStage = stage;
+                        publishProgress(session.digger, session.target, stage);
+                    }
+                    // No self-completion in the live slot: the vanilla isMining
+                    // branch only animates; the finish packet decides.
+                }
+            }
+            if (session.target == null && session.prevTarget == null) {
+                miningSessions.remove(session.digger.uuid());
+            }
+        }
+    }
+
+    /**
+     * The engine's anti-cheat gate (kept from the NCP shapes: the rolling
+     * 20-tick break budget and the same-tick different-target MultiBreak)
+     * wrapping the vanilla tryMineBlock paths. The vanilla flow itself has no
+     * budget — the engine's volumes run wider than one client's.
+     */
+    private boolean survivalBreakAllowed(PlayerSession player, BlockPosition target) {
         long nowNanos = System.nanoTime();
         boolean overBudget = !player.violations().recordBreak(nowNanos, BREAK_WINDOW_NANOS, SURVIVAL_BREAK_BUDGET);
         boolean multiBreak = player.violations().isMultiBreak(nowNanos, target);
@@ -234,27 +390,24 @@ public final class BlockInteractionService {
             if (player.violations().nukerViolations() >= NUKER_KICK_VIOLATIONS) {
                 player.link().kick("Nuker");
             }
-            return;
+            return false;
         }
         player.violations().noteBreakTarget(nowNanos, target);
-        BlockBehavior behavior = BlockBehaviorTable.of(current.identifier()).orElse(null);
-        if (behavior == null || !behavior.diggable()) {
-            resync(target);
-            return;
+        return true;
+    }
+
+    /**
+     * The vanilla {@code tryMineBlock}: the break commits, the drops roll, the
+     * tool wears, the XP awards and the block-broken hooks (container spill)
+     * run — the same chain every accepted dig path takes.
+     */
+    private void tryMineBlock(PlayerSession player, BlockPosition target, BlockBehavior behavior) {
+        BlockType current = world.getBlock(target);
+        if (current.equals(world.airType())) {
+            return; // gone between the decision and the mine: no-op
         }
-        long elapsedNanos = System.nanoTime() - session.startedNanos();
         net.zaminmc.torch.item.ItemStack heldStack = player.inventory().held();
         ItemType held = heldStack.isEmpty() ? null : heldStack.type();
-        boolean canHarvest = BlockBehaviorTable.canHarvest(behavior, held);
-        double speedMultiplier = BlockBehaviorTable.speedMultiplier(behavior, held);
-        int requiredTicks = behavior.breakTicks(speedMultiplier, canHarvest);
-        long minimumNanos = (long) (requiredTicks * TICK_NANOS * MINING_TIMING_LENIENCY);
-        if (elapsedNanos < minimumNanos) {
-            resync(target); // too fast: undo the client's local prediction (§441 spirit)
-            LOGGER.fine(() -> "Rejected mining finish (too fast: " + (elapsedNanos / 1_000_000)
-                    + "ms < " + (minimumNanos / 1_000_000) + "ms) by " + player.name());
-            return;
-        }
         commit(target, world.airType());
         publishDrops(target, current, held);
         wearHeldTool(player, behavior);
@@ -265,6 +418,62 @@ public final class BlockInteractionService {
         var listener = blockBrokenListener;
         if (listener != null) {
             listener.accept(target, current); // container spill runs after the block is gone
+        }
+    }
+
+    /**
+     * The per-dig per-tick progress delta ({@code Block.getMiningSpeed}):
+     * the tool tier, the environment divisors, the /30 or /100 harvest split.
+     * The engine has no enchantments yet, so the Efficiency level reads 0 and
+     * the water divisor is unconditional until Slice 7 lands.
+     */
+    private double perTickProgress(PlayerSession player, BlockPosition target, BlockBehavior behavior) {
+        net.zaminmc.torch.item.ItemStack heldStack = player.inventory().held();
+        ItemType held = heldStack.isEmpty() ? null : heldStack.type();
+        boolean canHarvest = BlockBehaviorTable.canHarvest(behavior, held);
+        return MiningRules.perTickProgress(behavior.hardness(),
+                MiningRules.miningSpeed(BlockBehaviorTable.speedMultiplier(behavior, held),
+                        0, isSubmerged(player), false, player.onGround()),
+                canHarvest);
+    }
+
+    /** The vanilla removal stage: the client clears the animation above stage 10. */
+    public static final int REMOVAL_STAGE = 255;
+
+    /**
+     * The vanilla {@code isSubmergedIn(Material.WATER)} for the dig: the block
+     * at the eye point (1.62 standing / 1.54 sneaking, the same eye constants
+     * the reach check uses) is water.
+     */
+    private boolean isSubmerged(PlayerSession player) {
+        Position eye = player.position();
+        double eyeY = eye.y() + (player.sneaking()
+                ? net.zaminmc.torch.server.player.AntiCheat.EYE_HEIGHT_SNEAKING
+                : net.zaminmc.torch.server.player.AntiCheat.EYE_HEIGHT_STANDING);
+        BlockPosition head = new BlockPosition((int) Math.floor(eye.x()),
+                (int) Math.floor(eyeY), (int) Math.floor(eye.z()));
+        return net.zaminmc.torch.server.block.FluidBlocks.isWater(world.getBlock(head).identifier());
+    }
+
+    /**
+     * The dig-progress fan-out hook: invoked on the tick thread whenever a
+     * session's animation stage moves (or the dig ends). Receives the digger
+     * (excluded from the broadcast — the client predicts its own cracking),
+     * the target and the stage 0-9, or {@link #REMOVAL_STAGE}.
+     */
+    public interface MiningProgressListener {
+        void onMiningProgress(PlayerSession digger, BlockPosition target, int stage);
+    }
+
+    /** Registers the 0x28 fan-out hook. Tick-thread context. */
+    public void setMiningProgressListener(MiningProgressListener listener) {
+        this.miningProgressListener = listener;
+    }
+
+    private void publishProgress(PlayerSession digger, BlockPosition target, int stage) {
+        MiningProgressListener listener = miningProgressListener;
+        if (listener != null) {
+            listener.onMiningProgress(digger, target, stage);
         }
     }
 
