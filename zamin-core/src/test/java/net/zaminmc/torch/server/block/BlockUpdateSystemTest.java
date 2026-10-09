@@ -45,7 +45,7 @@ class BlockUpdateSystemTest {
     }
 
     @Test
-    void sandWithoutSupportConvertsIntoAFallingEntitySameTick() {
+    void sandWithoutSupportConvertsOnTheVanillaTwoTickFuse() {
         world.getOrGenerate(new net.zaminmc.torch.block.ChunkPosition(0, 0));
         ItemEntityManager items = new ItemEntityManager((x, y, z) -> false, new Random(1), 1000);
         FallingBlockEntityManager falling = new FallingBlockEntityManager((x, y, z) -> false, world,
@@ -55,13 +55,80 @@ class BlockUpdateSystemTest {
         BlockPosition sandAt = new BlockPosition(1, 8, 1);
         world.setBlock(sandAt, BuiltinBlocks.SAND);
         // Support below vanishes (the dig commit): the sand's cell is a
-        // neighbor of the change, so its update schedules and runs this tick.
+        // neighbor of the change, so its wake schedules the vanilla fuse.
         commit(system, new BlockPosition(1, 7, 1), world.airType());
 
-        assertEquals(world.airType(), world.getBlock(sandAt), "the block left the world");
+        assertEquals(BuiltinBlocks.SAND, world.getBlock(sandAt),
+                "the vanilla two-tick fuse: the sand still hovers right after the wake");
+        assertEquals(0, falling.size(), "no entity before the fuse fires");
+
+        advance(system, BlockUpdateSystem.FALL_CHECK_DELAY);
+
+        assertEquals(world.airType(), world.getBlock(sandAt), "the block left the world on the fuse");
         assertEquals(1, falling.size(), "the §470 entity took over");
         assertEquals(BuiltinBlocks.SAND, falling.all().get(0).blockType());
         assertEquals(0, items.size(), "no item entity for a gravity transition");
+    }
+
+    /** Advances the world clock and drains the system (the engine's rhythm). */
+    private void advance(BlockUpdateSystem system, int ticks) {
+        for (int i = 0; i < ticks; i++) {
+            world.tickTime();
+            system.tick();
+        }
+    }
+
+    @Test
+    void sandOverWaterFallsIntoThePondAndReplacesIt() {
+        world.getOrGenerate(new net.zaminmc.torch.block.ChunkPosition(1, 1));
+        ItemEntityManager items = new ItemEntityManager((x, y, z) -> false, new Random(7), 1400);
+        // The vanilla ground query: a cell is support exactly when a falling
+        // block cannot fall through it (air, water, lava and fire are not).
+        FallingBlockEntityManager falling = new FallingBlockEntityManager((x, y, z) -> {
+            int by = (int) Math.floor(y);
+            if (by < 0 || by > 255) {
+                return false;
+            }
+            return !net.zaminmc.torch.server.entity.FallingBlockEntity.canFallThrough(
+                    world.getBlock(new BlockPosition((int) Math.floor(x), by, (int) Math.floor(z))));
+        }, world, (position, stack) -> { }, new Random(8), 2300);
+        BlockUpdateSystem system = new BlockUpdateSystem(world, items, falling);
+
+        // The flat surface sits at y=4 (grass): a water cell on top, sand
+        // stacked above it. The vanilla trigger fires over water.
+        BlockPosition waterAt = new BlockPosition(30, 5, 30);
+        BlockPosition sandAt = new BlockPosition(30, 6, 30);
+        world.setBlock(waterAt, net.zaminmc.torch.server.block.FluidBlocks.sourceOf(
+                net.zaminmc.torch.server.block.FluidBlocks.Kind.WATER));
+        world.setBlock(sandAt, BuiltinBlocks.SAND);
+        // The water's commit is the sand's neighbor change (the vanilla wake
+        // order: placing under a gravity block wakes it); the wake schedules
+        // the two-tick fuse, so the sand still hovers after the first tick.
+        system.onBlockChanged(world, waterAt, world.getBlock(waterAt));
+        system.tick();
+        BlockType floorBefore = world.getBlock(new BlockPosition(30, 4, 30));
+
+        assertEquals(BuiltinBlocks.SAND, world.getBlock(sandAt),
+                "the vanilla two-tick fuse: the sand hovers over the pond first");
+        assertEquals(0, falling.size(), "no entity before the fuse fires");
+
+        advance(system, BlockUpdateSystem.FALL_CHECK_DELAY);
+        assertEquals(world.airType(), world.getBlock(sandAt),
+                "the sand left its cell over water exactly as over air");
+        assertEquals(1, falling.size(), "the fall took over");
+
+        // The entity falls through the non-solid water and lands on the
+        // grass; the landing cell still holds water — the vanilla canPlace
+        // semantics settle the sand INTO the pond, replacing the water.
+        for (int tick = 0; tick < 100 && falling.size() > 0; tick++) {
+            falling.tick();
+        }
+        assertEquals(0, falling.size(), "the fall ended in the pond");
+        assertEquals(BuiltinBlocks.SAND, world.getBlock(waterAt),
+                "the sand replaced the water it settled in");
+        assertEquals(floorBefore, world.getBlock(new BlockPosition(30, 4, 30)),
+                "the pond floor stayed put");
+        assertEquals(0, items.size(), "no item entity for a settled fall");
     }
 
     @Test
@@ -75,12 +142,14 @@ class BlockUpdateSystemTest {
         BlockPosition sandAt = new BlockPosition(80, 8, 80);
         world.setBlock(sandAt, BuiltinBlocks.SAND);
         // Four neighbors of the sand "break" in one tick: every request
-        // schedules the sand, but exactly one conversion may happen.
+        // schedules the sand's wake, but the fuse is one pending check per
+        // position — exactly one conversion may happen.
         system.onBlockChanged(world, new BlockPosition(81, 8, 80), world.airType());
         system.onBlockChanged(world, new BlockPosition(79, 8, 80), world.airType());
         system.onBlockChanged(world, new BlockPosition(80, 8, 81), world.airType());
         system.onBlockChanged(world, new BlockPosition(80, 9, 80), world.airType());
         system.tick();
+        advance(system, BlockUpdateSystem.FALL_CHECK_DELAY);
 
         assertEquals(1, falling.size(), "one update, one entity — no duplication");
         assertEquals(world.airType(), world.getBlock(sandAt));

@@ -27,7 +27,11 @@ import java.util.logging.Logger;
  * <ul>
  *   <li><b>Gravity blocks</b> (§470): sand and gravel whose support vanished
  *       convert into a falling block entity (block state → entity state →
- *       block state on landing).</li>
+ *       block state on landing), on the vanilla two-tick fuse — {@code
+ *       FallingBlock.onAdded/onNeighborChanged} schedule the tryFall check
+ *       {@code getTickRate(world) = 2} ticks out, so a wake-up block hovers
+ *       for two ticks and a collapsing column staggers one level per two
+ *       ticks, exactly the historical rhythm.</li>
  *   <li><b>Torch support</b>: a floor torch over air pops as an item.</li>
  *   <li><b>Grass decay</b>: grass with an opaque block above dies to dirt.</li>
  * </ul>
@@ -35,9 +39,9 @@ import java.util.logging.Logger;
  * <p>Positions are scheduled on commit (the engine registers this system as a
  * world change listener before the adapter, so client syncs and neighbor
  * updates observe every committed change in the same order). A chain — a sand
- * column losing its base — collapses in one drain because every conversion
- * schedules its own neighbors; the historical engine schedules each level two
- * ticks apart, a visual nuance the falling entities render identically.</p>
+ * column losing its base — collapses one level per two ticks: every
+ * conversion commits air, the air commit schedules the next sand cell's wake,
+ * and each wake fires its own check two ticks later (the vanilla cadence).</p>
  */
 public final class BlockUpdateSystem implements WorldChangeListener {
 
@@ -96,8 +100,17 @@ public final class BlockUpdateSystem implements WorldChangeListener {
     private record Scheduled(BlockPosition position, long dueTick) {
     }
 
+    /** One pending vanilla fall check ({@code scheduleTick(pos, FallingBlock, 2)}). */
+    private record FallCheck(BlockPosition position, long dueTick) {
+    }
+
     private final ArrayDeque<Scheduled> queue = new ArrayDeque<>();
     private final Set<Long> pending = new HashSet<>();
+
+    /** The vanilla fuse: {@code FallingBlock.getTickRate} is 2 game ticks. */
+    static final int FALL_CHECK_DELAY = 2;
+    private final ArrayDeque<FallCheck> fallChecks = new ArrayDeque<>();
+    private final Set<Long> pendingFallChecks = new HashSet<>();
 
     public BlockUpdateSystem(EngineWorld world, ItemEntityManager itemEntities,
                              FallingBlockEntityManager fallingEntities) {
@@ -162,6 +175,62 @@ public final class BlockUpdateSystem implements WorldChangeListener {
             }
             runUpdate(entry.position());
         }
+        // The vanilla fall checks due this tick (the two-tick fuse).
+        int checks = fallChecks.size();
+        for (int i = 0; i < checks; i++) {
+            FallCheck entry = fallChecks.poll();
+            if (entry == null) {
+                break; // drained everything reachable (defensive)
+            }
+            pendingFallChecks.remove(key(entry.position()));
+            if (entry.dueTick() > now) {
+                if (pendingFallChecks.add(key(entry.position()))) {
+                    fallChecks.add(entry); // re-arm, due tick preserved
+                }
+                continue;
+            }
+            runFallCheck(entry.position());
+        }
+    }
+
+    /**
+     * Schedules one vanilla fall check (one pending check per position;
+     * earliest wins — a second wake while the fuse runs changes nothing,
+     * matching the coalesced historical behavior for this rule).
+     */
+    private void scheduleFallCheck(BlockPosition position, long dueTick) {
+        if (position.y() < BlockPosition.MIN_Y || position.y() > BlockPosition.MAX_Y) {
+            return; // off-world cells hold no gravity blocks
+        }
+        long key = key(position);
+        if (!pendingFallChecks.add(key)) {
+            return;
+        }
+        fallChecks.add(new FallCheck(position, dueTick));
+    }
+
+    /**
+     * The vanilla {@code FallingBlock.tryFall} (reference/1.8.8 FallingBlock
+     * lines 40-59): the block converts when the cell below can be fallen
+     * through (air, water, lava, fire — sand stacked over a pond collapses
+     * into it) and the block itself still occupies the cell. Tick-thread
+     * context.
+     */
+    private void runFallCheck(BlockPosition position) {
+        BlockType type = world.getBlock(position);
+        if (type.equals(world.airType())) {
+            return;
+        }
+        Identifier identifier = type.identifier();
+        if (!identifier.equals(SAND) && !identifier.equals(GRAVEL)) {
+            return;
+        }
+        if (net.zaminmc.torch.server.entity.FallingBlockEntity.canFallThrough(
+                net.zaminmc.torch.server.entity.FallingBlockEntity.blockOrAir(
+                        world, position.offset(0, -1, 0)))) {
+            world.setBlock(position, world.airType());
+            fallingEntities.startFall(position, type);
+        }
     }
 
     /** Applies the rule set to one position. Tick-thread context. */
@@ -172,10 +241,10 @@ public final class BlockUpdateSystem implements WorldChangeListener {
         }
         Identifier identifier = type.identifier();
         if (identifier.equals(SAND) || identifier.equals(GRAVEL)) {
-            if (world.getBlock(position.offset(0, -1, 0)).equals(world.airType())) {
-                world.setBlock(position, world.airType());
-                fallingEntities.startFall(position, type);
-            }
+            // The vanilla wake (FallingBlock.onAdded/onNeighborChanged): the
+            // tryFall check schedules two ticks out — the block hovers for
+            // two ticks after its support vanishes before it converts.
+            scheduleFallCheck(position, world.totalTicks() + FALL_CHECK_DELAY);
             return;
         }
         if (identifier.equals(TORCH)) {
