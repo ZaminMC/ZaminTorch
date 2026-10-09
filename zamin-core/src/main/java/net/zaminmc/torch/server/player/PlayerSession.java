@@ -36,6 +36,8 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
     private volatile Rotation rotation = Rotation.ZERO;
     /** The vehicle this body rides (engine-global id, -1 = on foot). */
     private volatile int ridingVehicleId = -1;
+    /** The mob mount this body rides (engine id, -1 = on foot; the horse/pig slice). */
+    private volatile int ridingMobId = -1;
     private volatile boolean onGround = true;
     /** The open container window id (crafting table, furnace), or -1 when none. Tick-thread written, volatile-read by the adapter's sync. */
     private volatile int containerWindowId = -1;
@@ -43,6 +45,8 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
     private volatile ContainerKind containerKind = ContainerKind.NONE;
     /** The block the open container belongs to (furnace state lookup); null otherwise. */
     private volatile net.zaminmc.torch.block.BlockPosition containerPosition;
+    /** The mount whose inventory is open (the HORSE container's engine id); -1 otherwise. */
+    private volatile int containerMountId = -1;
 
     /** The kinds of container windows a session can hold open. */
     public enum ContainerKind {
@@ -52,7 +56,9 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
         /** The furnace (3-slot GUI, slot state lives in the world at containerPosition). */
         FURNACE,
         /** The chest (27-slot GUI, slot state lives in the world at containerPosition). */
-        CHEST
+        CHEST,
+        /** The horse inventory (saddle + armor slots live on the mount at containerPosition's mount id). */
+        HORSE
     }
 
     // --- survival body state (§436 family) ---------------------------------
@@ -332,6 +338,18 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
         this.containerWindowId = windowId;
         this.containerKind = kind;
         this.containerPosition = position;
+        this.containerMountId = -1;
+    }
+
+    /** Opens the horse inventory window (the mount's engine id rides along). */
+    public void openHorseWindow(int windowId, int mountEngineId) {
+        openContainerWindow(windowId, ContainerKind.HORSE, null);
+        this.containerMountId = mountEngineId;
+    }
+
+    /** @return the mount id of the open HORSE window, or -1. */
+    public int containerMountId() {
+        return containerMountId;
     }
 
     /** Marks the container window as closed (no container open). */
@@ -339,6 +357,7 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
         this.containerWindowId = -1;
         this.containerKind = ContainerKind.NONE;
         this.containerPosition = null;
+        this.containerMountId = -1;
     }
 
     public PlayerState state() {
@@ -365,6 +384,21 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
     /** Tick-thread only: the mount takes the body, the dismount frees it. */
     public void setRidingVehicleId(int vehicleId) {
         this.ridingVehicleId = vehicleId;
+    }
+
+    /** The mob mount this body rides (engine id), or -1 on foot. */
+    public int ridingMobId() {
+        return ridingMobId;
+    }
+
+    /** Tick-thread only: the mount takes the body, the dismount frees it. */
+    public void setRidingMobId(int mobId) {
+        this.ridingMobId = mobId;
+    }
+
+    /** @return whether the body sits in any seat (vehicle or mob mount). */
+    public boolean ridingAny() {
+        return ridingVehicleId >= 0 || ridingMobId >= 0;
     }
 
     public boolean onGround() {

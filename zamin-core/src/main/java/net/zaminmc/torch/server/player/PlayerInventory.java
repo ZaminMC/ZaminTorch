@@ -359,6 +359,19 @@ public final class PlayerInventory {
     }
 
     /**
+     * Places a stack on the cursor (the horse window's take paths: the saddle
+     * and the armor row jump from the mount onto the cursor). The previous
+     * cursor must be empty — the one-mouse rule.
+     */
+    public void placeOnCursor(ItemStack stack) {
+        Objects.requireNonNull(stack, "stack");
+        if (!cursor.isEmpty()) {
+            throw new IllegalArgumentException("Cursor already carries a stack");
+        }
+        cursor = stack;
+    }
+
+    /**
      * Semantic restore from persisted state (join of a returning player):
      * replaces the whole contents. Unresolvable saved items are dropped loudly
      * by the caller before this runs, so the list is exactly TOTAL_SLOTS long.

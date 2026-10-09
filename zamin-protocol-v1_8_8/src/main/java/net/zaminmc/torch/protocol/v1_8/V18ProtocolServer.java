@@ -214,9 +214,15 @@ public final class V18ProtocolServer implements ProtocolAdapter {
             }
 
             @Override
-            public void onMobMoved(net.zaminmc.torch.server.entity.MobEntity mob) {
+            public void onMobMoved(net.zaminmc.torch.server.entity.MobEntity mob,
+                                   net.zaminmc.torch.server.player.PlayerSession rider) {
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
                     connection.sendMobMoved(mob);
+                    // The ridden seat re-anchors: the rider's own client follows
+                    // the body (the vehicle rule), the others teleport the body.
+                    if (rider != null) {
+                        connection.sendRiderSeatAnchor(rider, mob);
+                    }
                 }
             }
 
@@ -297,6 +303,57 @@ public final class V18ProtocolServer implements ProtocolAdapter {
             @Override
             public void onMobExploded(net.zaminmc.torch.server.entity.MobEntity mob) {
                 // The blast rides the explosion listener (blocks + motion).
+            }
+
+            @Override
+            public void onMobMounted(net.zaminmc.torch.server.entity.MobEntity mob,
+                                     int riderEngineId) {
+                net.zaminmc.torch.server.player.PlayerSession rider = server.playerByEngineId(riderEngineId);
+                if (rider == null) {
+                    return;
+                }
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendAttachEntity(rider, mob.entityId(), true);
+                    connection.sendPostureMetadata(rider); // the riding flag
+                }
+            }
+
+            @Override
+            public void onMobDismounted(net.zaminmc.torch.server.entity.MobEntity mob,
+                                        int riderEngineId,
+                                        net.zaminmc.torch.util.Position exit, boolean thrown) {
+                net.zaminmc.torch.server.player.PlayerSession rider = server.playerByEngineId(riderEngineId);
+                if (rider == null) {
+                    return;
+                }
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendAttachEntity(rider, mob.entityId(), false);
+                    connection.sendPostureMetadata(rider);
+                }
+                // The ex-rider's own client re-anchors at the exit point.
+                rider.link().resyncPosition();
+            }
+
+            @Override
+            public void onHorseFlagsChanged(net.zaminmc.torch.server.entity.MobEntity mob) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    if (mob.type() == net.zaminmc.torch.server.entity.MobType.PIG) {
+                        connection.sendMobPigSaddle(mob);
+                    } else {
+                        connection.sendMobHorseFlags(mob);
+                    }
+                }
+            }
+
+            @Override
+            public void onHorseInventoryOpened(net.zaminmc.torch.server.player.PlayerSession player,
+                                               net.zaminmc.torch.server.entity.MobEntity mob,
+                                               int windowId) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    if (connection.currentSession() == player) {
+                        connection.sendHorseWindow(channelOf(connection), player, windowId, mob);
+                    }
+                }
             }
         });
         // The skeleton's bow arm (Animation 0x0B) and the creeper's blast

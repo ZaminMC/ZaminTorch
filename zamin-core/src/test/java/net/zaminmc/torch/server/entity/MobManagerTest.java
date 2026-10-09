@@ -56,7 +56,7 @@ class MobManagerTest {
         final List<Float> playerHits = new ArrayList<>();
 
         @Override public void onMobSpawned(MobEntity mob) { spawned++; }
-        @Override public void onMobMoved(MobEntity mob) { moved++; }
+        @Override public void onMobMoved(MobEntity mob, net.zaminmc.torch.server.player.PlayerSession rider) { moved++; }
         @Override public void onMobHurt(MobEntity mob) { hurt++; }
         @Override public void onMobDied(MobEntity mob) { died++; }
         @Override public void onMobRemoved(MobEntity mob, String reason) { removals.add(reason); }

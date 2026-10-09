@@ -1399,7 +1399,85 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             }
             return;
         }
+        if (player.openContainerKind()
+                == net.zaminmc.torch.server.player.PlayerSession.ContainerKind.HORSE) {
+            var mount = engine.mobs().byId(player.containerMountId());
+            if (mount != null) {
+                sendHorseWindowItems(channel, windowId, mount, player);
+            }
+            return;
+        }
         sendCraftingTableWindowItems(channel, windowId, player);
+    }
+
+    /**
+     * Open Window (0x2D) for the horse inventory — the quirky "EntityHorse"
+     * type string plus the trailing mount entity id (the only Open Window
+     * that carries one), then the authoritative 38-slot contents. Called on
+     * the tick thread by the engine's open dispatch.
+     */
+    void sendHorseWindow(Channel channel, PlayerSession player,
+                         int windowId, MobEntity mount) {
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(48);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_OPEN_WINDOW);
+        out.writeByte(windowId);
+        ByteBufOps.writeString(out, Protocol18.HORSE_WINDOW_TYPE);
+        ByteBufOps.writeString(out, Protocol18.HORSE_WINDOW_TITLE);
+        out.writeByte(Protocol18.HORSE_WINDOW_GUI_SLOTS); // the GUI's own slots: saddle + armor
+        out.writeInt(mount.entityId()); // the trailing mount id (the EntityHorse quirk)
+        channel.writeAndFlush(out);
+        sendHorseWindowItems(channel, windowId, mount, player);
+    }
+
+    /**
+     * Full authoritative sync of the horse window: 38 slots — 0 the saddle
+     * row, 1 the armor row (both live on the mount), 2-28 main inventory
+     * (engine 9-35), 29-37 hotbar (engine 0-8). Any thread.
+     */
+    private void sendHorseWindowItems(Channel channel, int windowId,
+                                      MobEntity mount, PlayerSession player) {
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(96);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_WINDOW_ITEMS);
+        out.writeByte(windowId);
+        out.writeShort(Protocol18.HORSE_WINDOW_TOTAL_SLOTS);
+        var inventory = player == null ? java.util.List.<net.zaminmc.torch.item.ItemStack>of()
+                : player.inventory().snapshot();
+        for (int wireSlot = 0; wireSlot < Protocol18.HORSE_WINDOW_TOTAL_SLOTS; wireSlot++) {
+            net.zaminmc.torch.item.ItemStack stack;
+            if (wireSlot == Protocol18.HORSE_WIRE_SLOT_SADDLE) {
+                stack = mount.saddled()
+                        ? net.zaminmc.torch.item.ItemStack.of(
+                        net.zaminmc.torch.server.item.BuiltinItems.SADDLE, 1)
+                        : net.zaminmc.torch.item.ItemStack.EMPTY;
+            } else if (wireSlot == Protocol18.HORSE_WIRE_SLOT_ARMOR) {
+                stack = horseArmorStack(mount.armorType());
+            } else if (wireSlot <= 28) {
+                stack = inventory.get(wireSlot + 7); // main inventory: engine 9-35
+            } else {
+                stack = inventory.get(wireSlot - 29); // hotbar: engine 0-8
+            }
+            writeSlot(out, stack);
+        }
+        channel.writeAndFlush(out);
+    }
+
+    /** @return the window stack of a mount's armor row (empty when none). */
+    private static net.zaminmc.torch.item.ItemStack horseArmorStack(int row) {
+        return switch (row) {
+            case 3 -> net.zaminmc.torch.item.ItemStack.of(
+                    net.zaminmc.torch.server.item.BuiltinItems.DIAMOND_HORSE_ARMOR, 1);
+            case 2 -> net.zaminmc.torch.item.ItemStack.of(
+                    net.zaminmc.torch.server.item.BuiltinItems.GOLDEN_HORSE_ARMOR, 1);
+            case 1 -> net.zaminmc.torch.item.ItemStack.of(
+                    net.zaminmc.torch.server.item.BuiltinItems.IRON_HORSE_ARMOR, 1);
+            default -> net.zaminmc.torch.item.ItemStack.EMPTY;
+        };
     }
 
     /**
@@ -1925,13 +2003,22 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeShort(0); // velocity y
         out.writeShort(0); // velocity z
         // Living-entity metadata: flags byte + health float, then the kind's
-        // status byte (1.8 DataWatcher 16: the creeper's swell state, the
-        // sheep's coat), then terminator.
+        // own block (the 1.8 DataWatcher layout): the horse's index-16 flag
+        // Int + subtype + variant + owner + armor, the pig's saddle byte at
+        // 16, the creeper's swell / the sheep's coat byte at 16 — then the
+        // terminator.
         out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | Protocol18.LIVING_FLAGS_METADATA_INDEX);
         out.writeByte(mob.burning() ? Protocol18.LIVING_FLAG_BURNING : 0);
         out.writeByte((Protocol18.METADATA_TYPE_FLOAT << 5) | Protocol18.LIVING_HEALTH_METADATA_INDEX);
         out.writeFloat(mob.health());
-        writeKindStatusMetadata(out, mob);
+        if (mob.type() == net.zaminmc.torch.server.entity.MobType.HORSE) {
+            writeHorseMetadata(out, mob);
+        } else if (mob.type() == net.zaminmc.torch.server.entity.MobType.PIG) {
+            out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | Protocol18.PIG_SADDLE_METADATA_INDEX);
+            out.writeByte(mob.pigSaddled() ? 1 : 0);
+        } else {
+            writeKindStatusMetadata(out, mob);
+        }
         out.writeByte(Protocol18.METADATA_TERMINATOR);
         channel.writeAndFlush(out);
 
@@ -1961,6 +2048,24 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         };
     }
 
+    /** The horse's metadata block: flags Int 16, subtype Byte 19, variant Int 20,
+     * owner String 21 (the vanilla UUID-as-string quirk — we carry the tamer's
+     * name), armor Int 22. Order matters not; presence does. */
+    private static void writeHorseMetadata(ByteBuf out, MobEntity mob) {
+        out.writeByte((Protocol18.METADATA_TYPE_INT << 5) | Protocol18.HORSE_FLAGS_METADATA_INDEX);
+        out.writeInt(mob.horseFlagsRaw());
+        out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | Protocol18.HORSE_SUBTYPE_METADATA_INDEX);
+        out.writeByte(mob.horseSubtype());
+        out.writeByte((Protocol18.METADATA_TYPE_INT << 5) | Protocol18.HORSE_VARIANT_METADATA_INDEX);
+        out.writeInt(mob.variant());
+        if (!mob.ownerName().isEmpty()) {
+            out.writeByte((Protocol18.METADATA_TYPE_STRING << 5) | Protocol18.HORSE_OWNER_METADATA_INDEX);
+            ByteBufOps.writeString(out, mob.ownerName());
+        }
+        out.writeByte((Protocol18.METADATA_TYPE_INT << 5) | Protocol18.HORSE_ARMOR_METADATA_INDEX);
+        out.writeInt(mob.armorType());
+    }
+
     /**
      * Set Entity Metadata (0x1C) for one kind-status change: a creeper
      * starting or dropping its swell, a sheep losing or regrowing its coat.
@@ -1976,6 +2081,44 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeVarInt(out, mob.entityId());
         out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | Protocol18.KIND_STATUS_METADATA_INDEX);
         out.writeByte(value);
+        out.writeByte(Protocol18.METADATA_TERMINATOR);
+        channel.writeAndFlush(out);
+    }
+
+    /**
+     * Set Entity Metadata (0x1C) for the horse's index-16 flag Int: a tame
+     * flip, a saddle going on, the rear of a buck, the graze of a feed. The
+     * full flag word rides every time (the Int delta needs no bit targeting).
+     * Any thread.
+     */
+    void sendMobHorseFlags(MobEntity mob) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(16);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_ENTITY_METADATA);
+        ByteBufOps.writeVarInt(out, mob.entityId());
+        out.writeByte((Protocol18.METADATA_TYPE_INT << 5) | Protocol18.HORSE_FLAGS_METADATA_INDEX);
+        out.writeInt(mob.horseFlagsRaw());
+        out.writeByte(Protocol18.METADATA_TERMINATOR);
+        channel.writeAndFlush(out);
+    }
+
+    /**
+     * Set Entity Metadata (0x1C) for the pig's saddle byte (index 16): the
+     * saddle going on (the mount slice). Any thread.
+     */
+    void sendMobPigSaddle(MobEntity mob) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(12);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_ENTITY_METADATA);
+        ByteBufOps.writeVarInt(out, mob.entityId());
+        out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | Protocol18.PIG_SADDLE_METADATA_INDEX);
+        out.writeByte(mob.pigSaddled() ? 1 : 0);
         out.writeByte(Protocol18.METADATA_TERMINATOR);
         channel.writeAndFlush(out);
     }
@@ -2501,6 +2644,28 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     }
 
     /**
+     * The ridden mount's seat anchor: the rider's own client re-anchors onto
+     * the seat (the body follows the mount); the other observers teleport
+     * the rider body. Any thread.
+     */
+    void sendRiderSeatAnchor(PlayerSession rider, MobEntity mount) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        Position seat = new Position(mount.position().x(),
+                mount.position().y() + mount.seatHeight(), mount.position().z());
+        if (session == rider) {
+            resyncPosition(); // the seat re-anchor: the client's body follows
+            return;
+        }
+        Integer riderWireId = remoteEntityIds.get(rider.uuid());
+        if (riderWireId != null) {
+            sendEntityTeleport(riderWireId, seat, mount.onGround());
+        }
+    }
+
+    /**
      * Attach Entity (0x1B, protocol 47): i32 the attached rider, i32 the
      * vehicle, u8 riding (1) — a rider id of -1 clears the seat. The rider's
      * id is observer-local (own entity id on the rider's own connection).
@@ -2550,7 +2715,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         int flags = (mover.sneaking() ? Protocol18.LIVING_FLAG_SNEAKING : 0)
                 | (mover.sprinting() ? Protocol18.LIVING_FLAG_SPRINTING : 0)
                 | (mover.burning() ? Protocol18.LIVING_FLAG_BURNING : 0)
-                | (mover.ridingVehicleId() >= 0 ? Protocol18.LIVING_FLAG_RIDING : 0);
+                | (mover.ridingAny() ? Protocol18.LIVING_FLAG_RIDING : 0);
         ByteBuf out = Unpooled.buffer(12);
         ByteBufOps.writeVarInt(out, Protocol18.S2C_ENTITY_METADATA);
         ByteBufOps.writeVarInt(out, wireId);

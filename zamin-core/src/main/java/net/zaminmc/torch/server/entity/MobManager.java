@@ -55,7 +55,8 @@ public final class MobManager {
     public interface Listener {
         void onMobSpawned(MobEntity mob);
 
-        void onMobMoved(MobEntity mob);
+        /** The body moved; the rider session rides along for the seat re-anchor (null when none). */
+        void onMobMoved(MobEntity mob, PlayerSession rider);
 
         /** Hurt animation + sound (attacker null for environmental damage). */
         void onMobHurt(MobEntity mob);
@@ -89,6 +90,26 @@ public final class MobManager {
 
         /** A primed creeper went off (the manager already removed it). */
         void onMobExploded(MobEntity mob);
+
+        /** A player took a mount's seat (the wire Attach Entity + posture). */
+        default void onMobMounted(MobEntity mob, int riderEngineId) {
+        }
+
+        /** A rider left (or was thrown off) the seat; the exit position rides along. */
+        default void onMobDismounted(MobEntity mob, int riderEngineId,
+                                     Position exit, boolean thrown) {
+        }
+
+        /** The horse's index-16 flag word changed (tame/saddle/armor/rear/eat). */
+        default void onHorseFlagsChanged(MobEntity mob) {
+        }
+
+        /**
+         * A player opened a mount's inventory: the adapter sends Open Window
+         * ("EntityHorse" + the trailing mount id) then the slot contents.
+         */
+        default void onHorseInventoryOpened(PlayerSession player, MobEntity mob, int windowId) {
+        }
     }
 
     private final MobEntity.WorldQuery world;
@@ -219,7 +240,8 @@ public final class MobManager {
      */
     public void populateInitial(Position spawnCenter) {
         int packs = PASSIVE_CAP / 3;
-        MobType[] passives = {MobType.PIG, MobType.COW, MobType.CHICKEN, MobType.SHEEP};
+        MobType[] passives = {MobType.PIG, MobType.COW, MobType.CHICKEN,
+                MobType.SHEEP, MobType.HORSE};
         for (int p = 0; p < packs; p++) {
             int dx = random.nextInt(61) - 30;
             int dz = random.nextInt(61) - 30;
@@ -244,6 +266,72 @@ public final class MobManager {
             listener.onMobSheared(mob, wool);
         }
         return wool;
+    }
+
+    // ------------------------------------------------ mounts (the horse/pig slice)
+
+    /**
+     * Seats a player on a mount: the vanilla temper flow for an untamed
+     * horse (tame-and-seat, seat-and-buck, or a plain seat), a direct seat
+     * for pigs and tamed horses. Returns whether the rider is in the seat.
+     * Tick-thread context.
+     */
+    public boolean mountMob(MobEntity mob, int riderEngineId) {
+        Objects.requireNonNull(mob, "mob");
+        if (!mob.isMountable() || mob.hasRider() || mob.dead()) {
+            return false;
+        }
+        MobEntity.MountAttempt attempt = mob.attemptMount();
+        mob.setRider(riderEngineId);
+        for (Listener listener : listeners) {
+            listener.onMobMounted(mob, riderEngineId);
+        }
+        if (attempt == MobEntity.MountAttempt.TAMED) {
+            for (Listener listener : listeners) {
+                listener.onHorseFlagsChanged(mob); // the tame bit flipped
+            }
+        }
+        if (attempt == MobEntity.MountAttempt.BUCKED) {
+            for (Listener listener : listeners) {
+                listener.onHorseFlagsChanged(mob); // the rear flag went up
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Opens the seat: the rider steps out beside the mount (offset toward
+     * the mount's left flank, snapped to the ground) — the vehicle rule.
+     * {@code thrown} marks the buck throw (the exit carries a pop).
+     * Tick-thread context.
+     */
+    public void dismountMob(MobEntity mob, boolean thrown) {
+        Objects.requireNonNull(mob, "mob");
+        if (!mob.hasRider()) {
+            return;
+        }
+        int rider = mob.riderId();
+        mob.clearRider();
+        Position at = mob.position();
+        Position exit = new Position(at.x() + 1.1, at.y() + 0.3, at.z());
+        for (Listener listener : listeners) {
+            listener.onMobDismounted(mob, rider, exit, thrown);
+        }
+    }
+
+    /**
+     * The rider's rein input lands on the mount. The manager owns the
+     * control gate: an unsaddled horse and a pig without the carrot on a
+     * stick answer nothing (the manager zeroes the forward). Tick-thread.
+     */
+    public void steerRidden(MobEntity mob, float sideways, float forward,
+                            boolean jump, boolean riderControls) {
+        mob.steer(sideways, riderControls ? forward : 0.0f, jump);
+    }
+
+    /** @return whether a rider currently holds the mount's seat. */
+    public boolean mountHasRider(MobEntity mob) {
+        return mob.hasRider();
     }
 
     /**
@@ -273,6 +361,10 @@ public final class MobManager {
                 continue;
             }
 
+            // A dying mount opens the seat first (no ghost riders on corpses).
+            if (mob.dying() && mob.hasRider()) {
+                dismountMob(mob, false);
+            }
             if (mob.dying()) {
                 mob.tick(night);
                 continue;
@@ -303,6 +395,9 @@ public final class MobManager {
                 }
             }
             if (anyPlaying && outOfRangeOfAllPlayers(players, mob)) {
+                if (mob.hasRider()) {
+                    dismountMob(mob, false);
+                }
                 iterator.remove();
                 for (Listener listener : listeners) {
                     listener.onMobRemoved(mob, "despawned");
@@ -312,6 +407,7 @@ public final class MobManager {
 
             boolean wasPriming = mob.fuseActive();
             boolean wasBurning = mob.burning();
+            int wasHorseFlags = mob.horseFlagsRaw();
             boolean moved = mob.tick(night);
             if (wasPriming != mob.fuseActive()) {
                 for (Listener listener : listeners) {
@@ -322,6 +418,14 @@ public final class MobManager {
                 for (Listener listener : listeners) {
                     listener.onMobBurningChanged(mob, mob.burning());
                 }
+            }
+            if (wasHorseFlags != mob.horseFlagsRaw()) {
+                for (Listener listener : listeners) {
+                    listener.onHorseFlagsChanged(mob);
+                }
+            }
+            if (mob.consumeBuckThrow()) {
+                dismountMob(mob, true); // the rear-and-throw (the exit is a pop)
             }
             if (mob.consumeRegrown()) {
                 for (Listener listener : listeners) {
@@ -337,6 +441,9 @@ public final class MobManager {
             }
             if (mob.consumePendingExplosion()) {
                 // The blast replaces the body: no death animation, no loot.
+                if (mob.hasRider()) {
+                    dismountMob(mob, true); // the blast throws the rider
+                }
                 iterator.remove();
                 for (Listener listener : listeners) {
                     listener.onMobRemoved(mob, "exploded");
@@ -355,8 +462,9 @@ public final class MobManager {
                 }
             }
             if (moved) {
+                PlayerSession rider = mob.hasRider() ? sessionOfRider(players, mob.riderId()) : null;
                 for (Listener listener : listeners) {
-                    listener.onMobMoved(mob);
+                    listener.onMobMoved(mob, rider);
                 }
             }
             if (mob.idleSoundDue()) {
@@ -483,7 +591,8 @@ public final class MobManager {
     }
 
     private MobType randomPassiveType() {
-        MobType[] passives = {MobType.PIG, MobType.COW, MobType.CHICKEN, MobType.SHEEP};
+        MobType[] passives = {MobType.PIG, MobType.COW, MobType.CHICKEN,
+                MobType.SHEEP, MobType.HORSE};
         return passives[random.nextInt(passives.length)];
     }
 
@@ -533,5 +642,16 @@ public final class MobManager {
             return null;
         }
         return playing.get(random.nextInt(playing.size()));
+    }
+
+    /** @return the playing session whose engine id matches the rider id, or null. */
+    private PlayerSession sessionOfRider(Iterable<PlayerSession> players, int riderEngineId) {
+        for (PlayerSession player : players) {
+            if (player.engineEntityId() == riderEngineId
+                    && player.state() == net.zaminmc.torch.entity.PlayerState.PLAYING) {
+                return player;
+            }
+        }
+        return null;
     }
 }

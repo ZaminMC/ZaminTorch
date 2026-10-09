@@ -225,6 +225,66 @@ public final class MobEntity {
     private Position visibleTarget;
     private boolean targetHuntable;
 
+    // ------------------------------------------------ mounts (the horse/pig slice)
+
+    /** The horse flag bits (the 1.8 DataWatcher index-16 Int, ProtocolSupport/Glowstone-verified). */
+    public static final int HORSE_FLAG_TAMED = 0x02;
+    public static final int HORSE_FLAG_SADDLED = 0x04;
+    public static final int HORSE_FLAG_EATING = 0x20;
+    public static final int HORSE_FLAG_REARING = 0x40;
+    public static final int HORSE_FLAG_MOUTH_OPEN = 0x80;
+
+    /** Horse subtypes (the 1.8 DataWatcher index-19 Byte): horse, donkey. */
+    public static final int HORSE_SUBTYPE_HORSE = 0;
+    public static final int HORSE_SUBTYPE_DONKEY = 1;
+
+    /** Armor rows (the 1.8 DataWatcher index-22 Int): none, iron, gold, diamond. */
+    public static final int HORSE_ARMOR_NONE = 0;
+    public static final int HORSE_ARMOR_IRON = 1;
+    public static final int HORSE_ARMOR_GOLD = 2;
+    public static final int HORSE_ARMOR_DIAMOND = 3;
+
+    /** Temper gained per mount attempt on an untamed horse (the historical +5). */
+    public static final int TEMPER_PER_ATTEMPT = 5;
+    /** Temper the common foods add per feeding (sugar/wheat/apple band). */
+    public static final int TEMPER_PER_FEED = 3;
+    /** Ticks a bucking horse keeps its rider before the throw (the rear-and-throw feel). */
+    public static final int BUCK_THROW_TICKS = 20;
+    /** Degrees per tick a mount turns at full sideways input (the 1.8 A/D steering). */
+    public static final float RIDDEN_TURN_RATE = 3.5f;
+    /** Controlled horse forward speed in blocks/tick (the canter). */
+    public static final double HORSE_RIDE_SPEED = 0.115;
+    /** Controlled pig forward speed in blocks/tick (slower than the horse). */
+    public static final double PIG_RIDE_SPEED = 0.07;
+    /** Jump impulse of a ridden horse (the ~2-block hop). */
+    public static final double HORSE_JUMP_IMPULSE = 0.48;
+    /** Jump impulse of a ridden pig (the small hop). */
+    public static final double PIG_JUMP_IMPULSE = 0.30;
+    /** Ticks between jumps of a ridden mount (the historical cooldown). */
+    public static final int RIDE_JUMP_COOLDOWN = 10;
+    /** Rider seat height above the mount's feet (the saddle top). */
+    public static final double HORSE_SEAT_HEIGHT = 1.12;
+    public static final double PIG_SEAT_HEIGHT = 0.55;
+
+    /** The outcome of a mount attempt on an untamed horse (the vanilla temper flow). */
+    public enum MountAttempt { BUCKED, TAMED, MOUNTED }
+
+    private int horseSubtype = HORSE_SUBTYPE_HORSE;
+    private int variant;
+    private int horseFlags;
+    private int armorType = HORSE_ARMOR_NONE;
+    private int temper;
+    private String ownerName = "";
+    private int riderId = -1;
+    private float steerSideways;
+    private float steerForward;
+    private boolean steerJump;
+    private boolean pigSaddled;
+    private int jumpCooldown;
+    private int buckTicks;
+    private boolean pendingBuckThrow;
+    private int eatingTicks;
+
     public MobEntity(int entityId, MobType type, Position position,
                      Random random, WorldQuery world) {
         this.entityId = entityId;
@@ -235,6 +295,15 @@ public final class MobEntity {
         this.health = type.maxHealth;
         this.modeTicks = random.nextInt(IDLE_TICKS);
         this.idleSoundTimer = 160 + random.nextInt(320); // first chatter 8-24 s out
+        // The herd look: roughly one donkey in five, plain coats dominating
+        // (the historical variant split; colors 0-6, markings 0-3).
+        if (type == MobType.HORSE) {
+            this.horseSubtype = random.nextInt(100) < 20
+                    ? HORSE_SUBTYPE_DONKEY : HORSE_SUBTYPE_HORSE;
+            int color = random.nextInt(7);
+            int marking = random.nextInt(10) < 6 ? 0 : 1 + random.nextInt(3);
+            this.variant = color | (marking << 8);
+        }
     }
 
     public int entityId() {
@@ -412,6 +481,26 @@ public final class MobEntity {
             return fixedPoint() != before || beforeYaw != yaw || beforeHeadYaw != headYaw;
         }
 
+        // A ridden body parks its mind: the rider owns the reins (the vanilla
+        // AI-suspension rule). The buck clock runs and the seat physics tick.
+        if (hasRider()) {
+            if (buckTicks > 0) {
+                buckTicks--;
+                if (buckTicks == 0) {
+                    horseFlags &= ~HORSE_FLAG_REARING;
+                    pendingBuckThrow = true;
+                }
+            }
+            if (jumpCooldown > 0) {
+                jumpCooldown--;
+            }
+            if (eatingTicks > 0 && --eatingTicks == 0) {
+                horseFlags &= ~HORSE_FLAG_EATING;
+            }
+            tickRiddenBody();
+            return fixedPoint() != before || beforeYaw != yaw || beforeHeadYaw != headYaw;
+        }
+
         tickMind(night);
         tickBody();
         return fixedPoint() != before || beforeYaw != yaw || beforeHeadYaw != headYaw;
@@ -456,6 +545,247 @@ public final class MobEntity {
         boolean value = regrownThisTick;
         regrownThisTick = false;
         return value;
+    }
+
+    // ------------------------------------------------ mount API (horse/pig)
+
+    /** @return whether this kind accepts a rider (the horse and the saddled pig). */
+    public boolean isMountable() {
+        return type == MobType.HORSE || type == MobType.PIG;
+    }
+
+    /** @return the tamed bit (pigs mount without taming, the vanilla rule). */
+    public boolean tamed() {
+        return type == MobType.PIG || (horseFlags & HORSE_FLAG_TAMED) != 0;
+    }
+
+    /** @return whether the saddle is on (the control gate for both kinds). */
+    public boolean saddled() {
+        return type == MobType.PIG ? pigSaddled : (horseFlags & HORSE_FLAG_SADDLED) != 0;
+    }
+
+    /** @return the raw index-16 horse flag word (the wire writer's view). */
+    public int horseFlagsRaw() {
+        return horseFlags;
+    }
+
+    /** @return whether the rear flag is up (the bucking animation). */
+    public boolean rearing() {
+        return (horseFlags & HORSE_FLAG_REARING) != 0;
+    }
+
+    /** @return the eating flag (the feeding graze flash). */
+    public boolean eating() {
+        return (horseFlags & HORSE_FLAG_EATING) != 0;
+    }
+
+    /** @return the horse subtype (0 horse, 1 donkey — the index-19 byte). */
+    public int horseSubtype() {
+        return horseSubtype;
+    }
+
+    /** @return the coat variant (color | marking &lt;&lt; 8 — the index-20 int). */
+    public int variant() {
+        return variant;
+    }
+
+    /** @return the armor row (0 none — the index-22 int). */
+    public int armorType() {
+        return armorType;
+    }
+
+    /** @return the taming temper (0-100; the taming odds ride it). */
+    public int temper() {
+        return temper;
+    }
+
+    /** @return the tamer's name (the index-21 owner string, "" until tamed). */
+    public String ownerName() {
+        return ownerName;
+    }
+
+    /** @return whether the pig carries a saddle (the pig's own index-16 byte). */
+    public boolean pigSaddled() {
+        return pigSaddled;
+    }
+
+    /** @return the rider's engine id, or -1 when the seat is open. */
+    public int riderId() {
+        return riderId;
+    }
+
+    /** @return whether a rider holds the seat. */
+    public boolean hasRider() {
+        return riderId >= 0;
+    }
+
+    /** @return and clears whether the body must throw its rider this tick (buck flow). */
+    public boolean consumeBuckThrow() {
+        boolean value = pendingBuckThrow;
+        pendingBuckThrow = false;
+        return value;
+    }
+
+    /**
+     * A mount attempt on the untamed horse rolls the vanilla temper flow:
+     * temper rises, and the odds ride it. A pig or a tamed horse mounts
+     * directly. The result tells the manager whether to seat, tame-and-seat,
+     * or seat-and-buck.
+     */
+    public MountAttempt attemptMount() {
+        if (type == MobType.PIG || tamed()) {
+            return MountAttempt.MOUNTED;
+        }
+        temper = Math.min(100, temper + TEMPER_PER_ATTEMPT);
+        if (random.nextInt(100) < temper) {
+            tame("");
+            return MountAttempt.TAMED;
+        }
+        // The buck: seated, rearing, thrown shortly (the vanilla feel).
+        buckTicks = BUCK_THROW_TICKS + random.nextInt(20);
+        horseFlags |= HORSE_FLAG_REARING;
+        return MountAttempt.BUCKED;
+    }
+
+    /** Flips the tame bit and records the tamer (the hearts moment). */
+    public void tame(String owner) {
+        horseFlags |= HORSE_FLAG_TAMED;
+        if (owner != null && !owner.isEmpty()) {
+            ownerName = owner;
+        }
+    }
+
+    /** Feeding raises the temper and flashes the eating flag (the graze). */
+    public void feedTemper(int amount) {
+        temper = Math.min(100, temper + amount);
+        eatingTicks = 20;
+        horseFlags |= HORSE_FLAG_EATING;
+    }
+
+    /** Equips the saddle (horse flags or the pig's own byte). */
+    public void applySaddle() {
+        if (type == MobType.PIG) {
+            pigSaddled = true;
+        } else {
+            horseFlags |= HORSE_FLAG_SADDLED;
+        }
+    }
+
+    /** Equips a horse armor row (the index-22 int, tamed horses only). */
+    public void applyArmor(int type) {
+        this.armorType = type;
+    }
+
+    /** Seats a rider (the engine id; inputs zeroed — the stale-rein guard). */
+    public void setRider(int engineId) {
+        this.riderId = engineId;
+        steerSideways = 0;
+        steerForward = 0;
+        steerJump = false;
+    }
+
+    /** Opens the seat (the dismount; the mount wanders on). */
+    public void clearRider() {
+        this.riderId = -1;
+        steerSideways = 0;
+        steerForward = 0;
+        steerJump = false;
+    }
+
+    /** The rider's rein input this tick (sideways turns, forward drives, jump hops). */
+    public void steer(float sideways, float forward, boolean jump) {
+        this.steerSideways = sideways;
+        this.steerForward = forward;
+        this.steerJump = jump;
+    }
+
+    /** @return the seat height above the mount's feet (the rider's body anchor). */
+    public double seatHeight() {
+        return type == MobType.PIG ? PIG_SEAT_HEIGHT : HORSE_SEAT_HEIGHT;
+    }
+
+    /**
+     * The ridden body: the seat physics (turn, drive, jump) without the AI
+     * mind. Mirrors tickBody's ground/step rules so mounts walk slabs and
+     * stop at walls like every other body; the fluid rules carry over too.
+     */
+    private void tickRiddenBody() {
+        float turn = steerSideways * RIDDEN_TURN_RATE;
+        if (turn != 0.0f) {
+            yaw += turn;
+            headYaw = yaw;
+        }
+
+        boolean inFluid = world.inFluid(position.x(), position.y() + 0.2, position.z());
+        if (inFluid && fireTicks > 0) {
+            extinguish();
+        }
+
+        // Drive: the manager feeds zero forward for an uncontrolled seat
+        // (an unsaddled horse or a pig without the carrot on a stick).
+        double walk = Math.abs(steerForward) > 0.01
+                ? Math.signum(steerForward) * rideSpeed() : 0.0;
+        if (inFluid) {
+            walk *= 0.5; // swimming drag
+        }
+        if (steerJump && onGround && jumpCooldown == 0) {
+            velocityY = type == MobType.PIG ? PIG_JUMP_IMPULSE : HORSE_JUMP_IMPULSE;
+            jumpCooldown = RIDE_JUMP_COOLDOWN;
+            onGround = false;
+        }
+        if (inFluid) {
+            velocityY = Math.max(velocityY - GRAVITY_PER_TICK, -0.05) * 0.8;
+        } else if (onGround) {
+            velocityY = 0.0;
+        } else {
+            velocityY = (velocityY - GRAVITY_PER_TICK) * 0.98;
+        }
+
+        double radians = Math.toRadians(yaw);
+        double moveX = velocityX - Math.sin(radians) * walk;
+        double moveZ = velocityZ + Math.cos(radians) * walk;
+        double damping = inFluid ? 0.8 : (onGround ? 0.6 : 0.98);
+        velocityX *= damping;
+        velocityZ *= damping;
+
+        double newX = position.x() + moveX;
+        double newY = position.y() + velocityY;
+        double newZ = position.z() + moveZ;
+
+        // Ground snap / step: the tickBody rules without the AI detour —
+        // a step up when the shape allows, a stop at the fence/wall.
+        if (world.isSolidAt(newX, position.y(), newZ)
+                && !world.isSolidAt(newX, position.y() + 1.0, newZ)
+                && onGround && Math.abs(velocityY) < 0.01) {
+            newY = world.supportY(newX, position.y() + GROUND_EPSILON, newZ);
+            if (newY - position.y() > 1.0 + GROUND_EPSILON
+                    || world.isSolidAt(newX, newY, newZ)) {
+                newX = position.x();
+                newZ = position.z();
+                newY = position.y();
+            }
+        } else if (world.isSolidAt(newX, position.y(), newZ)) {
+            newX = position.x();
+            newZ = position.z();
+            newY = position.y();
+        }
+
+        if (velocityY <= 0 && world.isSolidAt(newX, newY - GROUND_EPSILON, newZ)) {
+            newY = world.supportY(newX, newY - GROUND_EPSILON, newZ);
+            velocityY = 0.0;
+            onGround = true;
+        } else {
+            onGround = false;
+        }
+        position = new Position(newX, newY, newZ);
+    }
+
+    /** @return the ridden forward speed (0 when the mount answers no reins). */
+    private double rideSpeed() {
+        if (type == MobType.PIG) {
+            return PIG_RIDE_SPEED;
+        }
+        return saddled() ? HORSE_RIDE_SPEED : 0.0;
     }
 
     // ------------------------------------------------ fire (the burning slice)

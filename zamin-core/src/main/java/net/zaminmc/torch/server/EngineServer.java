@@ -423,6 +423,7 @@ public final class EngineServer implements Server, EngineBridge {
                     projectileManager.tick(); // ranged combat physics
                     vehicles.tick();          // the boats and minecarts
                     tickVehicleRiders(vehicles);
+                    tickMobRiders();          // the horse/pig seats
                     furnaceManager.tick(world, itemEntities);
                     chestManager.tick(world);
                     signManager.tick(world);
@@ -1478,11 +1479,17 @@ public final class EngineServer implements Server, EngineBridge {
      */
     private void dieOnTick(PlayerSession session, String causeMessage) {
         session.markDead();
-        // The seat opens on death (the vanilla body leaves the vehicle).
+        // The seat opens on death (the vanilla dismount rule).
         if (vehicleManager != null && session.ridingVehicleId() >= 0) {
             var ridden = vehicleManager.byId(session.ridingVehicleId());
             if (ridden != null) {
                 vehicleManager.dismount(ridden);
+            }
+        }
+        if (mobManager != null && session.ridingMobId() >= 0) {
+            MobEntity riddenMob = mobManager.byId(session.ridingMobId());
+            if (riddenMob != null) {
+                mobManager.dismountMob(riddenMob, false);
             }
         }
         returnWindowCarriedItems(session, true);
@@ -1872,6 +1879,7 @@ public final class EngineServer implements Server, EngineBridge {
                     case CRAFTING_TABLE -> clickContainerWindowOnTick(session, wireSlot, button, mode);
                     case FURNACE -> clickFurnaceWindowOnTick(session, wireSlot, button, mode);
                     case CHEST -> clickChestWindowOnTick(session, wireSlot, button, mode);
+                    case HORSE -> clickHorseWindowOnTick(session, wireSlot, button, mode);
                     default -> false;
                 };
             }
@@ -3355,26 +3363,45 @@ public final class EngineServer implements Server, EngineBridge {
                              boolean jump, boolean unmount) {
         Objects.requireNonNull(player, "player");
         ticker.submit(() -> {
-            if (player.state() != PlayerState.PLAYING || player.dead()
-                    || vehicleManager == null) {
+            if (player.state() != PlayerState.PLAYING || player.dead()) {
                 return;
             }
-            var vehicle = vehicleManager.byId(player.ridingVehicleId());
-            if (vehicle == null) {
-                return; // not riding (or the vehicle broke this tick)
+            if (vehicleManager != null) {
+                var vehicle = vehicleManager.byId(player.ridingVehicleId());
+                if (vehicle != null) {
+                    if (unmount) {
+                        vehicleManager.dismount(vehicle);
+                        return;
+                    }
+                    vehicle.steer(new net.zaminmc.torch.server.entity.vehicle.VehicleEntity.SteerInput(
+                            sideways, forward, jump, false));
+                    return;
+                }
             }
-            if (unmount) {
-                vehicleManager.dismount(vehicle);
-                return;
+            // The mob mounts (the horse/pig slice): the seat answers the
+            // reins through the manager — the control gate is the manager's
+            // (saddle for the horse, carrot on a stick for the pig).
+            if (mobManager != null) {
+                MobEntity mount = mobManager.byId(player.ridingMobId());
+                if (mount != null) {
+                    if (unmount) {
+                        mobManager.dismountMob(mount, false);
+                        return;
+                    }
+                    boolean controls = mount.type() == MobType.HORSE
+                            ? mount.saddled()
+                            : player.inventory().held().type().identifier()
+                                    .toString().equals("minecraft:carrot_on_a_stick");
+                    mobManager.steerRidden(mount, sideways, forward, jump, controls);
+                }
             }
-            vehicle.steer(new net.zaminmc.torch.server.entity.vehicle.VehicleEntity.SteerInput(
-                    sideways, forward, jump, false));
         });
     }
 
     /**
      * A player right-clicked a mob or vehicle (Use Entity 0x02, mouse 0/2):
-     * a vehicle within reach takes the seat (the mount); a wooly mob with
+     * a vehicle within reach takes the seat (the mount); a horse or pig in
+     * reach takes the saddle/armor/food or the rider; a wooly mob with
      * shears in hand loses its coat. Safe from any thread; the application
      * runs on the tick thread.
      */
@@ -3399,7 +3426,15 @@ public final class EngineServer implements Server, EngineBridge {
                 return;
             }
             MobEntity mob = mobManager.byId(targetEntityId);
-            if (mob == null || mob.dead() || mob.type() != MobType.SHEEP) {
+            if (mob == null || mob.dead()) {
+                return;
+            }
+            // The horse/pig branch: saddle, armor, feed, inventory, seat.
+            if (mob.isMountable()) {
+                interactMountOnTick(player, mob);
+                return;
+            }
+            if (mob.type() != MobType.SHEEP) {
                 return;
             }
             ItemStack held = player.inventory().held();
@@ -3418,6 +3453,207 @@ public final class EngineServer implements Server, EngineBridge {
                 publishInventoryChanged(player);
             }
         });
+    }
+
+    /**
+     * The horse/pig right-click dispatch (the vanilla rule ladder): the
+     * saddle equips either kind; horse armor equips a tamed horse; the
+     * temper foods feed a horse; the sneak-open reads the mount's inventory;
+     * everything else is a mount attempt (temper flow for the wild horse).
+     * Tick-thread context.
+     */
+    private void interactMountOnTick(PlayerSession player, MobEntity mob) {
+        double dx = mob.position().x() - player.position().x();
+        double dy = mob.position().y() - player.position().y();
+        double dz = mob.position().z() - player.position().z();
+        double horizontal = Math.sqrt(dx * dx + dz * dz);
+        if (horizontal > MELEE_REACH + mob.type().width * 0.5 || dy < -2.0 || dy > 4.0) {
+            return; // out of reach: the server-side refusal
+        }
+        var inventory = player.inventory();
+        ItemStack held = inventory.held();
+        // The empty hand carries a null type (the canonical EMPTY record) —
+        // the bare-hand mount path must stay alive (the dev.9 NPE lesson).
+        String heldId = held.type() == null ? "" : held.type().identifier().toString();
+
+        // The saddle equips horses and pigs (the vanilla right-click rule).
+        if (heldId.equals("minecraft:saddle") && !mob.saddled()) {
+            mob.applySaddle();
+            inventory.consumeHeld(1);
+            publishInventoryChanged(player);
+            publishHorseFlags(mob);
+            fxManager.sound(mob.position(), "mob.horse.armor", 0.8f, 1.0f);
+            return;
+        }
+        // The horse armors: tamed horses only (the vanilla gate).
+        if (mob.type() == MobType.HORSE && mob.tamed()
+                && heldId.endsWith("_horse_armor") && mob.armorType() == MobEntity.HORSE_ARMOR_NONE) {
+            int row = heldId.contains("diamond") ? MobEntity.HORSE_ARMOR_DIAMOND
+                    : heldId.contains("gold") ? MobEntity.HORSE_ARMOR_GOLD
+                    : MobEntity.HORSE_ARMOR_IRON;
+            mob.applyArmor(row);
+            inventory.consumeHeld(1);
+            publishInventoryChanged(player);
+            publishHorseFlags(mob);
+            fxManager.sound(mob.position(), "mob.horse.armor", 0.8f, 1.0f);
+            return;
+        }
+        // The temper foods (sugar/wheat/apple +3): taming aid for the wild
+        // horse (the historical feeding band, simplified to the common tier).
+        if (mob.type() == MobType.HORSE && !mob.tamed()
+                && (heldId.equals("minecraft:wheat") || heldId.equals("minecraft:apple")
+                || heldId.equals("minecraft:sugar"))) {
+            mob.feedTemper(MobEntity.TEMPER_PER_FEED);
+            inventory.consumeHeld(1);
+            publishInventoryChanged(player);
+            publishHorseFlags(mob);
+            return;
+        }
+        // The sneak-open reads the mount's inventory (the vanilla GUI).
+        if (player.sneaking() && mob.type() == MobType.HORSE) {
+            openHorseInventoryOnTick(player, mob);
+            return;
+        }
+        // The seat: already seated players swap nothing (the one-body rule).
+        if (player.ridingAny()) {
+            return;
+        }
+        mobManager.mountMob(mob, player.engineEntityId());
+    }
+
+    /** Re-publishes the index-16 horse flags to the observers (deltas ride the 0x1C). */
+    private void publishHorseFlags(MobEntity mob) {
+        for (MobManager.Listener listener : mobListeners) {
+            listener.onHorseFlagsChanged(mob);
+        }
+    }
+
+    /**
+     * Opens the horse inventory ("EntityHorse" window: saddle + armor slots
+     * on the mount, the player inventory below). Tick-thread context.
+     */
+    private void openHorseInventoryOnTick(PlayerSession session, MobEntity mob) {
+        closeOpenContainerOnTick(session);
+        int windowId = nextContainerWindowId;
+        nextContainerWindowId = nextContainerWindowId >= LAST_CONTAINER_WINDOW_ID
+                ? FIRST_CONTAINER_WINDOW_ID : nextContainerWindowId + 1;
+        session.openHorseWindow(windowId, mob.entityId());
+        // The adapter must send Open Window (with the trailing mount id)
+        // before any slot data — the crafting-table order rule.
+        for (MobManager.Listener listener : mobListeners) {
+            listener.onHorseInventoryOpened(session, mob, windowId);
+        }
+    }
+
+    /**
+     * The horse window's clicks: slot 0 is the saddle, slot 1 the armor row
+     * (one-item kind-gated swaps, the vanilla rule); the player slots route
+     * through the shared inventory click semantics. Tick-thread context.
+     */
+    private boolean clickHorseWindowOnTick(PlayerSession session, int wireSlot, int button, int mode) {
+        var inventory = session.inventory();
+        MobEntity mount = mobManager.byId(session.containerMountId());
+        if (mount == null) {
+            return false; // stale window (the mount died): rejected, resync restores
+        }
+        if (mode == 0 && wireSlot == 0) { // the saddle slot
+            return clickHorseSaddleSlot(session, mount, button);
+        }
+        if (mode == 0 && wireSlot == 1) { // the armor slot
+            return clickHorseArmorSlot(session, mount, button);
+        }
+        if (mode == 1 && (wireSlot == 0 || wireSlot == 1)) {
+            return false; // shift-click out of a gated slot: refused (the resync restores)
+        }
+        // The player inventory tail: HORSE_WIRE_PLAYER_FIRST .. hotbar last.
+        int engineSlot = horsePlayerSlotOf(wireSlot);
+        if (engineSlot >= 0) {
+            if (mode == 0) {
+                inventory.clickSlot(engineSlot, button);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** The saddle slot: cursor-saddle in, saddle-out to the cursor. */
+    private boolean clickHorseSaddleSlot(PlayerSession session, MobEntity mount, int button) {
+        var inventory = session.inventory();
+        ItemStack cursor = inventory.cursor();
+        boolean on = mount.saddled();
+        String cursorId = cursor.type() == null ? "" : cursor.type().identifier().toString();
+        if (!on && cursorId.equals("minecraft:saddle")) {
+            inventory.takeCursor(); // the saddle leaves the cursor onto the mount
+            mount.applySaddle();
+            publishHorseFlags(mount);
+            return true;
+        }
+        if (on && cursor.isEmpty()) {
+            // The saddle jumps onto the cursor (the vanilla GUI take).
+            inventory.placeOnCursor(ItemStack.of(BuiltinItems.SADDLE, 1));
+            publishHorseFlags(mount);
+            return true;
+        }
+        return false;
+    }
+
+    /** The armor slot: cursor-armor in (kind-gated), armor-out to the cursor. */
+    private boolean clickHorseArmorSlot(PlayerSession session, MobEntity mount, int button) {
+        var inventory = session.inventory();
+        ItemStack cursor = inventory.cursor();
+        int row = mount.armorType();
+        String cursorId = cursor.type() == null ? "" : cursor.type().identifier().toString();
+        int cursorRow = horseArmorRowOf(cursorId);
+        if (row == MobEntity.HORSE_ARMOR_NONE && cursorRow > 0) {
+            inventory.takeCursor(); // the armor leaves the cursor onto the mount
+            mount.applyArmor(cursorRow);
+            publishHorseFlags(mount);
+            return true;
+        }
+        if (row != MobEntity.HORSE_ARMOR_NONE && cursor.isEmpty()) {
+            inventory.placeOnCursor(ItemStack.of(horseArmorItemOf(row), 1));
+            mount.applyArmor(MobEntity.HORSE_ARMOR_NONE);
+            publishHorseFlags(mount);
+            return true;
+        }
+        return false;
+    }
+
+    /** @return the armor row of a horse-armor item id, or 0. */
+    private static int horseArmorRowOf(String itemId) {
+        if (itemId.equals("minecraft:diamond_horse_armor")) {
+            return MobEntity.HORSE_ARMOR_DIAMOND;
+        }
+        if (itemId.equals("minecraft:golden_horse_armor")) {
+            return MobEntity.HORSE_ARMOR_GOLD;
+        }
+        if (itemId.equals("minecraft:iron_horse_armor")) {
+            return MobEntity.HORSE_ARMOR_IRON;
+        }
+        return MobEntity.HORSE_ARMOR_NONE;
+    }
+
+    /** @return the item type of an armor row (the undo path). */
+    private static net.zaminmc.torch.item.ItemType horseArmorItemOf(int row) {
+        return switch (row) {
+            case MobEntity.HORSE_ARMOR_DIAMOND -> BuiltinItems.DIAMOND_HORSE_ARMOR;
+            case MobEntity.HORSE_ARMOR_GOLD -> BuiltinItems.GOLDEN_HORSE_ARMOR;
+            default -> BuiltinItems.IRON_HORSE_ARMOR;
+        };
+    }
+
+    /**
+     * @return the engine inventory slot of the horse window's player tail
+     * (main 2-28 map to 9-35, hotbar 29-37 map to 0-8), or -1.
+     */
+    private static int horsePlayerSlotOf(int wireSlot) {
+        if (wireSlot >= 2 && wireSlot <= 28) {
+            return wireSlot - 2 + 9;
+        }
+        if (wireSlot >= 29 && wireSlot <= 37) {
+            return wireSlot - 29;
+        }
+        return -1;
     }
 
     /**
@@ -3777,6 +4013,11 @@ public final class EngineServer implements Server, EngineBridge {
         return null;
     }
 
+    /** @return the playing session whose engine id matches, or null (the adapter's mount lookups). */
+    public PlayerSession playerByEngineId(int engineId) {
+        return sessionByEngineId(engineId);
+    }
+
     /** The break drop of a vehicle (the vanilla item forms). */
     private net.zaminmc.torch.item.ItemStack vehicleDropStack(
             net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle) {
@@ -3805,6 +4046,26 @@ public final class EngineServer implements Server, EngineBridge {
                 boat.followRiderLook(rider.rotation());
             }
             rider.applyMovement(vehicle.position(), rider.rotation(), vehicle.onGround());
+        }
+    }
+
+    /**
+     * The mob-mount riders: the body rides the seat (the mount's position
+     * plus the saddle height — the camera sits on the mount's back, the
+     * vanilla seat anchor). The wire listener re-anchors each client.
+     */
+    private void tickMobRiders() {
+        for (MobEntity mob : mobManager.all()) {
+            if (!mob.hasRider()) {
+                continue;
+            }
+            PlayerSession rider = sessionByEngineId(mob.riderId());
+            if (rider == null || rider.dead()) {
+                continue;
+            }
+            Position seat = new Position(mob.position().x(),
+                    mob.position().y() + mob.seatHeight(), mob.position().z());
+            rider.applyMovement(seat, rider.rotation(), mob.onGround());
         }
     }
 
@@ -3978,9 +4239,9 @@ public final class EngineServer implements Server, EngineBridge {
         }
 
         @Override
-        public void onMobMoved(MobEntity mob) {
+        public void onMobMoved(MobEntity mob, PlayerSession rider) {
             for (MobManager.Listener listener : mobListeners) {
-                listener.onMobMoved(mob);
+                listener.onMobMoved(mob, rider);
             }
         }
 
@@ -4076,6 +4337,40 @@ public final class EngineServer implements Server, EngineBridge {
         @Override
         public void onMobExploded(MobEntity mob) {
             explodeOnTick(mob); // the blast is the engine's: blocks, damage, wire
+        }
+
+        @Override
+        public void onMobMounted(MobEntity mob, int riderEngineId) {
+            PlayerSession rider = sessionByEngineId(riderEngineId);
+            if (rider != null) {
+                rider.setRidingMobId(mob.entityId());
+            }
+            for (MobManager.Listener listener : mobListeners) {
+                listener.onMobMounted(mob, riderEngineId);
+            }
+        }
+
+        @Override
+        public void onMobDismounted(MobEntity mob, int riderEngineId,
+                                    Position exit, boolean thrown) {
+            PlayerSession rider = sessionByEngineId(riderEngineId);
+            if (rider != null) {
+                rider.setRidingMobId(-1);
+                // The body steps out beside the mount (the re-anchor rides
+                // the wire listener's position-and-look; the buck throw pops).
+                rider.applyMovement(exit, rider.rotation(), true);
+                rider.setGraceTicks(40);
+            }
+            for (MobManager.Listener listener : mobListeners) {
+                listener.onMobDismounted(mob, riderEngineId, exit, thrown);
+            }
+        }
+
+        @Override
+        public void onHorseFlagsChanged(MobEntity mob) {
+            for (MobManager.Listener listener : mobListeners) {
+                listener.onHorseFlagsChanged(mob);
+            }
         }
     }
 
@@ -4405,7 +4700,7 @@ public final class EngineServer implements Server, EngineBridge {
                 "Rename the held item: /rename <name...> (no name clears it)",
                 0, playerCommand(this::renameCommand)));
         commands.register(new CommandService.Command("spawnmob",
-                "Spawn mobs near you: /spawnmob <pig|cow|chicken|zombie|creeper|skeleton|sheep|spider> [count]",
+                "Spawn mobs near you: /spawnmob <pig|cow|chicken|zombie|creeper|skeleton|sheep|spider|horse|villager> [count]",
                 playerCommand(this::spawnMobCommand)));
         // The Paper operator set.
         commands.register(new CommandService.Command("gamemode",
@@ -5141,7 +5436,7 @@ public final class EngineServer implements Server, EngineBridge {
 
     private String spawnMobCommand(PlayerSession sender, String[] args) {
         if (args.length < 1) {
-            return "Usage: /spawnmob <pig|cow|chicken|sheep|zombie|skeleton|creeper|spider> [count]";
+            return "Usage: /spawnmob <pig|cow|chicken|sheep|zombie|skeleton|creeper|spider|horse|villager> [count]";
         }
         MobType type = MobType.byName(args[0]);
         if (type == null) {
@@ -5487,7 +5782,7 @@ public final class EngineServer implements Server, EngineBridge {
         // The riding body is the vehicle's: the client sends no position
         // while mounted, so any stray proposal is discarded (the seat owns
         // the coordinates — the historical server-authoritative vehicle).
-        if (session.ridingVehicleId() >= 0) {
+        if (session.ridingAny()) {
             return;
         }
         // The anti-cheat baseline (the mango-adopted shape): proposals outside
@@ -5518,6 +5813,13 @@ public final class EngineServer implements Server, EngineBridge {
             var ridden = vehicleManager.byId(session.ridingVehicleId());
             if (ridden != null) {
                 vehicleManager.dismount(ridden);
+            }
+        }
+        // The mob seat opens too (the horse never holds a ghost).
+        if (mobManager != null && session.ridingMobId() >= 0) {
+            MobEntity riddenMob = mobManager.byId(session.ridingMobId());
+            if (riddenMob != null) {
+                mobManager.dismountMob(riddenMob, false);
             }
         }
         session.markDisconnecting();
