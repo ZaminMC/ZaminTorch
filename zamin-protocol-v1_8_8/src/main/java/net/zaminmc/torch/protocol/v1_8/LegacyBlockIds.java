@@ -177,6 +177,11 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:sign_west"), 63),
             Map.entry(Identifier.parse("minecraft:sign_north"), 63),
             Map.entry(Identifier.parse("minecraft:sign_east"), 63),
+            // The wall signs (block 68): the metadata 2-5 facings.
+            Map.entry(Identifier.parse("minecraft:wall_sign"), 68),
+            Map.entry(Identifier.parse("minecraft:wall_sign_south"), 68),
+            Map.entry(Identifier.parse("minecraft:wall_sign_west"), 68),
+            Map.entry(Identifier.parse("minecraft:wall_sign_east"), 68),
             // The building vocabulary slice (community blocks.json): oak
             // door 64 (facing+open in the metadata), ladder 65 (facing),
             // oak fence 85.
@@ -293,6 +298,11 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:sign_west"), 4),
             Map.entry(Identifier.parse("minecraft:sign_north"), 8),
             Map.entry(Identifier.parse("minecraft:sign_east"), 12),
+            // The wall signs: the metadata names the faced direction.
+            Map.entry(Identifier.parse("minecraft:wall_sign"), 2),
+            Map.entry(Identifier.parse("minecraft:wall_sign_south"), 3),
+            Map.entry(Identifier.parse("minecraft:wall_sign_west"), 4),
+            Map.entry(Identifier.parse("minecraft:wall_sign_east"), 5),
             Map.entry(Identifier.parse("minecraft:oak_door_north"), 1),
             Map.entry(Identifier.parse("minecraft:oak_door_east"), 2),
             Map.entry(Identifier.parse("minecraft:oak_door_south"), 3),

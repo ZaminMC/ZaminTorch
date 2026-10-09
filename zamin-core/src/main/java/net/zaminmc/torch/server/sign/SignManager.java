@@ -79,7 +79,9 @@ public final class SignManager {
     public static boolean isSignType(BlockType type) {
         return type.identifier().namespace().equals("minecraft")
                 && (type.identifier().value().equals("sign")
-                    || type.identifier().value().startsWith("sign_"));
+                    || type.identifier().value().startsWith("sign_")
+                    || type.identifier().value().equals("wall_sign")
+                    || type.identifier().value().startsWith("wall_sign_"));
     }
 
     /** Trims and pads the lines to the historical four-line shape. */

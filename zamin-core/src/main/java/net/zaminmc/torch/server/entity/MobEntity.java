@@ -105,7 +105,7 @@ public final class MobEntity {
      * line and fluid queries default to open/empty so tests and simple
      * worlds only implement what they use.
      */
-    public interface WorldQuery {
+    public interface WorldQuery extends MobPathfinder.WalkQuery {
         /** @return whether the block containing this point is solid. */
         boolean isSolid(double x, double y, double z);
 
@@ -183,6 +183,13 @@ public final class MobEntity {
 
     private Mode mode = Mode.IDLE;
     private int modeTicks;
+    // The path-follow state (the A*-light slice): the route the feet walk
+    // while the eyes stay on the target, plus the repath budget.
+    private java.util.List<Position> path = java.util.List.of();
+    private int pathIndex;
+    private int repathCooldown;
+    private float pathYaw;
+    private boolean pathYawValid;
     private int panicTicks;
     private int hurtFlash;
     private int attackCooldown;
@@ -501,6 +508,13 @@ public final class MobEntity {
             double dz = target.z() - position.z();
             double horizontal = Math.sqrt(dx * dx + dz * dz);
 
+            if (mode == Mode.CHASE || mode == Mode.STRAFE || mode == Mode.FUSE) {
+                // keep mode; the hunt continues
+            } else {
+                mode = Mode.CHASE;
+                modeTicks = 0;
+            }
+
             if (type.traits.explodes()) {
                 tickCreeperMind(target, horizontal, dy);
                 return;
@@ -514,6 +528,7 @@ public final class MobEntity {
             mode = Mode.CHASE;
             yaw = (float) (Math.toDegrees(Math.atan2(-dx, dz)));
             headYaw = yaw;
+            tickPathFollowing(target);
             if (horizontal <= MELEE_ATTACK_RANGE && Math.abs(dy) <= MELEE_ATTACK_VERTICAL_RANGE
                     && attackCooldown == 0) {
                 attackCooldown = MELEE_ATTACK_COOLDOWN;
@@ -527,9 +542,71 @@ public final class MobEntity {
         if (mode == Mode.CHASE || mode == Mode.STRAFE || mode == Mode.FUSE) {
             mode = Mode.IDLE; // target lost (or daylight saved the spider)
             modeTicks = 0;
+            clearPath();
         }
         // No hunt: the stroll goal owns the idle band this tick.
         goalTickIdleWander(target);
+    }
+
+    /**
+     * The path-follow tick (the A*-light slice): the feet walk the route's
+     * next waypoint while the eyes stay on the target. The route recomputes
+     * when the body reports a block (tickBody zeroes the repath budget) or
+     * the current route runs out; a failed search re-arms the budget so the
+     * wall-slide detour steering owns the gap between attempts.
+     */
+    private void tickPathFollowing(Position target) {
+        if (repathCooldown > 0) {
+            repathCooldown--;
+        }
+        while (pathIndex < path.size()) {
+            Position waypoint = path.get(pathIndex);
+            double wx = waypoint.x() - position.x();
+            double wz = waypoint.z() - position.z();
+            if (wx * wx + wz * wz <= MobPathfinder.WAYPOINT_REACH * MobPathfinder.WAYPOINT_REACH
+                    && Math.abs(waypoint.y() - position.y()) <= 1.5) {
+                pathIndex++;
+            } else {
+                break;
+            }
+        }
+        if (pathIndex < path.size()) {
+            Position waypoint = path.get(pathIndex);
+            pathYaw = angleTo(waypoint.x() - position.x(), waypoint.z() - position.z());
+            pathYawValid = true;
+        } else {
+            pathYawValid = false;
+        }
+        if (repathCooldown == 0) {
+            repath(target);
+        }
+    }
+
+    /** Recomputes the route to the target (both outcomes re-arm the budget). */
+    private void repath(Position target) {
+        repathCooldown = 20 + random.nextInt(10);
+        java.util.List<Position> found = MobPathfinder.find(world, position, target);
+        if (found.isEmpty()) {
+            clearPath(); // no route: the detour fallback owns the block
+            return;
+        }
+        path = found;
+        pathIndex = 0;
+    }
+
+    private void clearPath() {
+        path = java.util.List.of();
+        pathIndex = 0;
+        pathYawValid = false;
+    }
+
+    /** @return the path heading override the feet walk (or NaN when none). */
+    boolean goalHasPathHeading() {
+        return pathYawValid;
+    }
+
+    float goalPathYaw() {
+        return pathYaw;
     }
 
     // ------------------------------------------------ goal surface (package-private)
@@ -609,6 +686,7 @@ public final class MobEntity {
             if (horizontal > CREEPER_ABORT_RANGE || Math.abs(dy) > CREEPER_ABORT_RANGE) {
                 mode = Mode.IDLE; // the target slipped away: the fuse dies out
                 modeTicks = 0;
+                clearPath();
                 return;
             }
             if (modeTicks >= CREEPER_FUSE_TICKS) {
@@ -619,7 +697,10 @@ public final class MobEntity {
         if (horizontal <= CREEPER_PRIME_RANGE && Math.abs(dy) <= CREEPER_PRIME_VERTICAL_RANGE) {
             mode = Mode.FUSE;
             modeTicks = 0;
+            clearPath();
+            return;
         }
+        tickPathFollowing(target); // the feet route around walls, the eyes stay on
     }
 
     /** The skeleton goal: hold the shooting band, shoot on a clear line. */
@@ -628,12 +709,15 @@ public final class MobEntity {
         headYaw = yaw;
         if (horizontal > SKELETON_TOO_FAR) {
             mode = Mode.CHASE; // close the gap
+            tickPathFollowing(target);
         } else if (horizontal < SKELETON_TOO_CLOSE) {
             mode = Mode.WANDER; // re-rolled below as a retreat heading
             yaw = angleTo(position.x() - target.x(), position.z() - target.z());
             headYaw = yaw; // the body backs off, the eyes stay on the target
+            clearPath();
         } else {
             mode = Mode.STRAFE; // in the band: hold and shoot
+            clearPath();
         }
         if (attackCooldown == 0
                 && horizontal <= SKELETON_SHOOT_RANGE
@@ -704,8 +788,10 @@ public final class MobEntity {
         double moveX = velocityX;
         double moveZ = velocityZ;
         if (walk > 0) {
-            // A detour overrides the heading while it lasts (the wall slide).
-            float heading = detourTicks > 0 ? detourYaw : yaw;
+            // A detour overrides the heading while it lasts (the wall slide);
+            // the A* path heading owns the walk when no detour is live.
+            float heading = detourTicks > 0 ? detourYaw
+                    : (pathYawValid ? pathYaw : yaw);
             double radians = Math.toRadians(heading);
             moveX += -Math.sin(radians) * walk;
             moveZ += Math.cos(radians) * walk;
@@ -744,7 +830,11 @@ public final class MobEntity {
             newY = position.y();
             if (walk > 0 && detourTicks == 0 && onGround) {
                 // Blocked mid-walk: slide along the wall (a 45-90° turn for
-                // a handful of ticks) before the mind re-chooses.
+                // a handful of ticks) before the mind re-chooses. A hunting
+                // body drops its stale route so the next mind tick repaths
+                // around the obstacle (the A*-light trigger).
+                clearPath();
+                repathCooldown = 0;
                 float side = random.nextBoolean() ? 45.0f : -45.0f;
                 detourYaw = yaw + side + (random.nextFloat() * 45.0f - 22.5f);
                 detourTicks = DETOUR_TICKS;

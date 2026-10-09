@@ -74,6 +74,27 @@ public final class FurnaceRecipes {
             Map.entry(Identifier.parse("minecraft:wooden_sword"), 200));
 
     /**
+     * The take XP of each output (the community 1.8 recipe data): iron 0.7,
+     * gold 1.0, stone/glass 0.1, cooked meats 0.35, charcoal 0.15. The
+     * historical SlotFurnaceOutput pays this per item on take, the
+     * fractional remainder rolling on the server random.
+     */
+    private static final Map<Identifier, Double> TAKE_EXPERIENCE = Map.of(
+            Identifier.parse("minecraft:iron_ingot"), 0.7,
+            Identifier.parse("minecraft:gold_ingot"), 1.0,
+            Identifier.parse("minecraft:stone"), 0.1,
+            Identifier.parse("minecraft:glass"), 0.1,
+            Identifier.parse("minecraft:cooked_beef"), 0.35,
+            Identifier.parse("minecraft:cooked_porkchop"), 0.35,
+            Identifier.parse("minecraft:cooked_chicken"), 0.35,
+            Identifier.parse("minecraft:coal"), 0.15);
+
+    /** @return the experience points one taken output item pays. */
+    public static double takeExperienceOf(ItemType output) {
+        return TAKE_EXPERIENCE.getOrDefault(output.identifier(), 0.0);
+    }
+
+    /**
      * The smelting result for an input stack, or empty when the input is not
      * smeltable or its output is not a registered item (registry-gated data).
      */

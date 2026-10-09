@@ -695,8 +695,25 @@ public final class EngineServer implements Server, EngineBridge {
                 && session.inventory().held().isEmpty()) {
             return; // nothing to consume
         }
-        // Facing: the sign fronts the placer. Yaw 0 = south (+Z), the sign
-        // north; the cardinals at 90-degree bands, metadata 0/4/8/12.
+        // Facing: a side-face use hangs a wall sign facing away from the
+        // wall (the 1.8 wall-sign rule, metadata 2-5); a top-face use
+        // plants a standing sign fronting the placer.
+        if (face >= 2 && face <= 5) {
+            BlockType wallSign = switch (face) {
+                case 2 -> BuiltinBlocks.WALL_SIGN_NORTH;
+                case 3 -> BuiltinBlocks.WALL_SIGN_SOUTH;
+                case 4 -> BuiltinBlocks.WALL_SIGN_WEST;
+                default -> BuiltinBlocks.WALL_SIGN_EAST;
+            };
+            world.setBlock(target, wallSign);
+            if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE) {
+                session.inventory().consumeHeld(1);
+                publishInventoryChanged(session);
+            }
+            return;
+        }
+        // Standing facing: the sign fronts the placer. Yaw 0 = south (+Z),
+        // the sign north; the cardinals at 90-degree bands, metadata 0/4/8/12.
         double yaw = ((session.rotation().yaw() % 360.0) + 360.0 + 45.0) % 360.0;
         int oppositeBand = (int) (yaw / 90.0) % 4; // 0=S,1=W,2=N,3=E of the LOOK
         BlockType[] facings = {
@@ -2138,8 +2155,10 @@ public final class EngineServer implements Server, EngineBridge {
         switch (mode) {
             case 0 -> {
                 if (wireSlot >= 0 && wireSlot <= FURNACE_WIRE_SLOT_LAST) {
-                    furnaceManager.clickSlot(furnace, wireSlot, button, inventory);
-                    return true;
+                    return awardSmeltTakeXp(session, furnace, () -> {
+                        furnaceManager.clickSlot(furnace, wireSlot, button, inventory);
+                        return true;
+                    });
                 }
                 int engineSlot = furnaceEngineSlotOf(wireSlot);
                 if (engineSlot >= 0) {
@@ -2150,7 +2169,8 @@ public final class EngineServer implements Server, EngineBridge {
             }
             case 1 -> {
                 if (wireSlot >= 0 && wireSlot <= FURNACE_WIRE_SLOT_LAST) {
-                    return furnaceManager.quickMove(furnace, wireSlot, true, -1, inventory);
+                    return awardSmeltTakeXp(session, furnace,
+                            () -> furnaceManager.quickMove(furnace, wireSlot, true, -1, inventory));
                 }
                 int engineSlot = furnaceEngineSlotOf(wireSlot);
                 if (engineSlot >= 0) {
@@ -2178,6 +2198,7 @@ public final class EngineServer implements Server, EngineBridge {
                             furnaceManager.dropFromSlot(furnace, wireSlot, button != 0);
                     if (!dropped.isEmpty()) {
                         throwFromPlayer(session, dropped);
+                        awardSmeltStackXp(session, dropped); // the thrown take still pays
                     }
                     return true;
                 }
@@ -2195,6 +2216,44 @@ public final class EngineServer implements Server, EngineBridge {
             default -> {
                 return false; // drag painting (5) / unknown mode: rejected
             }
+        }
+    }
+
+    /**
+     * The furnace-take XP (the historical SlotFurnaceOutput.onTake rule):
+     * whatever left the output slot by the wrapped click pays its recipe's
+     * experience to the taking player, the fractional remainder rolling on
+     * the gameplay random (a 0.35 recipe on two items floors to 0 with a
+     * 70% chance of one bonus point). Tick-thread context.
+     */
+    private boolean awardSmeltTakeXp(PlayerSession session,
+                                     net.zaminmc.torch.server.furnace.FurnaceBlockEntity furnace,
+                                     java.util.function.BooleanSupplier click) {
+        var before = furnace.output();
+        int beforeCount = before.isEmpty() ? 0 : before.count();
+        boolean accepted = click.getAsBoolean();
+        var after = furnace.output();
+        boolean sameType = !before.isEmpty() && !after.isEmpty()
+                && after.type().equals(before.type());
+        int taken = sameType ? beforeCount - after.count() : beforeCount;
+        if (taken > 0 && !before.isEmpty()) {
+            awardSmeltStackXp(session, before.withCount(taken));
+        }
+        return accepted;
+    }
+
+    /** Pays the recipe XP for a removed output stack (Set Experience syncs). */
+    private void awardSmeltStackXp(PlayerSession session, net.zaminmc.torch.item.ItemStack taken) {
+        double xp = net.zaminmc.torch.server.furnace.FurnaceRecipes.takeExperienceOf(taken.type())
+                * taken.count();
+        int points = (int) Math.floor(xp);
+        double remainder = xp - Math.floor(xp);
+        if (remainder > 0 && gameplayRandom.nextDouble() < remainder) {
+            points++;
+        }
+        if (points > 0) {
+            session.addExperience(points);
+            publishExperienceChanged(session);
         }
     }
 
