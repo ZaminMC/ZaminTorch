@@ -59,6 +59,11 @@ proven over the wire and against a live process.
 | Fluids: pour/spread/dry, falling columns, water+lava contact, buckets | implemented |
 | Mob AI expansion: skeleton archers, creepers (fuse + explosions), night spiders, shearable sheep | implemented |
 | Real-client wire conformance (packet-id table pinned in tests) | implemented |
+| Experience: XP orbs (0x11), Set Experience (0x1F), mining/kill/death XP, ZPD v6 | implemented |
+| Fire: flint & steel, fire spread/burnout, burning bodies, undead dawn burn | implemented |
+| Sugar cane + cactus: worldgen, growth, support rules, prick damage | implemented |
+| Reed crafting chain (sugar/paper/book), gold ingot smelt | implemented |
+| Lit furnace visual (block 62 + glow), chest lid (Block Action 0x24) | implemented |
 | Item NBT (display names, enchantments) | planned |
 | Anvil world format import | planned (compatibility adapter) |
 | Minestom integration | deferred (see ADR in plan) |

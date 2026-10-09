@@ -37,6 +37,9 @@ our protocol layer — only the *ideas* are borrowed.
 | [Kanelucky/MobMind](https://github.com/Kanelucky/MobMind) | Mob AI | **Adopted in shape (slice 10w)**: the goal-set layout (wander/panic/chase + kind-specific goals) behind our small deterministic minds. |
 | [smoldermc/mirage](https://github.com/smoldermc/mirage), [everbuild-org/blocks-and-stuff](https://github.com/everbuild-org/blocks-and-stuff), [everbuild-org/minecraft-heads-minestom](https://github.com/everbuild-org/minecraft-heads-minestom) | Misc / cosmetic | Cosmetic layers, deferred. |
 
+| [GlowstoneMC/Glowstone](https://github.com/GlowstoneMC/Glowstone) | From-scratch vanilla-parity server | **Adopted in shape (slice 10aa)**: the XP level-curve bands and the death-drop rule, the fire block's burnout/consume loop, and the reed/cactus growth shapes ported as our own rule set (BlockUpdateSystem's fire clock, RandomTickSystem's growth, ExperienceMath). Also the historical reference for the block/item registry-table approach we already used from PrismarineJS data. |
+| [BlueDragonMC/Server](https://github.com/BlueDragonMC/Server) | 1.8-flavored Minestom implementation | (existing row kept) the mob-goal architecture; slice 10aa re-verified its Entity flags handling for the burn bit. |
+
 ## Policy summary
 
 1. **Search first** (the standing rule): every new subsystem opens with a

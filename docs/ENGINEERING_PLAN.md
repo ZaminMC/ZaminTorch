@@ -899,6 +899,61 @@ COMMUNITY_REFERENCES.md.**
   (pair placement, dawn jump, day refusal). 349 green; the dist
   boot-verifies with the Paper layout at 0.2.0-dev.9.
 
+## 10aa. Slice 10aa — the experience-and-fire batch: XP orbs, burning, the reed world (committed 2026-10-09)
+
+- **Experience (0x11 + 0x1F)**: the historical orb entity (item-physics
+  body, engine-global id band above the players), the three-band level
+  curve (7+2·level / 37+5·(level-15) / 112+9·(level-30)) with the total
+  as the authoritative state, the mining rolls (coal 0-2, diamond 3-7,
+  redstone 1-5 — survival breaks only, creative never fires the hook),
+  kill rewards (5 hostile / 1-3 passive) at the death animation's start,
+  the death scatter (7/level cap 100) with the total reset, and ZPD v6
+  (the XP total rides the file tail; v5 files load at zero). Join and
+  respawn carry the Set Experience baseline.
+- **Fire**: flint and steel (259, durability 64) ignites the aimed cell
+  (open or replaceable flora, one wear, fire.ignite); the fire block (51)
+  lives on the scheduled-update clock — rain douses exposed flames,
+  fuel-less fire burns out, fire consumes a flammable support below or a
+  sideways neighbor (planks/logs/leaves/wooden furniture set) and re-arms
+  15-35 ticks out. Bodies burn: in-fire contact re-arms the historical
+  8-second burn at 1 damage per half-second, the residual burn at 1 per
+  second, water douses, creative is immune, respawn resets. Mobs carry
+  the same clock with the living-flags burn bit (0x01) on spawn metadata
+  and a flags sync on ignite/douse; the dawn rule now IGNITES the undead
+  (zombies/skeletons burn to death, creepers are sun-proof) instead of
+  vaporizing them.
+- **World completion**: sugar cane (83) and cactus (81) — the reed grows
+  to three on wet soil (water beside the base), the cactus stacks to
+  three on sand and breaks beside any solid; both pop their drops from
+  the support rules, plant through the use-dispatch gates (reed needs
+  water, cactus refuses solids and bodies), and prick bodies at the
+  i-frame rhythm. Worldgen plants desert cacti and shore reeds. The reed
+  crafts sugar (1), paper (a row of 3) and the book (leather + 3 papers,
+  the one shapeless); gold ore smelts into the new gold ingot (266).
+- **Container polish**: the furnace burn now swaps the block to the lit
+  variant (62, the dataset's 13-light emission the unlit furnace rightly
+  lacked) and cools back — the lit block opens the furnace GUI and drops
+  the furnace item; the chest lid swings for every observer except the
+  opener through Block Action 0x24; the hotbar switch confirms to the
+  owner through Held Item Change 0x09 and re-renders the held item on
+  the observers through Entity Equipment (no Window Items re-sync — the
+  client predicts its own swap).
+- **Fixed en route**: oak planks and wool existed only as items (crafted
+  planks were unplaceable in BOTH modes) — they have block types now,
+  with the behavior/light/sound rows; the cane's block/item id split
+  (83 block / 338 item) rides the sign's ITEM_OVERRIDES pattern; the
+  furnace-open gate accepts both block halves.
+- **Tests**: ExperienceMathTest, ExperienceOrbManagerTest,
+  MiningXpAcceptanceTest (survival diamonds pay, creative does not,
+  zombie kills scatter 5), FireAcceptanceTest (ignite/wear, plank
+  consumption, burnout, body burn + water douse, rain douse), the dawn
+  ignite rewrite (MobManagerTest + MobCombatAcceptanceTest + the wire
+  mob test), CaneAndCactusAcceptanceTest (wet-soil gate, three-cap,
+  felling, cactus break + prick, reed recipes, gold smelt),
+  LitFurnaceAcceptanceTest (the swap both ways, the lit GUI),
+  ChestLidAndHeldItemIntegrationTest (0x24 open/close to the watcher,
+  the 0x09 confirm). Full suite green across all modules.
+
 ## 11. Known risks
 
 - 1.8.8 client quirks not obvious from protocol docs (e.g. exact chunk/lighting expectations) — mitigated by scripted-client tests + real client validation.
