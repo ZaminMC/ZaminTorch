@@ -105,7 +105,7 @@ public final class MobEntity {
      * line and fluid queries default to open/empty so tests and simple
      * worlds only implement what they use.
      */
-    public interface WorldQuery extends MobPathfinder.WalkQuery {
+    public interface WorldQuery {
         /** @return whether the block containing this point is solid. */
         boolean isSolid(double x, double y, double z);
 
@@ -144,6 +144,11 @@ public final class MobEntity {
             return false;
         }
 
+        /** @return whether the block containing this point is lava. */
+        default boolean inLava(double x, double y, double z) {
+            return false;
+        }
+
         /** @return whether the block containing this point is fire. */
         default boolean inFire(double x, double y, double z) {
             return false;
@@ -152,6 +157,19 @@ public final class MobEntity {
         /** @return whether the point's block (or the one below) is a cactus. */
         default boolean touchingCactus(double x, double y, double z) {
             return false;
+        }
+
+        /**
+         * The path scanner's material for the cell (the vanilla
+         * {@code getMaterial}/{@code canWalkThrough} pair the
+         * WalkNodeEvaluator branches on). The stub worlds derive it from
+         * the point solidity at the cell center; the real query maps the
+         * actual block through {@code PathBlocks}.
+         */
+        default net.zaminmc.torch.server.entity.ai.pathing.CellMaterial pathMaterialAt(int x, int y, int z) {
+            return isSolid(x + 0.5, y + 0.5, z + 0.5)
+                    ? net.zaminmc.torch.server.entity.ai.pathing.CellMaterial.SOLID
+                    : net.zaminmc.torch.server.entity.ai.pathing.CellMaterial.AIR;
         }
     }
 
@@ -183,10 +201,10 @@ public final class MobEntity {
 
     private Mode mode = Mode.IDLE;
     private int modeTicks;
-    // The path-follow state (the A*-light slice): the route the feet walk
-    // while the eyes stay on the target, plus the repath budget.
-    private java.util.List<Position> path = java.util.List.of();
-    private int pathIndex;
+    // The path-follow state (the vanilla navigation port): the route lives
+    // in the navigation (Path + the walking index), the feet walk the
+    // heading it reports, the repath budget re-arms on both outcomes.
+    private final net.zaminmc.torch.server.entity.ai.pathing.MobNavigation navigation;
     private int repathCooldown;
     private float pathYaw;
     private boolean pathYawValid;
@@ -302,6 +320,8 @@ public final class MobEntity {
         this.random = Objects.requireNonNull(random, "random");
         this.world = Objects.requireNonNull(world, "world");
         this.health = type.maxHealth;
+        this.navigation = new net.zaminmc.torch.server.entity.ai.pathing.MobNavigation(
+                new PathBody(), new PathWorldView(), (float) AGGRO_RANGE);
         this.modeTicks = random.nextInt(IDLE_TICKS);
         this.idleSoundTimer = 160 + random.nextInt(320); // first chatter 8-24 s out
         // The herd look: roughly one donkey in five, plain coats dominating
@@ -937,54 +957,45 @@ public final class MobEntity {
     }
 
     /**
-     * The path-follow tick (the A*-light slice): the feet walk the route's
-     * next waypoint while the eyes stay on the target. The route recomputes
-     * when the body reports a block (tickBody zeroes the repath budget) or
-     * the current route runs out; a failed search re-arms the budget so the
-     * wall-slide detour steering owns the gap between attempts.
+     * The path-follow tick (the vanilla navigation port): the navigation
+     * advances its walking index over the vanilla band (width²·offset, the
+     * same-level prefix) with the direct-walk shortcut and the 100-tick
+     * stuck check; the feet walk the heading to its current waypoint while
+     * the eyes stay on the target. The route recomputes on the 20-30 tick
+     * budget (both outcomes re-arm it); a failed search drops the route so
+     * the wall-slide detour steering owns the gap between attempts.
      */
     private void tickPathFollowing(Position target) {
         if (repathCooldown > 0) {
             repathCooldown--;
         }
-        while (pathIndex < path.size()) {
-            Position waypoint = path.get(pathIndex);
-            double wx = waypoint.x() - position.x();
-            double wz = waypoint.z() - position.z();
-            if (wx * wx + wz * wz <= MobPathfinder.WAYPOINT_REACH * MobPathfinder.WAYPOINT_REACH
-                    && Math.abs(waypoint.y() - position.y()) <= 1.5) {
-                pathIndex++;
-            } else {
-                break;
-            }
+        navigation.tick();
+        if (repathCooldown == 0) {
+            repath(target);
         }
-        if (pathIndex < path.size()) {
-            Position waypoint = path.get(pathIndex);
-            pathYaw = angleTo(waypoint.x() - position.x(), waypoint.z() - position.z());
+        if (navigation.hasTarget) {
+            pathYaw = angleTo(navigation.currentTargetX - position.x(),
+                    navigation.currentTargetZ - position.z());
             pathYawValid = true;
         } else {
             pathYawValid = false;
         }
-        if (repathCooldown == 0) {
-            repath(target);
-        }
     }
 
-    /** Recomputes the route to the target (both outcomes re-arm the budget). */
+    /**
+     * Recomputes the route (both outcomes re-arm the budget). The vanilla
+     * flow: find, then moveAlong — a null route (nothing beyond the start)
+     * drops the path and the detour fallback owns the block; a route with
+     * the same node sequence keeps its walking index (the vanilla reset
+     * rule).
+     */
     private void repath(Position target) {
         repathCooldown = 20 + random.nextInt(10);
-        java.util.List<Position> found = MobPathfinder.find(world, position, target);
-        if (found.isEmpty()) {
-            clearPath(); // no route: the detour fallback owns the block
-            return;
-        }
-        path = found;
-        pathIndex = 0;
+        navigation.moveTo(target.x(), target.y(), target.z(), type.walkSpeed);
     }
 
     private void clearPath() {
-        path = java.util.List.of();
-        pathIndex = 0;
+        navigation.stop();
         pathYawValid = false;
     }
 
@@ -1253,5 +1264,60 @@ public final class MobEntity {
         return (Math.round(position.x() * 32.0) << 42)
                 | (Math.round(position.y() * 32.0) << 21)
                 | Math.round(position.z() * 32.0);
+    }
+
+    // ------------------------------------------------ navigation adapters
+
+    /** The navigation's view of this body (the vanilla MobView surface). */
+    private final class PathBody implements
+            net.zaminmc.torch.server.entity.ai.pathing.MobView {
+        @Override
+        public double x() {
+            return position.x();
+        }
+
+        @Override
+        public double y() {
+            return position.y();
+        }
+
+        @Override
+        public double z() {
+            return position.z();
+        }
+
+        @Override
+        public double width() {
+            return type.width;
+        }
+
+        @Override
+        public double height() {
+            return type.height;
+        }
+
+        @Override
+        public boolean onGround() {
+            return onGround;
+        }
+
+        @Override
+        public boolean inWater() {
+            return world.inFluid(position.x(), position.y() + 0.2, position.z());
+        }
+
+        @Override
+        public boolean inLava() {
+            return world.inLava(position.x(), position.y() + 0.2, position.z());
+        }
+    }
+
+    /** The navigation's view of the world (the cell-material query). */
+    private final class PathWorldView implements
+            net.zaminmc.torch.server.entity.ai.pathing.PathWorld {
+        @Override
+        public net.zaminmc.torch.server.entity.ai.pathing.CellMaterial materialAt(int x, int y, int z) {
+            return world.pathMaterialAt(x, y, z);
+        }
     }
 }
