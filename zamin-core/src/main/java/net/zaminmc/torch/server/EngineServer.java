@@ -449,10 +449,12 @@ public final class EngineServer implements Server, EngineBridge {
                 // A survival-broken furnace spills its slots, and a survival-
                 // broken chest spills its 27, into the world first. The same
                 // hook emits the break/place feedback through the FX bus.
-                blockInteraction.setBlockBrokenListener(position -> {
+                blockInteraction.setBlockBrokenListener((position, brokenType) -> {
                     furnaceManager.onBlockBroken(position, itemEntities);
                     chestManager.onBlockBroken(position, itemEntities);
                     doorSiblingCleanup(position);
+                    bedSiblingCleanup(position, brokenType);
+                    bedSpawnCleanup(position);
                 });
                 // The mining award (the historical dropXp rolls): a survival
                 // break of an XP ore releases the roll as orbs at the block.
@@ -2806,6 +2808,51 @@ public final class EngineServer implements Server, EngineBridge {
             world.setBlock(broken.offset(0, 1, 0), world.airType()); // lower broke
         } else {
             world.setBlock(broken.offset(0, -1, 0), world.airType()); // upper broke
+        }
+    }
+
+    /**
+     * The bed-spawn invalidation (the vanilla rule): a sleeper whose anchor
+     * cell no longer holds a bed half loses the spawn — the anchor half broke,
+     * or the sibling cleanup removed the pair. Tick-thread context.
+     */
+    private void bedSpawnCleanup(BlockPosition broken) {
+        for (PlayerSession player : players.all()) {
+            Position anchor = player.bedSpawn();
+            if (anchor == null) {
+                continue;
+            }
+            BlockPosition bedCell = new BlockPosition(
+                    (int) Math.floor(anchor.x()), (int) Math.floor(anchor.y()) - 1,
+                    (int) Math.floor(anchor.z()));
+            if (!isBedHalf(world.getBlock(bedCell))) {
+                player.setBedSpawn(null); // the bed is gone: spawn resets
+            }
+        }
+    }
+
+    /**
+     * The bed pair break (the vanilla unit rule): breaking one half removes
+     * the other — a foot takes its head, a head takes its foot. The sibling
+     * is the horizontal neighbor of the opposite half class (two adjacent
+     * beds never share a class across the pair line). Tick-thread context.
+     */
+    private void bedSiblingCleanup(BlockPosition broken, BlockType brokenType) {
+        if (!isBedHalf(brokenType)) {
+            return;
+        }
+        boolean brokeHead = brokenType.identifier().value().startsWith("bed_head");
+        for (int[] direction : new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
+            BlockPosition neighbor = broken.offset(direction[0], 0, direction[1]);
+            BlockType at = world.getBlock(neighbor);
+            if (!isBedHalf(at)) {
+                continue;
+            }
+            boolean neighborIsHead = at.identifier().value().startsWith("bed_head");
+            if (neighborIsHead != brokeHead) {
+                world.setBlock(neighbor, world.airType()); // the pair dies as a unit
+                return;
+            }
         }
     }
 
@@ -5313,6 +5360,8 @@ public final class EngineServer implements Server, EngineBridge {
         session.applyMovement(session.position(), snapshot.rotation(), true);
         // ZPD v6: the experience total rides the file tail (0 in older files).
         session.setTotalXp(snapshot.totalXp());
+        // ZPD v7: the bed spawn returns with the player (null in older files).
+        session.setBedSpawn(snapshot.bedSpawn());
         java.util.List<net.zaminmc.torch.item.ItemStack> restored = new java.util.ArrayList<>(
                 java.util.Collections.nCopies(net.zaminmc.torch.server.player.PlayerInventory.TOTAL_SLOTS,
                         net.zaminmc.torch.item.ItemStack.EMPTY));
@@ -5377,7 +5426,7 @@ public final class EngineServer implements Server, EngineBridge {
         return new PlayerSnapshot(session.uuid(), session.name(), session.position(),
                 session.rotation(), session.inventory().heldSlot(), filled,
                 session.health(), session.food(), session.saturation(),
-                session.gamemode().legacyId(), session.totalXp());
+                session.gamemode().legacyId(), session.totalXp(), session.bedSpawn());
     }
 
     /**

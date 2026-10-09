@@ -22,7 +22,7 @@ import java.util.UUID;
 import java.util.logging.Logger;
 
 /**
- * File-backed player data store ("ZPD" format, version 6), one file per player.
+ * File-backed player data store ("ZPD" format, version 7), one file per player.
  *
  * <p>Layout: magic 'Z','P','D',6 - name(string) - x(double) y(double) z(double)
  * - yaw(float) pitch(float) - heldSlot(varint) - slots(varint count of non-empty
@@ -34,6 +34,7 @@ import java.util.logging.Logger;
  * carries the armor row inside the slot namespace at indexes 36-39
  * (head, chest, legs, feet) — the count-prefixed list is self-describing, so
  * older readers never see entries they cannot place. ZPD v6 appends the
+ * experience total and v7 the bed spawn (absent-marker first), so
  * experience total (varlong) after the game mode; v5 files load with 0 XP.</p>
  *
  * <p>The same durability rules as the world store: writes are atomic (temp file
@@ -46,7 +47,7 @@ public final class PlayerDataStore {
     private static final int MAGIC_0 = 'Z';
     private static final int MAGIC_1 = 'P';
     private static final int MAGIC_2 = 'D';
-    private static final int FORMAT_VERSION = 6;
+    private static final int FORMAT_VERSION = 7;
 
     private final Path directory;
 
@@ -86,6 +87,15 @@ public final class PlayerDataStore {
                 out.writeFloat(snapshot.saturation());
                 out.writeByte(snapshot.gamemodeId());
                 writeVarLong(out, snapshot.totalXp());
+                // ZPD v7: the bed spawn tail (absent marker first).
+                if (snapshot.bedSpawn() == null) {
+                    out.writeBoolean(false);
+                } else {
+                    out.writeBoolean(true);
+                    out.writeDouble(snapshot.bedSpawn().x());
+                    out.writeDouble(snapshot.bedSpawn().y());
+                    out.writeDouble(snapshot.bedSpawn().z());
+                }
             }
             Files.move(temp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
         } catch (IOException e) {
@@ -137,8 +147,13 @@ public final class PlayerDataStore {
             int gamemodeId = version >= 4 ? in.readByte() : -1;
             // Version 6 appends the experience total; older saves load at 0.
             long totalXp = version >= 6 ? readVarLong(in) : 0;
+            // Version 7 appends the bed spawn; older saves load without one.
+            Position bedSpawn = null;
+            if (version >= 7 && in.readBoolean()) {
+                bedSpawn = new Position(in.readDouble(), in.readDouble(), in.readDouble());
+            }
             return Optional.of(new PlayerSnapshot(uuid, name, position, rotation, heldSlot,
-                    stacks, health, food, saturation, gamemodeId, totalXp));
+                    stacks, health, food, saturation, gamemodeId, totalXp, bedSpawn));
         } catch (IOException | RuntimeException corrupt) {
             // A malformed value (bad identifier, out-of-range slot) is corruption
             // just as much as a broken header: quarantine, then treat as absent.
