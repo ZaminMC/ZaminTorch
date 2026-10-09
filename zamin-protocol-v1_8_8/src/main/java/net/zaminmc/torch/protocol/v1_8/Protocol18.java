@@ -55,6 +55,8 @@ final class Protocol18 {
     static final int S2C_CLOSE_WINDOW = 0x2E;
     /** Tab-Complete reply: VarInt count, then that many strings (protocol 47). */
     static final int S2C_TAB_COMPLETE = 0x3A;
+    /** Update Sign: packed position long, then the four UTF lines (protocol 47). */
+    static final int S2C_UPDATE_SIGN = 0x33;
     static final int S2C_NAMED_SPAWN = 0x0C;
     static final int S2C_CHUNK_DATA = 0x21;
     // Protocol 47 has NO unload-chunk packet: the 1.8 client prunes

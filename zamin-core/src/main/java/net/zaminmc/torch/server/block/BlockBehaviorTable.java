@@ -181,6 +181,24 @@ public final class BlockBehaviorTable {
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:wheat"), 1),
                                     new BlockBehavior.Drop(Identifier.parse("minecraft:wheat_seeds"), 1)))),
 
+            // The standing sign (community blocks.json: hardness 1.0, wood
+            // material, drops itself — the sign item, legacy 323).
+            Map.entry(Identifier.parse("minecraft:sign"),
+                    new BlockBehavior(1.0, true, false, "wood", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:sign"), 1)))),
+
+            Map.entry(Identifier.parse("minecraft:sign_west"),
+                    new BlockBehavior(1.0, true, false, "wood", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:sign"), 1)))),
+
+            Map.entry(Identifier.parse("minecraft:sign_north"),
+                    new BlockBehavior(1.0, true, false, "wood", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:sign"), 1)))),
+
+            Map.entry(Identifier.parse("minecraft:sign_east"),
+                    new BlockBehavior(1.0, true, false, "wood", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:sign"), 1)))),
+
             Map.entry(Identifier.parse("minecraft:tall_grass"),
                     new BlockBehavior(0.0, true, false, "plants", 0,
                             // the historical seed roll (1/8) first, the

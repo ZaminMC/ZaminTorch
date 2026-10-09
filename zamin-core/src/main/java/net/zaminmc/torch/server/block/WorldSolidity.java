@@ -29,6 +29,7 @@ public final class WorldSolidity {
         Identifier id = type.identifier();
         return !id.equals(BuiltinBlocks.AIR.identifier())
                 && !id.equals(BuiltinBlocks.TORCH.identifier())
+                && !isSign(id)
                 && !isFlora(id)
                 && !FluidBlocks.isFluid(id);
     }
@@ -43,6 +44,12 @@ public final class WorldSolidity {
                 || id.equals(BuiltinBlocks.DANDELION.identifier())
                 || id.equals(BuiltinBlocks.POPPY.identifier())
                 || isWheatCrop(id);
+    }
+
+    /** The standing signs (block 63): the thin-post model, walk-through. */
+    public static boolean isSign(Identifier id) {
+        return id.namespace().equals("minecraft")
+                && (id.value().equals("sign") || id.value().startsWith("sign_"));
     }
 
     /** The wheat crop stages (block 59, ages 0..7): walk-through plants. */

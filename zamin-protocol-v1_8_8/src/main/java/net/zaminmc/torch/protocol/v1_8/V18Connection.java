@@ -377,12 +377,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 packet.readByte();
                 packet.readByte();
             }
-            case Protocol18.C2S_UPDATE_SIGN -> {
-                packet.readLong();
-                for (int line = 0; line < 4; line++) {
-                    ByteBufOps.readString(packet, 256);
-                }
-            }
+            case Protocol18.C2S_UPDATE_SIGN -> handleUpdateSign(player, packet);
             case Protocol18.C2S_PLAYER_ABILITIES -> {
                 int flags = packet.readByte();
                 packet.readFloat();
@@ -668,6 +663,48 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeVarInt(out, completions.size());
         for (String completion : completions) {
             ByteBufOps.writeString(out, completion);
+        }
+        channel.writeAndFlush(out);
+    }
+
+    /**
+     * Update Sign (0x12): the placement editor's four lines. The engine
+     * validates the target is a sign within reach, stores the text, and the
+     * sign listener fans the Update Sign (0x33) replay out to viewers.
+     */
+    private void handleUpdateSign(PlayerSession player, ByteBuf packet) {
+        long packed = packet.readLong();
+        String[] lines = new String[4];
+        for (int line = 0; line < 4; line++) {
+            lines[line] = ByteBufOps.readString(packet, 128);
+        }
+        int[] coords = ByteBufOps.decodePackedBlockPosition(packed);
+        BlockPosition position = new BlockPosition(coords[0], coords[1], coords[2]);
+        engine.editSign(player, position, lines);
+    }
+
+    /**
+     * Update Sign (0x33): the historical text replay — sign edits fan out to
+     * every viewer, and the chunk-send path replays the text of signs in a
+     * freshly loaded column (protocol 47 carries no tile entities in chunk
+     * data). Safe from any thread.
+     */
+    void sendSignUpdate(BlockPosition position, String[] lines) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        writeSignUpdate(channel, position, lines);
+    }
+
+    /** The 0x33 packet body (static: the chunk tracker replays on its own channel). */
+    private static void writeSignUpdate(Channel channel, BlockPosition position, String[] lines) {
+        ByteBuf out = Unpooled.buffer(64);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_UPDATE_SIGN);
+        ByteBufOps.writePackedBlockPosition(out, position.x(), position.y(), position.z());
+        for (int line = 0; line < 4; line++) {
+            ByteBufOps.writeString(out, lines != null && line < lines.length
+                    && lines[line] != null ? lines[line] : "");
         }
         channel.writeAndFlush(out);
     }
@@ -1478,7 +1515,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             out.writeShort(-1);
             return;
         }
-        Integer legacy = LegacyBlockIds.legacyId(stack.type().identifier()).orElse(null);
+        Integer legacy = LegacyBlockIds.legacyItemId(stack.type().identifier()).orElse(null);
         if (legacy == null) {
             out.writeShort(-1); // unmappable item: represent as empty on this wire
             return;
@@ -1513,7 +1550,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         if (!chunkTracker.hasChunk(blockPos.chunkPosition().packed())) {
             return; // observer cannot see that chunk yet
         }
-        Integer legacy = LegacyBlockIds.legacyId(entity.stack().type().identifier()).orElse(null);
+        Integer legacy = LegacyBlockIds.legacyItemId(entity.stack().type().identifier()).orElse(null);
         if (legacy == null) {
             return;
         }
@@ -2059,7 +2096,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             if (beyondFeedbackRange(observer, at)) {
                 return;
             }
-            Integer legacy = LegacyBlockIds.legacyId(crumbs.stack().type().identifier()).orElse(null);
+            Integer legacy = LegacyBlockIds.legacyItemId(crumbs.stack().type().identifier()).orElse(null);
             if (legacy == null) {
                 return;
             }
@@ -2388,6 +2425,12 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             ByteBufOps.writeVarInt(out, data.length);
             out.writeBytes(data);
             channel.writeAndFlush(out);
+            // The sign text replay (protocol 47 chunk data carries no tile
+            // entities): every sign in the freshly sent column re-sends its
+            // lines, the historical load order.
+            for (var entry : engine.signs().inChunk(chunk.position())) {
+                writeSignUpdate(channel, entry.getKey(), entry.getValue());
+            }
         }
     }
 }

@@ -88,6 +88,10 @@ public final class BuiltinItems {
             Identifier.parse("minecraft:bread"), "Bread", 64);
     public static final EngineItemType BONE_MEAL = new EngineItemType(
             Identifier.parse("minecraft:bone_meal"), "Bone Meal", 64);
+    // The sign item (community items.json: legacy 323, stack 16) — places
+    // the standing sign block; the text rides Update Sign after placement.
+    public static final EngineItemType SIGN = new EngineItemType(
+            Identifier.parse("minecraft:sign"), "Sign", 16);
 
     // Mob loot (legacy ids from the community dataset: porkchop 319, cooked
     // porkchop 320, raw chicken 365, cooked chicken 366, feather 288,
@@ -306,7 +310,7 @@ public final class BuiltinItems {
                 WOODEN_SWORD, STONE_SWORD, IRON_SWORD, DIAMOND_SWORD, GOLDEN_SWORD,
                 SHEARS,
                 WOODEN_HOE, STONE_HOE, IRON_HOE, DIAMOND_HOE, GOLDEN_HOE,
-                WHEAT_SEEDS, WHEAT, BREAD, BONE_MEAL,
+                WHEAT_SEEDS, WHEAT, BREAD, BONE_MEAL, SIGN,
                 BONE, STRING, GUNPOWDER, WOOL, MUTTON, COOKED_MUTTON,
                 BUCKET, WATER_BUCKET, LAVA_BUCKET,
                 TALL_GRASS, DEAD_BUSH, DANDELION, POPPY, SANDSTONE,

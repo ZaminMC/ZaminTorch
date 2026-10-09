@@ -155,13 +155,31 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:wheat_stage4"), 59),
             Map.entry(Identifier.parse("minecraft:wheat_stage5"), 59),
             Map.entry(Identifier.parse("minecraft:wheat_stage6"), 59),
-            Map.entry(Identifier.parse("minecraft:wheat_stage7"), 59));
+            Map.entry(Identifier.parse("minecraft:wheat_stage7"), 59),
+            // The standing signs (community blocks.json: block 63, the
+            // rotation rides the metadata nibble via metadataOf).
+            Map.entry(Identifier.parse("minecraft:sign"), 63),
+            Map.entry(Identifier.parse("minecraft:sign_west"), 63),
+            Map.entry(Identifier.parse("minecraft:sign_north"), 63),
+            Map.entry(Identifier.parse("minecraft:sign_east"), 63));
+
+    /**
+     * Item-form ids that diverge from the block id sharing the identifier
+     * (the sign: block 63 on the chunk wire, item 323 in slots — the
+     * historical split). Consulted by the slot/item wire paths only.
+     * Declared before the reverse map: reverse() folds it in at init.
+     */
+    private static final Map<Identifier, Integer> ITEM_OVERRIDES = Map.of(
+            Identifier.parse("minecraft:sign"), 323);
 
     private static final Map<Integer, Identifier> BY_LEGACY_ID = reverse();
 
     private static Map<Integer, Identifier> reverse() {
         Map<Integer, Identifier> reversed = new HashMap<>();
         BY_IDENTIFIER.forEach((identifier, legacyId) -> reversed.put(legacyId, identifier));
+        // The item-form overrides (sign item 323) resolve on the creative
+        // and slot paths too; item ids never collide with block ids here.
+        ITEM_OVERRIDES.forEach((identifier, legacyId) -> reversed.put(legacyId, identifier));
         return Map.copyOf(reversed);
     }
 
@@ -192,7 +210,10 @@ final class LegacyBlockIds {
      * real "grass" variant on the wire).
      */
     private static final Map<Identifier, Integer> METADATA = Map.of(
-            Identifier.parse("minecraft:tall_grass"), 1);
+            Identifier.parse("minecraft:tall_grass"), 1,
+            Identifier.parse("minecraft:sign_west"), 4,
+            Identifier.parse("minecraft:sign_north"), 8,
+            Identifier.parse("minecraft:sign_east"), 12);
 
     /**
      * @return the wire metadata nibble of a block type: the 1.8 data-value
@@ -211,5 +232,17 @@ final class LegacyBlockIds {
     /** @return the canonical identifier for a legacy id, or empty if unknown. */
     static Optional<Identifier> identifierOf(int legacyId) {
         return Optional.ofNullable(BY_LEGACY_ID.get(legacyId));
+    }
+
+    /**
+     * @return the legacy id for an ITEM slot (the item overrides first — the
+     * sign is 323 in slots, never its block id — then the shared table).
+     */
+    static Optional<Integer> legacyItemId(Identifier identifier) {
+        Integer override = ITEM_OVERRIDES.get(identifier);
+        if (override != null) {
+            return Optional.of(override);
+        }
+        return legacyId(identifier);
     }
 }
