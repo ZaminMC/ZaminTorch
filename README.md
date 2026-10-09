@@ -64,6 +64,14 @@ proven over the wire and against a live process.
 | Sugar cane + cactus: worldgen, growth, support rules, prick damage | implemented |
 | Reed crafting chain (sugar/paper/book), gold ingot smelt | implemented |
 | Lit furnace visual (block 62 + glow), chest lid (Block Action 0x24) | implemented |
+| Collision shapes: slabs/stairs/fences, shape-aware physics | implemented |
+| Vehicles: boats + minecarts (mount/steer/dismount wire) | implemented |
+| A*-light mob pathfinding + furnace take XP + wall signs | implemented |
+| Bed spawn persistence (ZPD v7) | implemented |
+| Horses: temper taming, saddle/armor, EntityHorse inventory, ridden physics | implemented |
+| Pig saddles + carrot-on-a-stick steering | implemented |
+| Villager trading: careers, MC|TrList/TrSel wire, merchant window | implemented |
+| Anti-cheat: reach check, nuker budget, fastplace guard, violation ladders | implemented |
 | Item NBT (display names, enchantments) | planned |
 | Anvil world format import | planned (compatibility adapter) |
 | Minestom integration | deferred (see ADR in plan) |

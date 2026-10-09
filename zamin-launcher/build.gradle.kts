@@ -26,7 +26,7 @@ tasks.register<JavaExec>("runServer") {
  * compares its build version against the released tag, so this artifact's
  * version constant and the release tag must move together.
  */
-val distVersion = "0.2.0-dev.11"
+val distVersion = "0.2.0-dev.12"
 
 val fatJar = tasks.register<Jar>("fatServerJar") {
     group = "zamin"
