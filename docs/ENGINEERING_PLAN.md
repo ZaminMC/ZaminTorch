@@ -816,6 +816,44 @@ COMMUNITY_REFERENCES.md.**
   spider day-night, sheep shear/regrow, bucket scoop/pour, the conformance
   table; all 300+ green.
 
+## 10x. Slices 10x-10ab — the operator batch: guard, commands, armor, biomes (committed 2026-10-09)
+
+- **Movement guard** (shape from Mangolise/mango-anti-cheat, Apache-2.0 -
+  own implementation): every proposal is bounded by the historical physics
+  envelope (0.45 h-step, 0.55 rise, 5.0 fall per tick); rejections drop the
+  packet and snap the client back via the new `ClientLink.resyncPosition`.
+  Grace windows forgive joins, respawns, teleports, knockback launches and
+  mode switches; the abilities packet's flying bit feeds the guard; a hover
+  tell (100 ticks airborne non-descent without flight rights) catches cheats.
+- **Paper operator set**: `/tp /kill /heal /feed /spawn /setspawn /fly /clear
+  /ban /pardon /banlist /whitelist /weather` join the command table. Bans and
+  the whitelist persist in the exact Paper JSON shapes (hand-editable),
+  enforced at joinRequest; `/weather` rides Change Game State 1/2 with an
+  auto-clear countdown; `/setspawn` persists `world/data/spawn.json`.
+- **Armor**: 16 pieces across the five historical tiers (community items.json
+  ids + durabilities). `PlayerInventory` grows a kind-gated armor row (wire
+  slots 5-8: clicks, quick moves, number-key swaps, drop-clicks, Window Items
+  sync). Observers see gear through Entity Equipment 0x04 (held + feet/legs/
+  chest/head). Physical damage passes the 1.8 reduction envelope
+  (`min(20, max(armor/5, armor - dmg/2))/25`) and wears each piece; fall,
+  drown, void and starvation bypass armor. Death drops the row; ZPD v5
+  carries it in the slot namespace at 36-39.
+- **Biomes + flora**: the climate-noise pair (temperature/moisture) shades
+  plains, forest and desert; deserts wear three sand over a sandstone band;
+  forest canopies out-dense plains. The 16x16 biome array rides the chunk
+  packet (per-biome grass color on real clients). New walk-through flora:
+  tall grass, dead bush, dandelion, poppy, sandstone - instant-break,
+  light-transparent, flowers self-drop.
+- **Fixed en route**: console commands never dispatched (bare lines now get
+  their slash at the engine boundary and arguments keep their case);
+  redstone ore rode iron ore's wire id (15 -> 73); oak leaves were undiggable.
+- **Tests**: the movement envelope (legit steps pass, hacks reject, grace
+  forgives, flight rights suspend, hover catches), the Paper stores
+  (round-trip + hand-edited files + corrupt tolerance), armor (kind gates,
+  the envelope formula, wear/breakage, quick-move/swap consistency), the
+  biome world (deterministic climates, desert skins, forest density,
+  walk-through flora, biome bytes). 317 green; the dist boot-verifies.
+
 ## 11. Known risks
 
 - 1.8.8 client quirks not obvious from protocol docs (e.g. exact chunk/lighting expectations) — mitigated by scripted-client tests + real client validation.
