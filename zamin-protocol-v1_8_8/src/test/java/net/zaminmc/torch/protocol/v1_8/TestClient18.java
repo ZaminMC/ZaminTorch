@@ -307,6 +307,28 @@ final class TestClient18 implements AutoCloseable {
         sendPacket(bodyToBytes(body));
     }
 
+    /** Tab-Complete (0x14): the completion ask (string, no block position). */
+    void sendTabComplete(String text) throws IOException {
+        ByteBuf body = Unpooled.buffer(16 + text.length());
+        ByteBufOps.writeVarInt(body, Protocol18.C2S_TAB_COMPLETE);
+        ByteBufOps.writeString(body, text);
+        body.writeByte(0); // has-position flag = absent
+        sendPacket(bodyToBytes(body));
+    }
+
+    /** Reads the Tab-Complete reply (0x3A): VarInt count, then strings. */
+    java.util.List<String> readTabCompletions(long timeoutMs) throws IOException {
+        byte[] payload = readPacketOfType(Protocol18.S2C_TAB_COMPLETE, timeoutMs);
+        ByteBuf buffer = Unpooled.wrappedBuffer(payload);
+        ByteBufOps.readVarInt(buffer); // packet id
+        int count = ByteBufOps.readVarInt(buffer);
+        java.util.List<String> completions = new java.util.ArrayList<>(count);
+        for (int i = 0; i < count; i++) {
+            completions.add(ByteBufOps.readString(buffer, 256));
+        }
+        return completions;
+    }
+
     void sendChat(String text) throws IOException {
         ByteBuf body = Unpooled.buffer(16 + text.length());
         ByteBufOps.writeVarInt(body, Protocol18.C2S_CHAT_MESSAGE);

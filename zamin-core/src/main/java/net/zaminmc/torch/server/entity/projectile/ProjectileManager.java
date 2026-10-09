@@ -70,6 +70,16 @@ public final class ProjectileManager {
         /** A player took a projectile hit: the PvP path (i-frames, velocity). */
         void playerHit(PlayerSession player, float damage, double kbYaw);
 
+        /**
+         * The same hit with the thrower's engine id resolved (death chat
+         * names the shooter, the historical kill credit). Default bridges to
+         * the legacy shape so existing sinks stay source-compatible.
+         */
+        default void playerHit(PlayerSession player, float damage, double kbYaw,
+                               int shooterId) {
+            playerHit(player, damage, kbYaw);
+        }
+
         /** The egg's chick roll succeeded: spawn a chicken here. */
         void chickenHatch(Position position);
     }
@@ -247,7 +257,7 @@ public final class ProjectileManager {
     private void hitPlayer(ProjectileEntity projectile, PlayerSession player) {
         float damage = damageOf(projectile);
         double kbYaw = Math.atan2(-projectile.velocityX(), projectile.velocityZ());
-        combat.playerHit(player, damage, kbYaw);
+        combat.playerHit(player, damage, kbYaw, projectile.throwerId());
         if (projectile.kind() == ProjectileEntity.Kind.EGG && rollEggHatch()) {
             combat.chickenHatch(player.position());
         }

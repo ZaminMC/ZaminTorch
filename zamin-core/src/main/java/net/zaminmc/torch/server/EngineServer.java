@@ -158,6 +158,8 @@ public final class EngineServer implements Server, EngineBridge {
     private volatile ItemEntityManager itemEntities;
     private volatile MobManager mobManager;
     private volatile FallingBlockEntityManager fallingEntities;
+    /** The command dispatcher (tab completion reads it from the wire layer). */
+    private volatile CommandService commands;
     private BlockUpdateSystem blockUpdateSystem;
     private FluidSystem fluidSystem;
     private ExplosionService explosionService;
@@ -420,9 +422,10 @@ public final class EngineServer implements Server, EngineBridge {
                                 0.8f + fxRandom.nextFloat() * 0.2f);
                     }
                 });
-                CommandService commands = new CommandService();
-                registerBuiltinCommands(commands);
-                chatService = new ChatService(ticker, commands, this::publishChat);
+                CommandService dispatcher = new CommandService();
+                registerBuiltinCommands(dispatcher);
+                commands = dispatcher;
+                chatService = new ChatService(ticker, dispatcher, this::publishChat);
                 worldReady.countDown();
                 ticker.runLoop(); // blocks until stop
             } catch (Throwable t) {
@@ -552,6 +555,11 @@ public final class EngineServer implements Server, EngineBridge {
 
     public FrozenBlockRegistry blockRegistry() {
         return blockRegistry;
+    }
+
+    /** The command dispatcher (public: the wire layer's tab completion reads it). */
+    public CommandService commands() {
+        return commands;
     }
 
     public PlayerRegistry playerRegistry() {
@@ -768,7 +776,8 @@ public final class EngineServer implements Server, EngineBridge {
             // lands every tick (the historical outOfWorld rate) until death —
             // and it pierces creative invulnerability, the historical rule.
             if (session.position().y() < MobEntity.VOID_KILL_Y) {
-                damageOnTick(session, MobEntity.VOID_DAMAGE_PER_TICK, true);
+                damageOnTick(session, MobEntity.VOID_DAMAGE_PER_TICK, true,
+                        "fell out of the world");
             }
             tickEating(session);
             tickBowCharge(session);
@@ -866,7 +875,7 @@ public final class EngineServer implements Server, EngineBridge {
             if (session.bodyTimer() >= PlayerSession.BODY_TIMER_PERIOD) {
                 session.resetBodyTimer();
                 if (session.health() > PlayerSession.STARVATION_FLOOR) {
-                    damageOnTick(session, 1.0f); // easy difficulty: cannot kill
+                    damageOnTick(session, 1.0f, "starved to death"); // easy: cannot kill
                 }
             }
         } else {
@@ -885,7 +894,9 @@ public final class EngineServer implements Server, EngineBridge {
             var feet = session.position().toBlockPosition();
             var at = world.getBlock(feet);
             if (FluidBlocks.kindOf(at.identifier()) == null) {
-                damageOnTick(session, (float) Math.ceil(distance - PlayerSession.SAFE_FALL_DISTANCE));
+                damageOnTick(session,
+                        (float) Math.ceil(distance - PlayerSession.SAFE_FALL_DISTANCE),
+                        "hit the ground too hard");
             }
         }
     }
@@ -905,7 +916,7 @@ public final class EngineServer implements Server, EngineBridge {
                 (int) Math.floor(eye.x()), (int) Math.floor(eye.y()), (int) Math.floor(eye.z())));
         boolean underwater = FluidBlocks.kindOf(at.identifier()) != null;
         if (session.advanceBreath(underwater)) {
-            damageOnTick(session, 2.0f);
+            damageOnTick(session, 2.0f, "drowned");
         }
     }
 
@@ -1021,7 +1032,7 @@ public final class EngineServer implements Server, EngineBridge {
             publishPlayerHurt(victim);
             publishKnockback(victim, vx, 0.4, vz);
             if (victim.health() <= 0) {
-                dieOnTick(victim);
+                dieOnTick(victim, "was slain by " + attacker.name());
             } else {
                 publishBodyChanged(victim);
             }
@@ -1062,7 +1073,15 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     private void damageOnTick(PlayerSession session, float amount) {
-        damageOnTick(session, amount, false);
+        damageOnTick(session, amount, false, null);
+    }
+
+    private void damageOnTick(PlayerSession session, float amount, String causeMessage) {
+        damageOnTick(session, amount, false, causeMessage);
+    }
+
+    private void damageOnTick(PlayerSession session, float amount, boolean bypassProtection) {
+        damageOnTick(session, amount, bypassProtection, null);
     }
 
     /**
@@ -1070,7 +1089,8 @@ public final class EngineServer implements Server, EngineBridge {
      * bodies are invulnerable (the historical rule) — the only bypass is the
      * void, which consumes even creative bodies past the kill plane.
      */
-    private void damageOnTick(PlayerSession session, float amount, boolean bypassProtection) {
+    private void damageOnTick(PlayerSession session, float amount, boolean bypassProtection,
+                              String causeMessage) {
         if (session.dead() || session.state() != PlayerState.PLAYING) {
             return;
         }
@@ -1080,7 +1100,7 @@ public final class EngineServer implements Server, EngineBridge {
         }
         session.hurt(amount);
         if (session.health() <= 0) {
-            dieOnTick(session);
+            dieOnTick(session, causeMessage != null ? causeMessage : "died");
         } else {
             publishBodyChanged(session);
         }
@@ -1093,6 +1113,17 @@ public final class EngineServer implements Server, EngineBridge {
      * Tick-thread context.
      */
     private void dieOnTick(PlayerSession session) {
+        dieOnTick(session, "died");
+    }
+
+    /**
+     * Death: carried window state returns, the whole inventory (and cursor)
+     * scatters at the body with the historical pop, the body marks dead. The
+     * client learns through the survival listener (combat event + health 0).
+     * The cause-specific vanilla-style message is broadcast to every online
+     * player (the historical death chat) and logged. Tick-thread context.
+     */
+    private void dieOnTick(PlayerSession session, String causeMessage) {
         session.markDead();
         returnWindowCarriedItems(session, true);
         var slots = session.inventory().snapshot();
@@ -1112,7 +1143,11 @@ public final class EngineServer implements Server, EngineBridge {
         publishInventoryChanged(session);
         publishBodyChanged(session);
         publishDied(session);
-        LOGGER.info(() -> "Player died: " + session.name());
+        String deathLine = session.name() + " " + causeMessage;
+        for (PlayerSession online : players.all()) {
+            systemMessage(online, deathLine);
+        }
+        LOGGER.info(deathLine);
     }
 
     /** Death drops scatter around the body with a small random pop. */
@@ -2375,7 +2410,12 @@ public final class EngineServer implements Server, EngineBridge {
 
         @Override
         public void playerHit(PlayerSession victim, float damage, double kbYaw) {
-            projectileHitPlayerOnTick(victim, damage, kbYaw);
+            projectileHitPlayerOnTick(victim, damage, kbYaw, -1);
+        }
+
+        @Override
+        public void playerHit(PlayerSession victim, float damage, double kbYaw, int shooterId) {
+            projectileHitPlayerOnTick(victim, damage, kbYaw, shooterId);
         }
 
         @Override
@@ -2391,7 +2431,8 @@ public final class EngineServer implements Server, EngineBridge {
      * traveled, so no reach check — but the hurt window, knockback and death
      * path stay identical to melee PvP. Tick-thread context.
      */
-    private void projectileHitPlayerOnTick(PlayerSession victim, float damage, double kbYaw) {
+    private void projectileHitPlayerOnTick(PlayerSession victim, float damage, double kbYaw,
+                                            int shooterId) {
         if (!config.pvp() || victim.dead() || victim.state() != PlayerState.PLAYING) {
             return;
         }
@@ -2413,10 +2454,39 @@ public final class EngineServer implements Server, EngineBridge {
         publishPlayerHurt(victim);
         publishKnockback(victim, vx, 0.35, vz);
         if (victim.health() <= 0) {
-            dieOnTick(victim);
+            dieOnTick(victim, "was pummeled by " + throwerName(shooterId));
         } else {
             publishBodyChanged(victim);
         }
+    }
+
+    /**
+     * Resolves a projectile's thrower engine id to a display name for the
+     * death chat: player band first, then the mob band, else "a projectile".
+     * Tick-thread context.
+     */
+    private String throwerName(int throwerId) {
+        if (throwerId > 0) {
+            for (PlayerSession candidate : players.all()) {
+                if (candidate.engineEntityId() == throwerId) {
+                    return candidate.name();
+                }
+            }
+            if (mobManager != null) {
+                for (MobEntity mob : mobManager.all()) {
+                    if (mob.entityId() == throwerId) {
+                        return titledMobName(mob);
+                    }
+                }
+            }
+        }
+        return "a projectile";
+    }
+
+    /** The historical chat display name of a mob kind ("Zombie", "Creeper"). */
+    private static String titledMobName(MobEntity mob) {
+        String raw = mob.type().name();
+        return raw.charAt(0) + raw.substring(1).toLowerCase(java.util.Locale.ROOT);
     }
 
     /**
@@ -2468,7 +2538,8 @@ public final class EngineServer implements Server, EngineBridge {
             }
             // The same-thread survival damage path; the victim's armor eats
             // its share first (the 1.8 envelope).
-            damageOnTick(target, applyArmor(target, damage));
+            damageOnTick(target, applyArmor(target, damage),
+                    "was slain by " + titledMobName(mob));
         }
 
         @Override
@@ -2740,7 +2811,7 @@ public final class EngineServer implements Server, EngineBridge {
                 publishPlayerHurt(player);
                 publishKnockback(player, mx, 0.4, mz);
                 if (player.health() <= 0) {
-                    dieOnTick(player);
+                    dieOnTick(player, "was blown up");
                 } else {
                     publishBodyChanged(player);
                 }
