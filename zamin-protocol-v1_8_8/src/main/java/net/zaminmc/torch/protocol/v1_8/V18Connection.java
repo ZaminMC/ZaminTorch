@@ -383,9 +383,15 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 }
             }
             case Protocol18.C2S_PLAYER_ABILITIES -> {
-                packet.readByte();
+                int flags = packet.readByte();
                 packet.readFloat();
                 packet.readFloat();
+                if (session != null) {
+                    // The flying bit (0x02): creative double-tap and /fly both
+                    // announce here. The movement guard trusts this flag only
+                    // when the session holds flight rights.
+                    session.setFlying((flags & 0x02) != 0);
+                }
             }
             case Protocol18.C2S_TAB_COMPLETE -> {
                 ByteBufOps.readString(packet, 256);
@@ -989,6 +995,21 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeFloat(0.05f); // fly speed
         out.writeFloat(0.1f);  // field of view modifier (the historical walk speed field)
         channel.writeAndFlush(out);
+    }
+
+    @Override
+    public void resyncPosition() {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        PlayerSession player = session;
+        if (player == null) {
+            return;
+        }
+        // The movement guard's snap-back: re-assert the authoritative state.
+        // Any thread; writeAndFlush is the channel's own ordering.
+        sendPositionAndLook(channel, player.position(), player.rotation(), true);
     }
 
     /** The abilities flag byte for a session's current game mode. */

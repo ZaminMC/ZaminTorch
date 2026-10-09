@@ -87,6 +87,17 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
     private volatile boolean sneaking;
     private volatile boolean sprinting;
 
+    // --- movement guard state (the anti-cheat baseline) ---------------------
+
+    /** Grace-window ticks left: teleports, knockback and join bursts ride it. */
+    private volatile int graceTicks;
+    /** Flight rights (creative/spectator, or an explicit /fly grant). */
+    private volatile boolean allowedToFly;
+    /** The client's reported flying state (Player Abilities 0x13 bit 1). */
+    private volatile boolean flying;
+    /** Sustained airborne non-descent ticks (the hover tell). */
+    private volatile int hoverTicks;
+
     // Bow charge: begins at the use gesture while a bow is held, ends at the
     // release gesture; the arrow's launch speed scales with the held duration.
     private int bowChargeTicks = -1;
@@ -359,6 +370,7 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
         this.sneaking = false;
         this.sprinting = false;
         resetHurtInvulnerability();
+        clearHoverTicks();
     }
 
     /** Exhaustion accrual (regen hearts; more sources arrive with combat). */
@@ -419,6 +431,60 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
 
     public void setSprinting(boolean sprinting) {
         this.sprinting = sprinting;
+    }
+
+    // --- movement guard accessors --------------------------------------------
+
+    /** @return grace ticks left (a teleport or knockback is still in flight). */
+    public int graceTicks() {
+        return graceTicks;
+    }
+
+    /** Opens the grace window (engine-side teleports, knockback, joins). */
+    public void setGraceTicks(int ticks) {
+        this.graceTicks = Math.max(0, ticks);
+    }
+
+    /** Per-tick decay of the grace window. Tick-thread context. */
+    public void tickGrace() {
+        if (graceTicks > 0) {
+            graceTicks--;
+        }
+    }
+
+    /** @return whether flight is permitted (mode-granted or /fly). */
+    public boolean allowedToFly() {
+        return allowedToFly;
+    }
+
+    /** Sets flight rights (mode change, /fly). Tick-thread context. */
+    public void setAllowedToFly(boolean allowedToFly) {
+        this.allowedToFly = allowedToFly;
+    }
+
+    /** @return the client's reported flying state (the abilities packet bit). */
+    public boolean flying() {
+        return flying;
+    }
+
+    /** Records the client's flying flag (the owning channel loop orders it). */
+    public void setFlying(boolean flying) {
+        this.flying = flying;
+    }
+
+    /** Counts one more airborne non-descent tick (the hover tell). */
+    public void noteHoverTick() {
+        hoverTicks++;
+    }
+
+    /** @return the sustained airborne non-descent tick count. */
+    public int hoverTicks() {
+        return hoverTicks;
+    }
+
+    /** Clears the hover accumulator (landed, fell, or accepted flight). */
+    public void clearHoverTicks() {
+        hoverTicks = 0;
     }
 
     // --- bow charge -----------------------------------------------------------
