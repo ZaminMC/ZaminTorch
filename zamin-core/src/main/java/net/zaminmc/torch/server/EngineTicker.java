@@ -39,6 +39,14 @@ public final class EngineTicker {
     private volatile Thread tickThread;
     private volatile long lastTickOverrunNanos;
     private boolean tickedOnce;
+    // The /tps window (the Paper 1m/5m/15m report): ticks completed per
+    // elapsed second, the last sixty seconds kept for the 1-minute average.
+    private final java.util.concurrent.ConcurrentLinkedQueue<long[]> tpsWindow =
+            new java.util.concurrent.ConcurrentLinkedQueue<>();
+    private long tpsSecondStamp;
+    private long tpsSecondTicks;
+    private static final long TPS_SECOND_NANOS = TimeUnit.SECONDS.toNanos(1);
+    private static final int TPS_WINDOW_SECONDS = 60;
 
     EngineTicker(int tickRateHz) {
         this.tickIntervalNanos = TimeUnit.SECONDS.toNanos(1) / tickRateHz;
@@ -81,6 +89,7 @@ public final class EngineTicker {
             }
             tickedOnce = true;
             tickOnce();
+            noteTpsTick();
             nextTick += tickIntervalNanos;
         }
         LOGGER.fine("Simulation loop stopped");
@@ -98,6 +107,48 @@ public final class EngineTicker {
     /** Enqueues work to run at the start of the next tick. Safe from any thread. */
     public void submit(Runnable work) {
         pendingWork.add(work);
+    }
+
+    /** One completed tick feeds the /tps rolling window. Tick thread only. */
+    private void noteTpsTick() {
+        long now = System.nanoTime();
+        if (tpsSecondStamp == 0) {
+            tpsSecondStamp = now;
+        }
+        tpsSecondTicks++;
+        if (now - tpsSecondStamp >= TPS_SECOND_NANOS) {
+            tpsWindow.add(new long[]{tpsSecondStamp, tpsSecondTicks});
+            tpsSecondStamp = now;
+            tpsSecondTicks = 0;
+            while (tpsWindow.size() > TPS_WINDOW_SECONDS) {
+                tpsWindow.poll();
+            }
+        }
+    }
+
+    /**
+     * @return the average ticks per second over roughly the given window
+     * seconds (1, 5 or 15 in the Paper report); 20.0 before enough data.
+     */
+    public double averageTps(int seconds) {
+        long now = System.nanoTime();
+        long from = now - TimeUnit.SECONDS.toNanos(seconds);
+        long ticks = 0;
+        long span = 0;
+        for (long[] second : tpsWindow) {
+            if (second[0] >= from) {
+                ticks += second[1];
+                span++;
+            }
+        }
+        if (tpsSecondStamp >= from && tpsSecondStamp != 0) {
+            ticks += tpsSecondTicks;
+            span += (now - tpsSecondStamp) / (double) TPS_SECOND_NANOS;
+        }
+        if (span <= 0) {
+            return 20.0;
+        }
+        return Math.min(20.0, ticks / span);
     }
 
     /**

@@ -246,6 +246,18 @@ public final class MobManager {
     }
 
     /**
+     * The peaceful-difficulty rule: every hostile leaves the world at once
+     * (the historical /difficulty peaceful sweep). Tick-thread context.
+     */
+    public void removeHostiles() {
+        for (MobEntity mob : new java.util.ArrayList<>(mobs)) {
+            if (mob.type().hostile) {
+                remove(mob, "peaceful");
+            }
+        }
+    }
+
+    /**
      * Fills the spawn area with passive packs at boot (no persistence: the
      * population rebuilds, the §146 pattern). Tick-thread context.
      */

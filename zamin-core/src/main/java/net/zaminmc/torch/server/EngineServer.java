@@ -48,6 +48,7 @@ import net.zaminmc.torch.server.chat.CommandSender;
 import net.zaminmc.torch.server.chat.ConsoleSender;
 import net.zaminmc.torch.server.interaction.DropService;
 import net.zaminmc.torch.server.ops.BanStore;
+import net.zaminmc.torch.server.ops.IpBanStore;
 import net.zaminmc.torch.server.ops.OpStore;
 import net.zaminmc.torch.server.ops.WhitelistStore;
 import net.zaminmc.torch.server.net.ClientLink;
@@ -186,6 +187,14 @@ public final class EngineServer implements Server, EngineBridge {
     private BanStore banStore = BanStore.load(java.nio.file.Path.of("banned-players.json"));
     private WhitelistStore whitelistStore =
             WhitelistStore.load(java.nio.file.Path.of("whitelist.json"));
+    /** The IP ban registry (banned-ips.json), the /ban-ip gate's store. */
+    private IpBanStore ipBanStore = IpBanStore.load(java.nio.file.Path.of("banned-ips.json"));
+    /** The runtime difficulty id (0 peaceful .. 3 hard; /difficulty drives it). */
+    private volatile int difficulty = 1;
+    /** The default game mode id new joins start in (world/data/defaultgamemode.json). */
+    private volatile int defaultGamemodeId = 0;
+    /** The generator's deterministic seed (the /seed report). */
+    private volatile long worldSeed;
     /** Runtime whitelist enforcement (server.properties boot value; /whitelist on|off). */
     private volatile boolean whitelistEnforced;
     /** The weather state (the historical always-clear default; /weather drives it). */
@@ -290,8 +299,10 @@ public final class EngineServer implements Server, EngineBridge {
                 // the server.properties flag until /whitelist on|off overrides.
                 opStore = OpStore.load(java.nio.file.Path.of(config.dataDir(), "ops.json"));
                 banStore = BanStore.load(java.nio.file.Path.of(config.dataDir(), "banned-players.json"));
+                ipBanStore = IpBanStore.load(java.nio.file.Path.of(config.dataDir(), "banned-ips.json"));
                 whitelistStore = WhitelistStore.load(java.nio.file.Path.of(config.dataDir(), "whitelist.json"));
                 whitelistEnforced = config.whiteList();
+                defaultGamemodeId = loadDefaultGamemode();
                 // Player persistence: one ZPD file per identity under world/playerdata.
                 playerStore = new PlayerDataStore(
                         config.playerDataDir());
@@ -303,6 +314,7 @@ public final class EngineServer implements Server, EngineBridge {
                         ? new FlatWorldGenerator(blockRegistry, 4)
                         : new NormalWorldGenerator(blockRegistry, config.worldName());
                 world = new EngineWorld(config.worldName(), blockRegistry, generator, owner);
+                worldSeed = generator.seed();
                 // The persisted spawn anchor (/setspawn): world/data/spawn.json
                 // rides above the generator's deterministic spawn when present.
                 loadSpawnAnchor().ifPresent(world::setSpawnPosition);
@@ -754,6 +766,11 @@ public final class EngineServer implements Server, EngineBridge {
     /** Registers an internal item-entity observer (e.g. the protocol adapter's sync). */
     public void addItemListener(ItemEntityManager.Listener listener) {
         itemListeners.add(listener);
+    }
+
+    /** @return the runtime difficulty id (0 peaceful .. 3 hard). */
+    public int difficulty() {
+        return difficulty;
     }
 
     /** The simulation-owned mob manager (present once the world is up). */
@@ -4577,18 +4594,14 @@ public final class EngineServer implements Server, EngineBridge {
 
         @Override
         public boolean inFire(double x, double y, double z) {
-            return WorldSolidity.isFire(world.getBlock(new BlockPosition(
-                    (int) Math.floor(x), (int) Math.floor(y), (int) Math.floor(z))).identifier());
+            return WorldSolidity.isFire(blockAtBoundsSafe(x, y, z).identifier());
         }
 
         @Override
         public boolean touchingCactus(double x, double y, double z) {
-            int bx = (int) Math.floor(x);
             int by = (int) Math.floor(y);
-            int bz = (int) Math.floor(z);
-            return WorldSolidity.isCactus(world.getBlock(new BlockPosition(bx, by, bz)).identifier())
-                    || WorldSolidity.isCactus(world.getBlock(
-                            new BlockPosition(bx, by - 1, bz)).identifier());
+            return WorldSolidity.isCactus(blockAtBoundsSafe(x, y, z).identifier())
+                    || WorldSolidity.isCactus(blockAtBoundsSafe(x, by - 1.0, z).identifier());
         }
 
         @Override
@@ -4938,6 +4951,71 @@ public final class EngineServer implements Server, EngineBridge {
         commands.register(new CommandService.Command("weather",
                 "Set the weather: /weather <clear|rain> [seconds]",
                 2, this::weatherCommand));
+        // The wider Paper operator set.
+        commands.register(new CommandService.Command("me",
+                "Broadcast an action: /me <action...>",
+                0, playerCommand(this::meCommand)));
+        commands.register(new CommandService.Command("tell",
+                "Private message a player: /tell <player> <message...>",
+                0, playerCommand(this::tellCommand)));
+        commands.register(new CommandService.Command("msg",
+                "Alias: /msg <player> <message...>",
+                0, playerCommand(this::tellCommand)));
+        commands.register(new CommandService.Command("w",
+                "Alias: /w <player> <message...>",
+                0, playerCommand(this::tellCommand)));
+        commands.register(new CommandService.Command("reply",
+                "Reply to the last private message: /reply <message...>",
+                0, playerCommand(this::replyCommand)));
+        commands.register(new CommandService.Command("ban-ip",
+                "Ban an IP address: /ban-ip <ip|player> [reason...]",
+                3, this::banIpCommand));
+        commands.register(new CommandService.Command("pardon-ip",
+                "Lift an IP ban: /pardon-ip <ip>",
+                3, this::pardonIpCommand));
+        commands.register(new CommandService.Command("xp",
+                "Grant experience: /xp <amount> [player] [L] (L = levels)",
+                2, this::xpCommand));
+        commands.register(new CommandService.Command("difficulty",
+                "Set the difficulty: /difficulty <peaceful|easy|normal|hard>",
+                2, this::difficultyCommand));
+        commands.register(new CommandService.Command("defaultgamemode",
+                "Set the default game mode for new players: /defaultgamemode <mode>",
+                2, this::defaultGamemodeCommand));
+        commands.register(new CommandService.Command("seed",
+                "Print the world seed",
+                0, (sender, args) -> "Seed: [" + worldSeed + "]"));
+        commands.register(new CommandService.Command("tps",
+                "Print the recent tick rates",
+                2, (sender, args) -> String.format(java.util.Locale.ROOT,
+                        "TPS from last 1m, 5m, 15m: %.1f, %.1f, %.1f",
+                        ticker.averageTps(60),
+                        ticker.averageTps(Math.min(60, 300)),
+                        ticker.averageTps(Math.min(60, 900)))));
+        commands.register(new CommandService.Command("plugins",
+                "List the installed plugins",
+                0, (sender, args) -> {
+                    java.io.File dir = new java.io.File(config.dataDir(), "plugins");
+                    java.io.File[] jars = dir.listFiles((d, n) ->
+                            n.toLowerCase(java.util.Locale.ROOT).endsWith(".jar"));
+                    if (jars == null || jars.length == 0) {
+                        return "Plugins (0): server ships no third-party plugins";
+                    }
+                    return "Plugins (" + jars.length + "): "
+                            + java.util.Arrays.stream(jars).map(f ->
+                                    f.getName().replaceAll("\\.jar$", ""))
+                                    .sorted().reduce((a, b) -> a + ", " + b).orElse("");
+                }));
+        commands.register(new CommandService.Command("version",
+                "Print the engine version",
+                0, (sender, args) -> "This server is running ZaminTorch version " + engineVersion()));
+    }
+
+    /** The build version (the fat-jar manifest; "dev" inside IDEs). */
+    private static String engineVersion() {
+        Package pkg = EngineServer.class.getPackage();
+        String fromManifest = pkg == null ? null : pkg.getImplementationVersion();
+        return fromManifest == null ? "dev" : fromManifest;
     }
 
     private static String[] prepend(String[] args, String first) {
@@ -5221,6 +5299,15 @@ public final class EngineServer implements Server, EngineBridge {
 
     /** /banlist: the entries of banned-players.json (the historical output). */
     private String banlistCommand(CommandSender sender, String[] args) {
+        if (args.length >= 1 && args[0].equalsIgnoreCase("ips")) {
+            var ips = ipBanStore.entries();
+            if (ips.isEmpty()) {
+                return "There are no IP bans";
+            }
+            return "There are " + ips.size() + " IP ban(s): "
+                    + ips.stream().map(e -> e.ip())
+                            .sorted().reduce((a, b) -> a + ", " + b).orElse("(none)");
+        }
         var entries = banStore.entries();
         if (entries.isEmpty()) {
             return "There are no bans";
@@ -5274,6 +5361,209 @@ public final class EngineServer implements Server, EngineBridge {
             }
             default -> "Usage: /whitelist on|off|add|remove|list";
         };
+    }
+
+    // -------------------------------------------------------------- social commands
+
+    /** /me &lt;action...&gt;: the historical emote broadcast. */
+    private String meCommand(PlayerSession sender, String[] args) {
+        if (args.length == 0) {
+            return "Usage: /me <action...>";
+        }
+        String line = "* " + sender.name() + " " + String.join(" ", args);
+        for (PlayerSession player : players.all()) {
+            systemMessage(player, line);
+        }
+        LOGGER.info(line);
+        return null;
+    }
+
+    /** /tell|/msg|/w &lt;player&gt; &lt;message...&gt;: the private message pair. */
+    private String tellCommand(PlayerSession sender, String[] args) {
+        if (args.length < 2) {
+            return "Usage: /tell <player> <message...>";
+        }
+        PlayerSession target = players.byName(args[0]).orElse(null);
+        if (target == null) {
+            return "No online player named " + args[0];
+        }
+        String content = String.join(" ", java.util.Arrays.copyOfRange(args, 1, args.length));
+        systemMessage(sender, "You whisper to " + target.name() + ": " + content);
+        systemMessage(target, sender.name() + " whispers to you: " + content);
+        target.noteMessagedBy(sender.name());
+        LOGGER.info(() -> "[" + sender.name() + " -> " + target.name() + "] " + content);
+        return null;
+    }
+
+    /** /reply &lt;message...&gt;: the /tell directed at the last whisperer. */
+    private String replyCommand(PlayerSession sender, String[] args) {
+        if (args.length == 0) {
+            return "Usage: /reply <message...>";
+        }
+        String targetName = sender.lastMessagedBy();
+        if (targetName == null) {
+            return "Nobody has messaged you yet";
+        }
+        return tellCommand(sender, prepend(args, targetName));
+    }
+
+    // -------------------------------------------------------------- operator commands (wide set)
+
+    /** /ban-ip &lt;ip|player&gt; [reason...]: the banned-ips.json registry. */
+    private String banIpCommand(CommandSender sender, String[] args) {
+        if (args.length < 1) {
+            return "Usage: /ban-ip <ip|player> [reason...]";
+        }
+        String ip = args[0];
+        String reason = args.length >= 2
+                ? String.join(" ", java.util.Arrays.copyOfRange(args, 1, args.length))
+                : "Banned by an operator";
+        // A player name resolves to that online player's current address.
+        PlayerSession online = players.byName(ip).orElse(null);
+        String bannedName = "unknown";
+        String bannedUuid = "unknown";
+        if (online != null) {
+            String remote = online.link().remoteIp();
+            if (!remote.isBlank()) {
+                ip = remote;
+            }
+            bannedName = online.name();
+            bannedUuid = online.uuid().toString();
+        }
+        if (ip.isBlank()) {
+            return "Cannot resolve an IP from " + args[0];
+        }
+        String finalIp = ip;
+        ipBanStore.ban(finalIp, bannedUuid, bannedName, sender.name(), reason);
+        // Connected bodies from that address leave immediately.
+        final int kicked;
+        int kickedCount = 0;
+        for (PlayerSession player : players.all()) {
+            if (player.link().remoteIp().equals(finalIp)) {
+                player.link().kick("Your IP address is banned from this server.\nReason: " + reason);
+                kickedCount++;
+            }
+        }
+        kicked = kickedCount;
+        LOGGER.info(() -> "IP " + finalIp + " banned by " + sender.name()
+                + (kicked > 0 ? " (" + kicked + " online player(s) kicked)" : ""));
+        return "Banned IP: " + finalIp;
+    }
+
+    /** /pardon-ip &lt;ip&gt;: lifts the address ban. */
+    private String pardonIpCommand(CommandSender sender, String[] args) {
+        if (args.length < 1) {
+            return "Usage: /pardon-ip <ip>";
+        }
+        return ipBanStore.pardon(args[0]) ? "Unbanned IP: " + args[0]
+                : "No IP ban found for " + args[0];
+    }
+
+    /** /xp &lt;amount&gt;[L] [player]: the vanilla 1.8 grant shape (L = levels). */
+    private String xpCommand(CommandSender sender, String[] args) {
+        if (args.length < 1) {
+            return "Usage: /xp <amount>[L] [player]";
+        }
+        String raw = args[0];
+        boolean levels = raw.toUpperCase(java.util.Locale.ROOT).endsWith("L");
+        int amount;
+        try {
+            amount = Integer.parseInt(levels ? raw.substring(0, raw.length() - 1) : raw);
+        } catch (NumberFormatException malformed) {
+            return "Not an amount: " + raw;
+        }
+        if (amount == 0) {
+            return "Amount must not be zero";
+        }
+        PlayerSession target;
+        if (args.length >= 2) {
+            target = players.byName(args[1]).orElse(null);
+        } else {
+            target = sender.player(); // the console must name a player
+        }
+        if (target == null) {
+            return "No online player named " + (args.length >= 2 ? args[1] : "(console: name a player)");
+        }
+        if (levels) {
+            int current = target.experienceLevel();
+            target.setTotalXp(net.zaminmc.torch.server.experience.ExperienceMath
+                    .totalXpForLevel(Math.max(0, current + amount)));
+        } else {
+            long sign = amount > 0 ? 1 : -1;
+            target.setTotalXp(Math.max(0, target.totalXp() + sign * Math.abs(amount)));
+        }
+        target.link().updateXp(); // the XP bar re-sync (Set Experience 0x1F)
+        return "Given " + amount + (levels ? " level(s)" : " experience") + " to " + target.name();
+    }
+
+    /** /difficulty &lt;peaceful|easy|normal|hard&gt;: the runtime difficulty id. */
+    private String difficultyCommand(CommandSender sender, String[] args) {
+        if (args.length < 1) {
+            return "Usage: /difficulty <peaceful|easy|normal|hard>";
+        }
+        Integer id = switch (args[0].toLowerCase(java.util.Locale.ROOT)) {
+            case "peaceful" -> 0;
+            case "easy" -> 1;
+            case "normal" -> 2;
+            case "hard" -> 3;
+            default -> null;
+        };
+        if (id == null) {
+            return "Usage: /difficulty <peaceful|easy|normal|hard>";
+        }
+        difficulty = id;
+        if (id == 0) {
+            // The historical peaceful rule: hostiles leave the world.
+            MobManager mobs = mobManager;
+            if (mobs != null) {
+                mobs.removeHostiles();
+            }
+        }
+        LOGGER.info(() -> "Difficulty set to " + args[0] + " by " + sender.name());
+        return "Set difficulty to " + args[0];
+    }
+
+    /** /defaultgamemode &lt;mode&gt;: the join default, persisted world/data. */
+    private String defaultGamemodeCommand(CommandSender sender, String[] args) {
+        if (args.length < 1) {
+            return "Usage: /defaultgamemode <survival|creative|adventure|spectator>";
+        }
+        GameMode mode;
+        try {
+            mode = GameMode.parse(args[0]);
+        } catch (IllegalArgumentException unknown) {
+            return "Unknown game mode: " + args[0];
+        }
+        defaultGamemodeId = mode.legacyId();
+        saveDefaultGamemode(mode.legacyId());
+        return "The default game mode is now " + mode.name().toLowerCase(java.util.Locale.ROOT);
+    }
+
+    /** The persisted join default (world/data/defaultgamemode.json: id). */
+    private int loadDefaultGamemode() {
+        java.nio.file.Path file = config.worldDataDir().resolve("defaultgamemode.json");
+        if (!java.nio.file.Files.exists(file)) {
+            return 0;
+        }
+        try {
+            String json = java.nio.file.Files.readString(file, java.nio.charset.StandardCharsets.UTF_8);
+            return Integer.parseInt(fieldOf(json, "id"));
+        } catch (Exception e) {
+            LOGGER.warning(() -> "Unreadable defaultgamemode.json ignored: " + e.getMessage());
+            return 0;
+        }
+    }
+
+    private void saveDefaultGamemode(int id) {
+        java.nio.file.Path file = config.worldDataDir().resolve("defaultgamemode.json");
+        try {
+            java.nio.file.Files.createDirectories(file.getParent());
+            java.nio.file.Files.writeString(file,
+                    String.format(java.util.Locale.ROOT, "{\"id\": %d}%n", id),
+                    java.nio.charset.StandardCharsets.UTF_8);
+        } catch (java.io.IOException e) {
+            LOGGER.warning(() -> "defaultgamemode.json write failed: " + e.getMessage());
+        }
     }
 
     /** /weather &lt;clear|rain&gt; [seconds]: the Change Game State broadcast. */
@@ -5754,6 +6044,13 @@ public final class EngineServer implements Server, EngineBridge {
             return new EngineBridge.Rejected("You are banned from this server.\nReason: "
                     + ban.reason());
         }
+        // The IP ban gate (banned-ips.json): a banned address stays out
+        // regardless of the name it arrives under.
+        IpBanStore.Entry ipBan = ipBanStore.banOf(link.remoteIp());
+        if (ipBan != null) {
+            return new EngineBridge.Rejected("Your IP address is banned from this server.\nReason: "
+                    + ipBan.reason());
+        }
         // The whitelist gate: only when enforcement is on (server.properties
         // boot flag, or /whitelist on at runtime).
         if (whitelistEnforced && !whitelistStore.contains(offlineUuid, username)) {
@@ -5782,12 +6079,14 @@ public final class EngineServer implements Server, EngineBridge {
             players.register(session);
             session.authenticate();
             // The personal game mode survives restarts (ZPD v4); a fresh player
-            // inherits the server default from server.properties.
+            // inherits the server default (server.properties, overridden by
+            // /defaultgamemode's persisted choice).
             session.setGamemode(saved.map(PlayerSnapshot::gamemodeId)
                     .filter(id -> id >= 0)
                     .map(GameMode::byLegacyId)
                     .filter(java.util.Objects::nonNull)
-                    .orElse(config.gamemode()));
+                    .orElse(GameMode.byLegacyId(defaultGamemodeId) != null
+                            ? GameMode.byLegacyId(defaultGamemodeId) : config.gamemode()));
             session.setOpLevel(opStore.level(offlineUuid));
             Position spawn = saved.map(PlayerSnapshot::position)
                     .orElseGet(world::spawnPosition);
@@ -6081,6 +6380,20 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /** Bounds-safe fluid lookup: nothing outside the world column is fluid. */
+    /**
+     * The out-of-column rule as a block lookup: y outside the strict column
+     * reads as air (the 1.8 rule) instead of throwing — the mob contact
+     * queries (fire, cactus) sample the cell below a bedrock stander, which
+     * is legitimately out of bounds. Any thread.
+     */
+    private net.zaminmc.torch.block.BlockType blockAtBoundsSafe(double x, double y, double z) {
+        if (y < net.zaminmc.torch.block.BlockPosition.MIN_Y
+                || y > net.zaminmc.torch.block.BlockPosition.MAX_Y) {
+            return world.airType();
+        }
+        return world.getBlock(blockAt(x, y, z));
+    }
+
     private boolean fluidAt(double x, double y, double z) {
         if (y < net.zaminmc.torch.block.BlockPosition.MIN_Y
                 || y > net.zaminmc.torch.block.BlockPosition.MAX_Y) {
