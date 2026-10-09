@@ -236,6 +236,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                         accepted.session().inventory().armorSnapshot(),
                         engine.craftingResult(accepted.session()));
                 sendUpdateHealth(accepted.session()); // the body's authoritative baseline
+                sendSetExperience(accepted.session()); // the XP bar's baseline (restored or zero)
                 accepted.session().link().updateAbilities(
                         abilitiesFlagsOf(accepted.session().gamemode())); // flight/invuln grant
                 engine.joinCompleted(accepted.session());
@@ -539,6 +540,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         lastTeleportAnchor = player.position();
         sendPositionAndLook(channel, player.position(), player.rotation(), true);
         sendUpdateHealth(player);
+        sendSetExperience(player); // the respawned body's reset (or surviving) XP bar
         sendWindowItems(channel, player.inventory().snapshot(),
                 player.crafting().snapshot(), player.inventory().armorSnapshot(),
                 engine.craftingResult(player));
@@ -1535,6 +1537,86 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         if (chunkTracker != null) {
             chunkTracker.resendChunk(position);
         }
+    }
+
+    // ------------------------------------------------------------------ experience orb sync
+
+    /**
+     * Spawn Experience Orb (0x11, community-verified layout: varint id,
+     * i32 xyz in 1/32 fixed point, short count = the orb's XP bundle).
+     * Chunk-gated like every engine-global entity spawn. Any thread.
+     */
+    void sendOrbSpawn(net.zaminmc.torch.server.experience.ExperienceOrbEntity orb) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY
+                || chunkTracker == null) {
+            return;
+        }
+        var blockPos = orb.position().toBlockPosition();
+        if (!chunkTracker.hasChunk(blockPos.chunkPosition().packed())) {
+            return; // observer cannot see that chunk yet
+        }
+        ByteBuf out = Unpooled.buffer(24);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_SPAWN_XP_ORB);
+        ByteBufOps.writeVarInt(out, orb.entityId());
+        out.writeInt((int) Math.floor(orb.position().x() * 32.0));
+        out.writeInt((int) Math.floor(orb.position().y() * 32.0));
+        out.writeInt((int) Math.floor(orb.position().z() * 32.0));
+        out.writeShort(Math.min(Short.MAX_VALUE, orb.amount()));
+        channel.writeAndFlush(out);
+    }
+
+    /** Absolute-position sync for a moving orb. Any thread. */
+    void sendOrbTeleport(net.zaminmc.torch.server.experience.ExperienceOrbEntity orb) {
+        sendEntityTeleport(orb.entityId(), orb.position(), orb.onGround());
+    }
+
+    /**
+     * The orb collect: Collect Item (0x0D) with the collector's observer-local
+     * id, then Destroy — the same shape the item pickup plays.
+     */
+    void sendOrbCollected(int orbEntityId, PlayerSession collector) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        Integer collectorWireId = wireEntityIdOf(collector);
+        if (collectorWireId == null) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(8);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_COLLECT_ITEM);
+        ByteBufOps.writeVarInt(out, orbEntityId);
+        ByteBufOps.writeVarInt(out, collectorWireId);
+        channel.writeAndFlush(out);
+        sendDestroyEntities(orbEntityId);
+    }
+
+    /** Removes an orb from this observer (despawn, void). Any thread. */
+    void sendOrbRemoved(int orbEntityId) {
+        sendDestroyEntities(orbEntityId);
+    }
+
+    /**
+     * Set Experience (0x1F, community-verified layout: f32 bar progress 0..1,
+     * short level, short total XP). The client's XP bar follows this packet.
+     * Any thread.
+     */
+    void sendSetExperience(PlayerSession player) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        int level = player.experienceLevel();
+        float progress = net.zaminmc.torch.server.experience.ExperienceMath
+                .progressForTotalXp(player.totalXp());
+        int total = (int) Math.min(Integer.MAX_VALUE, player.totalXp());
+        ByteBuf out = Unpooled.buffer(12);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_SET_EXPERIENCE);
+        out.writeFloat(progress);
+        out.writeShort(level);
+        out.writeShort(total);
+        channel.writeAndFlush(out);
     }
 
     // ------------------------------------------------------------------ item entity sync

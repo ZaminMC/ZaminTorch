@@ -123,6 +123,71 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
     private int airTicks = 300;
     private int drownTimer;
 
+    /** The body's fire clock (ticks of burning left; 0 = not on fire). */
+    private volatile int fireTicks;
+
+    /**
+     * The body's accumulated experience points (the authoritative state;
+     * level and bar progress derive from it through ExperienceMath).
+     * Persisted in ZPD v6.
+     */
+    private volatile long totalXp;
+
+    // --- experience (the historical XP bar state) ----------------------------
+
+    /** @return the accumulated XP points (authoritative; level derives from it). */
+    public long totalXp() {
+        return totalXp;
+    }
+
+    /** Adds XP points (orb pickup, future furnace takes). Tick-thread context. */
+    public void addExperience(long amount) {
+        if (amount > 0) {
+            totalXp += amount;
+        }
+    }
+
+    /** Overwrites the XP total (restore, death reset). Tick-thread context. */
+    public void setTotalXp(long value) {
+        this.totalXp = Math.max(0, value);
+    }
+
+    /** @return the level the XP total currently sits at. */
+    public int experienceLevel() {
+        return net.zaminmc.torch.server.experience.ExperienceMath.levelForTotalXp(totalXp);
+    }
+
+    // --- fire (the burning slice) ---------------------------------------------
+
+    /** @return ticks of burning left (0 = not on fire). */
+    public int fireTicks() {
+        return fireTicks;
+    }
+
+    /** @return true while the body is on fire (the living-flags bit 0x01). */
+    public boolean burning() {
+        return fireTicks > 0;
+    }
+
+    /** Sets the fire clock to at least {@code ticks} (the ignite rule). */
+    public void ignite(int ticks) {
+        if (ticks > fireTicks) {
+            fireTicks = ticks;
+        }
+    }
+
+    /** Per-tick decay of the fire clock. Tick-thread context. */
+    public void tickFire() {
+        if (fireTicks > 0) {
+            fireTicks--;
+        }
+    }
+
+    /** Clears the fire clock (water contact, respawn, mode switches). */
+    public void extinguish() {
+        fireTicks = 0;
+    }
+
     public PlayerSession(UUID uuid, String name, ClientLink link) {
         this.uuid = Objects.requireNonNull(uuid, "uuid");
         this.name = Objects.requireNonNull(name, "name");

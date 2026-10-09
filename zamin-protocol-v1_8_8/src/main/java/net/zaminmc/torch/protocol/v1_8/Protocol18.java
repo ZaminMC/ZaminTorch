@@ -59,6 +59,10 @@ final class Protocol18 {
     static final int S2C_UPDATE_SIGN = 0x33;
     static final int S2C_NAMED_SPAWN = 0x0C;
     static final int S2C_CHUNK_DATA = 0x21;
+    /** Spawn Experience Orb (0x11, protocol 47): varint id, i32 xyz (1/32), i16 count. */
+    static final int S2C_SPAWN_XP_ORB = 0x11;
+    /** Set Experience (0x1F, protocol 47): f32 progress, short level, short total. */
+    static final int S2C_SET_EXPERIENCE = 0x1F;
     // Protocol 47 has NO unload-chunk packet: the 1.8 client prunes
     // out-of-range chunks itself (the vanilla server never said goodbye).
     // 0x1D is Entity Effect — writing a 1.9-style unload there killed real

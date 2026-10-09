@@ -49,6 +49,7 @@ class Protocol18ConformanceTest {
         m.put("S2C_SPAWN_ENTITY", 0x0E);
         m.put("S2C_ENTITY_EQUIPMENT", 0x04);
         m.put("S2C_SPAWN_MOB", 0x0F);
+        m.put("S2C_SPAWN_XP_ORB", 0x11);
         m.put("S2C_ENTITY_VELOCITY", 0x12);
         m.put("S2C_DESTROY_ENTITIES", 0x13);
         m.put("S2C_REL_ENTITY_MOVE", 0x15);
@@ -58,6 +59,7 @@ class Protocol18ConformanceTest {
         m.put("S2C_ENTITY_HEAD_LOOK", 0x19);
         m.put("S2C_ENTITY_STATUS", 0x1A);
         m.put("S2C_ENTITY_METADATA", 0x1C);
+        m.put("S2C_SET_EXPERIENCE", 0x1F);
         m.put("S2C_CHUNK_DATA", 0x21);
         m.put("S2C_BLOCK_CHANGE", 0x23);
         m.put("S2C_EXPLOSION", 0x27);

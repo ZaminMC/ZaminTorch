@@ -25,11 +25,20 @@ import java.util.UUID;
  * @param food       the saved hunger (0-20)
  * @param saturation the saved saturation (>= 0)
  * @param gamemodeId the saved game mode legacy id (-1 = unspecified, ZPD v4+)
+ * @param totalXp    the saved experience points (ZPD v6+; 0 in older files)
  */
 public record PlayerSnapshot(UUID uuid, String name, Position position, Rotation rotation,
                              int heldSlot, List<SlotStack> slots,
                              float health, int food, float saturation,
-                             int gamemodeId) {
+                             int gamemodeId, long totalXp) {
+
+    /** The pre-XP shape (ZPD v1-v5 readers and engine callers without XP). */
+    public PlayerSnapshot(UUID uuid, String name, Position position, Rotation rotation,
+                          int heldSlot, List<SlotStack> slots,
+                          float health, int food, float saturation, int gamemodeId) {
+        this(uuid, name, position, rotation, heldSlot, slots, health, food, saturation,
+                gamemodeId, 0);
+    }
 
     /** The pre-gamemode shape (ZPD v1-v3 readers and engine callers without a mode). */
     public PlayerSnapshot(UUID uuid, String name, Position position, Rotation rotation,

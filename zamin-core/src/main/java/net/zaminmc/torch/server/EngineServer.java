@@ -30,6 +30,10 @@ import net.zaminmc.torch.server.entity.MobDataStore;
 import net.zaminmc.torch.server.entity.MobEntity;
 import net.zaminmc.torch.server.entity.MobManager;
 import net.zaminmc.torch.server.entity.MobType;
+import net.zaminmc.torch.server.experience.ExperienceAwards;
+import net.zaminmc.torch.server.experience.ExperienceMath;
+import net.zaminmc.torch.server.experience.ExperienceOrbEntity;
+import net.zaminmc.torch.server.experience.ExperienceOrbManager;
 import net.zaminmc.torch.server.furnace.FurnaceBlockEntity;
 import net.zaminmc.torch.server.furnace.FurnaceDataStore;
 import net.zaminmc.torch.server.furnace.FurnaceManager;
@@ -168,6 +172,7 @@ public final class EngineServer implements Server, EngineBridge {
     private FluidSystem fluidSystem;
     private ExplosionService explosionService;
     private RandomTickSystem randomTicks;
+    private ExperienceOrbManager experienceOrbs;
     private net.zaminmc.torch.server.world.light.LightEngine lightEngine;
     private MobDataStore mobStore;
     /** The operator registry (ops.json); loaded at boot, rewritten on /op and /deop. */
@@ -194,6 +199,8 @@ public final class EngineServer implements Server, EngineBridge {
     private final java.util.List<TimeListener> timeListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     private final java.util.List<SignListener> signListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     private final java.util.List<RelightListener> relightListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
+    private final java.util.List<ExperienceListener> experienceListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
+    private final java.util.List<ExperienceOrbManager.Listener> orbListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
 
     /** Entity ids for engine-global entities (items); player wire ids stay adapter-local. */
     private static final int ENTITY_ID_BASE = 100_000;
@@ -206,6 +213,8 @@ public final class EngineServer implements Server, EngineBridge {
     /** Player engine-global ids live above the projectiles (engine-side identity). */
     /** The band the adapter recognizes as player ids (public: wire translation). */
     public static final int PLAYER_ID_BASE = PROJECTILE_ID_BASE + 1_000_000;
+    /** Experience orbs get the next band above the players. */
+    private static final int ORB_ID_BASE = PLAYER_ID_BASE + 1_000_000;
 
     /** The game-feedback bus (sounds, particles); created at boot, read-only after. */
     private final FxManager fxManager = new FxManager();
@@ -364,6 +373,11 @@ public final class EngineServer implements Server, EngineBridge {
                 world.addChangeListener(fluidSystem);
                 // Explosions: the ray-fan destructor (the creeper's demolition).
                 explosionService = new ExplosionService(new BlastWorld(), new java.util.Random());
+                // Experience orbs (the historical EntityXPOrb band): the small
+                // physics bodies mining and kills release, simulation-owned.
+                experienceOrbs = new ExperienceOrbManager(this::solidAt,
+                        new java.util.Random(), ORB_ID_BASE);
+                experienceOrbs.addListener(new OrbEventDispatch());
                 // Random ticks (§471 pattern): grass growth and decay.
                 randomTicks = new RandomTickSystem(world, new java.util.Random());
                 // Projectiles (arrows, shards): the tick-thread physics system,
@@ -386,6 +400,7 @@ public final class EngineServer implements Server, EngineBridge {
                     chestManager.tick(world);
                     signManager.tick(world);
                     itemEntities.tick(players.all());
+                    experienceOrbs.tick(players.all()); // the XP bodies pay out
                     mobs.tick(players.all(), world.timeOfDay());
                     randomTicks.tick(players.all()); // §471: grass growth/decay
                     tickFurnaceViewers();
@@ -411,6 +426,18 @@ public final class EngineServer implements Server, EngineBridge {
                     furnaceManager.onBlockBroken(position, itemEntities);
                     chestManager.onBlockBroken(position, itemEntities);
                     doorSiblingCleanup(position);
+                });
+                // The mining award (the historical dropXp rolls): a survival
+                // break of an XP ore releases the roll as orbs at the block.
+                // Creative breaks never fire the hook (the no-XP rule).
+                blockInteraction.setSurvivalXpListener((player, brokenType, at) -> {
+                    int amount = ExperienceAwards.forBlockBreak(brokenType.identifier(),
+                            gameplayRandom);
+                    if (amount <= 0) {
+                        return;
+                    }
+                    experienceOrbs.spawnBurst(new Position(at.x() + 0.5, at.y() + 0.5,
+                            at.z() + 0.5), amount, 3);
                 });
                 blockInteraction.setCommitFeedbackListener(commit -> {
                     if (commit.now().equals(world.airType())) {
@@ -738,6 +765,64 @@ public final class EngineServer implements Server, EngineBridge {
     /** Registers the chunk-relight observer (the protocol adapter's resend path). */
     public void addRelightListener(RelightListener listener) {
         relightListeners.add(listener);
+    }
+
+    /** The simulation-owned experience-orb system (present once the world is up). */
+    public ExperienceOrbManager experienceOrbs() {
+        return experienceOrbs;
+    }
+
+    /** A player's experience state changed (orb pickup, award, death reset). */
+    public interface ExperienceListener {
+        void onExperienceChanged(PlayerSession player);
+    }
+
+    /** Registers the experience observer (the protocol adapter's Set Experience sync). */
+    public void addExperienceListener(ExperienceListener listener) {
+        experienceListeners.add(listener);
+    }
+
+    private void publishExperienceChanged(PlayerSession player) {
+        for (ExperienceListener listener : experienceListeners) {
+            listener.onExperienceChanged(player);
+        }
+    }
+
+    /** Registers an internal orb observer (e.g. the protocol adapter's sync). */
+    public void addOrbListener(ExperienceOrbManager.Listener listener) {
+        orbListeners.add(listener);
+    }
+
+    /** The orb lifecycle fan-out (the adapter renders Spawn Orb / Collect / Destroy). */
+    private final class OrbEventDispatch implements ExperienceOrbManager.Listener {
+        @Override
+        public void onOrbSpawned(ExperienceOrbEntity orb) {
+            for (ExperienceOrbManager.Listener listener : orbListeners) {
+                listener.onOrbSpawned(orb);
+            }
+        }
+
+        @Override
+        public void onOrbMoved(ExperienceOrbEntity orb) {
+            for (ExperienceOrbManager.Listener listener : orbListeners) {
+                listener.onOrbMoved(orb);
+            }
+        }
+
+        @Override
+        public void onOrbCollected(ExperienceOrbEntity orb, PlayerSession collector) {
+            for (ExperienceOrbManager.Listener listener : orbListeners) {
+                listener.onOrbCollected(orb, collector);
+            }
+            publishExperienceChanged(collector); // the bar moves with the chime
+        }
+
+        @Override
+        public void onOrbRemoved(ExperienceOrbEntity orb, String reason) {
+            for (ExperienceOrbManager.Listener listener : orbListeners) {
+                listener.onOrbRemoved(orb, reason);
+            }
+        }
     }
 
     private void publishChunkRelit(ChunkPosition position) {
@@ -1240,6 +1325,15 @@ public final class EngineServer implements Server, EngineBridge {
     private void dieOnTick(PlayerSession session, String causeMessage) {
         session.markDead();
         returnWindowCarriedItems(session, true);
+        // The death XP scatter (the historical 7-per-level rule, capped at
+        // 100) lands at the body before the total resets — vanilla drops the
+        // orbs where the player fell, and the newcomer starts from zero.
+        int xpScatter = ExperienceMath.xpDroppedOnDeath(session.experienceLevel());
+        if (xpScatter > 0) {
+            experienceOrbs.spawnBurst(session.position(), xpScatter, 5);
+        }
+        session.setTotalXp(0);
+        publishExperienceChanged(session);
         var slots = session.inventory().snapshot();
         for (int slot = 0; slot < slots.size(); slot++) {
             ItemStack dropped = session.inventory().dropFromSlot(slot, true);
@@ -2996,6 +3090,11 @@ public final class EngineServer implements Server, EngineBridge {
             for (MobManager.Listener listener : mobListeners) {
                 listener.onMobDied(mob);
             }
+            // The kill reward (the historical getExperienceValue): the body
+            // releases its XP band at the death point; orbs wait out their
+            // pickup delay while the death animation plays.
+            int amount = ExperienceAwards.forMobKill(mob.type().hostile, gameplayRandom);
+            experienceOrbs.spawnBurst(mob.position(), amount, 3);
         }
 
         @Override
@@ -4320,6 +4419,8 @@ public final class EngineServer implements Server, EngineBridge {
      */
     private void restorePlayer(PlayerSession session, PlayerSnapshot snapshot) {
         session.applyMovement(session.position(), snapshot.rotation(), true);
+        // ZPD v6: the experience total rides the file tail (0 in older files).
+        session.setTotalXp(snapshot.totalXp());
         java.util.List<net.zaminmc.torch.item.ItemStack> restored = new java.util.ArrayList<>(
                 java.util.Collections.nCopies(net.zaminmc.torch.server.player.PlayerInventory.TOTAL_SLOTS,
                         net.zaminmc.torch.item.ItemStack.EMPTY));
@@ -4384,7 +4485,7 @@ public final class EngineServer implements Server, EngineBridge {
         return new PlayerSnapshot(session.uuid(), session.name(), session.position(),
                 session.rotation(), session.inventory().heldSlot(), filled,
                 session.health(), session.food(), session.saturation(),
-                session.gamemode().legacyId());
+                session.gamemode().legacyId(), session.totalXp());
     }
 
     /**

@@ -403,6 +403,48 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                 }
             }
         });
+        // Experience orbs: engine decides lifecycle, adapter renders Spawn
+        // Experience Orb 0x11 / Collect / Destroy — the item-entity shape.
+        server.addOrbListener(new net.zaminmc.torch.server.experience.ExperienceOrbManager.Listener() {
+            @Override
+            public void onOrbSpawned(net.zaminmc.torch.server.experience.ExperienceOrbEntity orb) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendOrbSpawn(orb);
+                }
+            }
+
+            @Override
+            public void onOrbMoved(net.zaminmc.torch.server.experience.ExperienceOrbEntity orb) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendOrbTeleport(orb);
+                }
+            }
+
+            @Override
+            public void onOrbCollected(net.zaminmc.torch.server.experience.ExperienceOrbEntity orb,
+                                       net.zaminmc.torch.server.player.PlayerSession collector) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendOrbCollected(orb.entityId(), collector);
+                }
+            }
+
+            @Override
+            public void onOrbRemoved(net.zaminmc.torch.server.experience.ExperienceOrbEntity orb,
+                                     String reason) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendOrbRemoved(orb.entityId());
+                }
+            }
+        });
+        // The XP bar: every experience change re-syncs the owning client's
+        // Set Experience (progress, level, total).
+        server.addExperienceListener(player -> {
+            for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                if (connection.currentSession() == player) {
+                    connection.sendSetExperience(player);
+                }
+            }
+        });
         // The FX bus: every engine sound/particle event fans out to the
         // observers inside its feedback radius, translated per event kind.
         server.fx().addListener(event -> {
