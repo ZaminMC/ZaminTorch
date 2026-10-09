@@ -36,14 +36,21 @@ class DataWatcherParityIntegrationTest extends ProtocolTestBase {
             client.readWindowItems(5_000); // join tail: authoritative inventory
             int[][] rows = client.readSpawnMobDataWatcher(5_000, 90); // pig only
 
-            assertEquals(2, rows.length,
-                    "flags + health only, got: " + java.util.Arrays.deepToString(rows));
+            assertEquals(3, rows.length,
+                    "flags + health + the pig's saddle byte, got: "
+                            + java.util.Arrays.deepToString(rows));
             assertEquals(Protocol18.LIVING_FLAGS_METADATA_INDEX, rows[0][0]);
             assertEquals(Protocol18.METADATA_TYPE_BYTE, rows[0][1]);
             assertEquals(Protocol18.LIVING_HEALTH_METADATA_INDEX, rows[1][0],
                     "1.8 EntityLiving registers health at index 6 (7 = potion color int)");
             assertEquals(Protocol18.METADATA_TYPE_FLOAT, rows[1][1]);
             assertTrue(rows[1][2] > 0, "the health value is a positive float");
+            // The pig's own index-16: the saddle byte (0 while unsaddled —
+            // the 1.8 EntityPig DataWatcher registers a Byte there).
+            assertEquals(Protocol18.PIG_SADDLE_METADATA_INDEX, rows[2][0],
+                    "the pig's saddle rides DataWatcher 16");
+            assertEquals(Protocol18.METADATA_TYPE_BYTE, rows[2][1]);
+            assertEquals(0, rows[2][2], "a fresh pig carries no saddle");
         }
     }
 }

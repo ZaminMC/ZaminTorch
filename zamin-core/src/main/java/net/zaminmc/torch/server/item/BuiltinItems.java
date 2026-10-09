@@ -154,6 +154,26 @@ public final class BuiltinItems {
     public static final EngineItemType MINECART = new EngineItemType(
             Identifier.parse("minecraft:minecart"), "Minecart", 1);
 
+    // The mount slice (community items.json: saddle 329, iron/gold/diamond
+    // horse armor 417/418/419, lead 420, carrot on a stick 398, emerald 388).
+    // The saddle equips horses and pigs; the horse armors go on tamed horses
+    // only (the historical armor gate); the carrot on a stick steers a
+    // saddled pig; emeralds are the villager currency (the trading slice).
+    public static final EngineItemType SADDLE = new EngineItemType(
+            Identifier.parse("minecraft:saddle"), "Saddle", 1);
+    public static final EngineItemType IRON_HORSE_ARMOR = new EngineItemType(
+            Identifier.parse("minecraft:iron_horse_armor"), "Iron Horse Armor", 1);
+    public static final EngineItemType GOLDEN_HORSE_ARMOR = new EngineItemType(
+            Identifier.parse("minecraft:golden_horse_armor"), "Golden Horse Armor", 1);
+    public static final EngineItemType DIAMOND_HORSE_ARMOR = new EngineItemType(
+            Identifier.parse("minecraft:diamond_horse_armor"), "Diamond Horse Armor", 1);
+    public static final EngineItemType LEAD = new EngineItemType(
+            Identifier.parse("minecraft:lead"), "Lead", 64);
+    public static final EngineItemType CARROT_ON_A_STICK = new EngineItemType(
+            Identifier.parse("minecraft:carrot_on_a_stick"), "Carrot on a Stick", 1);
+    public static final EngineItemType EMERALD = new EngineItemType(
+            Identifier.parse("minecraft:emerald"), "Emerald", 64);
+
     // Mob loot (legacy ids from the community dataset: porkchop 319, cooked
     // porkchop 320, raw chicken 365, cooked chicken 366, feather 288,
     // leather 334, rotten flesh 367). Cooked variants smelt from the raw
@@ -376,6 +396,8 @@ public final class BuiltinItems {
                 OAK_SLAB, STONE_SLAB, COBBLESTONE_SLAB, SANDSTONE_SLAB,
                 OAK_STAIRS, COBBLESTONE_STAIRS,
                 RAIL, BOAT, MINECART,
+                SADDLE, IRON_HORSE_ARMOR, GOLDEN_HORSE_ARMOR, DIAMOND_HORSE_ARMOR,
+                LEAD, CARROT_ON_A_STICK, EMERALD,
                 BONE, STRING, GUNPOWDER, WOOL, MUTTON, COOKED_MUTTON,
                 BUCKET, WATER_BUCKET, LAVA_BUCKET,
                 FLINT_AND_STEEL, GOLD_INGOT,

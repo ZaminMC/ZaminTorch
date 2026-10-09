@@ -429,6 +429,8 @@ final class TestClient18 implements AutoCloseable {
             int index = header & 0x1F;
             switch (mtype) {
                 case Protocol18.METADATA_TYPE_BYTE -> buffer.readByte();
+                case Protocol18.METADATA_TYPE_INT -> buffer.readInt();
+                case Protocol18.METADATA_TYPE_STRING -> ByteBufOps.readString(buffer, 256);
                 case Protocol18.METADATA_TYPE_FLOAT -> {
                     float value = buffer.readFloat();
                     if (index == Protocol18.LIVING_HEALTH_METADATA_INDEX) {
@@ -497,6 +499,12 @@ final class TestClient18 implements AutoCloseable {
             switch (type) {
                 case Protocol18.METADATA_TYPE_BYTE ->
                         rows.add(new int[]{index, type, buffer.readByte()});
+                case Protocol18.METADATA_TYPE_INT ->
+                        rows.add(new int[]{index, type, buffer.readInt()});
+                case Protocol18.METADATA_TYPE_STRING -> {
+                    ByteBufOps.readString(buffer, 256); // the owner-name quirk
+                    rows.add(new int[]{index, type, 0});
+                }
                 case Protocol18.METADATA_TYPE_FLOAT ->
                         rows.add(new int[]{index, type, Math.round(buffer.readFloat() * 100)});
                 case Protocol18.METADATA_TYPE_SLOT -> {
@@ -525,6 +533,70 @@ final class TestClient18 implements AutoCloseable {
             }
         }
         throw new IOException("Timed out waiting for a mob of type " + legacyType);
+    }
+
+    /**
+     * Reads one Spawn Mob of the wanted legacy type together with its raw
+     * DataWatcher rows (the metadata rides the same packet — the separate
+     * readers would each consume it). Returns {@code {int[] spawn, int[][] rows}}
+     * with spawn = {entityId, type, x, y, z}.
+     */
+    Object[] readSpawnMobWithWatcher(long timeoutMs, int wantedType) throws IOException {
+        long deadline = System.currentTimeMillis() + timeoutMs;
+        while (true) {
+            byte[] payload = readPacketOfType(Protocol18.S2C_SPAWN_MOB,
+                    Math.max(1, deadline - System.currentTimeMillis()));
+            ByteBuf buffer = Unpooled.wrappedBuffer(payload);
+            ByteBufOps.readVarInt(buffer); // packet id
+            int entityId = ByteBufOps.readVarInt(buffer);
+            int mobType = buffer.readUnsignedByte();
+            if (wantedType >= 0 && mobType != wantedType) {
+                continue; // a different natural kind: keep waiting
+            }
+            int x = buffer.readInt();
+            int y = buffer.readInt();
+            int z = buffer.readInt();
+            buffer.readByte(); // yaw
+            buffer.readByte(); // pitch
+            buffer.readByte(); // head pitch
+            buffer.readShort(); // velocity x
+            buffer.readShort(); // velocity y
+            buffer.readShort(); // velocity z
+            java.util.List<int[]> rows = new java.util.ArrayList<>();
+            while (true) {
+                int header = buffer.readUnsignedByte();
+                if (header == Protocol18.METADATA_TERMINATOR) {
+                    break;
+                }
+                int type = header >> 5;
+                int index = header & 0x1F;
+                switch (type) {
+                    case Protocol18.METADATA_TYPE_BYTE ->
+                            rows.add(new int[]{index, type, buffer.readByte()});
+                    case Protocol18.METADATA_TYPE_INT ->
+                            rows.add(new int[]{index, type, buffer.readInt()});
+                    case Protocol18.METADATA_TYPE_STRING -> {
+                        ByteBufOps.readString(buffer, 256);
+                        rows.add(new int[]{index, type, 0});
+                    }
+                    case Protocol18.METADATA_TYPE_FLOAT ->
+                            rows.add(new int[]{index, type, Math.round(buffer.readFloat() * 100)});
+                    case Protocol18.METADATA_TYPE_SLOT -> {
+                        int id = buffer.readShort();
+                        if (id != -1) {
+                            buffer.readByte();
+                            buffer.readShort();
+                            SlotNbt.skip(buffer);
+                        }
+                        rows.add(new int[]{index, type, id});
+                    }
+                    default -> throw new IOException("Unexpected metadata type " + type);
+                }
+            }
+            return new Object[]{
+                    new int[]{entityId, mobType, x, y, z},
+                    rows.toArray(new int[0][])};
+        }
     }
 
     /** Reads an Entity Status packet, returning {entityId, status}. */

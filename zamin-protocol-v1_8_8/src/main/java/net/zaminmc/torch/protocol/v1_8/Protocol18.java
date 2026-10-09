@@ -165,8 +165,12 @@ final class Protocol18 {
     // first roll). The community metadata parser never cross-validates
     // index against type, which is why mineflayer validated this for weeks.
     static final int METADATA_TYPE_BYTE = 0;
+    /** The int metadata type (the 1.8 DataWatcher order: 0 byte, 2 int, 3 float). */
+    static final int METADATA_TYPE_INT = 2;
     static final int METADATA_TYPE_FLOAT = 3;
     static final int METADATA_TYPE_SLOT = 5;
+    /** The string metadata type (the horse's owner name — the 1.8 quirk). */
+    static final int METADATA_TYPE_STRING = 4;
     static final int LIVING_FLAGS_METADATA_INDEX = 0;
     static final int LIVING_HEALTH_METADATA_INDEX = 6;
     /** The kind-status byte index (1.8 DataWatcher 16): creeper swell, sheep coat. */
@@ -178,6 +182,20 @@ final class Protocol18 {
     static final byte CREEPER_FUSE_SWELLING = (byte) 1;
     static final int ITEM_STACK_METADATA_INDEX = 10;
     static final int METADATA_TERMINATOR = 0x7F;
+
+    // The horse metadata block (protocol 47; ProtocolSupport/Glowstone
+    // cross-verified): index 16 Int flags (0x02 tamed, 0x04 saddled,
+    // 0x20 eating, 0x40 rearing, 0x80 mouth), 19 Byte subtype (0 horse,
+    // 1 donkey...), 20 Int variant (color | marking << 8), 21 String owner,
+    // 22 Int armor (0 none .. 3 diamond). The pig's saddle is a Byte at 16.
+    static final int HORSE_FLAGS_METADATA_INDEX = 16;
+    static final int HORSE_SUBTYPE_METADATA_INDEX = 19;
+    static final int HORSE_VARIANT_METADATA_INDEX = 20;
+    static final int HORSE_OWNER_METADATA_INDEX = 21;
+    static final int HORSE_ARMOR_METADATA_INDEX = 22;
+    static final int PIG_SADDLE_METADATA_INDEX = 16;
+    /** The villager profession (the index-16 Int: 0 farmer .. 4 butcher). */
+    static final int VILLAGER_PROFESSION_METADATA_INDEX = 16;
 
     // The living-flags bit map (1.8's Entity flags byte, index 0):
     // 0x01 burning, 0x02 crouched, 0x08 riding, 0x10 sprinting, 0x20 eating.
@@ -267,4 +285,26 @@ final class Protocol18 {
     static final int CHEST_WIRE_SLOT_HOTBAR_FIRST = 54;
     static final int CHEST_WIRE_SLOT_HOTBAR_LAST = 62;
     static final int CHEST_WIRE_SLOT_HOTBAR_BASE = 54;
+
+    // The horse inventory window (protocol 47; the quirky legacy string the
+    // 1.8 client switches on, plus the trailing mount entity id — the only
+    // Open Window that carries one). Slot 0 saddle, slot 1 armor, player
+    // tail 2-37 (main 2-28, hotbar 29-37), 38 slots total.
+    static final String HORSE_WINDOW_TYPE = "EntityHorse";
+    static final String HORSE_WINDOW_TITLE = "{\"text\":\"Horse\"}";
+    static final int HORSE_WINDOW_GUI_SLOTS = 2;
+    static final int HORSE_WINDOW_TOTAL_SLOTS = 38;
+    static final int HORSE_WIRE_SLOT_SADDLE = 0;
+    static final int HORSE_WIRE_SLOT_ARMOR = 1;
+    static final int HORSE_WIRE_SLOT_PLAYER_FIRST = 2;
+    static final int HORSE_WIRE_SLOT_PLAYER_LAST = 37;
+
+    // The villager trading window (protocol 47; the offers ride the plugin
+    // message MC|TrList — there is no Trade List packet on 47).
+    static final String VILLAGER_WINDOW_TYPE = "minecraft:villager";
+    static final String VILLAGER_WINDOW_TITLE = "{\"text\":\"Villager\"}";
+    static final int VILLAGER_WINDOW_GUI_SLOTS = 3;
+    static final String PLUGIN_CHANNEL_TRADE_LIST = "MC|TrList";
+    static final String PLUGIN_CHANNEL_TRADE_SELECT = "MC|TrSel";
+    static final String PLUGIN_CHANNEL_CHANNEL_LABEL = "MC|BEdit"; // (unused label guard)
 }

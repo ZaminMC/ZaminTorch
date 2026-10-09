@@ -73,7 +73,22 @@ public enum MobType {
     /** Hostile hunter of the dark: neutral in daylight, fast at night. */
     SPIDER(52, 1.4, 0.9, 16.0f, 0.055, true, new Traits(false, false, true, false),
             List.of(new ItemRoll(BuiltinItems.STRING, 0, 2)),
-            "mob.spider.say", "mob.spider.say", "mob.spider.death");
+            "mob.spider.say", "mob.spider.say", "mob.spider.death"),
+
+    /**
+     * The rideable mount: temper taming, saddle, horse armor, rider steering
+     * (the historical EntityHorse). Body 1.396 wide (the community dataset),
+     * avg health 22 (the historical 15-30 band, fixed at the midpoint).
+     * No loot: shearing a dead horse is not a thing (the vanilla rule).
+     */
+    HORSE(100, 1.396, 1.6, 22.0f, 0.045, false, Traits.NONE,
+            List.of(),
+            "mob.horse.idle", "mob.horse.hit", "mob.horse.death"),
+
+    /** The trading villager: profession carries its offer table (the trading slice). */
+    VILLAGER(120, 0.6, 1.95, 20.0f, 0.035, false, Traits.NONE,
+            List.of(),
+            "mob.villager.idle", "mob.villager.hit", "mob.villager.death");
 
     /**
      * The AI trait set beyond the walk-chase-panic baseline.

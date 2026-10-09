@@ -235,7 +235,17 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:rail"), 66),
             Map.entry(Identifier.parse("minecraft:rail_ew"), 66),
             Map.entry(Identifier.parse("minecraft:boat"), 333),
-            Map.entry(Identifier.parse("minecraft:minecart"), 328));
+            Map.entry(Identifier.parse("minecraft:minecart"), 328),
+            // The mount slice (community items.json): saddle 329, horse
+            // armors 417/418/419, lead 420, carrot on a stick 398, and the
+            // villager currency (emerald 388).
+            Map.entry(Identifier.parse("minecraft:saddle"), 329),
+            Map.entry(Identifier.parse("minecraft:iron_horse_armor"), 417),
+            Map.entry(Identifier.parse("minecraft:golden_horse_armor"), 418),
+            Map.entry(Identifier.parse("minecraft:diamond_horse_armor"), 419),
+            Map.entry(Identifier.parse("minecraft:lead"), 420),
+            Map.entry(Identifier.parse("minecraft:carrot_on_a_stick"), 398),
+            Map.entry(Identifier.parse("minecraft:emerald"), 388));
 
     /**
      * Item-form ids that diverge from the block id sharing the identifier
