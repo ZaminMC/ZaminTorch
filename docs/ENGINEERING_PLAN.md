@@ -954,6 +954,56 @@ COMMUNITY_REFERENCES.md.**
   ChestLidAndHeldItemIntegrationTest (0x24 open/close to the watcher,
   the 0x09 confirm). Full suite green across all modules.
 
+## 10ac. Slice 10ac — the mounts-and-markets batch: horses, villager trading, anti-cheat round two (committed 2026-10-09)
+
+- **Mounts (horse 100 + pig 90)**: the vanilla temper taming flow (mount
+  attempts +5, feeding +3, full temper tames deterministically; the buck
+  path seats-rears-throws on 20-40 ticks with the index-16 rear flag),
+  the saddle gate on both kinds (an unsaddled horse answers no reins; a
+  pig needs the carrot on a stick), the ridden body (turn 3.5 deg/tick,
+  drive 0.115/0.07 blocks/tick, jump 0.48/0.30 impulse on a 10-tick
+  cooldown, the tickBody ground/step rules carried over), the "EntityHorse"
+  inventory window (the quirky type string + the trailing mount id — the
+  only Open Window that carries one; 38 slots: saddle, armor row, player
+  tail) with kind-gated cursor swaps, the 1.8 metadata block (flags Int
+  16, subtype Byte 19, variant Int 20, owner String 21, armor Int 22;
+  the pig's saddle Byte 16), Attach Entity fan-out on mount/dismount with
+  the rider's seat re-anchor (own client resync, observers teleport at
+  the seat height), and the lifecycle guards (dying/despawn/exploding
+  mounts and disconnect/death open the seat — no ghost riders).
+  Items: saddle 329, horse armors 417/418/419, lead 420, carrot on a
+  stick 398, emerald 388.
+- **Villager trading (villager 120)**: five careers (farmer/librarian/
+  priest/smith/butcher) with three fixed stock offers each (all items the
+  engine mints), the profession Int at DataWatcher 16, and the full 1.8
+  trade wire: Open Window "minecraft:villager" (3 GUI slots) then the
+  offers on the MC|TrList plugin message 0x3F (protocol 47 has NO Trade
+  List packet; the payload's windowId is a plain i32 — the ProtocolSupport
+  quirk), the MC|TrSel selection (C→S 0x17, one i32) with the Set Slot
+  result preview, and the execution on the slot-2 click: buys validate
+  out of the player's own inventory (the merchant pseudo-slots are
+  display-only), the result pays (overflow drops), the use counter
+  charges and the row greys at the budget (uses/maxUses on the list).
+  The inventory sync rides window 0 while trading.
+- **Anti-cheat round two** (the community shapes, re-implemented):
+  the reach check runs BEFORE the refusal gates on both attack paths —
+  the eye point (1.62/1.54) against the victim's AABB expanded by the
+  vanilla 0.1 slack, the survival 3.0 (+0.75 lag band; creative 5.0),
+  a per-second-decayed 20-violation ladder kicks "Reach" — the nuker
+  guard (NCP Frequency shape) budgets 25 survival / 45 creative breaks
+  per rolling second and Grim's MultiBreak rule flags two finishes on
+  different targets inside one tick; over budget the dig reverses and a
+  10-violation ladder kicks "Nuker" — and the fastplace guard budgets 6
+  placements per 10 ticks, refusing and re-syncing the cell, kicking
+  "Fastplace" at 10. The per-player Violations ledger (event rings +
+  decaying counters) rides the session.
+- **Verification**: 421 automated tests green across all modules (334
+  core incl. HorseMountTest 10, VillagerTradeTest 5, AntiCheatTest 10;
+  68 protocol incl. HorseIntegrationTest — the full tame/saddle/drive/
+  EntityHorse-window contract over the real wire — and
+  VillagerTradeIntegrationTest — open/TrList/TrSel/execute/spent-out;
+  the DataWatcher parity net grew the pig's saddle byte row).
+
 ## 11. Known risks
 
 - 1.8.8 client quirks not obvious from protocol docs (e.g. exact chunk/lighting expectations) — mitigated by scripted-client tests + real client validation.
