@@ -306,7 +306,12 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeDouble(position.z());
         out.writeFloat(rotation.yaw());
         out.writeFloat(rotation.pitch());
-        out.writeBoolean(onGround);
+        // Protocol 47's S2C tail is the RELATIVE-FLAGS byte (bit 0 = x is
+        // relative, ...), not the C2S packet's onGround boolean. Writing the
+        // historical boolean made every teleport anchor X-RELATIVE — a real
+        // client applied x twice ("tp 400" landed at 800) and the movement
+        // guard then fought the client forever. Absolute anchors: flags 0.
+        out.writeByte(0x00);
         channel.writeAndFlush(out);
     }
 
@@ -525,7 +530,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
      * position at spawn, health, and the emptied inventory. Any thread; the
      * engine publishes respawned first.
      */
-    void sendRespawnSequence(PlayerSession player) {
+    void sendRespawnSequence(PlayerSession player, net.zaminmc.torch.util.Position destination) {
         Channel channel = adapter.channelOf(this);
         if (channel == null || !channel.isActive() || state != WireState.PLAY) {
             return;
@@ -539,9 +544,12 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         channel.writeAndFlush(out);
         player.link().updateAbilities(abilitiesFlagsOf(player.gamemode()));
 
-        if (chunkTracker != null) {
-            var spawn = engine.world().spawnPosition();
-            chunkTracker.respawnAt(spawn.toBlockPosition().chunkPosition());
+        if (chunkTracker != null && destination != null) {
+            // The chunk stream re-anchors to the DESTINATION, not the world
+            // spawn: a /tp's new territory must stream before the client's
+            // physics run there (the "chunks don't generate after /tp"
+            // real-client regression class).
+            chunkTracker.respawnAt(destination.toBlockPosition().chunkPosition());
         }
         // A teleport-sized jump follows: the movement sanity check accepts the
         // client's acknowledgment at the anchor it was just given.

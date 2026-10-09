@@ -34,6 +34,27 @@ class VillagerTradeIntegrationTest extends ProtocolTestBase {
             client.readLoginSuccess();
             client.readUntilPositionAndLook();
 
+            // The buy stock FIRST: STOCK_MAX_USES is 7 and a career's first
+            // offer buys 8-24 per trade, so the full budget spends up to
+            // 24×7 = 168 of one currency — each stack tops up three times
+            // (64×3 = 192 covers the worst case). Stocking before the spawn
+            // keeps the villager fresh (it strolls) for the reach-gated
+            // interact; the buys validate at trade execution, not at open.
+            for (int round = 0; round < 3; round++) {
+                client.sendChat("/give minecraft:wheat 64");
+                Thread.sleep(150);
+                client.sendChat("/give minecraft:paper 64");
+                Thread.sleep(150);
+                client.sendChat("/give minecraft:beef 64");
+                Thread.sleep(150);
+                client.sendChat("/give minecraft:porkchop 64");
+                Thread.sleep(150);
+                client.sendChat("/give minecraft:iron_ingot 64");
+                Thread.sleep(150);
+                client.sendChat("/give minecraft:rotten_flesh 64");
+                Thread.sleep(150);
+            }
+
             // A farmer with a pen-free deterministic stock: the profession is
             // random per spawn, so force one through the seeded reroll — the
             // test spawns villagers until a farmer shows (bounded).
@@ -64,21 +85,6 @@ class VillagerTradeIntegrationTest extends ProtocolTestBase {
                 }
             }
             assertTrue(professionInt, "the profession Int rides index 16");
-
-            // The buy stock: 20 wheat (farmer) covers whichever career — give
-            // a spread of every buy currency the tables use.
-            client.sendChat("/give minecraft:wheat 64");
-            Thread.sleep(150);
-            client.sendChat("/give minecraft:paper 64");
-            Thread.sleep(150);
-            client.sendChat("/give minecraft:beef 64");
-            Thread.sleep(150);
-            client.sendChat("/give minecraft:porkchop 64");
-            Thread.sleep(150);
-            client.sendChat("/give minecraft:iron_ingot 64");
-            Thread.sleep(150);
-            client.sendChat("/give minecraft:rotten_flesh 64");
-            Thread.sleep(150);
 
             // The open: Open Window "minecraft:villager" (3 slots), then the
             // MC|TrList plugin message with the offers.

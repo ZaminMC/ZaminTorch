@@ -38,6 +38,29 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/**
+ * Finds a clean placement base beside the bot: a solid block with two air
+ * cells above (the earlier tests reshape the spawn's surface, so a fixed
+ * offset can point at a hillside or a hole). Scans outward ring by ring.
+ */
+function findCleanGround(bot, maxRadius) {
+  for (let r = 1; r <= (maxRadius || 12); r++) {
+    for (const dy of [0, -1, 1]) {
+    for (let dx = -r; dx <= r; dx++) {
+      for (let dz = -r; dz <= r; dz++) {
+        if (Math.max(Math.abs(dx), Math.abs(dz)) !== r) continue;
+        const base = bot.blockAt(bot.entity.position.floored().offset(dx, dy, dz));
+        if (!base || base.boundingBox === 'empty') continue;
+        const above = bot.blockAt(base.position.offset(0, 1, 0));
+        const two = bot.blockAt(base.position.offset(0, 2, 0));
+        if (above && above.name === 'air' && two && two.name === 'air') return base;
+      }
+    }
+    }
+  }
+  return null;
+}
+
 function waitFor(bot, event, timeoutMs, filter) {
   // Soft timeout: resolves null instead of rejecting — no unhandled
   // rejections can kill the run; callers check the result and report FAIL.
@@ -62,7 +85,7 @@ async function main() {
   const bot = mineflayer.createBot({
     host,
     port,
-    username: 'Validator' + (Date.now() % 100000),
+    username: 'Validator', // ops.json carries this exact name's offline uuid (the /tp needs op)
     version: '1.8.8',
     auth: 'offline',
     keepAlive: true,
@@ -104,12 +127,21 @@ async function main() {
   }
 
   // ---- 3. placement + chest container -------------------------------------
+  // Teleport to a pristine area first: every earlier test reshapes the spawn,
+  // and the /tp exercises the teleport re-anchor (the chunk stream must
+  // follow the destination, the "chunks don't generate after /tp" guard).
+  const tpX = 200 + Math.floor(Math.random() * 400);
+  bot.chat('/tp ' + tpX + ' 5 0');
+  await sleep(600);
+  await bot.waitForChunksToLoad();
+  check('teleport re-anchored the client', Math.abs(bot.entity.position.floored().x - tpX) <= 1,
+    `x=${bot.entity.position.floored().x} target=${tpX}`);
   // The flat world's surface is solid at feet level, so blocks are placed on
   // TOP of the surface beside the bot (its name varies with survived history:
   // pristine grass, or dirt where earlier digs reshaped the spawn).
-  const ground = bot.blockAt(bot.entity.position.offset(1, 0, 0));
+  const ground = findCleanGround(bot);
   check('ground reference is solid', !!ground && ground.boundingBox !== 'empty',
-    ground ? ground.name : 'null');
+    ground ? ground.name + ' ' + ground.position.toString() : 'null');
   const chestSlot = bot.inventory.items().find((it) => it.name === 'chest')
     || null;
   if (!chestSlot) bot.chat('/give chest 1');
@@ -368,10 +400,16 @@ async function main() {
     check('zombie spawned at night (20 hp metadata)', false, 'timed out');
   }
   bot.chat('/time set day');
-  await sleep(2_000);
-  check('dawn removed the hostiles',
-    !Object.values(bot.entities).some((e) => /^zombie$/i.test(e.name || '')),
-    `zombies=${Object.values(bot.entities).filter((e) => /^zombie$/i.test(e.name || '')).length}`);
+  // The dev.10+ dawn rule is vanilla parity: the undead IGNITE and burn to
+  // death (1 dmg/s over 20 hp), so dawn takes ~20 s, not a vaporize frame.
+  const dawnWait = waitFor(bot, 'entityGone', 35_000,
+    (e) => /^zombie$/i.test((e && e.name) || ''));
+  await sleep(24_000);
+  const dawnGone = await dawnWait;
+  const zombiesLeft = Object.values(bot.entities)
+    .filter((e) => /^zombie$/i.test(e.name || '')).length;
+  check('dawn removed the hostiles', zombiesLeft === 0 || !!dawnGone,
+    `zombies=${zombiesLeft}${dawnGone ? ' (burned out observed)' : ''}`);
 
   // ---- 7. red sand variant via /give --------------------------------------
   bot.chat('/give sand 1 1');
@@ -575,7 +613,7 @@ async function main() {
   await sleep(1_000);
   const torchStack = bot.inventory.items().find((it) => it.name === 'torch');
   check('/give torch for the pop', !!torchStack);
-  const torchGround = bot.blockAt(bot.entity.position.offset(0, -1, -2));
+  const torchGround = findCleanGround(bot) || bot.blockAt(bot.entity.position.offset(0, -1, -2));
   if (torchStack && torchGround && torchGround.boundingBox !== 'empty') {
     await bot.equip(torchStack, 'hand');
     await bot.placeBlock(torchGround, new Vec3(0, 1, 0));

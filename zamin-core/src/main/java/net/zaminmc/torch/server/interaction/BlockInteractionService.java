@@ -13,6 +13,7 @@ import net.zaminmc.torch.GameMode;
 import net.zaminmc.torch.server.entity.ItemEntity;
 import net.zaminmc.torch.server.entity.ItemEntityManager;
 import net.zaminmc.torch.server.player.PlayerSession;
+import net.zaminmc.torch.server.block.WorldSolidity;
 import net.zaminmc.torch.server.world.EngineWorld;
 
 import java.util.HashMap;
@@ -327,7 +328,11 @@ public final class BlockInteractionService {
             LOGGER.fine(() -> "Rejected placement (out of reach) by " + player.name());
             return;
         }
-        if (InteractionRules.intersectsPlayer(player.position(), target)) {
+        // The vanilla body rule: a block WITH a collision box never places
+        // inside the player; collision-less blocks (torches, flora, rails)
+        // place freely inside any entity.
+        if (WorldSolidity.isSolid(held)
+                && InteractionRules.intersectsPlayer(player.position(), target)) {
             LOGGER.fine(() -> "Rejected placement (inside player) by " + player.name());
             return;
         }
@@ -360,7 +365,8 @@ public final class BlockInteractionService {
         if (target == null || world.getBlock(clicked).equals(world.airType())
                 || !world.getBlock(target).equals(world.airType())
                 || !InteractionRules.withinSurvivalReach(player.position(), target)
-                || InteractionRules.intersectsPlayer(player.position(), target)) {
+                || (WorldSolidity.isSolid(heldBlock)
+                        && InteractionRules.intersectsPlayer(player.position(), target))) {
             if (target == null) {
                 LOGGER.fine(() -> "Rejected survival placement (bad face) by " + player.name());
             } else if (world.getBlock(clicked).equals(world.airType())) {
