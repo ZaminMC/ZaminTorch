@@ -49,6 +49,16 @@ public final class BlockInteractionService {
      */
     static final double MINING_TIMING_LENIENCY = 0.7;
 
+    // The anti-cheat budgets (the NCP shapes, server-lag simplified to
+    // server-side clocks): the rolling break window and the fastplace band.
+    static final long BREAK_WINDOW_NANOS = 1_000_000_000L; // 20 ticks
+    static final int SURVIVAL_BREAK_BUDGET = 25;  // finishes per window (NCP 45/s with headroom)
+    static final int CREATIVE_BREAK_BUDGET = 45;  // the historical creative pace
+    static final int NUKER_KICK_VIOLATIONS = 10;
+    static final long PLACE_WINDOW_NANOS = 500_000_000L; // 10 ticks
+    static final int PLACE_BUDGET = 6;            // places per 10 ticks (NCP FastPlace)
+    static final int FASTPLACE_KICK_VIOLATIONS = 10;
+
     /** Nominal length of one simulation tick in nanoseconds (from the ticker's rate). */
     private static final long TICK_NANOS = 50_000_000L;
 
@@ -160,6 +170,20 @@ public final class BlockInteractionService {
             LOGGER.fine(() -> "Rejected break (out of reach) by " + player.name());
             return;
         }
+        // The nuker guard runs creative too (the higher creative budget).
+        long nowNanos = System.nanoTime();
+        if (!player.violations().recordBreak(nowNanos, BREAK_WINDOW_NANOS, CREATIVE_BREAK_BUDGET)
+                || player.violations().isMultiBreak(nowNanos, position)) {
+            player.violations().addNukerViolation();
+            resync(position);
+            LOGGER.warning(() -> "Nuker violation (creative) for " + player.name()
+                    + " (vl " + player.violations().nukerViolations() + ")");
+            if (player.violations().nukerViolations() >= NUKER_KICK_VIOLATIONS) {
+                player.link().kick("Nuker");
+            }
+            return;
+        }
+        player.violations().noteBreakTarget(nowNanos, position);
         BlockType previous = world.getBlock(position);
         commit(position, world.airType());
         // The break hook fires in creative too: door halves die as a unit and
@@ -194,6 +218,22 @@ public final class BlockInteractionService {
                     + player.name());
             return;
         }
+        // The nuker guard (the NCP Frequency shape): the rolling 20-tick
+        // budget plus the same-tick different-target signature (Grim's
+        // MultiBreak). Over budget: the dig reverses, the ladder counts.
+        long nowNanos = System.nanoTime();
+        if (!player.violations().recordBreak(nowNanos, BREAK_WINDOW_NANOS, SURVIVAL_BREAK_BUDGET)
+                || player.violations().isMultiBreak(nowNanos, target)) {
+            player.violations().addNukerViolation();
+            resync(target);
+            LOGGER.warning(() -> "Nuker violation for " + player.name() + " (vl "
+                    + player.violations().nukerViolations() + ")");
+            if (player.violations().nukerViolations() >= NUKER_KICK_VIOLATIONS) {
+                player.link().kick("Nuker");
+            }
+            return;
+        }
+        player.violations().noteBreakTarget(nowNanos, target);
         BlockBehavior behavior = BlockBehaviorTable.of(current.identifier()).orElse(null);
         if (behavior == null || !behavior.diggable()) {
             resync(target);
@@ -289,6 +329,18 @@ public final class BlockInteractionService {
             LOGGER.fine(() -> "Rejected placement (inside player) by " + player.name());
             return;
         }
+        // The fastplace guard runs the creative path too (the same budget —
+        // the creative 1.8 client cannot legitimately outpace it either).
+        if (!player.violations().recordPlace(System.nanoTime(), PLACE_WINDOW_NANOS, PLACE_BUDGET)) {
+            player.violations().addFastPlaceViolation();
+            resync(target);
+            LOGGER.warning(() -> "Fastplace violation (creative) for " + player.name()
+                    + " (vl " + player.violations().fastPlaceViolations() + ")");
+            if (player.violations().fastPlaceViolations() >= FASTPLACE_KICK_VIOLATIONS) {
+                player.link().kick("Fastplace");
+            }
+            return;
+        }
         commit(target, held);
     }
 
@@ -318,6 +370,19 @@ public final class BlockInteractionService {
                 LOGGER.fine(() -> "Rejected survival placement (out of reach) by " + player.name());
             } else {
                 LOGGER.fine(() -> "Rejected survival placement (inside player) by " + player.name());
+            }
+            return;
+        }
+        // The fastplace guard (the NCP shape): the rolling 10-tick budget;
+        // over budget the placement refuses and the cell re-syncs (the
+        // client's prediction drops).
+        if (!player.violations().recordPlace(System.nanoTime(), PLACE_WINDOW_NANOS, PLACE_BUDGET)) {
+            player.violations().addFastPlaceViolation();
+            resync(target);
+            LOGGER.warning(() -> "Fastplace violation for " + player.name() + " (vl "
+                    + player.violations().fastPlaceViolations() + ")");
+            if (player.violations().fastPlaceViolations() >= FASTPLACE_KICK_VIOLATIONS) {
+                player.link().kick("Fastplace");
             }
             return;
         }
