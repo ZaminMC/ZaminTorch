@@ -136,6 +136,10 @@ final class TestClient18 implements AutoCloseable {
         sendPacket(bodyToBytes(body));
     }
 
+    private double lastX = Double.NaN;
+    private double lastY = Double.NaN;
+    private double lastZ = Double.NaN;
+
     void sendPosition(double x, double y, double z, boolean onGround) throws IOException {
         ByteBuf body = Unpooled.buffer(40);
         ByteBufOps.writeVarInt(body, Protocol18.C2S_PLAYER_POSITION);
@@ -144,6 +148,31 @@ final class TestClient18 implements AutoCloseable {
         body.writeDouble(z);
         body.writeBoolean(onGround);
         sendPacket(bodyToBytes(body));
+        lastX = x;
+        lastY = y;
+        lastZ = z;
+    }
+
+    /**
+     * Walks to the target in honest per-tick steps (the movement guard
+     * rejects single-packet jumps beyond the physics envelope, exactly like
+     * the historical "moved too quickly"): at most 0.4 blocks horizontally
+     * and 0.5 blocks vertically per packet. The join's position packet
+     * anchors the tracker.
+     */
+    void walkTo(double x, double y, double z, boolean onGround) throws IOException {
+        double dx = x - lastX;
+        double dy = y - lastY;
+        double dz = z - lastZ;
+        double horizontal = Math.sqrt(dx * dx + dz * dz);
+        int steps = Math.max(1,
+                Math.max((int) Math.ceil(horizontal / 0.4),
+                        (int) Math.ceil(Math.abs(dy) / 0.5)));
+        for (int i = 1; i < steps; i++) {
+            sendPosition(lastX + dx / steps, lastY + dy / steps, lastZ + dz / steps, false);
+        }
+        // The last step lands exactly on the target (no rounding drift).
+        sendPosition(x, y, z, onGround);
     }
 
     void sendKeepAliveResponse(int id) throws IOException {
@@ -211,6 +240,11 @@ final class TestClient18 implements AutoCloseable {
             ByteBuf buffer = Unpooled.wrappedBuffer(payload);
             int id = ByteBufOps.readVarInt(buffer);
             if (id == Protocol18.S2C_PLAYER_POSITION_AND_LOOK) {
+                // The join's authoritative anchor: the walk tracker starts
+                // here, so the client's first steps are honest relative moves.
+                lastX = buffer.readDouble();
+                lastY = buffer.readDouble();
+                lastZ = buffer.readDouble();
                 return;
             }
         }

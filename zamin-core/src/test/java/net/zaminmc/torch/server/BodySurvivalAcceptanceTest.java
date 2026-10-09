@@ -101,9 +101,15 @@ class BodySurvivalAcceptanceTest {
         EngineServer server = boot();
         PlayerSession faller = join(server, "Faller");
 
-        // Rise into the air (no fall distance while ascending), then land 15
-        // blocks lower: damage = ceil(15 - 3) = 12.
-        server.movementProposal(faller, new Position(0.5, 20.0, 0.5), Rotation.ZERO, false);
+        // Rise into the air (the engine's teleport path), then land 15 blocks
+        // lower in per-tick fall steps (the client sends one position packet
+        // per tick; no honest step exceeds the terminal velocity):
+        // accumulated distance 15 -> damage = ceil(15 - 3) = 12.
+        server.teleportPlayer(faller, new Position(0.5, 20.0, 0.5));
+        await(() -> faller.position().y() == 20.0, "the teleport landed");
+        server.movementProposal(faller, new Position(0.5, 16.0, 0.5), Rotation.ZERO, false);
+        server.movementProposal(faller, new Position(0.5, 12.0, 0.5), Rotation.ZERO, false);
+        server.movementProposal(faller, new Position(0.5, 8.0, 0.5), Rotation.ZERO, false);
         server.movementProposal(faller, new Position(0.5, 5.0, 0.5), Rotation.ZERO, true);
         await(() -> faller.health() == 8.0f, "the landing applied ceil(15 - 3) = 12 damage");
         server.shutdown(null);

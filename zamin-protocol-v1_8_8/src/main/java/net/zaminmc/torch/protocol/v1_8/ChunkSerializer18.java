@@ -84,9 +84,10 @@ final class ChunkSerializer18 {
                 }
             }
             if (includeBiomes) {
-                byte[] biomes = new byte[256];
-                java.util.Arrays.fill(biomes, (byte) Protocol18.BIOME_PLAINS);
-                out.writeBytes(biomes);
+                // The generation-derived 16x16 row (x fastest — the wire's
+                // exact layout). A chunk generation never wrote carries the
+                // plains default in the array itself.
+                out.write(chunk.biomeArray());
             }
         } catch (IOException e) {
             throw new IllegalStateException("ByteArrayOutputStream cannot throw IOException", e);

@@ -75,10 +75,10 @@ class MobCombatAcceptanceTest {
         MobEntity cow = awaitMob(server, MobType.COW);
 
         float before = cow.health();
-        // The player stays at spawn; the cow spawned up to ~4 blocks away.
-        // Attack it: either in reach (health drops) or refused (health holds) —
-        // both server decisions; assert the reach boundary by teleporting far.
-        server.movementProposal(attacker, new Position(0.5, 5.0, 60.0), Rotation.ZERO, true);
+        // The player teleports 55 blocks away (the engine's teleport path);
+        // the swing is far beyond melee reach and must be refused.
+        server.teleportPlayer(attacker, new Position(0.5, 5.0, 60.0));
+        await(() -> attacker.position().z() == 60.0, "the teleport landed");
         server.attackEntity(attacker, cow.entityId());
         Thread.sleep(300);
         assertEquals(before, cow.health(), "out-of-reach swings never connect");
@@ -146,8 +146,7 @@ class MobCombatAcceptanceTest {
 
     private void standNextTo(EngineServer server, PlayerSession player, MobEntity mob) {
         Position at = mob.position();
-        server.movementProposal(player,
-                new Position(at.x(), at.y(), at.z() + 0.8), Rotation.ZERO, true);
+        server.teleportPlayer(player, new Position(at.x(), at.y(), at.z() + 0.8));
     }
 
     private EngineServer boot() throws Exception {

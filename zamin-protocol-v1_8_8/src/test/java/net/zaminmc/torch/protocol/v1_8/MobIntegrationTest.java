@@ -63,7 +63,7 @@ class MobIntegrationTest extends ProtocolTestBase {
             // adds status 3 (the death fall). The client walks to the pig
             // first (and again after the pop) — reach is server-validated.
             client.sendChat("/give diamond_sword 1");
-            client.sendPosition(pig[2] / 32.0, pig[3] / 32.0, pig[4] / 32.0, true);
+            client.walkTo(pig[2] / 32.0, pig[3] / 32.0, pig[4] / 32.0, true);
             client.sendUseEntity(pigId, Protocol18.USE_ENTITY_ATTACK);
             int[] hurt = client.readEntityStatus(15_000);
             assertEquals(pigId, hurt[0]);
@@ -71,7 +71,7 @@ class MobIntegrationTest extends ProtocolTestBase {
             String[] sound = client.readNamedSound(15_000);
             assertEquals("mob.pig.say", sound[0], "the pig's historical hurt sound");
 
-            client.sendPosition(pig[2] / 32.0, pig[3] / 32.0, pig[4] / 32.0, true);
+            client.walkTo(pig[2] / 32.0, pig[3] / 32.0, pig[4] / 32.0, true);
             client.sendUseEntity(pigId, Protocol18.USE_ENTITY_ATTACK);
             int[] secondHit = client.readEntityStatus(15_000);
             assertEquals(Protocol18.ENTITY_STATUS_HURT, secondHit[1]);

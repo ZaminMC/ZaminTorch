@@ -107,7 +107,7 @@ class JoinFlowIntegrationTest {
             assertEquals(1, server.players().size());
 
             // Movement proposals are accepted and become authoritative state.
-            client.sendPosition(10.5, 5.0, -3.25, true);
+            client.walkTo(10.5, 5.0, -3.25, true);
             awaitCondition(() -> steve.position().x() == 10.5 && steve.position().z() == -3.25,
                     "server adopted the movement proposal");
 
@@ -182,7 +182,7 @@ class JoinFlowIntegrationTest {
             walkToTheDrop(client);
             client.readCollectItem(15_000);
             client.readWindowItems(15_000); // hotbar now holds dirt
-            client.sendPosition(0.5, 5.0, 0.5, true);
+            client.walkTo(0.5, 5.0, 0.5, true);
             client.sendBlockPlacement(2, 3, 2, 1, 3);
             awaitCondition(() -> server.world().getBlock(new net.zaminmc.torch.block.BlockPosition(2, 4, 2))
                             .identifier().toString().equals("minecraft:dirt"),
@@ -213,7 +213,7 @@ class JoinFlowIntegrationTest {
         var drop = server.itemEntities().all().get(0).position();
         // A real client falls into the mined hole, which is what brings the
         // resting item into the pickup range around the player's box.
-        client.sendPosition(drop.x(), drop.y() - 0.125, drop.z(), true);
+        client.walkTo(drop.x(), drop.y() - 0.125, drop.z(), true);
     }
 
     private PlayerSession awaitPlayer(String name) throws InterruptedException {

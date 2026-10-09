@@ -164,11 +164,23 @@ final class LegacyBlockIds {
     }
 
     /**
-     * @return the wire metadata nibble of a block type: the flow level for
-     * fluids (0 source, 1..7 flowing, 8 the falling column — the historical
-     * 1.8 encoding) and 0 for everything else.
+     * The 1.8 data-value variants that ride the metadata nibble (block 31's
+     * flora: 0 dead shrub, 1 grass, 2 fern — the engine's tall grass is the
+     * real "grass" variant on the wire).
+     */
+    private static final Map<Identifier, Integer> METADATA = Map.of(
+            Identifier.parse("minecraft:tall_grass"), 1);
+
+    /**
+     * @return the wire metadata nibble of a block type: the 1.8 data-value
+     * variants, the flow level for fluids (0 source, 1..7 flowing, 8 the
+     * falling column — the historical encoding) and 0 for everything else.
      */
     static int metadataOf(Identifier identifier) {
+        Integer variant = METADATA.get(identifier);
+        if (variant != null) {
+            return variant;
+        }
         FluidBlocks.Kind fluid = FluidBlocks.kindOf(identifier);
         return fluid == null ? 0 : FluidBlocks.levelOf(identifier);
     }

@@ -39,7 +39,7 @@ class SurvivalFlowIntegrationTest extends ProtocolTestBase {
                 .anyMatch(e -> e.entityId() == entityId && e.onGround()), "the drop settled");
         // Stand where the drop rests: a real client falls into the mined hole
         // (gravity), which is what brings the item into pickup range.
-        client.sendPosition(spawn[2] / 32.0, spawn[3] / 32.0 - 0.125, spawn[4] / 32.0, true);
+        client.walkTo(spawn[2] / 32.0, spawn[3] / 32.0 - 0.125, spawn[4] / 32.0, true);
     }
 
     @Test

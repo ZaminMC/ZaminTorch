@@ -111,7 +111,10 @@ final class Protocol18 {
 
     static final int GAMEMODE_CREATIVE = 1;
     static final String LEVEL_TYPE_FLAT = "flat";
+    // Biome ids (the chunk packet's biome array values, community blocks.json).
     static final int BIOME_PLAINS = 1;
+    static final int BIOME_DESERT = 2;
+    static final int BIOME_FOREST = 4;
     /** Easy difficulty: hunger behaves, starvation cannot kill (floor 10). */
     static final int DIFFICULTY_EASY = 1;
 

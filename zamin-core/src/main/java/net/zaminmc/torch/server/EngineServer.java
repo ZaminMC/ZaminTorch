@@ -2968,7 +2968,14 @@ public final class EngineServer implements Server, EngineBridge {
      * The engine-side teleport: re-anchors the session on the tick thread,
      * opens the guard's grace window and reuses the respawn wire path (the
      * chunk tracker re-anchors and Position and Look re-syncs the client).
+     * Safe from any thread.
      */
+    public void teleportPlayer(PlayerSession session, Position to) {
+        Objects.requireNonNull(session, "session");
+        Objects.requireNonNull(to, "to");
+        teleportOnTick(session, to);
+    }
+
     private void teleportOnTick(PlayerSession session, Position to) {
         ticker.submit(() -> {
             if (session.state() != PlayerState.PLAYING || session.dead()) {

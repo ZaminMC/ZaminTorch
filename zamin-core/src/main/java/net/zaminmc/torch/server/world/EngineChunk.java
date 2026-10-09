@@ -28,11 +28,16 @@ public final class EngineChunk {
     private final ChunkSection[] sections;
     private final LightSection[] light = new LightSection[SECTION_COUNT];
     private final BlockType air;
+    /** The 16x16 biome row (generation-derived state); plains until written. */
+    private final byte[] biomes = new byte[16 * 16];
 
     public EngineChunk(ChunkPosition position, BlockType air) {
         this.position = Objects.requireNonNull(position, "position");
         this.air = Objects.requireNonNull(air, "air");
         this.sections = new ChunkSection[SECTION_COUNT];
+        // The implicit biome default is plains (the 1.8 wire value 1) —
+        // exactly what a chunk whose generator never wrote would ride.
+        java.util.Arrays.fill(biomes, (byte) 1);
         // Empty sections exist implicitly as null; they materialize on first write.
     }
 
@@ -73,6 +78,26 @@ public final class EngineChunk {
             }
         }
         return true;
+    }
+
+    // ------------------------------------------------------------------ biomes (§biomes)
+
+    /**
+     * Writes one column's biome (generation-time only; x = local 0-15, z =
+     * local 0-15). The value is the 1.8 wire id.
+     */
+    public void setBiome(int localX, int localZ, byte legacyId) {
+        biomes[(localZ << 4) | localX] = legacyId;
+    }
+
+    /** @return the column's biome wire id (plains when generation never wrote). */
+    public byte biome(int localX, int localZ) {
+        return biomes[(localZ << 4) | localX];
+    }
+
+    /** @return the full 16x16 biome row (x fastest, the wire's exact layout). */
+    public byte[] biomeArray() {
+        return biomes.clone();
     }
 
     // ------------------------------------------------------------------ light (§475)

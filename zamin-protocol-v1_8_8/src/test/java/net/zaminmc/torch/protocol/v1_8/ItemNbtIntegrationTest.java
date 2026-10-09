@@ -57,7 +57,7 @@ class ItemNbtIntegrationTest extends ProtocolTestBase {
             awaitCondition(() -> server.itemEntities().all().stream()
                     .allMatch(net.zaminmc.torch.server.entity.ItemEntity::onGround), "drop settled");
             var drop = server.itemEntities().all().get(0).position();
-            client.sendPosition(drop.x(), drop.y() - 0.125, drop.z(), true);
+            client.walkTo(drop.x(), drop.y() - 0.125, drop.z(), true);
             client.readCollectItem(15_000);
             names = client.readWindowSlotNames(15_000);
             assertEquals("Excalibur of the Torch", names[36],

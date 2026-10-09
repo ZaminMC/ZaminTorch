@@ -126,8 +126,30 @@ public final class BlockBehaviorTable {
                     new BlockBehavior(3.0, true, true, "rock", 3,
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:redstone_ore"), 1)))),
             Map.entry(Identifier.parse("minecraft:oak_leaves"),
-                    new BlockBehavior(0.2, false, true, "leaves", 1,
+                    new BlockBehavior(0.2, true, true, "leaves", 1,
                             List.of())),
+
+            // Decoration flora (community blocks.json): all instant-break
+            // (hardness 0), no tool, plants material. 1.8 drop model: the
+            // flowers drop themselves; tall grass and the dead bush drop
+            // nothing by hand (shears drops are a later slice; seeds/farming
+            // do not exist yet).
+            Map.entry(Identifier.parse("minecraft:tall_grass"),
+                    new BlockBehavior(0.0, true, false, "plants", 0, List.of())),
+            Map.entry(Identifier.parse("minecraft:dead_bush"),
+                    new BlockBehavior(0.0, true, false, "plants", 0, List.of())),
+            Map.entry(Identifier.parse("minecraft:dandelion"),
+                    new BlockBehavior(0.0, true, false, "plants", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:dandelion"), 1)))),
+            Map.entry(Identifier.parse("minecraft:poppy"),
+                    new BlockBehavior(0.0, true, false, "plants", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:poppy"), 1)))),
+
+            // Community data (pc/1.8 blocks.json): sandstone hardness 0.8,
+            // material rock, pickaxe required for drops, drops itself.
+            Map.entry(Identifier.parse("minecraft:sandstone"),
+                    new BlockBehavior(0.8, true, true, "rock", 1,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:sandstone"), 1)))),
 
             Map.entry(Identifier.parse("minecraft:bedrock"),
                     BlockBehavior.unbreakable()));

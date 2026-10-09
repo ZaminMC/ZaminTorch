@@ -201,6 +201,19 @@ public final class BuiltinItems {
     public static final EngineItemType LAVA_BUCKET = new EngineItemType(
             Identifier.parse("minecraft:lava_bucket"), "Lava Bucket", 1);
 
+    // Decoration flora + desert stone (the placeable block-item forms; the
+    // flowers drop themselves, tall grass/dead bush are /give-reachable).
+    public static final EngineItemType TALL_GRASS = new EngineItemType(
+            Identifier.parse("minecraft:tall_grass"), "Tall Grass", 64);
+    public static final EngineItemType DEAD_BUSH = new EngineItemType(
+            Identifier.parse("minecraft:dead_bush"), "Dead Bush", 64);
+    public static final EngineItemType DANDELION = new EngineItemType(
+            Identifier.parse("minecraft:dandelion"), "Dandelion", 64);
+    public static final EngineItemType POPPY = new EngineItemType(
+            Identifier.parse("minecraft:poppy"), "Poppy", 64);
+    public static final EngineItemType SANDSTONE = new EngineItemType(
+            Identifier.parse("minecraft:sandstone"), "Sandstone", 64);
+
     // Armor (community items.json legacy ids + maxDurability): the five
     // historical tiers across the four slots. Per-piece armor points ride the
     // Armor registry; a full set totals 7/12/15/11/20 on the 20-point bar.
@@ -270,6 +283,7 @@ public final class BuiltinItems {
                 SHEARS,
                 BONE, STRING, GUNPOWDER, WOOL, MUTTON, COOKED_MUTTON,
                 BUCKET, WATER_BUCKET, LAVA_BUCKET,
+                TALL_GRASS, DEAD_BUSH, DANDELION, POPPY, SANDSTONE,
                 LEATHER_HELMET, LEATHER_CHESTPLATE, LEATHER_LEGGINGS, LEATHER_BOOTS,
                 CHAINMAIL_HELMET, CHAINMAIL_CHESTPLATE, CHAINMAIL_LEGGINGS, CHAINMAIL_BOOTS,
                 IRON_HELMET, IRON_CHESTPLATE, IRON_LEGGINGS, IRON_BOOTS,
