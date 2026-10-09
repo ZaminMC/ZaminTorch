@@ -3489,7 +3489,10 @@ public final class EngineServer implements Server, EngineBridge {
      * thread; the dispatch runs on the tick thread like player commands.
      */
     public void consoleCommand(String raw) {
-        ticker.submit(() -> chatService.dispatchCommand(new ConsoleSender(), raw));
+        // The historical console types commands bare ("weather rain 30");
+        // the dispatcher speaks slash intents, so the console form gets one.
+        String line = raw.startsWith("/") ? raw : "/" + raw;
+        ticker.submit(() -> chatService.dispatchCommand(new ConsoleSender(), line));
     }
 
     /**
