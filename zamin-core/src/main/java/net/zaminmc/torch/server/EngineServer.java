@@ -42,7 +42,9 @@ import net.zaminmc.torch.server.chat.CommandService;
 import net.zaminmc.torch.server.chat.CommandSender;
 import net.zaminmc.torch.server.chat.ConsoleSender;
 import net.zaminmc.torch.server.interaction.DropService;
+import net.zaminmc.torch.server.ops.BanStore;
 import net.zaminmc.torch.server.ops.OpStore;
+import net.zaminmc.torch.server.ops.WhitelistStore;
 import net.zaminmc.torch.server.net.ClientLink;
 import net.zaminmc.torch.server.net.EngineBridge;
 import net.zaminmc.torch.server.player.MovementGuard;
@@ -160,6 +162,16 @@ public final class EngineServer implements Server, EngineBridge {
     private MobDataStore mobStore;
     /** The operator registry (ops.json); loaded at boot, rewritten on /op and /deop. */
     private OpStore opStore = OpStore.load(java.nio.file.Path.of("ops.json"));
+    /** The ban registry (banned-players.json) and the whitelist roster. */
+    private BanStore banStore = BanStore.load(java.nio.file.Path.of("banned-players.json"));
+    private WhitelistStore whitelistStore =
+            WhitelistStore.load(java.nio.file.Path.of("whitelist.json"));
+    /** Runtime whitelist enforcement (server.properties boot value; /whitelist on|off). */
+    private volatile boolean whitelistEnforced;
+    /** The weather state (the historical always-clear default; /weather drives it). */
+    private volatile boolean raining;
+    /** Weather countdown in ticks; -1 = holds until the next /weather. */
+    private volatile long weatherTicks = -1;
     private final java.util.List<ChatListener> chatListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     private final java.util.List<ItemEntityManager.Listener> itemListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     private final java.util.List<MobManager.Listener> mobListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
@@ -241,8 +253,13 @@ public final class EngineServer implements Server, EngineBridge {
         Thread boot = new Thread(() -> {
             try {
                 ticker = new EngineTicker(config.tickRateHz());
-                // The operator registry: ops.json at the server root (Paper layout).
+                // The Paper stores: ops.json, banned-players.json, whitelist.json
+                // at the server root (Paper layout); whitelist enforcement reads
+                // the server.properties flag until /whitelist on|off overrides.
                 opStore = OpStore.load(java.nio.file.Path.of(config.dataDir(), "ops.json"));
+                banStore = BanStore.load(java.nio.file.Path.of(config.dataDir(), "banned-players.json"));
+                whitelistStore = WhitelistStore.load(java.nio.file.Path.of(config.dataDir(), "whitelist.json"));
+                whitelistEnforced = config.whiteList();
                 // Player persistence: one ZPD file per identity under world/playerdata.
                 playerStore = new PlayerDataStore(
                         config.playerDataDir());
@@ -254,6 +271,9 @@ public final class EngineServer implements Server, EngineBridge {
                         ? new FlatWorldGenerator(blockRegistry, 4)
                         : new NormalWorldGenerator(blockRegistry, config.worldName());
                 world = new EngineWorld(config.worldName(), blockRegistry, generator, owner);
+                // The persisted spawn anchor (/setspawn): world/data/spawn.json
+                // rides above the generator's deterministic spawn when present.
+                loadSpawnAnchor().ifPresent(world::setSpawnPosition);
                 // Persistence: load saved deltas before any chunk generates so the
                 // spawn area is already the survived world (§407 restart proof).
                 worldStorage = new DeltaWorldStorage(
@@ -354,6 +374,7 @@ public final class EngineServer implements Server, EngineBridge {
                     randomTicks.tick(players.all()); // §471: grass growth/decay
                     tickFurnaceViewers();
                     tickPlayerBodies();
+                    tickWeather();            // /weather's countdown (the auto-clear)
                     // Relight transport (§475): protocol 47 has no light-only
                     // packet, so every chunk column the light touched this tick
                     // re-sends once, deduplicated across the whole cascade.
@@ -713,8 +734,13 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     private void publishRespawned(PlayerSession player) {
+        publishRespawned(player, world.spawnPosition());
+    }
+
+    /** The re-anchor event with an explicit destination (teleports, respawns). */
+    private void publishRespawned(PlayerSession player, Position destination) {
         for (SurvivalListener listener : survivalListeners) {
-            listener.onRespawned(player, world.spawnPosition());
+            listener.onRespawned(player, destination);
         }
     }
 
@@ -2742,6 +2768,46 @@ public final class EngineServer implements Server, EngineBridge {
                 2, (sender, args) -> gamemodeCommand(sender, prepend(args, "adventure"))));
         commands.register(new CommandService.Command("gmsp", "Shortcut: /gamemode spectator",
                 2, (sender, args) -> gamemodeCommand(sender, prepend(args, "spectator"))));
+        // The Paper movement / survival operator set.
+        commands.register(new CommandService.Command("tp",
+                "Teleport: /tp <x> <y> <z> | /tp <player> | /tp <from> <to>",
+                2, this::tpCommand));
+        commands.register(new CommandService.Command("kill",
+                "Kill a player: /kill [player]",
+                2, this::killCommand));
+        commands.register(new CommandService.Command("heal",
+                "Restore health and hunger: /heal [player]",
+                2, this::healCommand));
+        commands.register(new CommandService.Command("feed",
+                "Restore hunger: /feed [player]",
+                2, this::feedCommand));
+        commands.register(new CommandService.Command("spawn",
+                "Teleport to the world spawn point",
+                0, playerCommand(this::spawnTpCommand)));
+        commands.register(new CommandService.Command("setspawn",
+                "Move the world spawn to where you stand",
+                2, playerCommand(this::setSpawnCommand)));
+        commands.register(new CommandService.Command("fly",
+                "Toggle personal flight: /fly [on|off]",
+                2, playerCommand(this::flyCommand)));
+        commands.register(new CommandService.Command("clear",
+                "Empty a player's inventory: /clear [player]",
+                2, this::clearCommand));
+        commands.register(new CommandService.Command("ban",
+                "Ban a player: /ban <player> [reason...]",
+                3, this::banCommand));
+        commands.register(new CommandService.Command("pardon",
+                "Lift a ban: /pardon <player>",
+                3, this::pardonCommand));
+        commands.register(new CommandService.Command("banlist",
+                "List the banned players",
+                3, this::banlistCommand));
+        commands.register(new CommandService.Command("whitelist",
+                "Whitelist control: /whitelist on|off|add|remove|list",
+                3, this::whitelistCommand));
+        commands.register(new CommandService.Command("weather",
+                "Set the weather: /weather <clear|rain> [seconds]",
+                2, this::weatherCommand));
     }
 
     private static String[] prepend(String[] args, String first) {
@@ -2749,6 +2815,381 @@ public final class EngineServer implements Server, EngineBridge {
         all[0] = first;
         System.arraycopy(args, 0, all, 1, args.length);
         return all;
+    }
+
+    // -------------------------------------------------------------- movement / body commands
+
+    /**
+     * /tp: the operator teleport set — coordinates, a named target, or a
+     * from→to move. The re-anchor rides the respawn wire path (chunk tracker
+     * reset + Position and Look) with a guard grace window.
+     */
+    private String tpCommand(CommandSender sender, String[] args) {
+        if (args.length == 3) {
+            PlayerSession self = sender.player();
+            if (self == null) {
+                return "Console must name a player: /tp <player> <x> <y> <z> is a later form.";
+            }
+            double x, y, z;
+            try {
+                x = Double.parseDouble(args[0]);
+                y = Double.parseDouble(args[1]);
+                z = Double.parseDouble(args[2]);
+            } catch (NumberFormatException malformed) {
+                return "Coordinates must be numbers: /tp <x> <y> <z>";
+            }
+            if (!Double.isFinite(x) || !Double.isFinite(y) || !Double.isFinite(z)
+                    || y < net.zaminmc.torch.block.BlockPosition.MIN_Y
+                    || y > net.zaminmc.torch.block.BlockPosition.MAX_Y) {
+                return "Coordinates out of bounds";
+            }
+            teleportOnTick(self, new Position(x, y, z));
+            return String.format(java.util.Locale.ROOT, "Teleported %s to %.1f %.1f %.1f",
+                    self.name(), x, y, z);
+        }
+        if (args.length == 1) {
+            PlayerSession self = sender.player();
+            if (self == null) {
+                return "Console must name two players: /tp <from> <to>";
+            }
+            PlayerSession target = players.byName(args[0]).orElse(null);
+            if (target == null) {
+                return "No online player named " + args[0];
+            }
+            teleportOnTick(self, target.position());
+            return "Teleported you to " + target.name();
+        }
+        if (args.length == 2) {
+            PlayerSession from = players.byName(args[0]).orElse(null);
+            PlayerSession to = players.byName(args[1]).orElse(null);
+            if (from == null || to == null) {
+                return "No online player named " + (from == null ? args[0] : args[1]);
+            }
+            teleportOnTick(from, to.position());
+            return "Teleported " + from.name() + " to " + to.name();
+        }
+        return "Usage: /tp <x> <y> <z> | /tp <player> | /tp <from> <to>";
+    }
+
+    /**
+     * The engine-side teleport: re-anchors the session on the tick thread,
+     * opens the guard's grace window and reuses the respawn wire path (the
+     * chunk tracker re-anchors and Position and Look re-syncs the client).
+     */
+    private void teleportOnTick(PlayerSession session, Position to) {
+        ticker.submit(() -> {
+            if (session.state() != PlayerState.PLAYING || session.dead()) {
+                return;
+            }
+            session.applyMovement(to, session.rotation(), false);
+            session.setGraceTicks(100);
+            session.consumeFallDistance(); // the teleport cancels fall debt
+            publishRespawned(session, to);
+            LOGGER.fine(() -> "Teleported " + session.name() + " to " + to);
+        });
+    }
+
+    /** /kill [player]: the void-equivalent death (pierces protection, historical rule). */
+    private String killCommand(CommandSender sender, String[] args) {
+        PlayerSession target = resolveTarget(sender, args);
+        if (target == null) {
+            return "Usage: /kill [player]";
+        }
+        ticker.submit(() -> {
+            if (target.state() == PlayerState.PLAYING && !target.dead()) {
+                dieOnTick(target);
+            }
+        });
+        return "Killed " + target.name();
+    }
+
+    /** /heal [player]: full hearts, full hunger, the historical saturation reset. */
+    private String healCommand(CommandSender sender, String[] args) {
+        PlayerSession target = resolveTarget(sender, args);
+        if (target == null) {
+            return "Usage: /heal [player]";
+        }
+        ticker.submit(() -> {
+            if (target.state() != PlayerState.PLAYING || target.dead()) {
+                return;
+            }
+            target.setBody(PlayerSession.MAX_HEALTH, PlayerSession.MAX_FOOD,
+                    PlayerSession.DEFAULT_SATURATION);
+            target.setExhaustion(0);
+            target.resetFallDistance();
+            publishBodyChanged(target);
+        });
+        return "Healed " + target.name();
+    }
+
+    /** /feed [player]: full hunger bar with the default saturation. */
+    private String feedCommand(CommandSender sender, String[] args) {
+        PlayerSession target = resolveTarget(sender, args);
+        if (target == null) {
+            return "Usage: /feed [player]";
+        }
+        ticker.submit(() -> {
+            if (target.state() != PlayerState.PLAYING || target.dead()) {
+                return;
+            }
+            target.setBody(target.health(), PlayerSession.MAX_FOOD,
+                    PlayerSession.DEFAULT_SATURATION);
+            target.setExhaustion(0);
+            publishBodyChanged(target);
+        });
+        return "Fed " + target.name();
+    }
+
+    /** The command target resolver: an explicit name, or the sending player. */
+    private PlayerSession resolveTarget(CommandSender sender, String[] args) {
+        if (args.length >= 1) {
+            PlayerSession named = players.byName(args[0]).orElse(null);
+            if (named == null) {
+                return null;
+            }
+            return named;
+        }
+        return sender.player();
+    }
+
+    /** /spawn: the player's trip back to the world spawn anchor. */
+    private String spawnTpCommand(PlayerSession sender, String[] args) {
+        Position spawn = world.spawnPosition();
+        teleportOnTick(sender, spawn);
+        return "Teleported you to the world spawn";
+    }
+
+    /** /setspawn: moves the world spawn anchor and persists world/data/spawn.json. */
+    private String setSpawnCommand(PlayerSession sender, String[] args) {
+        Position at = sender.position();
+        world.setSpawnPosition(at);
+        saveSpawnAnchor(at);
+        LOGGER.info(() -> "World spawn moved to " + at + " by " + sender.name());
+        return String.format(java.util.Locale.ROOT, "World spawn set to %.1f %.1f %.1f",
+                at.x(), at.y(), at.z());
+    }
+
+    /** The persisted spawn anchor (world/data/spawn.json: x, y, z). */
+    private java.util.Optional<Position> loadSpawnAnchor() {
+        java.nio.file.Path file = config.worldDataDir().resolve("spawn.json");
+        if (!java.nio.file.Files.exists(file)) {
+            return java.util.Optional.empty();
+        }
+        try {
+            String json = java.nio.file.Files.readString(file, java.nio.charset.StandardCharsets.UTF_8);
+            double x = Double.parseDouble(fieldOf(json, "x"));
+            double y = Double.parseDouble(fieldOf(json, "y"));
+            double z = Double.parseDouble(fieldOf(json, "z"));
+            return java.util.Optional.of(new Position(x, y, z));
+        } catch (Exception e) {
+            LOGGER.warning(() -> "Unreadable spawn.json ignored: " + e.getMessage());
+            return java.util.Optional.empty();
+        }
+    }
+
+    private void saveSpawnAnchor(Position at) {
+        java.nio.file.Path file = config.worldDataDir().resolve("spawn.json");
+        try {
+            java.nio.file.Files.createDirectories(file.getParent());
+            java.nio.file.Files.writeString(file,
+                    String.format(java.util.Locale.ROOT,
+                            "{\"x\": %.4f, \"y\": %.4f, \"z\": %.4f}%n",
+                            at.x(), at.y(), at.z()),
+                    java.nio.charset.StandardCharsets.UTF_8);
+        } catch (java.io.IOException e) {
+            LOGGER.warning(() -> "spawn.json write failed: " + e.getMessage());
+        }
+    }
+
+    private static String fieldOf(String json, String key) {
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile(
+                "\"" + key + "\"\\s*:\\s*(-?[0-9.]+)").matcher(json);
+        return m.find() ? m.group(1) : null;
+    }
+
+    /** /fly [on|off]: toggles personal flight (an admin tool; creative flies anyway). */
+    private String flyCommand(PlayerSession sender, String[] args) {
+        boolean enable = args.length >= 1
+                ? args[0].equalsIgnoreCase("on")
+                : !sender.allowedToFly();
+        sender.setAllowedToFly(enable);
+        if (!enable) {
+            sender.setFlying(false);
+            sender.clearHoverTicks();
+        }
+        sender.link().updateAbilities(abilitiesFlagsFor(sender));
+        return enable ? "Flight enabled" : "Flight disabled";
+    }
+
+    /** The protocol-47 abilities flags for a session (the /fly + mode map). */
+    private static int abilitiesFlagsFor(PlayerSession session) {
+        int flags = 0;
+        if (session.gamemode() == GameMode.CREATIVE || session.gamemode() == GameMode.SPECTATOR) {
+            flags |= 0x01 | 0x04 | 0x08; // invulnerable + may-fly + instant build
+        }
+        if (session.allowedToFly()) {
+            flags |= 0x04; // may-fly for the /fly grant
+        }
+        if (session.flying() && session.allowedToFly()) {
+            flags |= 0x02; // keep the announced flight state
+        }
+        return flags;
+    }
+
+    /** /clear [player]: empties the inventory (the historical op 2 cleanup). */
+    private String clearCommand(CommandSender sender, String[] args) {
+        PlayerSession target = resolveTarget(sender, args);
+        if (target == null) {
+            return "Usage: /clear [player]";
+        }
+        ticker.submit(() -> {
+            target.inventory().clear();
+            publishInventoryChanged(target);
+        });
+        return "Cleared " + target.name() + "'s inventory";
+    }
+
+    // -------------------------------------------------------------- ban / whitelist / weather
+
+    /** /ban &lt;player&gt; [reason...]: bans and kicks (the historical op 3 gate). */
+    private String banCommand(CommandSender sender, String[] args) {
+        if (args.length < 1) {
+            return "Usage: /ban <player> [reason...]";
+        }
+        String name = args[0];
+        String reason = args.length >= 2
+                ? String.join(" ", java.util.Arrays.copyOfRange(args, 1, args.length))
+                : null;
+        java.util.UUID uuid = players.byName(name)
+                .map(PlayerSession::uuid)
+                .orElseGet(() -> java.util.UUID.nameUUIDFromBytes(
+                        ("OfflinePlayer:" + name).getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+        banStore.ban(uuid, name, sender.name(), reason);
+        players.byName(name).ifPresent(online ->
+                online.link().kick("You are banned from this server.\nReason: "
+                        + (reason == null ? "Banned by an operator" : reason)));
+        LOGGER.info(() -> "Banned " + name + " (by " + sender.name() + ")");
+        return "Banned " + name;
+    }
+
+    /** /pardon &lt;player&gt;: lifts the ban by name. */
+    private String pardonCommand(CommandSender sender, String[] args) {
+        if (args.length < 1) {
+            return "Usage: /pardon <player>";
+        }
+        return banStore.pardon(args[0])
+                ? "Unbanned " + args[0]
+                : "No ban found for " + args[0];
+    }
+
+    /** /banlist: the entries of banned-players.json (the historical output). */
+    private String banlistCommand(CommandSender sender, String[] args) {
+        var entries = banStore.entries();
+        if (entries.isEmpty()) {
+            return "There are no bans";
+        }
+        return "There are " + entries.size() + " ban(s): "
+                + entries.stream()
+                        .map(e -> e.name() + (e.permanent() ? "" : " (until " + e.expires() + ")"))
+                        .sorted()
+                        .reduce((a, b) -> a + ", " + b).orElse("(none)");
+    }
+
+    /** /whitelist on|off|add|remove|list: the roster + the runtime enforcement flag. */
+    private String whitelistCommand(CommandSender sender, String[] args) {
+        if (args.length < 1) {
+            return "Usage: /whitelist on|off|add|remove|list";
+        }
+        return switch (args[0].toLowerCase(java.util.Locale.ROOT)) {
+            case "on" -> {
+                whitelistEnforced = true;
+                yield "Whitelist is now enforced";
+            }
+            case "off" -> {
+                whitelistEnforced = false;
+                yield "Whitelist is now off";
+            }
+            case "add" -> {
+                if (args.length < 2) {
+                    yield "Usage: /whitelist add <player>";
+                }
+                java.util.UUID uuid = players.byName(args[1])
+                        .map(PlayerSession::uuid)
+                        .orElseGet(() -> java.util.UUID.nameUUIDFromBytes(
+                                ("OfflinePlayer:" + args[1]).getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+                whitelistStore.add(uuid, args[1]);
+                yield "Added " + args[1] + " to the whitelist";
+            }
+            case "remove" -> {
+                if (args.length < 2) {
+                    yield "Usage: /whitelist remove <player>";
+                }
+                yield whitelistStore.remove(args[1])
+                        ? "Removed " + args[1] + " from the whitelist"
+                        : "No whitelist entry for " + args[1];
+            }
+            case "list" -> {
+                var entries = whitelistStore.entries();
+                yield entries.isEmpty() ? "The whitelist is empty"
+                        : "There are " + entries.size() + " whitelisted player(s): "
+                                + entries.stream().map(e -> e.name()).sorted()
+                                        .reduce((a, b) -> a + ", " + b).orElse("(none)");
+            }
+            default -> "Usage: /whitelist on|off|add|remove|list";
+        };
+    }
+
+    /** /weather &lt;clear|rain&gt; [seconds]: the Change Game State broadcast. */
+    private String weatherCommand(CommandSender sender, String[] args) {
+        if (args.length < 1 || !(args[0].equalsIgnoreCase("clear")
+                || args[0].equalsIgnoreCase("rain"))) {
+            return "Usage: /weather <clear|rain> [seconds]";
+        }
+        boolean target = args[0].equalsIgnoreCase("rain");
+        long durationTicks = -1;
+        if (args.length >= 2) {
+            try {
+                durationTicks = Long.parseLong(args[1]) * 20L;
+            } catch (NumberFormatException malformed) {
+                return "Duration must be seconds: /weather <clear|rain> [seconds]";
+            }
+        }
+        setWeather(target, durationTicks);
+        return target ? "Set the weather to rain" : "Set the weather to clear";
+    }
+
+    /**
+     * Weather commit: the state flips, the broadcast fans out through every
+     * link (Change Game State 1/2), and a duration schedules the auto-clear.
+     * Safe from any thread.
+     */
+    public void setWeather(boolean rain, long durationTicks) {
+        this.raining = rain;
+        this.weatherTicks = durationTicks;
+        for (PlayerSession player : players.all()) {
+            player.link().updateWeather(rain);
+        }
+        LOGGER.info(() -> "Weather set to " + (rain ? "rain" : "clear"));
+    }
+
+    /** @return whether rain is falling (the join's initial state push). */
+    public boolean raining() {
+        return raining;
+    }
+
+    /** The weather countdown (the tick handler drives the auto-clear). */
+    private void tickWeather() {
+        if (weatherTicks > 0 && !raining) {
+            return;
+        }
+        long left = weatherTicks;
+        if (left > 0) {
+            left--;
+            weatherTicks = left;
+            if (left == 0) {
+                setWeather(false, -1);
+            }
+        }
     }
 
     /** Adapter for gameplay commands that only an in-world player may use. */
@@ -3163,6 +3604,18 @@ public final class EngineServer implements Server, EngineBridge {
         if (!VALID_NAME.matcher(username).matches()) {
             return new EngineBridge.Rejected("Invalid username");
         }
+        // The ban gate (the historical banned-players.json check, offline-uuid
+        // keyed): a banned name stays banned across relogins.
+        BanStore.Entry ban = banStore.banOf(offlineUuid, username);
+        if (ban != null) {
+            return new EngineBridge.Rejected("You are banned from this server.\nReason: "
+                    + ban.reason());
+        }
+        // The whitelist gate: only when enforcement is on (server.properties
+        // boot flag, or /whitelist on at runtime).
+        if (whitelistEnforced && !whitelistStore.contains(offlineUuid, username)) {
+            return new EngineBridge.Rejected("You are not whitelisted on this server!");
+        }
         synchronized (players) {
             if (players.size() >= config.maxPlayers()) {
                 return new EngineBridge.Rejected("Server is full");
@@ -3309,6 +3762,8 @@ public final class EngineServer implements Server, EngineBridge {
     @Override
     public void joinCompleted(PlayerSession session) {
         session.markPlaying();
+        // The join learns the sky state (a rainy world never looks wrong).
+        session.link().updateWeather(raining);
         LOGGER.info(() -> "Player in play state: " + session.name());
     }
 

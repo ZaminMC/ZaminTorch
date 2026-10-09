@@ -41,7 +41,9 @@ final class Protocol18 {
     static final int S2C_WORLD_PARTICLES = 0x2A;
     static final int S2C_BLOCK_CHANGE = 0x23;
     static final int S2C_CHANGE_GAME_STATE = 0x2B;
-    /** Change Game State reasons: 3 = change gamemode (value = mode id). */
+    /** Change Game State reasons: 1 end rain, 2 begin rain, 3 = change gamemode. */
+    static final int GAME_STATE_CHANGE_END_RAINING = 1;
+    static final int GAME_STATE_CHANGE_BEGIN_RAINING = 2;
     static final int GAME_STATE_CHANGE_GAMEMODE = 3;
     static final int S2C_PLAYER_ABILITIES = 0x39;
     static final int S2C_SET_SLOT = 0x2F;
