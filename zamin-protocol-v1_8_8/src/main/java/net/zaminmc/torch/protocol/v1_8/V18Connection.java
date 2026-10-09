@@ -890,7 +890,11 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeByte(windowId);
         ByteBufOps.writeString(out, Protocol18.TABLE_WINDOW_TYPE);
         ByteBufOps.writeString(out, Protocol18.TABLE_WINDOW_TITLE);
-        out.writeByte(10); // the GUI's own slots: result + 3x3 grid
+        // Vanilla sends size 0 for the crafting table (ServerPlayerEntity.openMenu's
+        // 3-arg ctor — the client builds the 46-slot layout itself from the type
+        // string; a nonzero size pushes client variants onto the generic-chest
+        // path, the "renders like a chest" real-client class).
+        out.writeByte(0);
         channel.writeAndFlush(out);
         sendContainerWindowItems(channel, windowId, player);
     }

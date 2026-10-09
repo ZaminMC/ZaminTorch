@@ -155,6 +155,23 @@ public final class CraftingGrid {
         return overflow;
     }
 
+    /**
+     * The vanilla close rule (ContainerWorkbench/ContainerPlayer onMenuClose):
+     * every grid stack drops to the world at the player instead of returning
+     * to the inventory. @return the cleared stacks (empty cells skipped).
+     */
+    public List<ItemStack> dropAll() {
+        List<ItemStack> dropped = new ArrayList<>();
+        for (int i = 0; i < cells.length; i++) {
+            ItemStack carried = cells[i];
+            cells[i] = ItemStack.EMPTY;
+            if (!carried.isEmpty()) {
+                dropped.add(carried);
+            }
+        }
+        return dropped;
+    }
+
     /** @return a defensive copy of the cells, index-aligned (row-major). */
     public ItemStack[] snapshotArray() {
         return cells.clone();

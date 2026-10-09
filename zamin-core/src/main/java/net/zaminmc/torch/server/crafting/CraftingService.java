@@ -3,6 +3,8 @@ package net.zaminmc.torch.server.crafting;
 import net.zaminmc.torch.item.ItemStack;
 import net.zaminmc.torch.server.item.BuiltinItems;
 
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -16,8 +18,24 @@ public final class CraftingService {
 
     private final List<CraftingRecipe> recipes;
 
+    /**
+     * The vanilla match order (CraftingManager.registerRecipe's sort, lines
+     * 340-352 of the reference): shaped recipes before shapeless ones, larger
+     * footprints first — so the most specific recipe wins when several
+     * could match the same grid.
+     */
+    private static final Comparator<CraftingRecipe> VANILLA_ORDER = (a, b) -> {
+        if (a.isShaped() != b.isShaped()) {
+            return a.isShaped() ? -1 : 1;
+        }
+        return Integer.compare(b.size(), a.size());
+    };
+
     public CraftingService(List<CraftingRecipe> recipes) {
-        this.recipes = List.copyOf(Objects.requireNonNull(recipes, "recipes"));
+        Objects.requireNonNull(recipes, "recipes");
+        ArrayList<CraftingRecipe> sorted = new ArrayList<>(recipes);
+        sorted.sort(VANILLA_ORDER);
+        this.recipes = List.copyOf(sorted);
     }
 
     /** The engine's community-data recipe set (see {@link BuiltinRecipes}). */
@@ -45,7 +63,7 @@ public final class CraftingService {
         return match(gridSnapshot, cols).map(this::resultStackOf);
     }
 
-    /** @return the first matching recipe on a 2x2 grid, or empty (dataset order). */
+    /** @return the first matching recipe on a 2x2 grid, or empty (vanilla order). */
     public Optional<CraftingRecipe> match(ItemStack[] gridSnapshot) {
         return match(gridSnapshot, 2);
     }

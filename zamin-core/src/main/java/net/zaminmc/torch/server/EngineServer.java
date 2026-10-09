@@ -141,7 +141,7 @@ public final class EngineServer implements Server, EngineBridge {
     private static final int CHEST_WIRE_SLOT_HOTBAR_FIRST = 54;
     private static final int CHEST_WIRE_SLOT_HOTBAR_LAST = 62;
     /** Craft-all guard: even a 3x3 grid cannot chain more crafts than this. */
-    private static final int CRAFT_ALL_LIMIT = 64;
+    private static final int VANILLA_CRAFT_ALL_BOUND = 1024;
     /** Wire window ids: 0 = player inventory; containers get ids from this counter (u8). */
     private static final int WIRE_WINDOW_PLAYER = 0;
     private static final int FIRST_CONTAINER_WINDOW_ID = 1;
@@ -1991,7 +1991,7 @@ public final class EngineServer implements Server, EngineBridge {
                     // Historical result-slot behavior: both buttons craft once
                     // into the cursor; a refused take (mismatched or
                     // overflowing cursor) reverts the client's prediction.
-                    return takeCraftingResult(session, grid, inventory);
+                    return takeCraftingResult(session, grid, inventory, button);
                 } else if (wireSlot >= WIRE_SLOT_CRAFT_FIRST && wireSlot <= WIRE_SLOT_CRAFT_LAST) {
                     grid.clickCell(wireSlot - WIRE_SLOT_CRAFT_FIRST, button, inventory);
                     return true;
@@ -2132,7 +2132,7 @@ public final class EngineServer implements Server, EngineBridge {
         switch (mode) {
             case 0 -> {
                 if (wireSlot == TABLE_WIRE_SLOT_RESULT) {
-                    return takeCraftingResult(session, grid, inventory);
+                    return takeCraftingResult(session, grid, inventory, button);
                 } else if (wireSlot >= TABLE_WIRE_SLOT_GRID_FIRST
                         && wireSlot <= TABLE_WIRE_SLOT_GRID_LAST) {
                     grid.clickCell(wireSlot - TABLE_WIRE_SLOT_GRID_FIRST, button, inventory);
@@ -2465,17 +2465,24 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /**
-     * Result-slot pickup (mode 0 on wire slot 0): the previewed result moves
-     * onto the cursor and one unit leaves every non-empty grid cell — atomic,
-     * historical. A refused cursor take rejects the click unchanged.
+     * Result-slot pickup (mode 0 on wire slot 0) with the vanilla take rule:
+     * left-click moves the whole result onto the cursor; right-click takes
+     * (size+1)/2 — half the result stack. Either way one unit leaves every
+     * non-empty grid cell (the vanilla CraftingResultSlot.onItemRemoved).
+     * A refused cursor take rejects the click unchanged.
      */
     private boolean takeCraftingResult(PlayerSession session, net.zaminmc.torch.server.player.CraftingGrid grid,
-                                       net.zaminmc.torch.server.player.PlayerInventory inventory) {
+                                       net.zaminmc.torch.server.player.PlayerInventory inventory, int button) {
         net.zaminmc.torch.item.ItemStack result = craftingResultOf(grid);
         if (result.isEmpty()) {
             return true; // nothing crafted: an accepted no-op, the resync realigns
         }
-        if (!inventory.takeResultToCursor(result)) {
+        net.zaminmc.torch.item.ItemStack wanted = result;
+        if (button == 1) {
+            // Vanilla pickup path: (size + 1) / 2 of the slot's stack.
+            wanted = result.withCount((result.count() + 1) / 2);
+        }
+        if (!inventory.takeResultToCursor(wanted)) {
             return false;
         }
         grid.consumeOne();
@@ -2492,14 +2499,16 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /**
-     * Craft-all (shift-click on the result): repeats the single craft into the
-     * inventory until the grid no longer matches or the inventory cannot
-     * absorb the next result (the historical stop). A thrown remainder ends
-     * the chain so a full inventory never spins the loop.
+     * Craft-all (shift-click on the result): the vanilla semantics are the
+     * onClickSlot mode-1 recursion — keep crafting while the result keeps
+     * regenerating and the inventory keeps absorbing it, i.e. limited by
+     * materials, not a magic cap. The loop below is that recursion with a
+     * very high safety bound (a recipe whose result feeds its own grid can
+     * never occur, but a broken one must not hang the tick).
      */
     private void craftAllIntoInventory(PlayerSession session, net.zaminmc.torch.server.player.CraftingGrid grid,
                                        net.zaminmc.torch.server.player.PlayerInventory inventory) {
-        for (int craft = 0; craft < CRAFT_ALL_LIMIT; craft++) {
+        for (int craft = 0; craft < VANILLA_CRAFT_ALL_BOUND; craft++) {
             net.zaminmc.torch.item.ItemStack result = craftingResultOf(grid);
             if (result.isEmpty()) {
                 return;
@@ -3844,7 +3853,7 @@ public final class EngineServer implements Server, EngineBridge {
         closeOpenContainerOnTick(session);
         // Opening a container closes the player inventory window (historical):
         // the 2x2 grid returns to the inventory, nothing is lost.
-        throwOverflow(session, session.crafting().returnAllTo(session.inventory()));
+        dropGridToWorld(session, session.crafting()); // the vanilla close: the 2x2 grid drops
 
         int windowId = nextContainerWindowId;
         nextContainerWindowId = nextContainerWindowId >= LAST_CONTAINER_WINDOW_ID
@@ -3866,7 +3875,7 @@ public final class EngineServer implements Server, EngineBridge {
     private void openFurnaceOnTick(PlayerSession session, net.zaminmc.torch.block.BlockPosition position,
                                    java.util.function.IntConsumer onTableOpened) {
         closeOpenContainerOnTick(session);
-        throwOverflow(session, session.crafting().returnAllTo(session.inventory()));
+        dropGridToWorld(session, session.crafting()); // the vanilla close: the 2x2 grid drops
 
         FurnaceBlockEntity furnace = furnaceManager.getOrCreate(position);
         int windowId = nextContainerWindowId;
@@ -3887,7 +3896,7 @@ public final class EngineServer implements Server, EngineBridge {
     private void openChestOnTick(PlayerSession session, net.zaminmc.torch.block.BlockPosition position,
                                  java.util.function.IntConsumer onTableOpened) {
         closeOpenContainerOnTick(session);
-        throwOverflow(session, session.crafting().returnAllTo(session.inventory()));
+        dropGridToWorld(session, session.crafting()); // the vanilla close: the 2x2 grid drops
 
         chestManager.getOrCreate(position);
         int windowId = nextContainerWindowId;
@@ -3910,7 +3919,7 @@ public final class EngineServer implements Server, EngineBridge {
             return;
         }
         if (session.openContainerKind() == PlayerSession.ContainerKind.CRAFTING_TABLE) {
-            throwOverflow(session, session.tableCrafting().returnAllTo(session.inventory()));
+            dropGridToWorld(session, session.tableCrafting()); // the vanilla close: the grid drops
         }
         session.closeContainerWindow();
     }
@@ -3946,23 +3955,32 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /**
-     * Cursor + crafting grids back into the inventory; overflow is thrown.
-     * With {@code containerToo} the open container releases its carried state
-     * as well: the crafting table's 3x3 grid returns to the inventory, while a
-     * furnace's three slots stay inside the furnace (historical container
-     * behavior) and persist with the world. Tick-thread context.
+     * Cursor + crafting grids release per the vanilla close rule
+     * (ContainerPlayer/ContainerWorkbench onMenuClose): the cursor and every
+     * grid stack DROP to the world at the player — they do not return to the
+     * inventory. With {@code containerToo} the open container releases its
+     * carried state as well, while a furnace's three slots stay inside the
+     * furnace (historical container behavior) and persist with the world.
+     * Tick-thread context.
      */
     private void returnWindowCarriedItems(PlayerSession session, boolean containerToo) {
         net.zaminmc.torch.item.ItemStack leftover = session.inventory().returnCursor();
         if (!leftover.isEmpty()) {
             throwFromPlayer(session, leftover);
         }
-        throwOverflow(session, session.crafting().returnAllTo(session.inventory()));
+        dropGridToWorld(session, session.crafting());
         if (containerToo && session.openContainerWindowId() >= 0) {
             if (session.openContainerKind() == PlayerSession.ContainerKind.CRAFTING_TABLE) {
-                throwOverflow(session, session.tableCrafting().returnAllTo(session.inventory()));
+                dropGridToWorld(session, session.tableCrafting());
             }
             session.closeContainerWindow();
+        }
+    }
+
+    /** The vanilla grid close: every stack drops to the world at the player. */
+    private void dropGridToWorld(PlayerSession session, net.zaminmc.torch.server.player.CraftingGrid grid) {
+        for (net.zaminmc.torch.item.ItemStack stack : grid.dropAll()) {
+            throwFromPlayer(session, stack);
         }
     }
 
