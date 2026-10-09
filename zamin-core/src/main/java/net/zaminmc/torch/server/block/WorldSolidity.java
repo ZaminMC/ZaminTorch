@@ -30,6 +30,8 @@ public final class WorldSolidity {
         return !id.equals(BuiltinBlocks.AIR.identifier())
                 && !id.equals(BuiltinBlocks.TORCH.identifier())
                 && !isSign(id)
+                && !isLadder(id)
+                && !isOpenDoorHalf(id)
                 && !isFlora(id)
                 && !FluidBlocks.isFluid(id);
     }
@@ -44,6 +46,19 @@ public final class WorldSolidity {
                 || id.equals(BuiltinBlocks.DANDELION.identifier())
                 || id.equals(BuiltinBlocks.POPPY.identifier())
                 || isWheatCrop(id);
+    }
+
+    /** The ladders (block 65): climbable, never block a body. */
+    public static boolean isLadder(Identifier id) {
+        return id.namespace().equals("minecraft")
+                && (id.value().equals("ladder") || id.value().startsWith("ladder_"));
+    }
+
+    /** The open door halves: the swing opens the passage. */
+    public static boolean isOpenDoorHalf(Identifier id) {
+        return id.namespace().equals("minecraft")
+                && (id.value().startsWith("oak_door_open")
+                    || id.value().equals("oak_door_upper_open"));
     }
 
     /** The standing signs (block 63): the thin-post model, walk-through. */

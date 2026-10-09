@@ -199,7 +199,60 @@ public final class BlockBehaviorTable {
                     new BlockBehavior(1.0, true, false, "wood", 0,
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:sign"), 1)))),
 
-            Map.entry(Identifier.parse("minecraft:tall_grass"),
+
+            Map.entry(Identifier.parse("minecraft:oak_door"),
+                    new BlockBehavior(3.0, true, false, "wood", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:oak_door"), 1)))),
+            Map.entry(Identifier.parse("minecraft:oak_door_north"),
+                    new BlockBehavior(3.0, true, false, "wood", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:oak_door"), 1)))),
+            Map.entry(Identifier.parse("minecraft:oak_door_east"),
+                    new BlockBehavior(3.0, true, false, "wood", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:oak_door"), 1)))),
+            Map.entry(Identifier.parse("minecraft:oak_door_south"),
+                    new BlockBehavior(3.0, true, false, "wood", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:oak_door"), 1)))),
+            Map.entry(Identifier.parse("minecraft:oak_door_open"),
+                    new BlockBehavior(3.0, true, false, "wood", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:oak_door"), 1)))),
+            Map.entry(Identifier.parse("minecraft:oak_door_open_north"),
+                    new BlockBehavior(3.0, true, false, "wood", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:oak_door"), 1)))),
+            Map.entry(Identifier.parse("minecraft:oak_door_open_east"),
+                    new BlockBehavior(3.0, true, false, "wood", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:oak_door"), 1)))),
+            Map.entry(Identifier.parse("minecraft:oak_door_open_south"),
+                    new BlockBehavior(3.0, true, false, "wood", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:oak_door"), 1)))),
+            Map.entry(Identifier.parse("minecraft:oak_door_upper"),
+                    new BlockBehavior(3.0, true, false, "wood", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:oak_door"), 1)))),
+            Map.entry(Identifier.parse("minecraft:oak_door_upper_open"),
+                    new BlockBehavior(3.0, true, false, "wood", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:oak_door"), 1)))),
+            // The ladders (community blocks.json: hardness 0.4, drops itself)
+            Map.entry(Identifier.parse("minecraft:ladder"),
+                    new BlockBehavior(0.4, true, false, "wood", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:ladder"), 1)))),
+
+            Map.entry(Identifier.parse("minecraft:ladder_south"),
+                    new BlockBehavior(0.4, true, false, "wood", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:ladder"), 1)))),
+
+            Map.entry(Identifier.parse("minecraft:ladder_west"),
+                    new BlockBehavior(0.4, true, false, "wood", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:ladder"), 1)))),
+
+            Map.entry(Identifier.parse("minecraft:ladder_east"),
+                    new BlockBehavior(0.4, true, false, "wood", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:ladder"), 1)))),
+
+            // The oak fence (hardness 2.0, wood, drops itself)
+            Map.entry(Identifier.parse("minecraft:oak_fence"),
+                    new BlockBehavior(2.0, true, false, "wood", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:oak_fence"), 1)))),
+
+                        Map.entry(Identifier.parse("minecraft:tall_grass"),
                     new BlockBehavior(0.0, true, false, "plants", 0,
                             // the historical seed roll (1/8) first, the
                             // flora slice's self-drop otherwise

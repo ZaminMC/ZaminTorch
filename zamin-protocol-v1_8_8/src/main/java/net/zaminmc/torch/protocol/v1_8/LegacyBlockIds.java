@@ -161,7 +161,25 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:sign"), 63),
             Map.entry(Identifier.parse("minecraft:sign_west"), 63),
             Map.entry(Identifier.parse("minecraft:sign_north"), 63),
-            Map.entry(Identifier.parse("minecraft:sign_east"), 63));
+            Map.entry(Identifier.parse("minecraft:sign_east"), 63),
+            // The building vocabulary slice (community blocks.json): oak
+            // door 64 (facing+open in the metadata), ladder 65 (facing),
+            // oak fence 85.
+            Map.entry(Identifier.parse("minecraft:oak_door"), 64),
+            Map.entry(Identifier.parse("minecraft:oak_door_north"), 64),
+            Map.entry(Identifier.parse("minecraft:oak_door_east"), 64),
+            Map.entry(Identifier.parse("minecraft:oak_door_south"), 64),
+            Map.entry(Identifier.parse("minecraft:oak_door_open"), 64),
+            Map.entry(Identifier.parse("minecraft:oak_door_open_north"), 64),
+            Map.entry(Identifier.parse("minecraft:oak_door_open_east"), 64),
+            Map.entry(Identifier.parse("minecraft:oak_door_open_south"), 64),
+            Map.entry(Identifier.parse("minecraft:oak_door_upper"), 64),
+            Map.entry(Identifier.parse("minecraft:oak_door_upper_open"), 64),
+            Map.entry(Identifier.parse("minecraft:ladder"), 65),
+            Map.entry(Identifier.parse("minecraft:ladder_south"), 65),
+            Map.entry(Identifier.parse("minecraft:ladder_west"), 65),
+            Map.entry(Identifier.parse("minecraft:ladder_east"), 65),
+            Map.entry(Identifier.parse("minecraft:oak_fence"), 85));
 
     /**
      * Item-form ids that diverge from the block id sharing the identifier
@@ -170,7 +188,9 @@ final class LegacyBlockIds {
      * Declared before the reverse map: reverse() folds it in at init.
      */
     private static final Map<Identifier, Integer> ITEM_OVERRIDES = Map.of(
-            Identifier.parse("minecraft:sign"), 323);
+            Identifier.parse("minecraft:sign"), 323,
+            Identifier.parse("minecraft:oak_door"), 324,
+            Identifier.parse("minecraft:ladder"), 65);
 
     private static final Map<Integer, Identifier> BY_LEGACY_ID = reverse();
 
@@ -209,11 +229,23 @@ final class LegacyBlockIds {
      * flora: 0 dead shrub, 1 grass, 2 fern — the engine's tall grass is the
      * real "grass" variant on the wire).
      */
-    private static final Map<Identifier, Integer> METADATA = Map.of(
-            Identifier.parse("minecraft:tall_grass"), 1,
-            Identifier.parse("minecraft:sign_west"), 4,
-            Identifier.parse("minecraft:sign_north"), 8,
-            Identifier.parse("minecraft:sign_east"), 12);
+    private static final Map<Identifier, Integer> METADATA = Map.ofEntries(
+            Map.entry(Identifier.parse("minecraft:tall_grass"), 1),
+            Map.entry(Identifier.parse("minecraft:sign_west"), 4),
+            Map.entry(Identifier.parse("minecraft:sign_north"), 8),
+            Map.entry(Identifier.parse("minecraft:sign_east"), 12),
+            Map.entry(Identifier.parse("minecraft:oak_door_north"), 1),
+            Map.entry(Identifier.parse("minecraft:oak_door_east"), 2),
+            Map.entry(Identifier.parse("minecraft:oak_door_south"), 3),
+            Map.entry(Identifier.parse("minecraft:oak_door_open"), 4),
+            Map.entry(Identifier.parse("minecraft:oak_door_open_north"), 5),
+            Map.entry(Identifier.parse("minecraft:oak_door_open_east"), 6),
+            Map.entry(Identifier.parse("minecraft:oak_door_open_south"), 7),
+            Map.entry(Identifier.parse("minecraft:oak_door_upper"), 8),
+            Map.entry(Identifier.parse("minecraft:oak_door_upper_open"), 9),
+            Map.entry(Identifier.parse("minecraft:ladder_south"), 3),
+            Map.entry(Identifier.parse("minecraft:ladder_west"), 4),
+            Map.entry(Identifier.parse("minecraft:ladder_east"), 5));
 
     /**
      * @return the wire metadata nibble of a block type: the 1.8 data-value

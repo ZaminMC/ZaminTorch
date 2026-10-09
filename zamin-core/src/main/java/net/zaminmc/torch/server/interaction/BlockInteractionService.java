@@ -159,6 +159,12 @@ public final class BlockInteractionService {
             return;
         }
         commit(position, world.airType());
+        // The break hook fires in creative too: door halves die as a unit and
+        // container contents spill (the historical creative-break behavior).
+        Consumer<BlockPosition> listener = blockBrokenListener;
+        if (listener != null) {
+            listener.accept(position);
+        }
     }
 
     private void miningStartOnTick(PlayerSession player, BlockPosition target) {
