@@ -82,6 +82,32 @@ public final class BuiltinBlocks {
     public static final EngineBlockType SANDSTONE = new EngineBlockType(
             Identifier.parse("minecraft:sandstone"), "Sandstone");
 
+    // The farming slice (community blocks.json ids): farmland 60 (the wet
+    // variant carries metadata 1) and the wheat crop 59 with the growth age
+    // 0..7 in the metadata nibble — the historical age encoding. Each stage
+    // is its own block type (the engine's fluid-level model: per-state types
+    // with a wire metadata nibble, no second metadata system).
+    public static final EngineBlockType FARMLAND = new EngineBlockType(
+            Identifier.parse("minecraft:farmland"), "Farmland");
+    public static final EngineBlockType FARMLAND_WET = new EngineBlockType(
+            Identifier.parse("minecraft:farmland_wet"), "Farmland", 1);
+    public static final EngineBlockType WHEAT_STAGE0 = new EngineBlockType(
+            Identifier.parse("minecraft:wheat_stage0"), "Wheat Crop");
+    public static final EngineBlockType WHEAT_STAGE1 = new EngineBlockType(
+            Identifier.parse("minecraft:wheat_stage1"), "Wheat Crop", 1);
+    public static final EngineBlockType WHEAT_STAGE2 = new EngineBlockType(
+            Identifier.parse("minecraft:wheat_stage2"), "Wheat Crop", 2);
+    public static final EngineBlockType WHEAT_STAGE3 = new EngineBlockType(
+            Identifier.parse("minecraft:wheat_stage3"), "Wheat Crop", 3);
+    public static final EngineBlockType WHEAT_STAGE4 = new EngineBlockType(
+            Identifier.parse("minecraft:wheat_stage4"), "Wheat Crop", 4);
+    public static final EngineBlockType WHEAT_STAGE5 = new EngineBlockType(
+            Identifier.parse("minecraft:wheat_stage5"), "Wheat Crop", 5);
+    public static final EngineBlockType WHEAT_STAGE6 = new EngineBlockType(
+            Identifier.parse("minecraft:wheat_stage6"), "Wheat Crop", 6);
+    public static final EngineBlockType WHEAT_STAGE7 = new EngineBlockType(
+            Identifier.parse("minecraft:wheat_stage7"), "Wheat Crop", 7);
+
     private BuiltinBlocks() {
     }
 
@@ -112,6 +138,16 @@ public final class BuiltinBlocks {
                 .register(DEAD_BUSH)
                 .register(DANDELION)
                 .register(POPPY)
-                .register(SANDSTONE);
+                .register(SANDSTONE)
+                .register(FARMLAND)
+                .register(FARMLAND_WET)
+                .register(WHEAT_STAGE0)
+                .register(WHEAT_STAGE1)
+                .register(WHEAT_STAGE2)
+                .register(WHEAT_STAGE3)
+                .register(WHEAT_STAGE4)
+                .register(WHEAT_STAGE5)
+                .register(WHEAT_STAGE6)
+                .register(WHEAT_STAGE7);
     }
 }

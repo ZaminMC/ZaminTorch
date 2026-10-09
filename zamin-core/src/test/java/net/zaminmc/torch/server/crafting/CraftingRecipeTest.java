@@ -39,7 +39,7 @@ class CraftingRecipeTest {
         // planks, sticks, table, torch, furnace, chest, 16 tools (wood/stone/
         // iron/diamond x pickaxe/axe/shovel/sword) + shears. Gold still needs
         // gold ingot — no gold ore item exists in the registry yet.
-        assertEquals(23, BuiltinRecipes.ALL.size());
+        assertEquals(25, BuiltinRecipes.ALL.size());
         for (CraftingRecipe recipe : BuiltinRecipes.ALL) {
             assertTrue(recipe.isShaped(), "the dataset encodes all of these as shaped");
         }

@@ -75,6 +75,7 @@ public final class Tools {
             };
             case SHOVEL -> 1.5f;
             case SHEARS -> 1.5f;
+            case HOE -> 1.0f; // the historical ItemHoe: no dig acceleration
         };
     }
 }

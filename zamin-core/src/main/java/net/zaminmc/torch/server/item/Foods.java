@@ -36,7 +36,9 @@ public final class Foods {
             net.zaminmc.torch.util.Identifier.parse("minecraft:cooked_porkchop"), new Nutrition(8, 12.8f),
             net.zaminmc.torch.util.Identifier.parse("minecraft:chicken"), new Nutrition(2, 0.6f),
             net.zaminmc.torch.util.Identifier.parse("minecraft:cooked_chicken"), new Nutrition(6, 7.2f),
-            net.zaminmc.torch.util.Identifier.parse("minecraft:rotten_flesh"), new Nutrition(4, 0.8f));
+            net.zaminmc.torch.util.Identifier.parse("minecraft:rotten_flesh"), new Nutrition(4, 0.8f),
+            // The crop food (community foods.json: bread food 5, saturation 6.0)
+            net.zaminmc.torch.util.Identifier.parse("minecraft:bread"), new Nutrition(5, 6.0f));
 
     private Foods() {
     }

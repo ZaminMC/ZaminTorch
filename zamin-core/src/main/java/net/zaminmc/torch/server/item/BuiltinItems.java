@@ -77,6 +77,18 @@ public final class BuiltinItems {
     public static final EngineItemType COOKED_BEEF = new EngineItemType(
             Identifier.parse("minecraft:cooked_beef"), "Steak", 64);
 
+    // The farming slice (community items.json legacy ids: seeds 295,
+    // wheat 296, bread 297, bone meal 351). Bread is the iconic crop food;
+    // bone meal is the instant-grow dust (dye damage 15 on the wire).
+    public static final EngineItemType WHEAT_SEEDS = new EngineItemType(
+            Identifier.parse("minecraft:wheat_seeds"), "Wheat Seeds", 64);
+    public static final EngineItemType WHEAT = new EngineItemType(
+            Identifier.parse("minecraft:wheat"), "Wheat", 64);
+    public static final EngineItemType BREAD = new EngineItemType(
+            Identifier.parse("minecraft:bread"), "Bread", 64);
+    public static final EngineItemType BONE_MEAL = new EngineItemType(
+            Identifier.parse("minecraft:bone_meal"), "Bone Meal", 64);
+
     // Mob loot (legacy ids from the community dataset: porkchop 319, cooked
     // porkchop 320, raw chicken 365, cooked chicken 366, feather 288,
     // leather 334, rotten flesh 367). Cooked variants smelt from the raw
@@ -173,6 +185,18 @@ public final class BuiltinItems {
     // Shears (legacy 359).
     public static final EngineItemType SHEARS = tool("shears", "Shears",
             ToolClass.SHEARS, ToolMaterial.IRON, 238);
+    // The tillers (community items.json ids 290-294, maxDurability per
+    // material — the same values the other tool families carry).
+    public static final EngineItemType WOODEN_HOE = tool("wooden_hoe", "Wooden Hoe",
+            ToolClass.HOE, ToolMaterial.WOOD);
+    public static final EngineItemType STONE_HOE = tool("stone_hoe", "Stone Hoe",
+            ToolClass.HOE, ToolMaterial.STONE);
+    public static final EngineItemType IRON_HOE = tool("iron_hoe", "Iron Hoe",
+            ToolClass.HOE, ToolMaterial.IRON);
+    public static final EngineItemType DIAMOND_HOE = tool("diamond_hoe", "Diamond Hoe",
+            ToolClass.HOE, ToolMaterial.DIAMOND);
+    public static final EngineItemType GOLDEN_HOE = tool("golden_hoe", "Golden Hoe",
+            ToolClass.HOE, ToolMaterial.GOLD);
 
     // Mob loot of the living-night slice (legacy ids from the community
     // dataset: bone 352, string 287, gunpowder 289; wool is the sheep's
@@ -281,6 +305,8 @@ public final class BuiltinItems {
                 WOODEN_SHOVEL, STONE_SHOVEL, IRON_SHOVEL, DIAMOND_SHOVEL, GOLDEN_SHOVEL,
                 WOODEN_SWORD, STONE_SWORD, IRON_SWORD, DIAMOND_SWORD, GOLDEN_SWORD,
                 SHEARS,
+                WOODEN_HOE, STONE_HOE, IRON_HOE, DIAMOND_HOE, GOLDEN_HOE,
+                WHEAT_SEEDS, WHEAT, BREAD, BONE_MEAL,
                 BONE, STRING, GUNPOWDER, WOOL, MUTTON, COOKED_MUTTON,
                 BUCKET, WATER_BUCKET, LAVA_BUCKET,
                 TALL_GRASS, DEAD_BUSH, DANDELION, POPPY, SANDSTONE,

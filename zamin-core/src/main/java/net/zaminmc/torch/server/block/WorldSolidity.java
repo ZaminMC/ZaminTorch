@@ -41,6 +41,13 @@ public final class WorldSolidity {
         return id.equals(BuiltinBlocks.TALL_GRASS.identifier())
                 || id.equals(BuiltinBlocks.DEAD_BUSH.identifier())
                 || id.equals(BuiltinBlocks.DANDELION.identifier())
-                || id.equals(BuiltinBlocks.POPPY.identifier());
+                || id.equals(BuiltinBlocks.POPPY.identifier())
+                || isWheatCrop(id);
+    }
+
+    /** The wheat crop stages (block 59, ages 0..7): walk-through plants. */
+    public static boolean isWheatCrop(Identifier id) {
+        return id.namespace().equals("minecraft")
+                && id.value().startsWith("wheat_stage");
     }
 }
