@@ -49,6 +49,8 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
     private volatile int containerMountId = -1;
     /** The selected trade row of the open villager window (the MC|TrSel index); -1 none. */
     private volatile int selectedTrade = -1;
+    /** The anti-cheat violation ledger (reach/nuker/fastplace counters + rings). */
+    private final Violations violations = new Violations();
 
     /** The kinds of container windows a session can hold open. */
     public enum ContainerKind {
@@ -371,6 +373,11 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
     /** Tick-thread only: the MC|TrSel index lands here (the offer to execute). */
     public void setSelectedTrade(int index) {
         this.selectedTrade = index;
+    }
+
+    /** @return the anti-cheat violation ledger (tick-thread confined). */
+    public Violations violations() {
+        return violations;
     }
 
     /** Marks the container window as closed (no container open). */

@@ -1313,6 +1313,30 @@ public final class EngineServer implements Server, EngineBridge {
             double dy = target.y() - eye.y();
             double dz = target.z() - eye.z();
             double horizontal = Math.sqrt(dx * dx + dz * dz);
+            // The reach check (the Acid-adopted shape) runs BEFORE the
+            // refusal gates so far hits flag (the ladder kicks at 20); the
+            // refusal itself still follows for the hard cap.
+            boolean creative = attacker.gamemode() == net.zaminmc.torch.GameMode.CREATIVE;
+            Position eyePoint = new Position(eye.x(),
+                    eye.y() + (attacker.sneaking()
+                            ? net.zaminmc.torch.server.player.AntiCheat.EYE_HEIGHT_SNEAKING
+                            : net.zaminmc.torch.server.player.AntiCheat.EYE_HEIGHT_STANDING),
+                    eye.z());
+            double reachDistance = net.zaminmc.torch.server.player.AntiCheat.eyeToBoxDistance(
+                    eyePoint, target, mob.type().width, mob.type().height);
+            if (reachDistance > net.zaminmc.torch.server.player.AntiCheat.maxReach(creative)) {
+                attacker.violations().addReachViolation();
+                LOGGER.warning(() -> "Reach violation for " + attacker.name() + " ("
+                        + String.format(java.util.Locale.ROOT, "%.2f", reachDistance)
+                        + " blocks, vl "
+                        + String.format(java.util.Locale.ROOT, "%.0f",
+                        attacker.violations().reachViolations()) + ")");
+                if (attacker.violations().reachViolations()
+                        >= net.zaminmc.torch.server.player.AntiCheat.REACH_KICK_VIOLATIONS) {
+                    attacker.link().kick("Reach");
+                }
+                return; // the flag and the refusal ride together
+            }
             if (horizontal > MELEE_REACH + mob.type().width * 0.5
                     || dy < -2.0 || dy > 4.0) {
                 return; // out of reach: the server-side refusal
@@ -1357,6 +1381,31 @@ public final class EngineServer implements Server, EngineBridge {
             double dy = target.y() - eye.y();
             double dz = target.z() - eye.z();
             double horizontal = Math.sqrt(dx * dx + dz * dz);
+            // The reach check (the Acid-adopted shape; the PvP victim box is
+            // the 0.6 x 1.8 player body) runs before the refusal so far hits
+            // flag — the ladder kicks at 20 with the per-second decay.
+            boolean creative = attacker.gamemode() == net.zaminmc.torch.GameMode.CREATIVE;
+            Position eyePoint = new Position(eye.x(),
+                    eye.y() + (attacker.sneaking()
+                            ? net.zaminmc.torch.server.player.AntiCheat.EYE_HEIGHT_SNEAKING
+                            : net.zaminmc.torch.server.player.AntiCheat.EYE_HEIGHT_STANDING),
+                    eye.z());
+            double reachDistance = net.zaminmc.torch.server.player.AntiCheat.eyeToBoxDistance(
+                    eyePoint, target, 0.6, 1.8);
+            if (reachDistance > net.zaminmc.torch.server.player.AntiCheat.maxReach(creative)) {
+                attacker.violations().addReachViolation();
+                LOGGER.warning(() -> "Reach violation for " + attacker.name() + " against "
+                        + victim.name() + " ("
+                        + String.format(java.util.Locale.ROOT, "%.2f", reachDistance)
+                        + " blocks, vl "
+                        + String.format(java.util.Locale.ROOT, "%.0f",
+                        attacker.violations().reachViolations()) + ")");
+                if (attacker.violations().reachViolations()
+                        >= net.zaminmc.torch.server.player.AntiCheat.REACH_KICK_VIOLATIONS) {
+                    attacker.link().kick("Reach");
+                }
+                return; // the flag and the refusal ride together
+            }
             // The victim's bounding box adds 0.3 to the reach like a mob's width.
             if (horizontal > MELEE_REACH + 0.3 || dy < -2.0 || dy > 4.0) {
                 return; // out of reach: the server-side refusal
