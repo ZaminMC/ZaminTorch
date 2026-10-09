@@ -1858,7 +1858,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         // status byte (1.8 DataWatcher 16: the creeper's swell state, the
         // sheep's coat), then terminator.
         out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | Protocol18.LIVING_FLAGS_METADATA_INDEX);
-        out.writeByte(0);
+        out.writeByte(mob.burning() ? Protocol18.LIVING_FLAG_BURNING : 0);
         out.writeByte((Protocol18.METADATA_TYPE_FLOAT << 5) | Protocol18.LIVING_HEALTH_METADATA_INDEX);
         out.writeFloat(mob.health());
         writeKindStatusMetadata(out, mob);
@@ -1906,6 +1906,24 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeVarInt(out, mob.entityId());
         out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | Protocol18.KIND_STATUS_METADATA_INDEX);
         out.writeByte(value);
+        out.writeByte(Protocol18.METADATA_TERMINATOR);
+        channel.writeAndFlush(out);
+    }
+
+    /**
+     * Set Entity Metadata (0x1C) for the living-flags byte: the burn bit
+     * catching or dying out on a mob body. Any thread.
+     */
+    void sendMobLivingFlags(MobEntity mob) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(12);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_ENTITY_METADATA);
+        ByteBufOps.writeVarInt(out, mob.entityId());
+        out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | Protocol18.LIVING_FLAGS_METADATA_INDEX);
+        out.writeByte(mob.burning() ? Protocol18.LIVING_FLAG_BURNING : 0);
         out.writeByte(Protocol18.METADATA_TERMINATOR);
         channel.writeAndFlush(out);
     }
@@ -2349,7 +2367,8 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             return; // not visible to this observer
         }
         int flags = (mover.sneaking() ? Protocol18.LIVING_FLAG_SNEAKING : 0)
-                | (mover.sprinting() ? Protocol18.LIVING_FLAG_SPRINTING : 0);
+                | (mover.sprinting() ? Protocol18.LIVING_FLAG_SPRINTING : 0)
+                | (mover.burning() ? Protocol18.LIVING_FLAG_BURNING : 0);
         ByteBuf out = Unpooled.buffer(12);
         ByteBufOps.writeVarInt(out, Protocol18.S2C_ENTITY_METADATA);
         ByteBufOps.writeVarInt(out, wireId);

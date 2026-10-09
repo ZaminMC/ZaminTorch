@@ -95,6 +95,10 @@ public final class MobEntity {
     public static final double VOID_KILL_Y = -64.0;
     /** The historical DamageSource.outOfWorld rate: four damage (two hearts) per tick. */
     public static final float VOID_DAMAGE_PER_TICK = 4.0f;
+    /** The ignite duration standing in fire arms (the historical 8 s). */
+    public static final int FIRE_TICKS = 160;
+    /** The historical burn rate: one damage per second while on fire. */
+    public static final float FIRE_DAMAGE_PER_SECOND = 1.0f;
 
     /**
      * Minimal world query the mob needs (tick-thread context only). The
@@ -118,6 +122,11 @@ public final class MobEntity {
 
         /** @return whether the block containing this point is a fluid. */
         default boolean inFluid(double x, double y, double z) {
+            return false;
+        }
+
+        /** @return whether the block containing this point is fire. */
+        default boolean inFire(double x, double y, double z) {
             return false;
         }
     }
@@ -172,6 +181,11 @@ public final class MobEntity {
 
     // Primed creeper: the mind arms, the manager detonates and removes.
     private boolean pendingExplosion;
+
+    // The fire clock: armed by fire contact (and the dawn sun for the
+    // undead), deals the historical 1 damage per second while burning.
+    private int fireTicks;
+    private int fireDamageTimer;
 
     // The goal layer (the community PathfinderGoal architecture).
     private final GoalSelector goals = MobGoals.standard();
@@ -340,6 +354,15 @@ public final class MobEntity {
         if (attackCooldown > 0) {
             attackCooldown--;
         }
+        // The fire clock: the historical 1 damage per second while burning.
+        // Dead bodies stop burning (the death animation freezes the body).
+        if (!dead && fireTicks > 0) {
+            fireTicks--;
+            if (++fireDamageTimer >= 20) {
+                fireDamageTimer = 0;
+                hurt(FIRE_DAMAGE_PER_SECOND);
+            }
+        }
         if (sheared && regrowTimer > 0) {
             regrowTimer--;
             if (regrowTimer == 0) {
@@ -400,6 +423,31 @@ public final class MobEntity {
         boolean value = regrownThisTick;
         regrownThisTick = false;
         return value;
+    }
+
+    // ------------------------------------------------ fire (the burning slice)
+
+    /** @return ticks of burning left (0 = not on fire). */
+    public int fireTicks() {
+        return fireTicks;
+    }
+
+    /** @return true while the body is on fire (the living-flags bit 0x01). */
+    public boolean burning() {
+        return fireTicks > 0;
+    }
+
+    /** Arms the fire clock to at least {@code ticks} (the ignite rule). */
+    public void ignite(int ticks) {
+        if (ticks > fireTicks) {
+            fireTicks = ticks;
+        }
+    }
+
+    /** Douses the body (water contact, test seams). */
+    public void extinguish() {
+        fireTicks = 0;
+        fireDamageTimer = 0;
     }
 
     /** Set when a sheep's coat regrew; consumed by the manager. */
@@ -592,9 +640,16 @@ public final class MobEntity {
         if (position.y() < VOID_KILL_Y) {
             hurt(VOID_DAMAGE_PER_TICK);
         }
+        // Fire contact arms the burn (the historical setFire on collision).
+        if (!dead && world.inFire(position.x(), position.y(), position.z())) {
+            ignite(FIRE_TICKS);
+        }
         // Vertical: gravity + ground snap (the item-entity model). A body in
         // fluid sinks slowly and bobs (the historical fluid buoyancy).
         boolean inFluid = world.inFluid(position.x(), position.y() + 0.2, position.z());
+        if (inFluid && fireTicks > 0) {
+            extinguish(); // the water douses the burn (the historical rule)
+        }
         if (inFluid) {
             velocityY = Math.max(velocityY - GRAVITY_PER_TICK, -0.05) * 0.8;
         } else if (onGround) {

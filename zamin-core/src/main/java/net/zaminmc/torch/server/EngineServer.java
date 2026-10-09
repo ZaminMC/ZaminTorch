@@ -361,9 +361,10 @@ public final class EngineServer implements Server, EngineBridge {
                 this.fallingEntities = falling;
                 falling.addListener(new FallingEventDispatch());
                 // Scheduled block updates (§466): neighbor notifications drive the
-                // gravity/torch/grass rules. Registered as a world listener before
+                // gravity/torch/grass/fire rules. Registered as a world listener before
                 // the adapter, so engine-side rules observe every commit first.
                 blockUpdateSystem = new BlockUpdateSystem(world, itemEntities, falling);
+                blockUpdateSystem.setFireEnvironment(() -> raining, gameplayRandom);
                 // The world itself dispatches every committed change (§208): the
                 // neighbor-update system observes player- AND engine-driven changes.
                 world.addChangeListener(blockUpdateSystem);
@@ -974,6 +975,7 @@ public final class EngineServer implements Server, EngineBridge {
             tickFoodEconomy(session);
             tickLanding(session);
             tickBreath(session);
+            tickFireBody(session);
             // The ladder catch: a body on a ladder accumulates no fall
             // distance, so the descent never rounds into landing damage.
             if (ladderAt(session.position().x(), session.position().y(),
@@ -1035,10 +1037,54 @@ public final class EngineServer implements Server, EngineBridge {
         publishBodyChanged(session);
     }
 
-    /** The eye height (1.62) — where eat sounds and throw gestures originate. */
+    /**
+     * The eye height (1.62) — where eat sounds and throw gestures originate.
+     */
     private static Position mouthPosition(PlayerSession session) {
         Position p = session.position();
         return new Position(p.x(), p.y() + 1.62, p.z());
+    }
+
+    /**
+     * The player body's fire clock (the historical EntityPlayer burn rules):
+     * standing in fire re-arms the burn and hurts every half second; while
+     * merely on fire the damage lands every second; water douses the flame.
+     * Creative and spectator bodies are fire-proof (the mode guard).
+     * Tick-thread context.
+     */
+    private void tickFireBody(PlayerSession session) {
+        if (session.gamemode() == GameMode.CREATIVE
+                || session.gamemode() == GameMode.SPECTATOR) {
+            return;
+        }
+        Position feet = session.position();
+        var feetBlock = world.getBlock(new BlockPosition(
+                (int) Math.floor(feet.x()), (int) Math.floor(feet.y()),
+                (int) Math.floor(feet.z())));
+        var bodyBlock = world.getBlock(new BlockPosition(
+                (int) Math.floor(feet.x()), (int) Math.floor(feet.y() + 1),
+                (int) Math.floor(feet.z())));
+        boolean inFire = WorldSolidity.isFire(feetBlock.identifier())
+                || WorldSolidity.isFire(bodyBlock.identifier());
+        if (inFire) {
+            // Standing in the flame re-arms the burn and hurts every half
+            // second (the historical in-fire cadence).
+            session.ignite(net.zaminmc.torch.server.entity.MobEntity.FIRE_TICKS);
+            if (session.advanceFireDamageTimer() % 10 == 0) {
+                damageOnTick(session, 1.0f, "went up in flames");
+            }
+        } else if (session.burning()) {
+            // After leaving the flame the residual burn hurts every second.
+            if (session.advanceFireDamageTimer() % 20 == 0) {
+                damageOnTick(session, 1.0f, "went up in flames");
+            }
+        }
+        // Fluid contact douses the burn (the historical rule).
+        if (FluidBlocks.kindOf(feetBlock.identifier()) != null && session.burning()) {
+            session.extinguish();
+            session.resetFireDamageTimer();
+        }
+        session.tickFire();
     }
 
     /** The historical 1.8 FoodStats loop on easy difficulty. */
@@ -2239,6 +2285,9 @@ public final class EngineServer implements Server, EngineBridge {
         if (useBucketOnTick(session, clicked, face)) {
             return; // the bucket did its work; no placement proposal follows
         }
+        if (useFlintOnTick(session, clicked, face)) {
+            return; // the fire starter did its work; no placement follows
+        }
         if (useFarmingOnTick(session, clicked)) {
             return; // the hoe/seed/bone-meal use was consumed
         }
@@ -2278,6 +2327,41 @@ public final class EngineServer implements Server, EngineBridge {
             return; // the two-half bed overrides the generic placement
         }
         blockInteraction.placeFromUseOnTick(session, clicked, face, creativeHeld);
+    }
+
+    /**
+     * The flint and steel use (the historical ItemFlintAndSteel right-click):
+     * fire lands against the clicked face when that cell is open or replacable
+     * flora, and the steel wears one use. Returns whether the use was
+     * consumed. Tick-thread context.
+     */
+    private boolean useFlintOnTick(PlayerSession session, BlockPosition clicked, int face) {
+        net.zaminmc.torch.item.ItemStack heldStack = session.inventory().held();
+        if (heldStack.isEmpty()
+                || !heldStack.type().identifier().toString()
+                        .equals("minecraft:flint_and_steel")) {
+            return false;
+        }
+        BlockPosition target = offsetByFace(clicked, face);
+        if (target == null) {
+            return false;
+        }
+        BlockType at = world.getBlock(target);
+        boolean replaceable = at.equals(world.airType())
+                || at.identifier().equals(BuiltinBlocks.TALL_GRASS.identifier())
+                || at.identifier().equals(BuiltinBlocks.DEAD_BUSH.identifier());
+        if (!replaceable) {
+            return false; // no open cell: the steel sparks at nothing
+        }
+        world.setBlock(target, BuiltinBlocks.FIRE);
+        fxManager.sound(new Position(target.x() + 0.5, target.y() + 0.5, target.z() + 0.5),
+                "fire.ignite", 1.0f, 0.9f + fxRandom.nextFloat() * 0.2f);
+        if (session.gamemode() == GameMode.SURVIVAL
+                || session.gamemode() == GameMode.ADVENTURE) {
+            session.inventory().damageHeld(1);
+            publishInventoryChanged(session);
+        }
+        return true;
     }
 
     /**
@@ -3101,6 +3185,13 @@ public final class EngineServer implements Server, EngineBridge {
         public void onMobRemoved(MobEntity mob, String reason) {
             for (MobManager.Listener listener : mobListeners) {
                 listener.onMobRemoved(mob, reason);
+            }
+        }
+
+        @Override
+        public void onMobBurningChanged(MobEntity mob, boolean burning) {
+            for (MobManager.Listener listener : mobListeners) {
+                listener.onMobBurningChanged(mob, burning);
             }
         }
 

@@ -244,6 +244,14 @@ public final class V18ProtocolServer implements ProtocolAdapter {
             }
 
             @Override
+            public void onMobBurningChanged(net.zaminmc.torch.server.entity.MobEntity mob,
+                                            boolean burning) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendMobLivingFlags(mob);
+                }
+            }
+
+            @Override
             public void onMobAttackedPlayer(net.zaminmc.torch.server.entity.MobEntity mob,
                                             net.zaminmc.torch.server.player.PlayerSession target, float damage) {
                 // The health sync rides the survival listener; the victim's

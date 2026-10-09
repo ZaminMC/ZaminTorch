@@ -37,6 +37,13 @@ public final class BuiltinBlocks {
             Identifier.parse("minecraft:oak_log"), "Oak Log");
     public static final EngineBlockType OAK_LEAVES = new EngineBlockType(
             Identifier.parse("minecraft:oak_leaves"), "Oak Leaves");
+    // The placeable forms of two craftable items that previously existed only
+    // as inventory stacks (legacy ids: planks 5, wool 35) — the crafting loop
+    // reaches the building table through these.
+    public static final EngineBlockType OAK_PLANKS = new EngineBlockType(
+            Identifier.parse("minecraft:oak_planks"), "Oak Planks");
+    public static final EngineBlockType WOOL = new EngineBlockType(
+            Identifier.parse("minecraft:wool"), "Wool");
 
     // Craftable blocks (community-data recipes place their results here).
     public static final EngineBlockType CRAFTING_TABLE = new EngineBlockType(
@@ -107,6 +114,12 @@ public final class BuiltinBlocks {
             Identifier.parse("minecraft:wheat_stage6"), "Wheat Crop", 6);
     public static final EngineBlockType WHEAT_STAGE7 = new EngineBlockType(
             Identifier.parse("minecraft:wheat_stage7"), "Wheat Crop", 7);
+
+    // The fire block (community blocks.json: legacy 51). Instant-break,
+    // no drops, non-solid; the spread/burnout clock lives in the scheduled
+    // block-update system (the historical BlockFire.updateTick shape).
+    public static final EngineBlockType FIRE = new EngineBlockType(
+            Identifier.parse("minecraft:fire"), "Fire");
 
     // The standing signs (community blocks.json: block 63, the rotation in
     // the metadata nibble's 45-degree band 0/4/8/12 = S/W/N/E). The sign
@@ -197,6 +210,8 @@ public final class BuiltinBlocks {
                 .register(REDSTONE_ORE)
                 .register(OAK_LOG)
                 .register(OAK_LEAVES)
+                .register(OAK_PLANKS)
+                .register(WOOL)
                 .register(CRAFTING_TABLE)
                 .register(TORCH)
                 .register(FURNACE)
@@ -211,6 +226,7 @@ public final class BuiltinBlocks {
                 .register(DANDELION)
                 .register(POPPY)
                 .register(SANDSTONE)
+                .register(FIRE)
                 .register(FARMLAND)
                 .register(FARMLAND_WET)
                 .register(WHEAT_STAGE0)

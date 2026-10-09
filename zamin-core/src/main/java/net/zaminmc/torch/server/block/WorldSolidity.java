@@ -29,6 +29,7 @@ public final class WorldSolidity {
         Identifier id = type.identifier();
         return !id.equals(BuiltinBlocks.AIR.identifier())
                 && !id.equals(BuiltinBlocks.TORCH.identifier())
+                && !id.equals(BuiltinBlocks.FIRE.identifier())
                 && !isSign(id)
                 && !isLadder(id)
                 && !isOpenDoorHalf(id)
@@ -71,5 +72,10 @@ public final class WorldSolidity {
     public static boolean isWheatCrop(Identifier id) {
         return id.namespace().equals("minecraft")
                 && id.value().startsWith("wheat_stage");
+    }
+
+    /** The fire block (51): walk-through, damages bodies standing in it. */
+    public static boolean isFire(Identifier id) {
+        return id.equals(BuiltinBlocks.FIRE.identifier());
     }
 }
