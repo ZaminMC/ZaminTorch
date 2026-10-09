@@ -45,6 +45,8 @@ public final class NormalWorldGenerator implements WorldGenerator {
     private final BlockType dandelion;
     private final BlockType poppy;
     private final BlockType sandstone;
+    private final BlockType sugarCane;
+    private final BlockType cactus;
 
     public NormalWorldGenerator(BlockRegistry registry, String worldName) {
         this.registry = Objects.requireNonNull(registry, "registry");
@@ -69,6 +71,8 @@ public final class NormalWorldGenerator implements WorldGenerator {
         this.dandelion = registry.require(Identifier.parse("minecraft:dandelion"));
         this.poppy = registry.require(Identifier.parse("minecraft:poppy"));
         this.sandstone = registry.require(Identifier.parse("minecraft:sandstone"));
+        this.sugarCane = registry.require(Identifier.parse("minecraft:sugar_cane"));
+        this.cactus = registry.require(Identifier.parse("minecraft:cactus"));
     }
 
     /**
@@ -406,6 +410,26 @@ public final class NormalWorldGenerator implements WorldGenerator {
                     chunk.setBlock(lx, h + 1, lz, deadBush);
                 }
             }
+            // Cacti: two rolls per desert chunk, 1-3 tall on open sand (the
+            // historical decoration pass's desert pair).
+            for (int i = 0; i < 2; i++) {
+                int lx = random.nextInt(16);
+                int lz = random.nextInt(16);
+                int h = heights[lx][lz];
+                if (h <= SEA_LEVEL || !chunk.getBlock(lx, h, lz).equals(sand)) {
+                    continue;
+                }
+                if (!chunk.getBlock(lx, h + 1, lz).equals(air)) {
+                    continue;
+                }
+                int tall = 1 + random.nextInt(3);
+                for (int y = 1; y <= tall; y++) {
+                    if (!chunk.getBlock(lx, h + y, lz).equals(air)) {
+                        break; // an overhang stops the stack
+                    }
+                    chunk.setBlock(lx, h + y, lz, cactus);
+                }
+            }
             return;
         }
         // Grass: eight rolls, the meadow's main texture.
@@ -430,6 +454,36 @@ public final class NormalWorldGenerator implements WorldGenerator {
             }
             if (chunk.getBlock(lx, h + 1, lz).equals(air)) {
                 chunk.setBlock(lx, h + 1, lz, random.nextBoolean() ? poppy : dandelion);
+            }
+        }
+        // Sugar cane: three rolls on shore columns — a land column beside a
+        // water column (within this chunk's own grid) grows a 1-3 reed. The
+        // within-chunk scan misses a few chunk-edge shores; the growth clock
+        // spreads the reeds from any planted one.
+        for (int i = 0; i < 3; i++) {
+            int lx = 1 + random.nextInt(14);
+            int lz = 1 + random.nextInt(14);
+            int h = heights[lx][lz];
+            if (h <= SEA_LEVEL || !chunk.getBlock(lx, h, lz).equals(grass)
+                    && !chunk.getBlock(lx, h, lz).equals(sand)) {
+                continue;
+            }
+            if (!chunk.getBlock(lx, h + 1, lz).equals(air)) {
+                continue;
+            }
+            boolean shore = false;
+            for (int[] dir : new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
+                if (heights[lx + dir[0]][lz + dir[1]] <= SEA_LEVEL) {
+                    shore = true;
+                    break;
+                }
+            }
+            if (!shore) {
+                continue;
+            }
+            int tall = 1 + random.nextInt(3);
+            for (int y = 1; y <= tall; y++) {
+                chunk.setBlock(lx, h + y, lz, sugarCane);
             }
         }
     }

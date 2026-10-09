@@ -121,6 +121,18 @@ public final class BuiltinBlocks {
     public static final EngineBlockType FIRE = new EngineBlockType(
             Identifier.parse("minecraft:fire"), "Fire");
 
+    // The world-completion flora (community blocks.json: reed 83, cactus 81)
+    // and the lit furnace variant (legacy 62, the historical block swap when
+    // the burn starts). The reed is walk-through flora; the cactus is a
+    // solid (slightly inset in vanilla — the full-cube stand-in) that breaks
+    // when anything solid settles beside it and damages bodies touching it.
+    public static final EngineBlockType SUGAR_CANE = new EngineBlockType(
+            Identifier.parse("minecraft:sugar_cane"), "Sugar Cane");
+    public static final EngineBlockType CACTUS = new EngineBlockType(
+            Identifier.parse("minecraft:cactus"), "Cactus");
+    public static final EngineBlockType FURNACE_LIT = new EngineBlockType(
+            Identifier.parse("minecraft:furnace_lit"), "Furnace");
+
     // The standing signs (community blocks.json: block 63, the rotation in
     // the metadata nibble's 45-degree band 0/4/8/12 = S/W/N/E). The sign
     // faces its placer, the historical placement rule.
@@ -227,6 +239,9 @@ public final class BuiltinBlocks {
                 .register(POPPY)
                 .register(SANDSTONE)
                 .register(FIRE)
+                .register(SUGAR_CANE)
+                .register(CACTUS)
+                .register(FURNACE_LIT)
                 .register(FARMLAND)
                 .register(FARMLAND_WET)
                 .register(WHEAT_STAGE0)

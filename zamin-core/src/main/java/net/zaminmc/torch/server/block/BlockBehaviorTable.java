@@ -311,6 +311,21 @@ public final class BlockBehaviorTable {
                     new BlockBehavior(0.8, true, true, "rock", 1,
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:sandstone"), 1)))),
 
+            // Community data (pc/1.8 blocks.json): furnace_lit mirrors the
+            // furnace (3.5, rock, pickaxe 1, drops the furnace item); the
+            // reed and the cactus are instant-break plants that drop
+            // themselves (the cactus's slight inset is the collision slice's
+            // concern).
+            Map.entry(Identifier.parse("minecraft:furnace_lit"),
+                    new BlockBehavior(3.5, true, true, "rock", 1,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:furnace"), 1)))),
+            Map.entry(Identifier.parse("minecraft:sugar_cane"),
+                    new BlockBehavior(0.0, true, false, "plants", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:sugar_cane"), 1)))),
+            Map.entry(Identifier.parse("minecraft:cactus"),
+                    new BlockBehavior(0.4, true, false, "plants", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:cactus"), 1)))),
+
             // Community data (pc/1.8 blocks.json): fire hardness 0 (instant
             // break), no material, drops nothing — the historical extinguish.
             Map.entry(Identifier.parse("minecraft:fire"),

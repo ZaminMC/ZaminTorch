@@ -63,6 +63,13 @@ final class Protocol18 {
     static final int S2C_SPAWN_XP_ORB = 0x11;
     /** Set Experience (0x1F, protocol 47): f32 progress, short level, short total. */
     static final int S2C_SET_EXPERIENCE = 0x1F;
+    /** Held Item Change (0x09, protocol 47): the i8 slot the client now holds. */
+    static final int S2C_HELD_ITEM_CHANGE = 0x09;
+    /** Block Action (0x24, protocol 47): i64 pos, u8 action, u8 param, u32 block. */
+    static final int S2C_BLOCK_ACTION = 0x24;
+    /** The chest lid Block Action: action 1, param 1 = open / 0 = close. */
+    static final int BLOCK_ACTION_CHEST_LID = 1;
+    static final int CHEST_LEGACY_BLOCK_ID = 54;
     // Protocol 47 has NO unload-chunk packet: the 1.8 client prunes
     // out-of-range chunks itself (the vanilla server never said goodbye).
     // 0x1D is Entity Effect — writing a 1.9-style unload there killed real

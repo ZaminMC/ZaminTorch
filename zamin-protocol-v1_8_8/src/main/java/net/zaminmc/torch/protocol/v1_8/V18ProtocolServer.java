@@ -453,6 +453,21 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                 }
             }
         });
+        // The chest lid: Block Action 0x24 to every observer except the
+        // opener (the historical exclude-one broadcast).
+        server.addChestLidListener((position, opener, open) -> {
+            for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                connection.sendChestLid(position, opener, open);
+            }
+        });
+        // The held-slot switch: the owner gets the 0x09 confirm, every
+        // observer re-renders the new held item through Entity Equipment.
+        server.addHeldSlotListener(player -> {
+            for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                connection.sendHeldItemChangeConfirm(player);
+                connection.sendPlayerEquipment(player);
+            }
+        });
         // The FX bus: every engine sound/particle event fans out to the
         // observers inside its feedback radius, translated per event kind.
         server.fx().addListener(event -> {

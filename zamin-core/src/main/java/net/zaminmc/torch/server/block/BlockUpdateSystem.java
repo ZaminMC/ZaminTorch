@@ -52,6 +52,8 @@ public final class BlockUpdateSystem implements WorldChangeListener {
     private static final Identifier TORCH = Identifier.parse("minecraft:torch");
     private static final Identifier GRASS = Identifier.parse("minecraft:grass_block");
     private static final Identifier FIRE = Identifier.parse("minecraft:fire");
+    private static final Identifier SUGAR_CANE = Identifier.parse("minecraft:sugar_cane");
+    private static final Identifier CACTUS = Identifier.parse("minecraft:cactus");
 
     /**
      * The flammable set (the historical {@code Blocks.fire.getFlammability}
@@ -191,10 +193,67 @@ public final class BlockUpdateSystem implements WorldChangeListener {
             tickFire(position, world.totalTicks());
             return;
         }
+        if (identifier.equals(SUGAR_CANE)) {
+            tickCaneSupport(position);
+            return;
+        }
+        if (identifier.equals(CACTUS)) {
+            tickCactusSupport(position);
+            return;
+        }
         if (identifier.equals(GRASS)
                 && isOpaque(world.getBlock(position.offset(0, 1, 0)))) {
             world.setBlock(position, BuiltinBlocks.DIRT);
         }
+    }
+
+    /**
+     * The reed's support rule (the historical BlockReed.canPlace): a cane
+     * stands on grass, dirt, sand or another cane; anything else (or nothing)
+     * pops it as an item — the chain runs down the column one update at a
+     * time, so breaking the base fells the whole reed.
+     */
+    private void tickCaneSupport(BlockPosition at) {
+        BlockType below = world.getBlock(at.offset(0, -1, 0));
+        Identifier belowId = below.identifier();
+        boolean supported = belowId.equals(BuiltinBlocks.GRASS_BLOCK.identifier())
+                || belowId.equals(BuiltinBlocks.DIRT.identifier())
+                || belowId.equals(BuiltinBlocks.SAND.identifier())
+                || belowId.equals(SUGAR_CANE);
+        if (supported) {
+            return;
+        }
+        world.setBlock(at, world.airType());
+        itemEntities.spawnDropAtBlock(
+                new Position(at.x(), at.y(), at.z()),
+                ItemStack.of(net.zaminmc.torch.server.item.BuiltinItems.SUGAR_CANE, 1),
+                ItemEntity.PICKUP_DELAY_DROP_TICKS);
+    }
+
+    /**
+     * The cactus's support rule (the historical BlockCactus
+     * onNeighborChanged): a cactus needs sand or cactus below and no solid
+     * block beside it; a violation breaks it with its drop.
+     */
+    private void tickCactusSupport(BlockPosition at) {
+        BlockType below = world.getBlock(at.offset(0, -1, 0));
+        boolean supported = below.identifier().equals(BuiltinBlocks.SAND.identifier())
+                || below.identifier().equals(CACTUS);
+        boolean solidBeside = false;
+        for (int[] dir : new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
+            if (WorldSolidity.isSolid(world.getBlock(at.offset(dir[0], 0, dir[1])))) {
+                solidBeside = true;
+                break;
+            }
+        }
+        if (supported && !solidBeside) {
+            return;
+        }
+        world.setBlock(at, world.airType());
+        itemEntities.spawnDropAtBlock(
+                new Position(at.x(), at.y(), at.z()),
+                ItemStack.of(net.zaminmc.torch.server.item.BuiltinItems.CACTUS, 1),
+                ItemEntity.PICKUP_DELAY_DROP_TICKS);
     }
 
     /**

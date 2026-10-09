@@ -74,6 +74,14 @@ public final class RandomTickSystem {
             tickWheatGrowth(position);
             return;
         }
+        if (WorldSolidity.isSugarCane(type.identifier())) {
+            tickCaneGrowth(position);
+            return;
+        }
+        if (WorldSolidity.isCactus(type.identifier())) {
+            tickCactusGrowth(position);
+            return;
+        }
         if (type.identifier().equals(BuiltinBlocks.FARMLAND.identifier())
                 || type.identifier().equals(BuiltinBlocks.FARMLAND_WET.identifier())) {
             tickFarmlandHydration(position, type);
@@ -157,6 +165,89 @@ public final class RandomTickSystem {
             case 6 -> BuiltinBlocks.WHEAT_STAGE6;
             default -> BuiltinBlocks.WHEAT_STAGE7;
         };
+    }
+
+    /**
+     * The reed's growth (the historical BlockReed shape): only the top of a
+     * column under three grows, on a wet base (water beside the soil), at
+     * the same 1-in-3 pace hydrated crops use.
+     */
+    private void tickCaneGrowth(BlockPosition position) {
+        if (!world.getBlock(position.offset(0, 1, 0)).equals(world.airType())) {
+            return; // something is on top: only the topmost reed grows
+        }
+        int height = reedColumnHeight(position);
+        if (height >= 3) {
+            return; // the historical three-block cap
+        }
+        BlockPosition base = position.offset(0, -(height - 1), 0);
+        BlockType soil = world.getBlock(base.offset(0, -1, 0));
+        boolean supported = soil.identifier().equals(BuiltinBlocks.GRASS_BLOCK.identifier())
+                || soil.identifier().equals(BuiltinBlocks.DIRT.identifier())
+                || soil.identifier().equals(BuiltinBlocks.SAND.identifier());
+        if (!supported || !waterBeside(base.offset(0, -1, 0))) {
+            return; // the base lost its wet soil: no growth (the support rule breaks it)
+        }
+        if (random.nextInt(3) == 0) {
+            world.setBlock(position.offset(0, 1, 0), BuiltinBlocks.SUGAR_CANE);
+        }
+    }
+
+    /** @return the reed column height counting down from (and including) the ticked block. */
+    private int reedColumnHeight(BlockPosition position) {
+        int height = 1;
+        BlockPosition cursor = position;
+        while (height < 3
+                && WorldSolidity.isSugarCane(world.getBlock(cursor.offset(0, -1, 0)).identifier())) {
+            cursor = cursor.offset(0, -1, 0);
+            height++;
+        }
+        return height;
+    }
+
+    /** @return whether any horizontal neighbor of the soil cell holds a fluid. */
+    private boolean waterBeside(BlockPosition soil) {
+        for (int[] dir : new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
+            BlockType side = world.getBlock(soil.offset(dir[0], 0, dir[1]));
+            if (FluidBlocks.isFluid(side.identifier())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * The cactus's growth (the historical BlockCactus shape): only the top
+     * of a column under three on sand grows, and never beside a solid block
+     * (the same rule the neighbor update enforces).
+     */
+    private void tickCactusGrowth(BlockPosition position) {
+        if (!world.getBlock(position.offset(0, 1, 0)).equals(world.airType())) {
+            return;
+        }
+        int height = 1;
+        BlockPosition cursor = position;
+        while (height < 3
+                && WorldSolidity.isCactus(world.getBlock(cursor.offset(0, -1, 0)).identifier())) {
+            cursor = cursor.offset(0, -1, 0);
+            height++;
+        }
+        if (height >= 3) {
+            return;
+        }
+        BlockType soil = world.getBlock(cursor.offset(0, -1, 0));
+        if (!soil.identifier().equals(BuiltinBlocks.SAND.identifier())
+                && !WorldSolidity.isCactus(soil.identifier())) {
+            return;
+        }
+        for (int[] dir : new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
+            if (WorldSolidity.isSolid(world.getBlock(position.offset(dir[0], 0, dir[1])))) {
+                return; // a solid neighbor blocks the growth (the historical rule)
+            }
+        }
+        if (random.nextInt(3) == 0) {
+            world.setBlock(position.offset(0, 1, 0), BuiltinBlocks.CACTUS);
+        }
     }
 
     /**

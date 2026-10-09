@@ -201,6 +201,14 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
         fireDamageTimer = 0;
     }
 
+    /** The cactus contact cadence counter (its own clock, fire's is separate). */
+    private int cactusTimer;
+
+    /** @return the incremented cactus contact cadence counter. */
+    public int advanceCactusTimer() {
+        return ++cactusTimer;
+    }
+
     public PlayerSession(UUID uuid, String name, ClientLink link) {
         this.uuid = Objects.requireNonNull(uuid, "uuid");
         this.name = Objects.requireNonNull(name, "name");

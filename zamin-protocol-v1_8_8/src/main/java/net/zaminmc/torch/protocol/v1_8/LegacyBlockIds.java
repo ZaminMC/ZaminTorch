@@ -42,6 +42,7 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:torch"), 50),
             Map.entry(Identifier.parse("minecraft:fire"), 51),
             Map.entry(Identifier.parse("minecraft:furnace"), 61),
+            Map.entry(Identifier.parse("minecraft:furnace_lit"), 62),
             Map.entry(Identifier.parse("minecraft:chest"), 54),
             // Fluid-contact products (the historical outcomes) and the sheep's
             // block-item wool (legacy 35).
@@ -67,13 +68,13 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:gold_ingot"), 266),
             Map.entry(Identifier.parse("minecraft:flint_and_steel"), 259),
             Map.entry(Identifier.parse("minecraft:flint"), 318),      // the 10% gravel roll
-            // world-completion items (community items.json ids): sugar cane
-            // 338, sugar 353, paper 339, book 340, cactus rides block id 81.
-            Map.entry(Identifier.parse("minecraft:sugar_cane"), 338),
+            // world-completion items (community items.json ids): sugar 353,
+            // paper 339, book 340; the cane and cactus block-items share the
+            // block ids (81/83) with the cane's item form 323-style overridden
+            // below (community items.json: sugar_cane item 338).
             Map.entry(Identifier.parse("minecraft:sugar"), 353),
             Map.entry(Identifier.parse("minecraft:paper"), 339),
             Map.entry(Identifier.parse("minecraft:book"), 340),
-            Map.entry(Identifier.parse("minecraft:cactus"), 81),
             // foods (community foods.json legacy ids)
             Map.entry(Identifier.parse("minecraft:beef"), 363),
             Map.entry(Identifier.parse("minecraft:cooked_beef"), 364),
@@ -143,6 +144,10 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:dandelion"), 37),
             Map.entry(Identifier.parse("minecraft:poppy"), 38),
             Map.entry(Identifier.parse("minecraft:sandstone"), 24),
+            // The world-completion flora (community blocks.json: reed 83,
+            // cactus 81 — the block-item forms share the block ids).
+            Map.entry(Identifier.parse("minecraft:sugar_cane"), 83),
+            Map.entry(Identifier.parse("minecraft:cactus"), 81),
             // farming items (community items.json)
             Map.entry(Identifier.parse("minecraft:wheat_seeds"), 295),
             Map.entry(Identifier.parse("minecraft:wheat"), 296),
@@ -210,7 +215,8 @@ final class LegacyBlockIds {
             Identifier.parse("minecraft:sign"), 323,
             Identifier.parse("minecraft:oak_door"), 324,
             Identifier.parse("minecraft:ladder"), 65,
-            Identifier.parse("minecraft:bed"), 355);
+            Identifier.parse("minecraft:bed"), 355,
+            Identifier.parse("minecraft:sugar_cane"), 338);
 
     private static final Map<Integer, Identifier> BY_LEGACY_ID = reverse();
 

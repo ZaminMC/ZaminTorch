@@ -39,10 +39,10 @@ class CraftingRecipeTest {
         // planks, sticks, table, torch, furnace, chest, 16 tools (wood/stone/
         // iron/diamond x pickaxe/axe/shovel/sword) + shears. Gold still needs
         // gold ingot — no gold ore item exists in the registry yet.
-        assertEquals(25, BuiltinRecipes.ALL.size());
-        for (CraftingRecipe recipe : BuiltinRecipes.ALL) {
-            assertTrue(recipe.isShaped(), "the dataset encodes all of these as shaped");
-        }
+        assertEquals(28, BuiltinRecipes.ALL.size());
+        long shaped = BuiltinRecipes.ALL.stream().filter(CraftingRecipe::isShaped).count();
+        long shapeless = BuiltinRecipes.ALL.size() - shaped;
+        assertEquals(1, shapeless, "the book is the one shapeless craft (leather + papers)");
     }
 
     // ---- 3x3 crafting-table matching ---------------------------------------
