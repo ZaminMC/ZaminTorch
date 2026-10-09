@@ -98,7 +98,10 @@ final class LauncherRuntime {
                 new InputStreamReader(System.in, StandardCharsets.UTF_8))) {
             String line;
             while (server.state() == ServerState.RUNNING && (line = reader.readLine()) != null) {
-                String command = line.trim().toLowerCase();
+                String raw = line.trim();
+                // Only the command word routes the switch; arguments keep
+                // their case (player names and ban reasons are case-bearing).
+                String command = raw.toLowerCase();
                 if (!command.isEmpty()) {
                     // Acknowledge what the operator typed so interleaved log
                     // lines never leave a command's fate ambiguous.
@@ -121,7 +124,7 @@ final class LauncherRuntime {
                     default -> {
                         // Everything else rides the same dispatcher the chat
                         // slash commands use (help, gamemode, op, say, ...).
-                        server.consoleCommand(command);
+                        server.consoleCommand(raw);
                     }
                 }
                 System.out.print("> ");
