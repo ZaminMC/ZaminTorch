@@ -143,7 +143,7 @@ class CraftingFlowIntegrationTest extends ProtocolTestBase {
     }
 
     @Test
-    void sticksCraftFromTwoPlanksAndCloseReturnsGridContents() throws Exception {
+    void sticksCraftFromTwoPlanksAndCloseDropsTheGrid() throws Exception {
         try (TestClient18 client = new TestClient18("127.0.0.1", adapter.boundPort())) {
             client.sendHandshake(47, 2);
             client.sendLoginStart("Stickler");
@@ -182,7 +182,8 @@ class CraftingFlowIntegrationTest extends ProtocolTestBase {
             assertEquals(STICK, stowed.window()[37][0], "the sticks wait in hotbar slot 1");
 
             // drop the remaining 4 planks into the grid, then close the window:
-            // the grid returns to the inventory (nothing lost)
+            // the vanilla close (ContainerPlayer.onMenuClose) DROPS the grid
+            // stacks to the world at the player — they never return.
             Click reparked = click(client, 36, 0, 0);
             assertEquals(4, reparked.cursorCount());
             Click whole = click(client, 1, 0, 0);
@@ -191,11 +192,12 @@ class CraftingFlowIntegrationTest extends ProtocolTestBase {
             assertEquals(4, whole.window()[1][1]);
 
             client.sendCloseWindow();
+            int[] dropped = client.readSpawnItemOfType(OAK_PLANKS, 10_000);
+            assertTrue(dropped[0] > 0, "the grid stack dropped as an item entity");
             int[][] closed = client.readWindowSlotTable(10_000);
             assertEquals(-1, closed[1][0], "the grid emptied on close");
-            assertEquals(OAK_PLANKS, closed[36][0], "the planks returned to the hotbar");
-            assertEquals(4, closed[36][1]);
-            assertEquals(-1, closed[0][0], "no preview after the return");
+            assertEquals(-1, closed[36][0], "the planks did NOT return to the hotbar (vanilla drop)");
+            assertEquals(-1, closed[0][0], "no preview after the close");
             assertEquals(STICK, closed[37][0], "the sticks stayed put");
         }
         awaitEmptyServer();

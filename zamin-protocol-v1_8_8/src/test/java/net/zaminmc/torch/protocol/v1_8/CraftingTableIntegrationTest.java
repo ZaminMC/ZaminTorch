@@ -8,10 +8,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * The crafting-table container over the real wire: right-clicking a placed
- * table opens the 10-slot GUI (Open Window 0x2D -> Window Items, order
- * pinned), the 3x3 grid crafts community-data recipes (the wooden pickaxe),
- * craft-all chains into the inventory, and closing returns every carried
- * stack — nothing lost, the client never keeps predicted state.
+ * table opens the vanilla GUI (Open Window 0x2D with the vanilla size byte 0
+ * -> Window Items 46, order pinned), the 3x3 grid crafts community-data
+ * recipes (the wooden pickaxe), craft-all chains into the inventory, and
+ * closing returns every carried stack — nothing lost, the client never keeps
+ * predicted state.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class CraftingTableIntegrationTest extends ProtocolTestBase {
@@ -83,7 +84,8 @@ class CraftingTableIntegrationTest extends ProtocolTestBase {
             int windowId = (Integer) open[0];
             assertTrue(windowId > 0, "container ids start at 1");
             assertEquals("minecraft:crafting_table", open[1]);
-            assertEquals(10, open[2]); // the GUI's own slots: result + 3x3 grid
+            // Vanilla's 3-arg open: the client builds the 46-slot layout itself.
+            assertEquals(0, open[2]);
             int[][] table = client.readWindowSlotTable(10_000, windowId);
             assertEquals(46, table.length, "result + grid + 27 main + 9 hotbar");
             assertEquals(-1, table[0][0], "empty grid previews nothing");
