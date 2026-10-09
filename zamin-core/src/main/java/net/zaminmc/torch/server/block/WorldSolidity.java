@@ -39,13 +39,15 @@ public final class WorldSolidity {
 
     /**
      * The walk-through flora (the historical replaceable Material set): tall
-     * grass, the dead bush and the two flowers never block a body.
+     * grass, the dead bush, the two flowers, the wheat crop and the sugar
+     * cane never block a body.
      */
     private static boolean isFlora(Identifier id) {
         return id.equals(BuiltinBlocks.TALL_GRASS.identifier())
                 || id.equals(BuiltinBlocks.DEAD_BUSH.identifier())
                 || id.equals(BuiltinBlocks.DANDELION.identifier())
                 || id.equals(BuiltinBlocks.POPPY.identifier())
+                || id.equals(BuiltinBlocks.SUGAR_CANE.identifier())
                 || isWheatCrop(id);
     }
 
@@ -77,5 +79,21 @@ public final class WorldSolidity {
     /** The fire block (51): walk-through, damages bodies standing in it. */
     public static boolean isFire(Identifier id) {
         return id.equals(BuiltinBlocks.FIRE.identifier());
+    }
+
+    /** The sugar cane (83): walk-through reed, grows to three on wet soil. */
+    public static boolean isSugarCane(Identifier id) {
+        return id.equals(BuiltinBlocks.SUGAR_CANE.identifier());
+    }
+
+    /** The cactus (81): solid, breaks beside solids, damages bodies touching it. */
+    public static boolean isCactus(Identifier id) {
+        return id.equals(BuiltinBlocks.CACTUS.identifier());
+    }
+
+    /** Either furnace half (61 unlit / 62 lit) — the container's two faces. */
+    public static boolean isFurnaceBlock(Identifier id) {
+        return id.equals(BuiltinBlocks.FURNACE.identifier())
+                || id.equals(BuiltinBlocks.FURNACE_LIT.identifier());
     }
 }

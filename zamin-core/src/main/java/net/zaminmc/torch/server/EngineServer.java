@@ -734,6 +734,21 @@ public final class EngineServer implements Server, EngineBridge {
         return blockUpdateSystem;
     }
 
+    /** The random-tick system (exposed for deterministic growth probes). */
+    public RandomTickSystem randomTicks() {
+        return randomTicks;
+    }
+
+    /** The crafting matcher (exposed for recipe tests). */
+    public CraftingService crafting() {
+        return crafting;
+    }
+
+    /** The furnace block entities (exposed for behavioral tests). */
+    public FurnaceManager furnaceManager() {
+        return furnaceManager;
+    }
+
     /** A world-time change (the /time command, the periodic cycle sync). */
     public interface TimeListener {
         void onTimeChanged(long totalTicks, long timeOfDay);
@@ -976,6 +991,7 @@ public final class EngineServer implements Server, EngineBridge {
             tickLanding(session);
             tickBreath(session);
             tickFireBody(session);
+            tickCactusContact(session);
             // The ladder catch: a body on a ladder accumulates no fall
             // distance, so the descent never rounds into landing damage.
             if (ladderAt(session.position().x(), session.position().y(),
@@ -1085,6 +1101,36 @@ public final class EngineServer implements Server, EngineBridge {
             session.resetFireDamageTimer();
         }
         session.tickFire();
+    }
+
+    /**
+     * The cactus's contact damage (the historical BlockCactus collision
+     * hurt): a body standing on or beside the cactus cell takes the
+     * historical 1 damage at the hurt-invulnerability rhythm (10 ticks).
+     * Creative and spectator bodies are immune (the mode guard).
+     * Tick-thread context.
+     */
+    private void tickCactusContact(PlayerSession session) {
+        if (session.gamemode() == GameMode.CREATIVE
+                || session.gamemode() == GameMode.SPECTATOR) {
+            return;
+        }
+        Position feet = session.position();
+        if (session.advanceCactusTimer() % 10 != 0) {
+            return; // the half-second cadence the hurt i-frames impose
+        }
+        for (int dy = 0; dy <= 1; dy++) {
+            var at = world.getBlock(new BlockPosition(
+                    (int) Math.floor(feet.x()), (int) Math.floor(feet.y()) + dy,
+                    (int) Math.floor(feet.z())));
+            if (WorldSolidity.isCactus(at.identifier())
+                    || WorldSolidity.isCactus(world.getBlock(new BlockPosition(
+                            (int) Math.floor(feet.x()), (int) Math.floor(feet.y()) - 1,
+                            (int) Math.floor(feet.z()))).identifier())) {
+                damageOnTick(session, 1.0f, "was pricked to death");
+                return;
+            }
+        }
     }
 
     /** The historical 1.8 FoodStats loop on easy difficulty. */
@@ -1435,8 +1481,52 @@ public final class EngineServer implements Server, EngineBridge {
             } catch (IllegalArgumentException invalidSlot) {
                 LOGGER.fine(() -> "Rejected held-slot change " + hotbarSlot + " from "
                         + session.name());
+                return;
             }
+            // The hotbar switch: vanilla confirms with Held Item Change 0x09
+            // to the owner and re-renders the new held item on the observers
+            // through Entity Equipment — no Window Items re-sync (the client
+            // predicts its own swap).
+            publishHeldSlotChanged(session);
         });
+    }
+
+    /** The owner's held-slot change (the Held Item Change 0x09 confirm). */
+    public interface HeldSlotListener {
+        void onHeldSlotChanged(PlayerSession player);
+    }
+
+    private final java.util.List<HeldSlotListener> heldSlotListeners =
+            new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    /** Registers the held-slot observer (the protocol adapter's confirm). */
+    public void addHeldSlotListener(HeldSlotListener listener) {
+        heldSlotListeners.add(listener);
+    }
+
+    private void publishHeldSlotChanged(PlayerSession player) {
+        for (HeldSlotListener listener : heldSlotListeners) {
+            listener.onHeldSlotChanged(player);
+        }
+    }
+
+    /** The chest lid state changed (the Block Action 0x24 fan-out). */
+    public interface ChestLidListener {
+        void onChestLid(BlockPosition position, PlayerSession opener, boolean open);
+    }
+
+    private final java.util.List<ChestLidListener> chestLidListeners =
+            new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    /** Registers the chest-lid observer (the protocol adapter's Block Action). */
+    public void addChestLidListener(ChestLidListener listener) {
+        chestLidListeners.add(listener);
+    }
+
+    private void publishChestLid(BlockPosition position, PlayerSession opener, boolean open) {
+        for (ChestLidListener listener : chestLidListeners) {
+            listener.onChestLid(position, opener, open);
+        }
     }
 
     // -------------------------------------------------------------- using + respawn
@@ -2270,7 +2360,7 @@ public final class EngineServer implements Server, EngineBridge {
                                       int face, java.util.Optional<net.zaminmc.torch.block.BlockType> creativeHeld,
                                       java.util.function.IntConsumer onTableOpened) {
         net.zaminmc.torch.block.BlockType current = world.getBlock(clicked);
-        if (current.identifier().equals(net.zaminmc.torch.server.block.BuiltinBlocks.FURNACE.identifier())) {
+        if (WorldSolidity.isFurnaceBlock(current.identifier())) {
             openFurnaceOnTick(session, clicked, onTableOpened);
             return;
         }
@@ -2287,6 +2377,9 @@ public final class EngineServer implements Server, EngineBridge {
         }
         if (useFlintOnTick(session, clicked, face)) {
             return; // the fire starter did its work; no placement follows
+        }
+        if (useReedOnTick(session, clicked, face, creativeHeld)) {
+            return; // the reed/cactus placement override ran
         }
         if (useFarmingOnTick(session, clicked)) {
             return; // the hoe/seed/bone-meal use was consumed
@@ -2327,6 +2420,83 @@ public final class EngineServer implements Server, EngineBridge {
             return; // the two-half bed overrides the generic placement
         }
         blockInteraction.placeFromUseOnTick(session, clicked, face, creativeHeld);
+    }
+
+    /**
+     * The reed and cactus placement rules (the historical ItemBlock special
+     * cases): a sugar cane plants on grass/dirt/sand with water beside the
+     * soil, a cactus stacks on sand or cactus with nothing solid beside.
+     * Survival consumes the held stack, creative places the claimed item.
+     * Returns whether the use was consumed. Tick-thread context.
+     */
+    private boolean useReedOnTick(PlayerSession session, BlockPosition clicked, int face,
+                                  java.util.Optional<BlockType> creativeHeld) {
+        net.zaminmc.torch.item.ItemStack heldStack = session.inventory().held();
+        String held = heldStack.isEmpty() ? ""
+                : heldStack.type().identifier().toString();
+        boolean wantsCane = held.equals("minecraft:sugar_cane")
+                || creativeHeld.map(t -> WorldSolidity.isSugarCane(t.identifier())).orElse(false);
+        boolean wantsCactus = held.equals("minecraft:cactus")
+                || creativeHeld.map(t -> WorldSolidity.isCactus(t.identifier())).orElse(false);
+        if (!wantsCane && !wantsCactus) {
+            return false;
+        }
+        BlockPosition target = offsetByFace(clicked, face);
+        if (target == null || !world.getBlock(target).equals(world.airType())) {
+            return false; // no open cell: the generic path's no-op
+        }
+        BlockType soil = world.getBlock(target.offset(0, -1, 0));
+        boolean allowed;
+        if (wantsCane) {
+            allowed = (soil.identifier().equals(BuiltinBlocks.GRASS_BLOCK.identifier())
+                    || soil.identifier().equals(BuiltinBlocks.DIRT.identifier())
+                    || soil.identifier().equals(BuiltinBlocks.SAND.identifier())
+                    || WorldSolidity.isSugarCane(soil.identifier()))
+                    && waterBesideSoil(target.offset(0, -1, 0));
+        } else {
+            allowed = (soil.identifier().equals(BuiltinBlocks.SAND.identifier())
+                    || WorldSolidity.isCactus(soil.identifier()));
+            if (allowed) {
+                // Nothing solid may sit beside a cactus (the historical rule).
+                for (int[] dir : new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
+                    if (WorldSolidity.isSolid(world.getBlock(target.offset(dir[0], 0, dir[1])))) {
+                        allowed = false;
+                        break;
+                    }
+                }
+            }
+            if (allowed) {
+                // The full-cube stand-in never places inside the body's own
+                // cells (feet or head).
+                Position body = session.position();
+                int bx = (int) Math.floor(body.x());
+                int by = (int) Math.floor(body.y());
+                int bz = (int) Math.floor(body.z());
+                if (target.x() == bx && target.z() == bz
+                        && (target.y() == by || target.y() == by + 1)) {
+                    allowed = false;
+                }
+            }
+        }
+        if (!allowed) {
+            return false; // the soil refuses: the generic path's no-op
+        }
+        world.setBlock(target, wantsCane ? BuiltinBlocks.SUGAR_CANE : BuiltinBlocks.CACTUS);
+        if (session.gamemode() == GameMode.SURVIVAL) {
+            session.inventory().consumeHeld(1);
+            publishInventoryChanged(session);
+        }
+        return true;
+    }
+
+    /** @return whether any horizontal neighbor of the soil cell holds a fluid. */
+    private boolean waterBesideSoil(BlockPosition soil) {
+        for (int[] dir : new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
+            if (FluidBlocks.isFluid(world.getBlock(soil.offset(dir[0], 0, dir[1])).identifier())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -2839,6 +3009,9 @@ public final class EngineServer implements Server, EngineBridge {
                 ? FIRST_CONTAINER_WINDOW_ID : nextContainerWindowId + 1;
         session.openContainerWindow(windowId, PlayerSession.ContainerKind.CHEST, position);
         onTableOpened.accept(windowId);
+        // The lid swings for every other observer (the historical Block
+        // Action 1; the opener's client animates its own view).
+        publishChestLid(position, session, true);
     }
 
     /**
@@ -2875,6 +3048,10 @@ public final class EngineServer implements Server, EngineBridge {
             if (windowId == WIRE_WINDOW_PLAYER) {
                 returnWindowCarriedItems(session, false);
             } else if (windowId == session.openContainerWindowId()) {
+                if (session.openContainerKind() == PlayerSession.ContainerKind.CHEST
+                        && session.openContainerPosition() != null) {
+                    publishChestLid(session.openContainerPosition(), session, false);
+                }
                 returnWindowCarriedItems(session, true);
                 session.closeContainerWindow();
             }
@@ -3287,6 +3464,22 @@ public final class EngineServer implements Server, EngineBridge {
         @Override
         public boolean inFluid(double x, double y, double z) {
             return fluidAt(x, y, z);
+        }
+
+        @Override
+        public boolean inFire(double x, double y, double z) {
+            return WorldSolidity.isFire(world.getBlock(new BlockPosition(
+                    (int) Math.floor(x), (int) Math.floor(y), (int) Math.floor(z))).identifier());
+        }
+
+        @Override
+        public boolean touchingCactus(double x, double y, double z) {
+            int bx = (int) Math.floor(x);
+            int by = (int) Math.floor(y);
+            int bz = (int) Math.floor(z);
+            return WorldSolidity.isCactus(world.getBlock(new BlockPosition(bx, by, bz)).identifier())
+                    || WorldSolidity.isCactus(world.getBlock(
+                            new BlockPosition(bx, by - 1, bz)).identifier());
         }
 
         @Override

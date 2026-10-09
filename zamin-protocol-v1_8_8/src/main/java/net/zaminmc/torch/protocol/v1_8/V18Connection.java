@@ -1539,6 +1539,55 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         }
     }
 
+    // ------------------------------------------------------------------ chest lid + held item
+
+    /**
+     * Block Action (0x24, community-verified layout: i64 packed position,
+     * u8 action, u8 param, u32 block type) for the chest lid: action 1,
+     * param 1 open / 0 close, block 54. The opener's own client animates
+     * its view locally, so the engine excludes it from this fan-out.
+     * Any thread.
+     */
+    void sendChestLid(net.zaminmc.torch.block.BlockPosition position, PlayerSession opener,
+                      boolean open) {
+        if (opener == session) {
+            return; // the opener's client plays its own lid
+        }
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY
+                || chunkTracker == null) {
+            return;
+        }
+        if (!chunkTracker.hasChunk(position.chunkPosition().packed())) {
+            return; // the observer cannot see that chest
+        }
+        ByteBuf out = Unpooled.buffer(16);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_BLOCK_ACTION);
+        ByteBufOps.writePackedBlockPosition(out, position.x(), position.y(), position.z());
+        out.writeByte(Protocol18.BLOCK_ACTION_CHEST_LID);
+        out.writeByte(open ? 1 : 0);
+        out.writeInt(Protocol18.CHEST_LEGACY_BLOCK_ID);
+        channel.writeAndFlush(out);
+    }
+
+    /**
+     * Held Item Change (0x09, community-verified layout: i8 slot) — the
+     * server's confirm of the owner's hotbar switch. Any thread.
+     */
+    void sendHeldItemChangeConfirm(PlayerSession player) {
+        if (player != session) {
+            return; // the confirm rides only to the owning client
+        }
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(4);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_HELD_ITEM_CHANGE);
+        out.writeByte(player.inventory().heldSlot());
+        channel.writeAndFlush(out);
+    }
+
     // ------------------------------------------------------------------ experience orb sync
 
     /**

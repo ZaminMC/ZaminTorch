@@ -76,7 +76,10 @@ public final class FurnaceManager {
     /**
      * Advances every furnace one tick, then discards state whose block is no
      * longer a furnace (creative break removes the block without the survival
-     * spill path; the state has nowhere to live anymore).
+     * spill path; the state has nowhere to live anymore). The burn state
+     * drives the historical block swap: a burning furnace reads as the lit
+     * variant (62) and cools back to the plain furnace (61) when the fire
+     * dies — the block change also feeds the light engine its 13-level glow.
      */
     public void tick(EngineWorld world, ItemEntityManager items) {
         furnaces.entrySet().removeIf(entry -> {
@@ -86,19 +89,35 @@ public final class FurnaceManager {
                 return true; // block gone: state discarded (creative break path)
             }
             int beforeSlots = furnace.slotsSerial();
+            boolean wasBurning = furnace.burning();
             furnace.tick();
             if (furnace.slotsSerial() != beforeSlots) {
                 for (Listener listener : listeners) {
                     listener.onFurnaceSlotsChanged(position, furnace);
                 }
             }
+            if (wasBurning != furnace.burning()) {
+                syncLitBlock(world, position, furnace.burning());
+            }
             return false;
         });
     }
 
+    /** Swaps the furnace block to its lit (or unlit) variant, the historical visual. */
+    private void syncLitBlock(EngineWorld world, BlockPosition position, boolean burning) {
+        var expected = burning
+                ? net.zaminmc.torch.server.block.BuiltinBlocks.FURNACE
+                : net.zaminmc.torch.server.block.BuiltinBlocks.FURNACE_LIT;
+        if (world.getBlock(position).equals(expected)) {
+            world.setBlock(position, burning
+                    ? net.zaminmc.torch.server.block.BuiltinBlocks.FURNACE_LIT
+                    : net.zaminmc.torch.server.block.BuiltinBlocks.FURNACE);
+        }
+    }
+
     private static boolean isFurnaceBlock(EngineWorld world, BlockPosition position) {
-        return world.getBlock(position).identifier()
-                .equals(net.zaminmc.torch.server.block.BuiltinBlocks.FURNACE.identifier());
+        return net.zaminmc.torch.server.block.WorldSolidity.isFurnaceBlock(
+                world.getBlock(position).identifier());
     }
 
     /**

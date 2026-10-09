@@ -42,6 +42,8 @@ public final class FurnaceRecipes {
     private static final Map<Identifier, SmeltResult> SMELTING = Map.of(
             Identifier.parse("minecraft:iron_ore"),
             new SmeltResult(Identifier.parse("minecraft:iron_ingot"), 1, 0),
+            Identifier.parse("minecraft:gold_ore"),
+            new SmeltResult(Identifier.parse("minecraft:gold_ingot"), 1, 0),
             Identifier.parse("minecraft:cobblestone"),
             new SmeltResult(Identifier.parse("minecraft:stone"), 1, 0),
             Identifier.parse("minecraft:sand"),

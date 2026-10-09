@@ -129,6 +129,11 @@ public final class MobEntity {
         default boolean inFire(double x, double y, double z) {
             return false;
         }
+
+        /** @return whether the point's block (or the one below) is a cactus. */
+        default boolean touchingCactus(double x, double y, double z) {
+            return false;
+        }
     }
 
     /** What the mob is doing (the vanilla-style goal set of this slice). */
@@ -186,6 +191,8 @@ public final class MobEntity {
     // undead), deals the historical 1 damage per second while burning.
     private int fireTicks;
     private int fireDamageTimer;
+    // The cactus's contact clock (the historical 1 damage per second).
+    private int cactusDamageTimer;
 
     // The goal layer (the community PathfinderGoal architecture).
     private final GoalSelector goals = MobGoals.standard();
@@ -643,6 +650,11 @@ public final class MobEntity {
         // Fire contact arms the burn (the historical setFire on collision).
         if (!dead && world.inFire(position.x(), position.y(), position.z())) {
             ignite(FIRE_TICKS);
+        }
+        // Cactus contact pricks at the hurt-i-frame rhythm (10 ticks).
+        if (!dead && world.touchingCactus(position.x(), position.y(), position.z())
+                && ++cactusDamageTimer % 10 == 0) {
+            hurt(1.0f);
         }
         // Vertical: gravity + ground snap (the item-entity model). A body in
         // fluid sinks slowly and bobs (the historical fluid buoyancy).

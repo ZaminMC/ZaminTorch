@@ -43,6 +43,7 @@ class Protocol18ConformanceTest {
         m.put("S2C_UPDATE_HEALTH", 0x06);
         m.put("S2C_RESPAWN", 0x07);
         m.put("S2C_PLAYER_POSITION_AND_LOOK", 0x08);
+        m.put("S2C_HELD_ITEM_CHANGE", 0x09);
         m.put("S2C_ANIMATION", 0x0B);
         m.put("S2C_NAMED_SPAWN", 0x0C);
         m.put("S2C_COLLECT_ITEM", 0x0D);
@@ -62,6 +63,7 @@ class Protocol18ConformanceTest {
         m.put("S2C_SET_EXPERIENCE", 0x1F);
         m.put("S2C_CHUNK_DATA", 0x21);
         m.put("S2C_BLOCK_CHANGE", 0x23);
+        m.put("S2C_BLOCK_ACTION", 0x24);
         m.put("S2C_EXPLOSION", 0x27);
         m.put("S2C_NAMED_SOUND_EFFECT", 0x29);
         m.put("S2C_WORLD_PARTICLES", 0x2A);
