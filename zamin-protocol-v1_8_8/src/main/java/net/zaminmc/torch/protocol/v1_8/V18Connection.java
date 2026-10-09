@@ -998,6 +998,22 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     }
 
     @Override
+    public void updateWeather(boolean raining) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        // Change Game State (0x2B): reason 1 = end rain, 2 = begin rain,
+        // value 0.0 (the historical always-clear daylight state).
+        ByteBuf out = Unpooled.buffer(16);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_CHANGE_GAME_STATE);
+        out.writeByte(raining ? Protocol18.GAME_STATE_CHANGE_BEGIN_RAINING
+                : Protocol18.GAME_STATE_CHANGE_END_RAINING);
+        out.writeFloat(0.0f);
+        channel.writeAndFlush(out);
+    }
+
+    @Override
     public void resyncPosition() {
         Channel channel = adapter.channelOf(this);
         if (channel == null || !channel.isActive() || state != WireState.PLAY) {

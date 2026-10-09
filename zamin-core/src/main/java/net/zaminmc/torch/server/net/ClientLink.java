@@ -36,6 +36,13 @@ public interface ClientLink {
     }
 
     /**
+     * Announces the weather state (Change Game State 0x2B, reasons 1/2).
+     * Safe from any thread; default no-op for engine-internal links.
+     */
+    default void updateWeather(boolean raining) {
+    }
+
+    /**
      * Re-sends the authoritative position (Position and Look 0x2E): the
      * movement guard's "moved wrongly" snap-back. Safe from any thread;
      * default no-op for engine-internal links.

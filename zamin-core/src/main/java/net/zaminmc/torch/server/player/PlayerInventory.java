@@ -376,6 +376,16 @@ public final class PlayerInventory {
     }
 
     /**
+     * Empties the whole inventory (the /clear path): all 36 slots and the
+     * cursor. The command path's cleanup; a dropped variant is the caller's
+     * choice (the historical /clear destroys, so nothing is thrown).
+     */
+    public void clear() {
+        java.util.Arrays.fill(slots, ItemStack.EMPTY);
+        cursor = ItemStack.EMPTY;
+    }
+
+    /**
      * Directly sets a slot — reserved for explicit engine commands (the
      * creative inventory's write path), validated against the slot range.
      */

@@ -535,6 +535,11 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
         return distance;
     }
 
+    /** Clears the accumulated fall distance without consuming it (teleports). */
+    public void resetFallDistance() {
+        fallDistance = 0;
+    }
+
     // --- state transitions (engine-owned; only EngineServer may call these) ---
 
     public void authenticate() {
