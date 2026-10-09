@@ -544,6 +544,29 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                 connection.sendChestLid(position, opener, open);
             }
         });
+        // The dig progress: Block Break Animation 0x28 to every observer
+        // within the vanilla 32-block radius (ServerWorldEventListener's
+        // squared 1024.0 check), except the digger (their client predicts its
+        // own cracking overlay).
+        server.blockInteraction().setMiningProgressListener((digger, position, stage) -> {
+            double bx = position.x() + 0.5;
+            double by = position.y() + 0.5;
+            double bz = position.z() + 0.5;
+            for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                PlayerSession observer = connection.currentSession();
+                if (observer == null) {
+                    continue;
+                }
+                Position at = observer.position();
+                double dx = bx - at.x();
+                double dy = by - at.y();
+                double dz = bz - at.z();
+                if (dx * dx + dy * dy + dz * dz >= 1024.0) {
+                    continue;
+                }
+                connection.sendBlockMiningProgress(digger, position, stage);
+            }
+        });
         // The held-slot switch: the owner gets the 0x09 confirm, every
         // observer re-renders the new held item through Entity Equipment.
         server.addHeldSlotListener(player -> {

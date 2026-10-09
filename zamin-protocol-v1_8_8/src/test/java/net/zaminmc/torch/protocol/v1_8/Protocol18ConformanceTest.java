@@ -65,6 +65,7 @@ class Protocol18ConformanceTest {
         m.put("S2C_CHUNK_DATA", 0x21);
         m.put("S2C_BLOCK_CHANGE", 0x23);
         m.put("S2C_BLOCK_ACTION", 0x24);
+        m.put("S2C_BLOCK_MINING_PROGRESS", 0x28);
         m.put("S2C_EXPLOSION", 0x27);
         m.put("S2C_NAMED_SOUND_EFFECT", 0x29);
         m.put("S2C_WORLD_PARTICLES", 0x2A);

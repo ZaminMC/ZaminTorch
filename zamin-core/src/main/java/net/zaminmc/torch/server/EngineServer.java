@@ -431,6 +431,7 @@ public final class EngineServer implements Server, EngineBridge {
                 vehicles.addListener(new VehicleEventDispatch());
                 ticker.setTickHandler(() -> {
                     blockUpdateSystem.tick(); // §466: scheduled updates (falls start here)
+                    blockInteraction.tickMining(); // the vanilla dig accumulator + 0x28 stages
                     fluidSystem.tick();       // §472 pattern: pours, streams, contact
                     falling.tick();           // §470: falling physics + landings
                     projectileManager.tick(); // ranged combat physics

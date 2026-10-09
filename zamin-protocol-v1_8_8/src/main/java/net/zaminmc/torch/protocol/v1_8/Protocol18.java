@@ -71,6 +71,8 @@ final class Protocol18 {
     static final int S2C_HELD_ITEM_CHANGE = 0x09;
     /** Block Action (0x24, protocol 47): i64 pos, u8 action, u8 param, u32 block. */
     static final int S2C_BLOCK_ACTION = 0x24;
+    /** Block Break Animation (0x28, protocol 47): varint id, i64 pos, u8 stage. */
+    static final int S2C_BLOCK_MINING_PROGRESS = 0x28;
     /** The chest lid Block Action: action 1, param 1 = open / 0 = close. */
     static final int BLOCK_ACTION_CHEST_LID = 1;
     static final int CHEST_LEGACY_BLOCK_ID = 54;

@@ -130,21 +130,22 @@ class SurvivalMiningAcceptanceTest {
     }
 
     @Test
-    void tooFastFinishIsRejectedAndResynced() throws Exception {
+    void tooFastFinishParksTheDigOnTheVanillaClock() throws Exception {
         server = boot();
         PlayerSession player = join("Hasty");
         BlockPosition target = new BlockPosition(3, 5, 2);
         seedBlock(player, target, BuiltinBlocks.DIRT);
 
-        long baseline;
-        var resyncs = new java.util.concurrent.atomic.AtomicInteger();
-        server.addWorldListener((world, position, type) -> resyncs.incrementAndGet());
-        baseline = resyncs.get();
+        // The vanilla finishMiningBlock: an immediate finish is far below the
+        // 0.7 progress threshold, so the dig parks (no resync — the vanilla
+        // flow keeps the client's prediction standing) and the wasMining
+        // accumulator self-completes at progress 1.0, i.e. the full 15 ticks.
         server.blockInteraction().submitMiningStart(player, target);
         server.blockInteraction().submitMiningFinished(player, target); // immediately: far too fast
-        await(() -> resyncs.get() > baseline, "rejection resync published");
-        // The authoritative block must still be dirt after the resync.
-        assertEquals(BuiltinBlocks.DIRT, server.world().getBlock(target));
+        assertTrue(server.world().getBlock(target).equals(BuiltinBlocks.DIRT),
+                "an instant finish does not mine on the spot");
+        await(() -> server.world().getBlock(target).equals(BuiltinBlocks.AIR),
+                "the parked dig self-completes on the vanilla clock");
         server.shutdown(null);
     }
 

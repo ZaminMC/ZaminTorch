@@ -1364,6 +1364,36 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         channel.writeAndFlush(out);
     }
 
+    /**
+     * The Block Break Animation (0x28): one observer's view of another
+     * player's dig. Stage 0-9 draws the cracking overlay; any other value
+     * (the vanilla removal byte is 0xFF, written as {@code writeByte(-1)})
+     * clears it. The digger never receives these — the vanilla client
+     * predicts its own overlay locally.
+     */
+    void sendBlockMiningProgress(PlayerSession digger, BlockPosition position, int stage) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        PlayerSession current = session;
+        if (current == null || current.uuid().equals(digger.uuid())
+                || chunkTracker == null
+                || !chunkTracker.hasChunk(position.chunkPosition().packed())) {
+            return;
+        }
+        int entityId = digger.engineEntityId();
+        if (entityId < 0) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(16);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_BLOCK_MINING_PROGRESS);
+        ByteBufOps.writeVarInt(out, entityId);
+        ByteBufOps.writePackedBlockPosition(out, position.x(), position.y(), position.z());
+        out.writeByte(stage);
+        channel.writeAndFlush(out);
+    }
+
     // ------------------------------------------------------------------ inventory sync
 
     /**
