@@ -45,6 +45,7 @@ import net.zaminmc.torch.server.interaction.DropService;
 import net.zaminmc.torch.server.ops.OpStore;
 import net.zaminmc.torch.server.net.ClientLink;
 import net.zaminmc.torch.server.net.EngineBridge;
+import net.zaminmc.torch.server.player.MovementGuard;
 import net.zaminmc.torch.server.player.PlayerDataStore;
 import net.zaminmc.torch.server.player.PlayerRegistry;
 import net.zaminmc.torch.server.player.PlayerSession;
@@ -732,6 +733,7 @@ public final class EngineServer implements Server, EngineBridge {
                 continue;
             }
             session.tickHurtInvulnerability();
+            session.tickGrace();
             // The vanilla void: below the kill plane the out-of-world damage
             // lands every tick (the historical outOfWorld rate) until death —
             // and it pierces creative invulnerability, the historical rule.
@@ -1003,6 +1005,9 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     private void publishKnockback(PlayerSession victim, double vx, double vy, double vz) {
+        // The knockback flight opens the guard's grace window: the client's
+        // next proposals ride the launch burst legitimately.
+        victim.setGraceTicks(10);
         for (SurvivalListener listener : survivalListeners) {
             listener.onKnockback(victim, vx, vy, vz);
         }
@@ -1276,6 +1281,9 @@ public final class EngineServer implements Server, EngineBridge {
             }
             session.resetBody();
             session.cancelEating();
+            // The respawn re-anchor rides the guard's grace window: the client
+            // teleports to spawn and its first proposals are position bursts.
+            session.setGraceTicks(100);
             publishInventoryChanged(session);
             publishBodyChanged(session);
             publishRespawned(session);
@@ -2880,11 +2888,20 @@ public final class EngineServer implements Server, EngineBridge {
         }
         session.setGamemode(mode);
         session.link().updateGamemode(mode.legacyId());
-        // The protocol-47 abilities map: 0x01 invulnerable, 0x04 may-fly,
-        // 0x08 instant build — the historical creative/spectator grant.
+        // The protocol-47 abilities map: 0x01 invulnerable, 0x02 flying,
+        // 0x04 may-fly, 0x08 instant build — the historical grant. Flight
+        // rights follow the mode (the movement guard reads the same flag).
         int flags = 0;
-        if (mode == GameMode.CREATIVE || mode == GameMode.SPECTATOR) {
+        boolean mayFly = mode == GameMode.CREATIVE || mode == GameMode.SPECTATOR;
+        if (mayFly) {
             flags |= 0x01 | 0x04 | 0x08;
+        }
+        session.setAllowedToFly(mayFly);
+        if (!mayFly) {
+            session.setFlying(false); // leaving flight: the client re-announces
+            session.clearHoverTicks();
+        } else {
+            session.setGraceTicks(40); // the mode-switch re-anchor burst
         }
         session.link().updateAbilities(flags);
         publishBodyChanged(session);
@@ -3179,6 +3196,11 @@ public final class EngineServer implements Server, EngineBridge {
             Position spawn = saved.map(PlayerSnapshot::position)
                     .orElseGet(world::spawnPosition);
             session.beginJoin(world, spawn);
+            // The join burst (spawn chunks, position re-anchor) rides grace.
+            session.setGraceTicks(100);
+            // Flight rights follow the mode: creative and spectator may fly.
+            session.setAllowedToFly(session.gamemode() == GameMode.CREATIVE
+                    || session.gamemode() == GameMode.SPECTATOR);
             saved.ifPresent(snapshot -> restorePlayer(session, snapshot));
             LOGGER.info(() -> "Player joined: " + username + " (" + offlineUuid + ")"
                     + saved.map(s -> " [restored]").orElse(""));
@@ -3292,7 +3314,20 @@ public final class EngineServer implements Server, EngineBridge {
 
     @Override
     public void movementProposal(PlayerSession session, Position position, Rotation rotation, boolean onGround) {
-        // Per-channel ordering (transport guarantee) makes this safe for slice 1.
+        // The anti-cheat baseline (the mango-adopted shape): proposals outside
+        // the historical physics envelope are dropped and the client is
+        // snapped back to the authoritative position — the historical
+        // "moved wrongly" behavior. The grace window (teleports, knockback,
+        // join bursts) suspends the speed caps for honest bursts.
+        Position from = session.position();
+        if (!MovementGuard.permits(session, from, position, onGround,
+                fluidAt(from.x(), from.y(), from.z()))) {
+            session.link().resyncPosition();
+            LOGGER.fine(() -> "Movement rejected for " + session.name()
+                    + " (" + from + " -> " + position + ")");
+            return;
+        }
+        // Per-channel ordering (transport guarantee) makes this safe.
         session.applyMovement(position, rotation, onGround);
     }
 

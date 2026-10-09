@@ -34,4 +34,12 @@ public interface ClientLink {
      */
     default void updateAbilities(int flags) {
     }
+
+    /**
+     * Re-sends the authoritative position (Position and Look 0x2E): the
+     * movement guard's "moved wrongly" snap-back. Safe from any thread;
+     * default no-op for engine-internal links.
+     */
+    default void resyncPosition() {
+    }
 }
