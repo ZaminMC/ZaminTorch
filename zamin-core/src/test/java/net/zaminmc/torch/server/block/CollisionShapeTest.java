@@ -230,7 +230,7 @@ class CollisionShapeTest {
     }
 
     @Test
-    void fallingBlocksLandOnSlabsAsTheCellAbove() {
+    void fallingBlocksRestOnSlabHalvesInTheSlabsOwnCell() {
         ShapeWorld world = new ShapeWorld(0, 0,
                 new ShapeWorld.WorldSolidityProbe(true, false), null);
         FallingBlockEntity sand = new FallingBlockEntity(9, BuiltinBlocks.SAND,
@@ -240,8 +240,11 @@ class CollisionShapeTest {
             step = sand.tick(world);
         }
         assertEquals(FallingBlockEntity.Step.LANDED, step, "the falling block landed on the slab");
-        assertEquals(4.5 + FallingBlockEntity.HALF_HEIGHT, sand.position().y(), 1e-9,
-                "the body rests on the half");
-        assertEquals(5, sand.landingPosition().y(), "the block form lands on the cell above");
+        assertEquals(4.5, sand.position().y(), 1e-9,
+                "the box bottom rests on the half (the vanilla moveEntity clamp)");
+        assertEquals(4, sand.landingPosition().y(),
+                "the landing cell is the slab's own cell (BlockPos floors the resting "
+                        + "bottom 4.5 to 4) — the vanilla quirk: canPlace fails on the "
+                        + "non-replaceable slab, so the landing pops the stack as an item");
     }
 }

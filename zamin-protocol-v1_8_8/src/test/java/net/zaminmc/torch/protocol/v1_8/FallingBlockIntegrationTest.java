@@ -73,8 +73,9 @@ class FallingBlockIntegrationTest extends ProtocolTestBase {
             int[] fallTwo = client.readSpawnObjectOfType(Protocol18.OBJECT_FALLING_BLOCK, 10_000);
             assertEquals(12, fallOne[5], "objectData carries the sand legacy id");
             assertEquals(12, fallTwo[5]);
-            assertEquals(208, fallOne[3], "the lower entity centers in its cell (6.5 * 32)");
-            assertEquals(240, fallTwo[3], "the upper entity centers in its cell (7.5 * 32)");
+            assertEquals(192, fallOne[3], "the lower entity spawns at the vanilla "
+                    + "box-bottom y (6.0 * 32 — the model renders in its cell)");
+            assertEquals(224, fallTwo[3], "the upper entity spawns at its cell bottom (7.0 * 32)");
             assertTrue(fallOne[2] / 32.0 > 2.0 && fallOne[2] / 32.0 < 3.0, "the fall is vertical");
             assertNotEquals(fallOne[0], fallTwo[0], "two distinct engine ids");
 

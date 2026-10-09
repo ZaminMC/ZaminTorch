@@ -20,12 +20,18 @@ import java.util.logging.Logger;
  * the block→entity transition, this manager runs the fall and commits the
  * entity→block (or entity→item) transition back on landing.
  *
- * <p>Landing rules are historical: the block re-materializes when its landing
- * cell is air; when the cell is occupied the stack drops as an item entity
- * instead (the historical {@code dropItem} behavior); falling out of the world
- * removes the entity without a drop. The landing commit flows through the
- * world's normal mutation path, so persistence deltas and client syncs ride
- * the existing listeners.</p>
+ * <p>Landing rules are the vanilla 1.8.8 ones (ported from reference/1.8.8
+ * FallingBlockEntity.tick lines 92-127): the block re-materializes when its
+ * landing cell is replaceable (air, water, lava, fire and the replaceable
+ * flora — the {@code canPlace} semantics, so sand settles INTO a pond and
+ * replaces the water) AND the cell below holds it up ({@code
+ * !FallingBlock.canFallThrough(world, blockpos1.down())}); anything else —
+ * an occupied cell, a below-cell that cannot support — drops the stack as an
+ * item entity instead (the historical {@code dropItem}); the vanilla
+ * lifetime rule (600 ticks falling, or 100+ outside y 1..256) also ends in
+ * a drop. The landing commit flows through the world's normal mutation
+ * path, so persistence deltas and client syncs ride the existing
+ * listeners.</p>
  */
 public final class FallingBlockEntityManager {
 
@@ -84,14 +90,15 @@ public final class FallingBlockEntityManager {
 
     /**
      * Starts the §470 transition: the block at {@code source} (already air in
-     * the world) continues as a falling entity centered in the block cell.
-     * Tick-thread context.
+     * the world) continues as a falling entity positioned exactly as vanilla
+     * spawns it ({@code x + 0.5, y, z + 0.5} — X/Z centered, Y at the cell
+     * bottom, the box-bottom convention). Tick-thread context.
      */
     public FallingBlockEntity startFall(BlockPosition source, BlockType blockType) {
         Objects.requireNonNull(source, "source");
         Objects.requireNonNull(blockType, "blockType");
         FallingBlockEntity entity = new FallingBlockEntity(nextEntityId++, blockType,
-                new Position(source.x() + 0.5, source.y() + 0.5, source.z() + 0.5));
+                new Position(source.x() + 0.5, source.y(), source.z() + 0.5));
         entities.add(entity);
         for (Listener listener : listeners) {
             listener.onFallingSpawned(entity);
@@ -126,7 +133,9 @@ public final class FallingBlockEntityManager {
                 }
                 case VOID -> {
                     iterator.remove();
-                    LOGGER.fine(() -> "Falling block " + entity.entityId() + " left the world");
+                    LOGGER.fine(() -> "Falling block " + entity.entityId()
+                            + " ended by the vanilla lifetime rule");
+                    dropAsItem(entity);
                     for (Listener listener : listeners) {
                         listener.onFallingEnded(entity, false);
                     }
@@ -142,19 +151,39 @@ public final class FallingBlockEntityManager {
         }
     }
 
-    /** The historical landing: block when the cell is free, item drop when not. */
+    /**
+     * The vanilla landing gate (FallingBlockEntity.tick lines 99-101): the
+     * cell accepts the block ({@code canPlace} — the replaceable set, so a
+     * settling sand replaces the pond water or the flora it lands in) AND
+     * the cell below holds it up ({@code !FallingBlock.canFallThrough(
+     * world, blockpos1.down())} — no floating over air or water); every
+     * other landing drops the stack as an item.
+     */
     private boolean landAsBlock(FallingBlockEntity entity) {
         BlockPosition landing = entity.landingPosition();
-        if (world.getBlock(landing).equals(world.airType())) {
+        // The 1.8 world band is y 0..255 (16 chunk sections); below-world
+        // landings drop instead of indexing a nonexistent section (vanilla's
+        // setBlockState fails there too).
+        if (landing.y() >= 0 && landing.y() < net.zaminmc.torch.server.world.EngineChunk.SECTION_COUNT * 16
+                && FallingBlockEntity.canBeReplacedOnLanding(world.getBlock(landing))
+                && !FallingBlockEntity.canFallThrough(FallingBlockEntity.blockOrAir(
+                        world, landing.offset(0, -1, 0)))) {
             world.setBlock(landing, entity.blockType());
             return true;
         }
-        // Occupied: the historical dropItem path (a random small pop, like blocks).
+        dropAsItem(entity);
+        return false;
+    }
+
+    /** The vanilla {@code dropItem}: the block's item pops at the entity. */
+    private void dropAsItem(FallingBlockEntity entity) {
         net.zaminmc.torch.item.ItemType itemType =
                 net.zaminmc.torch.server.item.BuiltinItems.lookup(entity.blockType().identifier()).orElse(null);
         if (itemType != null) {
-            dropSink.spawnDropAtBlock(landing, ItemStack.of(itemType, 1));
+            BlockPosition at = new BlockPosition((int) Math.floor(entity.position().x()),
+                    Math.max(0, (int) Math.floor(entity.position().y())),
+                    (int) Math.floor(entity.position().z()));
+            dropSink.spawnDropAtBlock(at, ItemStack.of(itemType, 1));
         }
-        return false;
     }
 }
