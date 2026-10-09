@@ -141,11 +141,17 @@ class BiomeWorldTest {
         var grassBehavior = BlockBehaviorTable.of(tallGrass).orElseThrow();
         assertEquals(0.0, grassBehavior.hardness());
         assertFalse(grassBehavior.requiresTool());
-        // The flowers drop themselves; grass and the dead bush drop nothing.
+        // The flowers drop themselves; the dead bush drops nothing; tall
+        // grass carries the historical seed income (1/8) with its flora
+        // self-drop as the fallback roll.
         var poppyBehavior = BlockBehaviorTable.of(poppy).orElseThrow();
         assertEquals(1, poppyBehavior.drops().size());
         assertEquals(poppy, poppyBehavior.drops().get(0).item());
-        assertTrue(BlockBehaviorTable.of(tallGrass).orElseThrow().drops().isEmpty());
+        var grassDrops = BlockBehaviorTable.of(tallGrass).orElseThrow().drops();
+        assertEquals(2, grassDrops.size());
+        assertEquals(Identifier.parse("minecraft:wheat_seeds"), grassDrops.get(0).item());
+        assertEquals(0.125, grassDrops.get(0).chance(), 1e-9);
+        assertEquals(tallGrass, grassDrops.get(1).item());
         assertTrue(BlockBehaviorTable.of(deadBush).orElseThrow().drops().isEmpty());
         // The redstone ore keeps its own wire identity (id 73, never iron's 15).
         assertNotEquals(Identifier.parse("minecraft:iron_ore"),

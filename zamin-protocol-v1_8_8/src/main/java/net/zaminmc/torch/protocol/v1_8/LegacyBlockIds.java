@@ -132,7 +132,30 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:dead_bush"), 32),
             Map.entry(Identifier.parse("minecraft:dandelion"), 37),
             Map.entry(Identifier.parse("minecraft:poppy"), 38),
-            Map.entry(Identifier.parse("minecraft:sandstone"), 24));
+            Map.entry(Identifier.parse("minecraft:sandstone"), 24),
+            // farming items (community items.json)
+            Map.entry(Identifier.parse("minecraft:wheat_seeds"), 295),
+            Map.entry(Identifier.parse("minecraft:wheat"), 296),
+            Map.entry(Identifier.parse("minecraft:bread"), 297),
+            Map.entry(Identifier.parse("minecraft:bone_meal"), 351),
+            Map.entry(Identifier.parse("minecraft:wooden_hoe"), 290),
+            Map.entry(Identifier.parse("minecraft:stone_hoe"), 291),
+            Map.entry(Identifier.parse("minecraft:iron_hoe"), 292),
+            Map.entry(Identifier.parse("minecraft:diamond_hoe"), 293),
+            Map.entry(Identifier.parse("minecraft:golden_hoe"), 294),
+            // The farming slice (community blocks.json: farmland 60, wheat
+            // crop 59 — the growth age rides the metadata nibble of the
+            // per-stage block types).
+            Map.entry(Identifier.parse("minecraft:farmland"), 60),
+            Map.entry(Identifier.parse("minecraft:farmland_wet"), 60),
+            Map.entry(Identifier.parse("minecraft:wheat_stage0"), 59),
+            Map.entry(Identifier.parse("minecraft:wheat_stage1"), 59),
+            Map.entry(Identifier.parse("minecraft:wheat_stage2"), 59),
+            Map.entry(Identifier.parse("minecraft:wheat_stage3"), 59),
+            Map.entry(Identifier.parse("minecraft:wheat_stage4"), 59),
+            Map.entry(Identifier.parse("minecraft:wheat_stage5"), 59),
+            Map.entry(Identifier.parse("minecraft:wheat_stage6"), 59),
+            Map.entry(Identifier.parse("minecraft:wheat_stage7"), 59));
 
     private static final Map<Integer, Identifier> BY_LEGACY_ID = reverse();
 

@@ -562,6 +562,15 @@ public final class EngineServer implements Server, EngineBridge {
         return commands;
     }
 
+    /**
+     * The simulation ticker (public: semantic entries like {@link #damage}
+     * and the acceptance tests probe tick-confined state through it).
+     * Work submitted here runs on the world owner thread, in tick order.
+     */
+    public EngineTicker ticker() {
+        return ticker;
+    }
+
     public PlayerRegistry playerRegistry() {
         return players;
     }
@@ -2025,7 +2034,66 @@ public final class EngineServer implements Server, EngineBridge {
         if (useBucketOnTick(session, clicked, face)) {
             return; // the bucket did its work; no placement proposal follows
         }
+        if (useFarmingOnTick(session, clicked)) {
+            return; // the hoe/seed/bone-meal use was consumed
+        }
         blockInteraction.placeFromUseOnTick(session, clicked, face, creativeHeld);
+    }
+
+    /**
+     * The farming uses (the historical ItemHoe/ItemSeeds/ItemDye right-click
+     * rules): a hoe tills grass or dirt into farmland (the cell above must be
+     * open, the tool wears one use); seeds plant a crop on farmland; bone
+     * meal jumps a growing crop forward 2-4 stages. Returns whether the use
+     * was consumed. Tick-thread context.
+     */
+    private boolean useFarmingOnTick(PlayerSession session, BlockPosition clicked) {
+        net.zaminmc.torch.item.ItemType heldType = session.inventory().held().type();
+        String held = heldType.identifier().toString();
+        if (held.endsWith("_hoe")) {
+            BlockType soil = world.getBlock(clicked);
+            boolean tillable = soil.identifier().equals(BuiltinBlocks.GRASS_BLOCK.identifier())
+                    || soil.identifier().equals(BuiltinBlocks.DIRT.identifier());
+            if (!tillable || !world.getBlock(clicked.offset(0, 1, 0)).equals(world.airType())) {
+                return false; // nothing to till (or no headroom): the no-op
+            }
+            world.setBlock(clicked, BuiltinBlocks.FARMLAND);
+            fxManager.sound(new Position(clicked.x() + 0.5, clicked.y() + 0.5, clicked.z() + 0.5),
+                    "dig.grass", 0.8f, 1.0f);
+            if (net.zaminmc.torch.server.item.Tools.specOf(heldType).isPresent()) {
+                session.inventory().damageHeld(1);
+                publishInventoryChanged(session);
+            }
+            return true;
+        }
+        if (held.equals("minecraft:wheat_seeds")) {
+            BlockType soil = world.getBlock(clicked);
+            boolean farmland = soil.identifier().equals(BuiltinBlocks.FARMLAND.identifier())
+                    || soil.identifier().equals(BuiltinBlocks.FARMLAND_WET.identifier());
+            if (!farmland || !world.getBlock(clicked.offset(0, 1, 0)).equals(world.airType())) {
+                return false; // seeds only take on open farmland (the historical gate)
+            }
+            world.setBlock(clicked.offset(0, 1, 0), BuiltinBlocks.WHEAT_STAGE0);
+            session.inventory().consumeHeld(1);
+            fxManager.sound(new Position(clicked.x() + 0.5, clicked.y() + 1.5, clicked.z() + 0.5),
+                    "dig.grass", 0.6f, 1.1f);
+            publishInventoryChanged(session);
+            return true;
+        }
+        if (held.equals("minecraft:bone_meal")) {
+            int stage = RandomTickSystem.wheatStageAt(world, clicked);
+            if (stage < 0 || stage >= 7) {
+                return false; // not a growing crop: the historical no-op
+            }
+            int grown = Math.min(7, stage + 2 + gameplayRandom.nextInt(3));
+            world.setBlock(clicked, RandomTickSystem.wheatStage(grown));
+            session.inventory().consumeHeld(1);
+            fxManager.itemShatter(new Position(clicked.x() + 0.5, clicked.y() + 0.5, clicked.z() + 0.5),
+                    session.inventory().held());
+            publishInventoryChanged(session);
+            return true;
+        }
+        return false;
     }
 
     /**

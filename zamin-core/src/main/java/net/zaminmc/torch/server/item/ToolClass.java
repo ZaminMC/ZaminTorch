@@ -12,5 +12,7 @@ public enum ToolClass {
     AXE,
     SHOVEL,
     SWORD,
-    SHEARS
+    SHEARS,
+    /** The tiller: no dig acceleration in 1.8 (its work is farmland creation). */
+    HOE
 }

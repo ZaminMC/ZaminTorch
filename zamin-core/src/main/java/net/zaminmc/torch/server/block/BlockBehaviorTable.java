@@ -134,8 +134,59 @@ public final class BlockBehaviorTable {
             // flowers drop themselves; tall grass and the dead bush drop
             // nothing by hand (shears drops are a later slice; seeds/farming
             // do not exist yet).
+            // The farming slice (community blocks.json): farmland hardness
+            // 0.6, dirt material, drops dirt (the historical BlockFarmland).
+            // The wheat crop (block 59) is instant-break; the mature stage
+            // yields the wheat plus a seed (the historical 0-3 roll folded to
+            // one, the Drop model's fixed-count shape), younger stages drop
+            // only the seed.
+            Map.entry(Identifier.parse("minecraft:farmland"),
+                    new BlockBehavior(0.6, true, false, "dirt", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:dirt"), 1)))),
+
+            Map.entry(Identifier.parse("minecraft:farmland_wet"),
+                    new BlockBehavior(0.6, true, false, "dirt", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:dirt"), 1)))),
+
+            Map.entry(Identifier.parse("minecraft:wheat_stage0"),
+                    new BlockBehavior(0.0, true, false, "plants", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:wheat_seeds"), 1)))),
+
+            Map.entry(Identifier.parse("minecraft:wheat_stage1"),
+                    new BlockBehavior(0.0, true, false, "plants", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:wheat_seeds"), 1)))),
+
+            Map.entry(Identifier.parse("minecraft:wheat_stage2"),
+                    new BlockBehavior(0.0, true, false, "plants", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:wheat_seeds"), 1)))),
+
+            Map.entry(Identifier.parse("minecraft:wheat_stage3"),
+                    new BlockBehavior(0.0, true, false, "plants", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:wheat_seeds"), 1)))),
+
+            Map.entry(Identifier.parse("minecraft:wheat_stage4"),
+                    new BlockBehavior(0.0, true, false, "plants", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:wheat_seeds"), 1)))),
+
+            Map.entry(Identifier.parse("minecraft:wheat_stage5"),
+                    new BlockBehavior(0.0, true, false, "plants", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:wheat_seeds"), 1)))),
+
+            Map.entry(Identifier.parse("minecraft:wheat_stage6"),
+                    new BlockBehavior(0.0, true, false, "plants", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:wheat_seeds"), 1)))),
+
+            Map.entry(Identifier.parse("minecraft:wheat_stage7"),
+                    new BlockBehavior(0.0, true, false, "plants", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:wheat"), 1),
+                                    new BlockBehavior.Drop(Identifier.parse("minecraft:wheat_seeds"), 1)))),
+
             Map.entry(Identifier.parse("minecraft:tall_grass"),
-                    new BlockBehavior(0.0, true, false, "plants", 0, List.of())),
+                    new BlockBehavior(0.0, true, false, "plants", 0,
+                            // the historical seed roll (1/8) first, the
+                            // flora slice's self-drop otherwise
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:wheat_seeds"), 1, 0.125),
+                                    new BlockBehavior.Drop(Identifier.parse("minecraft:tall_grass"), 1, 1.0)))),
             Map.entry(Identifier.parse("minecraft:dead_bush"),
                     new BlockBehavior(0.0, true, false, "plants", 0, List.of())),
             Map.entry(Identifier.parse("minecraft:dandelion"),

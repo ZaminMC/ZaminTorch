@@ -170,6 +170,17 @@ public final class BuiltinRecipes {
                     { null, ing("minecraft:iron_ingot", false, 0) },
                     { ing("minecraft:iron_ingot", false, 0), null }
             },
-                    res("minecraft:shears", 1, 0))
+                    res("minecraft:shears", 1, 0)),
+            // The farming slice (community recipes.json): bread is a row of
+            // three wheat; bone meal is one bone (the historical shapeless
+            // craft folded to the 1x1 shaped form the matcher already runs).
+            CraftingRecipe.shaped(new Ingredient[][] {
+                    { ing("minecraft:wheat", false, 0), ing("minecraft:wheat", false, 0), ing("minecraft:wheat", false, 0) }
+            },
+                    res("minecraft:bread", 1, 0)),
+            CraftingRecipe.shaped(new Ingredient[][] {
+                    { ing("minecraft:bone", false, 0) }
+            },
+                    res("minecraft:bone_meal", 3, 0))
     );
 }

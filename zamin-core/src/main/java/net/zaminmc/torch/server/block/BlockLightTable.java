@@ -88,6 +88,16 @@ public final class BlockLightTable {
             // The flora passes light fully (dataset filterLight 0: the plants
             // shade nothing); sandstone is a full opaque cube (filter 15).
             Map.entry(Identifier.parse("minecraft:tall_grass"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:farmland"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:farmland_wet"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:wheat_stage0"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:wheat_stage1"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:wheat_stage2"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:wheat_stage3"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:wheat_stage4"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:wheat_stage5"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:wheat_stage6"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:wheat_stage7"), new LightData(0, 0)),
             Map.entry(Identifier.parse("minecraft:dead_bush"), new LightData(0, 0)),
             Map.entry(Identifier.parse("minecraft:dandelion"), new LightData(0, 0)),
             Map.entry(Identifier.parse("minecraft:poppy"), new LightData(0, 0)),
