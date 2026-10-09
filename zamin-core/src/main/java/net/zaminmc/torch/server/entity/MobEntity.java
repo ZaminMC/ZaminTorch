@@ -424,12 +424,31 @@ public final class MobEntity {
         return velocityZ;
     }
 
-    /** Applies a knockback impulse along the attacker's yaw (historical feel). */
+    /** The test seam: a body already in motion (the knockback-residual cases). */
+    void setVelocityForTest(double vx, double vy, double vz) {
+        this.velocityX = vx;
+        this.velocityY = vy;
+        this.velocityZ = vz;
+    }
+
+    /**
+     * The vanilla applyKnockback (reference/1.8.8 LivingEntity lines
+     * 778-793) along the attacker's away-direction: the current motion
+     * halves on every axis first (chained hits decay exactly as
+     * historical), then the 0.4 impulse rides the normalized direction and
+     * the rise is capped at 0.4. The yaw-derived direction is the unit
+     * away-vector, so the impulse divides by 1 (the vanilla normalizes the
+     * attacker-to-victim delta; a zero-distance delta would jitter, which a
+     * swing yaw never produces). No knockback-resistance roll: the engine
+     * registers no resistance attribute (the roll at 0 never fires).
+     */
     public void knockbackFrom(double attackerYaw) {
         double radians = Math.toRadians(attackerYaw);
-        velocityX = -Math.sin(radians) * 0.4;
-        velocityZ = Math.cos(radians) * 0.4;
-        velocityY = 0.4;
+        double awayX = -Math.sin(radians);
+        double awayZ = Math.cos(radians);
+        velocityX = velocityX / 2.0 + awayX * 0.4;
+        velocityY = Math.min(velocityY / 2.0 + 0.4, 0.4);
+        velocityZ = velocityZ / 2.0 + awayZ * 0.4;
         onGround = false; // a primed creeper keeps priming; range governs the abort
     }
 

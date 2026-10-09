@@ -104,6 +104,24 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
     private volatile boolean sneaking;
     private volatile boolean sprinting;
 
+    // The server-known motion (the vanilla EntityPlayer motionX/Y/Z): only
+    // explicit server impulses write it — knockback, explosions — the
+    // client's own movement never does. The vanilla applyKnockback halves
+    // THIS value before adding the impulse, so chained hits decay exactly
+    // as historical, and a fresh hit on a resting body rides the plain 0.4.
+    private volatile double motionX;
+    private volatile double motionY;
+    private volatile double motionZ;
+
+    // The body-delta scratch (the movement-exhaustion ledger): the previous
+    // body position and ground state, captured once per tick by the body
+    // tick so the per-meter rates charge from the real displacement.
+    private double bodyPrevX;
+    private double bodyPrevY;
+    private double bodyPrevZ;
+    private boolean bodyPrevOnGround;
+    private boolean bodyPrevValid;
+
     // --- movement guard state (the anti-cheat baseline) ---------------------
 
     /** Grace-window ticks left: teleports, knockback and join bursts ride it. */
@@ -543,16 +561,23 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
         this.bowChargeTicks = -1;
         this.sneaking = false;
         this.sprinting = false;
+        this.motionX = 0;
+        this.motionY = 0;
+        this.motionZ = 0;
+        this.bodyPrevValid = false;
         extinguish();
         resetFireDamageTimer();
         resetHurtInvulnerability();
         clearHoverTicks();
     }
 
-    /** Exhaustion accrual (regen hearts; more sources arrive with combat). */
+    /** Exhaustion accrual (the vanilla cap: 40.0). */
     public void addExhaustion(float amount) {
-        exhaustion += amount;
+        exhaustion = Math.min(exhaustion + amount, EXHAUSTION_CAP);
     }
+
+    /** The vanilla exhaustion ceiling ({@code Math.min(this.exhaustion + e, 40.0F)}). */
+    public static final float EXHAUSTION_CAP = 40.0f;
 
     /** @return the pending exhaustion (tick consumes it through the food rules). */
     public float exhaustion() {
@@ -561,6 +586,64 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
 
     public void setExhaustion(float value) {
         this.exhaustion = Math.max(0.0f, value);
+    }
+
+    // --- the server-known motion (the knockback residual) -------------------
+
+    /** @return the server-known X motion (only server impulses write it). */
+    public double motionX() {
+        return motionX;
+    }
+
+    /** @return the server-known Y motion. */
+    public double motionY() {
+        return motionY;
+    }
+
+    /** @return the server-known Z motion. */
+    public double motionZ() {
+        return motionZ;
+    }
+
+    /** Replaces the server-known motion (the vanilla motion-set sites). */
+    public void setMotion(double x, double y, double z) {
+        this.motionX = x;
+        this.motionY = y;
+        this.motionZ = z;
+    }
+
+    // --- the movement-exhaustion ledger (the body-delta scratch) ------------
+
+    /**
+     * Captures this tick's body snapshot for the next tick's delta; the
+     * first call only seeds (no displacement exists yet).
+     */
+    public void captureBodyDelta(double x, double y, double z, boolean onGround) {
+        this.bodyPrevX = x;
+        this.bodyPrevY = y;
+        this.bodyPrevZ = z;
+        this.bodyPrevOnGround = onGround;
+        this.bodyPrevValid = true;
+    }
+
+    public double bodyPrevX() {
+        return bodyPrevX;
+    }
+
+    public double bodyPrevY() {
+        return bodyPrevY;
+    }
+
+    public double bodyPrevZ() {
+        return bodyPrevZ;
+    }
+
+    public boolean bodyPrevOnGround() {
+        return bodyPrevOnGround;
+    }
+
+    public boolean bodyPrevValid() {
+        return bodyPrevValid;
     }
 
     public void advanceBodyTimer() {
