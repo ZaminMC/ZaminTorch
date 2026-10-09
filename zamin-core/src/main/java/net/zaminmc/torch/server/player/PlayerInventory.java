@@ -2,6 +2,7 @@ package net.zaminmc.torch.server.player;
 
 import net.zaminmc.torch.item.ItemStack;
 import net.zaminmc.torch.item.ItemType;
+import net.zaminmc.torch.server.item.Armor;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -26,12 +27,19 @@ public final class PlayerInventory {
     public static final int MAIN_SLOTS = 27;
     public static final int TOTAL_SLOTS = HOTBAR_SLOTS + MAIN_SLOTS; // 36, like the historical model
 
+    /** The four armor slots (engine order): head, chest, legs, feet. */
+    public static final int ARMOR_SLOTS = 4;
+    /** The ZPD v5 persistence namespace where the armor row lives (36-39). */
+    public static final int ARMOR_BASE = TOTAL_SLOTS;
+
     private final ItemStack[] slots = new ItemStack[TOTAL_SLOTS];
+    private final ItemStack[] armor = new ItemStack[ARMOR_SLOTS];
     private int heldSlot; // 0-8, the hotbar index the client currently holds
     private ItemStack cursor = ItemStack.EMPTY; // the stack held by the mouse (window clicks)
 
     public PlayerInventory() {
         java.util.Arrays.fill(slots, ItemStack.EMPTY);
+        java.util.Arrays.fill(armor, ItemStack.EMPTY);
     }
 
     /** @return the stack currently carried on the mouse cursor (never null). */
@@ -370,18 +378,143 @@ public final class PlayerInventory {
         this.heldSlot = heldSlot;
     }
 
+    // ------------------------------------------------------------------ armor (§armor)
+
+    /** @return the equipped stack in the armor slot (0=head, 1=chest, 2=legs, 3=feet). */
+    public ItemStack armorAt(int armorSlot) {
+        if (armorSlot < 0 || armorSlot >= ARMOR_SLOTS) {
+            throw new IllegalArgumentException("Armor slot out of range: " + armorSlot);
+        }
+        return armor[armorSlot];
+    }
+
+    /**
+     * Sets one armor slot, enforcing the kind rule: only armor of the
+     * matching slot may enter (the historical inventory's type gate). An
+     * empty stack clears. @return whether the write was accepted.
+     */
+    public boolean setArmor(int armorSlot, ItemStack stack) {
+        if (armorSlot < 0 || armorSlot >= ARMOR_SLOTS) {
+            throw new IllegalArgumentException("Armor slot out of range: " + armorSlot);
+        }
+        Objects.requireNonNull(stack, "stack");
+        if (!stack.isEmpty()) {
+            Armor.Spec spec = Armor.specOf(stack.type()).orElse(null);
+            if (spec == null || spec.slot() != Armor.Slot.values()[armorSlot]) {
+                return false; // not armor, or the wrong slot's kind
+            }
+        }
+        armor[armorSlot] = stack.isEmpty() ? ItemStack.EMPTY : stack;
+        return true;
+    }
+
+    /** @return the sum of the equipped pieces' armor points (the 0-20 bar). */
+    public int totalArmorPoints() {
+        int total = 0;
+        for (ItemStack piece : armor) {
+            if (!piece.isEmpty()) {
+                total += Armor.specOf(piece.type()).map(Armor.Spec::armorPoints).orElse(0);
+            }
+        }
+        return total;
+    }
+
+    /**
+     * The historical armor wear: every equipped piece loses one durability
+     * unit per damaging hit it absorbed; a piece that reaches its limit
+     * breaks (leaves the slot). @return whether any slot changed.
+     */
+    public boolean wearArmor() {
+        boolean changed = false;
+        for (int i = 0; i < ARMOR_SLOTS; i++) {
+            ItemStack piece = armor[i];
+            if (piece.isEmpty() || piece.type().maxDurability() <= 0) {
+                continue;
+            }
+            int newDamage = piece.damage() + 1;
+            armor[i] = newDamage >= piece.type().maxDurability()
+                    ? ItemStack.EMPTY // the piece breaks
+                    : piece.withDamage(newDamage);
+            changed = true;
+        }
+        return changed;
+    }
+
+    /** Read-only armor snapshot for synchronization; callers must not mutate it. */
+    public List<ItemStack> armorSnapshot() {
+        return List.of(armor.clone());
+    }
+
+    /** Restores the armor row (the persistence path; kind-checked per slot). */
+    public void restoreArmor(List<ItemStack> restored) {
+        if (restored.size() != ARMOR_SLOTS) {
+            throw new IllegalArgumentException(
+                    "Armor restore requires exactly " + ARMOR_SLOTS + " slots: " + restored.size());
+        }
+        for (int i = 0; i < ARMOR_SLOTS; i++) {
+            if (!setArmor(i, restored.get(i))) {
+                armor[i] = ItemStack.EMPTY; // a no-longer-armor item degrades to empty
+            }
+        }
+    }
+
+    /**
+     * Quick-move (shift-click) out of an armor slot into the main inventory
+     * (the historical fill order via pickup). Atomic: a full inventory puts
+     * everything back. @return whether the piece moved.
+     */
+    public boolean quickMoveFromArmor(int armorSlot) {
+        if (armorSlot < 0 || armorSlot >= ARMOR_SLOTS) {
+            throw new IllegalArgumentException("Armor slot out of range: " + armorSlot);
+        }
+        ItemStack moving = armor[armorSlot];
+        if (moving.isEmpty()) {
+            return false;
+        }
+        ItemStack remainder = pickUp(moving);
+        if (!remainder.isEmpty()) {
+            armor[armorSlot] = remainder; // no room: the piece stays
+            return false;
+        }
+        armor[armorSlot] = ItemStack.EMPTY;
+        return true;
+    }
+
+    /**
+     * The number-key swap between an armor slot and a hotbar slot (mode 2).
+     * A non-armor hotbar stack is refused by the kind rule (returns false).
+     */
+    public boolean swapArmorWithHotbar(int armorSlot, int hotbarIndex) {
+        if (armorSlot < 0 || armorSlot >= ARMOR_SLOTS) {
+            throw new IllegalArgumentException("Armor slot out of range: " + armorSlot);
+        }
+        if (hotbarIndex < 0 || hotbarIndex >= HOTBAR_SLOTS) {
+            throw new IllegalArgumentException("Hotbar index out of range: " + hotbarIndex);
+        }
+        ItemStack incoming = slots[hotbarIndex];
+        ItemStack equipped = armor[armorSlot];
+        if (!incoming.isEmpty() && !Armor.fitsSlot(incoming.type(), Armor.Slot.values()[armorSlot])) {
+            return false; // the hotbar stack is not armor of this slot's kind
+        }
+        slots[hotbarIndex] = equipped;
+        armor[armorSlot] = incoming.isEmpty() ? ItemStack.EMPTY : incoming;
+        return true;
+    }
+
     /** Read-only slot snapshot for synchronization; callers must not mutate it. */
     public List<ItemStack> snapshot() {
         return List.of(slots.clone());
     }
 
     /**
-     * Empties the whole inventory (the /clear path): all 36 slots and the
-     * cursor. The command path's cleanup; a dropped variant is the caller's
-     * choice (the historical /clear destroys, so nothing is thrown).
+     * Empties the whole inventory (the /clear path): all 36 slots, the armor
+     * row and the cursor. The command path's cleanup; a dropped variant is
+     * the caller's choice (the historical /clear destroys, so nothing is
+     * thrown).
      */
     public void clear() {
         java.util.Arrays.fill(slots, ItemStack.EMPTY);
+        java.util.Arrays.fill(armor, ItemStack.EMPTY);
         cursor = ItemStack.EMPTY;
     }
 

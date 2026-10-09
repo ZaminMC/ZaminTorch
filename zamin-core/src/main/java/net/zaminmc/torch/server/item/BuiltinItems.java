@@ -201,6 +201,34 @@ public final class BuiltinItems {
     public static final EngineItemType LAVA_BUCKET = new EngineItemType(
             Identifier.parse("minecraft:lava_bucket"), "Lava Bucket", 1);
 
+    // Armor (community items.json legacy ids + maxDurability): the five
+    // historical tiers across the four slots. Per-piece armor points ride the
+    // Armor registry; a full set totals 7/12/15/11/20 on the 20-point bar.
+    public static final EngineItemType LEATHER_HELMET = armor("leather_helmet", "Leather Cap", Armor.Slot.HEAD, 1, 56);
+    public static final EngineItemType LEATHER_CHESTPLATE = armor("leather_chestplate", "Leather Tunic", Armor.Slot.CHEST, 3, 81);
+    public static final EngineItemType LEATHER_LEGGINGS = armor("leather_leggings", "Leather Pants", Armor.Slot.LEGS, 2, 76);
+    public static final EngineItemType LEATHER_BOOTS = armor("leather_boots", "Leather Boots", Armor.Slot.FEET, 1, 66);
+
+    public static final EngineItemType CHAINMAIL_HELMET = armor("chainmail_helmet", "Chain Helmet", Armor.Slot.HEAD, 2, 166);
+    public static final EngineItemType CHAINMAIL_CHESTPLATE = armor("chainmail_chestplate", "Chain Chestplate", Armor.Slot.CHEST, 5, 241);
+    public static final EngineItemType CHAINMAIL_LEGGINGS = armor("chainmail_leggings", "Chain Leggings", Armor.Slot.LEGS, 4, 226);
+    public static final EngineItemType CHAINMAIL_BOOTS = armor("chainmail_boots", "Chain Boots", Armor.Slot.FEET, 1, 196);
+
+    public static final EngineItemType IRON_HELMET = armor("iron_helmet", "Iron Helmet", Armor.Slot.HEAD, 2, 166);
+    public static final EngineItemType IRON_CHESTPLATE = armor("iron_chestplate", "Iron Chestplate", Armor.Slot.CHEST, 6, 241);
+    public static final EngineItemType IRON_LEGGINGS = armor("iron_leggings", "Iron Leggings", Armor.Slot.LEGS, 5, 226);
+    public static final EngineItemType IRON_BOOTS = armor("iron_boots", "Iron Boots", Armor.Slot.FEET, 2, 196);
+
+    public static final EngineItemType GOLDEN_HELMET = armor("golden_helmet", "Golden Helmet", Armor.Slot.HEAD, 2, 78);
+    public static final EngineItemType GOLDEN_CHESTPLATE = armor("golden_chestplate", "Golden Chestplate", Armor.Slot.CHEST, 5, 113);
+    public static final EngineItemType GOLDEN_LEGGINGS = armor("golden_leggings", "Golden Leggings", Armor.Slot.LEGS, 3, 106);
+    public static final EngineItemType GOLDEN_BOOTS = armor("golden_boots", "Golden Boots", Armor.Slot.FEET, 1, 92);
+
+    public static final EngineItemType DIAMOND_HELMET = armor("diamond_helmet", "Diamond Helmet", Armor.Slot.HEAD, 3, 364);
+    public static final EngineItemType DIAMOND_CHESTPLATE = armor("diamond_chestplate", "Diamond Chestplate", Armor.Slot.CHEST, 8, 529);
+    public static final EngineItemType DIAMOND_LEGGINGS = armor("diamond_leggings", "Diamond Leggings", Armor.Slot.LEGS, 6, 496);
+    public static final EngineItemType DIAMOND_BOOTS = armor("diamond_boots", "Diamond Boots", Armor.Slot.FEET, 3, 430);
+
     private static final Map<Identifier, ItemType> REGISTRY = build();
 
     private BuiltinItems() {
@@ -215,6 +243,14 @@ public final class BuiltinItems {
                                        ToolClass toolClass, ToolMaterial material, int maxDurability) {
         Tools.define(Identifier.parse("minecraft:" + name), toolClass, material);
         return new EngineItemType(Identifier.parse("minecraft:" + name), displayName, 1, maxDurability);
+    }
+
+    /** Declares one armor piece: registry item + the Armor gameplay spec. */
+    private static EngineItemType armor(String name, String displayName,
+                                        Armor.Slot slot, int armorPoints, int maxDurability) {
+        Identifier identifier = Identifier.parse("minecraft:" + name);
+        Armor.define(identifier, slot, armorPoints);
+        return new EngineItemType(identifier, displayName, 1, maxDurability);
     }
 
     private static Map<Identifier, ItemType> build() {
@@ -233,7 +269,12 @@ public final class BuiltinItems {
                 WOODEN_SWORD, STONE_SWORD, IRON_SWORD, DIAMOND_SWORD, GOLDEN_SWORD,
                 SHEARS,
                 BONE, STRING, GUNPOWDER, WOOL, MUTTON, COOKED_MUTTON,
-                BUCKET, WATER_BUCKET, LAVA_BUCKET}) {
+                BUCKET, WATER_BUCKET, LAVA_BUCKET,
+                LEATHER_HELMET, LEATHER_CHESTPLATE, LEATHER_LEGGINGS, LEATHER_BOOTS,
+                CHAINMAIL_HELMET, CHAINMAIL_CHESTPLATE, CHAINMAIL_LEGGINGS, CHAINMAIL_BOOTS,
+                IRON_HELMET, IRON_CHESTPLATE, IRON_LEGGINGS, IRON_BOOTS,
+                GOLDEN_HELMET, GOLDEN_CHESTPLATE, GOLDEN_LEGGINGS, GOLDEN_BOOTS,
+                DIAMOND_HELMET, DIAMOND_CHESTPLATE, DIAMOND_LEGGINGS, DIAMOND_BOOTS}) {
             ItemType existing = map.put(type.identifier(), type);
             if (existing != null) {
                 throw new IllegalStateException("Duplicate item type registration: " + type.identifier());

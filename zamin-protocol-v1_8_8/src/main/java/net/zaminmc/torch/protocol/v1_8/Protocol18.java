@@ -33,6 +33,7 @@ final class Protocol18 {
     static final int S2C_ENTITY_TELEPORT = 0x18;
     static final int S2C_ENTITY_HEAD_LOOK = 0x19;
     static final int S2C_ENTITY_STATUS = 0x1A;
+    static final int S2C_ENTITY_EQUIPMENT = 0x04;
     static final int S2C_ENTITY_METADATA = 0x1C;
     static final int S2C_NAMED_SOUND_EFFECT = 0x29;
     static final int S2C_EXPLOSION = 0x27;
@@ -177,6 +178,13 @@ final class Protocol18 {
     static final int USE_ENTITY_ATTACK = 1;
     static final int USE_ENTITY_INTERACT_AT = 2;
 
+    // Entity Equipment (0x04) slot order, the 1.8 wire order: held, feet, legs, chest, head.
+    static final int EQUIPMENT_SLOT_HELD = 0;
+    static final int EQUIPMENT_SLOT_FEET = 1;
+    static final int EQUIPMENT_SLOT_LEGS = 2;
+    static final int EQUIPMENT_SLOT_CHEST = 3;
+    static final int EQUIPMENT_SLOT_HEAD = 4;
+
     // Player inventory window (id 0) layout, historical order:
     // 0 craft result, 1-4 craft grid, 5-8 armor, 9-35 main, 36-44 hotbar.
     static final int INVENTORY_WINDOW_ID = 0;
@@ -184,6 +192,9 @@ final class Protocol18 {
     static final int WIRE_SLOT_RESULT = 0;
     static final int WIRE_SLOT_CRAFT_FIRST = 1;
     static final int WIRE_SLOT_CRAFT_LAST = 4;
+    /** The armor row (head, chest, legs, feet) in the player window's layout. */
+    static final int WIRE_SLOT_ARMOR_FIRST = 5;
+    static final int WIRE_SLOT_ARMOR_LAST = 8;
     static final int WIRE_SLOT_HOTBAR_BASE = 36;
 
     // Crafting-table container window layout (protocol 47, "minecraft:crafting_table"):

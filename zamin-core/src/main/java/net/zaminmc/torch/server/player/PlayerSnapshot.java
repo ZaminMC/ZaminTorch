@@ -49,7 +49,8 @@ public record PlayerSnapshot(UUID uuid, String name, Position position, Rotation
      */
     public record SlotStack(int slot, Identifier item, int count, int damage, String displayName) {
         public SlotStack {
-            if (slot < 0 || slot > 35) {
+            if (slot < 0 || slot > 39) {
+                // 0-35 the inventory row; 36-39 the ZPD v5 armor namespace.
                 throw new IllegalArgumentException("Slot out of range: " + slot);
             }
             if (count < 1) {
