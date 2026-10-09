@@ -70,8 +70,14 @@ class CollisionShapeTest {
     // --- the shape-aware stub world ----------------------------------------
 
     /** Ground at y<4 everywhere plus one partial cell at (slabX, 4, slabZ). */
-    private record ShapeWorld(int slabX, int slabZ, WorldSolidityProbe probe, Position player)
+    private record ShapeWorld(int slabX, int slabZ, WorldSolidityProbe probe, Position player,
+                              boolean corridor)
             implements MobEntity.WorldQuery, ItemEntity.Ground, FallingBlockEntity.Ground {
+
+        /** The open-plains shape: no corridor walls (the historical stub). */
+        ShapeWorld(int slabX, int slabZ, WorldSolidityProbe probe, Position player) {
+            this(slabX, slabZ, probe, player, false);
+        }
 
         record WorldSolidityProbe(boolean slab, boolean topHalf) {
         }
@@ -83,12 +89,20 @@ class CollisionShapeTest {
                     && y >= 4.0 && y < 5.0;
         }
 
+        private boolean inCorridorWall(double x, double y, double z) {
+            return corridor && y >= 4.0
+                    && Math.abs((int) Math.floor(z) - slabZ) >= 1;
+        }
+
         @Override public boolean isSolid(double x, double y, double z) {
-            return y < 4.0 || inSlabCell(x, y, z);
+            return y < 4.0 || inSlabCell(x, y, z) || inCorridorWall(x, y, z);
         }
 
         @Override public boolean isSolidAt(double x, double y, double z) {
             if (y < 4.0) {
+                return true;
+            }
+            if (inCorridorWall(x, y, z)) {
                 return true;
             }
             if (!inSlabCell(x, y, z)) {
@@ -98,6 +112,9 @@ class CollisionShapeTest {
         }
 
         @Override public double supportY(double x, double y, double z) {
+            if (inCorridorWall(x, y, z)) {
+                return Double.NEGATIVE_INFINITY; // walls are no walking surface
+            }
             if (inSlabCell(x, y, z)) {
                 return probe.topHalf() ? 5.0 : 4.5;
             }
@@ -118,9 +135,12 @@ class CollisionShapeTest {
     @Test
     void aWalkingMobStepsOntoTheSlabHalfAndDownTheOtherSide() {
         // The zombie hunts a player east of the slab cell at x=5: the chase
-        // walks it into the half, up the shape surface, and down the far side.
+        // walks it into the half, up the shape surface, and down the far
+        // side. The corridor walls pin the route to the slab row — open
+        // ground lets the pathfinder (correctly) walk around the slab.
         ShapeWorld world = new ShapeWorld(5, 0,
-                new ShapeWorld.WorldSolidityProbe(true, false), new Position(9.5, 4.0, 0.5));
+                new ShapeWorld.WorldSolidityProbe(true, false), new Position(9.5, 4.0, 0.5),
+                true);
         MobEntity zombie = new MobEntity(1, MobType.ZOMBIE,
                 new Position(2.5, 4.0, 0.5), new Random(7), world);
         double maxY = 0.0;

@@ -237,6 +237,21 @@ public final class BlockBehaviorTable {
                     new BlockBehavior(1.0, true, false, "wood", 0,
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:sign"), 1)))),
 
+            // The wall signs (block 68): the hanging model, same wood feel,
+            // the same sign item drop (legacy 323).
+            Map.entry(Identifier.parse("minecraft:wall_sign"),
+                    new BlockBehavior(1.0, true, false, "wood", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:sign"), 1)))),
+            Map.entry(Identifier.parse("minecraft:wall_sign_south"),
+                    new BlockBehavior(1.0, true, false, "wood", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:sign"), 1)))),
+            Map.entry(Identifier.parse("minecraft:wall_sign_west"),
+                    new BlockBehavior(1.0, true, false, "wood", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:sign"), 1)))),
+            Map.entry(Identifier.parse("minecraft:wall_sign_east"),
+                    new BlockBehavior(1.0, true, false, "wood", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:sign"), 1)))),
+
 
             Map.entry(Identifier.parse("minecraft:oak_door"),
                     new BlockBehavior(3.0, true, false, "wood", 0,

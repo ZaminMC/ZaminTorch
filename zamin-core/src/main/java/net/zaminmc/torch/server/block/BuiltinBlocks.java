@@ -145,6 +145,19 @@ public final class BuiltinBlocks {
     public static final EngineBlockType SIGN_EAST = new EngineBlockType(
             Identifier.parse("minecraft:sign_east"), "Sign", 12);
 
+    // The wall signs (community blocks.json: block 68, the metadata 2-5
+    // naming the direction the sign faces — away from the wall it hangs
+    // on). A side-face placement attaches one; the text rides the same
+    // sign store (the manager keys by position, block-agnostic).
+    public static final EngineBlockType WALL_SIGN_NORTH = new EngineBlockType(
+            Identifier.parse("minecraft:wall_sign"), "Wall Sign", 2);
+    public static final EngineBlockType WALL_SIGN_SOUTH = new EngineBlockType(
+            Identifier.parse("minecraft:wall_sign_south"), "Wall Sign", 3);
+    public static final EngineBlockType WALL_SIGN_WEST = new EngineBlockType(
+            Identifier.parse("minecraft:wall_sign_west"), "Wall Sign", 4);
+    public static final EngineBlockType WALL_SIGN_EAST = new EngineBlockType(
+            Identifier.parse("minecraft:wall_sign_east"), "Wall Sign", 5);
+
     // The oak door (community blocks.json: block 64). The lower half's
     // metadata carries the facing (historical order W/N/E/S = 0..3) with bit
     // 2 (value 4) as the open flag; the upper half's metadata 8 (right
@@ -304,6 +317,10 @@ public final class BuiltinBlocks {
                 .register(SIGN_WEST)
                 .register(SIGN_NORTH)
                 .register(SIGN_EAST)
+                .register(WALL_SIGN_NORTH)
+                .register(WALL_SIGN_SOUTH)
+                .register(WALL_SIGN_WEST)
+                .register(WALL_SIGN_EAST)
                 .register(OAK_DOOR_LOWER_CLOSED_W)
                 .register(OAK_DOOR_LOWER_CLOSED_N)
                 .register(OAK_DOOR_LOWER_CLOSED_E)

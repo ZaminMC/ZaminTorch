@@ -136,10 +136,11 @@ public final class WorldSolidity {
                     || id.value().equals("oak_door_upper_open"));
     }
 
-    /** The standing signs (block 63): the thin-post model, walk-through. */
+    /** The signs (standing 63, wall 68): the thin models, walk-through. */
     public static boolean isSign(Identifier id) {
         return id.namespace().equals("minecraft")
-                && (id.value().equals("sign") || id.value().startsWith("sign_"));
+                && (id.value().equals("sign") || id.value().startsWith("sign_")
+                    || id.value().equals("wall_sign") || id.value().startsWith("wall_sign_"));
     }
 
     /** The wheat crop stages (block 59, ages 0..7): walk-through plants. */
