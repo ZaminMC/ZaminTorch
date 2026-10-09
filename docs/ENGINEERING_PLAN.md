@@ -854,6 +854,51 @@ COMMUNITY_REFERENCES.md.**
   biome world (deterministic climates, desert skins, forest density,
   walk-through flora, biome bytes). 317 green; the dist boot-verifies.
 
+## 10z. Slice 10z — the living-world batch: completion, signs, farming, building, sleep (committed 2026-10-09)
+
+- **Tab completion (0x14 -> 0x3A)**: command names complete against the
+  dispatcher with the op gate applied (unauthorized commands never leak);
+  argument tokens and plain chat complete online player names. The wire
+  layer reads the dispatcher through the new `commands()` accessor.
+- **Death chat**: every death broadcasts a cause-specific vanilla-style
+  line to all players (slain by <player/mob>, pummeled by <shooter>,
+  blown up, hit the ground too hard, drowned, starved, fell out of the
+  world); the projectile sink now carries the thrower's engine id for
+  kill credit.
+- **Farming**: farmland (hydration-driven wet state on the random tick,
+  the historical 4-block water scan) and wheat ages 0-7 as per-stage block
+  types (the fluid model: one wire id 59, the age in the metadata nibble).
+  Hoes till (all five tiers, wear one use), seeds plant on farmland only,
+  bone meal jumps 2-4 ages, the mature harvest yields wheat + a seed,
+  bread (3-wheat row) and bone meal (1 bone -> 3) craft; tall grass
+  carries the historical 1/8 seed roll with the flora self-drop fallback.
+- **Signs**: standing signs in four facings (block 63, the rotation band),
+  the ZSD v1 text store, Update Sign 0x12 in / 0x33 out with a chunk-load
+  replay (protocol 47 chunk data carries no tile entities), and the
+  item-form id override pattern (sign is 63 as a block, 323 in slots).
+- **Building**: oak doors (two-half placement fronting the placer, the
+  right-click swing that mirrors on the upper half, unit break both ways,
+  random.door_open/close), ladders (facing from the clicked wall, climb
+  semantics: no fall damage accumulation, the movement guard's ladder
+  exemption), the oak fence (the flat-solid stand-in for the 1.5-block
+  collision until the collision-shape slice). Creative breaks now fire the
+  container hook (door halves die as a unit; chest spills match vanilla).
+- **Sleep**: beds place as foot/head pairs (block 26, the facing bands),
+  the night right-click sets the body's bed spawn and jumps the world to
+  dawn with the weather cleared; the day right-click refuses with the
+  vanilla line. The respawn honors the bed spawn — and now actually moves
+  the body to the destination before the wire re-anchor (a latent gap).
+- **Fixed en route**: an empty-hand right-click NPE'd the whole use
+  dispatch (the held-item reads are null-safe now); LegacyBlockIds' reverse
+  map is init-order safe with the item overrides; test pollution from a
+  kill-at-spawn flow (the death test fights 10 blocks off the spawn).
+- **Tests**: tab completion (op gate + player names), death chat broadcast,
+  farming acceptance (till/plant/grow/bonemeal/harvest/recipes), sign
+  integration (place/write/replay/relog), building acceptance (door
+  swing/break semantics, ladder/fence solidity), sleep acceptance
+  (pair placement, dawn jump, day refusal). 349 green; the dist
+  boot-verifies with the Paper layout at 0.2.0-dev.9.
+
 ## 11. Known risks
 
 - 1.8.8 client quirks not obvious from protocol docs (e.g. exact chunk/lighting expectations) — mitigated by scripted-client tests + real client validation.
