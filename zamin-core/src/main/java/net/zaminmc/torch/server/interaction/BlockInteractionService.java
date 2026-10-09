@@ -222,12 +222,14 @@ public final class BlockInteractionService {
         // budget plus the same-tick different-target signature (Grim's
         // MultiBreak). Over budget: the dig reverses, the ladder counts.
         long nowNanos = System.nanoTime();
-        if (!player.violations().recordBreak(nowNanos, BREAK_WINDOW_NANOS, SURVIVAL_BREAK_BUDGET)
-                || player.violations().isMultiBreak(nowNanos, target)) {
+        boolean overBudget = !player.violations().recordBreak(nowNanos, BREAK_WINDOW_NANOS, SURVIVAL_BREAK_BUDGET);
+        boolean multiBreak = player.violations().isMultiBreak(nowNanos, target);
+        if (overBudget || multiBreak) {
             player.violations().addNukerViolation();
             resync(target);
             LOGGER.warning(() -> "Nuker violation for " + player.name() + " (vl "
-                    + player.violations().nukerViolations() + ")");
+                    + player.violations().nukerViolations() + ") overBudget=" + overBudget
+                    + " multiBreak=" + multiBreak + " target=" + target);
             if (player.violations().nukerViolations() >= NUKER_KICK_VIOLATIONS) {
                 player.link().kick("Nuker");
             }
@@ -370,6 +372,12 @@ public final class BlockInteractionService {
                 LOGGER.fine(() -> "Rejected survival placement (out of reach) by " + player.name());
             } else {
                 LOGGER.fine(() -> "Rejected survival placement (inside player) by " + player.name());
+            }
+            if (target != null) {
+                // Real clients predict the placement locally; an unanswered
+                // reject leaves the ghost block until the next chunk sync.
+                // The authoritative cell re-sync drops the prediction.
+                resync(target);
             }
             return;
         }

@@ -764,6 +764,9 @@ public final class V18ProtocolServer implements ProtocolAdapter {
     }
 
     private void broadcastChat(String text) {
+        // Paper mirrors every public chat line to the console (log4j chat
+        // appender): the operator sees the conversation without a client.
+        LOGGER.info(text);
         for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
             connection.sendChatLine(text, 0);
         }
