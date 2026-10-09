@@ -34,7 +34,7 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:oak_log"), 17),     // dataset/legacy name: "log"
             Map.entry(Identifier.parse("minecraft:oak_leaves"), 18),  // dataset blocks.json id
             Map.entry(Identifier.parse("minecraft:gold_ore"), 14),    // dataset blocks.json id
-            Map.entry(Identifier.parse("minecraft:redstone_ore"), 15),// dataset blocks.json id
+            Map.entry(Identifier.parse("minecraft:redstone_ore"), 73),// dataset blocks.json id
             Map.entry(Identifier.parse("minecraft:sand"), 12),        // dataset blocks.json id
             Map.entry(Identifier.parse("minecraft:gravel"), 13),      // dataset blocks.json id
             Map.entry(Identifier.parse("minecraft:glass"), 20),       // dataset blocks.json id
@@ -105,7 +105,34 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:bow"), 261),
             Map.entry(Identifier.parse("minecraft:arrow"), 262),
             Map.entry(Identifier.parse("minecraft:snowball"), 332),
-            Map.entry(Identifier.parse("minecraft:egg"), 344));
+            Map.entry(Identifier.parse("minecraft:egg"), 344),
+            // armor (community items.json ids: the five historical tiers)
+            Map.entry(Identifier.parse("minecraft:leather_helmet"), 298),
+            Map.entry(Identifier.parse("minecraft:leather_chestplate"), 299),
+            Map.entry(Identifier.parse("minecraft:leather_leggings"), 300),
+            Map.entry(Identifier.parse("minecraft:leather_boots"), 301),
+            Map.entry(Identifier.parse("minecraft:chainmail_helmet"), 302),
+            Map.entry(Identifier.parse("minecraft:chainmail_chestplate"), 303),
+            Map.entry(Identifier.parse("minecraft:chainmail_leggings"), 304),
+            Map.entry(Identifier.parse("minecraft:chainmail_boots"), 305),
+            Map.entry(Identifier.parse("minecraft:iron_helmet"), 306),
+            Map.entry(Identifier.parse("minecraft:iron_chestplate"), 307),
+            Map.entry(Identifier.parse("minecraft:iron_leggings"), 308),
+            Map.entry(Identifier.parse("minecraft:iron_boots"), 309),
+            Map.entry(Identifier.parse("minecraft:diamond_helmet"), 310),
+            Map.entry(Identifier.parse("minecraft:diamond_chestplate"), 311),
+            Map.entry(Identifier.parse("minecraft:diamond_leggings"), 312),
+            Map.entry(Identifier.parse("minecraft:diamond_boots"), 313),
+            Map.entry(Identifier.parse("minecraft:golden_helmet"), 314),
+            Map.entry(Identifier.parse("minecraft:golden_chestplate"), 315),
+            Map.entry(Identifier.parse("minecraft:golden_leggings"), 316),
+            Map.entry(Identifier.parse("minecraft:golden_boots"), 317),
+            // decorations (community blocks.json ids: 1.8 data-value flora)
+            Map.entry(Identifier.parse("minecraft:tall_grass"), 31),   // metadata 1
+            Map.entry(Identifier.parse("minecraft:dead_bush"), 32),
+            Map.entry(Identifier.parse("minecraft:dandelion"), 37),
+            Map.entry(Identifier.parse("minecraft:poppy"), 38),
+            Map.entry(Identifier.parse("minecraft:sandstone"), 24));
 
     private static final Map<Integer, Identifier> BY_LEGACY_ID = reverse();
 

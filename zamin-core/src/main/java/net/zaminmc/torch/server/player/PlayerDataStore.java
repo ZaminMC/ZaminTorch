@@ -22,15 +22,18 @@ import java.util.UUID;
 import java.util.logging.Logger;
 
 /**
- * File-backed player data store ("ZPD" format, version 3), one file per player.
+ * File-backed player data store ("ZPD" format, version 5), one file per player.
  *
- * <p>Layout: magic 'Z','P','D',3 - name(string) - x(double) y(double) z(double)
+ * <p>Layout: magic 'Z','P','D',5 - name(string) - x(double) y(double) z(double)
  * - yaw(float) pitch(float) - heldSlot(varint) - slots(varint count of non-empty
  * entries; each: slot(varint) + item identifier(string) + count(varint) +
  * damage(varint) + displayName(varint-length UTF-8, 0 = none)) - health(float)
  * food(varint) saturation(float). Version 1 files (pre-body) load with the
  * historical defaults (20 / 20 / 5); version 2 files (pre-name) load with no
- * custom names.</p>
+ * custom names; version 4 files (pre-armor) load with empty armor. ZPD v5
+ * carries the armor row inside the slot namespace at indexes 36-39
+ * (head, chest, legs, feet) — the count-prefixed list is self-describing, so
+ * older readers never see entries they cannot place.</p>
  *
  * <p>The same durability rules as the world store: writes are atomic (temp file
  * then atomic move), corrupt files load as absent and are preserved beside the
@@ -42,7 +45,7 @@ public final class PlayerDataStore {
     private static final int MAGIC_0 = 'Z';
     private static final int MAGIC_1 = 'P';
     private static final int MAGIC_2 = 'D';
-    private static final int FORMAT_VERSION = 4;
+    private static final int FORMAT_VERSION = 5;
 
     private final Path directory;
 

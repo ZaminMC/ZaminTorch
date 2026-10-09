@@ -310,8 +310,14 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                         connection.sendWindowItems(channelOf(connection),
                                 player.inventory().snapshot(),
                                 player.crafting().snapshot(),
+                                player.inventory().armorSnapshot(),
                                 server.craftingResult(player));
                     }
+                } else {
+                    // The armor row rides the Entity Equipment packets to the
+                    // observers (the 1.8 way: remote armor renders from
+                    // equipment, never from metadata).
+                    connection.sendPlayerEquipment(player);
                 }
             }
         });

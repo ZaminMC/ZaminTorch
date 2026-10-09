@@ -50,6 +50,7 @@ import net.zaminmc.torch.server.net.EngineBridge;
 import net.zaminmc.torch.server.player.MovementGuard;
 import net.zaminmc.torch.server.player.PlayerDataStore;
 import net.zaminmc.torch.server.player.PlayerRegistry;
+import net.zaminmc.torch.server.player.PlayerInventory;
 import net.zaminmc.torch.server.player.PlayerSession;
 import net.zaminmc.torch.server.player.PlayerSnapshot;
 import net.zaminmc.torch.server.entity.projectile.ProjectileEntity;
@@ -106,6 +107,9 @@ public final class EngineServer implements Server, EngineBridge {
     private static final int WIRE_SLOT_RESULT = 0;
     private static final int WIRE_SLOT_CRAFT_FIRST = 1;
     private static final int WIRE_SLOT_CRAFT_LAST = 4;
+    /** Player-window armor row (wire order: head, chest, legs, feet). */
+    private static final int WIRE_SLOT_ARMOR_FIRST = 5;
+    private static final int WIRE_SLOT_ARMOR_LAST = 8;
     /** Crafting-table container window wire slots (protocol 47, 10-slot GUI). */
     private static final int TABLE_WIRE_SLOT_RESULT = 0;
     private static final int TABLE_WIRE_SLOT_GRID_FIRST = 1;
@@ -998,8 +1002,10 @@ public final class EngineServer implements Server, EngineBridge {
                 }
                 damage -= victim.lastHurtDamage(); // the historical out-damage rule
             }
+            final float rawDamage = damage;
+            damage = applyArmor(victim, damage); // the armor envelope (the 1.8 formula)
             final float applied = damage;
-            victim.beginHurtInvulnerability(damage);
+            victim.beginHurtInvulnerability(rawDamage);
             victim.hurt(damage);
             attacker.addExhaustion(ATTACK_EXHAUSTION);
             if (net.zaminmc.torch.server.item.Tools.specOf(attacker.inventory().held().type()).isPresent()) {
@@ -1028,6 +1034,22 @@ public final class EngineServer implements Server, EngineBridge {
         for (SurvivalListener listener : survivalListeners) {
             listener.onPlayerHurt(victim);
         }
+    }
+
+    /**
+     * The 1.8 armor envelope: a physical hit passes through the equipped
+     * pieces (the {@code Armor.reduce} formula), the pieces take their wear
+     * and any change re-syncs the client. Environmental damage (fall, drown,
+     * void, starvation) never calls here — armor does not absorb it, the
+     * historical rule. Tick-thread context.
+     */
+    private float applyArmor(PlayerSession victim, float damage) {
+        int points = victim.inventory().totalArmorPoints();
+        float reduced = net.zaminmc.torch.server.item.Armor.reduce(points, damage);
+        if (points > 0 && reduced < damage && victim.inventory().wearArmor()) {
+            publishInventoryChanged(victim); // worn or broken pieces re-sync
+        }
+        return reduced;
     }
 
     private void publishKnockback(PlayerSession victim, double vx, double vy, double vz) {
@@ -1077,6 +1099,14 @@ public final class EngineServer implements Server, EngineBridge {
         for (int slot = 0; slot < slots.size(); slot++) {
             ItemStack dropped = session.inventory().dropFromSlot(slot, true);
             spawnDeathDrop(session, dropped);
+        }
+        // The armor row scatters with the inventory (the historical death drop).
+        for (int armorSlot = 0; armorSlot < PlayerInventory.ARMOR_SLOTS; armorSlot++) {
+            ItemStack piece = session.inventory().armorAt(armorSlot);
+            if (!piece.isEmpty()) {
+                spawnDeathDrop(session, piece);
+            }
+            session.inventory().setArmor(armorSlot, ItemStack.EMPTY);
         }
         spawnDeathDrop(session, session.inventory().takeCursor());
         publishInventoryChanged(session);
@@ -1412,6 +1442,7 @@ public final class EngineServer implements Server, EngineBridge {
                                             int mode) {
         var inventory = session.inventory();
         var grid = session.crafting();
+        int armorSlot = armorIndexForWireSlot(wireSlot);
         switch (mode) {
             case 0 -> {
                 if (wireSlot == WIRE_SLOT_RESULT) {
@@ -1422,6 +1453,10 @@ public final class EngineServer implements Server, EngineBridge {
                 } else if (wireSlot >= WIRE_SLOT_CRAFT_FIRST && wireSlot <= WIRE_SLOT_CRAFT_LAST) {
                     grid.clickCell(wireSlot - WIRE_SLOT_CRAFT_FIRST, button, inventory);
                     return true;
+                } else if (armorSlot >= 0) {
+                    // Armor slots: kind-gated semantics (armor never stacks,
+                    // the historical rule).
+                    return clickArmorSlot(session, armorSlot);
                 } else {
                     int engineSlot = engineSlotOf(wireSlot);
                     if (engineSlot >= 0) {
@@ -1438,6 +1473,8 @@ public final class EngineServer implements Server, EngineBridge {
                 } else if (wireSlot >= WIRE_SLOT_CRAFT_FIRST && wireSlot <= WIRE_SLOT_CRAFT_LAST) {
                     grid.quickMoveTo(wireSlot - WIRE_SLOT_CRAFT_FIRST, inventory);
                     return true;
+                } else if (armorSlot >= 0) {
+                    return inventory.quickMoveFromArmor(armorSlot);
                 } else {
                     int engineSlot = engineSlotOf(wireSlot);
                     if (engineSlot >= 0) {
@@ -1448,8 +1485,11 @@ public final class EngineServer implements Server, EngineBridge {
                 return false;
             }
             case 2 -> {
-                // Number-key swaps on the crafting area are a later gesture;
-                // rejected per packet, the resync restores the truth.
+                // Number-key swaps; armor slots swap against the hotbar too
+                // (the historical ContainerPlayer mapping).
+                if (armorSlot >= 0 && button >= 0 && button < 9) {
+                    return inventory.swapArmorWithHotbar(armorSlot, button);
+                }
                 int engineSlot = engineSlotOf(wireSlot);
                 if (engineSlot >= 0 && button >= 0 && button < 9) {
                     inventory.swapWithHotbar(engineSlot, button);
@@ -1462,6 +1502,21 @@ public final class EngineServer implements Server, EngineBridge {
                 return false;
             }
             case 4 -> {
+                if (armorSlot >= 0) {
+                    // Drop-click from an armor slot: one unit or the whole piece.
+                    net.zaminmc.torch.item.ItemStack equipped = inventory.armorAt(armorSlot);
+                    if (equipped.isEmpty()) {
+                        return false;
+                    }
+                    net.zaminmc.torch.item.ItemStack dropped = button != 0
+                            ? equipped
+                            : equipped.split(1);
+                    inventory.setArmor(armorSlot, button != 0
+                            ? net.zaminmc.torch.item.ItemStack.EMPTY
+                            : equipped);
+                    throwFromPlayer(session, dropped);
+                    return true;
+                }
                 if (wireSlot >= WIRE_SLOT_CRAFT_FIRST && wireSlot <= WIRE_SLOT_CRAFT_LAST) {
                     net.zaminmc.torch.item.ItemStack dropped = grid.dropFromCell(
                             wireSlot - WIRE_SLOT_CRAFT_FIRST, button != 0);
@@ -1489,6 +1544,38 @@ public final class EngineServer implements Server, EngineBridge {
                 return false; // unknown mode: rejected
             }
         }
+    }
+
+    /** The armor index of a player-window wire slot (5-8), or -1. */
+    private static int armorIndexForWireSlot(int wireSlot) {
+        if (wireSlot >= WIRE_SLOT_ARMOR_FIRST && wireSlot <= WIRE_SLOT_ARMOR_LAST) {
+            return wireSlot - WIRE_SLOT_ARMOR_FIRST;
+        }
+        return -1;
+    }
+
+    /**
+     * The armor slots' left/right click: an empty cursor takes the piece, a
+     * cursor piece of the matching kind swaps in, anything else is refused.
+     * Tick-thread context.
+     */
+    private boolean clickArmorSlot(PlayerSession session, int armorSlot) {
+        var inventory = session.inventory();
+        net.zaminmc.torch.item.ItemStack equipped = inventory.armorAt(armorSlot);
+        net.zaminmc.torch.item.ItemStack cursor = inventory.cursor();
+        if (cursor.isEmpty()) {
+            if (equipped.isEmpty()) {
+                return false; // empty on empty: a no-op click
+            }
+            inventory.setArmor(armorSlot, net.zaminmc.torch.item.ItemStack.EMPTY);
+            inventory.cursorBox().set(equipped);
+            return true;
+        }
+        if (inventory.setArmor(armorSlot, cursor)) {
+            inventory.cursorBox().set(equipped);
+            return true;
+        }
+        return false; // wrong kind: the client reverts its prediction
     }
 
     /**
@@ -2308,6 +2395,9 @@ public final class EngineServer implements Server, EngineBridge {
         if (!config.pvp() || victim.dead() || victim.state() != PlayerState.PLAYING) {
             return;
         }
+        // The armor envelope eats its share of a physical hit before the
+        // invulnerability bookkeeping (the historical order).
+        damage = applyArmor(victim, damage);
         if (victim.hurtInvulnerable() && damage <= victim.lastHurtDamage()) {
             return; // absorbed by the hurt window (a bruise out-damages nothing)
         }
@@ -2376,7 +2466,9 @@ public final class EngineServer implements Server, EngineBridge {
             for (MobManager.Listener listener : mobListeners) {
                 listener.onMobAttackedPlayer(mob, target, damage);
             }
-            damageOnTick(target, damage); // the same-thread survival damage path
+            // The same-thread survival damage path; the victim's armor eats
+            // its share first (the 1.8 envelope).
+            damageOnTick(target, applyArmor(target, damage));
         }
 
         @Override
@@ -2634,6 +2726,7 @@ public final class EngineServer implements Server, EngineBridge {
             if (damage <= 0) {
                 continue;
             }
+            damage = applyArmor(player, damage); // armor eats its share of the blast
             double scale = (1 - dist / BLAST_INJURY_RADIUS) * 1.6;
             double mx = dist < 0.001 ? 0 : dx / dist * scale;
             double mz = dist < 0.001 ? 0 : dz / dist * scale;
@@ -3672,6 +3765,9 @@ public final class EngineServer implements Server, EngineBridge {
         java.util.List<net.zaminmc.torch.item.ItemStack> restored = new java.util.ArrayList<>(
                 java.util.Collections.nCopies(net.zaminmc.torch.server.player.PlayerInventory.TOTAL_SLOTS,
                         net.zaminmc.torch.item.ItemStack.EMPTY));
+        java.util.List<net.zaminmc.torch.item.ItemStack> armorRestored = new java.util.ArrayList<>(
+                java.util.Collections.nCopies(net.zaminmc.torch.server.player.PlayerInventory.ARMOR_SLOTS,
+                        net.zaminmc.torch.item.ItemStack.EMPTY));
         for (PlayerSnapshot.SlotStack saved : snapshot.slots()) {
             Optional<net.zaminmc.torch.item.ItemType> type =
                     net.zaminmc.torch.server.item.BuiltinItems.lookup(saved.item());
@@ -3680,8 +3776,15 @@ public final class EngineServer implements Server, EngineBridge {
                 continue;
             }
             try {
-                restored.set(saved.slot(), net.zaminmc.torch.item.ItemStack.of(type.get(), saved.count())
-                        .withDamage(saved.damage()));
+                net.zaminmc.torch.item.ItemStack stack = net.zaminmc.torch.item.ItemStack.of(type.get(), saved.count())
+                        .withDamage(saved.damage());
+                if (saved.slot() >= net.zaminmc.torch.server.player.PlayerInventory.ARMOR_BASE) {
+                    // ZPD v5 namespace: slots 36-39 are the armor row (head, chest, legs, feet).
+                    armorRestored.set(saved.slot()
+                            - net.zaminmc.torch.server.player.PlayerInventory.ARMOR_BASE, stack);
+                } else {
+                    restored.set(saved.slot(), stack);
+                }
             } catch (IllegalArgumentException invalid) {
                 LOGGER.warning(() -> "Saved slot dropped (invalid values): " + saved + " - "
                         + invalid.getMessage());
@@ -3689,6 +3792,7 @@ public final class EngineServer implements Server, EngineBridge {
         }
         try {
             session.inventory().restore(restored, snapshot.heldSlot());
+            session.inventory().restoreArmor(armorRestored);
         } catch (IllegalArgumentException invalid) {
             LOGGER.warning("Inventory restore rejected for " + session.name() + ": "
                     + invalid.getMessage());
@@ -3707,6 +3811,17 @@ public final class EngineServer implements Server, EngineBridge {
             }
             filled.add(new PlayerSnapshot.SlotStack(i, stack.type().identifier(),
                     stack.count(), stack.damage(), stack.displayName()));
+        }
+        // ZPD v5: the armor row rides the slot namespace at 36-39 (head, chest, legs, feet).
+        java.util.List<net.zaminmc.torch.item.ItemStack> armor = session.inventory().armorSnapshot();
+        for (int i = 0; i < armor.size(); i++) {
+            net.zaminmc.torch.item.ItemStack piece = armor.get(i);
+            if (piece.isEmpty()) {
+                continue;
+            }
+            filled.add(new PlayerSnapshot.SlotStack(
+                    net.zaminmc.torch.server.player.PlayerInventory.ARMOR_BASE + i,
+                    piece.type().identifier(), piece.count(), piece.damage(), piece.displayName()));
         }
         return new PlayerSnapshot(session.uuid(), session.name(), session.position(),
                 session.rotation(), session.inventory().heldSlot(), filled,

@@ -233,6 +233,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 sendInitialPositionAndLook(channel);
                 sendWindowItems(channel, accepted.session().inventory().snapshot(),
                         accepted.session().crafting().snapshot(),
+                        accepted.session().inventory().armorSnapshot(),
                         engine.craftingResult(accepted.session()));
                 sendUpdateHealth(accepted.session()); // the body's authoritative baseline
                 accepted.session().link().updateAbilities(
@@ -552,7 +553,8 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         sendPositionAndLook(channel, player.position(), player.rotation(), true);
         sendUpdateHealth(player);
         sendWindowItems(channel, player.inventory().snapshot(),
-                player.crafting().snapshot(), engine.craftingResult(player));
+                player.crafting().snapshot(), player.inventory().armorSnapshot(),
+                engine.craftingResult(player));
     }
 
     /**
@@ -1086,6 +1088,49 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeShort(0); // held item: none
         out.writeByte(Protocol18.METADATA_TERMINATOR); // no metadata entries (0x7F, protocol 47)
         channel.writeAndFlush(out);
+
+        // The remote body's gear (held + the armor row) rides Entity
+        // Equipment right after the spawn — the 1.8 rendering path.
+        sendPlayerEquipment(other);
+    }
+
+    /**
+     * The equipment broadcast for one remote player to this observer: held
+     * item + the armor row (the wire order held, feet, legs, chest, head).
+     * A no-op when this client does not track the player. Any thread.
+     */
+    void sendPlayerEquipment(PlayerSession other) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY
+                || other == session || !visibleRemotePlayers.contains(other.uuid())) {
+            return;
+        }
+        Integer entityId = remoteEntityIds.get(other.uuid());
+        if (entityId == null) {
+            return;
+        }
+        var inventory = other.inventory();
+        writeEquipment(channel, entityId, Protocol18.EQUIPMENT_SLOT_HELD,
+                inventory.held());
+        writeEquipment(channel, entityId, Protocol18.EQUIPMENT_SLOT_FEET,
+                inventory.armorAt(3));
+        writeEquipment(channel, entityId, Protocol18.EQUIPMENT_SLOT_LEGS,
+                inventory.armorAt(2));
+        writeEquipment(channel, entityId, Protocol18.EQUIPMENT_SLOT_CHEST,
+                inventory.armorAt(1));
+        writeEquipment(channel, entityId, Protocol18.EQUIPMENT_SLOT_HEAD,
+                inventory.armorAt(0));
+    }
+
+    /** One Entity Equipment packet (0x04): entity, wire slot, item slot. */
+    private void writeEquipment(Channel channel, int entityId, int equipmentSlot,
+                                net.zaminmc.torch.item.ItemStack stack) {
+        ByteBuf out = Unpooled.buffer(24);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_ENTITY_EQUIPMENT);
+        ByteBufOps.writeVarInt(out, entityId);
+        out.writeShort(equipmentSlot);
+        writeSlot(out, stack);
+        channel.writeAndFlush(out);
     }
 
     /** Removes a remote player entity from this client (logout or move-away). */
@@ -1174,6 +1219,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     /** Full authoritative inventory sync for window 0. Any thread; owner supplies the snapshot. */
     void sendWindowItems(Channel channel, java.util.List<net.zaminmc.torch.item.ItemStack> engineSlots,
                          java.util.List<net.zaminmc.torch.item.ItemStack> craftCells,
+                         java.util.List<net.zaminmc.torch.item.ItemStack> armorSlots,
                          net.zaminmc.torch.item.ItemStack craftingResult) {
         if (channel == null || !channel.isActive() || state != WireState.PLAY) {
             return;
@@ -1184,9 +1230,10 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeShort(Protocol18.INVENTORY_WINDOW_SLOTS);
         for (int wireSlot = 0; wireSlot < Protocol18.INVENTORY_WINDOW_SLOTS; wireSlot++) {
             // Wire 0 = crafting result preview; 1-4 = the 2x2 grid (row-major);
-            // 9-35 = engine main 9-35; 36-44 = engine hotbar 0-8; armor empty.
+            // 5-8 = the armor row (head, chest, legs, feet); 9-35 = engine main
+            // 9-35; 36-44 = engine hotbar 0-8.
             net.zaminmc.torch.item.ItemStack stack = engineSlotForWireSlot(wireSlot, engineSlots,
-                    craftCells, craftingResult);
+                    craftCells, armorSlots, craftingResult);
             writeSlot(out, stack);
         }
         channel.writeAndFlush(out);
@@ -1195,6 +1242,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     private static net.zaminmc.torch.item.ItemStack engineSlotForWireSlot(
             int wireSlot, java.util.List<net.zaminmc.torch.item.ItemStack> engineSlots,
             java.util.List<net.zaminmc.torch.item.ItemStack> craftCells,
+            java.util.List<net.zaminmc.torch.item.ItemStack> armorSlots,
             net.zaminmc.torch.item.ItemStack craftingResult) {
         if (wireSlot == Protocol18.WIRE_SLOT_RESULT) {
             return craftingResult;
@@ -1203,11 +1251,14 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 && wireSlot <= Protocol18.WIRE_SLOT_CRAFT_LAST) {
             return craftCells.get(wireSlot - Protocol18.WIRE_SLOT_CRAFT_FIRST);
         }
+        if (wireSlot >= Protocol18.WIRE_SLOT_ARMOR_FIRST && wireSlot <= Protocol18.WIRE_SLOT_ARMOR_LAST) {
+            return armorSlots.get(wireSlot - Protocol18.WIRE_SLOT_ARMOR_FIRST);
+        }
         int engineSlot = switch (wireSlot) {
             case 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26,
                  27, 28, 29, 30, 31, 32, 33, 34, 35 -> wireSlot;
             case 36, 37, 38, 39, 40, 41, 42, 43, 44 -> wireSlot - Protocol18.WIRE_SLOT_HOTBAR_BASE;
-            default -> -1; // armor slots are out of scope this slice
+            default -> -1;
         };
         return engineSlot < 0 ? net.zaminmc.torch.item.ItemStack.EMPTY : engineSlots.get(engineSlot);
     }
