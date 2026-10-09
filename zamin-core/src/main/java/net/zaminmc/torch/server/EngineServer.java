@@ -30,6 +30,7 @@ import net.zaminmc.torch.server.entity.MobDataStore;
 import net.zaminmc.torch.server.entity.MobEntity;
 import net.zaminmc.torch.server.entity.MobManager;
 import net.zaminmc.torch.server.entity.MobType;
+import net.zaminmc.torch.server.entity.TradeOffer;
 import net.zaminmc.torch.server.experience.ExperienceAwards;
 import net.zaminmc.torch.server.experience.ExperienceMath;
 import net.zaminmc.torch.server.experience.ExperienceOrbEntity;
@@ -1880,6 +1881,7 @@ public final class EngineServer implements Server, EngineBridge {
                     case FURNACE -> clickFurnaceWindowOnTick(session, wireSlot, button, mode);
                     case CHEST -> clickChestWindowOnTick(session, wireSlot, button, mode);
                     case HORSE -> clickHorseWindowOnTick(session, wireSlot, button, mode);
+                    case VILLAGER -> clickVillagerWindowOnTick(session, wireSlot, button, mode);
                     default -> false;
                 };
             }
@@ -3429,6 +3431,11 @@ public final class EngineServer implements Server, EngineBridge {
             if (mob == null || mob.dead()) {
                 return;
             }
+            // The villager branch: right-click opens the trading window.
+            if (mob.isTrader()) {
+                interactVillagerOnTick(player, mob);
+                return;
+            }
             // The horse/pig branch: saddle, armor, feed, inventory, seat.
             if (mob.isMountable()) {
                 interactMountOnTick(player, mob);
@@ -3526,6 +3533,97 @@ public final class EngineServer implements Server, EngineBridge {
         for (MobManager.Listener listener : mobListeners) {
             listener.onHorseFlagsChanged(mob);
         }
+    }
+
+    /**
+     * Opens the villager's trading window ("minecraft:villager", 3 GUI
+     * slots; the offers ride the MC|TrList plugin message behind it).
+     * Tick-thread context.
+     */
+    private void interactVillagerOnTick(PlayerSession player, MobEntity villager) {
+        double dx = villager.position().x() - player.position().x();
+        double dy = villager.position().y() - player.position().y();
+        double dz = villager.position().z() - player.position().z();
+        double horizontal = Math.sqrt(dx * dx + dz * dz);
+        if (horizontal > MELEE_REACH + villager.type().width * 0.5 || dy < -2.0 || dy > 4.0) {
+            return; // out of reach: the server-side refusal
+        }
+        closeOpenContainerOnTick(player);
+        int windowId = nextContainerWindowId;
+        nextContainerWindowId = nextContainerWindowId >= LAST_CONTAINER_WINDOW_ID
+                ? FIRST_CONTAINER_WINDOW_ID : nextContainerWindowId + 1;
+        player.openVillagerWindow(windowId, villager.entityId());
+        // The adapter must send Open Window then the MC|TrList plugin message
+        // (the crafting-table order rule; the 1.8 client renders the offers).
+        for (MobManager.Listener listener : mobListeners) {
+            listener.onVillagerTradeOpened(player, villager, windowId);
+        }
+    }
+
+    /**
+     * The MC|TrSel landing: the client picked a trade row. The result slot
+     * previews the offer (the Set Slot), the execution happens on the slot-2
+     * click. Safe from any thread; the application runs on the tick thread.
+     */
+    public void tradeSelect(PlayerSession player, int offerIndex) {
+        Objects.requireNonNull(player, "player");
+        ticker.submit(() -> {
+            if (player.state() != PlayerState.PLAYING || player.dead()
+                    || player.openContainerKind() != PlayerSession.ContainerKind.VILLAGER) {
+                return;
+            }
+            MobEntity villager = mobManager.byId(player.containerMountId());
+            if (villager == null || !villager.isTrader()
+                    || offerIndex < 0 || offerIndex >= villager.offers().length) {
+                return; // stale window or a rogue index: the preview stays empty
+            }
+            player.setSelectedTrade(offerIndex);
+            ItemStack result = villager.offers()[offerIndex].result();
+            for (MobManager.Listener listener : mobListeners) {
+                listener.onTradeSelected(player, player.openContainerWindowId(), result);
+            }
+        });
+    }
+
+    /**
+     * The villager window's clicks: slot 2 executes the selected trade (the
+     * buys validate out of the player's own inventory — the 1.8 merchant
+     * rule —, the result pays out, the use counter charges). Tick-thread.
+     */
+    private boolean clickVillagerWindowOnTick(PlayerSession session, int wireSlot,
+                                              int button, int mode) {
+        if (mode != 0 || wireSlot != 2) {
+            return false; // only a plain left-click on the result slot trades
+        }
+        MobEntity villager = mobManager.byId(session.containerMountId());
+        if (villager == null || !villager.isTrader()) {
+            return false; // stale window (the trader gone): rejected, resync restores
+        }
+        int index = session.selectedTrade();
+        if (index < 0 || index >= villager.offers().length || !villager.offerAvailable(index)) {
+            return false; // nothing selected or the budget spent out (greyed)
+        }
+        TradeOffer offer = villager.offers()[index];
+        var inventory = session.inventory();
+        // The buys validate against the player's own inventory (the 1.8
+        // merchant GUI's pseudo-slots are display-only).
+        if (inventory.countOf(offer.buy1().type()) < offer.buy1().count()) {
+            return false;
+        }
+        if (offer.hasSecondBuy()
+                && inventory.countOf(offer.buy2().type()) < offer.buy2().count()) {
+            return false;
+        }
+        inventory.removeItems(offer.buy1().type(), offer.buy1().count());
+        if (offer.hasSecondBuy()) {
+            inventory.removeItems(offer.buy2().type(), offer.buy2().count());
+        }
+        ItemStack remainder = inventory.pickUp(offer.result());
+        if (!remainder.isEmpty()) {
+            throwFromPlayer(session, remainder); // a full inventory drops it (nothing lost)
+        }
+        villager.chargeOfferUse(index);
+        return true;
     }
 
     /**

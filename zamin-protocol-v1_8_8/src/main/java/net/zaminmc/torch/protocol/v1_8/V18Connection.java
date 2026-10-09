@@ -394,9 +394,15 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             }
             case Protocol18.C2S_TAB_COMPLETE -> handleTabComplete(player, packet);
             case Protocol18.C2S_PLUGIN_MESSAGE -> {
-                ByteBufOps.readString(packet, 64);
-                // payload: rest of the frame; frames are length-delimited so
-                // skipping by reader index is exact (no length field needed).
+                String pluginChannel = ByteBufOps.readString(packet, 64);
+                if (Protocol18.PLUGIN_CHANNEL_TRADE_SELECT.equals(pluginChannel)
+                        && packet.readableBytes() >= 4) {
+                    // MC|TrSel: a single i32 — the selected trade row.
+                    int offerIndex = packet.readInt();
+                    engine.tradeSelect(player, offerIndex);
+                }
+                // other channels: rest of the frame skipped by the reader
+                // index (frames are length-delimited, so this is exact).
             }
             case Protocol18.C2S_SPECTATE -> {
                 packet.readLong();
@@ -1411,6 +1417,69 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     }
 
     /**
+     * Open Window (0x2D) for the villager trading GUI ("minecraft:villager",
+     * 3 GUI slots: buy1, buy2, result), then the MC|TrList plugin message
+     * (0x3F) — protocol 47 has no dedicated Trade List packet; the offers
+     * ride the plugin channel. The payload's windowId is a plain i32 (the
+     * 1.8 quirk ProtocolSupport documents). Called on the tick thread.
+     */
+    void sendVillagerWindow(Channel channel, PlayerSession player,
+                            int windowId, MobEntity villager) {
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(48);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_OPEN_WINDOW);
+        out.writeByte(windowId);
+        ByteBufOps.writeString(out, Protocol18.VILLAGER_WINDOW_TYPE);
+        ByteBufOps.writeString(out, Protocol18.VILLAGER_WINDOW_TITLE);
+        out.writeByte(Protocol18.VILLAGER_WINDOW_GUI_SLOTS);
+        channel.writeAndFlush(out);
+        sendTradeList(channel, windowId, villager);
+    }
+
+    /** The MC|TrList payload: i32 windowId, u8 count, per offer the 1.8 record. */
+    private void sendTradeList(Channel channel, int windowId, MobEntity villager) {
+        net.zaminmc.torch.server.entity.TradeOffer[] offers = villager.offers();
+        ByteBuf payload = Unpooled.buffer(64);
+        payload.writeInt(windowId); // the plain int (not a varint — the 1.8 quirk)
+        payload.writeByte(offers.length);
+        for (net.zaminmc.torch.server.entity.TradeOffer offer : offers) {
+            writeSlot(payload, offer.buy1());
+            writeSlot(payload, offer.result());
+            payload.writeBoolean(offer.hasSecondBuy());
+            if (offer.hasSecondBuy()) {
+                writeSlot(payload, offer.buy2());
+            }
+            boolean spentOut = !villager.offerAvailable(
+                    java.util.Arrays.asList(offers).indexOf(offer));
+            payload.writeBoolean(spentOut); // disabled (the greyed row)
+            payload.writeInt(spentOut ? offer.maxUses() : 0); // uses
+            payload.writeInt(offer.maxUses());
+        }
+        ByteBuf out = Unpooled.buffer(24 + payload.readableBytes());
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_PLUGIN_MESSAGE);
+        ByteBufOps.writeString(out, Protocol18.PLUGIN_CHANNEL_TRADE_LIST);
+        out.writeBytes(payload);
+        channel.writeAndFlush(out);
+    }
+
+    /** Set Slot (0x2F) on the villager window's result slot (the trade preview). */
+    void sendTradeResult(PlayerSession player, int windowId,
+                         net.zaminmc.torch.item.ItemStack result) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(24);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_SET_SLOT);
+        out.writeByte(windowId);
+        out.writeShort(2); // the result slot of the merchant GUI
+        writeSlot(out, result);
+        channel.writeAndFlush(out);
+    }
+
+    /**
      * Open Window (0x2D) for the horse inventory — the quirky "EntityHorse"
      * type string plus the trailing mount entity id (the only Open Window
      * that carries one), then the authoritative 38-slot contents. Called on
@@ -2016,6 +2085,10 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         } else if (mob.type() == net.zaminmc.torch.server.entity.MobType.PIG) {
             out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | Protocol18.PIG_SADDLE_METADATA_INDEX);
             out.writeByte(mob.pigSaddled() ? 1 : 0);
+        } else if (mob.type() == net.zaminmc.torch.server.entity.MobType.VILLAGER) {
+            out.writeByte((Protocol18.METADATA_TYPE_INT << 5)
+                    | Protocol18.VILLAGER_PROFESSION_METADATA_INDEX);
+            out.writeInt(mob.profession());
         } else {
             writeKindStatusMetadata(out, mob);
         }

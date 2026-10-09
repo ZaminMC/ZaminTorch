@@ -71,6 +71,7 @@ class Protocol18ConformanceTest {
         m.put("S2C_CHANGE_GAME_STATE", 0x2B);
         m.put("S2C_PLAYER_ABILITIES", 0x39);
         m.put("S2C_TAB_COMPLETE", 0x3A);
+        m.put("S2C_PLUGIN_MESSAGE", 0x3F);
         m.put("S2C_UPDATE_SIGN", 0x33);
         m.put("S2C_OPEN_WINDOW", 0x2D);
         m.put("S2C_CLOSE_WINDOW", 0x2E);
