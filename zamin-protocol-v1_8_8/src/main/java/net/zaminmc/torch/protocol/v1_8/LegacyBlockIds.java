@@ -40,6 +40,7 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:glass"), 20),       // dataset blocks.json id
             Map.entry(Identifier.parse("minecraft:crafting_table"), 58),
             Map.entry(Identifier.parse("minecraft:torch"), 50),
+            Map.entry(Identifier.parse("minecraft:fire"), 51),
             Map.entry(Identifier.parse("minecraft:furnace"), 61),
             Map.entry(Identifier.parse("minecraft:chest"), 54),
             // Fluid-contact products (the historical outcomes) and the sheep's
@@ -63,7 +64,16 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:stick"), 280),
             // smelted materials (furnace slice)
             Map.entry(Identifier.parse("minecraft:iron_ingot"), 265),
+            Map.entry(Identifier.parse("minecraft:gold_ingot"), 266),
+            Map.entry(Identifier.parse("minecraft:flint_and_steel"), 259),
             Map.entry(Identifier.parse("minecraft:flint"), 318),      // the 10% gravel roll
+            // world-completion items (community items.json ids): sugar cane
+            // 338, sugar 353, paper 339, book 340, cactus rides block id 81.
+            Map.entry(Identifier.parse("minecraft:sugar_cane"), 338),
+            Map.entry(Identifier.parse("minecraft:sugar"), 353),
+            Map.entry(Identifier.parse("minecraft:paper"), 339),
+            Map.entry(Identifier.parse("minecraft:book"), 340),
+            Map.entry(Identifier.parse("minecraft:cactus"), 81),
             // foods (community foods.json legacy ids)
             Map.entry(Identifier.parse("minecraft:beef"), 363),
             Map.entry(Identifier.parse("minecraft:cooked_beef"), 364),

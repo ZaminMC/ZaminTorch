@@ -153,17 +153,40 @@ class MobManagerTest {
     }
 
     @Test
-    void dawnVaporizesHostilesAndNightKeepsThem() {
+    void dawnIgnitesTheUndeadAndNightKeepsThem() {
         Rig rig = rig(7);
         MobEntity zombie = rig.manager().spawnAt(MobType.ZOMBIE, new Position(0.5, 4.0, 0.5));
         rig.manager().tick(List.of(), 1_000); // broad daylight
-        assertEquals(List.of("dawn"), rig.events().removals, "the dawn removed the zombie");
+        assertTrue(rig.events().removals.isEmpty(),
+                "the dawn no longer vaporizes: the undead ignite");
+        assertTrue(zombie.burning(), "the daylight set the zombie on fire");
+        assertTrue(rig.manager().byId(zombie.entityId()) != null,
+                "the burning body stays until the fire consumes it");
+
+        // The sun keeps burning: enough daylight ticks kill the body by fire.
+        for (int i = 0; i < 500 && rig.manager().byId(zombie.entityId()) != null; i++) {
+            rig.manager().tick(List.of(), 1_000);
+        }
+        assertTrue(rig.manager().byId(zombie.entityId()) == null,
+                "the burn consumed the zombie");
+        assertEquals(List.of("died"), rig.events().removals,
+                "the fire death plays the ordinary death flow");
 
         Rig nightRig = rig(8);
         nightRig.manager().spawnAt(MobType.ZOMBIE, new Position(0.5, 4.0, 0.5));
         nightRig.manager().tick(List.of(), MobManager.NIGHT_START + 5);
         assertEquals(1, nightRig.manager().size(), "night keeps its zombies");
         assertTrue(nightRig.events().removals.isEmpty());
+    }
+
+    @Test
+    void creepersAreSunProofButSpidersGoNeutralAtDawn() {
+        Rig rig = rig(10);
+        MobEntity creeper = rig.manager().spawnAt(MobType.CREEPER, new Position(0.5, 4.0, 0.5));
+        rig.manager().tick(List.of(), 1_000);
+        assertTrue(rig.manager().byId(creeper.entityId()) != null,
+                "the creeper survives the dawn (the historical rule)");
+        assertFalse(creeper.burning(), "creepers never catch fire from the sun");
     }
 
     @Test

@@ -57,6 +57,12 @@ public final class BlockBehaviorTable {
                     new BlockBehavior(2.0, true, false, "wood", 0,
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:oak_planks"), 1)))),
 
+            // Community data (pc/1.8 blocks.json): wool hardness 0.8, material
+            // wool (shears accelerate), no tool gate, drops itself.
+            Map.entry(Identifier.parse("minecraft:wool"),
+                    new BlockBehavior(0.8, true, false, "wool", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:wool"), 1)))),
+
             Map.entry(Identifier.parse("minecraft:oak_log"),
                     new BlockBehavior(2.0, true, false, "wood", 0,
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:oak_log"), 1)))),
@@ -304,6 +310,11 @@ public final class BlockBehaviorTable {
             Map.entry(Identifier.parse("minecraft:sandstone"),
                     new BlockBehavior(0.8, true, true, "rock", 1,
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:sandstone"), 1)))),
+
+            // Community data (pc/1.8 blocks.json): fire hardness 0 (instant
+            // break), no material, drops nothing — the historical extinguish.
+            Map.entry(Identifier.parse("minecraft:fire"),
+                    new BlockBehavior(0.0, true, false, null, 0, List.of())),
 
             Map.entry(Identifier.parse("minecraft:bedrock"),
                     BlockBehavior.unbreakable()));

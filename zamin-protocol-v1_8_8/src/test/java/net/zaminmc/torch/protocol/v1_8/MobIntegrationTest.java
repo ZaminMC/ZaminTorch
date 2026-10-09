@@ -134,12 +134,15 @@ class MobIntegrationTest extends ProtocolTestBase {
             assertTrue(swing[0] > 0, "the swing targets a known remote entity");
             assertEquals(0, swing[1], "animation 0 = the arm swing");
 
-            // Clean up the night for whatever test runs next: the zombies
-            // vaporize at dawn (the hostile-only rule this slice).
+            // Clean up the night for whatever test runs next: the undead
+            // ignite at dawn now (they burn out on their own clock, so the
+            // cleanup waits for every hostile to be burning, not gone).
             watcher.sendChat("/time set day");
             watcher.readTimeUpdate(15_000);
-            awaitCondition(() -> server.mobs().all().stream().noneMatch(m -> m.type().hostile),
-                "dawn cleared the hostiles");
+            awaitCondition(() -> server.mobs().all().stream()
+                    .filter(m -> m.type().hostile)
+                    .allMatch(net.zaminmc.torch.server.entity.MobEntity::burning),
+                "dawn ignited every hostile");
         }
     }
 }

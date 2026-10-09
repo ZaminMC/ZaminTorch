@@ -52,6 +52,27 @@ public final class BuiltinItems {
     // Smelted materials (furnace slice): iron ingot unlocks the iron tool tier.
     public static final EngineItemType IRON_INGOT = new EngineItemType(
             Identifier.parse("minecraft:iron_ingot"), "Iron Ingot", 64);
+    // Gold ingot (community items.json legacy 266): the gold ore smelt.
+    public static final EngineItemType GOLD_INGOT = new EngineItemType(
+            Identifier.parse("minecraft:gold_ingot"), "Gold Ingot", 64);
+    // Fire starter (community items.json legacy 259, durability 64):
+    // ignites fire against a clicked face.
+    public static final EngineItemType FLINT_AND_STEEL = new EngineItemType(
+            Identifier.parse("minecraft:flint_and_steel"), "Flint and Steel", 1, 64);
+
+    // World-completion items (community items.json): sugar cane 338 (plants
+    // the reed), cactus 81 (places the cactus block), sugar 353, paper 339,
+    // book 340 (the crafting chain off the cane).
+    public static final EngineItemType SUGAR_CANE = new EngineItemType(
+            Identifier.parse("minecraft:sugar_cane"), "Sugar Cane", 64);
+    public static final EngineItemType CACTUS = new EngineItemType(
+            Identifier.parse("minecraft:cactus"), "Cactus", 64);
+    public static final EngineItemType SUGAR = new EngineItemType(
+            Identifier.parse("minecraft:sugar"), "Sugar", 64);
+    public static final EngineItemType PAPER = new EngineItemType(
+            Identifier.parse("minecraft:paper"), "Paper", 64);
+    public static final EngineItemType BOOK = new EngineItemType(
+            Identifier.parse("minecraft:book"), "Book", 64);
     // Smelting result of cobblestone; places the stone block like any block item.
     public static final EngineItemType STONE = new EngineItemType(
             Identifier.parse("minecraft:stone"), "Stone", 64);
@@ -326,6 +347,8 @@ public final class BuiltinItems {
                 OAK_DOOR, LADDER, OAK_FENCE, BED,
                 BONE, STRING, GUNPOWDER, WOOL, MUTTON, COOKED_MUTTON,
                 BUCKET, WATER_BUCKET, LAVA_BUCKET,
+                FLINT_AND_STEEL, GOLD_INGOT,
+                SUGAR_CANE, CACTUS, SUGAR, PAPER, BOOK,
                 TALL_GRASS, DEAD_BUSH, DANDELION, POPPY, SANDSTONE,
                 LEATHER_HELMET, LEATHER_CHESTPLATE, LEATHER_LEGGINGS, LEATHER_BOOTS,
                 CHAINMAIL_HELMET, CHAINMAIL_CHESTPLATE, CHAINMAIL_LEGGINGS, CHAINMAIL_BOOTS,

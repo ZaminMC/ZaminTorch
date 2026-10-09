@@ -104,7 +104,7 @@ class MobCombatAcceptanceTest {
     }
 
     @Test
-    void dawnRemovesTheNightZombies() throws Exception {
+    void dawnIgnitesTheNightZombies() throws Exception {
         EngineServer server = boot();
         PlayerSession keeper = join(server, "Keeper");
         // Zombies exist at night only: set the night, spawn, then let dawn come.
@@ -114,8 +114,12 @@ class MobCombatAcceptanceTest {
         MobEntity zombie = awaitMob(server, MobType.ZOMBIE);
 
         server.chatService().submitChat(keeper, "/time set day");
-        await(() -> server.mobs().byId(zombie.entityId()) == null,
-                "dawn vaporized the zombie (no fire visuals this slice)");
+        // The dawn rule: the undead ignite and burn instead of vanishing.
+        await(() -> zombie.burning(), "dawn set the zombie on fire");
+        await(() -> server.mobs().byId(zombie.entityId()) == null
+                        || server.mobs().byId(zombie.entityId()).health()
+                                < net.zaminmc.torch.server.entity.MobType.ZOMBIE.maxHealth,
+                "the sun's fire burns into the body");
         server.shutdown(null);
     }
 

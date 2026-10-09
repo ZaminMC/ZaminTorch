@@ -65,6 +65,10 @@ public final class MobManager {
 
         void onMobRemoved(MobEntity mob, String reason);
 
+        /** The living-flags burn bit changed (the fire metadata to observers). */
+        default void onMobBurningChanged(MobEntity mob, boolean burning) {
+        }
+
         /** A melee hunter landed a hit on a player (damage already validated). */
         void onMobAttackedPlayer(MobEntity mob, PlayerSession target, float damage);
 
@@ -274,14 +278,19 @@ public final class MobManager {
                 continue;
             }
 
-            // Daylight kills the always-hostile kinds (no fire visuals this
-            // slice: they vanish). The day-neutral spider just stops hunting.
+            // Daylight: the undead ignite (the historical sunlight burn —
+            // re-armed every daylight tick until the fire consumes them); the
+            // day-neutral spider just stops hunting; creepers are sun-proof.
             if (mob.type().hostile && !mob.type().traits.neutralByDay() && !night) {
-                iterator.remove();
-                for (Listener listener : listeners) {
-                    listener.onMobRemoved(mob, "dawn");
+                if (mob.type().undead()) {
+                    boolean wasBurning = mob.burning();
+                    mob.ignite(MobEntity.FIRE_TICKS);
+                    if (!wasBurning) {
+                        for (Listener listener : listeners) {
+                            listener.onMobBurningChanged(mob, true);
+                        }
+                    }
                 }
-                continue;
             }
 
             // Despawn: out of reach of every playing player (mobs idle when
@@ -302,10 +311,16 @@ public final class MobManager {
             }
 
             boolean wasPriming = mob.fuseActive();
+            boolean wasBurning = mob.burning();
             boolean moved = mob.tick(night);
             if (wasPriming != mob.fuseActive()) {
                 for (Listener listener : listeners) {
                     listener.onMobFuseChanged(mob, mob.fuseActive());
+                }
+            }
+            if (wasBurning != mob.burning()) {
+                for (Listener listener : listeners) {
+                    listener.onMobBurningChanged(mob, mob.burning());
                 }
             }
             if (mob.consumeRegrown()) {

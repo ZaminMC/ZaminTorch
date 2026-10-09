@@ -124,6 +124,11 @@ public enum MobType {
         this.deathSound = deathSound;
     }
 
+    /** @return whether the kind is undead (burns in daylight, the historical rule). */
+    public boolean undead() {
+        return this == ZOMBIE || this == SKELETON;
+    }
+
     /** @return the kind by its canonical identifier ({@code minecraft:pig}), or null. */
     public static MobType byName(String name) {
         for (MobType type : values()) {

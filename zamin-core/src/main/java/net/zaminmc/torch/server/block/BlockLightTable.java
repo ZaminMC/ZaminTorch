@@ -72,11 +72,14 @@ public final class BlockLightTable {
             Map.entry(Identifier.parse("minecraft:falling_lava"), new LightData(15, 0)),
             Map.entry(Identifier.parse("minecraft:sand"), new LightData(0, 15)),
             Map.entry(Identifier.parse("minecraft:gravel"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:oak_planks"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:wool"), new LightData(0, 15)),
             Map.entry(Identifier.parse("minecraft:crafting_table"), new LightData(0, 15)),
 
-            // The one engine light source: torch emits 14, filters nothing
-            // (dataset emitLight 14, filterLight 0).
+            // The engine's light sources: torch emits 14, fire 15 (dataset
+            // emitLight values, filterLight 0 for both).
             Map.entry(Identifier.parse("minecraft:torch"), new LightData(14, 0)),
+            Map.entry(Identifier.parse("minecraft:fire"), new LightData(15, 0)),
 
             // Transparent to light, no emission (dataset filterLight 0): light
             // crosses glass, a chest's empty bounding shape and an unlit furnace

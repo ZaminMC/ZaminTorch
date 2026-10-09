@@ -186,6 +186,19 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
     /** Clears the fire clock (water contact, respawn, mode switches). */
     public void extinguish() {
         fireTicks = 0;
+        fireDamageTimer = 0;
+    }
+
+    /** The in-fire / burning damage cadence counter (10 vs 20 ticks). */
+    private int fireDamageTimer;
+
+    /** @return the incremented fire damage cadence counter. */
+    public int advanceFireDamageTimer() {
+        return ++fireDamageTimer;
+    }
+
+    public void resetFireDamageTimer() {
+        fireDamageTimer = 0;
     }
 
     public PlayerSession(UUID uuid, String name, ClientLink link) {
@@ -434,6 +447,8 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
         this.bowChargeTicks = -1;
         this.sneaking = false;
         this.sprinting = false;
+        extinguish();
+        resetFireDamageTimer();
         resetHurtInvulnerability();
         clearHoverTicks();
     }

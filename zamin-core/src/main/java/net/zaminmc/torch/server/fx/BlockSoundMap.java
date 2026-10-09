@@ -33,6 +33,8 @@ public final class BlockSoundMap {
             Map.entry("minecraft:crafting_table", "dig.wood"),
             Map.entry("minecraft:chest", "dig.wood"),
             Map.entry("minecraft:torch", "dig.wood"),
+            // cloth family (the wool block-item's placeable form)
+            Map.entry("minecraft:wool", "dig.wool"),
             // soft families
             Map.entry("minecraft:grass_block", "dig.grass"),
             Map.entry("minecraft:dirt", "dig.grass"),

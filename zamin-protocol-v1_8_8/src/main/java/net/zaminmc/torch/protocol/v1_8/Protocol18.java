@@ -169,6 +169,7 @@ final class Protocol18 {
 
     // The living-flags bit map (1.8's Entity flags byte, index 0):
     // 0x01 burning, 0x02 crouched, 0x08 riding, 0x10 sprinting, 0x20 eating.
+    static final int LIVING_FLAG_BURNING = 0x01;
     static final int LIVING_FLAG_SNEAKING = 0x02;
     static final int LIVING_FLAG_SPRINTING = 0x10;
 
