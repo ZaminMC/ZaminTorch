@@ -607,7 +607,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             int count = packet.readUnsignedByte();
             int damage = packet.readShort();
             SlotNbt.skip(packet); // the claimed slot's optional NBT marker + compound
-            stack = LegacyBlockIds.identifierOf(legacyId & 0xFFFF)
+            stack = LegacyBlockIds.identifierOf(legacyId & 0xFFFF, damage)
                     .flatMap(net.zaminmc.torch.server.item.BuiltinItems::lookup)
                     .map(type -> {
                         try {
@@ -794,7 +794,22 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         // 1.8 slot: short id, byte count, short metadata, optional NBT. In creative
         // the client's claimed item is authoritative (client-side creative
         // inventory); in survival the engine validates its own inventory instead.
+        // The metadata field disambiguates the slab family's shared ids.
         short heldId = packet.readShort();
+        int heldDamage = 0;
+        if (heldId > 0) {
+            packet.readUnsignedByte();          // count
+            heldDamage = packet.readShort();    // the variant metadata
+            SlotNbt.skip(packet);
+        }
+        // The 1.8 C08 cursor bytes (the hit offset within the clicked face,
+        // 16ths — the slab half's placement signal).
+        int cursorY = 0;
+        if (packet.isReadable(3)) {
+            packet.readByte();
+            cursorY = packet.readByte();
+            packet.readByte();
+        }
         // The -1 sentinel position (and face 255 against a block) mean "use the
         // held item" rather than "place on a block": the eating path.
         if (rawPosition == -1L || face == 255) {
@@ -814,7 +829,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         java.util.Optional<net.zaminmc.torch.block.BlockType> creativeHeld = java.util.Optional.empty();
         if (player.gamemode() == GameMode.CREATIVE && heldId > 0) {
             net.zaminmc.torch.util.Identifier heldIdentifier =
-                    LegacyBlockIds.identifierOf(heldId & 0xFFFF).orElse(null);
+                    LegacyBlockIds.identifierOf(heldId & 0xFFFF, heldDamage).orElse(null);
             if (heldIdentifier == null) {
                 LOGGER.fine(() -> "Ignored use of unmapped item " + heldId
                         + " from " + player.name());
@@ -824,7 +839,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         }
         final var held = creativeHeld;
         try {
-            engine.useItemOnBlock(player, target, face, held, windowId -> {
+            engine.useItemOnBlock(player, target, face, held, cursorY, windowId -> {
                 // The engine recorded the container kind before dispatching the
                 // callback; the adapter picks the matching Open Window flavor.
                 Channel channel = adapter.channelOf(this);

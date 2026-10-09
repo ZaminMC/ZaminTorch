@@ -28,6 +28,24 @@ public final class ItemEntity {
     public interface Ground {
         /** @return whether the block containing this point is solid. */
         boolean isSolid(double x, double y, double z);
+
+        /**
+         * The shape-aware point test (the collision-shape slice); the
+         * default folds to the boolean world for stub grounds.
+         */
+        default boolean isSolidAt(double x, double y, double z) {
+            return isSolid(x, y, z);
+        }
+
+        /**
+         * The top surface of the collision shape in the point's cell (the
+         * support a resting bottom snaps onto); the default mirrors the
+         * boolean world's full-cube snap. Non-solid cells answer negative
+         * infinity.
+         */
+        default double supportY(double x, double y, double z) {
+            return isSolid(x, y, z) ? Math.floor(y) + 1.0 : Double.NEGATIVE_INFINITY;
+        }
     }
 
     private final int entityId;
@@ -138,12 +156,13 @@ public final class ItemEntity {
         double newX = position.x() + velocityX;
         double newZ = position.z() + velocityZ;
 
-        if (velocityY <= 0 && ground.isSolid(newX, newY - HALF_HEIGHT - GROUND_EPSILON, newZ)) {
-            // Snap the item's bottom onto the block surface it landed on.
-            newY = Math.floor(newY - HALF_HEIGHT - GROUND_EPSILON) + 1.0 + HALF_HEIGHT;
+        if (velocityY <= 0 && ground.isSolidAt(newX, newY - HALF_HEIGHT - GROUND_EPSILON, newZ)) {
+            // Snap the item's bottom onto the surface it landed on (the
+            // slab half or the full cube's ceiling).
+            newY = ground.supportY(newX, newY - HALF_HEIGHT - GROUND_EPSILON, newZ) + HALF_HEIGHT;
             velocityY = 0.0;
             onGround = true;
-        } else if (velocityY > 0 && ground.isSolid(newX, newY + HALF_HEIGHT + GROUND_EPSILON, newZ)) {
+        } else if (velocityY > 0 && ground.isSolidAt(newX, newY + HALF_HEIGHT + GROUND_EPSILON, newZ)) {
             velocityY = 0.0; // bumped a ceiling; do not pass through
             newY = position.y();
             onGround = false;

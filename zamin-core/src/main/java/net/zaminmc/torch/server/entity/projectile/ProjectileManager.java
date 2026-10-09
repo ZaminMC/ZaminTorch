@@ -47,6 +47,15 @@ public final class ProjectileManager {
     /** The world solidity query (immutable snapshot reads; tick thread). */
     public interface SolidQuery {
         boolean solid(double x, double y, double z);
+
+        /**
+         * The shape-aware point test (the collision-shape slice): the
+         * default folds to the boolean world so stub queries keep their
+         * semantics.
+         */
+        default boolean solidAt(double x, double y, double z) {
+            return solid(x, y, z);
+        }
     }
 
     /** Resolves the entity a projectile is inside of, if any (tick thread). */
@@ -230,7 +239,7 @@ public final class ProjectileManager {
             return true;
         }
         // --- block hit --------------------------------------------------------
-        if (solid.solid(point.x(), point.y(), point.z())) {
+        if (solid.solidAt(point.x(), point.y(), point.z())) {
             if (projectile.kind() == ProjectileEntity.Kind.ARROW) {
                 projectile.landInGround();
                 for (Listener listener : listeners) {
