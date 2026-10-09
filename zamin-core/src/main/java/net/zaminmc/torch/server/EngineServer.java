@@ -46,6 +46,8 @@ import net.zaminmc.torch.server.ops.BanStore;
 import net.zaminmc.torch.server.ops.OpStore;
 import net.zaminmc.torch.server.ops.WhitelistStore;
 import net.zaminmc.torch.server.net.ClientLink;
+import net.zaminmc.torch.server.sign.SignDataStore;
+import net.zaminmc.torch.server.sign.SignManager;
 import net.zaminmc.torch.server.net.EngineBridge;
 import net.zaminmc.torch.server.player.MovementGuard;
 import net.zaminmc.torch.server.player.PlayerDataStore;
@@ -155,6 +157,8 @@ public final class EngineServer implements Server, EngineBridge {
     private FurnaceDataStore furnaceStore;
     private ChestManager chestManager;
     private ChestDataStore chestStore;
+    private SignManager signManager;
+    private SignDataStore signStore;
     private volatile ItemEntityManager itemEntities;
     private volatile MobManager mobManager;
     private volatile FallingBlockEntityManager fallingEntities;
@@ -188,6 +192,7 @@ public final class EngineServer implements Server, EngineBridge {
     private final java.util.List<FurnaceViewListener> furnaceViewListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     private final java.util.List<SurvivalListener> survivalListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     private final java.util.List<TimeListener> timeListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
+    private final java.util.List<SignListener> signListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     private final java.util.List<RelightListener> relightListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
 
     /** Entity ids for engine-global entities (items); player wire ids stay adapter-local. */
@@ -312,6 +317,10 @@ public final class EngineServer implements Server, EngineBridge {
                 chestManager = new ChestManager();
                 chestStore = new ChestDataStore(config.worldDataDir().resolve("chests.bin"));
                 chestManager.restoreAll(chestStore.load());
+                // Sign block entities: world text state, ZSD persistence.
+                signManager = new SignManager();
+                signStore = new SignDataStore(config.worldDataDir().resolve("signs.bin"));
+                signManager.restoreAll(signStore.load());
                 // Living mobs: simulation-owned population, loot flows into items.
                 MobManager mobs = new MobManager(
                         new MobWorldQuery(),
@@ -375,6 +384,7 @@ public final class EngineServer implements Server, EngineBridge {
                     projectileManager.tick(); // ranged combat physics
                     furnaceManager.tick(world, itemEntities);
                     chestManager.tick(world);
+                    signManager.tick(world);
                     itemEntities.tick(players.all());
                     mobs.tick(players.all(), world.timeOfDay());
                     randomTicks.tick(players.all()); // §471: grass growth/decay
@@ -571,6 +581,81 @@ public final class EngineServer implements Server, EngineBridge {
         return ticker;
     }
 
+    /** The world's sign text registry (public: the wire's chunk replay reads it). */
+    public SignManager signs() {
+        return signManager;
+    }
+
+    /**
+     * A client submitted sign text (Update Sign 0x12): the block must be a
+     * sign within reach of the sender. Safe from any thread; the application
+     * runs on the tick thread and fans the new text out to viewers.
+     */
+    public void editSign(PlayerSession player, BlockPosition position, String[] lines) {
+        Objects.requireNonNull(player, "player");
+        Objects.requireNonNull(position, "position");
+        ticker.submit(() -> editSignOnTick(player, position, lines));
+    }
+
+    private void editSignOnTick(PlayerSession player, BlockPosition position, String[] lines) {
+        if (player.state() != PlayerState.PLAYING || player.dead()) {
+            return;
+        }
+        if (!SignManager.isSignType(world.getBlock(position))) {
+            return; // not a sign: the historical silent refusal
+        }
+        double dx = position.x() + 0.5 - player.position().x();
+        double dy = position.y() + 0.5 - (player.position().y() + 1.0);
+        double dz = position.z() + 0.5 - player.position().z();
+        if (dx * dx + dy * dy + dz * dz > 8.0 * 8.0) {
+            return; // too far from the sender: the anti-grief guard
+        }
+        signManager.set(position, lines);
+        for (SignListener listener : signListeners) {
+            listener.onSignChanged(position, signManager.peek(position));
+        }
+        LOGGER.fine(() -> player.name() + " wrote a sign at " + position);
+    }
+
+    /**
+     * Sign placement (the historical ItemSign): the standing sign faces its
+     * placer (the opposite of the look direction, the 45-degree rotation
+     * band folded to the four cardinals), and the survival path consumes one
+     * item. Creative placements pass the client-claimed block like the
+     * generic path. Tick-thread context.
+     */
+    private void placeSignOnTick(PlayerSession session, BlockPosition clicked, int face,
+                                 java.util.Optional<BlockType> creativeHeld) {
+        BlockPosition target = offsetByFace(clicked, face);
+        if (target == null || world.getBlock(clicked).equals(world.airType())
+                || !world.getBlock(target).equals(world.airType())) {
+            return; // the generic placement gates (bad face / clicked air / occupied)
+        }
+        if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5
+                || intersectsPlayerBox(session.position(), target)) {
+            return; // the placement reach gate (the historical survival reach)
+        }
+        if (creativeHeld.isEmpty()
+                && session.gamemode() != GameMode.CREATIVE
+                && session.inventory().held().isEmpty()) {
+            return; // nothing to consume
+        }
+        // Facing: the sign fronts the placer. Yaw 0 = south (+Z), the sign
+        // north; the cardinals at 90-degree bands, metadata 0/4/8/12.
+        double yaw = ((session.rotation().yaw() % 360.0) + 360.0 + 45.0) % 360.0;
+        int oppositeBand = (int) (yaw / 90.0) % 4; // 0=S,1=W,2=N,3=E of the LOOK
+        BlockType[] facings = {
+                BuiltinBlocks.SIGN_NORTH,   // looking south: sign faces north
+                BuiltinBlocks.SIGN_EAST,    // looking west: sign faces east
+                BuiltinBlocks.SIGN_SOUTH,   // looking north: sign faces south
+                BuiltinBlocks.SIGN_WEST};   // looking east: sign faces west
+        world.setBlock(target, facings[oppositeBand]);
+        if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE) {
+            session.inventory().consumeHeld(1);
+            publishInventoryChanged(session);
+        }
+    }
+
     public PlayerRegistry playerRegistry() {
         return players;
     }
@@ -623,6 +708,16 @@ public final class EngineServer implements Server, EngineBridge {
     /** A world-time change (the /time command, the periodic cycle sync). */
     public interface TimeListener {
         void onTimeChanged(long totalTicks, long timeOfDay);
+    }
+
+    /** A sign's text changed (the Update Sign 0x33 fan-out to viewers). */
+    public interface SignListener {
+        void onSignChanged(BlockPosition position, String[] lines);
+    }
+
+    /** Registers the sign-text observer (the protocol adapter's wire fan-out). */
+    public void addSignListener(SignListener listener) {
+        signListeners.add(listener);
     }
 
     /**
@@ -2037,6 +2132,12 @@ public final class EngineServer implements Server, EngineBridge {
         if (useFarmingOnTick(session, clicked)) {
             return; // the hoe/seed/bone-meal use was consumed
         }
+        if (session.inventory().held().type().identifier().toString()
+                .equals("minecraft:sign")
+                || creativeHeld.map(t -> SignManager.isSignType(t)).orElse(false)) {
+            placeSignOnTick(session, clicked, face, creativeHeld);
+            return; // the sign's facing overrides the generic placement
+        }
         blockInteraction.placeFromUseOnTick(session, clicked, face, creativeHeld);
     }
 
@@ -2144,6 +2245,21 @@ public final class EngineServer implements Server, EngineBridge {
             return true;
         }
         return false;
+    }
+
+    /** Eye-to-block-center distance squared, the survival reach gate's shape. */
+    private static double distanceSquaredEyeToBlock(Position playerPosition, BlockPosition target) {
+        double dx = (target.x() + 0.5) - playerPosition.x();
+        double dy = (target.y() + 0.5) - (playerPosition.y() + 1.62);
+        double dz = (target.z() + 0.5) - playerPosition.z();
+        return dx * dx + dy * dy + dz * dz;
+    }
+
+    /** Whether the block AABB intersects the player's bounding box. */
+    private static boolean intersectsPlayerBox(Position p, BlockPosition block) {
+        return block.x() + 1 > p.x() - 0.3 && block.x() < p.x() + 0.3
+                && block.y() + 1 > p.y() && block.y() < p.y() + 1.8
+                && block.z() + 1 > p.z() - 0.3 && block.z() < p.z() + 0.3;
     }
 
     /** The 1.8 face-to-offset table (0=-Y, 1=+Y, 2=-Z, 3=+Z, 4=-X, 5=+X). */
@@ -3804,6 +3920,9 @@ public final class EngineServer implements Server, EngineBridge {
                 }
                 if (chestStore != null && chestManager != null) {
                     chestStore.save(chestManager.snapshot());
+                }
+                if (signStore != null && signManager != null) {
+                    signStore.save(signManager.snapshot());
                 }
                 if (mobStore != null && mobManager != null) {
                     mobStore.save(mobManager.snapshot());

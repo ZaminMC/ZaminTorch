@@ -307,6 +307,30 @@ final class TestClient18 implements AutoCloseable {
         sendPacket(bodyToBytes(body));
     }
 
+    /** Update Sign (0x12): the placement editor's four lines. */
+    void sendUpdateSign(int x, int y, int z, String[] lines) throws IOException {
+        ByteBuf body = Unpooled.buffer(64);
+        ByteBufOps.writeVarInt(body, Protocol18.C2S_UPDATE_SIGN);
+        ByteBufOps.writePackedBlockPosition(body, x, y, z);
+        for (int line = 0; line < 4; line++) {
+            ByteBufOps.writeString(body, line < lines.length ? lines[line] : "");
+        }
+        sendPacket(bodyToBytes(body));
+    }
+
+    /** Reads an Update Sign (0x33) replay, returning {x, y, z} + the 4 lines. */
+    Object[] readSignUpdate(long timeoutMs) throws IOException {
+        byte[] payload = readPacketOfType(Protocol18.S2C_UPDATE_SIGN, timeoutMs);
+        ByteBuf buffer = Unpooled.wrappedBuffer(payload);
+        ByteBufOps.readVarInt(buffer); // packet id
+        int[] pos = ByteBufOps.decodePackedBlockPosition(buffer.readLong());
+        String[] lines = new String[4];
+        for (int line = 0; line < 4; line++) {
+            lines[line] = ByteBufOps.readString(buffer, 128);
+        }
+        return new Object[]{pos[0], pos[1], pos[2], lines};
+    }
+
     /** Tab-Complete (0x14): the completion ask (string, no block position). */
     void sendTabComplete(String text) throws IOException {
         ByteBuf body = Unpooled.buffer(16 + text.length());

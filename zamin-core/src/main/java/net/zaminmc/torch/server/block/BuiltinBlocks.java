@@ -108,6 +108,18 @@ public final class BuiltinBlocks {
     public static final EngineBlockType WHEAT_STAGE7 = new EngineBlockType(
             Identifier.parse("minecraft:wheat_stage7"), "Wheat Crop", 7);
 
+    // The standing signs (community blocks.json: block 63, the rotation in
+    // the metadata nibble's 45-degree band 0/4/8/12 = S/W/N/E). The sign
+    // faces its placer, the historical placement rule.
+    public static final EngineBlockType SIGN_SOUTH = new EngineBlockType(
+            Identifier.parse("minecraft:sign"), "Sign");
+    public static final EngineBlockType SIGN_WEST = new EngineBlockType(
+            Identifier.parse("minecraft:sign_west"), "Sign", 4);
+    public static final EngineBlockType SIGN_NORTH = new EngineBlockType(
+            Identifier.parse("minecraft:sign_north"), "Sign", 8);
+    public static final EngineBlockType SIGN_EAST = new EngineBlockType(
+            Identifier.parse("minecraft:sign_east"), "Sign", 12);
+
     private BuiltinBlocks() {
     }
 
@@ -148,6 +160,10 @@ public final class BuiltinBlocks {
                 .register(WHEAT_STAGE4)
                 .register(WHEAT_STAGE5)
                 .register(WHEAT_STAGE6)
-                .register(WHEAT_STAGE7);
+                .register(WHEAT_STAGE7)
+                .register(SIGN_SOUTH)
+                .register(SIGN_WEST)
+                .register(SIGN_NORTH)
+                .register(SIGN_EAST);
     }
 }

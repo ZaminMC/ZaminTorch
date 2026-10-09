@@ -197,6 +197,13 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                 connection.sendTimeUpdateNow();
             }
         });
+        // Sign text (0x33): edits fan out to every connected viewer; the
+        // chunk-send path replays signs per column separately.
+        server.addSignListener((position, lines) -> {
+            for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                connection.sendSignUpdate(position, lines);
+            }
+        });
         // Living mobs: engine decides lifecycle, adapter renders protocol 47.
         server.addMobListener(new net.zaminmc.torch.server.entity.MobManager.Listener() {
             @Override
