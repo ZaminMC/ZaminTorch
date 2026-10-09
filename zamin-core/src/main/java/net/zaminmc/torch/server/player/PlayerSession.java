@@ -47,6 +47,8 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
     private volatile net.zaminmc.torch.block.BlockPosition containerPosition;
     /** The mount whose inventory is open (the HORSE container's engine id); -1 otherwise. */
     private volatile int containerMountId = -1;
+    /** The selected trade row of the open villager window (the MC|TrSel index); -1 none. */
+    private volatile int selectedTrade = -1;
 
     /** The kinds of container windows a session can hold open. */
     public enum ContainerKind {
@@ -58,7 +60,9 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
         /** The chest (27-slot GUI, slot state lives in the world at containerPosition). */
         CHEST,
         /** The horse inventory (saddle + armor slots live on the mount at containerPosition's mount id). */
-        HORSE
+        HORSE,
+        /** The villager trading window (offers ride the MC|TrList plugin message). */
+        VILLAGER
     }
 
     // --- survival body state (§436 family) ---------------------------------
@@ -339,6 +343,7 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
         this.containerKind = kind;
         this.containerPosition = position;
         this.containerMountId = -1;
+        this.selectedTrade = -1;
     }
 
     /** Opens the horse inventory window (the mount's engine id rides along). */
@@ -347,9 +352,25 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
         this.containerMountId = mountEngineId;
     }
 
+    /** Opens the villager trading window (the trader's engine id rides along). */
+    public void openVillagerWindow(int windowId, int villagerEngineId) {
+        openContainerWindow(windowId, ContainerKind.VILLAGER, null);
+        this.containerMountId = villagerEngineId;
+    }
+
     /** @return the mount id of the open HORSE window, or -1. */
     public int containerMountId() {
         return containerMountId;
+    }
+
+    /** @return the selected trade row of the open villager window, or -1. */
+    public int selectedTrade() {
+        return selectedTrade;
+    }
+
+    /** Tick-thread only: the MC|TrSel index lands here (the offer to execute). */
+    public void setSelectedTrade(int index) {
+        this.selectedTrade = index;
     }
 
     /** Marks the container window as closed (no container open). */
@@ -358,6 +379,7 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
         this.containerKind = ContainerKind.NONE;
         this.containerPosition = null;
         this.containerMountId = -1;
+        this.selectedTrade = -1;
     }
 
     public PlayerState state() {

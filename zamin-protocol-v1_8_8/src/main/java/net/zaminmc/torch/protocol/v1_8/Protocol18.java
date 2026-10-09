@@ -52,6 +52,8 @@ final class Protocol18 {
     static final int S2C_WINDOW_PROPERTY = 0x31;
     static final int S2C_CONFIRM_TRANSACTION = 0x32;
     static final int S2C_OPEN_WINDOW = 0x2D;
+    /** Plugin Message (0x3F): the MC|TrList trade offers ride this (no dedicated Trade List packet on 47). */
+    static final int S2C_PLUGIN_MESSAGE = 0x3F;
     static final int S2C_CLOSE_WINDOW = 0x2E;
     /** Tab-Complete reply: VarInt count, then that many strings (protocol 47). */
     static final int S2C_TAB_COMPLETE = 0x3A;

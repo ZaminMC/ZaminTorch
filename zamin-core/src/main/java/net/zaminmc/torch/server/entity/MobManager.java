@@ -110,6 +110,17 @@ public final class MobManager {
          */
         default void onHorseInventoryOpened(PlayerSession player, MobEntity mob, int windowId) {
         }
+
+        /**
+         * A player opened a villager's trading window: the adapter sends Open
+         * Window ("minecraft:villager") then the MC|TrList plugin message.
+         */
+        default void onVillagerTradeOpened(PlayerSession player, MobEntity villager, int windowId) {
+        }
+
+        /** A trade row was selected: the result slot syncs (the Set Slot). */
+        default void onTradeSelected(PlayerSession player, int windowId, ItemStack result) {
+        }
     }
 
     private final MobEntity.WorldQuery world;

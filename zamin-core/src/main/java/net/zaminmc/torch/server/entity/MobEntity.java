@@ -285,6 +285,15 @@ public final class MobEntity {
     private boolean pendingBuckThrow;
     private int eatingTicks;
 
+    // ------------------------------------------------ the villager's trade state
+
+    /** The villager's profession (the DataWatcher index-16 Int, 0-4). */
+    private int profession;
+    /** The villager's stock offers (the trade list the client renders). */
+    private TradeOffer[] offers = new TradeOffer[0];
+    /** The use counters, parallel to {@link #offers} (the grey-out budget). */
+    private int[] offerUses = new int[0];
+
     public MobEntity(int entityId, MobType type, Position position,
                      Random random, WorldQuery world) {
         this.entityId = entityId;
@@ -303,6 +312,14 @@ public final class MobEntity {
             int color = random.nextInt(7);
             int marking = random.nextInt(10) < 6 ? 0 : 1 + random.nextInt(3);
             this.variant = color | (marking << 8);
+        }
+        // The villager's career and stock: profession 0-4 (the DataWatcher
+        // Int), the offers from the fixed career table (the trade slice).
+        if (type == MobType.VILLAGER) {
+            this.profession = random.nextInt(5);
+            java.util.List<TradeOffer> stock = VillagerTrades.offersFor(profession);
+            this.offers = stock.toArray(new TradeOffer[0]);
+            this.offerUses = new int[offers.length];
         }
     }
 
@@ -702,6 +719,47 @@ public final class MobEntity {
     /** @return the seat height above the mount's feet (the rider's body anchor). */
     public double seatHeight() {
         return type == MobType.PIG ? PIG_SEAT_HEIGHT : HORSE_SEAT_HEIGHT;
+    }
+
+    // ------------------------------------------------ villager API (the trade slice)
+
+    /** @return the villager's profession (the index-16 Int, 0-4). */
+    public int profession() {
+        return profession;
+    }
+
+    /** @return the villager's stock offers (the trade list the client renders). */
+    public TradeOffer[] offers() {
+        return offers;
+    }
+
+    /** @return the use counter of the offer at the index. */
+    public int offerUses(int index) {
+        if (index < 0 || index >= offerUses.length) {
+            throw new IllegalArgumentException("Offer index out of range: " + index);
+        }
+        return offerUses[index];
+    }
+
+    /** @return whether the offer still trades (the use budget not spent out). */
+    public boolean offerAvailable(int index) {
+        if (index < 0 || index >= offers.length) {
+            return false;
+        }
+        return offerUses[index] < offers[index].maxUses();
+    }
+
+    /** Charges one use off the offer (the execution's bookkeeping). */
+    public void chargeOfferUse(int index) {
+        if (index < 0 || index >= offerUses.length) {
+            throw new IllegalArgumentException("Offer index out of range: " + index);
+        }
+        offerUses[index]++;
+    }
+
+    /** @return whether this kind trades (the villager). */
+    public boolean isTrader() {
+        return type == MobType.VILLAGER;
     }
 
     /**

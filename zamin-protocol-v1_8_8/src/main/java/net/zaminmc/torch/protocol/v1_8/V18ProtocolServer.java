@@ -355,6 +355,28 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                     }
                 }
             }
+
+            @Override
+            public void onVillagerTradeOpened(net.zaminmc.torch.server.player.PlayerSession player,
+                                              net.zaminmc.torch.server.entity.MobEntity villager,
+                                              int windowId) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    if (connection.currentSession() == player) {
+                        connection.sendVillagerWindow(channelOf(connection), player, windowId, villager);
+                    }
+                }
+            }
+
+            @Override
+            public void onTradeSelected(net.zaminmc.torch.server.player.PlayerSession player,
+                                        int windowId,
+                                        net.zaminmc.torch.item.ItemStack result) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    if (connection.currentSession() == player) {
+                        connection.sendTradeResult(player, windowId, result);
+                    }
+                }
+            }
         });
         // The skeleton's bow arm (Animation 0x0B) and the creeper's blast
         // (Explosion 0x27) ride dedicated observers.
@@ -374,9 +396,14 @@ public final class V18ProtocolServer implements ProtocolAdapter {
         // the client's visible inventory lives in the container's slot layout.
         server.addInventoryListener(player -> {
             int openWindow = player.openContainerWindowId();
+            // While the villager window is open the merchant's pseudo-slots
+            // are display-only: the live inventory still rides window 0 (the
+            // client's merchant GUI renders the buys from it).
+            boolean tradeWindow = player.openContainerKind()
+                    == net.zaminmc.torch.server.player.PlayerSession.ContainerKind.VILLAGER;
             for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
                 if (connection.currentSession() == player) {
-                    if (openWindow > 0) {
+                    if (openWindow > 0 && !tradeWindow) {
                         connection.sendContainerWindowItems(channelOf(connection), openWindow, player);
                     } else {
                         connection.sendWindowItems(channelOf(connection),

@@ -87,6 +87,33 @@ public final class PlayerInventory {
         return false;
     }
 
+    /**
+     * Removes {@code count} units of one type across all slots (the trade
+     * buy path): fills from the first matching slot, splitting across stacks
+     * as needed. @return whether the full count was removed (a short supply
+     * removes nothing — validate with {@link #countOf} first).
+     */
+    public boolean removeItems(net.zaminmc.torch.item.ItemType type, int count) {
+        Objects.requireNonNull(type, "type");
+        if (count < 0) {
+            throw new IllegalArgumentException("Remove count must not be negative: " + count);
+        }
+        if (countOf(type) < count) {
+            return false; // short supply: nothing moves
+        }
+        int left = count;
+        for (int i = 0; i < slots.length && left > 0; i++) {
+            ItemStack slot = slots[i];
+            if (slot.isEmpty() || !slot.type().equals(type)) {
+                continue;
+            }
+            int take = Math.min(left, slot.count());
+            left -= take;
+            slots[i] = take == slot.count() ? ItemStack.EMPTY : slot.withCount(slot.count() - take);
+        }
+        return true;
+    }
+
     /** Selects the hotbar slot. Invalid selections are rejected, state unchanged (§430). */
     public void selectHotbarSlot(int slot) {
         if (slot < 0 || slot >= HOTBAR_SLOTS) {
