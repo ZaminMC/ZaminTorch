@@ -22,9 +22,9 @@ import java.util.UUID;
 import java.util.logging.Logger;
 
 /**
- * File-backed player data store ("ZPD" format, version 5), one file per player.
+ * File-backed player data store ("ZPD" format, version 6), one file per player.
  *
- * <p>Layout: magic 'Z','P','D',5 - name(string) - x(double) y(double) z(double)
+ * <p>Layout: magic 'Z','P','D',6 - name(string) - x(double) y(double) z(double)
  * - yaw(float) pitch(float) - heldSlot(varint) - slots(varint count of non-empty
  * entries; each: slot(varint) + item identifier(string) + count(varint) +
  * damage(varint) + displayName(varint-length UTF-8, 0 = none)) - health(float)
@@ -33,7 +33,8 @@ import java.util.logging.Logger;
  * custom names; version 4 files (pre-armor) load with empty armor. ZPD v5
  * carries the armor row inside the slot namespace at indexes 36-39
  * (head, chest, legs, feet) — the count-prefixed list is self-describing, so
- * older readers never see entries they cannot place.</p>
+ * older readers never see entries they cannot place. ZPD v6 appends the
+ * experience total (varlong) after the game mode; v5 files load with 0 XP.</p>
  *
  * <p>The same durability rules as the world store: writes are atomic (temp file
  * then atomic move), corrupt files load as absent and are preserved beside the
@@ -45,7 +46,7 @@ public final class PlayerDataStore {
     private static final int MAGIC_0 = 'Z';
     private static final int MAGIC_1 = 'P';
     private static final int MAGIC_2 = 'D';
-    private static final int FORMAT_VERSION = 5;
+    private static final int FORMAT_VERSION = 6;
 
     private final Path directory;
 
@@ -84,6 +85,7 @@ public final class PlayerDataStore {
                 writeVarInt(out, snapshot.food());
                 out.writeFloat(snapshot.saturation());
                 out.writeByte(snapshot.gamemodeId());
+                writeVarLong(out, snapshot.totalXp());
             }
             Files.move(temp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
         } catch (IOException e) {
@@ -133,8 +135,10 @@ public final class PlayerDataStore {
             // Version 4 adds the per-player game mode; older saves read as
             // "unspecified" and the server default applies.
             int gamemodeId = version >= 4 ? in.readByte() : -1;
+            // Version 6 appends the experience total; older saves load at 0.
+            long totalXp = version >= 6 ? readVarLong(in) : 0;
             return Optional.of(new PlayerSnapshot(uuid, name, position, rotation, heldSlot,
-                    stacks, health, food, saturation, gamemodeId));
+                    stacks, health, food, saturation, gamemodeId, totalXp));
         } catch (IOException | RuntimeException corrupt) {
             // A malformed value (bad identifier, out-of-range slot) is corruption
             // just as much as a broken header: quarantine, then treat as absent.
@@ -185,6 +189,33 @@ public final class PlayerDataStore {
         byte[] bytes = new byte[length];
         in.readFully(bytes);
         return new String(bytes, StandardCharsets.UTF_8);
+    }
+
+    private static void writeVarLong(DataOutputStream out, long value) throws IOException {
+        while (true) {
+            if ((value & ~0x7FL) == 0) {
+                out.write((int) value);
+                return;
+            }
+            out.write((int) ((value & 0x7F) | 0x80));
+            value >>>= 7;
+        }
+    }
+
+    private static long readVarLong(DataInputStream in) throws IOException {
+        long value = 0;
+        int shift = 0;
+        while (true) {
+            long b = in.readUnsignedByte();
+            value |= (b & 0x7F) << shift;
+            if ((b & 0x80) == 0) {
+                return value;
+            }
+            shift += 7;
+            if (shift > 63) {
+                throw new IOException("VarLong too large in player data file");
+            }
+        }
     }
 
     private static void writeVarInt(DataOutputStream out, int value) throws IOException {

@@ -64,6 +64,8 @@ public final class BlockInteractionService {
     private final java.util.function.Consumer<PlayerSession> inventorySync;
     /** Post-break hook (furnace spill, future block entities). Tick-thread context. */
     private volatile java.util.function.Consumer<BlockPosition> blockBrokenListener;
+    /** The survival-break XP hook (mining awards; creative breaks never fire it). */
+    private volatile SurvivalXpHook survivalXpListener;
     /** The world-mutation feedback hook (break/place FX); null until registered. */
     private volatile java.util.function.Consumer<Commit> commitFeedbackListener;
 
@@ -212,6 +214,10 @@ public final class BlockInteractionService {
         commit(target, world.airType());
         publishDrops(target, current, held);
         wearHeldTool(player, behavior);
+        SurvivalXpHook xp = survivalXpListener;
+        if (xp != null) {
+            xp.onSurvivalBreak(player, current, target); // the award sees the broken block
+        }
         Consumer<BlockPosition> listener = blockBrokenListener;
         if (listener != null) {
             listener.accept(target); // container spill runs after the block is gone
@@ -242,6 +248,23 @@ public final class BlockInteractionService {
      */
     public void setBlockBrokenListener(java.util.function.Consumer<BlockPosition> listener) {
         this.blockBrokenListener = listener;
+    }
+
+    /**
+     * The survival-break XP hook: invoked on the tick thread after a survival
+     * mining finish commits, with the broken block's type and position.
+     * Creative breaks never fire it (the historical no-XP rule).
+     */
+    public interface SurvivalXpHook {
+        void onSurvivalBreak(PlayerSession player, BlockType broken, BlockPosition position);
+    }
+
+    /**
+     * Registers the survival-break XP hook (the engine's mining award wiring).
+     * Tick-thread context.
+     */
+    public void setSurvivalXpListener(SurvivalXpHook listener) {
+        this.survivalXpListener = listener;
     }
 
     private void placeOnTick(PlayerSession player, BlockPosition clicked, int face, BlockType held) {
