@@ -120,6 +120,46 @@ public final class BuiltinBlocks {
     public static final EngineBlockType SIGN_EAST = new EngineBlockType(
             Identifier.parse("minecraft:sign_east"), "Sign", 12);
 
+    // The oak door (community blocks.json: block 64). The lower half's
+    // metadata carries the facing (historical order W/N/E/S = 0..3) with bit
+    // 2 (value 4) as the open flag; the upper half's metadata 8 (right
+    // hinge) with the open mirror at 9. Each state is its own block type —
+    // the per-state fluid model again.
+    public static final EngineBlockType OAK_DOOR_LOWER_CLOSED_W = new EngineBlockType(
+            Identifier.parse("minecraft:oak_door"), "Oak Door");
+    public static final EngineBlockType OAK_DOOR_LOWER_CLOSED_N = new EngineBlockType(
+            Identifier.parse("minecraft:oak_door_north"), "Oak Door", 1);
+    public static final EngineBlockType OAK_DOOR_LOWER_CLOSED_E = new EngineBlockType(
+            Identifier.parse("minecraft:oak_door_east"), "Oak Door", 2);
+    public static final EngineBlockType OAK_DOOR_LOWER_CLOSED_S = new EngineBlockType(
+            Identifier.parse("minecraft:oak_door_south"), "Oak Door", 3);
+    public static final EngineBlockType OAK_DOOR_LOWER_OPEN_W = new EngineBlockType(
+            Identifier.parse("minecraft:oak_door_open"), "Oak Door", 4);
+    public static final EngineBlockType OAK_DOOR_LOWER_OPEN_N = new EngineBlockType(
+            Identifier.parse("minecraft:oak_door_open_north"), "Oak Door", 5);
+    public static final EngineBlockType OAK_DOOR_LOWER_OPEN_E = new EngineBlockType(
+            Identifier.parse("minecraft:oak_door_open_east"), "Oak Door", 6);
+    public static final EngineBlockType OAK_DOOR_LOWER_OPEN_S = new EngineBlockType(
+            Identifier.parse("minecraft:oak_door_open_south"), "Oak Door", 7);
+    public static final EngineBlockType OAK_DOOR_UPPER = new EngineBlockType(
+            Identifier.parse("minecraft:oak_door_upper"), "Oak Door", 8);
+    public static final EngineBlockType OAK_DOOR_UPPER_OPEN = new EngineBlockType(
+            Identifier.parse("minecraft:oak_door_upper_open"), "Oak Door", 9);
+
+    // The ladders (block 65, the facing in the metadata: N=2, S=3, W=4, E=5)
+    // and the fence (block 85 — the engine's flat-solid model stands in for
+    // the 1.5-block collision until the collision-shape slice).
+    public static final EngineBlockType LADDER_NORTH = new EngineBlockType(
+            Identifier.parse("minecraft:ladder"), "Ladder", 2);
+    public static final EngineBlockType LADDER_SOUTH = new EngineBlockType(
+            Identifier.parse("minecraft:ladder_south"), "Ladder", 3);
+    public static final EngineBlockType LADDER_WEST = new EngineBlockType(
+            Identifier.parse("minecraft:ladder_west"), "Ladder", 4);
+    public static final EngineBlockType LADDER_EAST = new EngineBlockType(
+            Identifier.parse("minecraft:ladder_east"), "Ladder", 5);
+    public static final EngineBlockType FENCE = new EngineBlockType(
+            Identifier.parse("minecraft:oak_fence"), "Oak Fence");
+
     private BuiltinBlocks() {
     }
 
@@ -164,6 +204,21 @@ public final class BuiltinBlocks {
                 .register(SIGN_SOUTH)
                 .register(SIGN_WEST)
                 .register(SIGN_NORTH)
-                .register(SIGN_EAST);
+                .register(SIGN_EAST)
+                .register(OAK_DOOR_LOWER_CLOSED_W)
+                .register(OAK_DOOR_LOWER_CLOSED_N)
+                .register(OAK_DOOR_LOWER_CLOSED_E)
+                .register(OAK_DOOR_LOWER_CLOSED_S)
+                .register(OAK_DOOR_LOWER_OPEN_W)
+                .register(OAK_DOOR_LOWER_OPEN_N)
+                .register(OAK_DOOR_LOWER_OPEN_E)
+                .register(OAK_DOOR_LOWER_OPEN_S)
+                .register(OAK_DOOR_UPPER)
+                .register(OAK_DOOR_UPPER_OPEN)
+                .register(LADDER_NORTH)
+                .register(LADDER_SOUTH)
+                .register(LADDER_WEST)
+                .register(LADDER_EAST)
+                .register(FENCE);
     }
 }

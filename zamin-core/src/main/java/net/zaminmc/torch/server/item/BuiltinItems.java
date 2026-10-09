@@ -92,6 +92,15 @@ public final class BuiltinItems {
     // the standing sign block; the text rides Update Sign after placement.
     public static final EngineItemType SIGN = new EngineItemType(
             Identifier.parse("minecraft:sign"), "Sign", 16);
+    // The building vocabulary (community items.json: oak door 324,
+    // ladder 65, oak fence 85). The door item places both halves; the
+    // block identifier "minecraft:oak_door" is the lower's closed state.
+    public static final EngineItemType OAK_DOOR = new EngineItemType(
+            Identifier.parse("minecraft:oak_door"), "Oak Door", 64);
+    public static final EngineItemType LADDER = new EngineItemType(
+            Identifier.parse("minecraft:ladder"), "Ladder", 64);
+    public static final EngineItemType OAK_FENCE = new EngineItemType(
+            Identifier.parse("minecraft:oak_fence"), "Oak Fence", 64);
 
     // Mob loot (legacy ids from the community dataset: porkchop 319, cooked
     // porkchop 320, raw chicken 365, cooked chicken 366, feather 288,
@@ -311,6 +320,7 @@ public final class BuiltinItems {
                 SHEARS,
                 WOODEN_HOE, STONE_HOE, IRON_HOE, DIAMOND_HOE, GOLDEN_HOE,
                 WHEAT_SEEDS, WHEAT, BREAD, BONE_MEAL, SIGN,
+                OAK_DOOR, LADDER, OAK_FENCE,
                 BONE, STRING, GUNPOWDER, WOOL, MUTTON, COOKED_MUTTON,
                 BUCKET, WATER_BUCKET, LAVA_BUCKET,
                 TALL_GRASS, DEAD_BUSH, DANDELION, POPPY, SANDSTONE,

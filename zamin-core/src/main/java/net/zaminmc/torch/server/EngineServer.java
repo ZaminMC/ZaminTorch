@@ -410,6 +410,7 @@ public final class EngineServer implements Server, EngineBridge {
                 blockInteraction.setBlockBrokenListener(position -> {
                     furnaceManager.onBlockBroken(position, itemEntities);
                     chestManager.onBlockBroken(position, itemEntities);
+                    doorSiblingCleanup(position);
                 });
                 blockInteraction.setCommitFeedbackListener(commit -> {
                     if (commit.now().equals(world.airType())) {
@@ -888,6 +889,12 @@ public final class EngineServer implements Server, EngineBridge {
             tickFoodEconomy(session);
             tickLanding(session);
             tickBreath(session);
+            // The ladder catch: a body on a ladder accumulates no fall
+            // distance, so the descent never rounds into landing damage.
+            if (ladderAt(session.position().x(), session.position().y(),
+                    session.position().z())) {
+                session.resetFallDistance();
+            }
             // The sprint exhaustion approximation: the historical rule charges
             // per meter; without a server-side mover, a flat per-tick rate of
             // ~0.6 exhaustion/second tracks the sprinting feel closely enough.
@@ -994,10 +1001,13 @@ public final class EngineServer implements Server, EngineBridge {
         }
         float distance = session.consumeFallDistance();
         if (distance > PlayerSession.SAFE_FALL_DISTANCE) {
-            // A body that lands in fluid takes no fall damage (the water break).
+            // A body that lands in fluid takes no fall damage (the water
+            // break), and neither does one that lands on a ladder column
+            // (the historical ladder catch).
             var feet = session.position().toBlockPosition();
             var at = world.getBlock(feet);
-            if (FluidBlocks.kindOf(at.identifier()) == null) {
+            if (FluidBlocks.kindOf(at.identifier()) == null
+                    && !WorldSolidity.isLadder(at.identifier())) {
                 damageOnTick(session,
                         (float) Math.ceil(distance - PlayerSession.SAFE_FALL_DISTANCE),
                         "hit the ground too hard");
@@ -2138,6 +2148,23 @@ public final class EngineServer implements Server, EngineBridge {
             placeSignOnTick(session, clicked, face, creativeHeld);
             return; // the sign's facing overrides the generic placement
         }
+        if (isDoorHalf(current) && !current.identifier().value().startsWith("oak_door_upper")) {
+            toggleDoorOnTick(clicked);
+            return; // the swing consumes the right-click (the historical door
+                    // use: a door swings regardless of what the hand holds)
+        }
+        if (session.inventory().held().type().identifier().toString()
+                .equals("minecraft:oak_door")
+                || creativeHeld.map(t -> t.identifier().value().equals("oak_door")).orElse(false)) {
+            placeDoorOnTick(session, clicked, face, creativeHeld);
+            return; // the two-half commit overrides the generic placement
+        }
+        if (session.inventory().held().type().identifier().toString()
+                .equals("minecraft:ladder")
+                || creativeHeld.map(t -> t.identifier().value().equals("ladder")).orElse(false)) {
+            placeLadderOnTick(session, clicked, face, creativeHeld);
+            return; // the wall-facing ladder overrides the generic placement
+        }
         blockInteraction.placeFromUseOnTick(session, clicked, face, creativeHeld);
     }
 
@@ -2245,6 +2272,163 @@ public final class EngineServer implements Server, EngineBridge {
             return true;
         }
         return false;
+    }
+
+    /**
+     * Breaking one half removes the other (the two-block block dies as a
+     * unit; one door item drops from the broken half's behavior table). The
+     * break has already committed, so the survivor is whichever door half
+     * sits directly above or below the air.
+     * Tick-thread context.
+     */
+    private void doorSiblingCleanup(BlockPosition broken) {
+        if (!isDoorHalf(world.getBlock(broken.offset(0, -1, 0)))
+                && !isDoorHalf(world.getBlock(broken.offset(0, 1, 0)))) {
+            return; // not a door cell: nothing to clean
+        }
+        if (isDoorHalf(world.getBlock(broken.offset(0, 1, 0)))) {
+            world.setBlock(broken.offset(0, 1, 0), world.airType()); // lower broke
+        } else {
+            world.setBlock(broken.offset(0, -1, 0), world.airType()); // upper broke
+        }
+    }
+
+    /**
+     * The door swing: the right-click toggle flips the lower half's open bit
+     * and mirrors it on the upper (the two halves move together), with the
+     * historical open/close sounds. Tick-thread context.
+     */
+    private void toggleDoorOnTick(BlockPosition lower) {
+        BlockType type = world.getBlock(lower);
+        String id = type.identifier().value();
+        boolean opening = !id.startsWith("oak_door_open");
+        BlockPosition upper = lower.offset(0, 1, 0);
+        BlockType upperType = world.getBlock(upper);
+        String upperId = upperType.identifier().value();
+        if (!upperId.equals("oak_door_upper") && !upperId.equals("oak_door_upper_open")) {
+            return; // a half door: refuse the swing rather than desync it
+        }
+        String family = opening ? openingName(id) : closedName(id);
+        world.setBlock(lower, blockRegistry.require(
+                net.zaminmc.torch.util.Identifier.parse("minecraft:" + family)));
+        world.setBlock(upper, blockRegistry.require(net.zaminmc.torch.util.Identifier.parse(
+                "minecraft:" + (opening ? "oak_door_upper_open" : "oak_door_upper"))));
+        fxManager.sound(new Position(lower.x() + 0.5, lower.y() + 0.5, lower.z() + 0.5),
+                opening ? "random.door_open" : "random.door_close", 0.8f, 1.0f);
+    }
+
+    /** The closed-state id of an open lower half (the open bit drops). */
+    private static String closedName(String openId) {
+        return switch (openId) {
+            case "oak_door_open" -> "oak_door";
+            case "oak_door_open_north" -> "oak_door_north";
+            case "oak_door_open_east" -> "oak_door_east";
+            default -> "oak_door_south";
+        };
+    }
+
+    /** The open-state id of a closed lower half (the open bit sets). */
+    private static String openingName(String closedId) {
+        return switch (closedId) {
+            case "oak_door" -> "oak_door_open";
+            case "oak_door_north" -> "oak_door_open_north";
+            case "oak_door_east" -> "oak_door_open_east";
+            default -> "oak_door_open_south";
+        };
+    }
+
+    /** Whether the block type is an oak door half (either state). */
+    public static boolean isDoorHalf(net.zaminmc.torch.block.BlockType type) {
+        String id = type.identifier().value();
+        return type.identifier().namespace().equals("minecraft")
+                && (id.equals("oak_door") || id.startsWith("oak_door_"));
+    }
+
+    /**
+     * The ladder placement (the historical ItemLadder): the ladder hangs on
+     * the clicked wall — its facing is the OPPOSITE of the clicked face's
+     * direction (a north-face click mounts it on the south wall of the
+     * neighbor cell), metadata N=2, S=3, W=4, E=5. Tick-thread context.
+     */
+    private void placeLadderOnTick(PlayerSession session, BlockPosition clicked, int face,
+                                   java.util.Optional<BlockType> creativeHeld) {
+        BlockPosition target = offsetByFace(clicked, face);
+        if (target == null || world.getBlock(clicked).equals(world.airType())
+                || !world.getBlock(target).equals(world.airType())) {
+            return;
+        }
+        if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5
+                || intersectsPlayerBox(session.position(), target)) {
+            return;
+        }
+        if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE
+                && session.inventory().held().isEmpty()) {
+            return;
+        }
+        // Face 2=-Z (north wall of the neighbor): ladder faces south. The
+        // vanilla mapping: N=2, S=3, W=4, E=5 (the side the ladder hugs).
+        BlockType facing = switch (face) {
+            case 2 -> BuiltinBlocks.LADDER_SOUTH;
+            case 3 -> BuiltinBlocks.LADDER_NORTH;
+            case 4 -> BuiltinBlocks.LADDER_EAST;
+            case 5 -> BuiltinBlocks.LADDER_WEST;
+            default -> null; // up/down clicks never mount a ladder
+        };
+        if (facing == null) {
+            return;
+        }
+        world.setBlock(target, facing);
+        if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE) {
+            session.inventory().consumeHeld(1);
+            publishInventoryChanged(session);
+        }
+    }
+
+    /**
+     * The door placement (the historical ItemDoor): both halves commit
+     * together against open headroom, the lower fronts its placer, and the
+     * survival path consumes one door item. Tick-thread context.
+     */
+    private void placeDoorOnTick(PlayerSession session, BlockPosition clicked, int face,
+                                 java.util.Optional<BlockType> creativeHeld) {
+        BlockPosition target = offsetByFace(clicked, face);
+        if (target == null || world.getBlock(clicked).equals(world.airType())
+                || !world.getBlock(target).equals(world.airType())
+                || !world.getBlock(target.offset(0, 1, 0)).equals(world.airType())) {
+            return; // the placement gates plus the upper half's headroom
+        }
+        if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5
+                || intersectsPlayerBox(session.position(), target)) {
+            return;
+        }
+        if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE
+                && session.inventory().held().isEmpty()) {
+            return;
+        }
+        // Facing: the historical door order (W/N/E/S = 0..3), the door front
+        // opposite the placer's look — the sign's band, rotated one family.
+        double yaw = ((session.rotation().yaw() % 360.0) + 360.0 + 45.0) % 360.0;
+        BlockType[] closed = {
+                BuiltinBlocks.OAK_DOOR_LOWER_CLOSED_N, // looking south
+                BuiltinBlocks.OAK_DOOR_LOWER_CLOSED_E, // looking west
+                BuiltinBlocks.OAK_DOOR_LOWER_CLOSED_S, // looking north
+                BuiltinBlocks.OAK_DOOR_LOWER_CLOSED_W};// looking east
+        BlockType lower = closed[(int) (yaw / 90.0) % 4];
+        world.setBlock(target, lower);
+        world.setBlock(target.offset(0, 1, 0), BuiltinBlocks.OAK_DOOR_UPPER);
+        if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE) {
+            session.inventory().consumeHeld(1);
+            publishInventoryChanged(session);
+        }
+    }
+
+    /** The ladder query for the movement guard: climbing bodies hover honestly. */
+    private boolean ladderAt(double x, double y, double z) {
+        if (y < net.zaminmc.torch.block.BlockPosition.MIN_Y
+                || y > net.zaminmc.torch.block.BlockPosition.MAX_Y) {
+            return false;
+        }
+        return WorldSolidity.isLadder(world.getBlock(blockAt(x, y, z)).identifier());
     }
 
     /** Eye-to-block-center distance squared, the survival reach gate's shape. */
@@ -4159,7 +4343,8 @@ public final class EngineServer implements Server, EngineBridge {
         // join bursts) suspends the speed caps for honest bursts.
         Position from = session.position();
         if (!MovementGuard.permits(session, from, position, onGround,
-                fluidAt(from.x(), from.y(), from.z()))) {
+                fluidAt(from.x(), from.y(), from.z())
+                        || ladderAt(from.x(), from.y(), from.z()))) {
             session.link().resyncPosition();
             LOGGER.fine(() -> "Movement rejected for " + session.name()
                     + " (" + from + " -> " + position + ")");
