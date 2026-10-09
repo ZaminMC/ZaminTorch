@@ -10,11 +10,11 @@ import java.util.logging.Logger;
 public final class ZaminLauncher {
 
     static {
-        // One-line concise console logging: time, level, message (+stack if any).
-        // The old format leaked fully-qualified class.method/thread noise into
-        // every line; the console is an operator surface, not a trace dump.
+        // Paper's console look: "[HH:mm:ss INFO]: message". The previous
+        // padded level (%-7s) leaked "INFO   " with three trailing spaces
+        // into every line — the operator surface should read like Paper.
         System.setProperty("java.util.logging.SimpleFormatter.format",
-                "[%1$tH:%1$tM:%1$tS] [%4$-7s] %5$s%6$s%n");
+                "[%1$tH:%1$tM:%1$tS %4$s]: %5$s%6$s%n");
     }
 
     private static final Logger LOGGER = Logger.getLogger(ZaminLauncher.class.getName());

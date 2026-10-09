@@ -46,7 +46,10 @@ public final class Violations {
         }
         breakRing[breakRingIndex] = nowNanos;
         breakRingIndex = (breakRingIndex + 1) % RING_SIZE;
-        lastBreakNanos = nowNanos;
+        // NOTE: lastBreakNanos is intentionally NOT touched here. The MultiBreak
+        // gate compares against the last SUCCESSFUL break (noteBreakTarget);
+        // stamping it on every finish would make "now - last" always ~0 and
+        // flag every legit dig of a new target (real-client regression class).
         return count < budget;
     }
 

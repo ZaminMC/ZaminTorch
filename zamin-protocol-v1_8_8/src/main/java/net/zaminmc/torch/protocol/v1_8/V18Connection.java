@@ -256,7 +256,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeByte(0);                 // dimension: overworld
         out.writeByte(Protocol18.DIFFICULTY_EASY); // easy: hunger behaves, no mobs yet
         out.writeByte(0);                 // max players (legacy field, unused by client)
-        ByteBufOps.writeString(out, Protocol18.LEVEL_TYPE_FLAT);
+        ByteBufOps.writeString(out, engine.config().levelType()); // the configured level-type (client F3 + server list ping)
         out.writeBoolean(false);          // reduced debug info
         channel.writeAndFlush(out);
         LOGGER.fine(() -> "Join game sent to " + playerSession.name() + " (entity " + entityId + ")");
@@ -535,7 +535,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeInt(0); // dimension: overworld
         out.writeByte(Protocol18.DIFFICULTY_EASY);
         out.writeByte(player.gamemode().legacyId());
-        ByteBufOps.writeString(out, Protocol18.LEVEL_TYPE_FLAT);
+        ByteBufOps.writeString(out, engine.config().levelType()); // respawn mirrors the join's level-type
         channel.writeAndFlush(out);
         player.link().updateAbilities(abilitiesFlagsOf(player.gamemode()));
 
@@ -1815,8 +1815,9 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     }
 
     /**
-     * Set Experience (0x1F, community-verified layout: f32 bar progress 0..1,
-     * short level, short total XP). The client's XP bar follows this packet.
+     * Set Experience (0x1F, protocol 47: f32 bar progress 0..1, varint level,
+     * varint total XP — the 1.7 shorts became varints in 1.8, per the
+     * community protocol-47 table). The client's XP bar follows this packet.
      * Any thread.
      */
     void sendSetExperience(PlayerSession player) {
@@ -1831,8 +1832,8 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBuf out = Unpooled.buffer(12);
         ByteBufOps.writeVarInt(out, Protocol18.S2C_SET_EXPERIENCE);
         out.writeFloat(progress);
-        out.writeShort(level);
-        out.writeShort(total);
+        ByteBufOps.writeVarInt(out, level);
+        ByteBufOps.writeVarInt(out, total);
         channel.writeAndFlush(out);
     }
 
@@ -2879,14 +2880,19 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 return position.distanceSquared(center) > (long) (view + 1) * (view + 1);
             });
 
-            // Send chunks that are newly visible.
+            // Send chunks that are newly visible. Vanilla always sends the
+            // full chunk (ground-up) here: a real 1.8.8 client applies a
+            // ground-up=false chunk only when it already holds the chunk
+            // (the partial-chunk branch of doPreChunk), so partial chunks
+            // for new territory silently never appear — the "chunks don't
+            // generate while walking" real-client regression class.
             forEachInRadius(view, position -> {
                 boolean newlySent;
                 synchronized (sent) {
                     newlySent = sent.add(position.packed());
                 }
                 if (newlySent) {
-                    sendChunk(position, false);
+                    sendChunk(position, true);
                 }
             });
             }

@@ -144,7 +144,7 @@ public final class EngineServer implements Server, EngineBridge {
     /** Wire window ids: 0 = player inventory; containers get ids from this counter (u8). */
     private static final int WIRE_WINDOW_PLAYER = 0;
     private static final int FIRST_CONTAINER_WINDOW_ID = 1;
-    private static final int LAST_CONTAINER_WINDOW_ID = 255;
+    private static final int LAST_CONTAINER_WINDOW_ID = 100;
 
     /** Tick-thread confined; ids are handed out on the simulation context only. */
     private int nextContainerWindowId = FIRST_CONTAINER_WINDOW_ID;
@@ -1043,6 +1043,18 @@ public final class EngineServer implements Server, EngineBridge {
             // distance, so the descent never rounds into landing damage.
             if (ladderAt(session.position().x(), session.position().y(),
                     session.position().z())) {
+                session.resetFallDistance();
+            }
+            // The fluid catch: a body in water accumulates no fall distance
+            // (the historical rule — vanilla zeroes fallDistance while the
+            // bounding box touches water). Without it the whole in-water
+            // descent is spent as landing damage the moment the body steps
+            // onto the shore — the "unknown damage coming out of water"
+            // real-client regression class.
+            if (fluidAt(session.position().x(), session.position().y(),
+                    session.position().z())
+                    || fluidAt(session.position().x(),
+                            session.position().y() + 1.0, session.position().z())) {
                 session.resetFallDistance();
             }
             // The sprint exhaustion approximation: the historical rule charges
