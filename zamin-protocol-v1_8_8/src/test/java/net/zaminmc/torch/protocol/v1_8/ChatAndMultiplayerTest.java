@@ -82,7 +82,7 @@ class ChatAndMultiplayerTest extends ProtocolTestBase {
             assertEquals(Protocol18.S2C_NAMED_SPAWN, alice.readPacketId(spawnPacket));
 
             // Bob moves; Alice receives an Entity Teleport.
-            bob.sendPosition(4.5, 5.0, -6.5, true);
+            bob.walkTo(4.5, 5.0, -6.5, true);
             byte[] teleportPacket = alice.readPacketOfType(Protocol18.S2C_ENTITY_TELEPORT, 5_000);
             assertEquals(Protocol18.S2C_ENTITY_TELEPORT, alice.readPacketId(teleportPacket));
 

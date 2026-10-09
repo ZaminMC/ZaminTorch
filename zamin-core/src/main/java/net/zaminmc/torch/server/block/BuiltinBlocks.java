@@ -67,6 +67,21 @@ public final class BuiltinBlocks {
     public static final EngineBlockType COBBLESTONE = new EngineBlockType(
             Identifier.parse("minecraft:cobblestone"), "Cobblestone");
 
+    // Decoration flora (community blocks.json: 1.8 block ids 31/32/37/38).
+    // The plants walk-through like torches (WorldSolidity) and break
+    // instantly; the desert's dead bush shades the biome variety slice.
+    public static final EngineBlockType TALL_GRASS = new EngineBlockType(
+            Identifier.parse("minecraft:tall_grass"), "Tall Grass");
+    public static final EngineBlockType DEAD_BUSH = new EngineBlockType(
+            Identifier.parse("minecraft:dead_bush"), "Dead Bush");
+    public static final EngineBlockType DANDELION = new EngineBlockType(
+            Identifier.parse("minecraft:dandelion"), "Dandelion");
+    public static final EngineBlockType POPPY = new EngineBlockType(
+            Identifier.parse("minecraft:poppy"), "Poppy");
+    // The desert's stone band (legacy 24): the sandstone skin under the sand.
+    public static final EngineBlockType SANDSTONE = new EngineBlockType(
+            Identifier.parse("minecraft:sandstone"), "Sandstone");
+
     private BuiltinBlocks() {
     }
 
@@ -92,6 +107,11 @@ public final class BuiltinBlocks {
                 .register(GLASS)
                 .register(GRAVEL)
                 .register(OBSIDIAN)
-                .register(COBBLESTONE);
+                .register(COBBLESTONE)
+                .register(TALL_GRASS)
+                .register(DEAD_BUSH)
+                .register(DANDELION)
+                .register(POPPY)
+                .register(SANDSTONE);
     }
 }

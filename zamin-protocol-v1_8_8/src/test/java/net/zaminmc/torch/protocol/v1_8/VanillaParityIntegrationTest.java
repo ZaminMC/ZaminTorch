@@ -261,7 +261,7 @@ class VanillaParityIntegrationTest extends ProtocolTestBase {
                 ByteBufOps.readVarInt(keepAlive);
                 client.sendKeepAliveResponse(ByteBufOps.readVarInt(keepAlive));
             }
-            client.sendPosition(0.5, 5.0, 0.5, true);
+            client.walkTo(0.5, 5.0, 0.5, true);
             awaitCondition(() -> parity.position().x() == 0.5 && parity.position().z() == 0.5,
                     "connection alive after the full vanilla tour (movement accepted)");
         }

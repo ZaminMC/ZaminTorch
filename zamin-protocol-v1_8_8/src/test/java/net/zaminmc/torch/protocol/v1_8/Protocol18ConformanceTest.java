@@ -47,6 +47,7 @@ class Protocol18ConformanceTest {
         m.put("S2C_NAMED_SPAWN", 0x0C);
         m.put("S2C_COLLECT_ITEM", 0x0D);
         m.put("S2C_SPAWN_ENTITY", 0x0E);
+        m.put("S2C_ENTITY_EQUIPMENT", 0x04);
         m.put("S2C_SPAWN_MOB", 0x0F);
         m.put("S2C_ENTITY_VELOCITY", 0x12);
         m.put("S2C_DESTROY_ENTITIES", 0x13);

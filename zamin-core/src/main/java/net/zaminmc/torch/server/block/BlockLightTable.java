@@ -83,7 +83,15 @@ public final class BlockLightTable {
             // paying only the standard per-cell step.
             Map.entry(Identifier.parse("minecraft:glass"), new LightData(0, 0)),
             Map.entry(Identifier.parse("minecraft:chest"), new LightData(0, 0)),
-            Map.entry(Identifier.parse("minecraft:furnace"), new LightData(0, 0)));
+            Map.entry(Identifier.parse("minecraft:furnace"), new LightData(0, 0)),
+
+            // The flora passes light fully (dataset filterLight 0: the plants
+            // shade nothing); sandstone is a full opaque cube (filter 15).
+            Map.entry(Identifier.parse("minecraft:tall_grass"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:dead_bush"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:dandelion"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:poppy"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:sandstone"), new LightData(0, 15)));
 
     private BlockLightTable() {
     }

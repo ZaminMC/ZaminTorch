@@ -29,6 +29,18 @@ public final class WorldSolidity {
         Identifier id = type.identifier();
         return !id.equals(BuiltinBlocks.AIR.identifier())
                 && !id.equals(BuiltinBlocks.TORCH.identifier())
+                && !isFlora(id)
                 && !FluidBlocks.isFluid(id);
+    }
+
+    /**
+     * The walk-through flora (the historical replaceable Material set): tall
+     * grass, the dead bush and the two flowers never block a body.
+     */
+    private static boolean isFlora(Identifier id) {
+        return id.equals(BuiltinBlocks.TALL_GRASS.identifier())
+                || id.equals(BuiltinBlocks.DEAD_BUSH.identifier())
+                || id.equals(BuiltinBlocks.DANDELION.identifier())
+                || id.equals(BuiltinBlocks.POPPY.identifier());
     }
 }

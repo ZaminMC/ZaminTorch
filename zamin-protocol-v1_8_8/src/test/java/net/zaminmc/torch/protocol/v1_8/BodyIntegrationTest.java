@@ -46,8 +46,8 @@ class BodyIntegrationTest extends ProtocolTestBase {
             assertEquals(20.0, baseline[1], "and full hunger");
 
             // Rise into the air, then land 15 blocks lower: ceil(15 - 3) = 12.
-            client.sendPosition(0.5, 20.0, 0.5, false);
-            client.sendPosition(0.5, 5.0, 0.5, true);
+            client.walkTo(0.5, 20.0, 0.5, false);
+            client.walkTo(0.5, 5.0, 0.5, true);
             double[] afterFall = client.readUpdateHealth(10_000);
             assertEquals(8.0, afterFall[0], 0.001, "the landing hurt ceil(15 - 3) = 12");
         }

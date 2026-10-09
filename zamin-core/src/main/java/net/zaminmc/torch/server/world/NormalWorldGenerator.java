@@ -40,6 +40,11 @@ public final class NormalWorldGenerator implements WorldGenerator {
     private final BlockType diamondOre;
     private final BlockType oakLog;
     private final BlockType oakLeaves;
+    private final BlockType tallGrass;
+    private final BlockType deadBush;
+    private final BlockType dandelion;
+    private final BlockType poppy;
+    private final BlockType sandstone;
 
     public NormalWorldGenerator(BlockRegistry registry, String worldName) {
         this.registry = Objects.requireNonNull(registry, "registry");
@@ -59,6 +64,28 @@ public final class NormalWorldGenerator implements WorldGenerator {
         this.diamondOre = registry.require(Identifier.parse("minecraft:diamond_ore"));
         this.oakLog = registry.require(Identifier.parse("minecraft:oak_log"));
         this.oakLeaves = registry.require(Identifier.parse("minecraft:oak_leaves"));
+        this.tallGrass = registry.require(Identifier.parse("minecraft:tall_grass"));
+        this.deadBush = registry.require(Identifier.parse("minecraft:dead_bush"));
+        this.dandelion = registry.require(Identifier.parse("minecraft:dandelion"));
+        this.poppy = registry.require(Identifier.parse("minecraft:poppy"));
+        this.sandstone = registry.require(Identifier.parse("minecraft:sandstone"));
+    }
+
+    /**
+     * The column's biome: the low-frequency climate pair (temperature decides
+     * desert-ness, moisture decides forest-ness) with the plains remainder —
+     * the historical climate-noise shape the community generators use.
+     */
+    public Biome biomeAt(int x, int z) {
+        double temperature = fbm2(x * 0.0016 + 4_000, z * 0.0016 - 4_000, 2);
+        double moisture = fbm2(x * 0.0022 - 8_000, z * 0.0022 + 8_000, 2);
+        if (temperature > 0.66 && moisture < 0.42) {
+            return Biome.DESERT;
+        }
+        if (moisture > 0.56) {
+            return Biome.FOREST;
+        }
+        return Biome.PLAINS;
     }
 
     @Override
@@ -99,9 +126,12 @@ public final class NormalWorldGenerator implements WorldGenerator {
         int baseX = at.x() << 4;
         int baseZ = at.z() << 4;
         int[][] heights = new int[16][16];
+        Biome[][] biomes = new Biome[16][16];
         for (int lx = 0; lx < 16; lx++) {
             for (int lz = 0; lz < 16; lz++) {
                 heights[lx][lz] = heightAt(baseX + lx, baseZ + lz);
+                biomes[lx][lz] = biomeAt(baseX + lx, baseZ + lz);
+                chunk.setBiome(lx, lz, (byte) biomes[lx][lz].legacyId());
             }
         }
         for (int lx = 0; lx < 16; lx++) {
@@ -111,15 +141,17 @@ public final class NormalWorldGenerator implements WorldGenerator {
                 int h = heights[lx][lz];
                 boolean underwater = h < SEA_LEVEL;
                 for (int y = 0; y <= Math.max(h, SEA_LEVEL); y++) {
-                    chunk.setBlock(lx, y, lz, blockAt(worldX, y, worldZ, h, underwater));
+                    chunk.setBlock(lx, y, lz, blockAt(worldX, y, worldZ, h, underwater,
+                            biomes[lx][lz]));
                 }
             }
         }
-        plantTrees(chunk, baseX, baseZ, heights);
+        plantTrees(chunk, baseX, baseZ, heights, biomes);
+        plantFlora(chunk, baseX, baseZ, heights, biomes);
     }
 
     /** The block for one column cell: core, skin, water, cave or ore. */
-    private BlockType blockAt(int x, int y, int z, int h, boolean underwater) {
+    private BlockType blockAt(int x, int y, int z, int h, boolean underwater, Biome biome) {
         if (y == 0) {
             return bedrock;
         }
@@ -131,6 +163,17 @@ public final class NormalWorldGenerator implements WorldGenerator {
             return air;
         }
         int skinDepth = h - y;
+        if (biome == Biome.DESERT && !underwater) {
+            // The desert's skin: three sand over a sandstone band, the
+            // historical sand-sandstone column shape.
+            if (skinDepth == 0 || skinDepth <= 2) {
+                return sand;
+            }
+            if (skinDepth <= 6) {
+                return sandstone;
+            }
+            return oreOrStone(x, y, z);
+        }
         if (skinDepth == 0) {
             if (underwater) {
                 return seaFloor(x, z);
@@ -169,13 +212,22 @@ public final class NormalWorldGenerator implements WorldGenerator {
     }
 
     /** The column height: fBm plains plus a squared mountain octave. */
-    private int heightAt(int x, int z) {
+    public int heightAt(int x, int z) {
         double rolling = fbm2(x * 0.0085, z * 0.0085, 3);
         double mountains = fbm2(x * 0.0035 + 1_000, z * 0.0035 - 1_000, 2);
         double hill = (rolling - 0.5) * 12.0;
         double ridge = Math.max(0.0, mountains - 0.58) * 90.0; // only the high band rises
         int h = 60 + (int) Math.round(hill + ridge);
         return Math.max(24, Math.min(120, h));
+    }
+
+    /**
+     * The world block of one column cell (the diagnostics view of the
+     * generation surface: biome-aware, no chunk allocation).
+     */
+    public BlockType surfaceBlockAt(int x, int y, int z) {
+        int h = heightAt(x, z);
+        return blockAt(x, y, z, h, h < SEA_LEVEL, biomeAt(x, z));
     }
 
     private boolean isCave(int x, int y, int z) {
@@ -274,15 +326,23 @@ public final class NormalWorldGenerator implements WorldGenerator {
     // ------------------------------------------------------------------ trees
 
     /**
-     * Plants 0-3 oak trees per chunk on grass. Positions stay inside the
-     * 2..13 margin so the two-radius canopy never leaks across the chunk
-     * border (the cheap deterministic answer to cross-chunk structures).
+     * Plants 0-6 oak trees per chunk on grass: the biome decides the density
+     * (forest 2-5, plains 0-2, desert none). Positions stay inside the 2..13
+     * margin so the two-radius canopy never leaks across the chunk border
+     * (the cheap deterministic answer to cross-chunk structures).
      */
-    private void plantTrees(EngineChunk chunk, int baseX, int baseZ, int[][] heights) {
+    private void plantTrees(EngineChunk chunk, int baseX, int baseZ, int[][] heights,
+                            Biome[][] biomes) {
         net.zaminmc.torch.block.ChunkPosition at = chunk.position();
         long chunkSeed = seed ^ (at.x() * 0x5DEECE66DL) ^ (at.z() * 0x2545F4914F6CDD1DL);
         java.util.Random random = new java.util.Random(chunkSeed);
-        int trees = random.nextInt(4);
+        Biome chunkBiome = biomes[8][8];
+        int trees;
+        switch (chunkBiome) {
+            case FOREST -> trees = 2 + random.nextInt(4);
+            case PLAINS -> trees = random.nextInt(3);
+            default -> trees = 0; // deserts never grow oaks
+        }
         for (int i = 0; i < trees; i++) {
             int lx = 2 + random.nextInt(12);
             int lz = 2 + random.nextInt(12);
@@ -290,7 +350,7 @@ public final class NormalWorldGenerator implements WorldGenerator {
             if (h <= SEA_LEVEL + 1 || h > 110) {
                 continue; // no trees on beaches or in water or on peaks
             }
-            if (chunk.getBlock(lx, h, lz).equals(sand)) {
+            if (biomes[lx][lz] == Biome.DESERT || chunk.getBlock(lx, h, lz).equals(sand)) {
                 continue;
             }
             int trunk = 4 + random.nextInt(3);
@@ -317,6 +377,59 @@ public final class NormalWorldGenerator implements WorldGenerator {
                         chunk.setBlock(leafX, leafY, leafZ, oakLeaves);
                     }
                 }
+            }
+        }
+    }
+
+    /**
+     * The biome flora rolls: grass and the two flowers on the plains and the
+     * forest floor, dead bushes on the desert sand. All placements target
+     * air cells directly above the surface skin (never underwater), the
+     * historical decoration pass's shape.
+     */
+    private void plantFlora(EngineChunk chunk, int baseX, int baseZ, int[][] heights,
+                            Biome[][] biomes) {
+        net.zaminmc.torch.block.ChunkPosition at = chunk.position();
+        long chunkSeed = seed ^ (at.x() * 0x4FA3F0B1L) ^ (at.z() * 0x9E3779B97F4L);
+        java.util.Random random = new java.util.Random(chunkSeed);
+        Biome chunkBiome = biomes[8][8];
+        if (chunkBiome == Biome.DESERT) {
+            // Dead bushes: four rolls per desert chunk on the sand skin.
+            for (int i = 0; i < 4; i++) {
+                int lx = random.nextInt(16);
+                int lz = random.nextInt(16);
+                int h = heights[lx][lz];
+                if (h <= SEA_LEVEL || !chunk.getBlock(lx, h, lz).equals(sand)) {
+                    continue;
+                }
+                if (chunk.getBlock(lx, h + 1, lz).equals(air)) {
+                    chunk.setBlock(lx, h + 1, lz, deadBush);
+                }
+            }
+            return;
+        }
+        // Grass: eight rolls, the meadow's main texture.
+        for (int i = 0; i < 8; i++) {
+            int lx = random.nextInt(16);
+            int lz = random.nextInt(16);
+            int h = heights[lx][lz];
+            if (h <= SEA_LEVEL || !chunk.getBlock(lx, h, lz).equals(grass)) {
+                continue;
+            }
+            if (chunk.getBlock(lx, h + 1, lz).equals(air)) {
+                chunk.setBlock(lx, h + 1, lz, tallGrass);
+            }
+        }
+        // Flowers: two rolls, poppy or dandelion (the historical pair).
+        for (int i = 0; i < 2; i++) {
+            int lx = random.nextInt(16);
+            int lz = random.nextInt(16);
+            int h = heights[lx][lz];
+            if (h <= SEA_LEVEL || !chunk.getBlock(lx, h, lz).equals(grass)) {
+                continue;
+            }
+            if (chunk.getBlock(lx, h + 1, lz).equals(air)) {
+                chunk.setBlock(lx, h + 1, lz, random.nextBoolean() ? poppy : dandelion);
             }
         }
     }
