@@ -4612,8 +4612,19 @@ public final class EngineServer implements Server, EngineBridge {
         }
 
         @Override
+        public boolean inLava(double x, double y, double z) {
+            return FluidBlocks.isLava(blockAtBoundsSafe(x, y, z).identifier());
+        }
+
+        @Override
         public boolean inFire(double x, double y, double z) {
             return WorldSolidity.isFire(blockAtBoundsSafe(x, y, z).identifier());
+        }
+
+        @Override
+        public net.zaminmc.torch.server.entity.ai.pathing.CellMaterial pathMaterialAt(int x, int y, int z) {
+            return net.zaminmc.torch.server.entity.ai.pathing.PathBlocks.materialOf(
+                    blockAtBoundsSafe(x, y, z));
         }
 
         @Override
