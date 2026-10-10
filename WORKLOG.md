@@ -31,12 +31,26 @@ the bottom. The behavior-level status of every mechanic lives in
   server-motion residual, FoodStats semantics, per-meter exhaustion ledger,
   damage-source exhaustion charges.
 
+- **Slice 7 part 2 — enchanting-table menu state** (`63632d7`): the
+  two-slot transient menu (item max 1, lapis), the seeded cost ladder with
+  the `< slot+1` zeroing, the id|level<<8 clue picks, the bookshelf power
+  scan's exact geometry, the lapis-slot dye-blue gate through the new
+  WindowClicks SlotFilter/per-slot-max semantics (the reference's PICKUP
+  walk: empty-slot split, merge clamp, gated swap, not-allowed reverse
+  merge), the enchant button's gate ladder + the null-offer still-pays
+  quirk, book-to-enchanted-book conversion, the old-seed/rerolled-seed
+  recompute ordering, the close-drop, wireSeed &-16; lapis +
+  enchanted-book items, bookshelf + enchanting-table blocks,
+  ItemStack.enchantments() accessor. Tests: api+core suites green;
+  dev.13 artifacts cut and smoke-booted (`67a1ef9`).
+
 ## In progress
 
-- **Slice 7 — enchanting (part 1 landed)**: the registry + offer math +
-  item NBT storage are in; the table UI (bookshelf counts, window
-  properties, the enchant-item packet) and the remaining effect hooks are
-  the next increment.
+- **Slice 7 part 3 — enchanting-table wiring**: the live window (Open
+  Window on right-click, the seven Window Property syncs, click routing
+  through EnchantingMenu, the 0x06 enchant-item packet, close-drop to the
+  world), plus the remaining effect hooks (protection, efficiency,
+  knockback, fire aspect) landing with their gameplay slices.
 
 ## Landed since the ledger opened
 
@@ -66,11 +80,12 @@ the bottom. The behavior-level status of every mechanic lives in
 
 ## Not started
 
-- Slice 7 — enchanting (table + `EnchantmentHelper` math).
+- Slice 7 remainder — the table's live window wiring + effect hooks
+  (protection, efficiency, knockback, fire aspect) beyond the damage family.
 - Slice 8 — nether portals.
 - Redstone, potions/brewing, leads, structures, natural spawn cycles
   (see `VANILLA_1_8_8_COMPATIBILITY.md` section 10).
-- dev.13 release: full-suite run, version bump, dist zip, prerelease.
+- dev.14 release: full-suite run, version bump, dist zip, prerelease.
 
 ## Conventions
 
