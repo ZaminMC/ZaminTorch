@@ -121,6 +121,18 @@ public final class BuiltinBlocks {
     public static final EngineBlockType FIRE = new EngineBlockType(
             Identifier.parse("minecraft:fire"), "Fire");
 
+    // The nether portal (community blocks.json: legacy 90, the metadata
+    // nibble carries the axis — 1 the X plane, 2 the Z plane, the reference
+    // PortalBlock.getMetadata). No collision, no drops, unbreakable by hand;
+    // the frame re-validation kills a cell whose frame broke (the historical
+    // PortalBlock.neighborChanged) and the stand clock lives with the player
+    // session (the Entity portal tick). The two identifiers name the two
+    // axis planes the way the metadata-variant slices do.
+    public static final EngineBlockType NETHER_PORTAL = new EngineBlockType(
+            Identifier.parse("minecraft:nether_portal"), "Nether Portal", 1);
+    public static final EngineBlockType NETHER_PORTAL_Z = new EngineBlockType(
+            Identifier.parse("minecraft:nether_portal_z"), "Nether Portal", 2);
+
     // The world-completion flora (community blocks.json: reed 83, cactus 81)
     // and the lit furnace variant (legacy 62, the historical block swap when
     // the burn starts). The reed is walk-through flora; the cactus is a
@@ -308,6 +320,8 @@ public final class BuiltinBlocks {
                 .register(POPPY)
                 .register(SANDSTONE)
                 .register(FIRE)
+                .register(NETHER_PORTAL)
+                .register(NETHER_PORTAL_Z)
                 .register(SUGAR_CANE)
                 .register(CACTUS)
                 .register(FURNACE_LIT)

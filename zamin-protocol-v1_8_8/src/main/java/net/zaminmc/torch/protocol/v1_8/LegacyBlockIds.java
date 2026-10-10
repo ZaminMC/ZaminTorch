@@ -48,6 +48,8 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:enchanted_book"), 403),
             Map.entry(Identifier.parse("minecraft:torch"), 50),
             Map.entry(Identifier.parse("minecraft:fire"), 51),
+            Map.entry(Identifier.parse("minecraft:nether_portal"), 90),
+            Map.entry(Identifier.parse("minecraft:nether_portal_z"), 90),
             Map.entry(Identifier.parse("minecraft:furnace"), 61),
             Map.entry(Identifier.parse("minecraft:furnace_lit"), 62),
             Map.entry(Identifier.parse("minecraft:chest"), 54),
@@ -354,7 +356,11 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:cobblestone_stairs_south"), 2),
             Map.entry(Identifier.parse("minecraft:cobblestone_stairs_north"), 3),
             // The vehicle slice: the rail's flat orientation (0 = NS default).
-            Map.entry(Identifier.parse("minecraft:rail_ew"), 1));
+            Map.entry(Identifier.parse("minecraft:rail_ew"), 1),
+            // The nether portal's axis (the reference PortalBlock.getMetadata:
+            // 1 the X plane, 2 the Z plane).
+            Map.entry(Identifier.parse("minecraft:nether_portal"), 1),
+            Map.entry(Identifier.parse("minecraft:nether_portal_z"), 2));
 
     /**
      * @return the wire metadata nibble of a block type: the 1.8 data-value

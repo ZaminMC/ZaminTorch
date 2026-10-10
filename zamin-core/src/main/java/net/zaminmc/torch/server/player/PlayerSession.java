@@ -398,6 +398,75 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
         this.opLevel = Math.max(0, level);
     }
 
+    // The portal stand clock (the reference's Entity portal tick,
+    // reference/1.8.8 entity/Entity.java lines 282-313 + the collision arm
+    // onPortalCollision lines 1428-1436 and the player overrides
+    // PlayerEntity lines 300-317).
+    private int portalTime;
+    private int portalCooldown;
+    private boolean portalOccupiedLastTick;
+
+    /**
+     * Advances the portal clock one tick — the reference walk, literally:
+     * the occupancy accumulates {@code portalTime++} and the POST-increment
+     * check {@code old >= max} crosses at the max (the player override — 0
+     * for the invulnerable creative body, 80 otherwise; the crossing pins
+     * the time, arms the 10-tick player cooldown and reports the teleport
+     * arm); out of a portal the stand time decays by 4 (clamped), and the
+     * cooldown decrements unconditionally. The cooldown's collision arm
+     * re-arms it on the ENTRY EDGE only — the reference's
+     * {@code onPortalCollision} is movement-driven, and a STANDING body
+     * sends no movement packets, so a body standing inside a portal never
+     * refreshes the cooldown there (the vanilla round trip: arrive, cool
+     * down 10 ticks, stand 4 seconds, return).
+     *
+     * <p>The crossing re-fires while the body stays pinned in the portal —
+     * the reference's own shape, because its {@code changeDimension} moves
+     * the body out of the portal on the same tick; the teleport arm lands
+     * with the dimension slice (8b) and ends the re-fire naturally.</p>
+     *
+     * @return true on a threshold-crossing tick (the teleport arm)
+     */
+    public boolean advancePortalClock(boolean touchingPortal, boolean creative) {
+        boolean crossed = false;
+        if (portalCooldown > 0) {
+            portalCooldown--;
+        }
+        if (touchingPortal) {
+            if (portalCooldown > 0 && !portalOccupiedLastTick) {
+                // The entry edge re-arms (the reference's onPortalCollision
+                // early return, movement-driven).
+                portalCooldown = PORTAL_COOLDOWN_TICKS;
+            }
+            int max = creative ? 0 : PORTAL_STAND_TICKS;
+            int old = portalTime++;
+            if (old >= max) {
+                portalTime = max;
+                portalCooldown = PORTAL_COOLDOWN_TICKS;
+                crossed = true;
+            }
+        } else {
+            portalTime = Math.max(0, portalTime - 4);
+        }
+        portalOccupiedLastTick = touchingPortal;
+        return crossed;
+    }
+
+    /** The reference's {@code getPortalCooldown} player override (PlayerEntity line 315). */
+    private static final int PORTAL_COOLDOWN_TICKS = 10;
+    /** The reference's {@code getMaxNetherPortalTime} survival arm (PlayerEntity line 300: invulnerable 0, else 80). */
+    private static final int PORTAL_STAND_TICKS = 80;
+
+    /** @return the portal stand time (the reference's portalTime). */
+    public int portalTime() {
+        return portalTime;
+    }
+
+    /** @return the remaining portal cooldown ticks. */
+    public int portalCooldown() {
+        return portalCooldown;
+    }
+
     /**
      * The authoritative inventory. Mutations run on the simulation context only
      * (via engine-submitted tasks); reads for wire sync must treat the snapshot

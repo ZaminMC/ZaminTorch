@@ -25,6 +25,11 @@ public record BlockPosition(int x, int y, int z) {
         return new BlockPosition(x + dx, y + dy, z + dz);
     }
 
+    /** The unit vector stepped {@code times} cells (the frame walks). */
+    public BlockPosition offset(int dx, int dy, int dz, int times) {
+        return new BlockPosition(x + dx * times, y + dy * times, z + dz * times);
+    }
+
     /** Local coordinate inside a chunk (0..15). */
     public int localX() {
         return x & 0xF;
