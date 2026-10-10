@@ -39,7 +39,29 @@ public final class WorldSolidity {
                 && !isOpenDoorHalf(id)
                 && !isFlora(id)
                 && !isRail(id)
+                && !isRedstoneComponent(id)
                 && !FluidBlocks.isFluid(id);
+    }
+
+    /**
+     * The redstone family (Slice 9a): the wire (a 1/16-tall line), the
+     * torches (the thin wall model, like the plain torch) and the repeaters
+     * (a 1/8-tall diode) never block a body — and the reference's
+     * {@code Block.isSolid()} (material.isSolidBlocking() && isCube() &&
+     * !isSignalSource()) keeps every signal source out of the re-radiation
+     * set as well: a wire, a torch or a repeater never re-emits strong
+     * power as weak.
+     */
+    public static boolean isRedstoneComponent(Identifier id) {
+        if (!id.namespace().equals("minecraft")) {
+            return false;
+        }
+        String value = id.value();
+        return value.startsWith("redstone_wire")
+                || value.startsWith("redstone_torch")
+                || value.startsWith("unlit_redstone_torch")
+                || value.startsWith("repeater_")
+                || value.startsWith("powered_repeater_");
     }
 
     /**

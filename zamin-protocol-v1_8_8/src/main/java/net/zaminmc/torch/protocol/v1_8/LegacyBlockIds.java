@@ -19,7 +19,7 @@ final class LegacyBlockIds {
     private LegacyBlockIds() {
     }
 
-    private static final Map<Identifier, Integer> BY_IDENTIFIER = Map.ofEntries(
+    private static final Map<Identifier, Integer> BY_IDENTIFIER = withRedstoneIds(Map.ofEntries(
             // blocks
             Map.entry(Identifier.parse("minecraft:air"), 0),
             Map.entry(Identifier.parse("minecraft:stone"), 1),
@@ -268,7 +268,37 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:diamond_horse_armor"), 419),
             Map.entry(Identifier.parse("minecraft:lead"), 420),
             Map.entry(Identifier.parse("minecraft:carrot_on_a_stick"), 398),
-            Map.entry(Identifier.parse("minecraft:emerald"), 388));
+            Map.entry(Identifier.parse("minecraft:emerald"), 388)));
+
+    /**
+     * The redstone family's base ids (Slice 9a): the wire's sixteen power
+     * variants share legacy 55 (the power rides the metadata nibble), the
+     * lit torch pair 76, the unlit pair 75, the repeater pairs 93/94 (the
+     * facing and delay ride the nibble — facingH | (delay-1) << 2).
+     */
+    private static Map<Identifier, Integer> withRedstoneIds(Map<Identifier, Integer> base) {
+        Map<Identifier, Integer> merged = new HashMap<>(base);
+        for (int power = 0; power <= 15; power++) {
+            merged.put(Identifier.parse("minecraft:redstone_wire" + (power == 0 ? "" : "_" + power)), 55);
+        }
+        for (String prefix : new String[]{"redstone_torch", "unlit_redstone_torch"}) {
+            merged.put(Identifier.parse("minecraft:" + prefix),
+                    prefix.startsWith("unlit") ? 75 : 76);
+            for (String wall : new String[]{"east", "west", "south", "north"}) {
+                merged.put(Identifier.parse("minecraft:" + prefix + "_" + wall),
+                        prefix.startsWith("unlit") ? 75 : 76);
+            }
+        }
+        for (String prefix : new String[]{"repeater", "powered_repeater"}) {
+            for (String facing : new String[]{"south", "west", "north", "east"}) {
+                for (int delay = 1; delay <= 4; delay++) {
+                    merged.put(Identifier.parse("minecraft:" + prefix + "_" + facing + "_" + delay),
+                            prefix.startsWith("powered") ? 94 : 93);
+                }
+            }
+        }
+        return Map.copyOf(merged);
+    }
 
     /**
      * Item-form ids that diverge from the block id sharing the identifier
@@ -285,7 +315,12 @@ final class LegacyBlockIds {
             // The stairs items (the block types carry facing suffixes; the
             // item keeps the bare historical identifier, item id = block id).
             Identifier.parse("minecraft:oak_stairs"), 53,
-            Identifier.parse("minecraft:cobblestone_stairs"), 67);
+            Identifier.parse("minecraft:cobblestone_stairs"), 67,
+            // The redstone slice: the dust is item 331, the repeater item
+            // 356 (the block types carry the state suffixes); the redstone
+            // torch item shares block id 76 through BY_IDENTIFIER.
+            Identifier.parse("minecraft:redstone"), 331,
+            Identifier.parse("minecraft:repeater"), 356);
 
     /** The damage-aware reverse map is declared after {@link #METADATA}. */
 
@@ -387,7 +422,48 @@ final class LegacyBlockIds {
             return variant;
         }
         FluidBlocks.Kind fluid = FluidBlocks.kindOf(identifier);
-        return fluid == null ? 0 : FluidBlocks.levelOf(identifier);
+        if (fluid != null) {
+            return FluidBlocks.levelOf(identifier);
+        }
+        return redstoneMetadataOf(identifier);
+    }
+
+    /**
+     * The redstone family's metadata nibble: the wire's power (0..15), the
+     * torch's facing (1 standing, 2..5 the walls — the reference's
+     * BlockTorch metadata order east/west/south/north), the repeater's
+     * facingH | (delay-1) << 2 (the reference's RepeaterBlock lines
+     * 114-123).
+     */
+    private static int redstoneMetadataOf(Identifier identifier) {
+        String value = identifier.value();
+        if (!identifier.namespace().equals("minecraft")) {
+            return 0;
+        }
+        if (value.startsWith("redstone_wire")) {
+            int underscore = value.indexOf('_');
+            return underscore < 0 ? 0 : Integer.parseInt(value.substring(underscore + 1));
+        }
+        if (value.startsWith("redstone_torch") || value.startsWith("unlit_redstone_torch")) {
+            String suffix = value.contains("_east") ? "east"
+                    : value.contains("_west") ? "west"
+                    : value.contains("_south") ? "south"
+                    : value.contains("_north") ? "north" : "";
+            return switch (suffix) {
+                case "east" -> 2;
+                case "west" -> 3;
+                case "south" -> 4;
+                case "north" -> 5;
+                default -> 1; // standing
+            };
+        }
+        if (value.startsWith("repeater_") || value.startsWith("powered_repeater_")) {
+            int facingH = value.contains("south") ? 0 : value.contains("west") ? 1
+                    : value.contains("north") ? 2 : 3;
+            int delay = Integer.parseInt(value.substring(value.lastIndexOf('_') + 1));
+            return facingH | ((delay - 1) << 2);
+        }
+        return 0;
     }
 
     /** The damage-aware reverse: (legacy id << 4) | metadata -> identifier. */
@@ -401,7 +477,26 @@ final class LegacyBlockIds {
                 reversed.put((legacy << 4) | (meta & 0xF), identifier);
             }
         });
+        // The redstone family folds its own nibble space in (the wire's
+        // power levels, the torch facings, the repeater states) so the
+        // damage-aware reverse resolves creative placements and slot reads.
+        BY_IDENTIFIER.forEach((identifier, legacy) -> {
+            if (isRedstoneFamily(identifier)) {
+                reversed.put((legacy << 4) | redstoneMetadataOf(identifier), identifier);
+            }
+        });
         return Map.copyOf(reversed);
+    }
+
+    /** @return whether the identifier belongs to the redstone family (Slice 9a). */
+    private static boolean isRedstoneFamily(Identifier identifier) {
+        String value = identifier.value();
+        return identifier.namespace().equals("minecraft")
+                && (value.startsWith("redstone_wire")
+                || value.startsWith("redstone_torch")
+                || value.startsWith("unlit_redstone_torch")
+                || value.startsWith("repeater_")
+                || value.startsWith("powered_repeater_"));
     }
 
     /** @return the canonical identifier for a legacy id, or empty if unknown. */

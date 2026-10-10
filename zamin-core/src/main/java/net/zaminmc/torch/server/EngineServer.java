@@ -221,6 +221,8 @@ public final class EngineServer implements Server, EngineBridge {
     /** The command dispatcher (tab completion reads it from the wire layer). */
     private volatile CommandService commands;
     private BlockUpdateSystem blockUpdateSystem;
+    /** The redstone signal engine (Slice 9a): the wire cascade + the family dispatch + the delayed reactions. */
+    private net.zaminmc.torch.server.redstone.RedstoneSystem redstoneSystem;
     private FluidSystem fluidSystem;
     private ExplosionService explosionService;
     private RandomTickSystem randomTicks;
@@ -329,8 +331,9 @@ public final class EngineServer implements Server, EngineBridge {
         // Registry freeze: built-ins registered during boot preparation must be frozen
         // before any world exists (registry lifecycle: create -> register -> freeze).
         if (blockRegistry == null) {
-            blockRegistry = FluidBlocks.registerAll(
-                    BuiltinBlocks.registerAll(new BlockRegistryBuilder())).freeze();
+            blockRegistry = net.zaminmc.torch.server.redstone.RedstoneBlocks.registerAll(
+                    FluidBlocks.registerAll(
+                            BuiltinBlocks.registerAll(new BlockRegistryBuilder()))).freeze();
         }
 
         state.set(ServerState.STARTING);
@@ -465,6 +468,14 @@ public final class EngineServer implements Server, EngineBridge {
                 // The world itself dispatches every committed change (§208): the
                 // neighbor-update system observes player- AND engine-driven changes.
                 world.addChangeListener(blockUpdateSystem);
+                // Redstone (Slice 9a — the reference's signal model): the wire
+                // cascade and the family dispatch ride the commit synchronously
+                // (vanilla's flag-1 walk inside setBlockState), so the propagation
+                // is same-tick instant; the scheduled-tick queue (the torch's
+                // 2-tick reaction, the repeater's delay) drains per tick.
+                redstoneSystem = new net.zaminmc.torch.server.redstone.RedstoneSystem(
+                        world, itemEntities);
+                world.addChangeListener(redstoneSystem);
                 // Fluids (§472 pattern): the scheduled pour/dry/contact system,
                 // waking on every committed change like the neighbor rules do.
                 fluidSystem = new FluidSystem(new FluidWorld(), new FluidSink(itemEntities));
@@ -504,6 +515,7 @@ public final class EngineServer implements Server, EngineBridge {
                 vehicles.addListener(new VehicleEventDispatch());
                 ticker.setTickHandler(() -> {
                     blockUpdateSystem.tick(); // §466: scheduled updates (falls start here)
+                    redstoneSystem.tick(); // the torch/repeater scheduled reactions
                     blockInteraction.tickMining(); // the vanilla dig accumulator + 0x28 stages
                     fluidSystem.tick();       // §472 pattern: pours, streams, contact
                     falling.tick();           // §470: falling physics + landings
@@ -931,6 +943,11 @@ public final class EngineServer implements Server, EngineBridge {
     /** The scheduled block-update system (exposed for behavioral tests). */
     public BlockUpdateSystem blockUpdates() {
         return blockUpdateSystem;
+    }
+
+    /** The redstone signal engine (exposed for behavioral tests). */
+    public net.zaminmc.torch.server.redstone.RedstoneSystem redstone() {
+        return redstoneSystem;
     }
 
     /** The random-tick system (exposed for deterministic growth probes). */

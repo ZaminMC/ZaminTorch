@@ -62,7 +62,10 @@ public final class BlockBehaviorTable {
         return SILK_TOUCHABLE.contains(block);
     }
 
-    private static final Map<Identifier, BlockBehavior> BEHAVIORS = Map.ofEntries(
+    private static final Map<Identifier, BlockBehavior> BEHAVIORS = buildBehaviors();
+
+    private static Map<Identifier, BlockBehavior> buildBehaviors() {
+        Map<Identifier, BlockBehavior> behaviors = new java.util.HashMap<>(Map.ofEntries(
             Map.entry(Identifier.parse("minecraft:air"),
                     new BlockBehavior(0.0, false, false, null, 0, List.of())),
 
@@ -317,6 +320,13 @@ public final class BlockBehaviorTable {
                     new BlockBehavior(0.4, true, false, "wood", 0,
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:ladder"), 1)))),
 
+            // The redstone family (community blocks.json: hardness 0, the
+            // wire drops the dust, the torches drop the torch, the repeater
+            // drops itself — every power/facing/delay variant shares the row).
+            Map.entry(Identifier.parse("minecraft:redstone_wire"),
+                    new BlockBehavior(0.0, false, false, null, 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:redstone"), 1)))),
+
             Map.entry(Identifier.parse("minecraft:ladder_south"),
                     new BlockBehavior(0.4, true, false, "wood", 0,
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:ladder"), 1)))),
@@ -472,7 +482,35 @@ public final class BlockBehaviorTable {
                     new BlockBehavior(0.0, true, false, null, 0, List.of())),
 
             Map.entry(Identifier.parse("minecraft:bedrock"),
-                    BlockBehavior.unbreakable()));
+                    BlockBehavior.unbreakable())));
+
+        // The redstone family's variants (Slice 9a): every power level of
+        // the wire, both torch pairs and all the repeater states share the
+        // family row — the drops are the item, the break is instant by hand.
+        BlockBehavior wire = behaviors.get(Identifier.parse("minecraft:redstone_wire"));
+        for (int power = 1; power <= 15; power++) {
+            behaviors.put(Identifier.parse("minecraft:redstone_wire_" + power), wire);
+        }
+        BlockBehavior torch = new BlockBehavior(0.0, false, false, null, 0,
+                List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:redstone_torch"), 1)));
+        for (String prefix : new String[]{"redstone_torch", "unlit_redstone_torch"}) {
+            behaviors.put(Identifier.parse("minecraft:" + prefix), torch);
+            for (String wall : new String[]{"east", "west", "south", "north"}) {
+                behaviors.put(Identifier.parse("minecraft:" + prefix + "_" + wall), torch);
+            }
+        }
+        BlockBehavior repeater = new BlockBehavior(0.0, false, false, null, 0,
+                List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:repeater"), 1)));
+        for (String prefix : new String[]{"repeater", "powered_repeater"}) {
+            for (String facing : new String[]{"south", "west", "north", "east"}) {
+                for (int delay = 1; delay <= 4; delay++) {
+                    behaviors.put(Identifier.parse("minecraft:" + prefix + "_" + facing + "_" + delay),
+                            repeater);
+                }
+            }
+        }
+        return Map.copyOf(behaviors);
+    }
 
     /** @return the behavior of a block type, or empty for unregistered identifiers. */
     public static java.util.Optional<BlockBehavior> of(Identifier blockIdentifier) {
