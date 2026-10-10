@@ -1473,7 +1473,11 @@ public final class EngineServer implements Server, EngineBridge {
         var at = world.getBlock(new BlockPosition(
                 (int) Math.floor(eye.x()), (int) Math.floor(eye.y()), (int) Math.floor(eye.z())));
         boolean underwater = FluidBlocks.kindOf(at.identifier()) != null;
-        if (session.advanceBreath(underwater)) {
+        // The Respiration roll (the reference's getRespirationLevel highest
+        // over the equipment; the helmet is the only enchantable slot).
+        int respiration = EnchantmentHelper.highestLevel(
+                Enchantments.RESPIRATION.id, session.inventory().armorStacks());
+        if (session.advanceBreath(underwater, respiration, gameplayRandom)) {
             // the DROWN arm: no exhaustion; drown bypasses armor but stays
             // inside the protection step (only "all" applies off-fire)
             damageOnTick(session,

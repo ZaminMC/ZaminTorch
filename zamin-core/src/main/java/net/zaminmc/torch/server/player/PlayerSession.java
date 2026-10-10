@@ -367,16 +367,27 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
 
     /**
      * Advances the breath clock: underwater it drains, out of water it
-     * refills. @return true when a drowning damage tick is due (2 per second
+     * refills. The Respiration roll rides the drain exactly like the
+     * reference's {@code updateBreathUnderwater} (reference/1.8.8
+     * entity/living/LivingEntity lines 330-333): a level above zero rolls
+     * {@code nextInt(level + 1) > 0} per submerged tick — success keeps this
+     * tick's air, failure (the 1/(level+1) arm) takes the decrement.
+     *
+     * @return true when a drowning damage tick is due (2 per second
      * after the air ran out, the historical EntityPlayer rhythm).
      */
-    public boolean advanceBreath(boolean underwater) {
+    public boolean advanceBreath(boolean underwater, int respirationLevel,
+                                 java.util.Random random) {
         if (!underwater) {
             airTicks = 300;
             drownTimer = 0;
             return false;
         }
         if (airTicks > 0) {
+            if (respirationLevel > 0
+                    && random.nextInt(respirationLevel + 1) > 0) {
+                return false; // the roll kept this tick's air
+            }
             airTicks--;
             return false;
         }
