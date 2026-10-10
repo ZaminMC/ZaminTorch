@@ -61,12 +61,50 @@ the bottom. The behavior-level status of every mechanic lives in
 ## In progress
 
 - **Slice 7 remainder — the leftover hooks**: thorns (the protection/damage
-  wildcards), the loot family (looting/fortune/silk touch), the bow family
-  (power/punch/flame/infinity), unbreaking, respiration/depth strider —
-  each lands with its gameplay slice.
+  wildcards), the loot family (looting/fortune/silk touch), unbreaking,
+  respiration/depth strider — each lands with its gameplay slice.
+- **Concurrency implementation Phase 1** (per the approved-pending docs):
+  ownership primitives + enforcement assertions.
 
 ## Landed since the ledger opened
 
+- **Concurrency architecture assignment completed** (`09eeaed`, `430ed18`,
+  `36e7e97`): the Folia 26.2.x archive extracted outside the repo, all 21
+  patches read, and the mandatory class-by-class inventory produced — 460
+  modified Java path entries (200 Minecraft-side + 206 Paper-side base-patch
+  paths, hunk counts + churn, keyword-categorized;
+  `docs/FOLIA_PATCH_INVENTORY.md`); the subsystem deep-dives A–G traced at
+  hunk level (`docs/FOLIA_FORENSIC_AUDIT.md`: the regionizer's merge/split
+  under the structure lock, `TickRegionScheduler.runTick`'s
+  `tryMarkTicking` single-writer acquisition + `getPeriodsAhead` catch-up
+  + `TickTime` scheduled-vs-actual recording, `EntityScheduler` run-time
+  re-validation retiring stale entity tasks, `RegionizedWorldData` state
+  extraction, the hopper's redstone-time rebasing + worldData/ThreadLocal
+  flag migration reviewed hunk-by-hunk, the piston ownership guards, and
+  follow-up patch 0004's boundary-update drops); the four mandatory hard
+  cases answered from the patches with Adopt/Adapt verdicts; the category
+  distribution extracted (62% of Folia's mass is entity bookkeeping, not
+  the scheduler); decision-to-patch-to-test traceability. The §20
+  comparison table (17 dimensions), 20 ADRs, and the 8-phase rollout
+  landed in `docs/CONCURRENCY_DECISIONS_AND_ROLLOUT.md`; the component
+  graph + six lifecycle sequence diagrams in `docs/CONCURRENCY_DIAGRAMS.md`;
+  `docs/CONCURRENCY_ARCHITECTURE.md` evidence gaps closed.
+- **Slice 7d — the bow family** (`d8f1e6d`, dev.17): the release charge
+  curve riding the reference's `(f*f + f*2)/3` shape — the 0.1 flick gate
+  aborts at charge 2 (0.07) and fires at 3 (0.1075), the 1.0 clamp marks
+  the full draw and sets the arrow's crit flag; Infinity (creative OR the
+  enchantment leaves the quiver untouched; the pickup=2 retrieval surface
+  ledgered with its slice); Power feeding the damage multiplier
+  (level * 0.5 + 0.5), Punch riding the landed hit's knockback, Flame
+  igniting the arrow 2000 ticks (the reference `setOnFireFor(100)`
+  whole-flight) with the 100-tick target ignite on hit — the burning flag
+  broadcast at spawn through Entity Metadata 0x0C index 0; the launch
+  sounds moved to the caller recipes (the bow's pitch riding the shaped
+  charge, the shard throw's 0.4/(rand*0.4+0.8)). Tests: `BowFamilyTest` +
+  ranged-acceptance walks; suite 518 green.
+- **Release v0.2.0-dev.17** published on GitHub Releases with the jar,
+  the distribution ZIP, and the changelog (the dev.13 loss class closed —
+  releases now ride every dev build).
 - **Slice 7c — attack crits + the thrown spawn pull-back** (dev.16): the
   vanilla critical hit over both attack walks (reference/1.8.8
   PlayerEntity.attack lines 958-1008): the flag gate (fallDistance > 0,
