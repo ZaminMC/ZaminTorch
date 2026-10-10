@@ -175,6 +175,8 @@ public final class EngineServer implements Server, EngineBridge {
     private volatile net.zaminmc.torch.server.concurrent.ComputeSubsystem computeSubsystem;
     /** The Phase 4 domain worker pool: the independent domains' shared execution resources. */
     private volatile net.zaminmc.torch.server.concurrent.DomainWorkerPool domainWorkerPool;
+    /** The Phase 4 cross-owner router: the §7 intent protocol's live surface. */
+    private volatile net.zaminmc.torch.server.concurrent.CrossOwnerRouter crossOwnerRouter;
     /** The in-flight detached chunk generations (dedupe; the never-overwrite guard). */
     private final java.util.Set<Long> pendingChunkGenerations =
             java.util.concurrent.ConcurrentHashMap.newKeySet();
@@ -548,6 +550,8 @@ public final class EngineServer implements Server, EngineBridge {
                 ticker.attachCompute(computeSubsystem, simulationDomain);
                 domainWorkerPool = new net.zaminmc.torch.server.concurrent.DomainWorkerPool();
                 ticker.attachDomainPool(domainWorkerPool);
+                crossOwnerRouter = new net.zaminmc.torch.server.concurrent.CrossOwnerRouter();
+                ticker.attachCrossOwnerRouter(crossOwnerRouter, simulationDomain);
                 worldReady.countDown();
                 simulationDomain.enter();
                 try {
@@ -651,6 +655,9 @@ public final class EngineServer implements Server, EngineBridge {
             }
             if (domainWorkerPool != null) {
                 domainWorkerPool.shutdown();
+            }
+            if (crossOwnerRouter != null) {
+                crossOwnerRouter.shutdown();
             }
             ticker.stop();
             try {
