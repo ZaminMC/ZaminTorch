@@ -399,3 +399,18 @@ the bottom. The behavior-level status of every mechanic lives in
   the distribution ZIP both attached. The changeDimension walk (8b-iii-b:
   the 8:1 scaling, the Respawn sequence at dimension -1, the per-dimension
   chunk visibility, the PlayerSession portal memory) is next.
+
+## 2026-10-10 — Slice 8 completes: 8b-iii-b (the changeDimension walk); dev.23
+
+- **Slice 8b-iii-b** (commit `64cef12`): the PlayerManager.changeDimension
+  port — the stand clock's teleport arm fires the walk, the 8:1 coordinate
+  scaling (÷8 in, ×8 back, the ±29999872 clamp), the 17x17 destination ring
+  load before the search, the PortalForcer's find-or-generate riding the
+  body's onPortalCollision memory (the raw inverse-lerp frame offsets +
+  the entered facing, PlayerSession.notePortalEntry), the arrival, and the
+  wire: the Respawn packet's dimension int, the ChunkTracker re-pointed
+  (the per-dimension chunk reads through engine.worldFor), the
+  dimension-tagged detached chunk loads. DimensionWalkTest (1: the live
+  round trip). Suite 639 green. The per-dimension TimeUpdate sync remains
+  ledgered as the follow-up wire arm.
+- **Slice 8 (nether portals) is COMPLETE.**
