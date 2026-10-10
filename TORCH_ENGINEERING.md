@@ -49,7 +49,7 @@ Statuses: `NOT INVESTIGATED`, `INVESTIGATED`, `IN PROGRESS`, `IMPLEMENTED`, `VER
 See:
 
 - `docs/CONCURRENCY_ARCHITECTURE.md`
-- `docs/MINSTOM_CONCURRENCY_BASELINE.md`
+- `docs/MINESTOM_CONCURRENCY_BASELINE.md`
 - `docs/FOLIA_FORENSIC_AUDIT.md`
 
 The proposal is not implementation. Its core recommendation is single-writer ownership domains, a shared bounded simulation pool, immutable compute inputs/results, validated result application, and explicit cross-owner intents. It explicitly keeps dynamic migration and conflict-aware multi-writer simulation disabled until correctness tests justify them.
