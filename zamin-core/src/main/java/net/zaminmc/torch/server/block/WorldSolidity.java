@@ -33,12 +33,23 @@ public final class WorldSolidity {
         return !id.equals(BuiltinBlocks.AIR.identifier())
                 && !id.equals(BuiltinBlocks.TORCH.identifier())
                 && !id.equals(BuiltinBlocks.FIRE.identifier())
+                && !isNetherPortal(id)
                 && !isSign(id)
                 && !isLadder(id)
                 && !isOpenDoorHalf(id)
                 && !isFlora(id)
                 && !isRail(id)
                 && !FluidBlocks.isFluid(id);
+    }
+
+    /**
+     * The nether portal (90): walk-through in both axis planes (the
+     * reference's {@code getCollisionShape} returning null — the bodies
+     * walk into it and the portal clock reads the occupancy).
+     */
+    public static boolean isNetherPortal(Identifier id) {
+        return id.equals(BuiltinBlocks.NETHER_PORTAL.identifier())
+                || id.equals(BuiltinBlocks.NETHER_PORTAL_Z.identifier());
     }
 
     /** The rails (block 66): walk-through track, the minecart reads the axis. */

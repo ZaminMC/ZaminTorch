@@ -1179,6 +1179,7 @@ public final class EngineServer implements Server, EngineBridge {
             tickFoodEconomy(session);
             tickLanding(session);
             tickBreath(session);
+            tickPortalStand(session);
             tickFireBody(session);
             tickCactusContact(session);
             // The ladder catch: a body on a ladder accumulates no fall
@@ -1456,6 +1457,33 @@ public final class EngineServer implements Server, EngineBridge {
                                 DamageKind.FALL),
                         0.0f, "hit the ground too hard");
             }
+        }
+    }
+
+    /**
+     * The portal stand clock (the reference's Entity portal tick,
+     * reference/1.8.8 entity/Entity.java lines 282-313): a body whose
+     * position block is a nether portal cell accumulates the stand time —
+     * the threshold crossing reports the teleport arm (the changeDimension
+     * walk lands with the dimension slice, 8b; until then the crossing
+     * arms the cooldown and surfaces in the logs). The clock advances for
+     * every body every tick — the decay arm rides the same walk.
+     * Tick-thread context.
+     */
+    private void tickPortalStand(PlayerSession session) {
+        BlockType at = world.getBlock(new BlockPosition(
+                (int) Math.floor(session.position().x()),
+                (int) Math.floor(session.position().y()),
+                (int) Math.floor(session.position().z())));
+        boolean inPortal = at.identifier().equals(BuiltinBlocks.NETHER_PORTAL.identifier())
+                || at.identifier().equals(BuiltinBlocks.NETHER_PORTAL_Z.identifier());
+        boolean creative = session.gamemode() == GameMode.CREATIVE;
+        if (session.advancePortalClock(inPortal, creative)) {
+            // The teleport arm: the destination dimension walk is the 8b
+            // slice (the second world + the portal forcer). The cooldown is
+            // armed; the crossing is loud in the diagnostics.
+            LOGGER.fine("Portal threshold crossed for " + session.name()
+                    + "; the dimension walk awaits the 8b slice");
         }
     }
 
@@ -3422,6 +3450,11 @@ public final class EngineServer implements Server, EngineBridge {
             return false; // no open cell: the steel sparks at nothing
         }
         world.setBlock(target, BuiltinBlocks.FIRE);
+        // The reference's FireBlock.onAdded arm (reference/1.8.8 block/
+        // FireBlock.java lines 317-321): the placed fire first tries the
+        // portal build — a valid obsidian frame replaces the fire cell with
+        // the portal interior; the failed scan leaves the ordinary fire.
+        net.zaminmc.torch.server.world.PortalFrameBuilder.createAt(world, target);
         fxManager.sound(new Position(target.x() + 0.5, target.y() + 0.5, target.z() + 0.5),
                 "fire.ignite", 1.0f, 0.9f + fxRandom.nextFloat() * 0.2f);
         if (session.gamemode() == GameMode.SURVIVAL

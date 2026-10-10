@@ -56,6 +56,8 @@ public final class BlockUpdateSystem implements WorldChangeListener {
     private static final Identifier TORCH = Identifier.parse("minecraft:torch");
     private static final Identifier GRASS = Identifier.parse("minecraft:grass_block");
     private static final Identifier FIRE = Identifier.parse("minecraft:fire");
+    private static final Identifier NETHER_PORTAL = Identifier.parse("minecraft:nether_portal");
+    private static final Identifier NETHER_PORTAL_Z = Identifier.parse("minecraft:nether_portal_z");
     private static final Identifier SUGAR_CANE = Identifier.parse("minecraft:sugar_cane");
     private static final Identifier CACTUS = Identifier.parse("minecraft:cactus");
 
@@ -260,6 +262,19 @@ public final class BlockUpdateSystem implements WorldChangeListener {
         }
         if (identifier.equals(FIRE)) {
             tickFire(position, world.totalTicks());
+            return;
+        }
+        if (identifier.equals(NETHER_PORTAL) || identifier.equals(NETHER_PORTAL_Z)) {
+            // The reference's PortalBlock.neighborChanged (block/PortalBlock
+            // lines 101-117): the cell re-validates its own frame — an
+            // invalid scan, or a scan finding fewer portal cells than the
+            // frame's interior (a frame block broke), kills the cell to air
+            // (the reference's setBlockState(pos, AIR)); the neighbor fan-out
+            // then wakes the remaining cells.
+            if (!net.zaminmc.torch.server.world.PortalFrameBuilder
+                    .survivesNeighborChange(world, position)) {
+                world.setBlock(position, world.airType());
+            }
             return;
         }
         if (identifier.equals(SUGAR_CANE)) {
