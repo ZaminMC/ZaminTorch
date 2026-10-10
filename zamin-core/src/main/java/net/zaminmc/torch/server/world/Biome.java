@@ -13,7 +13,9 @@ public enum Biome {
     /** The 1.8 biome id 2: sand skin over a sandstone band, dead bushes. */
     DESERT(2),
     /** The 1.8 biome id 4: dense oak forest, grass and flowers. */
-    FOREST(4);
+    FOREST(4),
+    /** The 1.8 biome id 8: the nether's FixedBiomeSource(HELL) — every cell. */
+    HELL(8);
 
     private final int legacyId;
 

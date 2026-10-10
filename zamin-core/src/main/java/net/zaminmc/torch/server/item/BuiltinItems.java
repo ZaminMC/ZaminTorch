@@ -92,6 +92,23 @@ public final class BuiltinItems {
     public static final EngineItemType FLINT = new EngineItemType(
             Identifier.parse("minecraft:flint"), "Flint", 64);
 
+    // The nether's yields (community items.json ids): the mushroom pair ride
+    // their block ids (39/40), glowstone dust 348 (the cluster's 2-4 roll)
+    // and nether quartz 406 (the ore's drop); the netherrack/soul-sand pair
+    // drops itself (block-item shares the block id).
+    public static final EngineItemType BROWN_MUSHROOM = new EngineItemType(
+            Identifier.parse("minecraft:brown_mushroom"), "Brown Mushroom", 64);
+    public static final EngineItemType RED_MUSHROOM = new EngineItemType(
+            Identifier.parse("minecraft:red_mushroom"), "Red Mushroom", 64);
+    public static final EngineItemType GLOWSTONE_DUST = new EngineItemType(
+            Identifier.parse("minecraft:glowstone_dust"), "Glowstone Dust", 64);
+    public static final EngineItemType QUARTZ = new EngineItemType(
+            Identifier.parse("minecraft:quartz"), "Nether Quartz", 64);
+    public static final EngineItemType NETHERRACK = new EngineItemType(
+            Identifier.parse("minecraft:netherrack"), "Netherrack", 64);
+    public static final EngineItemType SOUL_SAND = new EngineItemType(
+            Identifier.parse("minecraft:soul_sand"), "Soul Sand", 64);
+
     // Edible items (community foods.json): raw beef smelts into steak.
     public static final EngineItemType BEEF = new EngineItemType(
             Identifier.parse("minecraft:beef"), "Beef", 64);
@@ -433,6 +450,7 @@ public final class BuiltinItems {
                 FLINT_AND_STEEL, GOLD_INGOT,
                 SUGAR_CANE, CACTUS, SUGAR, PAPER, BOOK,
                 TALL_GRASS, DEAD_BUSH, DANDELION, POPPY, SANDSTONE,
+                BROWN_MUSHROOM, RED_MUSHROOM, GLOWSTONE_DUST, QUARTZ, NETHERRACK, SOUL_SAND,
                 LEATHER_HELMET, LEATHER_CHESTPLATE, LEATHER_LEGGINGS, LEATHER_BOOTS,
                 CHAINMAIL_HELMET, CHAINMAIL_CHESTPLATE, CHAINMAIL_LEGGINGS, CHAINMAIL_BOOTS,
                 IRON_HELMET, IRON_CHESTPLATE, IRON_LEGGINGS, IRON_BOOTS,

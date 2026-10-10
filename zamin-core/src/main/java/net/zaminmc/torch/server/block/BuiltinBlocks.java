@@ -145,6 +145,23 @@ public final class BuiltinBlocks {
     public static final EngineBlockType FURNACE_LIT = new EngineBlockType(
             Identifier.parse("minecraft:furnace_lit"), "Furnace");
 
+    // The nether's materials (community blocks.json ids): netherrack 87, soul
+    // sand 88, glowstone 89, quartz ore 153, the two mushrooms 39/40. The
+    // nether generator (the 8b slice) fills the dimension with them; glowstone
+    // emits 15 (the light table row), the mushrooms walk through like flora.
+    public static final EngineBlockType NETHERRACK = new EngineBlockType(
+            Identifier.parse("minecraft:netherrack"), "Netherrack");
+    public static final EngineBlockType SOUL_SAND = new EngineBlockType(
+            Identifier.parse("minecraft:soul_sand"), "Soul Sand");
+    public static final EngineBlockType GLOWSTONE = new EngineBlockType(
+            Identifier.parse("minecraft:glowstone"), "Glowstone");
+    public static final EngineBlockType QUARTZ_ORE = new EngineBlockType(
+            Identifier.parse("minecraft:quartz_ore"), "Quartz Ore");
+    public static final EngineBlockType BROWN_MUSHROOM = new EngineBlockType(
+            Identifier.parse("minecraft:brown_mushroom"), "Brown Mushroom");
+    public static final EngineBlockType RED_MUSHROOM = new EngineBlockType(
+            Identifier.parse("minecraft:red_mushroom"), "Red Mushroom");
+
     // The standing signs (community blocks.json: block 63, the rotation in
     // the metadata nibble's 45-degree band 0/4/8/12 = S/W/N/E). The sign
     // faces its placer, the historical placement rule.
@@ -320,6 +337,12 @@ public final class BuiltinBlocks {
                 .register(POPPY)
                 .register(SANDSTONE)
                 .register(FIRE)
+                .register(NETHERRACK)
+                .register(SOUL_SAND)
+                .register(GLOWSTONE)
+                .register(QUARTZ_ORE)
+                .register(BROWN_MUSHROOM)
+                .register(RED_MUSHROOM)
                 .register(NETHER_PORTAL)
                 .register(NETHER_PORTAL_Z)
                 .register(SUGAR_CANE)

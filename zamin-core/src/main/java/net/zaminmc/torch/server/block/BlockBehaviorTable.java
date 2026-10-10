@@ -355,6 +355,40 @@ public final class BlockBehaviorTable {
                     new BlockBehavior(0.8, true, true, "rock", 1,
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:sandstone"), 1)))),
 
+            // The nether's materials (community blocks.json 1.8 values):
+            // netherrack 0.4 rock pickaxe-gated (harvest level 0 — the wooden
+            // pick suffices), drops itself; soul sand 0.5 sand-material
+            // shovel-block, drops itself; quartz ore 3.0 rock pickaxe-gated
+            // (harvest 0) dropping the quartz item; glowstone 0.3
+            // glass-material instant-diggable dropping the reference
+            // GlowstoneBlock's quantityDropped band (2 + nextInt(3)) through
+            // the table's first-hit-wins chance model (1/3 each of 4, 3, 2
+            // — the range roll restated in the table's vocabulary).
+            Map.entry(Identifier.parse("minecraft:netherrack"),
+                    new BlockBehavior(0.4, true, true, "rock", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:netherrack"), 1)))),
+            Map.entry(Identifier.parse("minecraft:soul_sand"),
+                    new BlockBehavior(0.5, true, false, "sand", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:soul_sand"), 1)))),
+            Map.entry(Identifier.parse("minecraft:quartz_ore"),
+                    new BlockBehavior(3.0, true, true, "rock", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:quartz"), 1)))),
+            Map.entry(Identifier.parse("minecraft:glowstone"),
+                    new BlockBehavior(0.3, true, false, "glass", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:glowstone_dust"), 4, 1.0 / 3.0),
+                                    new BlockBehavior.Drop(Identifier.parse("minecraft:glowstone_dust"), 3, 1.0 / 3.0),
+                                    new BlockBehavior.Drop(Identifier.parse("minecraft:glowstone_dust"), 2, 1.0 / 3.0)))),
+
+            // The mushrooms (community blocks.json): instant-break plants
+            // dropping themselves (the PlantFeature pair the nether grows on
+            // its netherrack floors).
+            Map.entry(Identifier.parse("minecraft:brown_mushroom"),
+                    new BlockBehavior(0.0, true, false, "plants", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:brown_mushroom"), 1)))),
+            Map.entry(Identifier.parse("minecraft:red_mushroom"),
+                    new BlockBehavior(0.0, true, false, "plants", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:red_mushroom"), 1)))),
+
             // Community data (pc/1.8 blocks.json): furnace_lit mirrors the
             // furnace (3.5, rock, pickaxe 1, drops the furnace item); the
             // reed and the cactus are instant-break plants that drop
