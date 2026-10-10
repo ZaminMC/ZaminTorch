@@ -171,6 +171,8 @@ public final class EngineServer implements Server, EngineBridge {
     private volatile net.zaminmc.torch.server.concurrent.OwnershipDomain simulationDomain;
     /** The Phase 2 scheduler: the tick's deferred-work substrate. */
     private volatile net.zaminmc.torch.server.concurrent.SimulationScheduler simulationScheduler;
+    /** The Phase 3 compute lane: bounded workers over immutable snapshots. */
+    private volatile net.zaminmc.torch.server.concurrent.ComputeSubsystem computeSubsystem;
     private BlockInteractionService blockInteraction;
     private ChatService chatService;
     private final CraftingService crafting = CraftingService.builtin();
@@ -538,6 +540,10 @@ public final class EngineServer implements Server, EngineBridge {
                 // design's §5 model, single-domain scope until Phase 4).
                 simulationScheduler = new net.zaminmc.torch.server.concurrent.SimulationScheduler();
                 ticker.attachScheduler(simulationScheduler, simulationDomain);
+                // The Phase 3 lane: the bounded compute pool over immutable
+                // snapshots; the tick's owner boundary drains and applies.
+                computeSubsystem = new net.zaminmc.torch.server.concurrent.ComputeSubsystem();
+                ticker.attachCompute(computeSubsystem, simulationDomain);
                 simulationDomain.enter();
                 try {
                     ticker.runLoop(); // blocks until stop
@@ -635,6 +641,9 @@ public final class EngineServer implements Server, EngineBridge {
 
         // 4. stop simulation
         if (ticker != null) {
+            if (computeSubsystem != null) {
+                computeSubsystem.shutdown();
+            }
             ticker.stop();
             try {
                 ticker.awaitStop(5_000);

@@ -34,6 +34,8 @@ public final class EngineTicker {
     private volatile Runnable tickHandler;
     private volatile net.zaminmc.torch.server.concurrent.SimulationScheduler scheduler;
     private volatile net.zaminmc.torch.server.concurrent.OwnershipDomain schedulerDomain;
+    private volatile net.zaminmc.torch.server.concurrent.ComputeSubsystem compute;
+    private volatile net.zaminmc.torch.server.concurrent.OwnershipDomain computeDomain;
     private long logicalTick;
     private final long tickIntervalNanos;
     private final AtomicBoolean running = new AtomicBoolean(false);
@@ -73,6 +75,19 @@ public final class EngineTicker {
                                 net.zaminmc.torch.server.concurrent.OwnershipDomain domain) {
         this.scheduler = java.util.Objects.requireNonNull(attached, "attached");
         this.schedulerDomain = java.util.Objects.requireNonNull(domain, "domain");
+    }
+
+    /**
+     * Attaches the compute subsystem (the permanent architecture's Phase 3):
+     * each tick drains the completed compute outcomes at the owner's
+     * boundary — fresh results apply inside the domain's context, stale
+     * results run their registered fallback. Optional; null keeps the
+     * legacy no-drain behavior.
+     */
+    public void attachCompute(net.zaminmc.torch.server.concurrent.ComputeSubsystem attached,
+                              net.zaminmc.torch.server.concurrent.OwnershipDomain domain) {
+        this.compute = java.util.Objects.requireNonNull(attached, "attached");
+        this.computeDomain = java.util.Objects.requireNonNull(domain, "domain");
     }
 
     /** Starts ticking; the current thread becomes the world's owner. */
@@ -199,6 +214,14 @@ public final class EngineTicker {
             net.zaminmc.torch.server.concurrent.SimulationScheduler attached = scheduler;
             if (attached != null) {
                 attached.runDue(logicalTick);
+            }
+            // The compute drain rides the same owner boundary (the design's
+            // sequence: results validate and apply at the tick edge, the
+            // owner never waits on the pool).
+            net.zaminmc.torch.server.concurrent.ComputeSubsystem computeAttached = compute;
+            net.zaminmc.torch.server.concurrent.OwnershipDomain computeOwner = computeDomain;
+            if (computeAttached != null && computeOwner != null) {
+                computeAttached.drainResults(computeOwner);
             }
             logicalTick++;
             world.tickTime();
