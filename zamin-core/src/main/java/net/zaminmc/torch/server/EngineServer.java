@@ -1233,9 +1233,11 @@ public final class EngineServer implements Server, EngineBridge {
         session.captureBodyDelta(at.x(), at.y(), at.z(), session.onGround());
     }
 
-    /** The bow's draw clock: charge advances while the use gesture holds. */
+    /** The bow's draw clock: charge advances while the use gesture holds
+     * (the test freeze skips the advance — a load-slowed suite cannot slip
+     * extra ticks into a pinned draw). */
     private void tickBowCharge(PlayerSession session) {
-        if (session.bowCharging()) {
+        if (session.bowCharging() && !session.bowChargeFrozenForTest()) {
             session.advanceBowCharge();
         }
     }

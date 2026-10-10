@@ -837,6 +837,24 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
         this.bowChargeTicks = -1;
     }
 
+    /** The test seam: freezes the per-tick charge advance so a load-slowed
+     * suite cannot slip extra ticks into a pinned draw (the same shape as
+     * setVelocityForTest). The engine's tick walk reads it. */
+    private volatile boolean bowChargeFrozenForTest;
+
+    public void freezeBowChargeForTest() {
+        this.bowChargeFrozenForTest = true;
+    }
+
+    public void unfreezeBowChargeForTest() {
+        this.bowChargeFrozenForTest = false;
+    }
+
+    /** @return whether the tick walk must skip the charge advance. */
+    public boolean bowChargeFrozenForTest() {
+        return bowChargeFrozenForTest;
+    }
+
     /**
      * Fall tracking from movement proposals (the owning channel loop provides
      * ordering). Falling accumulates distance; upward motion does not add;
