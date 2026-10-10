@@ -1565,7 +1565,11 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeByte(windowId);
         ByteBufOps.writeString(out, Protocol18.HORSE_WINDOW_TYPE);
         ByteBufOps.writeString(out, Protocol18.HORSE_WINDOW_TITLE);
-        out.writeByte(Protocol18.HORSE_WINDOW_GUI_SLOTS); // the GUI's own slots: saddle + armor
+        // The vanilla SPacketOpenWindow carries the full menu size — the
+        // HorseMenu's inventorySlots.size(): 38 bare, 53 with the chest grid.
+        out.writeByte(mount.chested()
+                ? Protocol18.HORSE_CHEST_WINDOW_TOTAL_SLOTS
+                : Protocol18.HORSE_WINDOW_TOTAL_SLOTS);
         out.writeInt(mount.entityId()); // the trailing mount id (the EntityHorse quirk)
         channel.writeAndFlush(out);
         sendHorseWindowItems(channel, windowId, mount, player);
@@ -1574,20 +1578,26 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     /**
      * Full authoritative sync of the horse window: 38 slots — 0 the saddle
      * row, 1 the armor row (both live on the mount), 2-28 main inventory
-     * (engine 9-35), 29-37 hotbar (engine 0-8). Any thread.
+     * (engine 9-35), 29-37 hotbar (engine 0-8). A chested mount grows the
+     * window to 53: the 3x5 chest grid rides 2-16 (the HorseMenu layout),
+     * the player tail shifts to 17-43 main / 44-52 hotbar. Any thread.
      */
     private void sendHorseWindowItems(Channel channel, int windowId,
                                       MobEntity mount, PlayerSession player) {
         if (channel == null || !channel.isActive() || state != WireState.PLAY) {
             return;
         }
+        boolean chested = mount.chested();
+        int totalSlots = chested
+                ? Protocol18.HORSE_CHEST_WINDOW_TOTAL_SLOTS
+                : Protocol18.HORSE_WINDOW_TOTAL_SLOTS;
         ByteBuf out = Unpooled.buffer(96);
         ByteBufOps.writeVarInt(out, Protocol18.S2C_WINDOW_ITEMS);
         out.writeByte(windowId);
-        out.writeShort(Protocol18.HORSE_WINDOW_TOTAL_SLOTS);
+        out.writeShort(totalSlots);
         var inventory = player == null ? java.util.List.<net.zaminmc.torch.item.ItemStack>of()
                 : player.inventory().snapshot();
-        for (int wireSlot = 0; wireSlot < Protocol18.HORSE_WINDOW_TOTAL_SLOTS; wireSlot++) {
+        for (int wireSlot = 0; wireSlot < totalSlots; wireSlot++) {
             net.zaminmc.torch.item.ItemStack stack;
             if (wireSlot == Protocol18.HORSE_WIRE_SLOT_SADDLE) {
                 stack = mount.saddled()
@@ -1596,6 +1606,15 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                         : net.zaminmc.torch.item.ItemStack.EMPTY;
             } else if (wireSlot == Protocol18.HORSE_WIRE_SLOT_ARMOR) {
                 stack = horseArmorStack(mount.armorType());
+            } else if (chested && wireSlot >= Protocol18.HORSE_CHEST_WIRE_SLOT_FIRST
+                    && wireSlot <= Protocol18.HORSE_CHEST_WIRE_SLOT_LAST) {
+                stack = mount.chestSlot(wireSlot - Protocol18.HORSE_CHEST_WIRE_SLOT_FIRST);
+            } else if (chested) {
+                // The shifted player tail: main 17-43 (engine 9-35), hotbar 44-52.
+                stack = wireSlot >= Protocol18.HORSE_CHEST_WIRE_PLAYER_FIRST
+                        && wireSlot <= Protocol18.HORSE_CHEST_WIRE_PLAYER_MAIN_LAST
+                        ? inventory.get(wireSlot - 8) // main inventory: engine 9-35
+                        : inventory.get(wireSlot - Protocol18.HORSE_CHEST_WIRE_PLAYER_HOTBAR_FIRST);
             } else if (wireSlot <= 28) {
                 stack = inventory.get(wireSlot + 7); // main inventory: engine 9-35
             } else {
@@ -2146,11 +2165,16 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         // own block (the 1.8 DataWatcher layout): the horse's index-16 flag
         // Int + subtype + variant + owner + armor, the pig's saddle byte at
         // 16, the creeper's swell / the sheep's coat byte at 16 — then the
-        // terminator.
+        // terminator. Passive kinds also carry the age byte (index 12: -1
+        // baby, 0 adult — the PassiveEntity register).
         out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | Protocol18.LIVING_FLAGS_METADATA_INDEX);
         out.writeByte(mob.burning() ? Protocol18.LIVING_FLAG_BURNING : 0);
         out.writeByte((Protocol18.METADATA_TYPE_FLOAT << 5) | Protocol18.LIVING_HEALTH_METADATA_INDEX);
         out.writeFloat(mob.health());
+        if (!mob.type().hostile) {
+            out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | Protocol18.PASSIVE_AGE_METADATA_INDEX);
+            out.writeByte(mob.isBaby() ? (byte) -1 : (byte) 0);
+        }
         if (mob.type() == net.zaminmc.torch.server.entity.MobType.HORSE) {
             writeHorseMetadata(out, mob);
         } else if (mob.type() == net.zaminmc.torch.server.entity.MobType.PIG) {
@@ -2245,6 +2269,25 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeVarInt(out, mob.entityId());
         out.writeByte((Protocol18.METADATA_TYPE_INT << 5) | Protocol18.HORSE_FLAGS_METADATA_INDEX);
         out.writeInt(mob.horseFlagsRaw());
+        out.writeByte(Protocol18.METADATA_TERMINATOR);
+        channel.writeAndFlush(out);
+    }
+
+    /**
+     * Set Entity Metadata (0x1C) for the passive age byte (index 12): the
+     * grew-up flip (the baby's -1 becomes the adult's 0 — the client drops
+     * the child scale). Any thread.
+     */
+    void sendMobAgeMetadata(MobEntity mob) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(16);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_ENTITY_METADATA);
+        ByteBufOps.writeVarInt(out, mob.entityId());
+        out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | Protocol18.PASSIVE_AGE_METADATA_INDEX);
+        out.writeByte(mob.isBaby() ? (byte) -1 : (byte) 0);
         out.writeByte(Protocol18.METADATA_TERMINATOR);
         channel.writeAndFlush(out);
     }

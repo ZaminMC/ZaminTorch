@@ -252,9 +252,10 @@ public final class MobEntity {
     public static final int HORSE_FLAG_REARING = 0x40;
     public static final int HORSE_FLAG_MOUTH_OPEN = 0x80;
 
-    /** Horse subtypes (the 1.8 DataWatcher index-19 Byte): horse, donkey. */
+    /** Horse subtypes (the 1.8 DataWatcher index-19 Byte): horse, donkey, mule. */
     public static final int HORSE_SUBTYPE_HORSE = 0;
     public static final int HORSE_SUBTYPE_DONKEY = 1;
+    public static final int HORSE_SUBTYPE_MULE = 2;
 
     /** Armor rows (the 1.8 DataWatcher index-22 Int): none, iron, gold, diamond. */
     public static final int HORSE_ARMOR_NONE = 0;
@@ -302,6 +303,31 @@ public final class MobEntity {
     private int buckTicks;
     private boolean pendingBuckThrow;
     private int eatingTicks;
+
+    // The breeding state (the vanilla AnimalEntity age/love) and the donkey
+    // chest: breedingAge < 0 grows up one tick at a time to 0 (the baby),
+    // > 0 is the cooldown after breeding; love runs the historical 600
+    // ticks; the chest rides horse flag 0x08 and holds the 15-slot grid.
+    private int breedingAge;
+    private int loveTicks;
+    private int lovePlayerId = -1;
+    private int breedTimer;
+    private boolean chested;
+    private net.zaminmc.torch.item.ItemStack[] chestSlots;
+
+    // The breed plumbing: the manager's mate scanner (the vanilla
+    // getEntitiesOfType scan), the goal's confirmed mate, and the heart
+    // flags the manager converts into observer effects.
+    private BreedFinder breedFinder;
+    private MobEntity pendingBreedMate;
+    private boolean pendingLoveBurst;
+    private boolean pendingAmbientHearts;
+    private boolean grewUpThisTick;
+
+    /** The mate scanner ({@code World.getEntitiesOfType} in the goal). */
+    public interface BreedFinder {
+        MobEntity findMate(MobEntity seeker);
+    }
 
     // ------------------------------------------------ the villager's trade state
 
@@ -365,6 +391,19 @@ public final class MobEntity {
 
     public float health() {
         return health;
+    }
+
+    /** @return the kind's health ceiling ({@code getMaxHealth}). */
+    public float maxHealth() {
+        return type.maxHealth;
+    }
+
+    /** Restores health, clamped at the ceiling ({@code heal}). */
+    public void heal(float amount) {
+        if (amount <= 0 || dead) {
+            return;
+        }
+        health = Math.min(type.maxHealth, health + amount);
     }
 
     public boolean onGround() {
@@ -456,6 +495,11 @@ public final class MobEntity {
     public void hurt(float amount) {
         if (amount <= 0 || dead) {
             return;
+        }
+        // The vanilla AnimalEntity.takeDamage arm: any hit clears the love
+        // (the breeding window is fragile against mobs and players alike).
+        if (isInLove()) {
+            resetLove();
         }
         health = Math.max(0.0f, health - amount);
         hurtFlash = HURT_FLASH_TICKS;
@@ -635,11 +679,6 @@ public final class MobEntity {
         return (horseFlags & HORSE_FLAG_EATING) != 0;
     }
 
-    /** @return the horse subtype (0 horse, 1 donkey — the index-19 byte). */
-    public int horseSubtype() {
-        return horseSubtype;
-    }
-
     /** @return the coat variant (color | marking &lt;&lt; 8 — the index-20 int). */
     public int variant() {
         return variant;
@@ -716,6 +755,300 @@ public final class MobEntity {
         temper = Math.min(100, temper + amount);
         eatingTicks = 20;
         horseFlags |= HORSE_FLAG_EATING;
+    }
+
+    /** The horse's eating graze without a temper change ({@code setEating}). */
+    public void flashEating() {
+        eatingTicks = 20;
+        horseFlags |= HORSE_FLAG_EATING;
+    }
+
+    // ------------------------------------------------ breeding + donkey chest
+
+    /** The vanilla love window ({@code AnimalEntity.lovePlayer}: 600 ticks). */
+    public static final int LOVE_DURATION_TICKS = 600;
+    /** The parent cooldown after a successful breed ({@code setBreedingAge(6000)}). */
+    public static final int ADULT_BREED_COOLDOWN_TICKS = 6000;
+    /** The child's growing-up debt ({@code setBreedingAge(-24000)}: 20 minutes). */
+    public static final int CHILDHOOD_TICKS = -24000;
+    /** The ticks a pair stands within 3 blocks before the breed lands (AnimalBreedGoal). */
+    public static final int BREED_PROXIMITY_TICKS = 60;
+    /** The vanilla findMate scan radius (the grown-8 box). */
+    public static final double BREED_MATE_SCAN_RADIUS = 8.0;
+    /** The breed distance gate (squaredDistanceTo &lt; 9 — within 3 blocks). */
+    public static final double BREED_DISTANCE_SQUARED = 9.0;
+    /** The donkey chest's slot count: the vanilla getInventorySize's 17 is
+     * saddle (0) + armor (1) + the 15-slot 3x5 chest grid (2-16, HorseMenu). */
+    public static final int CHEST_SLOT_COUNT = 15;
+    /** The chested horse flag ({@code setHorseFlag(8, hasChest)}). */
+    public static final int HORSE_FLAG_CHESTED = 0x08;
+
+    public int breedingAge() {
+        return breedingAge;
+    }
+
+    public void setBreedingAge(int age) {
+        this.breedingAge = age;
+    }
+
+    /** Whether the body is still a baby (a negative breeding age). */
+    public boolean isBaby() {
+        return breedingAge < 0;
+    }
+
+    /** The vanilla age tick: negative grows one tick toward 0, positive drains.
+     * Crossing 0 raises the grew-up flag (the wire's age byte flips). */
+    public void tickBreedingAge() {
+        if (breedingAge < 0) {
+            breedingAge++;
+            if (breedingAge >= 0) {
+                breedingAge = 0;
+                grewUpThisTick = true;
+            }
+        } else if (breedingAge > 0) {
+            breedingAge--;
+        }
+    }
+
+    /** @return and clears whether the body became an adult this tick. */
+    public boolean consumeGrewUp() {
+        boolean value = grewUpThisTick;
+        grewUpThisTick = false;
+        return value;
+    }
+
+    /**
+     * Feeding a baby shrinks its childhood ({@code PassiveEntity.growUp}):
+     * the vanilla unit is 20 ticks (the wheat arm's j=20 grows 400 ticks),
+     * so the age moves by {@code units * 20} and clamps at 0.
+     */
+    public void growUp(int units) {
+        if (breedingAge < 0) {
+            breedingAge = Math.min(0, breedingAge + units * 20);
+        }
+    }
+
+    /** Enters love for the historical 600 ticks ({@code lovePlayer}). */
+    public void enterLove(int playerId) {
+        this.loveTicks = LOVE_DURATION_TICKS;
+        this.lovePlayerId = playerId;
+        this.pendingLoveBurst = true; // the doEntityEvent(18) heart burst
+    }
+
+    public boolean isInLove() {
+        return loveTicks > 0;
+    }
+
+    /** @return the remaining love window (the tick-exact state). */
+    public int loveTicksLeft() {
+        return loveTicks;
+    }
+
+    public int lovePlayerId() {
+        return lovePlayerId;
+    }
+
+    public void resetLove() {
+        this.loveTicks = 0;
+        this.lovePlayerId = -1;
+        this.breedTimer = 0;
+    }
+
+    /**
+     * The love clock drain ({@code AnimalEntity.mobTick}): the decrement
+     * first, then the every-10-ticks ambient heart particle (the vanilla
+     * {@code inLoveTimer % 10 == 0} check runs on the post-decrement value).
+     */
+    public void tickLove() {
+        if (loveTicks > 0) {
+            loveTicks--;
+            if (loveTicks % 10 == 0) {
+                pendingAmbientHearts = true;
+            }
+            if (loveTicks <= 0) {
+                resetLove();
+            }
+        }
+    }
+
+    /** @return and clears whether the love burst (event 18) is due. */
+    public boolean consumePendingLoveBurst() {
+        boolean value = pendingLoveBurst;
+        pendingLoveBurst = false;
+        return value;
+    }
+
+    /** @return and clears whether the ambient heart particle is due. */
+    public boolean consumePendingAmbientHearts() {
+        boolean value = pendingAmbientHearts;
+        pendingAmbientHearts = false;
+        return value;
+    }
+
+    /** The breed goal's landing: the mate confirmed at proximity. */
+    public void requestBreedWith(MobEntity mate) {
+        this.pendingBreedMate = mate;
+    }
+
+    /** @return and clears the confirmed mate (the manager executes the breed). */
+    public MobEntity consumePendingBreed() {
+        MobEntity mate = pendingBreedMate;
+        pendingBreedMate = null;
+        return mate;
+    }
+
+    /** Wires the manager's mate scanner (called once at spawn). */
+    public void setBreedFinder(BreedFinder finder) {
+        this.breedFinder = finder;
+    }
+
+    /** The goal's scan: the nearest legal partner (null when none/finderless). */
+    MobEntity findMate() {
+        return breedFinder == null ? null : breedFinder.findMate(this);
+    }
+
+    /** The mate-proximity clock ({@code AnimalBreedGoal.breedTimer}). */
+    public int advanceBreedTimer() {
+        return ++breedTimer;
+    }
+
+    public void resetBreedTimer() {
+        breedTimer = 0;
+    }
+
+    /**
+     * The vanilla canBreedWith (AnimalEntity + the HorseBaseEntity override):
+     * a different body of the same kind, both in love, both adults. The
+     * horse family adds {@code canBreed()}'s gates — tamed, unmounted, at
+     * full health — and the mule never qualifies (its love never starts,
+     * the belt here is the vanilla {@code noLove} rule made explicit).
+     */
+    public boolean canBreedWith(MobEntity other) {
+        if (other == null || other == this || other.type() != this.type()) {
+            return false;
+        }
+        if (!isInLove() || !other.isInLove()) {
+            return false;
+        }
+        if (breedingAge != 0 || other.breedingAge != 0) {
+            return false;
+        }
+        if (type == MobType.HORSE) {
+            if (isMule() || other.isMule()) {
+                return false;
+            }
+            if (!tamed() || !other.tamed()
+                    || hasRider() || other.hasRider()) {
+                return false;
+            }
+            if (health < type.maxHealth || other.health < other.type.maxHealth) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public boolean isMule() {
+        return type == MobType.HORSE && horseSubtype == HORSE_SUBTYPE_MULE;
+    }
+
+    public int horseSubtype() {
+        return horseSubtype;
+    }
+
+    public void setHorseSubtype(int subtype) {
+        this.horseSubtype = subtype;
+    }
+
+    /** Whether a chest rides the donkey (flag 0x08, the vanilla rule). */
+    public boolean chested() {
+        return chested;
+    }
+
+    /** Equips or removes the chest ({@code setHasChest} — the flag + the slots). */
+    public void setChested(boolean value) {
+        this.chested = value;
+        if (value) {
+            horseFlags |= HORSE_FLAG_CHESTED;
+            if (chestSlots == null) {
+                chestSlots = new net.zaminmc.torch.item.ItemStack[CHEST_SLOT_COUNT];
+                java.util.Arrays.fill(chestSlots, net.zaminmc.torch.item.ItemStack.EMPTY);
+            }
+        } else {
+            horseFlags &= ~HORSE_FLAG_CHESTED;
+            chestSlots = null;
+        }
+    }
+
+    /**
+     * The chest grid for the window click engine ({@link WindowClicks} plays
+     * its historical cursor semantics straight onto it). Null when no chest.
+     */
+    public net.zaminmc.torch.item.ItemStack[] chestGrid() {
+        return chested ? chestSlots : null;
+    }
+
+    /** @return the chest stack in the slot (or empty — the vanilla null). */
+    public net.zaminmc.torch.item.ItemStack chestSlot(int index) {
+        if (chestSlots == null || index < 0 || index >= CHEST_SLOT_COUNT) {
+            return net.zaminmc.torch.item.ItemStack.EMPTY;
+        }
+        net.zaminmc.torch.item.ItemStack stack = chestSlots[index];
+        return stack == null ? net.zaminmc.torch.item.ItemStack.EMPTY : stack;
+    }
+
+    /** Puts a stack in the chest slot. */
+    public void setChestSlot(int index, net.zaminmc.torch.item.ItemStack stack) {
+        if (chestSlots == null) {
+            chestSlots = new net.zaminmc.torch.item.ItemStack[CHEST_SLOT_COUNT];
+            java.util.Arrays.fill(chestSlots, net.zaminmc.torch.item.ItemStack.EMPTY);
+        }
+        chestSlots[index] = stack == null ? net.zaminmc.torch.item.ItemStack.EMPTY : stack;
+    }
+
+    /**
+     * Spills the mount's worn gear and chest contents (the vanilla
+     * dropInventoryAndChest on death): saddle, armor, chest, the stacks.
+     */
+    public java.util.List<net.zaminmc.torch.item.ItemStack> spillMountGear() {
+        java.util.List<net.zaminmc.torch.item.ItemStack> dropped = new java.util.ArrayList<>();
+        if (type == MobType.PIG) {
+            if (pigSaddled) {
+                dropped.add(net.zaminmc.torch.item.ItemStack.of(
+                        net.zaminmc.torch.server.item.BuiltinItems.SADDLE, 1));
+                pigSaddled = false;
+            }
+            return dropped;
+        }
+        if (saddled()) {
+            dropped.add(net.zaminmc.torch.item.ItemStack.of(
+                    net.zaminmc.torch.server.item.BuiltinItems.SADDLE, 1));
+            horseFlags &= ~HORSE_FLAG_SADDLED;
+        }
+        if (armorType != HORSE_ARMOR_NONE) {
+            dropped.add(switch (armorType) {
+                case HORSE_ARMOR_DIAMOND -> net.zaminmc.torch.item.ItemStack.of(
+                        net.zaminmc.torch.server.item.BuiltinItems.DIAMOND_HORSE_ARMOR, 1);
+                case HORSE_ARMOR_GOLD -> net.zaminmc.torch.item.ItemStack.of(
+                        net.zaminmc.torch.server.item.BuiltinItems.GOLDEN_HORSE_ARMOR, 1);
+                default -> net.zaminmc.torch.item.ItemStack.of(
+                        net.zaminmc.torch.server.item.BuiltinItems.IRON_HORSE_ARMOR, 1);
+            });
+            armorType = HORSE_ARMOR_NONE;
+        }
+        if (chested) {
+            dropped.add(net.zaminmc.torch.item.ItemStack.of(
+                    net.zaminmc.torch.server.item.BuiltinItems.CHEST, 1));
+            if (chestSlots != null) {
+                for (net.zaminmc.torch.item.ItemStack stack : chestSlots) {
+                    if (stack != null && stack.type() != null) {
+                        dropped.add(stack);
+                    }
+                }
+            }
+            setChested(false);
+        }
+        return dropped;
     }
 
     /** Equips the saddle (horse flags or the pig's own byte). */
@@ -1045,6 +1378,19 @@ public final class MobEntity {
 
     boolean goalPanicking() {
         return panicTicks > 0;
+    }
+
+    /**
+     * The breed drive's steering (the vanilla goal tick): the eyes on the
+     * mate, the feet on the path to it — the same chase pairing, without
+     * the attack arm.
+     */
+    void goalTickBreed(MobEntity mate) {
+        double dx = mate.position().x() - position.x();
+        double dz = mate.position().z() - position.z();
+        yaw = (float) (Math.toDegrees(Math.atan2(-dx, dz)));
+        headYaw = yaw;
+        tickPathFollowing(mate.position());
     }
 
     void goalTickPanic() {

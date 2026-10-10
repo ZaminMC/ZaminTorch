@@ -40,6 +40,40 @@ final class MobGoals {
     };
 
     /**
+     * Priority 2, exclusive: the breeding drive (the vanilla AnimalBreedGoal).
+     * A loved body scans for the nearest legal partner, walks to it, and
+     * after 60 ticks inside the 3-block band the breed lands through the
+     * pending flag (the manager executes it — it owns spawning).
+     */
+    static final MobGoal BREED = new MobGoal() {
+        @Override public int priority() { return 2; }
+        @Override public boolean exclusive() { return true; }
+        @Override public boolean canUse(MobEntity mob, boolean night) {
+            return mob.isInLove() && mob.findMate() != null;
+        }
+        @Override public void tick(MobEntity mob, boolean night) {
+            MobEntity mate = mob.findMate();
+            if (mate == null) {
+                mob.resetBreedTimer();
+                return;
+            }
+            mob.goalTickBreed(mate);
+            if (mob.advanceBreedTimer() >= MobEntity.BREED_PROXIMITY_TICKS) {
+                double dx = mate.position().x() - mob.position().x();
+                double dy = mate.position().y() - mob.position().y();
+                double dz = mate.position().z() - mob.position().z();
+                if (dx * dx + dy * dy + dz * dz < MobEntity.BREED_DISTANCE_SQUARED) {
+                    mob.requestBreedWith(mate);
+                } else {
+                    // The vanilla stop(): the 60-tick window closed without
+                    // proximity, the goal restarts and the clock resets.
+                    mob.resetBreedTimer();
+                }
+            }
+        }
+    };
+
+    /**
      * Priority 4, exclusive: the idle/wander cycle, with the historical
      * LookAtPlayer glance folded into the idle band.
      */
@@ -54,8 +88,8 @@ final class MobGoals {
         }
     };
 
-    /** The selector the mob runs: float + panic + stroll, in priority order. */
+    /** The selector the mob runs: float + panic + breed + stroll, in priority order. */
     static GoalSelector standard() {
-        return new GoalSelector(List.of(FLOAT, PANIC, RANDOM_STROLL));
+        return new GoalSelector(List.of(FLOAT, PANIC, BREED, RANDOM_STROLL));
     }
 }

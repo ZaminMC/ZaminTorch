@@ -357,6 +357,20 @@ public final class V18ProtocolServer implements ProtocolAdapter {
             }
 
             @Override
+            public void onMobLoveBurst(net.zaminmc.torch.server.entity.MobEntity mob) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendMobStatus(mob, Protocol18.ENTITY_STATUS_LOVE);
+                }
+            }
+
+            @Override
+            public void onMobGrewUp(net.zaminmc.torch.server.entity.MobEntity mob) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendMobAgeMetadata(mob);
+                }
+            }
+
+            @Override
             public void onVillagerTradeOpened(net.zaminmc.torch.server.player.PlayerSession player,
                                               net.zaminmc.torch.server.entity.MobEntity villager,
                                               int windowId) {

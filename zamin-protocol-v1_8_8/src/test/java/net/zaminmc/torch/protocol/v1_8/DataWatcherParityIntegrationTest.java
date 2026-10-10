@@ -36,8 +36,8 @@ class DataWatcherParityIntegrationTest extends ProtocolTestBase {
             client.readWindowItems(5_000); // join tail: authoritative inventory
             int[][] rows = client.readSpawnMobDataWatcher(5_000, 90); // pig only
 
-            assertEquals(3, rows.length,
-                    "flags + health + the pig's saddle byte, got: "
+            assertEquals(4, rows.length,
+                    "flags + health + the passive age byte + the pig's saddle byte, got: "
                             + java.util.Arrays.deepToString(rows));
             assertEquals(Protocol18.LIVING_FLAGS_METADATA_INDEX, rows[0][0]);
             assertEquals(Protocol18.METADATA_TYPE_BYTE, rows[0][1]);
@@ -45,12 +45,18 @@ class DataWatcherParityIntegrationTest extends ProtocolTestBase {
                     "1.8 EntityLiving registers health at index 6 (7 = potion color int)");
             assertEquals(Protocol18.METADATA_TYPE_FLOAT, rows[1][1]);
             assertTrue(rows[1][2] > 0, "the health value is a positive float");
+            // The passive age byte (PassiveEntity registers index 12): 0 on
+            // an adult (the wire's -1 marks the baby).
+            assertEquals(Protocol18.PASSIVE_AGE_METADATA_INDEX, rows[2][0],
+                    "the age byte rides DataWatcher 12 (the PassiveEntity register)");
+            assertEquals(Protocol18.METADATA_TYPE_BYTE, rows[2][1]);
+            assertEquals(0, rows[2][2], "a fresh pig is an adult");
             // The pig's own index-16: the saddle byte (0 while unsaddled —
             // the 1.8 EntityPig DataWatcher registers a Byte there).
-            assertEquals(Protocol18.PIG_SADDLE_METADATA_INDEX, rows[2][0],
+            assertEquals(Protocol18.PIG_SADDLE_METADATA_INDEX, rows[3][0],
                     "the pig's saddle rides DataWatcher 16");
-            assertEquals(Protocol18.METADATA_TYPE_BYTE, rows[2][1]);
-            assertEquals(0, rows[2][2], "a fresh pig carries no saddle");
+            assertEquals(Protocol18.METADATA_TYPE_BYTE, rows[3][1]);
+            assertEquals(0, rows[3][2], "a fresh pig carries no saddle");
         }
     }
 }

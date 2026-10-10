@@ -213,9 +213,15 @@ final class Protocol18 {
     static final int PARTICLE_ICON_CRACK = 36;   // data: [itemId, itemMeta]
     static final int PARTICLE_BLOCK_CRACK = 37;  // data: [blockStateId]
 
-    // Entity Status (0x1A) codes the client animates from.
+    // Entity Status (0x1A) codes the client animates from: the hurt flash
+    // (2), the death fall (3), and 18 the love heart burst
+    // (AnimalEntity.lovePlayer's doEntityEvent(18); the client renders the
+    // seven hearts around the body).
     static final int ENTITY_STATUS_HURT = 2;
     static final int ENTITY_STATUS_DEAD = 3;
+    static final int ENTITY_STATUS_LOVE = 18;
+    /** The passive age byte (index 12: -1 baby, 0 adult — PassiveEntity). */
+    static final int PASSIVE_AGE_METADATA_INDEX = 12;
 
     // Animation (0x0B) code 0 = arm swing.
     static final int ANIMATION_ARM_SWING = 0;
@@ -293,15 +299,25 @@ final class Protocol18 {
     // The horse inventory window (protocol 47; the quirky legacy string the
     // 1.8 client switches on, plus the trailing mount entity id — the only
     // Open Window that carries one). Slot 0 saddle, slot 1 armor, player
-    // tail 2-37 (main 2-28, hotbar 29-37), 38 slots total.
+    // tail 2-37 (main 2-28, hotbar 29-37), 38 slots total — the vanilla
+    // SPacketOpenWindow carries the full menu size (inventorySlots.size()).
+    // A chested donkey/mule inserts the 15-slot 3x5 grid on 2-16 (HorseMenu)
+    // and grows the window to 53: main 17-43, hotbar 44-52.
     static final String HORSE_WINDOW_TYPE = "EntityHorse";
     static final String HORSE_WINDOW_TITLE = "{\"text\":\"Horse\"}";
     static final int HORSE_WINDOW_GUI_SLOTS = 2;
     static final int HORSE_WINDOW_TOTAL_SLOTS = 38;
+    static final int HORSE_CHEST_WINDOW_TOTAL_SLOTS = 53;
     static final int HORSE_WIRE_SLOT_SADDLE = 0;
     static final int HORSE_WIRE_SLOT_ARMOR = 1;
     static final int HORSE_WIRE_SLOT_PLAYER_FIRST = 2;
     static final int HORSE_WIRE_SLOT_PLAYER_LAST = 37;
+    static final int HORSE_CHEST_WIRE_SLOT_FIRST = 2;
+    static final int HORSE_CHEST_WIRE_SLOT_LAST = 16;
+    static final int HORSE_CHEST_WIRE_PLAYER_FIRST = 17;
+    static final int HORSE_CHEST_WIRE_PLAYER_MAIN_LAST = 43;
+    static final int HORSE_CHEST_WIRE_PLAYER_HOTBAR_FIRST = 44;
+    static final int HORSE_CHEST_WIRE_PLAYER_LAST = 52;
 
     // The villager trading window (protocol 47; the offers ride the plugin
     // message MC|TrList — there is no Trade List packet on 47).

@@ -107,6 +107,21 @@ public final class BuiltinItems {
             Identifier.parse("minecraft:wheat"), "Wheat", 64);
     public static final EngineItemType BREAD = new EngineItemType(
             Identifier.parse("minecraft:bread"), "Bread", 64);
+
+    // The breeding foods (the animal husbandry slice): the carrot feeds
+    // pigs, the apple/golden items feed horses (the golden pair also brings
+    // a tamed adult into love); hay is the block item horses heal on.
+    public static final EngineItemType CARROT = new EngineItemType(
+            Identifier.parse("minecraft:carrot"), "Carrot", 64);
+    public static final EngineItemType APPLE = new EngineItemType(
+            Identifier.parse("minecraft:apple"), "Apple", 64);
+    public static final EngineItemType GOLDEN_CARROT = new EngineItemType(
+            Identifier.parse("minecraft:golden_carrot"), "Golden Carrot", 64);
+    public static final EngineItemType GOLDEN_APPLE = new EngineItemType(
+            Identifier.parse("minecraft:golden_apple"), "Golden Apple", 64);
+    public static final EngineItemType HAY_BLOCK = new EngineItemType(
+            Identifier.parse("minecraft:hay_block"), "Hay Bale", 64);
+
     public static final EngineItemType BONE_MEAL = new EngineItemType(
             Identifier.parse("minecraft:bone_meal"), "Bone Meal", 64);
     // The sign item (community items.json: legacy 323, stack 16) — places
@@ -392,6 +407,7 @@ public final class BuiltinItems {
                 SHEARS,
                 WOODEN_HOE, STONE_HOE, IRON_HOE, DIAMOND_HOE, GOLDEN_HOE,
                 WHEAT_SEEDS, WHEAT, BREAD, BONE_MEAL, SIGN,
+                CARROT, APPLE, GOLDEN_CARROT, GOLDEN_APPLE, HAY_BLOCK,
                 OAK_DOOR, LADDER, OAK_FENCE, BED,
                 OAK_SLAB, STONE_SLAB, COBBLESTONE_SLAB, SANDSTONE_SLAB,
                 OAK_STAIRS, COBBLESTONE_STAIRS,
