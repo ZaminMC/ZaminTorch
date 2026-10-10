@@ -465,3 +465,23 @@ the bottom. The behavior-level status of every mechanic lives in
   full-suite runs, each passing alone — the pattern predates the slice).
 - Next: the levers/buttons/pressure plates (the player-driven sources),
   the comparator, then the pistons (the Phase 4 spatial-activation gate).
+
+## 2026-10-11 — Slice 9c: the player-driven sources
+
+- **Slice 9c — the lever, the buttons, the pressure plates** (commit
+  `a335b5b`): the reference ports of LeverBlock (the eight-facing model
+  with the attachment directions, the POWERED swap, the two-ring
+  notification), ButtonBlock (the stone 20 / wood 30-tick release, the
+  FACING-points-away-from-the-wall geometry with the mount-side strong
+  arm), and the pressure plates (the occupancy cycle through the
+  engine's per-tick scan over the 0.125-inset box — the
+  onEntityCollision equivalent, the mobs+players probe with the wooden
+  plates adding items, the 20-tick re-compute debounce, the strong UP arm
+  to the mount below). The placements ride the clicked-face mount walks.
+  Three geometry bugs caught by the tests before landing: the button's
+  support and notification must look at the facing's OPPOSITE (the mount
+  side), the lever's onRemoved offset walks the attachment opposite, and
+  the plate's press needed the per-tick scan arm (nothing else fired it).
+  RedstoneSourcesTest (3). Suite 654 green.
+- Next: the comparator, then the pistons (the Phase 4 spatial-activation
+  gate), then potions/leads/structures.
