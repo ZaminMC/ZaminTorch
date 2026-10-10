@@ -3404,6 +3404,9 @@ public final class EngineServer implements Server, EngineBridge {
         if (useBucketOnTick(session, clicked, face)) {
             return; // the bucket did its work; no placement proposal follows
         }
+        if (cycleRepeaterDelayOnTick(clicked)) {
+            return; // the repeater's use consumed the right-click (the delay cycle)
+        }
         if (useFlintOnTick(session, clicked, face)) {
             return; // the fire starter did its work; no placement follows
         }
@@ -3463,6 +3466,21 @@ public final class EngineServer implements Server, EngineBridge {
             placeRailOnTick(session, clicked, face, creativeHeld);
             return; // the rail's look orientation overrides the generic placement
         }
+        if (heldId.equals("minecraft:redstone")
+                || creativeHeld.map(t -> t.identifier().value().equals("redstone")).orElse(false)) {
+            placeRedstoneDustOnTick(session, clicked, face, creativeHeld);
+            return; // the dust's floor gate + the wire placement override
+        }
+        if (heldId.equals("minecraft:redstone_torch")
+                || creativeHeld.map(t -> t.identifier().value().equals("redstone_torch")).orElse(false)) {
+            placeRedstoneTorchOnTick(session, clicked, face, creativeHeld);
+            return; // the torch's attachment face overrides the generic placement
+        }
+        if (heldId.equals("minecraft:repeater")
+                || creativeHeld.map(t -> t.identifier().value().equals("repeater")).orElse(false)) {
+            placeRepeaterOnTick(session, clicked, face, creativeHeld);
+            return; // the look-facing rule overrides the generic placement
+        }
         if (heldId.equals("minecraft:boat")
                 || creativeHeld.map(t -> t.identifier().value().equals("boat")).orElse(false)) {
             spawnVehicleUseOnTick(session, clicked, face, creativeHeld, true);
@@ -3474,6 +3492,137 @@ public final class EngineServer implements Server, EngineBridge {
             return; // the minecart spawns on the rail the use names
         }
         blockInteraction.placeFromUseOnTick(session, clicked, face, creativeHeld);
+    }
+
+    /**
+     * The redstone dust placement (the historical ItemRedstone): the wire
+     * lands on a solid top (RedstoneWireBlock.canBePlaced lines 92-94 — a
+     * solid block or glowstone under it), the cascade fills its power on
+     * the same commit. Tick-thread context.
+     */
+    private void placeRedstoneDustOnTick(PlayerSession session, BlockPosition clicked, int face,
+                                          java.util.Optional<BlockType> creativeHeld) {
+        BlockPosition target = offsetByFace(clicked, face);
+        if (target == null || world.getBlock(clicked).equals(world.airType())
+                || !world.getBlock(target).equals(world.airType())) {
+            return;
+        }
+        if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5) {
+            return;
+        }
+        if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE
+                && session.inventory().held().isEmpty()) {
+            return;
+        }
+        if (!WorldSolidity.isSolid(world.getBlock(target.offset(0, -1, 0)))) {
+            return; // the wire needs its solid bed (the vanilla gate)
+        }
+        world.setBlock(target, net.zaminmc.torch.server.redstone.RedstoneBlocks.wireOfPower(0));
+        consumePlaced(session, creativeHeld);
+    }
+
+    /**
+     * The repeater's use (RepeaterBlock.use lines 38-45): the right-click
+     * steps the DELAY property through 1..4 and back to 1 — the state swap
+     * preserves the facing and the powered pair. Returns whether the use
+     * was consumed. Tick-thread context.
+     */
+    private boolean cycleRepeaterDelayOnTick(BlockPosition clicked) {
+        BlockType current = world.getBlock(clicked);
+        if (!net.zaminmc.torch.server.redstone.RedstoneBlocks.isRepeater(current)) {
+            return false;
+        }
+        int delay = net.zaminmc.torch.server.redstone.RedstoneBlocks.repeaterDelay(current);
+        int next = delay >= 4 ? 1 : delay + 1;
+        world.setBlock(clicked, net.zaminmc.torch.server.redstone.RedstoneBlocks.repeaterWithDelay(current, next));
+        fxManager.sound(new Position(clicked.x() + 0.5, clicked.y() + 0.5, clicked.z() + 0.5),
+                "random.click", 0.3f, 0.6f);
+        return true;
+    }
+
+    /**
+     * The redstone torch placement (TorchBlock.getPlacementState lines 76-88,
+     * inherited by RedstoneTorchBlock): the FACING is the clicked face when
+     * the attachment holds (the horizontal face's wall is solid, the top face
+     * sits on a solid bed), else the first horizontal wall that holds. A
+     * ceiling click never attaches (vanilla's DOWN arm has no attachment).
+     * Tick-thread context.
+     */
+    private void placeRedstoneTorchOnTick(PlayerSession session, BlockPosition clicked, int face,
+                                          java.util.Optional<BlockType> creativeHeld) {
+        BlockPosition target = offsetByFace(clicked, face);
+        if (target == null || world.getBlock(clicked).equals(world.airType())
+                || !world.getBlock(target).equals(world.airType())) {
+            return;
+        }
+        if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5) {
+            return;
+        }
+        if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE
+                && session.inventory().held().isEmpty()) {
+            return;
+        }
+        // The clicked face's attachment (canAttach lines 69-73): a horizontal
+        // face needs the solid wall behind it; the top face needs the solid
+        // bed below. The FACING ids ride the face codes 1..5.
+        int facing = switch (face) {
+            case 1 -> world.getBlock(target.offset(0, -1, 0)) != null
+                    && WorldSolidity.isSolid(world.getBlock(target.offset(0, -1, 0))) ? 1 : -1;
+            case 2 -> WorldSolidity.isSolid(world.getBlock(target.offset(0, 0, 1))) ? 2 : -1;
+            case 3 -> WorldSolidity.isSolid(world.getBlock(target.offset(0, 0, -1))) ? 3 : -1;
+            case 4 -> WorldSolidity.isSolid(world.getBlock(target.offset(1, 0, 0))) ? 4 : -1;
+            case 5 -> WorldSolidity.isSolid(world.getBlock(target.offset(-1, 0, 0))) ? 5 : -1;
+            default -> -1; // the ceiling arm never attaches
+        };
+        if (facing < 0) {
+            // The fallback walk (lines 81-85): the first horizontal wall.
+            if (WorldSolidity.isSolid(world.getBlock(target.offset(0, 0, 1)))) {
+                facing = 2;
+            } else if (WorldSolidity.isSolid(world.getBlock(target.offset(0, 0, -1)))) {
+                facing = 3;
+            } else if (WorldSolidity.isSolid(world.getBlock(target.offset(1, 0, 0)))) {
+                facing = 4;
+            } else if (WorldSolidity.isSolid(world.getBlock(target.offset(-1, 0, 0)))) {
+                facing = 5;
+            } else if (WorldSolidity.isSolid(world.getBlock(target.offset(0, -1, 0)))) {
+                facing = 1;
+            } else {
+                return; // no attachment anywhere: the placement refuses
+            }
+        }
+        world.setBlock(target, net.zaminmc.torch.server.redstone.RedstoneBlocks.torchOfFacing(facing, true));
+        consumePlaced(session, creativeHeld);
+    }
+
+    /**
+     * The repeater placement (DiodeBlock.getPlacementState lines 154-157):
+     * FACING = the player's horizontal facing OPPOSITE — the diode's input
+     * side faces the player, the signal flows away from the look. The solid
+     * top gate rides canBePlaced (lines 29-31). Tick-thread context.
+     */
+    private void placeRepeaterOnTick(PlayerSession session, BlockPosition clicked, int face,
+                                     java.util.Optional<BlockType> creativeHeld) {
+        BlockPosition target = offsetByFace(clicked, face);
+        if (target == null || world.getBlock(clicked).equals(world.airType())
+                || !world.getBlock(target).equals(world.airType())) {
+            return;
+        }
+        if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5
+                || intersectsPlayerBox(session.position(), target)) {
+            return;
+        }
+        if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE
+                && session.inventory().held().isEmpty()) {
+            return;
+        }
+        if (!WorldSolidity.isSolid(world.getBlock(target.offset(0, -1, 0)))) {
+            return; // the diode needs its solid bed
+        }
+        double yaw = ((session.rotation().yaw() % 360.0) + 360.0 + 45.0) % 360.0;
+        int lookBand = (int) (yaw / 90.0) % 4; // 0=S,1=W,2=N,3=E of the look
+        int facing = net.zaminmc.torch.server.redstone.RedstoneBlocks.oppositeFacing(lookBand);
+        world.setBlock(target, net.zaminmc.torch.server.redstone.RedstoneBlocks.repeaterOf(facing, 1, false));
+        consumePlaced(session, creativeHeld);
     }
 
     /**

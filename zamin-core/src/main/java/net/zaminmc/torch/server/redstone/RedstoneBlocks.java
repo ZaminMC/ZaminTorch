@@ -225,8 +225,7 @@ public final class RedstoneBlocks {
 
     /** The same repeater state with the delay swapped (the use cycle). */
     public static EngineBlockType repeaterWithDelay(net.zaminmc.torch.block.BlockType type, int delay) {
-        return repeaterOf(repeaterFacing(type), repeaterDelay(type) == delay ? delay : delay,
-                repeaterPowered(type));
+        return repeaterOf(repeaterFacing(type), delay, repeaterPowered(type));
     }
 
     // ------------------------------------------------------------------
