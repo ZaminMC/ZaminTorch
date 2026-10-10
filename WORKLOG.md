@@ -175,3 +175,22 @@ the bottom. The behavior-level status of every mechanic lives in
 - The full test suite must be green before each push; the count is recorded
   in the unit's entry (baseline 451 after Slice 5).
 - Push after every unit — environment resets must not eat finished work.
+
+
+## 2026-10-10 — Concurrency architecture reconnaissance
+
+- Confirmed the current `develop` tree has 2,176 entries and four Gradle modules: `zamin-api`, `zamin-core`, `zamin-protocol-v1_8_8`, and `zamin-launcher`. Java toolchain is 21; tests use JUnit 5.
+- Verified no Minestom dependency is declared in the inspected build files. `docs/ENGINEERING_PLAN.md` records Minestom integration as deferred under ADR-0001. The current runtime is Torch's own world model and Netty protocol-47 server, not a Minestom runtime.
+- Read `EngineTicker`: one simulation loop, deferred work drained at tick start, world time and handler executed serially, missed ticks skipped rather than burst-caught-up. Existing metrics include a rolling TPS estimate and last overrun, but not per-owner latency (there are no independent owners yet).
+- Read `EngineWorld`: mutation checks use a recorded owner thread; chunk publication uses a concurrent map, but that does not grant concurrent mutation rights over `EngineChunk`. Chunk generation currently runs synchronously under the world owner before publication. Persistence snapshots copy delta maps under owner context.
+- Confirmed the committed `reference/1.8.8/` source tree exists. The requested `1.8.8 - mechanics.zip` is absent from the inspected `develop` tree; do not claim to have inspected it or base work on its contents until recovered.
+- Confirmed GitHub release `v0.2.0-dev.16` already contains `zamin-server-0.2.0-dev.16.jar` and the distribution ZIP. Its release notes report 508 green tests at that build; those tests were not rerun in this inspection environment.
+- Added `docs/CONCURRENCY_ARCHITECTURE.md` as a proposal, not an implementation. It records the ownership model, initial scheduler recommendation, compute-result validation, migration lifecycle, and explicit handling of hopper transfers, pistons, redstone, and AI results after entity transfer.
+- Limitations this pass: the Folia ZIP was confirmed present (837,676 bytes), but its archive contents have not yet been exhaustively extracted or inventoried; the mandatory class-by-class patch audit remains open. No local `git status`, build, or test execution was possible through the GitHub-only environment. No runtime source was changed in this pass.
+
+### Next concrete steps
+
+1. Recover or upload `1.8.8 - mechanics.zip` so its actual implementations can be inspected before porting related mechanics.
+2. Complete the Folia patch inventory, beginning with the two region-threading base patches and recording every modified Java path, then follow critical cross-boundary mechanics through their diffs.
+3. Inspect current source and tests for the next vanilla implementation slice before changing behavior; compare against `reference/1.8.8/` and update the compatibility ledger only with evidence.
+4. Run `./gradlew build` in a real checkout and record the actual result before cutting a new dev release. Do not relabel the existing dev.16 artifact as a newer build.
