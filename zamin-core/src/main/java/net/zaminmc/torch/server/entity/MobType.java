@@ -144,6 +144,22 @@ public enum MobType {
         return this == ZOMBIE || this == SKELETON;
     }
 
+    /**
+     * The reference's {@code getMobType} damage category — the number the
+     * damage-enchantment family reads ({@code MobType.UNDEFINED}/{@code
+     * UNDEAD}/{@code ARTHROPODS}): Smite's 2.5/level lands on the undead
+     * kinds, Bane of Arthropods' on the spider. Every other registered kind
+     * is {@code UNDEFINED} (0) in the reference — horses, villagers and the
+     * animals carry no category.
+     */
+    public int damageCategory() {
+        return switch (this) {
+            case ZOMBIE, SKELETON -> 1; // reference MobType.UNDEAD
+            case SPIDER -> 2;           // reference MobType.ARTHROPODS
+            default -> 0;               // reference MobType.UNDEFINED
+        };
+    }
+
     /** @return the kind by its canonical identifier ({@code minecraft:pig}), or null. */
     public static MobType byName(String name) {
         for (MobType type : values()) {

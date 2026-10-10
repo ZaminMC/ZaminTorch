@@ -463,6 +463,19 @@ public final class MobEntity {
         return velocityZ;
     }
 
+    /**
+     * The reference's {@code addVelocity} walk on the raw motion — the melee
+     * knockback-enchantment extra adds
+     * {@code (-sin(yaw) * level * 0.5, 0.1, cos(yaw) * level * 0.5)} on top
+     * of the base {@link #knockbackFrom} impulse, exactly once, after the
+     * hit has landed (reference/1.8.8 PlayerEntity.attack lines 983-992).
+     */
+    public void addVelocity(double dx, double dy, double dz) {
+        velocityX += dx;
+        velocityY += dy;
+        velocityZ += dz;
+    }
+
     /** The test seam: a body already in motion (the knockback-residual cases). */
     void setVelocityForTest(double vx, double vy, double vz) {
         this.velocityX = vx;

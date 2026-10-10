@@ -72,8 +72,18 @@ class FireAcceptanceTest {
     }
 
     private void setBlock(BlockPosition at, BlockType type) throws InterruptedException {
-        server.ticker().submit(() -> server.world().setBlock(at, type));
-        await(() -> server.world().getBlock(at).equals(type), "seeded " + at);
+        // The write executes on the tick thread; the latch observes the
+        // commit itself instead of polling the block — a burn-out block
+        // (floating fire dies in a tick or two) can be GONE before a
+        // loaded-box poll ever sees it, which would read as a failed seed.
+        java.util.concurrent.CountDownLatch placed = new java.util.concurrent.CountDownLatch(1);
+        server.ticker().submit(() -> {
+            server.world().setBlock(at, type);
+            placed.countDown();
+        });
+        if (!placed.await(8, java.util.concurrent.TimeUnit.SECONDS)) {
+            throw new AssertionError("seed never committed: " + at);
+        }
     }
 
     private void useOn(PlayerSession player, BlockPosition at, int face) throws InterruptedException {

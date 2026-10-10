@@ -429,6 +429,15 @@ public final class PlayerInventory {
     }
 
     /**
+     * The four armor stacks in slot order — the shape the enchantment effect
+     * hooks walk (the reference {@code getEquipment} array the protection
+     * sum, the fire-timer shortening and the blast shaving read).
+     */
+    public ItemStack[] armorStacks() {
+        return new ItemStack[]{armor[0], armor[1], armor[2], armor[3]};
+    }
+
+    /**
      * Sets one armor slot, enforcing the kind rule: only armor of the
      * matching slot may enter (the historical inventory's type gate). An
      * empty stack clears. @return whether the write was accepted.

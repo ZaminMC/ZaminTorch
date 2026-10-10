@@ -1,6 +1,7 @@
 package net.zaminmc.torch.server.enchantment;
 
 import net.zaminmc.torch.item.ItemStack;
+import net.zaminmc.torch.server.entity.damage.DamageKind;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -212,6 +213,151 @@ public final class EnchantmentHelper {
             return level * 2.5F;
         }
         return 0.0F;
+    }
+
+    // ------------------------------------------------------------- effect hooks
+    //
+    // The consumption half of the historical EnchantmentHelper (the level
+    // readers) plus the ProtectionEnchantment arithmetic. Every constant and
+    // branch order below is transcribed from reference/1.8.8:
+    // EnchantmentHelper.getLevel / getHighestEnchantmentLevel /
+    // modifyProtection / getKnockbackLevel / getFireAspectLevel /
+    // getEfficiencyLevel, ProtectionEnchantment.getExtraProtection /
+    // modifyOnFireTimer / modifyExplosionDamage.
+
+    /** The historical {@code getLevel}: the stack's level of one enchantment id (0 when absent). */
+    public static int level(ItemStack item, int id) {
+        if (item == null || item.isEmpty()) {
+            return 0;
+        }
+        Map<Integer, Integer> enchantments = item.enchantments();
+        if (enchantments == null) {
+            return 0;
+        }
+        return enchantments.getOrDefault(id, 0);
+    }
+
+    /** The historical {@code getHighestEnchantmentLevel} over the equipment array. */
+    public static int highestLevel(int id, ItemStack[] items) {
+        if (items == null) {
+            return 0;
+        }
+        int highest = 0;
+        for (ItemStack item : items) {
+            int candidate = level(item, id);
+            if (candidate > highest) {
+                highest = candidate;
+            }
+        }
+        return highest;
+    }
+
+    /** The historical {@code getKnockbackLevel}: the held item's Knockback. */
+    public static int knockbackLevel(ItemStack held) {
+        return level(held, Enchantments.KNOCKBACK.id);
+    }
+
+    /** The historical {@code getFireAspectLevel}: the held item's Fire Aspect. */
+    public static int fireAspectLevel(ItemStack held) {
+        return level(held, Enchantments.FIRE_ASPECT.id);
+    }
+
+    /** The historical {@code getEfficiencyLevel}: the held item's Efficiency. */
+    public static int efficiencyLevel(ItemStack held) {
+        return level(held, Enchantments.EFFICIENCY.id);
+    }
+
+    /**
+     * The per-piece protection contribution ({@code ProtectionEnchantment.
+     * getExtraProtection}): the (6 + level^2)/3 curve scaled per kind —
+     * all 0.75, fire 1.25, fall 2.5, blast and projectile 1.5 — floored
+     * per branch, zero off-kind and zero in the void.
+     */
+    public static int extraProtection(int subtype, int level, DamageKind kind) {
+        if (kind.isOutOfWorld()) {
+            return 0;
+        }
+        float f = (6 + level * level) / 3.0F;
+        if (subtype == Enchantments.PROTECTION_ALL) {
+            return floor(f * 0.75F);
+        }
+        if (subtype == Enchantments.PROTECTION_FIRE && kind.isFire()) {
+            return floor(f * 1.25F);
+        }
+        if (subtype == Enchantments.PROTECTION_FALL && kind.isFall()) {
+            return floor(f * 2.5F);
+        }
+        if (subtype == Enchantments.PROTECTION_BLAST && kind.isExplosive()) {
+            return floor(f * 1.5F);
+        }
+        if (subtype == Enchantments.PROTECTION_PROJECTILE && kind.isProjectile()) {
+            return floor(f * 1.5F);
+        }
+        return 0;
+    }
+
+    /**
+     * The historical {@code modifyProtection}: the armor pieces' protection
+     * sum clamped to 0..25, then the vanilla half-to-full roll —
+     * {@code (p + 1 >> 1) + nextInt((p >> 1) + 1)} — the legacy random
+     * discount that makes the envelope land anywhere from half the
+     * protection up to all of it.
+     */
+    public static int modifyProtection(ItemStack[] armor, DamageKind kind, Random random) {
+        int protection = 0;
+        if (armor != null) {
+            for (ItemStack piece : armor) {
+                if (piece == null || piece.isEmpty() || piece.enchantments() == null) {
+                    continue;
+                }
+                for (Map.Entry<Integer, Integer> ench : piece.enchantments().entrySet()) {
+                    Enchantments.Entry enchantment = Enchantments.byId(ench.getKey());
+                    if (enchantment != null && enchantment.family == Enchantments.Family.PROTECTION) {
+                        protection += extraProtection(enchantment.subtype, ench.getValue(), kind);
+                    }
+                }
+            }
+        }
+        if (protection > 25) {
+            protection = 25;
+        } else if (protection < 0) {
+            protection = 0;
+        }
+        return (protection + 1 >> 1) + random.nextInt((protection >> 1) + 1);
+    }
+
+    /**
+     * The historical {@code ProtectionEnchantment.modifyOnFireTimer}: the
+     * highest Fire Protection on the equipment shortens the burn —
+     * {@code ticks -= floor(ticks * (level * 0.15))} per the reference walk.
+     * The input is ticks (the reference converts seconds × 20 before the call).
+     */
+    public static int modifyOnFireTimer(ItemStack[] armor, int ticks) {
+        int level = highestLevel(Enchantments.FIRE_PROTECTION.id, armor);
+        if (level > 0) {
+            ticks -= floor(ticks * (level * 0.15F));
+        }
+        return ticks;
+    }
+
+    /**
+     * The historical {@code ProtectionEnchantment.modifyExplosionDamage}: the
+     * highest Blast Protection on the equipment shaves
+     * {@code floor(damage * (level * 0.15))} off the raw blast number before
+     * the ordinary damage pipeline sees it.
+     */
+    public static double modifyExplosionDamage(ItemStack[] armor, double damage) {
+        int level = highestLevel(Enchantments.BLAST_PROTECTION.id, armor);
+        if (level > 0) {
+            damage -= floor(damage * (level * 0.15F));
+        }
+        return damage;
+    }
+
+    /** The reference MathHelper.floor (the int cast of the double floor). */
+    private static int floor(double value) {
+        int truncated = (int) value;
+        return value < truncated ? truncated - 1 : truncated;
     }
 
     private EnchantmentHelper() {

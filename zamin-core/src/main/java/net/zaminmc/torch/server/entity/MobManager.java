@@ -625,12 +625,15 @@ public final class MobManager {
     /**
      * Melee hit from a player: validated damage, knockback, hurt event; the
      * death animation starts here and loot lands when it finishes.
-     * Tick-thread context.
+     *
+     * @return whether the hit landed (the reference's {@code takeDamage}
+     *         verdict — the fire-aspect extinguish and the knockback-
+     *         enchantment extra both gate on it).
      */
-    public void hurt(MobEntity mob, float amount, double attackerYaw) {
+    public boolean hurt(MobEntity mob, float amount, double attackerYaw) {
         Objects.requireNonNull(mob, "mob");
         if (amount <= 0 || mob.dead()) {
-            return;
+            return false;
         }
         mob.hurt(amount);
         mob.knockbackFrom(attackerYaw);
@@ -642,6 +645,7 @@ public final class MobManager {
                 listener.onMobDied(mob);
             }
         }
+        return true;
     }
 
     /** Rolls the kind's loot table into the world at the body. */

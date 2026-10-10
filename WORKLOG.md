@@ -60,10 +60,44 @@ the bottom. The behavior-level status of every mechanic lives in
 
 ## In progress
 
-- **Slice 7 remainder — the effect hooks**: protection, efficiency,
-  knockback, fire aspect land with their gameplay slices.
+- **Slice 7 remainder — the leftover hooks**: thorns (the protection/damage
+  wildcards), the loot family (looting/fortune/silk touch), the bow family
+  (power/punch/flame/infinity), unbreaking, respiration/depth strider —
+  each lands with its gameplay slice.
 
 ## Landed since the ledger opened
+
+- **Slice 7 part 4 — the enchantment effect hooks wired over the live
+  engine**: the `DamageKind` vocabulary (`entity/damage`, the reference
+  DamageSource predicates the protection branches read: fire/fall/explosive/
+  projectile/out-of-world/unblockable), the EnchantmentHelper consumption
+  half (level/highestLevel readers, the getExtraProtection per-piece curve
+  with its per-kind scalers, modifyProtection with the 0..25 clamp and the
+  legacy half-to-full roll `(p+1>>1)+nextInt((p>>1)+1)`, the
+  modifyOnFireTimer and modifyExplosionDamage shaves), the protection step
+  on every player damage entry (melee PvP + mob melee + arrow + explosion
+  + in-fire/on-fire/fall/drown/cactus; starve skips as unblockable, the
+  void's per-piece zero), the blast shave before the explosion pipeline,
+  the efficiency + aqua-affinity reads in the dig (replacing the hardcoded
+  0/false), the damage family riding the mob's damage category
+  (`MobType.damageCategory`: zombie/skeleton undead, spider arthropods),
+  the Knockback extra on the attacker's look yaw with the 60% motion decay
+  + the sprint wipe, the Fire Aspect pre-set (1s) / level*4 re-arm /
+  extinguish-on-refusal quirk, the exhaustion + durability now gated on
+  the landed verdict (`MobManager.hurt` returns boolean, the reference's
+  takeDamage verdict). Tests: `EnchantmentEffectMathTest` (the exact
+  reference tables incl. the roll band + clamp) +
+  `EnchantmentEffectAcceptanceTest` (sharpness one-shot vs the plain
+  blade, smite's undead read vs the pig's 7, the fire-aspect re-arm
+  outliving the pre-set + the burn kill, the protection band vs the exact
+  2.38 unenchanted envelope, the Efficiency V dig); full suite green. Two
+  flaky seeds hardened on the way: the fire test's setBlock now observes
+  the tick-thread commit with a latch (a floating flame can burn out
+  before a loaded-box poll sees it), and the snowball shatter race was
+  investigated to root cause — the thrower-immunity window vs tick
+  skipping under load (the reference spawns thrown projectiles 0.16
+  behind the eye; ours spawn inside the thrower box and lean on the
+  immunity window — ledgered as its own unit).
 
 - **Slice 7a — enchantment registry + math + storage**: the 25-id registry
   with the reference weights/curves/categories/enchantability (shears = 0,

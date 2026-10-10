@@ -431,16 +431,21 @@ public final class BlockInteractionService {
     /**
      * The per-dig per-tick progress delta ({@code Block.getMiningSpeed}):
      * the tool tier, the environment divisors, the /30 or /100 harvest split.
-     * The engine has no enchantments yet, so the Efficiency level reads 0 and
-     * the water divisor is unconditional until Slice 7 lands.
+     * The enchantment reads ride the reference walk — the held stack's
+     * Efficiency level and the helmet's Aqua Affinity gate the water divisor.
      */
     private double perTickProgress(PlayerSession player, BlockPosition target, BlockBehavior behavior) {
         net.zaminmc.torch.item.ItemStack heldStack = player.inventory().held();
         ItemType held = heldStack.isEmpty() ? null : heldStack.type();
         boolean canHarvest = BlockBehaviorTable.canHarvest(behavior, held);
+        int efficiency = net.zaminmc.torch.server.enchantment.EnchantmentHelper
+                .efficiencyLevel(heldStack);
+        boolean aquaAffinity = net.zaminmc.torch.server.enchantment.EnchantmentHelper
+                .highestLevel(net.zaminmc.torch.server.enchantment.Enchantments.AQUA_AFFINITY.id,
+                        player.inventory().armorStacks()) > 0;
         return MiningRules.perTickProgress(behavior.hardness(),
                 MiningRules.miningSpeed(BlockBehaviorTable.speedMultiplier(behavior, held),
-                        0, isSubmerged(player), false, player.onGround()),
+                        efficiency, isSubmerged(player), aquaAffinity, player.onGround()),
                 canHarvest);
     }
 
