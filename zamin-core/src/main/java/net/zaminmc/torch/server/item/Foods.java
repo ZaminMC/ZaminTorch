@@ -29,16 +29,24 @@ public final class Foods {
     public record Nutrition(int foodPoints, float saturation) {
     }
 
-    private static final Map<net.zaminmc.torch.util.Identifier, Nutrition> FOODS = Map.of(
-            net.zaminmc.torch.util.Identifier.parse("minecraft:beef"), new Nutrition(3, 1.8f),
-            net.zaminmc.torch.util.Identifier.parse("minecraft:cooked_beef"), new Nutrition(8, 12.8f),
-            net.zaminmc.torch.util.Identifier.parse("minecraft:porkchop"), new Nutrition(3, 1.8f),
-            net.zaminmc.torch.util.Identifier.parse("minecraft:cooked_porkchop"), new Nutrition(8, 12.8f),
-            net.zaminmc.torch.util.Identifier.parse("minecraft:chicken"), new Nutrition(2, 0.6f),
-            net.zaminmc.torch.util.Identifier.parse("minecraft:cooked_chicken"), new Nutrition(6, 7.2f),
-            net.zaminmc.torch.util.Identifier.parse("minecraft:rotten_flesh"), new Nutrition(4, 0.8f),
+    private static final Map<net.zaminmc.torch.util.Identifier, Nutrition> FOODS = Map.ofEntries(
+            Map.entry(net.zaminmc.torch.util.Identifier.parse("minecraft:beef"), new Nutrition(3, 1.8f)),
+            Map.entry(net.zaminmc.torch.util.Identifier.parse("minecraft:cooked_beef"), new Nutrition(8, 12.8f)),
+            Map.entry(net.zaminmc.torch.util.Identifier.parse("minecraft:porkchop"), new Nutrition(3, 1.8f)),
+            Map.entry(net.zaminmc.torch.util.Identifier.parse("minecraft:cooked_porkchop"), new Nutrition(8, 12.8f)),
+            Map.entry(net.zaminmc.torch.util.Identifier.parse("minecraft:chicken"), new Nutrition(2, 0.6f)),
+            Map.entry(net.zaminmc.torch.util.Identifier.parse("minecraft:cooked_chicken"), new Nutrition(6, 7.2f)),
+            Map.entry(net.zaminmc.torch.util.Identifier.parse("minecraft:rotten_flesh"), new Nutrition(4, 0.8f)),
             // The crop food (community foods.json: bread food 5, saturation 6.0)
-            net.zaminmc.torch.util.Identifier.parse("minecraft:bread"), new Nutrition(5, 6.0f));
+            Map.entry(net.zaminmc.torch.util.Identifier.parse("minecraft:bread"), new Nutrition(5, 6.0f)),
+            // The breeding-slice foods (community foods.json: apple 4/2.4,
+            // carrot 3/3.6, golden carrot 6/14.4, golden apple 4/9.6).
+            // The golden apple's Regeneration II + Absorption effects need
+            // the potion system (ledger: plain food for now).
+            Map.entry(net.zaminmc.torch.util.Identifier.parse("minecraft:apple"), new Nutrition(4, 2.4f)),
+            Map.entry(net.zaminmc.torch.util.Identifier.parse("minecraft:carrot"), new Nutrition(3, 3.6f)),
+            Map.entry(net.zaminmc.torch.util.Identifier.parse("minecraft:golden_carrot"), new Nutrition(6, 14.4f)),
+            Map.entry(net.zaminmc.torch.util.Identifier.parse("minecraft:golden_apple"), new Nutrition(4, 9.6f)));
 
     private Foods() {
     }

@@ -121,6 +121,24 @@ public final class MobManager {
         /** A trade row was selected: the result slot syncs (the Set Slot). */
         default void onTradeSelected(PlayerSession player, int windowId, ItemStack result) {
         }
+
+        /**
+         * A loved body burst hearts (the event-18 love burst at feeding, and
+         * the breed celebration — the wire renders hearts around the body).
+         */
+        default void onMobLoveBurst(MobEntity mob) {
+        }
+
+        /** A baby crossed into adulthood (the age metadata byte flips to 0). */
+        default void onMobGrewUp(MobEntity mob) {
+        }
+
+        /**
+         * A breed landed: the baby already exists in the manager (spawned
+         * before the event), the parents carry their 6000-tick cooldown.
+         */
+        default void onMobBred(MobEntity parent, MobEntity mate, MobEntity baby) {
+        }
     }
 
     private final MobEntity.WorldQuery world;
@@ -195,11 +213,43 @@ public final class MobManager {
         Objects.requireNonNull(type, "type");
         Objects.requireNonNull(position, "position");
         MobEntity mob = new MobEntity(nextEntityId++, type, position, random, world);
+        mob.setBreedFinder(this::scanForMate);
         mobs.add(mob);
         for (Listener listener : listeners) {
             listener.onMobSpawned(mob);
         }
         return mob;
+    }
+
+    /**
+     * The breed goal's mate scan ({@code World.getEntitiesOfType} + the
+     * nearest-{@code canBreedWith} walk): the closest legal partner inside
+     * the grown-8 box, distance measured in the vanilla 3D squared form.
+     */
+    private MobEntity scanForMate(MobEntity seeker) {
+        MobEntity best = null;
+        double bestDistance = Double.MAX_VALUE;
+        double r = MobEntity.BREED_MATE_SCAN_RADIUS;
+        for (MobEntity other : mobs) {
+            if (other == seeker || !seeker.canBreedWith(other)) {
+                continue;
+            }
+            Position a = seeker.position();
+            Position b = other.position();
+            if (Math.abs(a.x() - b.x()) > r || Math.abs(a.y() - b.y()) > r
+                    || Math.abs(a.z() - b.z()) > r) {
+                continue; // outside the grown box (the vanilla shape gate)
+            }
+            double dx = a.x() - b.x();
+            double dy = a.y() - b.y();
+            double dz = a.z() - b.z();
+            double distance = dx * dx + dy * dy + dz * dz;
+            if (distance < bestDistance) {
+                bestDistance = distance;
+                best = other;
+            }
+        }
+        return best;
     }
 
     /**
@@ -371,6 +421,10 @@ public final class MobManager {
 
         boolean night = isNight(timeOfDay);
 
+        // The breeds defer to the loop's end: a baby spawned mid-iteration
+        // would add to the iterated list (the ConcurrentModification trap).
+        List<MobEntity[]> pendingBreeds = new ArrayList<>();
+
         Iterator<MobEntity> iterator = mobs.iterator();
         while (iterator.hasNext()) {
             MobEntity mob = iterator.next();
@@ -428,6 +482,9 @@ public final class MobManager {
                 continue;
             }
 
+            // The breeding clocks (the vanilla love/age/breed-goal trio).
+            tickBreedingFor(mob);
+
             boolean wasPriming = mob.fuseActive();
             boolean wasBurning = mob.burning();
             int wasHorseFlags = mob.horseFlagsRaw();
@@ -484,6 +541,22 @@ public final class MobManager {
                     }
                 }
             }
+            // The breed polls (the vanilla goal's landing converts into the
+            // real spawn after the loop — the manager owns the mob lifecycle).
+            MobEntity mate = mob.consumePendingBreed();
+            if (mate != null) {
+                pendingBreeds.add(new MobEntity[] {mob, mate});
+            }
+            if (mob.consumePendingLoveBurst()) {
+                for (Listener listener : listeners) {
+                    listener.onMobLoveBurst(mob);
+                }
+            }
+            if (mob.consumeGrewUp()) {
+                for (Listener listener : listeners) {
+                    listener.onMobGrewUp(mob);
+                }
+            }
             if (moved) {
                 PlayerSession rider = mob.hasRider() ? sessionOfRider(players, mob.riderId()) : null;
                 for (Listener listener : listeners) {
@@ -495,6 +568,11 @@ public final class MobManager {
                     listener.onMobSound(mob, mob.type().idleSound);
                 }
             }
+        }
+
+        // The deferred breeds land after the iteration (the loop is closed).
+        for (MobEntity[] pair : pendingBreeds) {
+            breed(pair[0], pair[1]);
         }
     }
 
@@ -577,6 +655,77 @@ public final class MobManager {
             lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()),
                     ItemStack.of(roll.type(), count));
         }
+        // The worn gear and the donkey chest spill with the body
+        // (HorseBaseEntity.dropInventoryAndChest on the death path).
+        for (ItemStack stack : mob.spillMountGear()) {
+            lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()), stack);
+        }
+    }
+
+    /**
+     * The love clock walk (the vanilla EntityAgeable age tick + the
+     * AnimalEntity love drain, in the reference order): an age != 0 body
+     * cannot hold love, the age walks one tick at a time, the love window
+     * drains with its ambient heart clock.
+     */
+    private void tickBreedingFor(MobEntity mob) {
+        if (mob.breedingAge() != 0) {
+            mob.resetLove(); // AnimalEntity.mobTick: love dies off-age
+        }
+        mob.tickBreedingAge();
+        mob.tickLove(); // the ambient hearts flag rides the consume poll below
+        mob.consumePendingAmbientHearts(); // single-heart particles await the
+        // heart id in the community particle data (the burst event covers the
+        // observable feeding/breed moments for now — see the ledger)
+    }
+
+    /**
+     * The vanilla AnimalBreedGoal.breed(): the baby spawns at the parent
+     * (facing yaw 0), the parents take the 6000-tick cooldown, their love
+     * clears, the child starts its -24000 childhood, and the doMobLoot XP
+     * burst lands (1-7, the random.nextInt(7) + 1 roll).
+     */
+    private void breed(MobEntity parent, MobEntity mate) {
+        if (parent.dead() || mate.dead()) {
+            return;
+        }
+        MobEntity baby = spawnAt(childTypeOf(parent, mate), parent.position());
+        baby.setHorseSubtype(childSubtypeOf(parent, mate));
+        parent.setBreedingAge(MobEntity.ADULT_BREED_COOLDOWN_TICKS);
+        mate.setBreedingAge(MobEntity.ADULT_BREED_COOLDOWN_TICKS);
+        parent.resetLove();
+        mate.resetLove();
+        baby.setBreedingAge(MobEntity.CHILDHOOD_TICKS);
+        for (Listener listener : listeners) {
+            listener.onMobBred(parent, mate, baby);
+            listener.onMobLoveBurst(parent); // the celebration hearts
+        }
+    }
+
+    /**
+     * The child's kind ({@code HorseBaseEntity.makeChild} + the AnimalEntity
+     * default): same kind for everything, and the horse family resolves
+     * horse+donkey into the mule (the cross only produces the sterile child).
+     */
+    private static MobType childTypeOf(MobEntity parent, MobEntity mate) {
+        return parent.type(); // the engine keys the horse family on one MobType
+    }
+
+    /**
+     * The child's horse subtype: same parents' subtype, horse+donkey makes
+     * the mule (the makeChild type table: k = i when equal, 2 on the 0/1
+     * cross — mules themselves never qualify through canBreedWith).
+     */
+    private static int childSubtypeOf(MobEntity parent, MobEntity mate) {
+        if (parent.type() != MobType.HORSE) {
+            return 0;
+        }
+        int a = parent.horseSubtype();
+        int b = mate.horseSubtype();
+        if (a == b) {
+            return a;
+        }
+        return MobEntity.HORSE_SUBTYPE_MULE;
     }
 
     /**@return whether the night window is active at the given time of day. */

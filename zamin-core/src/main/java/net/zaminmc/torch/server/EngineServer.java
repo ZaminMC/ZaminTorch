@@ -43,6 +43,7 @@ import net.zaminmc.torch.server.fx.FxManager;
 import net.zaminmc.torch.server.item.BuiltinItems;
 import net.zaminmc.torch.server.item.Foods;
 import net.zaminmc.torch.GameMode;
+import net.zaminmc.torch.server.player.WindowClicks;
 import net.zaminmc.torch.server.chat.CommandService;
 import net.zaminmc.torch.server.chat.CommandSender;
 import net.zaminmc.torch.server.chat.ConsoleSender;
@@ -3616,25 +3617,141 @@ public final class EngineServer implements Server, EngineBridge {
                 interactMountOnTick(player, mob);
                 return;
             }
-            if (mob.type() != MobType.SHEEP) {
+            // The animal branch: the breeding foods (the vanilla interactMob
+            // feeding arm — love for adults, growth for babies) plus the
+            // sheep's shears (the interactMob order: shears first).
+            if (isAnimal(mob.type())) {
+                interactAnimalOnTick(player, mob);
                 return;
             }
-            ItemStack held = player.inventory().held();
-            if (!held.type().identifier().toString().equals("minecraft:shears")) {
-                return; // bare hands do not shear (the historical tool gate)
-            }
-            double dx = mob.position().x() - player.position().x();
-            double dy = mob.position().y() - player.position().y();
-            double dz = mob.position().z() - player.position().z();
-            double horizontal = Math.sqrt(dx * dx + dz * dz);
-            if (horizontal > MELEE_REACH + mob.type().width * 0.5 || dy < -2.0 || dy > 4.0) {
-                return; // out of reach: the server-side refusal
-            }
+        });
+    }
+
+    /** @return whether the kind breeds and feeds like an animal. */
+    private static boolean isAnimal(MobType type) {
+        return type == MobType.PIG || type == MobType.COW || type == MobType.SHEEP
+                || type == MobType.CHICKEN || type == MobType.HORSE;
+    }
+
+    /**
+     * The vanilla AnimalEntity.isBreedingItem table (the per-kind override):
+     * the pig takes the carrot, the cow and sheep the wheat, the chicken the
+     * seeds; the horse family feeds through its own golden table instead.
+     */
+    private static String breedingItemOf(MobType type) {
+        return switch (type) {
+            case PIG -> "minecraft:carrot";
+            case COW, SHEEP -> "minecraft:wheat";
+            case CHICKEN -> "minecraft:wheat_seeds";
+            default -> "";
+        };
+    }
+
+    /**
+     * The animal right-click dispatch (the vanilla interactMob order for the
+     * non-mount kinds): the sheep's shears arm first, then the breeding food.
+     * Tick-thread context.
+     */
+    private void interactAnimalOnTick(PlayerSession player, MobEntity mob) {
+        double dx = mob.position().x() - player.position().x();
+        double dy = mob.position().y() - player.position().y();
+        double dz = mob.position().z() - player.position().z();
+        double horizontal = Math.sqrt(dx * dx + dz * dz);
+        if (horizontal > MELEE_REACH + mob.type().width * 0.5 || dy < -2.0 || dy > 4.0) {
+            return; // out of reach: the server-side refusal
+        }
+        var inventory = player.inventory();
+        ItemStack held = inventory.held();
+        String heldId = held.type() == null ? "" : held.type().identifier().toString();
+        // The sheep's shears (EntitySheep.interactMob: the shears arm runs
+        // before the feeding arm).
+        if (mob.type() == MobType.SHEEP && heldId.equals("minecraft:shears")) {
             if (mobManager.shear(mob) > 0) {
                 player.inventory().damageHeld(1); // the shears wear one use
                 publishInventoryChanged(player);
             }
-        });
+            return;
+        }
+        if (mob.type() == MobType.HORSE) {
+            return; // the horse family feeds through the mount branch only
+        }
+        feedAnimal(player, mob);
+    }
+
+    /**
+     * The vanilla AnimalEntity feeding arm: the breeding item on an adult
+     * (age 0, not already in love) starts the 600-tick love window; on a
+     * baby it shrinks the childhood by {@code (int)(-age / 20 * 0.1F)}
+     * units. The food is eaten in both arms (the creative hand spares the
+     * stack — the vanilla eat() rule). @return whether the food was taken.
+     */
+    private boolean feedAnimal(PlayerSession player, MobEntity mob) {
+        String breedingItem = breedingItemOf(mob.type());
+        if (breedingItem.isEmpty()) {
+            return false;
+        }
+        ItemStack held = player.inventory().held();
+        String heldId = held.type() == null ? "" : held.type().identifier().toString();
+        if (!heldId.equals(breedingItem)) {
+            return false;
+        }
+        if (mob.isBaby()) {
+            mob.growUp((int) (-mob.breedingAge() / 20 * 0.1f));
+            eatFromHand(player);
+            return true;
+        }
+        if (mob.breedingAge() == 0 && !mob.isInLove()) {
+            mob.enterLove(player.engineEntityId());
+            eatFromHand(player);
+            return true;
+        }
+        return false;
+    }
+
+    /** The vanilla eat(): the creative hand keeps the stack. */
+    private void eatFromHand(PlayerSession player) {
+        if (player.gamemode() != GameMode.CREATIVE) {
+            player.inventory().consumeHeld(1);
+            publishInventoryChanged(player);
+        }
+    }
+
+    /** @return the horse food's heal value f (0 when not food). */
+    private static float horseFoodHeal(String itemId) {
+        return switch (itemId) {
+            case "minecraft:wheat" -> 2.0f;
+            case "minecraft:sugar" -> 1.0f;
+            case "minecraft:hay_block" -> 20.0f;
+            case "minecraft:apple" -> 3.0f;
+            case "minecraft:golden_carrot" -> 4.0f;
+            case "minecraft:golden_apple" -> 10.0f;
+            default -> 0.0f;
+        };
+    }
+
+    /** @return the horse food's growth value j (20-tick units). */
+    private static int horseFoodGrow(String itemId) {
+        return switch (itemId) {
+            case "minecraft:wheat" -> 20;
+            case "minecraft:sugar" -> 30;
+            case "minecraft:hay_block" -> 180;
+            case "minecraft:apple" -> 60;
+            case "minecraft:golden_carrot" -> 60;
+            case "minecraft:golden_apple" -> 240;
+            default -> 0;
+        };
+    }
+
+    /** @return the horse food's temper value k. */
+    private static int horseFoodTemper(String itemId) {
+        return switch (itemId) {
+            case "minecraft:wheat" -> 3;
+            case "minecraft:sugar" -> 3;
+            case "minecraft:apple" -> 3;
+            case "minecraft:golden_carrot" -> 5;
+            case "minecraft:golden_apple" -> 10;
+            default -> 0;
+        };
     }
 
     /**
@@ -3680,15 +3797,67 @@ public final class EngineServer implements Server, EngineBridge {
             fxManager.sound(mob.position(), "mob.horse.armor", 0.8f, 1.0f);
             return;
         }
-        // The temper foods (sugar/wheat/apple +3): taming aid for the wild
-        // horse (the historical feeding band, simplified to the common tier).
-        if (mob.type() == MobType.HORSE && !mob.tamed()
-                && (heldId.equals("minecraft:wheat") || heldId.equals("minecraft:apple")
-                || heldId.equals("minecraft:sugar"))) {
-            mob.feedTemper(MobEntity.TEMPER_PER_FEED);
-            inventory.consumeHeld(1);
-            publishInventoryChanged(player);
+        // The horse food table (HorseBaseEntity.interactMob): heal f, grow j
+        // (20-tick units), temper k; the golden pair also love a tamed adult
+        // (the love needs the tame bit, the temper band never does). Untamed
+        // bodies still gain the temper — the historical feeding taming aid.
+        if (mob.type() == MobType.HORSE && !heldId.isEmpty()
+                && horseFoodHeal(heldId) > 0.0f) {
+            boolean flag = false;
+            float heal = horseFoodHeal(heldId);
+            int grow = horseFoodGrow(heldId);
+            int temper = horseFoodTemper(heldId);
+            if (mob.health() < mob.maxHealth()) {
+                mob.heal(heal);
+                flag = true;
+            }
+            if (mob.isBaby() && grow > 0) {
+                mob.growUp(grow);
+                flag = true;
+            }
+            boolean golden = heldId.equals("minecraft:golden_carrot")
+                    || heldId.equals("minecraft:golden_apple");
+            if (golden && mob.tamed() && mob.breedingAge() == 0 && !mob.isInLove()) {
+                mob.enterLove(player.engineEntityId());
+                flag = true;
+            }
+            if (temper > 0 && (flag || !mob.tamed())) {
+                mob.feedTemper(temper);
+                flag = true;
+            }
+            if (flag) {
+                mob.flashEating();
+                fxManager.sound(mob.position(), "eating", 1.0f, 1.0f);
+                if (player.gamemode() != GameMode.CREATIVE) {
+                    inventory.consumeHeld(1);
+                    publishInventoryChanged(player);
+                }
+                publishHorseFlags(mob);
+                return;
+            }
+            // No arm applied (a fed full-health tamed adult): the fall-through
+            // is the vanilla seat attempt, exactly the reference flow.
+        }
+        // The pig's carrot (EntityPig.interactMob: love for adults, growth
+        // for babies — no tame gate; the pig breeds as it is).
+        if (mob.type() == MobType.PIG && heldId.equals("minecraft:carrot")) {
+            if (feedAnimal(player, mob)) {
+                return;
+            }
+        }
+        // The chest equips a tamed donkey or mule (the HorseBaseEntity chest
+        // arm: canHaveChest = subtype 1/2, the plop sound rides along).
+        if (mob.type() == MobType.HORSE && mob.tamed() && !mob.chested()
+                && (mob.horseSubtype() == MobEntity.HORSE_SUBTYPE_DONKEY
+                || mob.horseSubtype() == MobEntity.HORSE_SUBTYPE_MULE)
+                && heldId.equals("minecraft:chest")) {
+            mob.setChested(true);
+            fxManager.sound(mob.position(), "mob.chickenplop", 1.0f, 1.0f);
             publishHorseFlags(mob);
+            if (player.gamemode() != GameMode.CREATIVE) {
+                inventory.consumeHeld(1);
+                publishInventoryChanged(player);
+            }
             return;
         }
         // The sneak-open reads the mount's inventory (the vanilla GUI).
@@ -3820,8 +3989,10 @@ public final class EngineServer implements Server, EngineBridge {
 
     /**
      * The horse window's clicks: slot 0 is the saddle, slot 1 the armor row
-     * (one-item kind-gated swaps, the vanilla rule); the player slots route
-     * through the shared inventory click semantics. Tick-thread context.
+     * (one-item kind-gated swaps, the vanilla rule); a chested mount rides
+     * the 15-slot chest grid on 2-16 (the shared cursor semantics); the
+     * player slots route through the shared inventory click semantics.
+     * Tick-thread context.
      */
     private boolean clickHorseWindowOnTick(PlayerSession session, int wireSlot, int button, int mode) {
         var inventory = session.inventory();
@@ -3838,8 +4009,22 @@ public final class EngineServer implements Server, EngineBridge {
         if (mode == 1 && (wireSlot == 0 || wireSlot == 1)) {
             return false; // shift-click out of a gated slot: refused (the resync restores)
         }
-        // The player inventory tail: HORSE_WIRE_PLAYER_FIRST .. hotbar last.
-        int engineSlot = horsePlayerSlotOf(wireSlot);
+        // The chest grid (HorseMenu: inventory rows 2-16 on a chested
+        // donkey/mule — the 3x5 grid plays the shared click semantics).
+        if (wireSlot >= 2 && wireSlot <= 1 + MobEntity.CHEST_SLOT_COUNT) {
+            if (!mount.chested() || mode != 0) {
+                return false; // a bare donkey has no grid; shift-click refused
+            }
+            var grid = mount.chestGrid();
+            if (grid == null) {
+                return false;
+            }
+            WindowClicks.click(grid, wireSlot - 2, button, inventory.cursorBox());
+            return true;
+        }
+        // The player inventory tail.
+        int engineSlot = mount.chested()
+                ? chestedHorsePlayerSlotOf(wireSlot) : horsePlayerSlotOf(wireSlot);
         if (engineSlot >= 0) {
             if (mode == 0) {
                 inventory.clickSlot(engineSlot, button);
@@ -3925,6 +4110,23 @@ public final class EngineServer implements Server, EngineBridge {
         }
         if (wireSlot >= 29 && wireSlot <= 37) {
             return wireSlot - 29;
+        }
+        return -1;
+    }
+
+    /**
+     * @return the engine inventory slot of the chested horse window's player
+     * tail (the chest grid shifts it by the 15 grid slots: main 17-43 map to
+     * 9-35, hotbar 44-52 map to 0-8), or -1.
+     */
+    private static int chestedHorsePlayerSlotOf(int wireSlot) {
+        if (wireSlot >= 2 + MobEntity.CHEST_SLOT_COUNT
+                && wireSlot <= 28 + MobEntity.CHEST_SLOT_COUNT) {
+            return wireSlot - 2 - MobEntity.CHEST_SLOT_COUNT + 9;
+        }
+        if (wireSlot >= 29 + MobEntity.CHEST_SLOT_COUNT
+                && wireSlot <= 37 + MobEntity.CHEST_SLOT_COUNT) {
+            return wireSlot - 29 - MobEntity.CHEST_SLOT_COUNT;
         }
         return -1;
     }
@@ -4621,6 +4823,31 @@ public final class EngineServer implements Server, EngineBridge {
             for (MobManager.Listener listener : mobListeners) {
                 listener.onMobCoatRegrown(mob);
             }
+        }
+
+        @Override
+        public void onMobLoveBurst(MobEntity mob) {
+            for (MobManager.Listener listener : mobListeners) {
+                listener.onMobLoveBurst(mob);
+            }
+        }
+
+        @Override
+        public void onMobGrewUp(MobEntity mob) {
+            for (MobManager.Listener listener : mobListeners) {
+                listener.onMobGrewUp(mob);
+            }
+        }
+
+        @Override
+        public void onMobBred(MobEntity parent, MobEntity mate, MobEntity baby) {
+            for (MobManager.Listener listener : mobListeners) {
+                listener.onMobBred(parent, mate, baby);
+            }
+            // The breed reward (AnimalBreedGoal.breed under doMobLoot):
+            // random.nextInt(7) + 1 orbs at the parent.
+            experienceOrbs.spawnBurst(parent.position(),
+                    1 + gameplayRandom.nextInt(7), 1);
         }
 
         @Override
