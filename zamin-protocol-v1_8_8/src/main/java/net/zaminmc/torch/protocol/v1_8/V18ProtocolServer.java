@@ -636,6 +636,11 @@ public final class V18ProtocolServer implements ProtocolAdapter {
             public void onProjectileSpawned(net.zaminmc.torch.server.entity.projectile.ProjectileEntity projectile) {
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
                     connection.sendProjectileSpawned(projectile);
+                    // The Flame arrow's flame trail rides the shared index-0
+                    // flags byte (the reference's setOnFireFor(100) visual).
+                    if (projectile.burning()) {
+                        connection.sendProjectileBurningFlag(projectile);
+                    }
                 }
             }
 

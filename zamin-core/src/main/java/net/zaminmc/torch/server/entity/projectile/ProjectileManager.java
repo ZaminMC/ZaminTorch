@@ -72,21 +72,37 @@ public final class ProjectileManager {
         /**
          * A mob took a projectile hit: the historical damage path with
          * knockback along {@code kbYaw} (radians). Zero-damage hits still
-         * knock back (the historical snowball bruise).
+         * knock back (the historical snowball bruise). @return the landed
+         * verdict (the Punch impulse rides it, the reference's takeDamage
+         * boolean).
          */
-        void mobHit(MobEntity mob, float damage, double kbYaw);
+        boolean mobHit(MobEntity mob, float damage, double kbYaw);
 
         /** A player took a projectile hit: the PvP path (i-frames, velocity). */
         void playerHit(PlayerSession player, float damage, double kbYaw);
 
         /**
-         * The same hit with the thrower's engine id resolved (death chat
-         * names the shooter, the historical kill credit). Default bridges to
-         * the legacy shape so existing sinks stay source-compatible.
+         * The same hit with the projectile carried (the Punch impulse rides
+         * the victim's velocity set) and the thrower's engine id resolved
+         * (death chat names the shooter, the historical kill credit).
+         * Default bridges to the legacy shape so existing sinks stay
+         * source-compatible.
          */
-        default void playerHit(PlayerSession player, float damage, double kbYaw,
-                               int shooterId) {
+        default void playerHit(ProjectileEntity projectile, PlayerSession player,
+                               float damage, double kbYaw) {
             playerHit(player, damage, kbYaw);
+        }
+
+        /**
+         * The burning arrow's ignite arm (the reference's setOnFireFor(5)
+         * on the hit target, unconditional on the damage verdict). The mob
+         * carries no equipment: the plain 100-tick burn.
+         */
+        default void mobIgniteFromProjectile(MobEntity mob) {
+        }
+
+        /** The player arm: the victim's Fire Protection shortens the clock. */
+        default void playerIgniteFromProjectile(PlayerSession player) {
         }
 
         /** The egg's chick roll succeeded: spawn a chicken here. */
@@ -156,9 +172,15 @@ public final class ProjectileManager {
         double dx = -Math.sin(yaw) * Math.cos(pitch);
         double dy = -Math.sin(pitch);
         double dz = Math.cos(yaw) * Math.cos(pitch);
+        // The reference dispense spread (ThrownEntity.dispense lines 86-99):
+        // the unit look vector picks up per-axis gaussian noise (sigma
+        // 0.0075 * scale, scale 1.0) before the speed multiplies — the
+        // historical launch divergence.
         ProjectileEntity projectile = new ProjectileEntity(
                 nextEntityId++, kind, throwerId, origin,
-                dx * speed, dy * speed, dz * speed);
+                (dx + random.nextGaussian() * 0.0075) * speed,
+                (dy + random.nextGaussian() * 0.0075) * speed,
+                (dz + random.nextGaussian() * 0.0075) * speed);
         projectiles.add(projectile);
         for (Listener listener : listeners) {
             listener.onProjectileSpawned(projectile);
@@ -183,7 +205,9 @@ public final class ProjectileManager {
             // then collisions sampled at the midpoint AND the endpoint — in
             // flight order (midpoint first): a full-draw arrow crosses ~3
             // blocks, and the midpoint halves the worst-case tunneling window
-            // without doubling the physics.
+            // without doubling the physics. The burning clock steps with the
+            // pass (the reference's onFireTimer decay).
+            projectile.tickFire();
             Position before = projectile.position();
             projectile.integrate(DRAG, gravityOf(projectile.kind()));
             if (projectile.position().y() < VOID_KILL_Y) {
@@ -255,30 +279,62 @@ public final class ProjectileManager {
     }
 
     private void hitMob(ProjectileEntity projectile, MobEntity mob) {
+        // The reference ArrowEntity hit walk (lines 229-279): the burning
+        // arrow sets the target on fire BEFORE the damage (unconditional on
+        // the verdict — the reference's setOnFireFor(5) arm), the damage
+        // takes the crit roll, and the Punch impulse rides the landed verdict.
+        if (projectile.burning()) {
+            combat.mobIgniteFromProjectile(mob);
+        }
         float damage = damageOf(projectile);
         double kbYaw = Math.atan2(-projectile.velocityX(), projectile.velocityZ());
-        combat.mobHit(mob, damage, kbYaw);
+        boolean landed = combat.mobHit(mob, damage, kbYaw);
+        if (landed) {
+            int punch = projectile.punchLevel();
+            if (punch > 0) {
+                double horizontal = Math.sqrt(projectile.velocityX() * projectile.velocityX()
+                        + projectile.velocityZ() * projectile.velocityZ());
+                if (horizontal > 0.0) {
+                    mob.addVelocity(
+                            projectile.velocityX() * punch * 0.6 / horizontal,
+                            0.1,
+                            projectile.velocityZ() * punch * 0.6 / horizontal);
+                }
+            }
+        }
         if (projectile.kind() == ProjectileEntity.Kind.EGG && rollEggHatch()) {
             combat.chickenHatch(mob.position());
         }
     }
 
     private void hitPlayer(ProjectileEntity projectile, PlayerSession player) {
+        if (projectile.burning()) {
+            combat.playerIgniteFromProjectile(player);
+        }
         float damage = damageOf(projectile);
         double kbYaw = Math.atan2(-projectile.velocityX(), projectile.velocityZ());
-        combat.playerHit(player, damage, kbYaw, projectile.throwerId());
+        combat.playerHit(projectile, player, damage, kbYaw);
         if (projectile.kind() == ProjectileEntity.Kind.EGG && rollEggHatch()) {
             combat.chickenHatch(player.position());
         }
     }
 
-    /** The historical impact damage: arrows scale with speed, shards bruise 0. */
-    private static float damageOf(ProjectileEntity projectile) {
+    /**
+     * The historical impact damage (the reference's ceil(currentSpeed *
+     * damage)): the multiplier is 2.0 plus the Power bonus, the current
+     * velocity magnitude (decayed by drag) rides — a spent arrow hits softer
+     * — and the full-draw crit roll adds nextInt(l / 2 + 2).
+     */
+    private float damageOf(ProjectileEntity projectile) {
         if (projectile.kind() != ProjectileEntity.Kind.ARROW) {
             return 0.0f;
         }
         double speed = projectile.launchSpeed();
-        return Math.max(1.0f, (float) Math.ceil(speed * 2.0));
+        double l = Math.ceil(speed * (2.0 + projectile.bonusDamage()));
+        if (projectile.critical()) {
+            l += random.nextInt((int) (l / 2) + 2);
+        }
+        return (float) l;
     }
 
     private boolean rollEggHatch() {

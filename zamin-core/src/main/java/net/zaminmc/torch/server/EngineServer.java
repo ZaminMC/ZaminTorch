@@ -2054,12 +2054,14 @@ public final class EngineServer implements Server, EngineBridge {
 
     /** Full-draw charge in ticks: the historical 1 second to maximum power. */
     static final int BOW_FULL_CHARGE_TICKS = 20;
-    /** The minimum draw before an arrow flies (the historical flick guard). */
-    static final int BOW_MIN_CHARGE_TICKS = 3;
     /** Full-draw arrow launch speed (the historical 3.0 blocks/tick). */
     static final double BOW_MAX_SPEED = 3.0;
     /** Shard (snowball/egg) launch speed (the historical 1.5). */
     static final double SHARD_SPEED = 1.5;
+    /** The Flame bow's arrow burn (the reference's setOnFireFor(100) = 100 s). */
+    static final int FLAME_ARROW_TICKS = 2_000;
+    /** The burning arrow's hit ignite (the reference's setOnFireFor(5) = 5 s). */
+    static final int PROJECTILE_FLAME_TARGET_TICKS = 100;
 
     /**
      * A right-click use in the air: the held item decides the semantics —
@@ -2137,15 +2139,53 @@ public final class EngineServer implements Server, EngineBridge {
     private void releaseBow(PlayerSession session) {
         int charge = session.bowChargeTicks();
         session.cancelBowCharge();
-        if (charge < BOW_MIN_CHARGE_TICKS) {
+        // The reference charge curve (BowItem.stopUsing lines 24-33):
+        // f = i/20 shaped by (f*f + f*2)/3 — the vanilla mid-draw ramp —
+        // the 0.1 gate aborts (charge 2 shapes to 0.07, charge 3 to 0.1075),
+        // the 1.0 clamp marks the full draw.
+        float x = (float) charge / BOW_FULL_CHARGE_TICKS;
+        float power = (x * x + x * 2.0F) / 3.0F;
+        if (power < 0.1F) {
             return; // the flick: no shot, no wear
         }
-        float power = Math.min(1.0f, (float) charge / BOW_FULL_CHARGE_TICKS);
+        if (power > 1.0F) {
+            power = 1.0F;
+        }
+        boolean fullDraw = power == 1.0F;
+        ItemStack held = session.inventory().held();
         boolean creative = session.gamemode() == GameMode.CREATIVE;
-        if (!creative && !session.inventory().consumeOne(BuiltinItems.ARROW)) {
+        // Infinity (the reference's flag arm line 22): creative or the
+        // enchantment — no arrow leaves the quiver. The pickup=2 flag has
+        // no arrow-retrieval surface yet (ledgered with that slice).
+        boolean infinite = creative
+                || EnchantmentHelper.level(held, Enchantments.INFINITY.id) > 0;
+        if (!infinite && !session.inventory().consumeOne(BuiltinItems.ARROW)) {
             return; // the ammunition vanished mid-draw
         }
-        launchProjectile(session, ProjectileEntity.Kind.ARROW, power * BOW_MAX_SPEED);
+        ProjectileEntity arrow = launchProjectile(session,
+                ProjectileEntity.Kind.ARROW, power * BOW_MAX_SPEED);
+        // The enchantment arms (the reference lines 36-52): the full draw
+        // sets the arrow's crit flag, Power feeds the damage multiplier
+        // (j * 0.5 + 0.5), Punch rides the landed hit, Flame ignites the
+        // arrow for 100 s (the whole flight).
+        if (fullDraw) {
+            arrow.setCritical(true);
+        }
+        int powerLevel = EnchantmentHelper.level(held, Enchantments.POWER.id);
+        if (powerLevel > 0) {
+            arrow.addBonusDamage(powerLevel * 0.5 + 0.5);
+        }
+        int punchLevel = EnchantmentHelper.level(held, Enchantments.PUNCH.id);
+        if (punchLevel > 0) {
+            arrow.setPunchLevel(punchLevel);
+        }
+        if (EnchantmentHelper.level(held, Enchantments.FLAME.id) > 0) {
+            arrow.setOnFireFor(FLAME_ARROW_TICKS);
+        }
+        // The reference bow release sound (BowItem line 55): volume 1.0, the
+        // pitch riding the shaped charge fraction (f * 0.5).
+        fxManager.sound(mouthPosition(session), "random.bow", 1.0f,
+                1.0f / (fxRandom.nextFloat() * 0.4f + 1.2f) + power * 0.5f);
         if (!creative && session.inventory().damageHeld(1)) {
             // The bow's snap: worn out, the client's held slot re-syncs.
             publishInventoryChanged(session);
@@ -2169,6 +2209,10 @@ public final class EngineServer implements Server, EngineBridge {
         }
         launchProjectile(session, shard.equals(BuiltinItems.EGG)
                 ? ProjectileEntity.Kind.EGG : ProjectileEntity.Kind.SNOWBALL, SHARD_SPEED);
+        // The shard throw sound (the reference SnowballItem/EggItem line 21):
+        // volume 0.5, pitch 0.4 / (rand * 0.4 + 0.8).
+        fxManager.sound(mouthPosition(session), "random.bow", 0.5f,
+                0.4f / (fxRandom.nextFloat() * 0.4f + 0.8f));
         publishInventoryChanged(session);
     }
 
@@ -2176,15 +2220,14 @@ public final class EngineServer implements Server, EngineBridge {
      * The shared launch: spawn origin at the eyes pulled back per the
      * reference's living-thrower constructors (ThrownEntity lines 58-62 and
      * ArrowEntity lines 89-93 — the swapped-trig legacy: x -= cos(yaw)*0.16,
-     * z -= sin(yaw)*0.16, y -= 0.1, NOT the look vector), look-vector
-     * velocity, the historical bow-whoosh sound. The pulled-back origin
-     * keeps the body out of its own hit box so the thrower-immunity window
-     * no longer leans on tick scheduling. Tick-thread context.
+     * z -= sin(yaw)*0.16, y -= 0.1, NOT the look vector). The launch sound
+     * is the caller's (the bow and the shards ride different volume/pitch
+     * recipes). Tick-thread context.
      */
-    private void launchProjectile(PlayerSession session, ProjectileEntity.Kind kind,
-                                  double speed) {
+    private ProjectileEntity launchProjectile(PlayerSession session,
+                                              ProjectileEntity.Kind kind, double speed) {
         if (projectileManager == null) {
-            return; // pre-boot guard (tests construct partial engines)
+            return null; // pre-boot guard (tests construct partial engines)
         }
         Position eye = mouthPosition(session);
         double yawRadians = Math.toRadians(session.rotation().yaw());
@@ -2195,10 +2238,9 @@ public final class EngineServer implements Server, EngineBridge {
         ProjectileEntity projectile = projectileManager.launch(kind,
                 session.engineEntityId(), spawn,
                 session.rotation().yaw(), session.rotation().pitch(), speed);
-        fxManager.sound(eye, "random.bow", 1.0f,
-                (float) (1.0 / (fxRandom.nextFloat() * 0.4 + 1.2) + speed * 0.1));
         LOGGER.fine(() -> session.name() + " launched " + projectile.kind()
                 + " (entity " + projectile.entityId() + ")");
+        return projectile;
     }
 
     /**
@@ -5077,18 +5119,34 @@ public final class EngineServer implements Server, EngineBridge {
      */
     private final class ProjectileCombatSink implements ProjectileManager.CombatSink {
         @Override
-        public void mobHit(MobEntity mob, float damage, double kbYaw) {
-            mobManager.hurt(mob, damage, kbYaw);
+        public boolean mobHit(MobEntity mob, float damage, double kbYaw) {
+            return mobManager.hurt(mob, damage, kbYaw);
+        }
+
+        @Override
+        public void mobIgniteFromProjectile(MobEntity mob) {
+            // The burning arrow's hit (the reference's setOnFireFor(5)):
+            // the mob carries no equipment, the plain 5-second burn.
+            mob.ignite(PROJECTILE_FLAME_TARGET_TICKS);
+        }
+
+        @Override
+        public void playerIgniteFromProjectile(PlayerSession victim) {
+            // The player arm: the victim's own Fire Protection shortens the
+            // clock (the reference's setOnFireFor equipment read).
+            igniteWithFireProtection(victim, PROJECTILE_FLAME_TARGET_TICKS / TICKS_PER_SECOND);
         }
 
         @Override
         public void playerHit(PlayerSession victim, float damage, double kbYaw) {
-            projectileHitPlayerOnTick(victim, damage, kbYaw, -1);
+            projectileHitPlayerOnTick(null, victim, damage, kbYaw, -1);
         }
 
         @Override
-        public void playerHit(PlayerSession victim, float damage, double kbYaw, int shooterId) {
-            projectileHitPlayerOnTick(victim, damage, kbYaw, shooterId);
+        public void playerHit(ProjectileEntity projectile, PlayerSession victim,
+                              float damage, double kbYaw) {
+            projectileHitPlayerOnTick(projectile, victim, damage, kbYaw,
+                    projectile.throwerId());
         }
 
         @Override
@@ -5104,8 +5162,8 @@ public final class EngineServer implements Server, EngineBridge {
      * traveled, so no reach check — but the hurt window, knockback and death
      * path stay identical to melee PvP. Tick-thread context.
      */
-    private void projectileHitPlayerOnTick(PlayerSession victim, float damage, double kbYaw,
-                                            int shooterId) {
+    private void projectileHitPlayerOnTick(ProjectileEntity projectile, PlayerSession victim,
+                                            float damage, double kbYaw, int shooterId) {
         if (!config.pvp() || victim.dead() || victim.state() != PlayerState.PLAYING) {
             return;
         }
@@ -5132,6 +5190,19 @@ public final class EngineServer implements Server, EngineBridge {
         double nvx = victim.motionX() / 2.0 + kbdx * 0.4;
         double nvy = Math.min(victim.motionY() / 2.0 + 0.4, 0.4);
         double nvz = victim.motionZ() / 2.0 + kbdz * 0.4;
+        // The Punch extra rides the same velocity set on top (the reference's
+        // addVelocity arm after the landed takeDamage, ArrowEntity lines
+        // 255-260): the arrow's horizontal direction scaled by level * 0.6
+        // over the horizontal speed, plus the 0.1 rise.
+        if (projectile != null && projectile.punchLevel() > 0) {
+            double horizontal = Math.sqrt(projectile.velocityX() * projectile.velocityX()
+                    + projectile.velocityZ() * projectile.velocityZ());
+            if (horizontal > 0.0) {
+                nvx += projectile.velocityX() * projectile.punchLevel() * 0.6 / horizontal;
+                nvy += 0.1;
+                nvz += projectile.velocityZ() * projectile.punchLevel() * 0.6 / horizontal;
+            }
+        }
         victim.setMotion(nvx, nvy, nvz);
         publishPlayerHurt(victim);
         publishKnockback(victim, nvx, nvy, nvz);
