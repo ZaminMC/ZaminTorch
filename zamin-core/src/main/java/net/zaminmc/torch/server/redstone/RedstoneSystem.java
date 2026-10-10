@@ -27,9 +27,11 @@ import java.util.TreeSet;
  * (the signal reads), block/RedstoneWireBlock.java lines 49-244 (the wire's
  * power cascade and update dispatch), block/RedstoneTorchBlock.java (the
  * two-tick reaction, the burnout, the recovery), block/DiodeBlock.java +
- * block/RepeaterBlock.java (the delayed diode, the lock, the priority arms)
- * and net/minecraft/server/world/ServerWorld.java lines 370-500 (the
- * scheduled-tick queue's coalescing, priority ordering and run gates).
+ * block/RepeaterBlock.java (the delayed diode, the lock, the priority arms),
+ * block/ComparatorBlock.java + block/entity/ComparatorBlockEntity.java (the
+ * analog diode, its stored output signal) and net/minecraft/server/world/
+ * ServerWorld.java lines 370-500 (the scheduled-tick queue's coalescing,
+ * priority ordering and run gates).
  *
  * <h2>The direction convention (the reference's "backwards" rule)</h2>
  *
@@ -148,6 +150,7 @@ public final class RedstoneSystem implements WorldChangeListener {
     private static final int FAMILY_REPEATER = 2;
     private static final int FAMILY_BUTTON = 3;
     private static final int FAMILY_PLATE = 4;
+    private static final int FAMILY_COMPARATOR = 5;
 
     /** The plates' re-compute debounce (AbstractPressurePlateBlock.getTickRate). */
     static final int PLATE_TICK_RATE = 20;
@@ -160,6 +163,31 @@ public final class RedstoneSystem implements WorldChangeListener {
 
     /** The entity occupancy probe for the plate scan: (position, includeItems) -> occupied. */
     private java.util.function.BiPredicate<BlockPosition, Boolean> plateProbe;
+
+    /**
+     * The comparator's stored analog outputs — the ComparatorBlockEntity
+     * port (the per-position outputSignal, 0..15). Created with the block,
+     * kept across the family's internal pair swaps (the reference's BE
+     * survives same-block property changes; our flattened pair swap is
+     * exactly that), removed when the family departs.
+     */
+    private final Map<BlockPosition, Integer> comparatorOutputs = new HashMap<>();
+
+    /**
+     * The analog source reader (Slice 9d): position -> 0..15 when the block
+     * is an analog source (the container fullness arms), -1 when it is not
+     * (the reference's {@code isAnalogSignalSource()} gate).
+     */
+    private java.util.function.ToIntFunction<BlockPosition> analogReader;
+
+    /**
+     * Wires the analog source table (the engine's containers: the chest
+     * and furnace block entities through their managers). -1 = not a
+     * source.
+     */
+    public void setAnalogReader(java.util.function.ToIntFunction<BlockPosition> reader) {
+        this.analogReader = reader;
+    }
 
     /** Wires the plate's entity probe (mobs + players, items for the wood rule). */
     public void setPlateProbe(java.util.function.BiPredicate<BlockPosition, Boolean> probe) {
@@ -252,6 +280,29 @@ public final class RedstoneSystem implements WorldChangeListener {
                 updateNeighbors(position);
                 updateNeighbors(position.offset(0, -1, 0));
             }
+            return;
+        }
+        if (RedstoneBlocks.isRepeater(oldType) || RedstoneBlocks.isComparator(oldType)) {
+            // DiodeBlock's onRemoved family (RepeaterBlock lines 172-176 +
+            // ComparatorBlock lines 211-215): the block entity departs and
+            // the output-side ring fires when the family leaves the
+            // position. The engine fires the removal arm AFTER the change
+            // arm, so a family-internal pair swap (the repeater's 93->94,
+            // the comparator's powered flip) still sees a family member at
+            // the position and skips — the reference's same-block property
+            // change keeps its BE and rings only through the explicit
+            // updateNeighbors call.
+            if (RedstoneBlocks.isComparator(oldType)
+                    && !RedstoneBlocks.isComparator(world.getBlock(position))) {
+                comparatorOutputs.remove(position); // ComparatorBlock.onRemoved's BE arm
+            }
+            if (!diodeAt(position)) {
+                if (RedstoneBlocks.isRepeater(oldType)) {
+                    notifyRepeaterOutput(position, oldType);
+                } else {
+                    notifyComparatorOutput(position, oldType);
+                }
+            }
         }
     }
 
@@ -282,7 +333,7 @@ public final class RedstoneSystem implements WorldChangeListener {
         if (isSignalSolid(type)) {
             return directNeighborSignal(pos);
         }
-        return ownSignal(type, dir);
+        return ownSignal(pos, type, dir);
     }
 
     /** The strong (direct) signal — the source's own direct emission. */
@@ -291,17 +342,22 @@ public final class RedstoneSystem implements WorldChangeListener {
         if (RedstoneBlocks.isWire(type)) {
             // RedstoneWireBlock lines 252-254: the direct arm equals the
             // weak arm, both under the re-entrancy guard.
-            return ownSignal(type, dir);
+            return ownSignal(pos, type, dir);
         }
         if (RedstoneBlocks.isTorch(type)) {
             // RedstoneTorchBlock lines 134-136: the strong emission is
             // UP-only — the block above the torch (the consumer there asks
             // with dir=DOWN toward it).
-            return dir == DOWN ? ownSignal(type, dir) : 0;
+            return dir == DOWN ? ownSignal(pos, type, dir) : 0;
         }
         if (RedstoneBlocks.isRepeater(type)) {
             // DiodeBlock lines 66-68: the strong arm equals the weak arm.
-            return ownSignal(type, dir);
+            return ownSignal(pos, type, dir);
+        }
+        if (RedstoneBlocks.isComparator(type)) {
+            // DiodeBlock lines 66-68 inherited: the strong arm equals the
+            // weak arm — the analog value rides the same exit.
+            return ownSignal(pos, type, dir);
         }
         if (RedstoneBlocks.isLever(type)) {
             // LeverBlock lines 185-192: the strong emission goes to the
@@ -319,7 +375,7 @@ public final class RedstoneSystem implements WorldChangeListener {
         if (RedstoneBlocks.isPlate(type)) {
             // AbstractPressurePlateBlock lines 163-167: strong only UP — the
             // block under the plate (the consumer below asks with dir=UP).
-            return dir == UP ? ownSignal(type, dir) : 0;
+            return dir == UP ? ownSignal(pos, type, dir) : 0;
         }
         return 0;
     }
@@ -381,7 +437,8 @@ public final class RedstoneSystem implements WorldChangeListener {
         return WorldSolidity.isSolid(type)
                 && !RedstoneBlocks.isWire(type)
                 && !RedstoneBlocks.isTorch(type)
-                && !RedstoneBlocks.isRepeater(type);
+                && !RedstoneBlocks.isRepeater(type)
+                && !RedstoneBlocks.isComparator(type);
     }
 
     /**
@@ -389,7 +446,7 @@ public final class RedstoneSystem implements WorldChangeListener {
      * overrides). The dir convention: dir points from the consumer toward
      * this source, both in the reference Direction id space.
      */
-    private int ownSignal(BlockType type, int dir) {
+    private int ownSignal(BlockPosition pos, BlockType type, int dir) {
         if (RedstoneBlocks.isWire(type)) {
             return wireSignal(type, dir);
         }
@@ -407,6 +464,17 @@ public final class RedstoneSystem implements WorldChangeListener {
                 return 0;
             }
             return horizontalOfDirection(dir) == RedstoneBlocks.repeaterFacing(type) ? 15 : 0;
+        }
+        if (RedstoneBlocks.isComparator(type)) {
+            // DiodeBlock lines 71-77 + ComparatorBlock lines 75-83: the
+            // powered pair emits its STORED ANALOG VALUE (the
+            // ComparatorBlockEntity's outputSignal, 0 when absent) toward
+            // the output side (the consumer there asks with dir == FACING).
+            if (!RedstoneBlocks.comparatorPowered(type)) {
+                return 0;
+            }
+            return horizontalOfDirection(dir) == RedstoneBlocks.comparatorFacing(type)
+                    ? comparatorOutputs.getOrDefault(pos, 0) : 0;
         }
         if (RedstoneBlocks.isLever(type)) {
             // LeverBlock lines 181-183: weak 15 in EVERY direction when powered.
@@ -580,6 +648,21 @@ public final class RedstoneSystem implements WorldChangeListener {
             checkRepeaterOutput(pos, type);
             return;
         }
+        if (RedstoneBlocks.isComparator(type)) {
+            // DiodeBlock lines 80-91 + ComparatorBlock lines 157-170: the
+            // support break first, then the output-state check — the
+            // comparator never locks (its isLocked stays false), so the
+            // neighborChanged arm goes straight to the value check.
+            if (!hasSupportBelow(pos)) {
+                popBlock(pos, BuiltinItems.COMPARATOR);
+                for (int[] offset : OFFSETS) {
+                    neighborChanged(pos.offset(offset[0], offset[1], offset[2]));
+                }
+                return;
+            }
+            checkComparatorOutput(pos, type);
+            return;
+        }
         if (RedstoneBlocks.isLever(type)) {
             // LeverBlock.neighborChanged (lines 143-147): the attachment
             // break pops the lever.
@@ -645,6 +728,21 @@ public final class RedstoneSystem implements WorldChangeListener {
             // the first reaction after one tick.
             if (repeaterShouldBe(pos, type)) {
                 scheduleTick(pos, FAMILY_REPEATER, 1, 0);
+            }
+            return;
+        }
+        if (RedstoneBlocks.isComparator(type)) {
+            // DiodeBlock lines 166-175 (the output-side ring) + ComparatorBlock
+            // lines 205-208 (the block entity lands with the block) +
+            // DiodeBlock.onPlaced lines 159-163 (an already-fed input arms the
+            // 1-tick reaction). The stored output initializes to 0 and
+            // SURVIVES the family's internal pair swaps (putIfAbsent — the
+            // reference's BE survives same-block property changes; the
+            // removal arm discards it only when the family departs).
+            comparatorOutputs.putIfAbsent(pos, 0);
+            notifyComparatorOutput(pos, type);
+            if (comparatorShouldBe(pos, type)) {
+                scheduleTick(pos, FAMILY_COMPARATOR, 1, 0);
             }
             return;
         }
@@ -716,6 +814,8 @@ public final class RedstoneSystem implements WorldChangeListener {
                 torchTick(entry.position(), type);
             } else if (RedstoneBlocks.isRepeater(type)) {
                 repeaterTick(entry.position(), type);
+            } else if (RedstoneBlocks.isComparator(type)) {
+                comparatorTick(entry.position(), type);
             } else if (RedstoneBlocks.isButton(type)) {
                 buttonTick(entry.position(), type);
             } else if (RedstoneBlocks.isPlate(type)) {
@@ -766,12 +866,15 @@ public final class RedstoneSystem implements WorldChangeListener {
     }
 
     // ------------------------------------------------------------------
-    // The repeater (DiodeBlock + RepeaterBlock)
+    // The diode family (DiodeBlock): the shared input read
     // ------------------------------------------------------------------
 
-    /** The repeater's input (DiodeBlock lines 117-127): the facing-side read with the wire special case. */
-    private int repeaterInput(BlockPosition pos, BlockType type) {
-        int facingCode = RedstoneBlocks.repeaterFacing(type);
+    /**
+     * The diode's base input (DiodeBlock.getInputSignal lines 117-127): the
+     * facing-side weak read with the wire special case (the wire answers its
+     * POWER, not its emission, when the emission reads below it).
+     */
+    private int diodeInputSignal(BlockPosition pos, int facingCode) {
         int[] step = RedstoneBlocks.facingOffset(facingCode);
         BlockPosition input = pos.offset(step[0], 0, step[1]);
         int dir = directionOf(step[0], 0, step[1]);
@@ -781,6 +884,11 @@ public final class RedstoneSystem implements WorldChangeListener {
         }
         BlockType inputType = world.getBlock(input);
         return Math.max(value, RedstoneBlocks.isWire(inputType) ? RedstoneBlocks.wirePower(inputType) : 0);
+    }
+
+    /** The repeater's input — the diode's base read at the repeater's facing. */
+    private int repeaterInput(BlockPosition pos, BlockType type) {
+        return diodeInputSignal(pos, RedstoneBlocks.repeaterFacing(type));
     }
 
     /** Whether the repeater's input feeds it (DiodeBlock.shouldBePowered). */
@@ -801,16 +909,16 @@ public final class RedstoneSystem implements WorldChangeListener {
         return b > 0;
     }
 
-    /** The side input (DiodeBlock lines 129-146): only diodes and wires count. */
+    /** The side input (DiodeBlock lines 129-146 + RepeaterBlock lines 120-122): the repeater restricts to diodes and wires. */
     private int sideInput(BlockPosition pos, int dir) {
         BlockType type = world.getBlock(pos);
         if (RedstoneBlocks.isWire(type)) {
             return RedstoneBlocks.wirePower(type);
         }
-        if (RedstoneBlocks.isRepeater(type)) {
+        if (RedstoneBlocks.isRepeater(type) || RedstoneBlocks.isComparator(type)) {
             return directSignal(pos, dir);
         }
-        return 0;
+        return 0; // RepeaterBlock.isValidSideInput: isDiode — wires and diodes only
     }
 
     /** The delayed reaction arming (DiodeBlock.checkOutputState lines 93-107). */
@@ -831,16 +939,25 @@ public final class RedstoneSystem implements WorldChangeListener {
         }
     }
 
-    /** The facing-a-facing-back diode test (DiodeBlock.shouldPrioritize lines 209-213). */
-    private boolean repeaterPrioritized(BlockPosition pos, BlockType type) {
-        int facingCode = RedstoneBlocks.repeaterFacing(type);
+    /**
+     * The facing-a-facing-back diode test (DiodeBlock.shouldPrioritize lines
+     * 209-213): the diode at the OUTPUT side feeds away from this one.
+     */
+    private boolean diodeFacesAway(BlockPosition pos, int facingCode) {
         int[] back = RedstoneBlocks.facingOffset(RedstoneBlocks.oppositeFacing(facingCode));
         BlockPosition behind = pos.offset(back[0], 0, back[1]);
         BlockType behindType = world.getBlock(behind);
-        if (!RedstoneBlocks.isRepeater(behindType)) {
-            return false;
+        if (!RedstoneBlocks.isRepeater(behindType) && !RedstoneBlocks.isComparator(behindType)) {
+            return false; // isDiode: the repeater or the comparator family
         }
-        return RedstoneBlocks.repeaterFacing(behindType) != RedstoneBlocks.oppositeFacing(facingCode);
+        int behindFacing = RedstoneBlocks.isRepeater(behindType)
+                ? RedstoneBlocks.repeaterFacing(behindType)
+                : RedstoneBlocks.comparatorFacing(behindType);
+        return behindFacing != RedstoneBlocks.oppositeFacing(facingCode);
+    }
+
+    private boolean repeaterPrioritized(BlockPosition pos, BlockType type) {
+        return diodeFacesAway(pos, RedstoneBlocks.repeaterFacing(type));
     }
 
     /** The repeater's tick (DiodeBlock.tick lines 42-54). */
@@ -864,18 +981,266 @@ public final class RedstoneSystem implements WorldChangeListener {
 
     /** The output-side notification (DiodeBlock.updateNeighbors lines 170-175). */
     private void notifyRepeaterOutput(BlockPosition pos, BlockType type) {
-        int facingCode = RedstoneBlocks.repeaterFacing(type);
+        notifyDiodeOutput(pos, RedstoneBlocks.repeaterFacing(type));
+    }
+
+    /** The comparator's output-side ring — the same diode walk. */
+    private void notifyComparatorOutput(BlockPosition pos, BlockType type) {
+        notifyDiodeOutput(pos, RedstoneBlocks.comparatorFacing(type));
+    }
+
+    /**
+     * The shared diode output ring (DiodeBlock.updateNeighbors lines 170-175):
+     * the block at the OUTPUT side hears a change, and its six neighbors too
+     * — except the face pointing back at the diode.
+     */
+    private void notifyDiodeOutput(BlockPosition pos, int facingCode) {
         int[] out = RedstoneBlocks.facingOffset(RedstoneBlocks.oppositeFacing(facingCode));
         BlockPosition output = pos.offset(out[0], 0, out[1]);
         neighborChanged(output);
         for (int[] offset : OFFSETS) {
             BlockPosition at = output.offset(offset[0], offset[1], offset[2]);
-            // except the face pointing back at the repeater
+            // except the face pointing back at the diode
             if (at.equals(pos)) {
                 continue;
             }
             neighborChanged(at);
         }
+    }
+
+    /** Whether a diode (repeater or comparator) currently sits at the position. */
+    private boolean diodeAt(BlockPosition pos) {
+        BlockType type = world.getBlock(pos);
+        return RedstoneBlocks.isRepeater(type) || RedstoneBlocks.isComparator(type);
+    }
+
+    // ------------------------------------------------------------------
+    // The comparator (ComparatorBlock) — the analog diode, Slice 9d
+    // ------------------------------------------------------------------
+
+    /**
+     * The comparator's input (ComparatorBlock.getInputSignal lines 107-128):
+     * the diode's base read, then the analog walk — a container behind
+     * overrides the read outright; a SOLID block behind (when the read is
+     * below 15) reads the container one further back (the reference's
+     * through-solid arm). The item-frame arm (the AIR case, lines 119-124)
+     * has no engine surface yet — item frames ride their own slice.
+     */
+    private int comparatorInput(BlockPosition pos, BlockType type) {
+        int facing = RedstoneBlocks.comparatorFacing(type);
+        int i = diodeInputSignal(pos, facing);
+        int[] step = RedstoneBlocks.facingOffset(facing);
+        BlockPosition inputPos = pos.offset(step[0], 0, step[1]);
+        BlockType inputType = world.getBlock(inputPos);
+        int analog = analogRead(inputPos);
+        if (analog >= 0) {
+            // block.isAnalogSignalSource(): the direct container read
+            // overrides the diode read unconditionally.
+            return analog;
+        }
+        if (i < 15 && isSignalSolid(inputType)) {
+            BlockPosition twoBehind = inputPos.offset(step[0], 0, step[1]);
+            int deep = analogRead(twoBehind);
+            if (deep >= 0) {
+                return deep;
+            }
+        }
+        return i;
+    }
+
+    /** The analog source read at a position (-1 when the block is not one). */
+    private int analogRead(BlockPosition pos) {
+        java.util.function.ToIntFunction<BlockPosition> reader = analogReader;
+        return reader == null ? -1 : reader.applyAsInt(pos);
+    }
+
+    /**
+     * The comparator's side read (DiodeBlock.getInputSignalFromSide lines
+     * 138-146 with the UNRESTRICTED isValidSideInput — ComparatorBlock does
+     * not override it, so ANY signal source's direct signal counts, unlike
+     * the repeater's diode-only restriction).
+     */
+    private int comparatorSideInput(BlockPosition pos, int dir) {
+        BlockType type = world.getBlock(pos);
+        if (RedstoneBlocks.isWire(type)) {
+            return RedstoneBlocks.wirePower(type);
+        }
+        if (isSignalSource(type)) {
+            return directSignal(pos, dir);
+        }
+        return 0;
+    }
+
+    /** Whether the block is any of the engine's signal sources (Block.isSignalSource). */
+    private static boolean isSignalSource(BlockType type) {
+        return RedstoneBlocks.isWire(type)
+                || RedstoneBlocks.isTorch(type)
+                || RedstoneBlocks.isRepeater(type)
+                || RedstoneBlocks.isComparator(type)
+                || RedstoneBlocks.isLever(type)
+                || RedstoneBlocks.isButton(type)
+                || RedstoneBlocks.isPlate(type);
+    }
+
+    /** The max of the two side inputs (DiodeBlock.getInputSignalFromSides lines 129-136). */
+    private int comparatorSideMax(BlockPosition pos, BlockType type) {
+        int facing = RedstoneBlocks.comparatorFacing(type);
+        int[] clock = RedstoneBlocks.facingOffset(RedstoneBlocks.rotateClockwise(facing));
+        int[] counter = RedstoneBlocks.facingOffset(RedstoneBlocks.rotateCounterClockwise(facing));
+        int a = comparatorSideInput(pos.offset(clock[0], 0, clock[1]),
+                directionOf(clock[0], 0, clock[1]));
+        int b = comparatorSideInput(pos.offset(counter[0], 0, counter[1]),
+                directionOf(counter[0], 0, counter[1]));
+        return Math.max(a, b);
+    }
+
+    /**
+     * The comparator's gate (ComparatorBlock.shouldBePowered lines 92-104): a
+     * full input always passes, an empty one never, and between them the
+     * side signal must not exceed the input.
+     */
+    private boolean comparatorShouldBe(BlockPosition pos, BlockType type) {
+        int input = comparatorInput(pos, type);
+        if (input >= 15) {
+            return true;
+        }
+        if (input == 0) {
+            return false;
+        }
+        int sides = comparatorSideMax(pos, type);
+        return sides == 0 || input >= sides;
+    }
+
+    /**
+     * The comparator's arithmetic (ComparatorBlock.calculateOutputSignal
+     * lines 85-89): SUBTRACT takes the side signal off the input, COMPARE
+     * passes the input through.
+     */
+    private int comparatorCalculate(BlockPosition pos, BlockType type) {
+        return RedstoneBlocks.comparatorSubtract(type)
+                ? Math.max(comparatorInput(pos, type) - comparatorSideMax(pos, type), 0)
+                : comparatorInput(pos, type);
+    }
+
+    /**
+     * The neighborChanged reaction (ComparatorBlock.checkOutputState lines
+     * 157-170): when the analog value or the powered state drifts, the
+     * 2-tick reaction arms (priority -1 when a diode at the output side
+     * faces away, else 0 — the reference's own priority pair).
+     */
+    private void checkComparatorOutput(BlockPosition pos, BlockType type) {
+        if (willTickThisTick(pos, FAMILY_COMPARATOR)) {
+            return;
+        }
+        int computed = comparatorCalculate(pos, type);
+        int stored = comparatorOutputs.getOrDefault(pos, 0);
+        if (computed != stored
+                || RedstoneBlocks.comparatorPowered(type) != comparatorShouldBe(pos, type)) {
+            scheduleTick(pos, FAMILY_COMPARATOR, COMPARATOR_DELAY,
+                    diodeFacesAway(pos, RedstoneBlocks.comparatorFacing(type)) ? -1 : 0);
+        }
+    }
+
+    /**
+     * The comparator's scheduled tick (ComparatorBlock.tick lines 196-202 +
+     * updateOutputState lines 172-193). The reference's 150-block
+     * normalization arm is a no-op in the flattened model: our powered pair
+     * IS the normalized 149-with-POWERED-true state (the live reference
+     * comparator never holds the 150 block id past its own tick), and the
+     * stored value survives the internal swap, so the arm would rewrite the
+     * state it already holds.
+     */
+    private void comparatorTick(BlockPosition pos, BlockType type) {
+        updateComparatorOutput(pos, type);
+    }
+
+    /**
+     * The output-state commit (ComparatorBlock.updateOutputState lines
+     * 172-193): store the computed analog value, then — when the value
+     * changed or the mode is COMPARE — reconcile the POWERED pair and ring
+     * the output side. In SUBTRACT mode an unchanged value rings nothing
+     * (the reference's quiet-subtract quirk: {@code j != i || COMPARE}).
+     */
+    private void updateComparatorOutput(BlockPosition pos, BlockType type) {
+        int computed = comparatorCalculate(pos, type);
+        int stored = comparatorOutputs.getOrDefault(pos, 0);
+        comparatorOutputs.put(pos, computed);
+        if (stored != computed || !RedstoneBlocks.comparatorSubtract(type)) {
+            boolean shouldBe = comparatorShouldBe(pos, type);
+            boolean powered = RedstoneBlocks.comparatorPowered(type);
+            if (powered && !shouldBe) {
+                world.setBlock(pos, RedstoneBlocks.comparatorOf(
+                        RedstoneBlocks.comparatorFacing(type), RedstoneBlocks.comparatorSubtract(type), false));
+            } else if (!powered && shouldBe) {
+                world.setBlock(pos, RedstoneBlocks.comparatorOf(
+                        RedstoneBlocks.comparatorFacing(type), RedstoneBlocks.comparatorSubtract(type), true));
+            }
+            notifyComparatorOutput(pos, type);
+        }
+    }
+
+    /**
+     * The comparator's use (ComparatorBlock.use lines 142-154): the mode
+     * cycle COMPARE <-> SUBTRACT, then the IMMEDIATE output re-evaluation
+     * (no scheduled delay — the reference calls updateOutputState inline).
+     * Returns whether the use consumed the click. Tick-thread context.
+     */
+    public boolean useComparator(BlockPosition pos) {
+        BlockType type = world.getBlock(pos);
+        if (!RedstoneBlocks.isComparator(type)) {
+            return false;
+        }
+        boolean subtract = !RedstoneBlocks.comparatorSubtract(type);
+        BlockType next = RedstoneBlocks.comparatorOf(
+                RedstoneBlocks.comparatorFacing(type), subtract, RedstoneBlocks.comparatorPowered(type));
+        world.setBlock(pos, next);
+        updateComparatorOutput(pos, next);
+        return true;
+    }
+
+    /**
+     * The container-content wake (World.updateNeighborComparators lines
+     * 2701-2716, the BlockEntity.markDirty fan-out): every comparator
+     * reading this position — directly beside it, or through one solid
+     * block — re-runs its neighborChanged (arming the 2-tick reaction).
+     * Called by the container systems when their contents mutate.
+     */
+    public void wakeComparators(BlockPosition changed) {
+        for (int facing : HORIZONTALS) {
+            int[] step = horizontalStep(facing);
+            BlockPosition neighbor = changed.offset(step[0], 0, step[1]);
+            BlockType neighborType = world.getBlock(neighbor);
+            if (RedstoneBlocks.isComparator(neighborType)) {
+                neighborChanged(neighbor);
+            } else if (WorldSolidity.isSolid(neighborType)) {
+                BlockPosition twoOut = neighbor.offset(step[0], 0, step[1]);
+                if (RedstoneBlocks.isComparator(world.getBlock(twoOut))) {
+                    neighborChanged(twoOut);
+                }
+            }
+        }
+    }
+
+    /**
+     * The container fullness read (InventoryMenu.getAnalogSignal lines
+     * 541-558): the per-slot fraction over min(inventoryMax, itemMax),
+     * averaged over the WHOLE inventory, {@code floor(f * 14) + 1} when any
+     * slot holds anything. The engine's empty stack is the reference's
+     * null slot.
+     */
+    public static int containerFullness(net.zaminmc.torch.item.ItemStack[] slots, int inventoryMaxStack) {
+        int nonEmpty = 0;
+        float fill = 0.0f;
+        for (net.zaminmc.torch.item.ItemStack stack : slots) {
+            if (stack == null || stack.isEmpty()) {
+                continue;
+            }
+            fill += (float) stack.count()
+                    / Math.min(inventoryMaxStack, stack.type().maxStackSize());
+            nonEmpty++;
+        }
+        fill /= slots.length;
+        return (int) Math.floor(fill * 14.0f) + (nonEmpty > 0 ? 1 : 0);
     }
 
     // ------------------------------------------------------------------
@@ -995,6 +1360,8 @@ public final class RedstoneSystem implements WorldChangeListener {
 
     /** Vanilla's torch reaction latency (RedstoneTorchBlock.getTickRate). */
     static final int TORCH_TICK_RATE = 2;
+    /** The comparator's reaction latency (ComparatorBlock.getDelay). */
+    static final int COMPARATOR_DELAY = 2;
     /** The burnout recovery (RedstoneTorchBlock line 116: scheduleTick 160). */
     static final int BURNOUT_RECOVERY = 160;
     /** The burnout window and threshold (lines 20-42 + 92-94). */
@@ -1113,6 +1480,9 @@ public final class RedstoneSystem implements WorldChangeListener {
         }
         if (RedstoneBlocks.isRepeater(type)) {
             return FAMILY_REPEATER;
+        }
+        if (RedstoneBlocks.isComparator(type)) {
+            return FAMILY_COMPARATOR;
         }
         if (RedstoneBlocks.isButton(type)) {
             return FAMILY_BUTTON;

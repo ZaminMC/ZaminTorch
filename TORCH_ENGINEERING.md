@@ -1,6 +1,6 @@
 # Torch Engineering Ledger
 
-**Status date:** 2026-10-11 (updated; Slice 9 redstone core + interaction)
+**Status date:** 2026-10-11 (updated; Slice 9d the comparator landed)
 **Branch inspected:** `develop`  
 **Purpose:** record verified repository state and separate implemented behavior from proposals and unverified work.
 
@@ -67,7 +67,7 @@ Runtime implementation (the rollout phases, on `develop`):
 
 1. **Phase 4 completion — the spatial activation** (gated): bind chunks to their region domain once the first boundary-bearing mechanic ports (hopper or piston) with its §11 boundary tests; until then the single-domain run stays the live shape.
 2. **Phase 5+ — cross-boundary completeness, heavy-owner optimization, adaptive scheduling** per the rollout table (each phase gated on the previous phase's green tests and the recorded evidence).
-3. The vanilla 1.8.8 slices continue in parallel per `VANILLA_1_8_8_COMPATIBILITY.md`. Slice 8 (nether portals) is COMPLETE including 8c (the per-dimension TimeUpdate sync, the last wire arm — every world's clock publishes to its own dimension's players, /time set+add walk every world, the sleep jump stays the overworld's arm). **Slices 9a + 9b (redstone core + interaction) LANDED at 651 green**: the reference signal model (the weak/strong reads, the solid re-radiation), the wire cascade (same-tick synchronous, the exact decay arithmetic, the shouldSignal guard), the two-hop notification rings, the scheduled-tick queue (family coalescing, priority ordering), the torch (2-tick reaction, burnout, recovery), the repeater (DELAY*2, lock, priorities, the use cycle), the placements (dust/torch/repeater with the attachment + look-facing rules). **Next: levers/buttons/plates (the player-driven sources), the comparator, then the pistons (the Phase 4 spatial-activation gate)** — then potions, leads, structures, natural spawn cycles.
+3. The vanilla 1.8.8 slices continue in parallel per `VANILLA_1_8_8_COMPATIBILITY.md`. Slice 8 (nether portals) is COMPLETE including 8c (the per-dimension TimeUpdate sync). **Slices 9a-9d (the redstone family) LANDED at 659 green**: the signal model, the wire cascade, the scheduled-tick queue, the torch (burnout + recovery), the repeater (lock + priorities), the placements, the lever/button/plate sources, and the comparator (the container-fullness analog read, the compare gate, the subtract mode, the 2-tick reaction, the through-solid read, the chest/furnace contents wake). **Next: the pistons (the Phase 4 spatial-activation gate — the first boundary-bearing mechanic)**, TNT ignition, then potions, leads, structures, natural spawn cycles.
 4. Releases ride every dev build with a changelog (the established convention since dev.17).
 
 ## Security and repository safety

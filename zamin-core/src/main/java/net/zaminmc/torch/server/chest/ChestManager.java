@@ -31,10 +31,40 @@ public final class ChestManager {
 
     private final Map<BlockPosition, ChestBlockEntity> chests = new LinkedHashMap<>();
 
+    /**
+     * The contents-changed wake (Slice 9d): position -> the comparator
+     * re-evaluation fan-out. Wired by the engine after the redstone system
+     * boots; runs on the tick thread inside every slot mutation.
+     */
+    private java.util.function.Consumer<BlockPosition> contentsChanged;
+
+    /** Wires the contents-changed wake (the redstone comparator fan-out). */
+    public void setContentsChanged(java.util.function.Consumer<BlockPosition> listener) {
+        this.contentsChanged = listener;
+    }
+
+    /** Binds the per-position wake to a block entity. */
+    private void wire(BlockPosition position, ChestBlockEntity entity) {
+        entity.setContentsListener(() -> {
+            java.util.function.Consumer<BlockPosition> fan = contentsChanged;
+            if (fan != null) {
+                fan.accept(position);
+            }
+        });
+    }
+
     /** @return the chest state at the position, creating it on first use. */
     public ChestBlockEntity getOrCreate(BlockPosition position) {
         Objects.requireNonNull(position, "position");
-        return chests.computeIfAbsent(position, p -> new ChestBlockEntity());
+        ChestBlockEntity existing = chests.get(position);
+        if (existing != null) {
+            wire(position, existing); // restored entries wire lazily too
+            return existing;
+        }
+        ChestBlockEntity created = new ChestBlockEntity();
+        wire(position, created);
+        chests.put(position, created);
+        return created;
     }
 
     /** @return the live state at the position, or null when the chest has none. */
@@ -49,6 +79,7 @@ public final class ChestManager {
 
     /** Restores persisted state after boot (world deltas already applied). */
     public void restoreAll(Map<BlockPosition, ChestBlockEntity> restored) {
+        restored.forEach((position, entity) -> wire(position, entity));
         chests.putAll(restored);
     }
 

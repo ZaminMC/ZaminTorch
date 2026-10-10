@@ -297,6 +297,16 @@ final class LegacyBlockIds {
                 }
             }
         }
+        // The comparator (Slice 9d): the unpowered pair 149, the powered
+        // pair 150 (the facing, mode and powered bits ride the nibble).
+        for (String prefix : new String[]{"comparator", "powered_comparator"}) {
+            for (String facing : new String[]{"south", "west", "north", "east"}) {
+                for (String mode : new String[]{"compare", "subtract"}) {
+                    merged.put(Identifier.parse("minecraft:" + prefix + "_" + facing + "_" + mode),
+                            prefix.startsWith("powered") ? 150 : 149);
+                }
+            }
+        }
         // The player-driven sources (Slice 9c): the lever 69, the buttons
         // 77 stone / 143 wood, the plates 70 stone / 72 wood.
         for (String key : new String[]{"down_x", "east", "west", "south", "north", "up_z", "up_x", "down_z"}) {
@@ -333,10 +343,12 @@ final class LegacyBlockIds {
             Identifier.parse("minecraft:oak_stairs"), 53,
             Identifier.parse("minecraft:cobblestone_stairs"), 67,
             // The redstone slice: the dust is item 331, the repeater item
-            // 356 (the block types carry the state suffixes); the redstone
+            // 356 (the block types carry the state suffixes); the comparator
+            // item 404 (the same split); the redstone
             // torch item shares block id 76 through BY_IDENTIFIER.
             Identifier.parse("minecraft:redstone"), 331,
-            Identifier.parse("minecraft:repeater"), 356);
+            Identifier.parse("minecraft:repeater"), 356,
+            Identifier.parse("minecraft:comparator"), 404);
 
     /** The damage-aware reverse map is declared after {@link #METADATA}. */
 
@@ -482,6 +494,15 @@ final class LegacyBlockIds {
             int delay = Integer.parseInt(value.substring(value.lastIndexOf('_') + 1));
             return facingH | ((delay - 1) << 2);
         }
+        if (value.startsWith("comparator_") || value.startsWith("powered_comparator_")) {
+            // facingH | (subtract ? 4 : 0) | (powered ? 8 : 0) — ComparatorBlock
+            // lines 230-250 (getStateFromMetadata / getMetadataFromState).
+            int facingH = value.contains("south") ? 0 : value.contains("west") ? 1
+                    : value.contains("north") ? 2 : 3;
+            boolean powered = value.startsWith("powered_comparator");
+            boolean subtract = value.endsWith("_subtract");
+            return facingH | (subtract ? 4 : 0) | (powered ? 8 : 0);
+        }
         if (value.startsWith("lever_")) {
             // The facing id | the powered bit (LeverBlock lines 258-263).
             boolean powered = value.endsWith("_powered");
@@ -553,7 +574,9 @@ final class LegacyBlockIds {
                 || value.startsWith("redstone_torch")
                 || value.startsWith("unlit_redstone_torch")
                 || value.startsWith("repeater_")
-                || value.startsWith("powered_repeater_"));
+                || value.startsWith("powered_repeater_")
+                || value.startsWith("comparator_")
+                || value.startsWith("powered_comparator_"));
     }
 
     /** @return the canonical identifier for a legacy id, or empty if unknown. */

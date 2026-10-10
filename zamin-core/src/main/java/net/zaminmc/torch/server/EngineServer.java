@@ -513,6 +513,36 @@ public final class EngineServer implements Server, EngineBridge {
                     }
                     return false;
                 });
+                // The comparator's analog source table (Slice 9d — the
+                // reference's isAnalogSignalSource family over the engine's
+                // containers): the chest and furnace fullness through their
+                // managers, -1 for every non-source block (the reader's
+                // not-a-source answer).
+                redstoneSystem.setAnalogReader(position -> {
+                    BlockType block = world.getBlock(position);
+                    if (block.identifier().equals(BuiltinBlocks.CHEST.identifier())) {
+                        net.zaminmc.torch.server.chest.ChestBlockEntity chest = chestManager.peek(position);
+                        return chest == null ? 0
+                                : net.zaminmc.torch.server.redstone.RedstoneSystem.containerFullness(
+                                        chest.snapshotSlots(), 64);
+                    }
+                    if (block.identifier().equals(BuiltinBlocks.FURNACE.identifier())
+                            || block.identifier().equals(BuiltinBlocks.FURNACE_LIT.identifier())) {
+                        net.zaminmc.torch.server.furnace.FurnaceBlockEntity furnace =
+                                furnaceManager.peek(position);
+                        return furnace == null ? 0
+                                : net.zaminmc.torch.server.redstone.RedstoneSystem.containerFullness(
+                                        new net.zaminmc.torch.item.ItemStack[]{
+                                                furnace.input(), furnace.fuel(), furnace.output()}, 64);
+                    }
+                    return -1;
+                });
+                // The container-content wake (the reference's
+                // TileEntity.markDirty -> updateNeighborComparators): every
+                // chest/furnace slot mutation re-arms the comparators reading
+                // that container.
+                chestManager.setContentsChanged(position -> redstoneSystem.wakeComparators(position));
+                furnaceManager.setContentsChanged(position -> redstoneSystem.wakeComparators(position));
                 // Fluids (§472 pattern): the scheduled pour/dry/contact system,
                 // waking on every committed change like the neighbor rules do.
                 fluidSystem = new FluidSystem(new FluidWorld(), new FluidSink(itemEntities));
@@ -1000,6 +1030,11 @@ public final class EngineServer implements Server, EngineBridge {
     /** The furnace block entities (exposed for behavioral tests). */
     public FurnaceManager furnaceManager() {
         return furnaceManager;
+    }
+
+    /** The chest block entities (exposed for behavioral tests). */
+    public ChestManager chestManager() {
+        return chestManager;
     }
 
     /**
@@ -3444,6 +3479,15 @@ public final class EngineServer implements Server, EngineBridge {
         if (cycleRepeaterDelayOnTick(clicked)) {
             return; // the repeater's use consumed the right-click (the delay cycle)
         }
+        if (redstoneSystem.useComparator(clicked)) {
+            // The mode cycle's click (ComparatorBlock.use lines 148-151): the
+            // pitch answers the NEW mode — 0.55 subtract / 0.50 compare.
+            fxManager.sound(new Position(clicked.x() + 0.5, clicked.y() + 0.5, clicked.z() + 0.5),
+                    "random.click", 0.3f,
+                    net.zaminmc.torch.server.redstone.RedstoneBlocks.comparatorSubtract(
+                            world.getBlock(clicked)) ? 0.55f : 0.5f);
+            return; // the comparator's mode cycle consumed the right-click
+        }
         if (redstoneSystem.useLever(clicked)) {
             fxManager.sound(new Position(clicked.x() + 0.5, clicked.y() + 0.5, clicked.z() + 0.5),
                     "random.click", 0.3f,
@@ -3528,6 +3572,11 @@ public final class EngineServer implements Server, EngineBridge {
         if (heldId.equals("minecraft:repeater")
                 || creativeHeld.map(t -> t.identifier().value().equals("repeater")).orElse(false)) {
             placeRepeaterOnTick(session, clicked, face, creativeHeld);
+            return; // the look-facing rule overrides the generic placement
+        }
+        if (heldId.equals("minecraft:comparator")
+                || creativeHeld.map(t -> t.identifier().value().equals("comparator")).orElse(false)) {
+            placeComparatorOnTick(session, clicked, face, creativeHeld);
             return; // the look-facing rule overrides the generic placement
         }
         if (heldId.equals("minecraft:lever")
@@ -3822,6 +3871,38 @@ public final class EngineServer implements Server, EngineBridge {
         int lookBand = (int) (yaw / 90.0) % 4; // 0=S,1=W,2=N,3=E of the look
         int facing = net.zaminmc.torch.server.redstone.RedstoneBlocks.oppositeFacing(lookBand);
         world.setBlock(target, net.zaminmc.torch.server.redstone.RedstoneBlocks.repeaterOf(facing, 1, false));
+        consumePlaced(session, creativeHeld);
+    }
+
+    /**
+     * The comparator placement (ComparatorBlock.getPlacementState lines
+     * 258-260 + DiodeBlock.canBePlaced lines 29-31): the same diode rule as
+     * the repeater — the solid top bed, the look-facing FACING (the input
+     * side faces the player), COMPARE mode, unpowered. Tick-thread context.
+     */
+    private void placeComparatorOnTick(PlayerSession session, BlockPosition clicked, int face,
+                                       java.util.Optional<BlockType> creativeHeld) {
+        BlockPosition target = offsetByFace(clicked, face);
+        if (target == null || world.getBlock(clicked).equals(world.airType())
+                || !world.getBlock(target).equals(world.airType())) {
+            return;
+        }
+        if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5
+                || intersectsPlayerBox(session.position(), target)) {
+            return;
+        }
+        if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE
+                && session.inventory().held().isEmpty()) {
+            return;
+        }
+        if (!WorldSolidity.isSolid(world.getBlock(target.offset(0, -1, 0)))) {
+            return; // the diode needs its solid bed
+        }
+        double yaw = ((session.rotation().yaw() % 360.0) + 360.0 + 45.0) % 360.0;
+        int lookBand = (int) (yaw / 90.0) % 4; // 0=S,1=W,2=N,3=E of the look
+        int facing = net.zaminmc.torch.server.redstone.RedstoneBlocks.oppositeFacing(lookBand);
+        world.setBlock(target, net.zaminmc.torch.server.redstone.RedstoneBlocks.comparatorOf(
+                facing, false, false));
         consumePlaced(session, creativeHeld);
     }
 

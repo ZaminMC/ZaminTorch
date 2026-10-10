@@ -42,8 +42,29 @@ public final class FurnaceBlockEntity {
     private int slotsSerial;      // bumped on any slot mutation
     private int propsSerial;      // bumped on any burn/cook mutation
 
+    /**
+     * The contents-changed wake (Slice 9d — the reference's
+     * {@code TileEntity.markDirty} -> {@code updateNeighborComparators}):
+     * invoked on every slot mutation so the comparators reading this
+     * furnace re-evaluate. Wired by the manager; runs on the tick thread.
+     */
+    private Runnable contentsListener;
+
     public FurnaceBlockEntity() {
         java.util.Arrays.fill(slots, ItemStack.EMPTY);
+    }
+
+    /** Wires the contents-changed wake (the manager's per-position fan-out). */
+    public void setContentsListener(Runnable listener) {
+        this.contentsListener = listener;
+    }
+
+    /** The slot-mutation bump: the serial + the comparator wake. */
+    private void bump() {
+        slotsSerial++;
+        if (contentsListener != null) {
+            contentsListener.run();
+        }
     }
 
     public ItemStack input() {
@@ -111,7 +132,7 @@ public final class FurnaceBlockEntity {
             if (cookTime >= FurnaceRecipes.COOK_TICKS) {
                 cookTime = 0;
                 smeltOne();
-                slotsSerial++;
+                bump();
             }
         } else if (cookTime != 0) {
             // Not cooking: the historical reset (progress never persists).
@@ -151,7 +172,7 @@ public final class FurnaceBlockEntity {
     private void consumeOne(int slot) {
         ItemStack current = slots[slot];
         slots[slot] = current.withCount(current.count() - 1);
-        slotsSerial++;
+        bump();
     }
 
     /** Moves one smelt result into the output slot (validated by {@link #canSmelt}). */
@@ -182,7 +203,7 @@ public final class FurnaceBlockEntity {
     public void clickSlot(int slot, int button, net.zaminmc.torch.server.player.PlayerInventory inventory) {
         rangeCheck(slot);
         net.zaminmc.torch.server.player.WindowClicks.click(slots, slot, button, inventory.cursorBox());
-        slotsSerial++;
+        bump();
     }
 
     /**
@@ -198,7 +219,7 @@ public final class FurnaceBlockEntity {
         }
         ItemStack dropped = entireStack ? current : current.split(1);
         slots[slot] = current.withCount(current.count() - dropped.count());
-        slotsSerial++;
+        bump();
         return dropped;
     }
 
@@ -217,7 +238,7 @@ public final class FurnaceBlockEntity {
         if (!remaining.isEmpty()) {
             slots[slot] = remaining;
         }
-        slotsSerial++;
+        bump();
     }
 
     /**
@@ -243,7 +264,7 @@ public final class FurnaceBlockEntity {
         ItemStack current = slots[target];
         if (current.isEmpty()) {
             slots[target] = moving;
-            slotsSerial++;
+            bump();
             return ItemStack.EMPTY;
         }
         if (net.zaminmc.torch.server.player.WindowClicks.stacksMergeable(current, moving)
@@ -251,7 +272,7 @@ public final class FurnaceBlockEntity {
             int capacity = current.type().maxStackSize() - current.count();
             int transfer = Math.min(capacity, moving.count());
             slots[target] = current.withCount(current.count() + transfer);
-            slotsSerial++;
+            bump();
             return moving.withCount(moving.count() - transfer);
         }
         return moving; // mismatched or full target: the whole stack comes back
@@ -266,7 +287,7 @@ public final class FurnaceBlockEntity {
     public void setSlot(int slot, ItemStack stack) {
         rangeCheck(slot);
         slots[slot] = Objects.requireNonNull(stack, "stack");
-        slotsSerial++;
+        bump();
     }
 
     /** Direct state write for engine commands only (persistence restore). */

@@ -42,10 +42,40 @@ public final class FurnaceManager {
         listeners.add(Objects.requireNonNull(listener, "listener"));
     }
 
+    /**
+     * The contents-changed wake (Slice 9d): position -> the comparator
+     * re-evaluation fan-out. Wired by the engine after the redstone system
+     * boots; runs on the tick thread inside every slot mutation.
+     */
+    private java.util.function.Consumer<BlockPosition> contentsChanged;
+
+    /** Wires the contents-changed wake (the redstone comparator fan-out). */
+    public void setContentsChanged(java.util.function.Consumer<BlockPosition> listener) {
+        this.contentsChanged = listener;
+    }
+
+    /** Binds the per-position wake to a block entity. */
+    private void wire(BlockPosition position, FurnaceBlockEntity entity) {
+        entity.setContentsListener(() -> {
+            java.util.function.Consumer<BlockPosition> fan = contentsChanged;
+            if (fan != null) {
+                fan.accept(position);
+            }
+        });
+    }
+
     /** @return the furnace state at the position, creating it on first use. */
     public FurnaceBlockEntity getOrCreate(BlockPosition position) {
         Objects.requireNonNull(position, "position");
-        return furnaces.computeIfAbsent(position, p -> new FurnaceBlockEntity());
+        FurnaceBlockEntity existing = furnaces.get(position);
+        if (existing != null) {
+            wire(position, existing); // restored entries wire lazily too
+            return existing;
+        }
+        FurnaceBlockEntity created = new FurnaceBlockEntity();
+        wire(position, created);
+        furnaces.put(position, created);
+        return created;
     }
 
     /** @return the live state at the position, or null when the furnace has none. */
@@ -65,6 +95,7 @@ public final class FurnaceManager {
 
     /** Restores persisted state after boot (world deltas already applied). */
     public void restoreAll(Map<BlockPosition, FurnaceBlockEntity> restored) {
+        restored.forEach((position, entity) -> wire(position, entity));
         furnaces.putAll(restored);
     }
 
