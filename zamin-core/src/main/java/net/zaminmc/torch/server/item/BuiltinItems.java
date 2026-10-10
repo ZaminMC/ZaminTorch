@@ -152,6 +152,15 @@ public final class BuiltinItems {
             Identifier.parse("minecraft:oak_door"), "Oak Door", 64);
     public static final EngineItemType LADDER = new EngineItemType(
             Identifier.parse("minecraft:ladder"), "Ladder", 64);
+
+    // The redstone slice (community items.json legacy ids: dust 331, the
+    // torch shares block id 76, the repeater item 356).
+    public static final EngineItemType REDSTONE = new EngineItemType(
+            Identifier.parse("minecraft:redstone"), "Redstone", 64);
+    public static final EngineItemType REDSTONE_TORCH = new EngineItemType(
+            Identifier.parse("minecraft:redstone_torch"), "Redstone Torch", 64);
+    public static final EngineItemType REPEATER = new EngineItemType(
+            Identifier.parse("minecraft:repeater"), "Repeater", 64);
     public static final EngineItemType OAK_FENCE = new EngineItemType(
             Identifier.parse("minecraft:oak_fence"), "Oak Fence", 64);
     // The bed item (community items.json: legacy 355) — places both halves.
@@ -439,6 +448,7 @@ public final class BuiltinItems {
                 WHEAT_SEEDS, WHEAT, BREAD, BONE_MEAL, SIGN,
                 CARROT, APPLE, GOLDEN_CARROT, GOLDEN_APPLE, HAY_BLOCK,
                 OAK_DOOR, LADDER, OAK_FENCE, BED,
+                REDSTONE, REDSTONE_TORCH, REPEATER,
                 OAK_SLAB, STONE_SLAB, COBBLESTONE_SLAB, SANDSTONE_SLAB,
                 OAK_STAIRS, COBBLESTONE_STAIRS,
                 RAIL, BOAT, MINECART,

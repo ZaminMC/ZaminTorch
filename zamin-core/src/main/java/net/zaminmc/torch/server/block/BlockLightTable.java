@@ -180,12 +180,51 @@ public final class BlockLightTable {
             Map.entry(Identifier.parse("minecraft:cactus"), new LightData(0, 0)),
             Map.entry(Identifier.parse("minecraft:sugar_cane"), new LightData(0, 0)));
 
+    /**
+     * The redstone family's light rows (Slice 9a): the lit torches emit
+     * level 7 (the dataset's {@code emitLight 7} for minecraft:redstone_torch
+     * — dimmer than the plain torch's 14), the unlit pair, the wire at every
+     * power and the repeaters emit nothing, and nothing in the family filters
+     * light (the thin shapes pass it).
+     */
+    private static final Map<Identifier, LightData> REDSTONE_LIGHT = buildRedstoneLight();
+
+    private static Map<Identifier, LightData> buildRedstoneLight() {
+        Map<Identifier, LightData> entries = new java.util.HashMap<>();
+        LightData lit = new LightData(7, 0);
+        for (String wall : new String[]{"", "_east", "_west", "_south", "_north"}) {
+            entries.put(Identifier.parse("minecraft:redstone_torch" + wall), lit);
+            entries.put(Identifier.parse("minecraft:unlit_redstone_torch" + wall), new LightData(0, 0));
+        }
+        for (int power = 0; power <= 15; power++) {
+            entries.put(Identifier.parse("minecraft:redstone_wire"
+                    + (power == 0 ? "" : "_" + power)), new LightData(0, 0));
+        }
+        for (String prefix : new String[]{"repeater", "powered_repeater"}) {
+            for (String facing : new String[]{"south", "west", "north", "east"}) {
+                for (int delay = 1; delay <= 4; delay++) {
+                    entries.put(Identifier.parse("minecraft:" + prefix + "_" + facing + "_" + delay),
+                            new LightData(0, 0));
+                }
+            }
+        }
+        return Map.copyOf(entries);
+    }
+
+    private static final Map<Identifier, LightData> ALL_LIGHT = mergeLight();
+
+    private static Map<Identifier, LightData> mergeLight() {
+        Map<Identifier, LightData> merged = new java.util.HashMap<>(LIGHT);
+        merged.putAll(REDSTONE_LIGHT);
+        return Map.copyOf(merged);
+    }
+
     private BlockLightTable() {
     }
 
     /** @return the light behavior of a registered block (every registered block is present). */
     public static Optional<LightData> lookup(Identifier block) {
-        return Optional.ofNullable(LIGHT.get(block));
+        return Optional.ofNullable(ALL_LIGHT.get(block));
     }
 
     /** @return the emitted level of a registered block, failing loudly on gaps (§147). */
@@ -199,7 +238,7 @@ public final class BlockLightTable {
     }
 
     private static LightData require(net.zaminmc.torch.block.BlockType type) {
-        LightData data = LIGHT.get(type.identifier());
+        LightData data = ALL_LIGHT.get(type.identifier());
         if (data == null) {
             throw new IllegalStateException(
                     "Block type has no light table entry: " + type.identifier());
@@ -209,6 +248,6 @@ public final class BlockLightTable {
 
     /** @return all table entries (diagnostics; registry coverage checks). */
     public static List<Map.Entry<Identifier, LightData>> entries() {
-        return List.copyOf(LIGHT.entrySet());
+        return List.copyOf(ALL_LIGHT.entrySet());
     }
 }
