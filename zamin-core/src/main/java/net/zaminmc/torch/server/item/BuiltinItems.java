@@ -189,6 +189,15 @@ public final class BuiltinItems {
     public static final EngineItemType EMERALD = new EngineItemType(
             Identifier.parse("minecraft:emerald"), "Emerald", 64);
 
+    // The enchanting corner (legacy ids: lapis is the dye 351 whose damage 4
+    // is the blue the table's slot gate demands, enchanted book 403 the
+    // book's enchanted form at max 1; the bookshelf and table place from
+    // their block forms, 47 and 116).
+    public static final EngineItemType LAPIS = new EngineItemType(
+            Identifier.parse("minecraft:lapis"), "Lapis Lazuli", 64);
+    public static final EngineItemType ENCHANTED_BOOK = new EngineItemType(
+            Identifier.parse("minecraft:enchanted_book"), "Enchanted Book", 1);
+
     // Mob loot (legacy ids from the community dataset: porkchop 319, cooked
     // porkchop 320, raw chicken 365, cooked chicken 366, feather 288,
     // leather 334, rotten flesh 367). Cooked variants smelt from the raw
@@ -414,6 +423,7 @@ public final class BuiltinItems {
                 RAIL, BOAT, MINECART,
                 SADDLE, IRON_HORSE_ARMOR, GOLDEN_HORSE_ARMOR, DIAMOND_HORSE_ARMOR,
                 LEAD, CARROT_ON_A_STICK, EMERALD,
+                LAPIS, ENCHANTED_BOOK,
                 BONE, STRING, GUNPOWDER, WOOL, MUTTON, COOKED_MUTTON,
                 BUCKET, WATER_BUCKET, LAVA_BUCKET,
                 FLINT_AND_STEEL, GOLD_INGOT,

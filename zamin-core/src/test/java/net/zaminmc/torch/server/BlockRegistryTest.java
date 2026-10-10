@@ -17,7 +17,7 @@ class BlockRegistryTest {
         FrozenBlockRegistry registry = BuiltinBlocks.registerAll(new BlockRegistryBuilder()).freeze();
         assertTrue(registry.lookup(Identifier.parse("minecraft:stone")).isPresent());
         assertTrue(registry.lookup(Identifier.parse("minecraft:air")).isPresent());
-        assertEquals(91, registry.all().size()); // built-ins + ore ladder + craftable + smelting/gravity blocks + the fluid-contact pair + the biome flora + the farming stages + the sign facings + the wall signs + the door/ladder/fence states + planks/wool/fire + cane/cactus/lit furnace + the slab/stair collision states + the two flat rails
+        assertEquals(93, registry.all().size()); // built-ins + ore ladder + craftable + smelting/gravity blocks + the fluid-contact pair + the biome flora + the farming stages + the sign facings + the wall signs + the door/ladder/fence states + planks/wool/fire + cane/cactus/lit furnace + the slab/stair collision states + the two flat rails + the bookshelf + the enchanting table
     }
 
     @Test

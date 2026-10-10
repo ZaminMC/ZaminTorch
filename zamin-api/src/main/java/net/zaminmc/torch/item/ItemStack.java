@@ -192,6 +192,16 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
     }
 
     /**
+     * @return the read-only enchantment map, null when unenchanted (the
+     *         {@code tag.ench} presence check the enchanting table's
+     *         {@code isEnchantable} gate reads — an already-enchanted stack
+     *         refuses re-enchanting, exactly like the reference).
+     */
+    public Map<Integer, Integer> enchantments() {
+        return enchantments;
+    }
+
+    /**
      * Validates the enchantment map: shorts for id and level, levels >= 1,
      * insertion order kept (the historical tooltip order), defensively
      * immutable. Null/empty normalizes to null (unenchanted).
