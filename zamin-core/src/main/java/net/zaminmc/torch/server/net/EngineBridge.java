@@ -77,6 +77,16 @@ public interface EngineBridge {
     void closeWindow(PlayerSession session, int windowId);
 
     /**
+     * The enchanting table's Enchant Item packet (0x11): the adapter reports
+     * the open window's id and the pressed slot button (0..2); the engine
+     * applies the reference button walk on the simulation context (the gate
+     * ladder, the level payment, the lapis consumption) and reports whether
+     * the enchant landed through {@code result}.
+     */
+    void enchantItem(PlayerSession session, int windowId, int button,
+                     java.util.function.Consumer<Boolean> result);
+
+    /**
      * A right-click use in the air (block placement packet with the -1
      * position sentinel, or face 255 against a block): the engine decides on
      * the simulation context what the held item does — food starts the

@@ -445,6 +445,16 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                 }
             }
         });
+        // Enchanting windows: the same per-tick view fan-out, the menu state
+        // living on the session (the historical per-open menu object).
+        server.addEnchantingViewListener((viewer, menu) -> {
+            for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                if (connection.currentSession() == viewer) {
+                    connection.sendEnchantingViewTick(channelOf(connection),
+                            viewer.openContainerWindowId(), menu);
+                }
+            }
+        });
         // Survival body: health changes re-sync the client, deaths send the
         // combat event, respawns drive the full re-anchor sequence.
         server.addSurvivalListener(new net.zaminmc.torch.server.EngineServer.SurvivalListener() {

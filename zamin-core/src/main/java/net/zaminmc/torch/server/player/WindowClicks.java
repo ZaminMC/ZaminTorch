@@ -51,12 +51,13 @@ public final class WindowClicks {
 
     /**
      * The full historical arms (the reference {@code InventoryMenu.onClickSlot}
-     * PICKUP walk) with a per-slot max stack and the placement gate: an empty
-     * slot takes {@code min(cursor, max)} (the split), a merge tops up to
-     * {@code max}, a mismatched swap requires {@code cursor <= max}, and the
-     * not-allowed same-item cursor falls through to the reverse merge
-     * (slot into cursor). The three-argument overload above is this walk with
-     * the type's own max and no filter.
+     * PICKUP walk) with a per-slot max stack and the placement gate: the gate
+     * runs on the empty-slot placement (a refused cursor leaves everything)
+     * and wraps the merge/swap arms; a not-allowed same-item cursor falls
+     * through to the reverse merge (slot into cursor). Taking from a slot is
+     * never gated. Every clamp carries the cursor's own max (the reference's
+     * {@code getMaxStackSize(cursor)}). The three-argument overload above is
+     * this walk with the container's max and no filter.
      */
     public static void click(ItemStack[] slots, int index, int button, CursorBox cursor,
                              int slotMax, SlotFilter filter) {
@@ -87,37 +88,41 @@ public final class WindowClicks {
             cursor.set(slot);
             slots[index] = ItemStack.EMPTY;
         } else if (slot.isEmpty()) {
-            // The reference's empty-slot arm: k2 = min(cursor, slotMax), and the
-            // placement splits — a max-1 slot keeps the cursor's remainder.
-            int take = Math.min(carried.count(), slotMax);
+            // The reference's empty-slot arm: the placement gate runs FIRST
+            // (a refused cursor leaves everything), then k2 = min(click size,
+            // getMaxStackSize(cursor)) with the cursor's own max in the clamp.
+            if (!filter.allows(carried)) {
+                return;
+            }
+            int take = Math.min(carried.count(), Math.min(slotMax, carried.type().maxStackSize()));
             if (carried.count() >= take) {
                 slots[index] = carried.withCount(take);
                 int left = carried.count() - take;
                 cursor.set(left == 0 ? ItemStack.EMPTY : carried.withCount(left));
             }
-        } else if (stacksMergeable(slot, carried)) {
-            // Same item: the top-up clamp is the slot max first (the max-1
-            // enchanting slot merges nothing), then the type's own cap.
-            int capacity = Math.min(slotMax, slot.type().maxStackSize()) - slot.count();
-            int moved = Math.min(capacity, carried.count());
-            slots[index] = new ItemStack(slot.type(), slot.count() + moved, slot.damage());
-            int left = carried.count() - moved;
-            cursor.set(left == 0 ? ItemStack.EMPTY : carried.withCount(left));
-        } else if (!filter.allows(carried)) {
-            // The not-allowed cursor of the SAME item falls through to the
-            // reference's reverse merge (slot into cursor, cursor cap rules);
-            // a different not-allowed item leaves everything untouched.
-            // The reverse merge matches on the mergeable identity too.
-            if (stacksMergeable(slot, carried)
-                    && carried.type().maxStackSize() > 1
-                    && slot.count() + carried.count() <= carried.type().maxStackSize()) {
-                cursor.set(new ItemStack(carried.type(), carried.count() + slot.count(),
-                        carried.damage()));
-                slots[index] = ItemStack.EMPTY;
+        } else if (filter.allows(carried)) {
+            // The allowed branch: the same-item merge, else the gated swap.
+            if (stacksMergeable(slot, carried)) {
+                // The merge clamp is the slot max and the cursor's own cap
+                // (the reference's double min over getMaxStackSize(cursor)).
+                int capacity = Math.min(slotMax, carried.type().maxStackSize()) - slot.count();
+                int moved = Math.min(capacity, carried.count());
+                if (moved > 0) {
+                    slots[index] = new ItemStack(slot.type(), slot.count() + moved, slot.damage());
+                    int left = carried.count() - moved;
+                    cursor.set(left == 0 ? ItemStack.EMPTY : carried.withCount(left));
+                }
+            } else if (carried.count() <= Math.min(slotMax, carried.type().maxStackSize())) {
+                slots[index] = carried;
+                cursor.set(slot); // mismatch: historical swap, gated by the slot max
             }
-        } else if (carried.count() <= slotMax) {
-            slots[index] = carried;
-            cursor.set(slot); // mismatch: historical swap, gated by the slot max
+        } else if (stacksMergeable(slot, carried) && carried.type().maxStackSize() > 1
+                && slot.count() + carried.count() <= carried.type().maxStackSize()) {
+            // The not-allowed same-item cursor: the reference's reverse merge
+            // (the slot merges INTO the cursor up to the cursor's cap).
+            cursor.set(new ItemStack(carried.type(), carried.count() + slot.count(),
+                    carried.damage()));
+            slots[index] = ItemStack.EMPTY;
         }
     }
 
@@ -132,29 +137,31 @@ public final class WindowClicks {
             cursor.set(new ItemStack(slot.type(), taken, slot.damage()));
             slots[index] = slot.withCount(slot.count() - taken);
         } else if (slot.isEmpty()) {
-            int take = Math.min(1, slotMax);
+            if (!filter.allows(carried)) {
+                return; // the placement gate refuses the unit deposit
+            }
+            int take = Math.min(1, Math.min(slotMax, carried.type().maxStackSize()));
             slots[index] = carried.withCount(take);
             int left = carried.count() - take;
             cursor.set(left == 0 ? ItemStack.EMPTY : carried.withCount(left));
-        } else if (stacksMergeable(slot, carried)) {
-            int capacity = Math.min(slotMax, slot.type().maxStackSize()) - slot.count();
-            int moved = Math.min(capacity, 1); // right click merges one unit
-            if (moved > 0 && slot.count() < Math.min(slotMax, slot.type().maxStackSize())) {
-                slots[index] = new ItemStack(slot.type(), slot.count() + moved, slot.damage());
-                int left = carried.count() - moved;
-                cursor.set(left == 0 ? ItemStack.EMPTY : carried.withCount(left));
+        } else if (filter.allows(carried)) {
+            if (stacksMergeable(slot, carried)) {
+                int capacity = Math.min(slotMax, carried.type().maxStackSize()) - slot.count();
+                int moved = Math.min(capacity, 1); // right click merges one unit
+                if (moved > 0) {
+                    slots[index] = new ItemStack(slot.type(), slot.count() + moved, slot.damage());
+                    int left = carried.count() - moved;
+                    cursor.set(left == 0 ? ItemStack.EMPTY : carried.withCount(left));
+                }
+            } else if (carried.count() <= Math.min(slotMax, carried.type().maxStackSize())) {
+                slots[index] = carried;
+                cursor.set(slot);
             }
-        } else if (!filter.allows(carried)) {
-            if (stacksMergeable(slot, carried)
-                    && carried.type().maxStackSize() > 1
-                    && slot.count() + carried.count() <= carried.type().maxStackSize()) {
-                cursor.set(new ItemStack(carried.type(), carried.count() + slot.count(),
-                        carried.damage()));
-                slots[index] = ItemStack.EMPTY;
-            }
-        } else if (carried.count() <= slotMax) {
-            slots[index] = carried;
-            cursor.set(slot);
+        } else if (stacksMergeable(slot, carried) && carried.type().maxStackSize() > 1
+                && slot.count() + carried.count() <= carried.type().maxStackSize()) {
+            cursor.set(new ItemStack(carried.type(), carried.count() + slot.count(),
+                    carried.damage()));
+            slots[index] = ItemStack.EMPTY;
         }
     }
 

@@ -61,6 +61,13 @@ public final class EnchantingMenu {
     /** The scanned table position — every scan offset rides it. */
     private final BlockPosition origin;
 
+    /**
+     * The world the menu reads for the bookshelf scan (the reference menu
+     * carries {@code world}); the live recompute arms use it, detached test
+     * calls pass their own view or null.
+     */
+    private WorldView world;
+
     private final int originY;
 
     /** The XP level requirement per slot (the reference {@code enchantingCosts}). */
@@ -92,6 +99,33 @@ public final class EnchantingMenu {
         return slots[1];
     }
 
+    /**
+     * Attaches the live world (the engine's open path): the click and button
+     * recomputes then scan the real bookshelf neighborhood, exactly like the
+     * reference menu's constructor-carried world.
+     */
+    public void attach(WorldView view) {
+        this.world = view;
+    }
+
+    /** @return the attached world view, or null when detached (tests). */
+    public WorldView attachedWorld() {
+        return world;
+    }
+
+    // Test hooks: direct slot placement (bypasses the click walk; the state
+    // tests recompute explicitly after using them).
+
+    /** Test hook: places a stack directly in the item slot. */
+    public void itemSlotSet(ItemStack stack) {
+        slots[0] = stack;
+    }
+
+    /** Test hook: places a stack directly in the lapis slot. */
+    public void lapisSlotSet(ItemStack stack) {
+        slots[1] = stack;
+    }
+
     /** @return the dropped stacks when the window closes (the {@code close} walk). */
     public ItemStack[] closeDrop() {
         ItemStack[] dropped = {slots[0], slots[1]};
@@ -105,14 +139,16 @@ public final class EnchantingMenu {
 
     /**
      * The contents-driven recompute: the bookshelf scan, the seeded cost
-     * ladder, the clue picks. {@code world} may be null (detached menus —
-     * the close-drop — zero out instead). Every mutation bumps the revision.
+     * ladder, the clue picks. {@code world} may be null — the attached view
+     * (the engine's open path) substitutes; with neither, the ladder zeroes
+     * (detached test calls). Every mutation bumps the revision.
      */
     public void onContentsChanged(WorldView world) {
+        WorldView view = world != null ? world : this.world;
         revision++;
         ItemStack item = slots[0];
-        if (world != null && isEnchantable(item)) {
-            int power = bookshelfPower(world);
+        if (view != null && isEnchantable(item)) {
+            int power = bookshelfPower(view);
             this.random.setSeed(this.seed);
             for (int slot = 0; slot < 3; slot++) {
                 this.costs[slot] = EnchantmentHelper.requiredXpLevel(this.random, slot, power, item);
@@ -207,6 +243,42 @@ public final class EnchantingMenu {
     }
 
     /**
+     * The reference {@code isValid}: the block must still be the enchanting
+     * table and the player within squared distance 64 of the table's center
+     * (the +0.5s) — the window closes the tick this turns false.
+     */
+    public boolean stillValid(WorldView world, double playerX, double playerY, double playerZ) {
+        if (!blockAt(world, 0, 0, 0).identifier()
+                .equals(BuiltinBlocks.ENCHANTING_TABLE.identifier())) {
+            return false;
+        }
+        double dx = origin.x() + 0.5 - playerX;
+        double dy = origin.y() + 0.5 - playerY;
+        double dz = origin.z() + 0.5 - playerZ;
+        return dx * dx + dy * dy + dz * dz <= 64.0;
+    }
+
+    /**
+     * The seven Window Property values in the reference's id order:
+     * 0..2 the costs, 3 the seed (masked), 4..6 the clue values.
+     */
+    public int property(int id) {
+        if (id >= 0 && id <= 2) {
+            return costs[id];
+        }
+        if (id == 3) {
+            return seed & -16;
+        }
+        if (id >= 4 && id <= 6) {
+            return clues[id - 4];
+        }
+        throw new IllegalArgumentException("Enchanting property id out of range: " + id);
+    }
+
+    /** The seven property ids, pushed on open and after every recompute. */
+    public static final int PROPERTY_COUNT = 7;
+
+    /**
      * The historical {@code isEnchantable}: enchantability above zero and
      * not already carrying enchantments (the {@code tag.ench} presence).
      */
@@ -261,7 +333,7 @@ public final class EnchantingMenu {
         WindowClicks.SlotFilter filter = menuSlot == 1 ? EnchantingMenu::isLapis : WindowClicks.ANY;
         WindowClicks.click(slots, menuSlot, button, cursor, SLOT_MAX[menuSlot], filter);
         if (!before.equals(slots[menuSlot]) || !cursorBefore.equals(cursor.get())) {
-            onContentsChanged(null);
+            onContentsChanged(null); // the attached view substitutes when set
             return true;
         }
         return false;
@@ -285,8 +357,9 @@ public final class EnchantingMenu {
 
     /**
      * Quick-move from the player into the menu (the reference's player arm):
-     * lapis goes to slot 1, everything else to slot 0 — one unit, or the
-     * whole stack when it is a single named/NBT stack.
+     * lapis goes to slot 1 through {@code moveItem(1, 2, true)} — merge first,
+     * then the empty slot, capped at the slot's 64; everything else to slot 0 —
+     * one unit, or the whole stack when it is a single named/NBT stack.
      *
      * @return the leftover that stays with the player
      */
@@ -295,12 +368,27 @@ public final class EnchantingMenu {
             return ItemStack.EMPTY;
         }
         if (isLapis(stack)) {
-            if (!slots[1].isEmpty()) {
-                return stack; // the target slot is occupied: the reference refuses
+            int slotMax = Math.min(64, stack.type().maxStackSize());
+            if (slots[1].isEmpty()) {
+                int take = Math.min(slotMax, stack.count());
+                slots[1] = stack.withCount(take);
+                onContentsChanged(null);
+                return stack.count() - take == 0 ? ItemStack.EMPTY
+                        : stack.withCount(stack.count() - take);
             }
-            slots[1] = stack;
-            onContentsChanged(null);
-            return ItemStack.EMPTY;
+            if (!stacksMergeable(slots[1], stack)) {
+                return stack; // a non-lapis occupant: the reference's moveItem never lands it
+            }
+            int capacity = slotMax - slots[1].count();
+            int moved = Math.min(capacity, stack.count());
+            if (moved > 0) {
+                slots[1] = new ItemStack(slots[1].type(), slots[1].count() + moved,
+                        slots[1].damage());
+                onContentsChanged(null);
+            }
+            return moved == 0 ? stack
+                    : (stack.count() - moved == 0 ? ItemStack.EMPTY
+                       : stack.withCount(stack.count() - moved));
         }
         if (!slots[0].isEmpty()) {
             return stack;
@@ -313,6 +401,14 @@ public final class EnchantingMenu {
         slots[0] = ItemStack.of(stack.type(), 1).withDamage(stack.damage());
         onContentsChanged(null);
         return stack.withCount(stack.count() - 1);
+    }
+
+    private static boolean stacksMergeable(ItemStack a, ItemStack b) {
+        return !a.isEmpty() && !b.isEmpty()
+                && a.type().equals(b.type())
+                && a.damage() == b.damage()
+                && java.util.Objects.equals(a.displayName(), b.displayName())
+                && java.util.Objects.equals(a.enchantments(), b.enchantments());
     }
 
     // --- the enchant button (the reference onButtonClick) --------------------

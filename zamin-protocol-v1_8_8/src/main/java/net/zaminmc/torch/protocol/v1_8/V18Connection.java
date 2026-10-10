@@ -82,6 +82,10 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     private int furnaceSlotsSynced = -1;
     private int furnacePropsSynced = -1;
     private final int[] furnacePropsSent = new int[Protocol18.FURNACE_PROP_COUNT];
+    // Enchanting-window sync state (same shape as the furnace's): the menu
+    // revision last seen (slot resync) and the seven property values last sent.
+    private long enchantingRevisionSynced = -1;
+    private final int[] enchantingPropsSent = new int[Protocol18.ENCHANTING_PROP_COUNT];
 
     V18Connection(V18ProtocolServer adapter, EngineServer engine) {
         this.adapter = adapter;
@@ -382,8 +386,12 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             }
             case Protocol18.C2S_SET_CREATIVE_SLOT -> handleCreativeSlot(player, packet);
             case Protocol18.C2S_ENCHANT_ITEM -> {
-                packet.readByte();
-                packet.readByte();
+                // Enchant Item (0x11, protocol 47: byte window id, byte button
+                // 0-2). No action number rides the packet — the vanilla server
+                // answers with state syncs, never a Transaction confirm.
+                int windowId = packet.readByte();
+                int button = packet.readByte();
+                engine.enchantItem(player, windowId, button, accepted -> { });
             }
             case Protocol18.C2S_UPDATE_SIGN -> handleUpdateSign(player, packet);
             case Protocol18.C2S_PLAYER_ABILITIES -> {
@@ -866,6 +874,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 switch (player.openContainerKind()) {
                     case FURNACE -> sendFurnaceWindow(channel, player, windowId);
                     case CHEST -> sendChestWindow(channel, player, windowId);
+                    case ENCHANTING_TABLE -> sendEnchantingWindow(channel, player, windowId);
                     default -> sendCraftingTableWindow(channel, player, windowId);
                 }
             });
@@ -979,6 +988,90 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         if (furnace.slotsSerial() != furnaceSlotsSynced) {
             furnaceSlotsSynced = furnace.slotsSerial();
             sendFurnaceWindowItems(channel, windowId, furnace, session);
+        }
+    }
+
+    /**
+     * Open Window (0x2D) for the enchanting table, followed by the
+     * authoritative 38-slot contents and the seven initial Window Properties
+     * (the reference {@code addListener} push). Size 0 — the client builds
+     * the layout from the type string. Called on the tick thread by the
+     * engine's open dispatch.
+     */
+    private void sendEnchantingWindow(Channel channel, PlayerSession player, int windowId) {
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        enchantingRevisionSynced = -1;
+        java.util.Arrays.fill(enchantingPropsSent, Integer.MIN_VALUE);
+        ByteBuf out = Unpooled.buffer(48);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_OPEN_WINDOW);
+        out.writeByte(windowId);
+        ByteBufOps.writeString(out, Protocol18.ENCHANTING_WINDOW_TYPE);
+        ByteBufOps.writeString(out, Protocol18.ENCHANTING_WINDOW_TITLE);
+        out.writeByte(0); // the client builds the two-slot layout from the type
+        channel.writeAndFlush(out);
+        sendEnchantingWindowItems(channel, windowId, player);
+        var menu = player.enchantingMenu();
+        if (menu != null) {
+            for (int property = 0; property < Protocol18.ENCHANTING_PROP_COUNT; property++) {
+                int value = menu.property(property);
+                enchantingPropsSent[property] = value;
+                sendWindowProperty(channel, windowId, property, value);
+            }
+        }
+    }
+
+    /** The authoritative 38-slot Window Items (2 menu + 36 player). */
+    private void sendEnchantingWindowItems(Channel channel, int windowId, PlayerSession player) {
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(96);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_WINDOW_ITEMS);
+        out.writeByte(windowId);
+        out.writeShort(Protocol18.ENCHANTING_WINDOW_SLOTS);
+        var menu = player.enchantingMenu();
+        java.util.List<net.zaminmc.torch.item.ItemStack> inventory =
+                player == null ? java.util.List.of() : player.inventory().snapshot();
+        for (int wireSlot = 0; wireSlot < Protocol18.ENCHANTING_WINDOW_SLOTS; wireSlot++) {
+            net.zaminmc.torch.item.ItemStack stack;
+            if (wireSlot == Protocol18.ENCHANTING_WIRE_SLOT_ITEM) {
+                stack = menu == null ? net.zaminmc.torch.item.ItemStack.EMPTY : menu.item();
+            } else if (wireSlot == Protocol18.ENCHANTING_WIRE_SLOT_LAPIS) {
+                stack = menu == null ? net.zaminmc.torch.item.ItemStack.EMPTY : menu.lapis();
+            } else if (wireSlot <= Protocol18.ENCHANTING_WIRE_SLOT_MAIN_LAST) {
+                stack = inventory.get(wireSlot + 7); // main inventory: engine 9-35
+            } else {
+                stack = inventory.get(wireSlot - Protocol18.ENCHANTING_WIRE_SLOT_HOTBAR_BASE);
+            }
+            writeSlot(out, stack);
+        }
+        channel.writeAndFlush(out);
+    }
+
+    /**
+     * Per-tick enchanting view (engine fan-out to the open viewer): sends the
+     * seven window properties whose values moved and a full 38-slot Window
+     * Items resync when the menu's revision changed (any observable slot,
+     * cost, or clue mutation bumps it — the historical
+     * {@code detectAndSendChanges} pairing). Tick-thread context.
+     */
+    void sendEnchantingViewTick(Channel channel, int windowId,
+                                net.zaminmc.torch.server.enchantment.EnchantingMenu menu) {
+        if (channel == null || !channel.isActive() || state != WireState.PLAY || menu == null) {
+            return;
+        }
+        for (int property = 0; property < Protocol18.ENCHANTING_PROP_COUNT; property++) {
+            int value = menu.property(property);
+            if (value != enchantingPropsSent[property]) {
+                enchantingPropsSent[property] = value;
+                sendWindowProperty(channel, windowId, property, value);
+            }
+        }
+        if (menu.revision() != enchantingRevisionSynced) {
+            enchantingRevisionSynced = menu.revision();
+            sendEnchantingWindowItems(channel, windowId, session);
         }
     }
 
@@ -1481,6 +1574,11 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             if (mount != null) {
                 sendHorseWindowItems(channel, windowId, mount, player);
             }
+            return;
+        }
+        if (player.openContainerKind()
+                == net.zaminmc.torch.server.player.PlayerSession.ContainerKind.ENCHANTING_TABLE) {
+            sendEnchantingWindowItems(channel, windowId, player);
             return;
         }
         sendCraftingTableWindowItems(channel, windowId, player);
