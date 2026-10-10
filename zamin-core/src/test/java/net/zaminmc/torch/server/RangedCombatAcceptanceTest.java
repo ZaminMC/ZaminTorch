@@ -96,11 +96,16 @@ class RangedCombatAcceptanceTest {
         await(() -> !archer.inventory().held().isEmpty(), "bow given");
 
         // The flick (charge 2 shapes to 0.07 < 0.1): no arrow, no wear —
-        // the reference's f < 0.1 abort (BowItem line 27).
+        // the reference's f < 0.1 abort (BowItem line 27). The freeze seam
+        // holds the draw at exactly 2: the tick loop's own advance would
+        // otherwise slip extra ticks under suite load (the vanilla charge is
+        // elapsed-ticks — the reference behaves the same under server lag).
+        archer.freezeBowChargeForTest();
         drawFor(archer, 2);
         server.releaseUsingItem(archer);
         Thread.sleep(400);
         assertEquals(0, server.projectiles().all().size(), "the flick fired nothing");
+        archer.unfreezeBowChargeForTest();
 
         // The mid draw (charge 19 shapes to 0.93417): the plain arrow lands
         // exactly 6 — ceil(2.8025 * 2) with no crit flag (the full-draw
@@ -112,8 +117,10 @@ class RangedCombatAcceptanceTest {
                 .filter(m -> m.type() == net.zaminmc.torch.server.entity.MobType.PIG)
                 .findFirst().orElseThrow();
         aimFromAbove(server, archer, pig.position());
+        archer.freezeBowChargeForTest(); // the draw pins at exactly 19
         drawFor(archer, 19);
         server.releaseUsingItem(archer);
+        archer.unfreezeBowChargeForTest();
         await(() -> pig.health() < net.zaminmc.torch.server.entity.MobType.PIG.maxHealth,
                 "the mid-draw arrow landed");
         assertEquals(4.0f, pig.health(), 0.0001f,
