@@ -192,9 +192,14 @@ public final class V18ProtocolServer implements ProtocolAdapter {
         });
         // Time Update (0x03): the periodic cycle sync and the /time command
         // ride the same listener — the client's day follows the server's.
-        server.addTimeListener((totalTicks, timeOfDay) -> {
+        // The dimension filter is the reference's sendPacket(packet,
+        // dimension) walk (PlayerManager lines 517-522): each world's packet
+        // lands only on the players standing in that world.
+        server.addTimeListener((dimension, totalTicks, timeOfDay) -> {
             for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
-                connection.sendTimeUpdateNow();
+                if (connection.dimensionOfSession() == dimension) {
+                    connection.sendTimeUpdateNow();
+                }
             }
         });
         // Sign text (0x33): edits fan out to every connected viewer; the
