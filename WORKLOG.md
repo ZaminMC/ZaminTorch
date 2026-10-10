@@ -60,13 +60,44 @@ the bottom. The behavior-level status of every mechanic lives in
 
 ## In progress
 
-- **Slice 7 remainder — the leftover hooks**: the loot family
-  (looting/fortune/silk touch), unbreaking, respiration/depth strider —
-  each lands with its gameplay slice.
-- **Concurrency implementation Phase 1** (per the approved-pending docs):
-  ownership primitives + enforcement assertions.
+- **Concurrency Phase 4** — partitioned simulation: the second ownership
+  domain + cross-owner intent routing + the §11 boundary test list.
+- **Slice 7 remainder — the leftover hooks**: unbreaking,
+  respiration/depth strider — each lands with its gameplay slice.
 
 ## Landed since the ledger opened
+
+- **Permanent architecture Phases 1-3 implemented** (the runtime, not the
+  docs — commits `52f059b`, `e9667aa`, `6bcec30`, `df66064`):
+  - **Phase 1 — ownership primitives** (`server/concurrent`):
+    `OwnershipDomain` (dynamic executor binding with counted re-entrancy,
+    monotonic generations, the single-writer tick gate, STRICT/DIAGNOSTIC
+    enforcement), `OwnershipViolationException` (domain + operation
+    context, still an IllegalStateException), `ComputeTicket`/
+    `StaleResultException` (the versioned result envelope), `DomainTask`
+    (cancel never resurrects). `EngineWorld.attachDomain` +
+    `EngineServer` binds `simulation:<world>` for the loop's whole run.
+  - **Phase 2 — the scheduler substrate**: `SimulationScheduler` (per-domain
+    ready FIFO, the delayed store keyed (dueTick, stable sequence), the
+    stable domain-name walk, bounded admission with loud refusal,
+    permanent cancellation, total shutdown, the telemetry floor);
+    `EngineTicker.attachScheduler` routes submit through it and tickOnce
+    runs due tasks before the time advance.
+  - **Phase 3 — the compute subsystem**: `ComputeSubsystem` (bounded
+    admission + the conservative worker pool, zero mutation authority on
+    the workers, typed handles closing the apply/stale arms, the owner's
+    drainResults at the tick boundary) + **the first live offload**:
+    on-demand chunk generation left the tick (the detached generation on
+    the pool, the owner-side `installGenerated` with the never-overwrite
+    guard, the request dedupe, the callbacks served in the drain context).
+  - Tests: OwnershipDomainTest (6) + EngineWorldDomainTest (2) +
+    SimulationSchedulerTest (11) + ComputeSubsystemTest (8) +
+    ChunkGenerationOffloadTest (4); the suite rides 554 green with the
+    enforcement live and identical gameplay.
+- **Slice 7f — the loot family** (`a82c3d9`): silk touch (the
+  hasSilkTouchDrops gate as the SILK_TOUCHABLE set), fortune (the
+  foreign-drop multiplier + gravel's nextInt(10-fortune*3) flint walk),
+  looting (count = base + nextInt(1+looting) at the three kill sites).
 
 - **Slice 7e — thorns** (`e152dad`, dev.18): the reference wildcard walk
   (ThornsEnchantment lines 38-61 + EnchantmentHelper
