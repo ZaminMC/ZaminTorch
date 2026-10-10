@@ -94,6 +94,19 @@ the bottom. The behavior-level status of every mechanic lives in
     SimulationSchedulerTest (11) + ComputeSubsystemTest (8) +
     ChunkGenerationOffloadTest (4); the suite rides 554 green with the
     enforcement live and identical gameplay.
+- **Phase 4 first unit — the CrossOwnerRouter** (`7c73b2a`): the §7
+  protocol primitive — the immutable Intent envelope, exactly-once
+  admission within the in-flight window (the op id as the idempotency
+  key, the window clearing at drain), the bounded per-target pending
+  with the loud refusal, the target-side drain running intents in its
+  own bound context, the poisoned-intent isolation, the total shutdown,
+  the telemetry. Tests: CrossOwnerRouterTest (7) — suite 561 green. The
+  router's first full run exposed the bow-charge pin racing the tick
+  loop's own per-tick advance; PlayerSession gained the
+  freezeBowChargeForTest seam (the setVelocityForTest shape) and the
+  flick/mid-draw pins hold exactly under any load.
+- **Release v0.2.0-dev.19** published with the architecture Phases 1-3
+  (jar + zip + the full changelog).
 - **Slice 7f — the loot family** (`a82c3d9`): silk touch (the
   hasSilkTouchDrops gate as the SILK_TOUCHABLE set), fortune (the
   foreign-drop multiplier + gravel's nextInt(10-fortune*3) flint walk),
