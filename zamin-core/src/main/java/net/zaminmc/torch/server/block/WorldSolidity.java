@@ -130,6 +130,8 @@ public final class WorldSolidity {
                 || id.equals(BuiltinBlocks.DEAD_BUSH.identifier())
                 || id.equals(BuiltinBlocks.DANDELION.identifier())
                 || id.equals(BuiltinBlocks.POPPY.identifier())
+                || id.equals(BuiltinBlocks.BROWN_MUSHROOM.identifier())
+                || id.equals(BuiltinBlocks.RED_MUSHROOM.identifier())
                 || id.equals(BuiltinBlocks.SUGAR_CANE.identifier())
                 || isWheatCrop(id);
     }

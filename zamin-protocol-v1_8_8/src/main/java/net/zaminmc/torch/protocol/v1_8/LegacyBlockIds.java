@@ -48,6 +48,15 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:enchanted_book"), 403),
             Map.entry(Identifier.parse("minecraft:torch"), 50),
             Map.entry(Identifier.parse("minecraft:fire"), 51),
+            // The nether's materials (community blocks.json ids): netherrack
+            // 87, soul sand 88, glowstone 89, quartz ore 153, the mushrooms
+            // 39/40 (the block-item pair the flora drops ride).
+            Map.entry(Identifier.parse("minecraft:netherrack"), 87),
+            Map.entry(Identifier.parse("minecraft:soul_sand"), 88),
+            Map.entry(Identifier.parse("minecraft:glowstone"), 89),
+            Map.entry(Identifier.parse("minecraft:quartz_ore"), 153),
+            Map.entry(Identifier.parse("minecraft:brown_mushroom"), 39),
+            Map.entry(Identifier.parse("minecraft:red_mushroom"), 40),
             Map.entry(Identifier.parse("minecraft:nether_portal"), 90),
             Map.entry(Identifier.parse("minecraft:nether_portal_z"), 90),
             Map.entry(Identifier.parse("minecraft:furnace"), 61),
@@ -77,6 +86,11 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:gold_ingot"), 266),
             Map.entry(Identifier.parse("minecraft:flint_and_steel"), 259),
             Map.entry(Identifier.parse("minecraft:flint"), 318),      // the 10% gravel roll
+            // The nether's item yields (community items.json ids): glowstone
+            // dust 348 (the cluster's 2-4 quantityDropped roll) and nether
+            // quartz 406 (the ore's drop); the mushrooms ride their block ids.
+            Map.entry(Identifier.parse("minecraft:glowstone_dust"), 348),
+            Map.entry(Identifier.parse("minecraft:quartz"), 406),
             // world-completion items (community items.json ids): sugar 353,
             // paper 339, book 340; the cane and cactus block-items share the
             // block ids (81/83) with the cane's item form 323-style overridden

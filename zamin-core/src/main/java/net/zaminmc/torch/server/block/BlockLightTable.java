@@ -88,6 +88,17 @@ public final class BlockLightTable {
             Map.entry(Identifier.parse("minecraft:fire"), new LightData(15, 0)),
             Map.entry(Identifier.parse("minecraft:furnace_lit"), new LightData(13, 15)),
 
+            // The nether's materials (community blocks.json 1.8 values):
+            // glowstone emits the historical 15; netherrack/soul sand/quartz
+            // ore are full opaque cubes (filter 15); the mushrooms shade
+            // nothing and emit nothing.
+            Map.entry(Identifier.parse("minecraft:glowstone"), new LightData(15, 0)),
+            Map.entry(Identifier.parse("minecraft:netherrack"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:soul_sand"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:quartz_ore"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:brown_mushroom"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:red_mushroom"), new LightData(0, 0)),
+
             // Transparent to light, no emission (dataset filterLight 0): light
             // crosses glass, a chest's empty bounding shape and an unlit furnace
             // paying only the standard per-cell step.
