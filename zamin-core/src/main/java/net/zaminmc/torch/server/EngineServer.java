@@ -31,6 +31,9 @@ import net.zaminmc.torch.server.entity.MobEntity;
 import net.zaminmc.torch.server.entity.MobManager;
 import net.zaminmc.torch.server.entity.MobType;
 import net.zaminmc.torch.server.entity.TradeOffer;
+import net.zaminmc.torch.server.entity.damage.DamageKind;
+import net.zaminmc.torch.server.enchantment.Enchantments;
+import net.zaminmc.torch.server.enchantment.EnchantmentHelper;
 import net.zaminmc.torch.server.experience.ExperienceAwards;
 import net.zaminmc.torch.server.experience.ExperienceMath;
 import net.zaminmc.torch.server.experience.ExperienceOrbEntity;
@@ -1263,16 +1266,23 @@ public final class EngineServer implements Server, EngineBridge {
                 || WorldSolidity.isFire(bodyBlock.identifier());
         if (inFire) {
             // Standing in the flame re-arms the burn and hurts every half
-            // second (the historical in-fire cadence).
+            // second (the historical in-fire cadence). The enchantment-
+            // protection step rides the fire kind (the reference inFire
+            // source is a fire source, not an armor bypass).
             session.ignite(net.zaminmc.torch.server.entity.MobEntity.FIRE_TICKS);
             if (session.advanceFireDamageTimer() % 10 == 0) {
-                damageOnTick(session, 1.0f, "went up in flames");
+                damageOnTick(session,
+                        applyEnchantProtection(session, 1.0f, DamageKind.IN_FIRE),
+                        "went up in flames");
             }
         } else if (session.burning()) {
             // After leaving the flame the residual burn hurts every second;
-            // the onFire source carries no exhaustion (the bypass family).
+            // the onFire source carries no exhaustion (the bypass family)
+            // but stays a fire source for the protection step.
             if (session.advanceFireDamageTimer() % 20 == 0) {
-                damageOnTick(session, 1.0f, 0.0f, "went up in flames");
+                damageOnTick(session,
+                        applyEnchantProtection(session, 1.0f, DamageKind.ON_FIRE),
+                        0.0f, "went up in flames");
             }
         }
         // Fluid contact douses the burn (the historical rule).
@@ -1307,7 +1317,9 @@ public final class EngineServer implements Server, EngineBridge {
                     || WorldSolidity.isCactus(world.getBlock(new BlockPosition(
                             (int) Math.floor(feet.x()), (int) Math.floor(feet.y()) - 1,
                             (int) Math.floor(feet.z()))).identifier())) {
-                damageOnTick(session, 1.0f, "was pricked to death");
+                damageOnTick(session,
+                        applyEnchantProtection(session, 1.0f, DamageKind.CACTUS),
+                        "was pricked to death");
                 return;
             }
         }
@@ -1379,7 +1391,9 @@ public final class EngineServer implements Server, EngineBridge {
                 // The fall damage carries no exhaustion (the vanilla FALL
                 // source's setBypassesArmor zeroes it).
                 damageOnTick(session,
-                        (float) Math.ceil(distance - PlayerSession.SAFE_FALL_DISTANCE),
+                        applyEnchantProtection(session,
+                                (float) Math.ceil(distance - PlayerSession.SAFE_FALL_DISTANCE),
+                                DamageKind.FALL),
                         0.0f, "hit the ground too hard");
             }
         }
@@ -1400,7 +1414,11 @@ public final class EngineServer implements Server, EngineBridge {
                 (int) Math.floor(eye.x()), (int) Math.floor(eye.y()), (int) Math.floor(eye.z())));
         boolean underwater = FluidBlocks.kindOf(at.identifier()) != null;
         if (session.advanceBreath(underwater)) {
-            damageOnTick(session, 2.0f, 0.0f, "drowned"); // the DROWN arm: no exhaustion
+            // the DROWN arm: no exhaustion; drown bypasses armor but stays
+            // inside the protection step (only "all" applies off-fire)
+            damageOnTick(session,
+                    applyEnchantProtection(session, 2.0f, DamageKind.DROWN),
+                    0.0f, "drowned");
         }
     }
 
@@ -1418,6 +1436,12 @@ public final class EngineServer implements Server, EngineBridge {
     static final double MELEE_REACH = 3.5;
     /** Historical attack exhaustion (one swing). */
     private static final float ATTACK_EXHAUSTION = 0.3f;
+    /** Fire Aspect pre-set: the reference's {@code setOnFireFor(1)} — one second. */
+    private static final int FIRE_ASPECT_PRESET_TICKS = 20;
+    /** Fire Aspect burn seconds per level (the reference's {@code setOnFireFor(j * 4)}). */
+    private static final int FIRE_ASPECT_SECONDS_PER_LEVEL = 4;
+    /** The tick clock the fire seconds ride ({@code setOnFireFor} converts × 20). */
+    private static final int TICKS_PER_SECOND = 20;
 
     /**
      * A player attacked an entity (Use Entity 0x02, mouse=1): validates reach,
@@ -1489,14 +1513,57 @@ public final class EngineServer implements Server, EngineBridge {
             }
             ItemStack held = attacker.inventory().held();
             float damage = net.zaminmc.torch.server.item.Tools.attackDamageOf(held.type());
+            // The reference attack walk (reference/1.8.8 PlayerEntity.attack
+            // lines 941-1046): the damage-family enchantments ride the mob's
+            // damage category (Smite on the undead, Bane on the spider), the
+            // Knockback level joins and sprinting adds one more level.
+            damage += EnchantmentHelper.modifyDamage(held, mob.type().damageCategory());
+            int knockback = EnchantmentHelper.knockbackLevel(held);
+            if (attacker.sprinting()) {
+                knockback++;
+            }
+            // Fire Aspect pre-set: one second before the hit (the reference's
+            // flag1 arm) — a landed hit re-arms to level * 4 seconds, a
+            // refused one extinguishes the pre-set (the legacy quirk).
+            int fireLevel = EnchantmentHelper.fireAspectLevel(held);
+            boolean preIgnited = false;
+            if (fireLevel > 0 && !mob.burning()) {
+                preIgnited = true;
+                mob.ignite(FIRE_ASPECT_PRESET_TICKS);
+            }
             // Knockback direction: attacker -> mob (the historical feel).
             double kbYaw = Math.toDegrees(Math.atan2(-dx, dz));
-            mobManager.hurt(mob, damage, kbYaw);
-            attacker.addExhaustion(ATTACK_EXHAUSTION);
-            // Tool durability: the historical wear on a living-entity hit.
-            if (net.zaminmc.torch.server.item.Tools.specOf(held.type()).isPresent()) {
-                attacker.inventory().damageHeld(1);
-                publishInventoryChanged(attacker);
+            boolean landed = mobManager.hurt(mob, damage, kbYaw);
+            if (landed) {
+                // The knockback-enchantment extra rides the attacker's look
+                // yaw (the reference's addVelocity arm), and the attacker's
+                // motion decays to 60% with the sprint wiped (lines 983-992).
+                if (knockback > 0) {
+                    double yawRadians = Math.toRadians(attacker.rotation().yaw());
+                    mob.addVelocity(
+                            -Math.sin(yawRadians) * knockback * 0.5,
+                            0.1,
+                            Math.cos(yawRadians) * knockback * 0.5);
+                    attacker.setMotion(attacker.motionX() * 0.6, attacker.motionY(),
+                            attacker.motionZ() * 0.6);
+                    attacker.setSprinting(false);
+                }
+                // The landed hit re-arms the pre-set to level * 4 seconds
+                // (the target's own Fire Protection would shorten it; mobs
+                // carry no equipment, the historical bare-mob read).
+                if (fireLevel > 0) {
+                    mob.ignite(fireLevel * FIRE_ASPECT_SECONDS_PER_LEVEL * TICKS_PER_SECOND);
+                }
+            } else if (preIgnited) {
+                mob.extinguish(); // the reference's missed-swing quirk
+            }
+            if (landed) {
+                attacker.addExhaustion(ATTACK_EXHAUSTION);
+                // Tool durability: the historical wear on a living-entity hit.
+                if (net.zaminmc.torch.server.item.Tools.specOf(held.type()).isPresent()) {
+                    attacker.inventory().damageHeld(1);
+                    publishInventoryChanged(attacker);
+                }
             }
         });
     }
@@ -1556,20 +1623,55 @@ public final class EngineServer implements Server, EngineBridge {
             if (horizontal > MELEE_REACH + 0.3 || dy < -2.0 || dy > 4.0) {
                 return; // out of reach: the server-side refusal
             }
-            float damage = net.zaminmc.torch.server.item.Tools.attackDamageOf(attacker.inventory().held().type());
+            ItemStack held = attacker.inventory().held();
+            float damage = net.zaminmc.torch.server.item.Tools.attackDamageOf(held.type());
+            // The reference attack walk: the damage-family enchantments join
+            // before the hurt window (players are the reference's UNDEFINED
+            // category — only Sharpness lands on a player), the Knockback
+            // level joins and sprinting adds one more level.
+            damage += EnchantmentHelper.modifyDamage(held, 0);
+            int knockback = EnchantmentHelper.knockbackLevel(held);
+            if (attacker.sprinting()) {
+                knockback++;
+            }
+            // Fire Aspect pre-set: one second on the victim before the hit,
+            // the victim's own Fire Protection shortening the clock (the
+            // reference's setOnFireFor equipment read).
+            int fireLevel = EnchantmentHelper.fireAspectLevel(held);
+            boolean preIgnited = false;
+            if (fireLevel > 0 && !victim.burning()) {
+                preIgnited = true;
+                igniteWithFireProtection(victim, FIRE_ASPECT_PRESET_TICKS / TICKS_PER_SECOND);
+            }
             if (victim.hurtInvulnerable()) {
                 if (damage <= victim.lastHurtDamage()) {
+                    if (preIgnited) {
+                        victim.extinguish(); // the absorbed swing undoes the pre-set
+                    }
                     return; // absorbed by the hurt window
                 }
                 damage -= victim.lastHurtDamage(); // the historical out-damage rule
             }
             final float rawDamage = damage;
             damage = applyArmor(victim, damage); // the armor envelope (the 1.8 formula)
+            damage = applyEnchantProtection(victim, damage, DamageKind.MELEE); // the protection step
             final float applied = damage;
             victim.beginHurtInvulnerability(rawDamage);
             victim.hurt(damage);
+            // The knockback-enchantment extra rides the attacker's look yaw
+            // on top of the base impulse (applied in the knockback block
+            // below, together with the attacker's 60% decay + sprint wipe).
+            double nvxExtra = 0.0;
+            double nvyExtra = 0.0;
+            double nvzExtra = 0.0;
+            if (knockback > 0) {
+                double yawRadians = Math.toRadians(attacker.rotation().yaw());
+                nvxExtra = -Math.sin(yawRadians) * knockback * 0.5;
+                nvyExtra = 0.1;
+                nvzExtra = Math.cos(yawRadians) * knockback * 0.5;
+            }
             attacker.addExhaustion(ATTACK_EXHAUSTION);
-            if (net.zaminmc.torch.server.item.Tools.specOf(attacker.inventory().held().type()).isPresent()) {
+            if (net.zaminmc.torch.server.item.Tools.specOf(held.type()).isPresent()) {
                 attacker.inventory().damageHeld(1);
                 publishInventoryChanged(attacker);
             }
@@ -1591,6 +1693,22 @@ public final class EngineServer implements Server, EngineBridge {
             double nvx = victim.motionX() / 2.0 + kbdx / f * 0.4;
             double nvy = Math.min(victim.motionY() / 2.0 + 0.4, 0.4);
             double nvz = victim.motionZ() / 2.0 + kbdz / f * 0.4;
+            // The knockback-enchantment extra (the reference's addVelocity
+            // arm) rides the same velocity set; the attacker's motion decays
+            // to 60% on the horizontal axes with the sprint wiped.
+            nvx += nvxExtra;
+            nvy += nvyExtra;
+            nvz += nvzExtra;
+            if (knockback > 0) {
+                attacker.setMotion(attacker.motionX() * 0.6, attacker.motionY(),
+                        attacker.motionZ() * 0.6);
+                attacker.setSprinting(false);
+            }
+            // The landed hit re-arms the pre-set to level * 4 seconds.
+            if (fireLevel > 0) {
+                igniteWithFireProtection(victim,
+                        fireLevel * FIRE_ASPECT_SECONDS_PER_LEVEL);
+            }
             victim.setMotion(nvx, nvy, nvz);
             publishPlayerHurt(victim);
             publishKnockback(victim, nvx, nvy, nvz);
@@ -1624,6 +1742,43 @@ public final class EngineServer implements Server, EngineBridge {
             publishInventoryChanged(victim); // worn or broken pieces re-sync
         }
         return reduced;
+    }
+
+    /**
+     * The vanilla {@code getDamageAfterEffectsAndEnchantments} enchantment
+     * half (reference/1.8.8 LivingEntity lines 879-907): the victim's armor
+     * pieces' protection sum — clamped 0..25, then the legacy half-to-full
+     * roll — capped at 20 and folded through the {@code (25 - k) / 25}
+     * envelope. Unblockable sources skip the whole half (the reference's
+     * early return; starvation is the one the engine emits).
+     */
+    private float applyEnchantProtection(PlayerSession victim, float damage, DamageKind kind) {
+        if (kind.isUnblockable()) {
+            return damage;
+        }
+        int k = EnchantmentHelper.modifyProtection(
+                victim.inventory().armorStacks(), kind, gameplayRandom);
+        if (k > 20) {
+            k = 20;
+        }
+        if (k > 0 && k <= 20) {
+            damage = damage * (25 - k) / 25.0F;
+        }
+        return damage;
+    }
+
+    /**
+     * The reference {@code Entity.setOnFireFor}: seconds in, the victim's
+     * own Fire Protection shortens the tick count
+     * ({@code ticks -= floor(ticks * level * 0.15)}), and a shorter clock
+     * never lengthens an existing burn ({@code ignite}'s at-least rule).
+     */
+    private void igniteWithFireProtection(PlayerSession victim, int seconds) {
+        int ticks = EnchantmentHelper.modifyOnFireTimer(
+                victim.inventory().armorStacks(), seconds * TICKS_PER_SECOND);
+        if (ticks > 0) {
+            victim.ignite(ticks);
+        }
     }
 
     private void publishKnockback(PlayerSession victim, double vx, double vy, double vz) {
@@ -4885,8 +5040,10 @@ public final class EngineServer implements Server, EngineBridge {
             return;
         }
         // The armor envelope eats its share of a physical hit before the
-        // invulnerability bookkeeping (the historical order).
-        damage = applyArmor(victim, damage);
+        // invulnerability bookkeeping (the historical order), then the
+        // enchantment-protection step (an arrow is a projectile source).
+        damage = applyEnchantProtection(victim,
+                applyArmor(victim, damage), DamageKind.PROJECTILE);
         if (victim.hurtInvulnerable() && damage <= victim.lastHurtDamage()) {
             return; // absorbed by the hurt window (a bruise out-damages nothing)
         }
@@ -5004,8 +5161,11 @@ public final class EngineServer implements Server, EngineBridge {
                 listener.onMobAttackedPlayer(mob, target, damage);
             }
             // The same-thread survival damage path; the victim's armor eats
-            // its share first (the 1.8 envelope).
-            damageOnTick(target, applyArmor(target, damage),
+            // its share first (the 1.8 envelope), then the enchantment-
+            // protection step (the reference's effects-and-enchantments half).
+            damageOnTick(target,
+                    applyEnchantProtection(target, applyArmor(target, damage),
+                            DamageKind.MELEE),
                     "was slain by " + titledMobName(mob));
         }
 
@@ -5356,7 +5516,13 @@ public final class EngineServer implements Server, EngineBridge {
             if (damage <= 0) {
                 continue;
             }
+            // The reference Explosion walk: the victim's Blast Protection
+            // shaves floor(damage * level * 0.15) off the raw blast number
+            // before the ordinary pipeline (armor, protection) sees it.
+            damage = (float) EnchantmentHelper.modifyExplosionDamage(
+                    player.inventory().armorStacks(), damage);
             damage = applyArmor(player, damage); // armor eats its share of the blast
+            damage = applyEnchantProtection(player, damage, DamageKind.EXPLOSION);
             double scale = (1 - dist / BLAST_INJURY_RADIUS) * 1.6;
             double mx = dist < 0.001 ? 0 : dx / dist * scale;
             double mz = dist < 0.001 ? 0 : dz / dist * scale;
