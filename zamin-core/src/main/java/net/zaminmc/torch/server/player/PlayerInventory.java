@@ -2,11 +2,13 @@ package net.zaminmc.torch.server.player;
 
 import net.zaminmc.torch.item.ItemStack;
 import net.zaminmc.torch.item.ItemType;
+import net.zaminmc.torch.server.enchantment.EnchantmentHelper;
 import net.zaminmc.torch.server.item.Armor;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Random;
 
 /**
  * The authoritative inventory of one player (§428/§430/§431).
@@ -350,15 +352,18 @@ public final class PlayerInventory {
     }
 
     /**
-     * Semantic durability wear on the held stack (§432 family): the tool loses
-     * {@code amount} durability units; reaching its limit breaks it and the
-     * slot becomes empty (historical: the tool leaves the hand). Non-durable
-     * items and the empty hand are unaffected.
+     * Semantic durability wear on the held stack (§432 family): the tool
+     * loses durability through the reference's {@code takeDamage} walk —
+     * the Unbreaking reduction rides per unit (reference/1.8.8
+     * item/ItemStack lines 196-215: the level reads once, each pending unit
+     * rolls {@code shouldReduceDamage}, the survivors land); reaching the
+     * limit breaks it and the slot becomes empty (historical: the tool
+     * leaves the hand). Non-durable items and the empty hand are unaffected.
      *
      * @return whether the held slot changed at all (worn or broken), so the
      *         caller can re-sync the client.
      */
-    public boolean damageHeld(int amount) {
+    public boolean damageHeld(int amount, Random random) {
         if (amount < 1) {
             throw new IllegalArgumentException("Damage amount must be positive: " + amount);
         }
@@ -366,7 +371,12 @@ public final class PlayerInventory {
         if (current.isEmpty() || current.type().maxDurability() <= 0) {
             return false;
         }
-        int newDamage = current.damage() + amount;
+        int landing = random == null ? amount
+                : EnchantmentHelper.unbreakingReducedWear(current, amount, false, random);
+        if (landing <= 0) {
+            return false; // every unit rolled away: the stack is untouched
+        }
+        int newDamage = current.damage() + landing;
         if (newDamage >= current.type().maxDurability()) {
             slots[heldSlot] = ItemStack.EMPTY; // the tool breaks
         } else {
@@ -469,18 +479,32 @@ public final class PlayerInventory {
     }
 
     /**
-     * The historical armor wear: every equipped piece loses one durability
-     * unit per damaging hit it absorbed; a piece that reaches its limit
+     * The reference's armor wear walk (reference/1.8.8 entity/living/player/
+     * PlayerInventory lines 543-555 damageArmor + LivingEntity line 869's
+     * call with the pre-mitigation damage): the amount quarters per piece
+     * (min 1), every equipped piece visits {@code takeDamageAndBreak} with
+     * that amount — the Unbreaking reduction rides per unit with the
+     * armor's 60% early-false gate — and a piece that reaches its limit
      * breaks (leaves the slot). @return whether any slot changed.
      */
-    public boolean wearArmor() {
+    public boolean wearArmor(float incomingDamage, Random random) {
+        float perPiece = incomingDamage / 4.0F;
+        if (perPiece < 1.0F) {
+            perPiece = 1.0F;
+        }
+        int amount = (int) perPiece;
         boolean changed = false;
         for (int i = 0; i < ARMOR_SLOTS; i++) {
             ItemStack piece = armor[i];
             if (piece.isEmpty() || piece.type().maxDurability() <= 0) {
                 continue;
             }
-            int newDamage = piece.damage() + 1;
+            int landing = random == null ? amount
+                    : EnchantmentHelper.unbreakingReducedWear(piece, amount, true, random);
+            if (landing <= 0) {
+                continue; // every unit rolled away: this piece is untouched
+            }
+            int newDamage = piece.damage() + landing;
             armor[i] = newDamage >= piece.type().maxDurability()
                     ? ItemStack.EMPTY // the piece breaks
                     : piece.withDamage(newDamage);
@@ -501,7 +525,7 @@ public final class PlayerInventory {
      *
      * @return whether the slot changed (wear applied or the piece broke).
      */
-    public boolean wearArmorStack(int slot, int amount) {
+    public boolean wearArmorStack(int slot, int amount, Random random) {
         if (slot < 0 || slot >= ARMOR_SLOTS || amount <= 0) {
             return false;
         }
@@ -509,7 +533,12 @@ public final class PlayerInventory {
         if (piece.isEmpty() || piece.type().maxDurability() <= 0) {
             return false;
         }
-        int newDamage = piece.damage() + amount;
+        int landing = random == null ? amount
+                : EnchantmentHelper.unbreakingReducedWear(piece, amount, true, random);
+        if (landing <= 0) {
+            return false; // every unit rolled away: the piece is untouched
+        }
+        int newDamage = piece.damage() + landing;
         armor[slot] = newDamage >= piece.type().maxDurability()
                 ? ItemStack.EMPTY // the piece breaks
                 : piece.withDamage(newDamage);

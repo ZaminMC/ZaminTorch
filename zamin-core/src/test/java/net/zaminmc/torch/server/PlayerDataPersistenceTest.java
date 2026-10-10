@@ -75,7 +75,7 @@ class PlayerDataPersistenceTest {
         assertTrue(player.inventory().pickUp(ItemStack.of(BuiltinItems.DIRT, 5)).isEmpty());
         assertTrue(player.inventory().pickUp(ItemStack.of(BuiltinItems.WOODEN_PICKAXE)).isEmpty());
         player.inventory().selectHotbarSlot(1);
-        player.inventory().damageHeld(5); // a worn pickaxe must remember its wear
+        player.inventory().damageHeld(5, new java.util.Random()); // a worn pickaxe must remember its wear
         player.applyMovement(new Position(12.5, 5.0, -7.25), new Rotation(97.5f, -18.0f), true);
 
         first.clientDisconnected(player, "test leave");

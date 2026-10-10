@@ -409,6 +409,49 @@ public final class EnchantmentHelper {
         return null;
     }
 
+    // The UnbreakingEnchantment half (reference/1.8.8 enchantment/
+    // UnbreakingEnchantment line 34 shouldReduceDamage + item/ItemStack
+    // lines 196-215 takeDamage): the per-unit reduction of the incoming
+    // wear. Armor rolls the extra 60% early-false gate per unit; tools ride
+    // the bare 1/(level+1) wear chance. The roll rides the gameplayRandom
+    // of the walk that owns the wear.
+
+    /**
+     * The historical {@code UnbreakingEnchantment.shouldReduceDamage}:
+     * {@code (!isArmor || !(random.nextFloat() < 0.6F)) && random.nextInt(level + 1) > 0}
+     * — the armor's gate consumes one float per unit whether or not the
+     * int roll runs (the short-circuit is the reference's own branch order,
+     * so the random stream advances identically).
+     */
+    public static boolean unbreakingShouldReduce(boolean armorPiece, int level, Random random) {
+        return (!armorPiece || !(random.nextFloat() < 0.6F))
+                && random.nextInt(level + 1) > 0;
+    }
+
+    /**
+     * The historical {@code ItemStack.takeDamage} reduction walk: the level
+     * reads ONCE from the stack, then each pending wear unit rolls
+     * {@link #unbreakingShouldReduce}; every surviving unit lands. The
+     * caller passes whether the stack is an armor piece (the reference
+     * instanceof ArmorItem arm) and the wear walk's own random.
+     *
+     * @return the reduced wear amount actually reaching the item (0..amount)
+     */
+    public static int unbreakingReducedWear(ItemStack stack, int amount,
+                                            boolean armorPiece, Random random) {
+        if (stack == null || amount <= 0) {
+            return Math.max(0, amount);
+        }
+        int i = level(stack, Enchantments.UNBREAKING.id);
+        int j = 0;
+        for (int k = 0; i > 0 && k < amount; k++) {
+            if (unbreakingShouldReduce(armorPiece, i, random)) {
+                j++;
+            }
+        }
+        return amount - j;
+    }
+
     private EnchantmentHelper() {
     }
 }

@@ -1658,7 +1658,7 @@ public final class EngineServer implements Server, EngineBridge {
                 attacker.addExhaustion(ATTACK_EXHAUSTION);
                 // Tool durability: the historical wear on a living-entity hit.
                 if (net.zaminmc.torch.server.item.Tools.specOf(held.type()).isPresent()) {
-                    attacker.inventory().damageHeld(1);
+                    attacker.inventory().damageHeld(1, gameplayRandom);
                     publishInventoryChanged(attacker);
                 }
             }
@@ -1786,7 +1786,7 @@ public final class EngineServer implements Server, EngineBridge {
             }
             attacker.addExhaustion(ATTACK_EXHAUSTION);
             if (net.zaminmc.torch.server.item.Tools.specOf(held.type()).isPresent()) {
-                attacker.inventory().damageHeld(1);
+                attacker.inventory().damageHeld(1, gameplayRandom);
                 publishInventoryChanged(attacker);
             }
             // Knockback — the vanilla applyKnockback (reference/1.8.8
@@ -1881,7 +1881,8 @@ public final class EngineServer implements Server, EngineBridge {
     private float applyArmor(PlayerSession victim, float damage) {
         int points = victim.inventory().totalArmorPoints();
         float reduced = net.zaminmc.torch.server.item.Armor.reduce(points, damage);
-        if (points > 0 && reduced < damage && victim.inventory().wearArmor()) {
+        if (points > 0 && reduced < damage
+                && victim.inventory().wearArmor(damage, gameplayRandom)) {
             publishInventoryChanged(victim); // worn or broken pieces re-sync
         }
         return reduced;
@@ -1988,7 +1989,7 @@ public final class EngineServer implements Server, EngineBridge {
         }
         if (first != null && wear > 0 && firstSlot >= 0
                 && victim.gamemode() != GameMode.CREATIVE) {
-            if (victim.inventory().wearArmorStack(firstSlot, wear)) {
+            if (victim.inventory().wearArmorStack(firstSlot, wear, gameplayRandom)) {
                 publishInventoryChanged(victim); // worn or broken pieces re-sync
             }
         }
@@ -2339,7 +2340,7 @@ public final class EngineServer implements Server, EngineBridge {
         // pitch riding the shaped charge fraction (f * 0.5).
         fxManager.sound(mouthPosition(session), "random.bow", 1.0f,
                 1.0f / (fxRandom.nextFloat() * 0.4f + 1.2f) + power * 0.5f);
-        if (!creative && session.inventory().damageHeld(1)) {
+        if (!creative && session.inventory().damageHeld(1, gameplayRandom)) {
             // The bow's snap: worn out, the client's held slot re-syncs.
             publishInventoryChanged(session);
         }
@@ -3421,7 +3422,7 @@ public final class EngineServer implements Server, EngineBridge {
                 "fire.ignite", 1.0f, 0.9f + fxRandom.nextFloat() * 0.2f);
         if (session.gamemode() == GameMode.SURVIVAL
                 || session.gamemode() == GameMode.ADVENTURE) {
-            session.inventory().damageHeld(1);
+            session.inventory().damageHeld(1, gameplayRandom);
             publishInventoryChanged(session);
         }
         return true;
@@ -3452,7 +3453,7 @@ public final class EngineServer implements Server, EngineBridge {
             fxManager.sound(new Position(clicked.x() + 0.5, clicked.y() + 0.5, clicked.z() + 0.5),
                     "dig.grass", 0.8f, 1.0f);
             if (net.zaminmc.torch.server.item.Tools.specOf(heldType).isPresent()) {
-                session.inventory().damageHeld(1);
+                session.inventory().damageHeld(1, gameplayRandom);
                 publishInventoryChanged(session);
             }
             return true;
@@ -4230,7 +4231,7 @@ public final class EngineServer implements Server, EngineBridge {
         // before the feeding arm).
         if (mob.type() == MobType.SHEEP && heldId.equals("minecraft:shears")) {
             if (mobManager.shear(mob) > 0) {
-                player.inventory().damageHeld(1); // the shears wear one use
+                player.inventory().damageHeld(1, gameplayRandom); // the shears wear one use
                 publishInventoryChanged(player);
             }
             return;

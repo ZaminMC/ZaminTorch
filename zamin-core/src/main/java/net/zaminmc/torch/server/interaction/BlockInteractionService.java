@@ -70,6 +70,8 @@ public final class BlockInteractionService {
     private final EngineWorld world;
     private final EngineTicker ticker;
     private final Consumer<BlockChange> publisher;
+    /** The service's gameplay random (the wear walks' roll source). Tick-thread only. */
+    private final java.util.Random gameplayRandom = new java.util.Random();
     /** Per-player game mode resolver: the session's own mode decides the rule. */
     private final java.util.function.Function<PlayerSession, GameMode> gameMode;
     private final DropService dropService;
@@ -506,7 +508,7 @@ public final class BlockInteractionService {
         if (mode == GameMode.CREATIVE || behavior.hardness() <= 0) {
             return;
         }
-        if (player.inventory().damageHeld(1)) {
+        if (player.inventory().damageHeld(1, gameplayRandom)) {
             // Worn or broken: the client's held slot is now stale, re-sync it.
             inventorySync.accept(player);
         }
