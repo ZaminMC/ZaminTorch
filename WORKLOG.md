@@ -60,13 +60,32 @@ the bottom. The behavior-level status of every mechanic lives in
 
 ## In progress
 
-- **Slice 7 remainder — the leftover hooks**: thorns (the protection/damage
-  wildcards), the loot family (looting/fortune/silk touch), unbreaking,
-  respiration/depth strider — each lands with its gameplay slice.
+- **Slice 7 remainder — the leftover hooks**: the loot family
+  (looting/fortune/silk touch), unbreaking, respiration/depth strider —
+  each lands with its gameplay slice.
 - **Concurrency implementation Phase 1** (per the approved-pending docs):
   ownership primitives + enforcement assertions.
 
 ## Landed since the ledger opened
+
+- **Slice 7e — thorns** (`e152dad`, dev.18): the reference wildcard walk
+  (ThornsEnchantment lines 38-61 + EnchantmentHelper
+  applyProtectionWildcard lines 152-161 + getEquipmentWithEnchantment
+  lines 220-228) fired at all three sites — the PvP melee landing
+  (PlayerEntity.attack line 1016), the mob-melee landing
+  (Entity.damageEntity lines 1943-1947, the victim's armor row captured
+  BEFORE the damage walk so a killing blow still retaliates before death
+  scatters it), and the arrow hit (ArrowEntity line 264, the shooter
+  resolved through the player then mob band — the skeleton shooter takes
+  its share). Each piece rolls 15%/level independently; a proc deals 1-4
+  (level-10 flat above the elbow) through the attacker's own
+  armor-and-protection walk with the damage.thorns 0.5F/1.0F sound; the
+  wear (3/1, accumulated per visited piece) rides the FIRST thorns stack
+  (the helmet wears for a proc the chest rolled — pinned by the test's
+  helmet-vs-chest wear split). The targeted wear rides the new
+  PlayerInventory.wearArmorStack (the unbreaking hook point ledgered
+  with its slice). Tests: `ThornsAcceptanceTest` (5) — suite 523 green.
+  Release v0.2.0-dev.18 published with jar + zip + changelog.
 
 - **Concurrency architecture assignment completed** (`09eeaed`, `430ed18`,
   `36e7e97`): the Folia 26.2.x archive extracted outside the repo, all 21
