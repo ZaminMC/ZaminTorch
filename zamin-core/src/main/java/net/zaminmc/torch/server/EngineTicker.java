@@ -31,6 +31,13 @@ public final class EngineTicker {
     private static final long WARN_OVERRUN_NANOS = TimeUnit.MILLISECONDS.toNanos(250);
 
     private volatile EngineWorld world;
+    /**
+     * The second dimension (8b-ii): the nether world walks the same tick —
+     * its time advances after the overworld's, its mutations assert through
+     * its own domain (the boot binds both for the loop's whole run). Null
+     * keeps the single-dimension behavior (the historical contract).
+     */
+    private volatile EngineWorld netherWorld;
     private volatile Runnable tickHandler;
     private volatile net.zaminmc.torch.server.concurrent.SimulationScheduler scheduler;
     private volatile net.zaminmc.torch.server.concurrent.OwnershipDomain schedulerDomain;
@@ -66,6 +73,23 @@ public final class EngineTicker {
             throw new IllegalStateException("World already attached");
         }
         this.world = java.util.Objects.requireNonNull(world, "world");
+    }
+
+    /**
+     * Attaches the nether dimension (8b-ii). Called once, on the tick
+     * thread, before the loop starts — the same binding window as the
+     * overworld's attach.
+     */
+    public void attachNetherWorld(EngineWorld nether) {
+        if (this.netherWorld != null) {
+            throw new IllegalStateException("Nether world already attached");
+        }
+        this.netherWorld = java.util.Objects.requireNonNull(nether, "nether");
+    }
+
+    /** @return the attached nether dimension, or null when single-dimension. */
+    public EngineWorld netherWorld() {
+        return netherWorld;
     }
 
     /**
@@ -267,6 +291,10 @@ public final class EngineTicker {
             }
             logicalTick++;
             world.tickTime();
+            EngineWorld nether = netherWorld;
+            if (nether != null) {
+                nether.tickTime();
+            }
             Runnable handler = tickHandler;
             if (handler != null) {
                 handler.run();

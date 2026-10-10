@@ -152,8 +152,15 @@ public final class EngineWorld implements World {
                 .put(localIndex, type);
     }
 
+    /**
+     * The chunk-local delta index: {@code (y << 8) | (localZ << 4) | localX}
+     * — the y takes its full byte (0..255, the chunk's real height), the
+     * earlier 4-bit y mask truncated every edit at y ≥ 16 down into the
+     * 0..15 band (the nether dimension's 128-tall world surfaced it: a
+     * y=40 edit round-tripped as y=8 and collided with the y=8 resident).
+     */
     private static int localIndex(int localX, int y, int localZ) {
-        return ((y & 0xF) << 8) | (localZ << 4) | localX;
+        return (y << 8) | (localZ << 4) | localX;
     }
 
     @Override
@@ -201,7 +208,7 @@ public final class EngineWorld implements World {
         if (chunkDeltas != null) {
             for (Map.Entry<Integer, BlockType> entry : chunkDeltas.entrySet()) {
                 int index = entry.getKey();
-                generated.setBlock(index & 0xF, (index >> 8) & 0xF, (index >> 4) & 0xF, entry.getValue());
+                generated.setBlock(index & 0xF, (index >> 8) & 0xFF, (index >> 4) & 0xF, entry.getValue());
             }
         }
         // Chunk-load hooks run before publication (§344): the chunk becomes
