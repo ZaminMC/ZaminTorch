@@ -173,6 +173,8 @@ public final class EngineServer implements Server, EngineBridge {
     private volatile net.zaminmc.torch.server.concurrent.SimulationScheduler simulationScheduler;
     /** The Phase 3 compute lane: bounded workers over immutable snapshots. */
     private volatile net.zaminmc.torch.server.concurrent.ComputeSubsystem computeSubsystem;
+    /** The Phase 4 domain worker pool: the independent domains' shared execution resources. */
+    private volatile net.zaminmc.torch.server.concurrent.DomainWorkerPool domainWorkerPool;
     /** The in-flight detached chunk generations (dedupe; the never-overwrite guard). */
     private final java.util.Set<Long> pendingChunkGenerations =
             java.util.concurrent.ConcurrentHashMap.newKeySet();
@@ -544,6 +546,8 @@ public final class EngineServer implements Server, EngineBridge {
                 ticker.attachScheduler(simulationScheduler, simulationDomain);
                 computeSubsystem = new net.zaminmc.torch.server.concurrent.ComputeSubsystem();
                 ticker.attachCompute(computeSubsystem, simulationDomain);
+                domainWorkerPool = new net.zaminmc.torch.server.concurrent.DomainWorkerPool();
+                ticker.attachDomainPool(domainWorkerPool);
                 worldReady.countDown();
                 simulationDomain.enter();
                 try {
@@ -644,6 +648,9 @@ public final class EngineServer implements Server, EngineBridge {
         if (ticker != null) {
             if (computeSubsystem != null) {
                 computeSubsystem.shutdown();
+            }
+            if (domainWorkerPool != null) {
+                domainWorkerPool.shutdown();
             }
             ticker.stop();
             try {

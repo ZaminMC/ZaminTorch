@@ -36,6 +36,7 @@ public final class EngineTicker {
     private volatile net.zaminmc.torch.server.concurrent.OwnershipDomain schedulerDomain;
     private volatile net.zaminmc.torch.server.concurrent.ComputeSubsystem compute;
     private volatile net.zaminmc.torch.server.concurrent.OwnershipDomain computeDomain;
+    private volatile net.zaminmc.torch.server.concurrent.DomainWorkerPool domainPool;
     private long logicalTick;
     private final long tickIntervalNanos;
     private final AtomicBoolean running = new AtomicBoolean(false);
@@ -88,6 +89,17 @@ public final class EngineTicker {
                               net.zaminmc.torch.server.concurrent.OwnershipDomain domain) {
         this.compute = java.util.Objects.requireNonNull(attached, "attached");
         this.computeDomain = java.util.Objects.requireNonNull(domain, "domain");
+    }
+
+    /**
+     * Attaches the domain worker pool (the permanent architecture's Phase 4):
+     * the scheduler's due walk dispatches the domains' drains to the pool and
+     * the independent domains progress concurrently, joined at the tick edge
+     * before the time advance. Optional; null keeps the serial walk (today's
+     * single-thread semantics, identical gameplay).
+     */
+    public void attachDomainPool(net.zaminmc.torch.server.concurrent.DomainWorkerPool pool) {
+        this.domainPool = java.util.Objects.requireNonNull(pool, "pool");
     }
 
     /** Starts ticking; the current thread becomes the world's owner. */
@@ -213,7 +225,12 @@ public final class EngineTicker {
             // policy the legacy drain rides).
             net.zaminmc.torch.server.concurrent.SimulationScheduler attached = scheduler;
             if (attached != null) {
-                attached.runDue(logicalTick);
+                net.zaminmc.torch.server.concurrent.DomainWorkerPool pool = domainPool;
+                if (pool != null) {
+                    attached.runDueParallel(logicalTick, pool);
+                } else {
+                    attached.runDue(logicalTick);
+                }
             }
             // The compute drain rides the same owner boundary (the design's
             // sequence: results validate and apply at the tick edge, the

@@ -62,6 +62,7 @@ public final class SimulationScheduler {
     }
 
     private final Map<String, DomainQueue> queues = new ConcurrentHashMap<>();
+    private final Map<String, Boolean> admissionHeld = new ConcurrentHashMap<>();
     private final AtomicLong sequence = new AtomicLong();
     private final AtomicBoolean shutdown = new AtomicBoolean(false);
     private final int maxPendingPerDomain;
@@ -128,11 +129,70 @@ public final class SimulationScheduler {
                     "Scheduler is shut down; submission refused for domain '"
                             + queue.domain.name() + "'");
         }
+        if (admissionHeld.containsKey(queue.domain.name())) {
+            rejectedSubmissions++;
+            throw new IllegalStateException("Admission held for domain '"
+                    + queue.domain.name() + "' (ownership migration in progress); "
+                    + "submission refused — the design's §9 step 2");
+        }
         if (queue.pending() >= maxPendingPerDomain) {
             rejectedSubmissions++;
             throw new IllegalStateException("Pending bound exceeded for domain '"
                     + queue.domain.name() + "' (" + maxPendingPerDomain
                     + "); submission refused — surface to the caller, never a silent drop");
+        }
+    }
+
+    /**
+     * Holds the domain's admission (the migration protocol's §9 step 2): new
+     * submissions are refused loudly while the ownership transfer runs;
+     * already-queued work is untouched (it drains at the old generation).
+     * Releasing re-opens admission. Idempotent per hold.
+     */
+    public void holdAdmission(OwnershipDomain domain) {
+        Objects.requireNonNull(domain, "domain");
+        admissionHeld.put(domain.name(), Boolean.TRUE);
+    }
+
+    /** Releases the migration hold; admission resumes. */
+    public void releaseAdmission(OwnershipDomain domain) {
+        Objects.requireNonNull(domain, "domain");
+        admissionHeld.remove(domain.name());
+    }
+
+    /** @return whether the domain's admission is currently held. */
+    public boolean isAdmissionHeld(OwnershipDomain domain) {
+        return domain != null && admissionHeld.containsKey(domain.name());
+    }
+
+    /**
+     * Fully drains ONE domain: due delayed tasks move to ready, then every
+     * ready task runs on the caller's thread (the caller must hold the
+     * domain's context — the migration's §9 step 3 finish-in-flight point).
+     * Unlike {@link #runDue(long)} this is not a fair rotation pass: it
+     * drains the named domain completely, including work admitted during
+     * the drain (the hold makes that set stable).
+     *
+     * @return the number of tasks executed
+     */
+    public int drainDomain(OwnershipDomain domain, long nowTick) {
+        Objects.requireNonNull(domain, "domain");
+        domain.checkInContext("drainDomain");
+        DomainQueue queue = queues.get(domain.name());
+        if (queue == null) {
+            return 0;
+        }
+        moveDueToReady(nowTick);
+        int executed = 0;
+        while (true) {
+            int pass;
+            synchronized (queue) {
+                pass = drainReady(queue);
+            }
+            executed += pass;
+            if (pass == 0) {
+                return executed;
+            }
         }
     }
 
@@ -169,6 +229,61 @@ public final class SimulationScheduler {
         ordered.sort(Comparator.comparing(q -> q.domain.name()));
         for (DomainQueue queue : ordered) {
             executed += drainReady(queue);
+        }
+        return executed;
+    }
+
+    /**
+     * The Phase 4 walk: the same due-move and fairness rules, but the
+     * domains' due work runs <em>concurrently</em> — each domain bound to
+     * the caller's thread drains inline (its tasks' nested enter pairs with
+     * the caller's binding), every other domain's drain dispatches to the
+     * shared {@link DomainWorkerPool} and the join inside the pool is the
+     * tick-edge barrier: the caller returns only after every domain's due
+     * work finished (the documented hybrid of design §8 — one logical tick
+     * clock, enforced at the edge).
+     *
+     * <p>Each drain still runs one active task per domain (each
+     * {@link DomainTask} holds its own gate and binding), FIFO inside a
+     * domain. The dispatch order is the stable domain-name walk (the
+     * deterministic start order); completion is not ordered — physical
+     * worker assignment is not part of game semantics (design invariant 9).
+     * With every domain caller-bound the walk degenerates to the serial
+     * behavior (identical gameplay — today's single-domain live run).
+     * Cross-domain intents submitted by a drain may land in the target's
+     * next-tick drain when the target's drain already started — the
+     * documented Folia-equivalent skew, admitted by the design (the
+     * cross-domain protocol applies at the target's own boundary).</p>
+     *
+     * @param nowTick the tick clock reading (delayed tasks with dueTick ≤ now run)
+     * @param pool the shared simulation worker pool
+     * @return the number of tasks executed
+     */
+    public int runDueParallel(long nowTick, DomainWorkerPool pool) {
+        Objects.requireNonNull(pool, "pool");
+        moveDueToReady(nowTick);
+        List<DomainQueue> ordered = new ArrayList<>(queues.values());
+        ordered.sort(Comparator.comparing(q -> q.domain.name()));
+        int executed = 0;
+        List<DomainQueue> foreign = new ArrayList<>(ordered.size());
+        for (DomainQueue queue : ordered) {
+            if (queue.domain.inContext()) {
+                // The caller's own binding: drain inline (nested enter), the
+                // same-context ordering the serial walk gave this domain.
+                executed += drainReady(queue);
+            } else {
+                foreign.add(queue);
+            }
+        }
+        if (!foreign.isEmpty()) {
+            java.util.concurrent.atomic.AtomicInteger foreignExecuted =
+                    new java.util.concurrent.atomic.AtomicInteger();
+            List<Runnable> jobs = new ArrayList<>(foreign.size());
+            for (DomainQueue queue : foreign) {
+                jobs.add(() -> foreignExecuted.addAndGet(drainReady(queue)));
+            }
+            pool.dispatchAndJoin(jobs);
+            executed += foreignExecuted.get();
         }
         return executed;
     }
