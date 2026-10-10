@@ -15,4 +15,15 @@ public interface WorldChangeListener {
      * simulation thread; implementers must not block or mutate world state.
      */
     void onBlockChanged(EngineWorld world, BlockPosition position, BlockType newType);
+
+    /**
+     * The removal companion: the OLD type at the position that just became
+     * something else (air included). Runs inside the same commit, after
+     * {@link #onBlockChanged}; the default ignores it. The redstone family
+     * needs the leaving type (the reference's {@code onRemoved} arms read
+     * the removed block's state — a departing wire's two-hop notification
+     * ring, a departing lit torch's neighbor update).
+     */
+    default void onBlockRemoved(EngineWorld world, BlockPosition position, BlockType oldType) {
+    }
 }

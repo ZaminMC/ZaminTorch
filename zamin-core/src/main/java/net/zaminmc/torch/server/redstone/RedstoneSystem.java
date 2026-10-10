@@ -140,7 +140,7 @@ public final class RedstoneSystem implements WorldChangeListener {
     }
 
     /** The coalescing key: (position, family) — one pending tick per pair. */
-    private record TickKey(long packed, int family) {
+    private record TickKey(BlockPosition position, int family) {
     }
 
     private static final int FAMILY_WIRE = 0;
@@ -152,8 +152,8 @@ public final class RedstoneSystem implements WorldChangeListener {
     private final List<Tick> ticksThisTick = new ArrayList<>();
     private long nextSequence;
 
-    /** The torch burnout ledger: (position -> toggle times), the reference's RECENT_TOGGLES. */
-    private final Map<Long, List<Long>> recentToggles = new HashMap<>();
+    /** Whether the torch still burns out at this position: the toggle ledger keyed by position. */
+    private final Map<BlockPosition, List<Long>> recentToggles = new HashMap<>();
 
     public RedstoneSystem(EngineWorld world, ItemEntityManager itemEntities) {
         this.world = Objects.requireNonNull(world, "world");
@@ -178,10 +178,21 @@ public final class RedstoneSystem implements WorldChangeListener {
         for (int[] offset : OFFSETS) {
             neighborChanged(position.offset(offset[0], offset[1], offset[2]));
         }
-        // The wire's diagonal re-notification (RedstoneWireBlock lines
-        // 181-196): the horizontal neighbors' up/down diagonal wires hear
-        // the change through the solid/non-solid step.
-        if (RedstoneBlocks.isWire(newType)) {
+    }
+
+    /**
+     * The removal companion (the reference's onRemoved overrides): a
+     * departing wire's two-hop notification ring (RedstoneWireBlock lines
+     * 200-223 — updateNeighbors per neighbor: the wire's change reaches the
+     * torch hanging on the far side of the block it sat on), and a departing
+     * lit torch announces to its six neighbors (lines 64-71).
+     */
+    @Override
+    public void onBlockRemoved(EngineWorld changedWorld, BlockPosition position, BlockType oldType) {
+        if (RedstoneBlocks.isWire(oldType)) {
+            for (int[] offset : OFFSETS) {
+                updateNeighbors(position.offset(offset[0], offset[1], offset[2]));
+            }
             for (int facing : HORIZONTALS) {
                 int[] step = horizontalStep(facing);
                 BlockPosition neighbor = position.offset(step[0], 0, step[1]);
@@ -191,6 +202,24 @@ public final class RedstoneSystem implements WorldChangeListener {
                     updateNeighborsOfWire(neighbor.offset(0, -1, 0));
                 }
             }
+            return;
+        }
+        if (RedstoneBlocks.isTorch(oldType) && RedstoneBlocks.torchLit(oldType)) {
+            for (int[] offset : OFFSETS) {
+                updateNeighbors(position.offset(offset[0], offset[1], offset[2]));
+            }
+        }
+    }
+
+    /**
+     * The reference's {@code world.updateNeighbors(pos, block)} — the SIX
+     * NEIGHBORS of pos hear a change (World.java lines 342-349). This is
+     * the second hop that carries a wire's change through the block under
+     * it to the family blocks around that block.
+     */
+    private void updateNeighbors(BlockPosition pos) {
+        for (int[] offset : OFFSETS) {
+            neighborChanged(pos.offset(offset[0], offset[1], offset[2]));
         }
     }
 
@@ -350,13 +379,13 @@ public final class RedstoneSystem implements WorldChangeListener {
 
     /** The wire's updatePower entry (lines 96-106): compute, write, drain the notify set. */
     private void updateWirePower(BlockPosition pos) {
-        Set<Long> notified = new HashSet<>();
+        java.util.LinkedHashSet<BlockPosition> notified = new java.util.LinkedHashSet<>();
         computeWirePower(pos, pos, notified);
-        for (Long key : notified) {
-            BlockPosition at = unpack(key);
-            for (int[] offset : OFFSETS) {
-                neighborChanged(at.offset(offset[0], offset[1], offset[2]));
-            }
+        // The drain is the reference's updateNeighbors walk per collected
+        // position (lines 101-103): each entry's SIX neighbors hear the
+        // change.
+        for (BlockPosition at : notified) {
+            updateNeighbors(at);
         }
     }
 
@@ -365,7 +394,7 @@ public final class RedstoneSystem implements WorldChangeListener {
      * preserved ({@code source == pos} in every 1.8.8 call, so the diagonal
      * gates hold their reference form).
      */
-    private void computeWirePower(BlockPosition pos, BlockPosition source, Set<Long> notified) {
+    private void computeWirePower(BlockPosition pos, BlockPosition source, Set<BlockPosition> notified) {
         BlockType original = world.getBlock(pos);
         int oldPower = RedstoneBlocks.wirePower(original);
         int j = oldPower; // the own-power seed (getHighestWirePower(source=pos))
@@ -409,9 +438,9 @@ public final class RedstoneSystem implements WorldChangeListener {
             if (world.getBlock(pos).equals(original)) {
                 world.setBlock(pos, RedstoneBlocks.wireOfPower(j));
             }
-            notified.add(pack(pos));
+            notified.add(pos);
             for (int[] offset : OFFSETS) {
-                notified.add(pack(pos.offset(offset[0], offset[1], offset[2])));
+                notified.add(pos.offset(offset[0], offset[1], offset[2]));
             }
         }
     }
@@ -483,11 +512,11 @@ public final class RedstoneSystem implements WorldChangeListener {
     private void onAdded(BlockPosition pos, BlockType type) {
         if (RedstoneBlocks.isWire(type)) {
             // RedstoneWireBlock lines 176-198: the power walk, then the
-            // vertical neighbor updates, then the diagonal wire
-            // re-notifications (the diagonal walk rides onBlockChanged).
+            // VERTICAL two-hop ring (updateNeighbors per the up/down
+            // neighbors), then the horizontal diagonal wire arms.
             updateWirePower(pos);
-            for (int[] offset : OFFSETS) {
-                neighborChanged(pos.offset(offset[0], offset[1], offset[2]));
+            for (int dir = DOWN; dir <= UP; dir++) {
+                updateNeighbors(pos.offset(OFFSETS[dir][0], OFFSETS[dir][1], OFFSETS[dir][2]));
             }
             for (int facing : HORIZONTALS) {
                 int[] step = horizontalStep(facing);
@@ -502,10 +531,11 @@ public final class RedstoneSystem implements WorldChangeListener {
         }
         if (RedstoneBlocks.isTorch(type)) {
             // RedstoneTorchBlock lines 56-62: a LIT torch announces itself
-            // to all six neighbors on arrival.
+            // to all six neighbors on arrival (the two-hop ring — its
+            // neighbors' neighbors hear it through updateNeighbors).
             if (RedstoneBlocks.torchLit(type)) {
                 for (int[] offset : OFFSETS) {
-                    neighborChanged(pos.offset(offset[0], offset[1], offset[2]));
+                    updateNeighbors(pos.offset(offset[0], offset[1], offset[2]));
                 }
             }
             return;
@@ -539,7 +569,7 @@ public final class RedstoneSystem implements WorldChangeListener {
                 break;
             }
             ticksInOrder.remove(first);
-            pendingTicks.remove(new TickKey(pack(first.position()), first.family()));
+            pendingTicks.remove(new TickKey(first.position(), first.family()));
             ticksThisTick.add(first);
             drained++;
         }
@@ -728,7 +758,7 @@ public final class RedstoneSystem implements WorldChangeListener {
 
     /** Schedules a family tick at a delay (the ServerWorld.scheduleTick coalescing). */
     void scheduleTick(BlockPosition pos, int family, int delay, int priority) {
-        TickKey key = new TickKey(pack(pos), family);
+        TickKey key = new TickKey(pos, family);
         if (pendingTicks.containsKey(key)) {
             return; // the (pos, family) coalescing — the first schedule wins
         }
@@ -744,7 +774,7 @@ public final class RedstoneSystem implements WorldChangeListener {
                 return true;
             }
         }
-        return pendingTicks.containsKey(new TickKey(pack(pos), family));
+        return pendingTicks.containsKey(new TickKey(pos, family));
     }
 
     // ------------------------------------------------------------------
@@ -758,7 +788,7 @@ public final class RedstoneSystem implements WorldChangeListener {
     }
 
     private boolean shouldBurnOut(BlockPosition pos, boolean logToggle) {
-        List<Long> times = recentToggles.computeIfAbsent(pack(pos), key -> new ArrayList<>());
+        List<Long> times = recentToggles.computeIfAbsent(pos, key -> new ArrayList<>());
         if (logToggle) {
             times.add(world.totalTicks());
         }
@@ -827,18 +857,6 @@ public final class RedstoneSystem implements WorldChangeListener {
             }
         }
         return -1;
-    }
-
-    /** The packed position key (the engine's BlockPosition packing). */
-    private static long pack(BlockPosition pos) {
-        return ((long) (pos.x() & 0x3FFFFFF) << 38) | ((pos.z() & 0x3FFFFFF) << 12) | (pos.y() & 0xFFF);
-    }
-
-    private static BlockPosition unpack(long key) {
-        int x = (int) (key >> 38);
-        int z = (int) (key << 26 >> 38);
-        int y = (int) (key << 52 >> 52);
-        return new BlockPosition(x, y, z);
     }
 
     private static int familyOf(BlockType type) {
