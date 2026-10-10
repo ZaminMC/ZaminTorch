@@ -441,8 +441,11 @@ final class LegacyBlockIds {
             return 0;
         }
         if (value.startsWith("redstone_wire")) {
-            int underscore = value.indexOf('_');
-            return underscore < 0 ? 0 : Integer.parseInt(value.substring(underscore + 1));
+            if (value.equals("redstone_wire")) {
+                return 0; // the power-0 wire carries metadata 0
+            }
+            int underscore = value.lastIndexOf('_');
+            return Integer.parseInt(value.substring(underscore + 1));
         }
         if (value.startsWith("redstone_torch") || value.startsWith("unlit_redstone_torch")) {
             String suffix = value.contains("_east") ? "east"

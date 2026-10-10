@@ -192,12 +192,13 @@ public final class RedstoneBlocks {
 
     /** The repeater's FACING code (0=south..3=east, toward its INPUT). */
     public static int repeaterFacing(net.zaminmc.torch.block.BlockType type) {
+        // repeater_<facing>_<delay> / powered_repeater_<facing>_<delay>:
+        // strip the prefix, then the facing is the first segment.
         String value = type.identifier().value();
-        // repeater_<facing>_<delay> / powered_repeater_<facing>_<delay>
-        int firstUnderscore = value.indexOf('_');
-        int secondUnderscore = value.indexOf('_', firstUnderscore + 1);
-        int thirdUnderscore = value.indexOf('_', secondUnderscore + 1);
-        String facing = value.substring(secondUnderscore + 1, thirdUnderscore);
+        String rest = value.startsWith("powered_")
+                ? value.substring("powered_repeater_".length())
+                : value.substring("repeater_".length());
+        String facing = rest.substring(0, rest.indexOf('_'));
         for (int i = 0; i < FACING_NAMES.length; i++) {
             if (FACING_NAMES[i].equals(facing)) {
                 return i;

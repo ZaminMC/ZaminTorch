@@ -117,11 +117,15 @@ public final class EngineWorld implements World {
         Objects.requireNonNull(type, "type");
         requireOwnership("setBlock");
         EngineChunk chunk = getOrGenerate(position.chunkPosition());
+        BlockType previous = chunk.getBlock(position.localX(), position.y(), position.localZ());
         boolean changed = chunk.setBlock(position.localX(), position.y(), position.localZ(), type);
         if (changed) {
             // Deltas are the persistence projection of runtime changes (slice 2).
             recordDelta(position.chunkPosition(), localIndex(position.localX(), position.y(), position.localZ()), type);
             fireChange(position, type);
+            if (!previous.equals(type)) {
+                fireRemoved(position, previous);
+            }
         }
         return changed;
     }
@@ -132,6 +136,18 @@ public final class EngineWorld implements World {
                 listener.onBlockChanged(this, position, type);
             } catch (RuntimeException listenerFailure) {
                 LOGGER.warning(() -> "World change listener failed at " + position + ": "
+                        + listenerFailure);
+            }
+        }
+    }
+
+    /** The removal arm: the old type fanned out after the change (the onRemoved port surface). */
+    private void fireRemoved(BlockPosition position, BlockType oldType) {
+        for (WorldChangeListener listener : changeListeners) {
+            try {
+                listener.onBlockRemoved(this, position, oldType);
+            } catch (RuntimeException listenerFailure) {
+                LOGGER.warning(() -> "World removal listener failed at " + position + ": "
                         + listenerFailure);
             }
         }
