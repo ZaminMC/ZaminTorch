@@ -32,6 +32,9 @@ public final class EngineTicker {
 
     private volatile EngineWorld world;
     private volatile Runnable tickHandler;
+    private volatile net.zaminmc.torch.server.concurrent.SimulationScheduler scheduler;
+    private volatile net.zaminmc.torch.server.concurrent.OwnershipDomain schedulerDomain;
+    private long logicalTick;
     private final long tickIntervalNanos;
     private final AtomicBoolean running = new AtomicBoolean(false);
     private final Queue<Runnable> pendingWork = new ConcurrentLinkedQueue<>();
@@ -58,6 +61,18 @@ public final class EngineTicker {
             throw new IllegalStateException("World already attached");
         }
         this.world = java.util.Objects.requireNonNull(world, "world");
+    }
+
+    /**
+     * Attaches the simulation scheduler (the permanent architecture's Phase
+     * 2 wiring): submitted work routes through the bounded, ordered,
+     * cancellable substrate and each tick runs its due tasks. The scheduler
+     * is optional — a null-attached ticker keeps the legacy queue.
+     */
+    public void attachScheduler(net.zaminmc.torch.server.concurrent.SimulationScheduler attached,
+                                net.zaminmc.torch.server.concurrent.OwnershipDomain domain) {
+        this.scheduler = java.util.Objects.requireNonNull(attached, "attached");
+        this.schedulerDomain = java.util.Objects.requireNonNull(domain, "domain");
     }
 
     /** Starts ticking; the current thread becomes the world's owner. */
@@ -104,9 +119,20 @@ public final class EngineTicker {
         return stopped.await(timeoutMillis, TimeUnit.MILLISECONDS);
     }
 
-    /** Enqueues work to run at the start of the next tick. Safe from any thread. */
+    /**
+     * Enqueues work to run at the start of the next tick. Safe from any
+     * thread. With the scheduler attached the submission rides the bounded
+     * admission (a refusal throws — the design's explicit backpressure);
+     * otherwise the legacy unbounded queue.
+     */
     public void submit(Runnable work) {
-        pendingWork.add(work);
+        net.zaminmc.torch.server.concurrent.SimulationScheduler attached = scheduler;
+        net.zaminmc.torch.server.concurrent.OwnershipDomain domain = schedulerDomain;
+        if (attached != null && domain != null) {
+            attached.submit(domain, work);
+        } else {
+            pendingWork.add(work);
+        }
     }
 
     /** One completed tick feeds the /tps rolling window. Tick thread only. */
@@ -166,6 +192,15 @@ public final class EngineTicker {
             while ((work = pendingWork.poll()) != null) {
                 work.run();
             }
+            // The Phase 2 substrate: due delayed tasks move to ready, then
+            // every ready task runs — FIFO inside the domain, one active
+            // task per domain gate, failures skipping one task (the same
+            // policy the legacy drain rides).
+            net.zaminmc.torch.server.concurrent.SimulationScheduler attached = scheduler;
+            if (attached != null) {
+                attached.runDue(logicalTick);
+            }
+            logicalTick++;
             world.tickTime();
             Runnable handler = tickHandler;
             if (handler != null) {
