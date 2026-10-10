@@ -17,6 +17,7 @@ import net.zaminmc.torch.server.entity.MobEntity;
 import net.zaminmc.torch.server.net.EngineBridge;
 import net.zaminmc.torch.server.player.PlayerSession;
 import net.zaminmc.torch.server.world.EngineChunk;
+import net.zaminmc.torch.server.world.EngineWorld;
 
 import net.zaminmc.torch.block.BlockPosition;
 import net.zaminmc.torch.block.BlockType;
@@ -70,6 +71,12 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     private volatile long keepAliveSentAt;
 
     private ChunkTracker chunkTracker;
+    /**
+     * The connection's current dimension (0 the overworld, -1 the nether):
+     * every chunk read and the Respawn packet's field ride it — the
+     * changeDimension walk re-points it at the arrival.
+     */
+    private volatile int dimension;
     /** This client's own wire entity id (allocated at Join Game). */
     private volatile int ownEntityId = -1;
     /** The position this client was last teleported to (respawn): movement near it skips the distance sanity check. */
@@ -536,16 +543,32 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
      * The respawn wire sequence (after the engine reset the body): Respawn
      * packet (0x07), the spawn chunk view re-sent fresh, the authoritative
      * position at spawn, health, and the emptied inventory. Any thread; the
-     * engine publishes respawned first.
+     * engine publishes respawned first. The overworld's sequence (dimension
+     * 0 — the historical shape).
      */
     void sendRespawnSequence(PlayerSession player, net.zaminmc.torch.util.Position destination) {
+        sendRespawnSequence(player, destination, 0);
+    }
+
+    /**
+     * The dimension-aware respawn sequence (the changeDimension walk's
+     * wire arm): the Respawn packet carries the DESTINATION dimension and
+     * every subsequent chunk read walks that world — the reference's
+     * PlayerRespawnS2CPacket(player.dimension, ...) + sendWorldInfo shape.
+     */
+    void sendRespawnSequence(PlayerSession player, net.zaminmc.torch.util.Position destination,
+                             int destinationDimension) {
         Channel channel = adapter.channelOf(this);
         if (channel == null || !channel.isActive() || state != WireState.PLAY) {
             return;
         }
+        dimension = destinationDimension;
+        if (chunkTracker != null) {
+            chunkTracker.rePointDimension(destinationDimension);
+        }
         ByteBuf out = Unpooled.buffer(32);
         ByteBufOps.writeVarInt(out, Protocol18.S2C_RESPAWN);
-        out.writeInt(0); // dimension: overworld
+        out.writeInt(destinationDimension); // the reference's player.dimension
         out.writeByte(engine.difficulty());
         out.writeByte(player.gamemode().legacyId());
         ByteBufOps.writeString(out, engine.config().levelType()); // respawn mirrors the join's level-type
@@ -3115,6 +3138,12 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         private final EngineServer engine;
         private final Channel channel;
         private final java.util.Set<Long> sent = new java.util.HashSet<>();
+        /**
+         * The dimension this tracker streams (0 the overworld, -1 the
+         * nether) — the changeDimension walk re-points it at the arrival
+         * (the reference's per-world ChunkMap walk).
+         */
+        private volatile int dimension;
 
         private int centerX;
         private int centerZ;
@@ -3122,6 +3151,11 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ChunkTracker(EngineServer engine, Channel channel) {
             this.engine = engine;
             this.channel = channel;
+        }
+
+        /** Re-points the stream at the destination dimension. */
+        void rePointDimension(int destinationDimension) {
+            this.dimension = destinationDimension;
         }
 
         void sendInitial(ChunkPosition center) {
@@ -3215,10 +3249,15 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             if (!channel.isActive()) {
                 return;
             }
-            EngineChunk chunk = engine.world().peek(position);
+            // The dimension-aware source: the body's world reads its own
+            // chunks (the changeDimension walk re-points the connection's
+            // dimension at the arrival — the reference's sendWorldInfo +
+            // the per-world ChunkMap walk).
+            EngineWorld source = engine.worldFor(dimension);
+            EngineChunk chunk = source.peek(position);
             if (chunk == null) {
                 // Not yet loaded: generate on the world's owner thread, then serialize.
-                engine.requestChunkLoad(position, loaded -> {
+                engine.requestChunkLoad(dimension, position, loaded -> {
                     if (channel.isActive()) {
                         writeChunk(loaded, groundUp);
                     }
@@ -3241,9 +3280,13 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             channel.writeAndFlush(out);
             // The sign text replay (protocol 47 chunk data carries no tile
             // entities): every sign in the freshly sent column re-sends its
-            // lines, the historical load order.
-            for (var entry : engine.signs().inChunk(chunk.position())) {
-                writeSignUpdate(channel, entry.getKey(), entry.getValue());
+            // lines, the historical load order. The nether dimension holds
+            // no sign state (the sign manager rides the overworld) — the
+            // replay is the overworld's walk.
+            if (dimension == 0) {
+                for (var entry : engine.signs().inChunk(chunk.position())) {
+                    writeSignUpdate(channel, entry.getKey(), entry.getValue());
+                }
             }
         }
     }

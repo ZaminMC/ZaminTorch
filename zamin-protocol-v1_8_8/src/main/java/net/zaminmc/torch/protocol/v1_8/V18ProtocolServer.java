@@ -510,6 +510,21 @@ public final class V18ProtocolServer implements ProtocolAdapter {
             }
 
             @Override
+            public void onDimensionChanged(net.zaminmc.torch.server.player.PlayerSession player,
+                                           net.zaminmc.torch.util.Position destination,
+                                           int dimension) {
+                // The changeDimension walk's wire arm: the respawn sequence
+                // re-pointed at the destination dimension — the Respawn
+                // packet's dimension field, the chunk view re-anchored to the
+                // arrival, and every subsequent chunk read from that world.
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    if (connection.currentSession() == player) {
+                        connection.sendRespawnSequence(player, destination, dimension);
+                    }
+                }
+            }
+
+            @Override
             public void onPlayerHurt(net.zaminmc.torch.server.player.PlayerSession player) {
                 // The hurt flash: the victim's own client animates its body;
                 // every observer animates the remote player they track.

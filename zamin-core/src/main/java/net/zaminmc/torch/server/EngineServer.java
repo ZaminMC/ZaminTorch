@@ -76,6 +76,8 @@ import net.zaminmc.torch.server.world.EngineWorld;
 import net.zaminmc.torch.server.world.DeltaWorldStorage;
 import net.zaminmc.torch.server.world.NormalWorldGenerator;
 import net.zaminmc.torch.server.world.NetherWorldGenerator;
+import net.zaminmc.torch.server.world.PortalForcer;
+import net.zaminmc.torch.server.world.PortalFrameBuilder;
 import net.zaminmc.torch.server.world.WorldGenerator;
 import net.zaminmc.torch.server.world.FlatWorldGenerator;
 import net.zaminmc.torch.server.world.WorldStorage;
@@ -203,6 +205,9 @@ public final class EngineServer implements Server, EngineBridge {
     private WorldStorage worldStorage;
     /** The nether dimension's delta persistence (DIM-1/zamin-delta.bin). */
     private WorldStorage netherStorage;
+    /** The destination-side portal walks (the reference's per-ServerWorld PortalForcer). */
+    private PortalForcer worldPortalForcer;
+    private PortalForcer netherPortalForcer;
     private PlayerDataStore playerStore;
     private FurnaceManager furnaceManager;
     private FurnaceDataStore furnaceStore;
@@ -385,6 +390,11 @@ public final class EngineServer implements Server, EngineBridge {
                 netherDomain = net.zaminmc.torch.server.concurrent.OwnershipDomain
                         .create("simulation:nether");
                 netherWorld.attachDomain(netherDomain);
+                // The destination-side portal walks (the reference's
+                // ServerWorld.getPortalForcer per world: the seed-shared
+                // Random, the dimension's own height).
+                worldPortalForcer = new PortalForcer(world, worldSeed, 256);
+                netherPortalForcer = new PortalForcer(netherWorld, worldSeed, 128);
                 LOGGER.info(() -> "Nether dimension '"
                         + netherWorld.name() + "' ready (seed " + worldSeed + ")");
                 // Light (§475/§476): derived world state, recomputed on every
@@ -512,6 +522,10 @@ public final class EngineServer implements Server, EngineBridge {
                     tickEnchantingViewers();
                     tickPlayerBodies();
                     tickWeather();            // /weather's countdown (the auto-clear)
+                    // The portal caches' eviction walk (the reference's
+                    // PortalForcer.tick per world).
+                    worldPortalForcer.tick(world.totalTicks());
+                    netherPortalForcer.tick(netherWorld.totalTicks());
                     // Relight transport (§475): protocol 47 has no light-only
                     // packet, so every chunk column the light touched this tick
                     // re-sends once, deduplicated across the whole cascade.
@@ -1156,6 +1170,16 @@ public final class EngineServer implements Server, EngineBridge {
         /** The player respawned at spawn: the adapter re-anchors the wire. */
         void onRespawned(PlayerSession player, net.zaminmc.torch.util.Position spawn);
 
+        /**
+         * The player crossed dimensions (the changeDimension walk's wire
+         * arm): the adapter sends the respawn sequence re-pointed at the
+         * destination dimension (0 the overworld, -1 the nether).
+         */
+        default void onDimensionChanged(PlayerSession player,
+                                        net.zaminmc.torch.util.Position destination,
+                                        int dimension) {
+        }
+
         /** The player took a melee hit: the hurt flash rides the entity status. */
         void onPlayerHurt(PlayerSession player);
 
@@ -1525,19 +1549,34 @@ public final class EngineServer implements Server, EngineBridge {
      * Tick-thread context.
      */
     private void tickPortalStand(PlayerSession session) {
-        BlockType at = world.getBlock(new BlockPosition(
+        // The body's OWN dimension decides the world read (the walk moves
+        // bodies between worlds; the stand clock reads where the body lives).
+        EngineWorld bodyWorld = session.dimension() == -1 ? netherWorld : world;
+        BlockType at = bodyWorld.getBlock(new BlockPosition(
                 (int) Math.floor(session.position().x()),
                 (int) Math.floor(session.position().y()),
                 (int) Math.floor(session.position().z())));
         boolean inPortal = at.identifier().equals(BuiltinBlocks.NETHER_PORTAL.identifier())
                 || at.identifier().equals(BuiltinBlocks.NETHER_PORTAL_Z.identifier());
         boolean creative = session.gamemode() == GameMode.CREATIVE;
+        if (inPortal) {
+            // The entry memory (the reference's onPortalCollision derive —
+            // a NEW portal cell re-derives the frame offsets and facing).
+            var match = PortalFrameBuilder.matchAt(bodyWorld, new BlockPosition(
+                    (int) Math.floor(session.position().x()),
+                    (int) Math.floor(session.position().y()),
+                    (int) Math.floor(session.position().z())));
+            session.notePortalEntry(new BlockPosition(
+                    (int) Math.floor(session.position().x()),
+                    (int) Math.floor(session.position().y()),
+                    (int) Math.floor(session.position().z())), match,
+                    session.position().x(), session.position().y(), session.position().z());
+        }
         if (session.advancePortalClock(inPortal, creative)) {
-            // The teleport arm: the destination dimension walk is the 8b
-            // slice (the second world + the portal forcer). The cooldown is
-            // armed; the crossing is loud in the diagnostics.
-            LOGGER.fine("Portal threshold crossed for " + session.name()
-                    + "; the dimension walk awaits the 8b slice");
+            // The teleport arm (the reference's Entity.updatePortal →
+            // changeDimension): the destination walk is the 8b-iii-b slice —
+            // the 8:1 walk, the PortalForcer, the respawn sequence.
+            changeDimensionOnTick(session);
         }
     }
 
@@ -6373,6 +6412,98 @@ public final class EngineServer implements Server, EngineBridge {
         });
     }
 
+    /** @return the world a session's dimension walks (0 the overworld, -1 the nether). */
+    public EngineWorld worldFor(int dimension) {
+        if (dimension == -1) {
+            return java.util.Objects.requireNonNull(netherWorld, "nether world");
+        }
+        return world;
+    }
+
+    /**
+     * The changeDimension walk (the reference's PlayerManager.changeDimension,
+     * reference/1.8.8 net/minecraft/server/PlayerManager.java lines 424-447 +
+     * the Entity overload 449-499): the dimension swap, the 8:1 coordinate
+     * walk (÷8 into the nether, ×8 back, the ±29999872 placing clamp), the
+     * destination neighborhood loaded before the portal search reads it (the
+     * reference's getBlockState would load every searched chunk synchronously
+     * — the same stall, bounded to the search's full 17x17 chunk ring), the
+     * destination PortalForcer's find-or-generate, the body's arrival, and
+     * the wire's respawn sequence re-pointed at the new dimension. Tick-thread
+     * context (the portal stand clock's crossing arm and the tests call it
+     * there); safe from any thread through the tick queue.
+     */
+    public void changeDimension(PlayerSession session) {
+        Objects.requireNonNull(session, "session");
+        Runnable walk = () -> changeDimensionOnTick(session);
+        if (java.lang.Thread.currentThread() == ticker.ownerThread()) {
+            walk.run();
+        } else {
+            ticker.submit(walk);
+        }
+    }
+
+    private void changeDimensionOnTick(PlayerSession session) {
+        if (session.state() != PlayerState.PLAYING || session.dead()) {
+            return;
+        }
+        int from = session.dimension();
+        int to = from == 0 ? -1 : 0;
+        EngineWorld toWorld = worldFor(to);
+
+        // The 8:1 walk (the reference's Entity overload: ÷8 into the nether,
+        // ×8 back; the placing phase clamps the int coordinates to the
+        // ±29999872 border band — the engine has no border yet, the band kept).
+        double scale = from == 0 ? 1.0 / 8.0 : 8.0;
+        int destX = clampCoordinate((int) Math.floor(session.position().x() * scale));
+        int destZ = clampCoordinate((int) Math.floor(session.position().z() * scale));
+
+        // The destination neighborhood loads BEFORE the search reads it: the
+        // reference's getBlockState would load every searched chunk
+        // synchronously — the same stall, here bounded to the search's full
+        // 17x17 chunk ring (257x257 blocks).
+        int centerChunkX = destX >> 4;
+        int centerChunkZ = destZ >> 4;
+        for (int dx = -8; dx <= 8; dx++) {
+            for (int dz = -8; dz <= 8; dz++) {
+                toWorld.getOrGenerate(new net.zaminmc.torch.block.ChunkPosition(
+                        centerChunkX + dx, centerChunkZ + dz));
+            }
+        }
+
+        // The destination-side portal walk (the reference's
+        // toWorld.getPortalForcer().onDimensionChanged(entity, yaw)).
+        PortalForcer forcer = to == -1 ? netherPortalForcer : worldPortalForcer;
+        PortalForcer.Arrival arrival = forcer.onDimensionChanged(
+                destX + 0.5, session.position().y(), destZ + 0.5,
+                session.rotation().yaw(), 0.0, 0.0, session.portalMemory());
+
+        // The body's arrival (the reference's setPositionAndAngles + the
+        // world swap; the fall debt clears — a portal walk is not a fall).
+        Position arrivalPosition = new Position(arrival.x(), arrival.y(), arrival.z());
+        session.applyDimensionArrival(to, arrivalPosition,
+                arrival.yaw(), session.rotation().pitch());
+        session.setGraceTicks(100);
+
+        // The wire's respawn sequence re-points at the new dimension (the
+        // reference's PlayerRespawnS2CPacket + the teleport + the world info
+        // resend).
+        publishDimensionChanged(session, arrivalPosition, to);
+        LOGGER.info(() -> "Player " + session.name() + " crossed to dimension " + to
+                + " (arrival " + arrivalPosition + ")");
+    }
+
+    /** The reference's placing-phase border clamp (the ±29999872 band). */
+    private static int clampCoordinate(int value) {
+        return Math.max(-29_999_872, Math.min(29_999_872, value));
+    }
+
+    private void publishDimensionChanged(PlayerSession player, Position destination, int dimension) {
+        for (SurvivalListener listener : survivalListeners) {
+            listener.onDimensionChanged(player, destination, dimension);
+        }
+    }
+
     /** /kill [player]: the void-equivalent death (pierces protection, historical rule). */
     private String killCommand(CommandSender sender, String[] args) {
         PlayerSession target = resolveTarget(sender, args);
@@ -7682,8 +7813,21 @@ public final class EngineServer implements Server, EngineBridge {
      */
     public void requestChunkLoad(net.zaminmc.torch.block.ChunkPosition position,
                                  java.util.function.Consumer<EngineChunk> onLoaded) {
+        requestChunkLoad(0, position, onLoaded);
+    }
+
+    /**
+     * The dimension-aware detached chunk load: the request reads and
+     * generates against the DIMENSION's world, and the pending keys tag the
+     * dimension (the same chunk coordinates exist in both worlds — an
+     * untagged key would cross the streams).
+     */
+    public void requestChunkLoad(int dimension, net.zaminmc.torch.block.ChunkPosition position,
+                                 java.util.function.Consumer<EngineChunk> onLoaded) {
         Objects.requireNonNull(onLoaded, "onLoaded");
-        EngineChunk existing = world.peek(position);
+        EngineWorld source = worldFor(dimension);
+        long key = dimensionKey(dimension, position.packed());
+        EngineChunk existing = source.peek(position);
         if (existing != null) {
             onLoaded.accept(existing);
             return;
@@ -7699,48 +7843,66 @@ public final class EngineServer implements Server, EngineBridge {
         // context (the design's §4 sequence: snapshot compute, validate,
         // owner applies).
         java.util.Queue<java.util.function.Consumer<EngineChunk>> callbacks =
-                pendingChunkLoads.computeIfAbsent(position.packed(),
+                pendingChunkLoads.computeIfAbsent(key,
                         k -> new java.util.concurrent.ConcurrentLinkedQueue<>());
         callbacks.add(onLoaded);
-        if (!pendingChunkGenerations.add(position.packed())) {
+        if (!pendingChunkGenerations.add(key)) {
             return; // a job is already in flight; this callback rides its install
         }
         if (computeSubsystem == null) {
             // The no-compute boot shape (partial test engines): the legacy
             // synchronous path on the tick thread.
-            pendingChunkGenerations.remove(position.packed());
-            pendingChunkLoads.remove(position.packed());
+            pendingChunkGenerations.remove(key);
+            pendingChunkLoads.remove(key);
             ticker.submit(() -> {
-                EngineChunk chunk = world.getOrGenerate(position);
+                EngineChunk chunk = source.getOrGenerate(position);
                 onLoaded.accept(chunk);
             });
             return;
         }
-        computeSubsystem.submit(simulationDomain, position, this::generateDetachedChunk,
-                (chunk, generation) -> installGeneratedChunk(position, chunk),
+        computeSubsystem.submit(simulationDomain, position,
+                pos -> generateDetachedChunk(source, pos),
+                (chunk, generation) -> installGeneratedChunk(dimension, position, chunk),
                 () -> {
                     // The stale arm (an ownership transfer superseded the
                     // snapshot): the in-flight marker clears so a retry can
                     // regenerate; the waiting callbacks ride the next request
                     // (the single-domain live run never transfers mid-run).
-                    pendingChunkGenerations.remove(position.packed());
+                    pendingChunkGenerations.remove(key);
                 });
+    }
+
+    /** The pending-map key: the dimension rides the high bits (the same chunk coordinates exist in both worlds). */
+    private static long dimensionKey(int dimension, long packed) {
+        return ((long) (dimension & 0xFFFF) << 48) | (packed & 0x0000FFFFFFFFFFL);
     }
 
     /** The pure detached generation over the immutable input (compute-worker context). */
     private EngineChunk generateDetachedChunk(net.zaminmc.torch.block.ChunkPosition position) {
-        EngineChunk chunk = new EngineChunk(position, world.airType());
-        world.generator().generate(chunk);
+        return generateDetachedChunk(world, position);
+    }
+
+    private EngineChunk generateDetachedChunk(EngineWorld source,
+                                              net.zaminmc.torch.block.ChunkPosition position) {
+        EngineChunk chunk = new EngineChunk(position, source.airType());
+        source.generator().generate(chunk);
         return chunk;
     }
 
     /** The owner-side install at the drain boundary: publish, then fire the callbacks. */
     private void installGeneratedChunk(net.zaminmc.torch.block.ChunkPosition position,
                                        EngineChunk chunk) {
-        pendingChunkGenerations.remove(position.packed());
+        installGeneratedChunk(0, position, chunk);
+    }
+
+    private void installGeneratedChunk(int dimension,
+                                       net.zaminmc.torch.block.ChunkPosition position,
+                                       EngineChunk chunk) {
+        long key = dimensionKey(dimension, position.packed());
+        pendingChunkGenerations.remove(key);
         java.util.Queue<java.util.function.Consumer<EngineChunk>> callbacks =
-                pendingChunkLoads.remove(position.packed());
-        EngineChunk installed = world.installGenerated(position, chunk);
+                pendingChunkLoads.remove(key);
+        EngineChunk installed = worldFor(dimension).installGenerated(position, chunk);
         if (callbacks != null) {
             for (java.util.function.Consumer<EngineChunk> callback : callbacks) {
                 callback.accept(installed);
