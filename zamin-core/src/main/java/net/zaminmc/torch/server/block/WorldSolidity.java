@@ -62,6 +62,8 @@ public final class WorldSolidity {
                 || value.startsWith("unlit_redstone_torch")
                 || value.startsWith("repeater_")
                 || value.startsWith("powered_repeater_")
+                || value.startsWith("comparator_")
+                || value.startsWith("powered_comparator_")
                 || value.startsWith("lever_")
                 || value.startsWith("stone_button_")
                 || value.startsWith("wooden_button_")

@@ -31,6 +31,14 @@ public final class ChestBlockEntity {
     private final ItemStack[] slots = new ItemStack[SLOT_COUNT];
     private int slotsSerial;
 
+    /**
+     * The contents-changed wake (Slice 9d — the reference's
+     * {@code TileEntity.markDirty} -> {@code updateNeighborComparators}):
+     * invoked on every slot mutation so the comparators reading this
+     * chest re-evaluate. Wired by the manager; runs on the tick thread.
+     */
+    private Runnable contentsListener;
+
     public ChestBlockEntity() {
         Arrays.fill(slots, ItemStack.EMPTY);
     }
@@ -40,6 +48,19 @@ public final class ChestBlockEntity {
         return slotsSerial;
     }
 
+    /** Wires the contents-changed wake (the manager's per-position fan-out). */
+    public void setContentsListener(Runnable listener) {
+        this.contentsListener = listener;
+    }
+
+    /** The mutation bump: the serial + the comparator wake. */
+    private void bump() {
+        slotsSerial++;
+        if (contentsListener != null) {
+            contentsListener.run();
+        }
+    }
+
     /**
      * Semantic left/right click on one chest slot (window click mode 0),
      * sharing the inventory's cursor through the historical click semantics.
@@ -47,7 +68,7 @@ public final class ChestBlockEntity {
     public void clickSlot(int slot, int button, net.zaminmc.torch.server.player.PlayerInventory inventory) {
         rangeCheck(slot);
         WindowClicks.click(slots, slot, button, inventory.cursorBox());
-        slotsSerial++;
+        bump();
     }
 
     /**
@@ -63,7 +84,7 @@ public final class ChestBlockEntity {
         }
         ItemStack dropped = entireStack ? current : current.split(1);
         slots[slot] = current.withCount(current.count() - dropped.count());
-        slotsSerial++;
+        bump();
         return dropped;
     }
 
@@ -82,7 +103,7 @@ public final class ChestBlockEntity {
         if (!remaining.isEmpty()) {
             slots[slot] = remaining;
         }
-        slotsSerial++;
+        bump();
     }
 
     /**
@@ -111,14 +132,14 @@ public final class ChestBlockEntity {
             }
         }
         if (moving.isEmpty()) {
-            slotsSerial++;
+            bump();
             return ItemStack.EMPTY;
         }
         // Pass 2: the first empty slot takes the rest.
         for (int slot = 0; slot < SLOT_COUNT; slot++) {
             if (slots[slot].isEmpty()) {
                 slots[slot] = moving;
-                slotsSerial++;
+                bump();
                 return ItemStack.EMPTY;
             }
         }
@@ -134,7 +155,7 @@ public final class ChestBlockEntity {
     public void setSlot(int slot, ItemStack stack) {
         rangeCheck(slot);
         slots[slot] = Objects.requireNonNull(stack, "stack");
-        slotsSerial++;
+        bump();
     }
 
     private static void rangeCheck(int slot) {

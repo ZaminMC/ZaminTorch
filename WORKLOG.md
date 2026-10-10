@@ -485,3 +485,57 @@ the bottom. The behavior-level status of every mechanic lives in
   RedstoneSourcesTest (3). Suite 654 green.
 - Next: the comparator, then the pistons (the Phase 4 spatial-activation
   gate), then potions/leads/structures.
+
+---
+## Slice 9d — the comparator (the analog diode)
+
+**Reference:** `block/ComparatorBlock.java`, `block/DiodeBlock.java`,
+`block/entity/ComparatorBlockEntity.java`,
+`inventory/menu/InventoryMenu.java` (getAnalogSignal), `world/World.java`
+(updateNeighborComparators lines 2701-2716), `block/entity/BlockEntity.java`
+(markDirty lines 96-103), `block/RepeaterBlock.java` (isValidSideInput).
+
+**Landed:**
+- The flattened family: `comparator_<facing>_<compare|subtract>` /
+  `powered_comparator_...` (legacy 149/150, the nibble
+  `facingH | subtract<<2 | powered<<3`), the comparator item (404), the
+  behavior rows, the solidity exclusion, the serializer nibble + the
+  damage-aware reverse.
+- The signal model: the powered pair emits its STORED ANALOG VALUE toward
+  the output side (dir == FACING), weak and strong arms equal.
+- The input walk: the diode base read, the direct container override, the
+  through-solid read (i < 15 && solid at the input -> one further back).
+- The container fullness (InventoryMenu.getAnalogSignal): the per-slot
+  fraction over min(inventoryMax, itemMax), the whole-size average,
+  floor(f * 14) + (any non-empty ? 1 : 0).
+- The compare gate (input >= 15 on / input == 0 off / sides == 0 ||
+  input >= sides), the subtract arithmetic (max(input - sides, 0)), the
+  2-tick reaction with the -1/0 priority pair, the immediate use-cycle
+  re-evaluation (the mode toggle + the 0.55/0.50 click), the
+  quiet-subtract ring suppression (j != i || COMPARE).
+- The contents wake: `ChestBlockEntity`/`FurnaceBlockEntity` bump their
+  serials through a contents listener wired per-position by their
+  managers -> `RedstoneSystem.wakeComparators` (the
+  updateNeighborComparators port: the four horizontals, the direct
+  comparator + the through-solid second hop).
+- The stored output survives the family's internal pair swaps
+  (putIfAbsent on arrival, removed only when the family departs — the
+  engine's removal arm fires after the change arm).
+- The reference corrections that landed with it: the repeater's side
+  input and shouldPrioritize now count comparators (the reference's
+  isDiode test), while the comparator's own side read keeps the
+  UNRESTRICTED isValidSideInput (any signal source — ComparatorBlock
+  does not override it).
+
+**Tests:** RedstoneComparatorTest (5) — the fullness ladder pins (0/1/1/2/7/
+15 + the min-stack arm over 16-sign stacks), the live analog emission with
+the wire decay (7 then 6), the content-change wake (both arms), the compare
+gate + subtract + the use cycle + the emptied-input drop, the through-solid
+read. Suite 654 -> 659 green.
+
+**Known differences (ledgered):** the stored output is in-memory (the
+reference persists it in BE NBT); the item-frame arm rides the item-frame
+slice; the 150 block id never appears in live play (the flattened powered
+pair IS the converged 149-POWERED-true state).
+
+**Next:** Slice 9e — the pistons (the Phase 4 spatial-activation gate).

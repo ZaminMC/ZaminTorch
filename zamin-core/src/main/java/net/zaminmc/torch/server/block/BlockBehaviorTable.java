@@ -509,6 +509,19 @@ public final class BlockBehaviorTable {
                 }
             }
         }
+        // The comparator (Slice 9d, community blocks.json: hardness 0, the
+        // break is instant by hand): every facing/mode/powered variant
+        // drops the comparator item.
+        BlockBehavior comparator = new BlockBehavior(0.0, false, false, null, 0,
+                List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:comparator"), 1)));
+        for (String prefix : new String[]{"comparator", "powered_comparator"}) {
+            for (String facing : new String[]{"south", "west", "north", "east"}) {
+                for (String mode : new String[]{"compare", "subtract"}) {
+                    behaviors.put(Identifier.parse("minecraft:" + prefix + "_" + facing + "_" + mode),
+                            comparator);
+                }
+            }
+        }
         // The player-driven sources (Slice 9c): the lever, the buttons and
         // the plates — every facing/powered variant drops its item, the
         // break is instant by hand (community blocks.json: hardness 0.5 for

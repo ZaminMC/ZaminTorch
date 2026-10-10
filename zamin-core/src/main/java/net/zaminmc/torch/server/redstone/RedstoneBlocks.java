@@ -229,6 +229,56 @@ public final class RedstoneBlocks {
     }
 
     // ------------------------------------------------------------------
+    // The comparator (legacy 149/150): FACING (4) x MODE (compare/subtract)
+    // x POWERED — the analog diode
+    // ------------------------------------------------------------------
+
+    private static final String[] MODE_KEYS = {"compare", "subtract"};
+
+    /**
+     * @return whether the type is either comparator pair (Slice 9d — the
+     * unpowered {@code comparator_<facing>_<mode>} and the powered {@code
+     * powered_comparator_<facing>_<mode>}, legacy 149/150).
+     */
+    public static boolean isComparator(net.zaminmc.torch.block.BlockType type) {
+        if (type == null || !type.identifier().namespace().equals("minecraft")) {
+            return false;
+        }
+        String value = type.identifier().value();
+        return value.startsWith("comparator_") || value.startsWith("powered_comparator_");
+    }
+
+    /** @return whether the comparator state is the powered pair (the output on). */
+    public static boolean comparatorPowered(net.zaminmc.torch.block.BlockType type) {
+        return type.identifier().value().startsWith("powered_comparator_");
+    }
+
+    /** @return whether the comparator runs in SUBTRACT mode (ComparatorBlock.Mode). */
+    public static boolean comparatorSubtract(net.zaminmc.torch.block.BlockType type) {
+        return type.identifier().value().endsWith("_subtract");
+    }
+
+    /** The comparator's FACING code (0=south..3=east, toward its INPUT). */
+    public static int comparatorFacing(net.zaminmc.torch.block.BlockType type) {
+        String value = type.identifier().value();
+        String rest = value.startsWith("powered_")
+                ? value.substring("powered_comparator_".length())
+                : value.substring("comparator_".length());
+        String facing = rest.substring(0, rest.indexOf('_'));
+        for (int i = 0; i < FACING_NAMES.length; i++) {
+            if (FACING_NAMES[i].equals(facing)) {
+                return i;
+            }
+        }
+        return 0;
+    }
+
+    /** The comparator state for a facing + mode + powered pair. */
+    public static EngineBlockType comparatorOf(int facing, boolean subtract, boolean powered) {
+        return COMPARATORS[powered ? 1 : 0][facing & 3][subtract ? 1 : 0];
+    }
+
+    // ------------------------------------------------------------------
     // The shared geometry helpers
     // ------------------------------------------------------------------
 
@@ -260,6 +310,7 @@ public final class RedstoneBlocks {
     private static final EngineBlockType[] TORCH_LIT = buildTorch("redstone_torch");
     private static final EngineBlockType[] TORCH_UNLIT = buildTorch("unlit_redstone_torch");
     private static final EngineBlockType[][][] REPEATERS = buildRepeaters();
+    private static final EngineBlockType[][][] COMPARATORS = buildComparators();
 
     // ------------------------------------------------------------------
     // The lever (legacy 69): FACING (8 attachment facings) x POWERED
@@ -470,6 +521,23 @@ public final class RedstoneBlocks {
         return all;
     }
 
+    private static EngineBlockType[][][] buildComparators() {
+        // The nibble mirrors the reference's metadata (ComparatorBlock lines
+        // 230-250): facingH | (subtract ? 4 : 0) | (powered ? 8 : 0).
+        EngineBlockType[][][] all = new EngineBlockType[2][4][2];
+        for (int facing = 0; facing < 4; facing++) {
+            for (int mode = 0; mode < 2; mode++) {
+                all[0][facing][mode] = new EngineBlockType(
+                        Identifier.parse("minecraft:comparator_" + FACING_NAMES[facing] + "_" + MODE_KEYS[mode]),
+                        "Redstone Comparator", facing | (mode << 2));
+                all[1][facing][mode] = new EngineBlockType(
+                        Identifier.parse("minecraft:powered_comparator_" + FACING_NAMES[facing] + "_" + MODE_KEYS[mode]),
+                        "Redstone Comparator", facing | (mode << 2) | 8);
+            }
+        }
+        return all;
+    }
+
     /** Registers every redstone type into the block registry builder. */
     public static BlockRegistryBuilder registerAll(BlockRegistryBuilder builder) {
         for (EngineBlockType type : WIRE) {
@@ -489,6 +557,13 @@ public final class RedstoneBlocks {
         }
         for (EngineBlockType type : repeaters) {
             builder.register(type);
+        }
+        for (EngineBlockType[][] pair : COMPARATORS) {
+            for (EngineBlockType[] facing : pair) {
+                for (EngineBlockType type : facing) {
+                    builder.register(type);
+                }
+            }
         }
         for (EngineBlockType type : LEVER) {
             builder.register(type);
