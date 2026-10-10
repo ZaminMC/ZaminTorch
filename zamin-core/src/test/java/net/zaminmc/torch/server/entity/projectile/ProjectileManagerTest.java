@@ -27,15 +27,16 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class ProjectileManagerTest {
 
     /** Records what the combat sink received, for assertions. */
-    private static final class RecordingCombat implements ProjectileManager.CombatSink {
+    static class RecordingCombat implements ProjectileManager.CombatSink {
         final List<String> events = new ArrayList<>();
         final List<Float> damages = new ArrayList<>();
         int chickenHatches;
 
         @Override
-        public void mobHit(MobEntity mob, float damage, double kbYaw) {
+        public boolean mobHit(MobEntity mob, float damage, double kbYaw) {
             events.add("mob");
             damages.add(damage);
+            return true;
         }
 
         @Override
@@ -51,7 +52,7 @@ class ProjectileManagerTest {
     }
 
     /** Fixed hit targets the flight path always lands inside. */
-    private static final class RiggedHits implements ProjectileManager.HitResolver {
+    static final class RiggedHits implements ProjectileManager.HitResolver {
         MobEntity mob;
         PlayerSession player;
 

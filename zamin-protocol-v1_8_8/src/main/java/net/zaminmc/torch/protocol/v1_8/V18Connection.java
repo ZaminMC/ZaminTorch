@@ -2900,6 +2900,25 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     }
 
     /**
+     * The burning flag for a Flame arrow (Entity Metadata 0x0C, index 0: the
+     * shared living flags byte — the client renders the flame trail). Any
+     * thread.
+     */
+    void sendProjectileBurningFlag(net.zaminmc.torch.server.entity.projectile.ProjectileEntity projectile) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(12);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_ENTITY_METADATA);
+        ByteBufOps.writeVarInt(out, projectile.entityId());
+        out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | Protocol18.LIVING_FLAGS_METADATA_INDEX);
+        out.writeByte(projectile.burning() ? Protocol18.LIVING_FLAG_BURNING : 0);
+        out.writeByte(Protocol18.METADATA_TERMINATOR);
+        channel.writeAndFlush(out);
+    }
+
+    /**
      * Destroy Entities (0x13) for a removed projectile (shatter, hit or the
      * expiry sweeps). Any thread.
      */

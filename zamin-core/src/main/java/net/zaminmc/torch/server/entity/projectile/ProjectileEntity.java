@@ -46,6 +46,14 @@ public final class ProjectileEntity {
     private int ticksInGround;
     /** True once the arrow struck a block and is waiting out its stick time. */
     private boolean inGround;
+    /** The full-draw flag: the hit damage takes the reference's crit roll. */
+    private boolean critical;
+    /** The Punch level carried from the release (0 = none). */
+    private int punchLevel;
+    /** The Power bonus riding the damage multiplier (the j * 0.5 + 0.5 arm). */
+    private double bonusDamage;
+    /** The burning clock (Flame releases ignite 100 s — the whole flight). */
+    private int fireTicks;
 
     public ProjectileEntity(int entityId, Kind kind, int throwerId,
                             Position position, double vx, double vy, double vz) {
@@ -110,6 +118,50 @@ public final class ProjectileEntity {
         this.vx = 0;
         this.vy = 0;
         this.vz = 0;
+    }
+
+    /** @return whether the full-draw flag rides (the hit's crit roll). */
+    public boolean critical() {
+        return critical;
+    }
+
+    /** Sets the full-draw crit flag (the release walk's setCritical arm). */
+    public void setCritical(boolean critical) {
+        this.critical = critical;
+    }
+
+    public int punchLevel() {
+        return punchLevel;
+    }
+
+    public void setPunchLevel(int punchLevel) {
+        this.punchLevel = punchLevel;
+    }
+
+    public double bonusDamage() {
+        return bonusDamage;
+    }
+
+    /** Adds the Power bonus to the damage multiplier (the setDamage arm). */
+    public void addBonusDamage(double bonus) {
+        this.bonusDamage += bonus;
+    }
+
+    /** @return whether the arrow is burning (the Flame release, the visual flag). */
+    public boolean burning() {
+        return fireTicks > 0;
+    }
+
+    /** Ignites the arrow for the given tick count (the reference's setOnFireFor). */
+    public void setOnFireFor(int ticks) {
+        this.fireTicks = ticks;
+    }
+
+    /** One burning-clock step (the manager's tick calls it per pass). */
+    public void tickFire() {
+        if (fireTicks > 0) {
+            fireTicks--;
+        }
     }
 
     /**
