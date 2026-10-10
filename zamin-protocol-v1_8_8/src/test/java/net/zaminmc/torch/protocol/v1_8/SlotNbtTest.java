@@ -22,7 +22,7 @@ class SlotNbtTest {
     @Test
     void unnamedStacksKeepTheSingleTagEndMarker() {
         ByteBuf out = Unpooled.buffer();
-        assertFalse(SlotNbt.hasPayload(null));
+        assertFalse(SlotNbt.hasPayload((String) null));
         assertFalse(SlotNbt.hasPayload(""));
         // The caller (writeSlot) writes the plain 0 marker for these; SlotNbt
         // itself only owns the named path.
@@ -31,7 +31,7 @@ class SlotNbtTest {
     @Test
     void namedPayloadMatchesTheVanillaByteLayout() {
         ByteBuf out = Unpooled.buffer();
-        SlotNbt.writeNamed(out, "Hi");
+        SlotNbt.writeFor(out, namedStack("Hi"));
         byte[] bytes = new byte[out.readableBytes()];
         out.readBytes(bytes);
         // 10 (root compound) | len 0 (root name) | 10 (display compound)
@@ -49,7 +49,7 @@ class SlotNbtTest {
     @Test
     void displayNameReaderRoundTrips() {
         ByteBuf out = Unpooled.buffer();
-        SlotNbt.writeNamed(out, "Excalibur");
+        SlotNbt.writeFor(out, namedStack("Excalibur"));
         assertEquals("Excalibur", SlotNbt.readDisplayName(out));
 
         out.clear();
@@ -60,7 +60,7 @@ class SlotNbtTest {
     @Test
     void skipLandsExactlyAfterThePayload() {
         ByteBuf out = Unpooled.buffer();
-        SlotNbt.writeNamed(out, "Excalibur");
+        SlotNbt.writeFor(out, namedStack("Excalibur"));
         SlotNbt.skip(out);
         assertEquals(0, out.readableBytes(), "the skip consumed the whole payload");
     }
@@ -111,6 +111,17 @@ class SlotNbtTest {
         out.writeByte(0);           // end display
         out.writeByte(0);           // end root
         assertEquals("Found It", SlotNbt.readDisplayName(out));
+    }
+
+    /** A named, unenchanted stack — the shape the display-only payload encodes. */
+    private static net.zaminmc.torch.item.ItemStack namedStack(String name) {
+        net.zaminmc.torch.item.ItemType stick = new net.zaminmc.torch.item.ItemType() {
+            @Override
+            public net.zaminmc.torch.util.Identifier identifier() {
+                return net.zaminmc.torch.util.Identifier.parse("minecraft:stick");
+            }
+        };
+        return new net.zaminmc.torch.item.ItemStack(stick, 1, 0, name);
     }
 
     private static void writeShortString(ByteBuf out, String value) {

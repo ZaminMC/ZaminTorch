@@ -198,6 +198,14 @@ public final class BuiltinBlocks {
     public static final EngineBlockType FENCE = new EngineBlockType(
             Identifier.parse("minecraft:oak_fence"), "Oak Fence");
 
+    // The enchanting corner (vanilla 1.8.8): the bookshelf (47) whose count
+    // feeds the table's power scan, and the enchanting table (116, the
+    // 1.0x0.75x1.0 stone block whose right-click opens the menu).
+    public static final EngineBlockType BOOKSHELF = new EngineBlockType(
+            Identifier.parse("minecraft:bookshelf"), "Bookshelf");
+    public static final EngineBlockType ENCHANTING_TABLE = new EngineBlockType(
+            Identifier.parse("minecraft:enchanting_table"), "Enchantment Table");
+
     // The bed (community blocks.json: block 26). The foot's metadata is the
     // foot-to-head facing (S/W/N/E = 0..3, the sign's band); the head's
     // metadata adds bit 3 (value 8). Two block types per facing.
@@ -336,6 +344,8 @@ public final class BuiltinBlocks {
                 .register(LADDER_WEST)
                 .register(LADDER_EAST)
                 .register(FENCE)
+                .register(BOOKSHELF)
+                .register(ENCHANTING_TABLE)
                 .register(BED_FOOT_SOUTH)
                 .register(BED_FOOT_WEST)
                 .register(BED_FOOT_NORTH)
