@@ -414,3 +414,54 @@ the bottom. The behavior-level status of every mechanic lives in
   round trip). Suite 639 green. The per-dimension TimeUpdate sync remains
   ledgered as the follow-up wire arm.
 - **Slice 8 (nether portals) is COMPLETE.**
+
+## 2026-10-11 — Slices 8c, 9a, 9b land; the redstone core opens
+
+- **Slice 8c — the per-dimension Time Update sync** (commit `8c89e06`): the
+  reference's MinecraftServer lines 547-558 walk — every world's clock
+  publishes to the players standing in that dimension only (the
+  TimeListener carries the dimension, the wire fan-out filters per
+  connection exactly like the reference's sendPacket(packet, dimension)),
+  the 20-tick cadence (was 100), /time set and the new /time add walking
+  EVERY world server with the forward wrap (floorMod), and the sleep jump
+  staying the overworld's canSkipNight arm. DimensionTimeSyncTest (3).
+  Suite 642 green.
+- **Slice 9a — the redstone core** (commits `bab950b` + `16b5244`): the
+  reference port of the signal model (World.java lines 2293-2390 — the weak
+  read's solid re-radiation, the strong reads, the 15 short-circuit), the
+  wire cascade (doUpdatePower's exact arithmetic, the shouldSignal
+  re-entrancy guard, the same-tick synchronous propagation through the
+  engine's change-listener dispatch — vanilla's flag-1 walk), the two-hop
+  notification rings (onAdded/onRemoved updateNeighbors — the wire's change
+  reaches the torch hanging on the block under it), the scheduled-tick
+  queue (the (position, family) coalescing, the time/priority/sequence
+  TreeSet ordering, the 1000-per-tick drain, the willTickThisTick guard),
+  the torch (the 2-tick reaction, the 8-toggle/60-tick burnout ledger with
+  the 160-tick recovery), the repeater (the DELAY*2 scheduled reaction,
+  the lock, the -3/-2/-1 priority arms, shouldPrioritize's
+  facing-a-facing-back test). The flattened family registry (wire p0-15
+  legacy 55, torch lit 76/unlit 75 x 5 facings, repeater 93/94 x
+  facingH|delay-1<<2), the light rows (lit torch emits 7), the behavior
+  rows, the solidity exclusions, the dust 331/repeater 356 items.
+  WorldChangeListener gained the onBlockRemoved companion (the old type
+  fanned out after the commit — the onRemoved port surface). Two parse
+  bugs found and fixed on the wire (indexOf vs lastIndexOf on the power
+  suffix; the bare redstone_wire metadata-0 — the second broke every
+  protocol test through the reverse map's static init). RedstoneSystemTest
+  (5: the torch-fed block's dust reading 15, the 16-cell decay dying
+  exactly at the boundary, the NOT gate, the relight, the repeater's
+  turn-on/turn-off). Suite 647 green.
+- **Slice 9b — the redstone interaction layer** (commit `0595407`): the
+  dust placement (the solid-bed gate, the cascade filling the power on the
+  SAME commit), the redstone torch placement (the clicked face's FACING
+  with the attachment gates and the first-wall fallback, the ceiling arm
+  never attaching), the repeater placement (FACING = the look OPPOSITE,
+  the signal flowing away from the player), and the repeater's right-click
+  delay cycle (1->2->3->4->1, the use firing before the held-item
+  placement like the reference's use() precedence, the click sound).
+  RedstoneInteractionTest (4: the same-commit power fill, the bedless
+  refusal, the wall torch's clicked-face landing, the four-step cycle).
+  Suite 651 green (one environmental wire-test flake observed across
+  full-suite runs, each passing alone — the pattern predates the slice).
+- Next: the levers/buttons/pressure plates (the player-driven sources),
+  the comparator, then the pistons (the Phase 4 spatial-activation gate).
