@@ -75,6 +75,7 @@ import net.zaminmc.torch.server.world.EngineChunk;
 import net.zaminmc.torch.server.world.EngineWorld;
 import net.zaminmc.torch.server.world.DeltaWorldStorage;
 import net.zaminmc.torch.server.world.NormalWorldGenerator;
+import net.zaminmc.torch.server.world.NetherWorldGenerator;
 import net.zaminmc.torch.server.world.WorldGenerator;
 import net.zaminmc.torch.server.world.FlatWorldGenerator;
 import net.zaminmc.torch.server.world.WorldStorage;
@@ -161,6 +162,12 @@ public final class EngineServer implements Server, EngineBridge {
 
     private FrozenBlockRegistry blockRegistry;
     private EngineWorld world;
+    /**
+     * The second dimension (8b-ii): vanilla's DIM-1 — the nether world, its
+     * own chunk map, its own delta persistence directory, its own ownership
+     * domain. Booted alongside the overworld on the tick thread.
+     */
+    private EngineWorld netherWorld;
     private EngineTicker ticker;
     /**
      * The simulation ownership domain (the permanent architecture's Phase 1
@@ -169,6 +176,13 @@ public final class EngineServer implements Server, EngineBridge {
      * against. Bound to the boot/tick thread for the loop's whole run.
      */
     private volatile net.zaminmc.torch.server.concurrent.OwnershipDomain simulationDomain;
+    /**
+     * The nether dimension's ownership domain (8b-ii, "simulation:nether"):
+     * the second EngineWorld's mutations assert through it. The boot binds
+     * it alongside the simulation domain — the loop's single-writer walk
+     * covers both worlds until the region activation splits them.
+     */
+    private volatile net.zaminmc.torch.server.concurrent.OwnershipDomain netherDomain;
     /** The Phase 2 scheduler: the tick's deferred-work substrate. */
     private volatile net.zaminmc.torch.server.concurrent.SimulationScheduler simulationScheduler;
     /** The Phase 3 compute lane: bounded workers over immutable snapshots. */
@@ -187,6 +201,8 @@ public final class EngineServer implements Server, EngineBridge {
     private ChatService chatService;
     private final CraftingService crafting = CraftingService.builtin();
     private WorldStorage worldStorage;
+    /** The nether dimension's delta persistence (DIM-1/zamin-delta.bin). */
+    private WorldStorage netherStorage;
     private PlayerDataStore playerStore;
     private FurnaceManager furnaceManager;
     private FurnaceDataStore furnaceStore;
@@ -349,6 +365,28 @@ public final class EngineServer implements Server, EngineBridge {
                         config.worldDataDir().resolve("zamin-delta.bin"),
                         identifier -> blockRegistry.require(identifier));
                 worldStorage.load().ifPresent(world::applyDeltas);
+                // The nether dimension (8b-ii): the second EngineWorld —
+                // vanilla's DIM-1. Same world seed (the reference's shared
+                // worldSeed through the hell provider), its own chunk map,
+                // its own delta persistence directory, its own ownership
+                // domain ("simulation:nether"). No spawn-area pregeneration
+                // (the nether's chunks arrive on demand through the portal
+                // walk) and no light engine yet (the nether's relight flush
+                // publishes to clients in that dimension — it lands with the
+                // 8b-iii player walk).
+                NetherWorldGenerator netherGenerator =
+                        new NetherWorldGenerator(blockRegistry, worldSeed);
+                netherWorld = new EngineWorld(config.worldName() + "_nether",
+                        blockRegistry, netherGenerator, owner);
+                netherStorage = new DeltaWorldStorage(
+                        config.worldDataDir().resolve("DIM-1/zamin-delta.bin"),
+                        identifier -> blockRegistry.require(identifier));
+                netherStorage.load().ifPresent(netherWorld::applyDeltas);
+                netherDomain = net.zaminmc.torch.server.concurrent.OwnershipDomain
+                        .create("simulation:nether");
+                netherWorld.attachDomain(netherDomain);
+                LOGGER.info(() -> "Nether dimension '"
+                        + netherWorld.name() + "' ready (seed " + worldSeed + ")");
                 // Light (§475/§476): derived world state, recomputed on every
                 // committed change and on chunk generation. Registered FIRST
                 // (before spawn pregeneration) so every generated chunk — boot
@@ -544,6 +582,7 @@ public final class EngineServer implements Server, EngineBridge {
                 simulationDomain = net.zaminmc.torch.server.concurrent.OwnershipDomain
                         .create("simulation:" + config.worldName());
                 world.attachDomain(simulationDomain);
+                ticker.attachNetherWorld(netherWorld);
                 simulationScheduler = new net.zaminmc.torch.server.concurrent.SimulationScheduler();
                 ticker.attachScheduler(simulationScheduler, simulationDomain);
                 computeSubsystem = new net.zaminmc.torch.server.concurrent.ComputeSubsystem();
@@ -554,9 +593,11 @@ public final class EngineServer implements Server, EngineBridge {
                 ticker.attachCrossOwnerRouter(crossOwnerRouter, simulationDomain);
                 worldReady.countDown();
                 simulationDomain.enter();
+                netherDomain.enter(); // the second dimension rides the same loop
                 try {
                     ticker.runLoop(); // blocks until stop
                 } finally {
+                    netherDomain.exit();
                     simulationDomain.exit();
                 }
             } catch (Throwable t) {
@@ -691,6 +732,19 @@ public final class EngineServer implements Server, EngineBridge {
 
     public EngineWorld world() {
         return world;
+    }
+
+    /**
+     * The nether dimension (8b-ii), or null before the boot constructs it —
+     * the portal walk (8b-iii) and the acceptance tests read it.
+     */
+    public EngineWorld netherWorld() {
+        return netherWorld;
+    }
+
+    /** The nether dimension's ownership domain ("simulation:nether"). */
+    public net.zaminmc.torch.server.concurrent.OwnershipDomain netherDomain() {
+        return netherDomain;
     }
 
     public FrozenBlockRegistry blockRegistry() {
@@ -7202,6 +7256,9 @@ public final class EngineServer implements Server, EngineBridge {
                     fallingEntities.finishAllFalls();
                 }
                 worldStorage.save(world.snapshotDeltas());
+                if (netherStorage != null && netherWorld != null) {
+                    netherStorage.save(netherWorld.snapshotDeltas());
+                }
                 if (furnaceStore != null && furnaceManager != null) {
                     furnaceStore.save(furnaceManager.snapshot());
                 }
