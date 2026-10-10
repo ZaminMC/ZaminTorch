@@ -146,6 +146,25 @@ public final class RedstoneSystem implements WorldChangeListener {
     private static final int FAMILY_WIRE = 0;
     private static final int FAMILY_TORCH = 1;
     private static final int FAMILY_REPEATER = 2;
+    private static final int FAMILY_BUTTON = 3;
+    private static final int FAMILY_PLATE = 4;
+
+    /** The plates' re-compute debounce (AbstractPressurePlateBlock.getTickRate). */
+    static final int PLATE_TICK_RATE = 20;
+    /** The stone button's release (ButtonBlock.getTickRate: 20 stone / 30 wood). */
+    static final int STONE_BUTTON_TICKS = 20;
+    static final int WOODEN_BUTTON_TICKS = 30;
+
+    /** The lever/button/plate positions live in the world (the plate scan set). */
+    private final java.util.Set<BlockPosition> platePositions = new java.util.HashSet<>();
+
+    /** The entity occupancy probe for the plate scan: (position, includeItems) -> occupied. */
+    private java.util.function.BiPredicate<BlockPosition, Boolean> plateProbe;
+
+    /** Wires the plate's entity probe (mobs + players, items for the wood rule). */
+    public void setPlateProbe(java.util.function.BiPredicate<BlockPosition, Boolean> probe) {
+        this.plateProbe = probe;
+    }
 
     private final TreeSet<Tick> ticksInOrder = new TreeSet<>();
     private final Map<TickKey, Tick> pendingTicks = new HashMap<>();
@@ -185,7 +204,8 @@ public final class RedstoneSystem implements WorldChangeListener {
      * departing wire's two-hop notification ring (RedstoneWireBlock lines
      * 200-223 — updateNeighbors per neighbor: the wire's change reaches the
      * torch hanging on the far side of the block it sat on), and a departing
-     * lit torch announces to its six neighbors (lines 64-71).
+     * lit torch announces to its six neighbors (lines 64-71). The sources
+     * announce their departure too (the lever/button/plate onRemoved arms).
      */
     @Override
     public void onBlockRemoved(EngineWorld changedWorld, BlockPosition position, BlockType oldType) {
@@ -207,6 +227,30 @@ public final class RedstoneSystem implements WorldChangeListener {
         if (RedstoneBlocks.isTorch(oldType) && RedstoneBlocks.torchLit(oldType)) {
             for (int[] offset : OFFSETS) {
                 updateNeighbors(position.offset(offset[0], offset[1], offset[2]));
+            }
+            return;
+        }
+        if (RedstoneBlocks.isLever(oldType) && RedstoneBlocks.leverPowered(oldType)) {
+            // LeverBlock.onRemoved (lines 172-179): the six neighbors + the
+            // attachment block's neighbors (pos.offset(attachment.opposite)
+            // — the block the lever hangs ON sits opposite the attachment
+            // direction: a floor lever's attachment is UP, its block below).
+            updateNeighbors(position);
+            int[] away = attachmentOppositeOffset(RedstoneBlocks.leverAttachment(oldType));
+            updateNeighbors(position.offset(away[0], away[1], away[2]));
+            return;
+        }
+        if (RedstoneBlocks.isButton(oldType) && RedstoneBlocks.buttonPowered(oldType)) {
+            // ButtonBlock.onRemoved (lines 159-164): the facing-side walk.
+            notifyButtonNeighbors(position, RedstoneBlocks.buttonFacing(oldType));
+            return;
+        }
+        if (RedstoneBlocks.isPlate(oldType)) {
+            platePositions.remove(position);
+            if (RedstoneBlocks.platePowered(oldType)) {
+                // AbstractPressurePlateBlock.onRemoved (lines 145-150).
+                updateNeighbors(position);
+                updateNeighbors(position.offset(0, -1, 0));
             }
         }
     }
@@ -258,6 +302,24 @@ public final class RedstoneSystem implements WorldChangeListener {
         if (RedstoneBlocks.isRepeater(type)) {
             // DiodeBlock lines 66-68: the strong arm equals the weak arm.
             return ownSignal(type, dir);
+        }
+        if (RedstoneBlocks.isLever(type)) {
+            // LeverBlock lines 185-192: the strong emission goes to the
+            // attachment block — the consumer there asks with
+            // dir == attachment (pointing back at the lever).
+            return RedstoneBlocks.leverPowered(type)
+                    && RedstoneBlocks.leverAttachment(type) == dir ? 15 : 0;
+        }
+        if (RedstoneBlocks.isButton(type)) {
+            // ButtonBlock lines 175-182: strong only toward the FACING
+            // (the mounting side).
+            return RedstoneBlocks.buttonPowered(type)
+                    && RedstoneBlocks.buttonFacing(type) == dir ? 15 : 0;
+        }
+        if (RedstoneBlocks.isPlate(type)) {
+            // AbstractPressurePlateBlock lines 163-167: strong only UP — the
+            // block under the plate (the consumer below asks with dir=UP).
+            return dir == UP ? ownSignal(type, dir) : 0;
         }
         return 0;
     }
@@ -345,6 +407,18 @@ public final class RedstoneSystem implements WorldChangeListener {
                 return 0;
             }
             return horizontalOfDirection(dir) == RedstoneBlocks.repeaterFacing(type) ? 15 : 0;
+        }
+        if (RedstoneBlocks.isLever(type)) {
+            // LeverBlock lines 181-183: weak 15 in EVERY direction when powered.
+            return RedstoneBlocks.leverPowered(type) ? 15 : 0;
+        }
+        if (RedstoneBlocks.isButton(type)) {
+            // ButtonBlock lines 171-173: weak 15 in every direction when powered.
+            return RedstoneBlocks.buttonPowered(type) ? 15 : 0;
+        }
+        if (RedstoneBlocks.isPlate(type)) {
+            // AbstractPressurePlateBlock lines 159-161: the plate's output.
+            return RedstoneBlocks.platePowered(type) ? 15 : 0;
         }
         return 0;
     }
@@ -506,6 +580,30 @@ public final class RedstoneSystem implements WorldChangeListener {
             checkRepeaterOutput(pos, type);
             return;
         }
+        if (RedstoneBlocks.isLever(type)) {
+            // LeverBlock.neighborChanged (lines 143-147): the attachment
+            // break pops the lever.
+            if (!leverSupported(type, pos)) {
+                popBlock(pos, BuiltinItems.LEVER);
+            }
+            return;
+        }
+        if (RedstoneBlocks.isButton(type)) {
+            // ButtonBlock.neighborChanged (lines 89-95): the mounting break
+            // pops the button.
+            if (!buttonSupported(type, pos)) {
+                popBlock(pos, BuiltinItems.STONE_BUTTON);
+            }
+            return;
+        }
+        if (RedstoneBlocks.isPlate(type)) {
+            // AbstractPressurePlateBlock.neighborChanged (lines 92-97): the
+            // floor break pops the plate.
+            if (!hasSupportBelow(pos)) {
+                popBlock(pos, RedstoneBlocks.plateWooden(type)
+                        ? BuiltinItems.WOODEN_PRESSURE_PLATE : BuiltinItems.STONE_PRESSURE_PLATE);
+            }
+        }
     }
 
     /** The per-family onAdded (the reference's onAdded overrides). */
@@ -548,6 +646,18 @@ public final class RedstoneSystem implements WorldChangeListener {
             if (repeaterShouldBe(pos, type)) {
                 scheduleTick(pos, FAMILY_REPEATER, 1, 0);
             }
+            return;
+        }
+        if (RedstoneBlocks.isPlate(type)) {
+            // The plate joins the scan set; the first scan re-checks it.
+            platePositions.add(pos);
+            if (RedstoneBlocks.platePowered(type)) {
+                // A powered plate arriving (a creative placement): its
+                // neighbors hear it like the reference's updateNeighbors.
+                updateNeighbors(pos);
+                updateNeighbors(pos.offset(0, -1, 0));
+                scheduleTick(pos, FAMILY_PLATE, PLATE_TICK_RATE, 0);
+            }
         }
     }
 
@@ -558,6 +668,26 @@ public final class RedstoneSystem implements WorldChangeListener {
      */
     public void tick() {
         long now = world.totalTicks();
+        // The plate press scan (the onEntityCollision equivalent — the
+        // engine has no collision callbacks, so the per-tick scan checks
+        // the plate set's occupancy; the 20-tick re-arm keeps the
+        // debounce). Only the UNPOWERED plates scan — a powered plate's
+        // re-check rides its scheduled tick.
+        for (BlockPosition plate : List.copyOf(java.util.Arrays.asList(
+                platePositions.toArray(new BlockPosition[0])))) {
+            BlockType type = world.getBlock(plate);
+            if (!RedstoneBlocks.isPlate(type) || RedstoneBlocks.platePowered(type)) {
+                continue;
+            }
+            if (computePlateOutput(plate) > 0) {
+                // The press (updateOutputState lines 124-131): the swap, the
+                // two rings, the re-arm.
+                world.setBlock(plate, RedstoneBlocks.plateOf(true, RedstoneBlocks.plateWooden(type)));
+                updateNeighbors(plate);
+                updateNeighbors(plate.offset(0, -1, 0));
+                scheduleTick(plate, FAMILY_PLATE, PLATE_TICK_RATE, 0);
+            }
+        }
         ticksThisTick.clear();
         int drained = 0;
         while (drained < 1000) {
@@ -586,6 +716,10 @@ public final class RedstoneSystem implements WorldChangeListener {
                 torchTick(entry.position(), type);
             } else if (RedstoneBlocks.isRepeater(type)) {
                 repeaterTick(entry.position(), type);
+            } else if (RedstoneBlocks.isButton(type)) {
+                buttonTick(entry.position(), type);
+            } else if (RedstoneBlocks.isPlate(type)) {
+                plateTick(entry.position(), type);
             }
         }
         ticksThisTick.clear();
@@ -745,6 +879,117 @@ public final class RedstoneSystem implements WorldChangeListener {
     }
 
     // ------------------------------------------------------------------
+    // The lever (LeverBlock) + the buttons (ButtonBlock) + the plates
+    // ------------------------------------------------------------------
+
+    /**
+     * The lever's use (LeverBlock.use lines 165-170): the POWERED pair
+     * swaps, the click (0.6 powered / 0.5 released), then the two neighbor
+     * rings — the lever's own six + the attachment block's six
+     * (pos.offset(attachment.opposite)). Returns whether the use consumed
+     * the click. Tick-thread context.
+     */
+    public boolean useLever(BlockPosition pos) {
+        BlockType type = world.getBlock(pos);
+        if (!RedstoneBlocks.isLever(type)) {
+            return false;
+        }
+        boolean powered = !RedstoneBlocks.leverPowered(type);
+        world.setBlock(pos, RedstoneBlocks.leverOf(RedstoneBlocks.leverFacing(type), powered));
+        updateNeighbors(pos);
+        int[] away = attachmentOppositeOffset(RedstoneBlocks.leverAttachment(type));
+        updateNeighbors(pos.offset(away[0], away[1], away[2]));
+        return true;
+    }
+
+    /**
+     * The button's use (ButtonBlock.use lines 137-150): a powered button
+     * ignores the press; otherwise the press powers it, notifies the
+     * mounting side, and schedules the release (20 stone / 30 wood).
+     * Returns whether the use consumed the click. Tick-thread context.
+     */
+    public boolean useButton(BlockPosition pos) {
+        BlockType type = world.getBlock(pos);
+        if (!RedstoneBlocks.isButton(type)) {
+            return false;
+        }
+        if (RedstoneBlocks.buttonPowered(type)) {
+            return true; // the reference's early return
+        }
+        world.setBlock(pos, RedstoneBlocks.buttonOf(
+                RedstoneBlocks.buttonFacing(type), true, RedstoneBlocks.buttonWooden(type)));
+        notifyButtonNeighbors(pos, RedstoneBlocks.buttonFacing(type));
+        scheduleTick(pos, FAMILY_BUTTON,
+                RedstoneBlocks.buttonWooden(type) ? WOODEN_BUTTON_TICKS : STONE_BUTTON_TICKS, 0);
+        return true;
+    }
+
+    /** The button's scheduled release (ButtonBlock.tick lines 184-196). */
+    private void buttonTick(BlockPosition pos, BlockType type) {
+        if (!RedstoneBlocks.buttonPowered(type)) {
+            return;
+        }
+        world.setBlock(pos, RedstoneBlocks.buttonOf(
+                RedstoneBlocks.buttonFacing(type), false, RedstoneBlocks.buttonWooden(type)));
+        notifyButtonNeighbors(pos, RedstoneBlocks.buttonFacing(type));
+    }
+
+    /**
+     * The button's neighbor walk (ButtonBlock.use's updateNeighbors):
+     * the MOUNT's six neighbors hear the press — the mount sits at the
+     * facing's opposite (the button's FACING points away from its wall).
+     */
+    private void notifyButtonNeighbors(BlockPosition pos, int facing) {
+        int[] away = OFFSETS[facing];
+        updateNeighbors(pos.offset(-away[0], -away[1], -away[2]));
+    }
+
+    /**
+     * The plate's scheduled re-compute (AbstractPressurePlateBlock.tick
+     * lines 108-116): the occupancy re-scan — still occupied re-arms, empty
+     * releases.
+     */
+    private void plateTick(BlockPosition pos, BlockType type) {
+        if (computePlateOutput(pos) > 0) {
+            scheduleTick(pos, FAMILY_PLATE, PLATE_TICK_RATE, 0); // re-arm
+        } else if (RedstoneBlocks.platePowered(type)) {
+            world.setBlock(pos, RedstoneBlocks.plateOf(false, RedstoneBlocks.plateWooden(type)));
+            updateNeighbors(pos);
+            updateNeighbors(pos.offset(0, -1, 0));
+        }
+    }
+
+    /**
+     * The plate's occupancy scan (PressurePlateBlock.calculateOutputSignal
+     * lines 40-62: the 0.125-inset box, 0.25 tall — MOBS for stone,
+     * EVERYTHING for wood; spectator players never trigger).
+     */
+    private int computePlateOutput(BlockPosition pos) {
+        java.util.function.BiPredicate<BlockPosition, Boolean> probe = plateProbe;
+        if (probe == null) {
+            return 0;
+        }
+        return probe.test(pos, RedstoneBlocks.plateWooden(world.getBlock(pos))) ? 15 : 0;
+    }
+
+    /** Whether the lever still hangs on its attachment (canSurvive's test). */
+    private boolean leverSupported(BlockType type, BlockPosition pos) {
+        int[] away = attachmentOppositeOffset(RedstoneBlocks.leverAttachment(type));
+        return WorldSolidity.isSolid(world.getBlock(pos.offset(away[0], away[1], away[2])));
+    }
+
+    /** Whether the button still hangs on its mount (canSurvive: the block at FACING.opposite). */
+    private boolean buttonSupported(BlockType type, BlockPosition pos) {
+        int[] away = OFFSETS[RedstoneBlocks.buttonFacing(type)];
+        return WorldSolidity.isSolid(world.getBlock(pos.offset(-away[0], -away[1], -away[2])));
+    }
+
+    /** The offset of a direction's opposite (the reference's getOpposite). */
+    private static int[] attachmentOppositeOffset(int direction) {
+        return new int[]{-OFFSETS[direction][0], -OFFSETS[direction][1], -OFFSETS[direction][2]};
+    }
+
+    // ------------------------------------------------------------------
     // The scheduled-tick queue internals
     // ------------------------------------------------------------------
 
@@ -868,6 +1113,12 @@ public final class RedstoneSystem implements WorldChangeListener {
         }
         if (RedstoneBlocks.isRepeater(type)) {
             return FAMILY_REPEATER;
+        }
+        if (RedstoneBlocks.isButton(type)) {
+            return FAMILY_BUTTON;
+        }
+        if (RedstoneBlocks.isPlate(type)) {
+            return FAMILY_PLATE;
         }
         return -1;
     }

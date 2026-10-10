@@ -476,6 +476,43 @@ public final class EngineServer implements Server, EngineBridge {
                 redstoneSystem = new net.zaminmc.torch.server.redstone.RedstoneSystem(
                         world, itemEntities);
                 world.addChangeListener(redstoneSystem);
+                // The plate's occupancy probe (the engine's bodies): any mob
+                // or playing body inside the 0.125-inset, 0.25-tall box, the
+                // wooden plates adding the item entities (the reference's
+                // MOBS vs EVERYTHING activation rules).
+                redstoneSystem.setPlateProbe((plate, includeItems) -> {
+                    double minX = plate.x() + 0.125, maxX = plate.x() + 1 - 0.125;
+                    double minY = plate.y(), maxY = plate.y() + 0.25;
+                    double minZ = plate.z() + 0.125, maxZ = plate.z() + 1 - 0.125;
+                    for (net.zaminmc.torch.server.entity.MobEntity mob : mobs.all()) {
+                        net.zaminmc.torch.util.Position at = mob.position();
+                        if (at.x() >= minX && at.x() <= maxX && at.y() >= minY && at.y() <= maxY
+                                && at.z() >= minZ && at.z() <= maxZ) {
+                            return true;
+                        }
+                    }
+                    for (PlayerSession body : players.all()) {
+                        if (body.state() != net.zaminmc.torch.entity.PlayerState.PLAYING
+                                || body.gamemode() == GameMode.SPECTATOR) {
+                            continue; // canAvoidTraps
+                        }
+                        net.zaminmc.torch.util.Position at = body.position();
+                        if (at.x() >= minX && at.x() <= maxX && at.y() >= minY && at.y() <= maxY
+                                && at.z() >= minZ && at.z() <= maxZ) {
+                            return true;
+                        }
+                    }
+                    if (includeItems) {
+                        for (ItemEntity item : itemEntities.all()) {
+                            net.zaminmc.torch.util.Position at = item.position();
+                            if (at.x() >= minX && at.x() <= maxX && at.y() >= minY
+                                    && at.y() <= maxY && at.z() >= minZ && at.z() <= maxZ) {
+                                return true;
+                            }
+                        }
+                    }
+                    return false;
+                });
                 // Fluids (§472 pattern): the scheduled pour/dry/contact system,
                 // waking on every committed change like the neighbor rules do.
                 fluidSystem = new FluidSystem(new FluidWorld(), new FluidSink(itemEntities));
@@ -3407,6 +3444,18 @@ public final class EngineServer implements Server, EngineBridge {
         if (cycleRepeaterDelayOnTick(clicked)) {
             return; // the repeater's use consumed the right-click (the delay cycle)
         }
+        if (redstoneSystem.useLever(clicked)) {
+            fxManager.sound(new Position(clicked.x() + 0.5, clicked.y() + 0.5, clicked.z() + 0.5),
+                    "random.click", 0.3f,
+                    net.zaminmc.torch.server.redstone.RedstoneBlocks.leverPowered(
+                            world.getBlock(clicked)) ? 0.6f : 0.5f);
+            return; // the lever's toggle consumed the right-click
+        }
+        if (redstoneSystem.useButton(clicked)) {
+            fxManager.sound(new Position(clicked.x() + 0.5, clicked.y() + 0.5, clicked.z() + 0.5),
+                    "random.click", 0.3f, 0.6f);
+            return; // the button's press consumed the right-click
+        }
         if (useFlintOnTick(session, clicked, face)) {
             return; // the fire starter did its work; no placement follows
         }
@@ -3480,6 +3529,26 @@ public final class EngineServer implements Server, EngineBridge {
                 || creativeHeld.map(t -> t.identifier().value().equals("repeater")).orElse(false)) {
             placeRepeaterOnTick(session, clicked, face, creativeHeld);
             return; // the look-facing rule overrides the generic placement
+        }
+        if (heldId.equals("minecraft:lever")
+                || creativeHeld.map(t -> t.identifier().value().equals("lever")).orElse(false)) {
+            placeLeverOnTick(session, clicked, face, creativeHeld);
+            return; // the lever's attachment walk overrides the generic placement
+        }
+        if (heldId.equals("minecraft:stone_button") || heldId.equals("minecraft:wooden_button")
+                || creativeHeld.map(t -> t.identifier().value().equals("stone_button")
+                        || t.identifier().value().equals("wooden_button")).orElse(false)) {
+            placeButtonOnTick(session, clicked, face, creativeHeld,
+                    heldId.equals("minecraft:wooden_button"));
+            return; // the button's clicked-face mounting overrides the generic placement
+        }
+        if (heldId.equals("minecraft:stone_pressure_plate")
+                || heldId.equals("minecraft:wooden_pressure_plate")
+                || creativeHeld.map(t -> t.identifier().value().equals("stone_pressure_plate")
+                        || t.identifier().value().equals("wooden_pressure_plate")).orElse(false)) {
+            placePlateOnTick(session, clicked, face, creativeHeld,
+                    heldId.equals("minecraft:wooden_pressure_plate"));
+            return; // the plate's floor gate overrides the generic placement
         }
         if (heldId.equals("minecraft:boat")
                 || creativeHeld.map(t -> t.identifier().value().equals("boat")).orElse(false)) {
@@ -3591,6 +3660,137 @@ public final class EngineServer implements Server, EngineBridge {
             }
         }
         world.setBlock(target, net.zaminmc.torch.server.redstone.RedstoneBlocks.torchOfFacing(facing, true));
+        consumePlaced(session, creativeHeld);
+    }
+
+    /**
+     * The lever placement (LeverBlock.getPlacementState lines 104-117): the
+     * clicked face holds the mount when its block is solid, else the first
+     * horizontal wall, else the floor. The facing rides the player's look
+     * axis on the up/down mounts (UP_X / DOWN_X vs UP_Z / DOWN_Z — the
+     * engine keeps the Z variants, the look split's rendering nicety).
+     * Tick-thread context.
+     */
+    private void placeLeverOnTick(PlayerSession session, BlockPosition clicked, int face,
+                                  java.util.Optional<BlockType> creativeHeld) {
+        BlockPosition target = offsetByFace(clicked, face);
+        if (target == null || world.getBlock(clicked).equals(world.airType())
+                || !world.getBlock(target).equals(world.airType())) {
+            return;
+        }
+        if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5) {
+            return;
+        }
+        if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE
+                && session.inventory().held().isEmpty()) {
+            return;
+        }
+        // The lever's facing keys by the clicked face (1..5; the ceiling arm
+        // mounts DOWN, the X/Z split rides the look axis).
+        double yaw = ((session.rotation().yaw() % 360.0) + 360.0 + 45.0) % 360.0;
+        boolean lookingX = ((int) (yaw / 90.0) % 4) % 2 == 1; // W/E bands
+        String key = switch (face) {
+            case 1 -> lookingX ? "up_x" : "up_z";
+            case 0 -> lookingX ? "down_x" : "down_z";
+            case 2 -> "north";
+            case 3 -> "south";
+            case 4 -> "west";
+            case 5 -> "east";
+            default -> null;
+        };
+        if (key == null) {
+            return;
+        }
+        // The clicked face's mount must be solid (canSurvive).
+        int[] mountOffset = switch (face) {
+            case 0 -> new int[]{0, 1, 0};  // ceiling: the block above
+            case 1 -> new int[]{0, -1, 0}; // floor: the block below
+            case 2 -> new int[]{0, 0, 1};  // north face: the block south of the target
+            case 3 -> new int[]{0, 0, -1};
+            case 4 -> new int[]{1, 0, 0};
+            case 5 -> new int[]{-1, 0, 0};
+            default -> null;
+        };
+        if (mountOffset == null
+                || !WorldSolidity.isSolid(world.getBlock(target.offset(
+                        mountOffset[0], mountOffset[1], mountOffset[2])))) {
+            // The fallback walk: the first solid mount around the target.
+            boolean placed = false;
+            if (WorldSolidity.isSolid(world.getBlock(target.offset(0, -1, 0)))) {
+                world.setBlock(target, net.zaminmc.torch.server.redstone.RedstoneBlocks.leverOf(5, false));
+                placed = true;
+            }
+            if (!placed) {
+                return; // no mount anywhere: the placement refuses
+            }
+        } else {
+            world.setBlock(target, net.zaminmc.torch.server.redstone.RedstoneBlocks.leverOf(
+                    leverFacingIdOf(key), false));
+        }
+        consumePlaced(session, creativeHeld);
+    }
+
+    /** The lever facing-id lookup (the reference's Facing.getId order). */
+    private static int leverFacingIdOf(String key) {
+        return switch (key) {
+            case "down_x" -> 0;
+            case "east" -> 1;
+            case "west" -> 2;
+            case "south" -> 3;
+            case "north" -> 4;
+            case "up_z" -> 5;
+            case "up_x" -> 6;
+            case "down_z" -> 7;
+            default -> 5;
+        };
+    }
+
+    /**
+     * The button placement (ButtonBlock.getPlacementState lines 85-88): the
+     * FACING is the clicked face when the mount holds, else DOWN (the
+     * reference's fallback — a button facing down with no mount pops on
+     * the first neighbor check). Tick-thread context.
+     */
+    private void placeButtonOnTick(PlayerSession session, BlockPosition clicked, int face,
+                                   java.util.Optional<BlockType> creativeHeld, boolean wooden) {
+        BlockPosition target = offsetByFace(clicked, face);
+        if (target == null || world.getBlock(clicked).equals(world.airType())
+                || !world.getBlock(target).equals(world.airType())) {
+            return;
+        }
+        if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5) {
+            return;
+        }
+        if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE
+                && session.inventory().held().isEmpty()) {
+            return;
+        }
+        world.setBlock(target, net.zaminmc.torch.server.redstone.RedstoneBlocks.buttonOf(face, false, wooden));
+        consumePlaced(session, creativeHeld);
+    }
+
+    /**
+     * The plate placement (AbstractPressurePlateBlock.canBePlaced): the
+     * solid top under the target. Tick-thread context.
+     */
+    private void placePlateOnTick(PlayerSession session, BlockPosition clicked, int face,
+                                  java.util.Optional<BlockType> creativeHeld, boolean wooden) {
+        BlockPosition target = offsetByFace(clicked, face);
+        if (target == null || world.getBlock(clicked).equals(world.airType())
+                || !world.getBlock(target).equals(world.airType())) {
+            return;
+        }
+        if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5) {
+            return;
+        }
+        if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE
+                && session.inventory().held().isEmpty()) {
+            return;
+        }
+        if (!WorldSolidity.isSolid(world.getBlock(target.offset(0, -1, 0)))) {
+            return; // the plate needs its solid bed
+        }
+        world.setBlock(target, net.zaminmc.torch.server.redstone.RedstoneBlocks.plateOf(false, wooden));
         consumePlaced(session, creativeHeld);
     }
 

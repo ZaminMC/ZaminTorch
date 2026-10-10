@@ -297,6 +297,22 @@ final class LegacyBlockIds {
                 }
             }
         }
+        // The player-driven sources (Slice 9c): the lever 69, the buttons
+        // 77 stone / 143 wood, the plates 70 stone / 72 wood.
+        for (String key : new String[]{"down_x", "east", "west", "south", "north", "up_z", "up_x", "down_z"}) {
+            merged.put(Identifier.parse("minecraft:lever_" + key), 69);
+            merged.put(Identifier.parse("minecraft:lever_" + key + "_powered"), 69);
+        }
+        for (String facing : new String[]{"down", "up", "north", "south", "west", "east"}) {
+            merged.put(Identifier.parse("minecraft:stone_button_" + facing), 77);
+            merged.put(Identifier.parse("minecraft:stone_button_" + facing + "_powered"), 77);
+            merged.put(Identifier.parse("minecraft:wooden_button_" + facing), 143);
+            merged.put(Identifier.parse("minecraft:wooden_button_" + facing + "_powered"), 143);
+        }
+        merged.put(Identifier.parse("minecraft:stone_pressure_plate"), 70);
+        merged.put(Identifier.parse("minecraft:stone_pressure_plate_powered"), 70);
+        merged.put(Identifier.parse("minecraft:wooden_pressure_plate"), 72);
+        merged.put(Identifier.parse("minecraft:wooden_pressure_plate_powered"), 72);
         return Map.copyOf(merged);
     }
 
@@ -465,6 +481,44 @@ final class LegacyBlockIds {
                     : value.contains("north") ? 2 : 3;
             int delay = Integer.parseInt(value.substring(value.lastIndexOf('_') + 1));
             return facingH | ((delay - 1) << 2);
+        }
+        if (value.startsWith("lever_")) {
+            // The facing id | the powered bit (LeverBlock lines 258-263).
+            boolean powered = value.endsWith("_powered");
+            String rest = powered ? value.substring(0, value.length() - "_powered".length()) : value;
+            int id = switch (rest) {
+                case "lever_down_x" -> 0;
+                case "lever_east" -> 1;
+                case "lever_west" -> 2;
+                case "lever_south" -> 3;
+                case "lever_north" -> 4;
+                case "lever_up_z" -> 5;
+                case "lever_up_x" -> 6;
+                case "lever_down_z" -> 7;
+                default -> 0;
+            };
+            return id | (powered ? 8 : 0);
+        }
+        if (value.startsWith("stone_button_") || value.startsWith("wooden_button_")) {
+            // The FACING id | the powered bit (ButtonBlock's metadata).
+            boolean powered = value.endsWith("_powered");
+            String rest = powered ? value.substring(0, value.length() - "_powered".length()) : value;
+            String facing = rest.substring(rest.lastIndexOf('_') + 1);
+            int id = switch (facing) {
+                case "down" -> 0;
+                case "up" -> 1;
+                case "north" -> 2;
+                case "south" -> 3;
+                case "west" -> 4;
+                case "east" -> 5;
+                default -> 0;
+            };
+            return id | (powered ? 8 : 0);
+        }
+        if (value.equals("stone_pressure_plate") || value.equals("stone_pressure_plate_powered")
+                || value.equals("wooden_pressure_plate") || value.equals("wooden_pressure_plate_powered")) {
+            // The powered bit (the plate's metadata is 0/1).
+            return value.endsWith("_powered") ? 1 : 0;
         }
         return 0;
     }
