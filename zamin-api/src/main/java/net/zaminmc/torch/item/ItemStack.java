@@ -1,5 +1,6 @@
 package net.zaminmc.torch.item;
 
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -23,11 +24,18 @@ import java.util.Objects;
  * are therefore different stacks and never merge, matching the historical
  * {@code ItemStack.areItemStacksEqual} rules.</p>
  *
- * <p>The optional {@code displayName} is the slice of historical item NBT the
+ * <p>The optional {@code displayName} is a slice of historical item NBT the
  * engine models (vanilla {@code tag.display.Name}, the anvil rename): it rides
  * the slot encoding's NBT compound on the wire, survives every container, and
  * participates in identity — a named sword and an unnamed sword never merge
  * ({@link #mergeable}), exactly like the historical NBT-aware comparison.</p>
+ *
+ * <p>The optional {@code enchantments} is the next slice of that NBT (vanilla
+ * {@code tag.ench}, the {@code id}/{@code lvl} short-pair list): it rides the
+ * same wire compound, participates in identity the same way, and is the
+ * storage the enchantment math ({@code server/enchantment}) reads and the
+ * enchanting table writes. Null means unenchanted; the map is defensively
+ * immutable and keeps insertion order (the historical tooltip order).</p>
  *
  * @param type        the item identity; {@code null} only for the canonical empty stack
  * @param count       units held; {@code 0} only for the canonical empty stack
@@ -36,8 +44,11 @@ import java.util.Objects;
  *                    range, further bounded by durability where one exists
  * @param displayName the optional custom name (null = none); never blank, never
  *                    longer than {@link #MAX_NAME_LENGTH}, control characters stripped
+ * @param enchantments the optional enchantment map (null = none): legacy 1.8
+ *                    enchantment id to level, both positive shorts, insertion order kept
  */
-public record ItemStack(ItemType type, int count, int damage, String displayName) {
+public record ItemStack(ItemType type, int count, int damage, String displayName,
+                        Map<Integer, Integer> enchantments) {
 
     /** The wire's i16 damage/metadata ceiling (the historical field width). */
     public static final int MAX_DAMAGE = 0x7FFF;
@@ -52,9 +63,12 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
     /** The single canonical empty stack (§427). */
     public static final ItemStack EMPTY = new ItemStack(null, 0);
 
+    /** The wire's short-bound level/id ceiling (the historical NBT width). */
+    public static final int MAX_ENCHANTMENT_LEVEL = 0x7FFF;
+
     public ItemStack {
         if (type == null) {
-            if (count != 0 || damage != 0 || displayName != null) {
+            if (count != 0 || damage != 0 || displayName != null || enchantments != null) {
                 throw new IllegalArgumentException("A stack without a type must be empty (count "
                         + count + ", damage " + damage + ")");
             }
@@ -76,6 +90,7 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
                         + " exceeds max durability " + maxDurability + " of " + type.identifier());
             }
             displayName = sanitizeName(displayName);
+            enchantments = sanitizeEnchantments(enchantments);
         }
     }
 
@@ -87,6 +102,11 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
     /** A stack with explicit damage and no custom name (the common existing shape). */
     public ItemStack(ItemType type, int count, int damage) {
         this(type, count, damage, null);
+    }
+
+    /** A stack with a custom name (the anvil shape). */
+    public ItemStack(ItemType type, int count, int damage, String displayName) {
+        this(type, count, damage, displayName, null);
     }
 
     public static ItemStack of(ItemType type, int count) {
@@ -110,7 +130,7 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         if (newCount <= 0) {
             return isEmpty() ? this : EMPTY;
         }
-        return new ItemStack(type, newCount, damage, displayName);
+        return new ItemStack(type, newCount, damage, displayName, enchantments);
     }
 
     /**
@@ -124,7 +144,7 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         if (isEmpty()) {
             return this;
         }
-        return new ItemStack(type, count, newDamage, displayName);
+        return new ItemStack(type, count, newDamage, displayName, enchantments);
     }
 
     /** @return the same stack carrying {@code newName} (null clears the name). */
@@ -132,7 +152,67 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         if (isEmpty()) {
             return this;
         }
-        return new ItemStack(type, count, damage, newName);
+        return new ItemStack(type, count, damage, newName, enchantments);
+    }
+
+    /**
+     * @return the same stack carrying {@code newEnchantments} (null or empty
+     *         clears the enchantments — the vanilla setEnchantments rule).
+     */
+    public ItemStack withEnchantments(Map<Integer, Integer> newEnchantments) {
+        if (isEmpty()) {
+            return this;
+        }
+        return new ItemStack(type, count, damage, displayName, newEnchantments);
+    }
+
+    /**
+     * @return the stack with one enchantment set (level 0 or below removes —
+     *         the vanilla addEnchantment path stores, it never stacks).
+     */
+    public ItemStack withEnchantment(int id, int level) {
+        if (isEmpty()) {
+            return this;
+        }
+        java.util.LinkedHashMap<Integer, Integer> next = new java.util.LinkedHashMap<>();
+        if (enchantments != null) {
+            next.putAll(enchantments);
+        }
+        if (level <= 0) {
+            next.remove(id);
+        } else {
+            next.put(id, level);
+        }
+        return withEnchantments(next.isEmpty() ? null : next);
+    }
+
+    /** @return the level of an enchantment on this stack (0 when absent). */
+    public int enchantmentLevel(int id) {
+        return enchantments == null ? 0 : enchantments.getOrDefault(id, 0);
+    }
+
+    /**
+     * Validates the enchantment map: shorts for id and level, levels >= 1,
+     * insertion order kept (the historical tooltip order), defensively
+     * immutable. Null/empty normalizes to null (unenchanted).
+     */
+    private static Map<Integer, Integer> sanitizeEnchantments(Map<Integer, Integer> input) {
+        if (input == null || input.isEmpty()) {
+            return null;
+        }
+        java.util.LinkedHashMap<Integer, Integer> validated = new java.util.LinkedHashMap<>();
+        for (Map.Entry<Integer, Integer> entry : input.entrySet()) {
+            int id = entry.getKey() == null ? -1 : entry.getKey();
+            int level = entry.getValue() == null ? -1 : entry.getValue();
+            if (id < 1 || id > MAX_ENCHANTMENT_LEVEL) {
+                throw new IllegalArgumentException("Enchantment id out of short range: " + id);
+            }
+            if (level < 1 || level > MAX_ENCHANTMENT_LEVEL) {
+                throw new IllegalArgumentException("Enchantment level out of short range: " + level);
+            }
+            validated.put(id, level);
+        }
+        return java.util.Collections.unmodifiableMap(validated);
     }
 
     /**
@@ -147,15 +227,15 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
             return EMPTY;
         }
         int taken = Math.min(Math.min(amount, count), type.maxStackSize());
-        return new ItemStack(type, taken, damage, displayName);
+        return new ItemStack(type, taken, damage, displayName, enchantments);
     }
 
     /**
      * The merge rule every container and the item-entity system play: same
-     * type, same damage field (wear or variant) and same custom name — the
-     * historical {@code areItemStacksEqual} including its NBT comparison. Two
-     * differently named swords never combine; neither do a worn and a fresh
-     * pickaxe.
+     * type, same damage field (wear or variant), same custom name and same
+     * enchantments — the historical {@code areItemStacksEqual} including its
+     * NBT comparison. Two differently named swords never combine; neither do
+     * a worn and a fresh pickaxe, nor two differently enchanted ones.
      */
     public static boolean mergeable(ItemStack a, ItemStack b) {
         if (a == null || b == null || a.isEmpty() || b.isEmpty()) {
@@ -163,7 +243,8 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         }
         return a.type.equals(b.type)
                 && a.damage == b.damage
-                && Objects.equals(a.displayName, b.displayName);
+                && Objects.equals(a.displayName, b.displayName)
+                && Objects.equals(a.enchantments, b.enchantments);
     }
 
     /**
