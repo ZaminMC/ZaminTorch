@@ -33,7 +33,7 @@ class ProjectileManagerTest {
         int chickenHatches;
 
         @Override
-        public boolean mobHit(MobEntity mob, float damage, double kbYaw) {
+        public boolean mobHit(MobEntity mob, float damage, double kbYaw, int shooterId) {
             events.add("mob");
             damages.add(damage);
             return true;

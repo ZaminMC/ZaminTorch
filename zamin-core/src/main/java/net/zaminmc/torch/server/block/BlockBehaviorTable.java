@@ -10,6 +10,7 @@ import net.zaminmc.torch.server.item.Tools;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Survival behavior data for registered blocks, keyed by canonical identifier.
@@ -31,6 +32,34 @@ import java.util.Map;
 public final class BlockBehaviorTable {
 
     private BlockBehaviorTable() {
+    }
+
+    /**
+     * The silk-touch gate (the reference's {@code hasSilkTouchDrops}:
+     * {@code isCube() && !hasBlockEntity}, reference/1.8.8 block/Block
+     * lines 784-787) encoded as the registered block set where the silk
+     * arm diverges from the normal drops. Blocks whose normal drop IS
+     * themselves (planks, logs, chests, furnaces, torches) are observably
+     * identical under either arm and stay outside the set; crops and the
+     * other non-cubes fall through to the normal path (the reference gate
+     * excludes them); TE blocks (chest, furnace, the enchanting table)
+     * take their own drop walk in vanilla and join them.
+     */
+    private static final Set<Identifier> SILK_TOUCHABLE = Set.of(
+            Identifier.parse("minecraft:stone"),
+            Identifier.parse("minecraft:grass_block"),
+            Identifier.parse("minecraft:gravel"),
+            Identifier.parse("minecraft:glass"),
+            Identifier.parse("minecraft:oak_leaves"),
+            Identifier.parse("minecraft:coal_ore"),
+            Identifier.parse("minecraft:diamond_ore"),
+            Identifier.parse("minecraft:farmland"),
+            Identifier.parse("minecraft:farmland_wet"),
+            Identifier.parse("minecraft:bookshelf"));
+
+    /** @return whether the block's silk touch drops its own item (the reference gate). */
+    public static boolean isSilkTouchable(Identifier block) {
+        return SILK_TOUCHABLE.contains(block);
     }
 
     private static final Map<Identifier, BlockBehavior> BEHAVIORS = Map.ofEntries(

@@ -214,6 +214,8 @@ public final class MobEntity {
     private int idleSoundTimer;
     private boolean dead;
     private int deathTicks;
+    /** The killer's Looting level (the reference reads it at death from the killer entity). */
+    private int lootingLevel;
 
     // Steering: the wall-slide detour (a blocked walker slides along the wall
     // for a few ticks instead of grinding into it).
@@ -416,6 +418,16 @@ public final class MobEntity {
 
     public boolean dead() {
         return dead;
+    }
+
+    /** The killer's Looting level, read by the death loot walk (the reference's getLootingLevel at die()). */
+    public int lootingLevel() {
+        return lootingLevel;
+    }
+
+    /** Sets the killer's Looting level before the killing hurt lands. */
+    public void setLootingLevel(int lootingLevel) {
+        this.lootingLevel = Math.max(0, lootingLevel);
     }
 
     /** @return true while the death animation still plays (loot comes after). */
