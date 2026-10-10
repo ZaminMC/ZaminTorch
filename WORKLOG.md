@@ -67,6 +67,38 @@ the bottom. The behavior-level status of every mechanic lives in
 
 ## Landed since the ledger opened
 
+- **Slice 7c — attack crits + the thrown spawn pull-back** (dev.16): the
+  vanilla critical hit over both attack walks (reference/1.8.8
+  PlayerEntity.attack lines 958-1008): the flag gate (fallDistance > 0,
+  airborne, not climbing, not in water, not blind, unmounted, living
+  target — the blindness arm reads false until the potion slice exists,
+  structurally the no-effect read), the 1.5x multiply riding the BASE
+  damage before the enchantment family joins (the reference's `f *= 1.5F`
+  then `f += f1` order), and the landed-hit bursts — Animation 0x0B code
+  4 (the crit burst) on the crit flag and code 5 (the magic-crit burst)
+  whenever the damage family added anything, falling or not — broadcast
+  over the new EntityAnimationObserver (the reference's
+  ServerPlayerEntity.addCritParticles audience: the attacker's tracking
+  set plus the attacker; the player target resolves through each
+  observer's id space with the self arm). The thrown spawn pull-back
+  landed as its ledgered unit: the living-thrower constructors' swapped-
+  trig legacy (ThrownEntity lines 58-62, ArrowEntity lines 89-93: x -=
+  cos(yaw)*0.16, z -= sin(yaw)*0.16, y -= 0.1 — NOT the look vector, the
+  offset is exactly perpendicular to the throw direction), so thrown
+  bodies no longer lean on the thrower-immunity tick window (the
+  snowball-shatter race class closed at the root); the skeleton's
+  target-aimed constructor spawns without the pull-back and stays on the
+  eye-aimed shape until the bow-family slice. Tests:
+  `CritParityAcceptanceTest` (the standing plain-7 control with no burst,
+  the falling 10.5 one-shot vs the 10-hp pig with the Animation 4 burst
+  and no magic spark, the grounded Sharpness V burst riding Animation 5,
+  the PvP bare-fist crit landing exactly 1.5 on the victim's wire body) +
+  `RangedCombatAcceptanceTest.theThrownShardSpawnsBehindTheEyeLikeTheReference`
+  (the exact 0.16 lateral read — the offset is invariant under flight
+  because it is perpendicular to the travel line, a race-free probe); the
+  mining seed helper got the 45s commit budget (the same load-starvation
+  flake class the fire test's latch hardened). Full suite 508 green.
+
 - **Slice 7 part 4 — the enchantment effect hooks wired over the live
   engine**: the `DamageKind` vocabulary (`entity/damage`, the reference
   DamageSource predicates the protection branches read: fire/fall/explosive/
@@ -125,12 +157,17 @@ the bottom. The behavior-level status of every mechanic lives in
 
 ## Not started
 
-- Slice 7 remainder — the table's live window wiring + effect hooks
-  (protection, efficiency, knockback, fire aspect) beyond the damage family.
+- Slice 7 remainder — the leftover effect hooks: thorns (the
+  protection/damage wildcards), the loot family (looting/fortune/silk
+  touch), the bow family (power/punch/flame/infinity), unbreaking,
+  respiration/depth strider — each lands with its gameplay slice.
 - Slice 8 — nether portals.
 - Redstone, potions/brewing, leads, structures, natural spawn cycles
   (see `VANILLA_1_8_8_COMPATIBILITY.md` section 10).
-- dev.14 release: full-suite run, version bump, dist zip, prerelease.
+- Releases now ride GitHub Releases with changelogs per dev build; the
+  dev.13 jar was lost to an environment reset before a release existed
+  (tags v0.2.0-dev.13 was never cut; dev.14/dev.15 were back-filled with
+  the surviving artifacts).
 
 ## Conventions
 

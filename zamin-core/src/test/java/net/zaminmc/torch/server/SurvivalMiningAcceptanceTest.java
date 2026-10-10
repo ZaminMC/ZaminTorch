@@ -69,7 +69,19 @@ class SurvivalMiningAcceptanceTest {
     private void seedBlock(PlayerSession player, BlockPosition at,
                            net.zaminmc.torch.block.BlockType type) throws InterruptedException {
         server.blockInteraction().submitPlace(player, at.offset(0, -1, 0), 1, type);
-        await(() -> server.world().getBlock(at).equals(type), "seeded at " + at);
+        // The seed observation rides a wider budget than the behavior awaits:
+        // under full-suite load the tick thread can starve long enough to
+        // miss the 20s window (the same flake class the fire test's seed
+        // latch hardened — the commit itself is deterministic, the poll
+        // budget is what failed).
+        long deadline = System.currentTimeMillis() + 45_000;
+        while (System.currentTimeMillis() < deadline) {
+            if (server.world().getBlock(at).equals(type)) {
+                return;
+            }
+            Thread.sleep(50);
+        }
+        throw new AssertionError("seed not committed in time at " + at);
     }
 
     @Test

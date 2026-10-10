@@ -225,6 +225,19 @@ final class Protocol18 {
 
     // Animation (0x0B) code 0 = arm swing.
     static final int ANIMATION_ARM_SWING = 0;
+    /**
+     * Animation code 4: the critical-hit particle burst — the reference's
+     * ServerPlayerEntity.addCritParticles broadcasts EntityAnimationS2CPacket
+     * (target, 4) for a landed falling crit (PlayerEntity.attack lines
+     * 1002-1004).
+     */
+    static final int ANIMATION_CRIT = 4;
+    /**
+     * Animation code 5: the magic-crit burst on an enchanted hit — the
+     * reference's addEnchantedCritParticles (lines 1006-1008, fired whenever
+     * the damage-family enchantment added any damage, falling or not).
+     */
+    static final int ANIMATION_MAGIC_CRIT = 5;
 
     // Use Entity (0x02) mouse actions.
     static final int USE_ENTITY_INTERACT = 0;
