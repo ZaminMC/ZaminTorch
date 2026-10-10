@@ -175,22 +175,48 @@ public final class EngineWorld implements World {
         }
         EngineChunk chunk = new EngineChunk(position, air);
         generator.generate(chunk);
+        return installGenerated(position, chunk);
+    }
+
+    /**
+     * The owner-side installation of a fully generated detached chunk (the
+     * permanent architecture's §13 chunk contract: "an off-thread result must
+     * not overwrite newer authoritative state simply because it finishes
+     * later"): the persisted deltas override the generated terrain, the
+     * chunk-load hooks run before publication (§344), and a chunk another
+     * path already published wins — the detached result is discarded, never
+     * installed over it. Owner-thread context (the compute pool's fresh
+     * results reach this through the owner's drain).
+     */
+    public EngineChunk installGenerated(ChunkPosition position, EngineChunk generated) {
+        requireOwnership("installGenerated");
+        Objects.requireNonNull(generated, "generated");
+        long key = position.packed();
+        EngineChunk existing = chunks.get(key);
+        if (existing != null) {
+            return existing; // the newer authoritative state wins
+        }
         // Persisted deltas override freshly generated terrain at the same positions.
         Map<Integer, BlockType> chunkDeltas = deltas.get(key);
         if (chunkDeltas != null) {
             for (Map.Entry<Integer, BlockType> entry : chunkDeltas.entrySet()) {
                 int index = entry.getKey();
-                chunk.setBlock(index & 0xF, (index >> 8) & 0xF, (index >> 4) & 0xF, entry.getValue());
+                generated.setBlock(index & 0xF, (index >> 8) & 0xF, (index >> 4) & 0xF, entry.getValue());
             }
         }
         // Chunk-load hooks run before publication (§344): the chunk becomes
         // visible only fully generated AND fully lit. Listeners must not
         // re-enter generation (they peek neighbors, never create chunks).
         for (ChunkLoadListener listener : chunkLoadListeners) {
-            listener.onChunkGenerated(this, chunk);
+            listener.onChunkGenerated(this, generated);
         }
-        EngineChunk raced = chunks.putIfAbsent(key, chunk);
-        return raced != null ? raced : chunk;
+        EngineChunk raced = chunks.putIfAbsent(key, generated);
+        return raced != null ? raced : generated;
+    }
+
+    /** The terrain generator (the detached chunk generation reads it off-owner). */
+    public WorldGenerator generator() {
+        return generator;
     }
 
     /** Read-only peek without generation, safe from any thread. */
