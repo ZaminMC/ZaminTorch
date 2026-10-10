@@ -10,6 +10,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -55,8 +56,9 @@ class DomainWorkerPoolTest {
         Thread j1 = meet(firstArrived, secondArrived, verdict, "first-saw-second");
         Thread j2 = meet(secondArrived, firstArrived, verdict, "second-saw-first");
         pool.dispatchAndJoin(List.of(j1, j2));
-        assertEquals("first-saw-second", verdict.get(),
-                "both jobs overlapped: the pool ran them on different workers");
+        assertNotEquals("timeout", verdict.get(),
+                "both jobs opened their gates before the other's timeout: the pool ran "
+                        + "them concurrently (" + verdict.get() + ")");
     }
 
     private Thread meet(CountDownLatch openMine, CountDownLatch awaitTheirs,

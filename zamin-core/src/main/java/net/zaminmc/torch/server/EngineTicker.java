@@ -37,6 +37,8 @@ public final class EngineTicker {
     private volatile net.zaminmc.torch.server.concurrent.ComputeSubsystem compute;
     private volatile net.zaminmc.torch.server.concurrent.OwnershipDomain computeDomain;
     private volatile net.zaminmc.torch.server.concurrent.DomainWorkerPool domainPool;
+    private volatile net.zaminmc.torch.server.concurrent.CrossOwnerRouter crossOwnerRouter;
+    private volatile net.zaminmc.torch.server.concurrent.OwnershipDomain routerDomain;
     private long logicalTick;
     private final long tickIntervalNanos;
     private final AtomicBoolean running = new AtomicBoolean(false);
@@ -100,6 +102,20 @@ public final class EngineTicker {
      */
     public void attachDomainPool(net.zaminmc.torch.server.concurrent.DomainWorkerPool pool) {
         this.domainPool = java.util.Objects.requireNonNull(pool, "pool");
+    }
+
+    /**
+     * Attaches the cross-owner router (the permanent architecture's Phase 4
+     * §7 protocol): each tick drains the domain's inbound intents at the
+     * owner boundary — the target-side apply the design's sequence names —
+     * after the scheduler walk and before the compute drain, so an applied
+     * intent is visible to the same tick's authoritative work. Optional;
+     * null keeps the no-router behavior.
+     */
+    public void attachCrossOwnerRouter(net.zaminmc.torch.server.concurrent.CrossOwnerRouter router,
+                                       net.zaminmc.torch.server.concurrent.OwnershipDomain domain) {
+        this.crossOwnerRouter = java.util.Objects.requireNonNull(router, "router");
+        this.routerDomain = java.util.Objects.requireNonNull(domain, "domain");
     }
 
     /** Starts ticking; the current thread becomes the world's owner. */
@@ -213,7 +229,8 @@ public final class EngineTicker {
         this.tickHandler = Objects.requireNonNull(handler, "handler");
     }
 
-    private void tickOnce() {
+    /** Package-private: the test surface drives one tick directly. */
+    void tickOnce() {
         try {
             Runnable work;
             while ((work = pendingWork.poll()) != null) {
@@ -231,6 +248,14 @@ public final class EngineTicker {
                 } else {
                     attached.runDue(logicalTick);
                 }
+            }
+            // The cross-owner drain rides the same owner boundary (the §7
+            // protocol's target-side apply: intents validate and apply in
+            // the target's context, admission order, exactly-once).
+            net.zaminmc.torch.server.concurrent.CrossOwnerRouter router = crossOwnerRouter;
+            net.zaminmc.torch.server.concurrent.OwnershipDomain routerOwner = routerDomain;
+            if (router != null && routerOwner != null) {
+                router.drainIntents(routerOwner);
             }
             // The compute drain rides the same owner boundary (the design's
             // sequence: results validate and apply at the tick edge, the
