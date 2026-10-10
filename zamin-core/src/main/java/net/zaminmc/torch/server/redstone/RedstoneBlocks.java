@@ -261,6 +261,177 @@ public final class RedstoneBlocks {
     private static final EngineBlockType[] TORCH_UNLIT = buildTorch("unlit_redstone_torch");
     private static final EngineBlockType[][][] REPEATERS = buildRepeaters();
 
+    // ------------------------------------------------------------------
+    // The lever (legacy 69): FACING (8 attachment facings) x POWERED
+    // ------------------------------------------------------------------
+
+    /**
+     * The lever's eight facing keys with their reference ids and attachment
+     * directions (LeverBlock.Facing lines 284-300: down_x 0, east 1, west 2,
+     * south 3, north 4, up_z 5, up_x 6, down_z 7 — the X/Z split rides the
+     * player's look axis on the up/down mounts).
+     */
+    private static final String[] LEVER_KEYS = {"down_x", "east", "west", "south", "north", "up_z", "up_x", "down_z"};
+    private static final int[] LEVER_ATTACHMENT = {0, 5, 4, 3, 2, 1, 1, 0}; // reference FACING ids: DOWN=0 EAST=5 WEST=4 SOUTH=3 NORTH=2 UP=1
+
+    private static final EngineBlockType[] LEVER = buildLever();
+    private static final EngineBlockType[] LEVER_POWERED = buildLeverPowered();
+
+    private static EngineBlockType[] buildLever() {
+        EngineBlockType[] lever = new EngineBlockType[8];
+        for (int facing = 0; facing < 8; facing++) {
+            lever[facing] = new EngineBlockType(
+                    Identifier.parse("minecraft:lever_" + LEVER_KEYS[facing]),
+                    "Lever", facing);
+        }
+        return lever;
+    }
+
+    private static EngineBlockType[] buildLeverPowered() {
+        EngineBlockType[] lever = new EngineBlockType[8];
+        for (int facing = 0; facing < 8; facing++) {
+            lever[facing] = new EngineBlockType(
+                    Identifier.parse("minecraft:lever_" + LEVER_KEYS[facing] + "_powered"),
+                    "Lever", facing | 8);
+        }
+        return lever;
+    }
+
+    /** @return whether the type is any lever state. */
+    public static boolean isLever(net.zaminmc.torch.block.BlockType type) {
+        return type != null && type.identifier().namespace().equals("minecraft")
+                && (type.identifier().value().startsWith("lever_"));
+    }
+
+    /** @return whether the lever state is the powered pair. */
+    public static boolean leverPowered(net.zaminmc.torch.block.BlockType type) {
+        return type.identifier().value().startsWith("lever_") && type.identifier().value().endsWith("_powered");
+    }
+
+    /** The lever's facing id (0..7, the reference's Facing.getId). */
+    public static int leverFacing(net.zaminmc.torch.block.BlockType type) {
+        String value = type.identifier().value().substring("lever_".length());
+        String key = value.endsWith("_powered") ? value.substring(0, value.length() - "_powered".length()) : value;
+        for (int i = 0; i < LEVER_KEYS.length; i++) {
+            if (LEVER_KEYS[i].equals(key)) {
+                return i;
+            }
+        }
+        return 0;
+    }
+
+    /** The lever's attachment direction (the reference FACING id it mounts on). */
+    public static int leverAttachment(net.zaminmc.torch.block.BlockType type) {
+        return LEVER_ATTACHMENT[leverFacing(type)];
+    }
+
+    /** The lever state for a facing id + powered pair. */
+    public static EngineBlockType leverOf(int facing, boolean powered) {
+        return powered ? LEVER_POWERED[facing & 7] : LEVER[facing & 7];
+    }
+
+    // ------------------------------------------------------------------
+    // The buttons (stone 77, wood 143): FACING (6) x POWERED
+    // ------------------------------------------------------------------
+
+    /** The six reference direction names in FACING-id order (down up north south west east). */
+    private static final String[] DIRECTION_KEYS = {"down", "up", "north", "south", "west", "east"};
+
+    private static final EngineBlockType[][] BUTTON = buildButtons();
+
+    private static EngineBlockType[][] buildButtons() {
+        EngineBlockType[][] buttons = new EngineBlockType[2][];
+        for (int wooden = 0; wooden <= 1; wooden++) {
+            EngineBlockType[] family = new EngineBlockType[6 * 2];
+            int index = 0;
+            for (int facing = 0; facing < 6; facing++) {
+                family[index++] = new EngineBlockType(
+                        Identifier.parse((wooden == 1 ? "minecraft:wooden_button_" : "minecraft:stone_button_")
+                                + DIRECTION_KEYS[facing]),
+                        wooden == 1 ? "Wooden Button" : "Stone Button", facing);
+                family[index++] = new EngineBlockType(
+                        Identifier.parse((wooden == 1 ? "minecraft:wooden_button_" : "minecraft:stone_button_")
+                                + DIRECTION_KEYS[facing] + "_powered"),
+                        wooden == 1 ? "Wooden Button" : "Stone Button", facing | 8);
+            }
+            buttons[wooden] = family;
+        }
+        return buttons;
+    }
+
+    /** @return whether the type is any button state (stone or wood). */
+    public static boolean isButton(net.zaminmc.torch.block.BlockType type) {
+        if (type == null || !type.identifier().namespace().equals("minecraft")) {
+            return false;
+        }
+        String value = type.identifier().value();
+        return value.startsWith("stone_button_") || value.startsWith("wooden_button_");
+    }
+
+    /** @return whether the button state is the powered pair. */
+    public static boolean buttonPowered(net.zaminmc.torch.block.BlockType type) {
+        return type.identifier().value().endsWith("_powered");
+    }
+
+    /** The button's facing (the reference FACING id — the side it mounts on). */
+    public static int buttonFacing(net.zaminmc.torch.block.BlockType type) {
+        String value = type.identifier().value();
+        String rest = value.startsWith("wooden_") ? value.substring("wooden_button_".length())
+                : value.substring("stone_button_".length());
+        String key = rest.endsWith("_powered") ? rest.substring(0, rest.length() - "_powered".length()) : rest;
+        for (int i = 0; i < DIRECTION_KEYS.length; i++) {
+            if (DIRECTION_KEYS[i].equals(key)) {
+                return i;
+            }
+        }
+        return 0;
+    }
+
+    /** @return whether the button is the wooden pair (the 30-tick release). */
+    public static boolean buttonWooden(net.zaminmc.torch.block.BlockType type) {
+        return type.identifier().value().startsWith("wooden_button_");
+    }
+
+    /** The button state for a facing + powered pair. */
+    public static EngineBlockType buttonOf(int facing, boolean powered, boolean wooden) {
+        return BUTTON[wooden ? 1 : 0][facing * 2 + (powered ? 1 : 0)];
+    }
+
+    // ------------------------------------------------------------------
+    // The pressure plates (stone 70, wood 72): POWERED only
+    // ------------------------------------------------------------------
+
+    private static final EngineBlockType[] PLATE = {
+            new EngineBlockType(Identifier.parse("minecraft:stone_pressure_plate"), "Stone Pressure Plate", 0),
+            new EngineBlockType(Identifier.parse("minecraft:stone_pressure_plate_powered"), "Stone Pressure Plate", 1),
+            new EngineBlockType(Identifier.parse("minecraft:wooden_pressure_plate"), "Wooden Pressure Plate", 0),
+            new EngineBlockType(Identifier.parse("minecraft:wooden_pressure_plate_powered"), "Wooden Pressure Plate", 1),
+    };
+
+    /** @return whether the type is any pressure plate state. */
+    public static boolean isPlate(net.zaminmc.torch.block.BlockType type) {
+        if (type == null || !type.identifier().namespace().equals("minecraft")) {
+            return false;
+        }
+        String value = type.identifier().value();
+        return value.startsWith("stone_pressure_plate") || value.startsWith("wooden_pressure_plate");
+    }
+
+    /** @return whether the plate state is the powered pair. */
+    public static boolean platePowered(net.zaminmc.torch.block.BlockType type) {
+        return type.identifier().value().endsWith("_powered");
+    }
+
+    /** @return whether the plate is the wooden pair (the EVERYTHING rule). */
+    public static boolean plateWooden(net.zaminmc.torch.block.BlockType type) {
+        return type.identifier().value().startsWith("wooden_pressure_plate");
+    }
+
+    /** The plate state for a powered pair. */
+    public static EngineBlockType plateOf(boolean powered, boolean wooden) {
+        return PLATE[(wooden ? 2 : 0) + (powered ? 1 : 0)];
+    }
+
     private static EngineBlockType[] buildWire() {
         EngineBlockType[] wire = new EngineBlockType[16];
         for (int power = 0; power <= MAX_POWER; power++) {
@@ -317,6 +488,20 @@ public final class RedstoneBlocks {
             }
         }
         for (EngineBlockType type : repeaters) {
+            builder.register(type);
+        }
+        for (EngineBlockType type : LEVER) {
+            builder.register(type);
+        }
+        for (EngineBlockType type : LEVER_POWERED) {
+            builder.register(type);
+        }
+        for (EngineBlockType[] family : BUTTON) {
+            for (EngineBlockType type : family) {
+                builder.register(type);
+            }
+        }
+        for (EngineBlockType type : PLATE) {
             builder.register(type);
         }
         return builder;

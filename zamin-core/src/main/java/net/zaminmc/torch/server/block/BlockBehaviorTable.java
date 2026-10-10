@@ -509,6 +509,34 @@ public final class BlockBehaviorTable {
                 }
             }
         }
+        // The player-driven sources (Slice 9c): the lever, the buttons and
+        // the plates — every facing/powered variant drops its item, the
+        // break is instant by hand (community blocks.json: hardness 0.5 for
+        // the lever/buttons, 0.5 for the plates).
+        BlockBehavior lever = new BlockBehavior(0.5, false, false, null, 0,
+                List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:lever"), 1)));
+        for (String key : new String[]{"down_x", "east", "west", "south", "north", "up_z", "up_x", "down_z"}) {
+            behaviors.put(Identifier.parse("minecraft:lever_" + key), lever);
+            behaviors.put(Identifier.parse("minecraft:lever_" + key + "_powered"), lever);
+        }
+        BlockBehavior stoneButton = new BlockBehavior(0.5, false, false, null, 0,
+                List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:stone_button"), 1)));
+        BlockBehavior woodButton = new BlockBehavior(0.5, false, false, null, 0,
+                List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:wooden_button"), 1)));
+        for (String facing : new String[]{"down", "up", "north", "south", "west", "east"}) {
+            behaviors.put(Identifier.parse("minecraft:stone_button_" + facing), stoneButton);
+            behaviors.put(Identifier.parse("minecraft:stone_button_" + facing + "_powered"), stoneButton);
+            behaviors.put(Identifier.parse("minecraft:wooden_button_" + facing), woodButton);
+            behaviors.put(Identifier.parse("minecraft:wooden_button_" + facing + "_powered"), woodButton);
+        }
+        BlockBehavior stonePlate = new BlockBehavior(0.5, false, false, null, 0,
+                List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:stone_pressure_plate"), 1)));
+        BlockBehavior woodPlate = new BlockBehavior(0.5, false, false, null, 0,
+                List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:wooden_pressure_plate"), 1)));
+        behaviors.put(Identifier.parse("minecraft:stone_pressure_plate"), stonePlate);
+        behaviors.put(Identifier.parse("minecraft:stone_pressure_plate_powered"), stonePlate);
+        behaviors.put(Identifier.parse("minecraft:wooden_pressure_plate"), woodPlate);
+        behaviors.put(Identifier.parse("minecraft:wooden_pressure_plate_powered"), woodPlate);
         return Map.copyOf(behaviors);
     }
 

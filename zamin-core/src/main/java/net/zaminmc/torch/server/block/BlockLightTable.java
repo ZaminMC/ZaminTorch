@@ -208,6 +208,22 @@ public final class BlockLightTable {
                 }
             }
         }
+        // The player-driven sources (Slice 9c): nothing in the family emits
+        // or filters light (the thin shapes pass it).
+        for (String key : new String[]{"down_x", "east", "west", "south", "north", "up_z", "up_x", "down_z"}) {
+            entries.put(Identifier.parse("minecraft:lever_" + key), new LightData(0, 0));
+            entries.put(Identifier.parse("minecraft:lever_" + key + "_powered"), new LightData(0, 0));
+        }
+        for (String facing : new String[]{"down", "up", "north", "south", "west", "east"}) {
+            entries.put(Identifier.parse("minecraft:stone_button_" + facing), new LightData(0, 0));
+            entries.put(Identifier.parse("minecraft:stone_button_" + facing + "_powered"), new LightData(0, 0));
+            entries.put(Identifier.parse("minecraft:wooden_button_" + facing), new LightData(0, 0));
+            entries.put(Identifier.parse("minecraft:wooden_button_" + facing + "_powered"), new LightData(0, 0));
+        }
+        entries.put(Identifier.parse("minecraft:stone_pressure_plate"), new LightData(0, 0));
+        entries.put(Identifier.parse("minecraft:stone_pressure_plate_powered"), new LightData(0, 0));
+        entries.put(Identifier.parse("minecraft:wooden_pressure_plate"), new LightData(0, 0));
+        entries.put(Identifier.parse("minecraft:wooden_pressure_plate_powered"), new LightData(0, 0));
         return Map.copyOf(entries);
     }
 

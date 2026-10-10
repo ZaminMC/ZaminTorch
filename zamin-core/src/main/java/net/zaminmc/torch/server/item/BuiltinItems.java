@@ -154,13 +154,24 @@ public final class BuiltinItems {
             Identifier.parse("minecraft:ladder"), "Ladder", 64);
 
     // The redstone slice (community items.json legacy ids: dust 331, the
-    // torch shares block id 76, the repeater item 356).
+    // torch shares block id 76, the repeater item 356, the lever 69, the
+    // buttons 77/143, the plates 70/72).
     public static final EngineItemType REDSTONE = new EngineItemType(
             Identifier.parse("minecraft:redstone"), "Redstone", 64);
     public static final EngineItemType REDSTONE_TORCH = new EngineItemType(
             Identifier.parse("minecraft:redstone_torch"), "Redstone Torch", 64);
     public static final EngineItemType REPEATER = new EngineItemType(
             Identifier.parse("minecraft:repeater"), "Repeater", 64);
+    public static final EngineItemType LEVER = new EngineItemType(
+            Identifier.parse("minecraft:lever"), "Lever", 64);
+    public static final EngineItemType STONE_BUTTON = new EngineItemType(
+            Identifier.parse("minecraft:stone_button"), "Stone Button", 64);
+    public static final EngineItemType WOODEN_BUTTON = new EngineItemType(
+            Identifier.parse("minecraft:wooden_button"), "Wooden Button", 64);
+    public static final EngineItemType STONE_PRESSURE_PLATE = new EngineItemType(
+            Identifier.parse("minecraft:stone_pressure_plate"), "Stone Pressure Plate", 64);
+    public static final EngineItemType WOODEN_PRESSURE_PLATE = new EngineItemType(
+            Identifier.parse("minecraft:wooden_pressure_plate"), "Wooden Pressure Plate", 64);
     public static final EngineItemType OAK_FENCE = new EngineItemType(
             Identifier.parse("minecraft:oak_fence"), "Oak Fence", 64);
     // The bed item (community items.json: legacy 355) — places both halves.
@@ -449,6 +460,8 @@ public final class BuiltinItems {
                 CARROT, APPLE, GOLDEN_CARROT, GOLDEN_APPLE, HAY_BLOCK,
                 OAK_DOOR, LADDER, OAK_FENCE, BED,
                 REDSTONE, REDSTONE_TORCH, REPEATER,
+                LEVER, STONE_BUTTON, WOODEN_BUTTON,
+                STONE_PRESSURE_PLATE, WOODEN_PRESSURE_PLATE,
                 OAK_SLAB, STONE_SLAB, COBBLESTONE_SLAB, SANDSTONE_SLAB,
                 OAK_STAIRS, COBBLESTONE_STAIRS,
                 RAIL, BOAT, MINECART,
