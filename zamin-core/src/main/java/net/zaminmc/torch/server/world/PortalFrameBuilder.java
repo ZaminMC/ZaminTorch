@@ -217,6 +217,103 @@ public final class PortalFrameBuilder {
                 || block.identifier().equals(BuiltinBlocks.NETHER_PORTAL_Z.identifier());
     }
 
+    /**
+     * The findPortalShape match (the reference's {@code PortalBlock.findPortalShape}
+     * over the {@code BlockPattern.Match}, subset to what the portal walk
+     * consumes): the top-left-front corner, the FORWARD direction (the axis
+     * + which way is positive — the front layer is one step along it), and
+     * the frame's width/height. The forward pick is the reference's count
+     * walk: the four horizontal axis-directions each count the non-air cells
+     * one step along themselves from the frame's rectangle, and the EMPTIER
+     * side is the front (the reference's strictly-smaller walk starting at
+     * POSITIVE).
+     */
+    public record PortalShapeMatch(BlockPosition topLeftFront, Axis forwardAxis,
+                                   boolean forwardPositive, int width, int height) {
+        /** The reference's Direction.of(axisDirection, axis) idHorizontal (S=0, W=1, N=2, E=3). */
+        public int forwardHorizontalId() {
+            // Axis X: EAST (positive) = 3, WEST (negative) = 1.
+            // Axis Z: SOUTH (positive) = 0, NORTH (negative) = 2.
+            if (forwardAxis == Axis.X) {
+                return forwardPositive ? 3 : 1;
+            }
+            return forwardPositive ? 0 : 2;
+        }
+    }
+
+    /**
+     * The reference's {@code PortalBlock.findPortalShape}: the X-axis frame
+     * scan first, then the Z-axis; an invalid pair falls back to the 1x1x1
+     * match at the position facing NORTH (the reference's degenerate Match —
+     * a single cell pointing north). The X-portal's base direction is the
+     * right vector rotated counter-clockwise (WEST ccwY = SOUTH); the
+     * Z-portal's is SOUTH ccwY = EAST.
+     */
+    public static PortalShapeMatch matchAt(EngineWorld world, BlockPosition pos) {
+        PortalFrameBuilder xScan = new PortalFrameBuilder(world, Axis.X);
+        xScan.scanFrom(pos);
+        if (xScan.isValid()) {
+            return shapeMatchOf(world, xScan, Axis.Z);
+        }
+        PortalFrameBuilder zScan = new PortalFrameBuilder(world, Axis.Z);
+        zScan.scanFrom(pos);
+        if (zScan.isValid()) {
+            return shapeMatchOf(world, zScan, Axis.X);
+        }
+        return new PortalShapeMatch(pos, Axis.Z, false, 1, 1);
+    }
+
+    /** The count walk: the four front-layer counts pick the forward direction. */
+    private static PortalShapeMatch shapeMatchOf(EngineWorld world, PortalFrameBuilder builder, Axis forwardAxis) {
+        // The base direction: right rotated counter-clockwise (the reference's
+        // right.counterClockwiseY()). clockwiseY is N-E-S-W, so ccwY(WEST)=SOUTH
+        // (the X-portal) and ccwY(SOUTH)=EAST (the Z-portal).
+        boolean basePositive = builder.axis == Axis.X; // X: WEST -> ccwY -> SOUTH (+Z)
+        if (builder.axis == Axis.Z) {
+            basePositive = true; // Z: SOUTH -> ccwY -> EAST (+X)
+        }
+        BlockPosition topOfBottomLeft = builder.bottomLeft.offset(0, builder.height - 1, 0);
+        int rightDx = builder.axis.rightDx();
+        int rightDz = builder.axis.rightDz();
+
+        // The two axis-directions of the forward axis: the frame's rectangle
+        // one step along each; the count of non-air cells decides the front.
+        int positiveCount = 0;
+        int negativeCount = 0;
+        for (int i = 0; i < builder.width; i++) {
+            for (int j = 0; j < builder.height; j++) {
+                BlockPosition cell = topOfBottomLeft
+                        .offset(rightDx, j, rightDz, i);
+                // The +1 layer along the forward axis (the reference's
+                // match.getBlock(i, j, 1) — depth one along forward).
+                BlockPosition positiveLayer = cell.offset(
+                        forwardAxis == Axis.X ? 1 : 0, 0,
+                        forwardAxis == Axis.Z ? 1 : 0);
+                if (!world.getBlock(positiveLayer).equals(world.airType())) {
+                    positiveCount++;
+                }
+                BlockPosition negativeLayer = cell.offset(
+                        forwardAxis == Axis.X ? -1 : 0, 0,
+                        forwardAxis == Axis.Z ? -1 : 0);
+                if (!world.getBlock(negativeLayer).equals(world.airType())) {
+                    negativeCount++;
+                }
+            }
+        }
+        // The reference's pick: start at POSITIVE, switch on strictly smaller
+        // (the POSITIVE side wins ties).
+        boolean chosenPositive = positiveCount <= negativeCount;
+
+        // The top-left-front corner: the base-side top when the chosen
+        // direction matches the base's own axis-direction, otherwise the
+        // far-side top (the reference's topLeft selection).
+        BlockPosition topLeftFront = (basePositive == chosenPositive)
+                ? topOfBottomLeft
+                : topOfBottomLeft.offset(rightDx, 0, rightDz, builder.width - 1);
+        return new PortalShapeMatch(topLeftFront, forwardAxis, chosenPositive,
+                builder.width, builder.height);
+    }
+
     /** The reference's {@code isValid}: a found bottom-left with the bounds held. */
     public boolean isValid() {
         return bottomLeft != null && width >= 2 && width <= 21
