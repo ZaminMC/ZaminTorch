@@ -77,6 +77,10 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
      * changeDimension walk re-points it at the arrival.
      */
     private volatile int dimension;
+    /** @return the dimension this connection stands in (the Time Update filter reads it). */
+    public int dimensionOfSession() {
+        return dimension;
+    }
     /** This client's own wire entity id (allocated at Join Game). */
     private volatile int ownEntityId = -1;
     /** The position this client was last teleported to (respawn): movement near it skips the distance sanity check. */
@@ -285,10 +289,14 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     }
 
     private void sendTimeUpdate(Channel channel) {
+        // The per-dimension clock (the reference's per-world WorldTimeS2CPacket):
+        // a player in the nether hears the nether's own clock — the dimension
+        // walk re-pointed the connection at the destination world.
+        var playerWorld = engine.worldFor(dimension);
         ByteBuf out = Unpooled.buffer(24);
         ByteBufOps.writeVarInt(out, Protocol18.S2C_TIME_UPDATE);
-        out.writeLong(engine.world().totalTicks());
-        out.writeLong(engine.world().timeOfDay());
+        out.writeLong(playerWorld.totalTicks());
+        out.writeLong(playerWorld.timeOfDay());
         channel.writeAndFlush(out);
     }
 

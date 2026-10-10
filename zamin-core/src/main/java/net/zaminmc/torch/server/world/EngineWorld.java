@@ -317,7 +317,9 @@ public final class EngineWorld implements World {
      */
     public void setTimeOfDay(long timeOfDay) {
         requireOwnership("setTimeOfDay");
-        this.timeOfDay = timeOfDay % DAY_LENGTH_TICKS;
+        // The clock wraps on the day length (floorMod keeps the /time add
+        // arm's negative sums walking forward, never to a negative clock).
+        this.timeOfDay = Math.floorMod(timeOfDay, DAY_LENGTH_TICKS);
     }
 
     private void requireOwnership(String operation) {

@@ -530,7 +530,10 @@ public final class EngineServer implements Server, EngineBridge {
                     // packet, so every chunk column the light touched this tick
                     // re-sends once, deduplicated across the whole cascade.
                     lightEngine.flushRelight(this::publishChunkRelit);
-                    if (world.totalTicks() % 100 == 0) {
+                    if (world.totalTicks() % 20 == 0) {
+                        // The reference's timeSync cadence (MinecraftServer
+                        // lines 551-558: ticks % 20 == 0, per world, the
+                        // players in that dimension only).
                         publishTimeChanged(); // smooth day cycle on every client
                     }
                 });
@@ -945,9 +948,15 @@ public final class EngineServer implements Server, EngineBridge {
         return furnaceManager;
     }
 
-    /** A world-time change (the /time command, the periodic cycle sync). */
+    /**
+     * A world-time change (the /time command, the periodic cycle sync) in one
+     * dimension. The reference (MinecraftServer lines 547-558) walks every
+     * world server and, every 20 ticks, sends its WorldTimeS2CPacket to the
+     * players in that dimension only — the dimension tag rides so the wire
+     * fan-out can filter per connection.
+     */
     public interface TimeListener {
-        void onTimeChanged(long totalTicks, long timeOfDay);
+        void onTimeChanged(int dimension, long totalTicks, long timeOfDay);
     }
 
     /** A sign's text changed (the Update Sign 0x33 fan-out to viewers). */
@@ -1044,8 +1053,17 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     private void publishTimeChanged() {
+        // The reference's per-world walk: every dimension's players hear their
+        // own world's clock (the nether's clocks advance independently — the
+        // sleep skip and the doDaylightCycle walk are overworld-only arms).
         for (TimeListener listener : timeListeners) {
-            listener.onTimeChanged(world.totalTicks(), world.timeOfDay());
+            listener.onTimeChanged(0, world.totalTicks(), world.timeOfDay());
+        }
+        EngineWorld nether = netherWorld;
+        if (nether != null) {
+            for (TimeListener listener : timeListeners) {
+                listener.onTimeChanged(-1, nether.totalTicks(), nether.timeOfDay());
+            }
         }
     }
 
@@ -7233,8 +7251,24 @@ public final class EngineServer implements Server, EngineBridge {
             return "Time: " + world.timeOfDay() + " / " + MobManager.DAY_LENGTH
                     + " (total " + world.totalTicks() + ")";
         }
+        if (args.length >= 2 && args[0].equalsIgnoreCase("add")) {
+            // The reference's addToTimeOfDay arm (TimeCommand lines 85-95):
+            // the shift lands on EVERY world server.
+            long add;
+            try {
+                add = Long.parseLong(args[1]);
+            } catch (NumberFormatException e) {
+                return "Not a time: " + args[1];
+            }
+            world.setTimeOfDay(world.timeOfDay() + add);
+            if (netherWorld != null) {
+                netherWorld.setTimeOfDay(netherWorld.timeOfDay() + add);
+            }
+            publishTimeChanged();
+            return "Added " + add + " to the time";
+        }
         if (args.length < 2 || !args[0].equalsIgnoreCase("set")) {
-            return "Usage: /time query | /time set <day|noon|night|midnight|ticks>";
+            return "Usage: /time query | set <day|noon|night|midnight|ticks> | add <ticks>";
         }
         long timeOfDay;
         switch (args[1].toLowerCase(java.util.Locale.ROOT)) {
@@ -7253,7 +7287,12 @@ public final class EngineServer implements Server, EngineBridge {
         if (timeOfDay < 0 || timeOfDay >= MobManager.DAY_LENGTH) {
             return "Time must be 0.." + (MobManager.DAY_LENGTH - 1);
         }
+        // The reference's setTimeOfDay arm (TimeCommand lines 86-90): the
+        // clock lands on EVERY world server — the nether's clock walks too.
         world.setTimeOfDay(timeOfDay);
+        if (netherWorld != null) {
+            netherWorld.setTimeOfDay(timeOfDay);
+        }
         publishTimeChanged();
         return "Time set to " + timeOfDay;
     }
