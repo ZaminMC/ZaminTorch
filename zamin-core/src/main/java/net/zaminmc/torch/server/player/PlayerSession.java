@@ -462,6 +462,90 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
         return portalTime;
     }
 
+    /**
+     * The body's dimension (the reference's Entity.dimension: 0 the
+     * overworld, -1 the nether). The changeDimension walk owns the swap —
+     * the wire's Respawn packet and the chunk streaming read it.
+     */
+    private int dimension;
+
+    public int dimension() {
+        return dimension;
+    }
+
+    /** The dimension swap (the changeDimension walk's first arm). */
+    public void setDimension(int dimension) {
+        this.dimension = dimension;
+    }
+
+    // The portal entry memory (the reference's Entity.onPortalCollision
+    // lines 1428-1451: lastPortalPos + the BlockPattern-derived
+    // lastPortalOffset / lastPortalFacing the placement math consumes).
+    private BlockPosition lastPortalPosition;
+    private double portalOffsetAlongWidth;
+    private double portalOffsetUp;
+    private int portalFacingHorizontalId;
+
+    /**
+     * The reference's {@code onPortalCollision} memory arm: a NEW portal
+     * cell derives the body's offset inside its frame (the inverse-lerp of
+     * the body's position across the frame's width and height — the raw
+     * reference ratios, unclamped) and the entered facing; the SAME cell
+     * re-collides without re-deriving.
+     *
+     * @param portalCell the body's portal cell
+     * @param match      the frame's shape match at that cell
+     * @param x          the body's x
+     * @param y          the body's y
+     * @param z          the body's z
+     */
+    public void notePortalEntry(BlockPosition portalCell,
+                                net.zaminmc.torch.server.world.PortalFrameBuilder.PortalShapeMatch match,
+                                double x, double y, double z) {
+        if (portalCell.equals(lastPortalPosition)) {
+            return; // the reference's !pos.equals(lastPortalPos) guard
+        }
+        lastPortalPosition = portalCell;
+        boolean axisX = match.forwardAxis() == net.zaminmc.torch.server.world.PortalFrameBuilder.Axis.X;
+        // d0: the topLeft's coordinate on the width axis; d1: the body's
+        // coordinate on the same axis, shifted one on the negative-facing
+        // forward (the reference's clockwiseY NEGATIVE arm).
+        double origin = axisX ? match.topLeftFront().z() : match.topLeftFront().x();
+        double bodyCoord = axisX ? z : x;
+        if (!match.forwardPositive()) {
+            bodyCoord -= 1.0;
+        }
+        // The reference's inverseLerp: (a - b) / (c - b), raw — no clamp.
+        portalOffsetAlongWidth = Math.abs(
+                (bodyCoord - origin) / ((origin - match.width()) - origin));
+        portalOffsetUp = ((y - 1.0) - match.topLeftFront().y())
+                / ((match.topLeftFront().y() - match.height()) - match.topLeftFront().y());
+        portalFacingHorizontalId = match.forwardHorizontalId();
+    }
+
+    /** @return the memory snapshot the PortalForcer's placement math consumes. */
+    public net.zaminmc.torch.server.world.PortalForcer.Memory portalMemory() {
+        net.zaminmc.torch.server.world.PortalForcer.Memory memory =
+                new net.zaminmc.torch.server.world.PortalForcer.Memory();
+        memory.offsetAlongWidth = portalOffsetAlongWidth;
+        memory.offsetUp = portalOffsetUp;
+        memory.lastFacingHorizontalId = portalFacingHorizontalId;
+        memory.known = lastPortalPosition != null;
+        return memory;
+    }
+
+    /** The arrival's body reset: the position, the facing, the fall debt cleared. */
+    public void applyDimensionArrival(int newDimension, Position arrival, float yaw, float pitch) {
+        this.dimension = newDimension;
+        applyMovement(arrival, new Rotation(yaw, pitch), false);
+        consumeFallDistance();
+        // The body left the entered frame's memory behind — the next entry
+        // re-derives against the arrival frame (the reference's entity copy
+        // carries the memory across, but its placement re-derives at the
+        // entry edge either way).
+        lastPortalPosition = null;
+    }
+
     /** @return the remaining portal cooldown ticks. */
     public int portalCooldown() {
         return portalCooldown;
