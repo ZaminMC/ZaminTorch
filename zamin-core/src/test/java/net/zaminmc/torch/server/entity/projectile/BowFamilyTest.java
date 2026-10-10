@@ -46,9 +46,9 @@ class BowFamilyTest {
         final List<String> order = new ArrayList<>();
 
         @Override
-        public boolean mobHit(MobEntity mob, float damage, double kbYaw) {
+        public boolean mobHit(MobEntity mob, float damage, double kbYaw, int shooterId) {
             order.add("hit");
-            return super.mobHit(mob, damage, kbYaw);
+            return super.mobHit(mob, damage, kbYaw, shooterId);
         }
 
         @Override
@@ -136,7 +136,7 @@ class BowFamilyTest {
         ProjectileManagerTest.RiggedHits hits = new ProjectileManagerTest.RiggedHits();
         ProjectileManager.CombatSink refused = new ProjectileManager.CombatSink() {
             @Override
-            public boolean mobHit(MobEntity mob, float damage, double kbYaw) {
+            public boolean mobHit(MobEntity mob, float damage, double kbYaw, int shooterId) {
                 return false; // the i-frame absorb
             }
 

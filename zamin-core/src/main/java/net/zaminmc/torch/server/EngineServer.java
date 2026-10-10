@@ -1556,6 +1556,9 @@ public final class EngineServer implements Server, EngineBridge {
             }
             // Knockback direction: attacker -> mob (the historical feel).
             double kbYaw = Math.toDegrees(Math.atan2(-dx, dz));
+            // The killer's Looting rides the death loot walk (the reference's
+            // die() reading getLootingLevel off the killer entity).
+            mob.setLootingLevel(EnchantmentHelper.lootingLevel(held));
             boolean landed = mobManager.hurt(mob, damage, kbYaw);
             if (landed) {
                 // The knockback-enchantment extra rides the attacker's look
@@ -5209,7 +5212,20 @@ public final class EngineServer implements Server, EngineBridge {
      */
     private final class ProjectileCombatSink implements ProjectileManager.CombatSink {
         @Override
-        public boolean mobHit(MobEntity mob, float damage, double kbYaw) {
+        public boolean mobHit(MobEntity mob, float damage, double kbYaw, int shooterId) {
+            // The shooter's Looting rides the death loot walk (the reference's
+            // die() gate: entity instanceof PlayerEntity — mob shooters
+            // contribute zero).
+            int looting = 0;
+            if (shooterId > 0) {
+                for (PlayerSession candidate : players.all()) {
+                    if (candidate.engineEntityId() == shooterId) {
+                        looting = EnchantmentHelper.lootingLevel(candidate.inventory().held());
+                        break;
+                    }
+                }
+            }
+            mob.setLootingLevel(looting);
             return mobManager.hurt(mob, damage, kbYaw);
         }
 
@@ -5322,6 +5338,9 @@ public final class EngineServer implements Server, EngineBridge {
                             if (mobManager != null) {
                                 for (MobEntity mob : mobManager.all()) {
                                     if (mob.entityId() == shooterId) {
+                                        mob.setLootingLevel(
+                                                EnchantmentHelper.lootingLevel(
+                                                        wearer.inventory().held()));
                                         mobManager.hurt(mob, amount,
                                                 wearer.rotation().yaw());
                                         return;
@@ -5466,6 +5485,8 @@ public final class EngineServer implements Server, EngineBridge {
                     // The mob's knockback rides the wearer's look yaw — the
                     // away-direction the melee walk uses for its impulse.
                     if (mobManager != null) {
+                        mob.setLootingLevel(EnchantmentHelper.lootingLevel(
+                                wearer.inventory().held()));
                         mobManager.hurt(mob, amount, wearer.rotation().yaw());
                     }
                 }

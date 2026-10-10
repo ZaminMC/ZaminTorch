@@ -651,8 +651,16 @@ public final class MobManager {
     /** Rolls the kind's loot table into the world at the body. */
     private void dropLoot(MobEntity mob) {
         Position at = mob.position();
+        // The Looting widening (the reference's dropFewItems shape, e.g.
+        // CowEntity: `nextInt(3) + nextInt(1 + lootingMultiplier)` — every
+        // common roll widens by nextInt(1 + looting); at level 0 the term
+        // is nextInt(1) = 0, the exact base roll). The rare-drop arm
+        // (0.025 + looting * 0.01, LivingEntity.die line 769) ledgered
+        // with the rare-loot-table slice — the engine tables carry no
+        // rare rows yet.
+        int looting = mob.lootingLevel();
         for (ItemRoll roll : mob.type().loot) {
-            int count = roll.roll(random);
+            int count = roll.roll(random) + random.nextInt(1 + looting);
             if (count <= 0) {
                 continue;
             }

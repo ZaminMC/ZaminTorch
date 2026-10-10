@@ -257,6 +257,21 @@ public final class EnchantmentHelper {
         return level(held, Enchantments.KNOCKBACK.id);
     }
 
+    /** The historical {@code getLootingLevel} (EnchantmentHelper line 212): the held item's Looting. */
+    public static int lootingLevel(ItemStack held) {
+        return level(held, Enchantments.LOOTING.id);
+    }
+
+    /** The historical {@code getFortuneLevel} (EnchantmentHelper line 200): the held item's Fortune. */
+    public static int fortuneLevel(ItemStack held) {
+        return level(held, Enchantments.FORTUNE.id);
+    }
+
+    /** The historical {@code hasSilkTouch} (EnchantmentHelper line 196): the held item's Silk Touch. */
+    public static boolean hasSilkTouch(ItemStack held) {
+        return level(held, Enchantments.SILK_TOUCH.id) > 0;
+    }
+
     /** The historical {@code getFireAspectLevel}: the held item's Fire Aspect. */
     public static int fireAspectLevel(ItemStack held) {
         return level(held, Enchantments.FIRE_ASPECT.id);

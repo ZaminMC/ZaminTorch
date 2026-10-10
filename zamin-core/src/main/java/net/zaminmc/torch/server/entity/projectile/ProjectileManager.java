@@ -76,7 +76,7 @@ public final class ProjectileManager {
          * verdict (the Punch impulse rides it, the reference's takeDamage
          * boolean).
          */
-        boolean mobHit(MobEntity mob, float damage, double kbYaw);
+        boolean mobHit(MobEntity mob, float damage, double kbYaw, int shooterId);
 
         /** A player took a projectile hit: the PvP path (i-frames, velocity). */
         void playerHit(PlayerSession player, float damage, double kbYaw);
@@ -288,7 +288,7 @@ public final class ProjectileManager {
         }
         float damage = damageOf(projectile);
         double kbYaw = Math.atan2(-projectile.velocityX(), projectile.velocityZ());
-        boolean landed = combat.mobHit(mob, damage, kbYaw);
+        boolean landed = combat.mobHit(mob, damage, kbYaw, projectile.throwerId());
         if (landed) {
             int punch = projectile.punchLevel();
             if (punch > 0) {

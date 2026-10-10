@@ -416,7 +416,13 @@ public final class BlockInteractionService {
         if (breakMode == GameMode.SURVIVAL || breakMode == GameMode.ADVENTURE) {
             player.addExhaustion(0.025f);
         }
-        publishDrops(target, current, held);
+        publishDrops(target, current, held,
+                heldStack.isEmpty() ? false
+                        : net.zaminmc.torch.server.enchantment.EnchantmentHelper
+                                .hasSilkTouch(heldStack),
+                heldStack.isEmpty() ? 0
+                        : net.zaminmc.torch.server.enchantment.EnchantmentHelper
+                                .fortuneLevel(heldStack));
         wearHeldTool(player, behavior);
         SurvivalXpHook xp = survivalXpListener;
         if (xp != null) {
@@ -673,8 +679,9 @@ public final class BlockInteractionService {
     }
 
     /** Drop calculation (§434): committed break -&gt; drops -&gt; item entities. */
-    private void publishDrops(BlockPosition broken, BlockType brokenType, ItemType heldTool) {
-        List<ItemStack> drops = dropService.dropsFor(brokenType, heldTool);
+    private void publishDrops(BlockPosition broken, BlockType brokenType, ItemType heldTool,
+                              boolean silkTouch, int fortune) {
+        List<ItemStack> drops = dropService.dropsFor(brokenType, heldTool, silkTouch, fortune);
         if (drops.isEmpty()) {
             return;
         }
