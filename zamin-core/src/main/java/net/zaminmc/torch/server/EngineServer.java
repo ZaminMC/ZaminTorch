@@ -1772,6 +1772,26 @@ public final class EngineServer implements Server, EngineBridge {
             victim.setMotion(nvx, nvy, nvz);
             publishPlayerHurt(victim);
             publishKnockback(victim, nvx, nvy, nvz);
+            // The thorns wildcard rides the landed hit in the reference
+            // order (PlayerEntity.attack line 1016: after the crit
+            // particles, before the victim's own walk concludes); the
+            // attacker's body bites back through the victim's worn pieces.
+            applyThornsWildcard(victim, victim.inventory().armorStacks(),
+                    new ThornsTarget() {
+                        @Override
+                        public void takeThornsDamage(int amount, PlayerSession wearer) {
+                            damageOnTick(attacker,
+                                    applyEnchantProtection(attacker,
+                                            applyArmor(attacker, amount),
+                                            DamageKind.MELEE),
+                                    "was slain by " + wearer.name());
+                        }
+
+                        @Override
+                        public Position position() {
+                            return attacker.position();
+                        }
+                    });
             if (victim.health() <= 0) {
                 dieOnTick(victim, "was slain by " + attacker.name());
             } else {
@@ -1838,6 +1858,76 @@ public final class EngineServer implements Server, EngineBridge {
                 victim.inventory().armorStacks(), seconds * TICKS_PER_SECOND);
         if (ticks > 0) {
             victim.ignite(ticks);
+        }
+    }
+
+    /**
+     * The thorns retaliation target: the living body the wearer's thorns
+     * bites back at (the reference wildcard's {@code target} — the melee
+     * attacker, the mob, or the arrow's shooter).
+     */
+    private interface ThornsTarget {
+        /** The reference's {@code target.takeDamage(DamageSource.thorns(attacker), amount)}. */
+        void takeThornsDamage(int amount, PlayerSession thornsWearer);
+
+        /** The sound position (the reference plays at {@code target}). */
+        Position position();
+    }
+
+    /**
+     * The historical {@code EnchantmentHelper.applyProtectionWildcard}
+     * (reference/1.8.8 EnchantmentHelper lines 152-161) over the victim's
+     * armor row, the walk the reference fires when a living attacker lands
+     * a hit (PlayerEntity.attack line 1016, Entity.damageEntity lines
+     * 1943-1947, ArrowEntity line 264): every piece carrying Thorns rolls
+     * the 15%-per-level proc independently (ThornsEnchantment
+     * applyProtectionWildcard lines 38-53); a proc deals the roll damage
+     * (1-4, or level-10 past level 10) through the target's own damage
+     * walk — thorns is an ordinary entity source, so armor and the
+     * protection family still apply — and plays {@code damage.thorns} at
+     * 0.5F/1.0F; the wear (3 on a proc, 1 on a miss, accumulating per
+     * visited piece) rides the FIRST thorns stack
+     * ({@code getEquipmentWithEnchantment}). The row is captured by the
+     * caller: the reference fires the wildcard in the attacker's walk
+     * before the victim's takeDamage runs, so a killing blow still
+     * retaliates through the worn pieces. Mob victims wear no enchanted
+     * armor yet — the walk reads only the player rows, the structural zero
+     * the ledger records (the same shape as the crit walk's blindness arm).
+     * Tick-thread context.
+     */
+    private void applyThornsWildcard(PlayerSession victim, ItemStack[] armorRow,
+                                     ThornsTarget target) {
+        ItemStack first = EnchantmentHelper.equipmentWithEnchantment(
+                Enchantments.THORNS.id, armorRow);
+        int wear = 0;
+        int firstSlot = -1;
+        if (first != null) {
+            for (int i = 0; i < armorRow.length; i++) {
+                if (armorRow[i] == first) {
+                    firstSlot = i;
+                    break;
+                }
+            }
+        }
+        for (ItemStack piece : armorRow) {
+            int level = EnchantmentHelper.level(piece, Enchantments.THORNS.id);
+            if (level <= 0) {
+                continue;
+            }
+            if (EnchantmentHelper.thornsShouldDamage(level, gameplayRandom)) {
+                wear += 3;
+                target.takeThornsDamage(
+                        EnchantmentHelper.thornsDamage(level, gameplayRandom), victim);
+                fxManager.sound(target.position(), "damage.thorns", 0.5f, 1.0f);
+            } else {
+                wear += 1;
+            }
+        }
+        if (first != null && wear > 0 && firstSlot >= 0
+                && victim.gamemode() != GameMode.CREATIVE) {
+            if (victim.inventory().wearArmorStack(firstSlot, wear)) {
+                publishInventoryChanged(victim); // worn or broken pieces re-sync
+            }
         }
     }
 
@@ -5206,6 +5296,62 @@ public final class EngineServer implements Server, EngineBridge {
         victim.setMotion(nvx, nvy, nvz);
         publishPlayerHurt(victim);
         publishKnockback(victim, nvx, nvy, nvz);
+        // The arrow site of the thorns wildcard (the reference's ArrowEntity
+        // line 264: the victim's worn pieces bite back at the shooter when
+        // the shooter is a living body — the skeleton shooter takes its
+        // share like a player does). The shooter is resolved by engine id:
+        // the player band first, then the mob band; a missing shooter (the
+        // thrower left) skips the retaliation, the reference's null-shooter
+        // guard. The row is read before the death check: a killing blow
+        // still retaliates before death scatters the armor.
+        applyThornsWildcard(victim, victim.inventory().armorStacks(),
+                new ThornsTarget() {
+                    @Override
+                    public void takeThornsDamage(int amount, PlayerSession wearer) {
+                        if (shooterId > 0) {
+                            for (PlayerSession candidate : players.all()) {
+                                if (candidate.engineEntityId() == shooterId) {
+                                    damageOnTick(candidate,
+                                            applyEnchantProtection(candidate,
+                                                    applyArmor(candidate, amount),
+                                                    DamageKind.MELEE),
+                                            "was slain by " + wearer.name());
+                                    return;
+                                }
+                            }
+                            if (mobManager != null) {
+                                for (MobEntity mob : mobManager.all()) {
+                                    if (mob.entityId() == shooterId) {
+                                        mobManager.hurt(mob, amount,
+                                                wearer.rotation().yaw());
+                                        return;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    @Override
+                    public Position position() {
+                        // The sound rides the shooter's last known body: the
+                        // player band, then the mob band, else the victim.
+                        if (shooterId > 0) {
+                            for (PlayerSession candidate : players.all()) {
+                                if (candidate.engineEntityId() == shooterId) {
+                                    return candidate.position();
+                                }
+                            }
+                            if (mobManager != null) {
+                                for (MobEntity mob : mobManager.all()) {
+                                    if (mob.entityId() == shooterId) {
+                                        return mob.position();
+                                    }
+                                }
+                            }
+                        }
+                        return victim.position();
+                    }
+                });
         if (victim.health() <= 0) {
             dieOnTick(victim, "was pummeled by " + throwerName(shooterId));
         } else {
@@ -5304,10 +5450,31 @@ public final class EngineServer implements Server, EngineBridge {
             // The same-thread survival damage path; the victim's armor eats
             // its share first (the 1.8 envelope), then the enchantment-
             // protection step (the reference's effects-and-enchantments half).
+            // The victim's armor row is captured before the walk: the
+            // reference fires the thorns wildcard in the attacker's walk
+            // before the victim's takeDamage runs (Entity.damageEntity lines
+            // 1943-1947), so a killing blow still retaliates through the
+            // worn pieces before death scatters them.
+            ItemStack[] thornsRow = target.inventory().armorStacks();
             damageOnTick(target,
                     applyEnchantProtection(target, applyArmor(target, damage),
                             DamageKind.MELEE),
                     "was slain by " + titledMobName(mob));
+            applyThornsWildcard(target, thornsRow, new ThornsTarget() {
+                @Override
+                public void takeThornsDamage(int amount, PlayerSession wearer) {
+                    // The mob's knockback rides the wearer's look yaw — the
+                    // away-direction the melee walk uses for its impulse.
+                    if (mobManager != null) {
+                        mobManager.hurt(mob, amount, wearer.rotation().yaw());
+                    }
+                }
+
+                @Override
+                public Position position() {
+                    return mob.position();
+                }
+            });
         }
 
         @Override
