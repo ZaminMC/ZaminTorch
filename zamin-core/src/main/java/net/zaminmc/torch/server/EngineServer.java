@@ -162,6 +162,13 @@ public final class EngineServer implements Server, EngineBridge {
     private FrozenBlockRegistry blockRegistry;
     private EngineWorld world;
     private EngineTicker ticker;
+    /**
+     * The simulation ownership domain (the permanent architecture's Phase 1
+     * primitive): the single-writer authority the world's mutations assert
+     * through and the generation source the compute tickets validate
+     * against. Bound to the boot/tick thread for the loop's whole run.
+     */
+    private volatile net.zaminmc.torch.server.concurrent.OwnershipDomain simulationDomain;
     private BlockInteractionService blockInteraction;
     private ChatService chatService;
     private final CraftingService crafting = CraftingService.builtin();
@@ -514,7 +521,22 @@ public final class EngineServer implements Server, EngineBridge {
                 commands = dispatcher;
                 chatService = new ChatService(ticker, dispatcher, this::publishChat);
                 worldReady.countDown();
-                ticker.runLoop(); // blocks until stop
+                // The permanent architecture's Phase 1: the simulation loop
+                // runs inside a formal ownership domain (the design's
+                // "single-writer ownership domains" —
+                // docs/CONCURRENCY_ARCHITECTURE.md §2). The domain binds to
+                // this thread for the loop's whole run; every EngineWorld
+                // mutation asserts through it and every compute result
+                // validates against its generation.
+                simulationDomain = net.zaminmc.torch.server.concurrent.OwnershipDomain
+                        .create("simulation:" + config.worldName());
+                world.attachDomain(simulationDomain);
+                simulationDomain.enter();
+                try {
+                    ticker.runLoop(); // blocks until stop
+                } finally {
+                    simulationDomain.exit();
+                }
             } catch (Throwable t) {
                 bootFailure.set(t);
                 worldReady.countDown();

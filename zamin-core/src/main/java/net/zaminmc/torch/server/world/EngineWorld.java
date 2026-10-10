@@ -35,6 +35,15 @@ public final class EngineWorld implements World {
     private final BlockType air;
     private final WorldGenerator generator;
     private final Thread owner;
+    /**
+     * The formal ownership domain (the permanent architecture's Phase 1
+     * enforcement — {@code docs/CONCURRENCY_ARCHITECTURE.md} §15). Null keeps
+     * the legacy thread check; when attached, {@link #requireOwnership}
+     * delegates and failures carry the domain + operation context. The
+     * engine's simulation loop binds the domain for its whole run, so the
+     * live behavior is identical to the thread check.
+     */
+    private volatile net.zaminmc.torch.server.concurrent.OwnershipDomain domain;
     private final Map<Long, EngineChunk> chunks = new ConcurrentHashMap<>();
     // World change listeners fire on every committed mutation (owner thread).
     private final java.util.List<WorldChangeListener> changeListeners =
@@ -279,10 +288,33 @@ public final class EngineWorld implements World {
     }
 
     private void requireOwnership(String operation) {
+        net.zaminmc.torch.server.concurrent.OwnershipDomain attached = domain;
+        if (attached != null) {
+            // The domain path: the bound executor is the authoritative
+            // context; STRICT throws the diagnosable violation (an
+            // IllegalStateException subclass — the historical contract).
+            attached.checkInContext(operation);
+            return;
+        }
         if (Thread.currentThread() != owner) {
             throw new IllegalStateException(
                     "World '" + name + "' is owned by the simulation context; " + operation
                             + " was called from " + Thread.currentThread().getName());
         }
+    }
+
+    /**
+     * Attaches the formal ownership domain (Phase 1 wiring; the engine's
+     * simulation loop binds it for its whole run). Once attached the legacy
+     * owner-thread check is superseded — the domain's bound executor is the
+     * authority, generation-tagged for the compute-result validation.
+     */
+    public void attachDomain(net.zaminmc.torch.server.concurrent.OwnershipDomain ownershipDomain) {
+        this.domain = Objects.requireNonNull(ownershipDomain, "ownershipDomain");
+    }
+
+    /** @return the attached ownership domain, or null when the legacy check is active. */
+    public net.zaminmc.torch.server.concurrent.OwnershipDomain domain() {
+        return domain;
     }
 }
