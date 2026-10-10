@@ -39,6 +39,13 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:gravel"), 13),      // dataset blocks.json id
             Map.entry(Identifier.parse("minecraft:glass"), 20),       // dataset blocks.json id
             Map.entry(Identifier.parse("minecraft:crafting_table"), 58),
+            // The enchanting corner (legacy ids: bookshelf block-item 47,
+            // the table 116, lapis the dye 351 whose damage 4 is the blue
+            // the table's slot gate reads, the enchanted book 403).
+            Map.entry(Identifier.parse("minecraft:bookshelf"), 47),
+            Map.entry(Identifier.parse("minecraft:enchanting_table"), 116),
+            Map.entry(Identifier.parse("minecraft:lapis"), 351),
+            Map.entry(Identifier.parse("minecraft:enchanted_book"), 403),
             Map.entry(Identifier.parse("minecraft:torch"), 50),
             Map.entry(Identifier.parse("minecraft:fire"), 51),
             Map.entry(Identifier.parse("minecraft:furnace"), 61),

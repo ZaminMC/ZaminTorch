@@ -447,6 +447,7 @@ public final class EngineServer implements Server, EngineBridge {
                     mobs.tick(players.all(), world.timeOfDay());
                     randomTicks.tick(players.all()); // §471: grass growth/decay
                     tickFurnaceViewers();
+                    tickEnchantingViewers();
                     tickPlayerBodies();
                     tickWeather();            // /weather's countdown (the auto-clear)
                     // Relight transport (§475): protocol 47 has no light-only
@@ -940,6 +941,20 @@ public final class EngineServer implements Server, EngineBridge {
         furnaceViewListeners.add(listener);
     }
 
+    /** A per-tick enchanting-window view: the adapter diffs revision + properties. */
+    public interface EnchantingViewListener {
+        void onEnchantingViewTick(PlayerSession viewer,
+                                  net.zaminmc.torch.server.enchantment.EnchantingMenu menu);
+    }
+
+    private final java.util.List<EnchantingViewListener> enchantingViewListeners =
+            new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    /** Registers an internal enchanting-view observer (the protocol adapter's sync). */
+    public void addEnchantingViewListener(EnchantingViewListener listener) {
+        enchantingViewListeners.add(listener);
+    }
+
     /** Fans per-tick furnace-window views out to the open viewer(s). Tick-thread context. */
     private void tickFurnaceViewers() {
         for (PlayerSession session : players.all()) {
@@ -956,6 +971,53 @@ public final class EngineServer implements Server, EngineBridge {
                 listener.onFurnaceViewTick(session, position, furnace);
             }
         }
+    }
+
+    /**
+     * Fans per-tick enchanting-window views out to the open viewer, after the
+     * reference {@code isValid} walk: the table must still stand and the
+     * player must remain within squared distance 64 of its center — a stale
+     * window closes with the vanilla drop (the tick the gate turns false).
+     * Tick-thread context.
+     */
+    private void tickEnchantingViewers() {
+        for (PlayerSession session : players.all()) {
+            if (session.openContainerKind() != PlayerSession.ContainerKind.ENCHANTING_TABLE
+                    || session.openContainerWindowId() < 0) {
+                continue;
+            }
+            var menu = session.enchantingMenu();
+            if (menu == null) {
+                continue;
+            }
+            var position = session.position();
+            if (!menu.stillValid(world::getBlock, position.x(), position.y(), position.z())) {
+                closeEnchantingMenuOnTick(session);
+                publishInventoryChanged(session);
+                continue;
+            }
+            for (EnchantingViewListener listener : enchantingViewListeners) {
+                listener.onEnchantingViewTick(session, menu);
+            }
+        }
+    }
+
+    /**
+     * The vanilla close of an enchanting window: the menu's two slots DROP to
+     * the world at the player (the reference {@code close} walk), then the
+     * window state clears. Tick-thread context.
+     */
+    private void closeEnchantingMenuOnTick(PlayerSession session) {
+        var menu = session.enchantingMenu();
+        if (menu != null) {
+            for (net.zaminmc.torch.item.ItemStack stack : menu.closeDrop()) {
+                if (!stack.isEmpty()) {
+                    throwFromPlayer(session, stack);
+                }
+            }
+            session.setEnchantingMenu(null);
+        }
+        session.closeContainerWindow();
     }
 
     /** The simulation-owned furnace block entities (present once the world is up). */
@@ -2049,6 +2111,7 @@ public final class EngineServer implements Server, EngineBridge {
                     case CHEST -> clickChestWindowOnTick(session, wireSlot, button, mode);
                     case HORSE -> clickHorseWindowOnTick(session, wireSlot, button, mode);
                     case VILLAGER -> clickVillagerWindowOnTick(session, wireSlot, button, mode);
+                    case ENCHANTING_TABLE -> clickEnchantingWindowOnTick(session, wireSlot, button, mode);
                     default -> false;
                 };
             }
@@ -2452,6 +2515,82 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /**
+     * Click routing for the enchanting window (wire slots 0 item / 1 lapis,
+     * 2-28 main, 29-37 hotbar). Mode 0 plays the menu's own PICKUP walk on the
+     * shared cursor (the lapis gate, the item slot's max 1); the player tail
+     * plays the shared inventory semantics. Mode 1 shift-clicks: the menu's
+     * slots go to the inventory, lapis/first-empty-item go into the menu from
+     * the player (the reference quickMoveItem arms). Mode 2 exchanges main
+     * and hotbar only (the two menu slots are rejected per packet).
+     * Tick-thread context.
+     */
+    private boolean clickEnchantingWindowOnTick(PlayerSession session, int wireSlot, int button,
+                                                int mode) {
+        var inventory = session.inventory();
+        var menu = session.enchantingMenu();
+        if (menu == null) {
+            return false; // stale window (state discarded): rejected, resync restores
+        }
+        switch (mode) {
+            case 0 -> {
+                if (wireSlot == 0 || wireSlot == 1) {
+                    menu.clickSlot(wireSlot, button, inventory.cursorBox());
+                    return true;
+                }
+                int engineSlot = enchantingEngineSlotOf(wireSlot);
+                if (engineSlot >= 0) {
+                    inventory.clickSlot(engineSlot, button);
+                    return true;
+                }
+                return false;
+            }
+            case 1 -> {
+                if (wireSlot == 0 || wireSlot == 1) {
+                    menu.quickMoveToInventory(wireSlot, inventory::pickUp);
+                    return true;
+                }
+                int engineSlot = enchantingEngineSlotOf(wireSlot);
+                if (engineSlot >= 0) {
+                    ItemStack moving = inventory.dropFromSlot(engineSlot, true);
+                    if (moving.isEmpty()) {
+                        return true; // an empty player slot: nothing to move, nothing changed
+                    }
+                    ItemStack leftover = menu.quickMoveFromPlayer(moving);
+                    if (!leftover.isEmpty()) {
+                        inventory.pickUp(leftover); // refused or partial: the rest stays
+                    }
+                    return true;
+                }
+                return false;
+            }
+            case 2 -> {
+                // Number keys exchange main inventory and hotbar only; the two
+                // menu slots are rejected per packet (the historical rule).
+                int engineSlot = enchantingEngineSlotOf(wireSlot);
+                if (engineSlot >= PlayerInventory.HOTBAR_SLOTS && button >= 0 && button < 9) {
+                    inventory.swapWithHotbar(engineSlot, button);
+                    return true;
+                }
+                return false;
+            }
+            default -> {
+                return false;
+            }
+        }
+    }
+
+    /** The enchanting window's player-tail wire slot to engine slot (main 2-28 → 9-35, hotbar 29-37 → 0-8). */
+    private static int enchantingEngineSlotOf(int wireSlot) {
+        if (wireSlot >= 2 && wireSlot <= 28) {
+            return wireSlot + 7; // main inventory (engine 9-35)
+        }
+        if (wireSlot >= 29 && wireSlot <= 37) {
+            return wireSlot - 29; // hotbar (engine 0-8)
+        }
+        return -1;
+    }
+
+    /**
      * Click routing for the open chest container window (protocol 47
      * community-verified GUI: 0-26 chest, 27-53 main inventory, 54-62 hotbar).
      * Tick-thread context.
@@ -2675,6 +2814,10 @@ public final class EngineServer implements Server, EngineBridge {
         }
         if (current.identifier().equals(net.zaminmc.torch.server.block.BuiltinBlocks.CRAFTING_TABLE.identifier())) {
             openCraftingTableOnTick(session, onTableOpened);
+            return;
+        }
+        if (current.identifier().equals(net.zaminmc.torch.server.block.BuiltinBlocks.ENCHANTING_TABLE.identifier())) {
+            openEnchantingTableOnTick(session, clicked, onTableOpened);
             return;
         }
         if (useBucketOnTick(session, clicked, face)) {
@@ -4155,6 +4298,32 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /**
+     * Opens the enchanting table container at the clicked block: assigns the
+     * wire window id, creates the per-open menu (seed read at open, the exact
+     * reference ctor), closes any carried window first, and reports the id for
+     * the adapter's Open Window + slot/property sync. The menu's two slots are
+     * transient — closing drops both to the world (the reference close).
+     * Tick-thread context.
+     */
+    private void openEnchantingTableOnTick(PlayerSession session,
+                                           net.zaminmc.torch.block.BlockPosition position,
+                                           java.util.function.IntConsumer onTableOpened) {
+        closeOpenContainerOnTick(session);
+        dropGridToWorld(session, session.crafting()); // the vanilla close: the 2x2 grid drops
+
+        var menu = new net.zaminmc.torch.server.enchantment.EnchantingMenu(
+                session.enchantingSeed(), position);
+        menu.attach(world::getBlock); // the scan reads the real neighborhood from here on
+        menu.onContentsChanged(null); // the open-time recompute (the reference markDirty on load)
+        session.setEnchantingMenu(menu);
+        int windowId = nextContainerWindowId;
+        nextContainerWindowId = nextContainerWindowId >= LAST_CONTAINER_WINDOW_ID
+                ? FIRST_CONTAINER_WINDOW_ID : nextContainerWindowId + 1;
+        session.openContainerWindow(windowId, PlayerSession.ContainerKind.ENCHANTING_TABLE, position);
+        onTableOpened.accept(windowId);
+    }
+
+    /**
      * Opens the furnace container at the clicked block: assigns the wire
      * window id, lazily creates the block-entity state, closes any carried
      * window state first, and reports the id for the adapter's Open Window +
@@ -4210,8 +4379,12 @@ public final class EngineServer implements Server, EngineBridge {
         }
         if (session.openContainerKind() == PlayerSession.ContainerKind.CRAFTING_TABLE) {
             dropGridToWorld(session, session.tableCrafting()); // the vanilla close: the grid drops
+            session.closeContainerWindow();
+        } else if (session.openContainerKind() == PlayerSession.ContainerKind.ENCHANTING_TABLE) {
+            closeEnchantingMenuOnTick(session); // the menu's two slots drop (the reference close)
+        } else {
+            session.closeContainerWindow();
         }
-        session.closeContainerWindow();
     }
 
     /** Throws each overflow stack into the world at the player (nothing is lost). */
@@ -4262,9 +4435,65 @@ public final class EngineServer implements Server, EngineBridge {
         if (containerToo && session.openContainerWindowId() >= 0) {
             if (session.openContainerKind() == PlayerSession.ContainerKind.CRAFTING_TABLE) {
                 dropGridToWorld(session, session.tableCrafting());
+                session.closeContainerWindow();
+            } else if (session.openContainerKind() == PlayerSession.ContainerKind.ENCHANTING_TABLE) {
+                closeEnchantingMenuOnTick(session); // the menu's two slots drop; the window state clears
+            } else {
+                session.closeContainerWindow();
             }
-            session.closeContainerWindow();
         }
+    }
+
+    /**
+     * The Enchant Item walk (the reference {@code onButtonClick} on the
+     * simulation context): the menu's gate ladder, the level payment, the
+     * lapis consumption, and the recompute ordering; a landed enchant also
+     * re-syncs the XP bar (the level cost) and the slots. Tick-thread context.
+     */
+    @Override
+    public void enchantItem(PlayerSession session, int windowId, int button,
+                            java.util.function.Consumer<Boolean> result) {
+        Objects.requireNonNull(session, "session");
+        Objects.requireNonNull(result, "result");
+        ticker.submit(() -> {
+            boolean accepted = false;
+            var menu = session.enchantingMenu();
+            if (menu != null && windowId == session.openContainerWindowId()) {
+                net.zaminmc.torch.server.enchantment.EnchantingMenu.Enchanter enchanter =
+                        new net.zaminmc.torch.server.enchantment.EnchantingMenu.Enchanter() {
+                            @Override
+                            public int xpLevel() {
+                                return session.experienceLevel();
+                            }
+
+                            @Override
+                            public boolean creative() {
+                                return session.gamemode() == net.zaminmc.torch.GameMode.CREATIVE;
+                            }
+
+                            @Override
+                            public void applyEnchantmentCosts(int cost) {
+                                session.applyEnchantmentCosts(cost);
+                            }
+
+                            @Override
+                            public int enchantingSeed() {
+                                return session.enchantingSeed();
+                            }
+                        };
+                accepted = menu.enchantButton(enchanter, button, world::getBlock);
+                if (accepted) {
+                    publishExperienceChanged(session);
+                }
+            }
+            try {
+                result.accept(accepted);
+            } catch (RuntimeException brokenCallback) {
+                LOGGER.log(java.util.logging.Level.WARNING,
+                        "Enchant callback failed for " + session.name(), brokenCallback);
+            }
+            publishInventoryChanged(session);
+        });
     }
 
     /** The vanilla grid close: every stack drops to the world at the player. */

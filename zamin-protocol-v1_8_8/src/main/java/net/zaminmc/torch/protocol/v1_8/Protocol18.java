@@ -327,4 +327,28 @@ final class Protocol18 {
     static final String PLUGIN_CHANNEL_TRADE_LIST = "MC|TrList";
     static final String PLUGIN_CHANNEL_TRADE_SELECT = "MC|TrSel";
     static final String PLUGIN_CHANNEL_CHANNEL_LABEL = "MC|BEdit"; // (unused label guard)
+
+    // Enchanting-table container window (protocol 47, "minecraft:enchanting_table"):
+    // 0 the item (max 1), 1 the lapis, 2-28 main, 29-37 hotbar — 38 slots.
+    // Open Window carries size 0 like the crafting table: the client builds
+    // the two-slot layout itself from the type string (a nonzero size pushes
+    // the client onto the generic-chest path).
+    static final String ENCHANTING_WINDOW_TYPE = "minecraft:enchanting_table";
+    static final String ENCHANTING_WINDOW_TITLE = "{\"text\":\"Enchant\"}";
+    static final int ENCHANTING_WINDOW_SLOTS = 38;
+    static final int ENCHANTING_WIRE_SLOT_ITEM = 0;
+    static final int ENCHANTING_WIRE_SLOT_LAPIS = 1;
+    static final int ENCHANTING_WIRE_SLOT_MAIN_FIRST = 2;
+    static final int ENCHANTING_WIRE_SLOT_MAIN_LAST = 28;
+    static final int ENCHANTING_WIRE_SLOT_HOTBAR_FIRST = 29;
+    static final int ENCHANTING_WIRE_SLOT_HOTBAR_LAST = 37;
+    static final int ENCHANTING_WIRE_SLOT_HOTBAR_BASE = 29;
+
+    // Enchanting window properties (the reference addListener/updateListeners
+    // order): 0-2 the XP costs, 3 the seed (already masked &-16 by the menu),
+    // 4-6 the enchantment clue values (id | level << 8, -1 when none).
+    static final int ENCHANTING_PROP_COST_FIRST = 0;
+    static final int ENCHANTING_PROP_SEED = 3;
+    static final int ENCHANTING_PROP_CLUE_FIRST = 4;
+    static final int ENCHANTING_PROP_COUNT = 7;
 }

@@ -197,6 +197,10 @@ public final class BuiltinItems {
             Identifier.parse("minecraft:lapis"), "Lapis Lazuli", 64);
     public static final EngineItemType ENCHANTED_BOOK = new EngineItemType(
             Identifier.parse("minecraft:enchanted_book"), "Enchanted Book", 1);
+    public static final EngineItemType BOOKSHELF = new EngineItemType(
+            Identifier.parse("minecraft:bookshelf"), "Bookshelf", 64);
+    public static final EngineItemType ENCHANTING_TABLE = new EngineItemType(
+            Identifier.parse("minecraft:enchanting_table"), "Enchantment Table", 64);
 
     // Mob loot (legacy ids from the community dataset: porkchop 319, cooked
     // porkchop 320, raw chicken 365, cooked chicken 366, feather 288,
@@ -423,7 +427,7 @@ public final class BuiltinItems {
                 RAIL, BOAT, MINECART,
                 SADDLE, IRON_HORSE_ARMOR, GOLDEN_HORSE_ARMOR, DIAMOND_HORSE_ARMOR,
                 LEAD, CARROT_ON_A_STICK, EMERALD,
-                LAPIS, ENCHANTED_BOOK,
+                LAPIS, ENCHANTED_BOOK, BOOKSHELF, ENCHANTING_TABLE,
                 BONE, STRING, GUNPOWDER, WOOL, MUTTON, COOKED_MUTTON,
                 BUCKET, WATER_BUCKET, LAVA_BUCKET,
                 FLINT_AND_STEEL, GOLD_INGOT,

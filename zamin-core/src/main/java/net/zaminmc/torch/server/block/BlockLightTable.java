@@ -75,6 +75,11 @@ public final class BlockLightTable {
             Map.entry(Identifier.parse("minecraft:oak_planks"), new LightData(0, 15)),
             Map.entry(Identifier.parse("minecraft:wool"), new LightData(0, 15)),
             Map.entry(Identifier.parse("minecraft:crafting_table"), new LightData(0, 15)),
+            // The enchanting corner (the reference carries no light overrides:
+            // the bookshelf is a full opaque cube, the table a 0.75-high
+            // non-cube light passes through; neither emits).
+            Map.entry(Identifier.parse("minecraft:bookshelf"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:enchanting_table"), new LightData(0, 0)),
 
             // The engine's light sources: torch emits 14, fire 15, the lit
             // furnace 13 (dataset emitLight values; the lit furnace's 13 is

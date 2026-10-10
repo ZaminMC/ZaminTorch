@@ -214,7 +214,9 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         for (Map.Entry<Integer, Integer> entry : input.entrySet()) {
             int id = entry.getKey() == null ? -1 : entry.getKey();
             int level = entry.getValue() == null ? -1 : entry.getValue();
-            if (id < 1 || id > MAX_ENCHANTMENT_LEVEL) {
+            if (id < 0 || id > MAX_ENCHANTMENT_LEVEL) {
+                // Vanilla 1.8.8 enchantment ids start at 0 (protection is id
+                // 0) — the historical tag.ench shorts carry them as-is.
                 throw new IllegalArgumentException("Enchantment id out of short range: " + id);
             }
             if (level < 1 || level > MAX_ENCHANTMENT_LEVEL) {

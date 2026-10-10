@@ -821,6 +821,26 @@ final class TestClient18 implements AutoCloseable {
         sendPacket(bodyToBytes(body));
     }
 
+    /** Enchant Item (0x11, protocol 47): byte window id, byte button 0-2. */
+    void sendEnchantItem(int windowId, int button) throws IOException {
+        ByteBuf body = Unpooled.buffer(8);
+        ByteBufOps.writeVarInt(body, Protocol18.C2S_ENCHANT_ITEM);
+        body.writeByte(windowId);
+        body.writeByte(button);
+        sendPacket(bodyToBytes(body));
+    }
+
+    /** Reads Set Experience (0x1F), returning {progressMillis, level, total}. */
+    float[] readSetExperience(long timeoutMs) throws IOException {
+        byte[] payload = readPacketOfType(Protocol18.S2C_SET_EXPERIENCE, timeoutMs);
+        ByteBuf buffer = Unpooled.wrappedBuffer(payload);
+        ByteBufOps.readVarInt(buffer); // packet id
+        float progress = buffer.readFloat();
+        int level = ByteBufOps.readVarInt(buffer);
+        int total = ByteBufOps.readVarInt(buffer);
+        return new float[]{progress, level, total};
+    }
+
     /** Reads a Confirm Transaction packet, returning {windowId, actionNumber, accepted}. */
     int[] readConfirmTransaction(long timeoutMs) throws IOException {
         byte[] payload = readPacketOfType(Protocol18.S2C_CONFIRM_TRANSACTION, timeoutMs);

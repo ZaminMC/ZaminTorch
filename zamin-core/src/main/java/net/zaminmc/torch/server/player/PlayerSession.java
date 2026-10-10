@@ -64,7 +64,9 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
         /** The horse inventory (saddle + armor slots live on the mount at containerPosition's mount id). */
         HORSE,
         /** The villager trading window (offers ride the MC|TrList plugin message). */
-        VILLAGER
+        VILLAGER,
+        /** The enchanting table (2 transient slots living in the session's menu, seed + costs included). */
+        ENCHANTING_TABLE
     }
 
     // --- survival body state (§436 family) ---------------------------------
@@ -190,6 +192,70 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
     /** @return the level the XP total currently sits at. */
     public int experienceLevel() {
         return net.zaminmc.torch.server.experience.ExperienceMath.levelForTotalXp(totalXp);
+    }
+
+    // --- the enchanting seed + the level-cost payment (the reference
+    // PlayerEntity.enchantmentTableSeed / applyEnchantmentCosts) -------------
+
+    /**
+     * The enchanting table's per-player RNG seed. Vanilla loads it from the
+     * persisted {@code XpSeed} and falls back to {@code random.nextInt()}; the
+     * engine lazily rolls it on first read (0 stays a legal seed — the
+     * reference never special-cases 0 after load).
+     */
+    private volatile int enchantingSeed;
+
+    /** The seed's lazy-roll flag (the reference rolls at load; the engine rolls at first use). */
+    private volatile boolean enchantingSeedRolled;
+
+    /** The player-entity random the reference rerolls the seed with. */
+    private final java.util.Random playerRandom = new java.util.Random();
+
+    /** @return the current enchanting seed (rolling it on first read). Tick-thread context. */
+    public int enchantingSeed() {
+        if (!enchantingSeedRolled) {
+            enchantingSeed = playerRandom.nextInt();
+            enchantingSeedRolled = true;
+        }
+        return enchantingSeed;
+    }
+
+    /**
+     * The reference {@code applyEnchantmentCosts}: the level pays {@code cost},
+     * the progress into the level is kept, a level below 0 zeroes the whole
+     * bar (level, progress, points), and the enchanting seed rerolls — the
+     * exact walk on the engine's authoritative points model (the progress
+     * rides the same point tail the bar float derives from).
+     * Tick-thread context.
+     */
+    public void applyEnchantmentCosts(int cost) {
+        int level = experienceLevel();
+        int next = level - cost;
+        if (next < 0) {
+            totalXp = 0;
+        } else {
+            long into = totalXp - net.zaminmc.torch.server.experience.ExperienceMath.totalXpForLevel(level);
+            totalXp = net.zaminmc.torch.server.experience.ExperienceMath.totalXpForLevel(next) + into;
+        }
+        enchantingSeed = playerRandom.nextInt();
+        enchantingSeedRolled = true;
+    }
+
+    /**
+     * The open enchanting menu's state (two slots, seed, costs, clues) — the
+     * historical per-open {@code EnchantingTableMenu}. Non-null only while an
+     * ENCHANTING_TABLE window is open; the close paths drop its slots.
+     */
+    private volatile net.zaminmc.torch.server.enchantment.EnchantingMenu enchantingMenu;
+
+    /** @return the open enchanting menu, or null when no table window is open. */
+    public net.zaminmc.torch.server.enchantment.EnchantingMenu enchantingMenu() {
+        return enchantingMenu;
+    }
+
+    /** Installs (or clears with null) the open enchanting menu. Tick-thread context. */
+    public void setEnchantingMenu(net.zaminmc.torch.server.enchantment.EnchantingMenu menu) {
+        this.enchantingMenu = menu;
     }
 
     /** @return the name of the last player who /tell'd this one (the /reply target). */
