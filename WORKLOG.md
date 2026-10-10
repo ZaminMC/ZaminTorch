@@ -356,3 +356,46 @@ the bottom. The behavior-level status of every mechanic lives in
 - Documentation commits in this pass: architecture proposal `52cee0c3d7cb6239397c3ad5096fcd8f2bd1cce1`; worklog update `29087a1021259ff675f338b93d365a67fcd2eff4`; Minestom baseline `b8a3141cbbda2d466672c3dbd8d876189a9e89eb`; Folia audit status `523f3f8f254a98cc39da628f8cb6f7b7de620d46`. These commits are on `develop`; no runtime source changed.
 
 - Added root `TORCH_ENGINEERING.md` (commit `208ab911b66abaab1b60cd01486937945122a33a`) as the current-state ledger: modules, verified ownership baseline, honest status table, missing mechanics archive blocker, release state, and ordered next steps. The ledger explicitly says local working-tree status is unknown because this pass did not access the local checkout.
+
+## 2026-10-10 — Slice 8b-i / 8b-ii / 8b-iii-a land; dev.22 released
+
+- **Slice 8b-i — the nether generator** (commit `139fcd6`): ported from
+  `reference/1.8.8 world/gen/chunk/NetherChunkGenerator.java` (415 lines) +
+  `NetherCaveCarver.java` + `noise/PerlinNoise.java` + `noise/ImprovedNoise.java`.
+  The seven-PerlinNoise stack (16/16/8/4/4/10/16 octaves over one shared
+  Random), the 5x17x5 trilinear terrain shape (684.412/2053.236/684.412), the
+  lava sea below 63/2+1=32, bedrock banded both walls, the soul-sand/gravel
+  skin, the eight-neighbor cave carve, and the decorate pass (lava pockets,
+  fire patches, two glowstone forms, quartz veins, the mushrooms). The new
+  nether materials register across the tables (netherrack 87, soul sand 88,
+  glowstone 89 light 15, quartz ore 153, mushrooms 39/40; the HELL biome,
+  wire id 8). Determinism adaptations documented: the decorate pass re-seeds
+  per chunk (order-independent rebuilds), feature writes clip to their own
+  chunk, the fortress draw skipped. NetherWorldTest (7). Suite 628 green.
+- **Slice 8b-ii — the second EngineWorld** (commit `5753df4`): vanilla's
+  DIM-1 — the nether world boots alongside the overworld on the same seed,
+  its own chunk map, its own delta persistence (`DIM-1/zamin-delta.bin`),
+  its own ownership domain `simulation:nether` (the boot binds both domains
+  around the runLoop), and the ticker's time walk advancing both clocks.
+  The nether surfaced a real engine bug, fixed in the same commit: the
+  chunk-local delta index masked y to 4 bits, truncating every persisted
+  edit at y >= 16 — the index now takes its full byte. NetherDimensionTest
+  (5: the dual-clock tick, the null-nether contract, the double-attach
+  refusal, the `simulation:nether` ownership assertion, the DIM-1
+  persistence round-trip at y=40). Suite 633 green.
+- **Slice 8b-iii-a — the PortalForcer** (commit `03237aa`): ported from
+  `reference/1.8.8 net/minecraft/server/world/PortalForcer.java` (351 lines)
+  + `PortalBlock.findPortalShape`. The shape match (the four front-layer
+  counts pick the forward — the emptier side is the front, POSITIVE wins
+  ties), findNetherPortal (the block-granular cache with the 300-second
+  eviction, the 257x257 column scan to each column's lowest portal cell,
+  the placement math: the width/height inverse-lerp shares, the clockwise-y
+  width shift, the facing-traded yaw, the velocity quarter-turn matrix),
+  generateNetherPortal (the two-scan hunt riding the reference's label296
+  column-level semantics, the y-clamped platform fallback, the 4x5 frame
+  build). PortalForcerTest (5). Suite 638 green.
+- **Dev build 0.2.0-dev.22** (commit `774dc08`): released as
+  `v0.2.0-dev.22` on GitHub Releases with the changelog; the fat jar and
+  the distribution ZIP both attached. The changeDimension walk (8b-iii-b:
+  the 8:1 scaling, the Respawn sequence at dimension -1, the per-dimension
+  chunk visibility, the PlayerSession portal memory) is next.
