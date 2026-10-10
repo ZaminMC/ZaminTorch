@@ -1,6 +1,6 @@
 # Torch Concurrency Architecture (Proposal)
 
-**Status: proposed; awaiting architecture review.** This document records the first evidence-based design direction, not implemented behavior. It is intentionally conservative. The complete Folia patch inventory and method-by-method audit remain outstanding; see the worklog.
+**Status: proposed; awaiting architecture review.** This document is the design core of a five-document set: the Folia evidence lives in [`FOLIA_FORENSIC_AUDIT.md`](FOLIA_FORENSIC_AUDIT.md) (complete: archive extracted, all 21 patches read, 460 modified Java paths inventoried), the full path table in [`FOLIA_PATCH_INVENTORY.md`](FOLIA_PATCH_INVENTORY.md), the comparison table / decision records / rollout in [`CONCURRENCY_DECISIONS_AND_ROLLOUT.md`](CONCURRENCY_DECISIONS_AND_ROLLOUT.md), and the component graph + six lifecycle sequence diagrams in [`CONCURRENCY_DIAGRAMS.md`](CONCURRENCY_DIAGRAMS.md). Nothing here describes implemented behavior; the running engine remains the single-domain baseline of [`MINESTOM_CONCURRENCY_BASELINE.md`](MINESTOM_CONCURRENCY_BASELINE.md).
 
 ## 1. Verified baseline
 
@@ -193,8 +193,9 @@ Benchmark single-hotspot, distributed players, redstone, entity-heavy, chunk-gen
 | Migration | Disabled until handoff tests pass | Proposed |
 | Minestom | No dependency today; reconsider only with concrete protocol/world integration evidence | Verified baseline; future decision open |
 
-## Evidence gaps
+## Evidence status
 
-- The supplied Folia archive is present in the repository, but its binary contents have not yet been exhaustively enumerated in this pass. The mandatory Java-path inventory and subsystem-by-subsystem patch analysis are not complete.
-- `1.8.8 - mechanics.zip` does not appear in the inspected `develop` tree. The committed `reference/1.8.8/` source tree is present.
-- No local build or test run was available through the connected GitHub inspection environment. Existing release notes report the prior dev.16 test results; those are not newly rerun here.
+- **Folia archive: analyzed.** All 21 patches read; 460 modified Java path entries enumerated mechanically ([`FOLIA_PATCH_INVENTORY.md`](FOLIA_PATCH_INVENTORY.md)); the concurrency-critical subsystems traced at hunk level and the four mandatory hard cases answered from the diffs with Adopt/Adapt verdicts ([`FOLIA_FORENSIC_AUDIT.md`](FOLIA_FORENSIC_AUDIT.md) §4–5). Residual limitations are recorded in that document's §8 (bytecode-level build dating was not possible; the piston coordinated-retry path is read from guards + hunk context and is labeled inference).
+- `1.8.8 - mechanics.zip` does not appear in the inspected `develop` tree. The committed `reference/1.8.8/` source tree is present and is the porting source for the vanilla slices.
+- The 518-test behavioral suite was green at the current `develop` head (v0.2.0-dev.17 build). Concurrency-specific tests do not exist yet — they are specified in §11 and sequenced in the rollout (Phase 1–2).
+- Decision-to-patch-to-test traceability: [`FOLIA_FORENSIC_AUDIT.md`](FOLIA_FORENSIC_AUDIT.md) §7.
