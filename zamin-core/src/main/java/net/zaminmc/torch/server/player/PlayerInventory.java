@@ -489,6 +489,33 @@ public final class PlayerInventory {
         return changed;
     }
 
+    /**
+     * The targeted armor wear (the reference's
+     * {@code ItemStack.takeDamageAndBreak} ride: the thorns wear lands on
+     * the FIRST thorns stack, {@code amount} units per visit, the piece
+     * breaking at its limit). Unbreaking hooks the same walk when its slice
+     * lands — the reference's {@code takeDamage} per-unit reduction
+     * (reference/1.8.8 item/ItemStack lines 196-215). Creative bodies skip
+     * at the caller (the reference's creative guard rides takeDamageAndBreak
+     * line 222).
+     *
+     * @return whether the slot changed (wear applied or the piece broke).
+     */
+    public boolean wearArmorStack(int slot, int amount) {
+        if (slot < 0 || slot >= ARMOR_SLOTS || amount <= 0) {
+            return false;
+        }
+        ItemStack piece = armor[slot];
+        if (piece.isEmpty() || piece.type().maxDurability() <= 0) {
+            return false;
+        }
+        int newDamage = piece.damage() + amount;
+        armor[slot] = newDamage >= piece.type().maxDurability()
+                ? ItemStack.EMPTY // the piece breaks
+                : piece.withDamage(newDamage);
+        return true;
+    }
+
     /** Read-only armor snapshot for synchronization; callers must not mutate it. */
     public List<ItemStack> armorSnapshot() {
         return List.of(armor.clone());

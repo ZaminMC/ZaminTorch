@@ -360,6 +360,40 @@ public final class EnchantmentHelper {
         return value < truncated ? truncated - 1 : truncated;
     }
 
+    // The ThornsEnchantment half (reference/1.8.8 enchantment/
+    // ThornsEnchantment lines 55-61 + EnchantmentHelper.getEquipmentWith-
+    // Enchantment lines 220-228). The proc roll and the damage roll ride the
+    // gameplayRandom of the walk that owns the hit.
+
+    /** The historical {@code shouldDamageAttacker}: the 15%-per-level proc. */
+    public static boolean thornsShouldDamage(int level, Random random) {
+        return level > 0 && random.nextFloat() < 0.15F * level;
+    }
+
+    /** The historical {@code getDamageAmount}: 1-4, or level-10 past level 10. */
+    public static int thornsDamage(int level, Random random) {
+        return level > 10 ? level - 10 : 1 + random.nextInt(4);
+    }
+
+    /**
+     * The historical {@code getEquipmentWithEnchantment}: the FIRST
+     * equipment stack carrying the enchantment id (null when none). The
+     * thorns wear lands on this stack every visit, even when a later piece
+     * rolled the proc — the reference's per-piece visit with a shared
+     * first-stack wear target.
+     */
+    public static ItemStack equipmentWithEnchantment(int id, ItemStack[] equipment) {
+        if (equipment == null) {
+            return null;
+        }
+        for (ItemStack stack : equipment) {
+            if (stack != null && !stack.isEmpty() && level(stack, id) > 0) {
+                return stack;
+            }
+        }
+        return null;
+    }
+
     private EnchantmentHelper() {
     }
 }
