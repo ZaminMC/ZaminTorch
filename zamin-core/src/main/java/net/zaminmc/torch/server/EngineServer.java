@@ -173,6 +173,12 @@ public final class EngineServer implements Server, EngineBridge {
     private volatile net.zaminmc.torch.server.concurrent.SimulationScheduler simulationScheduler;
     /** The Phase 3 compute lane: bounded workers over immutable snapshots. */
     private volatile net.zaminmc.torch.server.concurrent.ComputeSubsystem computeSubsystem;
+    /** The in-flight detached chunk generations (dedupe; the never-overwrite guard). */
+    private final java.util.Set<Long> pendingChunkGenerations =
+            java.util.concurrent.ConcurrentHashMap.newKeySet();
+    /** The callbacks waiting for each in-flight chunk generation. */
+    private final java.util.Map<Long, java.util.Queue<java.util.function.Consumer<EngineChunk>>>
+            pendingChunkLoads = new java.util.concurrent.ConcurrentHashMap<>();
     private BlockInteractionService blockInteraction;
     private ChatService chatService;
     private final CraftingService crafting = CraftingService.builtin();
@@ -524,26 +530,21 @@ public final class EngineServer implements Server, EngineBridge {
                 registerBuiltinCommands(dispatcher);
                 commands = dispatcher;
                 chatService = new ChatService(ticker, dispatcher, this::publishChat);
-                worldReady.countDown();
-                // The permanent architecture's Phase 1: the simulation loop
-                // runs inside a formal ownership domain (the design's
-                // "single-writer ownership domains" —
-                // docs/CONCURRENCY_ARCHITECTURE.md §2). The domain binds to
-                // this thread for the loop's whole run; every EngineWorld
-                // mutation asserts through it and every compute result
-                // validates against its generation.
+                // The permanent architecture's Phase 1-3 wiring completes
+                // BEFORE the readiness latch: the simulation domain (Phase
+                // 1 — every EngineWorld mutation asserts through it), the
+                // scheduler substrate (Phase 2 — the tick's deferred work),
+                // and the compute lane (Phase 3 — the offload pool). The
+                // engine's public surface is fully concurrent-ready the
+                // moment start() returns.
                 simulationDomain = net.zaminmc.torch.server.concurrent.OwnershipDomain
                         .create("simulation:" + config.worldName());
                 world.attachDomain(simulationDomain);
-                // The Phase 2 substrate: the tick's deferred work rides the
-                // bounded, ordered scheduler over the simulation domain (the
-                // design's §5 model, single-domain scope until Phase 4).
                 simulationScheduler = new net.zaminmc.torch.server.concurrent.SimulationScheduler();
                 ticker.attachScheduler(simulationScheduler, simulationDomain);
-                // The Phase 3 lane: the bounded compute pool over immutable
-                // snapshots; the tick's owner boundary drains and applies.
                 computeSubsystem = new net.zaminmc.torch.server.concurrent.ComputeSubsystem();
                 ticker.attachCompute(computeSubsystem, simulationDomain);
+                worldReady.countDown();
                 simulationDomain.enter();
                 try {
                     ticker.runLoop(); // blocks until stop
@@ -694,6 +695,11 @@ public final class EngineServer implements Server, EngineBridge {
      */
     public EngineTicker ticker() {
         return ticker;
+    }
+
+    /** The Phase 3 compute lane (public: the offload tests read its telemetry). */
+    public net.zaminmc.torch.server.concurrent.ComputeSubsystem computeSubsystem() {
+        return computeSubsystem;
     }
 
     /** The world's sign text registry (public: the wire's chunk replay reads it). */
@@ -7571,9 +7577,63 @@ public final class EngineServer implements Server, EngineBridge {
             onLoaded.accept(existing);
             return;
         }
-        ticker.submit(() -> {
-            EngineChunk chunk = world.getOrGenerate(position);
-            onLoaded.accept(chunk);
-        });
+        // The permanent architecture's first live offload (the design §13
+        // chunk contract): the detached terrain generation leaves the tick —
+        // the compute pool generates over the immutable input (the chunk
+        // position; the generator is a pure function of seed + coordinates),
+        // and the owner installs at its drain boundary. The pending maps
+        // deduplicate concurrent requests; a result for a chunk another path
+        // already published is discarded (never overwrite newer state); the
+        // installation and the callbacks run inside the owner's drain
+        // context (the design's §4 sequence: snapshot compute, validate,
+        // owner applies).
+        java.util.Queue<java.util.function.Consumer<EngineChunk>> callbacks =
+                pendingChunkLoads.computeIfAbsent(position.packed(),
+                        k -> new java.util.concurrent.ConcurrentLinkedQueue<>());
+        callbacks.add(onLoaded);
+        if (!pendingChunkGenerations.add(position.packed())) {
+            return; // a job is already in flight; this callback rides its install
+        }
+        if (computeSubsystem == null) {
+            // The no-compute boot shape (partial test engines): the legacy
+            // synchronous path on the tick thread.
+            pendingChunkGenerations.remove(position.packed());
+            pendingChunkLoads.remove(position.packed());
+            ticker.submit(() -> {
+                EngineChunk chunk = world.getOrGenerate(position);
+                onLoaded.accept(chunk);
+            });
+            return;
+        }
+        computeSubsystem.submit(simulationDomain, position, this::generateDetachedChunk,
+                (chunk, generation) -> installGeneratedChunk(position, chunk),
+                () -> {
+                    // The stale arm (an ownership transfer superseded the
+                    // snapshot): the in-flight marker clears so a retry can
+                    // regenerate; the waiting callbacks ride the next request
+                    // (the single-domain live run never transfers mid-run).
+                    pendingChunkGenerations.remove(position.packed());
+                });
+    }
+
+    /** The pure detached generation over the immutable input (compute-worker context). */
+    private EngineChunk generateDetachedChunk(net.zaminmc.torch.block.ChunkPosition position) {
+        EngineChunk chunk = new EngineChunk(position, world.airType());
+        world.generator().generate(chunk);
+        return chunk;
+    }
+
+    /** The owner-side install at the drain boundary: publish, then fire the callbacks. */
+    private void installGeneratedChunk(net.zaminmc.torch.block.ChunkPosition position,
+                                       EngineChunk chunk) {
+        pendingChunkGenerations.remove(position.packed());
+        java.util.Queue<java.util.function.Consumer<EngineChunk>> callbacks =
+                pendingChunkLoads.remove(position.packed());
+        EngineChunk installed = world.installGenerated(position, chunk);
+        if (callbacks != null) {
+            for (java.util.function.Consumer<EngineChunk> callback : callbacks) {
+                callback.accept(installed);
+            }
+        }
     }
 }
