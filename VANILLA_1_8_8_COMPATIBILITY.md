@@ -84,7 +84,7 @@ coverage is tracked per mechanic.
 | Bow (charge, damage curve, spread) | `ItemBow.java`, `EntityArrow.java` | projectile package | `RangedCombatAcceptanceTest` | IMPLEMENTED | — |
 | Projectiles (gravity 0.05, drag 0.99, hit rules) | `EntityArrow.java`, `EntityThrowable.java` | projectile package | ranged tests | IMPLEMENTED | — |
 | Armor mitigation (points, toughness-era absent in 1.8) | `LivingEntity.applyArmor` | armor paths | armor tests | IMPLEMENTED | — |
-| Enchantments (table, levels, EnchantmentHelper math) | `enchantment/*` (full package) | — | — | NOT INVESTIGATED | Slice 7 target |
+| Enchantments (registry, offer math, item storage) | `enchantment/Enchantment.java` (25 ids, weights, curves), `EnchantmentHelper.java` (buildEnchantmentList, getRequiredXpLevel, WeightedPicker), per-family subclasses | `server/enchantment/Enchantments` (registry + categories + enchantability), `server/enchantment/EnchantmentHelper` (ladders, offers, addRandomEnchantment, damage math), `ItemStack.enchantments` (the tag.ench storage) + `SlotNbt` ench wire encoding | `EnchantmentTest` (11: registry count/weights/caps, exact XP curves, compatibility conflicts, enchantability tiers incl. the shears' 0, seeded ladder rolls, window pools, book category, seeded offer determinism + pairwise compatibility, stack landing + merge identity, damage tables) | IMPLEMENTED | the enchanting TABLE window (bookshelf counts, window properties, the 0x06 enchant-item packet) is the next increment; effect hooks live only for the damage family (modifyDamage) — protection/efficiency/knockback/fire-aspect hooks land with their gameplay slices; the second-pick roll mapping uses id order where the reference walks Java-8 HashMap buckets (pool membership exact, seed-exact pick order not a compatibility target) |
 
 ## 7. Player systems
 
@@ -118,7 +118,7 @@ coverage is tracked per mechanic.
 
 - Redstone (wire, repeaters, comparators, pistons, observers-era absent) — the whole subsystem is untouched (`NOT INVESTIGATED`).
 - Potions, brewing, splash effects (`NOT INVESTIGATED`).
-- Enchanting (Slice 7 target, `NOT INVESTIGATED`).
+- Enchanting: the registry + offer math + item NBT storage landed (`IMPLEMENTED`); the table UI and the remaining effect hooks are the next increments.
 - Nether portals (Slice 8 target, `NOT INVESTIGATED`).
 - Leads (deferred from Slice 6, `NOT INVESTIGATED`).
 - Structures (villages, mineshafts, strongholds) beyond terrain decoration (`NOT INVESTIGATED`).

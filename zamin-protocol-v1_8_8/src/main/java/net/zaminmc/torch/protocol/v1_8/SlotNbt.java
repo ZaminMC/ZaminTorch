@@ -20,8 +20,10 @@ import io.netty.buffer.ByteBuf;
 final class SlotNbt {
 
     private static final byte TAG_END = 0;
+    private static final byte TAG_SHORT = 2;
     private static final byte TAG_COMPOUND = 10;
     private static final byte TAG_STRING = 8;
+    private static final byte TAG_LIST = 9;
 
     private SlotNbt() {
     }
@@ -31,21 +33,51 @@ final class SlotNbt {
         return displayName != null && !displayName.isEmpty();
     }
 
+    /** @return whether a stack carries any NBT the engine models (name or enchantments). */
+    static boolean hasPayload(net.zaminmc.torch.item.ItemStack stack) {
+        return hasPayload(stack.displayName())
+                || (stack.enchantments() != null && !stack.enchantments().isEmpty());
+    }
+
     /**
-     * Writes the full slot NBT for a named stack: the root TAG_Compound marker
+     * Writes the full slot NBT for a stack: the root TAG_Compound marker
      * (which doubles as the slot's "NBT present" signal) plus the payload
-     * {@code {display:{Name:"…"}}}.
+     * {@code {ench:[{id:short,lvl:short}...], display:{Name:"…"}}} — the
+     * enchantments first, the display after (vanilla NBT is a name-keyed
+     * map; the order is the engine's, the client reads either).
      */
-    static void writeNamed(ByteBuf out, String displayName) {
+    static void writeFor(ByteBuf out, net.zaminmc.torch.item.ItemStack stack) {
+        var enchantments = stack.enchantments();
+        boolean named = hasPayload(stack.displayName());
+        boolean enchanted = enchantments != null && !enchantments.isEmpty();
         out.writeByte(TAG_COMPOUND);   // the marker itself: root compound type
         out.writeShort(0);             // root name: empty
-        out.writeByte(TAG_COMPOUND);   // tag.display
-        writeShortString(out, "display");
-        {
-            out.writeByte(TAG_STRING); // tag.display.Name
-            writeShortString(out, "Name");
-            writeShortString(out, displayName);
-            out.writeByte(TAG_END);    // end of tag.display
+        if (enchanted) {
+            // tag.ench: a list of anonymous id/lvl compounds (the vanilla
+            // ItemStackench shape — list elements carry no name).
+            out.writeByte(TAG_LIST);
+            writeShortString(out, "ench");
+            out.writeByte(TAG_COMPOUND); // the element type
+            out.writeInt(enchantments.size());
+            for (var entry : enchantments.entrySet()) {
+                out.writeByte(TAG_SHORT);
+                writeShortString(out, "id");
+                out.writeShort(entry.getKey());
+                out.writeByte(TAG_SHORT);
+                writeShortString(out, "lvl");
+                out.writeShort(entry.getValue());
+                out.writeByte(TAG_END);    // end of the element compound
+            }
+        }
+        if (named) {
+            out.writeByte(TAG_COMPOUND); // tag.display
+            writeShortString(out, "display");
+            {
+                out.writeByte(TAG_STRING); // tag.display.Name
+                writeShortString(out, "Name");
+                writeShortString(out, stack.displayName());
+                out.writeByte(TAG_END);    // end of tag.display
+            }
         }
         out.writeByte(TAG_END);        // end of root
     }

@@ -33,9 +33,20 @@ the bottom. The behavior-level status of every mechanic lives in
 
 ## In progress
 
-- (none — Slice 6 landed; Slice 7 enchanting is next)
+- **Slice 7 — enchanting (part 1 landed)**: the registry + offer math +
+  item NBT storage are in; the table UI (bookshelf counts, window
+  properties, the enchant-item packet) and the remaining effect hooks are
+  the next increment.
 
 ## Landed since the ledger opened
+
+- **Slice 7a — enchantment registry + math + storage**: the 25-id registry
+  with the reference weights/curves/categories/enchantability (shears = 0,
+  the reference's silence honored), the seeded ladder/window/offer math
+  (EnchantmentHelper port), `ItemStack.enchantments` (the tag.ench slice,
+  merge identity extends), and the ench wire encoding in SlotNbt. 11 tests;
+  suite 477 green. Known gaps: table UI, effect hooks beyond the damage
+  family, seed-exact second-pick mapping (HashMap bucket order — ledgered).
 
 - **Slice 6 — breeding + donkey chest** (`be37243`, follow-ups): the love
   window (600 ticks, event-18 burst, damage clears, off-age clears), the
