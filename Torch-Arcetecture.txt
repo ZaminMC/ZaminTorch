@@ -1,0 +1,3947 @@
+# TORCH — Permanent Concurrency Architecture
+## Forensic Folia 26.2.x Analysis, Minestom Architecture Audit, and Multithreaded Engine Design
+
+You are acting as the principal systems architect, JVM concurrency engineer, Minecraft server engineer, and code archaeologist for **Torch**, an independent Minecraft Java server platform under the ZaminMC namespace.
+
+This is a foundational architecture assignment. Your decisions will guide the engine for years. Treat correctness, maintainability, vanilla mechanics, compatibility, and measurable performance as equally important engineering requirements.
+
+Do not reduce this assignment to adding an executor, increasing a thread count, or copying Folia's region scheduler.
+
+Your task is to understand the actual codebase, investigate Folia's implementation in the supplied `Folia-ver-26.2.x.zip` (https://github.com/ZaminMC/ZaminTorch/blob/develop/Folia-ver-26.2.x.zip), investigate the exact Minestom version Torch uses, and produce Torch's permanent concurrency architecture.
+
+**This phase is architecture and documentation only. Do not begin the implementation until the architecture has been reviewed and approved.**
+
+---
+
+# 1. Mission
+
+Design a concurrency architecture for Torch that can exploit multiple CPU cores safely and efficiently while preserving Minecraft gameplay semantics.
+
+Torch must not inherit a universal single-thread assumption. It must also not replace that assumption with unrestricted concurrent access to mutable world state.
+
+The architecture must establish:
+
+- Who owns every category of mutable game state.
+- Which thread contexts may read, calculate, and mutate that state.
+- How simulation work is scheduled, balanced, migrated, and cancelled.
+- How entities, blocks, chunks, redstone, physics, AI, and other systems interact across ownership boundaries.
+- How expensive work can execute in parallel without allowing workers to corrupt authoritative game state.
+- How heavily populated areas can use multiple cores without simply moving the single-thread bottleneck to a smaller region.
+- How global state and operations that affect multiple owners are coordinated.
+- How plugins, network events, persistence, world generation, and administration interact with the concurrency model.
+- How correctness is enforced, tested, measured, and maintained as the engine grows.
+
+The intended result is a documented, enforceable architecture that later implementation work can follow without repeatedly reinventing threading decisions.
+
+## The central objective
+
+Design Torch around **explicit state ownership, controlled mutation, parallel computation, and a scheduler that separates logical work from physical CPU threads**.
+
+Treat this as a design principle, not an excuse to assume every Minecraft system can be parallelized independently.
+
+A feature is not considered safely multithreaded merely because it runs on an executor.
+
+---
+
+# 2. Torch's identity and constraints
+
+Torch is independent server software. It is not a Folia fork, a Paper fork, or a project whose architecture should be defined by Bukkit compatibility.
+
+Inspect the actual repository to establish precisely how Minestom is used, which modules Torch owns, which features are inherited, which features are customized, and which architectural assumptions already exist.
+
+Do not assume Minestom's current threading implementation from memory or from an unrelated release. Identify the actual dependency version and inspect its matching implementation wherever possible.
+
+Follow these constraints:
+
+1. Do not copy Folia classes one-for-one or recreate its package structure under new names.
+2. Do not introduce one permanent operating-system thread per world, region, chunk, entity, or player.
+3. Do not make every field volatile, every collection concurrent, or every operation synchronized as a substitute for design.
+4. Do not assume a `ConcurrentHashMap` makes the mutable objects stored inside it thread-safe.
+5. Do not allow a worker to directly mutate state owned by another simulation owner.
+6. Do not solve cross-owner interactions by routinely blocking one owner while waiting for another.
+7. Do not force every game operation through one central coordinator.
+8. Do not impose a global barrier on all world regions every tick without proving it is necessary and evaluating its scalability.
+9. Do not silently drop vanilla behavior to avoid crossing an ownership boundary.
+10. Do not claim Torch exceeds Folia simply because it uses a different algorithm or more worker threads.
+11. Do not make speculative performance promises without measurements.
+12. Do not add an elaborate concurrent framework where a smaller, provably correct mechanism is sufficient.
+
+Torch should be designed to go beyond conventional region-based scheduling where the evidence justifies it. That ambition must never take priority over correctness.
+
+---
+
+# 3. Repository safety and working rules
+
+Before inspecting or changing anything:
+
+1. Confirm the repository root.
+2. Read `git status`, inspect the current branch, and identify existing local modifications and untracked files.
+3. Read the project's instructions, including applicable `AGENTS.md` files, build instructions, architecture documents, and conventions.
+4. Identify the current project modules, dependency versions, build system, test frameworks, and supported Java version.
+5. Preserve all pre-existing user work.
+6. Do not reset, clean, overwrite, or discard unrelated changes.
+7. Do not switch branches or update dependencies merely to make the analysis easier.
+8. Do not commit, push, or modify remote repositories.
+9. Keep this phase limited to inspection, architecture decisions, diagrams, decision records, and documentation.
+
+If an essential piece of source is missing, record that limitation. Do not fabricate code, class responsibilities, API behavior, benchmark results, or findings.
+
+You may use temporary files outside the repository for extracting and searching the supplied archive. Do not check extracted third-party source or a large generated source dump into the Torch repository.
+
+Do not ask the user to make decisions you can investigate from the code, documentation, or available evidence. When multiple viable designs remain, compare them and recommend one, clearly recording the trade-offs and unresolved evidence gaps.
+
+---
+
+# 4. Phase One: establish the actual Minestom baseline
+
+Before proposing new architecture, create an evidence-based map of Torch as it exists today.
+
+## 4.1 Identify the real dependency and execution model
+
+Inspect the dependency declarations and determine:
+
+- Which Minestom version or commit Torch uses.
+- Whether Torch uses an unmodified Minestom dependency, a fork, vendored code, patched code, or a combination.
+- Which Minestom modules and packages are used.
+- Which parts of the runtime Torch owns directly.
+- Whether any existing Torch code already introduces scheduling, threading, synchronization, or alternate execution contexts.
+- Which threading assumptions are inherited from Minestom and which are introduced by Torch.
+
+Locate and trace the real implementations of relevant classes. Depending on the version, investigate concepts and classes such as:
+
+- `ThreadDispatcher`
+- `ThreadProvider`
+- `Acquirable`
+- Entity ticking and entity management
+- Instance or world scheduling
+- Chunk and entity containers
+- Scheduled tasks and tick loops
+- Network packet handling
+- Chunk loading, generation, and storage
+- Global runtime state
+- Event dispatch and plugin callbacks
+
+These names are investigation targets, not proof that a particular class exists in the selected version. Find the actual code and its call sites.
+
+If only dependency bytecode is available, distinguish verified behavior from inferred behavior. Use matching source artifacts when available. Never silently substitute the latest upstream Minestom implementation for the version Torch actually uses.
+
+## 4.2 Trace execution paths, not just class names
+
+For every concurrency-critical feature, trace the full execution path:
+
+1. Where work originates.
+2. Which thread or executor receives it.
+3. How the target world, instance, entity, or chunk is selected.
+4. Where mutable state is read.
+5. Where mutable state changes.
+6. How cross-thread ownership is established or checked.
+7. How asynchronous work returns its results.
+8. What happens during cancellation, shutdown, failure, migration, or stale results.
+
+Identify the exact places where execution switches between thread contexts.
+
+A declaration or interface alone is insufficient evidence. Follow the call chain into the actual implementation.
+
+## 4.3 Produce a baseline report
+
+Document:
+
+- The current ownership model, if any.
+- The current execution model.
+- Existing safety guarantees.
+- Existing guarantees that are merely conventional rather than enforced.
+- Current sources of contention and serialization.
+- Any accidental coupling to a particular thread.
+- Existing APIs that make assumptions about synchronous execution.
+- Which concurrency changes would conflict with the current design.
+- Which features can be reused and which require architectural changes.
+
+Create a dependency and call-path diagram that shows the actual system.
+
+Do not declare Minestom incapable of a feature without identifying the code or limitation that supports that conclusion.
+
+---
+
+# 5. Phase Two: forensic analysis of the supplied Folia source
+
+Locate the supplied archive `Folia-ver-26.2.x.zip` (https://github.com/ZaminMC/ZaminTorch/blob/develop/Folia-ver-26.2.x.zip). Use the actual archive available in the workspace or attachment location; do not assume its location without checking.
+
+This archive is a patch-based Folia repository, not a fully expanded Minecraft/Paper source checkout. Its README describes the regional threading model, while `REGION_LOGIC.md` and `PROJECT_DESCRIPTION.md` point to external documentation.
+
+Read the local files and patches directly. If you consult online documentation, verify that it corresponds to the relevant Folia version and use it as supplementary context rather than a replacement for the supplied diffs.
+
+## 5.1 Required Folia files
+
+Analyze, at minimum:
+
+- `README.md`
+- `update.txt`
+- `REGION_LOGIC.md`
+- `PROJECT_DESCRIPTION.md`
+- `folia-server/minecraft-patches/features/0001-Region-Threading-Base.patch`
+- `folia-server/paper-patches/features/0001-Region-Threading-Base.patch`
+- `folia-api/paper-patches/features/0002-Region-scheduler-API.patch`
+- `folia-api/paper-patches/features/0003-Require-plugins-to-be-explicitly-marked-as-Folia-sup.patch`
+- `folia-api/paper-patches/features/0004-Add-TPS-From-Region.patch`
+- All remaining region-threading-related feature patches in the archive.
+
+In particular, inspect the separate patches involving:
+
+- Pending logins and chunk throughput.
+- Block updates in unloaded or non-owned chunks.
+- World-generation reads of in-world block entities.
+- Vehicle and player position synchronization.
+- Region profiling.
+- Watchdog behavior.
+- Teleporting passengers and handling cross-region teleports.
+
+These are important because they illustrate the practical complications of introducing regional ownership into existing gameplay code.
+
+## 5.2 Class-by-class inventory: mandatory
+
+The region-threading base patches touch approximately 200 Minecraft-side source paths and 200 Paper-side source paths. Enumerate the actual paths from the archive instead of relying on those approximate counts.
+
+Create a complete inventory of every Java source path modified by the relevant base patches. Do not read only the scheduler classes and declare the investigation complete.
+
+For **every modified Java source path**, record:
+
+- Fully qualified class or source-file identity.
+- Patch file and relevant hunk or method.
+- Original behavior relevant to concurrency.
+- What Folia changes.
+- Why that change appears necessary, based on the diff and surrounding implementation.
+- Which ownership boundary or execution context is involved.
+- Whether the change is enforcement, synchronization, scheduling, data isolation, behavior adaptation, performance instrumentation, lifecycle handling, or another concern.
+- What regression or race the change appears intended to prevent.
+- Relevance to Torch.
+- Recommendation: **Adopt the principle, Adapt the principle, Avoid the approach, or Not applicable**.
+- Evidence and uncertainty.
+
+Group low-risk or repetitive changes into useful tables, but preserve a traceable entry for every modified source path.
+
+For concurrency-critical classes and mechanics, go deeper and explain the method-level control flow. Never let a summary table replace the detailed analysis of the engine's most important execution paths.
+
+Where the patch alone does not establish why a design decision was made, say so. Clearly distinguish an explicit patch explanation from your own inference.
+
+## 5.3 Investigate these Folia subsystems in depth
+
+Use the exact paths present in the archive. Important investigation targets include the following.
+
+### A. Regionization and ownership
+
+Investigate:
+
+- `ThreadedRegionizer`
+- `TickRegions`
+- `RegionizedServer`
+- `RegionizedWorldData`
+- `RegionizedData`
+
+Determine how regions are represented, how chunk membership is tracked, and how the system manages ownership as the spatial structure changes.
+
+Trace region creation, merging, splitting, ownership reassignment, and the publication of updated state.
+
+Identify whether any operation requires draining, temporary exclusion, synchronization, ownership transfer, or changes to region task scheduling.
+
+### B. Tick scheduling
+
+Investigate:
+
+- `TickRegionScheduler`
+- `RegionizedTaskQueue`
+- `FoliaRegionScheduler`
+- `EntityScheduler`
+- `TickThread`
+
+Trace how tick work becomes runnable, how it obtains the appropriate execution context, how task priorities and delays are handled, and how the scheduler identifies violations.
+
+Explain what is logically owned by a region versus what belongs to a physical worker thread.
+
+Investigate how the implementation behaves when a task takes too long, a region is idle, multiple regions compete for CPU time, or a region changes ownership.
+
+### C. Chunk and world state
+
+Investigate the region-threading changes in:
+
+- `ServerLevel`
+- `ChunkMap`
+- `ServerChunkCache`
+- `ChunkHolderManager`
+- `ChunkTaskScheduler`
+- `NewChunkHolder`
+- `RegionizedPlayerChunkLoader`
+- World-generation and chunk-access classes touched by the patches.
+
+Identify the difference between chunk ownership, chunk availability, asynchronous loading, generation, saving, and permission to mutate authoritative world state.
+
+Determine how Folia avoids unsafe access to data that is outside the current region or not loaded.
+
+### D. Block updates and vanilla mechanics
+
+Study the changed files associated with:
+
+- `Level`
+- `CollectingNeighborUpdater`
+- `RedStoneWireBlock`
+- `RedstoneWireTurbo`
+- `RedstoneTorchBlock`
+- `DetectorRailBlock`
+- `PoweredRailBlock`
+- `TripWireBlock`
+- `TripWireHookBlock`
+- Pistons, block entities, hoppers, and other affected mechanics.
+
+Investigate how neighbor updates propagate across chunks and regions. Identify where Folia restricts, skips, defers, or otherwise changes operations that cross ownership boundaries.
+
+For every case, distinguish between:
+
+1. Preventing an unsafe access.
+2. Preserving the mechanic through a coordinated operation.
+3. Deliberately limiting behavior at a boundary.
+4. Avoiding unloaded data.
+
+Do not assume these are interchangeable.
+
+Torch should not casually adopt a boundary restriction that prevents a thread violation if doing so silently changes gameplay. Determine how Torch can perform the same interaction through explicit messages, transactions, ownership transfers, or another sound protocol.
+
+### E. Entity lifecycle, physics, and movement
+
+Investigate changed entity, collision, vehicle, passenger, player-list, teleport, and entity-tracking code.
+
+Trace:
+
+- Entity creation and removal.
+- Movement into another partition.
+- Entity/chunk association.
+- Collision and entity interaction.
+- Damage and projectile impacts.
+- Vehicle/passenger groups.
+- Teleport, respawn, and world transfer.
+- Player login and logout.
+- Position and movement synchronization.
+
+Identify the exact assumptions made about the current owner throughout each operation.
+
+### F. Global state and API compatibility
+
+Investigate commands, events, scheduler APIs, scoreboards, game-wide state, and Paper/Bukkit integration points touched by the patches.
+
+Identify operations that cannot naturally be owned by a spatial region and how Folia routes or constrains them.
+
+Pay attention to global state that can accidentally become a serialized bottleneck or an unsafe cross-thread dependency.
+
+### G. Observability and lifecycle
+
+Investigate:
+
+- `RegionizedProfiler`
+- Region-level profiling changes.
+- Watchdog additions.
+- Thread-context validation.
+- Chunk-system throughput instrumentation.
+- Shutdown handling and related classes.
+
+Determine how the runtime detects a stalled region, a long-running task, invalid thread access, or a system under pressure.
+
+Torch should learn from these operational lessons, not just from the scheduler's happy path.
+
+## 5.4 Summarize Folia accurately
+
+Produce a concise architecture summary supported by the source:
+
+- What Folia's independent regions represent.
+- How region ticking is scheduled.
+- How region ownership and spatial changes are handled.
+- Which types of operations remain asynchronous or use other workers.
+- What assumptions plugins must follow.
+- Which kinds of cross-region operations are difficult.
+- What restrictions or behavior adaptations appear in the supplied patches.
+- Which bottlenecks could remain in a region-based model.
+
+Folia's README describes independent regional tick loops scheduled in parallel through a configurable thread pool, with no traditional global main thread for all world simulation. Verify the actual implementation and qualify that description as necessary.
+
+The goal is not to criticize Folia or prove Torch is superior. The goal is to extract tested engineering principles, identify trade-offs, and design the best architecture for Torch's requirements.
+
+---
+
+# 6. Phase Three: define Torch's concurrency vocabulary
+
+Before selecting algorithms or class designs, establish precise definitions.
+
+The documentation must distinguish all of the following:
+
+- **Physical worker:** an actual JVM execution thread.
+- **Executor or worker pool:** the mechanism that runs eligible work.
+- **Ownership domain:** the logical scope allowed to mutate a particular set of state.
+- **Spatial partition:** a division of world space used to organize work and data.
+- **Simulation task:** a unit of work that advances authoritative game state.
+- **Compute task:** a unit of work that calculates a result without directly mutating authoritative state.
+- **Service task:** I/O, persistence, compression, network handling, or another supporting operation.
+- **Tick:** the logical progression of game simulation, which must not be confused with a worker task or a wall-clock timer.
+- **Tick epoch:** a defined scheduling or coordination interval, if the selected architecture requires one.
+- **Snapshot:** a consistent, explicitly bounded view of state made available for computation or observation.
+- **Intent or command:** a proposed mutation that must be validated and applied by the appropriate owner.
+- **Ownership token or execution context:** a verifiable indication that a task has permission to operate on a given scope.
+- **Migration:** a controlled reassignment of ownership, state, or an entity between execution domains.
+- **Cross-owner interaction:** an operation that reads from or affects state owned by more than one domain.
+
+Define additional terminology when needed. Do not use “thread,” “region,” “worker,” and “owner” interchangeably.
+
+Include a glossary and a set of invariants that every future contributor can understand.
+
+---
+
+# 7. Phase Four: propose the permanent architecture
+
+Design Torch's architecture from the actual baseline and the Folia investigation.
+
+The following are the minimum concepts that must be evaluated. They are requirements for the analysis, not permission to assume a particular implementation will work without proof.
+
+## 7.1 Separate logical ownership from physical execution
+
+Torch must have a clear distinction between:
+
+1. The logical unit of mutable state.
+2. The worker that executes an eligible task.
+3. The pool or scheduling mechanism that supplies workers.
+4. The lifecycle mechanism that transfers ownership.
+
+A logical ownership domain should not depend on permanently owning one OS thread.
+
+Evaluate a design in which eligible work can move between workers while ownership rules remain valid.
+
+The architecture must answer:
+
+- Can several independent owners progress simultaneously?
+- Can a busy owner monopolize a worker indefinitely?
+- Can an idle owner stop consuming tick resources?
+- How can tasks be scheduled fairly?
+- What happens when workloads change dramatically?
+- How do we avoid excessive task creation, queueing overhead, and context switching?
+- Which operations must remain serialized within an owner?
+- What prevents two workers from executing conflicting writes to the same state?
+
+Compare work stealing, work sharing, ready-task queues, partition-affine queues, and other plausible approaches against Torch's workload. Recommend the smallest system that satisfies the measured requirements.
+
+Do not choose a scheduler merely because it is fashionable.
+
+## 7.2 Establish one authoritative writer for mutable state
+
+Define the authoritative owner for every important category of mutable state.
+
+At minimum, provide an ownership table covering:
+
+| State category | Required decision |
+| --- | --- |
+| Entity lifecycle and mutable entity state | Define owner and transfer semantics |
+| Entity movement, collision, and damage | Define read/write ownership and interaction protocol |
+| Chunk contents and block state | Define authoritative mutation ownership |
+| Block entities and inventories | Define ownership and cross-boundary behavior |
+| Neighbor updates and redstone state | Define ownership and propagation |
+| Scheduled block and fluid ticks | Define scheduler ownership and ordering |
+| Chunk membership and entity indexing | Define consistent publication and updates |
+| Entity tracking and replication | Define authority and observation model |
+| AI state and navigation | Define authoritative state versus off-thread calculation |
+| Chunk loading and world generation | Define worker access limits and result publication |
+| Lighting and derived chunk data | Define parallelism and invalidation |
+| World metadata, time, weather, and game rules | Define global or partitioned ownership |
+| Scoreboards, teams, and other global registries | Define concurrency and bottleneck strategy |
+| Player inventory, menus, and player state | Define ownership during normal play and transfers |
+| Plugin-owned data | Define guarantees and compatibility contract |
+| Persistence and snapshots | Define consistency and save semantics |
+| Network connections and packet state | Define event handoff and thread-safe output |
+| Server lifecycle and configuration | Define the coordinator and shutdown model |
+
+For each category, identify whether it is:
+
+- Exclusively mutable by an owner.
+- Immutable after publication.
+- Concurrently readable under a defined rule.
+- Modified through messages or intents.
+- Coordinated by a transaction.
+- Protected by a synchronization primitive, with justification.
+
+Avoid unnecessary categories of unrestricted concurrent mutable state.
+
+Ownership must be enforced in the design rather than existing only as documentation.
+
+## 7.3 Define ownership enforcement
+
+Design the mechanism by which the engine establishes and validates current ownership.
+
+Consider:
+
+- Ownership identities.
+- Ownership generations or epochs.
+- Current execution context.
+- Entity and position ownership checks.
+- Safe ownership transfer.
+- Stale-task detection.
+- Debug and production behavior.
+- The overhead of checks in hot paths.
+
+An old task must not gain access simply because it retained a reference after an ownership change.
+
+Specify what happens when code accesses a resource it does not own. The default should be an explicit, diagnosable failure or a deliberate safe handoff, not silent corruption.
+
+Do not invent a security guarantee from a Java object reference or a thread name.
+
+The final architecture must clearly distinguish safe cross-thread observation from permission to mutate.
+
+---
+
+# 8. The key challenge: go beyond a simple regional tick scheduler
+
+Torch's ambition is to use multicore hardware more effectively than a model that makes the entire heavily populated region one indivisible simulation job.
+
+That does not mean splitting arbitrary Minecraft operations across threads and hoping they work.
+
+Design and compare at least these levels of parallelism.
+
+## Level A: independent ownership domains
+
+Independent portions of the world can progress in parallel because each has its own mutable state and execution constraints.
+
+This is the foundational model.
+
+Specify the spatial partitioning scheme, its ownership boundaries, and how the scheduler discovers runnable work.
+
+## Level B: parallel supporting computation
+
+Move expensive calculations into appropriate worker pools where possible, including:
+
+- Pathfinding.
+- AI planning.
+- Navigation calculations.
+- Chunk generation.
+- Structure generation.
+- Lighting calculations.
+- Serialization.
+- Compression.
+- Persistence preparation.
+- Other demonstrably separable work.
+
+Do not assume every named operation can immediately be moved off-thread. Identify its inputs, mutable dependencies, output, and publication protocol.
+
+The worker should normally operate on a bounded snapshot or immutable inputs and return a result. The authoritative owner validates that result before applying any changes to live state.
+
+## Level C: parallel work within a heavily loaded ownership domain
+
+This is the critical research task.
+
+A densely populated region can become a bottleneck if its entire simulation must execute serially.
+
+Investigate whether Torch can safely parallelize selected work within one logical ownership domain through combinations of:
+
+- Immutable snapshots.
+- Read/write access declarations.
+- Disjoint write sets.
+- Independent entity calculations.
+- Deferred mutation intents.
+- Version validation.
+- Conflict detection.
+- Deterministic commit phases.
+- Safe cancellation and recomputation.
+- Bounded rebalancing of eligible tasks.
+
+Do not assume these mechanisms are automatically sufficient.
+
+For each candidate, explain how its algorithm interacts with the order-dependent nature of Minecraft simulation.
+
+For example, two mob updates may independently calculate movement from the same snapshot but then attempt to occupy or collide with overlapping space. Two AI computations may have results based on a target that moved while the computation was running. A block update may invalidate a path, collision result, or redstone computation.
+
+Your proposal must account for these conflicts.
+
+### Required rule
+
+**Parallel calculation does not grant parallel mutation rights.**
+
+When an operation returns a result, its application must have a defined authority, validation rule, ordering rule, and failure behavior.
+
+Compare at least two implementation strategies for heavy-domain parallelism:
+
+1. Parallel computation with serialized authoritative mutation.
+2. Conflict-aware parallel execution over genuinely independent mutable state.
+
+Explain what each strategy can parallelize, what it cannot safely parallelize, and where its overhead becomes worthwhile.
+
+If a proposed form of intra-domain parallelism cannot yet preserve the required gameplay semantics, classify it as future research rather than pretending it is solved.
+
+Torch should first achieve a correct, measured foundation and expand the safe parallel execution surface incrementally.
+
+---
+
+# 9. Regionization and dynamic load balancing
+
+Design how world space maps to logical ownership units.
+
+Do not decide that a “region” must be a fixed collection of chunks merely because Folia uses regions.
+
+Compare sensible models, including:
+
+- Fixed-size spatial shards.
+- Dynamically merged or split spatial domains.
+- Chunk-based ownership.
+- Region-based ownership.
+- Hierarchical ownership in which coarse spatial partitions contain smaller independently scheduled tasks.
+- Hybrid approaches.
+
+Evaluate their memory overhead, scheduling overhead, load balance, boundary frequency, and gameplay correctness.
+
+The design must explicitly answer:
+
+- How is the initial ownership map built?
+- How are chunks assigned to owners?
+- How do entity ownership and chunk ownership interact?
+- What happens near the boundary between domains?
+- When is splitting useful?
+- When is merging useful?
+- What measurements justify a split or merge?
+- How is oscillation between split and merge prevented?
+- Can ownership change while tasks are queued?
+- What happens to delayed work during migration?
+- What happens to references or messages created under the old ownership generation?
+- How are in-flight computation results invalidated?
+- How can migration occur without two simultaneous authoritative writers?
+
+Design the migration protocol before designing automatic load balancing.
+
+The scheduler must be free to assign eligible work to different physical workers. However, no worker reassignment may violate logical ownership or create simultaneous conflicting writers.
+
+Do not add dynamic region migration solely as a theoretical feature. Propose initial conservative behavior and define evidence-based conditions for enabling more aggressive balancing.
+
+---
+
+# 10. Cross-owner interaction protocol
+
+This section is mandatory and central to the design.
+
+Minecraft mechanics frequently involve multiple blocks, entities, chunks, and owners. A concurrency architecture that handles ordinary movement but fails on boundary interactions is not complete.
+
+Define a common protocol for cross-owner requests and then specify where individual systems need stronger coordination.
+
+## 10.1 General protocol
+
+For a cross-owner operation, document:
+
+1. The originating owner.
+2. The target owner or owners.
+3. The message or command being transferred.
+4. The information included in the request.
+5. The version or ownership generation against which it was created.
+6. The validation performed by the receiving owner.
+7. Who authorizes the mutation.
+8. How the result returns to the initiating system.
+9. What happens if the target changes state before the request arrives.
+10. What happens if ownership changes while the operation is in flight.
+11. How duplicate delivery is prevented or made harmless.
+12. How failure, cancellation, and shutdown are handled.
+13. How ordering guarantees are preserved.
+14. How message queues and latency are bounded.
+
+A one-way message should be the default when it can express the gameplay operation correctly.
+
+Use asynchronous multi-owner coordination when atomicity genuinely requires it.
+
+## 10.2 Hard prohibitions
+
+Do not create routine dependency cycles in which owner A synchronously waits for owner B while owner B waits for owner A.
+
+Do not block simulation workers on `Future.get()`, `join()`, latches, or locks whose progress depends on work running on the same saturated pool.
+
+Do not perform implicit synchronous thread hopping deep inside common gameplay methods.
+
+Do not assume a timeout means a gameplay transaction can simply be discarded.
+
+Document how the system detects and avoids deadlocks, starvation, queue saturation, and transactions that are stuck waiting for an owner.
+
+## 10.3 Required mechanics analysis
+
+Specify ownership and boundary behavior for each of the following:
+
+- Ordinary entity movement across a partition.
+- Player movement and server-authoritative corrections.
+- Entity collisions and knockback.
+- Damage between entities in separate partitions.
+- Projectile movement and impacts.
+- Entity spawning, death, removal, and replacement.
+- Vehicles, passengers, leashes, and related entity groups.
+- Teleports between positions in the same owner, separate owners, and separate worlds.
+- Respawn and player world transfer.
+- Block placement, breaking, and interaction.
+- Neighbor updates, including observers and comparators.
+- Redstone wire propagation, torches, repeaters, rails, and long-distance update chains.
+- Pistons and multi-block movement.
+- Fluids and cascading updates.
+- Explosions and area effects spanning multiple domains.
+- Hoppers, inventories, block entities, and transfers between containers.
+- Mob pathfinding and target selection across boundaries.
+- Villagers and point-of-interest systems.
+- Chunk unloads, reloads, and entity transfers around those operations.
+- Entity tracking and packet replication.
+- Player lists, chat, scoreboards, teams, and global game state.
+
+For each feature, state whether the initial architecture supports it directly, coordinates it through messages, requires a transaction, needs a snapshot, or must initially execute under a larger exclusive ownership scope.
+
+Do not silently alter vanilla mechanics as a convenient solution to a concurrency problem.
+
+Where behavior cannot be preserved cheaply or safely, document the exact limitation and recommend a staged approach.
+
+---
+
+# 11. Tick semantics and scheduling guarantees
+
+Choose an explicit model for simulation time.
+
+Folia's regional tick loops are not simply a single main-thread loop divided into simultaneous substeps. Torch must define its own timing and coordination rules.
+
+Compare:
+
+- One global tick epoch for the world.
+- Independently progressing ownership domains.
+- A hybrid with locally scheduled simulation and explicit global coordination.
+
+For each alternative, analyze synchronization cost, lag isolation, cross-boundary semantics, global time, scheduler behavior, and gameplay ordering.
+
+Recommend one and explain why.
+
+The architecture must define:
+
+- What the nominal tick period means.
+- Whether 20 TPS is a target, a hard guarantee, or both under different circumstances.
+- How an overloaded owner behaves.
+- Whether an owner is allowed to run behind independently.
+- Whether simulation time can diverge across domains and how that affects mechanics.
+- The distinction between simulation time, wall-clock time, and asynchronous completion time.
+- How delayed tasks behave when an owner is stalled.
+- The ordering of input, entity updates, block ticks, physics, scheduled tasks, and replication.
+- Whether each order is globally defined, domain-local, or system-specific.
+- How changing execution order is evaluated against vanilla compatibility.
+
+Do not force expensive barriers between all domains unless measurements and semantics justify them.
+
+Do not hide tick starvation by reporting only average TPS.
+
+Define per-owner and system-level latency metrics so a single overloaded area cannot disappear inside healthy aggregate statistics.
+
+---
+
+# 12. Parallel compute subsystem
+
+Design a clearly separated computation system.
+
+Workers may perform expensive calculations concurrently, but they must not acquire unrestricted authority over live world state.
+
+For each off-thread computation, specify its contract:
+
+- Immutable input.
+- Snapshot creation or acquisition.
+- Snapshot lifetime and memory cost.
+- Input versioning.
+- Calculation deadline or cancellation policy.
+- Result type.
+- Validation requirements.
+- Publication mechanism.
+- Owner responsible for applying the result.
+- Behavior if the result is stale.
+- Backpressure and admission policy.
+
+The result path must never require a blocked simulation owner to wait for an overloaded compute pool while that pool waits for the simulation owner.
+
+Evaluate separate bounded pools or scheduling classes for:
+
+- CPU-intensive world computation.
+- Blocking storage and filesystem work.
+- Network processing.
+- Serialization and compression.
+- Other tasks discovered in the audit.
+
+Avoid both extremes: one global pool in which blocking I/O can starve simulation, and an uncontrolled collection of executors whose combined thread counts oversubscribe the machine.
+
+Use the project's actual JVM and build constraints when selecting implementation techniques.
+
+The design should be able to account for container CPU limits, hardware concurrency, background services, and garbage-collection threads without assuming every reported logical CPU is available for ticking.
+
+---
+
+# 13. Network, storage, and world-generation boundaries
+
+Audit how external inputs enter the simulation and how results leave it.
+
+## Network
+
+Establish a rule for inbound packets:
+
+- Decode and validate packets in appropriate networking contexts.
+- Convert gameplay operations into commands or messages for the authoritative owner.
+- Ensure packet arrival does not imply permission to mutate game state on the networking thread.
+- Ensure outbound packets have a safe publication and ordering contract.
+- Handle disconnects and stale player/entity references without races.
+
+Do not assume all network processing belongs on simulation workers.
+
+## Chunk loading and generation
+
+Separate asynchronous data acquisition and generation from publication into live world state.
+
+Establish rules for:
+
+- Generation input snapshots.
+- Random seeds and reproducibility.
+- Structure generation.
+- Lighting and derived data.
+- Chunk installation.
+- Entity and block-entity reconstruction.
+- Cancellation.
+- Chunk unload while work is in flight.
+- Version validation.
+- Save/load races.
+- Failure and retry behavior.
+
+An off-thread result must not overwrite newer authoritative state simply because it finishes later.
+
+## Persistence
+
+Determine how a consistent save snapshot is produced without blocking all simulation.
+
+Evaluate immutable snapshots, owner-generated save data, versioned persistence, and other suitable mechanisms against the actual existing code.
+
+Define behavior for:
+
+- Dirty chunks.
+- Concurrent changes during saving.
+- Server shutdown.
+- Forced saves.
+- Save failures.
+- World unload.
+- Recovery after partial work.
+
+Do not claim crash consistency without analyzing the actual storage protocol.
+
+---
+
+# 14. Plugin and extension compatibility
+
+Torch must explicitly decide how its concurrency model affects plugin authors.
+
+Inspect the existing plugin or extension API before recommending changes.
+
+The architecture must distinguish:
+
+- Operations that run within an entity's owner context.
+- Operations that run within a spatial owner's context.
+- Operations that run in a global coordination context.
+- Asynchronous computation callbacks.
+- External I/O tasks.
+- Explicitly coordinated operations that cross ownership domains.
+
+Determine whether ordinary plugin callbacks can assume exclusive access to their current owner's mutable game state.
+
+Define how a plugin should request work for another owner, schedule a task against an entity, schedule a location-based task, or perform a long-running calculation.
+
+Specify:
+
+- Context-aware scheduling API contracts.
+- Safe cross-owner APIs.
+- Ownership checks and error messages.
+- Callback cancellation and shutdown semantics.
+- How plugin data is treated.
+- What happens when a plugin uses mutable shared state.
+- What compatibility guarantees Torch can honestly offer.
+- Which existing APIs would be preserved, adapted, deprecated, or rejected.
+
+Do not promise that plugins compatible with Minestom are automatically safe under a new execution model.
+
+Do not make every callback asynchronous in the name of scalability.
+
+Favor a small, understandable public API that exposes the ownership contract instead of exposing the entire internal scheduling implementation.
+
+Do not add API classes before examining the existing API and establishing the architectural need.
+
+---
+
+# 15. Safety and enforceability
+
+The design must contain an enforcement plan.
+
+A concurrency contract that depends entirely on every developer remembering the rules is insufficient.
+
+Investigate and compare:
+
+- Owner-context assertions.
+- Ownership tokens and generations.
+- Runtime thread-context checks.
+- Mutable access guards.
+- Debug-build checks.
+- Development-mode diagnostics.
+- Instrumentation around unsafe handoffs.
+- Static analysis or test-time enforcement where practical.
+- Explicit immutable DTOs for cross-thread transfer.
+
+State precisely where assertions must be inserted during eventual implementation.
+
+Identify likely dangerous patterns, including:
+
+- Reading a live entity from an unrelated thread.
+- Mutating a block outside its owner's context.
+- Retaining mutable references after transfer.
+- Returning a mutable collection from an owner-owned object.
+- Scheduling work against an owner that is shutting down.
+- Publishing a partially initialized entity or chunk.
+- Applying an old computation result after world state changed.
+- Blocking while waiting for another owner.
+- Re-entering a scheduler in a way that causes lock inversion or deadlock.
+
+Do not mistake object immutability at the top level for immutability of nested data.
+
+Do not rely exclusively on Java `volatile`, synchronized methods, concurrent collections, or thread names. Each has a specific purpose, and none replaces a coherent ownership model.
+
+---
+
+# 16. Determinism, ordering, and gameplay correctness
+
+Multithreading can change the order in which work executes. Minecraft mechanics may be sensitive to that order.
+
+Establish the required determinism contract explicitly.
+
+Determine what Torch must guarantee within an owner and across ownership domains.
+
+For example:
+
+- Stable event ordering for a single authoritative state transition.
+- Defined ordering for tasks scheduled for the same logical deadline.
+- Defined priority and cancellation behavior.
+- No duplicate entity creation or removal due to retries.
+- No lost block updates due to queue overflow.
+- Defined conflict resolution.
+- Defined handling for competing damage or movement operations.
+- Safe random number generation without accidental shared mutable random state.
+- Defined ID allocation and publication.
+- Predictable behavior for replayable test scenarios where achievable.
+
+Distinguish deterministic game logic from deterministic physical thread assignment. The latter is not required if authoritative results are correct.
+
+For randomized systems, establish a defensible random-state ownership model. Do not introduce a single global random generator that becomes a lock bottleneck.
+
+Any design based on stale snapshots must specify how conflicts are rejected, merged, recomputed, or otherwise resolved.
+
+Correctness must not depend on an arbitrary worker winning a race.
+
+---
+
+# 17. Performance, workload balancing, and observability
+
+Torch should expose enough runtime information to determine whether multithreading actually helps.
+
+Design the minimum useful telemetry before implementing the scheduler.
+
+Include:
+
+- Total simulation CPU time.
+- Per-owner and per-system execution time.
+- Tick scheduling latency.
+- Tick completion time.
+- Queue depth and queue waiting time.
+- Slow and stalled owners.
+- Worker utilization and idle time.
+- Per-pool saturation.
+- Cross-owner message rates and latency.
+- Ownership migrations and their cost.
+- Time spent in coordination or conflict resolution.
+- Snapshot creation and validation overhead.
+- Chunk generation, load, and save throughput.
+- Failed, stale, cancelled, and retried tasks.
+- Memory overhead attributable to the concurrency architecture.
+- Global coordination bottlenecks.
+- Lock contention where locks are deliberately used.
+
+Define a small number of core metrics and clear ways to inspect them, such as logs, administrative commands, profiling output, or the existing observability system.
+
+Do not add a large metrics stack without investigating Torch's current infrastructure.
+
+Do not assume that maximizing CPU utilization is the goal. High utilization with excessive queue latency or broken 20 TPS simulation is not success.
+
+A valid performance comparison must distinguish:
+
+- One heavily populated area.
+- Many spatially distributed players.
+- Many entities in one ownership domain.
+- Heavy redstone and block-entity activity.
+- Chunk-generation load.
+- Mixed I/O and simulation pressure.
+- Cross-domain activity.
+- A nearly idle server.
+
+Recommend benchmarks representative of each workload and establish a reproducible baseline before making claims about improvements.
+
+---
+
+# 18. Required correctness tests
+
+Produce a testing strategy that demonstrates both safety and gameplay behavior.
+
+Do not merely recommend generic concurrency stress tests. Specify concrete scenarios, expected invariants, and failure detection.
+
+Include at least the following categories.
+
+## Ownership tests
+
+- Concurrent attempts to mutate the same owner-owned resource.
+- Access from the wrong owner.
+- Stale ownership tokens.
+- Ownership migration with queued tasks.
+- Shutdown while tasks are in flight.
+- Cancellation and delayed execution.
+
+## Cross-boundary mechanics tests
+
+- Entity movement across a boundary while interacting with another entity.
+- Projectiles crossing a boundary and hitting a target.
+- Knockback and damage spanning domains.
+- Vehicles carrying passengers through an ownership transfer.
+- Teleports between same-owner, different-owner, and different-world destinations.
+- Block updates propagating across boundaries.
+- Long redstone lines spanning multiple ownership domains.
+- Pistons moving blocks across boundaries.
+- Fluids and other cascading updates.
+- Explosions spanning multiple owners.
+- Hoppers transferring items between containers with different owners.
+- Chunk unload and reload while operations are pending.
+
+## Scheduling and load tests
+
+- One overloaded owner alongside several idle owners.
+- Many small independent owners.
+- A single very busy area.
+- Queue saturation.
+- Compute-pool starvation.
+- Blocking I/O under heavy load.
+- Repeated owner splitting and merging.
+- Migration while messages and computations are in flight.
+- Shutdown with queued and running tasks.
+
+## Correctness properties
+
+Where practical, compare outcomes against a simpler authoritative implementation or a sequential reference mode for precisely defined scenarios.
+
+Where exact state equivalence is not a valid guarantee, define the invariants that must hold.
+
+Test for:
+
+- Lost updates.
+- Duplicate operations.
+- Invalid ownership.
+- Data races.
+- Deadlocks.
+- Starvation.
+- Incorrect task ordering.
+- Stale-result application.
+- Entity duplication or disappearance.
+- Inventory duplication or loss.
+- Unbounded queues.
+- Resource leaks.
+- Violated vanilla mechanics.
+
+Identify which properties can be unit tested, integration tested, stress tested, or tested using an instrumented runtime.
+
+Recommend suitable tools that fit the actual build system rather than adding dependencies without justification.
+
+---
+
+# 19. Architecture decisions and proposed module boundaries
+
+After the investigation, recommend a concrete architecture for Torch.
+
+Do not begin with class names and then invent responsibilities to fit them. Derive the responsibilities first, then propose classes and packages that follow the existing project conventions.
+
+At minimum, the architecture must explain the responsibilities and interfaces of the following conceptual components.
+
+### Ownership and world partitioning
+
+- Ownership identity and execution context.
+- World spatial partitioning.
+- Owner membership and migration.
+- Ownership validation.
+- Authoritative state access.
+
+### Scheduling
+
+- Runnable simulation work.
+- Physical worker management.
+- Fairness and scheduling policy.
+- Task priorities and deadlines.
+- Delayed tasks and cancellation.
+- Backpressure and overload behavior.
+- Shutdown and failure handling.
+
+### Cross-owner communication
+
+- Message envelopes.
+- Request and result types.
+- Ownership generations.
+- Routing.
+- Transaction coordination where necessary.
+- Duplicate handling and retries.
+- Queue limits and diagnostics.
+
+### Parallel computation
+
+- Snapshot creation.
+- Compute-task inputs and outputs.
+- Validation of stale results.
+- Result publication.
+- Cancellation.
+- Workload isolation and admission control.
+
+### Runtime integration
+
+- Entity and chunk ownership.
+- Tick progression.
+- Network-to-owner handoff.
+- World generation and persistence.
+- Plugin callbacks and scheduler interfaces.
+- Profiling, metrics, and diagnostics.
+
+Produce a component dependency diagram and at least one sequence diagram for each critical lifecycle:
+
+1. Normal entity ticking.
+2. A pathfinding task returning to its owner.
+3. An entity crossing an ownership boundary.
+4. A block update crossing a boundary.
+5. Ownership migration while tasks are pending.
+6. A save operation during continued simulation.
+
+Show which components may call each other and which dependencies are forbidden.
+
+If a single class would contain several unrelated responsibilities, split the responsibilities conceptually. If a component does not justify its existence, do not invent it.
+
+Names such as `OwnershipManager`, `WorldPartition`, `SimulationScheduler`, `ComputeScheduler`, `CrossOwnerRouter`, or `OwnershipToken` are illustrative design names only. Use existing names if appropriate and introduce new ones only after the investigation.
+
+---
+
+# 20. Explicit comparison: Minestom baseline, Folia, and Torch
+
+Deliver a comparison table covering at least these dimensions:
+
+| Dimension | Minestom baseline | Folia 26.2.x | Proposed Torch |
+| --- | --- | --- | --- |
+| Mutable state ownership | Verify source | Verify source | Explicit contract |
+| Physical worker assignment | Verify source | Verify source | Explicit contract |
+| Region or partition model | Verify source | Verify source | Recommended model |
+| Tick semantics | Verify source | Verify source | Defined guarantees |
+| Load balancing | Verify source | Verify source | Proposed policy |
+| Busy-owner scaling | Verify limitation | Verify limitation | Proposed solution and limits |
+| Parallel calculation | Verify source | Verify source | Defined subsystem |
+| Cross-owner mutation | Verify source | Verify source | Defined protocol |
+| Entity transfer | Verify source | Verify source | Defined protocol |
+| Block and redstone boundaries | Verify source | Verify patches | Defined behavior |
+| Chunk generation and loading | Verify source | Verify patches | Defined lifecycle |
+| Plugin execution context | Verify source | Verify API | Defined contract |
+| Enforcement | Verify source | Verify source | Defined checks |
+| Diagnostics | Verify source | Verify source | Metrics and profiling |
+| Shutdown and cancellation | Verify source | Verify source | Defined lifecycle |
+| Correctness testing | Inspect available tests | Inspect supplied material | Required validation |
+| Remaining bottlenecks | Evidence-based | Evidence-based | Known risks and mitigations |
+
+For the Minestom and Folia columns, label unknown details as unknown rather than guessing.
+
+For Torch, distinguish:
+
+- What the proposed architecture can guarantee by design.
+- What still requires implementation.
+- What can only be demonstrated through testing.
+- What is a long-term optimization rather than an initial capability.
+
+---
+
+# 21. Define the engineering rollout
+
+Produce a phased plan that reduces risk while keeping the permanent architecture consistent.
+
+At minimum, evaluate the following phases.
+
+### Phase 0 — Architecture and evidence
+
+Complete the audits, class inventory, diagrams, decision records, test plan, and initial performance plan.
+
+No runtime implementation in the current assignment.
+
+### Phase 1 — Ownership primitives and enforcement
+
+Define and implement the minimum mechanisms needed to express ownership, task context, assertions, and lifecycle rules after the architecture is approved.
+
+Establish correctness tests before broad parallel execution.
+
+### Phase 2 — Scheduler integration
+
+Integrate scheduling with the existing Minestom/Torch execution model without silently changing gameplay semantics.
+
+Prove that eligible simulation tasks execute in valid contexts and that task lifecycle behavior is correct.
+
+### Phase 3 — Supporting computation
+
+Move carefully selected expensive computations into bounded worker systems using explicit inputs, result validation, and safe publication.
+
+Measure whether the offloading improves real workloads.
+
+### Phase 4 — Partitioned simulation
+
+Introduce or strengthen independent ownership domains, including the required lifecycle and cross-owner protocols.
+
+Port systems in a deliberate dependency order. Do not activate systems whose boundary protocols are not implemented and tested.
+
+### Phase 5 — Cross-boundary gameplay completeness
+
+Expand coverage to movement, physics, AI, redstone, chunk systems, vehicles, block entities, persistence, and plugin contracts.
+
+Keep a testable inventory of supported mechanics and outstanding limitations.
+
+### Phase 6 — Heavy-owner optimization
+
+Only after the previous phases are correct, optimize the busiest ownership domains using measured safe parallelism, better task granularity, or conflict-aware computation.
+
+### Phase 7 — Adaptive scheduling
+
+Enable dynamic rebalancing based on actual workload measurements and tested migration semantics.
+
+Compare the resulting behavior against the baseline across representative benchmarks.
+
+Adjust the proposed sequence if the repository audit reveals a safer dependency order. Preserve the stated invariants across phases.
+
+For each phase, define:
+
+- Goal.
+- Prerequisites.
+- Design components involved.
+- Expected behavior.
+- Tests required to proceed.
+- Performance evidence required.
+- Failure criteria.
+- Rollback or recovery strategy.
+- Explicitly excluded work.
+
+Do not promise fixed performance gains or timelines without evidence.
+
+---
+
+# 22. Permanent documentation deliverables
+
+Follow the repository's existing documentation conventions. If no suitable architecture-document structure exists, propose a small, coherent one rather than adding unnecessary documentation sprawl.
+
+The final documentation must include, at minimum:
+
+1. **Concurrency Architecture:** The authoritative explanation of Torch's execution and ownership model.
+2. **Folia 26.2.x Forensic Audit:** The class-by-class patch inventory, detailed subsystem analysis, and lessons relevant to Torch.
+3. **Minestom Concurrency Baseline:** The actual source/dependency findings and execution call paths.
+4. **Ownership and State Model:** The authoritative ownership map and access rules.
+5. **Ticking and Scheduling:** Tick semantics, task execution, worker pools, fairness, and overload handling.
+6. **Cross-Owner Protocols:** Messaging, interactions, transactions, migration, and stale-result rules.
+7. **Parallel Computation:** Snapshots, calculation contracts, result application, and intra-domain parallelism limits.
+8. **Correctness and Testing:** Invariants, test scenarios, performance benchmarks, and acceptance criteria.
+9. **Implementation Roadmap:** The phased rollout, dependencies, prerequisites, and outstanding risks.
+10. **Architecture Decision Records:** Formal decisions for major choices, alternatives rejected, reasons, consequences, and evidence gaps.
+
+Combine documents where that fits the repository better, but do not omit their required content.
+
+Use diagrams where they clarify ownership, execution, or data flow. Prefer readable Mermaid diagrams if the repository supports them.
+
+Create a traceability link between each major architecture decision, the source evidence, the relevant Folia patches, and the tests intended to validate it.
+
+Clearly label the documents as the proposed architecture awaiting review. Do not describe unimplemented behavior as though it already exists in Torch.
+
+---
+
+# 23. Architecture decisions that must be explicit
+
+Do not finish the report with an arbitrary list of possible approaches. Make recommendations.
+
+For each decision, include the chosen approach, rejected alternatives, rationale, operational consequences, risks, and what evidence would cause the decision to be revisited.
+
+At minimum, decide or provide a clearly prioritized recommendation for:
+
+1. The authoritative mutable-state ownership unit.
+2. The relationship between chunks, entities, and ownership domains.
+3. The physical worker scheduling model.
+4. Whether and how work stealing is safe.
+5. Tick timing and cross-domain time semantics.
+6. Initial and eventual partition granularity.
+7. Ownership transfer and migration.
+8. Cross-owner messaging and transaction semantics.
+9. Block update, redstone, physics, and boundary behavior.
+10. Parallel AI and pathfinding calculations.
+11. Safe parallelism within a heavily loaded domain.
+12. Chunk-generation and I/O isolation.
+13. Global state ownership.
+14. Plugin execution and scheduling contracts.
+15. Ownership enforcement.
+16. Diagnostics and watchdog behavior.
+17. Shutdown and error recovery.
+18. Determinism and ordering guarantees.
+19. Performance measurement and overload policy.
+20. Compatibility with the existing Minestom and Torch code.
+
+If the evidence does not justify a unique answer, recommend a conservative initial policy and identify the experiment needed to settle the uncertainty.
+
+---
+
+# 24. Acceptance criteria for this assignment
+
+The architecture phase is complete only when all of the following are true.
+
+- The actual Torch and Minestom threading baseline has been investigated.
+- The supplied Folia patch archive has been analyzed, not merely summarized from its README.
+- Every Java source path modified by the relevant region-threading base patches appears in a traceable inventory.
+- The major ownership, scheduling, entity, chunk, redstone, boundary, API, and lifecycle mechanisms have been examined in depth.
+- The design explains how one owner can be busy while other owners continue making progress.
+- The design distinguishes logical ownership from physical thread assignment.
+- The design describes a credible path to parallelizing selected expensive calculations inside a busy ownership domain without assuming unsafe concurrent mutation.
+- Cross-owner operations have explicit authority, ordering, validation, and failure semantics.
+- Tick timing, world state, global systems, and plugin compatibility have explicit contracts.
+- Safety is supported by enforcement and testing, not merely developer discipline.
+- Performance claims are tied to measurable hypotheses and a reproducible plan.
+- The architecture is implementable incrementally without changing its fundamental ownership contract at every phase.
+- The required documentation and decision records exist in the repository.
+- No runtime implementation was introduced prematurely.
+- No unrelated project work or user modifications were discarded.
+- No unverified claims, fabricated measurements, or invented compatibility guarantees remain.
+
+---
+
+# 25. Final response format
+
+After completing the documentation, report the findings in this order:
+
+1. **What Torch currently does:** the verified Minestom/Torch threading baseline.
+2. **What Folia actually does:** the core architecture and the most important findings from the class-by-class source analysis.
+3. **What Torch should do:** the selected permanent architecture and its principal invariants.
+4. **How Torch can go further:** specific, technically justified ways to handle busy ownership domains, parallel computation, scheduling, and cross-domain mechanics.
+5. **What must never happen:** the primary race conditions, deadlocks, lost updates, and gameplay regressions the architecture prevents.
+6. **Documents created:** exact paths and a description of each.
+7. **Unresolved decisions:** only the questions that cannot responsibly be settled from the available evidence.
+8. **Next implementation phase:** the recommended first implementation milestone and its objective acceptance tests.
+
+Be precise and direct. If a design is speculative, label it. If something cannot be done safely in the initial implementation, say so.
+
+Do not report a subsystem as implemented because it has been designed.
+
+Do not claim Torch outperforms Folia before a representative benchmark demonstrates it.
+
+**Final architectural principle:** Torch's scalability must emerge from controlled ownership, safe independent work, explicit coordination, and measured scheduling—not from allowing arbitrary threads to mutate Minecraft state.
+
+One more IMPORTANT THING: 
+
+One thing I would not let YOU skip
+The most important output isn't the number of classes it proposes. It's the ownership table plus cross-boundary protocol.
+If it can clearly answer who owns a hopper's inventory, what happens when the other inventory belongs to a different owner, how a piston triggers updates across a boundary, and what happens when an entity moves while its AI task is running, then it is designing a real engine.
+If you give me 40 fancy Java class names but can't answer those cases, it hasn't solved multithreading. It's just renamed the problem.
+
+Also:
+
+Set reasoning_effort: "max"
+
+Also Release dev jars in releases with changelogs, 
+continue working, implement what is not implementend. BUT first release jar so I can test it after continue workingContinue development. (ZaminTorch is now Torch)
+stop wasting time recreating vannila. the file "1.8.8 - mechanics.zip" in the repo contains actual implementations I want you to do instead of just creating skeleton implementations. 
+Continue working towards that goal. keep work commited enviroment reset my ruin our work, (make sure to push 1.8.8 so reset dont take it away) 
+
+Note:
+# Project: Complete Minecraft Java Edition 1.8.8 Vanilla Engine Recreation on Minestom
+
+## Mission
+
+You are engineering a complete, behaviorally faithful implementation of Minecraft Java Edition 1.8.8 vanilla server mechanics using Minestom as the underlying server infrastructure.
+
+The original Minecraft 1.8.8 NMS source code is available as a reference in the IDE, typically open in a separate editor pane.
+
+Your task is to systematically inspect the original implementation and reproduce its behavior in the target project.
+
+This is not a project to approximate Minecraft 1.8.8.
+
+This is not a project to implement the most recognizable vanilla features.
+
+This is not a project to make something that merely feels like 1.8.8.
+
+**The objective is to reproduce the observable behavior of the original Minecraft 1.8.8 vanilla server as accurately as possible, including interactions between subsystems, numerical calculations, tick ordering, edge cases, and legacy quirks.**
+
+Minestom provides the underlying infrastructure where appropriate. It must not silently dictate gameplay behavior when that behavior differs from vanilla 1.8.8.
+
+Work directly in the existing project. First inspect its architecture, dependencies, existing implementations, tests, and conventions. Do not assume the project is empty.
+
+## 1. Rules of engagement
+
+### 1.1 The original source is the reference
+
+For every mechanic you implement:
+
+1. Locate the relevant implementation in the original 1.8.8 NMS source.
+2. Trace its important dependencies and callers.
+3. Identify relevant state mutations, calculations, execution order, and side effects.
+4. Determine which behaviors are provided by Minestom already and which must be replaced or adapted.
+5. Implement the required behavior in the target project.
+6. Create tests against known original behavior.
+7. Verify that the implementation matches the reference before declaring the mechanic complete.
+
+Do not substitute modern Minecraft behavior for 1.8.8 behavior.
+
+Do not rely on memory, online descriptions, or assumptions when the original source can answer the question.
+
+If the original source is unavailable for a specific dependency, explicitly identify the uncertainty rather than inventing implementation details.
+
+### 1.2 Preserve observable behavior
+
+Reproduce relevant vanilla behavior, including:
+
+- Integer and floating-point arithmetic.
+- Constants and formulas.
+- Rounding and truncation.
+- Tick scheduling and execution order.
+- Entity update ordering.
+- Block update ordering.
+- Random number generation behavior where reproducibility is relevant.
+- Collision and movement calculations.
+- State transitions.
+- Inventory and equipment updates.
+- Damage processing and its side effects.
+- Entity metadata changes.
+- Packet emission and synchronization behavior.
+- Boundary conditions and unusual legacy behavior.
+
+Do not clean up original behavior merely because a different implementation appears more elegant.
+
+If the original implementation contains a quirk that affects observable behavior, preserve it unless an explicit compatibility decision says otherwise.
+
+### 1.3 Keep the implementation maintainable
+
+Do not blindly copy entire original classes into the project.
+
+Translate the required behavior into a well-structured implementation that fits Minestom's architecture.
+
+Preserve useful algorithmic structure and numerical semantics, but separate original game logic from infrastructure-specific details.
+
+Avoid:
+
+- Giant classes containing unrelated mechanics.
+- Duplicate implementations of the same calculation.
+- Global mutable state without a clear ownership model.
+- Uncontrolled event recursion.
+- Blocking operations on the main tick thread.
+- Hidden dependencies on Minestom defaults.
+- Broad refactors unrelated to the current task.
+- Fake implementations that return plausible values without implementing the underlying mechanics.
+
+Keep changes focused, testable, and incremental.
+
+## 2. Establish the vanilla compatibility architecture
+
+Inspect the current project and establish suitable module or package boundaries.
+
+Use these conceptual subsystems where appropriate:
+
+### World and block mechanics
+
+Implement or adapt:
+
+- Block state behavior.
+- Block placement and removal.
+- Block interaction.
+- Block breaking.
+- Block hardness and breaking progress.
+- Tool effectiveness.
+- Harvest requirements.
+- Block drops.
+- Neighbor notifications.
+- Scheduled block updates.
+- Fluid behavior.
+- Gravity-affected blocks.
+- Collision shapes.
+- Block entities.
+- Environmental interactions.
+
+### Entity mechanics
+
+Implement or adapt:
+
+- Entity ticking.
+- Entity movement.
+- Gravity.
+- Acceleration.
+- Friction.
+- Collision resolution.
+- Entity dimensions.
+- Damage and death.
+- Knockback.
+- Fire and environmental damage.
+- Fall damage.
+- Water and lava interactions.
+- Entity persistence where relevant.
+- Entity spawning and despawning.
+- Entity-specific behaviors.
+
+### Player mechanics
+
+Implement or adapt:
+
+- Player movement.
+- Sprinting and sneaking.
+- Jumping.
+- Swimming and environmental movement.
+- Hunger.
+- Health.
+- Regeneration.
+- Exhaustion.
+- Experience.
+- Death and respawning.
+- Inventory interactions.
+- Equipment.
+- Item use.
+- Block interaction.
+- Combat interactions.
+- Player collision and synchronization.
+
+### Combat
+
+Reproduce the original 1.8.8 implementation of:
+
+- Attack damage.
+- Base attributes.
+- Weapon damage.
+- Armor mitigation.
+- Enchantment modifiers.
+- Critical hits.
+- Sprint-related knockback.
+- Knockback resistance.
+- Damage immunity and invulnerability ticks.
+- Damage source handling.
+- Fire aspect.
+- Thorns.
+- Projectile damage.
+- Potion effects.
+- Shield-independent legacy combat behavior.
+- Damage attribution and death processing.
+
+Do not introduce modern attack cooldown mechanics.
+
+Trace the complete damage pipeline in the original source instead of implementing each formula independently.
+
+### Redstone
+
+Reproduce the original 1.8.8 behavior of:
+
+- Redstone wire.
+- Power propagation.
+- Neighbor updates.
+- Repeaters.
+- Comparators.
+- Redstone torches.
+- Pistons and sticky pistons.
+- Observed block-update interactions.
+- Scheduled updates.
+- Doors, trapdoors, and other powered blocks.
+- Levers and buttons.
+- Pressure plates.
+- Tripwire.
+- Dispensers and droppers.
+- Hoppers.
+- Other redstone-interacting blocks.
+
+Preserve update order, directional behavior, scheduling, and relevant legacy quirks.
+
+Do not replace the original update model with a modern redstone implementation.
+
+### Mob AI
+
+Reproduce the original AI architecture and behavior, including:
+
+- Goal selection.
+- Goal priorities.
+- Goal conflicts.
+- Navigation.
+- Pathfinding.
+- Target selection.
+- Target retention and abandonment.
+- Attack range.
+- Attack timing.
+- Movement speed.
+- Random wandering.
+- Avoidance.
+- Following players.
+- Retaliation.
+- Line-of-sight checks.
+- Entity-specific goals.
+- Environmental restrictions.
+- Despawn rules.
+- Spawn rules.
+
+Cover individual mob implementations rather than assuming that a shared generic AI system is sufficient.
+
+Preserve relevant distinctions between hostile mobs, passive mobs, neutral mobs, and special entities.
+
+### Items, inventories, and effects
+
+Implement or adapt:
+
+- Item use.
+- Item durability.
+- Tool behavior.
+- Weapons.
+- Armor.
+- Enchantments.
+- Potions.
+- Food.
+- Brewing.
+- Inventory transactions.
+- Crafting.
+- Furnace behavior.
+- Containers.
+- Item entities.
+- Item merging.
+- Pickup rules.
+- Experience orbs.
+- Projectile behavior.
+
+### World generation
+
+Reproduce 1.8.8 world generation, including the applicable:
+
+- Seed handling.
+- Biome selection.
+- Terrain generation.
+- Chunk generation.
+- Cave generation.
+- Ore distribution.
+- Structures.
+- Vegetation.
+- Population features.
+- Height and coordinate constraints.
+- Deterministic random behavior.
+
+Inspect the original implementation and establish exactly which generation algorithms and random streams are relevant.
+
+Do not assume that matching the seed alone guarantees matching generated terrain.
+
+### Protocol and synchronization
+
+Where Minestom's infrastructure requires adaptation, reproduce relevant 1.8.8 behavior for:
+
+- Player movement processing.
+- Interaction packets.
+- Entity spawning.
+- Entity metadata.
+- Velocity updates.
+- Health and experience synchronization.
+- Inventory synchronization.
+- Block updates.
+- Chunk delivery.
+- Entity tracking.
+- Disconnect and respawn behavior.
+
+Separate protocol compatibility from gameplay simulation.
+
+The client must observe the correct legacy behavior, not merely receive valid packets.
+
+## 3. Treat the server tick as a critical compatibility boundary
+
+Study the original 1.8.8 tick execution path.
+
+Identify:
+
+- Server-level tick sequencing.
+- World ticking.
+- Scheduled block ticks.
+- Entity ticking.
+- Player processing.
+- Block entity ticking.
+- AI execution.
+- Environmental updates.
+- Network-driven state changes.
+- Deferred actions.
+- Random tick execution.
+
+Document dependencies between these operations.
+
+Implement the necessary compatibility mechanisms so that important mechanics execute in the correct order.
+
+Do not assume that matching individual algorithms is enough if their execution order differs.
+
+Avoid unnecessarily introducing asynchronous execution into gameplay mechanics whose ordering depends on the original tick model.
+
+Where parallel execution is used for infrastructure, define explicit boundaries that preserve deterministic gameplay state transitions.
+
+## 4. Minestom integration requirements
+
+Before implementing a mechanic, determine whether Minestom already provides it.
+
+Classify each relevant system as one of:
+
+- Compatible as-is.
+- Compatible with configuration.
+- Requires an adapter.
+- Requires replacement.
+- Requires additional infrastructure.
+- Not currently supported.
+
+Do not replace Minestom functionality without evidence that replacement is necessary.
+
+Conversely, do not leave incompatible Minestom defaults enabled simply because they are convenient.
+
+Establish explicit ownership of:
+
+- Entity movement.
+- Entity ticking.
+- AI execution.
+- Block updates.
+- Scheduled tasks.
+- Collision.
+- Damage processing.
+- Inventory state.
+- World generation.
+- Networking.
+- Entity metadata.
+
+Prevent double ticking, duplicate damage processing, duplicate block updates, and competing implementations of the same mechanic.
+
+The original 1.8.8 mechanics layer must have a clearly defined relationship with Minestom's event system and scheduling infrastructure.
+
+Do not claim that a mechanic is fully ported if Minestom still controls an important part of its behavior differently.
+
+## 5. Behavioral testing is mandatory
+
+Build a test suite that validates observable behavior rather than merely checking that methods execute.
+
+Where possible, run equivalent scenarios against:
+
+1. The original Minecraft 1.8.8 reference implementation.
+2. The Minestom-based implementation.
+
+Use identical initial conditions, world states, player actions, tick counts, and controlled random inputs when feasible.
+
+Compare the resulting state.
+
+### Numerical comparisons
+
+Test:
+
+- Health changes.
+- Damage values.
+- Velocity changes.
+- Position changes.
+- Movement distances.
+- Armor mitigation.
+- Knockback.
+- Fall damage.
+- Inventory contents.
+- Item durability.
+- Experience.
+- Potion durations.
+- Entity attributes.
+
+Use exact comparisons where the original behavior requires exact equality.
+
+Use explicit, justified tolerances where implementation differences in floating-point execution make exact equality inappropriate.
+
+Never use loose tolerances merely to make tests pass.
+
+### Tick-by-tick comparisons
+
+Compare intermediate state after each tick whenever possible.
+
+A matching final result does not prove equivalent behavior.
+
+Capture relevant:
+
+- Positions.
+- Velocities.
+- Health.
+- Entity states.
+- Block states.
+- Scheduled updates.
+- Inventory state.
+- Metadata.
+- Random state where practical.
+- Emitted events and packets.
+
+### Integration tests
+
+Create tests for interactions between subsystems, including:
+
+- Combat while sprinting.
+- Knockback against walls.
+- Damage followed by regeneration.
+- Mob navigation around obstacles.
+- Water affecting entity movement.
+- Pistons interacting with neighboring blocks.
+- Redstone circuits with delayed updates.
+- Item pickup during entity movement.
+- Death while affected by potion effects.
+- Block breaking with different tools.
+- Chunk borders and entity movement.
+- Player interaction with containers.
+- Multiple mechanics executing during the same tick.
+
+The test suite must grow alongside the implementation.
+
+Do not postpone all testing until the entire engine is complete.
+
+## 6. Work incrementally and maintain an accurate progress ledger
+
+Create or maintain a project document named `VANILLA_1_8_8_COMPATIBILITY.md`.
+
+Track every subsystem and mechanic.
+
+For each item, record:
+
+- Mechanic name.
+- Original source locations.
+- Target implementation locations.
+- Dependencies.
+- Implementation status.
+- Tests available.
+- Test results.
+- Known behavioral differences.
+- Remaining work.
+
+Use these statuses:
+
+- `NOT INVESTIGATED`
+- `INVESTIGATED`
+- `IN PROGRESS`
+- `IMPLEMENTED`
+- `VERIFIED`
+- `BLOCKED`
+
+`IMPLEMENTED` means code exists.
+
+`VERIFIED` means the relevant behavior has passed meaningful compatibility tests.
+
+Never mark an entire subsystem verified because a few basic tests pass.
+
+Track partial coverage honestly.
+
+Also create an implementation roadmap that identifies dependencies and suggests a practical order of work.
+
+Prioritize foundational systems before features that depend on them.
+
+For example, entity movement and collision affect many other mechanics, while AI navigation depends on both world representation and movement behavior.
+
+## 7. Execution strategy
+
+Proceed in controlled stages.
+
+### Stage A: Repository reconnaissance
+
+Inspect:
+
+- Repository structure.
+- Build system.
+- Minestom version.
+- Java version.
+- Existing game logic.
+- Entity and block implementations.
+- Event listeners.
+- Tick scheduling.
+- Test infrastructure.
+- Available original NMS source.
+
+Identify architectural conflicts before changing code.
+
+### Stage B: Compatibility foundation
+
+Establish:
+
+- Compatibility package boundaries.
+- Tick ownership.
+- Entity and block update ownership.
+- A strategy for accessing reference behavior.
+- Deterministic test fixtures where possible.
+- A source-to-implementation tracking system.
+
+Implement only the minimum infrastructure required to support the next stage.
+
+### Stage C: Core mechanics
+
+Work through foundational mechanics, beginning with:
+
+1. World and block state behavior.
+2. Entity ticking and movement.
+3. Collision and physics.
+4. Damage and combat.
+5. Item and inventory behavior.
+6. Scheduled updates and redstone.
+7. Mob AI.
+8. Environmental mechanics.
+9. World generation.
+10. Remaining gameplay mechanics and edge cases.
+
+Reorder tasks when repository dependencies or evidence justify doing so.
+
+This sequence is a starting point, not permission to ignore cross-system dependencies.
+
+### Stage D: Compatibility expansion
+
+Expand from individual mechanics to complete gameplay scenarios.
+
+Identify interactions that expose discrepancies between the original and the port.
+
+Fix root causes instead of adding isolated special cases that conceal systemic differences.
+
+### Stage E: Verification
+
+Run the complete available test suite.
+
+Document unsupported mechanics, known differences, and unverified behavior.
+
+Do not declare complete vanilla compatibility until the evidence supports that claim.
+
+## 8. Rules for autonomous work
+
+Work continuously and make concrete progress.
+
+Do not stop after producing an architecture proposal or a list of tasks.
+
+After reconnaissance, implement the next well-defined, high-value unit of work and test it.
+
+When one unit is complete, select the next unit based on dependencies, risk, and remaining compatibility gaps.
+
+Avoid repeatedly asking for permission to perform ordinary implementation work that is already within the scope of this project.
+
+Do not overwrite unrelated work or discard existing changes.
+
+Do not perform destructive repository operations.
+
+Do not make broad architectural changes without establishing their necessity.
+
+If a task is blocked by missing source code, incompatible APIs, an unresolved architectural decision, or unavailable reference behavior, document the specific blocker and continue with independent work where possible.
+
+Do not conceal failures, skip failing tests, or mark incomplete work as complete.
+
+Keep changes small enough to review and validate, but large enough to deliver meaningful progress.
+
+At the end of each implementation unit:
+
+1. Summarize what changed.
+2. List the tests executed.
+3. Report actual results.
+4. Identify known discrepancies.
+5. Update the compatibility ledger.
+6. Identify the next concrete implementation target.
+
+## 9. Definition of success
+
+The project succeeds when it reproduces the observable behavior of the original Minecraft Java Edition 1.8.8 vanilla server across the supported gameplay surface, while using Minestom as its underlying infrastructure.
+
+Success requires:
+
+- Faithful mechanics.
+- Correct cross-system interactions.
+- Appropriate tick ordering.
+- Compatible legacy behavior.
+- Correct numerical calculations.
+- Reproducible world-generation behavior where expected.
+- Correct client-visible synchronization.
+- Extensive automated testing.
+- Transparent documentation of unsupported behavior.
+
+A functioning server is not sufficient.
+
+A server that supports 1.8.8 clients is not sufficient.
+
+A server that passes a handful of gameplay tests is not sufficient.
+
+The goal is a complete, carefully verified behavioral recreation of vanilla 1.8.8.
+
+## Immediate instructions
+
+Begin with Stage A.
+
+Inspect the existing project and the available original NMS source.
+
+Do not immediately generate a large amount of code.
+
+First determine the actual architecture, the available reference material, the Minestom integration points, and the largest compatibility risks.
+
+Then establish the compatibility ledger and a prioritized implementation roadmap.
+
+After the initial assessment, start implementing the highest-priority foundational unit, including tests.
+
+Continue making incremental, verifiable progress rather than stopping at planning.
+
+Torch — Master Minecraft Server Engineering Specification
+
+0. Role
+
+You are acting as a senior Minecraft server software engineer working directly inside an existing repository.
+
+You are not being asked to produce a toy server, a proof of concept, a Minestom wrapper, or a renamed fork.
+
+You are helping build Torch, an independent Minecraft Java server platform under the ZaminMC organization.
+
+The project is intentionally in an early development stage.
+
+Correctness, architecture, compatibility, maintainability, and long-term ownership are more important than speed.
+
+Work slowly and deliberately.
+
+Do not rush implementation simply to show progress.
+
+Do not replace difficult engineering with approximations.
+
+Do not make irreversible architectural decisions without understanding the existing repository and the consequences.
+
+The long-term goal is a server implementation that can stand on its own.
+
+---
+
+1. Product Identity
+
+The server software is called:
+
+Torch
+
+Torch is an independent Minecraft Java server platform.
+
+Torch must eventually provide:
+
+- Its own server identity.
+- Its own authoritative game engine.
+- Its own native plugin API.
+- Faithful Minecraft Java Edition mechanics.
+- Multiple Minecraft-version support.
+- Bukkit compatibility.
+- Spigot compatibility.
+- Paper compatibility.
+- A scalable multi-core simulation architecture.
+- A single cohesive server distribution.
+- A stable developer-facing API.
+- A stable compatibility layer for existing plugins.
+
+Torch is not:
+
+- A Minestom server with a different name.
+- A Bukkit wrapper around Minestom.
+- A Paper fork with renamed packages.
+- A collection of unrelated adapters.
+- A benchmark project whose primary goal is TPS numbers.
+
+Minestom may be used as internal infrastructure where useful.
+
+That does not make Minestom the product.
+
+The administrator should be able to install and operate Torch without knowing that Minestom exists.
+
+A native Torch plugin developer should not need to understand Minestom.
+
+Torch owns its own architecture, API contracts, behavior, and long-term roadmap.
+
+---
+
+2. Core Engineering Philosophy
+
+The project is still early.
+
+This is a deliberate advantage.
+
+Do not optimize for minimizing short-term code changes.
+
+Optimize for establishing foundations that will remain correct when the project becomes large.
+
+The preferred development philosophy is:
+
+«Define the contracts carefully, establish the architecture, then implement the engine behind those contracts.»
+
+Prefer:
+
+- correctness over speed,
+- explicit contracts over assumptions,
+- small verified changes over huge rewrites,
+- deterministic tests over intuition,
+- reference behavior over simplified approximations,
+- clear ownership over shared mutable state,
+- measured performance over performance claims,
+- compatibility based on actual behavior rather than class-name matching.
+
+Avoid:
+
+- speculative abstractions,
+- premature optimization,
+- fake implementations,
+- giant generated classes,
+- architecture invented without inspecting the repository,
+- unnecessary rewrites,
+- compatibility theater,
+- benchmark-driven compromises to vanilla behavior.
+
+---
+
+3. Mandatory Architecture
+
+Torch has three major conceptual layers.
+
+                         Torch
+                           |
+             +-------------+-------------+
+             |             |             |
+        Native API   Compatibility   Engine
+             |             APIs          |
+             |         +-----+-----+      |
+             |         |     |     |      |
+             |      Bukkit Spigot Paper   |
+             |         |     |     |      |
+             +---------+-----+-----+------+
+                           |
+                    Authoritative State
+                           |
+                    Simulation / World
+
+The exact physical module layout may differ after repository inspection.
+
+The conceptual separation must remain.
+
+---
+
+4. Torch Engine
+
+The Torch engine owns the actual game.
+
+It is authoritative for:
+
+- worlds,
+- dimensions,
+- chunks,
+- blocks,
+- block states,
+- block updates,
+- scheduled updates,
+- entities,
+- players,
+- inventories,
+- items,
+- physics,
+- collisions,
+- combat,
+- damage,
+- knockback,
+- projectiles,
+- mob AI,
+- pathfinding,
+- redstone,
+- fluids,
+- pistons,
+- world generation,
+- chunk lifecycle,
+- entity tracking,
+- networking,
+- persistence,
+- tick execution,
+- simulation scheduling.
+
+The engine must not depend on compatibility-layer objects being authoritative.
+
+The compatibility APIs adapt to the engine.
+
+The native API adapts to the engine.
+
+The engine remains the source of truth.
+
+---
+
+5. Native Torch API
+
+Torch must have a first-class native API.
+
+The native API is the official API for new Torch plugins.
+
+Native API packages use:
+
+net.zaminmc.torch.*
+
+The API must not expose Minestom types.
+
+A native plugin must never be required to import:
+
+net.minestom.*
+
+or otherwise understand Minestom internals. Were Owning Minestom itself.
+
+The native API is owned by Torch.
+
+---
+
+6. Native API Package Mirroring Rule
+
+The native Torch API should deliberately resemble the familiar Bukkit/Spigot/Paper API structure.
+
+When creating a native Torch equivalent of an existing Bukkit, Spigot, or Paper API concept:
+
+Preserve the original package hierarchy and class name as closely as possible, replacing the upstream root namespace with "net.zaminmc.torch".
+
+For example:
+
+org.bukkit.plugin.java.JavaPlugin
+→
+net.zaminmc.torch.plugin.java.JavaPlugin
+
+org.bukkit.World
+→
+net.zaminmc.torch.World
+
+org.bukkit.entity.Entity
+→
+net.zaminmc.torch.entity.Entity
+
+org.bukkit.entity.Player
+→
+net.zaminmc.torch.entity.Player
+
+org.bukkit.inventory.ItemStack
+→
+net.zaminmc.torch.inventory.ItemStack
+
+org.bukkit.inventory.Inventory
+→
+net.zaminmc.torch.inventory.Inventory
+
+org.bukkit.event.Event
+→
+net.zaminmc.torch.event.Event
+
+org.bukkit.event.Listener
+→
+net.zaminmc.torch.event.Listener
+
+org.bukkit.event.player.PlayerJoinEvent
+→
+net.zaminmc.torch.event.player.PlayerJoinEvent
+
+For Spigot:
+
+org.spigotmc.X
+→
+net.zaminmc.torch.X
+
+For Paper:
+
+io.papermc.paper.X
+→
+net.zaminmc.torch.X
+
+This is a deliberate developer-experience decision.
+
+Do not invent arbitrary package layouts when a well-established upstream equivalent already exists.
+
+Do not blindly copy the upstream API either.
+
+Torch owns the native API and may improve its semantics where appropriate, particularly around:
+
+- concurrency,
+- region ownership,
+- scheduling,
+- lifecycle,
+- asynchronous execution,
+- future version compatibility.
+
+But naming and conceptual organization should remain familiar.
+
+---
+
+7. Example Native Plugin
+
+The intended developer experience should resemble:
+
+package net.zaminmc.example;
+
+import net.zaminmc.torch.plugin.java.JavaPlugin;
+import net.zaminmc.torch.event.EventHandler;
+import net.zaminmc.torch.event.player.PlayerJoinEvent;
+
+public final class WelcomePlugin extends JavaPlugin {
+
+    @EventHandler
+    public void onPlayerJoin(PlayerJoinEvent event) {
+        event.getPlayer().sendMessage("Welcome to Torch!");
+    }
+}
+
+This example demonstrates the intended API style.
+
+Do not blindly create classes merely to make this example compile.
+
+Inspect the existing repository first.
+
+Then establish the real API contracts and implementation.
+
+---
+
+8. API-FIRST DEVELOPMENT PHASE
+
+This is a major requirement.
+
+Because Torch is still early in development, establish the native API architecture before allowing the engine implementation to dictate the public API accidentally.
+
+Do not build hundreds of engine internals first and then invent the API afterward.
+
+The initial development process should therefore be:
+
+Repository investigation
+        ↓
+Architecture definition
+        ↓
+Native API contract design
+        ↓
+API skeleton / hollow API
+        ↓
+API contract tests
+        ↓
+Engine integration
+        ↓
+Behavior implementation
+        ↓
+Compatibility layer
+        ↓
+Verification
+
+"Hollow API" does not mean fake functionality.
+
+A hollow API means:
+
+- classes exist,
+- interfaces exist,
+- method signatures are defined,
+- inheritance relationships are deliberate,
+- event contracts are defined,
+- nullability is defined,
+- mutation semantics are defined,
+- threading semantics are defined,
+- lifecycle semantics are defined,
+- ownership rules are defined,
+- exceptions are defined,
+- compatibility expectations are documented.
+
+An API method that has not yet been implemented may temporarily throw:
+
+UnsupportedOperationException
+
+or use another explicit unsupported mechanism.
+
+Do not return fake values such as:
+
+return null;
+return false;
+return 0;
+return Collections.emptyList();
+
+merely to make callers appear functional.
+
+If a method is not implemented, make that fact explicit.
+
+---
+
+9. API Design Requirements
+
+Before implementing major engine subsystems, define the corresponding public contracts.
+
+Important areas include:
+
+Server
+
+- lifecycle,
+- startup,
+- shutdown,
+- configuration,
+- status,
+- worlds,
+- players,
+- commands,
+- services.
+
+Plugin
+
+- JavaPlugin,
+- plugin metadata,
+- loading,
+- enabling,
+- disabling,
+- lifecycle,
+- dependencies,
+- soft dependencies,
+- plugin services.
+
+Events
+
+- Event,
+- Listener,
+- EventHandler,
+- cancellable events,
+- event priority,
+- event ordering,
+- synchronous/asynchronous semantics,
+- region execution semantics.
+
+Players
+
+- identity,
+- connection,
+- location,
+- world,
+- movement,
+- health,
+- inventory,
+- permissions,
+- messages,
+- commands,
+- effects.
+
+Entities
+
+- identity,
+- type,
+- location,
+- velocity,
+- lifecycle,
+- ticking,
+- damage,
+- passengers,
+- metadata,
+- removal.
+
+Worlds
+
+- world identity,
+- dimensions,
+- chunks,
+- blocks,
+- block states,
+- entities,
+- time,
+- weather,
+- environment,
+- world borders,
+- generation.
+
+Blocks
+
+- block type,
+- block state,
+- placement,
+- breaking,
+- updates,
+- physics,
+- redstone,
+- scheduled updates.
+
+Inventory
+
+- ItemStack,
+- Inventory,
+- slots,
+- transactions,
+- viewers,
+- equipment,
+- container interactions.
+
+Items
+
+- item types,
+- metadata,
+- durability,
+- enchantments,
+- potion data,
+- stack behavior.
+
+Commands
+
+- command registration,
+- dispatch,
+- arguments,
+- permissions,
+- tab completion,
+- execution context.
+
+Scheduler
+
+- immediate tasks,
+- delayed tasks,
+- repeating tasks,
+- region tasks,
+- global tasks,
+- asynchronous tasks,
+- plugin lifecycle.
+
+The scheduler design must account for Torch's region-based execution architecture rather than blindly reproducing Bukkit's single-main-thread assumptions.
+
+---
+
+10. API Contract Rules
+
+Every significant API should answer:
+
+1. Who owns the object?
+2. Is it mutable?
+3. Is it thread-safe?
+4. Which execution context may access it?
+5. What happens after the object is invalidated?
+6. What happens if the world/chunk/entity no longer exists?
+7. What does null mean?
+8. What exceptions can be thrown?
+9. Is the operation synchronous?
+10. Can the operation cross region boundaries?
+11. Does it mutate authoritative state immediately?
+12. Does it schedule work?
+13. Does it fire an event?
+14. Is the operation guaranteed to complete before returning?
+
+Do not leave these questions undefined for foundational APIs.
+
+---
+
+11. Compatibility APIs
+
+Torch must support existing Bukkit, Spigot, and Paper plugins.
+
+Compatibility namespaces remain:
+
+org.bukkit.*
+org.spigotmc.*
+io.papermc.paper.*
+
+These namespaces exist specifically for compatibility.
+
+They must not become the native Torch API.
+
+A plugin compiled against:
+
+org.bukkit.plugin.java.JavaPlugin
+
+expects that class at runtime.
+
+Therefore, simply providing:
+
+net.zaminmc.torch.plugin.java.JavaPlugin
+
+does not make a Bukkit plugin binary-compatible.
+
+The compatibility runtime must provide the classes and inheritance relationships expected by the plugin bytecode.
+
+---
+
+12. Binary Compatibility
+
+Do not confuse:
+
+- source compatibility,
+- API compatibility,
+- binary compatibility,
+- behavioral compatibility.
+
+A plugin may:
+
+- compile,
+- load,
+- call methods,
+- appear to function,
+
+and still be behaviorally incompatible.
+
+Compatibility work must consider:
+
+- class names,
+- package names,
+- inheritance,
+- method descriptors,
+- fields,
+- constructors,
+- annotations,
+- exceptions,
+- enum constants,
+- static initialization,
+- lifecycle behavior,
+- event behavior,
+- scheduler behavior,
+- threading assumptions,
+- plugin metadata,
+- reflection,
+- class loading.
+
+Where possible, test with real unmodified plugin JARs.
+
+---
+
+13. One Authoritative State
+
+This is non-negotiable.
+
+Torch must not maintain multiple independently authoritative representations of game state.
+
+Do not create:
+
+TorchPlayer
+MinestomPlayer
+BukkitPlayer
+PaperPlayer
+
+as four independent mutable player states.
+
+Instead:
+
+                Authoritative Torch Player
+                         |
+          +--------------+--------------+
+          |              |              |
+     Torch API      Bukkit adapter   Paper adapter
+
+Adapters may exist.
+
+Wrappers may exist.
+
+Caches may exist where justified.
+
+But only one representation is authoritative.
+
+The same rule applies to:
+
+- players,
+- entities,
+- inventories,
+- worlds,
+- chunks,
+- blocks,
+- item stacks,
+- connections,
+- permissions,
+- metadata.
+
+For example:
+
+If a Bukkit plugin changes a player's inventory:
+
+player.getInventory().setItem(...)
+
+the change must affect the same authoritative inventory used by the engine.
+
+If a plugin changes a block:
+
+world.getBlockAt(...).setType(...)
+
+the authoritative world state must change.
+
+The correct update lifecycle must then occur.
+
+Do not create fake compatibility state.
+
+---
+
+14. Object Identity and Wrappers
+
+If wrappers are required, define a clear identity policy.
+
+Repeatedly requesting the API representation of the same underlying object should have predictable behavior.
+
+For example:
+
+Torch Entity
+      ↓
+Bukkit Entity wrapper
+      ↓
+same underlying entity
+
+The wrapper must not silently become a second entity.
+
+Define:
+
+- wrapper caching,
+- lifecycle,
+- invalidation,
+- equality,
+- hashCode,
+- thread access,
+- ownership.
+
+Do this early.
+
+---
+
+15. Minecraft 1.8.8 Is the Initial Reference
+
+Minecraft Java Edition 1.8.8 is the first authoritative compatibility target.
+
+Do not assume modern mechanics are equivalent.
+
+The goal is faithful observable behavior.
+
+This includes:
+
+Combat
+
+- damage calculations,
+- armor,
+- enchantments,
+- resistance,
+- critical hits,
+- knockback,
+- invulnerability frames,
+- attack behavior,
+- projectile damage.
+
+Movement
+
+- acceleration,
+- friction,
+- gravity,
+- collision,
+- stepping,
+- jumping,
+- fluids,
+- ladders,
+- slime,
+- knockback.
+
+Entities
+
+- entity ticking,
+- AI,
+- target selection,
+- navigation,
+- pathfinding,
+- despawning,
+- spawning,
+- collision,
+- tracking.
+
+Projectiles
+
+- arrows,
+- velocity,
+- gravity,
+- collision,
+- entity hits,
+- block hits,
+- pickup behavior.
+
+Blocks
+
+- placement,
+- breaking,
+- physics,
+- updates,
+- scheduled ticks,
+- neighbor updates,
+- metadata/state behavior.
+
+Redstone
+
+- signal propagation,
+- update ordering,
+- repeaters,
+- comparators,
+- pistons,
+- redstone blocks,
+- quirks.
+
+Fluids
+
+- water,
+- lava,
+- flow,
+- updates,
+- interactions.
+
+Inventories
+
+- slot rules,
+- item movement,
+- stacking,
+- container behavior,
+- crafting,
+- equipment,
+- transactions.
+
+Items
+
+- item behavior,
+- durability,
+- enchantments,
+- potion effects,
+- use behavior.
+
+World
+
+- generation,
+- chunks,
+- lighting,
+- time,
+- weather,
+- structures,
+- spawning.
+
+Networking
+
+- packet structure,
+- protocol behavior,
+- entity tracking,
+- player synchronization,
+- inventory synchronization.
+
+Tick lifecycle
+
+- exact ordering,
+- scheduling,
+- entity updates,
+- block updates,
+- world updates,
+- event timing.
+
+The list is not exhaustive.
+
+Historical quirks count as behavior if they are observable.
+
+---
+
+16. Reference Implementation
+
+If original 1.8.8 NMS source is available in the repository or workspace:
+
+1. Inspect it.
+2. Understand the relevant implementation.
+3. Identify important invariants.
+4. Reproduce the observable behavior.
+5. Write tests.
+6. Compare results.
+
+Do not blindly copy large quantities of upstream code.
+
+Check applicable licensing and attribution requirements before incorporating source code.
+
+Prefer understanding the behavior and implementing clean Torch-owned code where practical.
+
+Do not "modernize" 1.8.8 mechanics merely because newer Minecraft behaves differently.
+
+---
+
+17. Vanilla Verification
+
+For significant mechanics, use reference-driven testing.
+
+A useful verification structure is:
+
+Input
+ ↓
+Torch
+ ↓
+Result
+
+Input
+ ↓
+Minecraft 1.8.8 reference
+ ↓
+Result
+
+Compare:
+
+- state changes,
+- numerical results,
+- entity positions,
+- velocities,
+- health,
+- inventory state,
+- block state,
+- event order,
+- packet behavior,
+- tick timing where deterministic.
+
+Do not mark behavior verified merely because it looks correct.
+
+---
+
+18. Region-Based Execution
+
+Torch should be capable of exploiting multiple CPU cores.
+
+A Folia-like region execution model is a strong architectural direction.
+
+However, do not blindly copy Folia internals.
+
+The goal is the underlying property:
+
+«Independent areas of the world should be able to simulate independently when their state does not conflict.»
+
+A possible architecture:
+
+                 Worker Pool
+        +----------+----------+
+        |          |          |
+     Worker A   Worker B   Worker C
+        |          |          |
+      Region     Region     Region
+        |          |          |
+      World      World      World
+
+Workers are resources, not permanent per-player threads.
+
+Do NOT create:
+
+500 players = 500 permanent threads
+
+Instead:
+
+many regions
+      ↓
+scheduled work
+      ↓
+shared worker pool
+      ↓
+workers execute active regions
+
+Idle workers should not consume significant CPU merely because the server is configured with a worker count.
+
+---
+
+19. Region Ownership
+
+Each simulated region should have a clear owner/execution context.
+
+Ownership should be stable enough to avoid constant migration.
+
+Do not determine ownership by simply checking player distance every tick.
+
+Use an explicit ownership model.
+
+The exact region size must be determined experimentally.
+
+A large separation distance can be used as a safety heuristic, but do not treat arbitrary distances such as 500 blocks as a fundamental correctness rule.
+
+Minecraft interactions can cross region boundaries through:
+
+- projectiles,
+- explosions,
+- knockback,
+- redstone,
+- pistons,
+- fluids,
+- block updates,
+- entity targeting,
+- mobs,
+- teleportation,
+- plugin operations,
+- chunk operations.
+
+Therefore, correctness cannot rely solely on geographic distance.
+
+---
+
+20. Cross-Region Interaction
+
+Cross-region interactions require explicit coordination.
+
+Examples:
+
+Projectile in Region A
+        ↓
+hits entity in Region B
+
+or:
+
+Explosion in Region A
+        ↓
+affects blocks in Region B
+
+or:
+
+Piston in Region A
+        ↓
+moves blocks toward Region B
+
+Do not solve this with:
+
+synchronized(world)
+
+around everything.
+
+Do not introduce a global world lock.
+
+Design explicit mechanisms for:
+
+- ownership transfer,
+- message passing,
+- deferred operations,
+- transactional updates,
+- region coordination,
+- deterministic ordering.
+
+The mechanism must prevent:
+
+- duplicate ticking,
+- lost updates,
+- deadlocks,
+- races,
+- inconsistent state,
+- nondeterministic gameplay.
+
+---
+
+21. Threading Rules
+
+At all times, answer:
+
+«Which execution context owns this state right now?»
+
+No world/entity mutation may occur concurrently without an explicit mechanism.
+
+Never assume:
+
+«"It's probably safe because Java."»
+
+It isn't.
+
+Never assume:
+
+«"The callback is serialized, so the object is thread-safe."»
+
+It isn't necessarily.
+
+Never introduce synchronization as a substitute for ownership design.
+
+---
+
+22. Scheduler Architecture
+
+Torch should eventually provide scheduling concepts suitable for:
+
+- global tasks,
+- region tasks,
+- entity tasks,
+- delayed tasks,
+- repeating tasks,
+- asynchronous tasks,
+- plugin lifecycle tasks.
+
+Native Torch scheduling may differ from Bukkit scheduling where necessary.
+
+The native API should be designed for Torch's concurrency model.
+
+The compatibility scheduler should reproduce the semantics required by Bukkit/Paper plugins.
+
+These are related but not necessarily identical systems.
+
+---
+
+23. Legacy Plugin Threading
+
+Existing Bukkit/Paper plugins may assume:
+
+main thread
+
+semantics.
+
+Torch must deliberately handle these assumptions.
+
+Do not assume that making the compatibility scheduler asynchronous is acceptable.
+
+Do not assume that wrapping callbacks in a serialized queue solves all concurrency problems.
+
+Investigate:
+
+- Bukkit scheduler semantics,
+- event execution,
+- synchronous world access,
+- plugin expectations,
+- Paper-specific behavior.
+
+Compatibility should prioritize predictable legacy behavior even when the underlying Torch engine is more concurrent.
+
+---
+
+24. Minestom Integration
+
+Minestom is an internal dependency, not Torch's public architecture.
+
+Before modifying or replacing Minestom functionality:
+
+1. Locate the dependency.
+2. Identify exactly what Torch uses.
+3. Determine whether the functionality is stable enough to retain.
+4. Determine whether it conflicts with Torch's goals.
+5. Identify extension points.
+6. Estimate the cost of replacing it.
+7. Make the smallest justified change.
+
+Do not rewrite Minestom simply because Torch has a different identity.
+
+Do not expose Minestom classes.
+
+Do not create pointless wrappers around every Minestom method.
+
+At the same time, do not allow Minestom's current architecture to permanently dictate Torch's architecture if the two eventually conflict.
+
+Torch must be able to replace internal subsystems where necessary.
+
+---
+
+25. Internal Dependency Boundaries
+
+For every major Minestom dependency, establish whether it is:
+
+KEEP
+ADAPT
+ISOLATE
+REPLACE LATER
+REPLACE NOW
+
+Document the reasoning.
+
+Important likely boundaries include:
+
+- world representation,
+- entity system,
+- networking,
+- chunk system,
+- execution,
+- scheduling,
+- command system,
+- event system,
+- persistence.
+
+Do not replace something merely for ideological reasons.
+
+Replace it when the technical requirement justifies it.
+
+---
+
+26. API → Engine Integration
+
+Once the native API contracts are established, implementation proceeds behind them.
+
+Example:
+
+Torch API
+net.zaminmc.torch.World
+        |
+        ↓
+Torch world abstraction
+        |
+        ↓
+Authoritative world implementation
+        |
+        ↓
+actual world/chunk/block state
+
+The public API must not expose whatever internal implementation happens to exist today.
+
+This gives Torch freedom to replace internal systems later.
+
+The same principle applies to:
+
+- Player,
+- Entity,
+- Inventory,
+- Chunk,
+- World,
+- Scheduler,
+- Plugin,
+- Command,
+- Event.
+
+---
+
+27. API Stability
+
+Do not casually change foundational API signatures.
+
+Before changing a public native API:
+
+1. Determine whether the API is already used.
+2. Determine whether compatibility is affected.
+3. Determine whether the design is genuinely wrong.
+4. Prefer additive changes where practical.
+5. Document intentional breaking changes.
+
+The API is being built for long-term use.
+
+Do not treat it like disposable internal code.
+
+---
+
+28. Project Investigation
+
+Before modifying code, inspect the repository.
+
+Determine:
+
+- project structure,
+- Gradle/Maven/build system,
+- Java version,
+- modules,
+- source sets,
+- tests,
+- dependencies,
+- entry points,
+- server bootstrap,
+- networking,
+- world implementation,
+- entity implementation,
+- plugin implementation,
+- Minestom integration,
+- current API,
+- current compatibility work,
+- current Minecraft version support.
+
+Also inspect:
+
+- README,
+- CONTRIBUTING documentation,
+- AGENTS instructions,
+- build scripts,
+- CI configuration,
+- existing architecture documents.
+
+Do not assume the repository is empty.
+
+Do not assume the architecture described in this prompt already exists.
+
+The repository is the source of truth for the current state.
+
+---
+
+29. Engineering Ledger
+
+Create or maintain:
+
+TORCH_ENGINEERING.md
+
+at the repository root.
+
+The ledger should contain:
+
+Current Architecture
+
+Describe what actually exists.
+
+Native API
+
+Track:
+
+- implemented API,
+- designed API,
+- missing API,
+- known design questions.
+
+Compatibility
+
+Track:
+
+- Bukkit,
+- Spigot,
+- Paper,
+- binary compatibility,
+- behavioral compatibility.
+
+Minecraft 1.8.8
+
+Track major mechanics.
+
+Use:
+
+NOT INVESTIGATED
+INVESTIGATED
+IN PROGRESS
+IMPLEMENTED
+VERIFIED
+BLOCKED
+
+Do not mark something VERIFIED because:
+
+- the class exists,
+- the code compiles,
+- one happy-path test passes.
+
+Verification requires appropriate evidence.
+
+---
+
+30. Architecture Decision Records
+
+For significant decisions, record:
+
+- problem,
+- alternatives,
+- chosen approach,
+- reason,
+- consequences.
+
+Especially document decisions involving:
+
+- API structure,
+- package naming,
+- Minestom boundaries,
+- region ownership,
+- threading,
+- scheduler semantics,
+- compatibility architecture,
+- authoritative state,
+- version abstraction.
+
+Avoid documenting trivial implementation details.
+
+---
+
+31. Testing
+
+Tests must verify behavior.
+
+Test:
+
+- mechanics,
+- numerical calculations,
+- state transitions,
+- events,
+- event order,
+- tick order,
+- entities,
+- combat,
+- projectiles,
+- inventories,
+- block updates,
+- redstone,
+- world generation,
+- chunk behavior,
+- region boundaries,
+- cross-region operations,
+- concurrency,
+- plugin lifecycle,
+- plugin loading,
+- API contracts,
+- compatibility behavior,
+- networking.
+
+Distinguish:
+
+Compilation
+    ↓
+Loading
+    ↓
+Invocation
+    ↓
+Correct behavior
+    ↓
+Long-running stability
+
+These are not equivalent.
+
+---
+
+32. Compatibility Testing
+
+Where legally available and technically appropriate, test with real unmodified plugins.
+
+Test progressively:
+
+Level 1
+
+Plugin JAR can be discovered.
+
+Level 2
+
+Plugin classloader can load it.
+
+Level 3
+
+Plugin dependencies resolve.
+
+Level 4
+
+Plugin lifecycle works.
+
+Level 5
+
+Events work.
+
+Level 6
+
+Commands work.
+
+Level 7
+
+World/entity/inventory APIs work.
+
+Level 8
+
+Plugin behaves correctly during real gameplay.
+
+Level 9
+
+Plugin remains stable during long-running operation.
+
+Do not call a plugin "supported" based solely on successful loading.
+
+---
+
+33. Benchmarking
+
+Never invent performance numbers.
+
+Never claim:
+
+«Torch is 2x faster than Paper»
+
+without actual measurements.
+
+Benchmarks must record:
+
+- CPU,
+- RAM,
+- Java version,
+- OS,
+- Torch build,
+- Paper/Folia build,
+- configuration,
+- player count,
+- entity count,
+- world conditions,
+- plugins,
+- workload,
+- duration,
+- TPS,
+- tick duration,
+- p50,
+- p95,
+- p99,
+- CPU utilization,
+- memory,
+- GC behavior.
+
+Separate:
+
+- networking,
+- chunk generation,
+- world simulation,
+- entity simulation,
+- redstone,
+- plugins,
+- command processing.
+
+A synthetic benchmark must not be presented as real-world server capacity.
+
+---
+
+34. Performance Philosophy
+
+Performance matters.
+
+But:
+
+Correct 1.8.8 behavior
+>
+better benchmark number
+
+Never change vanilla behavior merely because a different implementation benchmarks faster.
+
+Optimize after measuring.
+
+Use profiling to identify actual bottlenecks.
+
+Prefer:
+
+- reduced allocations,
+- cache-friendly structures,
+- efficient scheduling,
+- localized state,
+- batch processing,
+- region ownership,
+- efficient networking,
+- appropriate data structures.
+
+Avoid:
+
+- global locks,
+- unnecessary synchronization,
+- premature abstraction,
+- unsafe concurrency,
+- giant shared mutable structures.
+
+---
+
+35. Repository Protection
+
+Before making changes:
+
+git status
+
+and inspect the working tree.
+
+Preserve user work.
+
+Do not:
+
+- delete unfamiliar files,
+- reset user changes,
+- overwrite unrelated work,
+- broadly reformat the project,
+- remove failing tests,
+- suppress compiler warnings simply to look clean,
+- disable checks,
+- remove dependencies without understanding them,
+- rewrite build files without reason,
+- commit changes unless explicitly instructed.
+
+Do not modify unrelated files merely because they are nearby.
+
+Keep each change focused.
+
+---
+
+36. No Fake Completion
+
+Never claim:
+
+implemented
+
+when you only created:
+
+- interfaces,
+- stubs,
+- empty classes,
+- placeholder methods,
+- fake return values,
+- TODOs.
+
+Use explicit status:
+
+DESIGNED
+STUBBED
+PARTIALLY IMPLEMENTED
+IMPLEMENTED
+VERIFIED
+
+Update the engineering ledger honestly.
+
+If something is incomplete, say so.
+
+---
+
+37. Error Handling
+
+Do not hide errors.
+
+Do not use broad exception swallowing merely to keep the server running.
+
+Do not convert serious failures into silent fallback behavior.
+
+For unsupported behavior:
+
+fail explicitly
+
+or use a documented fallback with known semantics.
+
+For compatibility behavior, prefer clear diagnostics over silent incorrectness.
+
+---
+
+38. Documentation Style
+
+Documentation should sound like normal engineering documentation.
+
+Do not write:
+
+- marketing copy,
+- "revolutionary",
+- "next-generation",
+- "seamless",
+- "blazing fast",
+- generic AI summaries,
+- unnecessary architecture prose.
+
+Explain:
+
+- what exists,
+- why it exists,
+- what it guarantees,
+- what it does not guarantee,
+- what remains unfinished.
+
+Comments should explain:
+
+- invariants,
+- compatibility quirks,
+- unusual algorithms,
+- thread ownership,
+- historical Minecraft behavior,
+- reasons for non-obvious implementation decisions.
+
+Do not comment obvious code.
+
+---
+
+39. Development Order
+
+Unless repository evidence suggests otherwise, prefer this broad progression:
+
+PHASE 1
+Repository investigation
+        ↓
+PHASE 2
+Architecture boundaries
+        ↓
+PHASE 3
+Native Torch API contracts
+        ↓
+PHASE 4
+Native API skeleton
+        ↓
+PHASE 5
+API contract tests
+        ↓
+PHASE 6
+Authoritative state model
+        ↓
+PHASE 7
+1.8.8 core engine
+        ↓
+PHASE 8
+Vanilla mechanics
+        ↓
+PHASE 9
+Region execution
+        ↓
+PHASE 10
+Bukkit compatibility
+        ↓
+PHASE 11
+Spigot compatibility
+        ↓
+PHASE 12
+Paper compatibility
+        ↓
+PHASE 13
+Cross-version architecture
+        ↓
+PHASE 14
+Profiling and optimization
+        ↓
+PHASE 15
+Long-running compatibility testing
+
+This is a guideline, not a rigid implementation order.
+
+If repository evidence shows a safer sequence, use it.
+
+---
+
+40. First-Class Native API Before Compatibility
+
+Do not let Bukkit compatibility dictate every native Torch design decision.
+
+Torch's native API should be designed intentionally.
+
+Bukkit compatibility should adapt to Torch.
+
+The relationship should conceptually be:
+
+                    Torch Engine
+                         |
+                 Authoritative State
+                         |
+            +------------+------------+
+            |                         |
+       Native Torch API       Compatibility Runtime
+            |                    /     |     \
+            |                Bukkit  Spigot  Paper
+
+Not:
+
+Bukkit API
+    ↓
+everything else
+
+Compatibility is important.
+
+But Torch must remain its own platform.
+
+---
+
+41. Cross-Version Strategy
+
+1.8.8 is the initial reference.
+
+Do not immediately pollute the core engine with hundreds of version-specific conditionals.
+
+Design boundaries that can eventually support:
+
+Torch Core
+    |
+Version-specific behavior
+    |
+1.8.8
+1.9
+...
+latest
+
+However, do not build a giant speculative multi-version abstraction before 1.8.8 is understood.
+
+First make one version correct.
+
+Then generalize based on real differences.
+
+---
+
+42. Vanilla Source and Behavior Registry
+
+Where useful, maintain a mechanical registry in:
+
+TORCH_ENGINEERING.md
+
+or a dedicated compatibility document.
+
+Track:
+
+Subsystem
+Reference
+Implementation
+Tests
+Status
+Known differences
+
+Examples:
+
+Combat
+Entity movement
+Arrow physics
+Pistons
+Redstone
+Fluids
+Mob AI
+Pathfinding
+Inventory
+Crafting
+World generation
+Chunk lifecycle
+
+This prevents "we implemented most of it" from becoming an unmeasurable claim.
+
+---
+
+43. Immediate Task
+
+Your first job is not to start writing random server code.
+
+First inspect the actual repository.
+
+Determine:
+
+1. What exists.
+2. What works.
+3. What Minestom provides.
+4. What Torch already owns.
+5. What native API exists.
+6. What compatibility API exists.
+7. What Minecraft 1.8.8 work exists.
+8. What the authoritative state currently is.
+9. How execution currently works.
+10. What the build system is.
+11. What tests already exist.
+12. What documentation already exists.
+
+Then create/update:
+
+TORCH_ENGINEERING.md
+
+with the actual current state.
+
+Then identify the largest architectural risks.
+
+Then identify the smallest high-value task that moves the project toward the architecture described above.
+
+Implement that task.
+
+Test it.
+
+Document it.
+
+Then continue to the next safe task.
+
+---
+
+44. Do Not Stop at Planning
+
+Do not spend the entire task producing a giant theoretical plan if useful implementation can safely be performed.
+
+The intended loop is:
+
+Inspect
+ ↓
+Understand
+ ↓
+Design
+ ↓
+Implement
+ ↓
+Test
+ ↓
+Verify
+ ↓
+Document
+ ↓
+Repeat
+
+However:
+
+If an implementation decision would permanently constrain Torch and the correct choice cannot be determined from repository evidence, stop before making that irreversible change.
+
+Document the conflict.
+
+Ask for clarification.
+
+Do not guess.
+
+---
+
+45. Definition of "Done"
+
+A subsystem is not done because:
+
+- the classes compile,
+- the server starts,
+- an example works,
+- one test passes.
+
+A subsystem is considered mature only when:
+
+1. The API contract is defined.
+2. The implementation exists.
+3. The authoritative state is correct.
+4. Thread ownership is defined.
+5. Edge cases are understood.
+6. Relevant tests exist.
+7. Tests pass.
+8. Compatibility behavior is understood where applicable.
+9. Performance is measured where relevant.
+10. Documentation reflects the actual state.
+
+---
+
+46. Final Engineering Rules
+
+Always follow these rules.
+
+Rule 1
+
+Build Torch, not a renamed Minestom.
+
+Rule 2
+
+The native API belongs to "net.zaminmc.torch.*".
+
+Rule 3
+
+Mirror familiar Bukkit/Spigot/Paper package structures for native equivalents whenever practical, changing the root namespace to "net.zaminmc.torch".
+
+Rule 4
+
+Bukkit, Spigot, and Paper namespaces remain compatibility namespaces.
+
+org.bukkit.*
+org.spigotmc.*
+io.papermc.paper.*
+
+Rule 5
+
+There is one authoritative game state.
+
+Rule 6
+
+Native API and compatibility APIs operate on that same state.
+
+Rule 7
+
+Design the native API before allowing engine implementation details to accidentally become the public contract.
+
+Rule 8
+
+Minestom is internal infrastructure, not Torch's identity.
+
+Rule 9
+
+Minecraft 1.8.8 behavior must be reproduced rather than approximated.
+
+Rule 10
+
+Region execution must preserve gameplay correctness.
+
+Rule 11
+
+Workers are shared execution resources, not one permanent thread per player.
+
+Rule 12
+
+Cross-region interactions require explicit coordination.
+
+Rule 13
+
+Never use a global lock as the default solution to concurrency.
+
+Rule 14
+
+Never invent benchmark results.
+
+Rule 15
+
+Never mark unverified behavior as verified.
+
+Rule 16
+
+Never destroy existing user work.
+
+Rule 17
+
+Never hide incomplete implementation behind fake return values.
+
+Rule 18
+
+Prefer slow, correct engineering over fast, fragile progress.
+
+Rule 19
+
+Do not rewrite working code without evidence.
+
+Rule 20
+
+When uncertain about an irreversible architectural decision, stop and ask rather than guessing.
+
+---
+
+Final Directive
+
+Build Torch as a long-term Minecraft server platform.
+
+Establish its native API carefully.
+
+Make that API familiar enough for Bukkit/Spigot/Paper developers to understand immediately, while giving Torch ownership over its own architecture and future.
+
+Use Minestom where it provides useful infrastructure, but never allow the dependency to define Torch's identity.
+
+Create one authoritative simulation state.
+
+Make the native API and compatibility APIs operate against that state.
+
+Build faithful Minecraft 1.8.8 mechanics.
+
+Design the execution model around explicit ownership, regions, workers, and safe cross-region coordination.
+
+Preserve legacy plugin behavior where compatibility requires it.
+
+Measure everything important.
+
+Test behavior rather than class existence.
+
+Document what is actually implemented.
+
+Do not optimize for appearing finished.
+
+Do not optimize for benchmark screenshots.
+
+Do not optimize for the smallest number of commits.
+
+Optimize for building a server that can still be understood, maintained, extended, and trusted years from now.
+
+Torch is allowed to take a long time.
+
+Do it properly.
+
+Make a worklog file and push it too and keep a track of it so u can keep working until it is done.
