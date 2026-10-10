@@ -66,11 +66,35 @@ the bottom. The behavior-level status of every mechanic lives in
   (chunks bind their region domain) gated on the per-mechanic boundary
   protocols, which land with their vanilla mechanics (hopper/piston/
   redstone are still unported — the §11 list grows with them).
-- **Slice 7 remainder — the leftover hooks**: unbreaking,
-  respiration/depth strider — each lands with its gameplay slice.
+- **Slice 8b — the nether dimension**: the second world (the nether), the
+  changeDimension walk (the 8:1 coordinate scaling, the PortalForcer's
+  find/generate portal walk), the teleport arm of the stand clock. Doubles
+  as the concurrency Phase 4 spatial activation (the second ownership
+  domain live).
 
 ## Landed since the ledger opened
 
+- **Slice 7g — Unbreaking** (`7dc252b`): the takeDamage per-unit reduction
+  walk (the armor's 60% early-false gate eating the roll without consuming
+  the int, the level read once per walk) on every wear surface; the
+  wearArmor walk now carries the reference damageArmor /4 min-1 scaling
+  (heavy hits wear proportionally). Tests: UnbreakingAcceptanceTest (8) —
+  suite 603 green.
+- **Slice 7h — Respiration** (`d4fc984`): the breath roll
+  (updateBreathUnderwater's keep arm) on advanceBreath; Depth Strider's
+  read surfaced with the client-authoritative physics boundary recorded.
+  Tests: RespirationAcceptanceTest (5) — suite 608 green.
+- **Slice 8a — the nether portal's frame, ignition, block, stand clock**
+  (`652077c`): the PortalFrameBuilder (the PortalBuilder port — the exact
+  bounds, the X-then-Z axis order, the neighbor-break re-validation), the
+  nether portal block in both axis planes (90/1, 90/2 on the wire),
+  the flint-and-steel ignition (the FireBlock.onAdded arm), the player's
+  stand clock (the 80-tick survival stand, the instant creative crossing,
+  the 10-tick cooldown with the entry-edge re-arm, the 4-per-tick decay).
+  The teleport arm (changeDimension + the 8:1 walk + the PortalForcer) is
+  BLOCKED on the second dimension (8b — which doubles as the Phase 4
+  spatial activation). Tests: PortalFrameBuilderTest (12) — suite 620
+  green.
 - **Permanent architecture Phase 4 second + third units** (`3d49dbc`,
   `3d77172`, dev.20, suite 595 green):
   - **The physical worker pool** (`server/concurrent/DomainWorkerPool`):
