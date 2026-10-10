@@ -169,6 +169,8 @@ public final class EngineServer implements Server, EngineBridge {
      * against. Bound to the boot/tick thread for the loop's whole run.
      */
     private volatile net.zaminmc.torch.server.concurrent.OwnershipDomain simulationDomain;
+    /** The Phase 2 scheduler: the tick's deferred-work substrate. */
+    private volatile net.zaminmc.torch.server.concurrent.SimulationScheduler simulationScheduler;
     private BlockInteractionService blockInteraction;
     private ChatService chatService;
     private final CraftingService crafting = CraftingService.builtin();
@@ -531,6 +533,11 @@ public final class EngineServer implements Server, EngineBridge {
                 simulationDomain = net.zaminmc.torch.server.concurrent.OwnershipDomain
                         .create("simulation:" + config.worldName());
                 world.attachDomain(simulationDomain);
+                // The Phase 2 substrate: the tick's deferred work rides the
+                // bounded, ordered scheduler over the simulation domain (the
+                // design's §5 model, single-domain scope until Phase 4).
+                simulationScheduler = new net.zaminmc.torch.server.concurrent.SimulationScheduler();
+                ticker.attachScheduler(simulationScheduler, simulationDomain);
                 simulationDomain.enter();
                 try {
                     ticker.runLoop(); // blocks until stop
