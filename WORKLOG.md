@@ -60,13 +60,44 @@ the bottom. The behavior-level status of every mechanic lives in
 
 ## In progress
 
-- **Concurrency Phase 4** — partitioned simulation: the second ownership
-  domain + cross-owner intent routing + the §11 boundary test list.
+- **Concurrency Phase 4** — the protocol layer LANDED (worker pool +
+  parallel walk + region partition + migration + the router on the live
+  tick, `3d49dbc`/`3d77172`, dev.20); remaining: the spatial activation
+  (chunks bind their region domain) gated on the per-mechanic boundary
+  protocols, which land with their vanilla mechanics (hopper/piston/
+  redstone are still unported — the §11 list grows with them).
 - **Slice 7 remainder — the leftover hooks**: unbreaking,
   respiration/depth strider — each lands with its gameplay slice.
 
 ## Landed since the ledger opened
 
+- **Permanent architecture Phase 4 second + third units** (`3d49dbc`,
+  `3d77172`, dev.20, suite 595 green):
+  - **The physical worker pool** (`server/concurrent/DomainWorkerPool`):
+    max(1, cores/2) capped 4, parked workers, the `dispatchAndJoin` batch
+    as the ENFORCED tick-edge barrier, failure isolation, total shutdown.
+  - **The parallel domain walk** (`SimulationScheduler.runDueParallel`):
+    caller-bound domains drain inline (the live run byte-identical),
+    foreign domains dispatch one drain job each and the join waits; FIFO
+    and the single-writer gate survive the dispatch. `EngineTicker.
+    attachDomainPool` + the EngineServer boot/shutdown wiring.
+  - **The spatial partition model** (`RegionPartition`): the fixed R×R-chunk
+    grid, deterministic floor-division (seamless across the origin), one
+    stable domain per region, no auto-balancing.
+  - **The migration protocol** (`OwnershipMigration`): the §9 phase machine
+    (safe-point begin refusing mid-task, the scheduler's admission hold —
+    the new holdAdmission/releaseAdmission hooks with drainDomain — the
+    old-generation drain, the transfer with abort-on-failure bumping the
+    generation, the atomic publish, the run-once contract). Fault-injected.
+  - **The router on the live tick** (`EngineTicker.
+    attachCrossOwnerRouter`): the §7 target-side apply rides the tick
+    after the scheduler walk, before the compute drain; the engine boots
+    and shuts the router.
+  - Tests: DomainWorkerPoolTest (7) + SimulationSchedulerParallelTest (7)
+    + RegionPartitionTest (8) + OwnershipMigrationTest (9) +
+    EngineTickerRouterTest (3).
+- **Release v0.2.0-dev.20** published with the Phase 4 protocol layer
+  (jar + zip + the full changelog).
 - **Permanent architecture Phases 1-3 implemented** (the runtime, not the
   docs — commits `52f059b`, `e9667aa`, `6bcec30`, `df66064`):
   - **Phase 1 — ownership primitives** (`server/concurrent`):

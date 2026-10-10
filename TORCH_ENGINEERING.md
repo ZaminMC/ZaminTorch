@@ -1,6 +1,6 @@
 # Torch Engineering Ledger
 
-**Status date:** 2026-10-10 (updated)  
+**Status date:** 2026-10-10 (updated; Phase 4 protocol layer)
 **Branch inspected:** `develop`  
 **Purpose:** record verified repository state and separate implemented behavior from proposals and unverified work.
 
@@ -8,8 +8,8 @@
 
 - Build: Gradle Kotlin DSL, Java 21 toolchain, JUnit 5.
 - Modules: `:zamin-api`, `:zamin-core`, `:zamin-protocol-v1_8_8`, `:zamin-launcher`.
-- Current build distribution version in `zamin-launcher/build.gradle.kts`: `0.2.0-dev.18`.
-- Latest release: [v0.2.0-dev.18](https://github.com/ZaminMC/ZaminTorch/releases/tag/v0.2.0-dev.18), with a server JAR and distribution ZIP. 550 tests green at the build's commit (the full suite ran on the same tree).
+- Current build distribution version in `zamin-launcher/build.gradle.kts`: `0.2.0-dev.20`.
+- Latest release: [v0.2.0-dev.20](https://github.com/ZaminMC/ZaminTorch/releases/tag/v0.2.0-dev.20), with a server JAR and distribution ZIP. 595 tests green at the build's commit (the full suite ran on the same tree).
 - The committed 1.8.8 reference tree is `reference/1.8.8/`, described by the repository as 1,634 decompiled classes.
 - `Folia-ver-26.2.x.zip` is committed at the repository root.
 - The requested `1.8.8 - mechanics.zip` is not present in the inspected `develop` tree. Recover it before claiming it was inspected or using it as the required implementation source.
@@ -60,15 +60,15 @@ Runtime implementation (the rollout phases, on `develop`):
 - **Phase 1 — ownership primitives and enforcement: IMPLEMENTED.** `server/concurrent/OwnershipDomain` (dynamic executor binding with counted re-entrancy, monotonic generations via `transferOwnership`, the single-writer tick gate, STRICT/DIAGNOSTIC enforcement), `OwnershipViolationException` (the diagnosable failure, still an `IllegalStateException`), `ComputeTicket`/`StaleResultException` (the versioned result envelope), `DomainTask` (the domain-bound task: cancel never resurrects, mid-run cancel refused). `EngineWorld.attachDomain` delegates `requireOwnership` when attached; the boot loop binds `simulation:<world>` for its whole run. Live behavior identical, now enforced.
 - **Phase 2 — scheduler integration: IMPLEMENTED.** `SimulationScheduler` over the domains: per-domain ready FIFO (submission order preserved), the delayed store keyed (dueTick, stable sequence), `runDue` walking domains in stable name order with each task under its own gate + binding, per-domain bounded admission with loud refusal, permanent cancellation, total idempotent shutdown, the §17 telemetry floor. `EngineTicker.attachScheduler` routes `submit` through it and `tickOnce` runs due tasks before the time advance. Identical gameplay.
 - **Phase 3 — the compute subsystem: IMPLEMENTED.** `ComputeSubsystem`: bounded admission + a conservative worker pool (max(1, cores/4) cap 4), workers with zero mutation authority (assertion-pinned), typed handles closing the apply/stale arms, the owner's `drainResults` at the tick boundary applying fresh results in-context and discarding stale ones through the fallback (never blindly applied), failures surfaced and never worker-killing, shutdown total and idempotent. `EngineTicker.attachCompute` + the tick-edge drain live.
-- **Phase 4+ — partitioned simulation, cross-owner protocols, heavy-owner optimization, adaptive scheduling: NOT STARTED** (design + diagrams only; the rollout gates each phase on the previous phase's tests).
+- **Phase 4 — partitioned simulation, the protocol layer: IMPLEMENTED.** The `DomainWorkerPool` (the shared bounded simulation pool, max(1, cores/2) cap 4, parked workers, the enforced tick-edge join, failure isolation, total shutdown); the scheduler's `runDueParallel` (caller-bound domains drain inline — the live single-domain run byte-identical — foreign domains dispatch and join; FIFO + the gate survive); the `RegionPartition` (the fixed R×R-chunk grid, deterministic floor-division mapping seamless across the origin, one stable domain per region, static); the `OwnershipMigration` protocol (the §9 phase machine with the scheduler's admission holds and `drainDomain`, fault-injection tested); the `CrossOwnerRouter` riding the live tick (`attachCrossOwnerRouter`, the drain after the scheduler walk, before the compute drain; booted + shut with the server). The live run is still single-domain by design — the region activation is gated on the per-mechanic boundary protocols landing with their vanilla mechanics.
+- **Phase 4 remaining + Phase 5-7 — spatial activation, cross-boundary gameplay completeness, heavy-owner optimization, adaptive scheduling: NOT STARTED** (the §11 boundary test list grows with each ported mechanic: hopper/piston/redstone are unported; the activation follows the rollout's dependency gates).
 
 ## Next steps, ordered
 
-1. **Phase 3 second half — the first real offload candidate** through the live `ComputeSubsystem` (the design §6-A candidates, audited individually: world-persistence snapshot preparation or pathfinding candidate generation), with the before/after workload measurement and the stale-result fallback path exercised on the live engine.
-2. **Phase 4 — partitioned simulation**: the second ownership domain + the cross-owner intent routing through the scheduler's domain walk; the boundary test list (hopper, piston, redstone, projectile, entity transfer) from the design §11 before any activation.
-3. **Phase 5+ — cross-boundary completeness, heavy-owner optimization, adaptive scheduling** per the rollout table (each phase gated on the previous phase's green tests and the recorded evidence).
-4. The vanilla 1.8.8 slices continue in parallel per `VANILLA_1_8_8_COMPATIBILITY.md` (the loot family, unbreaking, respiration/depth strider, nether portals remain).
-5. Releases ride every dev build with a changelog (the established convention since dev.17).
+1. **Phase 4 completion — the spatial activation** (gated): bind chunks to their region domain once the first boundary-bearing mechanic ports (hopper or piston) with its §11 boundary tests; until then the single-domain run stays the live shape.
+2. **Phase 5+ — cross-boundary completeness, heavy-owner optimization, adaptive scheduling** per the rollout table (each phase gated on the previous phase's green tests and the recorded evidence).
+3. The vanilla 1.8.8 slices continue in parallel per `VANILLA_1_8_8_COMPATIBILITY.md` (unbreaking, respiration/depth strider, nether portals remain; redstone/potions/leads/structures/spawning behind them).
+4. Releases ride every dev build with a changelog (the established convention since dev.17).
 
 ## Security and repository safety
 
