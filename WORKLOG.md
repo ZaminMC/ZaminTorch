@@ -44,13 +44,24 @@ the bottom. The behavior-level status of every mechanic lives in
   ItemStack.enchantments() accessor. Tests: api+core suites green;
   dev.13 artifacts cut and smoke-booted (`67a1ef9`).
 
+- **Slice 7 part 3 — the table's live window** (`09ac43b`): the per-open
+  menu on the session (seed read at open, the open-time recompute with the
+  attached world view), right-click opens the vanilla GUI (Open Window
+  minecraft:enchanting_table size byte 0, the 38-slot Window Items, the
+  seven initial Window Properties), the per-tick view fan-out diffing the
+  properties + resyncing on the menu revision, the gated click routing,
+  shift-click quick-move both directions, the 0x11 Enchant Item walk paying
+  slot+1 levels (the ported applyEnchantmentCosts on the points model) and
+  slot+1 lapis with the XP bar resync, the isValid stale-window close with
+  the two-slot close-drop; the WindowClicks gate placement fixed to the
+  reference arm order, the ItemStack enchantment-id floor fixed to 0
+  (protection is id 0), the bookshelf/table light entries, the missing
+  items + legacy wire ids. Tests: full suite 491 green (14 new).
+
 ## In progress
 
-- **Slice 7 part 3 — enchanting-table wiring**: the live window (Open
-  Window on right-click, the seven Window Property syncs, click routing
-  through EnchantingMenu, the 0x06 enchant-item packet, close-drop to the
-  world), plus the remaining effect hooks (protection, efficiency,
-  knockback, fire aspect) landing with their gameplay slices.
+- **Slice 7 remainder — the effect hooks**: protection, efficiency,
+  knockback, fire aspect land with their gameplay slices.
 
 ## Landed since the ledger opened
 
