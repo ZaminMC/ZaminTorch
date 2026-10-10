@@ -399,6 +399,29 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                 connection.sendMobSwing(mob);
             }
         });
+        // The attack crit bursts (Animation 0x0B codes 4/5, the reference's
+        // addCritParticles / addEnchantedCritParticles) fan out the same way:
+        // the mob target rides its global id, the player target resolves
+        // through each observer's id space (the self arm included).
+        server.addEntityAnimationObserver(new EngineServer.EntityAnimationObserver() {
+            @Override
+            public void onMobAnimation(net.zaminmc.torch.server.entity.MobEntity mob, int animation) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendMobAnimation(mob, animation);
+                }
+            }
+
+            @Override
+            public void onPlayerAnimation(net.zaminmc.torch.server.player.PlayerSession player, int animation) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    if (connection.currentSession() == player) {
+                        connection.sendSelfAnimation(animation);
+                    } else {
+                        connection.sendRemotePlayerAnimation(player.uuid(), animation);
+                    }
+                }
+            }
+        });
         server.addExplosionListener(event -> {
             for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
                 connection.sendExplosion(event);

@@ -1512,12 +1512,35 @@ public final class EngineServer implements Server, EngineBridge {
                 return; // out of reach: the server-side refusal
             }
             ItemStack held = attacker.inventory().held();
-            float damage = net.zaminmc.torch.server.item.Tools.attackDamageOf(held.type());
+            float base = net.zaminmc.torch.server.item.Tools.attackDamageOf(held.type());
+            // The vanilla crit gate (the reference's flag, lines 959-965):
+            // falling with accumulated fall distance, airborne, not climbing,
+            // not in water, not blind, unmounted, on a living target. The
+            // blindness arm reads false until the potion slice exists (no
+            // status-effect state yet — structurally the no-effect read).
+            boolean crit = attacker.fallDistance() > 0.0F
+                    && !attacker.onGround()
+                    && !ladderAt(attacker.position().x(), attacker.position().y(),
+                            attacker.position().z())
+                    && !(fluidAt(attacker.position().x(), attacker.position().y(),
+                            attacker.position().z())
+                            || fluidAt(attacker.position().x(),
+                                    attacker.position().y() + 1.0,
+                                    attacker.position().z()))
+                    && !attacker.ridingAny();
+            // The multiply rides the BASE damage only, before the enchantment
+            // family joins (the reference's `f *= 1.5F` then `f += f1`,
+            // lines 966-970).
+            if (crit && base > 0.0F) {
+                base *= 1.5F;
+            }
+            float enchantDamage = EnchantmentHelper.modifyDamage(held,
+                    mob.type().damageCategory());
+            float damage = base + enchantDamage;
             // The reference attack walk (reference/1.8.8 PlayerEntity.attack
             // lines 941-1046): the damage-family enchantments ride the mob's
             // damage category (Smite on the undead, Bane on the spider), the
             // Knockback level joins and sprinting adds one more level.
-            damage += EnchantmentHelper.modifyDamage(held, mob.type().damageCategory());
             int knockback = EnchantmentHelper.knockbackLevel(held);
             if (attacker.sprinting()) {
                 knockback++;
@@ -1553,6 +1576,17 @@ public final class EngineServer implements Server, EngineBridge {
                 // carry no equipment, the historical bare-mob read).
                 if (fireLevel > 0) {
                     mob.ignite(fireLevel * FIRE_ASPECT_SECONDS_PER_LEVEL * TICKS_PER_SECOND);
+                }
+                // The crit bursts ride the landed hit (the reference's
+                // addCritParticles on the crit flag, lines 1002-1004, and the
+                // enchanted-hit burst on f1 > 0, lines 1006-1008 — both
+                // broadcast EntityAnimationS2CPacket over the attacker's
+                // tracking set).
+                if (crit) {
+                    publishMobAnimation(mob, ANIMATION_CRIT);
+                }
+                if (enchantDamage > 0.0F) {
+                    publishMobAnimation(mob, ANIMATION_MAGIC_CRIT);
                 }
             } else if (preIgnited) {
                 mob.extinguish(); // the reference's missed-swing quirk
@@ -1624,12 +1658,29 @@ public final class EngineServer implements Server, EngineBridge {
                 return; // out of reach: the server-side refusal
             }
             ItemStack held = attacker.inventory().held();
-            float damage = net.zaminmc.torch.server.item.Tools.attackDamageOf(held.type());
-            // The reference attack walk: the damage-family enchantments join
-            // before the hurt window (players are the reference's UNDEFINED
-            // category — only Sharpness lands on a player), the Knockback
-            // level joins and sprinting adds one more level.
-            damage += EnchantmentHelper.modifyDamage(held, 0);
+            float base = net.zaminmc.torch.server.item.Tools.attackDamageOf(held.type());
+            // The vanilla crit gate (the reference's flag): falling, airborne,
+            // not climbing, not in water, not blind, unmounted — the same
+            // arms as the mob path; the target here is a living player.
+            boolean crit = attacker.fallDistance() > 0.0F
+                    && !attacker.onGround()
+                    && !ladderAt(attacker.position().x(), attacker.position().y(),
+                            attacker.position().z())
+                    && !(fluidAt(attacker.position().x(), attacker.position().y(),
+                            attacker.position().z())
+                            || fluidAt(attacker.position().x(),
+                                    attacker.position().y() + 1.0,
+                                    attacker.position().z()))
+                    && !attacker.ridingAny();
+            if (crit && base > 0.0F) {
+                base *= 1.5F;
+            }
+            // The damage-family enchantments join after the crit multiply
+            // (players are the reference's UNDEFINED category — only
+            // Sharpness lands on a player), the Knockback level joins and
+            // sprinting adds one more level.
+            float enchantDamage = EnchantmentHelper.modifyDamage(held, 0);
+            float damage = base + enchantDamage;
             int knockback = EnchantmentHelper.knockbackLevel(held);
             if (attacker.sprinting()) {
                 knockback++;
@@ -1708,6 +1759,15 @@ public final class EngineServer implements Server, EngineBridge {
             if (fireLevel > 0) {
                 igniteWithFireProtection(victim,
                         fireLevel * FIRE_ASPECT_SECONDS_PER_LEVEL);
+            }
+            // The crit bursts ride the landed hit (the reference's
+            // addCritParticles / addEnchantedCritParticles order: right after
+            // the velocity arm, lines 1002-1008).
+            if (crit) {
+                publishPlayerAnimation(victim, ANIMATION_CRIT);
+            }
+            if (enchantDamage > 0.0F) {
+                publishPlayerAnimation(victim, ANIMATION_MAGIC_CRIT);
             }
             victim.setMotion(nvx, nvy, nvz);
             publishPlayerHurt(victim);
@@ -2113,8 +2173,13 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /**
-     * The shared launch: spawn origin at the eyes, look-vector velocity, the
-     * historical bow-whoosh sound. Tick-thread context.
+     * The shared launch: spawn origin at the eyes pulled back per the
+     * reference's living-thrower constructors (ThrownEntity lines 58-62 and
+     * ArrowEntity lines 89-93 — the swapped-trig legacy: x -= cos(yaw)*0.16,
+     * z -= sin(yaw)*0.16, y -= 0.1, NOT the look vector), look-vector
+     * velocity, the historical bow-whoosh sound. The pulled-back origin
+     * keeps the body out of its own hit box so the thrower-immunity window
+     * no longer leans on tick scheduling. Tick-thread context.
      */
     private void launchProjectile(PlayerSession session, ProjectileEntity.Kind kind,
                                   double speed) {
@@ -2122,8 +2187,13 @@ public final class EngineServer implements Server, EngineBridge {
             return; // pre-boot guard (tests construct partial engines)
         }
         Position eye = mouthPosition(session);
+        double yawRadians = Math.toRadians(session.rotation().yaw());
+        Position spawn = new Position(
+                eye.x() - Math.cos(yawRadians) * 0.16,
+                eye.y() - 0.1F,
+                eye.z() - Math.sin(yawRadians) * 0.16);
         ProjectileEntity projectile = projectileManager.launch(kind,
-                session.engineEntityId(), eye,
+                session.engineEntityId(), spawn,
                 session.rotation().yaw(), session.rotation().pitch(), speed);
         fxManager.sound(eye, "random.bow", 1.0f,
                 (float) (1.0 / (fxRandom.nextFloat() * 0.4 + 1.2) + speed * 0.1));
@@ -5294,6 +5364,48 @@ public final class EngineServer implements Server, EngineBridge {
     /** Registers an internal swing-animation observer (the protocol adapter). */
     public void addMobSwingObserver(MobSwingObserver observer) {
         swingObservers.add(Objects.requireNonNull(observer, "observer"));
+    }
+
+    /**
+     * The entity-animation codes the attack walk broadcasts: the crit burst
+     * and the magic-crit burst (the reference's EntityAnimationS2CPacket
+     * codes 4 and 5 — ServerPlayerEntity.addCritParticles line 795 and
+     * addEnchantedCritParticles line 800). Kept in the engine because the
+     * attack verdicts decide when they fire; the adapter maps them to the
+     * wire.
+     */
+    public static final int ANIMATION_CRIT = 4;
+    public static final int ANIMATION_MAGIC_CRIT = 5;
+
+    /** The attack crit bursts: the adapter renders them as Animation 0x0B. */
+    public interface EntityAnimationObserver {
+        /** The burst on a mob target (the wire-global mob id). */
+        void onMobAnimation(MobEntity mob, int animation);
+
+        /** The burst on a player target (resolved per observer id space). */
+        void onPlayerAnimation(PlayerSession player, int animation);
+    }
+
+    private final java.util.List<EntityAnimationObserver> entityAnimationObservers =
+            new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    /** Registers an internal entity-animation observer (the protocol adapter). */
+    public void addEntityAnimationObserver(EntityAnimationObserver observer) {
+        entityAnimationObservers.add(Objects.requireNonNull(observer, "observer"));
+    }
+
+    /** Broadcasts a crit-family burst on a mob target (tick thread). */
+    private void publishMobAnimation(MobEntity mob, int animation) {
+        for (EntityAnimationObserver observer : entityAnimationObservers) {
+            observer.onMobAnimation(mob, animation);
+        }
+    }
+
+    /** Broadcasts a crit-family burst on a player target (tick thread). */
+    private void publishPlayerAnimation(PlayerSession player, int animation) {
+        for (EntityAnimationObserver observer : entityAnimationObservers) {
+            observer.onPlayerAnimation(player, animation);
+        }
     }
 
     /**

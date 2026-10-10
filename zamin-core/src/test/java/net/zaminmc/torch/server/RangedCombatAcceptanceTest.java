@@ -88,6 +88,40 @@ class RangedCombatAcceptanceTest {
     }
 
     @Test
+    void theThrownShardSpawnsBehindTheEyeLikeTheReference() throws Exception {
+        EngineServer server = boot();
+        net.zaminmc.torch.server.player.PlayerSession thrower = join(server, "Thrower");
+        server.chatService().submitChat(thrower, "/give snowball 2");
+        await(() -> !thrower.inventory().held().isEmpty(), "snowballs given");
+
+        // The reference's living-thrower spawn (ThrownEntity lines 58-62):
+        // the shard spawns at the eye pulled back by the swapped-trig legacy
+        // arm — x -= cos(yaw)*0.16, z -= sin(yaw)*0.16, y -= 0.1 — which is
+        // EXACTLY PERPENDICULAR to the throw direction (the legacy quirk:
+        // the pull-back is 90 degrees off the look vector). The projectile
+        // flies along the look line, so the lateral distance from the
+        // eye-line to the observed position stays 0.16 at every tick of
+        // flight — an exact, race-free read of the spawn offset.
+        server.useItem(thrower);
+        await(() -> server.projectiles().all().size() == 1, "the snowball flew on the press");
+        ProjectileEntity shard = server.projectiles().all().get(0);
+
+        double yawRadians = Math.toRadians(thrower.rotation().yaw());
+        Position eye = new Position(thrower.position().x(),
+                thrower.position().y() + 1.62, thrower.position().z());
+        // The throw line's direction T = (-sin, +cos); its left normal
+        // N = (-cos, -sin) IS the reference spawn offset direction.
+        double nx = -Math.cos(yawRadians);
+        double nz = -Math.sin(yawRadians);
+        double lateral = (shard.position().x() - eye.x()) * nx
+                + (shard.position().z() - eye.z()) * nz;
+        assertEquals(0.16, lateral, 1e-6,
+                "the shard rides 0.16 left of the throw line (the legacy spawn pull-back), saw "
+                        + lateral);
+        server.shutdown(null);
+    }
+
+    @Test
     void breakingABlockEmitsTheDigSoundAndTheShatterBurst() throws Exception {
         EngineServer server = boot();
         net.zaminmc.torch.server.player.PlayerSession miner = join(server, "Miner");

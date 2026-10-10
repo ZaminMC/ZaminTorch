@@ -853,6 +853,11 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
         }
     }
 
+    /** @return the accumulated fall distance without consuming it (tick-thread landing). */
+    public float fallDistance() {
+        return fallDistance;
+    }
+
     /** @return the accumulated fall distance, clearing it (tick-thread landing). */
     public float consumeFallDistance() {
         float distance = fallDistance;

@@ -2443,6 +2443,63 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     }
 
     /**
+     * Animation (0x0B) with a caller-chosen code aimed at a mob: the attack
+     * crit bursts ride it — the reference broadcasts EntityAnimationS2CPacket
+     * (target, 4) for a falling crit and (target, 5) for the enchanted hit
+     * (ServerPlayerEntity.addCritParticles/addEnchantedCritParticles). Any
+     * thread.
+     */
+    void sendMobAnimation(MobEntity mob, int animation) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(8);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_ANIMATION);
+        ByteBufOps.writeVarInt(out, mob.entityId());
+        out.writeByte(animation);
+        channel.writeAndFlush(out);
+    }
+
+    /**
+     * Animation (0x0B) aimed at this observer's own body: the crit burst on
+     * the victim's own client (the self arm of the reference's sendPacketToAll
+     * — the tracked player receives their own broadcast). Any thread.
+     */
+    void sendSelfAnimation(int animation) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(8);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_ANIMATION);
+        ByteBufOps.writeVarInt(out, ownEntityId);
+        out.writeByte(animation);
+        channel.writeAndFlush(out);
+    }
+
+    /**
+     * Animation (0x0B) for a tracked remote player (the crit burst on the
+     * victim's wire body, resolved through this observer's id space). Any
+     * thread.
+     */
+    void sendRemotePlayerAnimation(java.util.UUID remoteUuid, int animation) {
+        Integer entityId = remoteEntityIds.get(remoteUuid);
+        if (entityId == null) {
+            return; // not visible to this observer
+        }
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(8);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_ANIMATION);
+        ByteBufOps.writeVarInt(out, entityId);
+        out.writeByte(animation);
+        channel.writeAndFlush(out);
+    }
+
+    /**
      * Explosion (0x27, community-verified layout: f32 xyz, f32 radius, i32
      * count of i8-triplet block offsets, f32 playerMotion xyz — the client
      * applies its own vector and plays the sound + particles itself). Any
