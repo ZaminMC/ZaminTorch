@@ -287,7 +287,7 @@ class SurvivalMiningAcceptanceTest {
                 net.zaminmc.torch.item.ItemStack.of(net.zaminmc.torch.server.item.BuiltinItems.GOLDEN_PICKAXE));
         // Wear the golden pickaxe (32 durability) to one point before breaking.
         while (player.inventory().held().damage() < 31) {
-            player.inventory().damageHeld(1);
+            player.inventory().damageHeld(1, new java.util.Random());
         }
 
         BlockPosition stone = new BlockPosition(2, 5, 2); // within 4.5 survival reach of spawn

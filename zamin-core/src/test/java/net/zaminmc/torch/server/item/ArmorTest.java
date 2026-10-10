@@ -69,10 +69,10 @@ class ArmorTest {
         assertTrue(inventory.setArmor(0, ItemStack.of(BuiltinItems.LEATHER_HELMET, 1)
                 .withDamage(BuiltinItems.LEATHER_HELMET.maxDurability() - 1)));
         assertTrue(inventory.setArmor(1, ItemStack.of(BuiltinItems.IRON_CHESTPLATE, 1)));
-        assertTrue(inventory.wearArmor());
+        assertTrue(inventory.wearArmor(4.0F, new java.util.Random()));
         assertTrue(inventory.armorAt(0).isEmpty(), "the last-wear helmet breaks");
         assertEquals(1, inventory.armorAt(1).damage(), "the chestplate took one wear");
-        assertTrue(inventory.wearArmor()); // keep wearing the chestplate down
+        assertTrue(inventory.wearArmor(4.0F, new java.util.Random())); // keep wearing the chestplate down
         assertEquals(2, inventory.armorAt(1).damage());
     }
 

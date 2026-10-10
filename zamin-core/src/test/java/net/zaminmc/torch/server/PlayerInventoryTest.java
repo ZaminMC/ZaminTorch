@@ -123,9 +123,9 @@ class PlayerInventoryTest {
         PlayerInventory inventory = new PlayerInventory();
         inventory.pickUp(ItemStack.of(BuiltinItems.WOODEN_PICKAXE)); // 59 durability
 
-        assertTrue(inventory.damageHeld(1));
+        assertTrue(inventory.damageHeld(1, new java.util.Random()));
         assertEquals(1, inventory.held().damage());
-        assertTrue(inventory.damageHeld(2));
+        assertTrue(inventory.damageHeld(2, new java.util.Random()));
         assertEquals(3, inventory.held().damage());
         assertEquals(1, inventory.held().count(), "a worn tool is not consumed, only worn");
     }
@@ -136,32 +136,32 @@ class PlayerInventoryTest {
         inventory.pickUp(ItemStack.of(BuiltinItems.GOLDEN_PICKAXE)); // 32 durability
 
         for (int i = 0; i < 31; i++) {
-            assertTrue(inventory.damageHeld(1));
+            assertTrue(inventory.damageHeld(1, new java.util.Random()));
         }
         assertEquals(31, inventory.held().damage());
         // The 32nd wear point breaks it: the slot empties, exactly as historically.
-        assertTrue(inventory.damageHeld(1));
+        assertTrue(inventory.damageHeld(1, new java.util.Random()));
         assertTrue(inventory.held().isEmpty());
         // Breaking an empty hand is a no-op.
-        assertEquals(false, inventory.damageHeld(1));
+        assertEquals(false, inventory.damageHeld(1, new java.util.Random()));
     }
 
     @Test
     void nonDurableItemsAreNeverWorn() {
         PlayerInventory inventory = new PlayerInventory();
         inventory.pickUp(ItemStack.of(BuiltinItems.DIRT, 5));
-        assertEquals(false, inventory.damageHeld(1));
+        assertEquals(false, inventory.damageHeld(1, new java.util.Random()));
         assertEquals(0, inventory.held().damage());
         assertEquals(5, inventory.held().count());
 
-        assertThrows(IllegalArgumentException.class, () -> inventory.damageHeld(0));
+        assertThrows(IllegalArgumentException.class, () -> inventory.damageHeld(0, new java.util.Random()));
     }
 
     @Test
     void wornToolKeepsItsDamageThroughSplitAndCountChanges() {
         PlayerInventory inventory = new PlayerInventory();
         inventory.pickUp(ItemStack.of(BuiltinItems.IRON_PICKAXE));
-        inventory.damageHeld(10);
+        inventory.damageHeld(10, new java.util.Random());
 
         ItemStack thrown = inventory.dropHeld(false); // Q-drop of the stack-of-one
         assertEquals(10, thrown.damage(), "the thrown tool stays worn");
