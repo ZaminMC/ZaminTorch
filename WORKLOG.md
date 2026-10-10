@@ -33,10 +33,25 @@ the bottom. The behavior-level status of every mechanic lives in
 
 ## In progress
 
-- **Slice 6 — mounts completion**: animal breeding (love/breeding-age clocks,
-  feed-to-love per species, breed goal with the 60-tick proximity rule, baby
-  growth), donkey/mule chests (equip, 15-slot window, spill on death), horse
-  feeding table (heal/grow/temper/love bands). Leads deferred.
+- (none — Slice 6 landed; Slice 7 enchanting is next)
+
+## Landed since the ledger opened
+
+- **Slice 6 — breeding + donkey chest** (`be37243`, follow-ups): the love
+  window (600 ticks, event-18 burst, damage clears, off-age clears), the
+  EntityAgeable age walk with the wire's index-12 byte and grew-up delta,
+  the baby-feed tenth-growth, the AnimalBreedGoal landing (grown-8 scan,
+  60-tick proximity, squared-9 gate, 6000 cooldown, -24000 childhood, the
+  1-7 XP burst), the horse family rules (tamed + FULL health + unmounted,
+  mule barren, 0x1 makes the mule), the HorseBaseEntity feed table
+  (heal/grow/temper/love arms with the untamed temper band), the pig's
+  carrot and the per-kind breeding items, the donkey chest (15-slot grid
+  through the shared cursor semantics, the faithful 38/53 Open Window
+  counts, the death spill order), the missing food items + Foods rows, and
+  the lost `ENTITY_STATUS_HURT/DEAD` constants restored. Tests: 13 unit +
+  2 wire tests; suite 466 green (was 451). Breed spawns defer past the
+  mob-iteration loop (CME); ambient heart particles pending a verified
+  heart id (documented in the ledger).
 
 ## Not started
 
