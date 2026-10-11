@@ -153,6 +153,8 @@ public final class RedstoneSystem implements WorldChangeListener {
     private static final int FAMILY_COMPARATOR = 5;
     /** The tripwire family (Slice 10c — the scheduled re-scan). */
     static final int FAMILY_TRIPWIRE = 6;
+    /** The dispenser/dropper family (Slice 11a — the 4-tick reaction). */
+    static final int FAMILY_DISPENSER = 7;
 
     /** The plates' re-compute debounce (AbstractPressurePlateBlock.getTickRate). */
     static final int PLATE_TICK_RATE = 20;
@@ -342,6 +344,23 @@ public final class RedstoneSystem implements WorldChangeListener {
     /** Wires the tripwire system's scheduled re-scan (same package). */
     public void setTripwireTicker(java.util.function.Consumer<BlockPosition> ticker) {
         this.tripwireTicker = ticker;
+    }
+
+    /** The dispenser system's scheduled-tick callback (the dispense). */
+    private java.util.function.Consumer<BlockPosition> dispenserTicker;
+
+    /** Wires the dispenser family's scheduled dispense (Slice 11a). */
+    public void setDispenserTicker(java.util.function.Consumer<BlockPosition> ticker) {
+        this.dispenserTicker = ticker;
+    }
+
+    /**
+     * The dispenser family's scheduling entry (Slice 11a — the cross-package
+     * surface: DispenserBlock.neighborChanged's scheduleTick with the
+     * 4-tick getTickRate delay).
+     */
+    public void scheduleDispense(BlockPosition pos, int delay) {
+        scheduleTick(pos, FAMILY_DISPENSER, delay, 0);
     }
 
     // ------------------------------------------------------------------
@@ -868,6 +887,13 @@ public final class RedstoneSystem implements WorldChangeListener {
             } else if (TripwireBlocks.isTripwire(type)) {
                 if (tripwireTicker != null) {
                     tripwireTicker.accept(entry.position());
+                }
+            } else if (entry.family() == FAMILY_DISPENSER) {
+                // The dispenser family's scheduled reaction (the block was
+                // validated at dispatch; the ticker re-checks — a changed
+                // block is a stale entry).
+                if (dispenserTicker != null) {
+                    dispenserTicker.accept(entry.position());
                 }
             }
         }
@@ -1541,6 +1567,9 @@ public final class RedstoneSystem implements WorldChangeListener {
         }
         if (TripwireBlocks.isTripwire(type)) {
             return FAMILY_TRIPWIRE;
+        }
+        if (net.zaminmc.torch.server.dispenser.DispenserBlocks.isFamily(type)) {
+            return FAMILY_DISPENSER;
         }
         return -1;
     }

@@ -33,6 +33,10 @@ public final class ProjectileManager {
     static final double ARROW_GRAVITY = 0.05;
     static final double THROWABLE_GRAVITY = 0.03;
     static final double DRAG = 0.99;
+    /** The fireball family's own drag (ProjectileEntity.getDrag line 198). */
+    static final double FIREBALL_DRAG = 0.95;
+    /** The small fireball's hit damage (SmallFireballEntity.onHit line 32). */
+    static final float FIREBALL_DAMAGE = 5.0f;
     /** A landed arrow despawns after a minute on the ground (historical 1200). */
     static final int ARROW_GROUND_TICKS = 1200;
     /** A shard in flight dies after ten seconds (the historical safety net). */
@@ -65,6 +69,16 @@ public final class ProjectileManager {
 
         /** The player whose bounding box contains the point, or null. */
         PlayerSession playerAt(Position point);
+    }
+
+    /**
+     * The fireball's landing arm (SmallFireballEntity.onHit lines 34-49):
+     * place the fire block at the first air cell the fireball crossed before
+     * the solid one. Wired by the engine; runs on the tick thread.
+     */
+    public interface FireSink {
+        /** Places fire at the cell when it holds air. */
+        void tryPlaceFire(int x, int y, int z);
     }
 
     /** Damage application callbacks (the engine owns the combat rules). */
@@ -132,6 +146,13 @@ public final class ProjectileManager {
     private final List<ProjectileEntity> projectiles = new ArrayList<>();
     private final List<Listener> listeners = new ArrayList<>();
     private int nextEntityId;
+    /** The fireball's landing arm; optional until the engine wires it. */
+    private FireSink fireSink = (x, y, z) -> { };
+
+    /** Wires the fireball's fire-placement arm. */
+    public void setFireSink(FireSink sink) {
+        this.fireSink = Objects.requireNonNull(sink, "sink");
+    }
 
     public ProjectileManager(SolidQuery solid, HitResolver hits, CombatSink combat,
                              FxManager fx, Random random, int firstEntityId) {
@@ -188,6 +209,56 @@ public final class ProjectileManager {
         return projectile;
     }
 
+    /**
+     * Launches a projectile from a position along a RAW direction vector
+     * (the dispenser's projectile family — Bootstrap lines 66-84 +
+     * ThrownEntity.dispense lines 86-99): the direction is normalized, tilted
+     * by the per-axis gaussian (sigma 0.0075 * variation), then scaled by the
+     * force. Tick-thread context.
+     */
+    public ProjectileEntity launchVector(ProjectileEntity.Kind kind, int throwerId,
+                                         Position origin, double dx, double dy, double dz,
+                                         double force, double variation) {
+        double length = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        if (length < 1.0E-4) {
+            length = 1.0;
+        }
+        dx /= length;
+        dy /= length;
+        dz /= length;
+        dx += random.nextGaussian() * 0.0075 * variation;
+        dy += random.nextGaussian() * 0.0075 * variation;
+        dz += random.nextGaussian() * 0.0075 * variation;
+        ProjectileEntity projectile = new ProjectileEntity(
+                nextEntityId++, kind, throwerId, origin, dx * force, dy * force, dz * force);
+        projectiles.add(projectile);
+        for (Listener listener : listeners) {
+            listener.onProjectileSpawned(projectile);
+        }
+        return projectile;
+    }
+
+    /**
+     * Launches a small fireball from a position along a raw direction vector
+     * (the dispensed fire charge — Bootstrap's FIRE_CHARGE arm): the
+     * direction picks up the gaussian tilt (sigma 0.05) before the ctor's
+     * normalize-and-scale walk, and the body starts at rest, accelerating
+     * toward ~1.9 blocks/tick. Tick-thread context.
+     */
+    public ProjectileEntity launchFireball(Position origin,
+                                           double directionX, double directionY, double directionZ) {
+        ProjectileEntity projectile = new ProjectileEntity(nextEntityId++,
+                ProjectileEntity.Kind.SMALL_FIREBALL, origin,
+                directionX + random.nextGaussian() * 0.05,
+                directionY + random.nextGaussian() * 0.05,
+                directionZ + random.nextGaussian() * 0.05);
+        projectiles.add(projectile);
+        for (Listener listener : listeners) {
+            listener.onProjectileSpawned(projectile);
+        }
+        return projectile;
+    }
+
     /** One physics pass over every projectile. Tick-thread context. */
     public void tick() {
         // Backward index walk: removals mid-tick (shatter, hit, expiry) shift
@@ -206,10 +277,14 @@ public final class ProjectileManager {
             // flight order (midpoint first): a full-draw arrow crosses ~3
             // blocks, and the midpoint halves the worst-case tunneling window
             // without doubling the physics. The burning clock steps with the
-            // pass (the reference's onFireTimer decay).
+            // pass (the reference's onFireTimer decay). The fireball family
+            // rides its own constants: drag 0.95, no gravity, the per-tick
+            // acceleration (the reference's ProjectileEntity.tick).
             projectile.tickFire();
+            double drag = projectile.kind() == ProjectileEntity.Kind.SMALL_FIREBALL
+                    ? FIREBALL_DRAG : DRAG;
             Position before = projectile.position();
-            projectile.integrate(DRAG, gravityOf(projectile.kind()));
+            projectile.integrate(drag, gravityOf(projectile.kind()));
             if (projectile.position().y() < VOID_KILL_Y) {
                 remove(projectile, "fell out of world"); // the vanilla kill plane
                 continue;
@@ -219,8 +294,8 @@ public final class ProjectileManager {
                     (before.x() + after.x()) / 2.0,
                     (before.y() + after.y()) / 2.0,
                     (before.z() + after.z()) / 2.0);
-            if (resolveCollisions(projectile, midpoint)
-                    || resolveCollisions(projectile, after)) {
+            if (resolveCollisions(projectile, before, midpoint)
+                    || resolveCollisions(projectile, before, after)) {
                 continue;
             }
             for (Listener listener : listeners) {
@@ -236,15 +311,20 @@ public final class ProjectileManager {
     }
 
     private static double gravityOf(ProjectileEntity.Kind kind) {
-        return kind == ProjectileEntity.Kind.ARROW ? ARROW_GRAVITY : THROWABLE_GRAVITY;
+        if (kind == ProjectileEntity.Kind.ARROW) {
+            return ARROW_GRAVITY;
+        }
+        return kind == ProjectileEntity.Kind.SMALL_FIREBALL
+                ? 0.0 : THROWABLE_GRAVITY;
     }
 
     /**
      * Collisions at one sample point: entity hits first (the faster
      * resolution), then blocks. Returns true when the projectile is resolved
-     * (removed or landed).
+     * (removed or landed). The {@code from} position is the pre-tick origin —
+     * the fireball's fire placement walks back to the last air cell.
      */
-    private boolean resolveCollisions(ProjectileEntity projectile, Position point) {
+    private boolean resolveCollisions(ProjectileEntity projectile, Position from, Position point) {
         // --- entity hit -------------------------------------------------------
         MobEntity mob = hits.mobAt(point);
         if (mob != null && !mob.dead()
@@ -271,6 +351,16 @@ public final class ProjectileManager {
                 }
                 return true;
             }
+            if (projectile.kind() == ProjectileEntity.Kind.SMALL_FIREBALL) {
+                // The fireball's landing arm (SmallFireballEntity.onHit
+                // lines 34-49): the fire lands at the air cell the fireball
+                // crossed before the solid one — the engine's stand-in for the
+                // reference's hit.face offset (the previous sample's cell).
+                fireSink.tryPlaceFire((int) Math.floor(from.x()),
+                        (int) Math.floor(from.y()), (int) Math.floor(from.z()));
+                remove(projectile, "hit");
+                return true;
+            }
             shatter(projectile);
             remove(projectile, "shattered");
             return true;
@@ -289,6 +379,12 @@ public final class ProjectileManager {
         float damage = damageOf(projectile);
         double kbYaw = Math.atan2(-projectile.velocityX(), projectile.velocityZ());
         boolean landed = combat.mobHit(mob, damage, kbYaw, projectile.throwerId());
+        if (projectile.kind() == ProjectileEntity.Kind.SMALL_FIREBALL && landed) {
+            // SmallFireballEntity.onHit lines 32-38: the hit target takes the
+            // five-second burn after the damage verdict (the fire-immune
+            // exemption rides the combat layer's own fire-resistance walk).
+            combat.mobIgniteFromProjectile(mob);
+        }
         if (landed) {
             int punch = projectile.punchLevel();
             if (punch > 0) {
@@ -314,6 +410,10 @@ public final class ProjectileManager {
         float damage = damageOf(projectile);
         double kbYaw = Math.atan2(-projectile.velocityX(), projectile.velocityZ());
         combat.playerHit(projectile, player, damage, kbYaw);
+        if (projectile.kind() == ProjectileEntity.Kind.SMALL_FIREBALL) {
+            // The five-second burn after the hit (the same onHit arm).
+            combat.playerIgniteFromProjectile(player);
+        }
         if (projectile.kind() == ProjectileEntity.Kind.EGG && rollEggHatch()) {
             combat.chickenHatch(player.position());
         }
@@ -323,9 +423,13 @@ public final class ProjectileManager {
      * The historical impact damage (the reference's ceil(currentSpeed *
      * damage)): the multiplier is 2.0 plus the Power bonus, the current
      * velocity magnitude (decayed by drag) rides — a spent arrow hits softer
-     * — and the full-draw crit roll adds nextInt(l / 2 + 2).
+     * — and the full-draw crit roll adds nextInt(l / 2 + 2). The fireball
+     * carries its own flat five (SmallFireballEntity.onHit line 32).
      */
     private float damageOf(ProjectileEntity projectile) {
+        if (projectile.kind() == ProjectileEntity.Kind.SMALL_FIREBALL) {
+            return FIREBALL_DAMAGE;
+        }
         if (projectile.kind() != ProjectileEntity.Kind.ARROW) {
             return 0.0f;
         }

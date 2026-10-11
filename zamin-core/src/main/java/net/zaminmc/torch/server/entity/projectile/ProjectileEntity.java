@@ -14,14 +14,17 @@ import java.util.Objects;
  */
 public final class ProjectileEntity {
 
-    /** The three projectiles the engine launches this slice. */
+    /** The projectiles the engine launches. */
     public enum Kind {
         /** The bow's arrow: sticks where it lands, hurts what it hits. */
         ARROW(60),
         /** The snowball: no damage, knockback only, shatters on impact. */
         SNOWBALL(61),
         /** The egg: like the snowball, but may hatch a chick. */
-        EGG(62);
+        EGG(62),
+        /** The dispensed fire charge (Slice 11a): accelerates along its
+         * direction, places fire where it lands, burns what it hits. */
+        SMALL_FIREBALL(63);
 
         /** Protocol 47's Spawn Object entity type id. */
         public final int objectType;
@@ -54,6 +57,15 @@ public final class ProjectileEntity {
     private double bonusDamage;
     /** The burning clock (Flame releases ignite 100 s — the whole flight). */
     private int fireTicks;
+    /**
+     * The fireball family's per-tick acceleration (the reference
+     * ProjectileEntity fields, the 6-double ctor's normalized*0.1 vector).
+     * Zero for the ballistic kinds (arrows, shards); a fireball ignores
+     * gravity and drag-steps at 0.95 instead.
+     */
+    private double accelerationX;
+    private double accelerationY;
+    private double accelerationZ;
 
     public ProjectileEntity(int entityId, Kind kind, int throwerId,
                             Position position, double vx, double vy, double vz) {
@@ -64,6 +76,24 @@ public final class ProjectileEntity {
         this.vx = vx;
         this.vy = vy;
         this.vz = vz;
+    }
+
+    /**
+     * The fireball launch (the reference's 6-double ctor): starts at rest
+     * and accelerates along the normalized direction scaled to 0.1 per
+     * tick (ProjectileEntity lines 50-58).
+     */
+    public ProjectileEntity(int entityId, Kind kind, Position position,
+                            double directionX, double directionY, double directionZ) {
+        this(entityId, kind, -1, position, 0.0, 0.0, 0.0);
+        double length = Math.sqrt(directionX * directionX + directionY * directionY
+                + directionZ * directionZ);
+        if (length < 1.0E-4) {
+            length = 1.0;
+        }
+        this.accelerationX = directionX / length * 0.1;
+        this.accelerationY = directionY / length * 0.1;
+        this.accelerationZ = directionZ / length * 0.1;
     }
 
     public int entityId() {
@@ -170,10 +200,17 @@ public final class ProjectileEntity {
      */
     public Position integrate(double drag, double gravity) {
         if (!inGround) {
-            vx *= drag;
-            vy *= drag;
-            vz *= drag;
-            vy -= gravity;
+            // The fireball family's own tick arm (the reference
+            // ProjectileEntity.tick lines 186-191): the velocity picks up the
+            // acceleration BEFORE the drag term — a fireball starts at rest
+            // and speeds toward v_inf = a*drag/(1-drag). The ballistic kinds
+            // carry zero acceleration and keep the plain gravity term.
+            vx = (vx + accelerationX) * drag;
+            vy = (vy + accelerationY) * drag;
+            vz = (vz + accelerationZ) * drag;
+            if (accelerationX == 0.0 && accelerationY == 0.0 && accelerationZ == 0.0) {
+                vy -= gravity;
+            }
             position = new Position(position.x() + vx, position.y() + vy, position.z() + vz);
             age++;
         } else {

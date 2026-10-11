@@ -181,11 +181,16 @@ public final class BlockLightTable {
             Map.entry(Identifier.parse("minecraft:sugar_cane"), new LightData(0, 0)));
 
     /**
-     * The redstone family's light rows (Slice 9a): the lit torches emit
-     * level 7 (the dataset's {@code emitLight 7} for minecraft:redstone_torch
-     * — dimmer than the plain torch's 14), the unlit pair, the wire at every
-     * power and the repeaters emit nothing, and nothing in the family filters
-     * light (the thin shapes pass it).
+     * The redstone family's light rows (Slice 9a) and the mechanical
+     * families' (the pistons 9e, the hopper 10b, the tripwire 10c, the
+     * dispenser/dropper 11a — the late-registered blocks whose rows the
+     * builder constructs in loops): the lit torches emit level 7 (the
+     * dataset's {@code emitLight 7} for minecraft:redstone_torch — dimmer
+     * than the plain torch's 14), the unlit pair, the wire at every power
+     * and the repeaters emit nothing, and nothing in the redstone family
+     * filters light (the thin shapes pass it); the opaque machines
+     * (dispenser, dropper, piston bases and heads) filter 15; the thin
+     * machines (hopper, moving carrier, tripwire) pass light.
      */
     private static final Map<Identifier, LightData> REDSTONE_LIGHT = buildRedstoneLight();
 
@@ -224,6 +229,62 @@ public final class BlockLightTable {
         entries.put(Identifier.parse("minecraft:stone_pressure_plate_powered"), new LightData(0, 0));
         entries.put(Identifier.parse("minecraft:wooden_pressure_plate"), new LightData(0, 0));
         entries.put(Identifier.parse("minecraft:wooden_pressure_plate_powered"), new LightData(0, 0));
+
+        // The mechanical families' rows (Slices 9e/10b/10c/11a — the gap the
+        // §54 warning swallow hid): the dispenser, the dropper and the
+        // piston bases/heads are full opaque cubes (filter 15); the hopper
+        // (the funnel shape), the moving carrier and the tripwire wire/hook
+        // pass light untouched.
+        for (String facing : new String[]{"down", "up", "north", "south", "west", "east"}) {
+            entries.put(Identifier.parse("minecraft:dispenser_" + facing), new LightData(0, 15));
+            entries.put(Identifier.parse("minecraft:dispenser_" + facing + "_triggered"),
+                    new LightData(0, 15));
+            entries.put(Identifier.parse("minecraft:dropper_" + facing), new LightData(0, 15));
+            entries.put(Identifier.parse("minecraft:dropper_" + facing + "_triggered"),
+                    new LightData(0, 15));
+            entries.put(Identifier.parse("minecraft:piston_" + facing), new LightData(0, 15));
+            entries.put(Identifier.parse("minecraft:piston_" + facing + "_extended"),
+                    new LightData(0, 15));
+            entries.put(Identifier.parse("minecraft:sticky_piston_" + facing), new LightData(0, 15));
+            entries.put(Identifier.parse("minecraft:sticky_piston_" + facing + "_extended"),
+                    new LightData(0, 15));
+            entries.put(Identifier.parse("minecraft:piston_head_" + facing), new LightData(0, 15));
+            entries.put(Identifier.parse("minecraft:piston_head_" + facing + "_sticky"),
+                    new LightData(0, 15));
+            entries.put(Identifier.parse("minecraft:moving_piston_" + facing), new LightData(0, 0));
+            entries.put(Identifier.parse("minecraft:moving_piston_" + facing + "_sticky"),
+                    new LightData(0, 0));
+        }
+        for (String facing : new String[]{"down", "north", "south", "west", "east"}) {
+            entries.put(Identifier.parse("minecraft:hopper_" + facing), new LightData(0, 0));
+            entries.put(Identifier.parse("minecraft:hopper_" + facing + "_disabled"),
+                    new LightData(0, 0));
+        }
+        for (int bits = 0; bits < 16; bits++) {
+            StringBuilder wire = new StringBuilder("minecraft:tripwire");
+            if ((bits & 1) != 0) {
+                wire.append("_powered");
+            }
+            if ((bits & 2) != 0) {
+                wire.append("_suspended");
+            }
+            if ((bits & 4) != 0) {
+                wire.append("_attached");
+            }
+            if ((bits & 8) != 0) {
+                wire.append("_disarmed");
+            }
+            entries.put(Identifier.parse(wire.toString()), new LightData(0, 0));
+        }
+        for (String facing : new String[]{"south", "west", "north", "east"}) {
+            for (int attached = 0; attached <= 1; attached++) {
+                for (int powered = 0; powered <= 1; powered++) {
+                    entries.put(Identifier.parse("minecraft:tripwire_hook_" + facing
+                            + (attached == 1 ? "_attached" : "")
+                            + (powered == 1 ? "_powered" : "")), new LightData(0, 0));
+                }
+            }
+        }
         return Map.copyOf(entries);
     }
 

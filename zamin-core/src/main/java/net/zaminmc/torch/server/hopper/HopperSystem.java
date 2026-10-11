@@ -59,6 +59,21 @@ public final class HopperSystem implements WorldChangeListener {
     private final ChestManager chests;
     private final FurnaceManager furnaces;
     private final Map<BlockPosition, HopperBlockEntity> hoppers = new LinkedHashMap<>();
+    /**
+     * The dispenser family's container state (wired after construction —
+     * the DispenserSystem itself needs this system for the dropper push,
+     * so the cycle resolves through a late lookup).
+     */
+    private java.util.function.Function<BlockPosition,
+            net.zaminmc.torch.server.dispenser.DispenserBlockEntity> dispenserLookup =
+            position -> null;
+
+    /** Wires the dispenser family's container lookup (the engine's boot order). */
+    public void setDispenserLookup(
+            java.util.function.Function<BlockPosition,
+                    net.zaminmc.torch.server.dispenser.DispenserBlockEntity> lookup) {
+        this.dispenserLookup = Objects.requireNonNull(lookup, "lookup");
+    }
 
     public HopperSystem(EngineWorld world, RedstoneSystem redstone,
                         ItemEntityManager itemEntities, ChestManager chests,
@@ -90,6 +105,34 @@ public final class HopperSystem implements WorldChangeListener {
     /** @return the live state at the position, or null when the hopper has none. */
     public HopperBlockEntity peek(BlockPosition position) {
         return hoppers.get(position);
+    }
+
+    /**
+     * @return whether a container sits at the position (the dropper's push
+     * walk — DropperBlock.dispense's getInventoryAt: the chest, the hopper,
+     * the furnace and the dispenser family all expose slots).
+     */
+    public boolean containerAt(BlockPosition position) {
+        return !containerSlotsAt(position, 0).isEmpty();
+    }
+
+    /**
+     * The dropper's push (Slice 11a — DropperBlock.dispense lines 41-63):
+     * one item into the container at the position through its receiving
+     * face. @return whether the item fit (the whole stack stays when it
+     * does not — the reference's copy-restore arm).
+     */
+    public boolean pushOneIntoContainer(BlockPosition at, int containerFace, ItemStack moving) {
+        List<ContainerSlot> slots = containerSlotsAt(at, containerFace);
+        if (moving.isEmpty()) {
+            return false;
+        }
+        ItemStack remainder = insertInto(slots, moving, at);
+        if (remainder.isEmpty()) {
+            noteReceivedByHopper(at);
+            return true;
+        }
+        return false;
     }
 
     /** @return the whole hopper map (the comparator walk + the save snapshot). */
@@ -394,6 +437,23 @@ public final class HopperSystem implements WorldChangeListener {
             }
             return slots;
         }
+        // The dispenser family (Slice 11a): nine unfiltered slots on every
+        // face (the reference's DispenserBlockEntity.isValid always true).
+        if (net.zaminmc.torch.server.dispenser.DispenserBlocks.isFamily(type)) {
+            net.zaminmc.torch.server.dispenser.DispenserBlockEntity container =
+                    dispenserLookup.apply(at);
+            if (container != null) {
+                List<ContainerSlot> slots =
+                        new ArrayList<>(net.zaminmc.torch.server.dispenser.DispenserBlockEntity.SLOT_COUNT);
+                for (int i = 0;
+                     i < net.zaminmc.torch.server.dispenser.DispenserBlockEntity.SLOT_COUNT;
+                     i++) {
+                    slots.add(dispenserSlot(container, i));
+                }
+                return slots;
+            }
+            return List.of();
+        }
         if (type.identifier().equals(BuiltinBlocks.FURNACE.identifier())
                 || type.identifier().equals(BuiltinBlocks.FURNACE_LIT.identifier())) {
             FurnaceBlockEntity furnace = furnaces.getOrCreate(at);
@@ -447,6 +507,27 @@ public final class HopperSystem implements WorldChangeListener {
             @Override
             public boolean allows(ItemStack moving) {
                 return true; // a hopper has no slot filters
+            }
+        };
+    }
+
+    /** The dispenser family's slot adapter (no filters, every face). */
+    private static ContainerSlot dispenserSlot(
+            net.zaminmc.torch.server.dispenser.DispenserBlockEntity container, int slot) {
+        return new ContainerSlot() {
+            @Override
+            public ItemStack get() {
+                return container.getItem(slot);
+            }
+
+            @Override
+            public void set(ItemStack stack) {
+                container.setItem(slot, stack);
+            }
+
+            @Override
+            public boolean allows(ItemStack moving) {
+                return true;
             }
         };
     }
@@ -581,8 +662,8 @@ public final class HopperSystem implements WorldChangeListener {
         return facing == 1 ? 0 : facing; // UP -> DOWN
     }
 
-    /** The opposite direction id. */
-    static int opposite(int direction) {
+    /** The opposite direction id (public: the dropper's receiving face). */
+    public static int opposite(int direction) {
         return switch (direction) {
             case 0 -> 1; // down <-> up
             case 1 -> 0;
