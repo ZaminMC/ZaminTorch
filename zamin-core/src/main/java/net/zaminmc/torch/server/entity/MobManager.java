@@ -648,6 +648,28 @@ public final class MobManager {
         return true;
     }
 
+    /**
+     * The magic arm (Slice 11b — DamageSource.MAGIC carries no knockback):
+     * the damage, the hurt/died fan-out, nothing else. The potion family's
+     * periodic and instant damage ride it.
+     */
+    public boolean hurtWithoutKnockback(MobEntity mob, float amount) {
+        Objects.requireNonNull(mob, "mob");
+        if (amount <= 0 || mob.dead()) {
+            return false;
+        }
+        mob.hurt(amount);
+        for (Listener listener : listeners) {
+            listener.onMobHurt(mob);
+        }
+        if (mob.health() <= 0) {
+            for (Listener listener : listeners) {
+                listener.onMobDied(mob);
+            }
+        }
+        return true;
+    }
+
     /** Rolls the kind's loot table into the world at the body. */
     private void dropLoot(MobEntity mob) {
         Position at = mob.position();

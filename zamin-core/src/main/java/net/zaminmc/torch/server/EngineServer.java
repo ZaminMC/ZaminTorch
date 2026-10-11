@@ -244,6 +244,9 @@ public final class EngineServer implements Server, EngineBridge {
     private net.zaminmc.torch.server.hopper.HopperSystem hopperSystem;
     /** The dispenser subsystem (Slice 11a): the 4-tick reaction + the behaviors. */
     private net.zaminmc.torch.server.dispenser.DispenserSystem dispenserSystem;
+
+    /** The potion subsystem (Slice 11b): the effect stores + the splash. */
+    private net.zaminmc.torch.server.potion.PotionSystem potionSystem;
     /** The tripwire subsystem (Slice 10c): the occupancy scan + the hook walk. */
     private net.zaminmc.torch.server.redstone.TripwireSystem tripwireSystem;
     /** The observers of the TNT system (the protocol adapter's wire sync). */
@@ -725,6 +728,12 @@ public final class EngineServer implements Server, EngineBridge {
                 redstoneSystem.addNeighborListener(dispenserSystem::neighborHeard);
                 redstoneSystem.setDispenserTicker(dispenserSystem::scheduledTick);
                 hopperSystem.setDispenserLookup(dispenserSystem::getOrCreate);
+                // The potions (Slice 11b): the per-body effect stores, the
+                // cadenced periodic application, and the splash's area walk.
+                potionSystem = new net.zaminmc.torch.server.potion.PotionSystem(
+                        new PotionBodies());
+                projectiles.setPotionSink((x, y, z, damage, directHit) ->
+                        potionSystem.splash(x, y, z, damage, directHit));
                 // Vehicles (§ vehicles slice): boats and minecarts on the
                 // shared body model; the engine owns the mounted rider.
                 VehicleManager vehicles = new VehicleManager(
@@ -766,6 +775,7 @@ public final class EngineServer implements Server, EngineBridge {
                     itemEntities.tick(players.all());
                     experienceOrbs.tick(players.all()); // the XP bodies pay out
                     mobs.tick(players.all(), world.timeOfDay());
+                    tickMobPotions(); // the mobs' effect stores (Slice 11b)
                     randomTicks.tick(players.all()); // §471: grass growth/decay
                     tickFurnaceViewers();
                     tickEnchantingViewers();
@@ -1199,6 +1209,11 @@ public final class EngineServer implements Server, EngineBridge {
         return redstoneSystem;
     }
 
+    /** The potion effect system (exposed for behavioral tests). */
+    public net.zaminmc.torch.server.potion.PotionSystem potions() {
+        return potionSystem;
+    }
+
     /** The random-tick system (exposed for deterministic growth probes). */
     public RandomTickSystem randomTicks() {
         return randomTicks;
@@ -1538,6 +1553,18 @@ public final class EngineServer implements Server, EngineBridge {
         survivalListeners.add(listener);
     }
 
+    /**
+     * Registers the potion-effect observer (the protocol adapter's Entity
+     * Effect 0x1D / Remove Entity Effect 0x1E fan-out — the reference's
+     * ServerPlayerEntity overrides: only the affected player's own client).
+     */
+    public void addPotionListener(net.zaminmc.torch.server.potion.PotionSystem.Listener listener) {
+        if (potionSystem == null) {
+            throw new IllegalStateException("the potion system boots with the world");
+        }
+        potionSystem.addListener(listener);
+    }
+
     private void publishPostureChanged(PlayerSession player) {
         for (SurvivalListener listener : survivalListeners) {
             listener.onPostureChanged(player);
@@ -1591,6 +1618,8 @@ public final class EngineServer implements Server, EngineBridge {
                         "fell out of the world", 0.0f);
             }
             tickEating(session);
+            tickDrinking(session); // the potion's 32-tick drink (Slice 11b)
+            potionSystem.tick(session); // the effect stores' countdown (Slice 11b)
             tickBowCharge(session);
             tickFoodEconomy(session);
             tickLanding(session);
@@ -1730,6 +1759,17 @@ public final class EngineServer implements Server, EngineBridge {
     private void tickFireBody(PlayerSession session) {
         if (session.gamemode() == GameMode.CREATIVE
                 || session.gamemode() == GameMode.SPECTATOR) {
+            return;
+        }
+        // Fire resistance (Slice 11b — the reference's isOnFireResistant
+        // gate over the fire family): the body never arms the burn and
+        // takes no fire damage while the effect holds.
+        boolean fireResistant = potionSystem.hasEffect(session,
+                net.zaminmc.torch.server.potion.StatusEffects.FIRE_RESISTANCE);
+        if (fireResistant) {
+            session.extinguish();
+            session.resetFireDamageTimer();
+            session.tickFire();
             return;
         }
         Position feet = session.position();
@@ -2541,6 +2581,8 @@ public final class EngineServer implements Server, EngineBridge {
      */
     private void dieOnTick(PlayerSession session, String causeMessage) {
         session.markDead();
+        // The dead body's effects clear (the reference's death walk).
+        potionSystem.clear(session);
         // The seat opens on death (the vanilla dismount rule).
         if (vehicleManager != null && session.ridingVehicleId() >= 0) {
             var ridden = vehicleManager.byId(session.ridingVehicleId());
@@ -2675,6 +2717,8 @@ public final class EngineServer implements Server, EngineBridge {
     static final double BOW_MAX_SPEED = 3.0;
     /** Shard (snowball/egg) launch speed (the historical 1.5). */
     static final double SHARD_SPEED = 1.5;
+    /** The potion's throw power (PotionEntity.getPower line 46-48: 0.5). */
+    private static final double POTION_THROW_POWER = 0.5;
     /** The Flame bow's arrow burn (the reference's setOnFireFor(100) = 100 s). */
     static final int FLAME_ARROW_TICKS = 2_000;
     /** The burning arrow's hit ignite (the reference's setOnFireFor(5) = 5 s). */
@@ -2714,6 +2758,17 @@ public final class EngineServer implements Server, EngineBridge {
             if (held.type().equals(BuiltinItems.SNOWBALL)
                     || held.type().equals(BuiltinItems.EGG)) {
                 throwShard(session, held.type());
+                return;
+            }
+            // Potions (Slice 11b — PotionItem.startUsing lines 109-126): the
+            // splash throws on the press; the drinkable starts its own
+            // 32-tick clock (no hunger gate — the reference's own rule).
+            if (held.type().equals(BuiltinItems.POTION)) {
+                if (net.zaminmc.torch.server.potion.PotionHelper.isSplashPotion(held.damage())) {
+                    throwSplashPotion(session, held.damage());
+                } else {
+                    session.beginDrinking();
+                }
                 return;
             }
             // Food: the eat timer.
@@ -2808,6 +2863,83 @@ public final class EngineServer implements Server, EngineBridge {
             publishInventoryChanged(session);
         }
         publishInventoryChanged(session);
+    }
+
+    /**
+     * The splash throw (PotionItem.startUsing lines 110-122): one unit
+     * leaves, the potion body launches with the 0.5 power and the -20
+     * degree pitch offset (ThrownEntity's own start arm), the bow throw
+     * sound. Tick-thread context.
+     */
+    private void throwSplashPotion(PlayerSession session, int metadata) {
+        boolean creative = session.gamemode() == GameMode.CREATIVE;
+        if (!creative) {
+            session.inventory().consumeHeld(1);
+        }
+        Position eye = mouthPosition(session);
+        double yawRadians = Math.toRadians(session.rotation().yaw());
+        Position spawn = new Position(
+                eye.x() - Math.cos(yawRadians) * 0.16,
+                eye.y() - 0.1F,
+                eye.z() - Math.sin(yawRadians) * 0.16);
+        ProjectileEntity potion = projectileManager.launch(ProjectileEntity.Kind.POTION,
+                session.engineEntityId(), spawn, session.rotation().yaw(),
+                session.rotation().pitch() - 20.0F, POTION_THROW_POWER);
+        if (potion != null) {
+            potion.setPotionDamage(metadata);
+        }
+        fxManager.sound(mouthPosition(session), "random.bow", 0.5f,
+                0.4f / (fxRandom.nextFloat() * 0.4f + 0.8f));
+        publishInventoryChanged(session);
+    }
+
+    /**
+     * The 32-tick drink timer (Slice 11b — PotionItem.finishUsing lines
+     * 71-96): completion consumes the potion, applies the effect set (the
+     * instant family at full strength, the timed family into the store),
+     * and the hand keeps the glass bottle back. The drinking feedback is
+     * the reference's own (PlayerEntity.tick lines 198-205: the
+     * "random.drink" every four ticks through the last 25, and the
+     * completion's onConsumeItem(16) plays the drink — not the food's
+     * burp).
+     */
+    private void tickDrinking(PlayerSession session) {
+        if (!session.drinking()) {
+            return;
+        }
+        var held = session.inventory().held();
+        if (held.isEmpty() || !held.type().equals(BuiltinItems.POTION)
+                || net.zaminmc.torch.server.potion.PotionHelper.isSplashPotion(held.damage())) {
+            session.cancelDrinking(); // the hand changed mid-drink
+            return;
+        }
+        int ticks = session.advanceDrinking();
+        if (ticks < Foods.EAT_TICKS) {
+            // The reference's down-counter (32 -> 1) sounds at <= 25 and
+            // every 4 — the up-counter's 8, 12, ..., 28.
+            if (ticks >= 8 && ticks <= 28 && ticks % 4 == 0) {
+                fxManager.sound(mouthPosition(session), "random.drink", 0.5f,
+                        fxRandom.nextFloat() * 0.1f + 0.9f);
+            }
+            return;
+        }
+        session.cancelDrinking();
+        fxManager.sound(mouthPosition(session), "random.drink", 0.5f,
+                fxRandom.nextFloat() * 0.1f + 0.9f);
+        int metadata = held.damage();
+        session.inventory().consumeHeld(1);
+        potionSystem.finishDrinking(session, metadata);
+        if (session.gamemode() != GameMode.CREATIVE) {
+            // The bottle swap (finishUsing lines 87-93): the empty bottle
+            // returns to the inventory, or drops when the inventory is full.
+            net.zaminmc.torch.item.ItemStack leftover = session.inventory().pickUp(
+                    ItemStack.of(BuiltinItems.GLASS_BOTTLE, 1));
+            if (!leftover.isEmpty()) {
+                throwFromPlayer(session, leftover);
+            }
+        }
+        publishInventoryChanged(session);
+        publishBodyChanged(session);
     }
 
     /**
@@ -3819,6 +3951,29 @@ public final class EngineServer implements Server, EngineBridge {
         }
         if (useBucketOnTick(session, clicked, face)) {
             return; // the bucket did its work; no placement proposal follows
+        }
+        // The glass bottle's water scoop (Slice 11b — GlassBottleItem.startUsing
+        // lines 22-47): a bottle aimed at ANY water block fills (the material
+        // gate — flowing water counts, unlike the bucket's source-only rule),
+        // one unit swapping to the water bottle (metadata 0). The reference
+        // plays no sound for the fill.
+        net.zaminmc.torch.item.ItemStack bottleHeld = session.inventory().held();
+        if (!bottleHeld.isEmpty()
+                && bottleHeld.type().equals(BuiltinItems.GLASS_BOTTLE)) {
+            BlockType aimed = world.getBlock(clicked);
+            if (FluidBlocks.kindOf(aimed.identifier()) == FluidBlocks.Kind.WATER) {
+                if (session.gamemode() != GameMode.CREATIVE) {
+                    session.inventory().consumeHeld(1);
+                    net.zaminmc.torch.item.ItemStack leftover = session.inventory().pickUp(
+                            new ItemStack(BuiltinItems.POTION, 1, 0, null));
+                    if (!leftover.isEmpty()) {
+                        throwFromPlayer(session, leftover); // the full inventory drops it
+                    }
+                }
+                publishInventoryChanged(session);
+                return;
+            }
+            return; // the bottle against anything else never places
         }
         if (cycleRepeaterDelayOnTick(clicked)) {
             return; // the repeater's use consumed the right-click (the delay cycle)
@@ -6463,6 +6618,133 @@ public final class EngineServer implements Server, EngineBridge {
                 }
             }
             return null;
+        }
+    }
+
+    /**
+     * The potion bodies (Slice 11b — the PotionSystem's application sink):
+     * the engine's own model fanned through the narrow interface. The
+     * players and the mobs stay the engine's; the splash scans them by
+     * their bounding boxes, the magic damage bypasses the knockback, and
+     * the effect-store keys ride the engine entity ids.
+     */
+    private final class PotionBodies implements net.zaminmc.torch.server.potion.PotionSystem.Bodies {
+        @Override
+        public java.util.List<Object> bodiesIn(double minX, double minY, double minZ,
+                                               double maxX, double maxY, double maxZ) {
+            java.util.List<Object> found = new java.util.ArrayList<>();
+            for (MobEntity mob : mobManager.all()) {
+                Position at = mob.position();
+                if (at.x() >= minX - 0.6 && at.x() <= maxX + 0.6
+                        && at.z() >= minZ - 0.6 && at.z() <= maxZ + 0.6
+                        && at.y() >= minY && at.y() <= maxY + 1.8) {
+                    found.add(mob);
+                }
+            }
+            for (PlayerSession player : players.all()) {
+                if (player.state() != PlayerState.PLAYING || player.dead()
+                        || player.gamemode() == GameMode.SPECTATOR) {
+                    continue;
+                }
+                Position at = player.position();
+                if (at.x() >= minX - 0.3 && at.x() <= maxX + 0.3
+                        && at.z() >= minZ - 0.3 && at.z() <= maxZ + 0.3
+                        && at.y() >= minY - 0.2 && at.y() <= maxY + 1.8) {
+                    found.add(player);
+                }
+            }
+            return found;
+        }
+
+        @Override
+        public double squaredDistanceTo(Object body, double x, double y, double z) {
+            Position at = body instanceof PlayerSession player ? player.position()
+                    : ((MobEntity) body).position();
+            double dx = at.x() - x;
+            double dy = at.y() - y;
+            double dz = at.z() - z;
+            return dx * dx + dy * dy + dz * dz;
+        }
+
+        @Override
+        public void hurt(Object body, float amount, String cause) {
+            if (body instanceof PlayerSession player) {
+                // The magic damage: no knockback, no protection shave (the
+                // reference's DamageSource.MAGIC pierces armor).
+                damageOnTick(player, amount, true, cause, 0.0f);
+            } else {
+                mobManager.hurtWithoutKnockback((MobEntity) body, amount);
+            }
+        }
+
+        @Override
+        public void heal(Object body, float amount) {
+            if (body instanceof PlayerSession player) {
+                float healed = Math.min(net.zaminmc.torch.server.player.PlayerSession.MAX_HEALTH,
+                        player.health() + amount);
+                player.setBody(healed, player.food(), player.saturation());
+                publishBodyChanged(player);
+            } else {
+                ((MobEntity) body).heal(amount);
+            }
+        }
+
+        @Override
+        public void exhaust(Object body, float amount) {
+            if (body instanceof PlayerSession player) {
+                player.addExhaustion(amount);
+            }
+        }
+
+        @Override
+        public void feed(Object body, int food, float saturation) {
+            if (body instanceof PlayerSession player) {
+                int newFood = Math.min(net.zaminmc.torch.server.player.PlayerSession.MAX_FOOD,
+                        player.food() + food);
+                float newSaturation = Math.min(newFood, player.saturation() + saturation);
+                player.setBody(player.health(), newFood, newSaturation);
+                publishBodyChanged(player);
+            }
+        }
+
+        @Override
+        public float healthOf(Object body) {
+            return body instanceof PlayerSession player ? player.health()
+                    : ((MobEntity) body).health();
+        }
+
+        @Override
+        public boolean fireResistant(Object body) {
+            return potionSystem.hasEffect(body,
+                    net.zaminmc.torch.server.potion.StatusEffects.FIRE_RESISTANCE);
+        }
+
+        @Override
+        public boolean undead(Object body) {
+            if (body instanceof PlayerSession) {
+                return false; // the players are never undead (no totem/zombie arm)
+            }
+            var type = ((MobEntity) body).type();
+            return type == net.zaminmc.torch.server.entity.MobType.ZOMBIE
+                    || type == net.zaminmc.torch.server.entity.MobType.SKELETON;
+        }
+
+        @Override
+        public boolean isPlayer(Object body) {
+            return body instanceof PlayerSession;
+        }
+
+        @Override
+        public int keyOf(Object body) {
+            return body instanceof PlayerSession player ? player.engineEntityId()
+                    : ((MobEntity) body).entityId();
+        }
+    }
+
+    /** The mobs' potion effects advance with the mob tick (Slice 11b). */
+    private void tickMobPotions() {
+        for (MobEntity mob : mobManager.all()) {
+            potionSystem.tick(mob);
         }
     }
 

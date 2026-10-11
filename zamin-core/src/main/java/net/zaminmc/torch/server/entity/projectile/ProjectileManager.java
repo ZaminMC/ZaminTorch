@@ -81,6 +81,16 @@ public final class ProjectileManager {
         void tryPlaceFire(int x, int y, int z);
     }
 
+    /**
+     * The potion's splash arm (PotionEntity.onCollision lines 72-106 —
+     * Slice 11b): the effect set applied to every living body around the
+     * impact. Wired by the engine; runs on the tick thread.
+     */
+    public interface PotionSink {
+        /** The splash at the impact point ({@code directHit} null on a block hit). */
+        void splash(double x, double y, double z, int damage, Object directHit);
+    }
+
     /** Damage application callbacks (the engine owns the combat rules). */
     public interface CombatSink {
         /**
@@ -148,10 +158,17 @@ public final class ProjectileManager {
     private int nextEntityId;
     /** The fireball's landing arm; optional until the engine wires it. */
     private FireSink fireSink = (x, y, z) -> { };
+    /** The potion's splash arm; optional until the engine wires it. */
+    private PotionSink potionSink = (x, y, z, damage, directHit) -> { };
 
     /** Wires the fireball's fire-placement arm. */
     public void setFireSink(FireSink sink) {
         this.fireSink = Objects.requireNonNull(sink, "sink");
+    }
+
+    /** Wires the potion's splash arm. */
+    public void setPotionSink(PotionSink sink) {
+        this.potionSink = Objects.requireNonNull(sink, "sink");
     }
 
     public ProjectileManager(SolidQuery solid, HitResolver hits, CombatSink combat,
@@ -311,7 +328,9 @@ public final class ProjectileManager {
     }
 
     private static double gravityOf(ProjectileEntity.Kind kind) {
-        if (kind == ProjectileEntity.Kind.ARROW) {
+        if (kind == ProjectileEntity.Kind.ARROW || kind == ProjectileEntity.Kind.POTION) {
+            // The potion's own gravity (PotionEntity.getGravity line 41-43:
+            // 0.05, the arrow's weight, not the shard's 0.03).
             return ARROW_GRAVITY;
         }
         return kind == ProjectileEntity.Kind.SMALL_FIREBALL
@@ -330,7 +349,14 @@ public final class ProjectileManager {
         if (mob != null && !mob.dead()
                 && !(mob.entityId() == projectile.throwerId()
                      && projectile.age() <= THROWER_IMMUNITY_TICKS)) {
-            hitMob(projectile, mob);
+            if (projectile.kind() == ProjectileEntity.Kind.POTION) {
+                // The splash on the struck body (PotionEntity.onCollision's
+                // result.entity arm — the direct hit answers proximity 1.0).
+                potionSink.splash(point.x(), point.y(), point.z(),
+                        projectile.potionDamage(), mob);
+            } else {
+                hitMob(projectile, mob);
+            }
             remove(projectile, "hit");
             return true;
         }
@@ -338,7 +364,12 @@ public final class ProjectileManager {
         if (player != null && !player.dead()
                 && !(player.engineEntityId() == projectile.throwerId()
                      && projectile.age() <= THROWER_IMMUNITY_TICKS)) {
-            hitPlayer(projectile, player);
+            if (projectile.kind() == ProjectileEntity.Kind.POTION) {
+                potionSink.splash(point.x(), point.y(), point.z(),
+                        projectile.potionDamage(), player);
+            } else {
+                hitPlayer(projectile, player);
+            }
             remove(projectile, "hit");
             return true;
         }
@@ -358,6 +389,14 @@ public final class ProjectileManager {
                 // reference's hit.face offset (the previous sample's cell).
                 fireSink.tryPlaceFire((int) Math.floor(from.x()),
                         (int) Math.floor(from.y()), (int) Math.floor(from.z()));
+                remove(projectile, "hit");
+                return true;
+            }
+            if (projectile.kind() == ProjectileEntity.Kind.POTION) {
+                // The block splash (onCollision's null-entity arm: the box
+                // scan around the impact point alone).
+                potionSink.splash(point.x(), point.y(), point.z(),
+                        projectile.potionDamage(), null);
                 remove(projectile, "hit");
                 return true;
             }

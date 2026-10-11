@@ -35,6 +35,12 @@ final class Protocol18 {
     static final int S2C_ENTITY_STATUS = 0x1A;
     static final int S2C_ENTITY_EQUIPMENT = 0x04;
     static final int S2C_ENTITY_METADATA = 0x1C;
+    /** Entity Effect (0x1D): varint entity, byte effect, byte amplifier,
+     * varint duration (capped 32767), byte flags (1 = show particles —
+     * the reference's own EntityStatusEffectS2CPacket ctor). */
+    static final int S2C_ENTITY_EFFECT = 0x1D;
+    /** Remove Entity Effect (0x1E): varint entity, byte effect. */
+    static final int S2C_REMOVE_ENTITY_EFFECT = 0x1E;
     static final int S2C_NAMED_SOUND_EFFECT = 0x29;
     static final int S2C_EXPLOSION = 0x27;
     /** World Particles is 0x2A — 0x2B is Game State Change (an off-by-one
@@ -156,6 +162,8 @@ final class Protocol18 {
     static final int OBJECT_EGG = 62;
     /** The dispensed fire charge (Slice 11a — community entities.json). */
     static final int OBJECT_SMALL_FIREBALL = 63;
+    /** Thrown potion (Spawn Object type 68). */
+    static final int OBJECT_POTION = 68;
     /** The vehicles (community entities.json object types). */
     static final int OBJECT_BOAT = 1;
     static final int OBJECT_MINECART = 10;

@@ -60,6 +60,8 @@ class Protocol18ConformanceTest {
         m.put("S2C_ENTITY_HEAD_LOOK", 0x19);
         m.put("S2C_ENTITY_STATUS", 0x1A);
         m.put("S2C_ENTITY_METADATA", 0x1C);
+        m.put("S2C_ENTITY_EFFECT", 0x1D);
+        m.put("S2C_REMOVE_ENTITY_EFFECT", 0x1E);
         m.put("S2C_ATTACH_ENTITY", 0x1B);
         m.put("S2C_SET_EXPERIENCE", 0x1F);
         m.put("S2C_CHUNK_DATA", 0x21);
@@ -118,7 +120,8 @@ class Protocol18ConformanceTest {
 
     /**
      * The specific regression: 0x1D is Entity Effect on this protocol —
-     * no clientbound constant may claim it (the 1.9-era Unload Chunk).
+     * the only constant that may claim it is the entity effect itself
+     * (the 1.9-era Unload Chunk that killed real clients).
      */
     @Test
     void noConstantClaimsTheEntityEffectSlot() throws Exception {
@@ -129,9 +132,12 @@ class Protocol18ConformanceTest {
                 continue;
             }
             field.setAccessible(true);
-            assertFalse(field.getInt(null) == 0x1D,
-                    field.getName() + " claims 0x1D — that slot is Entity Effect on protocol 47;"
-                    + " the real client dies decoding it (the Unload Chunk crash of v0.2.0-dev.4)");
+            if (field.getInt(null) == 0x1D) {
+                assertEquals("S2C_ENTITY_EFFECT", field.getName(),
+                        "only the Entity Effect constant may claim 0x1D — the real client"
+                        + " dies decoding anything else there (the Unload Chunk crash"
+                        + " of v0.2.0-dev.4)");
+            }
         }
     }
 

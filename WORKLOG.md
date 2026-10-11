@@ -953,3 +953,118 @@ family's nine slots, the arrow pickup flag.
 
 **Next:** potions (the splash entity + the effect application), leads,
 structures, natural spawn cycles.
+
+## Slice 11b — the potions (the reference port of entity/living/effect/{PotionHelper, StatusEffect, StatusEffectInstance, InstantStatusEffect} + item/PotionItem + item/GlassBottleItem + entity/projectile/PotionEntity + LivingEntity's effect arms + ServerPlayerEntity's packet overrides)
+
+**What landed:**
+
+- **The metadata engine** (`potion/PotionHelper`, 1:1): the 1.8.8
+  damage-value model — the brewing flags (0-3 the effect pair, 5 the
+  amplifier-II, 6 the extended, 13 the drinkable carrier, 14 the splash),
+  the reference's own flag-expression machine (`parseRecipe` + `evaluate`
+  ported statement-for-statement: '|' takes the left when positive, '&'
+  zeroes on either zero else the max, the sub-expression sums), the two
+  recipe tables (14 duration rows + 9 amplifier rows, the exact strings),
+  the duration math `1200 * (i*3 + (i-1)*2) >> amplifier` with the
+  per-effect multiplier and the splash's `round(*0.75 + 0.5)` shave, the
+  color average, `applyIngredient` (the brewing stand's future surface —
+  the '+', '-', '!', '&' operators, the 32767 mask), and `getPrefixIndex`.
+- **The effect registry** (`potion/StatusEffects`): all twenty-three
+  1.8.8 effects in id order — the harmful flags, the potion colors, the
+  duration multipliers (the harmful 0.5, regen/poison/wither/nausea/
+  blindness 0.25, haste 1.5), the instant family (health/damage/
+  saturation), and the periodic cadences (regen `50 >> amp`, poison
+  `25 >> amp`, wither `40 >> amp`, hunger every tick) read off the
+  countdown clock exactly as the reference's modulo.
+- **The instance model** (`potion/StatusEffectInstance`): the combine
+  rule (the stronger amplifier replaces with the duration reset, the
+  equal keeps the longer, the ambient clears), the tick walk (apply on
+  the cadence, then the countdown, expiry when the duration hits zero).
+- **The system** (`potion/PotionSystem`): the per-body effect stores
+  keyed by engine entity id, the vanilla merge on re-application, the
+  undead refusal (canHaveStatusEffect: regeneration and poison), the
+  per-tick walk with the cadenced application — regeneration heals one
+  under the max, **poison stops one short of dead (the `health > 1.0`
+  gate — the reference's own rule, poison never kills)**, wither hurts
+  freely, hunger exhausts `0.025 * (amp+1)`, saturation feeds — the
+  instant family's smite-aware swing (`4 << amp` heals the living,
+  `6 << amp` magic on the undead, mirrored for the harm brew, each
+  proximity-scaled and rounded), the drink (the effect set at full
+  strength, instants apply the same tick — the reference's
+  PlayerEntity.tick order: finishUsing before super.tick's effect walk),
+  and the splash (the `0.25`-cube-grown-`(4, 2, 4)` scan box, the
+  `1 - sqrt(d2)/4` proximity, the direct-hit 1.0, the timed set at
+  `d1 * duration + 0.5` with the 20-tick floor, the instant family
+  through the same swing).
+- **The throw** (EngineServer): the splash press (one unit, the 0.5
+  power with the -20° pitch offset, the 0.5-volume bow, the metadata
+  payload on the POTION projectile kind 68), the 32-tick drink clock
+  (the separate timer — no hunger gate), the completion (the effect set,
+  the glass-bottle swap — drop on a full inventory), **the reference's
+  drink feedback (the "random.drink" every four ticks through the last
+  25 and at completion — not the food's burp)**, and the hand-change
+  cancel.
+- **The bottle scoop** (EngineServer): **any water block fills the
+  bottle (the material gate — flowing water counts, unlike the bucket's
+  source-only rule), and the reference plays no sound for the fill.**
+- **The wire**: the Entity Effect 0x1D (varint entity, byte effect,
+  byte amplifier, varint duration with the 32767 permanent cap, byte
+  flags 1=show-particles) + the Remove Entity Effect 0x1E (varint
+  entity, byte effect) — both the reference packet classes' own write
+  order; the fan-out to the affected player's own client only (the
+  reference's ServerPlayerEntity overrides), the 600-tick re-sync arm
+  (tickStatusEffects' `% 600 == 0` re-send), the POTION Spawn Object
+  type 68, and the conformance table's two new rows with the
+  0x1D-guard repurposed (only the entity effect constant may claim the
+  slot).
+- **The dispenser arm** (DispenserSystem): the splash potion flies
+  (force `1.1 * 1.25`, variation `6 * 0.5`, the metadata payload, the
+  1.2-pitch bow); the drinkable falls through to the default item drop.
+- **The fire-resistance gate** (EngineServer): the burn family skips a
+  protected body entirely (no ignite, no fire damage, the reference's
+  isOnFireResistant).
+
+**Bugs found and fixed through the reference read:**
+
+1. **The poison gate** — the port hurt unconditionally; the reference
+   stops one short of dead (`health > 1.0`), the death cause now the
+   magic message.
+2. **The drink's burp** — the port played random.burp at completion;
+   the reference plays random.drink (the burp is FoodItem's own) plus
+   the every-four-ticks drink feedback.
+3. **The bottle's source gate** — the port required a source block;
+   the reference's material check accepts flowing water too, and plays
+   no fill sound.
+4. **The splash's scan box** — the reference grows the potion's own
+   0.25 cube, not a point box: the 0.125 half-width now rides every face.
+5. **The missing Entity Effect packets** — the effects never reached
+   the client HUD; the 0x1D/0x1E pair now lands with the 600-tick
+   re-sync.
+
+**Tests:** PotionSystemTest (22): the metadata math (water 0 empty;
+regen 8193 → 900 ticks the historical 0:45, the amplifier-II right
+shift 450, the extended 2400, the splash shave 676 + the flag; speed
+3600, weakness 1800 the harmful half; the instant unit duration; the
+color average), the store (the vanilla merge, the undead refusal, the
+expiry + the listener), the periodic (the regen cadence two pulses over
+51 ticks, **the poison floor**, wither across the floor + the hunger
+exhaustion 0.05 at amplifier I, the 600-tick resync), the instant
+family (the smite pair both directions, the half-proximity rounding),
+the drink (the II heals 8, the timed install, the water nothing), the
+splash (the proximity falloff 0.025 → zero heal at 3.9, the direct
+1.0, the 4.2 outside, the scaled timed install 450, the 20-tick
+floor), and the brewing walk (sugar on water → the mundane 8192, on
+the awkward → speed 8194, redstone → extended, glowstone → II,
+gunpowder → the splash 16386, the fermented eye → 8202 the corruption
+through the flags). The fresh full-suite count: **626 green in
+zamin-core** (+19 api +73 protocol) with --max-workers=1.
+
+**Ledgered (not in this slice):** the brewing stand's block entity +
+GUI (the ingredient walk exists — `applyIngredient` — the stand
+itself rides the container slice), the golden apple's Regeneration II
++ Absorption (row 64 upgrade), the beacon/pyramid effect feed, the
+mob-effect metadata color (index 7/8) for the observers' clients, the
+world event 2002 splash particles, the witch, CustomPotionEffects NBT.
+
+**Next:** leads (the leash entity + the knot), structures, natural
+spawn cycles.

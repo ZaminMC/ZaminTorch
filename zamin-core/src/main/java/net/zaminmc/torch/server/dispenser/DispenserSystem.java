@@ -298,8 +298,32 @@ public final class DispenserSystem implements WorldChangeListener {
             case "bucket" -> this::bucketScoop;
             case "flint_and_steel" -> this::flintIgnite;
             case "bone_meal" -> this::boneMeal;
+            // The splash potion (Bootstrap lines 102-124): the projectile
+            // with the half variation and the 1.25 force multiplier; the
+            // drinkable falls through to the default drop.
+            case "potion" -> this::potionSplash;
             default -> this::defaultItemDrop;
         };
+    }
+
+    /**
+     * The potion's dispense arm (Bootstrap lines 102-124): only the splash
+     * flies — force 1.1 * 1.25, variation 6 * 0.5 — carrying the metadata
+     * payload; the drinkable drops as an item.
+     */
+    private ItemStack potionSplash(BlockPosition pos, int facing, ItemStack stack) {
+        if (!net.zaminmc.torch.server.potion.PotionHelper.isSplashPotion(stack.damage())) {
+            return defaultItemDrop(pos, facing, stack);
+        }
+        Position at = dispensePosition(pos, facing);
+        ProjectileEntity potion = projectiles.launchVector(ProjectileEntity.Kind.POTION, -1, at,
+                OFFSETS[facing][0], OFFSETS[facing][1] + 0.1, OFFSETS[facing][2],
+                1.1 * 1.25, 6.0 * 0.5);
+        if (potion != null) {
+            potion.setPotionDamage(stack.damage());
+        }
+        fx.sound(centerOf(pos), "random.bow", 1.0f, 1.2f);
+        return consumeOne(stack);
     }
 
     /**
