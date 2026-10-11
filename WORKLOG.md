@@ -1536,3 +1536,56 @@ count: **657 green in zamin-core** (+19 api +71 protocol) with
 
 **Next:** the villages (VillageStructure + VillagePieces over the
 foundation), the strongholds.
+
+## Slice 12b (investigation) — the village dependency map
+
+**Scope mapped, not yet implemented** (the reference survey for the
+next session):
+
+- **The placement (VillageStructure.java):** the 32-chunk distance /
+  8-chunk min-distance grid (the negative-coordinate floor walk), the
+  region random through
+  `world.setRandomSeed(k, l, 10387312)` (the k/l cell pair with the
+  10387312 salt — needs the engine-side setRandomSeed derivation:
+  `k * 1289931791L ^ l * 797977377L ^ seed`-shape, to be read from
+  World.java), the random offset pair, and the biome gate
+  `isBiomeWithin(chunkX*16+8, chunkZ*16+8, 0, [PLAINS, DESERT,
+  SAVANNA])` — the engine's three-biome climate answers plains/desert
+  directly (forest is not a village biome, the engine's FOREST maps
+  out).
+- **The Start (VillageStructure.Start lines 1083-1121):** the
+  piece-weight table (getPieceWeights: nine building families with
+  the weight + the MathHelper.nextInt count rolls), the Well start
+  piece at the region's +2 corner, the road/building queue walk (the
+  random-pick drain until both lists empty), the isValid gate (more
+  than two non-road pieces).
+- **The missing base helpers the pieces need (StructurePiece.java):**
+  `updateHeight` (the terrain-height probe averaging
+  `world.getSurfaceHeight` over the piece's clipped box — the engine
+  answer: the generator's pure `heightAt`), `fillAirColumnUp` /
+  `fillColumnDown` (the column helpers), `StructureBox.orient` (the
+  facing-oriented box builder), `postProcessBlockMetadata`'s
+  ladder/stairs/button door families (the facing-dependent metadata
+  flips), `spawnVillagers` (the engine has the villager mob + the
+  professions), `placeWoodenDoor`, the chest-with-loot pair (the
+  blacksmith's two chests), the mob-spawner (the priest house never
+  places one in 1.8.8 — only the mineshaft does).
+- **The piece families:** Well/Start (the 4x4x4 cobblestone well),
+  Road/RoadPiece (the 3-wide gravel paths with the torch lamp posts),
+  SmallHouse (the 5x6x5 plains house with the terrace roll + the
+  ladder), PriestHouse, LibrarianHouse, FarmerHouse, ButcherHouse,
+  DoubleFarm/Farm (the wheat/carrot/potato fields), BlacksmithHouse
+  (the lava + the two chests), LargeHouse, LampPost.
+- **The engine surface already present:** cobweb/fence/planks/torch/
+  cobblestone/log/rail (the mineshaft palette), the villager mob with
+  professions + trading, the heightAt pure function, the structure
+  foundation's transform/fill family (Slice 12a).
+
+**Next session's order:** the base helpers (updateHeight over
+heightAt, the column pair, orient, the metadata flips) → the Well +
+the road walk → the SmallHouse + the Farm (the two most common
+families) → the rest of the building set.
+
+The repository state: Slice 12a pushed (21b36c5), 657 green in
+zamin-core (+19 api +71 protocol), the ledger and this worklog
+current.
