@@ -81,8 +81,16 @@ class BodySurvivalAcceptanceTest {
             assertTrue(absorption.duration() <= 2400 && absorption.duration() >= 2380,
                     "Absorption I 2400 (2 min): " + absorption.duration());
             assertEquals(0, absorption.amplifier());
-            assertFalse(potions.hasEffect(eater, net.zaminmc.torch.server.potion.StatusEffects.REGENERATION),
-                    "the plain apple carries no regen (the FoodItem's own set is empty)");
+            // The plain apple's FoodItem pair (GoldenAppleItem's else-branch
+            // reaches super.addEatEffects — the reference's own
+            // setStatusEffect pair): Regeneration II for 5 s, always.
+            var plainRegen = potions.get(eater,
+                    net.zaminmc.torch.server.potion.StatusEffects.REGENERATION);
+            assertTrue(plainRegen != null,
+                    "the plain apple carries the FoodItem pair's regen");
+            assertTrue(plainRegen.duration() <= 100 && plainRegen.duration() >= 80,
+                    "Regeneration II 100 (5 s): " + plainRegen.duration());
+            assertEquals(1, plainRegen.amplifier(), "amplifier II (1)");
             server.ticker().submit(() -> potions.clear(eater));
 
             // The notch pair (metadata 1): the full set — Absorption I 2400,
@@ -107,6 +115,30 @@ class BodySurvivalAcceptanceTest {
                     .duration() <= 6000, "Resistance I 6000 (5 min)");
             assertTrue(potions.get(eater, net.zaminmc.torch.server.potion.StatusEffects.FIRE_RESISTANCE)
                     .duration() <= 6000, "Fire Resistance I 6000 (5 min)");
+        } finally {
+            server.shutdown(null);
+        }
+    }
+
+    @Test
+    void theSpiderEyeAlwaysPoisonsItsEater() throws Exception {
+        EngineServer server = boot();
+        try {
+            // The spider eye's FoodItem pair (Item.java line 664): Poison I
+            // for 5 s at chance 1.0 — the certain roll.
+            PlayerSession diner = join(server, "Diner");
+            server.chatService().submitChat(diner, "/give spider_eye 1");
+            await(() -> !diner.inventory().held().isEmpty(), "the eye given");
+            diner.setBody(20.0f, 12, 0.0f);
+            server.useItem(diner);
+            await(() -> diner.food() == 14, "the eye eaten: food 12 + 2");
+            var potions = server.potions();
+            await(() -> potions.hasEffect(diner, net.zaminmc.torch.server.potion.StatusEffects.POISON),
+                    "the spider eye poisoned its eater");
+            var poison = potions.get(diner, net.zaminmc.torch.server.potion.StatusEffects.POISON);
+            assertTrue(poison.duration() <= 100 && poison.duration() >= 80,
+                    "Poison I 100 (5 s): " + poison.duration());
+            assertEquals(0, poison.amplifier());
         } finally {
             server.shutdown(null);
         }
