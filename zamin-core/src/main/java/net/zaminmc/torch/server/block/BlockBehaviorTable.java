@@ -328,6 +328,9 @@ public final class BlockBehaviorTable {
             Map.entry(Identifier.parse("minecraft:cracked_stone_bricks"),
                     new BlockBehavior(1.5, true, true, "rock", 0,
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:stone_bricks"), 1)))),
+            Map.entry(Identifier.parse("minecraft:chiseled_stone_bricks"),
+                    new BlockBehavior(1.5, true, true, "rock", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:stone_bricks"), 1)))),
             Map.entry(Identifier.parse("minecraft:infested_stone_bricks"),
                     new BlockBehavior(0.75, true, true, "rock", 0,
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:stone_bricks"), 1)))),
@@ -434,6 +437,26 @@ public final class BlockBehaviorTable {
             Map.entry(Identifier.parse("minecraft:gold_block"),
                     new BlockBehavior(3.0, true, true, "rock", 0,
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:gold_block"), 1)))),
+
+            // The temple set (Slice 12f — community blocks.json 1.8
+            // values): the chiseled sandstone drops the plain sandstone
+            // (the reference's Item.getItemFromBlock over the default
+            // state), the clay pair drops itself, the mossy cobblestone
+            // 2.0 rock pickaxe-gated dropping itself, the vine a plant.
+            Map.entry(Identifier.parse("minecraft:chiseled_sandstone"),
+                    new BlockBehavior(0.8, true, false, "rock", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:sandstone"), 1)))),
+            Map.entry(Identifier.parse("minecraft:stained_clay_orange"),
+                    new BlockBehavior(1.25, true, true, "rock", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:stained_clay_orange"), 1)))),
+            Map.entry(Identifier.parse("minecraft:stained_clay_yellow"),
+                    new BlockBehavior(1.25, true, true, "rock", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:stained_clay_yellow"), 1)))),
+            Map.entry(Identifier.parse("minecraft:mossy_cobblestone"),
+                    new BlockBehavior(2.0, true, true, "rock", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:mossy_cobblestone"), 1)))),
+            Map.entry(Identifier.parse("minecraft:vine"),
+                    new BlockBehavior(0.2, true, false, "plants", 0, List.of())),
 
             Map.entry(Identifier.parse("minecraft:bed"),
                     new BlockBehavior(0.2, true, false, "wood", 0,

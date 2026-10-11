@@ -381,6 +381,8 @@ public final class BuiltinBlocks {
             Identifier.parse("minecraft:mossy_stone_bricks"), "Mossy Stone Bricks", 1);
     public static final EngineBlockType CRACKED_STONE_BRICKS = new EngineBlockType(
             Identifier.parse("minecraft:cracked_stone_bricks"), "Cracked Stone Bricks", 2);
+    public static final EngineBlockType CHISELED_STONE_BRICKS = new EngineBlockType(
+            Identifier.parse("minecraft:chiseled_stone_bricks"), "Chiseled Stone Bricks", 3);
     public static final EngineBlockType INFESTED_STONE_BRICKS = new EngineBlockType(
             Identifier.parse("minecraft:infested_stone_bricks"), "Infested Stone Bricks", 4);
     public static final EngineBlockType STONE_BRICK_SLAB = new EngineBlockType(
@@ -464,6 +466,23 @@ public final class BuiltinBlocks {
             Identifier.parse("minecraft:wet_sponge"), "Wet Sponge", 1);
     public static final EngineBlockType GOLD_BLOCK = new EngineBlockType(
             Identifier.parse("minecraft:gold_block"), "Block of Gold");
+
+    // The temple set (Slice 12f — the reference's TemplePieces): the
+    // chiseled sandstone (legacy 24/3), the stained hardened clay pair over
+    // 159 (the pyramid's blueprint floor — the reference's
+    // ~DyeColor.ORANGE & 15 = 1 and ~DyeColor.BLUE & 15 = 4), the mossy
+    // cobblestone (48 — the jungle picker's 60% pair), and the vine (106,
+    // the all-attached metadata 15).
+    public static final EngineBlockType CHISELED_SANDSTONE = new EngineBlockType(
+            Identifier.parse("minecraft:chiseled_sandstone"), "Sandstone", 3);
+    public static final EngineBlockType STAINED_CLAY_ORANGE = new EngineBlockType(
+            Identifier.parse("minecraft:stained_clay_orange"), "Orange Stained Clay", 1);
+    public static final EngineBlockType STAINED_CLAY_YELLOW = new EngineBlockType(
+            Identifier.parse("minecraft:stained_clay_yellow"), "Yellow Stained Clay", 4);
+    public static final EngineBlockType MOSSY_COBBLESTONE = new EngineBlockType(
+            Identifier.parse("minecraft:mossy_cobblestone"), "Mossy Cobblestone");
+    public static final EngineBlockType VINE = new EngineBlockType(
+            Identifier.parse("minecraft:vine"), "Vine", 15);
 
     private BuiltinBlocks() {
     }
@@ -592,6 +611,7 @@ public final class BuiltinBlocks {
                 .register(STONE_BRICKS)
                 .register(MOSSY_STONE_BRICKS)
                 .register(CRACKED_STONE_BRICKS)
+                .register(CHISELED_STONE_BRICKS)
                 .register(INFESTED_STONE_BRICKS)
                 .register(STONE_BRICK_SLAB)
                 .register(MOB_SPAWNER)
@@ -625,6 +645,11 @@ public final class BuiltinBlocks {
                 .register(SPONGE)
                 .register(WET_SPONGE)
                 .register(GOLD_BLOCK)
+                .register(CHISELED_SANDSTONE)
+                .register(STAINED_CLAY_ORANGE)
+                .register(STAINED_CLAY_YELLOW)
+                .register(MOSSY_COBBLESTONE)
+                .register(VINE)
                 .register(POTATOES_STAGE0)
                 .register(POTATOES_STAGE1)
                 .register(POTATOES_STAGE2)

@@ -51,6 +51,10 @@ public final class EngineChunk {
     }
 
     /** One populate-time loot chest (the reference's placeChestWithLoot). */
+    public record PendingGenDispenser(int x, int y, int z, int facing,
+                                       List<StructureWorld.GenLootSlot> slots) {
+    }
+
     public record PendingGenChest(int x, int y, int z, List<StructureWorld.GenLootSlot> slots) {
     }
 
@@ -113,6 +117,17 @@ public final class EngineChunk {
     /** Records one loot chest (generator thread, during generate). */
     public void addPendingGenChest(int x, int y, int z, List<StructureWorld.GenLootSlot> slots) {
         pendingGenChests.add(new PendingGenChest(x, y, z, List.copyOf(slots)));
+    }
+
+    private final List<PendingGenDispenser> pendingGenDispensers = new ArrayList<>();
+
+    public void addPendingGenDispenser(int x, int y, int z, int facing,
+                                       List<StructureWorld.GenLootSlot> slots) {
+        pendingGenDispensers.add(new PendingGenDispenser(x, y, z, facing, List.copyOf(slots)));
+    }
+
+    public List<PendingGenDispenser> pendingGenDispensers() {
+        return pendingGenDispensers;
     }
 
     /** @return the pending villager records (empty when none). */

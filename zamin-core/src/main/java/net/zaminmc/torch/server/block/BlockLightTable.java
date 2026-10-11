@@ -232,6 +232,7 @@ public final class BlockLightTable {
             Map.entry(Identifier.parse("minecraft:stone_bricks"), new LightData(0, 15)),
             Map.entry(Identifier.parse("minecraft:mossy_stone_bricks"), new LightData(0, 15)),
             Map.entry(Identifier.parse("minecraft:cracked_stone_bricks"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:chiseled_stone_bricks"), new LightData(0, 15)),
             Map.entry(Identifier.parse("minecraft:infested_stone_bricks"), new LightData(0, 15)),
             Map.entry(Identifier.parse("minecraft:stone_brick_slab"), new LightData(0, 15)),
             Map.entry(Identifier.parse("minecraft:mob_spawner"), new LightData(0, 0)),
@@ -274,7 +275,16 @@ public final class BlockLightTable {
             Map.entry(Identifier.parse("minecraft:sea_lantern"), new LightData(15, 0)),
             Map.entry(Identifier.parse("minecraft:sponge"), new LightData(0, 15)),
             Map.entry(Identifier.parse("minecraft:wet_sponge"), new LightData(0, 15)),
-            Map.entry(Identifier.parse("minecraft:gold_block"), new LightData(0, 15)));
+            Map.entry(Identifier.parse("minecraft:gold_block"), new LightData(0, 15)),
+
+            // The temple set (Slice 12f): the chiseled sandstone + the clay
+            // pair + the mossy cobblestone are full opaque cubes; the vine's
+            // thin shape passes light.
+            Map.entry(Identifier.parse("minecraft:chiseled_sandstone"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:stained_clay_orange"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:stained_clay_yellow"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:mossy_cobblestone"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:vine"), new LightData(0, 0)));
 
     /**
      * The redstone family's light rows (Slice 9a) and the mechanical

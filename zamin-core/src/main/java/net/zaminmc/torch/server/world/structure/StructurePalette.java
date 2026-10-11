@@ -81,6 +81,14 @@ public final class StructurePalette {
     private final BlockType sponge;
     private final BlockType wetSponge;
     private final BlockType goldBlock;
+    // The temple set (Slice 12f).
+    private final BlockType chiseledSandstone;
+    private final BlockType stainedClayOrange;
+    private final BlockType stainedClayYellow;
+    private final BlockType mossyCobblestone;
+    private final BlockType vine;
+    private final BlockType chiseledStoneBricks;
+    private final BlockType tnt;
 
     private StructurePalette(BlockRegistry registry) {
         this.air = registry.require(Identifier.parse("minecraft:air"));
@@ -182,6 +190,14 @@ public final class StructurePalette {
         this.sponge = BuiltinBlocks.SPONGE;
         this.wetSponge = BuiltinBlocks.WET_SPONGE;
         this.goldBlock = BuiltinBlocks.GOLD_BLOCK;
+        // The temple set (Slice 12f).
+        this.chiseledSandstone = BuiltinBlocks.CHISELED_SANDSTONE;
+        this.stainedClayOrange = BuiltinBlocks.STAINED_CLAY_ORANGE;
+        this.stainedClayYellow = BuiltinBlocks.STAINED_CLAY_YELLOW;
+        this.mossyCobblestone = BuiltinBlocks.MOSSY_COBBLESTONE;
+        this.vine = BuiltinBlocks.VINE;
+        this.chiseledStoneBricks = BuiltinBlocks.CHISELED_STONE_BRICKS;
+        this.tnt = BuiltinBlocks.TNT;
     }
 
     /** Resolves the palette (the registry is immutable after boot). */
@@ -438,6 +454,37 @@ public final class StructurePalette {
 
     public BlockType goldBlock() {
         return goldBlock;
+    }
+
+    // ------------------------------------------------------ the temple set
+
+    public BlockType chiseledSandstone() {
+        return chiseledSandstone;
+    }
+
+    public BlockType stainedClayOrange() {
+        return stainedClayOrange;
+    }
+
+    public BlockType stainedClayYellow() {
+        return stainedClayYellow;
+    }
+
+    public BlockType mossyCobblestone() {
+        return mossyCobblestone;
+    }
+
+    /** The vine (the reference's metadata 15 — attached on every side). */
+    public BlockType vine() {
+        return vine;
+    }
+
+    public BlockType chiseledStoneBricks() {
+        return chiseledStoneBricks;
+    }
+
+    public BlockType tnt() {
+        return tnt;
     }
 
     /** The wheat crop for a growth stage 0..7. */

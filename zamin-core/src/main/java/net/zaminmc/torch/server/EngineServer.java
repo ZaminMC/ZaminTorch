@@ -7150,6 +7150,38 @@ public final class EngineServer implements Server, EngineBridge {
                     }
                     chunk.pendingGenChests().clear();
                 }
+                if (!chunk.pendingGenDispensers().isEmpty()) {
+                    for (net.zaminmc.torch.server.world.EngineChunk.PendingGenDispenser pending
+                            : chunk.pendingGenDispensers()) {
+                        net.zaminmc.torch.block.BlockPosition position =
+                                new net.zaminmc.torch.block.BlockPosition(
+                                        pending.x(), pending.y(), pending.z());
+                        net.zaminmc.torch.server.dispenser.DispenserBlockEntity dispenser =
+                                dispenserSystem.getOrCreate(position);
+                        // The same guard as the chest: a dispenser with
+                        // contents (the ZCD store's restore) skips the
+                        // re-roll.
+                        boolean hasContents = false;
+                        for (ItemStack stack : dispenser.snapshotSlots()) {
+                            if (stack != null && !stack.isEmpty()) {
+                                hasContents = true;
+                                break;
+                            }
+                        }
+                        if (hasContents) {
+                            continue;
+                        }
+                        for (net.zaminmc.torch.server.world.structure.StructureWorld.GenLootSlot slot
+                                : pending.slots()) {
+                            java.util.Optional<net.zaminmc.torch.item.ItemType> type =
+                                    BuiltinItems.lookup(
+                                            net.zaminmc.torch.util.Identifier.parse(slot.itemId()));
+                            type.ifPresent(itemType -> dispenser.setItem(slot.slot(),
+                                    ItemStack.of(itemType, slot.count())));
+                        }
+                    }
+                    chunk.pendingGenDispensers().clear();
+                }
             }
         }
     }
