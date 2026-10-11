@@ -339,6 +339,23 @@ public final class BuiltinItems {
             Identifier.parse("minecraft:nether_brick_fence"), "Nether Brick Fence", 64);
     public static final EngineItemType NETHER_BRICK_STAIRS = new EngineItemType(
             Identifier.parse("minecraft:nether_brick_stairs"), "Nether Brick Stairs", 64);
+    // The monument's item family (Slice 12e — legacy 168/410/409/169/19/41):
+    // the prismarine item (the block trio's damage variants ride the stack's
+    // damage field — the plain item is the drop stand-in), the crystals +
+    // the shard (the lantern's drop), the sea lantern, the sponge, the gold
+    // block.
+    public static final EngineItemType PRISMARINE = new EngineItemType(
+            Identifier.parse("minecraft:prismarine"), "Prismarine", 64);
+    public static final EngineItemType PRISMARINE_CRYSTALS = new EngineItemType(
+            Identifier.parse("minecraft:prismarine_crystals"), "Prismarine Crystals", 64);
+    public static final EngineItemType PRISMARINE_SHARD = new EngineItemType(
+            Identifier.parse("minecraft:prismarine_shard"), "Prismarine Shard", 64);
+    public static final EngineItemType SEA_LANTERN = new EngineItemType(
+            Identifier.parse("minecraft:sea_lantern"), "Sea Lantern", 64);
+    public static final EngineItemType SPONGE = new EngineItemType(
+            Identifier.parse("minecraft:sponge"), "Sponge", 64);
+    public static final EngineItemType GOLD_BLOCK = new EngineItemType(
+            Identifier.parse("minecraft:gold_block"), "Block of Gold", 64);
 
     // Mob loot (legacy ids from the community dataset: porkchop 319, cooked
     // porkchop 320, raw chicken 365, cooked chicken 366, feather 288,
@@ -577,6 +594,8 @@ public final class BuiltinItems {
                 LAPIS, ENCHANTED_BOOK, BOOKSHELF, ENCHANTING_TABLE,
                 ENDER_PEARL, EMPTY_MAP, COMPASS, IRON_DOOR,
                 NETHER_BRICKS, NETHER_BRICK_FENCE, NETHER_BRICK_STAIRS,
+                PRISMARINE, PRISMARINE_CRYSTALS, PRISMARINE_SHARD, SEA_LANTERN,
+                SPONGE, GOLD_BLOCK,
                 BONE, STRING, GUNPOWDER, WOOL, MUTTON, COOKED_MUTTON,
                 BUCKET, WATER_BUCKET, LAVA_BUCKET,
                 FLINT_AND_STEEL, GOLD_INGOT,

@@ -30,6 +30,8 @@ public final class NormalWorldGenerator implements WorldGenerator {
     private final net.zaminmc.torch.server.world.structure.VillageStructure villages;
     /** The stronghold placement layer (Slice 12c): deterministic per chunk. */
     private final net.zaminmc.torch.server.world.structure.StrongholdStructure strongholds;
+    /** The ocean monument placement layer (Slice 12e): deterministic per chunk. */
+    private final net.zaminmc.torch.server.world.structure.OceanMonumentStructure monuments;
     private final net.zaminmc.torch.server.world.structure.StructurePalette structurePalette;
 
     @Override
@@ -106,6 +108,7 @@ public final class NormalWorldGenerator implements WorldGenerator {
                 };
         this.strongholds = new net.zaminmc.torch.server.world.structure.StrongholdStructure(
                 this.seed, positionView);
+        this.monuments = new net.zaminmc.torch.server.world.structure.OceanMonumentStructure(this.seed);
         this.air = registry.require(Identifier.parse("minecraft:air"));
         this.bedrock = registry.require(Identifier.parse("minecraft:bedrock"));
         this.stone = registry.require(Identifier.parse("minecraft:stone"));
@@ -131,11 +134,21 @@ public final class NormalWorldGenerator implements WorldGenerator {
     }
 
     /**
-     * The column's biome: the low-frequency climate pair (temperature decides
-     * desert-ness, moisture decides forest-ness) with the plains remainder —
-     * the historical climate-noise shape the community generators use.
+     * The column's biome: the ocean bands over the pure surface height (the
+     * water body where the terrain sits below the sea — the deep band five
+     * below, Slice 12e's monument gate), then the low-frequency climate pair
+     * (temperature decides desert-ness, moisture decides forest-ness) with
+     * the plains remainder — the historical climate-noise shape the
+     * community generators use.
      */
     public Biome biomeAt(int x, int z) {
+        int surface = heightAt(x, z);
+        if (surface < SEA_LEVEL - 4) {
+            return Biome.DEEP_OCEAN;
+        }
+        if (surface < SEA_LEVEL) {
+            return Biome.OCEAN;
+        }
         double temperature = fbm2(x * 0.0016 + 4_000, z * 0.0016 - 4_000, 2);
         double moisture = fbm2(x * 0.0022 - 8_000, z * 0.0022 + 8_000, 2);
         if (temperature > 0.66 && moisture < 0.42) {
@@ -300,6 +313,7 @@ public final class NormalWorldGenerator implements WorldGenerator {
         mineshafts.populate(chunk.position().x(), chunk.position().z(), view);
         villages.populate(chunk.position().x(), chunk.position().z(), view);
         strongholds.populate(chunk.position().x(), chunk.position().z(), view);
+        monuments.populate(chunk.position().x(), chunk.position().z(), view);
     }
 
     /** The block for one column cell: core, skin, water, cave or ore. */

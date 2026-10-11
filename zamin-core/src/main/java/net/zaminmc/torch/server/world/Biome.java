@@ -8,6 +8,10 @@ package net.zaminmc.torch.server.world;
  */
 public enum Biome {
 
+    /** The 1.8 biome id 0: the water body where the surface sits below the sea. */
+    OCEAN(0),
+    /** The 1.8 biome id 24: the deep water band (Slice 12e's monument gate). */
+    DEEP_OCEAN(24),
     /** The 1.8 biome id 1: sparse oaks, grass and the flower rolls. */
     PLAINS(1),
     /** The 1.8 biome id 2: sand skin over a sandstone band, dead bushes. */

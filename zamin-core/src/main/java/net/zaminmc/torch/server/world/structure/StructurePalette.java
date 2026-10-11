@@ -73,6 +73,14 @@ public final class StructurePalette {
     private final BlockType[] netherBrickStairs = new BlockType[4];
     private final BlockType[] netherWart = new BlockType[4];
     private final BlockType soulSand;
+    // The monument set (Slice 12e).
+    private final BlockType prismarineRough;
+    private final BlockType prismarineBricks;
+    private final BlockType prismarineDark;
+    private final BlockType seaLantern;
+    private final BlockType sponge;
+    private final BlockType wetSponge;
+    private final BlockType goldBlock;
 
     private StructurePalette(BlockRegistry registry) {
         this.air = registry.require(Identifier.parse("minecraft:air"));
@@ -163,6 +171,17 @@ public final class StructurePalette {
         this.netherWart[2] = BuiltinBlocks.NETHER_WART_STAGE2;
         this.netherWart[3] = BuiltinBlocks.NETHER_WART_STAGE3;
         this.soulSand = BuiltinBlocks.SOUL_SAND;
+        // The monument set (Slice 12e): the reference's own block palette
+        // (BASE rough, BASE_LIGHT bricks, BASE_DARK dark, LIGHT_SOURCE the
+        // sea lantern, FILLER water, the wet sponge of the top rooms, the
+        // gold block of the core room).
+        this.prismarineRough = BuiltinBlocks.PRISMARINE_ROUGH;
+        this.prismarineBricks = BuiltinBlocks.PRISMARINE_BRICKS;
+        this.prismarineDark = BuiltinBlocks.PRISMARINE_DARK;
+        this.seaLantern = BuiltinBlocks.SEA_LANTERN;
+        this.sponge = BuiltinBlocks.SPONGE;
+        this.wetSponge = BuiltinBlocks.WET_SPONGE;
+        this.goldBlock = BuiltinBlocks.GOLD_BLOCK;
     }
 
     /** Resolves the palette (the registry is immutable after boot). */
@@ -384,6 +403,41 @@ public final class StructurePalette {
     /** The soul sand (the farm's planting beds). */
     public BlockType soulSand() {
         return soulSand;
+    }
+
+    // ------------------------------------------------------ the monument set
+
+    /** The reference's BASE: the rough prismarine. */
+    public BlockType prismarineRough() {
+        return prismarineRough;
+    }
+
+    /** The reference's BASE_LIGHT: the prismarine bricks. */
+    public BlockType prismarineBricks() {
+        return prismarineBricks;
+    }
+
+    /** The reference's BASE_DARK: the dark prismarine. */
+    public BlockType prismarineDark() {
+        return prismarineDark;
+    }
+
+    /** The reference's LIGHT_SOURCE: the sea lantern. */
+    public BlockType seaLantern() {
+        return seaLantern;
+    }
+
+    public BlockType sponge() {
+        return sponge;
+    }
+
+    /** The wet sponge (the top rooms' planted pair). */
+    public BlockType wetSponge() {
+        return wetSponge;
+    }
+
+    public BlockType goldBlock() {
+        return goldBlock;
     }
 
     /** The wheat crop for a growth stage 0..7. */

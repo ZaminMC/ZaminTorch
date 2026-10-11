@@ -42,6 +42,15 @@ public final class StructureBox {
         this.maxY = 512;
     }
 
+    /**
+     * The min/max-normalized box (the reference's StructureBox.of, lines
+     * 50-52): any corner order.
+     */
+    public static StructureBox of(int x1, int y1, int z1, int x2, int y2, int z2) {
+        return new StructureBox(Math.min(x1, x2), Math.min(y1, y2), Math.min(z1, z2),
+                Math.max(x1, x2), Math.max(y1, y2), Math.max(z1, z2));
+    }
+
     public static StructureBox infinite() {
         return new StructureBox(Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE,
                 Integer.MIN_VALUE, Integer.MIN_VALUE, Integer.MIN_VALUE);
@@ -54,6 +63,15 @@ public final class StructureBox {
                 && this.minZ <= box.maxZ
                 && this.maxY >= box.minY
                 && this.minY <= box.maxY;
+    }
+
+    /**
+     * The horizontal intersects test (the reference's 4-field
+     * {@code intersects(int minX, int minZ, int maxX, int maxZ)}, lines
+     * 95-101): the monument's local-frame wall probes.
+     */
+    public boolean intersects(int minX, int minZ, int maxX, int maxZ) {
+        return this.maxX >= minX && this.minX <= maxX && this.maxZ >= minZ && this.minZ <= maxZ;
     }
 
     public void union(StructureBox box) {

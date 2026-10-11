@@ -445,6 +445,26 @@ public final class BuiltinBlocks {
     public static final EngineBlockType NETHER_WART_STAGE3 = new EngineBlockType(
             Identifier.parse("minecraft:nether_wart_stage3"), "Nether Wart", 3);
 
+    // The monument set (Slice 12e — the reference's OceanMonumentPieces):
+    // the prismarine trio over legacy 168 (rough 0, bricks 1, dark 2), the
+    // sea lantern 169, the sponge pair over 19 (dry 0, wet 1 — the top
+    // rooms plant wet), and the gold block 41 (the core room's treasure
+    // block).
+    public static final EngineBlockType PRISMARINE_ROUGH = new EngineBlockType(
+            Identifier.parse("minecraft:prismarine_rough"), "Prismarine");
+    public static final EngineBlockType PRISMARINE_BRICKS = new EngineBlockType(
+            Identifier.parse("minecraft:prismarine_bricks"), "Prismarine Bricks", 1);
+    public static final EngineBlockType PRISMARINE_DARK = new EngineBlockType(
+            Identifier.parse("minecraft:prismarine_dark"), "Dark Prismarine", 2);
+    public static final EngineBlockType SEA_LANTERN = new EngineBlockType(
+            Identifier.parse("minecraft:sea_lantern"), "Sea Lantern");
+    public static final EngineBlockType SPONGE = new EngineBlockType(
+            Identifier.parse("minecraft:sponge"), "Sponge");
+    public static final EngineBlockType WET_SPONGE = new EngineBlockType(
+            Identifier.parse("minecraft:wet_sponge"), "Wet Sponge", 1);
+    public static final EngineBlockType GOLD_BLOCK = new EngineBlockType(
+            Identifier.parse("minecraft:gold_block"), "Block of Gold");
+
     private BuiltinBlocks() {
     }
 
@@ -598,6 +618,13 @@ public final class BuiltinBlocks {
                 .register(NETHER_WART_STAGE1)
                 .register(NETHER_WART_STAGE2)
                 .register(NETHER_WART_STAGE3)
+                .register(PRISMARINE_ROUGH)
+                .register(PRISMARINE_BRICKS)
+                .register(PRISMARINE_DARK)
+                .register(SEA_LANTERN)
+                .register(SPONGE)
+                .register(WET_SPONGE)
+                .register(GOLD_BLOCK)
                 .register(POTATOES_STAGE0)
                 .register(POTATOES_STAGE1)
                 .register(POTATOES_STAGE2)

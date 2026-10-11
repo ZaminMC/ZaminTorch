@@ -262,7 +262,19 @@ public final class BlockLightTable {
             Map.entry(Identifier.parse("minecraft:nether_wart_stage0"), new LightData(0, 0)),
             Map.entry(Identifier.parse("minecraft:nether_wart_stage1"), new LightData(0, 0)),
             Map.entry(Identifier.parse("minecraft:nether_wart_stage2"), new LightData(0, 0)),
-            Map.entry(Identifier.parse("minecraft:nether_wart_stage3"), new LightData(0, 0)));
+            Map.entry(Identifier.parse("minecraft:nether_wart_stage3"), new LightData(0, 0)),
+
+            // The monument set (Slice 12e): the prismarine trio are full
+            // opaque cubes (dataset filterLight 15), the sea lantern the
+            // glowing light source (emit 15, filter 0), the sponge pair
+            // opaque, the gold block opaque.
+            Map.entry(Identifier.parse("minecraft:prismarine_rough"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:prismarine_bricks"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:prismarine_dark"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:sea_lantern"), new LightData(15, 0)),
+            Map.entry(Identifier.parse("minecraft:sponge"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:wet_sponge"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:gold_block"), new LightData(0, 15)));
 
     /**
      * The redstone family's light rows (Slice 9a) and the mechanical
