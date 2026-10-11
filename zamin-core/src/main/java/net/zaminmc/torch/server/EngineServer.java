@@ -1843,6 +1843,25 @@ public final class EngineServer implements Server, EngineBridge {
         session.setBody(session.health(), newFood, newSaturation);
         fxManager.sound(mouthPosition(session), "random.burp", 0.5f,
                 fxRandom.nextFloat() * 0.1f + 0.9f);
+        // The golden apple's effect set (GoldenAppleItem.addEatEffects lines
+        // 26-40, installed after the burp exactly like the reference's
+        // finishUsing order): the plain apple carries Absorption I for 2400
+        // ticks (the FoodItem's own super arm adds nothing — the apple's
+        // registration sets no effect pair); the notch pair (damage 1) adds
+        // Regeneration V for 600 + Resistance I and Fire Resistance I for
+        // 6000.
+        if (held.type().identifier().toString().equals("minecraft:golden_apple")) {
+            potionSystem.add(session, new net.zaminmc.torch.server.potion.StatusEffectInstance(
+                    net.zaminmc.torch.server.potion.StatusEffects.ABSORPTION, 2400, 0));
+            if (held.damage() > 0) {
+                potionSystem.add(session, new net.zaminmc.torch.server.potion.StatusEffectInstance(
+                        net.zaminmc.torch.server.potion.StatusEffects.REGENERATION, 600, 4));
+                potionSystem.add(session, new net.zaminmc.torch.server.potion.StatusEffectInstance(
+                        net.zaminmc.torch.server.potion.StatusEffects.RESISTANCE, 6000, 0));
+                potionSystem.add(session, new net.zaminmc.torch.server.potion.StatusEffectInstance(
+                        net.zaminmc.torch.server.potion.StatusEffects.FIRE_RESISTANCE, 6000, 0));
+            }
+        }
         publishInventoryChanged(session);
         publishBodyChanged(session);
     }

@@ -1330,3 +1330,30 @@ NBT.
 **Next:** the golden apple's effect set (the 11b ledger row — the
 effect store exists, the apple's own set needs the food wiring), the
 structures.
+
+## Slice 11g — the golden apple's effect set (the 11b ledger row)
+
+**What landed:** the eat completion's golden apple arm (tickEating, after
+the burp — the reference's own finishUsing order): the plain apple
+(metadata 0) installs Absorption I for 2400 ticks (the FoodItem's own
+super arm adds nothing — the apple's registration sets no effect pair);
+the notch pair (damage 1) adds Regeneration V (amplifier 4) for 600,
+Resistance I for 6000 and Fire Resistance I for 6000. The installs ride
+the PotionSystem's store (the combine rule + the 0x1D Entity Effect
+fan-out to the player's own client — the HUD icons arrive through the
+Slice 11b plumbing).
+
+**Tests:** BodySurvivalAcceptanceTest.theGoldenAppleInstallsItsEffectSet
+(the plain apple's absorption install + the no-regen gate; the notch
+pair's full set with the exact durations and the amplifier). The fresh
+full-suite count: **649 green in zamin-core** (+19 api +71 protocol)
+with --max-workers=1, zero failures.
+
+**Ledgered (not in this slice):** the FoodItem's own setStatusEffect
+pair (the poison chance family — the rotten flesh, the spider eye's
+own eat), the absorption hearts' server-side health surface, the notch
+apple's glint/rarity (client-side), the golden apple's horse-love arm
+(already wired through the horse food table).
+
+**Next:** the structures (the villages/mineshafts/strongholds beyond
+terrain decoration), the fish item family (the pufferfish ingredient).

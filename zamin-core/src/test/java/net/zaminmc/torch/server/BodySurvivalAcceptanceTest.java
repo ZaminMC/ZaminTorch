@@ -64,6 +64,55 @@ class BodySurvivalAcceptanceTest {
     }
 
     @Test
+    void theGoldenAppleInstallsItsEffectSet() throws Exception {
+        EngineServer server = boot();
+        try {
+            // The plain apple (metadata 0): Absorption I for 2400 ticks.
+            PlayerSession eater = join(server, "Vip");
+            server.chatService().submitChat(eater, "/give golden_apple 1");
+            await(() -> !eater.inventory().held().isEmpty(), "the apple given");
+            eater.setBody(20.0f, 12, 0.0f);
+            server.useItem(eater);
+            await(() -> eater.food() == 16, "the apple eaten: food 12 + 4");
+            var potions = server.potions();
+            await(() -> potions.hasEffect(eater, net.zaminmc.torch.server.potion.StatusEffects.ABSORPTION),
+                    "the plain apple installed the absorption");
+            var absorption = potions.get(eater, net.zaminmc.torch.server.potion.StatusEffects.ABSORPTION);
+            assertTrue(absorption.duration() <= 2400 && absorption.duration() >= 2380,
+                    "Absorption I 2400 (2 min): " + absorption.duration());
+            assertEquals(0, absorption.amplifier());
+            assertFalse(potions.hasEffect(eater, net.zaminmc.torch.server.potion.StatusEffects.REGENERATION),
+                    "the plain apple carries no regen (the FoodItem's own set is empty)");
+            server.ticker().submit(() -> potions.clear(eater));
+
+            // The notch pair (metadata 1): the full set — Absorption I 2400,
+            // Regeneration V 600, Resistance I 6000, Fire Resistance I 6000.
+            server.chatService().submitChat(eater, "/give golden_apple 1 1");
+            await(() -> !eater.inventory().held().isEmpty()
+                            && eater.inventory().held().damage() == 1,
+                    "the notch apple given");
+            eater.setBody(20.0f, 12, 0.0f);
+            server.useItem(eater);
+            await(() -> eater.food() == 16, "the notch apple eaten");
+            await(() -> potions.hasEffect(eater, net.zaminmc.torch.server.potion.StatusEffects.ABSORPTION)
+                            && potions.hasEffect(eater, net.zaminmc.torch.server.potion.StatusEffects.REGENERATION)
+                            && potions.hasEffect(eater, net.zaminmc.torch.server.potion.StatusEffects.RESISTANCE)
+                            && potions.hasEffect(eater, net.zaminmc.torch.server.potion.StatusEffects.FIRE_RESISTANCE),
+                    "the notch apple installed the full set");
+            var regen = potions.get(eater, net.zaminmc.torch.server.potion.StatusEffects.REGENERATION);
+            assertTrue(regen.duration() <= 600 && regen.duration() >= 580,
+                    "Regeneration V 600 (30 s): " + regen.duration());
+            assertEquals(4, regen.amplifier(), "amplifier V (4)");
+            assertTrue(potions.get(eater, net.zaminmc.torch.server.potion.StatusEffects.RESISTANCE)
+                    .duration() <= 6000, "Resistance I 6000 (5 min)");
+            assertTrue(potions.get(eater, net.zaminmc.torch.server.potion.StatusEffects.FIRE_RESISTANCE)
+                    .duration() <= 6000, "Fire Resistance I 6000 (5 min)");
+        } finally {
+            server.shutdown(null);
+        }
+    }
+
+    @Test
     void exhaustionDrainsSaturationThenHungerAndRegenCostsItBack() throws Exception {
         EngineServer server = boot();
         PlayerSession body = join(server, "Regenerator");
