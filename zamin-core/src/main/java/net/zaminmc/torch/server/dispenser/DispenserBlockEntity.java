@@ -208,6 +208,13 @@ public final class DispenserBlockEntity {
         return slots.clone();
     }
 
+    /** Restores persisted slots (the save's Items list). */
+    public void restoreSlots(ItemStack[] restored) {
+        for (int i = 0; i < SLOT_COUNT && i < restored.length; i++) {
+            slots[i] = restored[i] == null ? ItemStack.EMPTY : restored[i];
+        }
+    }
+
     private static void rangeCheck(int slot) {
         if (slot < 0 || slot >= SLOT_COUNT) {
             throw new IllegalArgumentException("Dispenser slot out of range: " + slot);

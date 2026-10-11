@@ -1288,3 +1288,45 @@ reference's own value).
 
 **Next:** the container ZCD persistence family (the brewing stand's four
 slots join it), the structures, the golden apple's effect set.
+
+## Slice 11f — the container persistence family (the ZDD + the ZBD)
+
+**What landed:**
+
+- **The ZDD** (`dispenser/DispenserDataStore`): the dispenser/dropper
+  family's nine slots per position, the same layout and durability rules
+  as the chest's ZCD (atomic writes, the corrupt-file quarantine, the
+  registry-miss drop with a warning) — the ledgered slot persistence the
+  11a slice deferred.
+- **The ZBD** (`brewing/BrewingStandDataStore`): the brewing stand's
+  four slots + the timer (the reference's own Items + BrewTime NBT
+  pair). The restored cycle carries the reference's own quirk exactly:
+  the armed ingredient identity is NOT persisted, so the first
+  post-load tick's item-changed gate cancels the carried BrewTime and
+  the cycle re-arms fresh at the full 400 — the restored timer is
+  decorative, exactly like the reference.
+- **The wiring**: both stores boot-restore after their systems'
+  construction (dispensers.bin, brewing_stands.bin under the world
+  data dir) and join `saveAllNow` beside the furnace/chest/sign/mob
+  stores.
+- **The restores**: `DispenserBlockEntity.restoreSlots` (the nine-slot
+  fill) and `BrewingStandBlockEntity.restoreState` (the slots + the
+  timer + the null ingredient).
+
+**Tests:** ContainerPersistenceTest (1, the full two-life round trip:
+the dispenser's arrow + fire-charge stacks and the brewing stand's
+water bottle + nether wart survive the shutdown-restart cycle; the
+restored brew cycle re-arms fresh (the null-ingredient quirk); the
+bottle bits republish on the first post-load tick; both blocks ride
+the world deltas through). The fresh full-suite count: **648 green in
+zamin-core** (+19 api +71 protocol) with --max-workers=1, zero
+failures.
+
+**Ledgered (not in this slice):** the hopper's five-slot persistence
+(the hopper's own save rides the hopper slice's store when it lands),
+the leash NBT persistence (the 11c ledger row), CustomPotionEffects
+NBT.
+
+**Next:** the golden apple's effect set (the 11b ledger row — the
+effect store exists, the apple's own set needs the food wiring), the
+structures.
