@@ -94,6 +94,36 @@ public final class RegionPartition {
         return all;
     }
 
+    /**
+     * Every region domain the chunk box (inclusive corners) touches, in
+     * ascending packed-region-id order — the deterministic total order the
+     * boundary scope's enter/exit walk rides (design invariant: one global
+     * acquisition order means two concurrent scopes can never deadlock
+     * AB-BA). Regions surface on first touch, so a box over unloaded space
+     * still resolves its domains (the partition is pure arithmetic).
+     */
+    public List<OwnershipDomain> domainsBetween(int chunkX1, int chunkZ1, int chunkX2, int chunkZ2) {
+        int minRx = Math.floorDiv(Math.min(chunkX1, chunkX2), regionSizeChunks);
+        int maxRx = Math.floorDiv(Math.max(chunkX1, chunkX2), regionSizeChunks);
+        int minRz = Math.floorDiv(Math.min(chunkZ1, chunkZ2), regionSizeChunks);
+        int maxRz = Math.floorDiv(Math.max(chunkZ1, chunkZ2), regionSizeChunks);
+        List<Long> ids = new ArrayList<>();
+        for (int rx = minRx; rx <= maxRx; rx++) {
+            for (int rz = minRz; rz <= maxRz; rz++) {
+                ids.add(((long) rx << 32) | (rz & 0xFFFFFFFFL));
+            }
+        }
+        java.util.Collections.sort(ids); // the packed id: (rx, rz) lexicographic
+        List<OwnershipDomain> domains = new ArrayList<>(ids.size());
+        for (long id : ids) {
+            // The region's own origin chunk resolves the domain (pure
+            // arithmetic — the same object domainFor would return).
+            domains.add(domainFor(regionXOf(id) * regionSizeChunks,
+                    regionZOf(id) * regionSizeChunks));
+        }
+        return domains;
+    }
+
     /** @return how many region domains exist (telemetry). */
     public int regionCount() {
         return regions.size();

@@ -197,6 +197,7 @@ public final class ServerLayout {
                 level-name=%s
                 view-distance=%d
                 white-list=%s
+                region-size-chunks=%d
                 generate-structures=true
                 online-mode=false
                 max-build-height=256
@@ -206,7 +207,7 @@ public final class ServerLayout {
                 """.formatted(LocalDate.now().toString(),
                 d.gamemode().legacyId(), d.pvp(), d.levelType(), d.maxPlayers(),
                 d.port(), d.host().equals("0.0.0.0") ? "" : d.host(),
-                d.worldName(), d.viewDistance(), d.whiteList(), d.motd());
+                d.worldName(), d.viewDistance(), d.whiteList(), d.regionSizeChunks(), d.motd());
         Files.writeString(file, text, StandardCharsets.UTF_8);
     }
 }

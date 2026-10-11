@@ -95,6 +95,13 @@ public final class PistonSystem implements WorldChangeListener {
     static final int BEHAVIOR_DESTROY = 1;
     static final int BEHAVIOR_BLOCK = 2;
 
+    /**
+     * The event's write reach in blocks along the facing: the resolver's
+     * 12-block budget + the head cell + the landing margin — the boundary
+     * scope covers every position one event can write.
+     */
+    static final int PISTON_REACH = 14;
+
     /** One pending block event (the reference's ServerWorld.BlockEvent). */
     private record BlockEvent(BlockPosition position, int type, int data) {
     }
@@ -280,8 +287,30 @@ public final class PistonSystem implements WorldChangeListener {
      * The event execution (PistonBaseBlock.doEvent lines 106-171) — the
      * server-side re-check first (the world may have changed since the
      * arming), then the extend or the retract.
+     *
+     * <p>The whole event rides the boundary scope (the Phase 4 spatial
+     * activation — the design §10.3 "larger exclusive ownership scope",
+     * ADR-9): the write sequence (the pushed chain, the head's carrier, the
+     * sticky pull) may cross region seams, and the reference's event is the
+     * atomic same-tick unit — so the event executes holding every region
+     * its reach can touch (the 14-block walk: the 12-block budget + the
+     * head + the landing cell). On the one-region default the scope is a
+     * single-domain enter/exit; on a partitioned world it is what keeps the
+     * seam-crossing push vanilla-exact — no one-tick latency, no split
+     * write sequence.</p>
      */
     private boolean doBlockEvent(BlockEvent event) {
+        BlockPosition base = event.position();
+        int[] reach = OFFSETS[event.data()];
+        BlockPosition far = base.offset(reach[0] * PISTON_REACH,
+                reach[1] * PISTON_REACH, reach[2] * PISTON_REACH);
+        boolean[] outcome = new boolean[1];
+        world.executeInRegions(base, far, () -> outcome[0] = doBlockEventBody(event));
+        return outcome[0];
+    }
+
+    /** The event body — the reference's doEvent walk. */
+    private boolean doBlockEventBody(BlockEvent event) {
         BlockType type = world.getBlock(event.position());
         if (!PistonBlocks.isPiston(type)) {
             return false; // the piston departed: the stale event drops
@@ -451,13 +480,18 @@ public final class PistonSystem implements WorldChangeListener {
 
     /**
      * The landing (MovingBlockEntity.finish lines 87-96 + the tick end):
-     * the carried state commits, the record departs.
+     * the carried state commits, the record departs. The landing write
+     * rides the landing cell's own region scope (the carrier may cross a
+     * seam mid-flight — the commit lands under the destination's
+     * authority).
      */
     private void finish(BlockPosition pos, MovingBlock block) {
         movingBlocks.remove(pos);
-        if (PistonBlocks.isMovingPiston(world.getBlock(pos))) {
-            world.setBlock(pos, block.movedType());
-        }
+        world.executeInRegions(pos, pos, () -> {
+            if (PistonBlocks.isMovingPiston(world.getBlock(pos))) {
+                world.setBlock(pos, block.movedType());
+            }
+        });
     }
 
     // ------------------------------------------------------------------

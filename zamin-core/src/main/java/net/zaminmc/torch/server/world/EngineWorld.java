@@ -44,6 +44,18 @@ public final class EngineWorld implements World {
      * live behavior is identical to the thread check.
      */
     private volatile net.zaminmc.torch.server.concurrent.OwnershipDomain domain;
+    /**
+     * The spatial ownership refinement (the permanent architecture's Phase 4
+     * spatial activation): every block/chunk mutation resolves the owning
+     * region's domain through this partition and asserts against it — the
+     * region is the mutation authority for its chunks (design §4's state
+     * map). Null keeps the ambient-only check. The assertion passes when the
+     * caller holds EITHER the region domain (the parallel lane's writer) OR
+     * the ambient simulation domain (the single tick lane's authority — the
+     * "global region" credential of ADR-13); every other context fails with
+     * the region-named violation.
+     */
+    private volatile net.zaminmc.torch.server.concurrent.RegionPartition partition;
     private final Map<Long, EngineChunk> chunks = new ConcurrentHashMap<>();
     // World change listeners fire on every committed mutation (owner thread).
     private final java.util.List<WorldChangeListener> changeListeners =
@@ -115,7 +127,7 @@ public final class EngineWorld implements World {
     @Override
     public boolean setBlock(BlockPosition position, BlockType type) {
         Objects.requireNonNull(type, "type");
-        requireOwnership("setBlock");
+        requireOwnership("setBlock", position);
         EngineChunk chunk = getOrGenerate(position.chunkPosition());
         BlockType previous = chunk.getBlock(position.localX(), position.y(), position.localZ());
         boolean changed = chunk.setBlock(position.localX(), position.y(), position.localZ(), type);
@@ -159,7 +171,7 @@ public final class EngineWorld implements World {
      * authoritative state re-syncs so clients drop ghost blocks.
      */
     public void republish(BlockPosition position) {
-        requireOwnership("republish");
+        requireOwnership("republish", position);
         fireChange(position, getBlock(position));
     }
 
@@ -190,7 +202,7 @@ public final class EngineWorld implements World {
      * chunk becomes visible only fully generated.
      */
     public EngineChunk getOrGenerate(ChunkPosition position) {
-        requireOwnership("getOrGenerate");
+        requireOwnership("getOrGenerate", position);
         long key = position.packed();
         EngineChunk existing = chunks.get(key);
         if (existing != null) {
@@ -212,7 +224,7 @@ public final class EngineWorld implements World {
      * results reach this through the owner's drain).
      */
     public EngineChunk installGenerated(ChunkPosition position, EngineChunk generated) {
-        requireOwnership("installGenerated");
+        requireOwnership("installGenerated", position);
         Objects.requireNonNull(generated, "generated");
         long key = position.packed();
         EngineChunk existing = chunks.get(key);
@@ -367,5 +379,172 @@ public final class EngineWorld implements World {
     /** @return the attached ownership domain, or null when the legacy check is active. */
     public net.zaminmc.torch.server.concurrent.OwnershipDomain domain() {
         return domain;
+    }
+
+    /**
+     * Attaches the spatial ownership partition (the Phase 4 spatial
+     * activation). Called once at boot, before the loop starts; the
+     * partition's region domains become the per-position mutation authority
+     * alongside the ambient domain (the single tick lane holds the ambient
+     * credential — the writes still all pass there, but every foreign
+     * context now fails against the position's own region instead of the
+     * whole-world domain).
+     */
+    public void attachRegionPartition(
+            net.zaminmc.torch.server.concurrent.RegionPartition regionPartition) {
+        this.partition = Objects.requireNonNull(regionPartition, "regionPartition");
+    }
+
+    /** @return the attached spatial partition, or null when the world is one domain. */
+    public net.zaminmc.torch.server.concurrent.RegionPartition regionPartition() {
+        return partition;
+    }
+
+    /**
+     * The region domain owning the position's chunk (null when no partition
+     * is attached). Pure resolution — creates the domain on first touch,
+     * identical on every call.
+     */
+    public net.zaminmc.torch.server.concurrent.OwnershipDomain regionDomainFor(BlockPosition position) {
+        net.zaminmc.torch.server.concurrent.RegionPartition attached = partition;
+        if (attached == null) {
+            return null;
+        }
+        ChunkPosition chunk = position.chunkPosition();
+        return attached.domainFor(chunk.x(), chunk.z());
+    }
+
+    /**
+     * The position-aware mutation assertion (the Phase 4 spatial activation):
+     * resolves the owning region's domain and passes when the caller holds
+     * it, or — on the single tick lane — holds the ambient simulation domain
+     * (the world authority). Every other context fails through the region's
+     * own enforcement (STRICT throws the diagnosable violation naming the
+     * region; DIAGNOSTIC logs once and proceeds). Without a partition the
+     * ambient check stands exactly as before.
+     */
+    private void requireOwnership(String operation, BlockPosition position) {
+        net.zaminmc.torch.server.concurrent.RegionPartition attached = partition;
+        if (attached == null) {
+            requireOwnership(operation);
+            return;
+        }
+        ChunkPosition chunk = position.chunkPosition();
+        requireOwnershipInRegion(operation, attached.domainFor(chunk.x(), chunk.z()));
+    }
+
+    /** The chunk-box variant: a chunk belongs to exactly one region. */
+    private void requireOwnership(String operation, ChunkPosition chunk) {
+        net.zaminmc.torch.server.concurrent.RegionPartition attached = partition;
+        if (attached == null) {
+            requireOwnership(operation);
+            return;
+        }
+        requireOwnershipInRegion(operation, attached.domainFor(chunk.x(), chunk.z()));
+    }
+
+    private void requireOwnershipInRegion(String operation,
+                                          net.zaminmc.torch.server.concurrent.OwnershipDomain region) {
+        if (region.inContext()) {
+            return; // the region's own writer (the parallel lane's credential)
+        }
+        net.zaminmc.torch.server.concurrent.OwnershipDomain ambient = domain;
+        if (ambient != null) {
+            if (ambient.inContext()) {
+                return; // the single tick lane's authority (ADR-13's global credential)
+            }
+            // An ambient domain exists but this context is not it: the
+            // region's enforcement decides (STRICT throws the violation
+            // naming THIS region — the diagnosable failure; DIAGNOSTIC logs
+            // once per operation and proceeds).
+            region.checkInContext(operation);
+            return;
+        }
+        // No ambient domain attached (the boot-lane construction window and
+        // the unit fixtures): the historical owner-thread check stands —
+        // the partition refines the assertion surface, never who may write
+        // the un-domain-ed world.
+        requireOwnership(operation);
+    }
+
+    /**
+     * The boundary scope (the design §10.3's "larger exclusive ownership
+     * scope" — ADR-9): runs the body holding EVERY region domain the box
+     * (inclusive block-coordinate corners) touches, acquired in ascending
+     * packed-region-id order and released in reverse — one global
+     * acquisition order means concurrent scopes can never deadlock AB-BA,
+     * and a region held by a scope is exclusive (another writer's enter
+     * fails until the scope releases). Mechanics whose operations span a
+     * region seam and need same-tick atomicity (the piston's move writes,
+     * the explosion's blast walk) execute inside this scope so their
+     * foreign-region writes are legal in BOTH execution lanes.
+     *
+     * <p>Without a partition (or with the one-region default) the body runs
+     * directly — the scope is a no-op on the unsplit world.</p>
+     */
+    public void executeInRegions(BlockPosition cornerA, BlockPosition cornerB, Runnable body) {
+        Objects.requireNonNull(body, "body");
+        net.zaminmc.torch.server.concurrent.RegionPartition attached = partition;
+        if (attached == null) {
+            body.run();
+            return;
+        }
+        ChunkPosition from = cornerA.chunkPosition();
+        ChunkPosition to = cornerB.chunkPosition();
+        java.util.List<net.zaminmc.torch.server.concurrent.OwnershipDomain> entered =
+                attached.domainsBetween(from.x(), from.z(), to.x(), to.z());
+        java.util.List<net.zaminmc.torch.server.concurrent.OwnershipDomain> acquired =
+                new java.util.ArrayList<>(entered.size());
+        try {
+            for (net.zaminmc.torch.server.concurrent.OwnershipDomain region : entered) {
+                region.enter();
+                acquired.add(region);
+            }
+            body.run();
+        } finally {
+            for (int i = acquired.size() - 1; i >= 0; i--) {
+                acquired.get(i).exit();
+            }
+        }
+    }
+
+    /**
+     * The per-region boundary walk (the §7 protocol's target-side apply):
+     * enters every live region domain in the deterministic id order, drains
+     * the router's inbound intents for that region at its own boundary, and
+     * releases — an intent's action validates and applies in the target
+     * region's context, admission order, exactly-once. Called at the tick
+     * head (before the gameplay systems) so applied intents are visible to
+     * the same tick's authoritative work.
+     *
+     * @return how many intents were applied across all regions
+     */
+    public int drainRegionIntents(
+            net.zaminmc.torch.server.concurrent.CrossOwnerRouter router) {
+        net.zaminmc.torch.server.concurrent.RegionPartition attached = partition;
+        if (attached == null) {
+            return 0;
+        }
+        int applied = 0;
+        // domains() walks in the stable name order (deterministic on every
+        // JVM — design invariant 9); the walk runs single-threaded at the
+        // tick head, so the deterministic order is all the guarantee needed.
+        for (net.zaminmc.torch.server.concurrent.OwnershipDomain region : attached.domains()) {
+            try {
+                region.enter();
+            } catch (net.zaminmc.torch.server.concurrent.OwnershipViolationException held) {
+                // A region held by another writer is skipped this tick —
+                // its intents stay queued (ordered delivery, never
+                // dropped), and one held region never stalls the other
+                // regions' drains or the tick itself.
+                continue;
+            }
+            try {
+                applied += router.drainIntents(region);
+            } finally {
+                region.exit();
+            }
+        }
+        return applied;
     }
 }

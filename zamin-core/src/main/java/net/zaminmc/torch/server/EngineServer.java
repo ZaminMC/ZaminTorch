@@ -193,6 +193,10 @@ public final class EngineServer implements Server, EngineBridge {
     private volatile net.zaminmc.torch.server.concurrent.DomainWorkerPool domainWorkerPool;
     /** The Phase 4 cross-owner router: the §7 intent protocol's live surface. */
     private volatile net.zaminmc.torch.server.concurrent.CrossOwnerRouter crossOwnerRouter;
+    /** The overworld's spatial ownership partition (the Phase 4 activation). */
+    private volatile net.zaminmc.torch.server.concurrent.RegionPartition worldRegionPartition;
+    /** The nether's spatial ownership partition (the same granularity). */
+    private volatile net.zaminmc.torch.server.concurrent.RegionPartition netherRegionPartition;
     /** The in-flight detached chunk generations (dedupe; the never-overwrite guard). */
     private final java.util.Set<Long> pendingChunkGenerations =
             java.util.concurrent.ConcurrentHashMap.newKeySet();
@@ -376,6 +380,15 @@ public final class EngineServer implements Server, EngineBridge {
                         : new NormalWorldGenerator(blockRegistry, config.worldName());
                 world = new EngineWorld(config.worldName(), blockRegistry, generator, owner);
                 worldSeed = generator.seed();
+                // The spatial ownership partition (the Phase 4 spatial
+                // activation — ADR-6's conservative knob): region-size chunks
+                // per axis. The default is the whole world one region, so the
+                // live engine keeps today's single-domain behavior until the
+                // operator configures a real split; the boundary tests ride
+                // the small sizes.
+                worldRegionPartition = new net.zaminmc.torch.server.concurrent.RegionPartition(
+                        config.worldName(), config.regionSizeChunks());
+                world.attachRegionPartition(worldRegionPartition);
                 // The persisted spawn anchor (/setspawn): world/data/spawn.json
                 // rides above the generator's deterministic spawn when present.
                 loadSpawnAnchor().ifPresent(world::setSpawnPosition);
@@ -398,6 +411,11 @@ public final class EngineServer implements Server, EngineBridge {
                         new NetherWorldGenerator(blockRegistry, worldSeed);
                 netherWorld = new EngineWorld(config.worldName() + "_nether",
                         blockRegistry, netherGenerator, owner);
+                // The nether's own spatial partition (the same granularity —
+                // each dimension partitions its own chunk space).
+                netherRegionPartition = new net.zaminmc.torch.server.concurrent.RegionPartition(
+                        config.worldName() + "_nether", config.regionSizeChunks());
+                netherWorld.attachRegionPartition(netherRegionPartition);
                 netherStorage = new DeltaWorldStorage(
                         config.worldDataDir().resolve("DIM-1/zamin-delta.bin"),
                         identifier -> blockRegistry.require(identifier));
@@ -616,6 +634,13 @@ public final class EngineServer implements Server, EngineBridge {
                 this.vehicleManager = vehicles;
                 vehicles.addListener(new VehicleEventDispatch());
                 ticker.setTickHandler(() -> {
+                    // The per-region boundary walk FIRST (the §7 protocol's
+                    // target-side apply): every live region domain drains its
+                    // inbound cross-owner intents at its own boundary, so an
+                    // applied intent is visible to the same tick's systems.
+                    // The ambient router drain already ran at the tick edge.
+                    world.drainRegionIntents(crossOwnerRouter);
+                    netherWorld.drainRegionIntents(crossOwnerRouter);
                     blockUpdateSystem.tick(); // §466: scheduled updates (falls start here)
                     redstoneSystem.tick(); // the torch/repeater scheduled reactions
                     pistonSystem.tick(); // the piston block events + the moving carriers
@@ -901,6 +926,16 @@ public final class EngineServer implements Server, EngineBridge {
     /** The Phase 3 compute lane (public: the offload tests read its telemetry). */
     public net.zaminmc.torch.server.concurrent.ComputeSubsystem computeSubsystem() {
         return computeSubsystem;
+    }
+
+    /** The Phase 4 cross-owner router (public: the boundary tests read its telemetry). */
+    public net.zaminmc.torch.server.concurrent.CrossOwnerRouter crossOwnerRouter() {
+        return crossOwnerRouter;
+    }
+
+    /** The overworld's spatial partition (public: the boundary tests walk its regions). */
+    public net.zaminmc.torch.server.concurrent.RegionPartition worldRegionPartition() {
+        return worldRegionPartition;
     }
 
     /** The world's sign text registry (public: the wire's chunk replay reads it). */
@@ -6675,8 +6710,19 @@ public final class EngineServer implements Server, EngineBridge {
                 (int) Math.floor(cx), (int) Math.floor(cy), (int) Math.floor(cz));
 
         // The destruction (each commit wakes the fluid and neighbor systems).
-        java.util.List<ExplosionService.Destroyed> destroyed =
-                explosionService.detonate(blockCenter, power);
+        // The blast rides the boundary scope (the Phase 4 spatial activation
+        // — the design §10.3's "explosions and area effects spanning
+        // multiple domains"): the sphere spans region seams, and the
+        // reference's detonation is one same-tick walk, so the whole walk
+        // holds every region the blast radius touches (power*2 + margin) —
+        // the destruction stays atomic across the seam. The one-region
+        // default makes the scope a single-domain enter/exit.
+        int blastReach = (int) Math.ceil(power * 2.0) + 2;
+        java.util.List<ExplosionService.Destroyed> destroyed = new java.util.ArrayList<>();
+        world.executeInRegions(
+                blockCenter.offset(-blastReach, -blastReach, -blastReach),
+                blockCenter.offset(blastReach, blastReach, blastReach),
+                () -> destroyed.addAll(explosionService.detonate(blockCenter, power)));
         // The historical drop roll: one block in `power` survives as loot.
         java.util.List<int[]> blockOffsets = new java.util.ArrayList<>();
         for (ExplosionService.Destroyed removed : destroyed) {

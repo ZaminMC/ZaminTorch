@@ -26,6 +26,14 @@ import java.util.Objects;
  * @param pvp          whether player melee may damage other players
  * @param levelType    terrain generator: normal (full world) or flat
  * @param whiteList    whether only whitelisted names may join
+ * @param regionSizeChunks the spatial ownership granularity (the permanent
+ *                        architecture's Phase 4 — ADR-6): chunks per axis
+ *                        per ownership region. The default is deliberately
+ *                        huge (the whole world one region, Folia's own
+ *                        regionShift=31 conservatism) so the spatial
+ *                        activation changes nothing until configured; the
+ *                        boundary protocols and their tests carry the
+ *                        multi-region semantics.
  */
 public record EngineConfig(
         String host,
@@ -39,14 +47,22 @@ public record EngineConfig(
         GameMode gamemode,
         boolean pvp,
         String levelType,
-        boolean whiteList
+        boolean whiteList,
+        int regionSizeChunks
 ) {
+
+    /**
+     * The one-region granularity (ADR-6's default): every int-range chunk
+     * coordinate floor-divides into region 0, so the whole world is one
+     * ownership domain until the operator configures a real split.
+     */
+    public static final int WHOLE_WORLD_REGION_SIZE = 1 << 30;
 
     /** Compatibility constructor for callers that do not care about mode/type. */
     public EngineConfig(String host, int port, String worldName, String motd,
                         int maxPlayers, int viewDistance, int tickRateHz, String dataDir) {
         this(host, port, worldName, motd, maxPlayers, viewDistance, tickRateHz,
-                dataDir, GameMode.SURVIVAL, true, "flat", false);
+                dataDir, GameMode.SURVIVAL, true, "flat", false, WHOLE_WORLD_REGION_SIZE);
     }
 
     /** Compatibility constructor for callers that set only the mode. */
@@ -54,7 +70,7 @@ public record EngineConfig(
                         int maxPlayers, int viewDistance, int tickRateHz, String dataDir,
                         GameMode gamemode) {
         this(host, port, worldName, motd, maxPlayers, viewDistance, tickRateHz,
-                dataDir, gamemode, true, "flat", false);
+                dataDir, gamemode, true, "flat", false, WHOLE_WORLD_REGION_SIZE);
     }
 
     public EngineConfig {
@@ -78,6 +94,10 @@ public record EngineConfig(
         if (tickRateHz < 1 || tickRateHz > 100) {
             throw new IllegalArgumentException("tickRateHz out of range: " + tickRateHz);
         }
+        if (regionSizeChunks < 1 || regionSizeChunks > WHOLE_WORLD_REGION_SIZE) {
+            throw new IllegalArgumentException("regionSizeChunks out of range (1.."
+                    + WHOLE_WORLD_REGION_SIZE + "): " + regionSizeChunks);
+        }
         Objects.requireNonNull(dataDir, "dataDir");
         if (dataDir.isBlank()) {
             throw new IllegalArgumentException("dataDir must not be blank");
@@ -87,7 +107,7 @@ public record EngineConfig(
     public static EngineConfig defaults() {
         return new EngineConfig("0.0.0.0", 25565, "world",
                 "A ZaminTorch Server", 20, 4, 20, ".", GameMode.SURVIVAL, true,
-                "normal", false);
+                "normal", false, WHOLE_WORLD_REGION_SIZE);
     }
 
     /** The world folder (the historical {@code world/} of the Paper layout). */
