@@ -438,7 +438,8 @@ public final class RedstoneSystem implements WorldChangeListener {
                 && !RedstoneBlocks.isWire(type)
                 && !RedstoneBlocks.isTorch(type)
                 && !RedstoneBlocks.isRepeater(type)
-                && !RedstoneBlocks.isComparator(type);
+                && !RedstoneBlocks.isComparator(type)
+                && !net.zaminmc.torch.server.piston.PistonBlocks.isPistonFamily(type);
     }
 
     /**

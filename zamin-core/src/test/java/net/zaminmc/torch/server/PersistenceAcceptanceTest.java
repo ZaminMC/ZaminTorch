@@ -39,9 +39,11 @@ class PersistenceAcceptanceTest {
         PlayerSession builder = ((EngineBridge.Accepted) accepted).session();
         serverOne.blockInteraction().submitPlace(builder, new BlockPosition(3, 4, 3), 1, BuiltinBlocks.STONE);
         BlockPosition placed = new BlockPosition(3, 5, 3);
-        await(() -> serverOne.world().getBlock(placed).equals(BuiltinBlocks.STONE), "stone placed");
         // Two deltas: the placed stone AND the grass it covers decaying to dirt
-        // (the historical decay, driven by the scheduled block-update system).
+        // (the historical decay, driven by the scheduled block-update system)
+        // — the await covers both commits (the decay is scheduled work).
+        await(() -> serverOne.world().getBlock(placed).equals(BuiltinBlocks.STONE)
+                && serverOne.world().deltaCount() == 2, "stone placed + the grass decayed");
         assertEquals(2, serverOne.world().deltaCount());
 
         serverOne.shutdown(null);
@@ -53,8 +55,9 @@ class PersistenceAcceptanceTest {
         EngineServer serverTwo = new EngineServer(second);
         serverTwo.start();
 
-        await(() -> serverTwo.world().getBlock(placed).equals(BuiltinBlocks.STONE),
-                "placed block survived the restart");
+        await(() -> serverTwo.world().getBlock(placed).equals(BuiltinBlocks.STONE)
+                        && serverTwo.world().deltaCount() == 2,
+                "placed block survived the restart + the decay re-ran");
         assertEquals(2, serverTwo.world().deltaCount());
         serverTwo.shutdown(null);
         awaitState(serverTwo);

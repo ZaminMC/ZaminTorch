@@ -307,6 +307,25 @@ final class LegacyBlockIds {
                 }
             }
         }
+        // The piston family (Slice 9e): the base 33 plain / 29 sticky, the
+        // head 34, the moving carrier 36 — the facing/sticky/extended bits
+        // ride the nibble.
+        for (String prefix : new String[]{"piston", "sticky_piston"}) {
+            for (String facing : new String[]{"down", "up", "north", "south", "west", "east"}) {
+                merged.put(Identifier.parse("minecraft:" + prefix + "_" + facing),
+                        prefix.startsWith("sticky") ? 29 : 33);
+                merged.put(Identifier.parse("minecraft:" + prefix + "_" + facing + "_extended"),
+                        prefix.startsWith("sticky") ? 29 : 33);
+            }
+        }
+        for (String prefix : new String[]{"piston_head", "moving_piston"}) {
+            for (String facing : new String[]{"down", "up", "north", "south", "west", "east"}) {
+                merged.put(Identifier.parse("minecraft:" + prefix + "_" + facing),
+                        prefix.startsWith("piston_head") ? 34 : 36);
+                merged.put(Identifier.parse("minecraft:" + prefix + "_" + facing + "_sticky"),
+                        prefix.startsWith("piston_head") ? 34 : 36);
+            }
+        }
         // The player-driven sources (Slice 9c): the lever 69, the buttons
         // 77 stone / 143 wood, the plates 70 stone / 72 wood.
         for (String key : new String[]{"down_x", "east", "west", "south", "north", "up_z", "up_x", "down_z"}) {
@@ -503,6 +522,23 @@ final class LegacyBlockIds {
             boolean subtract = value.endsWith("_subtract");
             return facingH | (subtract ? 4 : 0) | (powered ? 8 : 0);
         }
+        if (value.startsWith("piston_head_") || value.startsWith("moving_piston_")) {
+            // facing | (sticky ? 8 : 0) — PistonHeadBlock lines 181-194 +
+            // MovingBlock lines 149-158. Checked BEFORE the base arm: the
+            // head's identifier also starts with "piston_".
+            boolean sticky = value.endsWith("_sticky");
+            String rest = sticky ? value.substring(0, value.length() - "_sticky".length()) : value;
+            String facing = rest.substring(rest.lastIndexOf('_') + 1);
+            return directionNibble(facing) | (sticky ? 8 : 0);
+        }
+        if (value.startsWith("sticky_piston_") || (value.startsWith("piston_")
+                && !value.startsWith("piston_head_"))) {
+            // facing | (extended ? 8 : 0) — PistonBaseBlock lines 357-370.
+            boolean extended = value.endsWith("_extended");
+            String rest = extended ? value.substring(0, value.length() - "_extended".length()) : value;
+            String facing = rest.substring(rest.lastIndexOf('_') + 1);
+            return directionNibble(facing) | (extended ? 8 : 0);
+        }
         if (value.startsWith("lever_")) {
             // The facing id | the powered bit (LeverBlock lines 258-263).
             boolean powered = value.endsWith("_powered");
@@ -576,7 +612,24 @@ final class LegacyBlockIds {
                 || value.startsWith("repeater_")
                 || value.startsWith("powered_repeater_")
                 || value.startsWith("comparator_")
-                || value.startsWith("powered_comparator_"));
+                || value.startsWith("powered_comparator_")
+                || value.startsWith("piston_")
+                || value.startsWith("sticky_piston_")
+                || value.startsWith("piston_head_")
+                || value.startsWith("moving_piston_"));
+    }
+
+    /** The reference direction id of a direction key (down up north south west east). */
+    private static int directionNibble(String facing) {
+        return switch (facing) {
+            case "down" -> 0;
+            case "up" -> 1;
+            case "north" -> 2;
+            case "south" -> 3;
+            case "west" -> 4;
+            case "east" -> 5;
+            default -> 1;
+        };
     }
 
     /** @return the canonical identifier for a legacy id, or empty if unknown. */
