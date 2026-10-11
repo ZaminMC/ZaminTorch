@@ -247,6 +247,8 @@ public final class EngineServer implements Server, EngineBridge {
 
     /** The potion subsystem (Slice 11b): the effect stores + the splash. */
     private net.zaminmc.torch.server.potion.PotionSystem potionSystem;
+    /** The leash subsystem (Slice 11c): the knots + the leash physics. */
+    private net.zaminmc.torch.server.leash.LeadSystem leadSystem;
     /** The tripwire subsystem (Slice 10c): the occupancy scan + the hook walk. */
     private net.zaminmc.torch.server.redstone.TripwireSystem tripwireSystem;
     /** The observers of the TNT system (the protocol adapter's wire sync). */
@@ -309,6 +311,8 @@ public final class EngineServer implements Server, EngineBridge {
     /** Vehicles (boats, minecarts) get the band above the orbs. */
     private static final int VEHICLE_ID_BASE = ORB_ID_BASE + 1_000_000;
     private static final int TNT_ID_BASE = VEHICLE_ID_BASE + 1_000_000;
+    /** Leash knots get the band above the TNT bodies. */
+    private static final int KNOT_ID_BASE = TNT_ID_BASE + 1_000_000;
 
     /** The shared shape-aware physics query (items, falling blocks, projectiles). */
     private final ShapeGround shapeGround = new ShapeGround();
@@ -734,6 +738,10 @@ public final class EngineServer implements Server, EngineBridge {
                         new PotionBodies());
                 projectiles.setPotionSink((x, y, z, damage, directHit) ->
                         potionSystem.splash(x, y, z, damage, directHit));
+                // The leashes (Slice 11c): the knots + the per-tick walk.
+                leadSystem = new net.zaminmc.torch.server.leash.LeadSystem(
+                        new LeadSurface(), KNOT_ID_BASE);
+                leadSystem.setSurvivalRead(world, BuiltinBlocks.FENCE.identifier());
                 // Vehicles (§ vehicles slice): boats and minecarts on the
                 // shared body model; the engine owns the mounted rider.
                 VehicleManager vehicles = new VehicleManager(
@@ -776,6 +784,7 @@ public final class EngineServer implements Server, EngineBridge {
                     experienceOrbs.tick(players.all()); // the XP bodies pay out
                     mobs.tick(players.all(), world.timeOfDay());
                     tickMobPotions(); // the mobs' effect stores (Slice 11b)
+                    tickLeashes(); // the leash physics + the knots (Slice 11c)
                     randomTicks.tick(players.all()); // §471: grass growth/decay
                     tickFurnaceViewers();
                     tickEnchantingViewers();
@@ -1212,6 +1221,11 @@ public final class EngineServer implements Server, EngineBridge {
     /** The potion effect system (exposed for behavioral tests). */
     public net.zaminmc.torch.server.potion.PotionSystem potions() {
         return potionSystem;
+    }
+
+    /** The leash system (exposed for the protocol adapter + tests). */
+    public net.zaminmc.torch.server.leash.LeadSystem leads() {
+        return leadSystem;
     }
 
     /** The random-tick system (exposed for deterministic growth probes). */
@@ -3975,6 +3989,17 @@ public final class EngineServer implements Server, EngineBridge {
             }
             return; // the bottle against anything else never places
         }
+        // The lead on a fence (Slice 11c — LeadItem.useOn lines 24-44): every
+        // mob the player holds within the 7-cube ties to the knot at the
+        // fence (creating it on the first taker) — the lead itself is NOT
+        // consumed (the mob already paid it at the attach).
+        net.zaminmc.torch.item.ItemStack leadHeld = session.inventory().held();
+        if (!leadHeld.isEmpty() && leadHeld.type().equals(BuiltinItems.LEAD)
+                && world.getBlock(clicked).identifier()
+                        .equals(BuiltinBlocks.FENCE.identifier())) {
+            leadSystem.useLeadOnFence(session, clicked);
+            return; // the fence consumed the use (the reference's own true)
+        }
         if (cycleRepeaterDelayOnTick(clicked)) {
             return; // the repeater's use consumed the right-click (the delay cycle)
         }
@@ -5502,7 +5527,36 @@ public final class EngineServer implements Server, EngineBridge {
             }
             MobEntity mob = mobManager.byId(targetEntityId);
             if (mob == null || mob.dead()) {
+                // The leash knot (Slice 11c): its own interact — the tie with
+                // a lead in hand, the removal without one (creative releases
+                // the held without the drop).
+                var knot = leadSystem != null
+                        ? leadSystem.allKnots().stream()
+                                .filter(k -> k.entityId() == targetEntityId).findFirst().orElse(null)
+                        : null;
+                if (knot != null) {
+                    double kdx = knot.position().x() - player.position().x();
+                    double kdy = knot.position().y() - player.position().y();
+                    double kdz = knot.position().z() - player.position().z();
+                    double kHorizontal = Math.sqrt(kdx * kdx + kdz * kdz);
+                    if (kHorizontal <= MELEE_REACH + 1.0 && kdy > -2.0 && kdy < 4.0) {
+                        leadSystem.interactKnot(player, knot);
+                    }
+                }
                 return;
+            }
+            // The leash arms first (the reference's MobEntity.interact order:
+            // the held-mob release, then the lead's attach + consume).
+            if (leadSystem != null) {
+                double ldx = mob.position().x() - player.position().x();
+                double ldy = mob.position().y() - player.position().y();
+                double ldz = mob.position().z() - player.position().z();
+                double lHorizontal = Math.sqrt(ldx * ldx + ldz * ldz);
+                if (lHorizontal <= MELEE_REACH + mob.type().width * 0.5
+                        && ldy > -2.0 && ldy < 4.0
+                        && leadSystem.interactMobWithLead(player, mob)) {
+                    return;
+                }
             }
             // The villager branch: right-click opens the trading window.
             if (mob.isTrader()) {
@@ -6746,6 +6800,48 @@ public final class EngineServer implements Server, EngineBridge {
         for (MobEntity mob : mobManager.all()) {
             potionSystem.tick(mob);
         }
+    }
+
+    /** The leash walk + the knots' survival poll (Slice 11c). */
+    private void tickLeashes() {
+        leadSystem.tick(mobManager.all(), player -> player.position());
+    }
+
+    /** The leash system's mob surface (the tie scan + the lead drop). */
+    private final class LeadSurface implements net.zaminmc.torch.server.leash.LeadSystem.Mobs {
+        @Override
+        public java.util.List<MobEntity> mobsIn(double minX, double minY, double minZ,
+                                                 double maxX, double maxY, double maxZ) {
+            java.util.List<MobEntity> found = new java.util.ArrayList<>();
+            for (MobEntity mob : mobManager.all()) {
+                Position at = mob.position();
+                if (at.x() >= minX - mob.type().width
+                        && at.x() <= maxX + mob.type().width
+                        && at.z() >= minZ - mob.type().width
+                        && at.z() <= maxZ + mob.type().width
+                        && at.y() >= minY && at.y() <= maxY + mob.type().height) {
+                    found.add(mob);
+                }
+            }
+            return found;
+        }
+
+        @Override
+        public void dropLead(Position at) {
+            itemEntities.spawnDropAtBlock(at, ItemStack.of(BuiltinItems.LEAD, 1),
+                    ItemEntity.PICKUP_DELAY_DROP_TICKS);
+        }
+    }
+
+    /**
+     * Registers the leash observer (the protocol adapter's Spawn Object 77
+     * + the Attach Entity pair + the Destroy Entities fan-out).
+     */
+    public void addLeadListener(net.zaminmc.torch.server.leash.LeadSystem.Listener listener) {
+        if (leadSystem == null) {
+            throw new IllegalStateException("the leash system boots with the world");
+        }
+        leadSystem.addListener(listener);
     }
 
     /**

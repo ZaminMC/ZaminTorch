@@ -3255,6 +3255,89 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     }
 
     /**
+     * Spawn Object (0x0E) for a leash knot (type 77 — TrackedEntity's own
+     * createSpawnPacket arm): the position rides the FENCE BLOCK's raw
+     * corner (blockPos * 32, no +0.5 — the reference's own quirk; the
+     * client anchors the knot model itself). Any thread.
+     */
+    void sendKnotSpawned(net.zaminmc.torch.server.leash.LeashKnot knot) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY
+                || chunkTracker == null) {
+            return;
+        }
+        if (!chunkTracker.hasChunk(knot.fence().chunkPosition().packed())) {
+            return; // outside this observer's loaded window
+        }
+        ByteBuf out = Unpooled.buffer(32);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_SPAWN_ENTITY);
+        ByteBufOps.writeVarInt(out, knot.entityId());
+        out.writeByte(Protocol18.OBJECT_LEASH_KNOT);
+        out.writeInt(knot.fence().x() * 32);
+        out.writeInt(knot.fence().y() * 32);
+        out.writeInt(knot.fence().z() * 32);
+        out.writeByte(0); // pitch
+        out.writeByte(0); // yaw
+        out.writeInt(0); // object data
+        out.writeShort(0); // velocity x
+        out.writeShort(0); // velocity y
+        out.writeShort(0); // velocity z
+        channel.writeAndFlush(out);
+    }
+
+    /** Destroy Entities (0x13) for one removed leash knot. Any thread. */
+    void sendKnotRemoved(int knotEntityId) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(12);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_DESTROY_ENTITIES);
+        ByteBufOps.writeVarInt(out, 1);
+        ByteBufOps.writeVarInt(out, knotEntityId);
+        channel.writeAndFlush(out);
+    }
+
+    /**
+     * Attach Entity (0x1B) for a mob's leash (MobEntity.attachLeash's own
+     * wire arm): the mob's engine id rides the rider slot; the vehicle is
+     * the holder — a player's id in THIS observer's space (own id when the
+     * observer holds the lead, the remote id otherwise) or the knot's
+     * global id. A null holder clears the leash. Any thread.
+     */
+    void sendLeashAttach(net.zaminmc.torch.server.entity.MobEntity mob,
+                         net.zaminmc.torch.server.player.PlayerSession holderPlayer,
+                         net.zaminmc.torch.server.leash.LeashKnot holderKnot) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        int vehicleId;
+        if (holderPlayer != null) {
+            PlayerSession current = session;
+            if (current == holderPlayer) {
+                vehicleId = ownEntityId;
+            } else {
+                Integer remote = remoteEntityIds.get(holderPlayer.uuid());
+                if (remote == null) {
+                    return; // the holder is not visible to this observer
+                }
+                vehicleId = remote;
+            }
+        } else if (holderKnot != null) {
+            vehicleId = holderKnot.entityId();
+        } else {
+            vehicleId = -1; // the clear
+        }
+        ByteBuf out = Unpooled.buffer(14);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_ATTACH_ENTITY);
+        out.writeInt(mob.entityId());
+        out.writeInt(vehicleId);
+        out.writeByte(1);
+        channel.writeAndFlush(out);
+    }
+
+    /**
      * The posture broadcast: Entity Metadata (0x1C) for the moving player's
      * observer-local id carrying the living-flags byte (crouch 0x02, sprint
      * 0x10). Sent to every OTHER observer — the mover's client animates its
