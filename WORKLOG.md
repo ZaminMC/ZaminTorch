@@ -853,3 +853,103 @@ timing under --max-workers=1 load; 3/3 green in isolation).
 
 **Next:** dispensers/droppers, then potions, leads, structures,
 natural spawn cycles.
+
+---
+
+## Slice 11a — the dispensers and the droppers (2026-10-11)
+
+**Reference:** `block/DispenserBlock.java` + `block/DropperBlock.java` +
+`block/entity/DispenserBlockEntity.java` + `block/dispenser/*` +
+`Bootstrap.registerDispenseBehaviors` (the behavior registrations) +
+`SmallFireballEntity` (the fire charge's flight).
+
+**Files:**
+
+- `server/dispenser/DispenserBlocks` — the flattened families: the
+  dispenser 23, the dropper 125, six FACING values x the TRIGGERED
+  pair, the nibble `facing | triggered<<3` (DispenserBlock lines
+  202-215).
+- `server/dispenser/DispenserBlockEntity` — nine slots (the 3x3 window
+  layout), the reservoir-sampled pickNonEmptySlot (the reference's own
+  1/j walk, lines 61-72), the insertItem (the bucket scoop's give-back),
+  and the chest's click/quick-move/drop semantics over the nine.
+- `server/dispenser/DispenserSystem` — the activation (the TRIGGERED
+  pair through the neighbor bus with the defensive 7-position walk the
+  hopper established, the reference's through-the-top
+  `hasNeighborSignal(pos.up())` read, the 4-tick reaction through
+  FAMILY_DISPENSER), the dispense walk, the dropper's container push
+  (ONE item, silent, falling through to the default drop), the
+  behavior registry (arrow/egg/snowball projectiles force 1.1
+  variation 6, the fire charge, the TNT prime, the bucket pour/scoop
+  with the empty-bucket swap + the insert-else-drop, the flint and
+  steel fire + the one-use wear, the bone meal crop grow
+  `stage + nextInt(2..5)`, the default item drop with the vanilla
+  0.7-out position + the 0.2-and-gaussian velocity family), the
+  placement re-orientation quirk (onAdded's facing-into-a-wall flip,
+  run at placement only per the flag-1 semantics), the break spill +
+  the comparator wake, the stale-state sweep.
+- `ProjectileEntity`/`ProjectileManager`: the SMALL_FIREBALL kind
+  (object type 63) — the accelerating physics (the velocity picks up
+  the normalized*0.1 acceleration BEFORE the 0.95 drag, no gravity),
+  the launchVector API (the dispenser's projectile family), the fire
+  placement at the crossed air cell on landing, the flat 5.0 fire
+  damage + the five-second burn.
+- `TntSystem.spawnPrimedAt` (the dispensed TNT primes at the facing
+  cell's center, no block removal) + the public isTntBlock +
+  primedBodies read.
+- `HopperSystem`: the containerAt query + the pushOneIntoContainer (the
+  dropper's push) + the dispenser family joins the container adapter
+  (hoppers feed and pull the nine slots) + the late-wired
+  dispenserLookup (the construction cycle resolved through a setter).
+- `RedstoneSystem`: FAMILY_DISPENSER + the scheduleDispense entry + the
+  dispenserTicker dispatch.
+- EngineServer: the system wiring (the listener, the neighbor bus, the
+  ticker, the fire sink), the registry chain, the 9-slot GUI window
+  (ContainerKind.DISPENSER + the click/quick-move/drop semantics +
+  the wire items sync + the open dispatch), the placement (the
+  piston-style eye/look facing + the re-orientation quirk), the
+  comparator fullness, the break spill, the bonemeal player-use roll
+  fix (`2 + nextInt(4)` — the reference's MathHelper.nextInt(random,
+  2, 5)).
+- `BlockLightTable`: the light rows for EVERY late-registered
+  mechanical family (the dispenser/dropper/piston bases/heads filter
+  15; the hopper/moving carrier/tripwire wire+hook pass) — the gap the
+  world's warning swallow hid since Slice 9e.
+- `detonateAt`: the boundary-scope box clamped to the world's vertical
+  bounds — a pre-existing crash any ground-level blast would hit (the
+  scope walked below y=0 and the whole tick died).
+- The wire: the families' ids + the nibbles + the reverse folds, the
+  items 23/125/385, the window constants.
+
+**Bugs found through live debugging:**
+
+1. The item-split copy-out — the engine's `ItemStack.split` is a
+   copy-out (the record model), so the default drop's slot never lost
+   its unit; the reference's in-place split decomposed into the
+   explicit one + consumeOne.
+2. The ground-level detonation crash — the boundary-scope box for any
+   blast near the floor walked below y=0 and killed the tick; clamped
+   to the world bounds.
+3. The missing light rows — every mechanical family since the pistons
+   (Slice 9e) ran on the world's warning swallow; the rows registered.
+4. The player-use bone meal roll — `2 + nextInt(3)` corrected to the
+   reference's `2 + nextInt(4)`.
+
+**Tests:** DispenserSystemTest (10): the powered release after the four
+ticks + the TRIGGERED pair + the empty click + the no-re-dispense
+guard, the arrow as a projectile, the fire charge as a small fireball,
+the dropper's silent chest push, the dropper's item fallback, the water
+bucket pour + the empty-bucket swap, the empty bucket's scoop, the
+dispensed TNT prime + the detonation at the fuse end, the hopper feed,
+the empty dispenser's click. The fresh full-suite method count: 604
+green in zamin-core + 19 in zamin-api + 71 in the protocol module
+(zero failures; the full pass with --max-workers=1).
+
+**Ledgered (not in this slice):** the spawn-egg/potion/fireworks/skull/
+pumpkin/minecart/armor behaviors (their items or their entities ride
+other slices — the potion is next), the world-event 2000 smoke + 2005
+bonemeal particles (the particle slice), the ZCD persistence of the
+family's nine slots, the arrow pickup flag.
+
+**Next:** potions (the splash entity + the effect application), leads,
+structures, natural spawn cycles.

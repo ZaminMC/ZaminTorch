@@ -566,6 +566,20 @@ public final class BlockBehaviorTable {
             behaviors.put(Identifier.parse("minecraft:hopper_" + directions[facing] + "_disabled"),
                     hopper);
         }
+        // The dispenser and the dropper (Slice 11a, Block.java line 1041's
+        // strength 3.5): every facing/triggered variant drops its item.
+        BlockBehavior dispenser = new BlockBehavior(3.5, true, false, "stone", 0,
+                List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:dispenser"), 1)));
+        BlockBehavior dropper = new BlockBehavior(3.5, true, false, "stone", 0,
+                List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:dropper"), 1)));
+        for (String facing : new String[]{"down", "up", "north", "south", "west", "east"}) {
+            behaviors.put(Identifier.parse("minecraft:dispenser_" + facing), dispenser);
+            behaviors.put(Identifier.parse("minecraft:dispenser_" + facing + "_triggered"),
+                    dispenser);
+            behaviors.put(Identifier.parse("minecraft:dropper_" + facing), dropper);
+            behaviors.put(Identifier.parse("minecraft:dropper_" + facing + "_triggered"),
+                    dropper);
+        }
         // The tripwire (Slice 10c, community blocks.json: hardness 0, instant
         // by hand): the wire drops string unless disarmed (the shears arm);
         // the hook drops the hook item.

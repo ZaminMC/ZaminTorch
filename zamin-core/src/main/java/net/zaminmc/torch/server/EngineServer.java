@@ -147,6 +147,13 @@ public final class EngineServer implements Server, EngineBridge {
     private static final int CHEST_WIRE_SLOT_MAIN_LAST = 53;
     private static final int CHEST_WIRE_SLOT_HOTBAR_FIRST = 54;
     private static final int CHEST_WIRE_SLOT_HOTBAR_LAST = 62;
+    // The dispenser/dropper window (Slice 11a — DispenserMenu): 3x3
+    // container slots then the same inventory layout the chest uses.
+    private static final int DISPENSER_WIRE_SLOT_LAST = 8;
+    private static final int DISPENSER_WIRE_SLOT_MAIN_FIRST = 9;
+    private static final int DISPENSER_WIRE_SLOT_MAIN_LAST = 35;
+    private static final int DISPENSER_WIRE_SLOT_HOTBAR_FIRST = 36;
+    private static final int DISPENSER_WIRE_SLOT_HOTBAR_LAST = 44;
     /** Craft-all guard: even a 3x3 grid cannot chain more crafts than this. */
     private static final int VANILLA_CRAFT_ALL_BOUND = 1024;
     /** Wire window ids: 0 = player inventory; containers get ids from this counter (u8). */
@@ -235,6 +242,8 @@ public final class EngineServer implements Server, EngineBridge {
     private net.zaminmc.torch.server.tnt.TntSystem tntSystem;
     /** The hopper subsystem (Slice 10b): the 8-tick transfer cadence. */
     private net.zaminmc.torch.server.hopper.HopperSystem hopperSystem;
+    /** The dispenser subsystem (Slice 11a): the 4-tick reaction + the behaviors. */
+    private net.zaminmc.torch.server.dispenser.DispenserSystem dispenserSystem;
     /** The tripwire subsystem (Slice 10c): the occupancy scan + the hook walk. */
     private net.zaminmc.torch.server.redstone.TripwireSystem tripwireSystem;
     /** The observers of the TNT system (the protocol adapter's wire sync). */
@@ -349,12 +358,13 @@ public final class EngineServer implements Server, EngineBridge {
         // Registry freeze: built-ins registered during boot preparation must be frozen
         // before any world exists (registry lifecycle: create -> register -> freeze).
         if (blockRegistry == null) {
-            blockRegistry = net.zaminmc.torch.server.hopper.HopperSystem.registerBlocks(
+            blockRegistry = net.zaminmc.torch.server.dispenser.DispenserSystem.registerBlocks(
+                    net.zaminmc.torch.server.hopper.HopperSystem.registerBlocks(
                     net.zaminmc.torch.server.piston.PistonSystem.registerBlocks(
                     net.zaminmc.torch.server.redstone.TripwireBlocks.registerAll(
                     net.zaminmc.torch.server.redstone.RedstoneBlocks.registerAll(
                             FluidBlocks.registerAll(
-                                    BuiltinBlocks.registerAll(new BlockRegistryBuilder())))))).freeze();
+                                    BuiltinBlocks.registerAll(new BlockRegistryBuilder()))))))).freeze();
         }
 
         state.set(ServerState.STARTING);
@@ -568,6 +578,16 @@ public final class EngineServer implements Server, EngineBridge {
                                 : net.zaminmc.torch.server.redstone.RedstoneSystem.containerFullness(
                                         hopper.snapshotSlots(), 64);
                     }
+                    if (net.zaminmc.torch.server.dispenser.DispenserBlocks.isFamily(block)) {
+                        // The dispenser family's nine slots (the same fullness
+                        // walk the reference runs on every Inventory —
+                        // DispenserBlock.getAnalogSignal lines 186-189).
+                        net.zaminmc.torch.server.dispenser.DispenserBlockEntity container =
+                                dispenserSystem == null ? null : dispenserSystem.peek(position);
+                        return container == null ? 0
+                                : net.zaminmc.torch.server.redstone.RedstoneSystem.containerFullness(
+                                        container.snapshotSlots(), 64);
+                    }
                     if (block.identifier().equals(BuiltinBlocks.FURNACE.identifier())
                             || block.identifier().equals(BuiltinBlocks.FURNACE_LIT.identifier())) {
                         net.zaminmc.torch.server.furnace.FurnaceBlockEntity furnace =
@@ -684,6 +704,27 @@ public final class EngineServer implements Server, EngineBridge {
                         PROJECTILE_ID_BASE);
                 this.projectileManager = projectiles;
                 projectiles.addListener(new ProjectileEventDispatch());
+                // The fireball's landing arm (SmallFireballEntity.onHit): the
+                // fire block at the air cell the fireball crossed before the
+                // solid one.
+                projectiles.setFireSink((x, y, z) -> {
+                    BlockPosition at = new BlockPosition(x, y, z);
+                    if (at.y() >= BlockPosition.MIN_Y && at.y() <= BlockPosition.MAX_Y
+                            && world.getBlock(at).equals(world.airType())) {
+                        world.setBlock(at, BuiltinBlocks.FIRE);
+                    }
+                });
+                // The dispensers (Slice 11a): the 4-tick reaction + the
+                // behavior registry (the dropper's container push walks the
+                // hopper system's adapter, the dispenser family's own
+                // container state joins it the other way).
+                dispenserSystem = new net.zaminmc.torch.server.dispenser.DispenserSystem(
+                        world, redstoneSystem, itemEntities, projectiles, tntSystem,
+                        hopperSystem, fxManager, new java.util.Random());
+                world.addChangeListener(dispenserSystem); // the placement creates the BE state
+                redstoneSystem.addNeighborListener(dispenserSystem::neighborHeard);
+                redstoneSystem.setDispenserTicker(dispenserSystem::scheduledTick);
+                hopperSystem.setDispenserLookup(dispenserSystem::getOrCreate);
                 // Vehicles (§ vehicles slice): boats and minecarts on the
                 // shared body model; the engine owns the mounted rider.
                 VehicleManager vehicles = new VehicleManager(
@@ -709,6 +750,7 @@ public final class EngineServer implements Server, EngineBridge {
                     redstoneSystem.tick(); // the torch/repeater scheduled reactions
                     pistonSystem.tick(); // the piston block events + the moving carriers
                     hopperSystem.tick(); // the hoppers' 8-tick transfer cadence
+                    dispenserSystem.tick(); // the stale-state sweep (Slice 11a)
                     tripwireSystem.tick(); // the tripwire occupancy scan
                     tntSystem.tick(); // the primed TNT fuses + physics
                     blockInteraction.tickMining(); // the vanilla dig accumulator + 0x28 stages
@@ -756,6 +798,7 @@ public final class EngineServer implements Server, EngineBridge {
                     furnaceManager.onBlockBroken(position, itemEntities);
                     chestManager.onBlockBroken(position, itemEntities);
                     hopperSystem.onBlockBroken(position);
+                    dispenserSystem.onBlockBroken(position);
                     doorSiblingCleanup(position);
                     bedSiblingCleanup(position, brokenType);
                     bedSpawnCleanup(position);
@@ -1179,6 +1222,11 @@ public final class EngineServer implements Server, EngineBridge {
     /** The hopper subsystem (public: the hopper tests read/write its state). */
     public net.zaminmc.torch.server.hopper.HopperSystem hopper() {
         return hopperSystem;
+    }
+
+    /** The dispenser subsystem (public: the dispenser tests read/write its state). */
+    public net.zaminmc.torch.server.dispenser.DispenserSystem dispensers() {
+        return dispenserSystem;
     }
 
     /** The piston subsystem (exposed for behavioral tests). */
@@ -2945,6 +2993,7 @@ public final class EngineServer implements Server, EngineBridge {
                     case CRAFTING_TABLE -> clickContainerWindowOnTick(session, wireSlot, button, mode);
                     case FURNACE -> clickFurnaceWindowOnTick(session, wireSlot, button, mode);
                     case CHEST -> clickChestWindowOnTick(session, wireSlot, button, mode);
+                    case DISPENSER -> clickDispenserWindowOnTick(session, wireSlot, button, mode);
                     case HORSE -> clickHorseWindowOnTick(session, wireSlot, button, mode);
                     case VILLAGER -> clickVillagerWindowOnTick(session, wireSlot, button, mode);
                     case ENCHANTING_TABLE -> clickEnchantingWindowOnTick(session, wireSlot, button, mode);
@@ -3514,6 +3563,112 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /**
+     * Wire slot -> engine inventory slot inside the dispenser window (9-35
+     * maps to main inventory engine slots 9-35 — the layout aligns; 36-44 to
+     * hotbar 0-8); -1 for the container's own slots.
+     */
+    private static int dispenserEngineSlotOf(int wireSlot) {
+        if (wireSlot >= DISPENSER_WIRE_SLOT_MAIN_FIRST
+                && wireSlot <= DISPENSER_WIRE_SLOT_MAIN_LAST) {
+            return wireSlot;                       // main inventory (engine 9-35)
+        }
+        if (wireSlot >= DISPENSER_WIRE_SLOT_HOTBAR_FIRST
+                && wireSlot <= DISPENSER_WIRE_SLOT_HOTBAR_LAST) {
+            return wireSlot - DISPENSER_WIRE_SLOT_HOTBAR_FIRST; // hotbar (engine 0-8)
+        }
+        return -1;
+    }
+
+    /**
+     * Click routing for the dispenser/dropper window (Slice 11a): the same
+     * shared-slot semantics as the chest — the container's nine slots on
+     * wire 0-8, the inventory below. A dispenser has no slot filters (the
+     * historical TileEntityDispenser's isValid always true). Tick-thread
+     * context.
+     */
+    private boolean clickDispenserWindowOnTick(PlayerSession session, int wireSlot, int button,
+                                               int mode) {
+        var inventory = session.inventory();
+        var position = session.openContainerPosition();
+        var container = position == null ? null : dispenserSystem.peek(position);
+        if (container == null) {
+            return false; // stale window (state discarded): rejected, resync restores
+        }
+        switch (mode) {
+            case 0 -> {
+                if (wireSlot >= 0 && wireSlot <= DISPENSER_WIRE_SLOT_LAST) {
+                    container.clickSlot(wireSlot, button, inventory);
+                    return true;
+                }
+                int engineSlot = dispenserEngineSlotOf(wireSlot);
+                if (engineSlot >= 0) {
+                    inventory.clickSlot(engineSlot, button);
+                    return true;
+                }
+                return false;
+            }
+            case 1 -> {
+                if (wireSlot >= 0 && wireSlot <= DISPENSER_WIRE_SLOT_LAST) {
+                    container.quickMoveToInventory(wireSlot, inventory);
+                    return true;
+                }
+                int engineSlot = dispenserEngineSlotOf(wireSlot);
+                if (engineSlot >= 0) {
+                    // Any stack moves in: a dispenser has no slot filters.
+                    // Remainder returns to the slot.
+                    net.zaminmc.torch.item.ItemStack peek = inventory.snapshot().get(engineSlot);
+                    if (peek.isEmpty()) {
+                        return false; // empty slot shift-click: nothing moves
+                    }
+                    net.zaminmc.torch.item.ItemStack moving = inventory.dropFromSlot(engineSlot, true);
+                    net.zaminmc.torch.item.ItemStack remainder = container.quickMoveIn(moving);
+                    if (!remainder.isEmpty()) {
+                        inventory.pickUp(remainder); // full: put the rest back
+                    }
+                    return true;
+                }
+                return false;
+            }
+            case 2 -> {
+                // Number keys exchange main inventory and hotbar only; the
+                // container slots are rejected per packet.
+                int engineSlot = dispenserEngineSlotOf(wireSlot);
+                if (engineSlot >= net.zaminmc.torch.server.player.PlayerInventory.HOTBAR_SLOTS
+                        && button >= 0 && button < 9) {
+                    inventory.swapWithHotbar(engineSlot, button);
+                    return true;
+                }
+                return false;
+            }
+            case 3 -> {
+                return false; // middle-click clone: rejected in survival
+            }
+            case 4 -> {
+                if (wireSlot >= 0 && wireSlot <= DISPENSER_WIRE_SLOT_LAST) {
+                    net.zaminmc.torch.item.ItemStack dropped = container.dropFromSlot(wireSlot, button != 0);
+                    if (!dropped.isEmpty()) {
+                        throwFromPlayer(session, dropped);
+                    }
+                    return true;
+                }
+                int engineSlot = dispenserEngineSlotOf(wireSlot);
+                if (engineSlot >= 0) {
+                    net.zaminmc.torch.item.ItemStack dropped =
+                            inventory.dropFromSlot(engineSlot, button != 0);
+                    if (!dropped.isEmpty()) {
+                        throwFromPlayer(session, dropped);
+                    }
+                    return true;
+                }
+                return false;
+            }
+            default -> {
+                return false; // drag painting (5) / unknown mode: rejected
+            }
+        }
+    }
+
+    /**
      * Wire slot -> engine inventory slot inside a container window (10-36 maps
      * to main inventory engine slots 9-35; 37-45 to hotbar 0-8); -1 for the
      * container's own result/grid slots.
@@ -3648,6 +3803,12 @@ public final class EngineServer implements Server, EngineBridge {
             openChestOnTick(session, clicked, onTableOpened);
             return;
         }
+        if (net.zaminmc.torch.server.dispenser.DispenserBlocks.isFamily(current)) {
+            // DispenserBlock.use lines 78-94: the container opens (the
+            // dropper keeps its own menu type on the wire).
+            openDispenserOnTick(session, clicked, onTableOpened);
+            return;
+        }
         if (current.identifier().equals(net.zaminmc.torch.server.block.BuiltinBlocks.CRAFTING_TABLE.identifier())) {
             openCraftingTableOnTick(session, onTableOpened);
             return;
@@ -3773,6 +3934,13 @@ public final class EngineServer implements Server, EngineBridge {
                 || creativeHeld.map(t -> t.identifier().value().equals("hopper")).orElse(false)) {
             placeHopperOnTick(session, clicked, face, creativeHeld);
             return; // the clicked-face-opposite rule overrides the generic placement
+        }
+        if (heldId.equals("minecraft:dispenser") || heldId.equals("minecraft:dropper")
+                || creativeHeld.map(t -> t.identifier().value().equals("dispenser")
+                        || t.identifier().value().equals("dropper")).orElse(false)) {
+            placeDispenserOnTick(session, clicked, face, creativeHeld,
+                    heldId.equals("minecraft:dropper"));
+            return; // the piston-style eye/look facing overrides the generic placement
         }
         if (heldId.equals("minecraft:string")
                 || creativeHeld.map(t -> t.identifier().value().equals("string")).orElse(false)) {
@@ -4236,6 +4404,57 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /**
+     * The dispenser/dropper placement (Slice 11a —
+     * DispenserBlock.getPlacementState line 143 + PistonBaseBlock.
+     * getFacingForPlacement lines 232-245): the facing follows the
+     * piston's own walk — the eye-height rule when the player stands close
+     * (within two blocks on both horizontal axes), else the look opposite.
+     * The block lands UNTRIGGERED; a neighbor signal arms it on the next
+     * bus pass. Tick-thread context.
+     */
+    private void placeDispenserOnTick(PlayerSession session, BlockPosition clicked, int face,
+                                      java.util.Optional<BlockType> creativeHeld, boolean dropper) {
+        BlockPosition target = offsetByFace(clicked, face);
+        if (target == null || world.getBlock(clicked).equals(world.airType())
+                || !world.getBlock(target).equals(world.airType())) {
+            return;
+        }
+        if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5
+                || intersectsPlayerBox(session.position(), target)) {
+            return;
+        }
+        if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE
+                && session.inventory().held().isEmpty()) {
+            return;
+        }
+        // The eye-height walk when the player is close enough horizontally
+        // (the shared piston rule — getFacingForPlacement).
+        double px = session.position().x();
+        double pz = session.position().z();
+        int facing;
+        if (Math.abs((float) px - target.x()) < 2.0f && Math.abs((float) pz - target.z()) < 2.0f) {
+            double eye = session.position().y() + 1.62;
+            if (eye - target.y() > 2.0) {
+                facing = 1; // UP
+            } else if (target.y() - eye > 0.0) {
+                facing = 0; // DOWN
+            } else {
+                facing = lookOppositeDirection(session);
+            }
+        } else {
+            facing = lookOppositeDirection(session);
+        }
+        world.setBlock(target, dropper
+                ? net.zaminmc.torch.server.dispenser.DispenserBlocks.dropperOf(facing, false)
+                : net.zaminmc.torch.server.dispenser.DispenserBlocks.dispenserOf(facing, false));
+        // The placement re-orientation (DispenserBlock.onAdded lines 49-75):
+        // a dispenser placed facing into an opaque wall flips to the open
+        // side (the flag-1 placement walk).
+        dispenserSystem.updateFacingOnPlacement(target);
+        consumePlaced(session, creativeHeld);
+    }
+
+    /**
      * The player's look-opposite as a reference Direction id (0=down 1=up
      * 2=north 3=south 4=west 5=east) — the piston placement's facing.
      */
@@ -4434,7 +4653,9 @@ public final class EngineServer implements Server, EngineBridge {
             if (stage < 0 || stage >= 7) {
                 return false; // not a growing crop: the historical no-op
             }
-            int grown = Math.min(7, stage + 2 + gameplayRandom.nextInt(3));
+            // WheatBlock.growFully lines 47-53: stage + nextInt(2..5
+            // inclusive) — MathHelper.nextInt(random, 2, 5) = 2 + nextInt(4).
+            int grown = Math.min(7, stage + 2 + gameplayRandom.nextInt(4));
             world.setBlock(clicked, RandomTickSystem.wheatStage(grown));
             session.inventory().consumeHeld(1);
             fxManager.itemShatter(new Position(clicked.x() + 0.5, clicked.y() + 0.5, clicked.z() + 0.5),
@@ -5747,6 +5968,28 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /**
+     * Opens the dispenser/dropper container at the clicked block (Slice 11a —
+     * DispenserBlock.use lines 78-94): assigns the wire window id, lazily
+     * creates the block-entity state, closes any carried window state first,
+     * and reports the id for the adapter's Open Window + slot sync. The nine
+     * slots live in the world — closing the window later leaves them inside
+     * (the historical container behavior, the same ownership as the chest).
+     * Tick-thread context.
+     */
+    private void openDispenserOnTick(PlayerSession session, net.zaminmc.torch.block.BlockPosition position,
+                                     java.util.function.IntConsumer onTableOpened) {
+        closeOpenContainerOnTick(session);
+        dropGridToWorld(session, session.crafting()); // the vanilla close: the 2x2 grid drops
+
+        dispenserSystem.getOrCreate(position);
+        int windowId = nextContainerWindowId;
+        nextContainerWindowId = nextContainerWindowId >= LAST_CONTAINER_WINDOW_ID
+                ? FIRST_CONTAINER_WINDOW_ID : nextContainerWindowId + 1;
+        session.openContainerWindow(windowId, PlayerSession.ContainerKind.DISPENSER, position);
+        onTableOpened.accept(windowId);
+    }
+
+    /**
      * A stale open container (re-open without a close) releases what it
      * carries: the crafting table's 3x3 grid returns to the inventory; a
      * furnace keeps its slots in the world. Tick-thread context.
@@ -6883,12 +7126,21 @@ public final class EngineServer implements Server, EngineBridge {
         // reference's detonation is one same-tick walk, so the whole walk
         // holds every region the blast radius touches (power*2 + margin) —
         // the destruction stays atomic across the seam. The one-region
-        // default makes the scope a single-domain enter/exit.
+        // default makes the scope a single-domain enter/exit. The box clamps
+        // to the world's vertical bounds (a ground-level blast would
+        // otherwise walk the scope off the bottom — the bedrock floor
+        // stops the rays, the scope must not crash first).
         int blastReach = (int) Math.ceil(power * 2.0) + 2;
+        BlockPosition scopeMin = new BlockPosition(
+                blockCenter.x() - blastReach,
+                Math.max(BlockPosition.MIN_Y, blockCenter.y() - blastReach),
+                blockCenter.z() - blastReach);
+        BlockPosition scopeMax = new BlockPosition(
+                blockCenter.x() + blastReach,
+                Math.min(BlockPosition.MAX_Y, blockCenter.y() + blastReach),
+                blockCenter.z() + blastReach);
         java.util.List<ExplosionService.Destroyed> destroyed = new java.util.ArrayList<>();
-        world.executeInRegions(
-                blockCenter.offset(-blastReach, -blastReach, -blastReach),
-                blockCenter.offset(blastReach, blastReach, blastReach),
+        world.executeInRegions(scopeMin, scopeMax,
                 () -> destroyed.addAll(explosionService.detonate(blockCenter, power)));
         // The historical drop roll: one block in `power` survives as loot.
         java.util.List<int[]> blockOffsets = new java.util.ArrayList<>();

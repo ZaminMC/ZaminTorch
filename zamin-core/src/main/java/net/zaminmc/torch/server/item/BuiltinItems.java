@@ -184,6 +184,14 @@ public final class BuiltinItems {
             Identifier.parse("minecraft:hopper"), "Hopper", 64);
     public static final EngineItemType TRIPWIRE_HOOK = new EngineItemType(
             Identifier.parse("minecraft:tripwire_hook"), "Tripwire Hook", 64);
+    // The dispenser family (Slice 11a — community items.json: the block
+    // forms share the block ids 23/125, the fire charge is item 385).
+    public static final EngineItemType DISPENSER = new EngineItemType(
+            Identifier.parse("minecraft:dispenser"), "Dispenser", 64);
+    public static final EngineItemType DROPPER = new EngineItemType(
+            Identifier.parse("minecraft:dropper"), "Dropper", 64);
+    public static final EngineItemType FIRE_CHARGE = new EngineItemType(
+            Identifier.parse("minecraft:fire_charge"), "Fire Charge", 64);
     public static final EngineItemType OAK_FENCE = new EngineItemType(
             Identifier.parse("minecraft:oak_fence"), "Oak Fence", 64);
     // The bed item (community items.json: legacy 355) — places both halves.
@@ -474,6 +482,7 @@ public final class BuiltinItems {
                 REDSTONE, REDSTONE_TORCH, REPEATER, COMPARATOR, PISTON, STICKY_PISTON, TNT,
                 LEVER, STONE_BUTTON, WOODEN_BUTTON,
                 STONE_PRESSURE_PLATE, WOODEN_PRESSURE_PLATE, HOPPER, TRIPWIRE_HOOK,
+                DISPENSER, DROPPER, FIRE_CHARGE,
                 OAK_SLAB, STONE_SLAB, COBBLESTONE_SLAB, SANDSTONE_SLAB,
                 OAK_STAIRS, COBBLESTONE_STAIRS,
                 RAIL, BOAT, MINECART,

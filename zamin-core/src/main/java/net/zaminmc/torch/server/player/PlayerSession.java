@@ -61,6 +61,11 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
         FURNACE,
         /** The chest (27-slot GUI, slot state lives in the world at containerPosition). */
         CHEST,
+        /**
+         * The dispenser/dropper (Slice 11a: 9-slot GUI, slot state lives in
+         * the world at containerPosition — the same ownership as the chest).
+         */
+        DISPENSER,
         /** The horse inventory (saddle + armor slots live on the mount at containerPosition's mount id). */
         HORSE,
         /** The villager trading window (offers ride the MC|TrList plugin message). */

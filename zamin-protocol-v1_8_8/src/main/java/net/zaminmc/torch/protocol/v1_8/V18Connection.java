@@ -905,6 +905,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 switch (player.openContainerKind()) {
                     case FURNACE -> sendFurnaceWindow(channel, player, windowId);
                     case CHEST -> sendChestWindow(channel, player, windowId);
+                    case DISPENSER -> sendDispenserWindow(channel, player, windowId);
                     case ENCHANTING_TABLE -> sendEnchantingWindow(channel, player, windowId);
                     default -> sendCraftingTableWindow(channel, player, windowId);
                 }
@@ -975,6 +976,36 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeString(out, Protocol18.CHEST_WINDOW_TYPE);
         ByteBufOps.writeString(out, Protocol18.CHEST_WINDOW_TITLE);
         out.writeByte(27); // the GUI's own slots: 3 rows of 9
+        channel.writeAndFlush(out);
+        sendContainerWindowItems(channel, windowId, player);
+    }
+
+    /**
+     * Open Window (0x2D) for the dispenser/dropper (Slice 11a — the
+     * reference's getMenuType split: "minecraft:dispenser" vs
+     * "minecraft:dropper", nine GUI slots), followed by the authoritative
+     * 45-slot contents. Called on the tick thread by the engine's open
+     * dispatch.
+     */
+    private void sendDispenserWindow(Channel channel, PlayerSession player, int windowId) {
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        var position = player.openContainerPosition();
+        var container = position == null ? null : engine.dispensers().peek(position);
+        if (container == null) {
+            return; // stale open (state discarded): nothing to show
+        }
+        boolean dropper = net.zaminmc.torch.server.dispenser.DispenserBlocks
+                .isDropper(engine.world().getBlock(position));
+        ByteBuf out = Unpooled.buffer(48);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_OPEN_WINDOW);
+        out.writeByte(windowId);
+        ByteBufOps.writeString(out, dropper
+                ? Protocol18.DROPPER_WINDOW_TYPE : Protocol18.DISPENSER_WINDOW_TYPE);
+        ByteBufOps.writeString(out, dropper
+                ? Protocol18.DROPPER_WINDOW_TITLE : Protocol18.DISPENSER_WINDOW_TITLE);
+        out.writeByte(9); // the GUI's own slots: 3 rows of 3
         channel.writeAndFlush(out);
         sendContainerWindowItems(channel, windowId, player);
     }
@@ -1600,6 +1631,15 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             return;
         }
         if (player.openContainerKind()
+                == net.zaminmc.torch.server.player.PlayerSession.ContainerKind.DISPENSER) {
+            var position = player.openContainerPosition();
+            var container = position == null ? null : engine.dispensers().peek(position);
+            if (container != null) {
+                sendDispenserWindowItems(channel, windowId, container, player);
+            }
+            return;
+        }
+        if (player.openContainerKind()
                 == net.zaminmc.torch.server.player.PlayerSession.ContainerKind.HORSE) {
             var mount = engine.mobs().byId(player.containerMountId());
             if (mount != null) {
@@ -1793,6 +1833,39 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 stack = inventory.get(wireSlot - 18); // main inventory: engine 9-35
             } else {
                 stack = inventory.get(wireSlot - Protocol18.CHEST_WIRE_SLOT_HOTBAR_BASE);
+            }
+            writeSlot(out, stack);
+        }
+        channel.writeAndFlush(out);
+    }
+
+    /**
+     * Full authoritative sync of the dispenser/dropper window (Slice 11a):
+     * 45 slots — 0-8 the container, 9-35 main, 36-44 hotbar. Any thread;
+     * owner supplies the session state.
+     */
+    private void sendDispenserWindowItems(Channel channel, int windowId,
+                                          net.zaminmc.torch.server.dispenser.DispenserBlockEntity container,
+                                          PlayerSession player) {
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(96);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_WINDOW_ITEMS);
+        out.writeByte(windowId);
+        out.writeShort(Protocol18.DISPENSER_WINDOW_SLOTS);
+        var containerSlots = container.snapshotSlots();
+        java.util.List<net.zaminmc.torch.item.ItemStack> inventory =
+                player == null ? java.util.List.of() : player.inventory().snapshot();
+        for (int wireSlot = 0; wireSlot < Protocol18.DISPENSER_WINDOW_SLOTS; wireSlot++) {
+            net.zaminmc.torch.item.ItemStack stack;
+            if (wireSlot <= Protocol18.DISPENSER_WIRE_SLOT_LAST) {
+                stack = containerSlots[wireSlot];
+            } else if (wireSlot <= Protocol18.DISPENSER_WIRE_SLOT_MAIN_LAST) {
+                // main: wire 9-35 == engine 9-35 (the layout happens to align)
+                stack = inventory.get(wireSlot);
+            } else {
+                stack = inventory.get(wireSlot - Protocol18.DISPENSER_WIRE_SLOT_HOTBAR_FIRST);
             }
             writeSlot(out, stack);
         }
@@ -2918,6 +2991,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             case ARROW -> Protocol18.OBJECT_ARROW;
             case SNOWBALL -> Protocol18.OBJECT_SNOWBALL;
             case EGG -> Protocol18.OBJECT_EGG;
+            case SMALL_FIREBALL -> Protocol18.OBJECT_SMALL_FIREBALL;
         };
         int throwerWireId = resolveThrowerWireId(current, projectile.throwerId());
         ByteBuf out = Unpooled.buffer(48);

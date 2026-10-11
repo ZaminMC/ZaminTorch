@@ -154,6 +154,8 @@ final class Protocol18 {
     static final int OBJECT_ARROW = 60;
     static final int OBJECT_SNOWBALL = 61;
     static final int OBJECT_EGG = 62;
+    /** The dispensed fire charge (Slice 11a — community entities.json). */
+    static final int OBJECT_SMALL_FIREBALL = 63;
     /** The vehicles (community entities.json object types). */
     static final int OBJECT_BOAT = 1;
     static final int OBJECT_MINECART = 10;
@@ -310,6 +312,19 @@ final class Protocol18 {
     static final int CHEST_WIRE_SLOT_HOTBAR_FIRST = 54;
     static final int CHEST_WIRE_SLOT_HOTBAR_LAST = 62;
     static final int CHEST_WIRE_SLOT_HOTBAR_BASE = 54;
+    // The dispenser/dropper window (Slice 11a — DispenserMenu lines 15-34:
+    // the same 3x9 layout the chest uses, nine container slots instead of
+    // twenty-seven).
+    static final String DISPENSER_WINDOW_TYPE = "minecraft:dispenser";
+    static final String DROPPER_WINDOW_TYPE = "minecraft:dropper";
+    static final String DISPENSER_WINDOW_TITLE = "{\"text\":\"Dispenser\"}";
+    static final String DROPPER_WINDOW_TITLE = "{\"text\":\"Dropper\"}";
+    static final int DISPENSER_WINDOW_SLOTS = 45;
+    static final int DISPENSER_WIRE_SLOT_LAST = 8;
+    static final int DISPENSER_WIRE_SLOT_MAIN_FIRST = 9;
+    static final int DISPENSER_WIRE_SLOT_MAIN_LAST = 35;
+    static final int DISPENSER_WIRE_SLOT_HOTBAR_FIRST = 36;
+    static final int DISPENSER_WIRE_SLOT_HOTBAR_LAST = 44;
 
     // The horse inventory window (protocol 47; the quirky legacy string the
     // 1.8 client switches on, plus the trailing mount entity id — the only

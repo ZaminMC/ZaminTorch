@@ -67,6 +67,12 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:obsidian"), 49),
             // The TNT block (Slice 9f, legacy 46): the block item shares the id.
             Map.entry(Identifier.parse("minecraft:tnt"), 46),
+            // The dispenser family's item forms (Slice 11a): the block forms
+            // share the ids 23/125 (the flattened state families register
+            // their own entries below); the fire charge is item-only 385.
+            Map.entry(Identifier.parse("minecraft:dispenser"), 23),
+            Map.entry(Identifier.parse("minecraft:dropper"), 125),
+            Map.entry(Identifier.parse("minecraft:fire_charge"), 385),
             Map.entry(Identifier.parse("minecraft:wool"), 35),
             // Mob loot and fluid handling of the living-night slice
             // (community items.json ids: bone 352, string 287, gunpowder 289,
@@ -334,6 +340,15 @@ final class LegacyBlockIds {
             merged.put(Identifier.parse("minecraft:hopper_" + facing), 154);
             merged.put(Identifier.parse("minecraft:hopper_" + facing + "_disabled"), 154);
         }
+        // The dispenser families (Slice 11a): the dispenser 23, the dropper
+        // 125 — the facing and the triggered bit ride the nibble
+        // (DispenserBlock lines 202-215).
+        for (String facing : new String[]{"down", "up", "north", "south", "west", "east"}) {
+            merged.put(Identifier.parse("minecraft:dispenser_" + facing), 23);
+            merged.put(Identifier.parse("minecraft:dispenser_" + facing + "_triggered"), 23);
+            merged.put(Identifier.parse("minecraft:dropper_" + facing), 125);
+            merged.put(Identifier.parse("minecraft:dropper_" + facing + "_triggered"), 125);
+        }
         // The tripwire family (Slice 10c): the wire 132, the hook 131 — the
         // four stored bits ride the wire's nibble, the facing/attached/
         // powered the hook's.
@@ -591,6 +606,15 @@ final class LegacyBlockIds {
             String facing = rest.substring(rest.lastIndexOf('_') + 1);
             return directionNibble(facing) | (disabled ? 8 : 0);
         }
+        if (value.startsWith("dispenser_") || value.startsWith("dropper_")) {
+            // facing | (triggered ? 8 : 0) — DispenserBlock lines 202-215
+            // (getDirection reads id & 7, TRIGGERED reads (metadata & 8) > 0).
+            boolean triggered = value.endsWith("_triggered");
+            String rest = triggered
+                    ? value.substring(0, value.length() - "_triggered".length()) : value;
+            String facing = rest.substring(rest.lastIndexOf('_') + 1);
+            return directionNibble(facing) | (triggered ? 8 : 0);
+        }
         if (value.startsWith("tripwire_hook_")) {
             // facingH | (attached ? 4 : 0) | (powered ? 8 : 0) —
             // TripwireHookBlock lines 271-283.
@@ -691,6 +715,15 @@ final class LegacyBlockIds {
         BY_IDENTIFIER.forEach((identifier, legacy) -> {
             if (identifier.namespace().equals("minecraft")
                     && identifier.value().startsWith("hopper_")) {
+                reversed.put((legacy << 4) | metadataOf(identifier), identifier);
+            }
+        });
+        // The dispenser families fold theirs in (the facing and the
+        // triggered bit — twelve states each).
+        BY_IDENTIFIER.forEach((identifier, legacy) -> {
+            String value = identifier.value();
+            if (identifier.namespace().equals("minecraft")
+                    && (value.startsWith("dispenser_") || value.startsWith("dropper_"))) {
                 reversed.put((legacy << 4) | metadataOf(identifier), identifier);
             }
         });

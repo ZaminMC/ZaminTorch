@@ -202,6 +202,31 @@ public final class TntSystem implements WorldChangeListener {
                 && type.identifier().value().equals("tnt");
     }
 
+    /** The public read (the dispenser's flint-and-steel arm — Slice 11a). */
+    public boolean isTntBlock(BlockType type) {
+        return isTnt(type);
+    }
+
+    /**
+     * The dispensed TNT (Bootstrap's TNT arm, lines 328-338): a primed body
+     * at an arbitrary position — the facing cell's center, the cell's floor —
+     * with the full 80-tick fuse and the priming hiss. No block leaves the
+     * world (the TNT never was a block there — it rode the slot). Tick-thread
+     * context.
+     */
+    public void spawnPrimedAt(double x, double y, double z) {
+        PrimedTnt tnt = new PrimedTnt(nextEntityId++, x, y, z, FUSE_TICKS);
+        float angle = (float) (random.nextFloat() * Math.PI * 2.0);
+        tnt.velocityX = -(float) Math.sin(angle) * 0.02f;
+        tnt.velocityY = 0.2f;
+        tnt.velocityZ = -(float) Math.cos(angle) * 0.02f;
+        primed.add(tnt);
+        for (Listener listener : listeners) {
+            listener.onTntPrimed(tnt);
+        }
+        fx.sound(new Position(x, y + 0.5, z), "game.tnt.primed", 1.0f, 1.0f);
+    }
+
     // ------------------------------------------------------------------
     // The ignition
     // ------------------------------------------------------------------
@@ -258,6 +283,11 @@ public final class TntSystem implements WorldChangeListener {
         }
         ignite(pos, FUSE_TICKS);
         return true;
+    }
+
+    /** @return the live primed bodies (diagnostics/tests). */
+    public List<PrimedTnt> primedBodies() {
+        return List.copyOf(primed);
     }
 
     // ------------------------------------------------------------------
