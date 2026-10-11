@@ -86,4 +86,26 @@ public abstract class StructureStart {
             piece.move(0, dy, 0);
         }
     }
+
+    /**
+     * The band re-base (moveBetweenYCoords lines 106-121, the fortress's
+     * own): the whole structure moves so its floor lands inside the
+     * {@code [minY, maxY]} band — {@code minY + nextInt(band - span)} when
+     * the band is wider than the structure, the floor pinned to
+     * {@code minY} otherwise.
+     */
+    protected void moveBetweenYCoords(Random random, int minY, int maxY) {
+        int band = maxY - minY + 1 - this.bounds.getSpanY();
+        int target;
+        if (band > 1) {
+            target = minY + random.nextInt(band);
+        } else {
+            target = minY;
+        }
+        int dy = target - this.bounds.minY;
+        this.bounds.move(0, dy, 0);
+        for (StructurePiece piece : this.pieces) {
+            piece.move(0, dy, 0);
+        }
+    }
 }

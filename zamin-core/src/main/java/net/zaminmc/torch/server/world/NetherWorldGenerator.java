@@ -87,6 +87,9 @@ public final class NetherWorldGenerator implements WorldGenerator {
     private final PerlinNoise scaleNoise;
     private final PerlinNoise depthNoise;
     private final NetherCaveCarver cave;
+    /** The fortress placement layer (Slice 12d): deterministic per chunk. */
+    private final net.zaminmc.torch.server.world.structure.FortressStructure fortresses;
+    private final net.zaminmc.torch.server.world.structure.StructurePalette structurePalette;
 
     double[] perlinNoiseBuffer;
     double[] minLimitPerlinNoiseBuffer;
@@ -118,6 +121,8 @@ public final class NetherWorldGenerator implements WorldGenerator {
         this.quartzOre = registry.require(Identifier.parse("minecraft:quartz_ore"));
         this.brownMushroom = registry.require(Identifier.parse("minecraft:brown_mushroom"));
         this.redMushroom = registry.require(Identifier.parse("minecraft:red_mushroom"));
+        this.structurePalette = net.zaminmc.torch.server.world.structure.StructurePalette.of(registry);
+        this.fortresses = new net.zaminmc.torch.server.world.structure.FortressStructure(seed);
     }
 
     @Override
@@ -200,12 +205,90 @@ public final class NetherWorldGenerator implements WorldGenerator {
         buildSurfaces(chunkX, chunkZ, chunk);
         this.cave.carve(seed, chunkX, chunkZ, chunk);
         decorate(chunkX, chunkZ, chunk);
+        // The fortress pass (Slice 12d — the reference's populate step
+        // draws the fortress before the decorate features; the engine's
+        // decorate re-seeds its own stream, so the fortress rides its own
+        // deterministic layer with the same envelope as the overworld's
+        // structures).
+        populateFortresses(chunk);
         // The reference's FixedBiomeSource(Biome.HELL): every cell is HELL (wire id 8).
         for (int lx = 0; lx < 16; lx++) {
             for (int lz = 0; lz < 16; lz++) {
                 chunk.setBiome(lx, lz, (byte) 8);
             }
         }
+    }
+
+    /**
+     * The fortress pass: the region walk over this chunk's own view.
+     * The out-of-chunk read answer is the bulk stone shape (netherrack
+     * under the ceiling, air above) — the fortress's pieces pass
+     * avoidAir=false everywhere and never probe the liquid border, so no
+     * out-of-chunk read gates any write (the envelope note in the
+     * ledger).
+     */
+    private void populateFortresses(EngineChunk chunk) {
+        int baseX = chunk.position().x() << 4;
+        int baseZ = chunk.position().z() << 4;
+        net.zaminmc.torch.server.world.structure.StructureWorld view =
+                new net.zaminmc.torch.server.world.structure.StructureWorld() {
+                    @Override
+                    public net.zaminmc.torch.block.BlockType blockAt(int x, int y, int z) {
+                        if (y < 0 || y > 255) {
+                            return null;
+                        }
+                        int localX = x - baseX;
+                        int localZ = z - baseZ;
+                        if (localX >= 0 && localX < 16 && localZ >= 0 && localZ < 16) {
+                            return chunk.getBlock(localX, y, localZ);
+                        }
+                        return y < 120 ? netherrack : air;
+                    }
+
+                    @Override
+                    public boolean isLiquid(net.zaminmc.torch.block.BlockType type) {
+                        if (type == null) {
+                            return false;
+                        }
+                        net.zaminmc.torch.util.Identifier id = type.identifier();
+                        return id.namespace().equals("minecraft")
+                                && (id.value().equals("water") || id.value().equals("lava"));
+                    }
+
+                    @Override
+                    public void setBlock(int x, int y, int z, net.zaminmc.torch.block.BlockType type) {
+                        if (y < 0 || y > 255) {
+                            return;
+                        }
+                        int localX = x - baseX;
+                        int localZ = z - baseZ;
+                        if (localX >= 0 && localX < 16 && localZ >= 0 && localZ < 16) {
+                            chunk.setBlock(localX, y, localZ, type);
+                        }
+                    }
+
+                    @Override
+                    public int seaLevel() {
+                        return SEA_LEVEL;
+                    }
+
+                    @Override
+                    public net.zaminmc.torch.server.world.structure.StructurePalette palette() {
+                        return structurePalette;
+                    }
+
+                    @Override
+                    public boolean isOpaque(net.zaminmc.torch.block.BlockType type) {
+                        return type != null && type != air;
+                    }
+
+                    @Override
+                    public void placeGenChest(int x, int y, int z,
+                            java.util.List<net.zaminmc.torch.server.world.structure.StructureWorld.GenLootSlot> slots) {
+                        chunk.addPendingGenChest(x, y, z, slots);
+                    }
+                };
+        fortresses.populate(chunk.position().x(), chunk.position().z(), view);
     }
 
     /**

@@ -367,7 +367,22 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:ender_pearl"), 368),
             Map.entry(Identifier.parse("minecraft:empty_map"), 395),
             Map.entry(Identifier.parse("minecraft:compass"), 329),
-            Map.entry(Identifier.parse("minecraft:iron_door"), 330)));
+            Map.entry(Identifier.parse("minecraft:iron_door"), 330),
+            // The fortress set (Slice 12d): the nether-brick family — the
+            // bricks 40, the fence 113, the stairs 114 (the ascending
+            // band in the metadata nibble), the wart 115 (the age 0..3)
+            // and the block item trio 405/113/114.
+            Map.entry(Identifier.parse("minecraft:nether_bricks"), 40),
+            Map.entry(Identifier.parse("minecraft:nether_brick_fence"), 113),
+            Map.entry(Identifier.parse("minecraft:nether_brick_stairs_east"), 114),
+            Map.entry(Identifier.parse("minecraft:nether_brick_stairs_west"), 114),
+            Map.entry(Identifier.parse("minecraft:nether_brick_stairs_south"), 114),
+            Map.entry(Identifier.parse("minecraft:nether_brick_stairs_north"), 114),
+            Map.entry(Identifier.parse("minecraft:nether_wart_stage0"), 115),
+            Map.entry(Identifier.parse("minecraft:nether_wart_stage1"), 115),
+            Map.entry(Identifier.parse("minecraft:nether_wart_stage2"), 115),
+            Map.entry(Identifier.parse("minecraft:nether_wart_stage3"), 115),
+            Map.entry(Identifier.parse("minecraft:nether_brick_stairs"), 114)));
 
     /**
      * The redstone family's base ids (Slice 9a): the wire's sixteen power
@@ -646,7 +661,16 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:end_portal_frame_eye_south"), 4),
             Map.entry(Identifier.parse("minecraft:end_portal_frame_eye_west"), 5),
             Map.entry(Identifier.parse("minecraft:end_portal_frame_eye_north"), 6),
-            Map.entry(Identifier.parse("minecraft:end_portal_frame_eye_east"), 7));
+            Map.entry(Identifier.parse("minecraft:end_portal_frame_eye_east"), 7),
+            // The fortress set (Slice 12d): the nether-brick stairs'
+            // ascending band + the wart's age band (the reference's own
+            // getStateFromMetadata nibbles).
+            Map.entry(Identifier.parse("minecraft:nether_brick_stairs_west"), 1),
+            Map.entry(Identifier.parse("minecraft:nether_brick_stairs_south"), 2),
+            Map.entry(Identifier.parse("minecraft:nether_brick_stairs_north"), 3),
+            Map.entry(Identifier.parse("minecraft:nether_wart_stage1"), 1),
+            Map.entry(Identifier.parse("minecraft:nether_wart_stage2"), 2),
+            Map.entry(Identifier.parse("minecraft:nether_wart_stage3"), 3));
 
     /**
      * @return the wire metadata nibble of a block type: the 1.8 data-value

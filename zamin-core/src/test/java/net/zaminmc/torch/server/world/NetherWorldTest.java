@@ -30,9 +30,18 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class NetherWorldTest {
 
     private static BlockRegistry registry() {
-        // The boot shape: fluids ride the same registry (lava is a block here).
-        return FluidBlocks.registerAll(
-                BuiltinBlocks.registerAll(new net.zaminmc.torch.server.block.BlockRegistryBuilder()))
+        // The boot shape: the fortress pass (Slice 12d) pulls the structure
+        // palette, so the nether's registry needs the engine's full
+        // registration chain (the redstone/piston/hopper/dispenser
+        // families' blocks included — exactly the boot assembly).
+        return net.zaminmc.torch.server.brewing.BrewingStandBlocks.registerAll(
+                net.zaminmc.torch.server.dispenser.DispenserSystem.registerBlocks(
+                net.zaminmc.torch.server.hopper.HopperSystem.registerBlocks(
+                net.zaminmc.torch.server.piston.PistonSystem.registerBlocks(
+                net.zaminmc.torch.server.redstone.TripwireBlocks.registerAll(
+                net.zaminmc.torch.server.redstone.RedstoneBlocks.registerAll(
+                        FluidBlocks.registerAll(
+                                BuiltinBlocks.registerAll(new net.zaminmc.torch.server.block.BlockRegistryBuilder()))))))))
                 .freeze();
     }
 

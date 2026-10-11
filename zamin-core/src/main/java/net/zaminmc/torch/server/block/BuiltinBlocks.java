@@ -420,6 +420,31 @@ public final class BuiltinBlocks {
     public static final EngineBlockType END_PORTAL_FRAME_EYE_E = new EngineBlockType(
             Identifier.parse("minecraft:end_portal_frame_eye_east"), "End Portal Frame", 7);
 
+    // The fortress set (Slice 12d — the reference's FortressPieces): the
+    // nether-brick family over legacy 112, the nether-brick fence 113, the
+    // nether-brick stairs 114 (the ascending band E/W/S/N = 0..3), and the
+    // nether wart's four age states over 115 (the farm plants age 0).
+    public static final EngineBlockType NETHER_BRICKS = new EngineBlockType(
+            Identifier.parse("minecraft:nether_bricks"), "Nether Bricks");
+    public static final EngineBlockType NETHER_BRICK_FENCE = new EngineBlockType(
+            Identifier.parse("minecraft:nether_brick_fence"), "Nether Brick Fence");
+    public static final EngineBlockType NETHER_BRICK_STAIRS_EAST = new EngineBlockType(
+            Identifier.parse("minecraft:nether_brick_stairs_east"), "Nether Brick Stairs");
+    public static final EngineBlockType NETHER_BRICK_STAIRS_WEST = new EngineBlockType(
+            Identifier.parse("minecraft:nether_brick_stairs_west"), "Nether Brick Stairs", 1);
+    public static final EngineBlockType NETHER_BRICK_STAIRS_SOUTH = new EngineBlockType(
+            Identifier.parse("minecraft:nether_brick_stairs_south"), "Nether Brick Stairs", 2);
+    public static final EngineBlockType NETHER_BRICK_STAIRS_NORTH = new EngineBlockType(
+            Identifier.parse("minecraft:nether_brick_stairs_north"), "Nether Brick Stairs", 3);
+    public static final EngineBlockType NETHER_WART_STAGE0 = new EngineBlockType(
+            Identifier.parse("minecraft:nether_wart_stage0"), "Nether Wart");
+    public static final EngineBlockType NETHER_WART_STAGE1 = new EngineBlockType(
+            Identifier.parse("minecraft:nether_wart_stage1"), "Nether Wart", 1);
+    public static final EngineBlockType NETHER_WART_STAGE2 = new EngineBlockType(
+            Identifier.parse("minecraft:nether_wart_stage2"), "Nether Wart", 2);
+    public static final EngineBlockType NETHER_WART_STAGE3 = new EngineBlockType(
+            Identifier.parse("minecraft:nether_wart_stage3"), "Nether Wart", 3);
+
     private BuiltinBlocks() {
     }
 
@@ -563,6 +588,16 @@ public final class BuiltinBlocks {
                 .register(END_PORTAL_FRAME_EYE_W)
                 .register(END_PORTAL_FRAME_EYE_N)
                 .register(END_PORTAL_FRAME_EYE_E)
+                .register(NETHER_BRICKS)
+                .register(NETHER_BRICK_FENCE)
+                .register(NETHER_BRICK_STAIRS_EAST)
+                .register(NETHER_BRICK_STAIRS_WEST)
+                .register(NETHER_BRICK_STAIRS_SOUTH)
+                .register(NETHER_BRICK_STAIRS_NORTH)
+                .register(NETHER_WART_STAGE0)
+                .register(NETHER_WART_STAGE1)
+                .register(NETHER_WART_STAGE2)
+                .register(NETHER_WART_STAGE3)
                 .register(POTATOES_STAGE0)
                 .register(POTATOES_STAGE1)
                 .register(POTATOES_STAGE2)

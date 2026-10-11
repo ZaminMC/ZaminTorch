@@ -67,6 +67,12 @@ public final class StructurePalette {
     private final BlockType[] ironDoors = new BlockType[4];
     private final BlockType ironDoorUpper;
     private final BlockType[] endPortalFrames = new BlockType[8];
+    // The fortress set (Slice 12d).
+    private final BlockType netherBricks;
+    private final BlockType netherBrickFence;
+    private final BlockType[] netherBrickStairs = new BlockType[4];
+    private final BlockType[] netherWart = new BlockType[4];
+    private final BlockType soulSand;
 
     private StructurePalette(BlockRegistry registry) {
         this.air = registry.require(Identifier.parse("minecraft:air"));
@@ -144,6 +150,19 @@ public final class StructurePalette {
         this.endPortalFrames[5] = BuiltinBlocks.END_PORTAL_FRAME_EYE_W;
         this.endPortalFrames[6] = BuiltinBlocks.END_PORTAL_FRAME_EYE_N;
         this.endPortalFrames[7] = BuiltinBlocks.END_PORTAL_FRAME_EYE_E;
+        // The fortress set (Slice 12d): the nether-brick family with the
+        // stairs' ascending band and the wart's four ages.
+        this.netherBricks = BuiltinBlocks.NETHER_BRICKS;
+        this.netherBrickFence = BuiltinBlocks.NETHER_BRICK_FENCE;
+        this.netherBrickStairs[0] = BuiltinBlocks.NETHER_BRICK_STAIRS_EAST;
+        this.netherBrickStairs[1] = BuiltinBlocks.NETHER_BRICK_STAIRS_WEST;
+        this.netherBrickStairs[2] = BuiltinBlocks.NETHER_BRICK_STAIRS_SOUTH;
+        this.netherBrickStairs[3] = BuiltinBlocks.NETHER_BRICK_STAIRS_NORTH;
+        this.netherWart[0] = BuiltinBlocks.NETHER_WART_STAGE0;
+        this.netherWart[1] = BuiltinBlocks.NETHER_WART_STAGE1;
+        this.netherWart[2] = BuiltinBlocks.NETHER_WART_STAGE2;
+        this.netherWart[3] = BuiltinBlocks.NETHER_WART_STAGE3;
+        this.soulSand = BuiltinBlocks.SOUL_SAND;
     }
 
     /** Resolves the palette (the registry is immutable after boot). */
@@ -340,6 +359,31 @@ public final class StructurePalette {
      */
     public BlockType endPortalFrame(int metadata) {
         return endPortalFrames[Math.abs(metadata % 8)];
+    }
+
+    // ------------------------------------------------------- the fortress set
+
+    public BlockType netherBricks() {
+        return netherBricks;
+    }
+
+    public BlockType netherBrickFence() {
+        return netherBrickFence;
+    }
+
+    /** The nether-brick stairs for the ascending metadata (E/W/S/N = 0..3). */
+    public BlockType netherBrickStairs(int metadata) {
+        return netherBrickStairs[metadata & 3];
+    }
+
+    /** The nether wart for an age 0..3 (the farm plants age 0). */
+    public BlockType netherWart(int age) {
+        return netherWart[Math.max(0, Math.min(3, age))];
+    }
+
+    /** The soul sand (the farm's planting beds). */
+    public BlockType soulSand() {
+        return soulSand;
     }
 
     /** The wheat crop for a growth stage 0..7. */
