@@ -301,6 +301,21 @@ public abstract class StructurePiece {
         }
     }
 
+    /**
+     * The plain air fill (fillAir lines 429-437, 1:1 — the jungle
+     * temple's carving pass).
+     */
+    protected void fillAir(StructureWorld world, StructureBox clip,
+                           int minX, int minY, int minZ, int maxX, int maxY, int maxZ) {
+        for (int y = minY; y <= maxY; y++) {
+            for (int x = minX; x <= maxX; x++) {
+                for (int z = minZ; z <= maxZ; z++) {
+                    this.setBlockState(world, world.palette().air(), x, y, z, clip);
+                }
+            }
+        }
+    }
+
     /** The single-cell chance write (setBlockStateWithThreshold lines 514-518). */
     protected void setBlockStateWithThreshold(StructureWorld world, StructureBox clip,
                                                Random random, float threshold,

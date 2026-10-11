@@ -18,6 +18,8 @@ public enum Biome {
     DESERT(2),
     /** The 1.8 biome id 4: dense oak forest, grass and flowers. */
     FOREST(4),
+    /** The 1.8 biome id 21: the hot-wet band (Slice 12f's jungle temple gate). */
+    JUNGLE(21),
     /** The 1.8 biome id 8: the nether's FixedBiomeSource(HELL) — every cell. */
     HELL(8);
 

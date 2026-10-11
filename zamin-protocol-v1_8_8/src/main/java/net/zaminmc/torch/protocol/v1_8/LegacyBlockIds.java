@@ -397,7 +397,16 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:gold_block"), 41),
             Map.entry(Identifier.parse("minecraft:prismarine"), 168),
             Map.entry(Identifier.parse("minecraft:prismarine_crystals"), 410),
-            Map.entry(Identifier.parse("minecraft:prismarine_shard"), 409)));
+            Map.entry(Identifier.parse("minecraft:prismarine_shard"), 409),
+            // The temple set (Slice 12f): the chiseled sandstone 24/3, the
+            // stained clay pair 159 (the variant nibble), the mossy
+            // cobblestone 48, the vine 106 (metadata 15).
+            Map.entry(Identifier.parse("minecraft:chiseled_sandstone"), 24),
+            Map.entry(Identifier.parse("minecraft:stained_clay_orange"), 159),
+            Map.entry(Identifier.parse("minecraft:stained_clay_yellow"), 159),
+            Map.entry(Identifier.parse("minecraft:mossy_cobblestone"), 48),
+            Map.entry(Identifier.parse("minecraft:vine"), 106),
+            Map.entry(Identifier.parse("minecraft:chiseled_stone_bricks"), 98)));
 
     /**
      * The redstone family's base ids (Slice 9a): the wire's sixteen power
@@ -663,6 +672,7 @@ final class LegacyBlockIds {
             // 71-85).
             Map.entry(Identifier.parse("minecraft:mossy_stone_bricks"), 1),
             Map.entry(Identifier.parse("minecraft:cracked_stone_bricks"), 2),
+            Map.entry(Identifier.parse("minecraft:chiseled_stone_bricks"), 3),
             Map.entry(Identifier.parse("minecraft:infested_stone_bricks"), 4),
             Map.entry(Identifier.parse("minecraft:stone_brick_slab"), 5),
             Map.entry(Identifier.parse("minecraft:iron_door_north"), 1),
@@ -690,7 +700,13 @@ final class LegacyBlockIds {
             // (the reference's PrismarineBlock) + the wet sponge bit.
             Map.entry(Identifier.parse("minecraft:prismarine_bricks"), 1),
             Map.entry(Identifier.parse("minecraft:prismarine_dark"), 2),
-            Map.entry(Identifier.parse("minecraft:wet_sponge"), 1));
+            Map.entry(Identifier.parse("minecraft:wet_sponge"), 1),
+            // The temple set (Slice 12f): the sandstone variant band + the
+            // clay variant band + the vine's attached state.
+            Map.entry(Identifier.parse("minecraft:chiseled_sandstone"), 3),
+            Map.entry(Identifier.parse("minecraft:stained_clay_orange"), 1),
+            Map.entry(Identifier.parse("minecraft:stained_clay_yellow"), 4),
+            Map.entry(Identifier.parse("minecraft:vine"), 15));
 
     /**
      * @return the wire metadata nibble of a block type: the 1.8 data-value

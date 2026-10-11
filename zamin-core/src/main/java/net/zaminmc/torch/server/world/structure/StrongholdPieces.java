@@ -1481,7 +1481,7 @@ public final class StrongholdPieces {
      * level-30 random enchantment over the book's take-everything pool,
      * the book converting to the enchanted form.
      */
-    private static BookRow rollBookLoot(Random random, int minCount, int maxCount, int weight) {
+    static BookRow rollBookLoot(Random random, int minCount, int maxCount, int weight) {
         var offers = net.zaminmc.torch.server.enchantment.EnchantmentHelper.buildOffers(
                 random, net.zaminmc.torch.item.ItemStack.of(BuiltinItems.BOOK), 30);
         java.util.LinkedHashMap<Integer, Integer> enchantments = new java.util.LinkedHashMap<>();
@@ -1501,14 +1501,14 @@ public final class StrongholdPieces {
      * stack-split arm, and the slot draw at 27. A zero count writes
      * nothing (the reference's own size-0 stack is the empty slot).
      */
-    static void placeChestWithLoot(StructurePiece piece, StructureWorld world, Random random,
+    static boolean placeChestWithLoot(StructurePiece piece, StructureWorld world, Random random,
                                    StructureBox clip, int x, int y, int z,
                                    List<LootEntry> entries, BookRow bookRow, int amount) {
         int wx = piece.transformX(x, z);
         int wy = piece.transformY(y);
         int wz = piece.transformZ(x, z);
         if (!clip.contains(wx, wy, wz) || world.blockAt(wx, wy, wz) == BuiltinBlocks.CHEST) {
-            return;
+            return false;
         }
         piece.setBlockState(world, BuiltinBlocks.CHEST, x, y, z, clip);
         Map<Integer, StructureWorld.GenLootSlot> slots = new java.util.LinkedHashMap<>();
@@ -1568,6 +1568,7 @@ public final class StrongholdPieces {
             }
         }
         world.placeGenChest(wx, wy, wz, List.copyOf(slots.values()));
+        return true;
     }
 
     /** The stack ceiling of one item id (the reference's getMaxSize). */

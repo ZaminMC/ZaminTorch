@@ -32,6 +32,8 @@ public final class NormalWorldGenerator implements WorldGenerator {
     private final net.zaminmc.torch.server.world.structure.StrongholdStructure strongholds;
     /** The ocean monument placement layer (Slice 12e): deterministic per chunk. */
     private final net.zaminmc.torch.server.world.structure.OceanMonumentStructure monuments;
+    /** The temple placement layer (Slice 12f): deterministic per chunk. */
+    private final net.zaminmc.torch.server.world.structure.TempleStructure temples;
     private final net.zaminmc.torch.server.world.structure.StructurePalette structurePalette;
 
     @Override
@@ -109,6 +111,7 @@ public final class NormalWorldGenerator implements WorldGenerator {
         this.strongholds = new net.zaminmc.torch.server.world.structure.StrongholdStructure(
                 this.seed, positionView);
         this.monuments = new net.zaminmc.torch.server.world.structure.OceanMonumentStructure(this.seed);
+        this.temples = new net.zaminmc.torch.server.world.structure.TempleStructure(this.seed);
         this.air = registry.require(Identifier.parse("minecraft:air"));
         this.bedrock = registry.require(Identifier.parse("minecraft:bedrock"));
         this.stone = registry.require(Identifier.parse("minecraft:stone"));
@@ -153,6 +156,9 @@ public final class NormalWorldGenerator implements WorldGenerator {
         double moisture = fbm2(x * 0.0022 - 8_000, z * 0.0022 + 8_000, 2);
         if (temperature > 0.66 && moisture < 0.42) {
             return Biome.DESERT;
+        }
+        if (temperature > 0.68 && moisture > 0.64) {
+            return Biome.JUNGLE;
         }
         if (moisture > 0.56) {
             return Biome.FOREST;
@@ -309,11 +315,18 @@ public final class NormalWorldGenerator implements WorldGenerator {
                             java.util.List<net.zaminmc.torch.server.world.structure.StructureWorld.GenLootSlot> slots) {
                         chunk.addPendingGenChest(x, y, z, slots);
                     }
+
+                    @Override
+                    public void placeGenDispenser(int x, int y, int z, int facing,
+                            java.util.List<net.zaminmc.torch.server.world.structure.StructureWorld.GenLootSlot> slots) {
+                        chunk.addPendingGenDispenser(x, y, z, facing, slots);
+                    }
                 };
         mineshafts.populate(chunk.position().x(), chunk.position().z(), view);
         villages.populate(chunk.position().x(), chunk.position().z(), view);
         strongholds.populate(chunk.position().x(), chunk.position().z(), view);
         monuments.populate(chunk.position().x(), chunk.position().z(), view);
+        temples.populate(chunk.position().x(), chunk.position().z(), view);
     }
 
     /** The block for one column cell: core, skin, water, cave or ore. */

@@ -89,6 +89,18 @@ public interface StructureWorld {
     }
 
     /**
+     * The loot-carrying dispenser (the reference's
+     * placeDispenserWithLoot): the rolled arrow stacks ride the chunk's
+     * pending record and materialize into the dispenser system when the
+     * chunk publishes.
+     *
+     * @param facing the reference Direction id the dispenser points at
+     */
+    default void placeGenDispenser(int x, int y, int z, int facing,
+                                   List<GenLootSlot> slots) {
+    }
+
+    /**
      * One rolled chest slot (the loot walk's setItem record). The optional
      * enchantment map carries the reference's enchanted-book loot arm
      * (EnchantedBookItem.createLoot — a random level-30 enchantment riding

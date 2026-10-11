@@ -1866,3 +1866,55 @@ chain rides the full boot).
 
 **Next:** the temples (the desert pyramid + the jungle temple), the last
 of the structure families.
+
+## Slice 12f — the temples
+
+**The reference port** (`gen/structure/TempleStructure.java` +
+`TemplePieces.java`, 1:1 over the Slice 12a foundation):
+
+- **The placement**: the distance 32/min-distance 8 grid (the
+  negative-coordinate floor walk), the setRandomSeed(14357617)
+  derivation, the one-roll-per-axis pick pair, the biome gate at the
+  chunk's +8 center.
+- **The start**: the biome dispatch (the jungle temple / the witch hut
+  / the desert pyramid) at the chunk's own origin with the
+  StructureFeature's region random (the burned draw after the seed
+  fold).
+- **The desert pyramid**: the stepped shell, the four corner towers
+  with the per-facing stair metadata, the blueprint floor (the orange
+  clay + the yellow center — the reference's own ~DyeColor pair), the
+  hidden TNT chamber (the -14 shaft, the 9-cell TNT floor, the stone
+  pressure plate), and the four direction chests with the treasure
+  table + the enchanted-book row.
+- **The jungle temple**: the mossy cobblestone picker (40/60), the
+  multi-storey shell with the stair roof, the two tripwire dispenser
+  traps (the hook pairs with the attached wire + the redstone trail +
+  the facing-flipped dispensers with the arrow loot), the vine
+  camouflages, the lever-piston puzzle (the lever trio, the UP sticky
+  piston + the WEST pair, the repeater), and the main + hidden chests.
+
+**The new engine surface:**
+
+- **The JUNGLE biome** (id 21 — the hot-wet climate band).
+- **The temple block set**: the chiseled sandstone (24/3), the stained
+  clay pair (159/1 + 159/4), the mossy cobblestone (48), the vine
+  (106/15), the chiseled stone bricks (98/3).
+- **The placeGenDispenser pending record**: the chunk carries the
+  rolled arrow stacks; the EngineServer drain materializes them into
+  the dispenser system with the contents guard (the same model as the
+  chest).
+
+**The envelope notes**: the witch hut arm never fires (no swampland
+biome — the piece ledgers with the swamp slice); the desert/jungle
+hills absent; the updateHPos average reads the pure heightAt; the
+jungle's traps are live systems (the tripwire + the dispenser + the
+redstone run at tick time).
+
+The fresh full-suite count **691 green in zamin-core** (one registry
+count row updated; one hopper-test load flake — the documented
+environmental class, green in isolation).
+
+**The structure family is complete**: mineshafts, villages,
+strongholds, fortresses, ocean monuments, temples — all six of the
+1.8.8 overworld/nether structure families ported 1:1 over the
+deterministic per-chunk foundation.
