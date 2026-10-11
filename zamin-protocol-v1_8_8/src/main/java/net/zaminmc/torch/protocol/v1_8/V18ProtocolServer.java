@@ -508,6 +508,38 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                 }
             }
         });
+        // The leashes (Slice 11c): the knot's Spawn Object 77 / Destroy, the
+        // mob's Attach Entity pair (the holder in each observer's own id
+        // space), all broadcast to every connection.
+        server.addLeadListener(new net.zaminmc.torch.server.leash.LeadSystem.Listener() {
+            @Override
+            public void onKnotSpawned(net.zaminmc.torch.server.leash.LeashKnot knot) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendKnotSpawned(knot);
+                }
+            }
+
+            @Override
+            public void onKnotRemoved(net.zaminmc.torch.server.leash.LeashKnot knot) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendKnotRemoved(knot.entityId());
+                }
+            }
+
+            @Override
+            public void onMobAttached(net.zaminmc.torch.server.entity.MobEntity mob) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendLeashAttach(mob, mob.leashHolderPlayer(), mob.leashHolderKnot());
+                }
+            }
+
+            @Override
+            public void onMobDetached(net.zaminmc.torch.server.entity.MobEntity mob) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendLeashAttach(mob, null, null);
+                }
+            }
+        });
         // The potion effects (Slice 11b — the reference's ServerPlayerEntity
         // overrides lines 772-787): the Entity Effect / Remove Entity Effect
         // packets go to the affected player's own client only; the 600-tick
@@ -856,6 +888,19 @@ public final class V18ProtocolServer implements ProtocolAdapter {
         if (mobs != null) {
             for (net.zaminmc.torch.server.entity.MobEntity mob : mobs.all()) {
                 newcomer.sendMobSpawn(mob);
+                // The leashed ones carry their holder into the newcomer's
+                // view (the Attach Entity re-send — the reference's
+                // startTracking arm).
+                if (mob.isLeashed()) {
+                    newcomer.sendLeashAttach(mob, mob.leashHolderPlayer(), mob.leashHolderKnot());
+                }
+            }
+        }
+        // The leash knots already tied (Slice 11c): the same world snapshot.
+        var leads = engine.leads();
+        if (leads != null) {
+            for (net.zaminmc.torch.server.leash.LeashKnot knot : leads.allKnots()) {
+                newcomer.sendKnotSpawned(knot);
             }
         }
         // Falling blocks mid-transition when someone joins: spawn them for the

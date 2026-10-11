@@ -317,6 +317,14 @@ public final class MobEntity {
     private boolean chested;
     private net.zaminmc.torch.item.ItemStack[] chestSlots;
 
+    // The leash (Slice 11c — the reference's own MobEntity fields): the
+    // held flag + the holder, one of the two forms — a player's hand or
+    // a fence's knot. The holder never survives its own removal (the
+    // tick walk's holder-gone arm).
+    private boolean leashed;
+    private net.zaminmc.torch.server.player.PlayerSession leashHolderPlayer;
+    private net.zaminmc.torch.server.leash.LeashKnot leashHolderKnot;
+
     // The breed plumbing: the manager's mate scanner (the vanilla
     // getEntitiesOfType scan), the goal's confirmed mate, and the heart
     // flags the manager converts into observer effects.
@@ -877,6 +885,53 @@ public final class MobEntity {
         this.loveTicks = 0;
         this.lovePlayerId = -1;
         this.breedTimer = 0;
+    }
+
+    // --- the leash (Slice 11c — MobEntity's own leash arms) ---------------
+
+    /** The player holding this mob's lead, or null (the knot form / free). */
+    public net.zaminmc.torch.server.player.PlayerSession leashHolderPlayer() {
+        return leashed ? leashHolderPlayer : null;
+    }
+
+    /** The knot holding this mob's lead, or null (the player form / free). */
+    public net.zaminmc.torch.server.leash.LeashKnot leashHolderKnot() {
+        return leashed ? leashHolderKnot : null;
+    }
+
+    /** @return whether the mob carries a live lead (isLeashed). */
+    public boolean isLeashed() {
+        return leashed;
+    }
+
+    /** The player's hold (attachLeash): one lead, one holder. */
+    public void attachLeashToPlayer(net.zaminmc.torch.server.player.PlayerSession holder) {
+        this.leashed = true;
+        this.leashHolderPlayer = holder;
+        this.leashHolderKnot = null;
+    }
+
+    /** The knot's hold (attachLeash): one lead, one holder. */
+    public void attachLeashToKnot(net.zaminmc.torch.server.leash.LeashKnot holder) {
+        this.leashed = true;
+        this.leashHolderKnot = holder;
+        this.leashHolderPlayer = null;
+    }
+
+    /** The state clear (detachLeash's first arm — the drop stays the system's). */
+    public void clearLeash() {
+        this.leashed = false;
+        this.leashHolderPlayer = null;
+        this.leashHolderKnot = null;
+    }
+
+    /**
+     * The leash's navigation arm (PathFinderMobEntity line 96: the
+     * {@code getNavigation().moveTo(entity, 1.0)} follow) — the walking
+     * target the mob's own path walk consumes.
+     */
+    public void navigateToward(double x, double y, double z) {
+        navigation.moveTo(x, y, z, type.walkSpeed);
     }
 
     /**

@@ -164,6 +164,8 @@ final class Protocol18 {
     static final int OBJECT_SMALL_FIREBALL = 63;
     /** Thrown potion (Spawn Object type 68). */
     static final int OBJECT_POTION = 68;
+    /** Leash knot (Spawn Object type 77 — TrackedEntity's own). */
+    static final int OBJECT_LEASH_KNOT = 77;
     /** The vehicles (community entities.json object types). */
     static final int OBJECT_BOAT = 1;
     static final int OBJECT_MINECART = 10;

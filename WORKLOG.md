@@ -1068,3 +1068,67 @@ world event 2002 splash particles, the witch, CustomPotionEffects NBT.
 
 **Next:** leads (the leash entity + the knot), structures, natural
 spawn cycles.
+
+## Slice 11c — the leads (the reference port of item/LeadItem + entity/decoration/LeadKnotEntity + MobEntity's leash arms + PathFinderMobEntity.updateLeashStatus)
+
+**What landed:**
+
+- **The knot model** (`leash/LeashKnot`): the fence-post entity — the
+  +0.5-center position, the 100-tick survival poll (DecorationEntity's
+  own cadence — a broken fence leaves the knot hanging up to five
+  seconds, the vanilla quirk), the global engine entity id in its own
+  band (KNOT_ID_BASE above the TNT bodies).
+- **The system** (`leash/LeadSystem`): the knot registry, the player's
+  hold (the right-click attach + the consume — creative pays nothing),
+  the hostile refusal (isTameable's gate: the monster family never
+  leashes), the held-mob re-click release (the drop unless creative),
+  the fence tie (LeadItem.useOn: every mob the player holds within the
+  7-cube ties to the knot — created on the first taker, reused after —
+  and the lead itself is NEVER consumed on the tie, the mob already paid
+  it), the knot's own interact (the tie with a lead in hand; the removal
+  without one — creative releasing the tied without the drop, the
+  non-creative leaving them to the holder-gone arm), the per-tick walk
+  (the holder-gone release with the drop for dead players and fallen
+  knots), and the leash physics — the follow beyond 4.0 through the
+  navigation port (moveTo at the mob's own walk speed), the pull beyond
+  6.0 (`v += d * |d| * 0.4` per component), the snap at 10.0 with the
+  lead's drop.
+- **The mob state** (MobEntity): the leashed flag + the two holder forms
+  (a player session or a knot), the attach/detach/clear arms, and the
+  navigateToward seam (the reference's getNavigation().moveTo(entity,
+  1.0)).
+- **The engine wiring** (EngineServer): the LeadSurface (the box scan +
+  the lead drop through the item entities), the per-tick tickLeashes
+  after the mob tick, the interact dispatch's new arms (the knot lookup
+  with the reach gate BEFORE the mob lookup; the leash arms FIRST in
+  the mob's right-click order per the reference's MobEntity.interact),
+  the lead-on-fence use arm (before the repeater/comparator uses), and
+  the leads() accessor.
+- **The wire**: the Spawn Object type 77 (the knot at the FENCE BLOCK's
+  raw corner — blockPos * 32, no +0.5 — TrackedEntity's own
+  createSpawnPacket quirk), the Destroy Entities, and the Attach Entity
+  0x1B pair for the mob's leash (the holder's id observer-local: own id
+  when the observer holds the lead, the remote id for others, the
+  knot's global id for fence ties), the join view re-sending both the
+  knots and the leashed mobs' attach state, and the OBJECT_LEASH_KNOT
+  conformance row.
+
+**Tests:** LeadSystemTest (8): the right-click attach + consume + the
+re-click release + the drop, the hostile refusal + the creative
+no-consume + the creative no-drop, the fence tie (no consume, the knot
+reused at the same fence), the knot's interact (the empty-hand removal +
+the holder-gone release with the drop), the physics (the slack, the
+8-block follow band, the past-10 snap + the drop), the dead holder, the
+100-tick survival fall, and the live-engine tie (joinRequest's real
+session, the fence block, the knot in the registry). The fresh full-suite
+count: **634 green in zamin-core** (+19 api +71 protocol), zero
+failures, --max-workers=1.
+
+**Ledgered (not in this slice):** the leash NBT persistence (the UUID
+and the X/Y/Z forms ride the mob persistence slice), the tamed-horse
+ownership gate (the reference refuses the stranger's lead on a tamed
+horse; the engine's horses have no ownership yet), the leash wrap
+animation's client side, the sitting-tameable's early snap.
+
+**Next:** the structures / the natural spawn cycles, then the brewing
+stand BE + GUI.
