@@ -222,6 +222,12 @@ public final class EngineServer implements Server, EngineBridge {
     private PlayerDataStore playerStore;
     private FurnaceManager furnaceManager;
     private FurnaceDataStore furnaceStore;
+
+    /** The dispenser/dropper state store (ZDD v1, Slice 11f). */
+    private net.zaminmc.torch.server.dispenser.DispenserDataStore dispenserStore;
+
+    /** The brewing stand state store (ZBD v1, Slice 11f). */
+    private net.zaminmc.torch.server.brewing.BrewingStandDataStore brewingStore;
     private ChestManager chestManager;
     private ChestDataStore chestStore;
     private SignManager signManager;
@@ -744,6 +750,11 @@ public final class EngineServer implements Server, EngineBridge {
                 dispenserSystem = new net.zaminmc.torch.server.dispenser.DispenserSystem(
                         world, redstoneSystem, itemEntities, projectiles, tntSystem,
                         hopperSystem, fxManager, new java.util.Random());
+                // The dispenser family's slot persistence (Slice 11f, the
+                // ledgered ZDD): the nine slots survive restarts.
+                dispenserStore = new net.zaminmc.torch.server.dispenser.DispenserDataStore(
+                        config.worldDataDir().resolve("dispensers.bin"));
+                dispenserSystem.restoreAll(dispenserStore.load());
                 world.addChangeListener(dispenserSystem); // the placement creates the BE state
                 redstoneSystem.addNeighborListener(dispenserSystem::neighborHeard);
                 redstoneSystem.setDispenserTicker(dispenserSystem::scheduledTick);
@@ -754,6 +765,12 @@ public final class EngineServer implements Server, EngineBridge {
                 brewingStands = new net.zaminmc.torch.server.brewing.BrewingStandSystem();
                 brewingStands.setContentsChanged(
                         position -> redstoneSystem.wakeComparators(position));
+                // The brewing stands' persistence (Slice 11f, the ZBD): the
+                // four slots + the timer survive restarts (the reference's
+                // own Items + BrewTime NBT pair).
+                brewingStore = new net.zaminmc.torch.server.brewing.BrewingStandDataStore(
+                        config.worldDataDir().resolve("brewing_stands.bin"));
+                brewingStands.restoreAll(brewingStore.load());
                 hopperSystem.setBrewingLookup(brewingStands::getOrCreate);
                 // The potions (Slice 11b): the per-body effect stores, the
                 // cadenced periodic application, and the splash's area walk.
@@ -9167,6 +9184,12 @@ public final class EngineServer implements Server, EngineBridge {
                 }
                 if (chestStore != null && chestManager != null) {
                     chestStore.save(chestManager.snapshot());
+                }
+                if (dispenserStore != null && dispenserSystem != null) {
+                    dispenserStore.save(dispenserSystem.snapshot());
+                }
+                if (brewingStore != null && brewingStands != null) {
+                    brewingStore.save(brewingStands.snapshot());
                 }
                 if (signStore != null && signManager != null) {
                     signStore.save(signManager.snapshot());

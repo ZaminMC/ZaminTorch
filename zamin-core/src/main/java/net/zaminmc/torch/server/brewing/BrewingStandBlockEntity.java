@@ -416,13 +416,21 @@ public final class BrewingStandBlockEntity {
         return slots.clone();
     }
 
-    /** Restores persisted slots (the save's Items list). */
-    public void restoreSlots(ItemStack[] restored) {
+    /**
+     * Restores persisted state (the save's Items list + the BrewTime the
+     * reference's readNbt carries). The reference does NOT persist the
+     * armed ingredient identity — a restored mid-brew cycle meets the
+     * item-changed gate on the first post-load tick and cancels (the
+     * null-ingredient quirk), re-arming fresh at the full 400; the
+     * restored timer matches the reference's own decorative BrewTime.
+     */
+    public void restoreState(ItemStack[] restored, int timer) {
         for (int i = 0; i < SLOT_COUNT && i < restored.length; i++) {
             slots[i] = restored[i] == null ? ItemStack.EMPTY : restored[i];
         }
+        this.timer = Math.max(0, timer);
+        this.armedIngredient = null; // the reference's own unpersisted field
         Arrays.fill(syncedView, ItemStack.EMPTY);
-        Arrays.fill(syncedBottles, false);
         syncedBottles = findHasPotion();
         bottlesDirty = true;
     }
