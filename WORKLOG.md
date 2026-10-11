@@ -1816,3 +1816,53 @@ zero failures (the NetherWorldTest's registry updated to the engine's
 full boot chain — the fortress pass pulls the structure palette).
 
 **Next:** the ocean monuments, the temples.
+
+## Slice 12e — the ocean monuments
+
+**The reference port** (`gen/structure/OceanMonumentStructure.java` +
+`OceanMonumentPieces.java`, 1:1 over the Slice 12a foundation):
+
+- **The placement**: the spacing 32/separation 5 grid (the
+  negative-coordinate floor walk), the setRandomSeed(10387313)
+  derivation, the reference's own two-roll averaged pick
+  `(nextInt(27)+nextInt(27))/2` per axis, the DEEP_OCEAN center gate
+  and the ±29 all-water window (BiomeSource.isBiomeWithin 1:1).
+- **The start**: the reference's own seed walk (two longs from the
+  world seed, the `chunkX*first ^ chunkZ*second ^ seed` start
+  random), the -29 anchor, the random horizontal facing, the fixed
+  y 39..61 band (no re-base — the reference's own shape).
+- **The room-graph layout**: the 75-cell lattice (the y0 floor ring,
+  the y1 full ring, the y2 core ring), the six-direction connection
+  walk with the reference's z-plane opposite-flip quirk, the three
+  appended specials, the core pick with the eight claim marks, the
+  shuffle, and the findSource entrance-removal pass.
+- **The eleven families**: the master monument (the water fill, the
+  wing pair, the entrance arch + wall, the roof pyramid, the three
+  wall tiers, the base grid, the corner fillets), the CoreRoom (the
+  gold block), the five double rooms, the MonumentEntry, the
+  Penthouse, the SimpleRoom's three designs, the SimpleTopRoom (the
+  wet sponge), the WingRoom's two designs.
+
+**The new engine surface:**
+
+- **The ocean biomes**: OCEAN (id 0) + DEEP_OCEAN (id 24) over the
+  pure heightAt bands (<sea-4 the deep, <sea the ocean — measured
+  57%/1.2% of the terrain).
+- **The monument block set**: the prismarine trio (168), the sea
+  lantern (169), the sponge pair (19), the gold block (41).
+- **The item family**: the prismarine, the crystals, the shard, the
+  lantern, the sponge, the gold block.
+- **The StructureBox.of normalizer + the 4-field horizontal
+  intersects** (the monument's local-frame wall probes).
+
+**The envelope notes**: the elder guardian spawns + the monument's
+guardian spawn table ledger with the guardian-mob slice; the frozen
+ocean/river absent from the valid-biome family; the placedMonuments
+dedup subsumed by the one-populate-per-chunk model.
+
+The fresh full-suite count **688 green in zamin-core**, `--max-workers=1`,
+zero failures (the registry count row updated to 163; the NetherWorldTest
+chain rides the full boot).
+
+**Next:** the temples (the desert pyramid + the jungle temple), the last
+of the structure families.
