@@ -230,6 +230,9 @@ public final class EngineServer implements Server, EngineBridge {
     private net.zaminmc.torch.server.brewing.BrewingStandDataStore brewingStore;
     private ChestManager chestManager;
     private ChestDataStore chestStore;
+    /** The mob spawner state (Slice 12g — the structure spawners). */
+    private net.zaminmc.torch.server.spawner.SpawnerManager spawnerManager;
+    private net.zaminmc.torch.server.spawner.SpawnerManager spawners;
     private SignManager signManager;
     private SignDataStore signStore;
     private volatile ItemEntityManager itemEntities;
@@ -511,6 +514,16 @@ public final class EngineServer implements Server, EngineBridge {
                 if (!mobsRestored) {
                     mobs.populateInitial(world.spawnPosition());
                 }
+                // Mob spawners (Slice 12g): the structure-placed spawner
+                // blocks' state + the spawn walk.
+                spawnerManager = new net.zaminmc.torch.server.spawner.SpawnerManager(
+                        new java.util.Random(),
+                        () -> players.all().stream()
+                                .map(net.zaminmc.torch.server.player.PlayerSession::position)
+                                .toList(),
+                        mobs,
+                        world);
+                this.spawners = spawnerManager;
                 // Falling blocks (§470): the block→entity→block transition for
                 // gravity blocks; occupied landings drop as items.
                 FallingBlockEntityManager falling = new FallingBlockEntityManager(
@@ -825,6 +838,9 @@ public final class EngineServer implements Server, EngineBridge {
                     furnaceManager.tick(world, itemEntities);
                     chestManager.tick(world);
                     signManager.tick(world);
+                    if (spawnerManager != null) {
+                        spawnerManager.tick(); // Slice 12g: the spawner walk
+                    }
                     itemEntities.tick(players.all());
                     experienceOrbs.tick(players.all()); // the XP bodies pay out
                     mobs.tick(players.all(), world.timeOfDay());
@@ -7181,6 +7197,23 @@ public final class EngineServer implements Server, EngineBridge {
                         }
                     }
                     chunk.pendingGenDispensers().clear();
+                }
+                if (!chunk.pendingMobSpawners().isEmpty()) {
+                    for (net.zaminmc.torch.server.world.EngineChunk.PendingMobSpawner pending
+                            : chunk.pendingMobSpawners()) {
+                        net.zaminmc.torch.block.BlockPosition position =
+                                new net.zaminmc.torch.block.BlockPosition(
+                                        pending.x(), pending.y(), pending.z());
+                        net.zaminmc.torch.server.spawner.SpawnerManager.MobSpawnerBlockEntity spawner =
+                                spawnerManager.getOrCreate(position);
+                        // The same guard: a typed spawner (the ZSD-less
+                        // in-memory model — a re-publish re-types it)
+                        // skips the re-set.
+                        if (spawner.type() == null) {
+                            spawner.setType(pending.mobType());
+                        }
+                    }
+                    chunk.pendingMobSpawners().clear();
                 }
             }
         }

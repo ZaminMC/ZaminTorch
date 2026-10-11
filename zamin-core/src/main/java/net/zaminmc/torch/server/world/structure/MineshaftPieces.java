@@ -273,10 +273,21 @@ public final class MineshaftPieces {
                 this.setBlockStateWithThreshold(world, clip, random, 0.05F, 1, 2, at + 1, palette.torch());
                 // The chest-minecart arms (lines 301-325) ledger with the
                 // minecart entity family's own slice.
-                // The cobweb-and-spawner pair (lines 327-341): the
-                // spawner itself ledgers with the mob-spawner slice; the
-                // hasSpiderSpawner flag stays so the cobweb arm below
-                // never over-fires.
+                // The cobweb-and-spawner pair (lines 327-341, 1:1): the
+                // spawner at the section's random cell — the block + the
+                // typed record (the reference's setType("CaveSpider")).
+                if (this.hasCobwebs && !this.hasSpiderSpawner) {
+                    int spawnerY = this.transformY(0);
+                    int at2 = at - 1 + random.nextInt(3);
+                    int spawnerX = this.transformX(1, at2);
+                    int spawnerZ = this.transformZ(1, at2);
+                    if (clip.contains(spawnerX, spawnerY, spawnerZ)) {
+                        this.hasSpiderSpawner = true;
+                        this.setBlockState(world, palette.mobSpawner(), 1, 0, at2, clip);
+                        world.placeMobSpawner(spawnerX, spawnerY, spawnerZ,
+                                net.zaminmc.torch.server.entity.MobType.CAVE_SPIDER);
+                    }
+                }
             }
             // The floor patch (lines 344-353): a plank under every open
             // bottom cell.

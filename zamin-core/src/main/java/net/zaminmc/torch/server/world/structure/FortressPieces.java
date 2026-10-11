@@ -682,9 +682,9 @@ public final class FortressPieces {
                     palette.netherBrickFence(), palette.netherBrickFence(), false);
             this.fillWithOutline(world, clip, 2, 8, 8, 4, 8, 8,
                     palette.netherBrickFence(), palette.netherBrickFence(), false);
-            // The blaze spawner (lines 183-192): the block lands; the block
-            // entity + the fortress's own monster spawn table ledger with
-            // the mob-spawner slice (the reference's setType("Blaze")).
+            // The blaze spawner (lines 183-192): the block + the typed
+            // record (the reference's setType("Blaze")); the fortress's
+            // own monster spawn table ledgers with the natural-spawn slice.
             if (!this.shouldGenerateMobSpawner) {
                 int spawnerX = this.transformX(3, 5);
                 int spawnerY = this.transformY(5);
@@ -692,6 +692,8 @@ public final class FortressPieces {
                 if (clip.contains(spawnerX, spawnerY, spawnerZ)) {
                     this.shouldGenerateMobSpawner = true;
                     this.setBlockState(world, palette.mobSpawner(), 3, 5, 5, clip);
+                    world.placeMobSpawner(spawnerX, spawnerY, spawnerZ,
+                            net.zaminmc.torch.server.entity.MobType.BLAZE);
                 }
             }
             for (int i = 0; i <= 6; i++) {

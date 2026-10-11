@@ -88,7 +88,22 @@ public enum MobType {
     /** The trading villager: profession carries its offer table (the trading slice). */
     VILLAGER(120, 0.6, 1.95, 20.0f, 0.035, false, Traits.NONE,
             List.of(),
-            "mob.villager.idle", "mob.villager.hit", "mob.villager.death");
+            "mob.villager.idle", "mob.villager.hit", "mob.villager.death"),
+
+    /** The mineshaft's spawner mob (Slice 12g): the small venomous spider. */
+    CAVE_SPIDER(59, 0.7, 0.5, 12.0f, 0.055, true, new Traits(false, false, true, false),
+            List.of(new ItemRoll(BuiltinItems.STRING, 0, 2)),
+            "mob.spider.say", "mob.spider.say", "mob.spider.death"),
+
+    /** The stronghold's spawner mob (Slice 12g): the infestation. */
+    SILVERFISH(60, 0.4, 0.3, 8.0f, 0.045, true, Traits.NONE,
+            List.of(),
+            "mob.silverfish.say", "mob.silverfish.hit", "mob.silverfish.kill"),
+
+    /** The fortress's spawner mob (Slice 12g): the nether's ranged fire. */
+    BLAZE(61, 0.6, 1.8, 20.0f, 0.045, true, new Traits(true, false, false, false),
+            List.of(new ItemRoll(BuiltinItems.BLAZE_POWDER, 0, 1)),
+            "mob.blaze.breathe", "mob.blaze.hit", "mob.blaze.death");
 
     /**
      * The AI trait set beyond the walk-chase-panic baseline.

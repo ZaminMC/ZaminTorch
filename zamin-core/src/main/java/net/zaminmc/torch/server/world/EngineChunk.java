@@ -55,6 +55,10 @@ public final class EngineChunk {
                                        List<StructureWorld.GenLootSlot> slots) {
     }
 
+    public record PendingMobSpawner(int x, int y, int z,
+                                    net.zaminmc.torch.server.entity.MobType mobType) {
+    }
+
     public record PendingGenChest(int x, int y, int z, List<StructureWorld.GenLootSlot> slots) {
     }
 
@@ -128,6 +132,17 @@ public final class EngineChunk {
 
     public List<PendingGenDispenser> pendingGenDispensers() {
         return pendingGenDispensers;
+    }
+
+    private final List<PendingMobSpawner> pendingMobSpawners = new ArrayList<>();
+
+    public void addPendingMobSpawner(int x, int y, int z,
+                                      net.zaminmc.torch.server.entity.MobType mobType) {
+        pendingMobSpawners.add(new PendingMobSpawner(x, y, z, mobType));
+    }
+
+    public List<PendingMobSpawner> pendingMobSpawners() {
+        return pendingMobSpawners;
     }
 
     /** @return the pending villager records (empty when none). */
