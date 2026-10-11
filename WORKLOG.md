@@ -1132,3 +1132,80 @@ animation's client side, the sitting-tameable's early snap.
 
 **Next:** the structures / the natural spawn cycles, then the brewing
 stand BE + GUI.
+
+## Slice 11d — the natural spawn cycle (the reference port of world/NaturalSpawner + MobEntity.checkDespawn + MonsterEntity's light rule + AnimalEntity's grass gate + the dimension's time walk)
+
+**What landed:**
+
+- **The cycle** (`spawn/NaturalSpawnSystem`): the spawning-chunk set
+  rebuilt every tick (the 17x17 window around every non-spectator
+  playing player, the outer ring counted toward the cap but never
+  spawning), the per-category caps scaled by the counted chunks
+  (`cap * chunks / 289`), the per-chunk walk (the random anchor with
+  the `roundUp(height+1, 16)` y ceiling, the non-solid anchor gate),
+  the three packs of four drifting attempts (`nextInt(6) -
+  nextInt(6)` horizontal, the y's `nextInt(1) - nextInt(1)` never
+  moves — the reference's own quirk), the 24-block player and
+  world-spawn keep-out rings, the once-per-pack weighted entry pick,
+  the 4-per-chunk limit, and the 400-tick animal throttle
+  (`timeOfDay % 400 == 0` — CREATURE is the only rare category).
+- **The spawn cell**: the full-cube solid floor (no bedrock, no
+  partial shapes), the air cell with the air above, the monster's
+  randomized pair (the raw sky light vs `nextInt(32)` — a permanent
+  probabilistic filter over open sky; the brightness `max(sky -
+  darkness, block)` under `nextInt(8)`), and the animal's grass floor
+  + the RAW light `max(sky, block) > 8` — `getActualLight` =
+  `chunk.getLight(pos, 0)`, NO ambient-darkness shave: animals spawn
+  on the midnight surface exactly like the reference.
+- **The baby roll**: the horse's own `nextInt(5) == 0` per mob
+  (HorseBaseEntity.initialize lines 1284-1286) — the ONLY animal that
+  spawns young; the cows, pigs, sheep and chickens land grown (the
+  first draft's universal 1/7 corrected against the reference).
+- **The despawn** (`checkDespawn` 1:1): the `farFromPlayerTicks`
+  counter now increments EVERY tick (serverTickAi line 442) with the
+  persistent reset (line 419) and the 32-block reset (lines 433-434)
+  — with nobody online the window still counts, so a distant joiner
+  meets a warm idle roll; the monsters' 16384-squared instant removal
+  and the 600-tick/1/800 idle roll beyond 1024 squared; **the animals
+  NEVER despawn** (AnimalEntity.canDespawn lines 104-106 — a penned
+  cow stays penned); the canDespawn split rides the hostile flag.
+- **The old simplified population maintainer removed**: the 5-second
+  top-up rolls, the 96-block range despawn, and the night-raid pick
+  are gone — the manager now only owns the per-mob walk, the counts
+  (`countByCategory`), and the exact-position spawn
+  (`spawnNatural`, the -24000 childhood for the baby horses).
+- **The wiring**: the per-tick walk after the mob tick
+  (ServerWorld.tick line 180), the SpawnSurface/SpawnWorldQuery
+  adapters, and `MobEntity`'s persistent flag (the leashed family
+  rides `persistent()`).
+
+**The fix that broke the fire test first**: the initial draft gated
+set membership on nothing — the ±8 spawning window at the test's
+view-distance 4 forced `getOrGenerate` over ~200 unloaded chunks on
+the first rare-gated tick (timeOfDay 0), stalling the tick thread
+1.4s past the test's 150ms use window. The chunk gate now intersects
+the window with the loaded box (the reference's own border-gate
+position; at view distance 9+ the two are identical) — the walk never
+generates.
+
+**Tests:** NaturalSpawnSystemTest (7: the darkness walk's
+noon/midnight plateaus, the night-surface vs noon gates, the keep-out
+rings, the animal rare+grass+light gates with the dirt refusal, the
+cap arithmetic at the 70 boundary, the horse-only baby roll with the
+not-a-horse assertion, the despawn rules with the animals'
+never-leave) + MobManagerTest.theNaturalCycleIsExternalAndTheDespawnRuleHolds
+(rewritten: the far zombie goes, the far cow stays forever). The
+fresh full-suite count: **641 green in zamin-core** (+19 api +71
+protocol) with --max-workers=1, zero failures.
+
+**Ledgered (not in this slice):** the slime/enderman/witch monster
+rows and the ambient/water categories (their entities ride their own
+slices), the per-biome tables (the single-biome world), the
+chunk-populate pass (`populateChunk` — the worldgen animal seeding),
+the `spawnAnimals/spawnMonsters` difficulty flags (PEACEFUL holds the
+monsters; the engine defaults both on), the mob yaw + the horse
+variant/type dice at spawn, the sheep color pick, the thunder arm of
+the light gate.
+
+**Next:** the brewing stand BE + GUI (the 11b ledger row), the
+structures, the mob equipment/JC queues.

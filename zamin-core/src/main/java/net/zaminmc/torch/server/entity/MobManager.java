@@ -36,10 +36,8 @@ public final class MobManager {
     public static final int PASSIVE_CAP = 12;
     /** Hostile mobs kept alive at night (slice-scale cap). */
     public static final int HOSTILE_CAP = 6;
-    /** Maintainer cadence: rolls for spawns every 5 seconds. */
-    public static final int MAINTAIN_PERIOD = 100;
-    /** Despawn distance from every playing player (historical rule). */
-    public static final double DESPAWN_DISTANCE = 96.0;
+    /** The far-despawn radius (Slice 11d — the reference's own 128). */
+    public static final double DESPAWN_DISTANCE = 128.0;
     /** Night window (vanilla day time): zombies spawn in this half of the cycle. */
     public static final long NIGHT_START = 13_000;
     public static final long NIGHT_END = 23_000;
@@ -147,7 +145,6 @@ public final class MobManager {
     private final List<MobEntity> mobs = new ArrayList<>();
     private final List<Listener> listeners = new ArrayList<>();
     private int nextEntityId;
-    private int maintainTimer;
     /** Surface finder for population rolls: topmost solid y at (x, z), or -1. */
     private final java.util.function.BiFunction<Integer, Integer, Integer> surfaceY;
 
@@ -409,16 +406,11 @@ public final class MobManager {
 
     /**
      * Advances all mobs one tick: mind + body, melee, arrows, fuses, loot
-     * + removal for finished deaths, despawn and the population maintainer.
+     * + removal for finished deaths, despawn and the natural spawn cycle
+     * (the NaturalSpawnSystem walks after this — the engine wires it).
      * Tick-thread context.
      */
     public void tick(Iterable<PlayerSession> players, long timeOfDay) {
-        // Population maintainer (before per-mob work so a fresh roll ticks next time).
-        if (++maintainTimer >= MAINTAIN_PERIOD) {
-            maintainTimer = 0;
-            maintainPopulation(players, timeOfDay);
-        }
-
         boolean night = isNight(timeOfDay);
 
         // The breeds defer to the loop's end: a baby spawned mid-iteration
@@ -462,16 +454,37 @@ public final class MobManager {
                 }
             }
 
-            // Despawn: out of reach of every playing player (mobs idle when
-            // nobody is online — the population waits for the next visitor).
-            boolean anyPlaying = false;
+            // Despawn (Slice 11d — MobEntity.checkDespawn lines 417-438,
+            // 1:1): the persistent never leave (the leashed family); the
+            // monsters among the rest leave past 128 blocks at once and
+            // past the 600-tick far window roll the 1/800 idle despawn
+            // beyond 32 blocks; the ANIMALS never despawn at all
+            // (AnimalEntity's own canDespawn() = false, lines 104-106 —
+            // a penned cow stays penned). Nobody online: no player to
+            // measure — the mob waits (the reference's own
+            // getNearestPlayer-null guard, the window still counting).
+            PlayerSession despawnNearest = null;
+            double despawnSquared = Double.MAX_VALUE;
             for (PlayerSession player : players) {
-                if (player.state() == net.zaminmc.torch.entity.PlayerState.PLAYING) {
-                    anyPlaying = true;
-                    break;
+                if (player.state() != net.zaminmc.torch.entity.PlayerState.PLAYING
+                        || player.dead()) {
+                    continue;
+                }
+                Position p = player.position();
+                double dx = p.x() - mob.position().x();
+                double dy = p.y() - mob.position().y();
+                double dz = p.z() - mob.position().z();
+                double squared = dx * dx + dy * dy + dz * dz;
+                if (squared < despawnSquared) {
+                    despawnSquared = squared;
+                    despawnNearest = player;
                 }
             }
-            if (anyPlaying && outOfRangeOfAllPlayers(players, mob)) {
+            mob.tickDespawnWindow(mob.persistent(),
+                    despawnNearest == null ? null : despawnSquared);
+            if (despawnNearest != null && net.zaminmc.torch.server.spawn.NaturalSpawnSystem.shouldDespawn(
+                    mob.persistent(), mob.type().hostile, despawnSquared,
+                    mob.farFromPlayerTicks(), random)) {
                 if (mob.hasRider()) {
                     dismountMob(mob, false);
                 }
@@ -767,56 +780,32 @@ public final class MobManager {
         return timeOfDay >= NIGHT_START && timeOfDay < NIGHT_END;
     }
 
-    private void maintainPopulation(Iterable<PlayerSession> players, long timeOfDay) {
-        int passive = 0;
-        int hostile = 0;
+    /**
+     * The natural-spawn surface (Slice 11d): the count per category
+     * (MONSTER = the hostile family, CREATURE = the passive family) and
+     * the exact-position spawn with the group's baby flag (the
+     * -24000 childhood the breeding model grows through).
+     */
+    public int countByCategory(net.zaminmc.torch.server.spawn.NaturalSpawnSystem.Category category) {
+        boolean hostile = category == net.zaminmc.torch.server.spawn.NaturalSpawnSystem.Category.MONSTER;
+        int count = 0;
         for (MobEntity mob : mobs) {
-            if (mob.type().hostile) {
-                hostile++;
-            } else {
-                passive++;
+            if (mob.type().hostile == hostile) {
+                count++;
             }
         }
-        boolean night = isNight(timeOfDay);
-        PlayerSession anchor = randomPlayingPlayer(players);
-        if (anchor == null) {
-            return; // nobody watching: no spawning
-        }
-        if (passive < PASSIVE_CAP && random.nextInt(100) < 40) {
-            int deficit = PASSIVE_CAP - passive;
-            spawnGroupAt(randomPassiveType(), anchor.position(),
-                    Math.min(deficit, 2 + random.nextInt(2)), 8, 20);
-        }
-        if (night && hostile < HOSTILE_CAP && random.nextInt(100) < 50) {
-            // The night raid: zombies crowd, skeletons cover, spiders crawl.
-            MobType kind = random.nextInt(100) < 50 ? MobType.ZOMBIE
-                    : random.nextInt(100) < 60 ? MobType.SKELETON : MobType.SPIDER;
-            spawnGroupAt(kind, anchor.position(),
-                    Math.min(HOSTILE_CAP - hostile, 1 + random.nextInt(2)), 8, 20);
-        }
+        return count;
     }
 
-    private MobType randomPassiveType() {
-        MobType[] passives = {MobType.PIG, MobType.COW, MobType.CHICKEN,
-                MobType.SHEEP, MobType.HORSE};
-        return passives[random.nextInt(passives.length)];
+    /** Spawns one mob at the exact position (the natural cycle's own). */
+    public MobEntity spawnNatural(MobType type, Position position, boolean baby) {
+        MobEntity mob = spawnAt(type, position);
+        if (baby) {
+            mob.setBreedingAge(-24_000);
+        }
+        return mob;
     }
 
-    private boolean outOfRangeOfAllPlayers(Iterable<PlayerSession> players, MobEntity mob) {
-        for (PlayerSession player : players) {
-            if (player.state() != net.zaminmc.torch.entity.PlayerState.PLAYING) {
-                continue;
-            }
-            Position playerPosition = player.position();
-            double dx = playerPosition.x() - mob.position().x();
-            double dy = playerPosition.y() - mob.position().y();
-            double dz = playerPosition.z() - mob.position().z();
-            if (dx * dx + dy * dy + dz * dz <= DESPAWN_DISTANCE * DESPAWN_DISTANCE) {
-                return false;
-            }
-        }
-        return true;
-    }
 
     private PlayerSession nearestPlayingPlayer(Iterable<PlayerSession> players, MobEntity mob) {
         PlayerSession best = null;

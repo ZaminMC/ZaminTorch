@@ -249,6 +249,8 @@ public final class EngineServer implements Server, EngineBridge {
     private net.zaminmc.torch.server.potion.PotionSystem potionSystem;
     /** The leash subsystem (Slice 11c): the knots + the leash physics. */
     private net.zaminmc.torch.server.leash.LeadSystem leadSystem;
+    /** The natural spawn cycle (Slice 11d): the 1:1 NaturalSpawner port. */
+    private net.zaminmc.torch.server.spawn.NaturalSpawnSystem naturalSpawns;
     /** The tripwire subsystem (Slice 10c): the occupancy scan + the hook walk. */
     private net.zaminmc.torch.server.redstone.TripwireSystem tripwireSystem;
     /** The observers of the TNT system (the protocol adapter's wire sync). */
@@ -742,6 +744,11 @@ public final class EngineServer implements Server, EngineBridge {
                 leadSystem = new net.zaminmc.torch.server.leash.LeadSystem(
                         new LeadSurface(), KNOT_ID_BASE);
                 leadSystem.setSurvivalRead(world, BuiltinBlocks.FENCE.identifier());
+                // The natural spawn cycle (Slice 11d): the 1:1 walk.
+                naturalSpawns = new net.zaminmc.torch.server.spawn.NaturalSpawnSystem(
+                        new SpawnSurface(mobs),
+                        new SpawnWorldQuery(),
+                        new java.util.Random());
                 // Vehicles (§ vehicles slice): boats and minecarts on the
                 // shared body model; the engine owns the mounted rider.
                 VehicleManager vehicles = new VehicleManager(
@@ -783,6 +790,10 @@ public final class EngineServer implements Server, EngineBridge {
                     itemEntities.tick(players.all());
                     experienceOrbs.tick(players.all()); // the XP bodies pay out
                     mobs.tick(players.all(), world.timeOfDay());
+                    // The natural cycle (Slice 11d — ServerWorld.tick line
+                    // 180: the spawner walk every tick, the caps scaled by
+                    // the spawning-chunk count).
+                    naturalSpawns.tick(players.all(), world.timeOfDay());
                     tickMobPotions(); // the mobs' effect stores (Slice 11b)
                     tickLeashes(); // the leash physics + the knots (Slice 11c)
                     randomTicks.tick(players.all()); // §471: grass growth/decay
@@ -6830,6 +6841,59 @@ public final class EngineServer implements Server, EngineBridge {
         public void dropLead(Position at) {
             itemEntities.spawnDropAtBlock(at, ItemStack.of(BuiltinItems.LEAD, 1),
                     ItemEntity.PICKUP_DELAY_DROP_TICKS);
+        }
+    }
+
+    /** The natural spawn cycle's mob surface (Slice 11d). */
+    private record SpawnSurface(MobManager mobs)
+            implements net.zaminmc.torch.server.spawn.NaturalSpawnSystem.Mobs {
+        @Override
+        public void spawn(net.zaminmc.torch.server.entity.MobType type, Position at, boolean baby) {
+            mobs.spawnNatural(type, at, baby);
+        }
+
+        @Override
+        public int countOf(net.zaminmc.torch.server.spawn.NaturalSpawnSystem.Category category) {
+            return mobs.countByCategory(category);
+        }
+    }
+
+    /** The natural spawn cycle's world read (Slice 11d). */
+    private final class SpawnWorldQuery
+            implements net.zaminmc.torch.server.spawn.NaturalSpawnSystem.WorldQuery {
+        @Override
+        public Object blockAt(BlockPosition position) {
+            return world.getBlock(position);
+        }
+
+        @Override
+        public int surfaceHeight(int x, int z) {
+            int at = surfaceY(x, z);
+            return at < 0 ? 0 : at;
+        }
+
+        @Override
+        public int blockLightAt(BlockPosition position) {
+            return world.blockLightAt(position);
+        }
+
+        @Override
+        public int skyLightAt(BlockPosition position) {
+            return world.skyLightAt(position);
+        }
+
+        @Override
+        public Position spawnPoint() {
+            return world.spawnPosition();
+        }
+
+        @Override
+        public boolean isChunkLoaded(int chunkX, int chunkZ) {
+            // The loaded-box gate (the border's engine stand-in): the spawn
+            // walk never forces a generation — an unloaded chunk simply
+            // joins the count without ever hosting a pack.
+            return world.isChunkLoaded(
+                    new net.zaminmc.torch.block.ChunkPosition(chunkX, chunkZ));
         }
     }
 
