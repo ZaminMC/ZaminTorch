@@ -182,6 +182,8 @@ public final class BuiltinItems {
             Identifier.parse("minecraft:wooden_pressure_plate"), "Wooden Pressure Plate", 64);
     public static final EngineItemType HOPPER = new EngineItemType(
             Identifier.parse("minecraft:hopper"), "Hopper", 64);
+    public static final EngineItemType TRIPWIRE_HOOK = new EngineItemType(
+            Identifier.parse("minecraft:tripwire_hook"), "Tripwire Hook", 64);
     public static final EngineItemType OAK_FENCE = new EngineItemType(
             Identifier.parse("minecraft:oak_fence"), "Oak Fence", 64);
     // The bed item (community items.json: legacy 355) — places both halves.
@@ -471,7 +473,7 @@ public final class BuiltinItems {
                 OAK_DOOR, LADDER, OAK_FENCE, BED,
                 REDSTONE, REDSTONE_TORCH, REPEATER, COMPARATOR, PISTON, STICKY_PISTON, TNT,
                 LEVER, STONE_BUTTON, WOODEN_BUTTON,
-                STONE_PRESSURE_PLATE, WOODEN_PRESSURE_PLATE, HOPPER,
+                STONE_PRESSURE_PLATE, WOODEN_PRESSURE_PLATE, HOPPER, TRIPWIRE_HOOK,
                 OAK_SLAB, STONE_SLAB, COBBLESTONE_SLAB, SANDSTONE_SLAB,
                 OAK_STAIRS, COBBLESTONE_STAIRS,
                 RAIL, BOAT, MINECART,

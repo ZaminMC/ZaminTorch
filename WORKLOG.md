@@ -800,3 +800,56 @@ cross-seam transfer under the boundary scope, the break spill).
 
 **Next:** dispensers/droppers, tripwire, then potions, leads,
 structures, natural spawn cycles.
+
+---
+## Slice 10c — the tripwire (the wire + the hook)
+
+**Goal:** the reference port of the tripwire family — the chain
+attachment walk, the occupancy press, and the mounted-source arms.
+
+**Reference:** `reference/1.8.8/block/TripwireBlock.java` +
+`block/TripwireHookBlock.java` (updateState's 41-cell walk,
+updateOutputState's occupancy, getDirectSignal's mount arm, the click
+family, the neighbor support arms).
+
+**Landed:**
+
+- `TripwireBlocks`: the flattened families — the wire (legacy 132, the
+  four stored bits powered/suspended/attached/disarmed riding the nibble;
+  the N/E/S/W connection flags are virtual, computed client-side) and
+  the hook (legacy 131, facingH | attached<<2 | powered<<3), + the
+  behavior rows (the wire drops string unless disarmed — the shears arm;
+  the hook drops its item) + the tripwire_hook item + the wire
+  serializer (both nibble encodes + the damage-aware reverse folds).
+- `TripwireSystem`: the occupancy scan (the per-tick probe over the wire
+  set — the wire's slim 5/32 box, mobs + players + items; the 10-tick
+  re-scan while occupied), the hook's updateState walk (the 41-cell
+  scan, the suspended matching, the powered aggregation over the chain,
+  the far-hook state with its own two-position ring, the ATTACHED
+  propagation over the chain, the click family), the neighbor support
+  arms (the wire's suspended flip break, the hook's mount break), the
+  wire's onRemoved powered quirk (a removed powered wire counts as on
+  for the hook update — the trap signal), the placements (the string
+  places the wire; the hook needs a horizontal clicked face with a solid
+  wall behind), and the re-entrancy guard (the flag-3 adaptation: the
+  hook walk's own writes never re-enter the walk — without it the two
+  hooks ping-pong their ATTACHED pairs to a StackOverflowError).
+- `RedstoneSystem`: the hook's weak arm (15 all directions when powered)
+  + the strong mount arm (15 toward the wall behind, the engine's
+  mounted-source convention shared with the lever/button), the
+  FAMILY_TRIPWIRE scheduled tick (the re-scan), the family dispatch.
+- `WorldSolidity`: the tripwire family joins the non-solid set (the
+  reference's isCube-false, null collision — without it the hook read as
+  a solid block and the dust read the strong arm instead of the weak).
+- EngineServer: the system wiring (the listener, the neighbor bus, the
+  occupancy probe, the tick), the registry chain, the placements.
+
+**Tests:** TripwireSystemTest (2): the chain attaches + the occupancy
+press powers both hooks + the weak arm reaches the dust + the release
+after the body leaves; the strong mount arm re-radiates through the
+wall to the dust on its top. Suite 684 green in isolation (the full
+pass had one projectile-test load flake — the RangedCombat acceptance
+timing under --max-workers=1 load; 3/3 green in isolation).
+
+**Next:** dispensers/droppers, then potions, leads, structures,
+natural spawn cycles.

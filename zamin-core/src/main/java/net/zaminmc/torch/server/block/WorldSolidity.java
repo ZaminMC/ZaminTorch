@@ -41,7 +41,20 @@ public final class WorldSolidity {
                 && !isRail(id)
                 && !isRedstoneComponent(id)
                 && !isMovingPiston(id)
+                && !isTripwireFamily(id)
                 && !FluidBlocks.isFluid(id);
+    }
+
+    /**
+     * The tripwire family (Slice 10c): the wire (a 5/32-tall line) and the
+     * hook (a thin wall mount) never block a body (the reference's
+     * isCube-false, null collision shape) — and like every signal source,
+     * the hook stays out of the strong re-radiation set.
+     */
+    public static boolean isTripwireFamily(Identifier id) {
+        return id.namespace().equals("minecraft")
+                && (id.value().equals("tripwire")
+                || id.value().startsWith("tripwire_"));
     }
 
     /**
