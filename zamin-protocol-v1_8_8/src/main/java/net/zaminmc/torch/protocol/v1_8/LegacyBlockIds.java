@@ -285,6 +285,37 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:cobblestone_stairs_west"), 67),
             Map.entry(Identifier.parse("minecraft:cobblestone_stairs_south"), 67),
             Map.entry(Identifier.parse("minecraft:cobblestone_stairs_north"), 67),
+            // The village slice (community blocks.json): the sandstone
+            // stairs 128 (the desert swap's ascending band rides the
+            // metadata nibble like the oak/cobble pair), the glass pane
+            // 102 and the iron bars 101, the double stone slab 43, the
+            // smooth sandstone skin (24 metadata 2), and the two farm
+            // crops — carrots 141 and potatoes 142, the age 0..7 in the
+            // metadata like the wheat.
+            Map.entry(Identifier.parse("minecraft:sandstone_stairs_east"), 128),
+            Map.entry(Identifier.parse("minecraft:sandstone_stairs_west"), 128),
+            Map.entry(Identifier.parse("minecraft:sandstone_stairs_south"), 128),
+            Map.entry(Identifier.parse("minecraft:sandstone_stairs_north"), 128),
+            Map.entry(Identifier.parse("minecraft:glass_pane"), 102),
+            Map.entry(Identifier.parse("minecraft:iron_bars"), 101),
+            Map.entry(Identifier.parse("minecraft:double_stone_slab"), 43),
+            Map.entry(Identifier.parse("minecraft:smooth_sandstone"), 24),
+            Map.entry(Identifier.parse("minecraft:carrots_stage0"), 141),
+            Map.entry(Identifier.parse("minecraft:carrots_stage1"), 141),
+            Map.entry(Identifier.parse("minecraft:carrots_stage2"), 141),
+            Map.entry(Identifier.parse("minecraft:carrots_stage3"), 141),
+            Map.entry(Identifier.parse("minecraft:carrots_stage4"), 141),
+            Map.entry(Identifier.parse("minecraft:carrots_stage5"), 141),
+            Map.entry(Identifier.parse("minecraft:carrots_stage6"), 141),
+            Map.entry(Identifier.parse("minecraft:carrots_stage7"), 141),
+            Map.entry(Identifier.parse("minecraft:potatoes_stage0"), 142),
+            Map.entry(Identifier.parse("minecraft:potatoes_stage1"), 142),
+            Map.entry(Identifier.parse("minecraft:potatoes_stage2"), 142),
+            Map.entry(Identifier.parse("minecraft:potatoes_stage3"), 142),
+            Map.entry(Identifier.parse("minecraft:potatoes_stage4"), 142),
+            Map.entry(Identifier.parse("minecraft:potatoes_stage5"), 142),
+            Map.entry(Identifier.parse("minecraft:potatoes_stage6"), 142),
+            Map.entry(Identifier.parse("minecraft:potatoes_stage7"), 142),
             // The vehicle slice (community blocks.json + items.json): the
             // rail block 66 (orientation in the metadata), the boat item
             // 333, the minecart item 328.

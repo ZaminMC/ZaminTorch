@@ -130,6 +130,13 @@ public final class BuiltinItems {
     // a tamed adult into love); hay is the block item horses heal on.
     public static final EngineItemType CARROT = new EngineItemType(
             Identifier.parse("minecraft:carrot"), "Carrot", 64);
+    // The potato family (Slice 12b — the village farm's second crop, the
+    // community items.json pair 392/393): the raw potato 1/0.6, the baked
+    // pair 5/6.0 (the smelting row in FurnaceRecipes).
+    public static final EngineItemType POTATO = new EngineItemType(
+            Identifier.parse("minecraft:potato"), "Potato", 64);
+    public static final EngineItemType BAKED_POTATO = new EngineItemType(
+            Identifier.parse("minecraft:baked_potato"), "Baked Potato", 64);
     public static final EngineItemType APPLE = new EngineItemType(
             Identifier.parse("minecraft:apple"), "Apple", 64);
     public static final EngineItemType GOLDEN_CARROT = new EngineItemType(
@@ -287,6 +294,15 @@ public final class BuiltinItems {
             Identifier.parse("minecraft:carrot_on_a_stick"), "Carrot on a Stick", 1);
     public static final EngineItemType EMERALD = new EngineItemType(
             Identifier.parse("minecraft:emerald"), "Emerald", 64);
+
+    // The blacksmith's chest loot pair (Slice 12b — the reference's
+    // Item.byBlock rows): the obsidian item (legacy 49) and the oak
+    // sapling (legacy 6) — chest contents only this slice; the plantable
+    // sapling block is its own ledger row.
+    public static final EngineItemType OBSIDIAN = new EngineItemType(
+            Identifier.parse("minecraft:obsidian"), "Obsidian", 64);
+    public static final EngineItemType OAK_SAPLING = new EngineItemType(
+            Identifier.parse("minecraft:oak_sapling"), "Oak Sapling", 64);
 
     // The enchanting corner (legacy ids: lapis is the dye 351 whose damage 4
     // is the blue the table's slot gate demands, enchanted book 403 the
@@ -519,7 +535,7 @@ public final class BuiltinItems {
                 SHEARS,
                 WOODEN_HOE, STONE_HOE, IRON_HOE, DIAMOND_HOE, GOLDEN_HOE,
                 WHEAT_SEEDS, WHEAT, BREAD, BONE_MEAL, SIGN,
-                CARROT, APPLE, GOLDEN_CARROT, GOLDEN_APPLE, HAY_BLOCK,
+                CARROT, POTATO, BAKED_POTATO, APPLE, GOLDEN_CARROT, GOLDEN_APPLE, HAY_BLOCK,
                 OAK_DOOR, LADDER, OAK_FENCE, BED,
                 REDSTONE, REDSTONE_TORCH, REPEATER, COMPARATOR, PISTON, STICKY_PISTON, TNT,
                 LEVER, STONE_BUTTON, WOODEN_BUTTON,
@@ -533,6 +549,7 @@ public final class BuiltinItems {
                 OAK_STAIRS, COBBLESTONE_STAIRS,
                 RAIL, BOAT, MINECART,
                 SADDLE, IRON_HORSE_ARMOR, GOLDEN_HORSE_ARMOR, DIAMOND_HORSE_ARMOR,
+                OBSIDIAN, OAK_SAPLING,
                 LEAD, CARROT_ON_A_STICK, EMERALD,
                 LAPIS, ENCHANTED_BOOK, BOOKSHELF, ENCHANTING_TABLE,
                 BONE, STRING, GUNPOWDER, WOOL, MUTTON, COOKED_MUTTON,

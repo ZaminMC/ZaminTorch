@@ -17,7 +17,7 @@ class BlockRegistryTest {
         FrozenBlockRegistry registry = BuiltinBlocks.registerAll(new BlockRegistryBuilder()).freeze();
         assertTrue(registry.lookup(Identifier.parse("minecraft:stone")).isPresent());
         assertTrue(registry.lookup(Identifier.parse("minecraft:air")).isPresent());
-        assertEquals(103, registry.all().size()); // built-ins + ore ladder + craftable + smelting/gravity blocks + the fluid-contact pair + the biome flora + the farming stages + the sign facings + the wall signs + the door/ladder/fence states + planks/wool/fire + cane/cactus/lit furnace + the slab/stair collision states + the two flat rails + the bookshelf + the enchanting table + the two nether-portal axis planes + the nether material set (netherrack, soul sand, glowstone, quartz ore, the mushrooms) + the TNT block + the cobweb
+        assertEquals(127, registry.all().size()); // built-ins + ore ladder + craftable + smelting/gravity blocks + the fluid-contact pair + the biome flora + the farming stages + the sign facings + the wall signs + the door/ladder/fence states + planks/wool/fire + cane/cactus/lit furnace + the slab/stair collision states + the two flat rails + the bookshelf + the enchanting table + the two nether-portal axis planes + the nether material set (netherrack, soul sand, glowstone, quartz ore, the mushrooms) + the TNT block + the cobweb + the village set (the panes/bars, the double stone slab, the smooth sandstone, the sandstone stairs, the carrots/potatoes stages)
     }
 
     @Test

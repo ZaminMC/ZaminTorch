@@ -191,7 +191,35 @@ public final class BlockLightTable {
             Map.entry(Identifier.parse("minecraft:poppy"), new LightData(0, 0)),
             Map.entry(Identifier.parse("minecraft:sandstone"), new LightData(0, 15)),
             Map.entry(Identifier.parse("minecraft:cactus"), new LightData(0, 0)),
-            Map.entry(Identifier.parse("minecraft:sugar_cane"), new LightData(0, 0)));
+            Map.entry(Identifier.parse("minecraft:sugar_cane"), new LightData(0, 0)),
+            // The village slice (community blocks.json): the new crops
+            // pass light like the wheat, the stone pieces filter 15 like
+            // their families, the thin panes pass (the engine's
+            // per-cell model keeps the glass's own 0-opacity rule).
+            Map.entry(Identifier.parse("minecraft:carrots_stage0"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:carrots_stage1"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:carrots_stage2"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:carrots_stage3"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:carrots_stage4"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:carrots_stage5"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:carrots_stage6"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:carrots_stage7"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:potatoes_stage0"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:potatoes_stage1"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:potatoes_stage2"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:potatoes_stage3"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:potatoes_stage4"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:potatoes_stage5"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:potatoes_stage6"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:potatoes_stage7"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:glass_pane"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:iron_bars"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:double_stone_slab"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:smooth_sandstone"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:sandstone_stairs_east"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:sandstone_stairs_west"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:sandstone_stairs_south"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:sandstone_stairs_north"), new LightData(0, 15)));
 
     /**
      * The redstone family's light rows (Slice 9a) and the mechanical

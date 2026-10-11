@@ -203,6 +203,29 @@ public final class MobManager {
     }
 
     /**
+     * The structure-spawn idempotence probe (Slice 12b): whether a villager
+     * already stands within the radius of the position — the populate-time
+     * drain skips records whose villager a previous server life already
+     * materialized and the mob store restored (the chunks regenerate
+     * deterministically; the villagers persist).
+     */
+    public boolean villagerNear(double x, double y, double z, double radius) {
+        for (MobEntity mob : mobs) {
+            if (mob.type() != MobType.VILLAGER) {
+                continue;
+            }
+            Position at = mob.position();
+            double dx = at.x() - x;
+            double dy = at.y() - y;
+            double dz = at.z() - z;
+            if (dx * dx + dy * dy + dz * dz <= radius * radius) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * Spawns one mob of the kind at the exact position (validated by callers).
      * Tick-thread context.
      */

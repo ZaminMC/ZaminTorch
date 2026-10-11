@@ -189,7 +189,7 @@ public final class WorldSolidity {
                 || id.equals(BuiltinBlocks.BROWN_MUSHROOM.identifier())
                 || id.equals(BuiltinBlocks.RED_MUSHROOM.identifier())
                 || id.equals(BuiltinBlocks.SUGAR_CANE.identifier())
-                || isWheatCrop(id);
+                || isCropStage(id);
     }
 
     /** The ladders (block 65): climbable, never block a body. */
@@ -216,6 +216,57 @@ public final class WorldSolidity {
     public static boolean isWheatCrop(Identifier id) {
         return id.namespace().equals("minecraft")
                 && id.value().startsWith("wheat_stage");
+    }
+
+    /**
+     * The village's crop families (the farm plots): carrots (141) and
+     * potatoes (142) with the wheat's own age 0..7 band — walk-through
+     * plants like the wheat (the reference's BlockCrops material).
+     */
+    public static boolean isCropStage(Identifier id) {
+        if (!id.namespace().equals("minecraft")) {
+            return false;
+        }
+        String value = id.value();
+        return value.startsWith("wheat_stage")
+                || value.startsWith("carrots_stage")
+                || value.startsWith("potatoes_stage");
+    }
+
+    /** @return the age digit (0..7) of a crop identifier, -1 when none. */
+    public static int cropStageOf(Identifier id) {
+        if (!id.namespace().equals("minecraft")) {
+            return -1;
+        }
+        String value = id.value();
+        if (value.startsWith("wheat_stage")) {
+            return value.charAt("wheat_stage".length()) - '0';
+        }
+        if (value.startsWith("carrots_stage")) {
+            return value.charAt("carrots_stage".length()) - '0';
+        }
+        if (value.startsWith("potatoes_stage")) {
+            return value.charAt("potatoes_stage".length()) - '0';
+        }
+        return -1;
+    }
+
+    /** @return the crop identifier prefix ("wheat"/"carrots"/"potatoes"), null when none. */
+    public static String cropFamilyOf(Identifier id) {
+        if (!id.namespace().equals("minecraft")) {
+            return null;
+        }
+        String value = id.value();
+        if (value.startsWith("wheat_stage")) {
+            return "wheat";
+        }
+        if (value.startsWith("carrots_stage")) {
+            return "carrots";
+        }
+        if (value.startsWith("potatoes_stage")) {
+            return "potatoes";
+        }
+        return null;
     }
 
     /** The fire block (51): walk-through, damages bodies standing in it. */

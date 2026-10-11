@@ -70,8 +70,8 @@ public final class RandomTickSystem {
      */
     public void randomTick(BlockPosition position) {
         BlockType type = world.getBlock(position);
-        if (WorldSolidity.isWheatCrop(type.identifier())) {
-            tickWheatGrowth(position);
+        if (WorldSolidity.isCropStage(type.identifier())) {
+            tickCropGrowth(position, type);
             return;
         }
         if (WorldSolidity.isSugarCane(type.identifier())) {
@@ -121,23 +121,24 @@ public final class RandomTickSystem {
     }
 
     /**
-     * The historical BlockCrop growth: a randomly-ticked stage advances one
-     * age when the light above is at least 9, twice as likely over hydrated
-     * farmland (the historical moisture growth-rate split, folded from the
-     * per-biome surface to a fixed 1-in-3 / 1-in-6 chance per pick).
+     * The historical BlockCrops growth (Slice 12b generalized to the whole
+     * family — the wheat, the carrots and the potatoes all extend the
+     * reference's BlockCrops with the same 0..7 age band): a randomly-ticked
+     * stage advances one age when the light above is at least 9, twice as
+     * likely over hydrated farmland.
      */
-    private void tickWheatGrowth(BlockPosition position) {
+    private void tickCropGrowth(BlockPosition position, BlockType type) {
         if (lightAt(position.offset(0, 1, 0)) < 9) {
             return;
         }
-        int stage = wheatStageAt(position);
+        int stage = WorldSolidity.cropStageOf(type.identifier());
         if (stage >= 7) {
             return; // fully grown: nothing to advance
         }
         BlockType soil = world.getBlock(position.offset(0, -1, 0));
         boolean hydrated = soil.identifier().equals(BuiltinBlocks.FARMLAND_WET.identifier());
         if (random.nextInt(hydrated ? 3 : 6) == 0) {
-            world.setBlock(position, wheatStage(stage + 1));
+            world.setBlock(position, cropStage(type.identifier(), stage + 1));
         }
     }
 
@@ -153,6 +154,19 @@ public final class RandomTickSystem {
         return wheatStageAt(world, position);
     }
 
+    /** The block type of the crop family's stage 0..7 (the family of the source identifier). */
+    public static net.zaminmc.torch.block.BlockType cropStage(net.zaminmc.torch.util.Identifier cropId, int stage) {
+        String family = WorldSolidity.cropFamilyOf(cropId);
+        if (family == null) {
+            family = "wheat";
+        }
+        return switch (family) {
+            case "carrots" -> carrotStage(stage);
+            case "potatoes" -> potatoStage(stage);
+            default -> wheatStage(stage);
+        };
+    }
+
     /** The block type of wheat stage 0..7. */
     public static net.zaminmc.torch.block.BlockType wheatStage(int stage) {
         return switch (stage) {
@@ -164,6 +178,34 @@ public final class RandomTickSystem {
             case 5 -> BuiltinBlocks.WHEAT_STAGE5;
             case 6 -> BuiltinBlocks.WHEAT_STAGE6;
             default -> BuiltinBlocks.WHEAT_STAGE7;
+        };
+    }
+
+    /** The block type of a carrot stage 0..7. */
+    public static net.zaminmc.torch.block.BlockType carrotStage(int stage) {
+        return switch (stage) {
+            case 0 -> BuiltinBlocks.CARROTS_STAGE0;
+            case 1 -> BuiltinBlocks.CARROTS_STAGE1;
+            case 2 -> BuiltinBlocks.CARROTS_STAGE2;
+            case 3 -> BuiltinBlocks.CARROTS_STAGE3;
+            case 4 -> BuiltinBlocks.CARROTS_STAGE4;
+            case 5 -> BuiltinBlocks.CARROTS_STAGE5;
+            case 6 -> BuiltinBlocks.CARROTS_STAGE6;
+            default -> BuiltinBlocks.CARROTS_STAGE7;
+        };
+    }
+
+    /** The block type of a potato stage 0..7. */
+    public static net.zaminmc.torch.block.BlockType potatoStage(int stage) {
+        return switch (stage) {
+            case 0 -> BuiltinBlocks.POTATOES_STAGE0;
+            case 1 -> BuiltinBlocks.POTATOES_STAGE1;
+            case 2 -> BuiltinBlocks.POTATOES_STAGE2;
+            case 3 -> BuiltinBlocks.POTATOES_STAGE3;
+            case 4 -> BuiltinBlocks.POTATOES_STAGE4;
+            case 5 -> BuiltinBlocks.POTATOES_STAGE5;
+            case 6 -> BuiltinBlocks.POTATOES_STAGE6;
+            default -> BuiltinBlocks.POTATOES_STAGE7;
         };
     }
 

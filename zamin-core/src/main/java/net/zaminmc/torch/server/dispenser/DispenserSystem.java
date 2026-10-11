@@ -462,12 +462,14 @@ public final class DispenserSystem implements WorldChangeListener {
     private ItemStack boneMeal(BlockPosition pos, int facing, ItemStack stack) {
         BlockPosition target = pos.offset(OFFSETS[facing][0], OFFSETS[facing][1],
                 OFFSETS[facing][2]);
-        int stage = RandomTickSystem.wheatStageAt(world, target);
+        int stage = net.zaminmc.torch.server.block.WorldSolidity.cropStageOf(
+                world.getBlock(target).identifier());
         if (stage < 0 || stage >= 7) {
             return defaultItemDrop(pos, facing, stack);
         }
         int grown = Math.min(7, stage + 2 + random.nextInt(4));
-        world.setBlock(target, RandomTickSystem.wheatStage(grown));
+        world.setBlock(target, RandomTickSystem.cropStage(
+                world.getBlock(target).identifier(), grown));
         fx.sound(centerOf(pos), "random.click", 1.0f, 1.0f);
         return consumeOne(stack);
     }

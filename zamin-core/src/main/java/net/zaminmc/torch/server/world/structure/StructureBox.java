@@ -95,6 +95,34 @@ public final class StructureBox {
         return this.maxZ - this.minZ + 1;
     }
 
+    /**
+     * The facing-oriented box builder (orient lines 35-48, 1:1): a box of
+     * {@code sizeX x sizeY x sizeZ} piece-cells anchored at the world cell,
+     * grown along the facing — the village families' placement shape.
+     */
+    public static StructureBox orient(int x, int y, int z,
+                                      int offsetX, int offsetY, int offsetZ,
+                                      int sizeX, int sizeY, int sizeZ,
+                                      StructureFacing facing) {
+        switch (facing) {
+            case NORTH:
+                return new StructureBox(x + offsetX, y + offsetY, z - sizeZ + 1 + offsetZ,
+                        x + sizeX - 1 + offsetX, y + sizeY - 1 + offsetY, z + offsetZ);
+            case SOUTH:
+                return new StructureBox(x + offsetX, y + offsetY, z + offsetZ,
+                        x + sizeX - 1 + offsetX, y + sizeY - 1 + offsetY, z + sizeZ - 1 + offsetZ);
+            case WEST:
+                return new StructureBox(x - sizeZ + 1 + offsetZ, y + offsetY, z + offsetX,
+                        x + offsetZ, y + sizeY - 1 + offsetY, z + sizeX - 1 + offsetX);
+            case EAST:
+                return new StructureBox(x + offsetZ, y + offsetY, z + offsetX,
+                        x + sizeZ - 1 + offsetZ, y + sizeY - 1 + offsetY, z + sizeX - 1 + offsetX);
+            default:
+                return new StructureBox(x + offsetX, y + offsetY, z + offsetZ,
+                        x + sizeX - 1 + offsetX, y + sizeY - 1 + offsetY, z + sizeZ - 1 + offsetZ);
+        }
+    }
+
     @Override
     public String toString() {
         return "StructureBox[" + minX + ", " + minY + ", " + minZ + " -> "

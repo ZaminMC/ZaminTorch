@@ -22,9 +22,17 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class BiomeWorldTest {
 
     private static BlockRegistry registry() {
-        // The boot shape: fluids ride the same registry (water is a block here).
-        return net.zaminmc.torch.server.block.FluidBlocks.registerAll(
-                BuiltinBlocks.registerAll(new net.zaminmc.torch.server.block.BlockRegistryBuilder()))
+        // The full boot chain (EngineServer's freeze order — the village's
+        // structure palette resolves the pressure plate from the redstone
+        // family, Slice 12b).
+        return net.zaminmc.torch.server.brewing.BrewingStandBlocks.registerAll(
+                net.zaminmc.torch.server.dispenser.DispenserSystem.registerBlocks(
+                net.zaminmc.torch.server.hopper.HopperSystem.registerBlocks(
+                net.zaminmc.torch.server.piston.PistonSystem.registerBlocks(
+                net.zaminmc.torch.server.redstone.TripwireBlocks.registerAll(
+                net.zaminmc.torch.server.redstone.RedstoneBlocks.registerAll(
+                        net.zaminmc.torch.server.block.FluidBlocks.registerAll(
+                                BuiltinBlocks.registerAll(new net.zaminmc.torch.server.block.BlockRegistryBuilder()))))))))
                 .freeze();
     }
 

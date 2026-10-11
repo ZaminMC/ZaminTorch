@@ -1589,3 +1589,83 @@ families) → the rest of the building set.
 The repository state: Slice 12a pushed (21b36c5), 657 green in
 zamin-core (+19 api +71 protocol), the ledger and this worklog
 current.
+
+## Slice 12b — the villages
+
+**The reference port** (`gen/structure/VillageStructure.java` +
+`VillagePieces.java` + `StructurePiece.java`'s helper family, 1:1 over
+the Slice 12a foundation):
+
+- **The placement** (`VillageStructure`): the 32-chunk distance /
+  8-chunk min-distance grid — the reference's own negative-coordinate
+  floor walk (`(chunk - 31) / 32`), the second random seeded
+  `cellX * 341873128712L + cellZ * 132897987541L + worldSeed +
+  10387312` (the `World.setRandomSeed(k, l, 10387312)` derivation), the
+  `nextInt(24)` offset pair picking one chunk per cell, and the biome
+  gate at the chunk's +8 center (every sampled 4-block cell must be
+  plains or desert — the engine carries no savanna, the envelope note).
+- **The start**: the piece-weight table from the region random
+  (post-burn — the reference's own order), the well at the region's +2
+  corner, the road/building queue drain until both lists empty, the
+  bounds union, and the valid gate (more than two non-road pieces or
+  the village never writes).
+- **The thirteen families**: the Well (the 4x4 cobblestone shaft with
+  the water column, the four fence posts, the cobble roof, the gravel
+  ring), the Road (the surface-probing gravel path with the side
+  buildings + the two road-split arms), the SmallHouse (the terrace +
+  ladder rolls), the FarmerHouse (the low-ceiling + table rolls), the
+  ButcherHouse + the LibrarianHouse + the LargeHouse (the gable-roof
+  loop with the per-facing stair metadata), the PriestHouse (the
+  12-tall tower with the internal ladder), the BlacksmithHouse (the
+  lava pools behind iron bars, the double furnace, the double stone
+  slab table, the 17-row loot chest), the two farms (the farmland rows
+  over the water channels with the three crop families' random
+  stages 2..7), and the LampPost.
+- **The base helpers** (on `StructurePiece`/`StructureBox`):
+  `postProcessBlockMetadata` ported in full (the seven metadata
+  families: rail, door, stairs, ladder, stone button, horizontal,
+  piston — each with the reference's own per-facing remaps),
+  `fillAirColumnUp`/`fillColumnDown` (the terrain flatteners),
+  `placeWoodenDoor` (the metadata flip + the counter-clockwise turn),
+  and `StructureBox.orient` (the facing-oriented box builder).
+
+**The new engine surface:**
+
+- **The village block set**: the glass pane (102), the iron bars
+  (101), the double stone slab (43), the smooth sandstone (24/2), the
+  sandstone stairs (128, E/W/S/N), and the two new crop families —
+  carrots (141) and potatoes (142) with the age 0..7 band (all with
+  the legacy wire rows + the behavior/light/sound tables).
+- **The populate-time attachments** (`EngineChunk.pendingVillagers` +
+  `pendingGenChests`): the reference's structure `addEntity` +
+  `placeChestWithLoot` rides the engine's ownership model — the
+  generator thread writes the records while the chunk is detached,
+  the publication is the safe-publication barrier, and the tick thread
+  drains them exactly once (the villagers materialize through
+  `MobManager.spawnAt` with the building's profession; the chest
+  contents roll at generate time and land in the ChestManager). The
+  restart idempotence guards: a villager already standing at the
+  position (the mob store's restore) skips the re-spawn; a chest with
+  contents (the ZCD restore) skips the re-roll — the deterministic
+  regeneration never duplicates.
+- **The crop growth generalization**: the wheat, the carrots and the
+  potatoes all extend the reference's BlockCrops rule (the light-9
+  gate, the hydrated 1/3 / dry 1/6 chance) — the bone meal arms in
+  both the player path and the dispenser now grow any of the three
+  families.
+- **The potato item family** (392/393): the raw/baked pair with the
+  food rows (1/0.6, 5/6.0) and the smelting row (0.35 XP); plus the
+  blacksmith's loot pair (the obsidian item 49, the oak sapling 6).
+
+**The envelope notes** (all in the ledger row): the standing-torch
+stand-in for the wall torches; the hinge-less door upper; the pure
+full-box `updateHeight` (chunk-independent, identical to the reference
+for single-chunk pieces); the per-chunk villager count reset; the
+-1 profession convention; the drained-chest refill edge.
+
+The fresh full-suite count **665 green in zamin-core** (+19 api +71
+protocol), `--max-workers=1`, one projectile-test load flake (the
+documented one — green in isolation and in a second pass).
+
+**Next:** the strongholds (StrongholdStructure + StrongholdPieces over
+the foundation), the fortresses, the ocean monuments, the temples.
