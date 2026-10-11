@@ -665,3 +665,14 @@ collision).
 
 **Next:** the Phase 4 spatial-activation boundary work over piston pushes
 across region seams, then dispensers/droppers, hoppers, tripwire.
+
+---
+## Release v0.2.0-dev.25
+
+- Slices 9d + 9e + 9f ride this artifact: the comparator, the pistons
+  (the Phase 4 gate's mechanic), the TNT + the cross-system neighbor bus.
+- 667 tests green at the build's commit.
+- The server JAR + the distribution ZIP attached; the changelog published.
+- Next: the Phase 4 spatial-activation boundary work (piston pushes
+  across region seams with the §11 boundary tests), then
+  dispensers/droppers, hoppers, tripwire.
