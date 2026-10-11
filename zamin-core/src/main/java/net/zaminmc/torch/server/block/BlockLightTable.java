@@ -219,7 +219,35 @@ public final class BlockLightTable {
             Map.entry(Identifier.parse("minecraft:sandstone_stairs_east"), new LightData(0, 15)),
             Map.entry(Identifier.parse("minecraft:sandstone_stairs_west"), new LightData(0, 15)),
             Map.entry(Identifier.parse("minecraft:sandstone_stairs_south"), new LightData(0, 15)),
-            Map.entry(Identifier.parse("minecraft:sandstone_stairs_north"), new LightData(0, 15)));
+            Map.entry(Identifier.parse("minecraft:sandstone_stairs_north"), new LightData(0, 15)),
+
+            // The stronghold set (Slice 12c): the stone-brick family are
+            // full opaque cubes (dataset filterLight 15), the infested
+            // egg identical (the disguise), the spawner a cutout cage
+            // (filter 0), the iron door pair opaque like the oak family,
+            // the portal frames opaque (their cutout shape still filters
+            // the dataset's 15), and the smooth brick slab's bottom-half
+            // carries the dataset's full filter (the slab collision
+            // refinement lives with the shape queries).
+            Map.entry(Identifier.parse("minecraft:stone_bricks"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:mossy_stone_bricks"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:cracked_stone_bricks"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:infested_stone_bricks"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:stone_brick_slab"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:mob_spawner"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:iron_door_west"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:iron_door_north"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:iron_door_east"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:iron_door_south"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:iron_door_upper"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:end_portal_frame_south"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:end_portal_frame_west"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:end_portal_frame_north"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:end_portal_frame_east"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:end_portal_frame_eye_south"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:end_portal_frame_eye_west"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:end_portal_frame_eye_north"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:end_portal_frame_eye_east"), new LightData(0, 15)));
 
     /**
      * The redstone family's light rows (Slice 9a) and the mechanical

@@ -311,6 +311,44 @@ public abstract class StructurePiece {
     }
 
     /**
+     * The per-cell block picker (the reference's BlockPicker, lines 614-625):
+     * one {@code pick} call per written cell, the chosen state landing in the
+     * {@link #fillPicked} loop. The reference's own pickers roll the random
+     * inside the call (the StoneBrickPicker's own band walk).
+     */
+    protected interface BlockPicker {
+        /** Chooses the block for one cell (the reference's pick + getBlockState pair). */
+        BlockType pick(Random random, int x, int y, int z, boolean shell);
+    }
+
+    /**
+     * The picker fill (fill lines 457-480, 1:1): the outlined walk with a
+     * per-cell picker instead of a fixed pair — the reference's own gate
+     * ({@code !avoidAir || the cell is not air}, the out-of-clip read
+     * answering air exactly like the reference's box guard) rolls the
+     * picker once per passing cell before the clipped write.
+     */
+    protected void fillPicked(StructureWorld world, StructureBox clip,
+                              int minX, int minY, int minZ, int maxX, int maxY, int maxZ,
+                              boolean avoidAir, Random random, BlockPicker picker) {
+        for (int y = minY; y <= maxY; y++) {
+            for (int x = minX; x <= maxX; x++) {
+                for (int z = minZ; z <= maxZ; z++) {
+                    BlockType current = this.getBlockState(world, x, y, z, clip);
+                    if (!avoidAir || (current != null && !world.isAir(current))) {
+                        BlockType picked = picker.pick(random, x, y, z,
+                                y == minY || y == maxY || x == minX || x == maxX
+                                        || z == minZ || z == maxZ);
+                        if (picked != null) {
+                            this.setBlockState(world, picked, x, y, z, clip);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /**
      * The upper hemisphere carve (placeUpperHemisphere lines 520-546): the
      * ellipsoid test {@code f8 <= 1.05} over the normalized offsets.
      */

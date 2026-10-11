@@ -7137,8 +7137,15 @@ public final class EngineServer implements Server, EngineBridge {
                             java.util.Optional<net.zaminmc.torch.item.ItemType> type =
                                     BuiltinItems.lookup(
                                             net.zaminmc.torch.util.Identifier.parse(slot.itemId()));
-                            type.ifPresent(itemType -> chest.setSlot(slot.slot(),
-                                    ItemStack.of(itemType, slot.count())));
+                            type.ifPresent(itemType -> {
+                                ItemStack stack = ItemStack.of(itemType, slot.count());
+                                // The enchanted-book arm (Slice 12c): the
+                                // rolled enchantment rides the stack.
+                                if (slot.enchantments() != null && !slot.enchantments().isEmpty()) {
+                                    stack = stack.withEnchantments(slot.enchantments());
+                                }
+                                chest.setSlot(slot.slot(), stack);
+                            });
                         }
                     }
                     chunk.pendingGenChests().clear();
