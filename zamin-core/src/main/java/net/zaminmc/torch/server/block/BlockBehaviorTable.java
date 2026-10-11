@@ -522,6 +522,35 @@ public final class BlockBehaviorTable {
                 }
             }
         }
+        // The piston family (Slice 9e, community blocks.json: the base 0.5):
+        // every base variant drops its item; the head drops nothing (the
+        // reference's zero drop count — the base carries the item); the
+        // moving carrier is unbreakable (MovingBlock's strength -1).
+        String[] directions = {"down", "up", "north", "south", "west", "east"};
+        BlockBehavior piston = new BlockBehavior(0.5, true, false, "rock", 0,
+                List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:piston"), 1)));
+        BlockBehavior stickyPiston = new BlockBehavior(0.5, true, false, "rock", 0,
+                List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:sticky_piston"), 1)));
+        for (int facing = 0; facing < 6; facing++) {
+            for (int extended = 0; extended <= 1; extended++) {
+                String suffix = directions[facing] + (extended == 1 ? "_extended" : "");
+                behaviors.put(Identifier.parse("minecraft:piston_" + suffix), piston);
+                behaviors.put(Identifier.parse("minecraft:sticky_piston_" + suffix), stickyPiston);
+            }
+        }
+        BlockBehavior pistonHead = new BlockBehavior(0.5, true, false, "rock", 0, List.of());
+        for (int facing = 0; facing < 6; facing++) {
+            behaviors.put(Identifier.parse("minecraft:piston_head_" + directions[facing]), pistonHead);
+            behaviors.put(Identifier.parse("minecraft:piston_head_" + directions[facing] + "_sticky"),
+                    pistonHead);
+        }
+        BlockBehavior movingPiston = new BlockBehavior(-1.0, false, false, "rock", 0, List.of());
+        for (int facing = 0; facing < 6; facing++) {
+            behaviors.put(Identifier.parse("minecraft:moving_piston_" + directions[facing]),
+                    movingPiston);
+            behaviors.put(Identifier.parse("minecraft:moving_piston_" + directions[facing] + "_sticky"),
+                    movingPiston);
+        }
         // The player-driven sources (Slice 9c): the lever, the buttons and
         // the plates — every facing/powered variant drops its item, the
         // break is instant by hand (community blocks.json: hardness 0.5 for

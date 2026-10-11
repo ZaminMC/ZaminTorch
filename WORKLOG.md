@@ -539,3 +539,75 @@ slice; the 150 block id never appears in live play (the flattened powered
 pair IS the converged 149-POWERED-true state).
 
 **Next:** Slice 9e — the pistons (the Phase 4 spatial-activation gate).
+
+---
+## Slice 9e — the pistons (the Phase 4 spatial-activation gate's mechanic)
+
+**Reference:** `block/PistonBaseBlock.java`, `block/piston/
+PistonMoveStructureResolver.java`, `block/PistonHeadBlock.java`,
+`block/MovingBlock.java`, `block/entity/MovingBlockEntity.java`,
+`server/world/ServerWorld.java` (the block-event queues, lines 96/207/808-840),
+`block/material/Material.java` (the piston behaviors).
+
+**Landed:**
+- The flattened family: `piston_<facing>[_extended]` (33),
+  `sticky_piston_<facing>[_extended]` (29), `piston_head_<facing>[_sticky]`
+  (34), `moving_piston_<facing>[_sticky]` (36) — the nibbles mirror the
+  reference's metadata (facing | extended<<3 / facing | sticky<<3), the
+  items, the behavior rows (the base 0.5 + drops; the head dropless; the
+  carrier unbreakable), the solidity (the base + head solid, the carrier
+  non-solid), the serializer nibbles + the reverse.
+- `PistonSystem` — the listener + the tick:
+  - shouldExtend: the six neighbors except the FACING side (the front-face
+    immunity), the piston's own position (inert — the reference's
+    isCube-false piston neither re-radiates nor emits; the family is
+    excluded from the signal-solid set), and the quasi-connectivity walk
+    around the position above.
+  - The two-queue block-event swap (the duplicate scan on the current
+    queue, the drain-after-processing shape, the drain after the redstone
+    queue within the same tick — the reference's own order).
+  - doEvent 0/1: the extend (the move + the EXTENDED flip + the "out"
+    sound), the retract (the mid-flight finish, the body carrier, the
+    sticky pull with the moving-block finish + the canMove gate + the
+    piston-behavior gate, the plain head removal, the "in" sound), the
+    cancel arms (the re-armed retract, the unpowered extend).
+  - move(): the resolver, the toBreak drops through the behavior table,
+    the shifted carriers (the reverse order, the movedType captured before
+    the removal), the head's carrier, the neighbor rings in the
+    reference's order.
+  - The two-tick carriers: the 0.5/tick progress, the landing write, the
+    record cleanup on replacement.
+- `PistonStructureResolver` — the 1:1 column walk (the 12-block budget,
+  the toBreak DESTROY rule, the slime back-walk + neighbor columns +
+  insertColumn splice — dormant until slime lands).
+- canMoveBlock: obsidian, the y-bounds with the DOWN/UP clamps, the
+  extended-piston refusal, the unbreakables (the -1 hardness arm), the
+  BLOCK family (the portal, the head, the carrier), the DESTROY family
+  (the whole redstone decoration set incl. the comparator, the plants,
+  the leaves, the liquids, the fragile gourds) behind the allowBreaking
+  gate, the BE providers (the chest, the furnace, the sign).
+- The placement: the eye-height walk (within 2 blocks horizontally — up
+  above two, down below the feet) else the look-opposite, the piston and
+  sticky piston items.
+- The engine-side fix: the piston family excluded from isSignalSolid (the
+  reference's isCube-false piston is a signal dead zone).
+- The test-side race fix: PersistenceAcceptanceTest's delta-count await
+  now covers the grass-decay commit (a pre-existing load race).
+
+**Tests:** PistonSystemTest (6) — the extend + the pushed landing, the
+plain retract leaving the block, the sticky pull, the 12-block budget
+(the refusal + the fit), the break-on-push with the item drop, the quasi
+power with the update gate (the vanilla rule: the quasi region alone does
+not wake the piston — an adjacent change must ring it). Suite 659 -> 665
+green (the full pass on 2-core hosts: `--max-workers=1` — the real-wire
+tests are load-sensitive).
+
+**Known differences (ledgered):** the entity-displacement arm (the push of
+bodies in the flight path) rides the entity-collision slice; the client
+animation (the Block Action fan-out + the moving BE sync) rides the
+protocol slice; the world-border arm is absent; the slime columns are
+dormant.
+
+**Next:** the Phase 4 spatial activation — the boundary protocol work
+over piston pushes across region seams (the §11 boundary tests) — then
+TNT ignition, dispensers, hoppers.

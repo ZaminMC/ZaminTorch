@@ -40,7 +40,20 @@ public final class WorldSolidity {
                 && !isFlora(id)
                 && !isRail(id)
                 && !isRedstoneComponent(id)
+                && !isMovingPiston(id)
                 && !FluidBlocks.isFluid(id);
+    }
+
+    /**
+     * The in-flight piston carrier (legacy 36, Slice 9e): never blocks a
+     * body — the reference's collision is the progress-scaled partial box
+     * (MovingBlock.getCollisionShape), and the entity displacement rides
+     * the entity-collision slice; the empty cell keeps bodies from
+     * clipping into the landing.
+     */
+    public static boolean isMovingPiston(Identifier id) {
+        return id.namespace().equals("minecraft")
+                && id.value().startsWith("moving_piston_");
     }
 
     /**

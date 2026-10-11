@@ -223,6 +223,9 @@ public final class EngineServer implements Server, EngineBridge {
     private BlockUpdateSystem blockUpdateSystem;
     /** The redstone signal engine (Slice 9a): the wire cascade + the family dispatch + the delayed reactions. */
     private net.zaminmc.torch.server.redstone.RedstoneSystem redstoneSystem;
+
+    /** The piston subsystem (Slice 9e): the block events + the moving carriers. */
+    private net.zaminmc.torch.server.piston.PistonSystem pistonSystem;
     private FluidSystem fluidSystem;
     private ExplosionService explosionService;
     private RandomTickSystem randomTicks;
@@ -331,9 +334,10 @@ public final class EngineServer implements Server, EngineBridge {
         // Registry freeze: built-ins registered during boot preparation must be frozen
         // before any world exists (registry lifecycle: create -> register -> freeze).
         if (blockRegistry == null) {
-            blockRegistry = net.zaminmc.torch.server.redstone.RedstoneBlocks.registerAll(
-                    FluidBlocks.registerAll(
-                            BuiltinBlocks.registerAll(new BlockRegistryBuilder()))).freeze();
+            blockRegistry = net.zaminmc.torch.server.piston.PistonSystem.registerBlocks(
+                    net.zaminmc.torch.server.redstone.RedstoneBlocks.registerAll(
+                            FluidBlocks.registerAll(
+                                    BuiltinBlocks.registerAll(new BlockRegistryBuilder())))).freeze();
         }
 
         state.set(ServerState.STARTING);
@@ -543,6 +547,12 @@ public final class EngineServer implements Server, EngineBridge {
                 // that container.
                 chestManager.setContentsChanged(position -> redstoneSystem.wakeComparators(position));
                 furnaceManager.setContentsChanged(position -> redstoneSystem.wakeComparators(position));
+                // The pistons (Slice 9e): the block-event state machine + the
+                // two-tick moving carriers, hearing every committed change
+                // like the redstone system does (the reference's flag-1 walk).
+                pistonSystem = new net.zaminmc.torch.server.piston.PistonSystem(
+                        world, redstoneSystem, itemEntities, fxManager, gameplayRandom);
+                world.addChangeListener(pistonSystem);
                 // Fluids (§472 pattern): the scheduled pour/dry/contact system,
                 // waking on every committed change like the neighbor rules do.
                 fluidSystem = new FluidSystem(new FluidWorld(), new FluidSink(itemEntities));
@@ -583,6 +593,7 @@ public final class EngineServer implements Server, EngineBridge {
                 ticker.setTickHandler(() -> {
                     blockUpdateSystem.tick(); // §466: scheduled updates (falls start here)
                     redstoneSystem.tick(); // the torch/repeater scheduled reactions
+                    pistonSystem.tick(); // the piston block events + the moving carriers
                     blockInteraction.tickMining(); // the vanilla dig accumulator + 0x28 stages
                     fluidSystem.tick();       // §472 pattern: pours, streams, contact
                     falling.tick();           // §470: falling physics + landings
@@ -1035,6 +1046,11 @@ public final class EngineServer implements Server, EngineBridge {
     /** The chest block entities (exposed for behavioral tests). */
     public ChestManager chestManager() {
         return chestManager;
+    }
+
+    /** The piston subsystem (exposed for behavioral tests). */
+    public net.zaminmc.torch.server.piston.PistonSystem pistons() {
+        return pistonSystem;
     }
 
     /**
@@ -3579,6 +3595,13 @@ public final class EngineServer implements Server, EngineBridge {
             placeComparatorOnTick(session, clicked, face, creativeHeld);
             return; // the look-facing rule overrides the generic placement
         }
+        if (heldId.equals("minecraft:piston") || heldId.equals("minecraft:sticky_piston")
+                || creativeHeld.map(t -> t.identifier().value().equals("piston")
+                        || t.identifier().value().equals("sticky_piston")).orElse(false)) {
+            placePistonOnTick(session, clicked, face, creativeHeld,
+                    heldId.equals("minecraft:sticky_piston"));
+            return; // the eye/look-facing rule overrides the generic placement
+        }
         if (heldId.equals("minecraft:lever")
                 || creativeHeld.map(t -> t.identifier().value().equals("lever")).orElse(false)) {
             placeLeverOnTick(session, clicked, face, creativeHeld);
@@ -3904,6 +3927,72 @@ public final class EngineServer implements Server, EngineBridge {
         world.setBlock(target, net.zaminmc.torch.server.redstone.RedstoneBlocks.comparatorOf(
                 facing, false, false));
         consumePlaced(session, creativeHeld);
+    }
+
+    /**
+     * The piston placement (PistonBaseBlock.getFacingForPlacement lines
+     * 232-245 + getPlacementState lines 66-68): when the player stands close
+     * (within two blocks on both horizontal axes) the facing follows the eye
+     * height — above two blocks up, below the feet down — else the piston
+     * faces the player's look opposite (the arm extends toward the player).
+     * Tick-thread context.
+     */
+    private void placePistonOnTick(PlayerSession session, BlockPosition clicked, int face,
+                                   java.util.Optional<BlockType> creativeHeld, boolean sticky) {
+        BlockPosition target = offsetByFace(clicked, face);
+        if (target == null || world.getBlock(clicked).equals(world.airType())
+                || !world.getBlock(target).equals(world.airType())) {
+            return;
+        }
+        if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5
+                || intersectsPlayerBox(session.position(), target)) {
+            return;
+        }
+        if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE
+                && session.inventory().held().isEmpty()) {
+            return;
+        }
+        // The eye-height walk when the player is close enough horizontally.
+        double px = session.position().x();
+        double pz = session.position().z();
+        int facing;
+        if (Math.abs((float) px - target.x()) < 2.0f && Math.abs((float) pz - target.z()) < 2.0f) {
+            double eye = session.position().y() + 1.62;
+            if (eye - target.y() > 2.0) {
+                facing = 1; // UP
+            } else if (target.y() - eye > 0.0) {
+                facing = 0; // DOWN
+            } else {
+                facing = lookOppositeDirection(session);
+            }
+        } else {
+            facing = lookOppositeDirection(session);
+        }
+        world.setBlock(target, net.zaminmc.torch.server.piston.PistonBlocks.pistonOf(
+                facing, false, sticky));
+        consumePlaced(session, creativeHeld);
+    }
+
+    /**
+     * The player's look-opposite as a reference Direction id (0=down 1=up
+     * 2=north 3=south 4=west 5=east) — the piston placement's facing.
+     */
+    private static int lookOppositeDirection(PlayerSession session) {
+        double yaw = ((session.rotation().yaw() % 360.0) + 360.0 + 45.0) % 360.0;
+        int lookBand = (int) (yaw / 90.0) % 4; // 0=S,1=W,2=N,3=E of the look
+        int look = switch (lookBand) {
+            case 0 -> 3; // south
+            case 1 -> 4; // west
+            case 2 -> 2; // north
+            default -> 5; // east
+        };
+        return switch (look) {
+            case 2 -> 3; // north <-> south
+            case 3 -> 2;
+            case 4 -> 5; // west <-> east
+            case 5 -> 4;
+            default -> look;
+        };
     }
 
     /**

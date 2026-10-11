@@ -1,6 +1,6 @@
 # Torch Engineering Ledger
 
-**Status date:** 2026-10-11 (updated; Slice 9d the comparator landed)
+**Status date:** 2026-10-11 (updated; Slice 9e the pistons landed — the Phase 4 gate mechanic)
 **Branch inspected:** `develop`  
 **Purpose:** record verified repository state and separate implemented behavior from proposals and unverified work.
 
@@ -67,7 +67,7 @@ Runtime implementation (the rollout phases, on `develop`):
 
 1. **Phase 4 completion — the spatial activation** (gated): bind chunks to their region domain once the first boundary-bearing mechanic ports (hopper or piston) with its §11 boundary tests; until then the single-domain run stays the live shape.
 2. **Phase 5+ — cross-boundary completeness, heavy-owner optimization, adaptive scheduling** per the rollout table (each phase gated on the previous phase's green tests and the recorded evidence).
-3. The vanilla 1.8.8 slices continue in parallel per `VANILLA_1_8_8_COMPATIBILITY.md`. Slice 8 (nether portals) is COMPLETE including 8c (the per-dimension TimeUpdate sync). **Slices 9a-9d (the redstone family) LANDED at 659 green**: the signal model, the wire cascade, the scheduled-tick queue, the torch (burnout + recovery), the repeater (lock + priorities), the placements, the lever/button/plate sources, and the comparator (the container-fullness analog read, the compare gate, the subtract mode, the 2-tick reaction, the through-solid read, the chest/furnace contents wake). **Next: the pistons (the Phase 4 spatial-activation gate — the first boundary-bearing mechanic)**, TNT ignition, then potions, leads, structures, natural spawn cycles.
+3. The vanilla 1.8.8 slices continue in parallel per `VANILLA_1_8_8_COMPATIBILITY.md`. Slice 8 (nether portals) is COMPLETE including 8c (the per-dimension TimeUpdate sync). **Slices 9a-9e (the redstone family) LANDED at 665 green**: the signal model, the wire cascade, the scheduled-tick queue, the torch (burnout + recovery), the repeater (lock + priorities), the placements, the lever/button/plate sources, the comparator (the container-fullness analog read, the compare gate, the subtract mode, the through-solid read, the contents wake), and the pistons (the block-event state machine, the two-tick moving carriers, the 12-block resolver, the sticky pull, the quasi-connectivity walk). **The piston is the Phase 4 spatial-activation gate's mechanic — the boundary protocol work (binding chunks to region domains with the §11 boundary tests over piston pushes across region seams) is the next architecture step.** Then TNT ignition, potions, leads, structures, natural spawn cycles. The suite is load-sensitive on 2-core hosts: run the full pass with `--max-workers=1`.
 4. Releases ride every dev build with a changelog (the established convention since dev.17).
 
 ## Security and repository safety
