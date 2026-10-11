@@ -1464,3 +1464,75 @@ fish drops, the ocelot's fish taming, the cooked fish's saturation
 serving on the client HUD (rides the body sync).
 
 **Next:** the structures (the villages/mineshafts/strongholds).
+
+## Slice 12a — the structure foundation + the mineshaft
+
+**What landed:** the reference's structure system foundation
+(reference/1.8.8 gen/structure/) ported into
+`server/world/structure/`: the `StructureBox` (1:1 with the 4-field
+chunk-clip quirk minY 1 / maxY 512), the `StructurePiece` base (the
+exact transformX/Y/Z quadrant math, the fill family — fillWithOutline,
+fillRandomlyWithOutline with the reference's inclusive
+`!(nextFloat() > threshold)` gate, setBlockStateWithThreshold,
+placeUpperHemisphere with the 1.05 ellipsoid test, the
+bordersOnLiquids clipped-shell probe, getIntersectingPiece), the
+`StructureStart` (the union bounds, the moveBelowSeaLevel re-base with
+the spread roll), and the `StructureWorld` view (in-chunk reads from
+the chunk, out-of-chunk reads from the pure terrain — the
+deterministic equivalent of the reference's populate-time world
+reads).
+
+**The placement driver:** `MineshaftStructure.populate` — the
+reference's Generator.place ±8 region walk with the exact seed math
+(two longs drawn once from the world seed; every region seeds
+`regionX * first ^ regionZ * second ^ worldSeed`, burns one draw,
+then rolls the feature gate), the per-chunk postProcess over the
+4-field clip, and the reference's own populate-random seed
+(`chunkX * 341873128712L + chunkZ * 132897987541L`, no world-seed
+fold — the reference's quirk).
+
+**The mineshaft 1:1** (MineshaftStructure + MineshaftStart +
+MineshaftPieces): the 0.004 chance AND the
+`nextInt(80) < max(|x|,|z|)` distance gate; the Room at the region's
++2 corner (the 8-13 wide hall, the dirt floor, the dome carve, the
+entrance cutouts); the recursive walk (the 80-block leash, the depth-8
+cap, the piece rolls corridor <70 / stairs 70-79 / crossing 80+); the
+Corridor (the 1-in-3 rails, the 1-in-23 cobwebs, the fence frames
+with the plank caps and the 1-in-4 gap, the cobweb/torch chance
+writes, the floor patch, the 0.7 rail roll over solid floors with the
+west/east metadata flip); the Crossing (the 5x5x3 junction, the
+1-in-4 second floor with the four boolean-gated upper arms, the plank
+pillars, the floor patch); the Stairs (the five-step shaft).
+
+**The architectural decision (the ledger's envelope note):** the
+reference caches starts across chunks and removes a piece the first
+time its clipped shell touches a liquid — a load-order-dependent
+removal the engine's deterministic contract cannot reproduce. The
+engine recomputes starts per chunk from pure (seed, region) inputs: no
+shared cache, no locks, the parallel chunk pipeline stays stateless —
+a piece refuses only in the chunks whose own clipped shell is wet and
+stays dry elsewhere (a superset of the reference's
+interleaving-dependent outcomes).
+
+**Also:** the cobweb block registered (legacy 30 — the corridor's
+1-in-23 resident, walk-through like the vanilla web; the slow effect
+ledgers with its own slice) through BuiltinBlocks + LegacyBlockIds +
+the WorldSolidity exclusion; the NormalWorldGenerator's populate hook
+(the structure pass after the flora); the BlockRegistryTest count
+102 → 103.
+
+**Ledgered (not in this slice):** the chest minecart with the
+corridor's loot rolls (the minecart entity family), the cave-spider
+mob spawner (the block entity + the spawner logic), the villages, the
+strongholds, the fortresses (the reference's remaining structure
+families over the same foundation), the cobweb's entity slow effect.
+
+**Tests:** MineshaftStructureTest (2: the hit-region walk — a start
+found by the region probe generates material under the sea floor in
+its own bounds with the re-base below SEA_LEVEL - 8; the same seed
+regenerates identical chunks cell-for-cell). The fresh full-suite
+count: **657 green in zamin-core** (+19 api +71 protocol) with
+--max-workers=1, zero failures.
+
+**Next:** the villages (VillageStructure + VillagePieces over the
+foundation), the strongholds.

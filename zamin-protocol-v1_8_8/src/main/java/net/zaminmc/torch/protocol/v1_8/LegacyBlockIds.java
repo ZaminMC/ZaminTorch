@@ -289,6 +289,8 @@ final class LegacyBlockIds {
             // rail block 66 (orientation in the metadata), the boat item
             // 333, the minecart item 328.
             Map.entry(Identifier.parse("minecraft:rail"), 66),
+            // The cobweb (Slice 12a, community blocks.json): legacy 30.
+            Map.entry(Identifier.parse("minecraft:cobweb"), 30),
             Map.entry(Identifier.parse("minecraft:rail_ew"), 66),
             Map.entry(Identifier.parse("minecraft:boat"), 333),
             Map.entry(Identifier.parse("minecraft:minecart"), 328),

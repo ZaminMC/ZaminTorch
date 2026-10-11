@@ -305,6 +305,11 @@ public final class BuiltinBlocks {
             Identifier.parse("minecraft:rail"), "Rail");
     public static final EngineBlockType RAIL_EW = new EngineBlockType(
             Identifier.parse("minecraft:rail_ew"), "Rail", 1);
+    // The cobweb (Slice 12a — community blocks.json legacy 30): the
+    // mineshaft corridor's 1-in-23 resident, walk-through (the vanilla
+    // web slows, never blocks; the slow effect ledger with its own slice).
+    public static final EngineBlockType COBWEB = new EngineBlockType(
+            Identifier.parse("minecraft:cobweb"), "Cobweb");
 
     private BuiltinBlocks() {
     }
@@ -412,6 +417,7 @@ public final class BuiltinBlocks {
                 .register(COBBLESTONE_STAIRS_SOUTH)
                 .register(COBBLESTONE_STAIRS_NORTH)
                 .register(RAIL)
-                .register(RAIL_EW);
+                .register(RAIL_EW)
+                .register(COBWEB);
     }
 }
