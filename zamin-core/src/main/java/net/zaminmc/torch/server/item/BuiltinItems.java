@@ -168,6 +168,8 @@ public final class BuiltinItems {
             Identifier.parse("minecraft:piston"), "Piston", 64);
     public static final EngineItemType STICKY_PISTON = new EngineItemType(
             Identifier.parse("minecraft:sticky_piston"), "Sticky Piston", 64);
+    public static final EngineItemType TNT = new EngineItemType(
+            Identifier.parse("minecraft:tnt"), "Tnt", 64);
     public static final EngineItemType LEVER = new EngineItemType(
             Identifier.parse("minecraft:lever"), "Lever", 64);
     public static final EngineItemType STONE_BUTTON = new EngineItemType(
@@ -465,7 +467,7 @@ public final class BuiltinItems {
                 WHEAT_SEEDS, WHEAT, BREAD, BONE_MEAL, SIGN,
                 CARROT, APPLE, GOLDEN_CARROT, GOLDEN_APPLE, HAY_BLOCK,
                 OAK_DOOR, LADDER, OAK_FENCE, BED,
-                REDSTONE, REDSTONE_TORCH, REPEATER, COMPARATOR, PISTON, STICKY_PISTON,
+                REDSTONE, REDSTONE_TORCH, REPEATER, COMPARATOR, PISTON, STICKY_PISTON, TNT,
                 LEVER, STONE_BUTTON, WOODEN_BUTTON,
                 STONE_PRESSURE_PLATE, WOODEN_PRESSURE_PLATE,
                 OAK_SLAB, STONE_SLAB, COBBLESTONE_SLAB, SANDSTONE_SLAB,

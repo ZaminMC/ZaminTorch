@@ -1,6 +1,6 @@
 # Torch Engineering Ledger
 
-**Status date:** 2026-10-11 (updated; Slice 9e the pistons landed — the Phase 4 gate mechanic)
+**Status date:** 2026-10-11 (updated; Slice 9f the TNT + the neighbor bus landed)
 **Branch inspected:** `develop`  
 **Purpose:** record verified repository state and separate implemented behavior from proposals and unverified work.
 
@@ -65,9 +65,9 @@ Runtime implementation (the rollout phases, on `develop`):
 
 ## Next steps, ordered
 
-1. **Phase 4 completion — the spatial activation** (gated): bind chunks to their region domain once the first boundary-bearing mechanic ports (hopper or piston) with its §11 boundary tests; until then the single-domain run stays the live shape.
+1. **Phase 4 completion — the spatial activation** (gated): bind chunks to their region domain once the first boundary-bearing mechanic ports (hopper or piston) with its §11 boundary tests; until then the single-domain run stays the live shape. **The piston (9e) is now landed — the boundary protocol work is unblocked.**
 2. **Phase 5+ — cross-boundary completeness, heavy-owner optimization, adaptive scheduling** per the rollout table (each phase gated on the previous phase's green tests and the recorded evidence).
-3. The vanilla 1.8.8 slices continue in parallel per `VANILLA_1_8_8_COMPATIBILITY.md`. Slice 8 (nether portals) is COMPLETE including 8c (the per-dimension TimeUpdate sync). **Slices 9a-9e (the redstone family) LANDED at 665 green**: the signal model, the wire cascade, the scheduled-tick queue, the torch (burnout + recovery), the repeater (lock + priorities), the placements, the lever/button/plate sources, the comparator (the container-fullness analog read, the compare gate, the subtract mode, the through-solid read, the contents wake), and the pistons (the block-event state machine, the two-tick moving carriers, the 12-block resolver, the sticky pull, the quasi-connectivity walk). **The piston is the Phase 4 spatial-activation gate's mechanic — the boundary protocol work (binding chunks to region domains with the §11 boundary tests over piston pushes across region seams) is the next architecture step.** Then TNT ignition, potions, leads, structures, natural spawn cycles. The suite is load-sensitive on 2-core hosts: run the full pass with `--max-workers=1`.
+3. The vanilla 1.8.8 slices continue in parallel per `VANILLA_1_8_8_COMPATIBILITY.md`. Slice 8 (nether portals) is COMPLETE including 8c. **Slices 9a-9f (the redstone family) LANDED at 667 green**: the signal model, the wire cascade, the scheduled-tick queue, the torch, the repeater, the placements, the lever/button/plate sources, the comparator, the pistons, and the TNT (the redstone + flint ignition arms, the 80-tick primed bodies, the 4.0F detonation through the generalized explosion walk, the blast chain-reaction, the cross-system neighbor bus — the reference's world-level neighborChanged fan-out the pistons and the TNT now ride). **Next: the Phase 4 spatial-activation boundary work over piston pushes across region seams, then dispensers/droppers, hoppers, tripwire, then potions, leads, structures, natural spawn cycles.** The suite is load-sensitive on 2-core hosts: run the full pass with `--max-workers=1`.
 4. Releases ride every dev build with a changelog (the established convention since dev.17).
 
 ## Security and repository safety

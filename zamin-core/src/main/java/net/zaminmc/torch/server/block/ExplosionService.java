@@ -73,6 +73,9 @@ public final class ExplosionService {
                     double py = cy;
                     double pz = cz;
                     while (strength > 0.0) {
+                        if (py < 0.0 || py > 255.0) {
+                            break; // the world's vertical bounds end the ray
+                        }
                         BlockPosition cell = new BlockPosition(
                                 (int) Math.floor(px), (int) Math.floor(py), (int) Math.floor(pz));
                         BlockType type = world.getBlock(cell);

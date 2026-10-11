@@ -146,6 +146,8 @@ final class Protocol18 {
     static final int OBJECT_ITEM = 2;
     /** Falling block (community entities.json FallingSand): objectData = legacy id | (metadata << 12). */
     static final int OBJECT_FALLING_BLOCK = 70;
+    /** The primed TNT's object type (1.8.8 EntityList: EntityTNTPrimed = 20, object id 50). */
+    static final int OBJECT_PRIMED_TNT = 50;
     // Ranged combat objects (community entities.json): the projectile's
     // objectData carries the thrower's entity id, announced with a velocity
     // triple like every non-zero objectData.

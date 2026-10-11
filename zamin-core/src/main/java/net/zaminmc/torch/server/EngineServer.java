@@ -226,6 +226,13 @@ public final class EngineServer implements Server, EngineBridge {
 
     /** The piston subsystem (Slice 9e): the block events + the moving carriers. */
     private net.zaminmc.torch.server.piston.PistonSystem pistonSystem;
+
+    /** The TNT subsystem (Slice 9f): the ignition arms + the primed bodies. */
+    private net.zaminmc.torch.server.tnt.TntSystem tntSystem;
+
+    /** The observers of the TNT system (the protocol adapter's wire sync). */
+    private final java.util.List<net.zaminmc.torch.server.tnt.TntSystem.Listener> tntListeners =
+            new java.util.ArrayList<>();
     private FluidSystem fluidSystem;
     private ExplosionService explosionService;
     private RandomTickSystem randomTicks;
@@ -282,6 +289,7 @@ public final class EngineServer implements Server, EngineBridge {
     private static final int ORB_ID_BASE = PLAYER_ID_BASE + 1_000_000;
     /** Vehicles (boats, minecarts) get the band above the orbs. */
     private static final int VEHICLE_ID_BASE = ORB_ID_BASE + 1_000_000;
+    private static final int TNT_ID_BASE = VEHICLE_ID_BASE + 1_000_000;
 
     /** The shared shape-aware physics query (items, falling blocks, projectiles). */
     private final ShapeGround shapeGround = new ShapeGround();
@@ -553,6 +561,23 @@ public final class EngineServer implements Server, EngineBridge {
                 pistonSystem = new net.zaminmc.torch.server.piston.PistonSystem(
                         world, redstoneSystem, itemEntities, fxManager, gameplayRandom);
                 world.addChangeListener(pistonSystem);
+                // The TNT (Slice 9f): the ignition system (the redstone arm,
+                // the flint-and-steel use, the blast chain-reaction) + the
+                // primed bodies' fuse and physics, riding the generalized
+                // detonation walk.
+                tntSystem = new net.zaminmc.torch.server.tnt.TntSystem(
+                        world, redstoneSystem,
+                        position -> solidAt(position.x(), position.y() - 0.1, position.z()),
+                        (center, power) -> detonateAt(center.x(), center.y(), center.z(), power,
+                                net.zaminmc.torch.server.tnt.TntSystem.MAX_DAMAGE),
+                        fxManager, gameplayRandom, TNT_ID_BASE);
+                world.addChangeListener(tntSystem);
+                tntSystem.addListener(new TntEventDispatch());
+                // The cross-system neighbor bus (Slice 9f): the pistons and
+                // the TNT ride the redstone family's neighbor dispatch —
+                // the reference's world-level neighborChanged.
+                redstoneSystem.addNeighborListener(pistonSystem::neighborHeard);
+                redstoneSystem.addNeighborListener(tntSystem::neighborHeard);
                 // Fluids (§472 pattern): the scheduled pour/dry/contact system,
                 // waking on every committed change like the neighbor rules do.
                 fluidSystem = new FluidSystem(new FluidWorld(), new FluidSink(itemEntities));
@@ -594,6 +619,7 @@ public final class EngineServer implements Server, EngineBridge {
                     blockUpdateSystem.tick(); // §466: scheduled updates (falls start here)
                     redstoneSystem.tick(); // the torch/repeater scheduled reactions
                     pistonSystem.tick(); // the piston block events + the moving carriers
+                    tntSystem.tick(); // the primed TNT fuses + physics
                     blockInteraction.tickMining(); // the vanilla dig accumulator + 0x28 stages
                     fluidSystem.tick();       // §472 pattern: pours, streams, contact
                     falling.tick();           // §470: falling physics + landings
@@ -1051,6 +1077,40 @@ public final class EngineServer implements Server, EngineBridge {
     /** The piston subsystem (exposed for behavioral tests). */
     public net.zaminmc.torch.server.piston.PistonSystem pistons() {
         return pistonSystem;
+    }
+
+    /** The TNT subsystem (exposed for behavioral tests). */
+    public net.zaminmc.torch.server.tnt.TntSystem tnt() {
+        return tntSystem;
+    }
+
+    /** Registers a TNT wire-sync observer (the protocol adapter). */
+    public void addTntListener(net.zaminmc.torch.server.tnt.TntSystem.Listener listener) {
+        tntListeners.add(java.util.Objects.requireNonNull(listener, "listener"));
+    }
+
+    /** The TNT events' fan-out to the registered observers. */
+    private final class TntEventDispatch implements net.zaminmc.torch.server.tnt.TntSystem.Listener {
+        @Override
+        public void onTntPrimed(net.zaminmc.torch.server.tnt.TntSystem.PrimedTnt tnt) {
+            for (net.zaminmc.torch.server.tnt.TntSystem.Listener listener : tntListeners) {
+                listener.onTntPrimed(tnt);
+            }
+        }
+
+        @Override
+        public void onTntMoved(net.zaminmc.torch.server.tnt.TntSystem.PrimedTnt tnt) {
+            for (net.zaminmc.torch.server.tnt.TntSystem.Listener listener : tntListeners) {
+                listener.onTntMoved(tnt);
+            }
+        }
+
+        @Override
+        public void onTntRemoved(net.zaminmc.torch.server.tnt.TntSystem.PrimedTnt tnt) {
+            for (net.zaminmc.torch.server.tnt.TntSystem.Listener listener : tntListeners) {
+                listener.onTntRemoved(tnt);
+            }
+        }
     }
 
     /**
@@ -4085,6 +4145,17 @@ public final class EngineServer implements Server, EngineBridge {
                         .equals("minecraft:flint_and_steel")) {
             return false;
         }
+        // The TNT ignite arm (TntBlock.use lines 96-113): the steel clicked
+        // on the TNT block itself primes it — the block leaves, the fuse
+        // starts, the flint wears one use.
+        if (tntSystem.useIgnite(clicked)) {
+            if (session.gamemode() == GameMode.SURVIVAL
+                    || session.gamemode() == GameMode.ADVENTURE) {
+                session.inventory().damageHeld(1, gameplayRandom);
+                publishInventoryChanged(session);
+            }
+            return true;
+        }
         BlockPosition target = offsetByFace(clicked, face);
         if (target == null) {
             return false;
@@ -6589,21 +6660,36 @@ public final class EngineServer implements Server, EngineBridge {
      */
     private void explodeOnTick(MobEntity creeper) {
         Position center = creeper.position();
-        double cx = center.x();
-        double cy = center.y() + 0.5;
-        double cz = center.z();
-        BlockPosition blockCenter = center.toBlockPosition();
+        detonateAt(center.x(), center.y() + 0.5, center.z(), CREEPER_POWER, BLAST_MAX_DAMAGE);
+    }
+
+    /**
+     * One detonation (the generalized explosion walk — the creeper and the
+     * primed TNT ride the same body): the destruction sphere with the
+     * per-power drop roll, the wound falloff to double the power with the
+     * caller's easy-difficulty cap, and the wire fan-out. Tick-thread
+     * context.
+     */
+    private void detonateAt(double cx, double cy, double cz, float power, float maxDamage) {
+        BlockPosition blockCenter = new BlockPosition(
+                (int) Math.floor(cx), (int) Math.floor(cy), (int) Math.floor(cz));
 
         // The destruction (each commit wakes the fluid and neighbor systems).
         java.util.List<ExplosionService.Destroyed> destroyed =
-                explosionService.detonate(blockCenter, CREEPER_POWER);
+                explosionService.detonate(blockCenter, power);
         // The historical drop roll: one block in `power` survives as loot.
         java.util.List<int[]> blockOffsets = new java.util.ArrayList<>();
         for (ExplosionService.Destroyed removed : destroyed) {
             BlockPosition b = removed.position();
             blockOffsets.add(new int[]{
                     b.x() - blockCenter.x(), b.y() - blockCenter.y(), b.z() - blockCenter.z()});
-            if (gameplayRandom.nextInt(Math.max(1, (int) CREEPER_POWER)) == 0) {
+            if (removed.type().identifier().value().equals("tnt")) {
+                // The chain reaction (TntBlock.onExploded lines 58-65): a
+                // consumed TNT primes a short-fuse body instead of dropping.
+                tntSystem.primeFromBlast(b);
+                continue;
+            }
+            if (gameplayRandom.nextInt(Math.max(1, (int) power)) == 0) {
                 net.zaminmc.torch.item.ItemType item = net.zaminmc.torch.server.item.BuiltinItems.lookup(
                         removed.type().identifier()).orElse(null);
                 if (item != null) {
@@ -6615,6 +6701,7 @@ public final class EngineServer implements Server, EngineBridge {
 
         // Player wounds: distance falloff to double the power, then the
         // historical hurt window and the per-observer knockback vector.
+        double injuryRadius = power * 2.0;
         java.util.Map<UUID, double[]> motion = new java.util.HashMap<>();
         for (PlayerSession player : players.all()) {
             if (player.state() != PlayerState.PLAYING) {
@@ -6625,10 +6712,10 @@ public final class EngineServer implements Server, EngineBridge {
             double dy = (p.y() + 0.9) - cy;
             double dz = p.z() - cz;
             double dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
-            if (dist > BLAST_INJURY_RADIUS) {
+            if (dist > injuryRadius) {
                 continue;
             }
-            float damage = (float) ((1 - dist / BLAST_INJURY_RADIUS) * BLAST_MAX_DAMAGE);
+            float damage = (float) ((1 - dist / injuryRadius) * maxDamage);
             if (damage <= 0) {
                 continue;
             }
@@ -6639,7 +6726,7 @@ public final class EngineServer implements Server, EngineBridge {
                     player.inventory().armorStacks(), damage);
             damage = applyArmor(player, damage); // armor eats its share of the blast
             damage = applyEnchantProtection(player, damage, DamageKind.EXPLOSION);
-            double scale = (1 - dist / BLAST_INJURY_RADIUS) * 1.6;
+            double scale = (1 - dist / injuryRadius) * 1.6;
             double mx = dist < 0.001 ? 0 : dx / dist * scale;
             double mz = dist < 0.001 ? 0 : dz / dist * scale;
             if (!player.hurtInvulnerable() || damage > player.lastHurtDamage()) {
@@ -6667,10 +6754,10 @@ public final class EngineServer implements Server, EngineBridge {
             double dy = (p.y() + mob.type().height * 0.5) - cy;
             double dz = p.z() - cz;
             double dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
-            if (dist > BLAST_INJURY_RADIUS) {
+            if (dist > injuryRadius) {
                 continue;
             }
-            float damage = (float) ((1 - dist / BLAST_INJURY_RADIUS) * BLAST_MAX_DAMAGE);
+            float damage = (float) ((1 - dist / injuryRadius) * maxDamage);
             if (damage <= 0) {
                 continue;
             }
@@ -6679,7 +6766,7 @@ public final class EngineServer implements Server, EngineBridge {
         }
 
         // The wire: one Explosion packet per observer, motion included.
-        ExplosionEvent event = new ExplosionEvent(cx, cy, cz, CREEPER_POWER,
+        ExplosionEvent event = new ExplosionEvent(cx, cy, cz, power,
                 java.util.List.copyOf(blockOffsets), java.util.Map.copyOf(motion));
         for (ExplosionListener listener : explosionListeners) {
             listener.onExplosion(event);

@@ -611,3 +611,57 @@ dormant.
 **Next:** the Phase 4 spatial activation — the boundary protocol work
 over piston pushes across region seams (the §11 boundary tests) — then
 TNT ignition, dispensers, hoppers.
+
+---
+## Slice 9f — the TNT + the cross-system neighbor bus
+
+**Reference:** `block/TntBlock.java`, `entity/PrimedTntEntity.java`,
+`world/explosion/Explosion.java` (the entity damage walk's numbers).
+
+**Landed:**
+- The block: `minecraft:tnt` (legacy 46, the block item shares the id),
+  the behavior row (hardness 0, drops the item), the registry (102
+  built-ins), the serializer id.
+- `TntSystem` (`server/tnt/`):
+  - The redstone ignition: a TNT that arrives into — or hears — a
+    neighbor signal primes (the onAdded + neighborChanged arms).
+  - The flint-and-steel use arm (TntBlock.use): the engine's flint path
+    carries the ignite + the durability.
+  - The blast chain-reaction (TntBlock.onExploded): a TNT consumed by an
+    explosion primes a short-fuse body (next(fuse/4) + fuse/8) instead of
+    dropping — the generalized detonation walk carries the arm.
+  - The primed bodies: the 80-tick fuse, the spawn hop (0.02 horizontal /
+    0.2 rise), the physics (gravity -0.04, drag 0.98, the feet-relative
+    ground test with the collision clamp + the bounce, the 0.7/0.5
+    friction), the "game.tnt.primed" sound.
+  - The detonation: the 4.0F blast at the body's own position (y+0.06)
+    through the generalized `detonateAt` — the creeper's explosion walk
+    parameterized (the per-power drop roll, the wound falloff to double
+    the power, the easy cap: the creeper keeps 24, the TNT 32).
+- The wire: Spawn Entity object 50 (objectData 1 + the velocity triple),
+  the Entity Teleport ride, Destroy — the adapter's TNT listener.
+- **The cross-system neighbor bus**: the RedstoneSystem's internal
+  neighborChanged now fans to registered consumers (the pistons, the
+  TNT) — the reference's world-level `neighborChanged`. This closes the
+  lever-through-a-block gap: a source's two-ring walk (the lever's own +
+  its mount's) now reaches every family, not just the redstone blocks.
+- The ExplosionService bounds guard: the ray fan stops at the vertical
+  world bounds (a latent crash — a blast marching below y=0 built an
+  out-of-bounds position).
+- The quasi-power piston test corrected to the vanilla semantics: the
+  lever's mount-ring DOES wake the piston (the toggle extends it through
+  the quasi walk) — the earlier test asserted the engine's gap.
+
+**Tests:** TntSystemTest (2) — the redstone ignition through a lever
+mounted beside (the mount's re-radiation + the two-ring wake), the fuse
+flight, the blast consuming the neighborhood; the flint-and-steel prime +
+the detonation. Suite 665 -> 667 green (the full pass on 2-core hosts:
+`--max-workers=1`).
+
+**Known differences (ledgered):** the burning-arrow ignite needs per-block
+entity collision callbacks; the smoke trail rides the particle slice; the
+primed body's physics is the simplified hop model (no entity-entity
+collision).
+
+**Next:** the Phase 4 spatial-activation boundary work over piston pushes
+across region seams, then dispensers/droppers, hoppers, tripwire.

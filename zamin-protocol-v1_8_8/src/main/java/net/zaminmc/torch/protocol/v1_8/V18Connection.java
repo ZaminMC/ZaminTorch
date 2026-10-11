@@ -2179,6 +2179,62 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         sendDestroyEntities(fallingEntityId);
     }
 
+    /**
+     * Spawn Entity (0x0E) object 50 for a primed TNT body. The objectData
+     * is 1 (the client reads the velocity triple after any non-zero data —
+     * the standard for objects with an initial motion, like the vanilla
+     * tracker's TNT packet). Chunk-gated like the other entities. Any
+     * thread.
+     */
+    void sendTntSpawn(net.zaminmc.torch.server.tnt.TntSystem.PrimedTnt tnt) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY
+                || chunkTracker == null) {
+            return;
+        }
+        var blockPos = new net.zaminmc.torch.block.BlockPosition(
+                (int) Math.floor(tnt.x()), (int) Math.floor(tnt.y()), (int) Math.floor(tnt.z()));
+        if (!chunkTracker.hasChunk(blockPos.chunkPosition().packed())) {
+            return; // observer cannot see that chunk yet
+        }
+        ByteBuf out = Unpooled.buffer(40);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_SPAWN_ENTITY);
+        ByteBufOps.writeVarInt(out, tnt.entityId());
+        out.writeByte(Protocol18.OBJECT_PRIMED_TNT);
+        out.writeInt((int) Math.floor(tnt.x() * 32.0));
+        out.writeInt((int) Math.floor(tnt.y() * 32.0));
+        out.writeInt((int) Math.floor(tnt.z() * 32.0));
+        out.writeByte(0); // pitch
+        out.writeByte(0); // yaw
+        out.writeInt(1); // objectData: the velocity flag
+        out.writeShort((int) Math.round(tnt.velocityX() * 8000.0));
+        out.writeShort((int) Math.round(tnt.velocityY() * 8000.0));
+        out.writeShort((int) Math.round(tnt.velocityZ() * 8000.0));
+        channel.writeAndFlush(out);
+    }
+
+    /** Entity Teleport (0x18) for a primed TNT body's tick movement. Any thread. */
+    void sendTntMoved(net.zaminmc.torch.server.tnt.TntSystem.PrimedTnt tnt) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(32);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_ENTITY_TELEPORT);
+        ByteBufOps.writeVarInt(out, tnt.entityId());
+        out.writeInt((int) Math.floor(tnt.x() * 32.0));
+        out.writeInt((int) Math.floor(tnt.y() * 32.0));
+        out.writeInt((int) Math.floor(tnt.z() * 32.0));
+        out.writeByte(0); // yaw
+        out.writeByte(0); // pitch
+        channel.writeAndFlush(out);
+    }
+
+    /** Removes a primed TNT body from this observer. Any thread. */
+    void sendTntRemoved(int tntEntityId) {
+        sendDestroyEntities(tntEntityId);
+    }
+
     /** Destroy Entities (0x13) with a single id. Any thread. */
     private void sendDestroyEntities(int entityId) {
         Channel channel = adapter.channelOf(this);

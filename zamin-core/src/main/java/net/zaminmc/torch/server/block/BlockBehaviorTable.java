@@ -134,6 +134,12 @@ public final class BlockBehaviorTable {
             Map.entry(Identifier.parse("minecraft:glass"),
                     new BlockBehavior(0.3, true, false, null, 0, List.of())),
 
+            // The TNT block (Slice 9f, community blocks.json: hardness 0,
+            // material tnt): drops the item when broken by hand.
+            Map.entry(Identifier.parse("minecraft:tnt"),
+                    new BlockBehavior(0.0, true, false, "tnt", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:tnt"), 1)))),
+
             // Community data (pc/1.8 blocks.json): gravel 0.6, material dirt,
             // no tool requirement. Drops model the historical quantityDropped
             // override: 10% flint, otherwise gravel (first-hit-wins rolls).
