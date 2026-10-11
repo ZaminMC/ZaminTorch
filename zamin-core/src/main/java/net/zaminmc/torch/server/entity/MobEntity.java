@@ -325,6 +325,45 @@ public final class MobEntity {
     private net.zaminmc.torch.server.player.PlayerSession leashHolderPlayer;
     private net.zaminmc.torch.server.leash.LeashKnot leashHolderKnot;
 
+    // The despawn state (Slice 11d — the reference's own fields): the
+    // persistent refuse every despawn (the leashed family), the far
+    // window counts up while no player stands within 32 blocks.
+    private boolean persistent;
+    private int farFromPlayerTicks;
+
+    /** The despawn's persistence flag (the leashed family never leaves). */
+    public boolean persistent() {
+        return persistent || leashed;
+    }
+
+    /** Marks the body persistent (named/bred mobs ride their own slices). */
+    public void setPersistent(boolean persistent) {
+        this.persistent = persistent;
+    }
+
+    /** The far-from-player window (checkDespawn's own counter). */
+    public int farFromPlayerTicks() {
+        return farFromPlayerTicks;
+    }
+
+    /**
+     * One tick of the despawn bookkeeping (serverTickAi line 442 +
+     * checkDespawn's own resets, 1:1): the window counts up EVERY tick
+     * unconditionally, then the persistent reset (line 419) and the
+     * near-player reset (lines 433-434, inside 32 blocks) zero it. No
+     * nearest player at all: the window keeps counting (the reference's
+     * own behavior — a mob alone for a thousand ticks rolls the idle
+     * despawn the instant a distant player appears).
+     */
+    public void tickDespawnWindow(boolean persistent, Double nearestSquared) {
+        this.farFromPlayerTicks++; // serverTickAi line 442: unconditional
+        if (persistent) {
+            this.farFromPlayerTicks = 0; // line 419: the persistent reset
+        } else if (nearestSquared != null && nearestSquared < 1024.0) {
+            this.farFromPlayerTicks = 0; // lines 433-434: within 32 blocks
+        }
+    }
+
     // The breed plumbing: the manager's mate scanner (the vanilla
     // getEntitiesOfType scan), the goal's confirmed mate, and the heart
     // flags the manager converts into observer effects.

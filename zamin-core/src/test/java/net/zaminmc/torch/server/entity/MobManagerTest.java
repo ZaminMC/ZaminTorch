@@ -202,30 +202,31 @@ class MobManagerTest {
     }
 
     @Test
-    void populationMaintainerTopsUpPassivesAndSpawnsNightZombies() {
+    void theNaturalCycleIsExternalAndTheDespawnRuleHolds() {
+        // Slice 11d: the population maintainer is gone — the
+        // NaturalSpawnSystem (its own test) owns the cycle now, and the
+        // manager's own despawn is the reference's rule: a MONSTER beyond
+        // 128 blocks of every playing player leaves on the next tick, and
+        // the ANIMALS never despawn at all (AnimalEntity's own
+        // canDespawn() = false — a penned cow stays penned).
         Rig rig = rig(11);
         var player = playingPlayer(new Position(0.5, 4.0, 0.5));
-        // Two hundred maintainer cycles: passives top up toward the cap, and
-        // the night rolls certainly produced zombies in that many chances.
-        for (int i = 0; i < MobManager.MAINTAIN_PERIOD * 200; i++) {
+        rig.manager().spawnAt(MobType.COW, new Position(1.5, 4.0, 0.5));
+        // Two hundred ticks alone with the near player: the cow stays.
+        for (int i = 0; i < 200; i++) {
             rig.manager().tick(List.of(player), MobManager.NIGHT_START + 100);
         }
-        int passive = 0;
-        int hostile = 0;
-        for (MobEntity mob : rig.manager().all()) {
-            if (mob.type().hostile) {
-                hostile++;
-            } else {
-                passive++;
-            }
-        }
-        assertTrue(passive >= MobManager.PASSIVE_CAP - 4,
-                "passives topped up near the cap, got " + passive);
-        assertTrue(passive <= MobManager.PASSIVE_CAP,
-                "the cap holds, got " + passive);
-        assertTrue(hostile > 0, "night spawning produced zombies");
-        assertTrue(hostile <= MobManager.HOSTILE_CAP, "the hostile cap holds");
-        assertTrue(rig.events().spawned > 0);
+        assertEquals(1, rig.manager().all().size(), "the near cow never despawns");
+        // A monster 200 blocks out: gone the first tick (the 16384 gate).
+        var farZombie = rig.manager().spawnAt(MobType.ZOMBIE, new Position(200.5, 4.0, 0.5));
+        // The animal 200 blocks out: NEVER leaves (canDespawn false).
+        var farCow = rig.manager().spawnAt(MobType.COW, new Position(-200.5, 4.0, 0.5));
+        rig.manager().tick(List.of(player), MobManager.NIGHT_START + 100);
+        assertNull(rig.manager().byId(farZombie.entityId()),
+                "the 128-block rule took the zombie");
+        assertNotNull(rig.manager().byId(farCow.entityId()),
+                "the far animal stays forever (canDespawn false)");
+        assertEquals(2, rig.manager().all().size());
     }
 
     @Test
