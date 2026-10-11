@@ -199,6 +199,32 @@ public final class BuiltinItems {
             Identifier.parse("minecraft:potion"), "Potion", 1);
     public static final EngineItemType GLASS_BOTTLE = new EngineItemType(
             Identifier.parse("minecraft:glass_bottle"), "Glass Bottle", 64);
+
+    // The brewing family (Slice 11e — the reference's Item.java
+    // registrations): the stand item 379 places the block; the
+    // ingredients carry their own flag recipes (BrewIngredients' table):
+    // ghast tear 370, nether wart 372, spider eye 375, fermented spider
+    // eye 376, blaze powder 377, magma cream 378, glistering melon 382
+    // (the reference's "speckled_melon"), rabbit foot 414. The pufferfish
+    // (the fish item's metadata-3 arm) rides the fish slice.
+    public static final EngineItemType GHAST_TEAR = new EngineItemType(
+            Identifier.parse("minecraft:ghast_tear"), "Ghast Tear", 64);
+    public static final EngineItemType NETHER_WART = new EngineItemType(
+            Identifier.parse("minecraft:nether_wart"), "Nether Wart", 64);
+    public static final EngineItemType SPIDER_EYE = new EngineItemType(
+            Identifier.parse("minecraft:spider_eye"), "Spider Eye", 64);
+    public static final EngineItemType FERMENTED_SPIDER_EYE = new EngineItemType(
+            Identifier.parse("minecraft:fermented_spider_eye"), "Fermented Spider Eye", 64);
+    public static final EngineItemType BLAZE_POWDER = new EngineItemType(
+            Identifier.parse("minecraft:blaze_powder"), "Blaze Powder", 64);
+    public static final EngineItemType MAGMA_CREAM = new EngineItemType(
+            Identifier.parse("minecraft:magma_cream"), "Magma Cream", 64);
+    public static final EngineItemType GLISTERING_MELON = new EngineItemType(
+            Identifier.parse("minecraft:glistering_melon"), "Glistering Melon", 64);
+    public static final EngineItemType RABBIT_FOOT = new EngineItemType(
+            Identifier.parse("minecraft:rabbit_foot"), "Rabbit's Foot", 64);
+    public static final EngineItemType BREWING_STAND = new EngineItemType(
+            Identifier.parse("minecraft:brewing_stand"), "Brewing Stand", 64);
     public static final EngineItemType OAK_FENCE = new EngineItemType(
             Identifier.parse("minecraft:oak_fence"), "Oak Fence", 64);
     // The bed item (community items.json: legacy 355) — places both halves.
@@ -490,6 +516,9 @@ public final class BuiltinItems {
                 LEVER, STONE_BUTTON, WOODEN_BUTTON,
                 STONE_PRESSURE_PLATE, WOODEN_PRESSURE_PLATE, HOPPER, TRIPWIRE_HOOK,
                 DISPENSER, DROPPER, FIRE_CHARGE, POTION, GLASS_BOTTLE,
+                GHAST_TEAR, NETHER_WART, SPIDER_EYE, FERMENTED_SPIDER_EYE,
+                BLAZE_POWDER, MAGMA_CREAM, GLISTERING_MELON, RABBIT_FOOT,
+                BREWING_STAND,
                 OAK_SLAB, STONE_SLAB, COBBLESTONE_SLAB, SANDSTONE_SLAB,
                 OAK_STAIRS, COBBLESTONE_STAIRS,
                 RAIL, BOAT, MINECART,

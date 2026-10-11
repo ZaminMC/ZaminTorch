@@ -336,6 +336,18 @@ final class Protocol18 {
     static final int DISPENSER_WIRE_SLOT_HOTBAR_FIRST = 36;
     static final int DISPENSER_WIRE_SLOT_HOTBAR_LAST = 44;
 
+    // The brewing stand window (Slice 11e — BrewingStandMenu lines 16-32:
+    // wire 0-2 the potion bottles, 3 the ingredient, then the player's
+    // 27+9; the brew timer rides the window's property 0).
+    static final String BREWING_WINDOW_TYPE = "minecraft:brewing_stand";
+    static final String BREWING_WINDOW_TITLE = "{\"text\":\"Brewing\"}";
+    static final int BREWING_WINDOW_SLOTS = 40;
+    static final int BREWING_WIRE_SLOT_LAST = 3;
+    static final int BREWING_WIRE_SLOT_MAIN_FIRST = 4;
+    static final int BREWING_WIRE_SLOT_MAIN_LAST = 30;
+    static final int BREWING_WIRE_SLOT_HOTBAR_FIRST = 31;
+    static final int BREWING_WIRE_SLOT_HOTBAR_LAST = 39;
+
     // The horse inventory window (protocol 47; the quirky legacy string the
     // 1.8 client switches on, plus the trailing mount entity id — the only
     // Open Window that carries one). Slot 0 saddle, slot 1 armor, player

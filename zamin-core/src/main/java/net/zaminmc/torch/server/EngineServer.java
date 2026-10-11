@@ -251,6 +251,8 @@ public final class EngineServer implements Server, EngineBridge {
     private net.zaminmc.torch.server.leash.LeadSystem leadSystem;
     /** The natural spawn cycle (Slice 11d): the 1:1 NaturalSpawner port. */
     private net.zaminmc.torch.server.spawn.NaturalSpawnSystem naturalSpawns;
+    /** The brewing stands (Slice 11e): the 1:1 brew-cycle port. */
+    private net.zaminmc.torch.server.brewing.BrewingStandSystem brewingStands;
     /** The tripwire subsystem (Slice 10c): the occupancy scan + the hook walk. */
     private net.zaminmc.torch.server.redstone.TripwireSystem tripwireSystem;
     /** The observers of the TNT system (the protocol adapter's wire sync). */
@@ -367,13 +369,14 @@ public final class EngineServer implements Server, EngineBridge {
         // Registry freeze: built-ins registered during boot preparation must be frozen
         // before any world exists (registry lifecycle: create -> register -> freeze).
         if (blockRegistry == null) {
-            blockRegistry = net.zaminmc.torch.server.dispenser.DispenserSystem.registerBlocks(
+            blockRegistry = net.zaminmc.torch.server.brewing.BrewingStandBlocks.registerAll(
+                    net.zaminmc.torch.server.dispenser.DispenserSystem.registerBlocks(
                     net.zaminmc.torch.server.hopper.HopperSystem.registerBlocks(
                     net.zaminmc.torch.server.piston.PistonSystem.registerBlocks(
                     net.zaminmc.torch.server.redstone.TripwireBlocks.registerAll(
                     net.zaminmc.torch.server.redstone.RedstoneBlocks.registerAll(
                             FluidBlocks.registerAll(
-                                    BuiltinBlocks.registerAll(new BlockRegistryBuilder()))))))).freeze();
+                                    BuiltinBlocks.registerAll(new BlockRegistryBuilder())))))))).freeze();
         }
 
         state.set(ServerState.STARTING);
@@ -597,6 +600,17 @@ public final class EngineServer implements Server, EngineBridge {
                                 : net.zaminmc.torch.server.redstone.RedstoneSystem.containerFullness(
                                         container.snapshotSlots(), 64);
                     }
+                    if (net.zaminmc.torch.server.brewing.BrewingStandBlocks.isBrewingStand(block)) {
+                        // The brewing stand's four slots (BrewingStandBlock
+                        // lines 130-137: isAnalogSignalSource over
+                        // InventoryMenu.getAnalogSignal — the same fullness
+                        // walk every container runs).
+                        net.zaminmc.torch.server.brewing.BrewingStandBlockEntity stand =
+                                brewingStands == null ? null : brewingStands.peek(position);
+                        return stand == null ? 0
+                                : net.zaminmc.torch.server.redstone.RedstoneSystem.containerFullness(
+                                        stand.snapshotSlots(), 64);
+                    }
                     if (block.identifier().equals(BuiltinBlocks.FURNACE.identifier())
                             || block.identifier().equals(BuiltinBlocks.FURNACE_LIT.identifier())) {
                         net.zaminmc.torch.server.furnace.FurnaceBlockEntity furnace =
@@ -734,6 +748,13 @@ public final class EngineServer implements Server, EngineBridge {
                 redstoneSystem.addNeighborListener(dispenserSystem::neighborHeard);
                 redstoneSystem.setDispenserTicker(dispenserSystem::scheduledTick);
                 hopperSystem.setDispenserLookup(dispenserSystem::getOrCreate);
+                // The brewing stands (Slice 11e): the per-tick brew walk;
+                // the state creation rides the open path + the hopper
+                // lookups (the placement never writes slots).
+                brewingStands = new net.zaminmc.torch.server.brewing.BrewingStandSystem();
+                brewingStands.setContentsChanged(
+                        position -> redstoneSystem.wakeComparators(position));
+                hopperSystem.setBrewingLookup(brewingStands::getOrCreate);
                 // The potions (Slice 11b): the per-body effect stores, the
                 // cadenced periodic application, and the splash's area walk.
                 potionSystem = new net.zaminmc.torch.server.potion.PotionSystem(
@@ -797,7 +818,9 @@ public final class EngineServer implements Server, EngineBridge {
                     tickMobPotions(); // the mobs' effect stores (Slice 11b)
                     tickLeashes(); // the leash physics + the knots (Slice 11c)
                     randomTicks.tick(players.all()); // §471: grass growth/decay
+                    brewingStands.tick(world); // the brew cycles (Slice 11e)
                     tickFurnaceViewers();
+                    tickBrewingViewers();
                     tickEnchantingViewers();
                     tickPlayerBodies();
                     tickWeather();            // /weather's countdown (the auto-clear)
@@ -829,6 +852,7 @@ public final class EngineServer implements Server, EngineBridge {
                     chestManager.onBlockBroken(position, itemEntities);
                     hopperSystem.onBlockBroken(position);
                     dispenserSystem.onBlockBroken(position);
+                    brewingStands.onBlockBroken(position, itemEntities);
                     doorSiblingCleanup(position);
                     bedSiblingCleanup(position, brokenType);
                     bedSpawnCleanup(position);
@@ -1446,6 +1470,46 @@ public final class EngineServer implements Server, EngineBridge {
     /** Registers an internal furnace-view observer (e.g. the protocol adapter's sync). */
     public void addFurnaceViewListener(FurnaceViewListener listener) {
         furnaceViewListeners.add(listener);
+    }
+
+    /** A per-tick brewing-window view: the adapter diffs the timer + serials. */
+    public interface BrewingViewListener {
+        void onBrewingViewTick(PlayerSession viewer,
+                               net.zaminmc.torch.server.brewing.BrewingStandBlockEntity stand);
+    }
+
+    private final java.util.List<BrewingViewListener> brewingViewListeners = new java.util.ArrayList<>();
+
+    /** Registers an internal brewing-view observer (the protocol adapter's sync). */
+    public void addBrewingViewListener(BrewingViewListener listener) {
+        brewingViewListeners.add(listener);
+    }
+
+    /**
+     * Fans per-tick brewing-window views out to the open viewer(s): the
+     * adapter diffs the stand's timer (the window's property 0) and the
+     * slots serial, syncing the wire. Tick-thread context.
+     */
+    private void tickBrewingViewers() {
+        for (PlayerSession session : players.all()) {
+            if (session.openContainerKind() != PlayerSession.ContainerKind.BREWING_STAND
+                    || session.openContainerWindowId() < 0) {
+                continue;
+            }
+            var position = session.openContainerPosition();
+            var stand = position == null ? null : brewingStands.peek(position);
+            if (stand == null) {
+                continue;
+            }
+            for (BrewingViewListener listener : brewingViewListeners) {
+                listener.onBrewingViewTick(session, stand);
+            }
+        }
+    }
+
+    /** @return the brewing stand subsystem (the protocol adapter's wire sync). */
+    public net.zaminmc.torch.server.brewing.BrewingStandSystem brewingStands() {
+        return brewingStands;
     }
 
     /** A per-tick enchanting-window view: the adapter diffs revision + properties. */
@@ -3151,6 +3215,7 @@ public final class EngineServer implements Server, EngineBridge {
                     case FURNACE -> clickFurnaceWindowOnTick(session, wireSlot, button, mode);
                     case CHEST -> clickChestWindowOnTick(session, wireSlot, button, mode);
                     case DISPENSER -> clickDispenserWindowOnTick(session, wireSlot, button, mode);
+                    case BREWING_STAND -> clickBrewingStandWindowOnTick(session, wireSlot, button, mode);
                     case HORSE -> clickHorseWindowOnTick(session, wireSlot, button, mode);
                     case VILLAGER -> clickVillagerWindowOnTick(session, wireSlot, button, mode);
                     case ENCHANTING_TABLE -> clickEnchantingWindowOnTick(session, wireSlot, button, mode);
@@ -3826,6 +3891,121 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /**
+     * The brewing stand's window layout (Slice 11e — the reference's
+     * BrewingStandMenu): wire 0-2 the potion bottles, 3 the ingredient,
+     * 4-30 the main inventory (engine 9-35), 31-39 the hotbar (engine
+     * 0-8); -1 for the container's own slots.
+     */
+    private static final int BREWING_WIRE_SLOT_LAST = 3;
+    private static final int BREWING_WIRE_SLOT_MAIN_FIRST = 4;
+    private static final int BREWING_WIRE_SLOT_MAIN_LAST = 30;
+    private static final int BREWING_WIRE_SLOT_HOTBAR_FIRST = 31;
+
+    /** Wire slot -> engine inventory slot inside the brewing window. */
+    private static int brewingEngineSlotOf(int wireSlot) {
+        if (wireSlot >= BREWING_WIRE_SLOT_MAIN_FIRST
+                && wireSlot <= BREWING_WIRE_SLOT_MAIN_LAST) {
+            return wireSlot + 5;                     // wire 4-30 -> engine 9-35
+        }
+        if (wireSlot >= BREWING_WIRE_SLOT_HOTBAR_FIRST && wireSlot <= 39) {
+            return wireSlot - BREWING_WIRE_SLOT_HOTBAR_FIRST; // hotbar 0-8
+        }
+        return -1;
+    }
+
+    /**
+     * Click routing for the brewing stand window (Slice 11e): the
+     * container's four filtered slots on wire 0-3 (the potion slots'
+     * one-stack limit, the ingredient slot's ingredient gate), the
+     * inventory below — the same shared semantics as the chest. The
+     * shift-click into the stand follows the reference's content-based
+     * arms (the ingredient into the empty slot 3, the bottles into 0-2
+     * one per slot). Tick-thread context.
+     */
+    private boolean clickBrewingStandWindowOnTick(PlayerSession session, int wireSlot, int button,
+                                                  int mode) {
+        var inventory = session.inventory();
+        var position = session.openContainerPosition();
+        var container = position == null ? null : brewingStands.peek(position);
+        if (container == null) {
+            return false; // stale window (state discarded): rejected, resync restores
+        }
+        switch (mode) {
+            case 0 -> {
+                if (wireSlot >= 0 && wireSlot <= BREWING_WIRE_SLOT_LAST) {
+                    container.clickSlot(wireSlot, button, inventory);
+                    return true;
+                }
+                int engineSlot = brewingEngineSlotOf(wireSlot);
+                if (engineSlot >= 0) {
+                    inventory.clickSlot(engineSlot, button);
+                    return true;
+                }
+                return false;
+            }
+            case 1 -> {
+                if (wireSlot >= 0 && wireSlot <= BREWING_WIRE_SLOT_LAST) {
+                    container.quickMoveToInventory(wireSlot, inventory);
+                    return true;
+                }
+                int engineSlot = brewingEngineSlotOf(wireSlot);
+                if (engineSlot >= 0) {
+                    // The content-based arms (quickMoveItem lines 71-90):
+                    // an ingredient into the empty slot, a bottle into the
+                    // potion slots; anything else never leaves.
+                    net.zaminmc.torch.item.ItemStack peek = inventory.snapshot().get(engineSlot);
+                    if (peek.isEmpty()) {
+                        return false; // empty slot shift-click: nothing moves
+                    }
+                    net.zaminmc.torch.item.ItemStack moving = inventory.dropFromSlot(engineSlot, true);
+                    net.zaminmc.torch.item.ItemStack remainder = container.quickMoveIn(moving);
+                    if (!remainder.isEmpty()) {
+                        inventory.pickUp(remainder); // the overflow returns
+                    }
+                    return true;
+                }
+                return false;
+            }
+            case 2 -> {
+                // Number keys exchange main inventory and hotbar only; the
+                // container slots are rejected per packet.
+                int engineSlot = brewingEngineSlotOf(wireSlot);
+                if (engineSlot >= net.zaminmc.torch.server.player.PlayerInventory.HOTBAR_SLOTS
+                        && button >= 0 && button < 9) {
+                    inventory.swapWithHotbar(engineSlot, button);
+                    return true;
+                }
+                return false;
+            }
+            case 3 -> {
+                return false; // middle-click clone: rejected in survival
+            }
+            case 4 -> {
+                if (wireSlot >= 0 && wireSlot <= BREWING_WIRE_SLOT_LAST) {
+                    net.zaminmc.torch.item.ItemStack dropped = container.dropFromSlot(wireSlot, button != 0);
+                    if (!dropped.isEmpty()) {
+                        throwFromPlayer(session, dropped);
+                    }
+                    return true;
+                }
+                int engineSlot = brewingEngineSlotOf(wireSlot);
+                if (engineSlot >= 0) {
+                    net.zaminmc.torch.item.ItemStack dropped =
+                            inventory.dropFromSlot(engineSlot, button != 0);
+                    if (!dropped.isEmpty()) {
+                        throwFromPlayer(session, dropped);
+                    }
+                    return true;
+                }
+                return false;
+            }
+            default -> {
+                return false; // drag painting (5) / unknown mode: rejected
+            }
+        }
+    }
+
+    /**
      * Wire slot -> engine inventory slot inside a container window (10-36 maps
      * to main inventory engine slots 9-35; 37-45 to hotbar 0-8); -1 for the
      * container's own result/grid slots.
@@ -3964,6 +4144,11 @@ public final class EngineServer implements Server, EngineBridge {
             // DispenserBlock.use lines 78-94: the container opens (the
             // dropper keeps its own menu type on the wire).
             openDispenserOnTick(session, clicked, onTableOpened);
+            return;
+        }
+        if (net.zaminmc.torch.server.brewing.BrewingStandBlocks.isBrewingStand(current)) {
+            // BrewingStandBlock.use lines 77-89: the container menu opens.
+            openBrewingStandOnTick(session, clicked, onTableOpened);
             return;
         }
         if (current.identifier().equals(net.zaminmc.torch.server.block.BuiltinBlocks.CRAFTING_TABLE.identifier())) {
@@ -6206,6 +6391,24 @@ public final class EngineServer implements Server, EngineBridge {
         nextContainerWindowId = nextContainerWindowId >= LAST_CONTAINER_WINDOW_ID
                 ? FIRST_CONTAINER_WINDOW_ID : nextContainerWindowId + 1;
         session.openContainerWindow(windowId, PlayerSession.ContainerKind.DISPENSER, position);
+        onTableOpened.accept(windowId);
+    }
+
+    /**
+     * The brewing stand's open (Slice 11e — BrewingStandBlock.use lines
+     * 77-89): the state materializes on first use, the window opens with
+     * the world-resident slots. Tick-thread context.
+     */
+    private void openBrewingStandOnTick(PlayerSession session, net.zaminmc.torch.block.BlockPosition position,
+                                        java.util.function.IntConsumer onTableOpened) {
+        closeOpenContainerOnTick(session);
+        dropGridToWorld(session, session.crafting()); // the vanilla close: the 2x2 grid drops
+
+        brewingStands.getOrCreate(position);
+        int windowId = nextContainerWindowId;
+        nextContainerWindowId = nextContainerWindowId >= LAST_CONTAINER_WINDOW_ID
+                ? FIRST_CONTAINER_WINDOW_ID : nextContainerWindowId + 1;
+        session.openContainerWindow(windowId, PlayerSession.ContainerKind.BREWING_STAND, position);
         onTableOpened.accept(windowId);
     }
 

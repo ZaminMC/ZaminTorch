@@ -1209,3 +1209,82 @@ the light gate.
 
 **Next:** the brewing stand BE + GUI (the 11b ledger row), the
 structures, the mob equipment/JC queues.
+
+## Slice 11e — the brewing stand (the reference port of block/BrewingStandBlock + block/entity/BrewingStandBlockEntity + inventory/menu/BrewingStandMenu + Item.java's ingredient registrations)
+
+**What landed:**
+
+- **The block family** (`brewing/BrewingStandBlocks`): legacy 117 with
+  the three HAS_BOTTLE bits riding the nibble (bit i = has_bottle_i, the
+  reference's own getStateFromMetadata lines 145-153) — eight flattened
+  states; the strength 0.5 behavior row with the stand-item drop; the
+  light-table rows (the reference's setLight(0.125F) = filter 1, which
+  the engine's max(1, filter) step absorbs — the stand registers like
+  the chest, light passes).
+- **The block entity** (`BrewingStandBlockEntity`): the 1:1 port of the
+  400-tick cycle (the arming through canBrew with the remembered
+  ingredient identity, the countdown with the reference's exact
+  cancellation order — the not-brewing gate, then the item-changed gate),
+  the canBrew change rule (the splash conversion always counts; the
+  effect-list walk with the reference's `(j <= 0 || differ) && (empty ||
+  differ-and-nonempty) && j != k` shape — the engine's element equality
+  over id/amplifier/duration/splash replacing the reference's cached-list
+  identity), the brew's careful write gate (the same-effect brew only
+  rewrites when the splash bit itself moved — the reference's inverted
+  condition), the ingredient's one-unit payment (no 1.8.8 ingredient
+  carries a recipe remainder — verified), the bottle-bits change flag
+  (findHasPotion over the cached pair), and the slot surface (the
+  potion slots' one-stack limit with the potion/bottle filter, the
+  ingredient slot's ingredient gate).
+- **The system** (`BrewingStandSystem`): the per-tick walk (the state
+  whose block is gone discards — the creative-break path), the
+  bottle-bits world write through the ordinary commit path (the
+  reference's flag-2 setBlockState), the survival-break spill, the
+  viewer fan-out seam, and the hopper's sided surface (getSlots: the UP
+  face feeds the ingredient slot alone, every other face the three
+  potion slots; canPushItem = the slot filters).
+- **The ingredients** (`BrewIngredients`): the item → recipe-string
+  table — the reference's Item.potionIngredient registrations item for
+  item (gunpowder, redstone, glowstone, sugar, ghast tear, nether wart's
+  "+4", spider eye, fermented spider eye, blaze powder, magma cream,
+  glistering melon, golden carrot, rabbit foot; the pufferfish rides
+  the fish slice). The nine new items with their reference ids (370,
+  372, 375-378, 382, 414) + the stand item 379 through the protocol's
+  ITEM_OVERRIDES split (the block keeps 117).
+- **The GUI + wire**: ContainerKind.BREWING_STAND, the open arm (the
+  use dispatch), the click routing (the four filtered slots on wire 0-3
+  with the historical click semantics, the number-key/drop arms, the
+  shift-click's content-based routing — the ingredient into the empty
+  slot 3, the bottles one per potion slot, the non-brewable never
+  leaves), the Open Window `minecraft:brewing_stand` with the 4 own
+  slots, the 40-slot Window Items (the wire 4-30 main / 31-39 hotbar
+  layout of the reference's menu), the brew-timer Window Property 0 on
+  change (the reference's updateListeners — the changed value only),
+  and the per-tick view fan-out to the open viewer.
+- **The cross-system wiring**: the comparator's container fullness over
+  the four slots (the analog source gate), the contents-changed wake
+  through the markDirty fan-out, the hopper's container adapter (the
+  dropper's push and the hopper's feed both reach the stand's slots),
+  and the block registry chain.
+
+**Tests:** BrewingStandSystemTest (6: the water→awkward 400-tick walk
+with the three bottle bits + the ingredient's one-unit payment, the
+cancellation gates — the ingredient leaves, a different item appears
+under the running timer — and the no-op's never-arming + the splash's
+always-brewing (the gunpowder's `&13-13` clears the carrier: the mundane
+8192 turns the plain splash 16384), the survival-break spill + the
+container fullness, the hopper's UP-face ingredient feed, and the
+shift-click arms with the one-bottle-per-slot walk). The fresh full-suite
+count: **647 green in zamin-core** (+19 api +71 protocol) with
+--max-workers=1, zero failures.
+
+**Ledgered (not in this slice):** the stand's ZCD persistence (the four
+slots + the timer ride the container persistence slice), the pufferfish
+ingredient (the fish item's metadata-3 arm), the BREW_POTION
+achievement, the custom-name carry from the placed item's hover name,
+the smoke particles of randomDisplayTick, the 1.8 client's brewing-bar
+inversion (the client maps the raw timer itself — the wire sends the
+reference's own value).
+
+**Next:** the container ZCD persistence family (the brewing stand's four
+slots join it), the structures, the golden apple's effect set.

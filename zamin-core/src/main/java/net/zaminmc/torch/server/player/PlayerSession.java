@@ -66,6 +66,12 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
          * the world at containerPosition — the same ownership as the chest).
          */
         DISPENSER,
+        /**
+         * The brewing stand (Slice 11e: 4-slot GUI — three bottles + the
+         * ingredient — with the brew timer riding property 0; slot state
+         * lives in the world at containerPosition).
+         */
+        BREWING_STAND,
         /** The horse inventory (saddle + armor slots live on the mount at containerPosition's mount id). */
         HORSE,
         /** The villager trading window (offers ride the MC|TrList plugin message). */

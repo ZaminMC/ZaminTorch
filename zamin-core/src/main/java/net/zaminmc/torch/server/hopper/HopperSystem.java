@@ -75,6 +75,21 @@ public final class HopperSystem implements WorldChangeListener {
         this.dispenserLookup = Objects.requireNonNull(lookup, "lookup");
     }
 
+    /**
+     * The brewing stands' container state (wired after construction like
+     * the dispenser family's — the same late-lookup cycle).
+     */
+    private java.util.function.Function<BlockPosition,
+            net.zaminmc.torch.server.brewing.BrewingStandBlockEntity> brewingLookup =
+            position -> null;
+
+    /** Wires the brewing stand family's container lookup. */
+    public void setBrewingLookup(
+            java.util.function.Function<BlockPosition,
+                    net.zaminmc.torch.server.brewing.BrewingStandBlockEntity> lookup) {
+        this.brewingLookup = Objects.requireNonNull(lookup, "lookup");
+    }
+
     public HopperSystem(EngineWorld world, RedstoneSystem redstone,
                         ItemEntityManager itemEntities, ChestManager chests,
                         FurnaceManager furnaces) {
@@ -454,6 +469,21 @@ public final class HopperSystem implements WorldChangeListener {
             }
             return List.of();
         }
+        // The brewing stand (Slice 11e — getSlots lines 280-282): the UP
+        // face feeds the ingredient slot alone; every other face walks
+        // the three potion slots.
+        if (net.zaminmc.torch.server.brewing.BrewingStandBlocks.isBrewingStand(type)) {
+            net.zaminmc.torch.server.brewing.BrewingStandBlockEntity stand =
+                    brewingLookup.apply(at);
+            if (stand == null) {
+                return List.of();
+            }
+            List<ContainerSlot> slots = new ArrayList<>(3);
+            for (int slot : net.zaminmc.torch.server.brewing.BrewingStandSystem.slotsForFace(face)) {
+                slots.add(brewingSlot(stand, slot, at));
+            }
+            return slots;
+        }
         if (type.identifier().equals(BuiltinBlocks.FURNACE.identifier())
                 || type.identifier().equals(BuiltinBlocks.FURNACE_LIT.identifier())) {
             FurnaceBlockEntity furnace = furnaces.getOrCreate(at);
@@ -528,6 +558,32 @@ public final class HopperSystem implements WorldChangeListener {
             @Override
             public boolean allows(ItemStack moving) {
                 return true;
+            }
+        };
+    }
+
+    /**
+     * The brewing stand's slot (canPushItem lines 284-287): the ingredient
+     * slot takes ingredients, the potion slots potions and bottles.
+     */
+    private static ContainerSlot brewingSlot(
+            net.zaminmc.torch.server.brewing.BrewingStandBlockEntity stand, int slot,
+            BlockPosition standAt) {
+        return new ContainerSlot() {
+            @Override
+            public ItemStack get() {
+                return stand.getItem(slot);
+            }
+
+            @Override
+            public void set(ItemStack stack) {
+                stand.setItem(slot, stack);
+            }
+
+            @Override
+            public boolean allows(ItemStack moving) {
+                return net.zaminmc.torch.server.brewing.BrewingStandSystem
+                        .canPushItem(slot, moving);
             }
         };
     }

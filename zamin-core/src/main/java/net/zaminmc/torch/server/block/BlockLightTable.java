@@ -106,6 +106,19 @@ public final class BlockLightTable {
             Map.entry(Identifier.parse("minecraft:chest"), new LightData(0, 0)),
             Map.entry(Identifier.parse("minecraft:furnace"), new LightData(0, 0)),
 
+            // The brewing stand (Slice 11e): the reference's setLight(0.125F)
+            // = filter 1 — the engine's max(1, filter) step absorbs it into
+            // the standard per-cell cost, so the stand registers like the
+            // chest (light passes paying the ordinary step).
+            Map.entry(Identifier.parse("minecraft:brewing_stand"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:brewing_stand_bottle0"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:brewing_stand_bottle1"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:brewing_stand_bottle2"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:brewing_stand_bottle0_bottle1"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:brewing_stand_bottle0_bottle2"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:brewing_stand_bottle1_bottle2"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:brewing_stand_bottle0_bottle1_bottle2"), new LightData(0, 0)),
+
             // The flora passes light fully (dataset filterLight 0: the plants
             // shade nothing); sandstone is a full opaque cube (filter 15).
             Map.entry(Identifier.parse("minecraft:tall_grass"), new LightData(0, 0)),
