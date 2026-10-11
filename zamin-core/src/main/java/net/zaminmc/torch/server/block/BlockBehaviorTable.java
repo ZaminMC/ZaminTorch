@@ -557,6 +557,15 @@ public final class BlockBehaviorTable {
             behaviors.put(Identifier.parse("minecraft:moving_piston_" + directions[facing] + "_sticky"),
                     movingPiston);
         }
+        // The hopper (Slice 10b, community blocks.json: hardness 3.0): every
+        // facing/enabled variant drops the hopper item.
+        BlockBehavior hopper = new BlockBehavior(3.0, true, false, "rock", 0,
+                List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:hopper"), 1)));
+        for (int facing : new int[]{0, 2, 3, 4, 5}) { // no UP — the FACING predicate
+            behaviors.put(Identifier.parse("minecraft:hopper_" + directions[facing]), hopper);
+            behaviors.put(Identifier.parse("minecraft:hopper_" + directions[facing] + "_disabled"),
+                    hopper);
+        }
         // The player-driven sources (Slice 9c): the lever, the buttons and
         // the plates — every facing/powered variant drops its item, the
         // break is instant by hand (community blocks.json: hardness 0.5 for

@@ -233,7 +233,8 @@ public final class EngineServer implements Server, EngineBridge {
 
     /** The TNT subsystem (Slice 9f): the ignition arms + the primed bodies. */
     private net.zaminmc.torch.server.tnt.TntSystem tntSystem;
-
+    /** The hopper subsystem (Slice 10b): the 8-tick transfer cadence. */
+    private net.zaminmc.torch.server.hopper.HopperSystem hopperSystem;
     /** The observers of the TNT system (the protocol adapter's wire sync). */
     private final java.util.List<net.zaminmc.torch.server.tnt.TntSystem.Listener> tntListeners =
             new java.util.ArrayList<>();
@@ -346,10 +347,11 @@ public final class EngineServer implements Server, EngineBridge {
         // Registry freeze: built-ins registered during boot preparation must be frozen
         // before any world exists (registry lifecycle: create -> register -> freeze).
         if (blockRegistry == null) {
-            blockRegistry = net.zaminmc.torch.server.piston.PistonSystem.registerBlocks(
+            blockRegistry = net.zaminmc.torch.server.hopper.HopperSystem.registerBlocks(
+                    net.zaminmc.torch.server.piston.PistonSystem.registerBlocks(
                     net.zaminmc.torch.server.redstone.RedstoneBlocks.registerAll(
                             FluidBlocks.registerAll(
-                                    BuiltinBlocks.registerAll(new BlockRegistryBuilder())))).freeze();
+                                    BuiltinBlocks.registerAll(new BlockRegistryBuilder()))))).freeze();
         }
 
         state.set(ServerState.STARTING);
@@ -556,6 +558,13 @@ public final class EngineServer implements Server, EngineBridge {
                                 : net.zaminmc.torch.server.redstone.RedstoneSystem.containerFullness(
                                         chest.snapshotSlots(), 64);
                     }
+                    if (net.zaminmc.torch.server.hopper.HopperBlocks.isHopper(block)) {
+                        net.zaminmc.torch.server.hopper.HopperBlockEntity hopper =
+                                hopperSystem.peek(position);
+                        return hopper == null ? 0
+                                : net.zaminmc.torch.server.redstone.RedstoneSystem.containerFullness(
+                                        hopper.snapshotSlots(), 64);
+                    }
                     if (block.identifier().equals(BuiltinBlocks.FURNACE.identifier())
                             || block.identifier().equals(BuiltinBlocks.FURNACE_LIT.identifier())) {
                         net.zaminmc.torch.server.furnace.FurnaceBlockEntity furnace =
@@ -596,6 +605,16 @@ public final class EngineServer implements Server, EngineBridge {
                 // the reference's world-level neighborChanged.
                 redstoneSystem.addNeighborListener(pistonSystem::neighborHeard);
                 redstoneSystem.addNeighborListener(tntSystem::neighborHeard);
+                // The hoppers (Slice 10b): the transfer system (the 8-tick
+                // cooldown, the push toward the FACING container, the pull
+                // from above + the item-entity suck, the powered disable
+                // through the neighbor bus, the break spill) — the §11
+                // boundary hard case, every transfer one same-tick unit
+                // under the boundary scope.
+                hopperSystem = new net.zaminmc.torch.server.hopper.HopperSystem(
+                        world, redstoneSystem, itemEntities, chestManager, furnaceManager);
+                world.addChangeListener(hopperSystem); // the placement creates the BE state
+                redstoneSystem.addNeighborListener(hopperSystem::neighborHeard);
                 // Fluids (§472 pattern): the scheduled pour/dry/contact system,
                 // waking on every committed change like the neighbor rules do.
                 fluidSystem = new FluidSystem(new FluidWorld(), new FluidSink(itemEntities));
@@ -644,6 +663,7 @@ public final class EngineServer implements Server, EngineBridge {
                     blockUpdateSystem.tick(); // §466: scheduled updates (falls start here)
                     redstoneSystem.tick(); // the torch/repeater scheduled reactions
                     pistonSystem.tick(); // the piston block events + the moving carriers
+                    hopperSystem.tick(); // the hoppers' 8-tick transfer cadence
                     tntSystem.tick(); // the primed TNT fuses + physics
                     blockInteraction.tickMining(); // the vanilla dig accumulator + 0x28 stages
                     fluidSystem.tick();       // §472 pattern: pours, streams, contact
@@ -689,6 +709,7 @@ public final class EngineServer implements Server, EngineBridge {
                 blockInteraction.setBlockBrokenListener((position, brokenType) -> {
                     furnaceManager.onBlockBroken(position, itemEntities);
                     chestManager.onBlockBroken(position, itemEntities);
+                    hopperSystem.onBlockBroken(position);
                     doorSiblingCleanup(position);
                     bedSiblingCleanup(position, brokenType);
                     bedSpawnCleanup(position);
@@ -1107,6 +1128,11 @@ public final class EngineServer implements Server, EngineBridge {
     /** The chest block entities (exposed for behavioral tests). */
     public ChestManager chestManager() {
         return chestManager;
+    }
+
+    /** The hopper subsystem (public: the hopper tests read/write its state). */
+    public net.zaminmc.torch.server.hopper.HopperSystem hopper() {
+        return hopperSystem;
     }
 
     /** The piston subsystem (exposed for behavioral tests). */
@@ -3697,6 +3723,11 @@ public final class EngineServer implements Server, EngineBridge {
                     heldId.equals("minecraft:sticky_piston"));
             return; // the eye/look-facing rule overrides the generic placement
         }
+        if (heldId.equals("minecraft:hopper")
+                || creativeHeld.map(t -> t.identifier().value().equals("hopper")).orElse(false)) {
+            placeHopperOnTick(session, clicked, face, creativeHeld);
+            return; // the clicked-face-opposite rule overrides the generic placement
+        }
         if (heldId.equals("minecraft:lever")
                 || creativeHeld.map(t -> t.identifier().value().equals("lever")).orElse(false)) {
             placeLeverOnTick(session, clicked, face, creativeHeld);
@@ -4065,6 +4096,33 @@ public final class EngineServer implements Server, EngineBridge {
         }
         world.setBlock(target, net.zaminmc.torch.server.piston.PistonBlocks.pistonOf(
                 facing, false, sticky));
+        consumePlaced(session, creativeHeld);
+    }
+
+    /**
+     * The hopper placement (HopperBlock.getPlacementState lines 65-72): the
+     * clicked face's OPPOSITE is the output facing — an UP outcome clamps to
+     * DOWN (the FACING predicate excludes UP). The hopper lands ENABLED; a
+     * neighbor signal flips the pair on the next re-arm. Tick-thread
+     * context.
+     */
+    private void placeHopperOnTick(PlayerSession session, BlockPosition clicked, int face,
+                                    java.util.Optional<BlockType> creativeHeld) {
+        BlockPosition target = offsetByFace(clicked, face);
+        if (target == null || world.getBlock(clicked).equals(world.airType())
+                || !world.getBlock(target).equals(world.airType())) {
+            return;
+        }
+        if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5
+                || intersectsPlayerBox(session.position(), target)) {
+            return;
+        }
+        if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE
+                && session.inventory().held().isEmpty()) {
+            return;
+        }
+        int facing = net.zaminmc.torch.server.hopper.HopperSystem.placementFacing(face);
+        world.setBlock(target, net.zaminmc.torch.server.hopper.HopperBlocks.hopperOf(facing, true));
         consumePlaced(session, creativeHeld);
     }
 

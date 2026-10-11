@@ -745,3 +745,58 @@ and the fluid walks ride the ambient authority on the single tick lane.
 **Next:** dispensers/droppers, hoppers (the §11 hopper intent arm — the
 cross-owner transfer rides the router), tripwire, then potions, leads,
 structures, natural spawn cycles.
+
+---
+## Slice 10b — the hoppers (the §11 boundary hard case)
+
+**Goal:** the reference port of the hopper — the 8-tick transfer cadence,
+the push/pull/suck arms, the powered disable, and the cross-seam transfer
+pinned under the Phase 4 boundary scope.
+
+**Reference:** `reference/1.8.8/block/HopperBlock.java` +
+`block/entity/HopperBlockEntity.java` (transferItems/pushItem/pullItem/
+pickUpItem/getInventoryAt, the cooldown semantics, the sided slot walks) +
+`block/entity/FurnaceBlockEntity.java` (the sided slot arrays).
+
+**Landed:**
+
+- `HopperBlocks`: the flattened family (legacy 154, five FACING values —
+  everything but UP, the reference's own predicate — × the ENABLED pair,
+  the nibble facing | disabled<<3) + the behavior rows (hardness 3.0, the
+  hopper item drop) + the item (410, the comparator-style split) + the
+  wire serializer (the nibble encode + the damage-aware reverse fold).
+- `HopperBlockEntity`: the 5 slots, the transferCooldown (the reference's
+  -1 initial — a fresh hopper transfers on its first tick), the 8-tick
+  reset, the receiving-hopper cooldown arm (canTransferNextTick), the
+  contents-changed wake (markDirty -> the comparators).
+- `HopperSystem`: the per-tick cadence (cooldown--, transfer when off
+  cooldown, the success reset to 8), ONE item per transfer with the
+  whole-stack restore on failure (the reference's removeItem(i, 1) +
+  copy), the push toward the FACING container, the pull from the container
+  above, the item-entity suck from the box above (the whole stack), the
+  furnace's sided slots (top input / bottom output-then-fuel / sides
+  fuel, the bucket-only fuel pull gate, the fuel-only slot filter), the
+  powered disable through the cross-system neighbor bus (the ENABLED pair
+  flip on hasNeighborSignal), the placement's clicked-face-opposite
+  facing (UP clamps DOWN), the survival break spill + the comparator
+  wake, and the placement-time BE creation (the world commit listener —
+  the reference's createBlockEntity at placement).
+- The comparator's container-fullness read gains the hopper (5 slots).
+- Every transfer is one same-tick unit under the boundary scope spanning
+  the hopper, its push target, and the pull source (the Phase 4 spatial
+  activation): the cross-seam transfer is vanilla-exact — the §11
+  "hoppers transferring items between containers with different owners"
+  row.
+
+**Ledgered:** the 5-slot hopper GUI window and the hopper-contents ZCD
+persistence ride the protocol/persistence slices; the minecart-with-chest
+entity arm of the container resolution is absent (no chest minecarts
+yet); the one-tick-latency intent arm is the parallel-lane adaptation.
+
+**Tests:** 675 -> 682 green (HopperSystemTest 7: the push cadence
+one-by-one, the pull with the exact release, the furnace's side-face fuel
+routing, the powered disable + the resume, the item-entity suck, the
+cross-seam transfer under the boundary scope, the break spill).
+
+**Next:** dispensers/droppers, tripwire, then potions, leads,
+structures, natural spawn cycles.
