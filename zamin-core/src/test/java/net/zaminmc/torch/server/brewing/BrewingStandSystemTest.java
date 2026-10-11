@@ -316,6 +316,45 @@ class BrewingStandSystemTest {
         return server;
     }
 
+    @Test
+    void thePufferfishBrewsTheWaterBreathing() throws Exception {
+        EngineServer server = boot();
+        try {
+            // The pufferfish's flag recipe (FishItem.asPotionIngredient
+            // lines 33-35 → PotionHelper.PUFFERFISH = "+0-1+2+3+13&4-4"):
+            // the awkward potion (16) turns into the water breathing —
+            // metadata 8205, the 3:00 base (bits 0,2,3,13).
+            BlockPosition stand = new BlockPosition(140, 40, 140);
+            server.ticker().submit(() -> {
+                server.world().setBlock(stand, BrewingStandBlocks.of(
+                        false, false, false));
+                var entity = server.brewingStands().getOrCreate(stand);
+                entity.setItem(0, new ItemStack(
+                        net.zaminmc.torch.server.item.BuiltinItems.POTION, 1, 16));
+                // The pufferfish: the fish item's metadata-3 arm.
+                entity.setItem(BrewingStandBlockEntity.SLOT_INGREDIENT, new ItemStack(
+                        net.zaminmc.torch.server.item.BuiltinItems.FISH, 1, 3));
+            });
+            await(() -> server.brewingStands().peek(stand) != null,
+                    "the stand's state materialized");
+            var entity = server.brewingStands().peek(stand);
+            await(() -> entity.timer() > 0, "the pufferfish armed the cycle");
+            await(() -> entity.getItem(0).damage() == 8205,
+                    "the awkward potion brewed into the water breathing");
+            // The pufferfish paid its single unit (the slot emptied).
+            assertTrue(entity.getItem(BrewingStandBlockEntity.SLOT_INGREDIENT).isEmpty(),
+                    "the pufferfish paid its unit");
+            // The brewed effect set: water breathing at the 3:00 base.
+            var effects = PotionHelper.getStatusEffects(8205);
+            assertEquals(1, effects.size(), "one effect");
+            assertEquals(net.zaminmc.torch.server.potion.StatusEffects.WATER_BREATHING,
+                    effects.get(0).id());
+            assertEquals(3600, effects.get(0).duration(), "3:00 = 3600 ticks");
+        } finally {
+            server.shutdown(() -> { });
+        }
+    }
+
     private void await(BooleanSupplier condition, String description) throws InterruptedException {
         long deadline = System.currentTimeMillis() + 30_000;
         while (System.currentTimeMillis() < deadline) {

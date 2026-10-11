@@ -1397,3 +1397,70 @@ itself is not registered).
 
 **Next:** the structures (the villages/mineshafts/strongholds), the
 fish item family.
+
+## Slice 11i — the fish item family
+
+**What landed:** the reference's `FishItem` (reference/1.8.8
+item/FishItem.java) ported 1:1: the two items (the raw fish 349, the
+cooked fish 350) whose four variants ride the damage field — 0 cod,
+1 salmon, 2 clownfish, 3 pufferfish — through a new
+`server/item/FishItems` (the reference's own Type table: the raw pair
+2/0.1 and 1/0.1, the cooked pair 5/0.6 and 6/0.8, the clownfish and
+the pufferfish non-cookable).
+
+**The nutrition dispatch:** `Foods.nutritionOf(type, damage)` — the
+damage-aware overload the eat gate, the eat-start gate and the
+completion all call — answers the fish family by the metadata variant
+exactly like the reference's getHungerPoints/getSaturation overrides
+(`cooked && canBeCooked()` gates the cooked arm). The reference's own
+quirks kept: `byId` answers COD for an unknown metadata, and a cooked
+clownfish/pufferfish answers the RAW values.
+
+**The pufferfish's eat triple** (FishItem.addEatEffects lines 38-47,
+BEFORE the super call — the reference's own order): Poison IV 1200
+(60 s), Hunger III 300 (15 s), Nausea II 300 (15 s), all certain, no
+chance roll. The dispatch reads the metadata of EITHER fish item —
+a cooked fish with pufferfish metadata eats (and poisons) like a raw
+pufferfish, the reference's own Type.byItem behavior.
+
+**The brewing arm:** `BrewIngredients.recipeOf`'s pufferfish branch —
+the metadata-3 of either fish item answers
+`PotionHelper.PUFFERFISH` ("+0-1+2+3+13&4-4") exactly like the
+reference's asPotionIngredient. The awkward potion (16) brews into
+the water breathing (8205, the 3:00 base), the ingredient paying its
+single unit. The arm flows through every brewing surface: canBrew,
+the applyIngredient walk, the ingredient slot's isItemAllowed filter,
+the shift-click routing, the hopper's push gate.
+
+**The smelting pair:** `FurnaceRecipes.resultOf(type, damage)` — the
+damage-aware overload (the four furnace call sites updated: canSmelt,
+smeltOne, quickMoveIn, the manager's shift-click gate): the raw cod →
+the cooked cod (damage 0), the raw salmon → the cooked salmon (damage
+1); the clownfish and the pufferfish never cook (the canBeCooked gate).
+The cooked fish joins the cooked-food band's 0.35 take XP. Also the
+data-gap fix: the mutton → cooked mutton row (the item's own
+registration comment claimed the smelt since the living-night slice,
+but the row never landed — the community table's own entry).
+
+**Tests:** BodySurvivalAcceptanceTest (the new
+thePufferfishPoisonsItsEaterWithTheFullTriple — the exact three
+durations + amplifiers, all certain; theFishFamilyNourishesByItsVariant
+— the full Type table, the live cooked-salmon eat, the two quirks: the
+cooked clownfish eats raw, the unknown metadata answers cod, the live
+cooked-pufferfish-eats-raw-and-poisons quirk).
+BrewingStandSystemTest.thePufferfishBrewsTheWaterBreathing (the 16 →
+8205 walk with the unit payment + the 3:00 effect set).
+MetadataSmeltingTest (rawFishSmeltsIntoItsCookedVariant — the pair +
+the two never-cook gates; theFurnaceSmeltsFishCarryingTheVariant — the
+live smelt carrying the damage, the stacking, the take XP). The fresh
+full-suite count: **655 green in zamin-core** (+19 api +71 protocol)
+with --max-workers=1, zero failures (one hopper-test load flake in a
+first pass, 7/7 green in isolation and in the second full run — the
+same environmental class as the documented projectile flake).
+
+**Ledgered (not in this slice):** the fishing bobber (the rod's cast,
+the hook entity, the loot table), the guardian/squid mobs with their
+fish drops, the ocelot's fish taming, the cooked fish's saturation
+serving on the client HUD (rides the body sync).
+
+**Next:** the structures (the villages/mineshafts/strongholds).

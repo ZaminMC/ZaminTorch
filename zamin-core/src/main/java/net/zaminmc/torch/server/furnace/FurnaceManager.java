@@ -192,7 +192,7 @@ public final class FurnaceManager {
         }
         ItemStack peek = inventory.snapshot().get(engineSlot);
         boolean useful = !peek.isEmpty()
-                && (FurnaceRecipes.resultOf(peek.type()).isPresent()
+                && (FurnaceRecipes.resultOf(peek.type(), peek.damage()).isPresent()
                     || FurnaceRecipes.burnTicksOf(peek.type()) > 0);
         if (!useful) {
             return false; // neither smeltable nor fuel: the click does nothing
