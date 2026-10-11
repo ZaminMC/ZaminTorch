@@ -56,6 +56,9 @@ public final class BuiltinBlocks {
             Identifier.parse("minecraft:furnace"), "Furnace");
     public static final EngineBlockType CHEST = new EngineBlockType(
             Identifier.parse("minecraft:chest"), "Chest");
+    // The TNT block (legacy 46, Slice 9f): the ignition system's family.
+    public static final EngineBlockType TNT = new EngineBlockType(
+            Identifier.parse("minecraft:tnt"), "Tnt");
     // Smelting and placement blocks (community blocks.json: sand 0.5 dirt
     // material, glass 0.3 with no drops — the historical shatter).
     public static final EngineBlockType SAND = new EngineBlockType(
@@ -326,6 +329,7 @@ public final class BuiltinBlocks {
                 .register(TORCH)
                 .register(FURNACE)
                 .register(CHEST)
+                .register(TNT)
                 .register(SAND)
                 .register(GLASS)
                 .register(GRAVEL)

@@ -229,19 +229,15 @@ class PistonSystemTest {
             assertTrue(!PistonBlocks.pistonExtended(typeAt(server, x, y, z)),
                     "an unpowered piston stays retracted");
             // Power the quasi region: the lever beside the block above. The
-            // piston still needs an adjacent update to notice (the vanilla
-            // quasi-connectivity rule — the lever is not the piston's
-            // neighbor).
+            // lever's toggle rings its own and its mount's neighbors (the
+            // vanilla LeverBlock.use walk) — the piston hears the mount's
+            // ring and the quasi walk around the position above finds the
+            // lever: the piston extends WITHOUT any adjacent power of its
+            // own.
             server.ticker().submit(() -> server.redstone().useLever(
                     new BlockPosition(x + 1, y + 1, z)));
-            Thread.sleep(300);
-            assertTrue(!PistonBlocks.pistonExtended(typeAt(server, x, y, z)),
-                    "the quasi power alone does not wake the piston");
-            // The adjacent update: a placement beside the piston rings it.
-            server.ticker().submit(() -> server.world().setBlock(
-                    new BlockPosition(x, y, z + 1), BuiltinBlocks.STONE));
             await(() -> PistonBlocks.pistonExtended(typeAt(server, x, y, z)),
-                    "the adjacent update plus the quasi walk extends the piston");
+                    "the mount's ring plus the quasi walk extends the piston");
         } finally {
             server.shutdown(() -> { });
         }

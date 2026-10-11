@@ -189,6 +189,22 @@ public final class RedstoneSystem implements WorldChangeListener {
         this.analogReader = reader;
     }
 
+    /**
+     * The cross-system neighbor bus (Slice 9f): the systems that ride the
+     * redstone family's neighbor dispatch — every position this system
+     * notifies (the world-commit rings, the sources' two-ring walks, the
+     * wire cascade's drains) reaches the registered consumers too. The
+     * reference's world-level {@code neighborChanged} carries the same
+     * fan-out: a lever's toggle rings the neighbors of BOTH the lever and
+     * its mount, and every block family hears it.
+     */
+    private final List<java.util.function.Consumer<BlockPosition>> neighborListeners = new ArrayList<>();
+
+    /** Registers a cross-system neighbor consumer (the pistons, the TNT). */
+    public void addNeighborListener(java.util.function.Consumer<BlockPosition> listener) {
+        neighborListeners.add(Objects.requireNonNull(listener));
+    }
+
     /** Wires the plate's entity probe (mobs + players, items for the wood rule). */
     public void setPlateProbe(java.util.function.BiPredicate<BlockPosition, Boolean> probe) {
         this.plateProbe = probe;
@@ -610,6 +626,11 @@ public final class RedstoneSystem implements WorldChangeListener {
 
     /** The per-family neighborChanged (the reference's block overrides). */
     private void neighborChanged(BlockPosition pos) {
+        // The cross-system bus first (the world-level neighborChanged): the
+        // pistons, the TNT — every family the redstone rings reach.
+        for (java.util.function.Consumer<BlockPosition> listener : neighborListeners) {
+            listener.accept(pos);
+        }
         BlockType type = world.getBlock(pos);
         if (RedstoneBlocks.isWire(type)) {
             // RedstoneWireBlock lines 235-244: recompute (the support gate

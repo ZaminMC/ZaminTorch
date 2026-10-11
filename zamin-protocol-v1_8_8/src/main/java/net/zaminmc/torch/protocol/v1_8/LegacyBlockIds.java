@@ -65,6 +65,8 @@ final class LegacyBlockIds {
             // Fluid-contact products (the historical outcomes) and the sheep's
             // block-item wool (legacy 35).
             Map.entry(Identifier.parse("minecraft:obsidian"), 49),
+            // The TNT block (Slice 9f, legacy 46): the block item shares the id.
+            Map.entry(Identifier.parse("minecraft:tnt"), 46),
             Map.entry(Identifier.parse("minecraft:wool"), 35),
             // Mob loot and fluid handling of the living-night slice
             // (community items.json ids: bone 352, string 287, gunpowder 289,

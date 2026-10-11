@@ -190,6 +190,31 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                 }
             }
         });
+        // The primed TNT (Slice 9f): Spawn Entity object 50, the Entity
+        // Teleport ride, Destroy at the fuse end — the explosion packet
+        // itself rides the shared explosion listener.
+        server.addTntListener(new net.zaminmc.torch.server.tnt.TntSystem.Listener() {
+            @Override
+            public void onTntPrimed(net.zaminmc.torch.server.tnt.TntSystem.PrimedTnt tnt) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendTntSpawn(tnt);
+                }
+            }
+
+            @Override
+            public void onTntMoved(net.zaminmc.torch.server.tnt.TntSystem.PrimedTnt tnt) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendTntMoved(tnt);
+                }
+            }
+
+            @Override
+            public void onTntRemoved(net.zaminmc.torch.server.tnt.TntSystem.PrimedTnt tnt) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendTntRemoved(tnt.entityId());
+                }
+            }
+        });
         // Time Update (0x03): the periodic cycle sync and the /time command
         // ride the same listener — the client's day follows the server's.
         // The dimension filter is the reference's sendPacket(packet,

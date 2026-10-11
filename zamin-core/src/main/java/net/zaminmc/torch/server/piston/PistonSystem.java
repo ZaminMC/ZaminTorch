@@ -144,12 +144,20 @@ public final class PistonSystem implements WorldChangeListener {
         if (PistonBlocks.isPiston(newType)) {
             // PistonBaseBlock.onAdded lines 59-63 (the engine folds the
             // onPlaced re-check into the arrival — the engine has no BE
-            // at a piston base, so the gate always holds).
+            // at a piston base, so the gate always holds). The neighbor
+            // arm rides the redstone system's cross-system bus.
             checkExtended(position, newType);
         }
-        for (int[] offset : OFFSETS) {
-            neighborChanged(position.offset(offset[0], offset[1], offset[2]));
-        }
+    }
+
+    /**
+     * The neighbor arm (PistonBaseBlock.neighborChanged lines 51-56 + the
+     * head's lines 154-163): a position heard a change. Registered on the
+     * redstone system's cross-system neighbor bus (every world commit and
+     * every source's ring walks fan through it). Tick-thread context.
+     */
+    public void neighborHeard(BlockPosition pos) {
+        neighborChanged(pos);
     }
 
     /**
