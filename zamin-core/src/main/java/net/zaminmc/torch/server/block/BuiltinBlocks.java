@@ -369,6 +369,57 @@ public final class BuiltinBlocks {
     public static final EngineBlockType POTATOES_STAGE7 = new EngineBlockType(
             Identifier.parse("minecraft:potatoes_stage7"), "Potatoes", 7);
 
+    // The stronghold set (Slice 12c — the reference's StrongholdPieces):
+    // the stone-brick family over legacy 98 (default 0, mossy 1, cracked 2
+    // — the StoneBrickPicker's own three rolls), the silverfish stone-brick
+    // monster egg (legacy 97 metadata 4), the smooth stone-brick slab
+    // (legacy 44 metadata 5 — StoneSlabBlock.Variant.SMOOTHBRICK), and the
+    // mob spawner (legacy 52) whose block entity ledgers with its own slice.
+    public static final EngineBlockType STONE_BRICKS = new EngineBlockType(
+            Identifier.parse("minecraft:stone_bricks"), "Stone Bricks");
+    public static final EngineBlockType MOSSY_STONE_BRICKS = new EngineBlockType(
+            Identifier.parse("minecraft:mossy_stone_bricks"), "Mossy Stone Bricks", 1);
+    public static final EngineBlockType CRACKED_STONE_BRICKS = new EngineBlockType(
+            Identifier.parse("minecraft:cracked_stone_bricks"), "Cracked Stone Bricks", 2);
+    public static final EngineBlockType INFESTED_STONE_BRICKS = new EngineBlockType(
+            Identifier.parse("minecraft:infested_stone_bricks"), "Infested Stone Bricks", 4);
+    public static final EngineBlockType STONE_BRICK_SLAB = new EngineBlockType(
+            Identifier.parse("minecraft:stone_brick_slab"), "Stone Brick Slab", 5);
+    public static final EngineBlockType MOB_SPAWNER = new EngineBlockType(
+            Identifier.parse("minecraft:mob_spawner"), "Mob Spawner");
+    // The iron door (legacy 71, the reference's Prison): the lower's four
+    // facings in the engine's W/N/E/S band (the oak door's own shape) plus
+    // the plain upper half.
+    public static final EngineBlockType IRON_DOOR_LOWER_W = new EngineBlockType(
+            Identifier.parse("minecraft:iron_door_west"), "Iron Door");
+    public static final EngineBlockType IRON_DOOR_LOWER_N = new EngineBlockType(
+            Identifier.parse("minecraft:iron_door_north"), "Iron Door", 1);
+    public static final EngineBlockType IRON_DOOR_LOWER_E = new EngineBlockType(
+            Identifier.parse("minecraft:iron_door_east"), "Iron Door", 2);
+    public static final EngineBlockType IRON_DOOR_LOWER_S = new EngineBlockType(
+            Identifier.parse("minecraft:iron_door_south"), "Iron Door", 3);
+    public static final EngineBlockType IRON_DOOR_UPPER = new EngineBlockType(
+            Identifier.parse("minecraft:iron_door_upper"), "Iron Door", 8);
+    // The end portal frame (legacy 120): the reference's metadata = the
+    // horizontal facing id (S=0 W=1 N=2 E=3) | the eye bit 4 — the eight
+    // flattened states over the facing band, the eye pair per facing.
+    public static final EngineBlockType END_PORTAL_FRAME_S = new EngineBlockType(
+            Identifier.parse("minecraft:end_portal_frame_south"), "End Portal Frame");
+    public static final EngineBlockType END_PORTAL_FRAME_W = new EngineBlockType(
+            Identifier.parse("minecraft:end_portal_frame_west"), "End Portal Frame", 1);
+    public static final EngineBlockType END_PORTAL_FRAME_N = new EngineBlockType(
+            Identifier.parse("minecraft:end_portal_frame_north"), "End Portal Frame", 2);
+    public static final EngineBlockType END_PORTAL_FRAME_E = new EngineBlockType(
+            Identifier.parse("minecraft:end_portal_frame_east"), "End Portal Frame", 3);
+    public static final EngineBlockType END_PORTAL_FRAME_EYE_S = new EngineBlockType(
+            Identifier.parse("minecraft:end_portal_frame_eye_south"), "End Portal Frame", 4);
+    public static final EngineBlockType END_PORTAL_FRAME_EYE_W = new EngineBlockType(
+            Identifier.parse("minecraft:end_portal_frame_eye_west"), "End Portal Frame", 5);
+    public static final EngineBlockType END_PORTAL_FRAME_EYE_N = new EngineBlockType(
+            Identifier.parse("minecraft:end_portal_frame_eye_north"), "End Portal Frame", 6);
+    public static final EngineBlockType END_PORTAL_FRAME_EYE_E = new EngineBlockType(
+            Identifier.parse("minecraft:end_portal_frame_eye_east"), "End Portal Frame", 7);
+
     private BuiltinBlocks() {
     }
 
@@ -493,6 +544,25 @@ public final class BuiltinBlocks {
                 .register(CARROTS_STAGE5)
                 .register(CARROTS_STAGE6)
                 .register(CARROTS_STAGE7)
+                .register(STONE_BRICKS)
+                .register(MOSSY_STONE_BRICKS)
+                .register(CRACKED_STONE_BRICKS)
+                .register(INFESTED_STONE_BRICKS)
+                .register(STONE_BRICK_SLAB)
+                .register(MOB_SPAWNER)
+                .register(IRON_DOOR_LOWER_W)
+                .register(IRON_DOOR_LOWER_N)
+                .register(IRON_DOOR_LOWER_E)
+                .register(IRON_DOOR_LOWER_S)
+                .register(IRON_DOOR_UPPER)
+                .register(END_PORTAL_FRAME_S)
+                .register(END_PORTAL_FRAME_W)
+                .register(END_PORTAL_FRAME_N)
+                .register(END_PORTAL_FRAME_E)
+                .register(END_PORTAL_FRAME_EYE_S)
+                .register(END_PORTAL_FRAME_EYE_W)
+                .register(END_PORTAL_FRAME_EYE_N)
+                .register(END_PORTAL_FRAME_EYE_E)
                 .register(POTATOES_STAGE0)
                 .register(POTATOES_STAGE1)
                 .register(POTATOES_STAGE2)

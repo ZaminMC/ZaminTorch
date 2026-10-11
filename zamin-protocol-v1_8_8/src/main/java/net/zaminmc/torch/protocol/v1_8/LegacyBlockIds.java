@@ -334,7 +334,40 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:diamond_horse_armor"), 419),
             Map.entry(Identifier.parse("minecraft:lead"), 420),
             Map.entry(Identifier.parse("minecraft:carrot_on_a_stick"), 398),
-            Map.entry(Identifier.parse("minecraft:emerald"), 388)));
+            Map.entry(Identifier.parse("minecraft:emerald"), 388),
+            // The stronghold set (Slice 12c — the reference's own legacy
+            // ids): the stone-brick family over 98 (the mossy/cracked pair
+            // in the metadata nibble), the silverfish stone-brick monster
+            // egg 97/4, the smooth stone-brick slab 44/5, the spawner 52,
+            // the iron door family over 71 (the oak pair's own shape:
+            // the facing band + the metadata-8 upper), the end portal
+            // frame's eight states over 120 (the facing band | the eye
+            // bit), and the chest loot family's items — the ender pearl
+            // 368, the empty map 395, the compass 329 (the reference's
+            // own "compass" registry name).
+            Map.entry(Identifier.parse("minecraft:stone_bricks"), 98),
+            Map.entry(Identifier.parse("minecraft:mossy_stone_bricks"), 98),
+            Map.entry(Identifier.parse("minecraft:cracked_stone_bricks"), 98),
+            Map.entry(Identifier.parse("minecraft:infested_stone_bricks"), 97),
+            Map.entry(Identifier.parse("minecraft:stone_brick_slab"), 44),
+            Map.entry(Identifier.parse("minecraft:mob_spawner"), 52),
+            Map.entry(Identifier.parse("minecraft:iron_door_west"), 71),
+            Map.entry(Identifier.parse("minecraft:iron_door_north"), 71),
+            Map.entry(Identifier.parse("minecraft:iron_door_east"), 71),
+            Map.entry(Identifier.parse("minecraft:iron_door_south"), 71),
+            Map.entry(Identifier.parse("minecraft:iron_door_upper"), 71),
+            Map.entry(Identifier.parse("minecraft:end_portal_frame_south"), 120),
+            Map.entry(Identifier.parse("minecraft:end_portal_frame_west"), 120),
+            Map.entry(Identifier.parse("minecraft:end_portal_frame_north"), 120),
+            Map.entry(Identifier.parse("minecraft:end_portal_frame_east"), 120),
+            Map.entry(Identifier.parse("minecraft:end_portal_frame_eye_south"), 120),
+            Map.entry(Identifier.parse("minecraft:end_portal_frame_eye_west"), 120),
+            Map.entry(Identifier.parse("minecraft:end_portal_frame_eye_north"), 120),
+            Map.entry(Identifier.parse("minecraft:end_portal_frame_eye_east"), 120),
+            Map.entry(Identifier.parse("minecraft:ender_pearl"), 368),
+            Map.entry(Identifier.parse("minecraft:empty_map"), 395),
+            Map.entry(Identifier.parse("minecraft:compass"), 329),
+            Map.entry(Identifier.parse("minecraft:iron_door"), 330)));
 
     /**
      * The redstone family's base ids (Slice 9a): the wire's sixteen power
@@ -588,7 +621,32 @@ final class LegacyBlockIds {
             // The nether portal's axis (the reference PortalBlock.getMetadata:
             // 1 the X plane, 2 the Z plane).
             Map.entry(Identifier.parse("minecraft:nether_portal"), 1),
-            Map.entry(Identifier.parse("minecraft:nether_portal_z"), 2));
+            Map.entry(Identifier.parse("minecraft:nether_portal_z"), 2),
+            // The stronghold set (Slice 12c): the stone-brick family's
+            // metadata band over 98 (the reference's StonebrickBlock: 1
+            // mossy, 2 cracked) with the infested egg's own variant 4
+            // over 97, the smooth stone-brick slab 5 over 44 (the
+            // reference's StoneSlabBlock.Variant.SMOOTHBRICK), the iron
+            // door's facings (the reference's Direction band) + the
+            // metadata-8 upper, and the end portal frame's eight states
+            // (the facing band | the eye bit — EndPortalFrameBlock lines
+            // 71-85).
+            Map.entry(Identifier.parse("minecraft:mossy_stone_bricks"), 1),
+            Map.entry(Identifier.parse("minecraft:cracked_stone_bricks"), 2),
+            Map.entry(Identifier.parse("minecraft:infested_stone_bricks"), 4),
+            Map.entry(Identifier.parse("minecraft:stone_brick_slab"), 5),
+            Map.entry(Identifier.parse("minecraft:iron_door_north"), 1),
+            Map.entry(Identifier.parse("minecraft:iron_door_east"), 2),
+            Map.entry(Identifier.parse("minecraft:iron_door_south"), 3),
+            Map.entry(Identifier.parse("minecraft:iron_door_upper"), 8),
+            Map.entry(Identifier.parse("minecraft:end_portal_frame_south"), 0),
+            Map.entry(Identifier.parse("minecraft:end_portal_frame_west"), 1),
+            Map.entry(Identifier.parse("minecraft:end_portal_frame_north"), 2),
+            Map.entry(Identifier.parse("minecraft:end_portal_frame_east"), 3),
+            Map.entry(Identifier.parse("minecraft:end_portal_frame_eye_south"), 4),
+            Map.entry(Identifier.parse("minecraft:end_portal_frame_eye_west"), 5),
+            Map.entry(Identifier.parse("minecraft:end_portal_frame_eye_north"), 6),
+            Map.entry(Identifier.parse("minecraft:end_portal_frame_eye_east"), 7));
 
     /**
      * @return the wire metadata nibble of a block type: the 1.8 data-value

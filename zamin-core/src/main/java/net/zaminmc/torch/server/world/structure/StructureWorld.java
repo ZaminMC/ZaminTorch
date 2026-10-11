@@ -88,7 +88,17 @@ public interface StructureWorld {
     default void placeGenChest(int x, int y, int z, List<GenLootSlot> slots) {
     }
 
-    /** One rolled chest slot (the loot walk's setItem record). */
-    record GenLootSlot(int slot, String itemId, int count) {
+    /**
+     * One rolled chest slot (the loot walk's setItem record). The optional
+     * enchantment map carries the reference's enchanted-book loot arm
+     * (EnchantedBookItem.createLoot — a random level-30 enchantment riding
+     * the stack); every ordinary entry leaves it null.
+     */
+    record GenLootSlot(int slot, String itemId, int count, java.util.Map<Integer, Integer> enchantments) {
+
+        /** The plain shape (the village's own loot records). */
+        public GenLootSlot(int slot, String itemId, int count) {
+            this(slot, itemId, count, null);
+        }
     }
 }

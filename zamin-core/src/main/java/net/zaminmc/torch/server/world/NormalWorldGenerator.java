@@ -28,6 +28,8 @@ public final class NormalWorldGenerator implements WorldGenerator {
     private final net.zaminmc.torch.server.world.structure.MineshaftStructure mineshafts;
     /** The village placement layer (Slice 12b): deterministic per chunk. */
     private final net.zaminmc.torch.server.world.structure.VillageStructure villages;
+    /** The stronghold placement layer (Slice 12c): deterministic per chunk. */
+    private final net.zaminmc.torch.server.world.structure.StrongholdStructure strongholds;
     private final net.zaminmc.torch.server.world.structure.StructurePalette structurePalette;
 
     @Override
@@ -64,6 +66,46 @@ public final class NormalWorldGenerator implements WorldGenerator {
         this.mineshafts = new net.zaminmc.torch.server.world.structure.MineshaftStructure(this.seed);
         this.villages = new net.zaminmc.torch.server.world.structure.VillageStructure(this.seed);
         this.structurePalette = net.zaminmc.torch.server.world.structure.StructurePalette.of(registry);
+        // The strongholds need the biome probe at construction time (the
+        // positions walk's findBiome snap).
+        net.zaminmc.torch.server.world.structure.StructureWorld positionView =
+                new net.zaminmc.torch.server.world.structure.StructureWorld() {
+                    @Override
+                    public net.zaminmc.torch.block.BlockType blockAt(int x, int y, int z) {
+                        return null;
+                    }
+
+                    @Override
+                    public boolean isLiquid(net.zaminmc.torch.block.BlockType type) {
+                        return false;
+                    }
+
+                    @Override
+                    public void setBlock(int x, int y, int z, net.zaminmc.torch.block.BlockType type) {
+                    }
+
+                    @Override
+                    public int seaLevel() {
+                        return SEA_LEVEL;
+                    }
+
+                    @Override
+                    public net.zaminmc.torch.server.world.structure.StructurePalette palette() {
+                        return structurePalette;
+                    }
+
+                    @Override
+                    public boolean isOpaque(net.zaminmc.torch.block.BlockType type) {
+                        return false;
+                    }
+
+                    @Override
+                    public Biome biomeAt(int x, int z) {
+                        return NormalWorldGenerator.this.biomeAt(x, z);
+                    }
+                };
+        this.strongholds = new net.zaminmc.torch.server.world.structure.StrongholdStructure(
+                this.seed, positionView);
         this.air = registry.require(Identifier.parse("minecraft:air"));
         this.bedrock = registry.require(Identifier.parse("minecraft:bedrock"));
         this.stone = registry.require(Identifier.parse("minecraft:stone"));
@@ -257,6 +299,7 @@ public final class NormalWorldGenerator implements WorldGenerator {
                 };
         mineshafts.populate(chunk.position().x(), chunk.position().z(), view);
         villages.populate(chunk.position().x(), chunk.position().z(), view);
+        strongholds.populate(chunk.position().x(), chunk.position().z(), view);
     }
 
     /** The block for one column cell: core, skin, water, cave or ore. */

@@ -50,13 +50,19 @@ final class SlotNbt {
         var enchantments = stack.enchantments();
         boolean named = hasPayload(stack.displayName());
         boolean enchanted = enchantments != null && !enchantments.isEmpty();
+        // The enchanted book's own NBT shape (Slice 12c): the book stores
+        // its enchantments under StoredEnchantments, never the item "ench"
+        // — the reference's EnchantedBookItem.addEnchantment family.
+        boolean stored = enchanted
+                && stack.type().identifier().toString().equals("minecraft:enchanted_book");
         out.writeByte(TAG_COMPOUND);   // the marker itself: root compound type
         out.writeShort(0);             // root name: empty
         if (enchanted) {
-            // tag.ench: a list of anonymous id/lvl compounds (the vanilla
-            // ItemStackench shape — list elements carry no name).
+            // tag.ench (or StoredEnchantments for the book): a list of
+            // anonymous id/lvl compounds (the vanilla shape — list elements
+            // carry no name).
             out.writeByte(TAG_LIST);
-            writeShortString(out, "ench");
+            writeShortString(out, stored ? "StoredEnchantments" : "ench");
             out.writeByte(TAG_COMPOUND); // the element type
             out.writeInt(enchantments.size());
             for (var entry : enchantments.entrySet()) {

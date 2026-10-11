@@ -307,6 +307,68 @@ public final class BlockBehaviorTable {
                     new BlockBehavior(0.8, true, false, "rock", 0,
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:sandstone_stairs_north"), 1)))),
 
+            // The stronghold set (Slice 12c — community blocks.json 1.8
+            // values): the stone-brick family 1.5 rock pickaxe-gated
+            // (harvest 0) dropping itself — the mossy/cracked variants
+            // drop the PLAIN brick (the reference's getStateFromMeta 0 —
+            // Item.getItemFromBlock over the default state), the infested
+            // egg the same (the silverfish burst rides the mob slice);
+            // the spawner 5.0 rock pickaxe-gated dropping nothing (the
+            // reference's null drop item); the smooth brick slab 2.0
+            // rock like the stone slab; the iron door 5.0 rock
+            // pickaxe-gated dropping itself; the end portal frames -1
+            // undiggable dropless (the reference's unbreakable
+            // portal-frame rule).
+            Map.entry(Identifier.parse("minecraft:stone_bricks"),
+                    new BlockBehavior(1.5, true, true, "rock", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:stone_bricks"), 1)))),
+            Map.entry(Identifier.parse("minecraft:mossy_stone_bricks"),
+                    new BlockBehavior(1.5, true, true, "rock", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:stone_bricks"), 1)))),
+            Map.entry(Identifier.parse("minecraft:cracked_stone_bricks"),
+                    new BlockBehavior(1.5, true, true, "rock", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:stone_bricks"), 1)))),
+            Map.entry(Identifier.parse("minecraft:infested_stone_bricks"),
+                    new BlockBehavior(0.75, true, true, "rock", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:stone_bricks"), 1)))),
+            Map.entry(Identifier.parse("minecraft:stone_brick_slab"),
+                    new BlockBehavior(2.0, true, true, "rock", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:stone_brick_slab"), 1)))),
+            Map.entry(Identifier.parse("minecraft:mob_spawner"),
+                    new BlockBehavior(5.0, true, true, "rock", 0,
+                            List.of())),
+            Map.entry(Identifier.parse("minecraft:iron_door_west"),
+                    new BlockBehavior(5.0, true, true, "rock", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:iron_door"), 1)))),
+            Map.entry(Identifier.parse("minecraft:iron_door_north"),
+                    new BlockBehavior(5.0, true, true, "rock", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:iron_door"), 1)))),
+            Map.entry(Identifier.parse("minecraft:iron_door_east"),
+                    new BlockBehavior(5.0, true, true, "rock", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:iron_door"), 1)))),
+            Map.entry(Identifier.parse("minecraft:iron_door_south"),
+                    new BlockBehavior(5.0, true, true, "rock", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:iron_door"), 1)))),
+            Map.entry(Identifier.parse("minecraft:iron_door_upper"),
+                    new BlockBehavior(5.0, true, true, "rock", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:iron_door"), 1)))),
+            Map.entry(Identifier.parse("minecraft:end_portal_frame_south"),
+                    new BlockBehavior(-1.0, false, false, "rock", 0, List.of())),
+            Map.entry(Identifier.parse("minecraft:end_portal_frame_west"),
+                    new BlockBehavior(-1.0, false, false, "rock", 0, List.of())),
+            Map.entry(Identifier.parse("minecraft:end_portal_frame_north"),
+                    new BlockBehavior(-1.0, false, false, "rock", 0, List.of())),
+            Map.entry(Identifier.parse("minecraft:end_portal_frame_east"),
+                    new BlockBehavior(-1.0, false, false, "rock", 0, List.of())),
+            Map.entry(Identifier.parse("minecraft:end_portal_frame_eye_south"),
+                    new BlockBehavior(-1.0, false, false, "rock", 0, List.of())),
+            Map.entry(Identifier.parse("minecraft:end_portal_frame_eye_west"),
+                    new BlockBehavior(-1.0, false, false, "rock", 0, List.of())),
+            Map.entry(Identifier.parse("minecraft:end_portal_frame_eye_north"),
+                    new BlockBehavior(-1.0, false, false, "rock", 0, List.of())),
+            Map.entry(Identifier.parse("minecraft:end_portal_frame_eye_east"),
+                    new BlockBehavior(-1.0, false, false, "rock", 0, List.of())),
+
             Map.entry(Identifier.parse("minecraft:bed"),
                     new BlockBehavior(0.2, true, false, "wood", 0,
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:bed"), 1)))),

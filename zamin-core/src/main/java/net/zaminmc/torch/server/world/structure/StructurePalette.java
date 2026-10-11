@@ -57,6 +57,16 @@ public final class StructurePalette {
     private final BlockType[] ladders = new BlockType[6];
     private final BlockType[] doors = new BlockType[4];
     private final BlockType doorUpper;
+    // The stronghold set (Slice 12c).
+    private final BlockType stoneBricks;
+    private final BlockType mossyStoneBricks;
+    private final BlockType crackedStoneBricks;
+    private final BlockType infestedStoneBricks;
+    private final BlockType stoneBrickSlab;
+    private final BlockType mobSpawner;
+    private final BlockType[] ironDoors = new BlockType[4];
+    private final BlockType ironDoorUpper;
+    private final BlockType[] endPortalFrames = new BlockType[8];
 
     private StructurePalette(BlockRegistry registry) {
         this.air = registry.require(Identifier.parse("minecraft:air"));
@@ -110,6 +120,30 @@ public final class StructurePalette {
         this.doors[2] = BuiltinBlocks.OAK_DOOR_LOWER_CLOSED_E;
         this.doors[3] = BuiltinBlocks.OAK_DOOR_LOWER_CLOSED_S;
         this.doorUpper = BuiltinBlocks.OAK_DOOR_UPPER;
+        // The stronghold set (Slice 12c): the stone-brick picker's family,
+        // the spawner, the iron door's four lower facings (the engine's
+        // W/N/E/S array band) and the end portal frame's eight states
+        // (the reference's facing-id band | eye bit, indexed by the wire
+        // metadata 0..7).
+        this.stoneBricks = BuiltinBlocks.STONE_BRICKS;
+        this.mossyStoneBricks = BuiltinBlocks.MOSSY_STONE_BRICKS;
+        this.crackedStoneBricks = BuiltinBlocks.CRACKED_STONE_BRICKS;
+        this.infestedStoneBricks = BuiltinBlocks.INFESTED_STONE_BRICKS;
+        this.stoneBrickSlab = BuiltinBlocks.STONE_BRICK_SLAB;
+        this.mobSpawner = BuiltinBlocks.MOB_SPAWNER;
+        this.ironDoors[0] = BuiltinBlocks.IRON_DOOR_LOWER_W;
+        this.ironDoors[1] = BuiltinBlocks.IRON_DOOR_LOWER_N;
+        this.ironDoors[2] = BuiltinBlocks.IRON_DOOR_LOWER_E;
+        this.ironDoors[3] = BuiltinBlocks.IRON_DOOR_LOWER_S;
+        this.ironDoorUpper = BuiltinBlocks.IRON_DOOR_UPPER;
+        this.endPortalFrames[0] = BuiltinBlocks.END_PORTAL_FRAME_S;
+        this.endPortalFrames[1] = BuiltinBlocks.END_PORTAL_FRAME_W;
+        this.endPortalFrames[2] = BuiltinBlocks.END_PORTAL_FRAME_N;
+        this.endPortalFrames[3] = BuiltinBlocks.END_PORTAL_FRAME_E;
+        this.endPortalFrames[4] = BuiltinBlocks.END_PORTAL_FRAME_EYE_S;
+        this.endPortalFrames[5] = BuiltinBlocks.END_PORTAL_FRAME_EYE_W;
+        this.endPortalFrames[6] = BuiltinBlocks.END_PORTAL_FRAME_EYE_N;
+        this.endPortalFrames[7] = BuiltinBlocks.END_PORTAL_FRAME_EYE_E;
     }
 
     /** Resolves the palette (the registry is immutable after boot). */
@@ -253,6 +287,59 @@ public final class StructurePalette {
     /** The door's upper half (the hinge model's plain stand-in). */
     public BlockType doorUpper() {
         return doorUpper;
+    }
+
+    // ------------------------------------------------------- the stronghold set
+
+    public BlockType stoneBricks() {
+        return stoneBricks;
+    }
+
+    public BlockType mossyStoneBricks() {
+        return mossyStoneBricks;
+    }
+
+    public BlockType crackedStoneBricks() {
+        return crackedStoneBricks;
+    }
+
+    /** The silverfish stone-brick monster egg (metadata 4). */
+    public BlockType infestedStoneBricks() {
+        return infestedStoneBricks;
+    }
+
+    /** The smooth stone-brick slab (legacy 44 metadata 5). */
+    public BlockType stoneBrickSlab() {
+        return stoneBrickSlab;
+    }
+
+    /** The mob spawner (the block entity rides its own slice). */
+    public BlockType mobSpawner() {
+        return mobSpawner;
+    }
+
+    /** The iron door's lower half for the reference's horizontal id (S=0 W=1 N=2 E=3). */
+    public BlockType ironDoorLower(int horizontalId) {
+        // The reference band over the engine's W/N/E/S array (the oak pair's walk).
+        return switch (Math.abs(horizontalId % 4)) {
+            case 0 -> ironDoors[3]; // S
+            case 1 -> ironDoors[0]; // W
+            case 2 -> ironDoors[1]; // N
+            default -> ironDoors[2]; // E
+        };
+    }
+
+    /** The iron door's upper half (metadata 8). */
+    public BlockType ironDoorUpper() {
+        return ironDoorUpper;
+    }
+
+    /**
+     * The end portal frame for the reference's wire metadata (the facing
+     * id S=0 W=1 N=2 E=3 | the eye bit 4) — the eight flattened states.
+     */
+    public BlockType endPortalFrame(int metadata) {
+        return endPortalFrames[Math.abs(metadata % 8)];
     }
 
     /** The wheat crop for a growth stage 0..7. */

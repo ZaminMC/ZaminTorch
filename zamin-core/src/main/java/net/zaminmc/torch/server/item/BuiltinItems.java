@@ -317,6 +317,22 @@ public final class BuiltinItems {
     public static final EngineItemType ENCHANTING_TABLE = new EngineItemType(
             Identifier.parse("minecraft:enchanting_table"), "Enchantment Table", 64);
 
+    // The stronghold's chest loot family (Slice 12c — the reference's
+    // ChestCorridor/Library/RoomCrossing LootEntry tables): the ender pearl
+    // (legacy 368, max 16), the empty map (legacy 395) and the compass
+    // (legacy 329 — the reference's own Items.COMPASS registry name "compass")
+    // from the library's table.
+    public static final EngineItemType ENDER_PEARL = new EngineItemType(
+            Identifier.parse("minecraft:ender_pearl"), "Ender Pearl", 16);
+    public static final EngineItemType EMPTY_MAP = new EngineItemType(
+            Identifier.parse("minecraft:empty_map"), "Empty Map", 64);
+    public static final EngineItemType COMPASS = new EngineItemType(
+            Identifier.parse("minecraft:compass"), "Compass", 64);
+    // The iron door item (legacy 330 — the prison's pair, the block's
+    // drop form).
+    public static final EngineItemType IRON_DOOR = new EngineItemType(
+            Identifier.parse("minecraft:iron_door"), "Iron Door", 64);
+
     // Mob loot (legacy ids from the community dataset: porkchop 319, cooked
     // porkchop 320, raw chicken 365, cooked chicken 366, feather 288,
     // leather 334, rotten flesh 367). Cooked variants smelt from the raw
@@ -552,6 +568,7 @@ public final class BuiltinItems {
                 OBSIDIAN, OAK_SAPLING,
                 LEAD, CARROT_ON_A_STICK, EMERALD,
                 LAPIS, ENCHANTED_BOOK, BOOKSHELF, ENCHANTING_TABLE,
+                ENDER_PEARL, EMPTY_MAP, COMPASS, IRON_DOOR,
                 BONE, STRING, GUNPOWDER, WOOL, MUTTON, COOKED_MUTTON,
                 BUCKET, WATER_BUCKET, LAVA_BUCKET,
                 FLINT_AND_STEEL, GOLD_INGOT,

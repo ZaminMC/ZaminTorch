@@ -1669,3 +1669,88 @@ documented one — green in isolation and in a second pass).
 
 **Next:** the strongholds (StrongholdStructure + StrongholdPieces over
 the foundation), the fortresses, the ocean monuments, the temples.
+
+## Slice 12c — the strongholds
+
+**The reference port** (`gen/structure/StrongholdStructure.java` +
+`StrongholdPieces.java`, 1:1 over the Slice 12a foundation):
+
+- **The placement** (`StrongholdStructure`): the three-position table
+  drawn once from the world seed — the spiral walk from a random angle
+  (`(1.25 * ring + nextDouble()) * distance * ring` per ring), the
+  findBiome reservoir snap (the ±112-block window at 4-block steps,
+  the `nextInt(k+1) == 0` uniform keep), the `2π * i / spread` angle
+  advance and the ring growth at the spread boundary
+  (`i += 2 + nextInt(5)`, `spread += 1 + nextInt(2)`).
+- **The start**: the weights reset, the source spiral staircase at the
+  position chunk's +2/+2 corner (the random facing, the y-64 anchor
+  box), the forced FiveWayCrossing after the stairs down, the children
+  queue drained in random order, the bounds union, the
+  moveBelowSeaLevel(10) re-base — regenerated until the walk leaves an
+  end portal room (the retry gate).
+- **The weight-table walk**: the reference's exact quirks preserved —
+  the exhausted rows still fold the total (a nextInt roll can land on
+  an exhausted row and burn a try), the no-repeat previous row, the
+  depth-gated Library (>4) and EndPortalRoom (>5), the PlainCorridor
+  fallback with the findSize shrink, the ±112 leash + the depth-50 cap.
+- **The eleven families**: the StraightCorridor (the torch threshold
+  rolls, the side openings), the Prison (the iron bar cells, the iron
+  door pair with the metadata flip), the LeftTurn/RightTurn elbows,
+  the RoomCrossing (the fountain pillar, the lava brazier, the storage
+  loft with the ladder + the chest), the StraightStairs (the six-step
+  flight), the SpiralStaircase (the winding steps, the Start's source
+  shape), the FiveWayCrossing (the two floors, the four side arms), the
+  ChestCorridor (the smooth-slab pedestal + the loot chest), the
+  Library (the shelf walls, the gallery balcony with the fence/torch
+  pedestal, the cobwebs, the two chests), the EndPortalRoom (the lava
+  moat + the pools, the iron bar walls, the stair platform, the twelve
+  frames with the per-frame eye rolls + the per-facing remaps, the
+  silverfish spawner).
+- **The entrance family**: the four shapes over the stone-brick frames
+  (OPENING / WOOD_DOOR / GATES / IRON_DOOR with the stone button pair).
+
+**The new engine surface:**
+
+- **The stronghold block set**: the stone-brick trio (98: plain/mossy/
+  cracked), the infested stone-brick egg (97/4), the stone-brick slab
+  (44/5), the mob spawner (52), the iron door's five states (71), the
+  end portal frame's eight (120: the facing band | the eye bit) — all
+  with the legacy wire rows, the metadata nibbles, the behavior rows
+  (the frames undiggable, the spawner dropless, the variants dropping
+  the plain brick) and the light rows.
+- **The loot item family**: the ender pearl (368), the empty map (395),
+  the compass (329), the iron door item (330).
+- **The fillPicked picker fill** on `StructurePiece` (the reference's
+  fill + BlockPicker, 1:1): the per-cell roll walk behind the
+  reference's own air gate — the StoneBrickPicker's band (0.2 cracked /
+  0.5 mossy / 0.55 infested).
+- **The GenLootSlot enchantment extension**: the chest drain
+  materializes the enchanted book with its rolled level-30 enchantment
+  (the reference's own roll order — createLoot inside addAll BEFORE the
+  amount roll).
+- **The SlotNbt StoredEnchantments arm**: the enchanted book's own NBT
+  shape on the wire (never the item "ench").
+
+**The architectural decision** (the same envelope as the village's
+piece-weight walk): the reference's STATIC weight state
+(`currentWeights`, `forcedPiece`, `totalWeight`, `Start.previous`) is
+per-start instance state in the engine — held by StrongholdStart — so
+the parallel chunk pipeline's per-chunk recomputation never shares
+mutable statics. The positions derive from the world seed alone
+(computed once at construction); the starts recompute per chunk from
+pure (seed, region) inputs — no locks, identical piece sets.
+
+**The envelope notes** (all in the ledger row): the spawner's block
+entity + the silverfish logic ledger with the mob-spawner slice; the
+silverfish burst from the infested egg ledgers with the mob slice; the
+chest's updateFacing re-orientation absent; the frames' eye rolls are
+per-chunk (the engine's per-chunk determinism envelope); the count-0
+roll writes nothing.
+
+The fresh full-suite count **675 green in zamin-core** (one registry
+count row updated for the nineteen new blocks), `--max-workers=1`,
+zero failures beyond the documented load flakes.
+
+**Next:** the fortresses (FortressStructure + FortressPieces over the
+foundation — the nether bridge family), the ocean monuments, the
+temples.
