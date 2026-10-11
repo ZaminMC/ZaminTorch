@@ -406,6 +406,35 @@ public final class BlockBehaviorTable {
                     new BlockBehavior(0.0, true, false, "plants", 0,
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:nether_wart"), 2)))),
 
+            // The monument set (Slice 12e — community blocks.json 1.8
+            // values): the prismarine trio 1.5 rock pickaxe-gated dropping
+            // the prismarine item (the variant's damage nuance ledgers with
+            // the item-damage slice), the sea lantern 0.3 dropping its
+            // crystals (the 2-3 band floors at 2, the silk arm ledgers),
+            // the sponge pair 0.6 dropping the dry sponge, the gold block
+            // 3.0 rock pickaxe-gated dropping itself.
+            Map.entry(Identifier.parse("minecraft:prismarine_rough"),
+                    new BlockBehavior(1.5, true, true, "rock", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:prismarine"), 1)))),
+            Map.entry(Identifier.parse("minecraft:prismarine_bricks"),
+                    new BlockBehavior(1.5, true, true, "rock", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:prismarine"), 1)))),
+            Map.entry(Identifier.parse("minecraft:prismarine_dark"),
+                    new BlockBehavior(1.5, true, true, "rock", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:prismarine"), 1)))),
+            Map.entry(Identifier.parse("minecraft:sea_lantern"),
+                    new BlockBehavior(0.3, true, false, "glass", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:prismarine_crystals"), 2)))),
+            Map.entry(Identifier.parse("minecraft:sponge"),
+                    new BlockBehavior(0.6, true, false, "sponge", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:sponge"), 1)))),
+            Map.entry(Identifier.parse("minecraft:wet_sponge"),
+                    new BlockBehavior(0.6, true, false, "sponge", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:sponge"), 1)))),
+            Map.entry(Identifier.parse("minecraft:gold_block"),
+                    new BlockBehavior(3.0, true, true, "rock", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:gold_block"), 1)))),
+
             Map.entry(Identifier.parse("minecraft:bed"),
                     new BlockBehavior(0.2, true, false, "wood", 0,
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:bed"), 1)))),

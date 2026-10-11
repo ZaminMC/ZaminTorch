@@ -382,7 +382,22 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:nether_wart_stage1"), 115),
             Map.entry(Identifier.parse("minecraft:nether_wart_stage2"), 115),
             Map.entry(Identifier.parse("minecraft:nether_wart_stage3"), 115),
-            Map.entry(Identifier.parse("minecraft:nether_brick_stairs"), 114)));
+            Map.entry(Identifier.parse("minecraft:nether_brick_stairs"), 114),
+            // The monument set (Slice 12e): the prismarine trio over 168
+            // (the variant in the metadata nibble), the sea lantern 169,
+            // the sponge pair over 19, the gold block 41 — and the item
+            // family (the prismarine 168, the crystals 410, the shard 409,
+            // the lantern 169, the sponge 19, the gold block 41).
+            Map.entry(Identifier.parse("minecraft:prismarine_rough"), 168),
+            Map.entry(Identifier.parse("minecraft:prismarine_bricks"), 168),
+            Map.entry(Identifier.parse("minecraft:prismarine_dark"), 168),
+            Map.entry(Identifier.parse("minecraft:sea_lantern"), 169),
+            Map.entry(Identifier.parse("minecraft:sponge"), 19),
+            Map.entry(Identifier.parse("minecraft:wet_sponge"), 19),
+            Map.entry(Identifier.parse("minecraft:gold_block"), 41),
+            Map.entry(Identifier.parse("minecraft:prismarine"), 168),
+            Map.entry(Identifier.parse("minecraft:prismarine_crystals"), 410),
+            Map.entry(Identifier.parse("minecraft:prismarine_shard"), 409)));
 
     /**
      * The redstone family's base ids (Slice 9a): the wire's sixteen power
@@ -670,7 +685,12 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:nether_brick_stairs_north"), 3),
             Map.entry(Identifier.parse("minecraft:nether_wart_stage1"), 1),
             Map.entry(Identifier.parse("minecraft:nether_wart_stage2"), 2),
-            Map.entry(Identifier.parse("minecraft:nether_wart_stage3"), 3));
+            Map.entry(Identifier.parse("minecraft:nether_wart_stage3"), 3),
+            // The monument set (Slice 12e): the prismarine variant band
+            // (the reference's PrismarineBlock) + the wet sponge bit.
+            Map.entry(Identifier.parse("minecraft:prismarine_bricks"), 1),
+            Map.entry(Identifier.parse("minecraft:prismarine_dark"), 2),
+            Map.entry(Identifier.parse("minecraft:wet_sponge"), 1));
 
     /**
      * @return the wire metadata nibble of a block type: the 1.8 data-value
