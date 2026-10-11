@@ -47,7 +47,8 @@ public final class ConfigLoader {
                 GameMode.parse(string(properties, "gamemode", "survival")),
                 boolOf(properties, "pvp", true),
                 levelType(properties),
-                boolOf(properties, "white-list", false));
+                boolOf(properties, "white-list", false),
+                regionSize(properties));
     }
 
     /** The bind address: empty means the wildcard (the vanilla convention). */
@@ -66,6 +67,16 @@ public final class ConfigLoader {
             default -> throw new IllegalArgumentException(
                     "level-type '" + raw + "' is not supported (normal or flat)");
         };
+    }
+
+    /**
+     * The spatial ownership granularity (the permanent architecture's Phase 4,
+     * ADR-6): chunks per axis per region. Missing or blank keeps the whole
+     * world one region — the conservative default, exactly Folia's own
+     * regionShift=31 posture.
+     */
+    private static int regionSize(Properties properties) {
+        return intOf(properties, "region-size-chunks", EngineConfig.WHOLE_WORLD_REGION_SIZE);
     }
 
     private static String string(Properties properties, String key, String fallback) {

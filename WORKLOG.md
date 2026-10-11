@@ -676,3 +676,72 @@ across region seams, then dispensers/droppers, hoppers, tripwire.
 - Next: the Phase 4 spatial-activation boundary work (piston pushes
   across region seams with the §11 boundary tests), then
   dispensers/droppers, hoppers, tripwire.
+
+---
+## Slice 10a — the Phase 4 spatial activation (the regionized ownership lane)
+
+**Goal:** the rollout's Phase 4 spatial activation — the per-position
+ownership assertion, the boundary scope for the seam-crossing mechanics,
+and the §11 boundary tests over piston pushes across region seams.
+
+**Reference:** `docs/CONCURRENCY_ARCHITECTURE.md` §4/§10.3 (the larger
+exclusive ownership scope), `docs/CONCURRENCY_DECISIONS_AND_ROLLOUT.md`
+ADR-6 (the default-huge granularity) + ADR-9 (never drop, never diverge)
++ ADR-13 (the ambient/global credential), the master spec's §18 boundary
+test list.
+
+**Landed:**
+
+- `EngineWorld.attachRegionPartition` + the position-aware
+  `requireOwnership(op, position/chunk)`: every block/chunk mutation
+  resolves the owning region's domain; the credential passes through the
+  region itself (the parallel lane's writer) OR the ambient simulation
+  domain (the single tick lane); every other context fails through the
+  region's own STRICT/DIAGNOSTIC enforcement (the violation names the
+  region). The boot-lane construction window (no ambient yet) keeps the
+  historical owner-thread check.
+- `EngineConfig.regionSizeChunks` — the `region-size-chunks` property,
+  default `1<<30` (the whole world one region — Folia's regionShift=31
+  posture). The boot creates each dimension's partition and attaches it.
+- The boundary scope `EngineWorld.executeInRegions(box, body)` — the
+  design §10.3 larger exclusive ownership: every region the box touches
+  entered in the ONE global packed-region-id acquisition order, released
+  in reverse (concurrent scopes deadlock-free by construction); a held
+  region refuses the enter and the scope releases its acquisitions.
+  `RegionPartition.domainsBetween` is the sorted-id box walk.
+- The seam-crossing mechanics under scopes: the piston's whole event (the
+  14-block reach wrap around doEvent — the extend's move writes, the
+  retract's sticky pull, the head) + the landing cells' own region (the
+  carrier finish); the detonation blast walk (the generalized `detonateAt`
+  destruction under the power*2+margin box — the §11 "explosions
+  spanning multiple owners" row).
+- The per-region intent drain at the tick head:
+  `EngineWorld.drainRegionIntents(router)` — every live region entered,
+  its inbound §7 intents applied in the target's own context (the
+  target-side apply), held regions skipped with their intents staying
+  queued (ordered, never dropped). The tick handler drains both
+  dimensions before the gameplay systems.
+- `RegionBoundaryTest` (8): the scope carries the region credential with
+  the ambient never entered (a writer holding only one region writes its
+  own side, fails the far side, and the spanning scope carries both
+  writes); the held region's exclusivity (the scope refuses, the body
+  never runs, the acquisitions release); the drain's held-region skip +
+  the after-release apply; the live foreign write failing against the
+  position's own region (the refused write never lands); the piston push
+  AND the sticky pull across the one-chunk seam (vanilla-exact,
+  same-tick); the redstone decay ladder walking the seam (15-7 at x=15,
+  15-8 at x=16 — the cascade neither restarts nor drops); the explosion
+  consuming both sides of the seam; the region-targeted router intent
+  applying at the target's boundary through the tick-head walk.
+
+**Ledgered limitation:** the parallel multi-domain execution lane (the
+gameplay systems dispatched per region through the worker pool) remains
+future work gated on the rollout's measurement rule; the redstone cascade
+and the fluid walks ride the ambient authority on the single tick lane.
+
+**Tests:** 667 -> 675 green (the full pass on 2-core hosts with
+`--max-workers=1`).
+
+**Next:** dispensers/droppers, hoppers (the §11 hopper intent arm — the
+cross-owner transfer rides the router), tripwire, then potions, leads,
+structures, natural spawn cycles.
