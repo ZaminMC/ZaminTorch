@@ -1843,17 +1843,20 @@ public final class EngineServer implements Server, EngineBridge {
         session.setBody(session.health(), newFood, newSaturation);
         fxManager.sound(mouthPosition(session), "random.burp", 0.5f,
                 fxRandom.nextFloat() * 0.1f + 0.9f);
-        // The golden apple's effect set (GoldenAppleItem.addEatEffects lines
+        // The golden apple's own set (GoldenAppleItem.addEatEffects lines
         // 26-40, installed after the burp exactly like the reference's
-        // finishUsing order): the plain apple carries Absorption I for 2400
-        // ticks (the FoodItem's own super arm adds nothing — the apple's
-        // registration sets no effect pair); the notch pair (damage 1) adds
-        // Regeneration V for 600 + Resistance I and Fire Resistance I for
-        // 6000.
-        if (held.type().identifier().toString().equals("minecraft:golden_apple")) {
+        // finishUsing order): the absorption on BOTH apples; the notch pair
+        // (damage 1) replaces the FoodItem's own pair with Regeneration V
+        // 600 + Resistance I and Fire Resistance I 6000; the PLAIN apple
+        // falls through to the super call — the FoodItem pair table's own
+        // Regeneration II 100 (the reference's setStatusEffect pair).
+        boolean goldenApple = held.type().identifier().toString()
+                .equals("minecraft:golden_apple");
+        boolean notchApple = goldenApple && held.damage() > 0;
+        if (goldenApple) {
             potionSystem.add(session, new net.zaminmc.torch.server.potion.StatusEffectInstance(
                     net.zaminmc.torch.server.potion.StatusEffects.ABSORPTION, 2400, 0));
-            if (held.damage() > 0) {
+            if (notchApple) {
                 potionSystem.add(session, new net.zaminmc.torch.server.potion.StatusEffectInstance(
                         net.zaminmc.torch.server.potion.StatusEffects.REGENERATION, 600, 4));
                 potionSystem.add(session, new net.zaminmc.torch.server.potion.StatusEffectInstance(
@@ -1861,6 +1864,20 @@ public final class EngineServer implements Server, EngineBridge {
                 potionSystem.add(session, new net.zaminmc.torch.server.potion.StatusEffectInstance(
                         net.zaminmc.torch.server.potion.StatusEffects.FIRE_RESISTANCE, 6000, 0));
             }
+        }
+        // The FoodItem's own pair (Item.java's setStatusEffect family —
+        // FoodItem.addEatEffects lines 41-45): the chance roll, then the
+        // duration × 20 install. The notch apple skips it (the reference's
+        // own branch structure); the plain golden apple rides it exactly
+        // like every other food.
+        if (!notchApple) {
+            Foods.effectOf(held.type()).ifPresent(pair -> {
+                if (fxRandom.nextFloat() < pair.chance()) {
+                    potionSystem.add(session,
+                            new net.zaminmc.torch.server.potion.StatusEffectInstance(
+                                    pair.effect(), pair.durationSeconds() * 20, pair.amplifier()));
+                }
+            });
         }
         publishInventoryChanged(session);
         publishBodyChanged(session);

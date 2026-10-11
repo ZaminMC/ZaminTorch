@@ -1357,3 +1357,43 @@ apple's glint/rarity (client-side), the golden apple's horse-love arm
 
 **Next:** the structures (the villages/mineshafts/strongholds beyond
 terrain decoration), the fish item family (the pufferfish ingredient).
+
+## Slice 11h — the FoodItem effect family + the golden apple correction
+
+**What landed:** the FoodItem's own effect pair table (`Foods.effectOf`
+— the reference's setStatusEffect registrations): the raw chicken's
+30% Hunger 30 s, the rotten flesh's 80%, the spider eye's certain
+Poison 5 s, the poisonous potato's 60%, and the golden apple's certain
+Regeneration II 5 s. The eat completion applies the pair exactly like
+the reference's FoodItem.addEatEffects (the chance roll, then the
+duration × 20 install).
+
+**The correction (the 11g reading was wrong):** the reference's
+GoldenAppleItem.addEatEffects calls `super.addEatEffects` for the PLAIN
+apple — and the apple's own registration carries
+`setStatusEffect(REGENERATION, 5, 1, 1.0F)` — so the plain golden apple
+installs Absorption I 2400 **plus Regeneration II 100** (the famous
+brief regen). The notch pair's branch skips the super call (its own
+Regeneration V replaces). The engine's eat now models the branch
+structure exactly: the absorption on both apples, the notch's three,
+and the FoodItem pair for everything else (the plain apple included).
+
+**Also:** the spider eye's nutrition row (FoodItem(2, 0.8) — 2 food,
+3.2 saturation; the item itself arrived with Slice 11e but the eat gate
+had no nutrition for it).
+
+**Tests:** BodySurvivalAcceptanceTest (the corrected
+theGoldenAppleInstallsItsEffectSet — the plain apple's absorption +
+Regeneration II 100/amplifier 1, the notch pair's full set; the new
+theSpiderEyeAlwaysPoisonsItsEater — Poison I 100, amplifier 0). The
+fresh full-suite count: **650 green in zamin-core** (+19 api +71
+protocol) with --max-workers=1, one projectile-test load flake (the
+documented one, 3/3 green in isolation).
+
+**Ledgered (not in this slice):** the fish items (the raw/cooked pairs
+with the pufferfish ingredient arm), the poisonous potato's item
+registration, the poison chance's interaction with milk (the item
+itself is not registered).
+
+**Next:** the structures (the villages/mineshafts/strongholds), the
+fish item family.
