@@ -78,6 +78,20 @@ final class LegacyBlockIds {
             // glass bottle 374.
             Map.entry(Identifier.parse("minecraft:potion"), 373),
             Map.entry(Identifier.parse("minecraft:glass_bottle"), 374),
+            // The brewing family's items (Slice 11e, the reference's Item.java
+            // registrations): the ingredients — ghast tear 370, nether
+            // wart 372, spider eye 375, fermented spider eye 376, blaze
+            // powder 377, magma cream 378, glistering melon 382 (the
+            // reference's "speckled_melon"), rabbit foot 414. The stand's
+            // ITEM form 379 lives in ITEM_OVERRIDES (the block keeps 117).
+            Map.entry(Identifier.parse("minecraft:ghast_tear"), 370),
+            Map.entry(Identifier.parse("minecraft:nether_wart"), 372),
+            Map.entry(Identifier.parse("minecraft:spider_eye"), 375),
+            Map.entry(Identifier.parse("minecraft:fermented_spider_eye"), 376),
+            Map.entry(Identifier.parse("minecraft:blaze_powder"), 377),
+            Map.entry(Identifier.parse("minecraft:magma_cream"), 378),
+            Map.entry(Identifier.parse("minecraft:glistering_melon"), 382),
+            Map.entry(Identifier.parse("minecraft:rabbit_foot"), 414),
             Map.entry(Identifier.parse("minecraft:wool"), 35),
             // Mob loot and fluid handling of the living-night slice
             // (community items.json ids: bone 352, string 287, gunpowder 289,
@@ -354,6 +368,18 @@ final class LegacyBlockIds {
             merged.put(Identifier.parse("minecraft:dropper_" + facing), 125);
             merged.put(Identifier.parse("minecraft:dropper_" + facing + "_triggered"), 125);
         }
+        // The brewing stand family (Slice 11e): legacy 117 — the three
+        // HAS_BOTTLE bits ride the nibble (BrewingStandBlock lines 145-166:
+        // bit i = has_bottle_i).
+        for (int bits = 0; bits < 8; bits++) {
+            StringBuilder name = new StringBuilder("minecraft:brewing_stand");
+            for (int slot = 0; slot < 3; slot++) {
+                if ((bits & (1 << slot)) != 0) {
+                    name.append("_bottle").append(slot);
+                }
+            }
+            merged.put(Identifier.parse(name.toString()), 117);
+        }
         // The tripwire family (Slice 10c): the wire 132, the hook 131 — the
         // four stored bits ride the wire's nibble, the facing/attached/
         // powered the hook's.
@@ -430,7 +456,11 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:hopper"), 410),
             // The tripwire hook item (Slice 10c): the block family keeps
             // legacy 131, the item form shares it.
-            Map.entry(Identifier.parse("minecraft:tripwire_hook"), 131));
+            Map.entry(Identifier.parse("minecraft:tripwire_hook"), 131),
+            // The brewing stand item (Slice 11e): the block family keeps
+            // legacy 117, the item form is 379 (the same split as the
+            // hopper's 410).
+            Map.entry(Identifier.parse("minecraft:brewing_stand"), 379));
 
     /** The damage-aware reverse map is declared after {@link #METADATA}. */
 
@@ -619,6 +649,21 @@ final class LegacyBlockIds {
                     ? value.substring(0, value.length() - "_triggered".length()) : value;
             String facing = rest.substring(rest.lastIndexOf('_') + 1);
             return directionNibble(facing) | (triggered ? 8 : 0);
+        }
+        if (value.startsWith("brewing_stand") && value.length() > "brewing_stand".length()) {
+            // has_bottle_i << i — BrewingStandBlock lines 145-153 (bit i =
+            // has_bottle_i; the bare "brewing_stand" carries no suffix).
+            int bits = 0;
+            if (value.contains("_bottle0")) {
+                bits |= 1;
+            }
+            if (value.contains("_bottle1")) {
+                bits |= 2;
+            }
+            if (value.contains("_bottle2")) {
+                bits |= 4;
+            }
+            return bits;
         }
         if (value.startsWith("tripwire_hook_")) {
             // facingH | (attached ? 4 : 0) | (powered ? 8 : 0) —

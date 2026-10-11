@@ -97,6 +97,10 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     // revision last seen (slot resync) and the seven property values last sent.
     private long enchantingRevisionSynced = -1;
     private final int[] enchantingPropsSent = new int[Protocol18.ENCHANTING_PROP_COUNT];
+    // Brewing-window sync state (Slice 11e): the slots serial last seen
+    // and the brew timer last sent (the window's property 0).
+    private int brewingSlotsSynced = -1;
+    private int brewingTimerSent = -1;
 
     V18Connection(V18ProtocolServer adapter, EngineServer engine) {
         this.adapter = adapter;
@@ -944,6 +948,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                     case FURNACE -> sendFurnaceWindow(channel, player, windowId);
                     case CHEST -> sendChestWindow(channel, player, windowId);
                     case DISPENSER -> sendDispenserWindow(channel, player, windowId);
+                    case BREWING_STAND -> sendBrewingWindow(channel, player, windowId);
                     case ENCHANTING_TABLE -> sendEnchantingWindow(channel, player, windowId);
                     default -> sendCraftingTableWindow(channel, player, windowId);
                 }
@@ -1046,6 +1051,89 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeByte(9); // the GUI's own slots: 3 rows of 3
         channel.writeAndFlush(out);
         sendContainerWindowItems(channel, windowId, player);
+    }
+
+    /**
+     * Open Window (0x2D) for the brewing stand (Slice 11e — the reference's
+     * BrewingStandMenu), followed by the authoritative 40-slot contents.
+     * The window's GUI carries four own slots (the three bottles + the
+     * ingredient); the brew timer rides the property stream. Called on the
+     * tick thread by the engine's open dispatch.
+     */
+    private void sendBrewingWindow(Channel channel, PlayerSession player, int windowId) {
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        var position = player.openContainerPosition();
+        var stand = position == null ? null : engine.brewingStands().peek(position);
+        if (stand == null) {
+            return; // stale open (state discarded): nothing to show
+        }
+        brewingSlotsSynced = -1;
+        brewingTimerSent = -1;
+        ByteBuf out = Unpooled.buffer(48);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_OPEN_WINDOW);
+        out.writeByte(windowId);
+        ByteBufOps.writeString(out, Protocol18.BREWING_WINDOW_TYPE);
+        ByteBufOps.writeString(out, Protocol18.BREWING_WINDOW_TITLE);
+        out.writeByte(4); // the GUI's own slots: three bottles + the ingredient
+        channel.writeAndFlush(out);
+        sendContainerWindowItems(channel, windowId, player);
+    }
+
+    /**
+     * Full authoritative sync of the brewing window (Slice 11e): 40 slots —
+     * 0-2 the bottles, 3 the ingredient, 4-30 main, 31-39 hotbar. Any thread;
+     * owner supplies the session state.
+     */
+    private void sendBrewingWindowItems(Channel channel, int windowId,
+                                        net.zaminmc.torch.server.brewing.BrewingStandBlockEntity stand,
+                                        PlayerSession player) {
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(96);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_WINDOW_ITEMS);
+        out.writeByte(windowId);
+        out.writeShort(Protocol18.BREWING_WINDOW_SLOTS);
+        var containerSlots = stand.snapshotSlots();
+        java.util.List<net.zaminmc.torch.item.ItemStack> inventory =
+                player == null ? java.util.List.of() : player.inventory().snapshot();
+        for (int wireSlot = 0; wireSlot < Protocol18.BREWING_WINDOW_SLOTS; wireSlot++) {
+            net.zaminmc.torch.item.ItemStack stack;
+            if (wireSlot <= Protocol18.BREWING_WIRE_SLOT_LAST) {
+                stack = containerSlots[wireSlot];
+            } else if (wireSlot <= Protocol18.BREWING_WIRE_SLOT_MAIN_LAST) {
+                // main: wire 4-30 -> engine 9-35
+                stack = inventory.get(wireSlot + 5);
+            } else {
+                stack = inventory.get(wireSlot - Protocol18.BREWING_WIRE_SLOT_HOTBAR_FIRST);
+            }
+            writeSlot(out, stack);
+        }
+        channel.writeAndFlush(out);
+    }
+
+    /**
+     * Per-tick brewing view (engine fan-out to the open viewer): the brew
+     * timer's Window Property move (the reference's own updateListeners —
+     * the changed value only) and the full 40-slot resync when the stand's
+     * slots changed. Tick-thread context.
+     */
+    void sendBrewingViewTick(Channel channel, int windowId,
+                             net.zaminmc.torch.server.brewing.BrewingStandBlockEntity stand) {
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        int timer = stand.timer();
+        if (timer != brewingTimerSent) {
+            brewingTimerSent = timer;
+            sendWindowProperty(channel, windowId, 0, timer);
+        }
+        if (stand.slotsSerial() != brewingSlotsSynced) {
+            brewingSlotsSynced = stand.slotsSerial();
+            sendBrewingWindowItems(channel, windowId, stand, session);
+        }
     }
 
     /** One furnace window property (0x31, community-verified layout). Any thread. */
@@ -1674,6 +1762,15 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             var container = position == null ? null : engine.dispensers().peek(position);
             if (container != null) {
                 sendDispenserWindowItems(channel, windowId, container, player);
+            }
+            return;
+        }
+        if (player.openContainerKind()
+                == net.zaminmc.torch.server.player.PlayerSession.ContainerKind.BREWING_STAND) {
+            var position = player.openContainerPosition();
+            var stand = position == null ? null : engine.brewingStands().peek(position);
+            if (stand != null) {
+                sendBrewingWindowItems(channel, windowId, stand, player);
             }
             return;
         }

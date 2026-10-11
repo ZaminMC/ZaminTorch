@@ -580,6 +580,20 @@ public final class BlockBehaviorTable {
             behaviors.put(Identifier.parse("minecraft:dropper_" + facing + "_triggered"),
                     dropper);
         }
+        // The brewing stand (Slice 11e — Block.java line 1241's strength 0.5):
+        // every bottle-bit variant drops the stand item (getDropItem lines
+        // 120-123); instant-ish by hand, no tool gate.
+        BlockBehavior brewingStand = new BlockBehavior(0.5, true, false, "rock", 0,
+                List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:brewing_stand"), 1)));
+        for (int bits = 0; bits < 8; bits++) {
+            StringBuilder name = new StringBuilder("minecraft:brewing_stand");
+            for (int slot = 0; slot < 3; slot++) {
+                if ((bits & (1 << slot)) != 0) {
+                    name.append("_bottle").append(slot);
+                }
+            }
+            behaviors.put(Identifier.parse(name.toString()), brewingStand);
+        }
         // The tripwire (Slice 10c, community blocks.json: hardness 0, instant
         // by hand): the wire drops string unless disarmed (the shears arm);
         // the hook drops the hook item.

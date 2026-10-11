@@ -498,6 +498,16 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                 }
             }
         });
+        // Brewing windows (Slice 11e): the same per-tick view fan-out — the
+        // brew timer's property move + the slots resync on change.
+        server.addBrewingViewListener((viewer, stand) -> {
+            for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                if (connection.currentSession() == viewer) {
+                    connection.sendBrewingViewTick(channelOf(connection),
+                            viewer.openContainerWindowId(), stand);
+                }
+            }
+        });
         // Enchanting windows: the same per-tick view fan-out, the menu state
         // living on the session (the historical per-open menu object).
         server.addEnchantingViewListener((viewer, menu) -> {
