@@ -418,6 +418,22 @@ public final class MobEntity {
         }
     }
 
+    /**
+     * The villager's career override (Slice 12b — the reference's
+     * VillagePieces spawnVillagers → setProfession): the structure-spawned
+     * villagers carry their building's profession (the blacksmith house's
+     * 3, the priest's 2, ...); the stock offers re-roll to match.
+     */
+    public void setVillagerProfession(int profession) {
+        if (type != MobType.VILLAGER) {
+            return;
+        }
+        this.profession = Math.max(0, Math.min(4, profession));
+        java.util.List<TradeOffer> stock = VillagerTrades.offersFor(this.profession);
+        this.offers = stock.toArray(new TradeOffer[0]);
+        this.offerUses = new int[offers.length];
+    }
+
     public int entityId() {
         return entityId;
     }

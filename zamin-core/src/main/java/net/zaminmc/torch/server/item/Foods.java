@@ -58,6 +58,10 @@ public final class Foods {
             // the potion system (ledger: plain food for now).
             Map.entry(net.zaminmc.torch.util.Identifier.parse("minecraft:apple"), new Nutrition(4, 2.4f)),
             Map.entry(net.zaminmc.torch.util.Identifier.parse("minecraft:carrot"), new Nutrition(3, 3.6f)),
+            // The potato pair (Slice 12b — community foods.json: the raw
+            // potato 1/0.6, the baked pair 5/6.0).
+            Map.entry(net.zaminmc.torch.util.Identifier.parse("minecraft:potato"), new Nutrition(1, 0.6f)),
+            Map.entry(net.zaminmc.torch.util.Identifier.parse("minecraft:baked_potato"), new Nutrition(5, 6.0f)),
             Map.entry(net.zaminmc.torch.util.Identifier.parse("minecraft:golden_carrot"), new Nutrition(6, 14.4f)),
             Map.entry(net.zaminmc.torch.util.Identifier.parse("minecraft:golden_apple"), new Nutrition(4, 9.6f)));
 

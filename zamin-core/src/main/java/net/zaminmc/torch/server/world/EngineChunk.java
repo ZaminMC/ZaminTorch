@@ -3,7 +3,10 @@ package net.zaminmc.torch.server.world;
 import net.zaminmc.torch.block.BlockType;
 import net.zaminmc.torch.block.ChunkPosition;
 import net.zaminmc.torch.server.world.light.LightSection;
+import net.zaminmc.torch.server.world.structure.StructureWorld;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -30,6 +33,26 @@ public final class EngineChunk {
     private final BlockType air;
     /** The 16x16 biome row (generation-derived state); plains until written. */
     private final byte[] biomes = new byte[16 * 16];
+
+    /**
+     * The populate-time generation attachments (Slice 12b — the village's
+     * spawn/chest records): written by the generator thread while the chunk
+     * is detached (it owns the chunk exclusively during generate), published
+     * with the chunk itself, and drained exactly once by the engine's tick
+     * thread after publication. The generator never touches the lists after
+     * generate returns — the publish is the safe-publication barrier, so the
+     * tick thread's drain needs no lock.
+     */
+    private final List<PendingVillager> pendingVillagers = new ArrayList<>();
+    private final List<PendingGenChest> pendingGenChests = new ArrayList<>();
+
+    /** One populate-time villager (the reference's structure addEntity). */
+    public record PendingVillager(int x, int y, int z, int profession) {
+    }
+
+    /** One populate-time loot chest (the reference's placeChestWithLoot). */
+    public record PendingGenChest(int x, int y, int z, List<StructureWorld.GenLootSlot> slots) {
+    }
 
     public EngineChunk(ChunkPosition position, BlockType air) {
         this.position = Objects.requireNonNull(position, "position");
@@ -78,6 +101,28 @@ public final class EngineChunk {
             }
         }
         return true;
+    }
+
+    // ------------------------------------------------- populate-time attachments (Slice 12b)
+
+    /** Records one villager spawn (generator thread, during generate). */
+    public void addPendingVillager(int x, int y, int z, int profession) {
+        pendingVillagers.add(new PendingVillager(x, y, z, profession));
+    }
+
+    /** Records one loot chest (generator thread, during generate). */
+    public void addPendingGenChest(int x, int y, int z, List<StructureWorld.GenLootSlot> slots) {
+        pendingGenChests.add(new PendingGenChest(x, y, z, List.copyOf(slots)));
+    }
+
+    /** @return the pending villager records (empty when none). */
+    public List<PendingVillager> pendingVillagers() {
+        return pendingVillagers;
+    }
+
+    /** @return the pending chest records (empty when none). */
+    public List<PendingGenChest> pendingGenChests() {
+        return pendingGenChests;
     }
 
     // ------------------------------------------------------------------ biomes (§biomes)

@@ -32,6 +32,11 @@ public abstract class StructureStart {
         return this.bounds;
     }
 
+    /** The reference's own valid gate (the village's override carries the piece-count rule). */
+    public boolean isValid() {
+        return true;
+    }
+
     public LinkedList<StructurePiece> getPieces() {
         return this.pieces;
     }

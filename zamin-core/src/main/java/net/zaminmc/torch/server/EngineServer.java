@@ -832,6 +832,7 @@ public final class EngineServer implements Server, EngineBridge {
                     // 180: the spawner walk every tick, the caps scaled by
                     // the spawning-chunk count).
                     naturalSpawns.tick(players.all(), world.timeOfDay());
+                    drainGenerationAttachments(); // the populate-time villagers + loot chests (Slice 12b)
                     tickMobPotions(); // the mobs' effect stores (Slice 11b)
                     tickLeashes(); // the leash physics + the knots (Slice 11c)
                     randomTicks.tick(players.all()); // §471: grass growth/decay
@@ -5094,14 +5095,18 @@ public final class EngineServer implements Server, EngineBridge {
             return true;
         }
         if (held.equals("minecraft:bone_meal")) {
-            int stage = RandomTickSystem.wheatStageAt(world, clicked);
+            // Slice 12b: the whole crop family (the reference's BlockCrops
+            // gate — the wheat, the carrots and the potatoes all grow fully).
+            int stage = net.zaminmc.torch.server.block.WorldSolidity.cropStageOf(
+                    world.getBlock(clicked).identifier());
             if (stage < 0 || stage >= 7) {
                 return false; // not a growing crop: the historical no-op
             }
             // WheatBlock.growFully lines 47-53: stage + nextInt(2..5
             // inclusive) — MathHelper.nextInt(random, 2, 5) = 2 + nextInt(4).
             int grown = Math.min(7, stage + 2 + gameplayRandom.nextInt(4));
-            world.setBlock(clicked, RandomTickSystem.wheatStage(grown));
+            world.setBlock(clicked, RandomTickSystem.cropStage(
+                    world.getBlock(clicked).identifier(), grown));
             session.inventory().consumeHeld(1);
             fxManager.itemShatter(new Position(clicked.x() + 0.5, clicked.y() + 0.5, clicked.z() + 0.5),
                     session.inventory().held());
@@ -7079,6 +7084,80 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /** The mobs' potion effects advance with the mob tick (Slice 11b). */
+    /**
+     * The populate-time generation drain (Slice 12b — the reference's
+     * structure addEntity + placeChestWithLoot): every loaded chunk's
+     * pending records materialize exactly once. The generator wrote the
+     * records while the chunk was detached; the publication through the
+     * world's chunk map is the safe-publication barrier, and the drain's
+     * take-and-clear on the empty-check fast path costs nothing on the
+     * steady tick. Tick-thread context.
+     */
+    private void drainGenerationAttachments() {
+        for (EngineWorld world : new EngineWorld[]{this.world, netherWorld}) {
+            for (net.zaminmc.torch.server.world.EngineChunk chunk : world.loadedChunks()) {
+                if (!chunk.pendingVillagers().isEmpty()) {
+                    for (net.zaminmc.torch.server.world.EngineChunk.PendingVillager pending
+                            : chunk.pendingVillagers()) {
+                        // The restart idempotence guard: the deterministic
+                        // regeneration re-records the same spawn row; a
+                        // villager already standing there (the mob store's
+                        // restore) means a previous life already drained it.
+                        if (mobManager.villagerNear(pending.x() + 0.5, pending.y(),
+                                pending.z() + 0.5, 1.0)) {
+                            continue;
+                        }
+                        Position at = new Position(pending.x() + 0.5, pending.y(), pending.z() + 0.5);
+                        MobEntity villager = mobManager.spawnAt(
+                                net.zaminmc.torch.server.entity.MobType.VILLAGER, at);
+                        if (villager != null && pending.profession() >= 0) {
+                            villager.setVillagerProfession(pending.profession());
+                        }
+                    }
+                    chunk.pendingVillagers().clear();
+                }
+                if (!chunk.pendingGenChests().isEmpty()) {
+                    for (net.zaminmc.torch.server.world.EngineChunk.PendingGenChest pending
+                            : chunk.pendingGenChests()) {
+                        net.zaminmc.torch.block.BlockPosition position =
+                                new net.zaminmc.torch.block.BlockPosition(
+                                        pending.x(), pending.y(), pending.z());
+                        net.zaminmc.torch.server.chest.ChestBlockEntity chest =
+                                chestManager.getOrCreate(position);
+                        // The same guard for the loot: a chest with contents
+                        // (the ZCD store's restore) was already filled by a
+                        // previous life — only an untouched chest takes the
+                        // rolls (the emptied-and-saved edge ledgers with
+                        // the slice's own note).
+                        if (chestHasContents(chest)) {
+                            continue;
+                        }
+                        for (net.zaminmc.torch.server.world.structure.StructureWorld.GenLootSlot slot
+                                : pending.slots()) {
+                            java.util.Optional<net.zaminmc.torch.item.ItemType> type =
+                                    BuiltinItems.lookup(
+                                            net.zaminmc.torch.util.Identifier.parse(slot.itemId()));
+                            type.ifPresent(itemType -> chest.setSlot(slot.slot(),
+                                    ItemStack.of(itemType, slot.count())));
+                        }
+                    }
+                    chunk.pendingGenChests().clear();
+                }
+            }
+        }
+    }
+
+    /** @return whether any of the chest's 27 slots carries a stack. */
+    private static boolean chestHasContents(
+            net.zaminmc.torch.server.chest.ChestBlockEntity chest) {
+        for (ItemStack stack : chest.snapshotSlots()) {
+            if (stack != null && !stack.isEmpty()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private void tickMobPotions() {
         for (MobEntity mob : mobManager.all()) {
             potionSystem.tick(mob);

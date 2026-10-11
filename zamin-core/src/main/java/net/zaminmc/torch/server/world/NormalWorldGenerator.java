@@ -26,6 +26,8 @@ public final class NormalWorldGenerator implements WorldGenerator {
     private final long seed;
     /** The mineshaft placement layer (Slice 12a): deterministic per chunk. */
     private final net.zaminmc.torch.server.world.structure.MineshaftStructure mineshafts;
+    /** The village placement layer (Slice 12b): deterministic per chunk. */
+    private final net.zaminmc.torch.server.world.structure.VillageStructure villages;
     private final net.zaminmc.torch.server.world.structure.StructurePalette structurePalette;
 
     @Override
@@ -60,6 +62,7 @@ public final class NormalWorldGenerator implements WorldGenerator {
         this.registry = Objects.requireNonNull(registry, "registry");
         this.seed = 0x5A4D494E5C00L ^ worldName.hashCode() * 0x9E3779B97F4L;
         this.mineshafts = new net.zaminmc.torch.server.world.structure.MineshaftStructure(this.seed);
+        this.villages = new net.zaminmc.torch.server.world.structure.VillageStructure(this.seed);
         this.structurePalette = net.zaminmc.torch.server.world.structure.StructurePalette.of(registry);
         this.air = registry.require(Identifier.parse("minecraft:air"));
         this.bedrock = registry.require(Identifier.parse("minecraft:bedrock"));
@@ -226,8 +229,34 @@ public final class NormalWorldGenerator implements WorldGenerator {
                     public boolean isOpaque(net.zaminmc.torch.block.BlockType type) {
                         return net.zaminmc.torch.server.block.WorldSolidity.isSolid(type);
                     }
+
+                    @Override
+                    public int surfaceHeight(int x, int z) {
+                        // The pure probe — never the chunk's array — so a
+                        // piece spanning chunks re-bases identically in
+                        // every chunk that touches it (Slice 12b's
+                        // deterministic-contract note).
+                        return heightAt(x, z);
+                    }
+
+                    @Override
+                    public Biome biomeAt(int x, int z) {
+                        return NormalWorldGenerator.this.biomeAt(x, z);
+                    }
+
+                    @Override
+                    public void spawnVillager(int x, int y, int z, int profession) {
+                        chunk.addPendingVillager(x, y, z, profession);
+                    }
+
+                    @Override
+                    public void placeGenChest(int x, int y, int z,
+                            java.util.List<net.zaminmc.torch.server.world.structure.StructureWorld.GenLootSlot> slots) {
+                        chunk.addPendingGenChest(x, y, z, slots);
+                    }
                 };
         mineshafts.populate(chunk.position().x(), chunk.position().z(), view);
+        villages.populate(chunk.position().x(), chunk.position().z(), view);
     }
 
     /** The block for one column cell: core, skin, water, cave or ore. */

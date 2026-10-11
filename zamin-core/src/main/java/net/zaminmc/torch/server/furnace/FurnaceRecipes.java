@@ -60,6 +60,10 @@ public final class FurnaceRecipes {
             // raw -> cooked entry).
             Identifier.parse("minecraft:mutton"),
             new SmeltResult(Identifier.parse("minecraft:cooked_mutton"), 1, 0),
+            // The potato pair (Slice 12b — the village farm's second crop:
+            // the raw potato bakes at 0.35 XP like the food band).
+            Identifier.parse("minecraft:potato"),
+            new SmeltResult(Identifier.parse("minecraft:baked_potato"), 1, 0),
             Identifier.parse("minecraft:oak_log"),
             new SmeltResult(Identifier.parse("minecraft:coal"), 1, 1));
     // The oak_log entry is charcoal: output coal with damage 1, the 1.8 dataset
@@ -83,17 +87,18 @@ public final class FurnaceRecipes {
      * The experience points one taken output item pays. The cooked fish
      * (Slice 11i) joins the cooked-food band at 0.35.
      */
-    private static final Map<Identifier, Double> TAKE_EXPERIENCE = Map.of(
-            Identifier.parse("minecraft:iron_ingot"), 0.7,
-            Identifier.parse("minecraft:gold_ingot"), 1.0,
-            Identifier.parse("minecraft:stone"), 0.1,
-            Identifier.parse("minecraft:glass"), 0.1,
-            Identifier.parse("minecraft:cooked_beef"), 0.35,
-            Identifier.parse("minecraft:cooked_porkchop"), 0.35,
-            Identifier.parse("minecraft:cooked_chicken"), 0.35,
-            Identifier.parse("minecraft:cooked_mutton"), 0.35,
-            Identifier.parse("minecraft:cooked_fish"), 0.35,
-            Identifier.parse("minecraft:coal"), 0.15);
+    private static final Map<Identifier, Double> TAKE_EXPERIENCE = Map.ofEntries(
+            Map.entry(Identifier.parse("minecraft:iron_ingot"), 0.7),
+            Map.entry(Identifier.parse("minecraft:gold_ingot"), 1.0),
+            Map.entry(Identifier.parse("minecraft:stone"), 0.1),
+            Map.entry(Identifier.parse("minecraft:glass"), 0.1),
+            Map.entry(Identifier.parse("minecraft:cooked_beef"), 0.35),
+            Map.entry(Identifier.parse("minecraft:cooked_porkchop"), 0.35),
+            Map.entry(Identifier.parse("minecraft:cooked_chicken"), 0.35),
+            Map.entry(Identifier.parse("minecraft:cooked_mutton"), 0.35),
+            Map.entry(Identifier.parse("minecraft:baked_potato"), 0.35),
+            Map.entry(Identifier.parse("minecraft:cooked_fish"), 0.35),
+            Map.entry(Identifier.parse("minecraft:coal"), 0.15));
 
     /** @return the experience points one taken output item pays. */
     public static double takeExperienceOf(ItemType output) {

@@ -311,6 +311,64 @@ public final class BuiltinBlocks {
     public static final EngineBlockType COBWEB = new EngineBlockType(
             Identifier.parse("minecraft:cobweb"), "Cobweb");
 
+    // The village slice (community blocks.json ids): the glass pane (102)
+    // and the iron bars (101) — thin solids the engine models full-cube
+    // (the flat-solid stand-in, like the fence before the shape slice);
+    // the double stone slab (43, the blacksmith's table block); the
+    // smooth sandstone skin (24 metadata 2 — the desert swap for planks);
+    // the sandstone stairs (128, the ascending band E/W/S/N = 0..3 like
+    // the oak/cobble pair); and the two extra farm crops — carrots (141)
+    // and potatoes (142) with the age 0..7 in the metadata nibble exactly
+    // like the wheat (each stage its own per-state type).
+    public static final EngineBlockType GLASS_PANE = new EngineBlockType(
+            Identifier.parse("minecraft:glass_pane"), "Glass Pane");
+    public static final EngineBlockType IRON_BARS = new EngineBlockType(
+            Identifier.parse("minecraft:iron_bars"), "Iron Bars");
+    public static final EngineBlockType DOUBLE_STONE_SLAB = new EngineBlockType(
+            Identifier.parse("minecraft:double_stone_slab"), "Double Stone Slab");
+    public static final EngineBlockType SMOOTH_SANDSTONE = new EngineBlockType(
+            Identifier.parse("minecraft:smooth_sandstone"), "Sandstone", 2);
+    public static final EngineBlockType SANDSTONE_STAIRS_EAST = new EngineBlockType(
+            Identifier.parse("minecraft:sandstone_stairs_east"), "Sandstone Stairs");
+    public static final EngineBlockType SANDSTONE_STAIRS_WEST = new EngineBlockType(
+            Identifier.parse("minecraft:sandstone_stairs_west"), "Sandstone Stairs", 1);
+    public static final EngineBlockType SANDSTONE_STAIRS_SOUTH = new EngineBlockType(
+            Identifier.parse("minecraft:sandstone_stairs_south"), "Sandstone Stairs", 2);
+    public static final EngineBlockType SANDSTONE_STAIRS_NORTH = new EngineBlockType(
+            Identifier.parse("minecraft:sandstone_stairs_north"), "Sandstone Stairs", 3);
+    public static final EngineBlockType CARROTS_STAGE0 = new EngineBlockType(
+            Identifier.parse("minecraft:carrots_stage0"), "Carrots");
+    public static final EngineBlockType CARROTS_STAGE1 = new EngineBlockType(
+            Identifier.parse("minecraft:carrots_stage1"), "Carrots", 1);
+    public static final EngineBlockType CARROTS_STAGE2 = new EngineBlockType(
+            Identifier.parse("minecraft:carrots_stage2"), "Carrots", 2);
+    public static final EngineBlockType CARROTS_STAGE3 = new EngineBlockType(
+            Identifier.parse("minecraft:carrots_stage3"), "Carrots", 3);
+    public static final EngineBlockType CARROTS_STAGE4 = new EngineBlockType(
+            Identifier.parse("minecraft:carrots_stage4"), "Carrots", 4);
+    public static final EngineBlockType CARROTS_STAGE5 = new EngineBlockType(
+            Identifier.parse("minecraft:carrots_stage5"), "Carrots", 5);
+    public static final EngineBlockType CARROTS_STAGE6 = new EngineBlockType(
+            Identifier.parse("minecraft:carrots_stage6"), "Carrots", 6);
+    public static final EngineBlockType CARROTS_STAGE7 = new EngineBlockType(
+            Identifier.parse("minecraft:carrots_stage7"), "Carrots", 7);
+    public static final EngineBlockType POTATOES_STAGE0 = new EngineBlockType(
+            Identifier.parse("minecraft:potatoes_stage0"), "Potatoes");
+    public static final EngineBlockType POTATOES_STAGE1 = new EngineBlockType(
+            Identifier.parse("minecraft:potatoes_stage1"), "Potatoes", 1);
+    public static final EngineBlockType POTATOES_STAGE2 = new EngineBlockType(
+            Identifier.parse("minecraft:potatoes_stage2"), "Potatoes", 2);
+    public static final EngineBlockType POTATOES_STAGE3 = new EngineBlockType(
+            Identifier.parse("minecraft:potatoes_stage3"), "Potatoes", 3);
+    public static final EngineBlockType POTATOES_STAGE4 = new EngineBlockType(
+            Identifier.parse("minecraft:potatoes_stage4"), "Potatoes", 4);
+    public static final EngineBlockType POTATOES_STAGE5 = new EngineBlockType(
+            Identifier.parse("minecraft:potatoes_stage5"), "Potatoes", 5);
+    public static final EngineBlockType POTATOES_STAGE6 = new EngineBlockType(
+            Identifier.parse("minecraft:potatoes_stage6"), "Potatoes", 6);
+    public static final EngineBlockType POTATOES_STAGE7 = new EngineBlockType(
+            Identifier.parse("minecraft:potatoes_stage7"), "Potatoes", 7);
+
     private BuiltinBlocks() {
     }
 
@@ -418,6 +476,30 @@ public final class BuiltinBlocks {
                 .register(COBBLESTONE_STAIRS_NORTH)
                 .register(RAIL)
                 .register(RAIL_EW)
-                .register(COBWEB);
+                .register(COBWEB)
+                .register(GLASS_PANE)
+                .register(IRON_BARS)
+                .register(DOUBLE_STONE_SLAB)
+                .register(SMOOTH_SANDSTONE)
+                .register(SANDSTONE_STAIRS_EAST)
+                .register(SANDSTONE_STAIRS_WEST)
+                .register(SANDSTONE_STAIRS_SOUTH)
+                .register(SANDSTONE_STAIRS_NORTH)
+                .register(CARROTS_STAGE0)
+                .register(CARROTS_STAGE1)
+                .register(CARROTS_STAGE2)
+                .register(CARROTS_STAGE3)
+                .register(CARROTS_STAGE4)
+                .register(CARROTS_STAGE5)
+                .register(CARROTS_STAGE6)
+                .register(CARROTS_STAGE7)
+                .register(POTATOES_STAGE0)
+                .register(POTATOES_STAGE1)
+                .register(POTATOES_STAGE2)
+                .register(POTATOES_STAGE3)
+                .register(POTATOES_STAGE4)
+                .register(POTATOES_STAGE5)
+                .register(POTATOES_STAGE6)
+                .register(POTATOES_STAGE7);
     }
 }
