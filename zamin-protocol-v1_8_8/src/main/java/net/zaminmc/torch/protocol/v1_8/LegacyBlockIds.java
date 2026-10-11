@@ -328,6 +328,12 @@ final class LegacyBlockIds {
                         prefix.startsWith("piston_head") ? 34 : 36);
             }
         }
+        // The hopper family (Slice 10b): legacy 154, the facing and the
+        // enabled bit riding the nibble (HopperBlock lines 176-190).
+        for (String facing : new String[]{"down", "north", "south", "west", "east"}) {
+            merged.put(Identifier.parse("minecraft:hopper_" + facing), 154);
+            merged.put(Identifier.parse("minecraft:hopper_" + facing + "_disabled"), 154);
+        }
         // The player-driven sources (Slice 9c): the lever 69, the buttons
         // 77 stone / 143 wood, the plates 70 stone / 72 wood.
         for (String key : new String[]{"down_x", "east", "west", "south", "north", "up_z", "up_x", "down_z"}) {
@@ -353,23 +359,27 @@ final class LegacyBlockIds {
      * historical split). Consulted by the slot/item wire paths only.
      * Declared before the reverse map: reverse() folds it in at init.
      */
-    private static final Map<Identifier, Integer> ITEM_OVERRIDES = Map.of(
-            Identifier.parse("minecraft:sign"), 323,
-            Identifier.parse("minecraft:oak_door"), 324,
-            Identifier.parse("minecraft:ladder"), 65,
-            Identifier.parse("minecraft:bed"), 355,
-            Identifier.parse("minecraft:sugar_cane"), 338,
+    private static final Map<Identifier, Integer> ITEM_OVERRIDES = Map.ofEntries(
+            Map.entry(Identifier.parse("minecraft:sign"), 323),
+            Map.entry(Identifier.parse("minecraft:oak_door"), 324),
+            Map.entry(Identifier.parse("minecraft:ladder"), 65),
+            Map.entry(Identifier.parse("minecraft:bed"), 355),
+            Map.entry(Identifier.parse("minecraft:sugar_cane"), 338),
             // The stairs items (the block types carry facing suffixes; the
             // item keeps the bare historical identifier, item id = block id).
-            Identifier.parse("minecraft:oak_stairs"), 53,
-            Identifier.parse("minecraft:cobblestone_stairs"), 67,
+            Map.entry(Identifier.parse("minecraft:oak_stairs"), 53),
+            Map.entry(Identifier.parse("minecraft:cobblestone_stairs"), 67),
             // The redstone slice: the dust is item 331, the repeater item
             // 356 (the block types carry the state suffixes); the comparator
             // item 404 (the same split); the redstone
             // torch item shares block id 76 through BY_IDENTIFIER.
-            Identifier.parse("minecraft:redstone"), 331,
-            Identifier.parse("minecraft:repeater"), 356,
-            Identifier.parse("minecraft:comparator"), 404);
+            Map.entry(Identifier.parse("minecraft:redstone"), 331),
+            Map.entry(Identifier.parse("minecraft:repeater"), 356),
+            Map.entry(Identifier.parse("minecraft:comparator"), 404),
+            // The hopper item (Slice 10b): the block family keeps legacy 154,
+            // the item form is 410 (the historical split — the same shape as
+            // the comparator's 404).
+            Map.entry(Identifier.parse("minecraft:hopper"), 410));
 
     /** The damage-aware reverse map is declared after {@link #METADATA}. */
 
@@ -541,6 +551,15 @@ final class LegacyBlockIds {
             String facing = rest.substring(rest.lastIndexOf('_') + 1);
             return directionNibble(facing) | (extended ? 8 : 0);
         }
+        if (value.startsWith("hopper_")) {
+            // facing | (disabled ? 8 : 0) — HopperBlock lines 176-190
+            // (getFacing reads metadata & 7, isEnabled reads (metadata & 8) != 8).
+            boolean disabled = value.endsWith("_disabled");
+            String rest = disabled
+                    ? value.substring(0, value.length() - "_disabled".length()) : value;
+            String facing = rest.substring(rest.lastIndexOf('_') + 1);
+            return directionNibble(facing) | (disabled ? 8 : 0);
+        }
         if (value.startsWith("lever_")) {
             // The facing id | the powered bit (LeverBlock lines 258-263).
             boolean powered = value.endsWith("_powered");
@@ -599,6 +618,15 @@ final class LegacyBlockIds {
         BY_IDENTIFIER.forEach((identifier, legacy) -> {
             if (isRedstoneFamily(identifier)) {
                 reversed.put((legacy << 4) | redstoneMetadataOf(identifier), identifier);
+            }
+        });
+        // The hopper family folds its own nibble space in too (the facing
+        // and the enabled bit) so the damage-aware reverse resolves the
+        // family's ten states.
+        BY_IDENTIFIER.forEach((identifier, legacy) -> {
+            if (identifier.namespace().equals("minecraft")
+                    && identifier.value().startsWith("hopper_")) {
+                reversed.put((legacy << 4) | metadataOf(identifier), identifier);
             }
         });
         return Map.copyOf(reversed);

@@ -1,0 +1,149 @@
+package net.zaminmc.torch.server.hopper;
+
+import net.zaminmc.torch.item.ItemStack;
+
+import java.util.Arrays;
+
+/**
+ * One placed hopper's state (the historical tile entity —
+ * reference/1.8.8 block/entity/HopperBlockEntity.java): five slots, the
+ * transfer cooldown, and the contents-changed wake. Slots live in the
+ * world keyed by position (the engine's container model, the same
+ * ownership as the chest and furnace): every viewer sees the same
+ * contents, a break spills them, and every slot mutation re-arms the
+ * comparators reading the hopper (the reference's {@code markDirty} ->
+ * {@code updateNeighborComparators}).
+ *
+ * <p>The cooldown starts at {@code -1} (the reference's own initial — a
+ * freshly placed hopper transfers on its first tick); a successful
+ * transfer sets {@code 8} (the two-item-per-second vanilla cadence); and a
+ * hopper that RECEIVES an item resets to {@code 8} while idle — the
+ * reference's {@code canTransferNextTick} arm inside the slot push.</p>
+ *
+ * <p>Ownership: mutated only by the simulation context (the manager's
+ * transfer walk and the spill path, all on the tick thread).</p>
+ */
+public final class HopperBlockEntity {
+
+    /** The hopper GUI's own slot count. */
+    public static final int SLOT_COUNT = 5;
+    /** The transfer cooldown after a successful transfer (4 items/second... 2 per second: 8 ticks). */
+    public static final int TRANSFER_COOLDOWN = 8;
+
+    private final ItemStack[] slots = new ItemStack[SLOT_COUNT];
+    private int transferCooldown = -1;
+
+    /** The contents-changed wake (the comparator re-evaluation fan-out). */
+    private Runnable contentsListener;
+
+    public HopperBlockEntity() {
+        Arrays.fill(slots, ItemStack.EMPTY);
+    }
+
+    /** Wires the contents-changed wake. */
+    public void setContentsListener(Runnable listener) {
+        this.contentsListener = listener;
+    }
+
+    /** The mutation bump: the comparator wake (the markDirty port). */
+    private void bump() {
+        if (contentsListener != null) {
+            contentsListener.run();
+        }
+    }
+
+    /** The cooldown bookkeeping (HopperBlockEntity.tick lines 166-174). */
+    public void tickCooldown() {
+        transferCooldown--;
+        if (!isOnCooldown()) {
+            setCooldown(0);
+        }
+    }
+
+    /** @return whether the hopper still waits out a transfer cooldown. */
+    public boolean isOnCooldown() {
+        return transferCooldown > 0;
+    }
+
+    public void setCooldown(int cooldown) {
+        this.transferCooldown = cooldown;
+    }
+
+    /**
+     * The receiving-hopper reset (HopperBlockEntity.canTransferNextTick +
+     * the slot push's arm): a hopper that takes an item while idle
+     * (cooldown <= 1) restarts its cooldown so the item is not
+     * immediately pushed on.
+     */
+    public void noteReceived() {
+        if (transferCooldown <= 1) {
+            transferCooldown = TRANSFER_COOLDOWN;
+        }
+    }
+
+    /** @return the slot's stack (possibly empty — the reference's null). */
+    public ItemStack getItem(int slot) {
+        rangeCheck(slot);
+        return slots[slot];
+    }
+
+    /**
+     * The reference's removeItem(slot, amount) (lines 89-106): takes up to
+     * the amount from the slot; the slot empties when the whole stack
+     * leaves. The caller decides what to do with the remainder.
+     */
+    public ItemStack removeItem(int slot, int amount) {
+        rangeCheck(slot);
+        ItemStack current = slots[slot];
+        if (current.isEmpty()) {
+            return ItemStack.EMPTY;
+        }
+        if (current.count() <= amount) {
+            slots[slot] = ItemStack.EMPTY;
+            bump();
+            return current;
+        }
+        ItemStack taken = ItemStack.of(current.type(), amount);
+        slots[slot] = current.withCount(current.count() - amount);
+        bump();
+        return taken;
+    }
+
+    /** The engine's direct slot write (the item pickup arm + restore). */
+    public void setItem(int slot, ItemStack stack) {
+        rangeCheck(slot);
+        slots[slot] = stack == null ? ItemStack.EMPTY : stack;
+        bump();
+    }
+
+    /** @return a defensive copy of the five slots, index-aligned. */
+    public ItemStack[] snapshotSlots() {
+        return slots.clone();
+    }
+
+    /** @return whether every slot is empty (the reference's isInventoryEmpty). */
+    public boolean isEmpty() {
+        for (ItemStack stack : slots) {
+            if (!stack.isEmpty()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /** @return whether every slot holds a full stack (the reference's isFull). */
+    public boolean isFull() {
+        for (ItemStack stack : slots) {
+            if (stack.isEmpty() || stack.count() < stack.type().maxStackSize()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static void rangeCheck(int slot) {
+        if (slot < 0 || slot >= SLOT_COUNT) {
+            throw new IllegalArgumentException("Hopper slot out of range: " + slot);
+        }
+    }
+}
