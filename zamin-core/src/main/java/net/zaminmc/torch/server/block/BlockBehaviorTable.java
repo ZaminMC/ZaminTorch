@@ -369,6 +369,43 @@ public final class BlockBehaviorTable {
             Map.entry(Identifier.parse("minecraft:end_portal_frame_eye_east"),
                     new BlockBehavior(-1.0, false, false, "rock", 0, List.of())),
 
+            // The fortress set (Slice 12d — community blocks.json 1.8
+            // values): the nether-brick family 2.0 rock pickaxe-gated
+            // (harvest 0) dropping itself; the wart a plant (hardness 0,
+            // the reference's drop rule: 1 below age 3, 2-4 at maturity —
+            // the random band ledgers with the farming slice, the table
+            // carries the floor).
+            Map.entry(Identifier.parse("minecraft:nether_bricks"),
+                    new BlockBehavior(2.0, true, true, "rock", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:nether_bricks"), 1)))),
+            Map.entry(Identifier.parse("minecraft:nether_brick_fence"),
+                    new BlockBehavior(2.0, true, true, "rock", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:nether_brick_fence"), 1)))),
+            Map.entry(Identifier.parse("minecraft:nether_brick_stairs_east"),
+                    new BlockBehavior(2.0, true, true, "rock", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:nether_brick_stairs"), 1)))),
+            Map.entry(Identifier.parse("minecraft:nether_brick_stairs_west"),
+                    new BlockBehavior(2.0, true, true, "rock", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:nether_brick_stairs"), 1)))),
+            Map.entry(Identifier.parse("minecraft:nether_brick_stairs_south"),
+                    new BlockBehavior(2.0, true, true, "rock", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:nether_brick_stairs"), 1)))),
+            Map.entry(Identifier.parse("minecraft:nether_brick_stairs_north"),
+                    new BlockBehavior(2.0, true, true, "rock", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:nether_brick_stairs"), 1)))),
+            Map.entry(Identifier.parse("minecraft:nether_wart_stage0"),
+                    new BlockBehavior(0.0, true, false, "plants", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:nether_wart"), 1)))),
+            Map.entry(Identifier.parse("minecraft:nether_wart_stage1"),
+                    new BlockBehavior(0.0, true, false, "plants", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:nether_wart"), 1)))),
+            Map.entry(Identifier.parse("minecraft:nether_wart_stage2"),
+                    new BlockBehavior(0.0, true, false, "plants", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:nether_wart"), 1)))),
+            Map.entry(Identifier.parse("minecraft:nether_wart_stage3"),
+                    new BlockBehavior(0.0, true, false, "plants", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:nether_wart"), 2)))),
+
             Map.entry(Identifier.parse("minecraft:bed"),
                     new BlockBehavior(0.2, true, false, "wood", 0,
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:bed"), 1)))),

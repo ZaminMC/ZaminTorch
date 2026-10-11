@@ -332,6 +332,13 @@ public final class BuiltinItems {
     // drop form).
     public static final EngineItemType IRON_DOOR = new EngineItemType(
             Identifier.parse("minecraft:iron_door"), "Iron Door", 64);
+    // The fortress's block item family (Slice 12d — legacy 405/113/114).
+    public static final EngineItemType NETHER_BRICKS = new EngineItemType(
+            Identifier.parse("minecraft:nether_bricks"), "Nether Bricks", 64);
+    public static final EngineItemType NETHER_BRICK_FENCE = new EngineItemType(
+            Identifier.parse("minecraft:nether_brick_fence"), "Nether Brick Fence", 64);
+    public static final EngineItemType NETHER_BRICK_STAIRS = new EngineItemType(
+            Identifier.parse("minecraft:nether_brick_stairs"), "Nether Brick Stairs", 64);
 
     // Mob loot (legacy ids from the community dataset: porkchop 319, cooked
     // porkchop 320, raw chicken 365, cooked chicken 366, feather 288,
@@ -569,6 +576,7 @@ public final class BuiltinItems {
                 LEAD, CARROT_ON_A_STICK, EMERALD,
                 LAPIS, ENCHANTED_BOOK, BOOKSHELF, ENCHANTING_TABLE,
                 ENDER_PEARL, EMPTY_MAP, COMPASS, IRON_DOOR,
+                NETHER_BRICKS, NETHER_BRICK_FENCE, NETHER_BRICK_STAIRS,
                 BONE, STRING, GUNPOWDER, WOOL, MUTTON, COOKED_MUTTON,
                 BUCKET, WATER_BUCKET, LAVA_BUCKET,
                 FLINT_AND_STEEL, GOLD_INGOT,

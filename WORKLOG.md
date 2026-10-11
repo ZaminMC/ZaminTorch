@@ -1754,3 +1754,65 @@ zero failures beyond the documented load flakes.
 **Next:** the fortresses (FortressStructure + FortressPieces over the
 foundation — the nether bridge family), the ocean monuments, the
 temples.
+
+## Slice 12d — the nether fortresses
+
+**The reference port** (`gen/structure/FortressStructure.java` +
+`FortressPieces.java`, 1:1 over the Slice 12a foundation):
+
+- **The placement** (`FortressStructure`): the cell = chunk >> 4 (16
+  chunks per cell), the seed `cellX ^ (cellZ << 4) ^ worldSeed`, the
+  burned draw, the nextInt(3) == 0 gate AND the pick identity
+  `(cellX << 4) + 4 + nextInt(8)` on both axes (the z roll
+  short-circuits behind the x check — the reference's own && order).
+- **The start**: the 19x19 BridgeCrossing shape at the pick chunk's +2
+  corner (the random facing, the y-64 anchor), the children queue
+  drained in random order, the bounds union, the
+  moveBetweenYCoords(48, 70) band re-base (the fortress's own re-base,
+  now on StructureStart).
+- **The two weight tables**: the bridge walk (StraightBridge 30/0
+  connector, BridgeCrossing 10/4, LargeCrossing 10/4, BridgeStairs
+  10/3, BlazeSpawner 5/2, CastleEntrance 5/1) and the castle walk
+  (SmallCorridor 25/0 connector, SmallCorridorCrossing 15/5, the turns
+  5/10, StairsCorridor 10/3 connector, CorridorBalcony 7/2,
+  NetherwartFarm 5/2) — the getTotalWeight -1 sentinel, the five-try
+  walk, the connector-repeat rule (a non-connector row may not follow
+  itself), the depth-30 cap, the ±112 leash, and the BridgeEnd
+  fallback (its own constructor-drawn seed with the wall-length rolls
+  from it; the out-of-leash fallback does NOT join the lists).
+- **The fourteen families**: the StraightBridge causeway with the rail
+  fences, the BridgeCrossing hub, the BridgeEnd terminator, the
+  BridgeStairs tower, the BlazeSpawner's stair platform with the
+  spawner, the CastleEntrance gatehouse with the lava well, the
+  CorridorBalcony with its two nextInt(8) corridor rolls, the
+  LargeCrossing roofed hub, the SmallCorridor family with the chest
+  rolls (nextInt(3) == 0), the StairsCorridor's ten-step flight, and
+  the NetherwartFarm (the stair cascade, the soul sand beds with the
+  age-0 wart, the two-level gallery).
+
+**The new engine surface:**
+
+- **The fortress block set**: the nether bricks (40), the nether-brick
+  fence (113), the nether-brick stairs (114, the ascending band), the
+  nether wart (115, the age 0..3) — with the legacy wire rows, the
+  metadata nibbles, the behavior rows and the light rows.
+- **The block item trio**: 405/113/114.
+- **The moveBetweenYCoords band re-base** on StructureStart (the
+  reference's lines 106-121).
+- **The nether generator's populate hook**: the fortress pass rides
+  the NetherWorldGenerator with the StructureWorld view (the
+  out-of-chunk answer is the bulk stone shape — the fortress pieces
+  pass avoidAir=false and never probe the liquid border, so no
+  out-of-chunk read gates any write; the envelope note).
+
+**The envelope notes** (all in the ledger row): the blaze spawner's
+block entity + the fortress's own monster spawn table ledger with the
+mob-spawner/natural-spawn slices; the castle entrance's
+populate-time lava tick ledgers with the fluid-update slice; the wart's
+2-4 maturity drop band ledgers with the farming slice.
+
+The fresh full-suite count **682 green in zamin-core**, `--max-workers=1`,
+zero failures (the NetherWorldTest's registry updated to the engine's
+full boot chain — the fortress pass pulls the structure palette).
+
+**Next:** the ocean monuments, the temples.

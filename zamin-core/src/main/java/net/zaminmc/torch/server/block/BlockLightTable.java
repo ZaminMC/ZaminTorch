@@ -247,7 +247,22 @@ public final class BlockLightTable {
             Map.entry(Identifier.parse("minecraft:end_portal_frame_eye_south"), new LightData(0, 15)),
             Map.entry(Identifier.parse("minecraft:end_portal_frame_eye_west"), new LightData(0, 15)),
             Map.entry(Identifier.parse("minecraft:end_portal_frame_eye_north"), new LightData(0, 15)),
-            Map.entry(Identifier.parse("minecraft:end_portal_frame_eye_east"), new LightData(0, 15)));
+            Map.entry(Identifier.parse("minecraft:end_portal_frame_eye_east"), new LightData(0, 15)),
+
+            // The fortress set (Slice 12d): the nether-brick family are
+            // full opaque cubes (dataset filterLight 15), the fence's
+            // thin shape passes light, and the wart is a plant (filter 0,
+            // no emission).
+            Map.entry(Identifier.parse("minecraft:nether_bricks"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:nether_brick_fence"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:nether_brick_stairs_east"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:nether_brick_stairs_west"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:nether_brick_stairs_south"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:nether_brick_stairs_north"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:nether_wart_stage0"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:nether_wart_stage1"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:nether_wart_stage2"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:nether_wart_stage3"), new LightData(0, 0)));
 
     /**
      * The redstone family's light rows (Slice 9a) and the mechanical
