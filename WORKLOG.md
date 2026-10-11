@@ -1918,3 +1918,37 @@ environmental class, green in isolation).
 strongholds, fortresses, ocean monuments, temples — all six of the
 1.8.8 overworld/nether structure families ported 1:1 over the
 deterministic per-chunk foundation.
+
+## Slice 12g — the mob spawners
+
+**The reference port** (`block/spawner/MobSpawner.java`, 1:1 over the
+engine's ownership model):
+
+- **The SpawnerManager** (the chest manager's own pattern): the
+  per-position state (the typed record + the delay), the tick walk —
+  the 16-block player gate, the -1 first-tick delay reset, the 200..800
+  band on fire, the four-attempt spawn cycle with the 6-mob nearby cap
+  over the spawn-range-grown box, the position rolls in the reference's
+  own distribution shapes (`nextDouble() - nextDouble()` per axis,
+  `nextInt(3) - 1` for y), and the solid-gate stand-in (the body cell
+  + the head cell clear).
+- **The typed pending record**: `placeMobSpawner` on the
+  StructureWorld + EngineChunk.pendingMobSpawners + the EngineServer
+  drain with the contents guard.
+- **The three structures' arms wired**: the mineshaft's cave-spider
+  spawner (the 1:1 arm — the section's random cell, the cobweb-pair
+  gate), the stronghold's silverfish spawner, the fortress's blaze
+  spawner.
+- **The three mob types**: CAVE_SPIDER (59), SILVERFISH (60), BLAZE
+  (61 — the ranged trait, the fireball ledgers with the projectile
+  slice).
+
+**The envelope notes**: the event 2004 + the spin display + the cage
+entity's wire sync ledger with the particle/metadata slices; the
+spawner state is in-memory (the persistence ledger row lands with the
+block-entity store slice); the fortress's own monster spawn table
+(Blaze 10/2/3, ZombiePigman 5/4/4, Skeleton 10/4/4, MagmaCube 3/4/4)
+ledgers with the natural-spawn override slice.
+
+The fresh full-suite count **694 green in zamin-core** (one hopper-test
+load flake — the documented environmental class, green in isolation).

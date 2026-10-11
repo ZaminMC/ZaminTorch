@@ -101,6 +101,19 @@ public interface StructureWorld {
     }
 
     /**
+     * The typed mob spawner (the reference's
+     * {@code getSpawner().setType(...)}): the spawner block lands through
+     * the ordinary setBlock path; the typed record rides the chunk's
+     * pending queue and materializes into the spawner manager when the
+     * chunk publishes.
+     *
+     * @param mobType the engine's mob kind the spawner breeds
+     */
+    default void placeMobSpawner(int x, int y, int z,
+                                 net.zaminmc.torch.server.entity.MobType mobType) {
+    }
+
+    /**
      * One rolled chest slot (the loot walk's setItem record). The optional
      * enchantment map carries the reference's enchanted-book loot arm
      * (EnchantedBookItem.createLoot — a random level-30 enchantment riding
