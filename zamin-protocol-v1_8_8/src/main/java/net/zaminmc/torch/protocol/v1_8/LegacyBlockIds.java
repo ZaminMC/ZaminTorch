@@ -334,6 +334,34 @@ final class LegacyBlockIds {
             merged.put(Identifier.parse("minecraft:hopper_" + facing), 154);
             merged.put(Identifier.parse("minecraft:hopper_" + facing + "_disabled"), 154);
         }
+        // The tripwire family (Slice 10c): the wire 132, the hook 131 — the
+        // four stored bits ride the wire's nibble, the facing/attached/
+        // powered the hook's.
+        for (int bits = 0; bits < 16; bits++) {
+            StringBuilder name = new StringBuilder("minecraft:tripwire");
+            if ((bits & 1) != 0) {
+                name.append("_powered");
+            }
+            if ((bits & 2) != 0) {
+                name.append("_suspended");
+            }
+            if ((bits & 4) != 0) {
+                name.append("_attached");
+            }
+            if ((bits & 8) != 0) {
+                name.append("_disarmed");
+            }
+            merged.put(Identifier.parse(name.toString()), 132);
+        }
+        for (String facing : new String[]{"south", "west", "north", "east"}) {
+            for (int attached = 0; attached <= 1; attached++) {
+                for (int powered = 0; powered <= 1; powered++) {
+                    merged.put(Identifier.parse("minecraft:tripwire_hook_" + facing
+                            + (attached == 1 ? "_attached" : "")
+                            + (powered == 1 ? "_powered" : "")), 131);
+                }
+            }
+        }
         // The player-driven sources (Slice 9c): the lever 69, the buttons
         // 77 stone / 143 wood, the plates 70 stone / 72 wood.
         for (String key : new String[]{"down_x", "east", "west", "south", "north", "up_z", "up_x", "down_z"}) {
@@ -379,7 +407,10 @@ final class LegacyBlockIds {
             // The hopper item (Slice 10b): the block family keeps legacy 154,
             // the item form is 410 (the historical split — the same shape as
             // the comparator's 404).
-            Map.entry(Identifier.parse("minecraft:hopper"), 410));
+            Map.entry(Identifier.parse("minecraft:hopper"), 410),
+            // The tripwire hook item (Slice 10c): the block family keeps
+            // legacy 131, the item form shares it.
+            Map.entry(Identifier.parse("minecraft:tripwire_hook"), 131));
 
     /** The damage-aware reverse map is declared after {@link #METADATA}. */
 
@@ -560,6 +591,40 @@ final class LegacyBlockIds {
             String facing = rest.substring(rest.lastIndexOf('_') + 1);
             return directionNibble(facing) | (disabled ? 8 : 0);
         }
+        if (value.startsWith("tripwire_hook_")) {
+            // facingH | (attached ? 4 : 0) | (powered ? 8 : 0) —
+            // TripwireHookBlock lines 271-283.
+            boolean powered = value.endsWith("_powered");
+            boolean attached = value.contains("_attached");
+            String rest = value.substring("tripwire_hook_".length());
+            int cut = rest.indexOf('_');
+            String facing = cut < 0 ? rest : rest.substring(0, cut);
+            int facingH = switch (facing) {
+                case "south" -> 0;
+                case "west" -> 1;
+                case "north" -> 2;
+                default -> 3; // east
+            };
+            return facingH | (attached ? 4 : 0) | (powered ? 8 : 0);
+        }
+        if (value.startsWith("tripwire")) {
+            // powered | suspended<<1 | attached<<2 | disarmed<<3 —
+            // TripwireBlock lines 226-249.
+            int bits = 0;
+            if (value.contains("_powered")) {
+                bits |= 1;
+            }
+            if (value.contains("_suspended")) {
+                bits |= 2;
+            }
+            if (value.contains("_attached")) {
+                bits |= 4;
+            }
+            if (value.endsWith("_disarmed")) {
+                bits |= 8;
+            }
+            return bits;
+        }
         if (value.startsWith("lever_")) {
             // The facing id | the powered bit (LeverBlock lines 258-263).
             boolean powered = value.endsWith("_powered");
@@ -626,6 +691,22 @@ final class LegacyBlockIds {
         BY_IDENTIFIER.forEach((identifier, legacy) -> {
             if (identifier.namespace().equals("minecraft")
                     && identifier.value().startsWith("hopper_")) {
+                reversed.put((legacy << 4) | metadataOf(identifier), identifier);
+            }
+        });
+        // The tripwire families fold their nibble spaces in (the wire's
+        // four bits, the hook's facing/attached/powered).
+        BY_IDENTIFIER.forEach((identifier, legacy) -> {
+            String value = identifier.value();
+            if (identifier.namespace().equals("minecraft")
+                    && (value.equals("tripwire") || (value.startsWith("tripwire_")
+                    && !value.startsWith("tripwire_hook")))) {
+                reversed.put((legacy << 4) | metadataOf(identifier), identifier);
+            }
+        });
+        BY_IDENTIFIER.forEach((identifier, legacy) -> {
+            if (identifier.namespace().equals("minecraft")
+                    && identifier.value().startsWith("tripwire_hook_")) {
                 reversed.put((legacy << 4) | metadataOf(identifier), identifier);
             }
         });

@@ -235,6 +235,8 @@ public final class EngineServer implements Server, EngineBridge {
     private net.zaminmc.torch.server.tnt.TntSystem tntSystem;
     /** The hopper subsystem (Slice 10b): the 8-tick transfer cadence. */
     private net.zaminmc.torch.server.hopper.HopperSystem hopperSystem;
+    /** The tripwire subsystem (Slice 10c): the occupancy scan + the hook walk. */
+    private net.zaminmc.torch.server.redstone.TripwireSystem tripwireSystem;
     /** The observers of the TNT system (the protocol adapter's wire sync). */
     private final java.util.List<net.zaminmc.torch.server.tnt.TntSystem.Listener> tntListeners =
             new java.util.ArrayList<>();
@@ -349,9 +351,10 @@ public final class EngineServer implements Server, EngineBridge {
         if (blockRegistry == null) {
             blockRegistry = net.zaminmc.torch.server.hopper.HopperSystem.registerBlocks(
                     net.zaminmc.torch.server.piston.PistonSystem.registerBlocks(
+                    net.zaminmc.torch.server.redstone.TripwireBlocks.registerAll(
                     net.zaminmc.torch.server.redstone.RedstoneBlocks.registerAll(
                             FluidBlocks.registerAll(
-                                    BuiltinBlocks.registerAll(new BlockRegistryBuilder()))))).freeze();
+                                    BuiltinBlocks.registerAll(new BlockRegistryBuilder())))))).freeze();
         }
 
         state.set(ServerState.STARTING);
@@ -615,6 +618,48 @@ public final class EngineServer implements Server, EngineBridge {
                         world, redstoneSystem, itemEntities, chestManager, furnaceManager);
                 world.addChangeListener(hopperSystem); // the placement creates the BE state
                 redstoneSystem.addNeighborListener(hopperSystem::neighborHeard);
+                // The tripwire (Slice 10c): the occupancy scan + the hook's
+                // chain walk, riding the redstone family's scheduled-tick
+                // queue + the cross-system neighbor bus.
+                tripwireSystem = new net.zaminmc.torch.server.redstone.TripwireSystem(
+                        world, redstoneSystem, fxManager);
+                world.addChangeListener(tripwireSystem);
+                redstoneSystem.setTripwireTicker(tripwireSystem::scheduledTripwireTick);
+                redstoneSystem.addNeighborListener(tripwireSystem::neighborHeard);
+                // The occupancy probe (the engine's per-tick box test —
+                // the wire's slim shape, any body, items included like the
+                // reference's getEntities walk).
+                tripwireSystem.setOccupancyProbe(wire -> {
+                    double minX = wire.x(), maxX = wire.x() + 1;
+                    double minY = wire.y(), maxY = wire.y() + 0.15625;
+                    double minZ = wire.z(), maxZ = wire.z() + 1;
+                    for (net.zaminmc.torch.server.entity.MobEntity mob : mobs.all()) {
+                        net.zaminmc.torch.util.Position at = mob.position();
+                        if (at.x() >= minX && at.x() <= maxX && at.y() >= minY && at.y() <= maxY
+                                && at.z() >= minZ && at.z() <= maxZ) {
+                            return true;
+                        }
+                    }
+                    for (PlayerSession body : players.all()) {
+                        if (body.state() != net.zaminmc.torch.entity.PlayerState.PLAYING
+                                || body.gamemode() == GameMode.SPECTATOR) {
+                            continue; // canAvoidTraps
+                        }
+                        net.zaminmc.torch.util.Position at = body.position();
+                        if (at.x() >= minX && at.x() <= maxX && at.y() >= minY && at.y() <= maxY
+                                && at.z() >= minZ && at.z() <= maxZ) {
+                            return true;
+                        }
+                    }
+                    for (ItemEntity item : itemEntities.all()) {
+                        net.zaminmc.torch.util.Position at = item.position();
+                        if (at.x() >= minX && at.x() <= maxX && at.y() >= minY && at.y() <= maxY
+                                && at.z() >= minZ && at.z() <= maxZ) {
+                            return true;
+                        }
+                    }
+                    return false;
+                });
                 // Fluids (§472 pattern): the scheduled pour/dry/contact system,
                 // waking on every committed change like the neighbor rules do.
                 fluidSystem = new FluidSystem(new FluidWorld(), new FluidSink(itemEntities));
@@ -664,6 +709,7 @@ public final class EngineServer implements Server, EngineBridge {
                     redstoneSystem.tick(); // the torch/repeater scheduled reactions
                     pistonSystem.tick(); // the piston block events + the moving carriers
                     hopperSystem.tick(); // the hoppers' 8-tick transfer cadence
+                    tripwireSystem.tick(); // the tripwire occupancy scan
                     tntSystem.tick(); // the primed TNT fuses + physics
                     blockInteraction.tickMining(); // the vanilla dig accumulator + 0x28 stages
                     fluidSystem.tick();       // §472 pattern: pours, streams, contact
@@ -3728,6 +3774,16 @@ public final class EngineServer implements Server, EngineBridge {
             placeHopperOnTick(session, clicked, face, creativeHeld);
             return; // the clicked-face-opposite rule overrides the generic placement
         }
+        if (heldId.equals("minecraft:string")
+                || creativeHeld.map(t -> t.identifier().value().equals("string")).orElse(false)) {
+            placeTripwireOnTick(session, clicked, face, creativeHeld);
+            return; // the string places the wire (the reference's ItemBlock)
+        }
+        if (heldId.equals("minecraft:tripwire_hook")
+                || creativeHeld.map(t -> t.identifier().value().equals("tripwire_hook")).orElse(false)) {
+            placeTripwireHookOnTick(session, clicked, face, creativeHeld);
+            return; // the hook's solid-wall rule overrides the generic placement
+        }
         if (heldId.equals("minecraft:lever")
                 || creativeHeld.map(t -> t.identifier().value().equals("lever")).orElse(false)) {
             placeLeverOnTick(session, clicked, face, creativeHeld);
@@ -4096,6 +4152,59 @@ public final class EngineServer implements Server, EngineBridge {
         }
         world.setBlock(target, net.zaminmc.torch.server.piston.PistonBlocks.pistonOf(
                 facing, false, sticky));
+        consumePlaced(session, creativeHeld);
+    }
+
+    /**
+     * The string's wire placement (the reference's ItemBlock over
+     * TripwireBlock): the wire lands on the clicked face's cell, the
+     * suspended bit resolving from the floor at the commit listener.
+     */
+    private void placeTripwireOnTick(PlayerSession session, BlockPosition clicked, int face,
+                                      java.util.Optional<BlockType> creativeHeld) {
+        BlockPosition target = offsetByFace(clicked, face);
+        if (target == null || !world.getBlock(target).equals(world.airType())) {
+            return;
+        }
+        if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5
+                || intersectsPlayerBox(session.position(), target)) {
+            return;
+        }
+        if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE
+                && session.inventory().held().isEmpty()) {
+            return;
+        }
+        world.setBlock(target, net.zaminmc.torch.server.redstone.TripwireBlocks.wireOf(
+                false, false, false, false));
+        consumePlaced(session, creativeHeld);
+    }
+
+    /**
+     * The hook's placement (TripwireHookBlock.getPlacementState lines
+     * 92-100 + canBePlaced): a horizontal clicked face with a solid block
+     * behind — the FACING points at the clicked face's direction (away
+     * from the wall).
+     */
+    private void placeTripwireHookOnTick(PlayerSession session, BlockPosition clicked, int face,
+                                         java.util.Optional<BlockType> creativeHeld) {
+        BlockPosition target = offsetByFace(clicked, face);
+        if (target == null || !world.getBlock(target).equals(world.airType())) {
+            return;
+        }
+        if (!net.zaminmc.torch.server.redstone.TripwireSystem.hookPlacementSupported(
+                world, target, face)) {
+            return; // the solid-wall gate
+        }
+        if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5
+                || intersectsPlayerBox(session.position(), target)) {
+            return;
+        }
+        if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE
+                && session.inventory().held().isEmpty()) {
+            return;
+        }
+        world.setBlock(target, net.zaminmc.torch.server.redstone.TripwireBlocks.hookOf(
+                face & 7, false, false));
         consumePlaced(session, creativeHeld);
     }
 

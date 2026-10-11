@@ -151,6 +151,8 @@ public final class RedstoneSystem implements WorldChangeListener {
     private static final int FAMILY_BUTTON = 3;
     private static final int FAMILY_PLATE = 4;
     private static final int FAMILY_COMPARATOR = 5;
+    /** The tripwire family (Slice 10c — the scheduled re-scan). */
+    static final int FAMILY_TRIPWIRE = 6;
 
     /** The plates' re-compute debounce (AbstractPressurePlateBlock.getTickRate). */
     static final int PLATE_TICK_RATE = 20;
@@ -328,10 +330,18 @@ public final class RedstoneSystem implements WorldChangeListener {
      * the second hop that carries a wire's change through the block under
      * it to the family blocks around that block.
      */
-    private void updateNeighbors(BlockPosition pos) {
+    void updateNeighbors(BlockPosition pos) {
         for (int[] offset : OFFSETS) {
             neighborChanged(pos.offset(offset[0], offset[1], offset[2]));
         }
+    }
+
+    /** The tripwire system's scheduled-tick callback (the re-scan). */
+    private java.util.function.Consumer<BlockPosition> tripwireTicker;
+
+    /** Wires the tripwire system's scheduled re-scan (same package). */
+    public void setTripwireTicker(java.util.function.Consumer<BlockPosition> ticker) {
+        this.tripwireTicker = ticker;
     }
 
     // ------------------------------------------------------------------
@@ -392,6 +402,14 @@ public final class RedstoneSystem implements WorldChangeListener {
             // AbstractPressurePlateBlock lines 163-167: strong only UP — the
             // block under the plate (the consumer below asks with dir=UP).
             return dir == UP ? ownSignal(pos, type, dir) : 0;
+        }
+        if (TripwireBlocks.isHook(type)) {
+            // TripwireHookBlock lines 269-277 (getDirectSignal): strong only
+            // toward the MOUNT — the wall behind the hook (the reader there
+            // asks with dir == FACING, the engine's mounted-source
+            // convention shared with the lever and the button).
+            return TripwireBlocks.hookPowered(type)
+                    && TripwireBlocks.hookFacing(type) == dir ? 15 : 0;
         }
         return 0;
     }
@@ -504,6 +522,11 @@ public final class RedstoneSystem implements WorldChangeListener {
         if (RedstoneBlocks.isPlate(type)) {
             // AbstractPressurePlateBlock lines 159-161: the plate's output.
             return RedstoneBlocks.platePowered(type) ? 15 : 0;
+        }
+        if (TripwireBlocks.isHook(type)) {
+            // TripwireHookBlock lines 262-264: weak 15 in every direction
+            // when powered (getSignal).
+            return TripwireBlocks.hookPowered(type) ? 15 : 0;
         }
         return 0;
     }
@@ -842,6 +865,10 @@ public final class RedstoneSystem implements WorldChangeListener {
                 buttonTick(entry.position(), type);
             } else if (RedstoneBlocks.isPlate(type)) {
                 plateTick(entry.position(), type);
+            } else if (TripwireBlocks.isTripwire(type)) {
+                if (tripwireTicker != null) {
+                    tripwireTicker.accept(entry.position());
+                }
             }
         }
         ticksThisTick.clear();
@@ -1511,6 +1538,9 @@ public final class RedstoneSystem implements WorldChangeListener {
         }
         if (RedstoneBlocks.isPlate(type)) {
             return FAMILY_PLATE;
+        }
+        if (TripwireBlocks.isTripwire(type)) {
+            return FAMILY_TRIPWIRE;
         }
         return -1;
     }

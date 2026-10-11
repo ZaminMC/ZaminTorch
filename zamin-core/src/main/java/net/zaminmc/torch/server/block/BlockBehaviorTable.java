@@ -566,6 +566,43 @@ public final class BlockBehaviorTable {
             behaviors.put(Identifier.parse("minecraft:hopper_" + directions[facing] + "_disabled"),
                     hopper);
         }
+        // The tripwire (Slice 10c, community blocks.json: hardness 0, instant
+        // by hand): the wire drops string unless disarmed (the shears arm);
+        // the hook drops the hook item.
+        List<BlockBehavior.Drop> stringDrop =
+                List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:string"), 1));
+        List<BlockBehavior.Drop> hookDrop =
+                List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:tripwire_hook"), 1));
+        for (int bits = 0; bits < 16; bits++) {
+            StringBuilder name = new StringBuilder("minecraft:tripwire");
+            if ((bits & 1) != 0) {
+                name.append("_powered");
+            }
+            if ((bits & 2) != 0) {
+                name.append("_suspended");
+            }
+            if ((bits & 4) != 0) {
+                name.append("_attached");
+            }
+            if ((bits & 8) != 0) {
+                name.append("_disarmed");
+            }
+            // A disarmed wire drops nothing (the shears already paid the
+            // string out — the reference's DISARMED arm).
+            behaviors.put(Identifier.parse(name.toString()),
+                    new BlockBehavior(0.0, false, false, null, 0,
+                            (bits & 8) != 0 ? List.of() : stringDrop));
+        }
+        for (String facing : new String[]{"south", "west", "north", "east"}) {
+            for (int attached = 0; attached <= 1; attached++) {
+                for (int powered = 0; powered <= 1; powered++) {
+                    behaviors.put(Identifier.parse("minecraft:tripwire_hook_" + facing
+                            + (attached == 1 ? "_attached" : "")
+                            + (powered == 1 ? "_powered" : "")),
+                            new BlockBehavior(0.0, false, false, null, 0, hookDrop));
+                }
+            }
+        }
         // The player-driven sources (Slice 9c): the lever, the buttons and
         // the plates — every facing/powered variant drops its item, the
         // break is instant by hand (community blocks.json: hardness 0.5 for

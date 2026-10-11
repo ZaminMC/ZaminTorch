@@ -1,6 +1,6 @@
 # Torch Engineering Ledger
 
-**Status date:** 2026-10-11 (updated; Slice 10b the hoppers landed)
+**Status date:** 2026-10-11 (updated; Slice 10c the tripwire landed)
 **Branch inspected:** `develop`  
 **Purpose:** record verified repository state and separate implemented behavior from proposals and unverified work.
 
@@ -69,7 +69,7 @@ Runtime implementation (the rollout phases, on `develop`):
 
 1. **Phase 4 completion — the spatial activation: LANDED (Slice 10a)** — the regionized ownership (position-aware assertions), the boundary scopes (piston + explosion), the per-region intent drain, and the §11 boundary tests over the seam-crossing piston/redstone/explosion. The parallel per-region execution lane (gameplay systems dispatched per region through the worker pool) stays gated on measurement.
 2. **Phase 5+ — cross-boundary completeness, heavy-owner optimization, adaptive scheduling** per the rollout table (each phase gated on the previous phase's green tests and the recorded evidence).
-3. The vanilla 1.8.8 slices continue in parallel per `VANILLA_1_8_8_COMPATIBILITY.md`. Slice 8 (nether portals) is COMPLETE including 8c. Slices 9a-9f (the redstone family) LANDED. **Slice 10a (the Phase 4 spatial activation) LANDED at 675 green; Slice 10b (the hoppers) LANDED at 682 green.** **Next: dispensers/droppers, tripwire, then potions, leads, structures, natural spawn cycles.** The suite is load-sensitive on 2-core hosts: run the full pass with `--max-workers=1`.
+3. The vanilla 1.8.8 slices continue in parallel per `VANILLA_1_8_8_COMPATIBILITY.md`. Slice 8 (nether portals) is COMPLETE including 8c. Slices 9a-9f (the redstone family) LANDED. **Slice 10a (the Phase 4 spatial activation) LANDED at 675 green; Slice 10b (the hoppers) LANDED at 682 green; Slice 10c (the tripwire: the wire/hook families 132/131, the chain walk, the occupancy scan, the strong-mount arm) LANDED.** **Next: dispensers/droppers, then potions, leads, structures, natural spawn cycles.** The suite is load-sensitive on 2-core hosts: run the full pass with `--max-workers=1`.
 4. Releases ride every dev build with a changelog (the established convention since dev.17).
 
 ## Security and repository safety
