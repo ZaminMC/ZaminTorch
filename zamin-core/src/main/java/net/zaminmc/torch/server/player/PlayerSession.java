@@ -104,6 +104,10 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
     // Eating: the server runs its own 32-tick timer, started by the use-item
     // gesture; the client's release (dig status 5) cancels when unfinished.
     private int eatingTicks = -1;
+    // Drinking (Slice 11b): the potion's own 32-tick timer (the reference's
+    // getUseDuration 32, the DRINK action) — a separate clock from the eat
+    // because the potion answers no hunger gate.
+    private int drinkingTicks = -1;
 
     // Posture flags from the Entity Action (0x0B) stream. The client animates
     // locally; the engine tracks them for the observers' metadata flags, the
@@ -905,6 +909,27 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
 
     public void cancelEating() {
         this.eatingTicks = -1;
+    }
+
+    // --- drinking (Slice 11b — the potion's 32-tick use) -------------------
+
+    /** @return whether the drink timer runs. */
+    public boolean drinking() {
+        return drinkingTicks >= 0;
+    }
+
+    /** Starts the drink timer (simulation context; validated by the engine). */
+    public void beginDrinking() {
+        this.drinkingTicks = 0;
+    }
+
+    /** @return the incremented drink tick count. */
+    public int advanceDrinking() {
+        return ++drinkingTicks;
+    }
+
+    public void cancelDrinking() {
+        this.drinkingTicks = -1;
     }
 
     // --- posture (sneak/sprint) ----------------------------------------------

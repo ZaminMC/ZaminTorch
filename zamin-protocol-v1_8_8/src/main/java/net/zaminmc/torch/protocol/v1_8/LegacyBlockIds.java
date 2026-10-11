@@ -73,6 +73,11 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:dispenser"), 23),
             Map.entry(Identifier.parse("minecraft:dropper"), 125),
             Map.entry(Identifier.parse("minecraft:fire_charge"), 385),
+            // The potion family (Slice 11b, community items.json): the
+            // potion 373 with the effect set riding the damage field, the
+            // glass bottle 374.
+            Map.entry(Identifier.parse("minecraft:potion"), 373),
+            Map.entry(Identifier.parse("minecraft:glass_bottle"), 374),
             Map.entry(Identifier.parse("minecraft:wool"), 35),
             // Mob loot and fluid handling of the living-night slice
             // (community items.json ids: bone 352, string 287, gunpowder 289,

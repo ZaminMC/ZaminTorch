@@ -192,6 +192,13 @@ public final class BuiltinItems {
             Identifier.parse("minecraft:dropper"), "Dropper", 64);
     public static final EngineItemType FIRE_CHARGE = new EngineItemType(
             Identifier.parse("minecraft:fire_charge"), "Fire Charge", 64);
+    // The potion family (Slice 11b — Item.java lines 659-660: the potion
+    // 373 with the effect set riding the damage field, the glass bottle
+    // 374; max stack 1, the reference's own PotionItem ctor).
+    public static final EngineItemType POTION = new EngineItemType(
+            Identifier.parse("minecraft:potion"), "Potion", 1);
+    public static final EngineItemType GLASS_BOTTLE = new EngineItemType(
+            Identifier.parse("minecraft:glass_bottle"), "Glass Bottle", 64);
     public static final EngineItemType OAK_FENCE = new EngineItemType(
             Identifier.parse("minecraft:oak_fence"), "Oak Fence", 64);
     // The bed item (community items.json: legacy 355) — places both halves.
@@ -482,7 +489,7 @@ public final class BuiltinItems {
                 REDSTONE, REDSTONE_TORCH, REPEATER, COMPARATOR, PISTON, STICKY_PISTON, TNT,
                 LEVER, STONE_BUTTON, WOODEN_BUTTON,
                 STONE_PRESSURE_PLATE, WOODEN_PRESSURE_PLATE, HOPPER, TRIPWIRE_HOOK,
-                DISPENSER, DROPPER, FIRE_CHARGE,
+                DISPENSER, DROPPER, FIRE_CHARGE, POTION, GLASS_BOTTLE,
                 OAK_SLAB, STONE_SLAB, COBBLESTONE_SLAB, SANDSTONE_SLAB,
                 OAK_STAIRS, COBBLESTONE_STAIRS,
                 RAIL, BOAT, MINECART,

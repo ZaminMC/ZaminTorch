@@ -24,7 +24,10 @@ public final class ProjectileEntity {
         EGG(62),
         /** The dispensed fire charge (Slice 11a): accelerates along its
          * direction, places fire where it lands, burns what it hits. */
-        SMALL_FIREBALL(63);
+        SMALL_FIREBALL(63),
+        /** The thrown potion (Slice 11b): splashes its effect set where it
+         * lands, carrying the potion metadata as the payload. */
+        POTION(68);
 
         /** Protocol 47's Spawn Object entity type id. */
         public final int objectType;
@@ -57,6 +60,12 @@ public final class ProjectileEntity {
     private double bonusDamage;
     /** The burning clock (Flame releases ignite 100 s — the whole flight). */
     private int fireTicks;
+    /**
+     * The potion projectile's payload (Slice 11b — the reference's
+     * ItemStack): the potion metadata carrying the effect set. -1 marks
+     * every non-potion kind.
+     */
+    private int potionDamage = -1;
     /**
      * The fireball family's per-tick acceleration (the reference
      * ProjectileEntity fields, the 6-double ctor's normalized*0.1 vector).
@@ -180,6 +189,16 @@ public final class ProjectileEntity {
     /** @return whether the arrow is burning (the Flame release, the visual flag). */
     public boolean burning() {
         return fireTicks > 0;
+    }
+
+    /** The potion payload (the metadata carrying the effect set), or -1. */
+    public int potionDamage() {
+        return potionDamage;
+    }
+
+    /** Attaches the potion payload (the POTION kind's flight data). */
+    public void setPotionDamage(int damage) {
+        this.potionDamage = damage;
     }
 
     /** Ignites the arrow for the given tick count (the reference's setOnFireFor). */

@@ -529,6 +529,44 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     }
 
     /**
+     * Entity Effect (0x1D — EntityStatusEffectS2CPacket's own write): varint
+     * entity id, byte effect, byte amplifier, varint duration (the 32767
+     * permanent cap), byte flags (1 = show particles). The client's HUD
+     * timers and its speed/jump attribute modifiers ride it. Any thread.
+     */
+    void sendEntityEffect(int entityId, int effectId, int amplifier,
+                          int duration, boolean particles) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(16);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_ENTITY_EFFECT);
+        ByteBufOps.writeVarInt(out, entityId);
+        out.writeByte(effectId & 0xFF);
+        out.writeByte(amplifier & 0xFF);
+        ByteBufOps.writeVarInt(out, duration > 32767 ? 32767 : duration);
+        out.writeByte(particles ? 1 : 0);
+        channel.writeAndFlush(out);
+    }
+
+    /**
+     * Remove Entity Effect (0x1E — EntityRemoveStatusEffectS2CPacket's own
+     * write): varint entity id, byte effect. Any thread.
+     */
+    void sendRemoveEntityEffect(int entityId, int effectId) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(12);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_REMOVE_ENTITY_EFFECT);
+        ByteBufOps.writeVarInt(out, entityId);
+        out.writeByte(effectId & 0xFF);
+        channel.writeAndFlush(out);
+    }
+
+    /**
      * Combat Event (0x42) type 2 — the client shows the death screen. Vanilla
      * fields: playerId (this client's wire entity id), entityId (the killer;
      * self here — no combat yet), death message. Any thread.
@@ -2992,6 +3030,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             case SNOWBALL -> Protocol18.OBJECT_SNOWBALL;
             case EGG -> Protocol18.OBJECT_EGG;
             case SMALL_FIREBALL -> Protocol18.OBJECT_SMALL_FIREBALL;
+            case POTION -> Protocol18.OBJECT_POTION;
         };
         int throwerWireId = resolveThrowerWireId(current, projectile.throwerId());
         ByteBuf out = Unpooled.buffer(48);

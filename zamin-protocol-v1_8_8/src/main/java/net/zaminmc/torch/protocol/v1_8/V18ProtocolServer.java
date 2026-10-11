@@ -508,6 +508,45 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                 }
             }
         });
+        // The potion effects (Slice 11b — the reference's ServerPlayerEntity
+        // overrides lines 772-787): the Entity Effect / Remove Entity Effect
+        // packets go to the affected player's own client only; the 600-tick
+        // re-sync rides the same wire.
+        server.addPotionListener(new net.zaminmc.torch.server.potion.PotionSystem.Listener() {
+            @Override
+            public void onEffectAdded(net.zaminmc.torch.server.player.PlayerSession player,
+                                      net.zaminmc.torch.server.potion.StatusEffectInstance effect) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    if (connection.currentSession() == player) {
+                        connection.sendEntityEffect(player.engineEntityId(),
+                                effect.id(), effect.amplifier(),
+                                effect.duration(), effect.hasParticles());
+                    }
+                }
+            }
+
+            @Override
+            public void onEffectRemoved(net.zaminmc.torch.server.player.PlayerSession player,
+                                        net.zaminmc.torch.server.potion.StatusEffectInstance effect) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    if (connection.currentSession() == player) {
+                        connection.sendRemoveEntityEffect(player.engineEntityId(), effect.id());
+                    }
+                }
+            }
+
+            @Override
+            public void onEffectResynced(net.zaminmc.torch.server.player.PlayerSession player,
+                                          net.zaminmc.torch.server.potion.StatusEffectInstance effect) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    if (connection.currentSession() == player) {
+                        connection.sendEntityEffect(player.engineEntityId(),
+                                effect.id(), effect.amplifier(),
+                                effect.duration(), effect.hasParticles());
+                    }
+                }
+            }
+        });
         // Survival body: health changes re-sync the client, deaths send the
         // combat event, respawns drive the full re-anchor sequence.
         server.addSurvivalListener(new net.zaminmc.torch.server.EngineServer.SurvivalListener() {
