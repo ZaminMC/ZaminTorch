@@ -33,6 +33,7 @@ public final class WorldSolidity {
         return !id.equals(BuiltinBlocks.AIR.identifier())
                 && !id.equals(BuiltinBlocks.TORCH.identifier())
                 && !id.equals(BuiltinBlocks.FIRE.identifier())
+                && !id.equals(BuiltinBlocks.COBWEB.identifier())
                 && !isNetherPortal(id)
                 && !isSign(id)
                 && !isLadder(id)

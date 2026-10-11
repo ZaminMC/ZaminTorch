@@ -24,6 +24,9 @@ public final class NormalWorldGenerator implements WorldGenerator {
 
     private final BlockRegistry registry;
     private final long seed;
+    /** The mineshaft placement layer (Slice 12a): deterministic per chunk. */
+    private final net.zaminmc.torch.server.world.structure.MineshaftStructure mineshafts;
+    private final net.zaminmc.torch.server.world.structure.StructurePalette structurePalette;
 
     @Override
     public long seed() {
@@ -56,6 +59,8 @@ public final class NormalWorldGenerator implements WorldGenerator {
     public NormalWorldGenerator(BlockRegistry registry, String worldName) {
         this.registry = Objects.requireNonNull(registry, "registry");
         this.seed = 0x5A4D494E5C00L ^ worldName.hashCode() * 0x9E3779B97F4L;
+        this.mineshafts = new net.zaminmc.torch.server.world.structure.MineshaftStructure(this.seed);
+        this.structurePalette = net.zaminmc.torch.server.world.structure.StructurePalette.of(registry);
         this.air = registry.require(Identifier.parse("minecraft:air"));
         this.bedrock = registry.require(Identifier.parse("minecraft:bedrock"));
         this.stone = registry.require(Identifier.parse("minecraft:stone"));
@@ -157,6 +162,72 @@ public final class NormalWorldGenerator implements WorldGenerator {
         }
         plantTrees(chunk, baseX, baseZ, heights, biomes);
         plantFlora(chunk, baseX, baseZ, heights, biomes);
+        // The structure pass (Slice 12a — the populate hook): the region
+        // scan + the clipped piece writes, after the terrain and the
+        // flora exactly like the reference's populate step.
+        populateStructures(chunk, baseX, baseZ);
+    }
+
+    /**
+     * The structure pass: the mineshaft region walk over this chunk's
+     * own view (in-chunk reads from the chunk, out-of-chunk reads from
+     * the pure terrain — the deterministic equivalent of the reference's
+     * populate-time world reads).
+     */
+    private void populateStructures(EngineChunk chunk, int baseX, int baseZ) {
+        net.zaminmc.torch.server.world.structure.StructureWorld view =
+                new net.zaminmc.torch.server.world.structure.StructureWorld() {
+                    @Override
+                    public net.zaminmc.torch.block.BlockType blockAt(int x, int y, int z) {
+                        if (y < 0 || y > 255) {
+                            return null;
+                        }
+                        int localX = x - baseX;
+                        int localZ = z - baseZ;
+                        if (localX >= 0 && localX < 16 && localZ >= 0 && localZ < 16) {
+                            return chunk.getBlock(localX, y, localZ);
+                        }
+                        return surfaceBlockAt(x, y, z);
+                    }
+
+                    @Override
+                    public boolean isLiquid(net.zaminmc.torch.block.BlockType type) {
+                        if (type == null) {
+                            return false;
+                        }
+                        net.zaminmc.torch.util.Identifier id = type.identifier();
+                        return id.namespace().equals("minecraft")
+                                && (id.value().equals("water") || id.value().equals("lava"));
+                    }
+
+                    @Override
+                    public void setBlock(int x, int y, int z, net.zaminmc.torch.block.BlockType type) {
+                        if (y < 0 || y > 255) {
+                            return;
+                        }
+                        int localX = x - baseX;
+                        int localZ = z - baseZ;
+                        if (localX >= 0 && localX < 16 && localZ >= 0 && localZ < 16) {
+                            chunk.setBlock(localX, y, localZ, type);
+                        }
+                    }
+
+                    @Override
+                    public int seaLevel() {
+                        return SEA_LEVEL;
+                    }
+
+                    @Override
+                    public net.zaminmc.torch.server.world.structure.StructurePalette palette() {
+                        return structurePalette;
+                    }
+
+                    @Override
+                    public boolean isOpaque(net.zaminmc.torch.block.BlockType type) {
+                        return net.zaminmc.torch.server.block.WorldSolidity.isSolid(type);
+                    }
+                };
+        mineshafts.populate(chunk.position().x(), chunk.position().z(), view);
     }
 
     /** The block for one column cell: core, skin, water, cave or ore. */
