@@ -64,6 +64,20 @@ public final class Foods {
     private Foods() {
     }
 
+    /**
+     * The damage-aware nutrition (Slice 11i — the FishItem's own
+     * getHungerPoints/getSaturation overrides): the fish family answers
+     * by the metadata variant, everything else by the plain table.
+     *
+     * @return the nutrition of an edible stack, or empty when not food.
+     */
+    public static Optional<Nutrition> nutritionOf(ItemType type, int damage) {
+        if (FishItems.isFishFamily(type.identifier())) {
+            return Optional.of(FishItems.nutritionOf(type.identifier(), damage));
+        }
+        return Optional.ofNullable(FOODS.get(type.identifier()));
+    }
+
     /** @return the nutrition of an edible item, or empty when not food. */
     public static Optional<Nutrition> nutritionOf(ItemType type) {
         return Optional.ofNullable(FOODS.get(type.identifier()));

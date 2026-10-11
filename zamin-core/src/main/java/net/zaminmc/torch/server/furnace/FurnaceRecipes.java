@@ -54,6 +54,12 @@ public final class FurnaceRecipes {
             new SmeltResult(Identifier.parse("minecraft:cooked_porkchop"), 1, 0),
             Identifier.parse("minecraft:chicken"),
             new SmeltResult(Identifier.parse("minecraft:cooked_chicken"), 1, 0),
+            // The mutton pair (Slice 11i's data-gap fix — the item arrived
+            // with the living-night slice's own registration comment claiming
+            // the smelt, but the row never landed; the community table's own
+            // raw -> cooked entry).
+            Identifier.parse("minecraft:mutton"),
+            new SmeltResult(Identifier.parse("minecraft:cooked_mutton"), 1, 0),
             Identifier.parse("minecraft:oak_log"),
             new SmeltResult(Identifier.parse("minecraft:coal"), 1, 1));
     // The oak_log entry is charcoal: output coal with damage 1, the 1.8 dataset
@@ -74,10 +80,8 @@ public final class FurnaceRecipes {
             Map.entry(Identifier.parse("minecraft:wooden_sword"), 200));
 
     /**
-     * The take XP of each output (the community 1.8 recipe data): iron 0.7,
-     * gold 1.0, stone/glass 0.1, cooked meats 0.35, charcoal 0.15. The
-     * historical SlotFurnaceOutput pays this per item on take, the
-     * fractional remainder rolling on the server random.
+     * The experience points one taken output item pays. The cooked fish
+     * (Slice 11i) joins the cooked-food band at 0.35.
      */
     private static final Map<Identifier, Double> TAKE_EXPERIENCE = Map.of(
             Identifier.parse("minecraft:iron_ingot"), 0.7,
@@ -87,6 +91,8 @@ public final class FurnaceRecipes {
             Identifier.parse("minecraft:cooked_beef"), 0.35,
             Identifier.parse("minecraft:cooked_porkchop"), 0.35,
             Identifier.parse("minecraft:cooked_chicken"), 0.35,
+            Identifier.parse("minecraft:cooked_mutton"), 0.35,
+            Identifier.parse("minecraft:cooked_fish"), 0.35,
             Identifier.parse("minecraft:coal"), 0.15);
 
     /** @return the experience points one taken output item pays. */
@@ -107,6 +113,28 @@ public final class FurnaceRecipes {
             return Optional.empty(); // output not in the registry yet: no recipe
         }
         return Optional.of(result);
+    }
+
+    /**
+     * The damage-aware smelting (Slice 11i — the fish family's own pair of
+     * recipes, the reference's FurnaceRecipes.addSmelting rows): the raw
+     * cod (metadata 0) smelts into the cooked cod, the raw salmon (metadata
+     * 1) into the cooked salmon — the canBeCooked gate keeps the clownfish
+     * and the pufferfish out of the furnace. Everything else keys by the
+     * item alone (the plain table's own rule).
+     */
+    public static Optional<SmeltResult> resultOf(ItemType input, int damage) {
+        if (input.identifier().equals(
+                net.zaminmc.torch.server.item.FishItems.FISH)) {
+            return switch (damage) {
+                case 0 -> Optional.of(new SmeltResult(
+                        net.zaminmc.torch.server.item.FishItems.COOKED_FISH, 1, 0));
+                case 1 -> Optional.of(new SmeltResult(
+                        net.zaminmc.torch.server.item.FishItems.COOKED_FISH, 1, 1));
+                default -> Optional.empty(); // the non-cookable variants
+            };
+        }
+        return resultOf(input);
     }
 
     /** @return the burn duration of one fuel unit in ticks, or 0 when not fuel. */

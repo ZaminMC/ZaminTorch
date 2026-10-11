@@ -148,7 +148,7 @@ public final class FurnaceBlockEntity {
         if (in.isEmpty()) {
             return false;
         }
-        Optional<FurnaceRecipes.SmeltResult> recipe = FurnaceRecipes.resultOf(in.type());
+        Optional<FurnaceRecipes.SmeltResult> recipe = FurnaceRecipes.resultOf(in.type(), in.damage());
         if (recipe.isEmpty()) {
             return false;
         }
@@ -179,7 +179,7 @@ public final class FurnaceBlockEntity {
     private void smeltOne() {
         ItemStack in = slots[SLOT_INPUT];
         FurnaceRecipes.SmeltResult result =
-                FurnaceRecipes.resultOf(in.type()).orElseThrow();
+                FurnaceRecipes.resultOf(in.type(), in.damage()).orElseThrow();
         ItemType outType = net.zaminmc.torch.server.item.BuiltinItems.lookup(result.output())
                 .orElseThrow();
         ItemStack out = slots[SLOT_OUTPUT];
@@ -254,7 +254,7 @@ public final class FurnaceBlockEntity {
             return ItemStack.EMPTY;
         }
         int target;
-        if (FurnaceRecipes.resultOf(moving.type()).isPresent()) {
+        if (FurnaceRecipes.resultOf(moving.type(), moving.damage()).isPresent()) {
             target = SLOT_INPUT;
         } else if (FurnaceRecipes.burnTicksOf(moving.type()) > 0) {
             target = SLOT_FUEL;

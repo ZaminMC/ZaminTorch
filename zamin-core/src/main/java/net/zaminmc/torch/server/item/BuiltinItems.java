@@ -223,6 +223,15 @@ public final class BuiltinItems {
             Identifier.parse("minecraft:glistering_melon"), "Glistering Melon", 64);
     public static final EngineItemType RABBIT_FOOT = new EngineItemType(
             Identifier.parse("minecraft:rabbit_foot"), "Rabbit's Foot", 64);
+    // The fish family (Slice 11i — the reference's Item.java lines 635-636:
+    // the raw fish 349 and the cooked fish 350, the four variants riding
+    // the damage field: 0 cod, 1 salmon, 2 clownfish, 3 pufferfish).
+    // The nutrition/eat-effect dispatch and the pufferfish's brewing arm
+    // live in FishItems; the smelting pair rides FurnaceRecipes.
+    public static final EngineItemType FISH = new EngineItemType(
+            Identifier.parse("minecraft:fish"), "Raw Fish", 64);
+    public static final EngineItemType COOKED_FISH = new EngineItemType(
+            Identifier.parse("minecraft:cooked_fish"), "Cooked Fish", 64);
     public static final EngineItemType BREWING_STAND = new EngineItemType(
             Identifier.parse("minecraft:brewing_stand"), "Brewing Stand", 64);
     public static final EngineItemType OAK_FENCE = new EngineItemType(
@@ -518,6 +527,7 @@ public final class BuiltinItems {
                 DISPENSER, DROPPER, FIRE_CHARGE, POTION, GLASS_BOTTLE,
                 GHAST_TEAR, NETHER_WART, SPIDER_EYE, FERMENTED_SPIDER_EYE,
                 BLAZE_POWDER, MAGMA_CREAM, GLISTERING_MELON, RABBIT_FOOT,
+                FISH, COOKED_FISH,
                 BREWING_STAND,
                 OAK_SLAB, STONE_SLAB, COBBLESTONE_SLAB, SANDSTONE_SLAB,
                 OAK_STAIRS, COBBLESTONE_STAIRS,

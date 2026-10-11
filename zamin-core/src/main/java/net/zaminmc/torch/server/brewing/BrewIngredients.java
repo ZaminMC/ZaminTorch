@@ -13,9 +13,9 @@ import java.util.Map;
  * with its own flag recipe string. The map is the reference's own
  * registration table, item for item.
  *
- * <p>The pufferfish (the fish item's metadata-3 arm,
- * {@code ItemFish.isPotionIngredient}) rides the fish item's own slice —
- * the engine has no fish item yet.</p>
+ * <p>The pufferfish (Slice 11i — {@code FishItem.asPotionIngredient} line
+ * 33-35) answers by the metadata-3 variant on either fish item, the
+ * reference's own Type dispatch.</p>
  */
 public final class BrewIngredients {
 
@@ -44,6 +44,13 @@ public final class BrewIngredients {
     public static String recipeOf(ItemStack stack) {
         if (stack == null || stack.isEmpty()) {
             return null;
+        }
+        // The pufferfish arm (FishItem.asPotionIngredient lines 33-35): the
+        // metadata-3 variant of either fish item — Type.byItem reads the
+        // metadata of any FishItem, cooked or raw.
+        if (net.zaminmc.torch.server.item.FishItems.isPufferfish(
+                stack.type().identifier(), stack.damage())) {
+            return PotionHelper.PUFFERFISH;
         }
         return RECIPES.get(stack.type().identifier());
     }

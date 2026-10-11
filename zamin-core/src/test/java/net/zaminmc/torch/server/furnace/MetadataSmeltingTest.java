@@ -80,4 +80,50 @@ class MetadataSmeltingTest {
         assertEquals(1, furnace.output().damage());
         assertEquals(0, furnace.input().count());
     }
+
+    // ------------------------------------------------------------------
+    // The fish family's own smelting pair (Slice 11i — the reference's
+    // canBeCooked gate)
+    // ------------------------------------------------------------------
+
+    @Test
+    void rawFishSmeltsIntoItsCookedVariant() {
+        // The raw cod (metadata 0) -> the cooked cod (damage 0); the raw
+        // salmon (metadata 1) -> the cooked salmon (damage 1).
+        var cod = FurnaceRecipes.resultOf(BuiltinItems.FISH, 0).orElseThrow();
+        assertEquals(Identifier.parse("minecraft:cooked_fish"), cod.output());
+        assertEquals(1, cod.count());
+        assertEquals(0, cod.damage());
+        var salmon = FurnaceRecipes.resultOf(BuiltinItems.FISH, 1).orElseThrow();
+        assertEquals(Identifier.parse("minecraft:cooked_fish"), salmon.output());
+        assertEquals(1, salmon.damage());
+        // The clownfish and the pufferfish never cook (the canBeCooked
+        // gate — FishItem.Type's two-field constructor).
+        assertTrue(FurnaceRecipes.resultOf(BuiltinItems.FISH, 2).isEmpty(),
+                "the clownfish is not smeltable");
+        assertTrue(FurnaceRecipes.resultOf(BuiltinItems.FISH, 3).isEmpty(),
+                "the pufferfish is not smeltable");
+        // A cooked fish is not itself smeltable.
+        assertTrue(FurnaceRecipes.resultOf(BuiltinItems.COOKED_FISH, 0).isEmpty());
+    }
+
+    @Test
+    void theFurnaceSmeltsFishCarryingTheVariant() throws Exception {
+        FurnaceBlockEntity furnace = new FurnaceBlockEntity();
+        // Two raw salmon: both smelt into the cooked salmon (damage 1)
+        // and stack in the output slot.
+        furnace.setSlot(FurnaceBlockEntity.SLOT_INPUT,
+                new ItemStack(BuiltinItems.FISH, 2, 1));
+        furnace.setSlot(FurnaceBlockEntity.SLOT_FUEL, ItemStack.of(BuiltinItems.COAL, 1));
+        for (int tick = 0; tick < FurnaceRecipes.COOK_TICKS * 2; tick++) {
+            furnace.tick();
+        }
+        assertEquals(BuiltinItems.COOKED_FISH, furnace.output().type());
+        assertEquals(2, furnace.output().count(), "both salmon cooked");
+        assertEquals(1, furnace.output().damage(), "the salmon variant carried");
+        assertEquals(0, furnace.input().count());
+        // The cooked fish pays the cooked-food band's take XP.
+        assertEquals(0.35, FurnaceRecipes.takeExperienceOf(BuiltinItems.COOKED_FISH),
+                0.0001);
+    }
 }

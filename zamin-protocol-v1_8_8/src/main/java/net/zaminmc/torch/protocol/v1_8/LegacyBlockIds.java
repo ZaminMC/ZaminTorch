@@ -92,6 +92,12 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:magma_cream"), 378),
             Map.entry(Identifier.parse("minecraft:glistering_melon"), 382),
             Map.entry(Identifier.parse("minecraft:rabbit_foot"), 414),
+            // The fish family (Slice 11i, the reference's Item.java lines
+            // 635-636): the raw fish 349 and the cooked fish 350 — the four
+            // variants ride the damage field (0 cod, 1 salmon, 2 clownfish,
+            // 3 pufferfish).
+            Map.entry(Identifier.parse("minecraft:fish"), 349),
+            Map.entry(Identifier.parse("minecraft:cooked_fish"), 350),
             Map.entry(Identifier.parse("minecraft:wool"), 35),
             // Mob loot and fluid handling of the living-night slice
             // (community items.json ids: bone 352, string 287, gunpowder 289,

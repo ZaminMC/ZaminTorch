@@ -221,6 +221,103 @@ class BodySurvivalAcceptanceTest {
         server.shutdown(null);
     }
 
+    @Test
+    void thePufferfishPoisonsItsEaterWithTheFullTriple() throws Exception {
+        EngineServer server = boot();
+        try {
+            // The pufferfish's eat triple (FishItem.addEatEffects lines 38-47):
+            // Poison IV 1200 (60 s), Hunger III 300 (15 s), Nausea II 300
+            // (15 s) — all certain, no chance roll. One food, 0.1 saturation.
+            PlayerSession swimmer = join(server, "Swimmer");
+            server.chatService().submitChat(swimmer, "/give fish 1 3");
+            await(() -> !swimmer.inventory().held().isEmpty(), "the pufferfish given");
+            assertEquals(3, swimmer.inventory().held().damage(), "metadata 3 is the pufferfish");
+            swimmer.setBody(20.0f, 12, 0.0f);
+            server.useItem(swimmer);
+            await(() -> swimmer.food() == 13, "the pufferfish eaten: food 12 + 1");
+            var potions = server.potions();
+            await(() -> potions.hasEffect(swimmer, net.zaminmc.torch.server.potion.StatusEffects.POISON)
+                            && potions.hasEffect(swimmer, net.zaminmc.torch.server.potion.StatusEffects.HUNGER)
+                            && potions.hasEffect(swimmer, net.zaminmc.torch.server.potion.StatusEffects.NAUSEA),
+                    "the pufferfish installed the full triple");
+            var poison = potions.get(swimmer, net.zaminmc.torch.server.potion.StatusEffects.POISON);
+            assertTrue(poison.duration() <= 1200 && poison.duration() >= 1180,
+                    "Poison IV 1200 (60 s): " + poison.duration());
+            assertEquals(3, poison.amplifier(), "amplifier IV (3)");
+            var hunger = potions.get(swimmer, net.zaminmc.torch.server.potion.StatusEffects.HUNGER);
+            assertTrue(hunger.duration() <= 300 && hunger.duration() >= 280,
+                    "Hunger III 300 (15 s): " + hunger.duration());
+            assertEquals(2, hunger.amplifier(), "amplifier III (2)");
+            var nausea = potions.get(swimmer, net.zaminmc.torch.server.potion.StatusEffects.NAUSEA);
+            assertTrue(nausea.duration() <= 300 && nausea.duration() >= 280,
+                    "Nausea II 300 (15 s): " + nausea.duration());
+            assertEquals(1, nausea.amplifier(), "amplifier II (1)");
+        } finally {
+            server.shutdown(null);
+        }
+    }
+
+    @Test
+    void theFishFamilyNourishesByItsVariant() throws Exception {
+        EngineServer server = boot();
+        try {
+            // The reference's own Type table (FishItem.Type lines 64-97):
+            // the raw cod 2 food, the raw salmon 2, the clownfish 1; the
+            // cooked cod 5, the cooked salmon 6 (raw saturation 0.1 across
+            // the board, cooked 0.6 / 0.8).
+            assertEquals(2, net.zaminmc.torch.server.item.FishItems
+                            .nutritionOf(BuiltinItems.FISH.identifier(), 0).foodPoints());
+            assertEquals(0.1f, net.zaminmc.torch.server.item.FishItems
+                            .nutritionOf(BuiltinItems.FISH.identifier(), 0).saturation(), 0.0001f);
+            assertEquals(2, net.zaminmc.torch.server.item.FishItems
+                            .nutritionOf(BuiltinItems.FISH.identifier(), 1).foodPoints());
+            assertEquals(1, net.zaminmc.torch.server.item.FishItems
+                            .nutritionOf(BuiltinItems.FISH.identifier(), 2).foodPoints());
+            assertEquals(5, net.zaminmc.torch.server.item.FishItems
+                            .nutritionOf(BuiltinItems.COOKED_FISH.identifier(), 0).foodPoints());
+            assertEquals(0.6f, net.zaminmc.torch.server.item.FishItems
+                            .nutritionOf(BuiltinItems.COOKED_FISH.identifier(), 0).saturation(), 0.0001f);
+            assertEquals(6, net.zaminmc.torch.server.item.FishItems
+                            .nutritionOf(BuiltinItems.COOKED_FISH.identifier(), 1).foodPoints());
+            assertEquals(0.8f, net.zaminmc.torch.server.item.FishItems
+                            .nutritionOf(BuiltinItems.COOKED_FISH.identifier(), 1).saturation(), 0.0001f);
+            // The reference's own quirks: a cooked clownfish (non-cookable)
+            // answers the RAW values, and an unknown metadata answers COD.
+            assertEquals(1, net.zaminmc.torch.server.item.FishItems
+                            .nutritionOf(BuiltinItems.COOKED_FISH.identifier(), 2).foodPoints(),
+                    "the cooked clownfish eats raw (the canBeCooked gate)");
+            assertEquals(2, net.zaminmc.torch.server.item.FishItems
+                            .nutritionOf(BuiltinItems.FISH.identifier(), 7).foodPoints(),
+                    "the unknown metadata answers cod (the byId null guard)");
+
+            // The live eat: a cooked salmon restores 6 food.
+            PlayerSession diner = join(server, "Angler");
+            server.chatService().submitChat(diner, "/give cooked_fish 1 1");
+            await(() -> !diner.inventory().held().isEmpty(), "the cooked salmon given");
+            assertEquals(1, diner.inventory().held().damage());
+            diner.setBody(20.0f, 12, 0.0f);
+            server.useItem(diner);
+            await(() -> diner.food() == 18, "the cooked salmon eaten: food 12 + 6");
+            assertEquals(0.8f, diner.saturation(), 0.0001f);
+
+            // The reference's own quirk: a cooked fish WITH pufferfish
+            // metadata eats (and poisons) like a raw pufferfish —
+            // Type.byItem reads the metadata of any FishItem.
+            server.chatService().submitChat(diner, "/give cooked_fish 1 3");
+            await(() -> !diner.inventory().held().isEmpty()
+                            && diner.inventory().held().damage() == 3,
+                    "the cooked pufferfish given");
+            diner.setBody(20.0f, 12, 0.0f);
+            server.useItem(diner);
+            await(() -> diner.food() == 13, "the cooked pufferfish eaten raw: food 12 + 1");
+            var potions = server.potions();
+            await(() -> potions.hasEffect(diner, net.zaminmc.torch.server.potion.StatusEffects.POISON),
+                    "the cooked pufferfish still poisons its eater");
+        } finally {
+            server.shutdown(null);
+        }
+    }
+
     // ------------------------------------------------------------------ harness
 
     private EngineServer boot() throws Exception {

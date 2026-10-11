@@ -1814,7 +1814,7 @@ public final class EngineServer implements Server, EngineBridge {
             return;
         }
         var held = session.inventory().held();
-        if (held.isEmpty() || Foods.nutritionOf(held.type()).isEmpty()) {
+        if (held.isEmpty() || Foods.nutritionOf(held.type(), held.damage()).isEmpty()) {
             session.cancelEating(); // the held item changed mid-eat
             return;
         }
@@ -1831,7 +1831,7 @@ public final class EngineServer implements Server, EngineBridge {
             return;
         }
         session.cancelEating();
-        var nutrition = Foods.nutritionOf(held.type()).orElseThrow();
+        var nutrition = Foods.nutritionOf(held.type(), held.damage()).orElseThrow();
         if (session.food() >= net.zaminmc.torch.server.player.PlayerSession.MAX_FOOD) {
             return; // already full (the start check cannot fully guard the window)
         }
@@ -1864,6 +1864,22 @@ public final class EngineServer implements Server, EngineBridge {
                 potionSystem.add(session, new net.zaminmc.torch.server.potion.StatusEffectInstance(
                         net.zaminmc.torch.server.potion.StatusEffects.FIRE_RESISTANCE, 6000, 0));
             }
+        }
+        // The pufferfish's eat triple (FishItem.addEatEffects lines 38-47,
+        // BEFORE the super call — the reference's own order): the
+        // metadata-3 variant on either fish item — Type.byItem reads the
+        // metadata of any FishItem, cooked or raw — always installs
+        // Poison IV 1200, Hunger III 300, Nausea II 300. The fish items
+        // carry no FoodItem pair (no setStatusEffect registration), so the
+        // super call below adds nothing on top.
+        if (net.zaminmc.torch.server.item.FishItems.isPufferfish(
+                held.type().identifier(), held.damage())) {
+            potionSystem.add(session, new net.zaminmc.torch.server.potion.StatusEffectInstance(
+                    net.zaminmc.torch.server.potion.StatusEffects.POISON, 1200, 3));
+            potionSystem.add(session, new net.zaminmc.torch.server.potion.StatusEffectInstance(
+                    net.zaminmc.torch.server.potion.StatusEffects.HUNGER, 300, 2));
+            potionSystem.add(session, new net.zaminmc.torch.server.potion.StatusEffectInstance(
+                    net.zaminmc.torch.server.potion.StatusEffects.NAUSEA, 300, 1));
         }
         // The FoodItem's own pair (Item.java's setStatusEffect family —
         // FoodItem.addEatEffects lines 41-45): the chance roll, then the
@@ -2914,7 +2930,7 @@ public final class EngineServer implements Server, EngineBridge {
                 return;
             }
             // Food: the eat timer.
-            if (Foods.nutritionOf(held.type()).isEmpty()) {
+            if (Foods.nutritionOf(held.type(), held.damage()).isEmpty()) {
                 return;
             }
             if (session.food() >= net.zaminmc.torch.server.player.PlayerSession.MAX_FOOD) {
