@@ -784,3 +784,205 @@ The gameplay contract is:
 `1.8.8 reference source → Torch implementation → behavioral tests → VERIFIED compatibility`
 
 Everything else is an implementation detail until evidence proves it.
+
+---
+
+# 27. TORCH API ARCHITECTURE — COMPLETE ENGINE EXPOSURE
+
+## 27.1 Product intent
+
+Torch is not intended to stop at Bukkit-, Spigot-, Paper-, or Folia-level API coverage. Its native API must expose the full useful capability of the Torch engine, including low-level control over Minecraft mechanics. Developers must not have to wait for Torch maintainers to approve or invent a higher-level abstraction before they can use an engine capability.
+
+The API is a first-class part of Torch, not a later wrapper around Bukkit and not a compatibility feature that can be postponed indefinitely.
+
+The intended order is:
+
+1. Recreate and verify Minecraft Java Edition 1.8.8 mechanics.
+2. Build Torch's engine and native API together, exposing implemented capabilities as they become real and testable.
+3. Polish the 1.8.8 implementation into a playable, maintainable server.
+4. Build the Bukkit/Spigot/Paper compatibility layer over the mature Torch engine and API.
+5. Add further Minecraft versions as version-specific mechanics implementations backed by the continuing Torch engine and API contracts.
+
+Do not delay the native API until the compatibility layer exists. Do not design the native API as a copy of Bukkit's limitations.
+
+## 27.2 Architectural shape
+
+The intended dependency direction is:
+
+`Minecraft-version mechanics implementation → Torch engine capabilities → Torch native API → plugin integrations and compatibility adapters`
+
+This describes conceptual boundaries, not permission to create unnecessary modules before the codebase needs them.
+
+### A. Version-specific mechanics
+
+This layer implements the observable mechanics and protocol behavior of a particular Minecraft version. Initially that means 1.8.8: its movement, collision, combat, AI, block behavior, inventories, redstone, scheduled updates, world generation, entity metadata, packets, and quirks.
+
+Version-specific behavior must remain explicit. Do not pretend two Minecraft versions are equivalent merely because their concepts have similar names.
+
+### B. Torch engine
+
+This owns authoritative state, simulation, lifecycle, storage, scheduling, networking infrastructure, ownership enforcement, and execution protocols. It supplies mechanisms that version implementations use without silently replacing their version-specific behavior with modern defaults.
+
+### C. Native Torch API
+
+This is the documented, supported developer-facing surface over engine capabilities. It should expose both convenient abstractions and deep control. A high-level API and a low-level API are complementary entry points to the same authoritative engine, not separate game states.
+
+### D. Compatibility adapters
+
+Bukkit/Spigot/Paper compatibility belongs above the native engine/API boundary. It translates legacy contracts into Torch operations and adapts lifecycle, events, scheduling, objects, and expected behavior. It must not become Torch's internal architecture or dictate that the native API expose only what Bukkit exposes.
+
+## 27.3 Complete exposure is the goal
+
+For every meaningful engine subsystem, the native API design must answer: what can a plugin observe, query, register, replace, intercept, or mutate?
+
+The inventory of capabilities must be discovered from the actual implementation and maintained as the engine grows. At minimum, audit and plan public access for:
+
+- world, chunk, block, block-state, block-entity, and world-generation operations;
+- entities, entity lifecycle, attributes, metadata, movement, gravity, friction, collision, damage, knockback, and death;
+- mob AI, goals, navigation, pathfinding inputs/results, target selection, and behavior control;
+- player state, inventory, equipment, item use, crafting, containers, experience, hunger, health, and combat;
+- block placement/breaking, drops, neighbor updates, scheduled block/fluid ticks, redstone, pistons, explosions, and hoppers;
+- entity tracking, replication, metadata, packet construction/inspection/interception, and connection lifecycle;
+- commands, permissions, events, plugin lifecycle, registries, configuration, and server lifecycle;
+- scheduler/task controls, owner-context execution, cross-owner requests, snapshots, and safe asynchronous computation;
+- diagnostics, timings, tracing, metrics, and supported inspection of internal engine state.
+
+This list is a minimum audit checklist, not a claim that all capabilities already exist. Add capabilities when code inspection discovers them. Record any inaccessible capability and the concrete reason; do not omit it merely because it is low-level or inconvenient to expose.
+
+Where a subsystem has internal stages or extension points that materially affect behavior, consider public hooks for those stages rather than exposing only a final setter. Examples include AI goal evaluation, movement/collision decisions, damage processing, block-update propagation, inventory transfer decisions, entity tracking, and packet processing.
+
+## 27.4 API completeness and stability are separate properties
+
+Torch should aim for broad, deep capability without accidentally promising that every implementation class is immutable forever.
+
+Classify API contracts explicitly:
+
+- **Stable:** documented compatibility commitment. Breaking changes require a deliberate versioning/migration policy.
+- **Experimental:** usable and documented, but may change while the design is being proven.
+- **Internal:** implementation detail with no plugin compatibility guarantee.
+
+Do not use these labels to hide essential engine capabilities indefinitely behind an inaccessible internal layer. If developers need a capability to control or extend a mechanic, provide a documented API route for it. When a capability is experimental, expose it honestly as experimental.
+
+Keep stable API contracts independent of internal storage layouts where practical. A stable contract may be implemented by a different class, data structure, or algorithm in a later release.
+
+## 27.5 Wrappers, handles, and implementation replacement
+
+Use stable API-facing interfaces, handles, facades, or adapters where they create a real boundary between plugins and mutable engine implementation. The API-facing object must represent the authoritative engine object; it must not become a second copy of game state.
+
+For example, a public entity handle can remain stable while the internal entity implementation changes. Calls through that handle must resolve to the current authoritative state and respect lifecycle and ownership checks.
+
+Requirements:
+
+- Public API types must not require plugins to cast to internal implementation classes for ordinary supported operations.
+- Do not expose mutable internal collections or raw mutable references that bypass ownership enforcement.
+- Avoid one wrapper per access or other allocation-heavy patterns without measurement; wrapper identity and lifetime semantics must be documented.
+- Define behavior for invalid, removed, unloaded, or migrated objects.
+- Keep access to advanced mechanics possible through explicit low-level interfaces, not undocumented reflection into implementation classes.
+- Do not create a wrapper hierarchy merely for appearance. Every boundary must have a defined responsibility.
+
+Wrappers cannot magically preserve compatibility when a plugin depends on removed behavior, private fields, object identity, or bytecode-level implementation details. The compatibility plan must distinguish supported contracts from best-effort translation.
+
+## 27.6 Low-level access must obey ownership, not bypass it
+
+Full API exposure means broad capability, not unrestricted mutation from arbitrary threads.
+
+The native API must expose the operations developers need while preserving Torch's concurrency contract:
+
+- Read-only snapshots and immutable views may be consumed off-owner according to their documented consistency guarantees.
+- Live-state reads must declare whether they require owner context, provide a snapshot, or are safe through a synchronized/versioned read protocol.
+- Mutations must execute under the authoritative owner's validated context or use an explicit command/intent/request protocol.
+- Cross-owner actions must define ordering, validation, cancellation, stale-result handling, and failure behavior.
+- Asynchronous computation must not receive a live mutable object and treat possession of its reference as authority.
+- Development builds should identify illegal access with useful diagnostics.
+- The API must not silently turn a familiar synchronous method into a blocking cross-owner RPC.
+
+These constraints must be reflected in method signatures, documentation, and tests. Do not make concurrency safety an undocumented burden that plugin authors must infer.
+
+## 27.7 Extensibility at the mechanics level
+
+A complete API should support more than reading state and calling setters. For each major mechanic, evaluate extension points such as:
+
+- observing and cancelling applicable operations where cancellation is semantically valid;
+- registering additional behavior or goals;
+- replacing or composing selected strategies;
+- querying intermediate decisions and their reasons;
+- supplying custom implementations through explicit extension contracts;
+- observing the result after authoritative validation/commit;
+- intercepting protocol operations with clearly defined ordering and security boundaries.
+
+Do not add every hook speculatively. Implement hooks alongside the real mechanics, with explicit ordering, reentrancy, cancellation, exception, and concurrency semantics. Hooks must not permit a plugin to bypass the authoritative state owner.
+
+## 27.8 Versioning the engine and mechanics
+
+The long-term design must separate three concerns:
+
+1. **Torch engine contracts:** reusable infrastructure and ownership/scheduling rules.
+2. **Minecraft-version behavior:** version-specific mechanics and protocol semantics.
+3. **Native API contracts:** the documented capabilities plugins compile against.
+
+Do not assume the same API can represent every version without version-specific types or explicit capability differences. Preserve stable common contracts where their semantics genuinely match; expose version-specific behavior through deliberate versioned/capability surfaces where they do not.
+
+A later version must not silently change the meaning of a 1.8.8 operation. Compatibility must be semantic, not merely a matching method name.
+
+## 27.9 Bukkit/Spigot/Paper compatibility strategy
+
+Compatibility is a later integration milestone, after Torch's native engine/API and 1.8.8 behavior are sufficiently mature. Its goal is to run existing plugins with as little modification as practicable, but compatibility claims must be evidence-based.
+
+Build a compatibility inventory covering:
+
+- public API signatures and binary linkage;
+- plugin discovery, loading, dependencies, lifecycle, and classloading;
+- event registration, priorities, cancellation, ordering, and exception behavior;
+- commands, permissions, scheduling, and plugin-owned tasks;
+- world/entity/player/block/inventory object semantics;
+- metadata, persistent/plugin data, registries, and configuration expectations;
+- server internals/NMS and CraftBukkit access;
+- reflection, method/field lookups, package names, generated bytecode, and version checks;
+- assumptions about a single main thread and synchronous world mutation;
+- Paper/Spigot-specific APIs and plugin descriptors.
+
+Use layered adapters and compatibility tests. Prefer translating supported API calls to native Torch operations rather than recreating a parallel Bukkit world model.
+
+Do not promise that every plugin will run seamlessly until a representative test suite demonstrates it. Plugins that directly depend on NMS, CraftBukkit internals, private implementation details, exact bytecode, or undocumented timing behavior may need version-specific shims or may be unsupported. Record those limitations precisely instead of overstating compatibility.
+
+## 27.10 API compatibility tests and capability ledger
+
+Maintain a native API capability ledger alongside `VANILLA_1_8_8_COMPATIBILITY.md`. For each subsystem record:
+
+- engine capability and source implementation;
+- public API entry point;
+- allowed observations and mutations;
+- required execution/ownership context;
+- extension hooks;
+- stability classification;
+- behavioral and concurrency tests;
+- known omissions and rationale;
+- status: `NOT AUDITED → AUDITED → IN PROGRESS → IMPLEMENTED → VERIFIED / BLOCKED`.
+
+Add tests proving that plugins can perform meaningful low-level operations through the public API without depending on internal classes. Add negative tests proving the API rejects or safely routes illegal cross-owner mutation. Test wrapper behavior across entity removal, chunk unload, migration, and implementation replacement.
+
+A capability is not considered exposed merely because a public method exists. It must be usable, correctly documented, behaviorally meaningful, and covered by tests.
+
+## 27.11 API implementation workflow
+
+When implementing each mechanics subsystem:
+
+1. inspect and understand the exact 1.8.8 reference behavior;
+2. implement the authoritative mechanics in Torch;
+3. enumerate the subsystem's meaningful observable state, mutations, decisions, and extension points;
+4. expose those capabilities through the native API at an appropriate level of abstraction;
+5. ensure API calls obey ownership and lifecycle rules;
+6. test gameplay behavior and public API behavior together;
+7. document stability, ordering, consistency, and failure semantics;
+8. record unexposed capabilities and explain why they remain unavailable;
+9. update both the vanilla compatibility ledger and native API capability ledger.
+
+Do not finish a subsystem by implementing only the mechanics while leaving developers unable to inspect or control important parts of it. Do not invent APIs disconnected from implemented behavior. Engine and API should mature together.
+
+## 27.12 Definition of success
+
+Torch succeeds at its native API goal when developers can inspect, extend, replace, and control the meaningful mechanics implemented by the engine without being arbitrarily limited to high-level convenience methods; when those capabilities have explicit and testable execution semantics; and when internal implementation changes can be absorbed by stable API boundaries where the underlying contract has not changed.
+
+The governing principle is:
+
+**Expose the engine's capabilities, not merely the abstractions Torch maintainers happen to anticipate. Preserve contracts deliberately, and enforce safe execution without withholding useful control.**
