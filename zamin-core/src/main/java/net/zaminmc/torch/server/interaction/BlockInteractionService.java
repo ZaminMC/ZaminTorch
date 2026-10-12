@@ -14,7 +14,10 @@ import net.zaminmc.torch.server.entity.ItemEntity;
 import net.zaminmc.torch.server.entity.ItemEntityManager;
 import net.zaminmc.torch.server.player.PlayerSession;
 import net.zaminmc.torch.server.block.WorldSolidity;
+import net.zaminmc.torch.server.event.EngineEventBus;
 import net.zaminmc.torch.server.world.EngineWorld;
+import net.zaminmc.torch.event.block.BlockBreakEvent;
+import net.zaminmc.torch.event.block.BlockPlaceEvent;
 
 import java.util.HashMap;
 import java.util.List;
@@ -87,6 +90,8 @@ public final class BlockInteractionService {
     private volatile java.util.function.Consumer<Commit> commitFeedbackListener;
     /** The dig-progress broadcast hook (the 0x28 fan-out); null until registered. */
     private volatile MiningProgressListener miningProgressListener;
+    /** The public event bus (§27.7 observe/cancel); null until wired. */
+    private volatile EngineEventBus eventBus;
 
     /** Active survival mining sessions, keyed by player. Tick-thread confined. */
     private final Map<UUID, MiningSession> miningSessions = new HashMap<>();
@@ -213,6 +218,10 @@ public final class BlockInteractionService {
         }
         player.violations().noteBreakTarget(nowNanos, position);
         BlockType previous = world.getBlock(position);
+        if (!fireBreak(player, position, previous)) {
+            resync(position); // drop the client's prediction: the break was cancelled
+            return;
+        }
         commit(position, world.airType());
         // The break hook fires in creative too: door halves die as a unit and
         // container contents spill (the historical creative-break behavior).
@@ -408,6 +417,11 @@ public final class BlockInteractionService {
         if (current.equals(world.airType())) {
             return; // gone between the decision and the mine: no-op
         }
+        if (!fireBreak(player, target, current)) {
+            resync(target); // the cancelled break: the digging client re-sees the block
+                publishProgress(player, target, REMOVAL_STAGE);
+            return;
+        }
         net.zaminmc.torch.item.ItemStack heldStack = player.inventory().held();
         ItemType held = heldStack.isEmpty() ? null : heldStack.type();
         commit(target, world.airType());
@@ -542,6 +556,40 @@ public final class BlockInteractionService {
         this.survivalXpListener = listener;
     }
 
+    /**
+     * Wires the public event bus (§27.7). Registered before the first tick;
+     * handlers fire on the tick thread inside the pre-commit gates.
+     */
+    public void setEventBus(EngineEventBus eventBus) {
+        this.eventBus = eventBus;
+    }
+
+    /**
+     * The public break gate: fires {@link BlockBreakEvent} before the world
+     * mutation and reports whether the engine may proceed. Runs on the tick
+     * thread (the firing owner).
+     */
+    private boolean fireBreak(PlayerSession player, BlockPosition position, BlockType block) {
+        EngineEventBus bus = eventBus;
+        if (bus == null) {
+            return true;
+        }
+        return !bus.fire(new BlockBreakEvent(player, world, position, block)).cancelled();
+    }
+
+    /**
+     * The public place gate: fires {@link BlockPlaceEvent} before the world
+     * mutation and the survival consumption, and reports whether the engine
+     * may proceed. Runs on the tick thread (the firing owner).
+     */
+    private boolean firePlace(PlayerSession player, BlockPosition position, BlockType block) {
+        EngineEventBus bus = eventBus;
+        if (bus == null) {
+            return true;
+        }
+        return !bus.fire(new BlockPlaceEvent(player, world, position, block)).cancelled();
+    }
+
     private void placeOnTick(PlayerSession player, BlockPosition clicked, int face, BlockType held) {
         BlockPosition target = InteractionRules.offsetByFace(clicked, face);
         if (target == null) {
@@ -575,6 +623,10 @@ public final class BlockInteractionService {
             if (player.violations().fastPlaceViolations() >= FASTPLACE_KICK_VIOLATIONS) {
                 player.link().kick("Fastplace");
             }
+            return;
+        }
+        if (!firePlace(player, target, held)) {
+            resync(target); // drop the client's prediction: the place was cancelled
             return;
         }
         commit(target, held);
@@ -627,6 +679,10 @@ public final class BlockInteractionService {
             if (player.violations().fastPlaceViolations() >= FASTPLACE_KICK_VIOLATIONS) {
                 player.link().kick("Fastplace");
             }
+            return;
+        }
+        if (!firePlace(player, target, heldBlock)) {
+            resync(target); // the cancelled place: the client's prediction drops
             return;
         }
         commit(target, heldBlock);

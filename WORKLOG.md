@@ -1952,3 +1952,59 @@ ledgers with the natural-spawn override slice.
 
 The fresh full-suite count **694 green in zamin-core** (one hopper-test
 load flake — the documented environmental class, green in isolation).
+
+## Slice 13a — the native API foundation: the event bus + the first wired events
+
+**The architecture response** (§27, the new API chapter the user added):
+the engine is rich (290 core classes, the whole mechanics family landed)
+while the public API carried 19 files of identity types. The order §27.1
+sets — mechanics and API maturing together — starts here.
+
+- **NATIVE_API_CAPABILITIES.md** (new): the §27.10 capability ledger —
+  the full audit of every engine subsystem against its public exposure
+  (8 sections, ~60 rows, every `NOT AUDITED` row naming what stands
+  between the implementation and the plugin-facing surface).
+- **`net.zaminmc.torch.event`** (zamin-api): `Event`, `Cancellable`,
+  `EventPriority` (FIRST→MONITOR), `EventHandler`, `EventSubscription`,
+  `EventBus` — the §27.7 observe/cancel contract with the threading
+  semantics documented at every level: registration safe from any
+  thread, dispatch on the firing owner, handlers must not block, MONITOR
+  is convention (a POJO's setter cannot be policed by the bus).
+- **`EngineEventBus`** (zamin-core): concurrent registration structures,
+  per-dispatch snapshot (mid-dispatch registry changes affect the next
+  fire, not the in-flight one), class-hierarchy dispatch (base handlers
+  receive subtypes), handler exceptions caught+reported with the
+  dispatch continuing.
+- **The four first-wave events**, wired to real engine paths:
+  - `BlockBreakEvent` — pre-commit in `tryMineBlock` (survival) and
+    `creativeBreakOnTick`; cancel prevents mutation/drops/wear/XP and
+    re-syncs the cell so client prediction drops.
+  - `BlockPlaceEvent` — pre-commit in both place paths; cancel prevents
+    the mutation AND the survival item consumption.
+  - `MobSpawnEvent` — `MobManager.spawnAt` (the single chokepoint every
+    spawn source uses); cancel returns null, consumes no entity id,
+    fires no engine listeners. `spawnGroupAt` and the villager drain
+    null-safe.
+  - `PlayerChatEvent` — `ChatService.handleOnTick` post-sanitize,
+    pre-broadcast; cancel drops the message entirely.
+- **`Server.events()`** — the public bus accessor; the engine creates it
+  eagerly and wires it into the three services at boot.
+- **The worlds() gap fixed**: the Server view returned only the
+  overworld — both booted dimensions (overworld + nether) are public now.
+- **Tests**: `EventBusUnitTest` (9: the priority/registration order, the
+  cancellation read, exception continuation, idempotent unsubscribe,
+  self-unsubscribe mid-dispatch, subtype dispatch, cross-thread
+  registration, type isolation, reentrant nesting) +
+  `EventApiAcceptanceTest` (6: the bus/worlds exposure, the cancelled
+  break with the unsubscribe arm, the cancelled place with the land arm,
+  the cancelled spawn, the cancelled chat through a counting publisher,
+  the MONITOR chat observation with the sanitized payload).
+
+The fresh full-suite count **709 green in zamin-core** (+15),
+`--max-workers=1`, one timing-test load flake (the documented
+environmental class — `VanillaMiningTimingTest`, green in 3 consecutive
+isolated runs).
+
+**Next:** the entity/snapshot wave (Slice 13b) — the `Entity`/`LivingEntity`
+handle family over `MobEntity`, the snapshot reads, the damage events;
+then the player wave (13c).

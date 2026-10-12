@@ -1,6 +1,7 @@
 package net.zaminmc.torch;
 
 import net.zaminmc.torch.entity.Player;
+import net.zaminmc.torch.event.EventBus;
 
 import java.util.Collection;
 
@@ -20,4 +21,10 @@ public interface Server {
 
     /** Blocks until the server stopped. Safe to call from any thread. */
     void awaitShutdown();
+
+    /**
+     * The public event bus. Registration is safe from any thread; handlers
+     * run on the engine context that fired each event.
+     */
+    EventBus events();
 }

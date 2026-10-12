@@ -1,7 +1,9 @@
 package net.zaminmc.torch.server.chat;
 
 import net.zaminmc.torch.server.EngineTicker;
+import net.zaminmc.torch.server.event.EngineEventBus;
 import net.zaminmc.torch.server.player.PlayerSession;
+import net.zaminmc.torch.event.player.PlayerChatEvent;
 
 import java.util.Objects;
 import java.util.function.Consumer;
@@ -24,6 +26,8 @@ public final class ChatService {
     private final EngineTicker ticker;
     private final CommandService commands;
     private final Consumer<ChatEvent> publisher;
+    /** The public event bus (§27.7); null until wired. */
+    private volatile EngineEventBus eventBus;
 
     /** Sealed chat outcome for the adapter to deliver. */
     public sealed interface ChatEvent permits PublicChat, SystemToPlayer {
@@ -48,6 +52,11 @@ public final class ChatService {
         ticker.submit(() -> handleOnTick(sender, raw));
     }
 
+    /** Wires the public event bus (§27.7): chat fires PlayerChatEvent pre-broadcast. */
+    public void setEventBus(EngineEventBus eventBus) {
+        this.eventBus = eventBus;
+    }
+
     private void handleOnTick(PlayerSession sender, String raw) {
         String message = sanitize(raw);
         if (message.isEmpty()) {
@@ -61,6 +70,14 @@ public final class ChatService {
                 @Override public PlayerSession player() { return sender; }
             }, message);
             return;
+        }
+        EngineEventBus bus = eventBus;
+        if (bus != null) {
+            PlayerChatEvent event = new PlayerChatEvent(sender, message);
+            bus.fire(event);
+            if (event.cancelled()) {
+                return; // the cancelled message: no audience, no delivery
+            }
         }
         publisher.accept(new PublicChat(sender, message));
     }
