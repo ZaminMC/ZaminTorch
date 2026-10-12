@@ -1794,7 +1794,8 @@ public final class EngineServer implements Server, EngineBridge {
             // and it pierces creative invulnerability, the historical rule.
             if (session.position().y() < MobEntity.VOID_KILL_Y) {
                 damageOnTick(session, MobEntity.VOID_DAMAGE_PER_TICK, true,
-                        "fell out of the world", 0.0f);
+                        "fell out of the world", 0.0f,
+                        net.zaminmc.torch.event.DamageCause.OUT_OF_WORLD);
             }
             tickEating(session);
             tickDrinking(session); // the potion's 32-tick drink (Slice 11b)
@@ -2021,7 +2022,7 @@ public final class EngineServer implements Server, EngineBridge {
             if (session.advanceFireDamageTimer() % 10 == 0) {
                 damageOnTick(session,
                         applyEnchantProtection(session, 1.0f, DamageKind.IN_FIRE),
-                        "went up in flames");
+                        "went up in flames", DamageKind.IN_FIRE);
             }
         } else if (session.burning()) {
             // After leaving the flame the residual burn hurts every second;
@@ -2030,7 +2031,7 @@ public final class EngineServer implements Server, EngineBridge {
             if (session.advanceFireDamageTimer() % 20 == 0) {
                 damageOnTick(session,
                         applyEnchantProtection(session, 1.0f, DamageKind.ON_FIRE),
-                        0.0f, "went up in flames");
+                        0.0f, "went up in flames", DamageKind.ON_FIRE);
             }
         }
         // Fluid contact douses the burn (the historical rule).
@@ -2067,7 +2068,7 @@ public final class EngineServer implements Server, EngineBridge {
                             (int) Math.floor(feet.z()))).identifier())) {
                 damageOnTick(session,
                         applyEnchantProtection(session, 1.0f, DamageKind.CACTUS),
-                        "was pricked to death");
+                        "was pricked to death", DamageKind.CACTUS);
                 return;
             }
         }
@@ -2114,7 +2115,8 @@ public final class EngineServer implements Server, EngineBridge {
                 // normal at 1, hard never floors.
                 if (session.health() > 10.0f || difficulty == 3
                         || session.health() > 1.0f && difficulty == 2) {
-                    damageOnTick(session, 1.0f, 0.0f, "starved to death");
+                    damageOnTick(session, 1.0f, 0.0f, "starved to death",
+                            DamageKind.STARVE);
                 }
             }
         } else {
@@ -2142,7 +2144,7 @@ public final class EngineServer implements Server, EngineBridge {
                         applyEnchantProtection(session,
                                 (float) Math.ceil(distance - PlayerSession.SAFE_FALL_DISTANCE),
                                 DamageKind.FALL),
-                        0.0f, "hit the ground too hard");
+                        0.0f, "hit the ground too hard", DamageKind.FALL);
             }
         }
     }
@@ -2212,7 +2214,7 @@ public final class EngineServer implements Server, EngineBridge {
             // inside the protection step (only "all" applies off-fire)
             damageOnTick(session,
                     applyEnchantProtection(session, 2.0f, DamageKind.DROWN),
-                    0.0f, "drowned");
+                    0.0f, "drowned", DamageKind.DROWN);
         }
     }
 
@@ -2581,7 +2583,7 @@ public final class EngineServer implements Server, EngineBridge {
                                     applyEnchantProtection(attacker,
                                             applyArmor(attacker, amount),
                                             DamageKind.MELEE),
-                                    "was slain by " + wearer.name());
+                                    "was slain by " + wearer.name(), DamageKind.MELEE);
                         }
 
                         @Override
@@ -2739,15 +2741,18 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     private void damageOnTick(PlayerSession session, float amount) {
-        damageOnTick(session, amount, false, null);
+        damageOnTick(session, amount, false, null, 0.3f,
+                net.zaminmc.torch.event.DamageCause.MELEE);
     }
 
-    private void damageOnTick(PlayerSession session, float amount, String causeMessage) {
-        damageOnTick(session, amount, false, causeMessage);
+    private void damageOnTick(PlayerSession session, float amount, String causeMessage,
+                              DamageKind kind) {
+        damageOnTick(session, amount, false, causeMessage, 0.3f, publicCause(kind));
     }
 
-    private void damageOnTick(PlayerSession session, float amount, boolean bypassProtection) {
-        damageOnTick(session, amount, bypassProtection, null);
+    private void damageOnTick(PlayerSession session, float amount, boolean bypassProtection,
+                              String causeMessage, DamageKind kind) {
+        damageOnTick(session, amount, bypassProtection, causeMessage, 0.3f, publicCause(kind));
     }
 
     /**
@@ -2757,27 +2762,39 @@ public final class EngineServer implements Server, EngineBridge {
      * (fall, drown, starve, the on-fire residual, out-of-world).
      */
     private void damageOnTick(PlayerSession session, float amount, float exhaustionCharge,
-                              String causeMessage) {
-        damageOnTick(session, amount, false, causeMessage, exhaustionCharge);
+                              String causeMessage, DamageKind kind) {
+        damageOnTick(session, amount, false, causeMessage, exhaustionCharge, publicCause(kind));
     }
 
     /**
      * The semantic damage entry, with the mode guard: creative and spectator
      * bodies are invulnerable (the historical rule) — the only bypass is the
-     * void, which consumes even creative bodies past the kill plane.
+     * void, which consumes even creative bodies past the kill plane. The
+     * public PlayerDamageEvent (§27.7) gates the walk after the guards: a
+     * cancelled hit lands nothing (no health loss, no exhaustion, no death
+     * check) and the mutable amount drives the rest.
      */
     private void damageOnTick(PlayerSession session, float amount, boolean bypassProtection,
-                              String causeMessage) {
-        damageOnTick(session, amount, bypassProtection, causeMessage, 0.3f);
-    }
-
-    private void damageOnTick(PlayerSession session, float amount, boolean bypassProtection,
-                              String causeMessage, float exhaustionCharge) {
+                              String causeMessage, float exhaustionCharge,
+                              net.zaminmc.torch.event.DamageCause cause) {
         if (session.dead() || session.state() != PlayerState.PLAYING) {
             return;
         }
         if (!bypassProtection && (session.gamemode() == GameMode.CREATIVE
                 || session.gamemode() == GameMode.SPECTATOR)) {
+            return;
+        }
+        // §27.7: the public damage gate (the post-armor, post-enchantment
+        // value the health walk is about to apply).
+        net.zaminmc.torch.event.player.PlayerDamageEvent damageEvent =
+                new net.zaminmc.torch.event.player.PlayerDamageEvent(
+                        session, amount, cause);
+        eventBus.fire(damageEvent);
+        if (damageEvent.cancelled()) {
+            return;
+        }
+        amount = damageEvent.amount();
+        if (amount <= 0) {
             return;
         }
         session.hurt(amount);
@@ -2791,6 +2808,11 @@ public final class EngineServer implements Server, EngineBridge {
         } else {
             publishBodyChanged(session);
         }
+    }
+
+    /** The DamageKind → public DamageCause join (identical constant names). */
+    private static net.zaminmc.torch.event.DamageCause publicCause(DamageKind kind) {
+        return net.zaminmc.torch.event.DamageCause.valueOf(kind.name());
     }
 
     /**
@@ -2828,37 +2850,49 @@ public final class EngineServer implements Server, EngineBridge {
             }
         }
         returnWindowCarriedItems(session, true);
-        // The death XP scatter (the historical 7-per-level rule, capped at
-        // 100) lands at the body before the total resets — vanilla drops the
-        // orbs where the player fell, and the newcomer starts from zero.
-        int xpScatter = ExperienceMath.xpDroppedOnDeath(session.experienceLevel());
-        if (xpScatter > 0) {
-            experienceOrbs.spawnBurst(session.position(), xpScatter, 5);
-        }
-        session.setTotalXp(0);
-        publishExperienceChanged(session);
-        var slots = session.inventory().snapshot();
-        for (int slot = 0; slot < slots.size(); slot++) {
-            ItemStack dropped = session.inventory().dropFromSlot(slot, true);
-            spawnDeathDrop(session, dropped);
-        }
-        // The armor row scatters with the inventory (the historical death drop).
-        for (int armorSlot = 0; armorSlot < PlayerInventory.ARMOR_SLOTS; armorSlot++) {
-            ItemStack piece = session.inventory().armorAt(armorSlot);
-            if (!piece.isEmpty()) {
-                spawnDeathDrop(session, piece);
+        // §27.7: the public death observation with the keep-inventory arm —
+        // the event fires after the body dies (effects cleared, seat open)
+        // but BEFORE the scatter; a cancelled event keeps the experience and
+        // the whole inventory on the body (the historical keepInventory rule).
+        net.zaminmc.torch.event.player.PlayerDeathEvent deathEvent =
+                new net.zaminmc.torch.event.player.PlayerDeathEvent(
+                        session, session.name() + " " + causeMessage);
+        eventBus.fire(deathEvent);
+        if (!deathEvent.cancelled()) {
+            // The death XP scatter (the historical 7-per-level rule, capped at
+            // 100) lands at the body before the total resets — vanilla drops the
+            // orbs where the player fell, and the newcomer starts from zero.
+            int xpScatter = ExperienceMath.xpDroppedOnDeath(session.experienceLevel());
+            if (xpScatter > 0) {
+                experienceOrbs.spawnBurst(session.position(), xpScatter, 5);
             }
-            session.inventory().setArmor(armorSlot, ItemStack.EMPTY);
+            session.setTotalXp(0);
+            publishExperienceChanged(session);
+            var slots = session.inventory().snapshot();
+            for (int slot = 0; slot < slots.size(); slot++) {
+                ItemStack dropped = session.inventory().dropFromSlot(slot, true);
+                spawnDeathDrop(session, dropped);
+            }
+            // The armor row scatters with the inventory (the historical death drop).
+            for (int armorSlot = 0; armorSlot < PlayerInventory.ARMOR_SLOTS; armorSlot++) {
+                ItemStack piece = session.inventory().armorAt(armorSlot);
+                if (!piece.isEmpty()) {
+                    spawnDeathDrop(session, piece);
+                }
+                session.inventory().setArmor(armorSlot, ItemStack.EMPTY);
+            }
+            spawnDeathDrop(session, session.inventory().takeCursor());
+            publishInventoryChanged(session);
         }
-        spawnDeathDrop(session, session.inventory().takeCursor());
-        publishInventoryChanged(session);
         publishBodyChanged(session);
         publishDied(session);
-        String deathLine = session.name() + " " + causeMessage;
-        for (PlayerSession online : players.all()) {
-            systemMessage(online, deathLine);
+        String deathLine = deathEvent.deathMessage();
+        if (deathLine != null) {
+            for (PlayerSession online : players.all()) {
+                systemMessage(online, deathLine);
+            }
+            LOGGER.info(deathLine);
         }
-        LOGGER.info(deathLine);
     }
 
     /** Death drops scatter around the body with a small random pop. */
@@ -7132,7 +7166,8 @@ public final class EngineServer implements Server, EngineBridge {
             if (body instanceof PlayerSession player) {
                 // The magic damage: no knockback, no protection shave (the
                 // reference's DamageSource.MAGIC pierces armor).
-                damageOnTick(player, amount, true, cause, 0.0f);
+                damageOnTick(player, amount, true, cause, 0.0f,
+                        net.zaminmc.torch.event.DamageCause.MAGIC);
             } else {
                 MobEntity mob = (MobEntity) body;
                 if (mob.type() == net.zaminmc.torch.server.entity.MobType.WITCH) {
@@ -7510,7 +7545,8 @@ public final class EngineServer implements Server, EngineBridge {
                 }
                 return false;
             }
-            return mobManager.hurt(mob, damage, kbYaw);
+            return mobManager.hurt(mob, damage, kbYaw,
+                    net.zaminmc.torch.event.DamageCause.PROJECTILE);
         }
 
         @Override
@@ -7562,6 +7598,21 @@ public final class EngineServer implements Server, EngineBridge {
         // enchantment-protection step (an arrow is a projectile source).
         damage = applyEnchantProtection(victim,
                 applyArmor(victim, damage), DamageKind.PROJECTILE);
+        // §27.7: the public damage gate rides the same place the melee
+        // family does — after the protection math, before any state moves.
+        // A cancelled hit lands nothing (no bruise window, no hurt, no
+        // knockback); the mutable amount drives the window math onward.
+        net.zaminmc.torch.event.player.PlayerDamageEvent damageEvent =
+                new net.zaminmc.torch.event.player.PlayerDamageEvent(
+                        victim, damage, net.zaminmc.torch.event.DamageCause.PROJECTILE);
+        eventBus.fire(damageEvent);
+        if (damageEvent.cancelled()) {
+            return;
+        }
+        damage = damageEvent.amount();
+        if (damage <= 0) {
+            return;
+        }
         if (victim.hurtInvulnerable() && damage <= victim.lastHurtDamage()) {
             return; // absorbed by the hurt window (a bruise out-damages nothing)
         }
@@ -7615,7 +7666,7 @@ public final class EngineServer implements Server, EngineBridge {
                                             applyEnchantProtection(candidate,
                                                     applyArmor(candidate, amount),
                                                     DamageKind.MELEE),
-                                            "was slain by " + wearer.name());
+                                            "was slain by " + wearer.name(), DamageKind.MELEE);
                                     return;
                                 }
                             }
@@ -7724,6 +7775,11 @@ public final class EngineServer implements Server, EngineBridge {
             for (MobManager.Listener listener : mobListeners) {
                 listener.onMobDied(mob);
             }
+            // §27.7: the public death observation — the health reached zero
+            // and the death animation starts; the loot and the experience
+            // release right after. Not cancellable (the death is already
+            // authoritative); the observation point for kill counters.
+            eventBus.fire(new net.zaminmc.torch.event.entity.MobDeathEvent(mob));
             // The kill reward (the historical getExperienceValue): the body
             // releases its XP band at the death point; orbs wait out their
             // pickup delay while the death animation plays. The slime's own
@@ -7765,7 +7821,7 @@ public final class EngineServer implements Server, EngineBridge {
             damageOnTick(target,
                     applyEnchantProtection(target, applyArmor(target, damage),
                             DamageKind.MELEE),
-                    "was slain by " + titledMobName(mob));
+                    "was slain by " + titledMobName(mob), DamageKind.MELEE);
             applyThornsWildcard(target, thornsRow, new ThornsTarget() {
                 @Override
                 public void takeThornsDamage(int amount, PlayerSession wearer) {
@@ -8295,6 +8351,22 @@ public final class EngineServer implements Server, EngineBridge {
                     player.inventory().armorStacks(), damage);
             damage = applyArmor(player, damage); // armor eats its share of the blast
             damage = applyEnchantProtection(player, damage, DamageKind.EXPLOSION);
+            // §27.7: the public damage gate on the blast arm — after the
+            // protection math, before any state moves. A cancelled blast
+            // lands nothing; the mutable amount drives the window math.
+            net.zaminmc.torch.event.player.PlayerDamageEvent blastEvent =
+                    new net.zaminmc.torch.event.player.PlayerDamageEvent(
+                            player, damage, net.zaminmc.torch.event.DamageCause.EXPLOSION);
+            eventBus.fire(blastEvent);
+            if (blastEvent.cancelled()) {
+                motion.put(player.uuid(), new double[]{0, 0, 0});
+                continue;
+            }
+            damage = blastEvent.amount();
+            if (damage <= 0) {
+                motion.put(player.uuid(), new double[]{0, 0, 0});
+                continue;
+            }
             double scale = (1 - dist / injuryRadius) * 1.6;
             double mx = dist < 0.001 ? 0 : dx / dist * scale;
             double mz = dist < 0.001 ? 0 : dz / dist * scale;
@@ -8331,7 +8403,8 @@ public final class EngineServer implements Server, EngineBridge {
                 continue;
             }
             mobManager.hurt(mob, damage,
-                    Math.toDegrees(Math.atan2(-dx, dz))); // knockback away from the blast
+                    Math.toDegrees(Math.atan2(-dx, dz)), // knockback away from the blast
+                    net.zaminmc.torch.event.DamageCause.EXPLOSION);
         }
 
         // The wire: one Explosion packet per observer, motion included.
@@ -9740,6 +9813,27 @@ public final class EngineServer implements Server, EngineBridge {
             session.setAllowedToFly(session.gamemode() == GameMode.CREATIVE
                     || session.gamemode() == GameMode.SPECTATOR);
             saved.ifPresent(snapshot -> restorePlayer(session, snapshot));
+            // §27.7: the public join observation + the vanilla yellow
+            // broadcast (PlayerManager lines 136-145: multiplayer.player.
+            // joined in yellow — the broadcast runs BEFORE the reference's
+            // add(player), so the newcomer never sees their own line; the
+            // engine's early register skips the joiner the same way).
+            // The event fires after the session is fully constructed but
+            // before the broadcast leaves — the mutable line is what the
+            // players see; null suppresses it entirely.
+            net.zaminmc.torch.event.player.PlayerJoinEvent joinEvent =
+                    new net.zaminmc.torch.event.player.PlayerJoinEvent(
+                            session, session.name() + " joined the game");
+            eventBus.fire(joinEvent);
+            String joinLine = joinEvent.joinMessage();
+            if (joinLine != null) {
+                for (PlayerSession online : players.all()) {
+                    if (online == session) {
+                        continue; // the joiner never sees their own line (1.8.8)
+                    }
+                    systemMessage(online, "\u00a7e" + joinLine);
+                }
+            }
             LOGGER.info(() -> "Player joined: " + username + " (" + offlineUuid + ")"
                     + saved.map(s -> " [restored]").orElse(""));
             return new EngineBridge.Accepted(session);
@@ -9925,7 +10019,22 @@ public final class EngineServer implements Server, EngineBridge {
         }
         session.markDisconnecting();
         session.markDisconnected();
+        // §27.7: the public quit observation + the vanilla yellow broadcast
+        // (ServerPlayNetworkHandler.onDisconnect lines 573-576:
+        // multiplayer.player.left in yellow, sent BEFORE the registry
+        // removes the player). The event fires while the handle still
+        // resolves; the mutable line broadcasts to the players who stay.
+        net.zaminmc.torch.event.player.PlayerQuitEvent quitEvent =
+                new net.zaminmc.torch.event.player.PlayerQuitEvent(
+                        session, session.name() + " left the game");
+        eventBus.fire(quitEvent);
+        String quitLine = quitEvent.quitMessage();
         players.unregister(session);
+        if (quitLine != null) {
+            for (PlayerSession online : players.all()) {
+                systemMessage(online, "\u00a7e" + quitLine);
+            }
+        }
         // Persist on the tick thread so the save is ordered after any queued
         // inventory work for this player (pickup, wear, give). A carried cursor
         // stack goes back into the inventory first; a remainder is thrown so

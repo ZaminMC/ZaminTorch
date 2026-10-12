@@ -103,6 +103,7 @@ coverage is tracked per mechanic.
 | XP orbs (pickup box, burst splits) | `ExperienceOrbEntity.java` | `ExperienceOrbManager` | xp tests | IMPLEMENTED | — |
 | Sleep/beds, respawn | `PlayerEntity` sleep family | sleep paths | `SleepAcceptanceTest` | IMPLEMENTED | — |
 | Hunger visual (food ticks to client) | `FoodStats` sync | protocol metadata | player tests | IMPLEMENTED | — |
+| Join/quit broadcasts (the yellow system lines) | `PlayerManager.onLogin` lines 136-145 (`multiplayer.player.joined` in yellow, `sendSystemMessage` BEFORE `add(player)` — the joiner never sees their own line) + `ServerPlayNetworkHandler.onDisconnect` lines 573-576 (`multiplayer.player.left` in yellow, broadcast BEFORE the removal) | the join walk's `PlayerJoinEvent` + the broadcast (the joiner skipped — the reference's add-after-broadcast order over the engine's early register) + the disconnect walk's `PlayerQuitEvent` + the broadcast to the players who stay; both lines mutable, null suppresses (§27.7) | `LifecycleEventAcceptanceTest` (the join line, the quit line) + the protocol chat suites | IMPLEMENTED | the renamed-player variant (`multiplayer.player.joined.renamed`) has no rename flow in the engine; the lines render through the legacy `§e` color code the 1.8.8 client applies inside JSON text |
 
 ## 8. World and generation
 

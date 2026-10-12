@@ -795,16 +795,48 @@ public final class MobManager {
 
     /**
      * Melee hit from a player: validated damage, knockback, hurt event; the
-     * death animation starts here and loot lands when it finishes.
+     * death animation starts here and loot lands when it finishes. The
+     * public damage gate (§27.7) reads MELEE.
      *
      * @return whether the hit landed (the reference's {@code takeDamage}
      *         verdict — the fire-aspect extinguish and the knockback-
      *         enchantment extra both gate on it).
      */
     public boolean hurt(MobEntity mob, float amount, double attackerYaw) {
+        return hurt(mob, amount, attackerYaw,
+                net.zaminmc.torch.event.DamageCause.MELEE);
+    }
+
+    /**
+     * The full semantic damage entry: validated damage, knockback, hurt
+     * event; the death animation starts here and loot lands when it
+     * finishes. The public MobDamageEvent (§27.7) gates the whole walk —
+     * a cancelled hit lands nothing (no health, no knockback, no
+     * listeners) and answers false, exactly a refused takeDamage.
+     *
+     * @param cause the damage-source classification the event carries
+     * @return whether the hit landed (the reference's {@code takeDamage}
+     *         verdict — the fire-aspect extinguish and the knockback-
+     *         enchantment extra both gate on it).
+     */
+    public boolean hurt(MobEntity mob, float amount, double attackerYaw,
+                        net.zaminmc.torch.event.DamageCause cause) {
         Objects.requireNonNull(mob, "mob");
         if (amount <= 0 || mob.dead()) {
             return false;
+        }
+        var bus = eventBus;
+        if (bus != null) {
+            var event = new net.zaminmc.torch.event.entity.MobDamageEvent(
+                    mob, amount, cause);
+            bus.fire(event);
+            if (event.cancelled()) {
+                return false;
+            }
+            amount = event.amount();
+            if (amount <= 0) {
+                return false;
+            }
         }
         mob.hurt(amount);
         mob.knockbackFrom(attackerYaw);
@@ -822,12 +854,26 @@ public final class MobManager {
     /**
      * The magic arm (Slice 11b — DamageSource.MAGIC carries no knockback):
      * the damage, the hurt/died fan-out, nothing else. The potion family's
-     * periodic and instant damage ride it.
+     * periodic and instant damage ride it. The public MobDamageEvent (§27.7)
+     * gates the walk with the MAGIC cause — a cancelled hit lands nothing.
      */
     public boolean hurtWithoutKnockback(MobEntity mob, float amount) {
         Objects.requireNonNull(mob, "mob");
         if (amount <= 0 || mob.dead()) {
             return false;
+        }
+        var bus = eventBus;
+        if (bus != null) {
+            var event = new net.zaminmc.torch.event.entity.MobDamageEvent(
+                    mob, amount, net.zaminmc.torch.event.DamageCause.MAGIC);
+            bus.fire(event);
+            if (event.cancelled()) {
+                return false;
+            }
+            amount = event.amount();
+            if (amount <= 0) {
+                return false;
+            }
         }
         // The enderman's armor-bypass response (EndermanEntity.takeDamage
         // lines 311-316): the magic/environment family teleports the body

@@ -50,13 +50,13 @@ class ChatAndMultiplayerTest extends ProtocolTestBase {
             awaitPlayers("Carol", "Dave");
 
             carol.sendChat("/ping");
-            String reply = carol.readChatLine(5_000);
+            String reply = carol.readChatLineSkippingBroadcasts(5_000);
             assertTrue(reply.contains("pong"), reply);
 
             // The command feedback went only to Carol: the next line Dave receives
             // is the public chat sent afterwards (never the /ping feedback).
             carol.sendChat("public after command");
-            String daveLine = dave.readChatLine(5_000);
+            String daveLine = dave.readChatLineSkippingBroadcasts(5_000);
             assertTrue(daveLine.contains("public after command"), daveLine);
         }
         awaitEmptyServer();
