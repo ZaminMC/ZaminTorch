@@ -21,7 +21,7 @@ Stability classes (§27.4): `Stable`, `Experimental`, `Internal`.
 |---|---|---|---|---|---|---|---|---|
 | Server state/lifecycle | `EngineServer` | `Server` (state, worlds, players, awaitShutdown) | any thread for reads | — | Stable | api smoke | VERIFIED | — |
 | Dimension collection | `EngineServer.worlds()` | `Server.worlds()` (both booted dimensions) | any thread | — | Stable | `EventApiAcceptanceTest` | VERIFIED | — |
-| Difficulty | `EngineServer.difficulty()` | none | owner | — | — | — | NOT AUDITED | the engine setter path |
+| Difficulty | `EngineServer.difficulty()` | `Server.difficulty()` (the id read; the set arm rides the difficulty slice) | any thread | — | Stable | `WorldApiAcceptanceTest` (the band) | IMPLEMENTED | the setter path (the engine's own `/difficulty` command) rides the difficulty slice |
 | TPS observation | `EngineTicker.averageTps` | none | any thread | — | — | — | NOT AUDITED | — |
 | Configuration | `EngineConfig` | none (launcher-side file) | boot | — | — | — | NOT AUDITED | — |
 
@@ -32,10 +32,10 @@ Stability classes (§27.4): `Stable`, `Experimental`, `Internal`.
 | Block read | `EngineWorld.getBlock` | `World.getBlock` | any thread (epoch read) | — | Stable | api | VERIFIED | — |
 | Block write | `EngineWorld.setBlock` | `World.setBlock` | simulation context (asserted) | — | Stable | api | VERIFIED | — |
 | Time read | `EngineWorld.timeOfDay/totalTicks` | `World.timeOfDay/totalTicks` | any thread | — | Stable | api | VERIFIED | — |
-| Time set | `EngineWorld.setTimeOfDay` | none | owner | — | — | — | NOT AUDITED | rides `/time` |
-| Chunk handles | `EngineChunk`, `getOrGenerate`, `peek`, `loadedChunks` | `isChunkLoaded` only | owner | — | — | — | NOT AUDITED | chunk content reads, biome reads |
-| Light levels | `EngineWorld.blockLightAt/skyLightAt` | none | any thread | — | — | — | NOT AUDITED | — |
-| Block change observation | `WorldChangeListener` (internal) | none | owner callback | internal only | — | — | NOT AUDITED | the public event ride |
+| Time set | `EngineWorld.setTimeOfDay` (the floorMod wrap) | `World.setTimeOfDay` | owner context (asserted; call through `World.execute` off-lane) | — | Stable | `WorldApiAcceptanceTest` (the noon landing, the 25000 wrap, the per-world independence) | IMPLEMENTED | the clock keeps ticking forward after the set (the reference's own behavior); the set walks ONE world (the engine's `/time` walks every dimension — a plugin loops `worlds()`) |
+| Chunk handles | `EngineChunk`, `getOrGenerate`, `peek`, `loadedChunks` | `isChunkLoaded` + `World.biomeAt` (the column's stable name) | any thread | — | Stable | `WorldApiAcceptanceTest` (the family names, the unloaded default) | IMPLEMENTED | the raw chunk content reads stay internal (the block read rides `World.getBlock`); the biome set is generation-only |
+| Light levels | `EngineWorld.blockLightAt/skyLightAt` | `World.blockLightAt/skyLightAt` | any thread (best-effort) | — | Stable | `WorldApiAcceptanceTest` (the glowstone source cell at 15, the band) | IMPLEMENTED | the unloaded-chunk answers (0 block / 15 sky) are the engine's own documented totals |
+| Block change observation | `WorldChangeListener.onBlockReplaced` (the combined pair, Slice 14a) | the `BlockChangedEvent` public event (§27.7 post-commit: every committed change — player, explosion, piston, fluid, growth) | handlers on the committing owner context | the event bus (any-thread registration) | Stable | `WorldApiAcceptanceTest` (the pair both ways, the world name, the unsubscribe) | IMPLEMENTED | not cancellable by design (the commit already happened — observe-and-react, §27.7); handler exceptions isolate in the bus |
 | Scheduled ticks | `BlockUpdateSystem` | none | owner | — | — | — | NOT AUDITED | query/cancel surface |
 | World deltas | `WorldDeltaSnapshot` | none | owner | — | — | — | NOT AUDITED | persistence-facing today |
 | Block registry | `FrozenBlockRegistry`, `EngineBlockType` | `BlockRegistry` (limited) | any thread | — | Stable | api | AUDITED | lookup by id, the behavior tables |

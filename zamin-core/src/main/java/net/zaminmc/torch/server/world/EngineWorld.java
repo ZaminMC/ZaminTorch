@@ -147,12 +147,25 @@ public final class EngineWorld implements World {
         if (changed) {
             // Deltas are the persistence projection of runtime changes (slice 2).
             recordDelta(position.chunkPosition(), localIndex(position.localX(), position.y(), position.localZ()), type);
+            fireReplaced(position, previous, type);
             fireChange(position, type);
             if (!previous.equals(type)) {
                 fireRemoved(position, previous);
             }
         }
         return changed;
+    }
+
+    /** The combined pair fan-out (the public event's own shape, Slice 14a). */
+    private void fireReplaced(BlockPosition position, BlockType oldType, BlockType newType) {
+        for (WorldChangeListener listener : changeListeners) {
+            try {
+                listener.onBlockReplaced(this, position, oldType, newType);
+            } catch (RuntimeException listenerFailure) {
+                LOGGER.warning(() -> "World replace listener failed at " + position + ": "
+                        + listenerFailure);
+            }
+        }
     }
 
     private void fireChange(BlockPosition position, BlockType type) {
@@ -337,15 +350,37 @@ public final class EngineWorld implements World {
     // ------------------------------------------------------------------ light reads (§475)
 
     /** @return the block light level at the position; 0 outside loaded chunks. */
+    @Override
     public int blockLightAt(BlockPosition position) {
         EngineChunk chunk = peek(position.chunkPosition());
         return chunk == null ? 0 : chunk.blockLight(position.localX(), position.y(), position.localZ());
     }
 
     /** @return the skylight level at the position; 15 outside loaded chunks (open sky). */
+    @Override
     public int skyLightAt(BlockPosition position) {
         EngineChunk chunk = peek(position.chunkPosition());
         return chunk == null ? 15 : chunk.skyLight(position.localX(), position.y(), position.localZ());
+    }
+
+    /**
+     * @return the biome's stable name at the column (the API read over the
+     * chunk's generation-derived biome row; plains outside loaded chunks —
+     * the implicit default).
+     */
+    @Override
+    public String biomeAt(BlockPosition position) {
+        EngineChunk chunk = peek(position.chunkPosition());
+        if (chunk == null) {
+            return "plains";
+        }
+        int legacyId = chunk.biome(position.localX(), position.localZ());
+        for (Biome biome : Biome.values()) {
+            if (biome.legacyId() == legacyId) {
+                return biome.name().toLowerCase(java.util.Locale.ROOT);
+            }
+        }
+        return "plains";
     }
 
     /** Applies a loaded delta snapshot. Owner-thread only, before chunks generate. */
@@ -390,6 +425,7 @@ public final class EngineWorld implements World {
      * (the chat dispatch routes through the engine's tick queue); the periodic
      * cycle sync and hostile spawning read the same field.
      */
+    @Override
     public void setTimeOfDay(long timeOfDay) {
         requireOwnership("setTimeOfDay");
         // The clock wraps on the day length (floorMod keeps the /time add

@@ -13,6 +13,14 @@ public interface Server {
 
     ServerState state();
 
+    /**
+     * @return the runtime difficulty id (0 peaceful, 1 easy, 2 normal,
+     *         3 hard — the 1.8.8 difficulty ids). Safe from any thread;
+     *         the value is a stable int by design (the difficulty API
+     *         surface rides its own slice for the set arm).
+     */
+    int difficulty();
+
     /** All currently loaded worlds. Read-only view. */
     Collection<World> worlds();
 

@@ -62,6 +62,11 @@ class ExperienceOrbManagerTest {
             @Override public java.util.Collection<net.zaminmc.torch.entity.LivingEntity> entities() { return java.util.List.of(); }
             @Override public void execute(Runnable work) { work.run(); }
 
+            @Override public void setTimeOfDay(long timeOfDay) { }
+            @Override public int blockLightAt(net.zaminmc.torch.block.BlockPosition p) { return 0; }
+            @Override public int skyLightAt(net.zaminmc.torch.block.BlockPosition p) { return 15; }
+            @Override public String biomeAt(net.zaminmc.torch.block.BlockPosition p) { return "plains"; }
+
         };
     }
 
