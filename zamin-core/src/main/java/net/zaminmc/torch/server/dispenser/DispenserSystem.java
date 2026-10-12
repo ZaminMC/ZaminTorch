@@ -2,6 +2,7 @@ package net.zaminmc.torch.server.dispenser;
 
 import net.zaminmc.torch.block.BlockPosition;
 import net.zaminmc.torch.block.BlockType;
+import net.zaminmc.torch.block.Direction;
 import net.zaminmc.torch.item.ItemStack;
 import net.zaminmc.torch.server.block.BuiltinBlocks;
 import net.zaminmc.torch.server.block.FluidBlocks;
@@ -23,6 +24,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Random;
+import java.util.logging.Logger;
 
 /**
  * The dispenser and dropper system (Slice 11a — the reference port of
@@ -66,6 +68,8 @@ import java.util.Random;
  */
 public final class DispenserSystem implements WorldChangeListener {
 
+    private static final Logger LOGGER = Logger.getLogger(DispenserSystem.class.getName());
+
     /** The six directions in the reference's Direction id order. */
     private static final int[][] OFFSETS = {
             {0, -1, 0}, // 0 DOWN
@@ -91,6 +95,8 @@ public final class DispenserSystem implements WorldChangeListener {
     private final FxManager fx;
     private final Random random;
     private final Map<BlockPosition, DispenserBlockEntity> containers = new LinkedHashMap<>();
+    /** The public registration surface (built on first use; §27.3). */
+    private DispenserBehaviorsSurface behaviors;
 
     /** One dispense behavior: consumes from the stack, returns the remainder. */
     private interface Behavior {
@@ -135,6 +141,19 @@ public final class DispenserSystem implements WorldChangeListener {
     /** @return the live state at the position, or null when there is none. */
     public DispenserBlockEntity peek(BlockPosition position) {
         return containers.get(position);
+    }
+
+    /**
+     * The public behavior registry (§27.3's registration surface): register
+     * and reset per-item dispense behaviors — built once, on first use.
+     */
+    public net.zaminmc.torch.dispenser.DispenseBehaviors behaviors() {
+        DispenserBehaviorsSurface surface = behaviors;
+        if (surface == null) {
+            surface = new DispenserBehaviorsSurface(world);
+            behaviors = surface;
+        }
+        return surface;
     }
 
     /** @return the whole container map (the save snapshot). */
@@ -287,6 +306,36 @@ public final class DispenserSystem implements WorldChangeListener {
 
     /** @return the behavior the item answers with (the default drop when none). */
     private Behavior behaviorOf(ItemStack stack) {
+        // The registration surface's consult (§27.3): a registered custom
+        // overrides the built-in switch — the public stand-in for the
+        // reference's Bootstrap.registerDispenseBehaviors table.
+        DispenserBehaviorsSurface surface = behaviors;
+        if (surface != null) {
+            net.zaminmc.torch.dispenser.DispenseBehavior custom =
+                    surface.customFor(stack.type().identifier().value());
+            if (custom != null) {
+                return (pos, facing, s) -> {
+                    Direction dir = Direction.byId(facing);
+                    if (dir == null) {
+                        // An out-of-range facing cannot reach a public
+                        // behavior — the default drop keeps the slot honest.
+                        return defaultItemDrop(pos, facing, s);
+                    }
+                    ItemStack remainder;
+                    try {
+                        remainder = custom.dispense(new DispenserBehaviorsSurface
+                                .EngineDispenseContext(world, pos, dir, s));
+                    } catch (RuntimeException error) {
+                        // The public contract: a throwing behavior is logged
+                        // and the stack stays in the slot.
+                        LOGGER.warning("A registered dispense behavior threw for "
+                                + s.type().identifier().value() + ": " + error);
+                        return s;
+                    }
+                    return remainder == null ? s : remainder;
+                };
+            }
+        }
         String item = stack.type().identifier().value();
         return switch (item) {
             case "arrow" -> projectileBehavior(ProjectileEntity.Kind.ARROW);

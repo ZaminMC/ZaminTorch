@@ -1185,6 +1185,12 @@ public final class EngineServer implements Server, EngineBridge {
     /** The lazily-built public scheduler (§27.3) — see {@link #scheduler()}. */
     private volatile net.zaminmc.torch.scheduler.Scheduler schedulerView;
 
+    /** The public dispenser behavior registry (§27.3) — the system's own surface. */
+    @Override
+    public net.zaminmc.torch.dispenser.DispenseBehaviors dispenserBehaviors() {
+        return dispenserSystem.behaviors();
+    }
+
     @Override
     public double tps(int windowSeconds) {
         EngineTicker running = ticker;

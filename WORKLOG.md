@@ -2527,3 +2527,51 @@ parking fixed for BOTH removal roads).
 
 Fresh suite: **867 green (777 core + 19 api + 71 protocol)**,
 `--max-workers=1`, zero failures.
+
+## Slice 15b — the dispenser behavior registry (§27.3's dispenser family)
+
+**Scope**: the second of the three §27.3 waves — the per-item dispense
+behavior table's public registration surface, the stand-in for the
+reference's `Bootstrap.registerDispenseBehaviors`.
+
+**The public shape** (`zamin-api`):
+- `block.Direction` — the six facings in the historical 0-5 id order with
+  offset accessors, `opposite`, and `byId` (a genuinely public facing
+  type; the engine tables address by id).
+- `dispenser.DispenseBehavior` — one use of the picked stack; answers the
+  slot's remainder (empty = consumed). Runs on the owner lane inside the
+  dispense walk; a throwing behavior is logged and the stack stays.
+- `dispenser.DispenseContext` — the live dispense: `world()` (the public
+  World handle — placing a block through it is exactly what the built-in
+  fire arm does), `origin()`, `facing()` (the Direction), `stack()`, and
+  the derived `facingCell()`.
+- `dispenser.DispenseBehaviors` — `register(ItemType, DispenseBehavior)`
+  (a custom overrides the built-in switch for that item, or replaces the
+  default drop where none answered), `reset(ItemType)` (the way back to
+  the built-in answer), `behaviorOf` (the custom-confirmation read;
+  empty when the built-in/default owns the item).
+- `Server.dispenserBehaviors()` — the mount.
+
+**The ownership protocol**: register/reset admit onto the world's owner
+lane (the `execute` admission the system already holds) — safe from any
+thread, landing between ticks, never inside a dispense walk; the verbs
+carry no synchronous verdict and `behaviorOf` confirms (the same
+command-protocol shape as the goal surface, Slice 15a).
+
+**Engine**: `DispenserSystem.behaviorOf` consults the customs table
+before the built-in switch; the customs ride a concurrent registry whose
+mutation authority is the owner lane (the admission — the map carries the
+point-in-time read contract, not the ownership); the public surface
+(`DispenserBehaviorsSurface`) builds the live context per dispense.
+
+**Tests**: `DispenseBehaviorApiAcceptanceTest` (2) — the custom behavior
+receives the live context on the owner lane (origin/facing/facing
+cell/stack/world name, the empty remainder consumed the slot, registered
+from a foreign thread), and the reset returns the built-in arrow arm
+(the projectile launches again, behaviorOf empty). One load flake
+(RangedCombatAcceptanceTest's arrow-wound await) reproduced once with the
+changes and once cleanly on HEAD — green forced and in isolation both
+ways; the documented load-sensitivity class, not a regression.
+
+Fresh suite: **798 green (779 core + 19 api)**, `--max-workers=1
+--rerun-tasks`, zero failures; protocol unchanged this slice (71).
