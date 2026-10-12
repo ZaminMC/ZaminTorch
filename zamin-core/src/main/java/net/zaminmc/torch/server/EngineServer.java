@@ -838,6 +838,42 @@ public final class EngineServer implements Server, EngineBridge {
                 // TNT rides, at the fireball's power 1.
                 projectiles.setExplosionSink((at, power) -> detonateAt(
                         at.x(), at.y(), at.z(), power, 8.0f * power + 1.0f));
+                // The ender pearl's teleport arm (Slice 17c —
+                // EnderPearlEntity.onCollision lines 45-71): the 5%
+                // player-spawned endermite at the thrower's pre-teleport
+                // feet, the position carry with the fall-distance reset,
+                // and the 5.0 fall toll.
+                projectiles.setPearlSink((throwerId, at) -> {
+                    PlayerSession thrower = playerByEngineId(throwerId);
+                    if (thrower == null || thrower.state() != PlayerState.PLAYING
+                            || thrower.dead()) {
+                        return; // the reference's connection-alive gate
+                    }
+                    // The 5% passenger (line 53): the endermite spawns at the
+                    // thrower's own pre-teleport feet, not the landing.
+                    if (gameplayRandom.nextFloat() < ENDER_PEARL_ENDERMITE_CHANCE) {
+                        MobEntity endermite = mobManager.spawnAt(
+                                net.zaminmc.torch.server.entity.MobType.ENDERMITE,
+                                new Position(thrower.position().x(), thrower.position().y(),
+                                        thrower.position().z()));
+                        // setPlayerSpawned(true) + the lifetime clock — the
+                        // engine's endermite despawns at its own 2400 wall.
+                        if (endermite != null) {
+                            endermite.setBodyYaw(thrower.rotation().yaw());
+                        }
+                    }
+                    // The teleport (line 63): the position carry, the
+                    // fall-distance reset, then the flat 5.0 fall toll
+                    // (line 65 — the armor's enchantment walk only).
+                    thrower.setGraceTicks(10); // the knockback window's own
+                    thrower.applyMovement(at, thrower.rotation(), false);
+                    thrower.resetFallDistance();
+                    damageOnTick(thrower,
+                            applyEnchantProtection(thrower, ENDER_PEARL_FALL_DAMAGE,
+                                    DamageKind.FALL),
+                            0.0f, "hit the ground too hard", DamageKind.FALL);
+                    thrower.link().resyncPosition();
+                });
                 mobs.setPotionSystem(potionSystem); // the witch's drink arm (12i)
                 // The leashes (Slice 11c): the knots + the per-tick walk.
                 leadSystem = new net.zaminmc.torch.server.leash.LeadSystem(
@@ -2317,6 +2353,12 @@ public final class EngineServer implements Server, EngineBridge {
     private static final int ELDER_AURA_AMPLIFIER = 2;
     private static final int ELDER_AURA_REFRESH_BELOW = 1200;
     private static final int GAME_STATE_ELDER_GUARDIAN_CURSE = 10;
+    // The ender pearl's family (Slice 17c): the 5% endermite passenger
+    // (EnderPearlEntity.onCollision line 53) and the flat 5.0 fall toll
+    // (line 65 — the enchantment walk only, the vanilla FALL source's own
+    // bypass-armor exemption).
+    private static final float ENDER_PEARL_ENDERMITE_CHANCE = 0.05f;
+    private static final float ENDER_PEARL_FALL_DAMAGE = 5.0f;
 
     /**
      * A player attacked an entity (Use Entity 0x02, mouse=1): validates reach,
@@ -3129,6 +3171,13 @@ public final class EngineServer implements Server, EngineBridge {
                 throwShard(session, held.type());
                 return;
             }
+            // The ender pearl (Slice 17c — EnderPearlItem.startUsing): the
+            // stack-16 throwable — the pearl throws on the press like the
+            // shards (the reference's own same-tick startUsing shape).
+            if (held.type().equals(BuiltinItems.ENDER_PEARL)) {
+                throwEnderPearl(session);
+                return;
+            }
             // Potions (Slice 11b — PotionItem.startUsing lines 109-126): the
             // splash throws on the press; the drinkable starts its own
             // 32-tick clock (no hunger gate — the reference's own rule).
@@ -3329,6 +3378,27 @@ public final class EngineServer implements Server, EngineBridge {
                 ? ProjectileEntity.Kind.EGG : ProjectileEntity.Kind.SNOWBALL, SHARD_SPEED);
         // The shard throw sound (the reference SnowballItem/EggItem line 21):
         // volume 0.5, pitch 0.4 / (rand * 0.4 + 0.8).
+        fxManager.sound(mouthPosition(session), "random.bow", 0.5f,
+                0.4f / (fxRandom.nextFloat() * 0.4f + 0.8f));
+        publishInventoryChanged(session);
+    }
+
+    /**
+     * The ender pearl throw (Slice 17c — EnderPearlItem.startUsing lines
+     * 15-23): one unit leaves the hand (the stack-16 rule), the pearl
+     * launches at the shard's own speed, and the release whoosh rides the
+     * same volume/pitch recipe. Tick-thread context.
+     */
+    private void throwEnderPearl(PlayerSession session) {
+        boolean creative = session.gamemode() == GameMode.CREATIVE;
+        if (!creative) {
+            if (session.inventory().held().type().equals(BuiltinItems.ENDER_PEARL)) {
+                session.inventory().consumeHeld(1);
+            } else {
+                return; // the hand changed between press and tick
+            }
+        }
+        launchProjectile(session, ProjectileEntity.Kind.ENDER_PEARL, SHARD_SPEED);
         fxManager.sound(mouthPosition(session), "random.bow", 0.5f,
                 0.4f / (fxRandom.nextFloat() * 0.4f + 0.8f));
         publishInventoryChanged(session);

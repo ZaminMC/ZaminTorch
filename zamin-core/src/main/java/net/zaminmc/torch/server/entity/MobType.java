@@ -276,7 +276,21 @@ public enum MobType {
     MOOSHROOM(96, 0.9, 1.3, 10.0f, 0.035, false, Traits.NONE,
             List.of(new ItemRoll(BuiltinItems.BEEF, 1, 3),
                     new ItemRoll(BuiltinItems.LEATHER, 0, 2)),
-            "mob.cow.say", "mob.cow.hurt", "mob.cow.hurt");
+            "mob.cow.say", "mob.cow.hurt", "mob.cow.hurt"),
+
+    /**
+     * The pearl's passenger (Slice 17c — EndermiteEntity): the 0.4x0.3
+     * body, 8 health, movement 0.25, the 2.0 melee — the silverfish's
+     * own sound family and the ARTHROPOD damage category (Bane of
+     * Arthropods lands on it). The pearl-spawned body (the 5% roll at
+     * the thrower's feet) despawns after its own 2400-tick lifetime
+     * unless something names it persistent; the natural spawns never
+     * place one (the reference agrees — the pearl and the spawn egg are
+     * the only sources).
+     */
+    ENDERMITE(67, 0.4, 0.3, 8.0f, 0.05, true, Traits.NONE,
+            List.of(), // getDropItem's null: no drops at all
+            "mob.silverfish.say", "mob.silverfish.hit", "mob.silverfish.kill", 2.0f);
 
     /**
      * The AI trait set beyond the walk-chase-panic baseline.
@@ -347,6 +361,14 @@ public enum MobType {
     }
 
     /**
+     * @return the endermite kind (EndermiteEntity's own family — the
+     * lifetime despawn clock's gate).
+     */
+    public boolean endermiteFamily() {
+        return this == ENDERMITE;
+    }
+
+    /**
      * @return whether the kind carries the reference's
      * {@code immuneToFire} — the fire block never ignites it, the fire
      * tick never damages it (the blaze, the magma cube, the ghast; the
@@ -372,7 +394,7 @@ public enum MobType {
     public int damageCategory() {
         return switch (this) {
             case ZOMBIE, SKELETON -> 1; // reference MobType.UNDEAD
-            case SPIDER -> 2;           // reference MobType.ARTHROPODS
+            case SPIDER, CAVE_SPIDER, ENDERMITE, SILVERFISH -> 2; // reference MobType.ARTHROPODS
             default -> 0;               // reference MobType.UNDEFINED
         };
     }

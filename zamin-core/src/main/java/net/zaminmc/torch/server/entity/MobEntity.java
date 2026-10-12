@@ -804,6 +804,8 @@ public final class MobEntity implements LivingEntity {
             tickPigmanAnger(); // the anger's decay + the delayed sound (16d)
         } else if (type == MobType.GUARDIAN) {
             tickGuardianClock(); // the elder's aura cadence (17a)
+        } else if (type == MobType.ENDERMITE) {
+            tickEndermiteClock(); // the lifetime despawn (17c)
         }
         if (hurtFlash > 0) {
             hurtFlash--;
@@ -1615,6 +1617,40 @@ public final class MobEntity implements LivingEntity {
 
     /** The guardian's own ticks-lived counter (the aura's cadence input). */
     private int guardianTicks;
+
+    // ------------------------------------- the endermite (17c)
+
+    /** The pearl's passenger despawns after its own lifetime (EndermiteEntity
+     * mobTick lines 120-127: the non-persistent clock, the 2400-tick wall). */
+    private static final int ENDERMITE_LIFETIME_TICKS = 2400;
+
+    /** The endermite's own ticks-lived counter (the lifetime clock). */
+    private int endermiteTicks;
+
+    /** Set when the lifetime wall crossed; the manager removes the body. */
+    private boolean pendingEndermiteExpire;
+
+    /**
+     * The endermite's lifetime clock (mobTick lines 120-127): the
+     * non-persistent body counts up to the 2400-tick wall — the removal
+     * itself is the manager's (the tick walk's own removal path, no death
+     * animation, no loot).
+     */
+    void tickEndermiteClock() {
+        if (!persistent) {
+            endermiteTicks++;
+            if (endermiteTicks >= ENDERMITE_LIFETIME_TICKS) {
+                pendingEndermiteExpire = true;
+            }
+        }
+    }
+
+    /** @return and clears the lifetime wall's verdict. */
+    public boolean consumeEndermiteExpire() {
+        boolean value = pendingEndermiteExpire;
+        pendingEndermiteExpire = false;
+        return value;
+    }
 
     /**
      * The guardian's mind (GuardianAttackEntityGoal + the wander family):
@@ -3768,6 +3804,10 @@ public final class MobEntity implements LivingEntity {
             // GuardianEntity.getEyeHeight line 234: the mid-body eye —
             // height * 0.5 (the elder's own hull scales it).
             return bodyHeight() * 0.5;
+        }
+        if (type == MobType.ENDERMITE) {
+            // EndermiteEntity.getEyeHeight line 57: the flat 0.1F.
+            return 0.1;
         }
         return type.height * 0.85;
     }

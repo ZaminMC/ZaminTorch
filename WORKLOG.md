@@ -2999,3 +2999,35 @@ carry with the clamp, the baby's own kind).
 
 Fresh suite: **918 green (825 core + 19 api + 74 protocol)**,
 `--max-workers=1`, zero failures.
+
+## Slice 17c — the endermite + the ender pearl (the pearl's passenger)
+
+**Scope**: EndermiteEntity + the EnderPearlEntity's whole throw/teleport
+cycle — the projectile kind, the 5% passenger roll, and the 5.0 fall toll.
+
+**The endermite** (67, the 0.4x0.3/8-health body, movement 0.25, the 2.0
+melee, xpDrop 3, the silverfish sound family, the flat 0.1 eye): the
+ARTHROPOD damage category (Bane of Arthropods lands on it — the fix
+carried the cave spider and the silverfish into the category too, the
+reference's own MobType.ARTHROPOD), no drops, no natural spawn rows (the
+reference agrees: the pearl and the spawn egg are the only sources), and
+the lifetime despawn — the non-persistent body removes itself at the
+2400-tick wall through the manager's expiry walk (no death animation, no
+loot, the reference's own remove()).
+
+**The pearl**: the ENDER_PEARL projectile kind (Spawn Object 65 with the
+thrower's id as objectData), the press-time throw (the stack-16 unit
+leaves the hand, the shard's own whoosh recipe), and the landing — the
+thrower's teleport to the last crossed air cell with the grace window +
+the fall-distance reset + the flat 5.0 fall toll (the enchantment walk
+only, the vanilla FALL source's bypass-armor exemption), the 5%
+player-spawned endermite at the thrower's PRE-teleport feet, the owner
+pass-through on the entity hit (the pearl keeps flying — the
+pearl-boost trick's own rule), and the struck-body 0.0 bruise.
+
+**Tests**: EndermiteEntityTest (3: the identity + the category family,
+the flat eye, the lifetime wall's persistent gate).
+
+Fresh suite: **921 green (828 core + 19 api + 74 protocol)**,
+`--max-workers=1`, zero failures (one documented HorseIntegration load
+flake, green on the isolation re-run).

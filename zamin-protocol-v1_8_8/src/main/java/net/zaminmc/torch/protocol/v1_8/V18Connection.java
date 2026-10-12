@@ -3361,6 +3361,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             case SMALL_FIREBALL -> Protocol18.OBJECT_SMALL_FIREBALL;
             case LARGE_FIREBALL -> Protocol18.OBJECT_LARGE_FIREBALL;
             case POTION -> Protocol18.OBJECT_POTION;
+            case ENDER_PEARL -> Protocol18.OBJECT_ENDER_PEARL;
         };
         int throwerWireId = resolveThrowerWireId(current, projectile.throwerId());
         // The objectData field (TrackedEntity.createAddEntityPacket 1:1):
@@ -3377,6 +3378,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             case POTION -> projectile.potionDamage();
             case SMALL_FIREBALL, LARGE_FIREBALL -> throwerWireId;
             case SNOWBALL, EGG -> 0;
+            case ENDER_PEARL -> throwerWireId > 0 ? throwerWireId : 0;
         };
         ByteBuf out = Unpooled.buffer(48);
         ByteBufOps.writeVarInt(out, Protocol18.S2C_SPAWN_ENTITY);

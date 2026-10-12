@@ -189,6 +189,8 @@ final class Protocol18 {
      * spawn-object type).
      */
     static final int OBJECT_POTION = 73;
+    /** Thrown ender pearl (Spawn Object type 65 — the client's own). */
+    static final int OBJECT_ENDER_PEARL = 65;
     /** Leash knot (Spawn Object type 77 — TrackedEntity's own). */
     static final int OBJECT_LEASH_KNOT = 77;
     /** The vehicles (community entities.json object types). */

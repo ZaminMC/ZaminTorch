@@ -31,7 +31,12 @@ public final class ProjectileEntity {
         LARGE_FIREBALL(64),
         /** The thrown potion (Slice 11b): splashes its effect set where it
          * lands, carrying the potion metadata as the payload. */
-        POTION(68);
+        POTION(68),
+        /** The ender pearl (Slice 17c — EnderPearlEntity): the thrower
+         * teleports to the landing point with the 5.0 fall toll, and a
+         * pearl-spawned endermite may ride (the 5% roll at the thrower's
+         * pre-teleport feet). */
+        ENDER_PEARL(65);
 
         /** Protocol 47's Spawn Object entity type id. */
         public final int objectType;
