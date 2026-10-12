@@ -147,6 +147,15 @@ public final class MobEntity implements LivingEntity {
             return false;
         }
 
+        /**
+         * The sky light level of the cell (0..15, the enderman's daylight
+         * exposure read); the stub worlds answer full bright — the real
+         * query maps the world's sky light.
+         */
+        default int skyLight(int x, int y, int z) {
+            return 15;
+        }
+
         /** @return whether the block containing this point is lava. */
         default boolean inLava(double x, double y, double z) {
             return false;
@@ -729,7 +738,119 @@ public final class MobEntity implements LivingEntity {
 
         tickMind(night);
         tickBody();
+        // The enderman's environmental arms (EndermanEntity.mobAiTick lines
+        // 144-166): the water damage cadence and the daylight teleport.
+        if (type == MobType.ENDERMAN) {
+            tickEndermanEnvironment(night);
+        }
         return fixedPoint() != before || beforeYaw != yaw || beforeHeadYaw != headYaw;
+    }
+
+    /**
+     * The enderman's environment walk: standing in fluid costs 1 health on
+     * the hurt window's own ~10-tick cadence (the reference's
+     * {@code takeDamage(DROWN, 1.0F)} riding the invulnerability frames),
+     * and full daylight with sky exposure teleports the body away on the
+     * reference's own rate — {@code nextFloat() * 30 < (brightness -
+     * 0.4) * 2}.
+     */
+    private void tickEndermanEnvironment(boolean night) {
+        if (world.inFluid(position.x(), position.y() + 0.2, position.z())) {
+            if (--waterDamageTimer <= 0) {
+                waterDamageTimer = HURT_WINDOW_TICKS;
+                hurt(1.0f);
+            }
+        } else {
+            waterDamageTimer = 1; // re-arms: the first wet tick hurts fast
+        }
+        if (!night && !dead) {
+            float brightness = Math.min(1.0f, world.skyLight(
+                    (int) Math.floor(position.x()),
+                    (int) Math.min(255, Math.floor(position.y()) + 1),
+                    (int) Math.floor(position.z())) / 15.0f);
+            if (brightness > 0.5f
+                    && random.nextFloat() * 30.0f < (brightness - 0.4f) * 2.0f) {
+                teleportRandomly();
+            }
+        }
+    }
+
+    /** The enderman's water clock (re-armed per wet tick). */
+    private int waterDamageTimer = 1;
+
+    /** The enderman's far-target window (the ChasePlayerGoal's counter). */
+    private int farFromTargetTicks;
+
+    /** The hurt window's own cadence (the reference's i-frame length). */
+    private static final int HURT_WINDOW_TICKS = 10;
+
+    /**
+     * The enderman's random teleport (EndermanEntity.teleport lines
+     * 167-174): the +-32-block cube around the body, landing through
+     * {@link #teleportTo}.
+     */
+    public boolean teleportRandomly() {
+        double x = position.x() + (random.nextDouble() - 0.5) * 64.0;
+        double y = position.y() + (random.nextInt(64) - 32);
+        double z = position.z() + (random.nextDouble() - 0.5) * 64.0;
+        return teleportTo(x, y, z);
+    }
+
+    /**
+     * The enderman's blink toward a target (EndermanEntity.teleportTo(Entity)
+     * lines 176-184): 16 blocks along the toward-target direction with the
+     * +-4-block jitter (the reference's own {@code (random-0.5)*8} x/z and
+     * {@code nextInt(16)-8} y bands), landing through {@link #teleportTo}.
+     */
+    public boolean teleportToward(Position target) {
+        double dx = position.x() - target.x();
+        double dy = position.y() + type.height / 2.0 - (target.y() + 1.62);
+        double dz = position.z() - target.z();
+        double length = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        if (length < 1.0E-4) {
+            return teleportRandomly();
+        }
+        dx /= length;
+        dy /= length;
+        dz /= length;
+        double reach = 16.0;
+        double x = position.x() + (random.nextDouble() - 0.5) * 8.0 - dx * reach;
+        double y = position.y() + (random.nextInt(16) - 8) - dy * reach;
+        double z = position.z() + (random.nextDouble() - 0.5) * 8.0 - dz * reach;
+        return teleportTo(x, y, z);
+    }
+
+    /**
+     * The enderman's landing walk (EndermanEntity.teleportTo lines 186-238):
+     * drop down to the first solid ground, require the body's own clearance
+     * (the height's cells clear of solids and fluids), and commit the
+     * position only when the landing is clean — otherwise the body stays
+     * exactly where it was.
+     */
+    public boolean teleportTo(double x, double y, double z) {
+        int feetY = (int) Math.floor(y);
+        // The drop: fall down until the cell below is solid (the reference's
+        // blocksMovement walk).
+        while (feetY > 0 && !world.isSolid(x, feetY - 0.5, z)) {
+            feetY--;
+        }
+        if (feetY <= 0) {
+            return false;
+        }
+        // The clearance: the body's own cells (the 2.9-tall enderman needs
+        // two clear cells above the ground plus most of the third).
+        int bodyCells = (int) Math.ceil(type.height);
+        for (int cell = 0; cell < bodyCells; cell++) {
+            if (world.isSolid(x, feetY + cell + 0.5, z)
+                    || world.inFluid(x, feetY + cell + 0.5, z)) {
+                return false;
+            }
+        }
+        position = new Position(x, feetY, z);
+        velocityX = 0;
+        velocityY = 0;
+        velocityZ = 0;
+        return true;
     }
 
     /** Day-locked convenience for tests and callers without a clock. */
@@ -1450,6 +1571,20 @@ public final class MobEntity implements LivingEntity {
             double dy = target.y() - position.y();
             double dz = target.z() - position.z();
             double horizontal = Math.sqrt(dx * dx + dz * dz);
+
+            // The enderman's far-target blink (the reference's
+            // ChasePlayerGoal line 425): a target beyond 16 blocks for
+            // 30 ticks blinks the body 16 blocks closer.
+            if (type == MobType.ENDERMAN) {
+                if (dx * dx + dy * dy + dz * dz > 256.0) {
+                    if (++farFromTargetTicks >= 30) {
+                        farFromTargetTicks = 0;
+                        teleportToward(target);
+                    }
+                } else {
+                    farFromTargetTicks = 0;
+                }
+            }
 
             if (mode == Mode.CHASE || mode == Mode.STRAFE || mode == Mode.FUSE) {
                 // keep mode; the hunt continues

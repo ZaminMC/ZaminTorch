@@ -601,7 +601,9 @@ public final class MobManager {
                 PlayerSession target = nearestPlayingPlayer(players, mob);
                 if (target != null && target.health() > 0 && !target.dead()) {
                     for (Listener listener : listeners) {
-                        listener.onMobAttackedPlayer(mob, target, MobEntity.MELEE_ATTACK_DAMAGE);
+                        // The kind's own attack damage (the reference's ATTACK_DAMAGE
+                        // attribute — the enderman's 7.0, the rest 2.0; Slice 12i).
+                        listener.onMobAttackedPlayer(mob, target, mob.type().attackDamage);
                     }
                 }
             }
@@ -721,6 +723,12 @@ public final class MobManager {
         Objects.requireNonNull(mob, "mob");
         if (amount <= 0 || mob.dead()) {
             return false;
+        }
+        // The enderman's armor-bypass response (EndermanEntity.takeDamage
+        // lines 311-316): the magic/environment family teleports the body
+        // away 9 times in 10.
+        if (mob.type() == MobType.ENDERMAN && random.nextInt(10) != 0) {
+            mob.teleportRandomly();
         }
         mob.hurt(amount);
         for (Listener listener : listeners) {
