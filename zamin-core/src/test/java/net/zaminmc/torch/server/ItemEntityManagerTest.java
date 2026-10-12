@@ -55,6 +55,9 @@ class ItemEntityManagerTest {
             @Override public net.zaminmc.torch.block.BlockType getBlock(net.zaminmc.torch.block.BlockPosition p) { return null; }
             @Override public boolean setBlock(net.zaminmc.torch.block.BlockPosition p, net.zaminmc.torch.block.BlockType t) { return false; }
             @Override public boolean isChunkLoaded(net.zaminmc.torch.block.ChunkPosition p) { return true; }
+            @Override public java.util.Collection<net.zaminmc.torch.entity.LivingEntity> entities() { return java.util.List.of(); }
+            @Override public void execute(Runnable work) { work.run(); }
+
         };
     }
 

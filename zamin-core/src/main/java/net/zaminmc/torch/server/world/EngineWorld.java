@@ -71,6 +71,19 @@ public final class EngineWorld implements World {
     private volatile long timeOfDay;
     private volatile long totalTicks;
 
+    /**
+     * The public entity view (§27.5): the live population supplier, attached
+     * at boot (the overworld carries the mob manager's view; the nether an
+     * empty one until its own population lands). Simulation-context reads.
+     */
+    private volatile java.util.function.Supplier<
+            java.util.Collection<? extends net.zaminmc.torch.entity.LivingEntity>> entityView;
+    /**
+     * The owner-context executor (§27.6): routes work onto the authoritative
+     * simulation lane (the engine ticker between ticks). Attached at boot.
+     */
+    private volatile java.util.function.Consumer<Runnable> ownerExecutor;
+
     public EngineWorld(String name, BlockRegistry registry, WorldGenerator generator, Thread owner) {
         this.name = Objects.requireNonNull(name, "name");
         this.registry = Objects.requireNonNull(registry, "registry");
@@ -194,6 +207,40 @@ public final class EngineWorld implements World {
     @Override
     public boolean isChunkLoaded(ChunkPosition position) {
         return chunks.containsKey(position.packed());
+    }
+
+    /** Attaches the public entity view (the boot wiring; §27.5). */
+    public void attachEntityView(java.util.function.Supplier<
+            java.util.Collection<? extends net.zaminmc.torch.entity.LivingEntity>> view) {
+        this.entityView = java.util.Objects.requireNonNull(view, "view");
+    }
+
+    /** Attaches the owner-context executor (the boot wiring; §27.6). */
+    public void attachOwnerExecutor(java.util.function.Consumer<Runnable> executor) {
+        this.ownerExecutor = java.util.Objects.requireNonNull(executor, "executor");
+    }
+
+    @Override
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public java.util.Collection<net.zaminmc.torch.entity.LivingEntity> entities() {
+        var view = entityView;
+        if (view == null) {
+            return java.util.List.of();
+        }
+        // The supplier's own capture already copied the population list
+        // (the manager's all() contract) — a stable point-in-time view.
+        return (java.util.Collection) view.get();
+    }
+
+    @Override
+    public void execute(Runnable work) {
+        java.util.Objects.requireNonNull(work, "work");
+        var executor = ownerExecutor;
+        if (executor == null) {
+            throw new IllegalStateException(
+                    "The world's owner executor is not wired (pre-boot execute)");
+        }
+        executor.accept(work);
     }
 
     /**

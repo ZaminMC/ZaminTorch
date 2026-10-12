@@ -1,6 +1,9 @@
 package net.zaminmc.torch.server.entity;
 
+import net.zaminmc.torch.entity.EntitySnapshot;
+import net.zaminmc.torch.entity.LivingEntity;
 import net.zaminmc.torch.util.Position;
+import net.zaminmc.torch.util.Rotation;
 
 import java.util.Objects;
 import java.util.Random;
@@ -36,7 +39,7 @@ import java.util.Random;
  * drag, epsilon ground snap); horizontal motion is direct walk-integration,
  * not impulse physics, and stays marked for the physics slice.</p>
  */
-public final class MobEntity {
+public final class MobEntity implements LivingEntity {
 
     /** Historical gravity, shared with items (physics slice will unify). */
     public static final double GRAVITY_PER_TICK = 0.04;
@@ -339,6 +342,41 @@ public final class MobEntity {
     /** Marks the body persistent (named/bred mobs ride their own slices). */
     public void setPersistent(boolean persistent) {
         this.persistent = persistent;
+    }
+
+    // ---- the public LivingEntity handle (§27.5: the engine object IS the
+    // handle — every call resolves to live authoritative state) ----------
+
+    /** The manager's removal hook, set at spawn (the despawn path). */
+    private Runnable removalHook;
+
+    /** Called once by the owning manager at spawn. */
+    public void setRemovalHook(Runnable removalHook) {
+        this.removalHook = removalHook;
+    }
+
+    @Override
+    public net.zaminmc.torch.util.Identifier typeIdentifier() {
+        return type.identifier();
+    }
+
+    @Override
+    public Rotation rotation() {
+        return new Rotation(yaw, 0.0f);
+    }
+
+    @Override
+    public EntitySnapshot snapshot() {
+        return new EntitySnapshot(entityId, type.identifier(), position, yaw,
+                velocityX, velocityY, velocityZ, health(), maxHealth(), onGround(), dead());
+    }
+
+    @Override
+    public void despawn() {
+        Runnable hook = removalHook;
+        if (hook != null) {
+            hook.run();
+        }
     }
 
     /** The far-from-player window (checkDespawn's own counter). */

@@ -2008,3 +2008,39 @@ isolated runs).
 **Next:** the entity/snapshot wave (Slice 13b) — the `Entity`/`LivingEntity`
 handle family over `MobEntity`, the snapshot reads, the damage events;
 then the player wave (13c).
+
+## Slice 13b — the entity handle wave: LivingEntity + World.execute
+
+**The §27.5/§27.6 surface** (the engine object IS the handle — no wrapper
+class, no state copy):
+
+- **`Entity`** (api): entityId + typeIdentifier + snapshot.
+- **`EntitySnapshot`** (api record): the immutable any-thread view —
+  identity, position, yaw, velocity, health/maxHealth, onGround, dead,
+  plus horizontalSpeed().
+- **`LivingEntity extends Entity`** (api): the live surface with the
+  threading contract on the interface itself — position/rotation/
+  velocity/health reads, heal/hurt/addVelocity/navigateToward/
+  persistent/setPersistent/despawn mutations, all documented as
+  simulation-context (the owner path is World.execute).
+- **`World.entities()`** — the live population view (the manager's
+  captured copy, point-in-time per call); **`World.execute(Runnable)`** —
+  the §27.6 owner-context primitive routing onto the engine ticker's
+  between-ticks lane. Both worlds carry them (the nether's entity view is
+  empty until its own population lands — the engine's mobs live in the
+  overworld; documented).
+- **`MobEntity implements LivingEntity`**: typeIdentifier, rotation
+  (yaw-only — mobs carry no pitch), snapshot, despawn (the removal hook
+  the manager installs at spawn: `remove(mob, "api")`).
+- **The seven test fakes** implementing World anonymously grew the two
+  new methods (the API stays abstract — implementors must think).
+
+**Tests**: `EntityApiAcceptanceTest` (4: the live view + the identity
+contract, the foreign-thread owner-context mutation ladder — hurt lands,
+heal restores, the impulse rides; the off-owner snapshot consumption; the
+handle despawn with the baseline-count isolation from the boot
+population). The fresh full-suite count **713 green in zamin-core** (+4),
+`--max-workers=1`, ZERO failures.
+
+**Next:** the player wave (Slice 13c) — the health/food/XP/inventory
+surface over PlayerSession, then the scheduler/task controls.
