@@ -490,6 +490,9 @@ public final class BuiltinItems {
     /** The small slime's drop (SlimeEntity.getDropItem: size 1 only; community id 341). */
     public static final EngineItemType SLIME_BALL = new EngineItemType(
             Identifier.parse("minecraft:slime_ball"), "Slimeball", 64);
+    /** The ghast's rare drop and the magma cube's drop ride the brewing
+     * family's registrations (GHAST_TEAR / MAGMA_CREAM — the wire rows
+     * landed with Slice 16c). */
     public static final EngineItemType WOOL = new EngineItemType(
             Identifier.parse("minecraft:wool"), "Wool", 64);
     public static final EngineItemType MUTTON = new EngineItemType(

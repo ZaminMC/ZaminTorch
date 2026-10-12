@@ -1182,7 +1182,7 @@ public final class MobEntity implements LivingEntity {
 
     /** @return the slime's size byte (1, 2, or 4; 1 for every other kind). */
     public int slimeSize() {
-        return type == MobType.SLIME ? slimeSize : 1;
+        return type.slimeFamily() ? slimeSize : 1;
     }
 
     /**
@@ -1194,7 +1194,12 @@ public final class MobEntity implements LivingEntity {
         if (type == MobType.WOLF && wolfTamed()) {
             return wolfAttackDamage; // setTamed's recompute: 4.0
         }
-        return type == MobType.SLIME ? slimeSize : type.attackDamage;
+        if (type.slimeFamily()) {
+            // getDamageAmount line 215: the size; MagmaCubeEntity's own
+            // override adds 2 on top.
+            return slimeSize + (type == MobType.MAGMA_CUBE ? 2 : 0);
+        }
+        return type.attackDamage;
     }
 
     /**
@@ -1204,7 +1209,7 @@ public final class MobEntity implements LivingEntity {
      * the spawn-time initialize both land through here.
      */
     public void setSlimeSize(int size) {
-        if (type != MobType.SLIME || size < 1) {
+        if (!type.slimeFamily() || size < 1) {
             return;
         }
         this.slimeSize = size;
@@ -1219,27 +1224,30 @@ public final class MobEntity implements LivingEntity {
         setSlimeSize(1 << random.nextInt(3));
     }
 
-    /** The slime's dynamic attack damage (getDamageAmount: the size). */
+    /** The slime's dynamic attack damage (getDamageAmount: the size; the
+     * magma cube's own override adds 2). */
     public float slimeAttackDamage() {
-        return slimeSize;
+        return slimeSize + (type == MobType.MAGMA_CUBE ? 2 : 0);
     }
 
     /**
-     * The slime's kind-dependent hurt/death sound (getHurtSound/
-     * getDeathSound: {@code mob.slime.} big over size 1, small below).
+     * The slime family's kind-dependent hurt/death sound (getHurtSound/
+     * getDeathSound: {@code mob.slime.}/{@code mob.magmacube.} big over
+     * size 1, small below).
      */
     public String slimeSoundName() {
-        return "mob.slime." + (slimeSize > 1 ? "big" : "small");
+        String prefix = type == MobType.MAGMA_CUBE ? "mob.magmacube." : "mob.slime.";
+        return prefix + (slimeSize > 1 ? "big" : "small");
     }
 
-    /** @return the body's hurt sound (the slime's own is size-dependent). */
+    /** @return the body's hurt sound (the slime family's is size-dependent). */
     public String hurtSound() {
-        return type == MobType.SLIME ? slimeSoundName() : type.hurtSound;
+        return type.slimeFamily() ? slimeSoundName() : type.hurtSound;
     }
 
-    /** @return the body's death sound (the slime's own is size-dependent). */
+    /** @return the body's death sound (the slime family's is size-dependent). */
     public String deathSound() {
-        return type == MobType.SLIME ? slimeSoundName() : type.deathSound;
+        return type.slimeFamily() ? slimeSoundName() : type.deathSound;
     }
 
     /** The hop cadence counter (MovementControl's jumpCooldownTicks). */
@@ -1252,6 +1260,162 @@ public final class MobEntity implements LivingEntity {
     private int slimeContactCooldown;
     /** The landing edge tracker (the wasOnGround flag). */
     private boolean wasSlimeGrounded = true;
+
+    // ------------------------------------------ the ghast (Slice 16c)
+
+    /** ShootFireballGoal's charge cycle: 20 to the launch, -40 after. */
+    private int ghastChargeTicks;
+    /** The flight's current target (MoveAroundGoal's random ±16 pick). */
+    private double ghastTargetX;
+    private double ghastTargetY;
+    private double ghastTargetZ;
+    /** Whether the flight is steering (the movement control's moving flag). */
+    private boolean ghastMoving;
+    /** The movement control's burst cadence (the 2-7 tick clock). */
+    private int ghastBurstCooldown;
+    /** Set when the charge crossed 10 (the 1007 warning sound; the manager consumes). */
+    private boolean pendingGhastChargeSound;
+    /** The launch target (set at charge 20; the manager consumes and launches). */
+    private Position pendingGhastFireball;
+
+    /** @return the charging flag (GhastEntity's synced slot 16). */
+    public boolean ghastCharging() {
+        return ghastChargeTicks > 10;
+    }
+
+    /** @return and clears the 1007 charge warning. */
+    public boolean consumeGhastChargeSound() {
+        boolean value = pendingGhastChargeSound;
+        pendingGhastChargeSound = false;
+        return value;
+    }
+
+    /** @return and clears the fireball launch target. */
+    public Position consumeGhastFireball() {
+        Position value = pendingGhastFireball;
+        pendingGhastFireball = null;
+        return value;
+    }
+
+    /**
+     * The ghast's own mind (GhastEntity's goal set): the LookAroundGoal
+     * faces the drift or the target inside 64 blocks, and the
+     * ShootFireballGoal runs the charge cycle — 20 ticks of charge (the
+     * 1007 warning at 10), the launch, the -40 cooldown — only while the
+     * target stands inside 64 blocks on a clear line.
+     */
+    private void tickGhastMind(Position target, boolean canHunt) {
+        // LookAroundGoal (lines 153-180): the eyes face the drift, or the
+        // target inside the 64-block grip.
+        if (target != null) {
+            double dx = target.x() - position.x();
+            double dz = target.z() - position.z();
+            if (dx * dx + (target.y() - position.y()) * (target.y() - position.y())
+                    + dz * dz < 64.0 * 64.0) {
+                yaw = angleTo(dx, dz);
+                headYaw = yaw;
+            }
+        } else if (velocityX != 0.0 || velocityZ != 0.0) {
+            yaw = (float) Math.toDegrees(Math.atan2(-velocityX, velocityZ));
+            headYaw = yaw;
+        }
+
+        // ShootFireballGoal (lines 266-324).
+        boolean inRange = target != null && canHunt;
+        if (inRange) {
+            double dx = target.x() - position.x();
+            double dy = target.y() - position.y();
+            double dz = target.z() - position.z();
+            inRange = dx * dx + dy * dy + dz * dz < 64.0 * 64.0
+                    && world.clearLine(eyePosition(), target);
+        }
+        if (inRange) {
+            ghastChargeTicks++;
+            if (ghastChargeTicks == 10) {
+                pendingGhastChargeSound = true; // the 1007 warning
+            }
+            if (ghastChargeTicks == 20) {
+                pendingGhastFireball = target; // the 1008 launch
+                ghastChargeTicks = -40;
+            }
+        } else if (ghastChargeTicks > 0) {
+            ghastChargeTicks--;
+        }
+    }
+
+    /**
+     * The ghast's flight body (MoveAroundGoal + the ghast's own
+     * MovementControl over FlyingMobEntity): no gravity, the 0.91 drag, a
+     * random ±16 target picked when the flight stalls, and the burst
+     * cadence — every 2-7 ticks a 0.1 acceleration toward the target when
+     * the line is clear (a blocked line stops the steering).
+     */
+    private void tickGhastBody() {
+        if (!ghastMoving) {
+            // MoveAroundGoal.start: the random ±16 cube around the body.
+            ghastTargetX = position.x() + (random.nextFloat() * 2.0f - 1.0f) * 16.0;
+            ghastTargetY = position.y() + (random.nextFloat() * 2.0f - 1.0f) * 16.0;
+            ghastTargetZ = position.z() + (random.nextFloat() * 2.0f - 1.0f) * 16.0;
+            ghastMoving = true;
+            ghastBurstCooldown = 0;
+        }
+        double dx = ghastTargetX - position.x();
+        double dy = ghastTargetY - position.y();
+        double dz = ghastTargetZ - position.z();
+        double squared = dx * dx + dy * dy + dz * dz;
+        if (squared < 1.0 || squared > 3600.0) {
+            ghastMoving = false; // the arrival (or the runaway): a new pick
+        } else if (--ghastBurstCooldown <= 0) {
+            ghastBurstCooldown = random.nextInt(5) + 2;
+            double length = Math.sqrt(squared);
+            if (world.clearLine(position(),
+                    new Position(ghastTargetX, ghastTargetY, ghastTargetZ))) {
+                velocityX += dx / length * 0.1;
+                velocityY += dy / length * 0.1;
+                velocityZ += dz / length * 0.1;
+            } else {
+                ghastMoving = false; // a blocked line stops the steering
+            }
+        }
+        // FlyingMobEntity.moveRelative's own drag: 0.91 per tick.
+        velocityX *= 0.91;
+        velocityY *= 0.91;
+        velocityZ *= 0.91;
+        if (mode == Mode.CHASE || mode == Mode.STRAFE || mode == Mode.FUSE) {
+            mode = Mode.IDLE;
+            modeTicks = 0;
+        }
+    }
+
+    /**
+     * The flying body's position integration: each axis moves through its
+     * own cell, a solid blocking cell stops that axis' drift (the engine's
+     * per-axis stand-in for the reference's swept move).
+     */
+    private void integrateFlight() {
+        double midY = position.y() + 2.0; // the 4-tall body's center band
+        double newX = position.x() + velocityX;
+        double newY = position.y() + velocityY;
+        double newZ = position.z() + velocityZ;
+        if (world.isSolidAt(newX, midY, position.z())) {
+            newX = position.x();
+            velocityX = 0.0;
+            ghastMoving = false;
+        }
+        if (world.isSolidAt(position.x(), newY + 2.0, position.z())
+                || world.isSolidAt(position.x(), newY, position.z())) {
+            newY = position.y();
+            velocityY = 0.0;
+            ghastMoving = false;
+        }
+        if (world.isSolidAt(position.x(), midY, newZ)) {
+            newZ = position.z();
+            velocityZ = 0.0;
+            ghastMoving = false;
+        }
+        position = new Position(newX, newY, newZ);
+        onGround = false;
+    }
 
     /**
      * The slime's hop (MovementControl.tick lines 377-410 + jump lines
@@ -1277,7 +1441,10 @@ public final class MobEntity implements LivingEntity {
         if (--slimeHopCooldown > 0) {
             return; // between hops the body is still (the zeroed input)
         }
-        slimeHopCooldown = random.nextInt(20) + 10; // getTicksUntilNextJump
+        // getTicksUntilNextJump: the slime's 20+nextInt(10), the magma
+        // cube's own 4x cadence override.
+        slimeHopCooldown = (random.nextInt(20) + 10)
+                * (type == MobType.MAGMA_CUBE ? 4 : 1);
         if (slimeAggressive) {
             slimeHopCooldown /= 3;
         }
@@ -1287,13 +1454,16 @@ public final class MobEntity implements LivingEntity {
                 (random.nextFloat() - random.nextFloat()) * 0.2F + 1.0F);
     }
 
-    /** Launches one hop (jump(): velocityY 0.42 + the facing impulse). */
+    /** Launches one hop (jump(): velocityY 0.42 — the magma cube's own
+     * override rises with the size — plus the facing impulse). */
     private void launchSlimeHop(double speedMultiplier) {
         double speed = (0.2 + 0.1 * slimeSize) * speedMultiplier;
         double radians = Math.toRadians(yaw);
         velocityX += -Math.sin(radians) * speed;
         velocityZ += Math.cos(radians) * speed;
-        velocityY = 0.42;
+        velocityY = type == MobType.MAGMA_CUBE
+                ? 0.42 + slimeSize * 0.1 // MagmaCubeEntity.jump
+                : 0.42;
     }
 
     // ---- the rabbit's hop cycle (Slice 12l — RabbitEntity's own
@@ -2267,11 +2437,18 @@ public final class MobEntity implements LivingEntity {
             return;
         }
 
-        // The slime's own goal family (Slice 12k): the direction/chase
-        // walk and the contact damage replace the standard mind — the
-        // hop movement lands in the body tick below.
-        if (type == MobType.SLIME) {
+        // The slime family's own goal family (Slice 12k): the
+        // direction/chase walk and the contact damage replace the standard
+        // mind — the hop movement lands in the body tick below.
+        if (type.slimeFamily()) {
             tickSlimeMind(target, canHunt);
+            return;
+        }
+
+        // The ghast's own mind (Slice 16c — the flight + the fireball
+        // cycle; the body's flight replaces the walk below).
+        if (type == MobType.GHAST) {
+            tickGhastMind(target, canHunt);
             return;
         }
 
@@ -2953,19 +3130,19 @@ public final class MobEntity implements LivingEntity {
     }
 
     /**
-     * @return the body's height (the kind's own, or the slime's
+     * @return the body's height (the kind's own, or the slime family's
      * size-scaled {@code 0.51000005 * size}).
      */
     public double bodyHeight() {
-        return type == MobType.SLIME ? 0.51000005 * slimeSize : type.height;
+        return type.slimeFamily() ? 0.51000005 * slimeSize : type.height;
     }
 
     /**
-     * @return the body's width (the kind's own, or the slime's
+     * @return the body's width (the kind's own, or the slime family's
      * size-scaled {@code 0.51000005 * size}).
      */
     public double bodyWidth() {
-        return type == MobType.SLIME ? 0.51000005 * slimeSize : type.width;
+        return type.slimeFamily() ? 0.51000005 * slimeSize : type.width;
     }
 
     /**
@@ -2973,7 +3150,7 @@ public final class MobEntity implements LivingEntity {
      * slime's own {@code 0.625 * height} — getEyeHeight line 208).
      */
     private double eyeHeight() {
-        return type == MobType.SLIME ? 0.625 * bodyHeight() : type.height * 0.85;
+        return type.slimeFamily() ? 0.625 * bodyHeight() : type.height * 0.85;
     }
 
     private void tickBody() {
@@ -2983,8 +3160,18 @@ public final class MobEntity implements LivingEntity {
         if (position.y() < VOID_KILL_Y) {
             hurt(VOID_DAMAGE_PER_TICK);
         }
-        // Fire contact arms the burn (the historical setFire on collision).
-        if (!dead && world.inFire(position.x(), position.y(), position.z())) {
+        // The ghast's flight (Slice 16c — FlyingMobEntity): the drift owns
+        // the whole vertical + horizontal integration; no gravity, no
+        // ground snap, no walk.
+        if (type == MobType.GHAST && !dead) {
+            tickGhastBody();
+            integrateFlight();
+            return;
+        }
+        // Fire contact arms the burn (the historical setFire on
+        // collision) — the fire-immune kinds (immuneToFire) never ignite.
+        if (!dead && !type.fireImmune()
+                && world.inFire(position.x(), position.y(), position.z())) {
             ignite(FIRE_TICKS);
         }
         // Cactus contact pricks at the hurt-i-frame rhythm (10 ticks).
@@ -3030,13 +3217,14 @@ public final class MobEntity implements LivingEntity {
             tickRabbitHop(inFluid);
             walk = 0.0;
         }
-        if (type == MobType.SLIME) {
+        if (type.slimeFamily()) {
             // The landing (SlimeEntity.tick lines 101-123): the first
-            // grounded tick after a hop queues the landing sound (the
-            // size > 2 rule — makesLandSound) — the particles ride the
+            // grounded tick after a hop queues the landing sound — the
+            // size > 2 rule for the slime, ALWAYS for the magma cube
+            // (MagmaCubeEntity.makesLandSound) — the particles ride the
             // particle slice.
             if (onGround && !wasSlimeGrounded) {
-                if (slimeSize > 2) {
+                if (slimeSize > 2 || type == MobType.MAGMA_CUBE) {
                     pendingSlimeLandSound = new SlimeSound(slimeSoundName(),
                             0.4F * slimeSize,
                             (random.nextFloat() - random.nextFloat()) * 0.2F + 1.0F);

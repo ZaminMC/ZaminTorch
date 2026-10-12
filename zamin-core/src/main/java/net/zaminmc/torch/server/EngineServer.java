@@ -830,6 +830,12 @@ public final class EngineServer implements Server, EngineBridge {
                     // closing doEvent): the color-carrying burst particles.
                     fxManager.potionSplash(new Position(x, y, z), damage);
                 });
+                // The ghast fireball's detonation (Slice 16c —
+                // FireballEntity.onHit's explosion, the reference's own
+                // 8*power+1 center wound): the same boundary-scoped walk the
+                // TNT rides, at the fireball's power 1.
+                projectiles.setExplosionSink((at, power) -> detonateAt(
+                        at.x(), at.y(), at.z(), power, 8.0f * power + 1.0f));
                 mobs.setPotionSystem(potionSystem); // the witch's drink arm (12i)
                 // The leashes (Slice 11c): the knots + the per-tick walk.
                 leadSystem = new net.zaminmc.torch.server.leash.LeadSystem(
@@ -7991,8 +7997,10 @@ public final class EngineServer implements Server, EngineBridge {
             // releases its XP band at the death point; orbs wait out their
             // pickup delay while the death animation plays. The slime's own
             // band is its size (SlimeEntity.setSize's xpDrop = size).
-            int amount = mob.type() == net.zaminmc.torch.server.entity.MobType.SLIME
+            int amount = mob.type().slimeFamily()
                     ? mob.slimeSize()
+                    : mob.type() == net.zaminmc.torch.server.entity.MobType.GHAST
+                    ? 5 // GhastEntity's own xpDrop
                     : ExperienceAwards.forMobKill(mob.type().hostile, gameplayRandom);
             experienceOrbs.spawnBurst(mob.position(), amount, 3);
         }
@@ -8082,6 +8090,32 @@ public final class EngineServer implements Server, EngineBridge {
                     origin, yaw, pitch, MobEntity.SKELETON_ARROW_SPEED);
             fxManager.sound(mob.position(), "random.bow", 1.0f, 1.0f);
             publishMobSwing(mob); // the arm swing rides the animation packet
+        }
+
+        /**
+         * The ghast loosed (ShootFireballGoal lines 302-314): the fireball
+         * spawns 4 blocks forward of the eye (the look = the target grip),
+         * aimed at the target's torso; the 1008 launch sound rides it.
+         */
+        @Override
+        public void onMobGhastFireball(MobEntity mob, Position target) {
+            // The spawn point: the eye band (y + height/2 + 0.5) pushed 4
+            // blocks along the facing.
+            double eyeY = mob.position().y() + mob.bodyHeight() / 2.0 + 0.5;
+            double radians = Math.toRadians(mob.headYaw());
+            double lookX = -Math.sin(radians);
+            double lookZ = Math.cos(radians);
+            Position origin = new Position(
+                    mob.position().x() + lookX * 4.0,
+                    eyeY,
+                    mob.position().z() + lookZ * 4.0);
+            // The direction: from the spawn point to the target's torso
+            // (the reference's own d2/d3/d4 walk).
+            double dx = target.x() - origin.x();
+            double dy = (target.y() + 0.9) - origin.y(); // the player torso
+            double dz = target.z() - origin.z();
+            projectileManager.launchGhastFireball(mob.entityId(), origin, dx, dy, dz);
+            fxManager.sound(mob.position(), "mob.ghast.fireball", 10.0f, 1.0f);
         }
 
         @Override

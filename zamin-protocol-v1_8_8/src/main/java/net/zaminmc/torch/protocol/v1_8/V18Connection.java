@@ -2582,6 +2582,15 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             // the whole body from the byte (1, 2, or 4).
             out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | Protocol18.KIND_STATUS_METADATA_INDEX);
             out.writeByte(mob.slimeSize());
+        } else if (mob.type() == net.zaminmc.torch.server.entity.MobType.MAGMA_CUBE) {
+            // The magma cube's own size byte (the slime family's slot 16).
+            out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | Protocol18.KIND_STATUS_METADATA_INDEX);
+            out.writeByte(mob.slimeSize());
+        } else if (mob.type() == net.zaminmc.torch.server.entity.MobType.GHAST) {
+            // The ghast's charging flag (GhastEntity's synced slot 16):
+            // the client raises the mouth open from it.
+            out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | Protocol18.KIND_STATUS_METADATA_INDEX);
+            out.writeByte(mob.ghastCharging() ? 1 : 0);
         } else if (mob.type() == net.zaminmc.torch.server.entity.MobType.PIG) {
             out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | Protocol18.PIG_SADDLE_METADATA_INDEX);
             out.writeByte(mob.pigSaddled() ? 1 : 0);
@@ -2818,6 +2827,24 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5)
                 | Protocol18.WITCH_DRINKING_METADATA_INDEX);
         out.writeByte(mob.witchDrinking() ? 1 : 0);
+        out.writeByte(Protocol18.METADATA_TERMINATOR);
+        channel.writeAndFlush(out);
+    }
+
+    /**
+     * Set Entity Metadata (0x1C) for the ghast's index-16 byte: the
+     * charging flag flip (the client raises the open mouth). Any thread.
+     */
+    void sendGhastCharging(MobEntity mob) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(12);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_ENTITY_METADATA);
+        ByteBufOps.writeVarInt(out, mob.entityId());
+        out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | Protocol18.KIND_STATUS_METADATA_INDEX);
+        out.writeByte(mob.ghastCharging() ? 1 : 0);
         out.writeByte(Protocol18.METADATA_TERMINATOR);
         channel.writeAndFlush(out);
     }
@@ -3260,6 +3287,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             case SNOWBALL -> Protocol18.OBJECT_SNOWBALL;
             case EGG -> Protocol18.OBJECT_EGG;
             case SMALL_FIREBALL -> Protocol18.OBJECT_SMALL_FIREBALL;
+            case LARGE_FIREBALL -> Protocol18.OBJECT_LARGE_FIREBALL;
             case POTION -> Protocol18.OBJECT_POTION;
         };
         int throwerWireId = resolveThrowerWireId(current, projectile.throwerId());
@@ -3275,7 +3303,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         int objectData = switch (projectile.kind()) {
             case ARROW -> throwerWireId > 0 ? throwerWireId : projectile.entityId();
             case POTION -> projectile.potionDamage();
-            case SMALL_FIREBALL -> throwerWireId;
+            case SMALL_FIREBALL, LARGE_FIREBALL -> throwerWireId;
             case SNOWBALL, EGG -> 0;
         };
         ByteBuf out = Unpooled.buffer(48);

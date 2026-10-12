@@ -76,6 +76,21 @@ public final class MobManager {
         default void onMobPostureChanged(MobEntity mob) {
         }
 
+        /**
+         * The ghast's charging flag flipped (the synced slot 16 byte —
+         * the client raises the mouth open from it).
+         */
+        default void onMobGhastChargingChanged(MobEntity mob) {
+        }
+
+        /**
+         * The ghast loosed its charged fireball at the target (the launch
+         * rides the engine's projectile system; the 1008 launch sound
+         * lands with it).
+         */
+        default void onMobGhastFireball(MobEntity mob, Position target) {
+        }
+
         /** A melee hunter landed a hit on a player (damage already validated). */
         void onMobAttackedPlayer(MobEntity mob, PlayerSession target, float damage);
 
@@ -637,6 +652,7 @@ public final class MobManager {
             boolean wasWitchDrinking = mob.witchDrinking();
             boolean wasBegging = mob.wolfBegging();
             int wasPosture = mob.postureFlags();
+            boolean wasGhastCharging = mob.ghastCharging();
             boolean moved = mob.tick(night);
             if (wasPriming != mob.fuseActive()) {
                 for (Listener listener : listeners) {
@@ -670,6 +686,25 @@ public final class MobManager {
             if (mob.consumeWitchAura()) {
                 for (Listener listener : listeners) {
                     listener.onMobWitchAura(mob);
+                }
+            }
+            // The ghast's fireball cycle (Slice 16c — ShootFireballGoal's
+            // charge model): the 1007 warning at charge 10, the launch at
+            // 20, the charging flag's flip on the wire.
+            if (mob.consumeGhastChargeSound()) {
+                for (Listener listener : listeners) {
+                    listener.onMobSoundAt(mob, "mob.ghast.charge", 10.0F, 0.95F);
+                }
+            }
+            Position ghastFireball = mob.consumeGhastFireball();
+            if (ghastFireball != null) {
+                for (Listener listener : listeners) {
+                    listener.onMobGhastFireball(mob, ghastFireball);
+                }
+            }
+            if (wasGhastCharging != mob.ghastCharging()) {
+                for (Listener listener : listeners) {
+                    listener.onMobGhastChargingChanged(mob);
                 }
             }
             if (wasHorseFlags != mob.horseFlagsRaw()) {
@@ -1046,6 +1081,41 @@ public final class MobManager {
             // slime balls (the split family drops nothing).
             return;
         }
+        if (mob.type() == MobType.MAGMA_CUBE) {
+            // MagmaCubeEntity.dropItems (lines 57-68): the size-1 gate,
+            // then the reference's own negative-friendly count arm —
+            // `nextInt(4) - 2` answers -2..1, so nothing drops most of
+            // the time — widened by the looting bonus; each unit as its
+            // own single-item stack.
+            if (mob.slimeSize() > 1) {
+                return;
+            }
+            int count = random.nextInt(4) - 2;
+            if (looting > 0) {
+                count += random.nextInt(looting + 1);
+            }
+            for (int unit = 0; unit < count; unit++) {
+                lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()),
+                        ItemStack.of(BuiltinItems.MAGMA_CREAM, 1));
+            }
+            return;
+        }
+        if (mob.type() == MobType.GHAST) {
+            // GhastEntity.dropItems (lines 98-113): 0-1 ghast tears, then
+            // 0-2 gunpowder, both widened by the looting bonus, each
+            // unit as its own single-item stack.
+            int tears = random.nextInt(2) + random.nextInt(1 + looting);
+            for (int unit = 0; unit < tears; unit++) {
+                lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()),
+                        ItemStack.of(BuiltinItems.GHAST_TEAR, 1));
+            }
+            int powder = random.nextInt(3) + random.nextInt(1 + looting);
+            for (int unit = 0; unit < powder; unit++) {
+                lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()),
+                        ItemStack.of(BuiltinItems.GUNPOWDER, 1));
+            }
+            return;
+        }
         if (mob.type() == MobType.WITCH) {
             // WitchEntity.dropItems (lines 178-192): 1-3 rows; per row the
             // count roll, then the LOOT member roll (the stick appears
@@ -1097,7 +1167,7 @@ public final class MobManager {
      * the persistence walks below).
      */
     private void splitSlime(MobEntity parent) {
-        if (parent.type() != MobType.SLIME || parent.slimeSize() <= 1) {
+        if (!parent.type().slimeFamily() || parent.slimeSize() <= 1) {
             return;
         }
         int parentSize = parent.slimeSize();
@@ -1106,7 +1176,7 @@ public final class MobManager {
         for (int k = 0; k < children; k++) {
             float offsetX = (k % 2 - 0.5F) * parentSize / 4.0F;
             float offsetZ = (k / 2 - 0.5F) * parentSize / 4.0F;
-            MobEntity child = spawnAt(MobType.SLIME, new Position(
+            MobEntity child = spawnAt(parent.type(), new Position(
                     at.x() + offsetX, at.y() + 0.5, at.z() + offsetZ));
             if (child == null) {
                 continue; // the spawn event refused the child

@@ -178,7 +178,35 @@ public enum MobType {
      */
     SLIME(55, 0.51000005, 0.51000005, 1.0f, 0.03, true, Traits.NONE,
             List.of(new ItemRoll(BuiltinItems.SLIME_BALL, 0, 2)), // size 1 ONLY
-            "", "mob.slime.small", "mob.slime.small"); // dynamic: big over size 1
+            "", "mob.slime.small", "mob.slime.small"), // dynamic: big over size 1
+
+    /**
+     * The nether's splitter (Slice 16c — MagmaCubeEntity, the slime's own
+     * family): the size system, the split, the contact damage and the
+     * hop cycle are all the slime's — the magma's own overrides: the
+     * 4x hop cadence, the size-scaled jump, the +2 damage, the fire
+     * immunity, the magma-cream drop with the reference's own
+     * {@code nextInt(4) - 2} count arm (size 1 only, the walk in the
+     * manager's custom drop), and the magmacube sound pair. The
+     * walkSpeed field is unused — the hop cycle owns the movement.
+     */
+    MAGMA_CUBE(62, 0.51000005, 0.51000005, 1.0f, 0.03, true, Traits.NONE,
+            List.of(), // the custom drop walk (MagmaCubeEntity.dropItems)
+            "", "mob.magmacube.small", "mob.magmacube.small"),
+
+    /**
+     * The nether's flyer (Slice 16c — GhastEntity over FlyingMobEntity):
+     * the 4x4 body, the 10-health fire-immune hull, the ambient moan at
+     * volume 10, the wandering flight (the random ±16 targets with the
+     * line-of-sight bursts), and the charged fireball cycle — 20 ticks
+     * of charge (the flag at index 16), the launch with the -40 cooldown,
+     * the 6.0 direct hit plus the power-1 explosion where it lands. The
+     * eye height 2.6 feeds the shot origin. The walkSpeed field is
+     * unused — the flight owns the movement.
+     */
+    GHAST(56, 4.0, 4.0, 10.0f, 0.0, true, Traits.NONE,
+            List.of(), // the custom drop walk (GhastEntity.dropItems)
+            "mob.ghast.moan", "mob.ghast.scream", "mob.ghast.death", 0.0f);
 
     /**
      * The AI trait set beyond the walk-chase-panic baseline.
@@ -246,6 +274,21 @@ public enum MobType {
     /** @return whether the kind is undead (burns in daylight, the historical rule). */
     public boolean undead() {
         return this == ZOMBIE || this == SKELETON;
+    }
+
+    /**
+     * @return whether the kind carries the reference's
+     * {@code immuneToFire} — the fire block never ignites it, the fire
+     * tick never damages it (the blaze, the magma cube, the ghast; the
+     * zombie pigman joins with its own slice).
+     */
+    public boolean fireImmune() {
+        return this == BLAZE || this == MAGMA_CUBE || this == GHAST;
+    }
+
+    /** @return whether the kind rides the slime's size/hop/split family. */
+    public boolean slimeFamily() {
+        return this == SLIME || this == MAGMA_CUBE;
     }
 
     /**
