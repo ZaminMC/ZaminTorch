@@ -475,6 +475,9 @@ public final class BuiltinItems {
             Identifier.parse("minecraft:string"), "String", 64);
     public static final EngineItemType GUNPOWDER = new EngineItemType(
             Identifier.parse("minecraft:gunpowder"), "Gunpowder", 64);
+    /** The small slime's drop (SlimeEntity.getDropItem: size 1 only; community id 341). */
+    public static final EngineItemType SLIME_BALL = new EngineItemType(
+            Identifier.parse("minecraft:slime_ball"), "Slimeball", 64);
     public static final EngineItemType WOOL = new EngineItemType(
             Identifier.parse("minecraft:wool"), "Wool", 64);
     public static final EngineItemType MUTTON = new EngineItemType(
@@ -596,7 +599,7 @@ public final class BuiltinItems {
                 NETHER_BRICKS, NETHER_BRICK_FENCE, NETHER_BRICK_STAIRS,
                 PRISMARINE, PRISMARINE_CRYSTALS, PRISMARINE_SHARD, SEA_LANTERN,
                 SPONGE, GOLD_BLOCK,
-                BONE, STRING, GUNPOWDER, WOOL, MUTTON, COOKED_MUTTON,
+                BONE, STRING, GUNPOWDER, WOOL, MUTTON, COOKED_MUTTON, SLIME_BALL,
                 BUCKET, WATER_BUCKET, LAVA_BUCKET,
                 FLINT_AND_STEEL, GOLD_INGOT,
                 SUGAR_CANE, CACTUS, SUGAR, PAPER, BOOK,

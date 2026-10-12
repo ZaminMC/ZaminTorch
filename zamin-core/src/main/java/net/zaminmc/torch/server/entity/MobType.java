@@ -123,7 +123,19 @@ public enum MobType {
      */
     WITCH(66, 0.6, 1.95, 26.0f, 0.03, true, new Traits(true, false, false, false),
             List.of(), // the custom drop walk (WitchEntity.dropItems)
-            "", "", "", 0.0f);
+            "", "", "", 0.0f),
+
+    /**
+     * The hopping splitter (Slice 12k — the natural-spawn row): the
+     * smallest default body (the size-1 state — 0.51 x 0.51, 1 health);
+     * the spawn-time initialize and the split-on-kill grow it through
+     * the sizes 2 and 4 (the per-instance dimension + health recompute,
+     * the reference's {@code setSize}). The walkSpeed field is unused —
+     * the slime's movement is the hop cycle, not the walk integration.
+     */
+    SLIME(55, 0.51000005, 0.51000005, 1.0f, 0.03, true, Traits.NONE,
+            List.of(new ItemRoll(BuiltinItems.SLIME_BALL, 0, 2)), // size 1 ONLY
+            "", "mob.slime.small", "mob.slime.small"); // dynamic: big over size 1
 
     /**
      * The AI trait set beyond the walk-chase-panic baseline.

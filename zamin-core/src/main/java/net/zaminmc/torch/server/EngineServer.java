@@ -7422,6 +7422,11 @@ public final class EngineServer implements Server, EngineBridge {
             return world.isChunkLoaded(
                     new net.zaminmc.torch.block.ChunkPosition(chunkX, chunkZ));
         }
+
+        @Override
+        public long worldSeed() {
+            return worldSeed;
+        }
     }
 
     /**
@@ -7683,8 +7688,11 @@ public final class EngineServer implements Server, EngineBridge {
             }
             // The kill reward (the historical getExperienceValue): the body
             // releases its XP band at the death point; orbs wait out their
-            // pickup delay while the death animation plays.
-            int amount = ExperienceAwards.forMobKill(mob.type().hostile, gameplayRandom);
+            // pickup delay while the death animation plays. The slime's own
+            // band is its size (SlimeEntity.setSize's xpDrop = size).
+            int amount = mob.type() == net.zaminmc.torch.server.entity.MobType.SLIME
+                    ? mob.slimeSize()
+                    : ExperienceAwards.forMobKill(mob.type().hostile, gameplayRandom);
             experienceOrbs.spawnBurst(mob.position(), amount, 3);
         }
 

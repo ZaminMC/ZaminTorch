@@ -2576,6 +2576,11 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5)
                     | Protocol18.WITCH_DRINKING_METADATA_INDEX);
             out.writeByte(mob.witchDrinking() ? 1 : 0);
+        } else if (mob.type() == net.zaminmc.torch.server.entity.MobType.SLIME) {
+            // The slime's size (the synced-data slot 16): the client scales
+            // the whole body from the byte (1, 2, or 4).
+            out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | Protocol18.KIND_STATUS_METADATA_INDEX);
+            out.writeByte(mob.slimeSize());
         } else if (mob.type() == net.zaminmc.torch.server.entity.MobType.PIG) {
             out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | Protocol18.PIG_SADDLE_METADATA_INDEX);
             out.writeByte(mob.pigSaddled() ? 1 : 0);

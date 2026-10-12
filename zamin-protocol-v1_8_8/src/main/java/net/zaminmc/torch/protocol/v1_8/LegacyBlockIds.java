@@ -105,6 +105,7 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:bone"), 352),
             Map.entry(Identifier.parse("minecraft:string"), 287),
             Map.entry(Identifier.parse("minecraft:gunpowder"), 289),
+            Map.entry(Identifier.parse("minecraft:slime_ball"), 341),
             Map.entry(Identifier.parse("minecraft:mutton"), 423),
             Map.entry(Identifier.parse("minecraft:cooked_mutton"), 424),
             Map.entry(Identifier.parse("minecraft:bucket"), 325),

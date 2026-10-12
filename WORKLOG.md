@@ -2261,3 +2261,65 @@ protocol module's 71 (one documented load flake, green in isolation).
 
 **Next:** the slime (the size family + the split-on-kill) — the last
 default-list monster without an entity — then back to the API waves.
+
+## Slice 12k — the slime (the natural-spawn monster row)
+
+**The size family** (setSize 1:1): the per-instance size byte (1/2/4 —
+the initialize's `1 << nextInt(3)`; the local-difficulty bump arm rides
+the difficulty slice), the body recomputes riding it (the dimension
+0.51000005*size — the reference's own float, the health size², the
+movement speed 0.2+0.1*size feeding the hop, the XP and the contact
+damage the size), the dynamic hurt/death sound (mob.slime.big over
+size 1), and the eye height 0.625*height (the kind-specific share over
+the generic 0.85).
+
+**The hop movement** (the MovementControl model): the movement input is
+ZERO between hops (the body coasts on the residual only), the launch at
+velocityY 0.42 with the facing impulse at the speed attribute, the
+cadence `nextInt(20) + 10` divided by three on the aggressive chase,
+the swim arm's 80% hop at the 1.2 speed, and the direction re-roll
+every 40+nextInt(60) ticks (nextInt(360)). The landing edge queues the
+thud for size > 2 (the reference's makesLandSound); the jump squish
+rides every hop at volume 0.4*size with the reference's own pitch
+bands (×0.8 the jump, ÷0.8 the landing).
+
+**The split** (remove 1:1): a death at size > 1 spawns 2-4 children at
+half the size on the reference's (k%2-0.5)*size/4 grid half a block up,
+each with its own yaw roll — DEFERRED to after the tick iteration (the
+pending-breeds pattern; a mid-iteration add is the
+ConcurrentModification trap).
+
+**The contact damage** (onPlayerCollision + damageTargetEntity): the
+big body within 0.6*size blocks with a clear line arms the melee
+pipeline with the size damage on the player's own 10-tick i-frame
+cadence; the mob.attack squish rides the same landing.
+
+**The drops**: only the size-1 body carries the slime balls (the new
+SLIME_BALL item, wire id 341); the split family drops nothing.
+
+**The spawn row** (the reference's FULL default monster list is now
+live): SLIME 100/4-4 + the entity-level canSpawn gate — the
+slime-chunk arm (the shared nextInt(10), then the chunk's own
+getRandomForSlime(987234911L) nextInt(10) — the seed derivation
+`seed + cx*cx*4987142 + cx*5947611 + cz*cz*4392871 + cz*389711 ^
+987234911L` 1:1, then the y < 40 depth gate) and the swampland band
+(short-circuited at the biome check — the engine carries no swamp, so
+the arm's rolls never consume RNG, exactly like a plains spawn in the
+reference). The gate sits after the yaw roll, before the initialize —
+the reference's own consult order.
+
+**The wire**: the size byte rides the index-16 metadata on the join
+view (the size never changes mid-life — the split spawns new bodies);
+the hurt/death sounds route through the new per-body accessors.
+
+**Tests**: `SlimeEntityTest` (8: the kind identity with the reference's
+own float, the size-family recompute, the initialize roll, the death
+split with the cascade down to size 1, the size-gated drops, the hop
+cadence with the grounded rest, the contact damage's three arms — the
+armed big body, the small refusal, the out-of-reach refusal — and the
+seed derivation). The fresh full-suite count **746 green in zamin-core**
+(+8) + the protocol module's 71, `--max-workers=1`, zero failures.
+
+**Next:** back to the API waves (the §27.3 audit's next family), or the
+rabbit/wolf/ocelot rows (their entity slices), or the brewing stand's
+block entity + GUI.

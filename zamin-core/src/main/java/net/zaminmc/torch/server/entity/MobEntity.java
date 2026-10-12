@@ -872,6 +872,200 @@ public final class MobEntity implements LivingEntity {
         return query != null && query.test(effectId);
     }
 
+    // ---- the slime (SlimeEntity 1:1 — Slice 12k) -----------------------
+
+    /**
+     * The slime's size (the synced-data slot 16): 1, 2, or 4 (the
+     * initialize's {@code 1 << nextInt(3)} family). The body's dimensions
+     * ({@code 0.51000005 * size}), the max health ({@code size * size}),
+     * the movement speed ({@code 0.2 + 0.1 * size}), the XP drop and the
+     * contact damage all ride it (setSize lines 51-59).
+     */
+    private int slimeSize = 1;
+
+    /** @return the slime's size byte (1, 2, or 4; 1 for every other kind). */
+    public int slimeSize() {
+        return type == MobType.SLIME ? slimeSize : 1;
+    }
+
+    /**
+     * @return the body's attack damage (the kind's ATTACK_DAMAGE
+     * attribute — the enderman's 7.0 — or the slime's own size,
+     * getDamageAmount line 215).
+     */
+    public float attackDamage() {
+        return type == MobType.SLIME ? slimeSize : type.attackDamage;
+    }
+
+    /**
+     * Sets the slime's size and recomputes the body the reference's own
+     * way (setSize lines 51-59): the dimensions, the max health
+     * ({@code size * size}), and the full-heal — the split's children and
+     * the spawn-time initialize both land through here.
+     */
+    public void setSlimeSize(int size) {
+        if (type != MobType.SLIME || size < 1) {
+            return;
+        }
+        this.slimeSize = size;
+        this.health = size * size; // setHealth(getMaxHealth())
+    }
+
+    /** The spawn-time initialize (SlimeEntity.initialize lines 286-295):
+     * {@code 1 << nextInt(3)} — the difficulty-dependent bump arm rides
+     * the difficulty slice (the engine carries no local-difficulty
+     * model; the fresh-world multiplier makes the bump rare anyway). */
+    public void initializeSlimeSize() {
+        setSlimeSize(1 << random.nextInt(3));
+    }
+
+    /** The slime's dynamic attack damage (getDamageAmount: the size). */
+    public float slimeAttackDamage() {
+        return slimeSize;
+    }
+
+    /**
+     * The slime's kind-dependent hurt/death sound (getHurtSound/
+     * getDeathSound: {@code mob.slime.} big over size 1, small below).
+     */
+    public String slimeSoundName() {
+        return "mob.slime." + (slimeSize > 1 ? "big" : "small");
+    }
+
+    /** @return the body's hurt sound (the slime's own is size-dependent). */
+    public String hurtSound() {
+        return type == MobType.SLIME ? slimeSoundName() : type.hurtSound;
+    }
+
+    /** @return the body's death sound (the slime's own is size-dependent). */
+    public String deathSound() {
+        return type == MobType.SLIME ? slimeSoundName() : type.deathSound;
+    }
+
+    /** The hop cadence counter (MovementControl's jumpCooldownTicks). */
+    private int slimeHopCooldown = 1;
+    /** The idle direction's re-roll counter (RandomDirectionGoal). */
+    private int slimeDirectionCooldown = 1;
+    /** The chase state driving the aggressive cadence (the AttackGoal). */
+    private boolean slimeAggressive;
+    /** The contact-damage cadence (the player's own hurt-resistance window). */
+    private int slimeContactCooldown;
+    /** The landing edge tracker (the wasOnGround flag). */
+    private boolean wasSlimeGrounded = true;
+
+    /**
+     * The slime's hop (MovementControl.tick lines 377-410 + jump lines
+     * 279-283): the movement input is ZERO between hops (the engine's
+     * stand-in for the reference's speed model), and when the cadence
+     * elapses on the ground the body launches — velocityY 0.42, the
+     * horizontal at the reference's movement-speed attribute
+     * ({@code 0.2 + 0.1 * size}) along the facing. The aggressive chase
+     * divides the cadence by three (the AttackGoal's own rule); the
+     * swim arm hops 80% of the ticks at the 1.2 speed
+     * (SwimAroundGoal).
+     */
+    private void tickSlimeMovement(boolean inFluid) {
+        if (inFluid) {
+            if (random.nextFloat() < 0.8F) {
+                launchSlimeHop(1.2);
+            }
+            return;
+        }
+        if (!onGround) {
+            return; // airborne: the hop's momentum carries (the engine's own drag)
+        }
+        if (--slimeHopCooldown > 0) {
+            return; // between hops the body is still (the zeroed input)
+        }
+        slimeHopCooldown = random.nextInt(20) + 10; // getTicksUntilNextJump
+        if (slimeAggressive) {
+            slimeHopCooldown /= 3;
+        }
+        launchSlimeHop(1.0);
+        pendingSlimeSound = new SlimeSound(slimeSoundName(),
+                0.4F * slimeSize,
+                (random.nextFloat() - random.nextFloat()) * 0.2F + 1.0F);
+    }
+
+    /** Launches one hop (jump(): velocityY 0.42 + the facing impulse). */
+    private void launchSlimeHop(double speedMultiplier) {
+        double speed = (0.2 + 0.1 * slimeSize) * speedMultiplier;
+        double radians = Math.toRadians(yaw);
+        velocityX += -Math.sin(radians) * speed;
+        velocityZ += Math.cos(radians) * speed;
+        velocityY = 0.42;
+    }
+
+    /** One queued slime sound (the jump's squish or the landing thud). */
+    record SlimeSound(String name, float volume, float pitch) {
+    }
+
+    /** The queued jump sound (consumed by the manager's tick). */
+    private SlimeSound pendingSlimeSound;
+
+    /** The landing sound queued when a hop ends (the size > 2 rule). */
+    private SlimeSound pendingSlimeLandSound;
+
+    /** @return and clears the queued jump sound (null when none). */
+    public SlimeSound consumeSlimeSound() {
+        SlimeSound sound = pendingSlimeSound;
+        pendingSlimeSound = null;
+        return sound;
+    }
+
+    /** @return and clears the queued landing sound (null when none). */
+    public SlimeSound consumeSlimeLandSound() {
+        SlimeSound sound = pendingSlimeLandSound;
+        pendingSlimeLandSound = null;
+        return sound;
+    }
+
+    /**
+     * The slime's mind (the goal family over the engine's own body): the
+     * aggressive chase faces the target (the AttackGoal's lookAt + the
+     * direction), the idle re-rolls the direction every 40-99 ticks
+     * (RandomDirectionGoal lines 428-436), and the big body's contact
+     * damage rides the melee pipeline (onPlayerCollision +
+     * damageTargetEntity lines 192-204: within {@code 0.6 * size}
+     * blocks with a clear line, the damage the size, on the player's own
+     * 10-tick hurt-resistance cadence).
+     */
+    private void tickSlimeMind(Position target, boolean canHunt) {
+        slimeAggressive = canHunt && target != null;
+        if (slimeAggressive) {
+            yaw = angleTo(target.x() - position.x(), target.z() - position.z());
+            headYaw = yaw;
+        } else if (--slimeDirectionCooldown <= 0) {
+            slimeDirectionCooldown = 40 + random.nextInt(60);
+            yaw = random.nextInt(360);
+            headYaw = yaw;
+        }
+        mode = slimeAggressive ? Mode.CHASE : Mode.WANDER;
+        // The contact damage (damageTargetEntity): only the big body.
+        if (slimeContactCooldown > 0) {
+            slimeContactCooldown--;
+            return;
+        }
+        double reach = 0.6 * slimeSize;
+        if (slimeSize > 1 && target != null
+                && position.distanceSquared(target) < reach * reach
+                && world.clearLine(position, target)) {
+            slimeContactCooldown = HURT_WINDOW_TICKS; // the i-frame cadence
+            pendingMeleeAttack = true;
+            pendingSlimeAttackSound = true;
+        }
+    }
+
+    /** Set when the contact damage lands; consumed by the manager. */
+    private boolean pendingSlimeAttackSound;
+
+    /** @return and clears the contact-damage flag (the mob.attack sound). */
+    public boolean consumeSlimeAttackSound() {
+        boolean value = pendingSlimeAttackSound;
+        pendingSlimeAttackSound = false;
+        return value;
+    }
+
     /** The completed drink's metadata (consumed by the manager's tick). */
     private int completedWitchDrink;
 
@@ -1676,6 +1870,14 @@ public final class MobEntity implements LivingEntity {
             return;
         }
 
+        // The slime's own goal family (Slice 12k): the direction/chase
+        // walk and the contact damage replace the standard mind — the
+        // hop movement lands in the body tick below.
+        if (type == MobType.SLIME) {
+            tickSlimeMind(target, canHunt);
+            return;
+        }
+
         if (canHunt && target != null) {
             double dx = target.x() - position.x();
             double dy = target.y() - position.y();
@@ -1932,7 +2134,31 @@ public final class MobEntity implements LivingEntity {
 
     /** @return the eye point of the body (the ranged origin). */
     public Position eyePosition() {
-        return new Position(position.x(), position.y() + type.height * 0.85, position.z());
+        return new Position(position.x(), position.y() + eyeHeight(), position.z());
+    }
+
+    /**
+     * @return the body's height (the kind's own, or the slime's
+     * size-scaled {@code 0.51000005 * size}).
+     */
+    public double bodyHeight() {
+        return type == MobType.SLIME ? 0.51000005 * slimeSize : type.height;
+    }
+
+    /**
+     * @return the body's width (the kind's own, or the slime's
+     * size-scaled {@code 0.51000005 * size}).
+     */
+    public double bodyWidth() {
+        return type == MobType.SLIME ? 0.51000005 * slimeSize : type.width;
+    }
+
+    /**
+     * @return the eye height (the generic 0.85 share of the body, or the
+     * slime's own {@code 0.625 * height} — getEyeHeight line 208).
+     */
+    private double eyeHeight() {
+        return type == MobType.SLIME ? 0.625 * bodyHeight() : type.height * 0.85;
     }
 
     private void tickBody() {
@@ -1976,6 +2202,24 @@ public final class MobEntity implements LivingEntity {
         }
         if (witchDrink > 0) {
             walk = 0.0; // the drinking speed penalty (WitchEntity's -0.25 on the 0.25 base → 0)
+        }
+        if (type == MobType.SLIME) {
+            // The landing (SlimeEntity.tick lines 101-123): the first
+            // grounded tick after a hop queues the landing sound (the
+            // size > 2 rule — makesLandSound) — the particles ride the
+            // particle slice.
+            if (onGround && !wasSlimeGrounded) {
+                if (slimeSize > 2) {
+                    pendingSlimeLandSound = new SlimeSound(slimeSoundName(),
+                            0.4F * slimeSize,
+                            (random.nextFloat() - random.nextFloat()) * 0.2F + 1.0F);
+                }
+                wasSlimeGrounded = true;
+            } else if (!onGround) {
+                wasSlimeGrounded = false;
+            }
+            tickSlimeMovement(inFluid);
+            walk = 0.0; // the hop cycle owns the movement (the input model)
         }
         if (inFluid && walk > 0) {
             walk *= 0.5; // wading drag
@@ -2084,12 +2328,12 @@ public final class MobEntity implements LivingEntity {
 
         @Override
         public double width() {
-            return type.width;
+            return bodyWidth();
         }
 
         @Override
         public double height() {
-            return type.height;
+            return bodyHeight();
         }
 
         @Override
