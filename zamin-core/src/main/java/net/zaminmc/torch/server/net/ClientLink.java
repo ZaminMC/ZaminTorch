@@ -65,4 +65,12 @@ public interface ClientLink {
      */
     default void resyncPosition() {
     }
+
+    /**
+     * Plays an arbitrary Change Game State reason with the float value
+     * (the elder-guardian ghost curse overlay — reason 10). Safe from any
+     * thread; default no-op for engine-internal links.
+     */
+    default void playGameState(int reason, float value) {
+    }
 }

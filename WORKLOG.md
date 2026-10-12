@@ -2906,3 +2906,68 @@ is not rare).
 
 Fresh suite: **908 green (815 core + 19 api + 74 protocol)**,
 `--max-workers=1`, zero failures.
+
+## Slice 17a — the guardian (the ocean monument's hunter)
+
+**Scope**: GuardianEntity 1:1 — the laser's charge cycle with the wire's
+beam pair, the still-body spike reflect, the elder variant with the
+mining-fatigue aura, the monument spawn rows, and the monument's own
+three elders.
+
+**The kind** (68, the 0.85x0.85/30-health body, movement 0.5, the 6.0
+melee, xpDrop 10): the wire's guardian block — the index-16 flag Int
+(the swim's moving bit 0x02, the elder bit 0x04) and the index-17
+beam-target Int (the client's laser draw), both in the spawn metadata
+and the Set Entity Metadata writer the manager's flip detection drives.
+
+**The laser** (GuardianAttackEntityGoal 1:1): the -10 start offset, the
+beam arming at charge 0 (the target's id on the wire + the Entity Event
+21), the hit at the 80-tick charge time — the magic half (1.0 + the
+elder's 2.0 + the hard difficulty's 2.0) piercing armor with no
+knockback, then the melee half through the full armor/enchantment
+ladder; the look held on the target every charge tick; the hunt's break
+(target lost, no line, inside the 3-block flop band) clearing the beam.
+
+**The thorns** (takeDamage's spike reflect): a still body hit by the
+melee family wounds the attacker 2.0 with the `damage.thorns` sound at
+0.5 — a swimming body never spikes (the moving bit gates it).
+
+**The body**: the sinusoidal swim (the movement control's own
+`sin((ticks+id)*0.5)*0.05` drift + the `*0.75` vertical arm, the
+0.1-scale steering with the 0.9 decay, the idle -0.005 sink, the
+seabed rest, the water-favor steer re-roll on a dry cell —
+WaterPathNavigation's stand-in) and the land flop (the grounded +0.5
+rise with the ±0.4 horizontal and the random yaw between the gravity
+falls, the ground snap).
+
+**The elder** (setElder): the 1.9975 hull, the 80-health ceiling
+healed at the flip, the 8.0 melee, the 0.3 speed, the persistent
+never-despawn rule, the 60-tick charge. The aura (mobAiTick's
+`(ticks+id)%1200==0` cadence): the survival players within 50 blocks
+take the Fatigue III / 6000-tick curse (the weaker rows only —
+amplifier < 2 or duration < 1200), each preceded by the Change Game
+State 10 ghost-curse overlay (the ClientLink's new playGameState
+seam).
+
+**The monument integration**: the spawn entries' monument arm (the
+guardian 1/2-4 inside the bounds — the entry pick resolving per
+position through the new WorldQuery.insideMonument, the deterministic
+nine-cell pick-chunk derivation with the horizontal box filter before
+the biome gates; the IN_WATER cell rule — the liquid cell with the
+liquid below and the non-solid above, no light gate; the guardian's own
+1-in-20 open-sky canSpawn roll) and the monument's three elders (the
+Penthouse at (6,1,6) + the two WingRoom designs at (11,2,16)/(11,5,13)
+through the pending-record drain with the restart idempotence guard).
+
+**The drops** (dropItems 1:1): the prismarine shards'
+`nextInt(3)+nextInt(1+looting)` single stack, the fish-else-crystals
+`nextInt(3+looting)>1` pair, the elder's wet sponge (the stack damage
+field carries the variant) on the player-kill arm.
+
+**Tests**: GuardianEntityTest (7: the identity + the mid-body eye, the
+charge cycle with the beam verdicts, the flop-band gate, the elder
+flip, the spike verdict, the swim + the flop bodies, the hunt-break
+clear).
+
+Fresh suite: **915 green (822 core + 19 api + 74 protocol)**,
+`--max-workers=1`, zero failures.

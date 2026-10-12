@@ -1455,6 +1455,21 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     }
 
     @Override
+    public void playGameState(int reason, float value) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        // Change Game State (0x2B) with the caller's reason/value pair —
+        // the elder-guardian ghost curse (reason 10, value 0) rides it.
+        ByteBuf out = Unpooled.buffer(16);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_CHANGE_GAME_STATE);
+        out.writeByte(reason);
+        out.writeFloat(value);
+        channel.writeAndFlush(out);
+    }
+
+    @Override
     public void resyncPosition() {
         Channel channel = adapter.channelOf(this);
         if (channel == null || !channel.isActive() || state != WireState.PLAY) {
@@ -2596,6 +2611,18 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             // the client raises the hanging pose from it.
             out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | Protocol18.KIND_STATUS_METADATA_INDEX);
             out.writeByte(mob.batRoosting() ? 1 : 0);
+        } else if (mob.type() == net.zaminmc.torch.server.entity.MobType.GUARDIAN) {
+            // The guardian's block (GuardianEntity.registerSyncedData): the
+            // index-16 flag Int (the moving 0x02 bit + the elder 0x04 bit)
+            // and the 17 beam-target Int (only when a beam is live — the
+            // client draws the laser from the victim's id).
+            out.writeByte((Protocol18.METADATA_TYPE_INT << 5) | Protocol18.KIND_STATUS_METADATA_INDEX);
+            out.writeInt(guardianFlagsOf(mob));
+            if (mob.guardianBeamTargetId() != 0) {
+                out.writeByte((Protocol18.METADATA_TYPE_INT << 5)
+                        | Protocol18.GUARDIAN_BEAM_METADATA_INDEX);
+                out.writeInt(mob.guardianBeamTargetId());
+            }
         } else if (mob.type() == net.zaminmc.torch.server.entity.MobType.PIG) {
             out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | Protocol18.PIG_SADDLE_METADATA_INDEX);
             out.writeByte(mob.pigSaddled() ? 1 : 0);
@@ -2634,6 +2661,21 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         }
         out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | Protocol18.KIND_STATUS_METADATA_INDEX);
         out.writeByte(kind);
+    }
+
+    /**
+     * @return the guardian's index-16 flag word ({@code moving 0x02 |
+     * elder 0x04} — the reference's own setDataFlagValue bits).
+     */
+    static int guardianFlagsOf(MobEntity mob) {
+        int flags = 0;
+        if (mob.guardianMoving()) {
+            flags |= Protocol18.GUARDIAN_FLAG_MOVING;
+        }
+        if (mob.guardianElder()) {
+            flags |= Protocol18.GUARDIAN_FLAG_ELDER;
+        }
+        return flags;
     }
 
     /** @return the kind-status byte value, or null for kinds without one. */
@@ -2850,6 +2892,31 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeVarInt(out, mob.entityId());
         out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | Protocol18.KIND_STATUS_METADATA_INDEX);
         out.writeByte(mob.ghastCharging() ? 1 : 0);
+        out.writeByte(Protocol18.METADATA_TERMINATOR);
+        channel.writeAndFlush(out);
+    }
+
+    /**
+     * Set Entity Metadata (0x1C) for the guardian's whole block: the
+     * index-16 flag Int (the moving bit's flip drives the client's spike
+     * animation) and the index-17 beam-target Int (the laser's live victim
+     * — the entry only rides when a beam is on). Any thread.
+     */
+    void sendGuardianState(MobEntity mob) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(16);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_ENTITY_METADATA);
+        ByteBufOps.writeVarInt(out, mob.entityId());
+        out.writeByte((Protocol18.METADATA_TYPE_INT << 5) | Protocol18.KIND_STATUS_METADATA_INDEX);
+        out.writeInt(guardianFlagsOf(mob));
+        if (mob.guardianBeamTargetId() != 0) {
+            out.writeByte((Protocol18.METADATA_TYPE_INT << 5)
+                    | Protocol18.GUARDIAN_BEAM_METADATA_INDEX);
+            out.writeInt(mob.guardianBeamTargetId());
+        }
         out.writeByte(Protocol18.METADATA_TERMINATOR);
         channel.writeAndFlush(out);
     }

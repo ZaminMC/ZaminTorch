@@ -316,6 +316,11 @@ public final class NormalWorldGenerator implements WorldGenerator {
                     }
 
                     @Override
+                    public void spawnElderGuardian(int x, int y, int z) {
+                        chunk.addPendingElderGuardian(x, y, z);
+                    }
+
+                    @Override
                     public void placeGenChest(int x, int y, int z,
                             java.util.List<net.zaminmc.torch.server.world.structure.StructureWorld.GenLootSlot> slots) {
                         chunk.addPendingGenChest(x, y, z, slots);

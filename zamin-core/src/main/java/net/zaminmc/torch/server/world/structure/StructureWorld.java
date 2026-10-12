@@ -114,6 +114,15 @@ public interface StructureWorld {
     }
 
     /**
+     * The monument's elder guardian spawn (Slice 17a — the reference's
+     * spawnElderGuardian's world.addEntity): the chunk's pending queue,
+     * materialized with the elder flip (the 1.9975 hull, the 80 health,
+     * the persistence) when the chunk publishes.
+     */
+    default void spawnElderGuardian(int x, int y, int z) {
+    }
+
+    /**
      * One rolled chest slot (the loot walk's setItem record). The optional
      * enchantment map carries the reference's enchanted-book loot arm
      * (EnchantedBookItem.createLoot — a random level-30 enchantment riding
