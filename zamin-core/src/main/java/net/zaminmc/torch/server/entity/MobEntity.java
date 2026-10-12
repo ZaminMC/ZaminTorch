@@ -614,6 +614,15 @@ public final class MobEntity implements LivingEntity {
         health = Math.min(maxHealth(), health + amount);
     }
 
+    /**
+     * The conversion's health carry ({@code setHealth(getHealth())} —
+     * MooshroomEntity's shear-into-a-cow): the new body starts at the
+     * old body's value, clamped into its own ceiling.
+     */
+    public void setHealthCarried(float value) {
+        health = Math.max(0.0f, Math.min(maxHealth(), value));
+    }
+
     public boolean onGround() {
         return onGround;
     }
@@ -2659,6 +2668,11 @@ public final class MobEntity implements LivingEntity {
     /** Sets the body yaw (the spawn walks' setPositionAndAngles). */
     public void setBodyYaw(float yaw) {
         this.yaw = yaw;
+    }
+
+    /** @return the body's live yaw (the conversion's carry read). */
+    public float bodyYawLive() {
+        return yaw;
     }
 
     /** Whether a chest rides the donkey (flag 0x08, the vanilla rule). */

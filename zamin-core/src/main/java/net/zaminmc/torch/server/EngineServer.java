@@ -6074,6 +6074,7 @@ public final class EngineServer implements Server, EngineBridge {
     private static boolean isAnimal(MobType type) {
         return type == MobType.PIG || type == MobType.COW || type == MobType.SHEEP
                 || type == MobType.CHICKEN || type == MobType.HORSE || type == MobType.RABBIT
+                || type == MobType.MOOSHROOM
                 || type == MobType.WOLF; // the wolf feeds through its own ladder, breeds here
     }
 
@@ -6087,7 +6088,7 @@ public final class EngineServer implements Server, EngineBridge {
     private static boolean isBreedingItem(MobType type, String heldId) {
         return switch (type) {
             case PIG -> heldId.equals("minecraft:carrot");
-            case COW, SHEEP -> heldId.equals("minecraft:wheat");
+            case COW, SHEEP, MOOSHROOM -> heldId.equals("minecraft:wheat");
             case CHICKEN -> heldId.equals("minecraft:wheat_seeds");
             case RABBIT -> heldId.equals("minecraft:carrot")
                     || heldId.equals("minecraft:golden_carrot")
@@ -6124,6 +6125,54 @@ public final class EngineServer implements Server, EngineBridge {
         var inventory = player.inventory();
         ItemStack held = inventory.held();
         String heldId = held.type() == null ? "" : held.type().identifier().toString();
+        // The mooshroom's own ladder (MooshroomEntity.interactMob): the
+        // bowl fills with the mushroom stew (the adult only), the shears
+        // shear it INTO a plain cow with five red mushrooms — both arms
+        // before the feeding fallback (the cow's wheat).
+        if (mob.type() == MobType.MOOSHROOM && !mob.isBaby()
+                && heldId.equals("minecraft:bowl")) {
+            // The bowl-to-stew swap (MooshroomEntity.interactMob lines
+            // 19-31): a single bowl becomes the stew in the hand; a
+            // stacked one gives the stew through the pickup with one
+            // bowl consumed (the creative hand keeps the stack — the
+            // engine's survival inventory walks the reference's pair).
+            if (player.gamemode() == GameMode.CREATIVE) {
+                player.inventory().pickUp(ItemStack.of(BuiltinItems.MUSHROOM_STEW, 1));
+            } else if (held.count() == 1) {
+                player.inventory().setSlot(player.inventory().heldSlot(),
+                        ItemStack.of(BuiltinItems.MUSHROOM_STEW, 1));
+            } else {
+                player.inventory().pickUp(ItemStack.of(BuiltinItems.MUSHROOM_STEW, 1));
+                player.inventory().consumeHeld(1);
+            }
+            publishInventoryChanged(player);
+            return;
+        }
+        if (mob.type() == MobType.MOOSHROOM && !mob.isBaby()
+                && heldId.equals("minecraft:shears")) {
+            // The shear-into-a-cow (MooshroomEntity.interactMob lines
+            // 33-56): the body replaces itself with a plain cow at the
+            // same position and health, five red mushrooms pop, the tool
+            // wears one use, and the shear sound lands.
+            float health = mob.health();
+            Position at = mob.position();
+            float yaw = mob.bodyYawLive();
+            mobManager.remove(mob, "sheared");
+            MobEntity cow = mobManager.spawnAt(MobType.COW, at);
+            if (cow != null) {
+                cow.setBodyYaw(yaw);
+                cow.setHealthCarried(health);
+            }
+            for (int i = 0; i < 5; i++) {
+                itemEntities.spawnDropAtBlock(new Position(at.x(), at.y() + mob.type().height, at.z()),
+                        ItemStack.of(BuiltinItems.RED_MUSHROOM, 1),
+                        ItemEntity.PICKUP_DELAY_DROP_TICKS);
+            }
+            player.inventory().damageHeld(1, gameplayRandom); // the shears wear
+            publishInventoryChanged(player);
+            fxManager.sound(at, "mob.sheep.shear", 1.0f, 1.0f);
+            return;
+        }
         // The sheep's shears (EntitySheep.interactMob: the shears arm runs
         // before the feeding arm).
         if (mob.type() == MobType.SHEEP && heldId.equals("minecraft:shears")) {

@@ -98,6 +98,10 @@ final class LegacyBlockIds {
             // 3 pufferfish).
             Map.entry(Identifier.parse("minecraft:fish"), 349),
             Map.entry(Identifier.parse("minecraft:cooked_fish"), 350),
+            // The bowl pair (Slice 17b — the reference's Item.java: the
+            // bowl 281, the mushroom stew 282).
+            Map.entry(Identifier.parse("minecraft:bowl"), 281),
+            Map.entry(Identifier.parse("minecraft:mushroom_stew"), 282),
             Map.entry(Identifier.parse("minecraft:wool"), 35),
             // Mob loot and fluid handling of the living-night slice
             // (community items.json ids: bone 352, string 287, gunpowder 289,

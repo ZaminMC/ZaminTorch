@@ -240,6 +240,12 @@ public final class BuiltinItems {
             Identifier.parse("minecraft:cooked_rabbit"), "Cooked Rabbit", 64);
     public static final EngineItemType RABBIT_STEW = new EngineItemType(
             Identifier.parse("minecraft:rabbit_stew"), "Rabbit Stew", 1);
+    // The bowl pair (Slice 17b — the reference's Item.java: the bowl 281
+    // and the mushroom stew 282 FoodItem(6, 0.6F) with the stack-1 bowl rule).
+    public static final EngineItemType BOWL = new EngineItemType(
+            Identifier.parse("minecraft:bowl"), "Bowl", 64);
+    public static final EngineItemType MUSHROOM_STEW = new EngineItemType(
+            Identifier.parse("minecraft:mushroom_stew"), "Mushroom Stew", 1);
     public static final EngineItemType RABBIT_HIDE = new EngineItemType(
             Identifier.parse("minecraft:rabbit_hide"), "Rabbit Hide", 64);
     // The fish family (Slice 11i — the reference's Item.java lines 635-636:
@@ -610,6 +616,7 @@ public final class BuiltinItems {
                 GHAST_TEAR, NETHER_WART, SPIDER_EYE, FERMENTED_SPIDER_EYE,
                 BLAZE_POWDER, MAGMA_CREAM, GLISTERING_MELON, RABBIT_FOOT,
                 RABBIT, COOKED_RABBIT, RABBIT_STEW, RABBIT_HIDE,
+                BOWL, MUSHROOM_STEW,
                 FISH, COOKED_FISH,
                 BREWING_STAND,
                 OAK_SLAB, STONE_SLAB, COBBLESTONE_SLAB, SANDSTONE_SLAB,
