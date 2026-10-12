@@ -47,6 +47,22 @@ public final class EngineTicker {
     private volatile net.zaminmc.torch.server.concurrent.CrossOwnerRouter crossOwnerRouter;
     private volatile net.zaminmc.torch.server.concurrent.OwnershipDomain routerDomain;
     private long logicalTick;
+    /**
+     * The completed-tick snapshot the public scheduler reads from any
+     * thread to compute due times (§27.3): submissions see the LAST
+     * COMPLETED tick, so a delay of N lands at the Nth-next drain.
+     */
+    private volatile long completedTickView;
+    /**
+     * The public scheduler's due-time queue: due tick -> tasks, drained at
+     * the head of every tick on the owner's context. Submissions from any
+     * thread; one throwing body is logged and skipped (the tick's own
+     * policy), repeating bodies re-arm past the completed tick.
+     */
+    private final java.util.concurrent.ConcurrentSkipListMap<Long,
+            java.util.concurrent.ConcurrentLinkedQueue<
+                    net.zaminmc.torch.server.scheduler.EngineScheduledTask>> scheduledTasks =
+            new java.util.concurrent.ConcurrentSkipListMap<>();
     private final long tickIntervalNanos;
     private final AtomicBoolean running = new AtomicBoolean(false);
     private final Queue<Runnable> pendingWork = new ConcurrentLinkedQueue<>();
@@ -253,9 +269,68 @@ public final class EngineTicker {
         this.tickHandler = Objects.requireNonNull(handler, "handler");
     }
 
+    /**
+     * Schedules a body through the public scheduler's due-time queue
+     * (§27.3): a delay of N drains from the last completed tick, so the
+     * body runs at the Nth-next drain on the owner's context. An interval
+     * above 0 re-arms the body every interval drains until cancelled.
+     * Safe from any thread.
+     *
+     * @return the cancellation handle
+     */
+    public net.zaminmc.torch.scheduler.Task scheduleTask(int delayTicks, int intervalTicks,
+                                                          Runnable body) {
+        Objects.requireNonNull(body, "body");
+        long due = completedTickView + Math.max(1, delayTicks);
+        net.zaminmc.torch.server.scheduler.EngineScheduledTask task =
+                new net.zaminmc.torch.server.scheduler.EngineScheduledTask(
+                        due, intervalTicks, body);
+        scheduledTasks.computeIfAbsent(due,
+                        key -> new java.util.concurrent.ConcurrentLinkedQueue<>())
+                .add(task);
+        return task;
+    }
+
+    /**
+     * The due-time drain: every task whose due tick is at or before the
+     * in-flight tick runs once on this (the owner's) context, in due-then-
+     * submission order; repeating bodies re-arm past the in-flight tick.
+     * One throwing body is logged and skipped — the tick's own policy.
+     * Tick thread only.
+     */
+    private void drainScheduledTasks(long inFlightTick) {
+        while (!scheduledTasks.isEmpty() && scheduledTasks.firstKey() <= inFlightTick) {
+            java.util.concurrent.ConcurrentLinkedQueue<
+                    net.zaminmc.torch.server.scheduler.EngineScheduledTask> due =
+                    scheduledTasks.pollFirstEntry().getValue();
+            net.zaminmc.torch.server.scheduler.EngineScheduledTask task;
+            while ((task = due.poll()) != null) {
+                if (task.cancelled()) {
+                    continue;
+                }
+                try {
+                    task.run();
+                } catch (Throwable t) {
+                    LOGGER.log(java.util.logging.Level.SEVERE,
+                            "Scheduled task failed; skipping", t);
+                }
+                if (task.repeating() && !task.cancelled()) {
+                    long next = task.rearm(inFlightTick);
+                    scheduledTasks.computeIfAbsent(next,
+                                    key -> new java.util.concurrent.ConcurrentLinkedQueue<>())
+                            .add(task);
+                }
+            }
+        }
+    }
+
     /** Package-private: the test surface drives one tick directly. */
     void tickOnce() {
         try {
+            // The public scheduler's drain (§27.3): the tick now starting is
+            // the completed view + 1; every task due at or before it runs on
+            // this context, a repeating body re-arms past the same anchor.
+            drainScheduledTasks(completedTickView + 1);
             Runnable work;
             while ((work = pendingWork.poll()) != null) {
                 work.run();
@@ -290,6 +365,7 @@ public final class EngineTicker {
                 computeAttached.drainResults(computeOwner);
             }
             logicalTick++;
+            completedTickView = logicalTick;
             world.tickTime();
             EngineWorld nether = netherWorld;
             if (nether != null) {

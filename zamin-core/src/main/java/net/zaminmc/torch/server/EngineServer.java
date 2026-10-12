@@ -1162,6 +1162,31 @@ public final class EngineServer implements Server, EngineBridge {
         return blockRegistry;
     }
 
+    /** The public scheduler view (built on first use; the ticker exists from boot). */
+    @Override
+    public net.zaminmc.torch.scheduler.Scheduler scheduler() {
+        net.zaminmc.torch.scheduler.Scheduler view = schedulerView;
+        if (view == null) {
+            synchronized (this) {
+                view = schedulerView;
+                if (view == null) {
+                    view = new net.zaminmc.torch.server.scheduler.EngineScheduler(ticker);
+                    schedulerView = view;
+                }
+            }
+        }
+        return view;
+    }
+
+    /** The lazily-built public scheduler (§27.3) — see {@link #scheduler()}. */
+    private volatile net.zaminmc.torch.scheduler.Scheduler schedulerView;
+
+    @Override
+    public double tps(int windowSeconds) {
+        EngineTicker running = ticker;
+        return running == null ? 20.0 : running.averageTps(windowSeconds);
+    }
+
     /** The command dispatcher (public: the wire layer's tab completion reads it). */
     public CommandService commands() {
         return commands;
