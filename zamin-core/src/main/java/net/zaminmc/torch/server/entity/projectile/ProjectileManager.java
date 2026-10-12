@@ -96,6 +96,16 @@ public final class ProjectileManager {
         void splash(double x, double y, double z, int damage, Object directHit, int throwerId);
     }
 
+    /**
+     * The ghast fireball's detonation arm (FireballEntity.onHit: the
+     * explosion at the impact, the fire flag's mobGriefing default).
+     * Wired by the engine; runs on the tick thread.
+     */
+    public interface ExplosionSink {
+        /** The explosion at the point (the fireball's power). */
+        void explode(Position at, float power);
+    }
+
     /** Damage application callbacks (the engine owns the combat rules). */
     public interface CombatSink {
         /**
@@ -165,6 +175,8 @@ public final class ProjectileManager {
     private FireSink fireSink = (x, y, z) -> { };
     /** The potion's splash arm; optional until the engine wires it. */
     private PotionSink potionSink = (x, y, z, damage, directHit, throwerId) -> { };
+    /** The ghast fireball's explosion arm; optional until the engine wires it. */
+    private ExplosionSink explosionSink = (at, power) -> { };
 
     /** Wires the fireball's fire-placement arm. */
     public void setFireSink(FireSink sink) {
@@ -174,6 +186,11 @@ public final class ProjectileManager {
     /** Wires the potion's splash arm. */
     public void setPotionSink(PotionSink sink) {
         this.potionSink = Objects.requireNonNull(sink, "sink");
+    }
+
+    /** Wires the ghast fireball's explosion arm. */
+    public void setExplosionSink(ExplosionSink sink) {
+        this.explosionSink = Objects.requireNonNull(sink, "sink");
     }
 
     public ProjectileManager(SolidQuery solid, HitResolver hits, CombatSink combat,
@@ -274,6 +291,30 @@ public final class ProjectileManager {
                 directionX + random.nextGaussian() * 0.05,
                 directionY + random.nextGaussian() * 0.05,
                 directionZ + random.nextGaussian() * 0.05);
+        projectiles.add(projectile);
+        for (Listener listener : listeners) {
+            listener.onProjectileSpawned(projectile);
+        }
+        return projectile;
+    }
+
+    /**
+     * Launches the ghast's charged fireball (FireballEntity's shooter
+     * ctor): the raw direction toward the target's torso picks up the
+     * 0.4-sigma gaussian per axis (the reference's own spread — the ghast
+     * misses at range), then normalizes into the 0.1 acceleration. The
+     * thrower's id rides the body for the hit credit. Tick-thread context.
+     */
+    public ProjectileEntity launchGhastFireball(int throwerId, Position origin,
+                                                double directionX, double directionY,
+                                                double directionZ) {
+        ProjectileEntity projectile = new ProjectileEntity(nextEntityId++,
+                ProjectileEntity.Kind.LARGE_FIREBALL, throwerId, origin,
+                0.0, 0.0, 0.0);
+        projectile.setAccelerationFromDirection(
+                directionX + random.nextGaussian() * 0.4,
+                directionY + random.nextGaussian() * 0.4,
+                directionZ + random.nextGaussian() * 0.4);
         projectiles.add(projectile);
         for (Listener listener : listeners) {
             listener.onProjectileSpawned(projectile);
@@ -397,6 +438,17 @@ public final class ProjectileManager {
                 remove(projectile, "hit");
                 return true;
             }
+            if (projectile.kind() == ProjectileEntity.Kind.LARGE_FIREBALL) {
+                // FireballEntity.onHit: the explosion where the fireball
+                // lands (the fire flag's mobGriefing default — the fire
+                // placement stands in for the blast's own).
+                explosionSink.explode(point, 1.0f);
+                fireSink.tryPlaceFire((int) Math.floor(point.x()),
+                        (int) Math.floor(point.y()),
+                        (int) Math.floor(point.z()));
+                remove(projectile, "hit");
+                return true;
+            }
             if (projectile.kind() == ProjectileEntity.Kind.POTION) {
                 // The block splash (onCollision's null-entity arm: the box
                 // scan around the impact point alone).
@@ -421,6 +473,12 @@ public final class ProjectileManager {
             combat.mobIgniteFromProjectile(mob);
         }
         float damage = damageOf(projectile);
+        if (projectile.kind() == ProjectileEntity.Kind.LARGE_FIREBALL) {
+            // FireballEntity.onHit lines 33-37: the struck body takes the
+            // flat 6.0 fireball hit, then the explosion lands below (the
+            // fireball's own detonation, at the impact).
+            damage = 6.0f;
+        }
         double kbYaw = Math.atan2(-projectile.velocityX(), projectile.velocityZ());
         boolean landed = combat.mobHit(mob, damage, kbYaw, projectile.throwerId());
         if (projectile.kind() == ProjectileEntity.Kind.SMALL_FIREBALL && landed) {
@@ -442,6 +500,13 @@ public final class ProjectileManager {
                 }
             }
         }
+        if (projectile.kind() == ProjectileEntity.Kind.LARGE_FIREBALL) {
+            // FireballEntity.onHit: the detonation at the struck body.
+            explosionSink.explode(mob.position(), 1.0f);
+            fireSink.tryPlaceFire((int) Math.floor(projectile.position().x()),
+                    (int) Math.floor(projectile.position().y()),
+                    (int) Math.floor(projectile.position().z()));
+        }
         if (projectile.kind() == ProjectileEntity.Kind.EGG && rollEggHatch()) {
             combat.chickenHatch(mob.position());
         }
@@ -452,11 +517,20 @@ public final class ProjectileManager {
             combat.playerIgniteFromProjectile(player);
         }
         float damage = damageOf(projectile);
+        if (projectile.kind() == ProjectileEntity.Kind.LARGE_FIREBALL) {
+            // FireballEntity.onHit: the flat 6.0 fireball hit.
+            damage = 6.0f;
+        }
         double kbYaw = Math.atan2(-projectile.velocityX(), projectile.velocityZ());
         combat.playerHit(projectile, player, damage, kbYaw);
         if (projectile.kind() == ProjectileEntity.Kind.SMALL_FIREBALL) {
             // The five-second burn after the hit (the same onHit arm).
             combat.playerIgniteFromProjectile(player);
+        }
+        if (projectile.kind() == ProjectileEntity.Kind.LARGE_FIREBALL) {
+            // The detonation at the struck player (the fireball's own
+            // explosion, at the impact).
+            explosionSink.explode(player.position(), 1.0f);
         }
         if (projectile.kind() == ProjectileEntity.Kind.EGG && rollEggHatch()) {
             combat.chickenHatch(player.position());

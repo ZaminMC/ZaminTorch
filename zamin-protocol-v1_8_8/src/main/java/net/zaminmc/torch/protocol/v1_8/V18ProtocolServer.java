@@ -321,6 +321,14 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                 }
             }
 
+            /** The ghast's charging flag (the index-16 byte). */
+            @Override
+            public void onMobGhastChargingChanged(net.zaminmc.torch.server.entity.MobEntity mob) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendGhastCharging(mob);
+                }
+            }
+
             @Override
             public void onMobWitchAura(net.zaminmc.torch.server.entity.MobEntity mob) {
                 // The Entity Event byte 15 (WitchEntity.doEvent's spell

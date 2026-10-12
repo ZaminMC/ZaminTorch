@@ -181,6 +181,7 @@ final class Protocol18 {
     static final int OBJECT_EGG = 62;
     /** The dispensed fire charge (Slice 11a — community entities.json). */
     static final int OBJECT_SMALL_FIREBALL = 63;
+    static final int OBJECT_LARGE_FIREBALL = 64;
     /**
      * Thrown potion (TrackedEntity's own type 73 — the client builds it
      * with the objectData as the potion's damage value, so the bottle

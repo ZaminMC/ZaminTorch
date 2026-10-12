@@ -25,6 +25,10 @@ public final class ProjectileEntity {
         /** The dispensed fire charge (Slice 11a): accelerates along its
          * direction, places fire where it lands, burns what it hits. */
         SMALL_FIREBALL(63),
+        /** The ghast's charged fireball (Slice 16c — FireballEntity):
+         * the same accelerating flight, the 6.0 direct hit plus the
+         * power-1 explosion where it lands. */
+        LARGE_FIREBALL(64),
         /** The thrown potion (Slice 11b): splashes its effect set where it
          * lands, carrying the potion metadata as the payload. */
         POTION(68);
@@ -95,6 +99,16 @@ public final class ProjectileEntity {
     public ProjectileEntity(int entityId, Kind kind, Position position,
                             double directionX, double directionY, double directionZ) {
         this(entityId, kind, -1, position, 0.0, 0.0, 0.0);
+        setAccelerationFromDirection(directionX, directionY, directionZ);
+    }
+
+    /**
+     * The fireball family's acceleration from a raw direction (the
+     * reference's ctor normalize-and-scale walk, ProjectileEntity lines
+     * 50-58): normalized, then scaled to the 0.1 per-tick push. The
+     * shooter's own jitter lands on the components BEFORE this.
+     */
+    void setAccelerationFromDirection(double directionX, double directionY, double directionZ) {
         double length = Math.sqrt(directionX * directionX + directionY * directionY
                 + directionZ * directionZ);
         if (length < 1.0E-4) {
