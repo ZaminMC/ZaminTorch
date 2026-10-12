@@ -57,4 +57,12 @@ public interface Server {
      * snapshot of the completed-tick window.
      */
     double tps(int windowSeconds);
+
+    /**
+     * The dispenser's behavior registry (§27.3's registration surface):
+     * register and reset per-item dispense behaviors. The verbs are safe
+     * from any thread (admitted onto the owner lane); {@code behaviorOf}
+     * confirms.
+     */
+    net.zaminmc.torch.dispenser.DispenseBehaviors dispenserBehaviors();
 }

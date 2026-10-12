@@ -77,7 +77,7 @@ Stability classes (§27.4): `Stable`, `Experimental`, `Internal`.
 | Crafting | `CraftingService` | none | any thread (pure) | — | — | — | NOT AUDITED | recipe registry read |
 | Brewing | `PotionSystem` | none | owner | — | — | — | NOT AUDITED | — |
 | Enchanting | `EnchantmentHelper`, enchanting menu | none | owner | — | — | — | NOT AUDITED | — |
-| Dispensers | `DispenserSystem` | none | owner | behavior registry | — | — | NOT AUDITED | behavior registration (§27.3) |
+| Dispensers | `DispenserSystem` | **`Server.dispenserBehaviors()`** → `dispenser.DispenseBehaviors` — `register(ItemType, DispenseBehavior)` (the custom overrides the built-in switch, the public stand-in for the reference's Bootstrap table), `reset(ItemType)` (back to the built-in answer or the default drop), `behaviorOf` (the custom-confirmation read; empty = built-in/default) | register/reset safe from any thread (admitted onto the world's owner lane, §27.6 — `behaviorOf` confirms); the behavior runs inside the dispense walk on the owner lane with the live `DispenseContext` (world/origin/facing/stack/facingCell — the engine object IS the handle) | the registration table (a throwing behavior is logged, the stack stays) | Experimental | `DispenseBehaviorApiAcceptanceTest` (2) | IMPLEMENTED | the built-in behaviors are not addressable as public objects (wrap-composition rides a later wave); the default item drop has no replace verb; no dispense observe/cancel event yet (the interaction-events wave) |
 | TNT | `TntSystem` | none | owner | internal listeners | — | — | NOT AUDITED | — |
 | Spawners | `SpawnerManager` | none | owner | — | — | — | NOT AUDITED | — |
 | Fluids | `FluidSystem` | none | owner | — | — | — | NOT AUDITED | — |
