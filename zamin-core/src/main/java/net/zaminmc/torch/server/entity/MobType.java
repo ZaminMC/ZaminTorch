@@ -220,7 +220,31 @@ public enum MobType {
     ZOMBIE_PIGMAN(57, 0.6, 1.8, 20.0f, 0.037, true, Traits.NONE,
             List.of(), // the custom drop walk (ZombiePigmanEntity.dropItems)
             "mob.zombiepig.zpig", "mob.zombiepig.zpighurt", "mob.zombiepig.zpigdeath",
-            5.0f);
+            5.0f),
+
+    /**
+     * The water column's swimmer (Slice 16e — SquidEntity): the silent
+     * 0.95x0.95/10-health body, the tentacle-cycle swim (the direction
+     * target re-rolled on the 1-in-50 cadence, the speed pulsing with
+     * the stroke), the out-of-water sink, and the y 45-seaLevel water
+     * spawn band. The walkSpeed field is unused — the swim owns the
+     * movement.
+     */
+    SQUID(94, 0.95, 0.95, 10.0f, 0.0, false, Traits.NONE,
+            List.of(), // the custom drop walk (SquidEntity.dropItems)
+            "", "", ""),
+
+    /**
+     * The cave's hanger (Slice 16e — BatEntity): the 0.5x0.9/6-health
+     * silent-mostly body, the roosting flag (index 16 bit 0 — the
+     * ceiling hang), the wander flight toward the re-rolled hangPos
+     * (±7/±6 cube, every 30 ticks), the un-roost on a player within 4
+     * or a vanished ceiling, and the 1-in-100 re-roost on a solid block
+     * above. The walkSpeed field is unused — the flight owns it.
+     */
+    BAT(65, 0.5, 0.9, 6.0f, 0.0, false, Traits.NONE,
+            List.of(), // no drops (BatEntity's null getDropItem)
+            "mob.bat.idle", "mob.bat.hurt", "mob.bat.death");
 
     /**
      * The AI trait set beyond the walk-chase-panic baseline.

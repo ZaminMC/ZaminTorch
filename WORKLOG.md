@@ -2878,3 +2878,31 @@ the delayed sound, the group anger through the manager).
 
 Fresh suite: **905 green (812 core + 19 api + 74 protocol)**,
 `--max-workers=1`, zero failures.
+
+## Slice 16e — the squid and the bat (the ambient/water categories)
+
+**Scope**: the two remaining spawn categories — SquidEntity's swim and
+BatEntity's roost cycle — plus the category buckets.
+
+**The squid**: the tentacle-cycle swim (the 2π stroke phasing the drive,
+the 1-in-50 direction target, the direct velocity set), the stranded
+sink, the ink-sac drop (the dye family's first wire member), the
+y 45-seaLevel in-water spawn gate.
+
+**The bat**: the roosting flag (the index-16 byte), the ceiling hold
+with the player-within-4 wake, the hangPos wander flight with the
+signum-band lerp, the 1-in-100 re-roost, the ceiling snap.
+
+**The categories**: AMBIENT (bat 10/8-8) + WATER_CREATURE (squid
+10/4-4) with their caps (15/5); countByCategory's four buckets; the
+custom minds (ghast/squid/bat) now preempt the goal layer — their
+reference goal sets carry no shared goals. The NetherMonsterTest's
+gravity check hardened (the flight's random target can point down —
+the assertion now pins the no-gravity bound, |vy| < 1.5).
+
+**Tests**: SquidAndBatTest (3); the spawn tests updated for the ambient
+bucket (the bats spawn on the always-on cadence — MobCategory.AMBIENT
+is not rare).
+
+Fresh suite: **908 green (815 core + 19 api + 74 protocol)**,
+`--max-workers=1`, zero failures.

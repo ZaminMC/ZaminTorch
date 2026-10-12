@@ -112,11 +112,23 @@ class NaturalSpawnSystemTest {
         int countOf(NaturalSpawnSystem.Category category) {
             int count = 0;
             for (MobType type : types) {
-                if (type.hostile == (category == NaturalSpawnSystem.Category.MONSTER)) {
+                if (categoryOf(type) == category) {
                     count++;
                 }
             }
             return count;
+        }
+
+        static NaturalSpawnSystem.Category categoryOf(MobType type) {
+            if (type == MobType.SQUID) {
+                return NaturalSpawnSystem.Category.WATER_CREATURE;
+            }
+            if (type == MobType.BAT) {
+                return NaturalSpawnSystem.Category.AMBIENT;
+            }
+            return type.hostile
+                    ? NaturalSpawnSystem.Category.MONSTER
+                    : NaturalSpawnSystem.Category.CREATURE;
         }
     }
 
@@ -289,6 +301,9 @@ class NaturalSpawnSystemTest {
         }
         assertEquals(0, spawned.countOf(NaturalSpawnSystem.Category.CREATURE),
                 "the rare gate holds the animal cycle");
+        // Slice 16e: the bats' AMBIENT category carries no rare cadence
+        // (MobCategory.AMBIENT is not rare) — the caves may fill while the
+        // animals wait.
         // The rare cadence + daylight: the animals land (the grass + the
         // light both pass).
         int animals = 0;
@@ -331,8 +346,8 @@ class NaturalSpawnSystemTest {
         NaturalSpawnSystem system = new NaturalSpawnSystem(
                 spawnSink(crowded), world, new Random(5));
         system.tick(List.of(walker), 18000L, false);
-        assertEquals(71, crowded.types.size(),
-                "the count over the cap (71 > 70) refuses the cycle");
+        assertEquals(71, crowded.countOf(NaturalSpawnSystem.Category.MONSTER),
+                "the count over the cap (71 > 70) refuses the monster cycle");
         // At exactly 70 the cycle still walks (the reference's own <=).
         crowded.types.remove(0); // 70 left
         system.tick(List.of(walker), 18000L, false);

@@ -1324,14 +1324,30 @@ public final class MobManager {
      * -24000 childhood the breeding model grows through).
      */
     public int countByCategory(net.zaminmc.torch.server.spawn.NaturalSpawnSystem.Category category) {
-        boolean hostile = category == net.zaminmc.torch.server.spawn.NaturalSpawnSystem.Category.MONSTER;
         int count = 0;
         for (MobEntity mob : mobs) {
-            if (mob.type().hostile == hostile) {
+            if (categoryOf(mob.type()) == category) {
                 count++;
             }
         }
         return count;
+    }
+
+    /**
+     * The kind's spawn category (the reference's MobCategory mapping):
+     * the hostile kinds are MONSTER, the squid alone is WATER_CREATURE,
+     * the bat alone is AMBIENT, everything else is CREATURE.
+     */
+    private static net.zaminmc.torch.server.spawn.NaturalSpawnSystem.Category categoryOf(MobType type) {
+        if (type == MobType.SQUID) {
+            return net.zaminmc.torch.server.spawn.NaturalSpawnSystem.Category.WATER_CREATURE;
+        }
+        if (type == MobType.BAT) {
+            return net.zaminmc.torch.server.spawn.NaturalSpawnSystem.Category.AMBIENT;
+        }
+        return type.hostile
+                ? net.zaminmc.torch.server.spawn.NaturalSpawnSystem.Category.MONSTER
+                : net.zaminmc.torch.server.spawn.NaturalSpawnSystem.Category.CREATURE;
     }
 
     /** Spawns one mob at the exact position (the natural cycle's own). */

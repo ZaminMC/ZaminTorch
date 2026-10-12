@@ -181,8 +181,20 @@ public final class NaturalSpawnSystem {
                     new SpawnEntry(MobType.CHICKEN, 10, 4, 4),
                     new SpawnEntry(MobType.COW, 8, 4, 4),
                     new SpawnEntry(MobType.HORSE, 5, 2, 6));
-            default -> List.of(); // no ambient/water mobs yet (the entity slices)
+            case AMBIENT -> List.of(
+                    // Biome line 292: the bat's own ambient row.
+                    new SpawnEntry(MobType.BAT, 10, 8, 8));
+            case WATER_CREATURE -> List.of(
+                    // Biome line 277: the squid's own water row.
+                    new SpawnEntry(MobType.SQUID, 10, 4, 4));
+            default -> List.of();
         };
+    }
+
+    /** @return whether the cell holds water (the squid's gate reads the block). */
+    private boolean isWaterAt(int x, int y, int z) {
+        Object block = world.blockAt(new BlockPosition(x, y, z));
+        return block != null && block.toString().contains("water");
     }
 
     // ------------------------------------------------------------------
@@ -410,6 +422,11 @@ public final class NaturalSpawnSystem {
      * cz*389711 ^ 987234911L}), then the {@code y < 40} depth gate.
      */
     private boolean canSpawnAt(MobType type, int x, int y, int z, int chunkX, int chunkZ) {
+        if (type == MobType.SQUID) {
+            // SquidEntity.canSpawn: the y 45-seaLevel band, in water.
+            return y > 45 && y < 62
+                    && isWaterAt(x, y, z);
+        }
         if (type != MobType.SLIME) {
             return true; // every other kind carries no entity-level gate
         }
