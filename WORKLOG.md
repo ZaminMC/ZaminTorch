@@ -2074,3 +2074,60 @@ fresh full-suite count **718 green in zamin-core** (+5),
 **Next:** the §27.3 checklist continues — the scheduler/task controls
 (delayed/repeating), then back to the vanilla rows: the worldgen animal
 seeding, the remaining spawn categories.
+
+## Slice 12h — the worldgen animal seeding (populateChunk 1:1)
+
+**The reference port** (`NaturalSpawner.populateChunk` lines 164-215, called
+from `OverworldChunkGenerator.populateChunk` line 393 — the populate step's
+LAST pass):
+
+- **The group roll**: the `while (nextFloat() < 0.1)` chance
+  (Biome.getAnimalSpawnChance), the weighted pick (the cumulative walk),
+  the group size `min + nextInt(1 + max - min)`.
+- **The per-biome creature tables 1:1**: the default family (sheep 12/4-4,
+  pig 10, chicken 10, cow 8 — the rabbit row ledgers with the rabbit
+  slice), the desert's `passiveEntries.clear()`, the ocean's clear, the
+  plains' horse row (5/2-6), the jungle's own SECOND chicken (the
+  reference's own duplicate), the forest's wolf (ledgers with the wolf
+  slice). The biome read at the chunk's +16 corner (the reference's own
+  position).
+- **The placement walk**: the 4 attempts per member, the surface height
+  (the terrain's heights +1 in-chunk, the pure heightAt out-of-chunk —
+  the Slice 12b deterministic contract), the ON_GROUND gate (solid
+  ground, air cell, air above), the +0.5 centering, the yaw roll
+  `nextFloat() * 360`.
+- **The drift + the leash**: the reference's own `nextInt(5) -
+  nextInt(5)` walk with the re-anchor loop (the k bound's rangeX quirk
+  included — identical at 16 == 16).
+- **The horse group's shared entitydata**
+  (HorseBaseEntity.initialize lines 1262-1280): the first member rolls
+  the subtype (1-in-10 the donkey) + the coat (`nextInt(7) | nextInt(5)
+  << 8`), the pack shares the type + the color byte and re-rolls the
+  marking, the baby is the per-member 1-in-5.
+- **The pending-animal records** (`EngineChunk.PendingAnimal`): the
+  generator records while the chunk is detached; the tick drain
+  materializes exactly once (the villagers' own pattern) with the
+  pack-cohesion idempotence guard (`mobOfKindNear`, radius 8 — the
+  widened villagerNear).
+- **The tick cycle's yaw roll** (the reference's setPositionAndAngles at
+  line 109): the NaturalSpawnSystem's walk now rolls `nextFloat() * 360`
+  with the spawn.
+- **The horse constructor dice corrected to the reference's exact
+  shapes** (the 1-in-10 donkey, the `nextInt(7) | nextInt(5) << 8` coat
+  — replacing the approximate 1-in-5/60%-plain split).
+- **The synthetic `populateInitial` REMOVED** (the fresh world's
+  animals arrive through the vanilla path — the pregenerated spawn
+  chunks' pending animals drain on the first tick).
+
+**Tests**: `WorldgenAnimalSeedingTest` (5: the deterministic regeneration,
+the spread across a 144-chunk land area with only passive kinds, the
+placement invariants — the +0.5 centering, the yaw band, the world
+bounds —, the horse group's shared dice (a 3+ horse chunk's consecutive
+pair), the per-chunk stream independence). The natural-spawn fake's
+signature updated (the yaw param). The fresh full-suite count **723
+green in zamin-core** (+5), `--max-workers=1`, one projectile-test load
+flake (the documented class, green in isolation).
+
+**Next:** the remaining vanilla rows — the slime/enderman/witch spawn
+rows (their entity slices), the dispenser's spawn eggs, or the §27 API
+waves (the scheduler/task controls, the container/inventory surface).

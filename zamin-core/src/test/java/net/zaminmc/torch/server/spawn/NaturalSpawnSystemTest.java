@@ -119,7 +119,7 @@ class NaturalSpawnSystemTest {
     private static NaturalSpawnSystem.Mobs spawnSink(Spawned ledger) {
         return new NaturalSpawnSystem.Mobs() {
             @Override
-            public void spawn(MobType type, Position at, boolean baby) {
+            public void spawn(MobType type, Position at, boolean baby, float yaw) {
                 ledger.add(type, at, baby);
             }
 

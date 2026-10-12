@@ -2,8 +2,10 @@ package net.zaminmc.torch.server.world;
 
 import net.zaminmc.torch.block.BlockRegistry;
 import net.zaminmc.torch.block.BlockType;
+import net.zaminmc.torch.server.entity.MobType;
 import net.zaminmc.torch.util.Identifier;
 
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -230,6 +232,9 @@ public final class NormalWorldGenerator implements WorldGenerator {
         // scan + the clipped piece writes, after the terrain and the
         // flora exactly like the reference's populate step.
         populateStructures(chunk, baseX, baseZ);
+        // The animal seeding (the reference's populate step's LAST pass —
+        // OverworldChunkGenerator line 393, after biome.decorate).
+        seedAnimals(chunk, baseX, baseZ, heights);
     }
 
     /**
@@ -418,6 +423,211 @@ public final class NormalWorldGenerator implements WorldGenerator {
     private boolean isCave(int x, int y, int z) {
         double worm = fbm3(x * 0.045, y * 0.09, z * 0.045);
         return worm > 0.74;
+    }
+
+    // ---------------------------------------------------------- worldgen animal seeding
+    // (NaturalSpawner.populateChunk 1:1 — the reference's populate step's
+    // LAST pass: OverworldChunkGenerator.populateChunk line 393)
+
+    /** Biome.getAnimalSpawnChance (line 401): the flat 10% seeding chance. */
+    private static final float ANIMAL_SPAWN_CHANCE = 0.1F;
+
+    /** One creature row of a biome's table (Biome.SpawnEntry). */
+    private record CreatureRow(net.zaminmc.torch.server.entity.MobType type,
+                               int weight, int minGroup, int maxGroup) {
+    }
+
+    /**
+     * The biome's creature table 1:1 (the reference's own rows over the
+     * engine's mob set): the default family (Biome lines 279-283 — the
+     * rabbit row ledgers with the rabbit slice), the desert's clear (its
+     * line 12), the ocean's clear (its line 10), the plains' horse row
+     * (PlainsBiome line 17), the jungle's second chicken (JungleBiome
+     * line 51 — the reference's own duplicate), the forest's wolf (its
+     * line 48, ledgers with the wolf slice).
+     */
+    private List<CreatureRow> creatureRowsFor(Biome biome) {
+        return switch (biome) {
+            case DESERT, OCEAN, DEEP_OCEAN -> List.of(); // the cleared tables
+            case JUNGLE -> List.of(
+                    new CreatureRow(MobType.SHEEP, 12, 4, 4),
+                    new CreatureRow(MobType.PIG, 10, 4, 4),
+                    new CreatureRow(MobType.CHICKEN, 10, 4, 4),
+                    new CreatureRow(MobType.CHICKEN, 10, 4, 4), // JungleBiome's own second row
+                    new CreatureRow(MobType.COW, 8, 4, 4));
+            case PLAINS -> List.of(
+                    new CreatureRow(MobType.SHEEP, 12, 4, 4),
+                    new CreatureRow(MobType.PIG, 10, 4, 4),
+                    new CreatureRow(MobType.CHICKEN, 10, 4, 4),
+                    new CreatureRow(MobType.COW, 8, 4, 4),
+                    new CreatureRow(MobType.HORSE, 5, 2, 6)); // PlainsBiome line 17
+            default -> List.of( // FOREST + the default family
+                    new CreatureRow(MobType.SHEEP, 12, 4, 4),
+                    new CreatureRow(MobType.PIG, 10, 4, 4),
+                    new CreatureRow(MobType.CHICKEN, 10, 4, 4),
+                    new CreatureRow(MobType.COW, 8, 4, 4));
+        };
+    }
+
+    /**
+     * The animal seeding walk (NaturalSpawner.populateChunk lines 164-215,
+     * 1:1): the {@code while (nextFloat() < 0.1)} group roll, the weighted
+     * pick, the group size, the 4-attempt placement per member with the
+     * +8/+16 region and the nextInt(5) drift walk with the leash re-anchor,
+     * the horse group's shared dice (the reference's initialize: the first
+     * member's type + color, the re-rolled marking per member, the 1-in-5
+     * baby), and the yaw roll per placed member.
+     *
+     * <p>The animals join the world through the chunk's pending records —
+     * the drain materializes them exactly once (the villagers' own
+     * pattern). The region is the reference's own {@code [chunk+8,
+     * chunk+24)} span: the records ride THIS chunk even when a member
+     * walks into the neighbor's strip (the reference's addEntity is
+     * world-global; the engine's mob manager is too).</p>
+     */
+    private void seedAnimals(EngineChunk chunk, int baseX, int baseZ, int[][] heights) {
+        // The reference reads the biome at the chunk's +16 corner
+        // (OverworldChunkGenerator line 336: blockpos.add(16, 0, 16)).
+        Biome biome = biomeAt(baseX + 16, baseZ + 16);
+        List<CreatureRow> rows = creatureRowsFor(biome);
+        if (rows.isEmpty()) {
+            return;
+        }
+        // The deterministic per-chunk random (the reference's
+        // setRandomSeed(chunkX * k + chunkZ * l ^ seed) equivalent — the
+        // engine's hash-seed family).
+        long chunkSeed = seed ^ (chunk.position().x() * 0x68E31DA4L)
+                ^ (chunk.position().z() * 0xB5297A4DL);
+        java.util.Random random = new java.util.Random(chunkSeed);
+        int totalWeight = 0;
+        for (CreatureRow row : rows) {
+            totalWeight += row.weight();
+        }
+        int centerX = baseX + 8;
+        int centerZ = baseZ + 8;
+
+        while (random.nextFloat() < ANIMAL_SPAWN_CHANCE) {
+            // WeightedPicker.pick: the cumulative walk over the table.
+            int roll = random.nextInt(totalWeight);
+            CreatureRow picked = rows.get(rows.size() - 1);
+            int cumulative = 0;
+            for (CreatureRow row : rows) {
+                cumulative += row.weight();
+                if (roll < cumulative) {
+                    picked = row;
+                    break;
+                }
+            }
+            int groupSize = picked.minGroup()
+                    + random.nextInt(1 + picked.maxGroup() - picked.minGroup());
+            int j = centerX + random.nextInt(16);
+            int k = centerZ + random.nextInt(16);
+            int anchorJ = j;
+            int anchorK = k;
+            // The horse group's shared entitydata (the reference's
+            // EntityHorseGroupData: null until the first horse initializes).
+            Integer horseSubtype = null;
+            int horseColor = 0;
+
+            for (int member = 0; member < groupSize; member++) {
+                boolean placed = false;
+                for (int attempt = 0; !placed && attempt < 4; attempt++) {
+                    int surfaceY = surfaceYFor(chunk, heights, baseX, baseZ, j, k);
+                    if (validAnimalGround(chunk, baseX, baseZ, j, k, surfaceY)) {
+                        float yaw = random.nextFloat() * 360.0F;
+                        int subtype = 0;
+                        int variant = 0;
+                        if (picked.type() == net.zaminmc.torch.server.entity.MobType.HORSE) {
+                            // HorseBaseEntity.initialize (lines 1262-1280): the
+                            // first member rolls the type + the coat, the pack
+                            // shares the type + the color and re-rolls markings.
+                            if (horseSubtype == null) {
+                                if (random.nextInt(10) == 0) {
+                                    horseSubtype = net.zaminmc.torch.server.entity.MobEntity
+                                            .HORSE_SUBTYPE_DONKEY;
+                                    subtype = horseSubtype;
+                                } else {
+                                    horseSubtype = net.zaminmc.torch.server.entity.MobEntity
+                                            .HORSE_SUBTYPE_HORSE;
+                                    subtype = horseSubtype;
+                                    variant = random.nextInt(7) | random.nextInt(5) << 8;
+                                    horseColor = variant & 0xFF;
+                                }
+                            } else {
+                                subtype = horseSubtype;
+                                variant = horseColor | random.nextInt(5) << 8;
+                            }
+                        }
+                        boolean baby = picked.type() == net.zaminmc.torch.server.entity.MobType.HORSE
+                                && random.nextInt(5) == 0;
+                        chunk.addPendingAnimal(new net.zaminmc.torch.server.world.EngineChunk
+                                .PendingAnimal(picked.type(), j + 0.5, surfaceY, k + 0.5,
+                                yaw, baby, subtype, variant));
+                        placed = true;
+                    }
+                    // The drift + the leash (the reference's own loop shape,
+                    // lines 205-215 — the k bound checks rangeX, the
+                    // reference's own quirk; identical here at 16 == 16).
+                    j += random.nextInt(5) - random.nextInt(5);
+                    for (k += random.nextInt(5) - random.nextInt(5);
+                            j < centerX || j >= centerX + 16
+                                    || k < centerZ || k >= centerZ + 16;
+                            k = anchorK + random.nextInt(5) - random.nextInt(5)) {
+                        j = anchorJ + random.nextInt(5) - random.nextInt(5);
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * The surface height for the seeding (the reference's
+     * getSurfaceHeight): the first free cell above the ground — in-chunk
+     * the generated terrain's own height, out-of-chunk the pure heightAt
+     * (the deterministic neighbor answer, Slice 12b's own contract).
+     */
+    private int surfaceYFor(EngineChunk chunk, int[][] heights, int baseX, int baseZ,
+                            int x, int z) {
+        int localX = x - baseX;
+        int localZ = z - baseZ;
+        if (localX >= 0 && localX < 16 && localZ >= 0 && localZ < 16) {
+            return heights[localX][localZ] + 1;
+        }
+        return heightAt(x, z) + 1;
+    }
+
+    /**
+     * The placement gate (isValidSpawnPos' ON_GROUND arm, lines 137-157):
+     * the ground below is a solid block (not bedrock), the cell itself is
+     * not solid, and the cell above is not solid either. In-chunk reads
+     * from the chunk (the trees' trunks refuse), out-of-chunk from the
+     * pure terrain (the Slice 12b contract).
+     */
+    private boolean validAnimalGround(EngineChunk chunk, int baseX, int baseZ,
+                                      int x, int z, int surfaceY) {
+        if (surfaceY <= 1 || surfaceY > 255) {
+            return false;
+        }
+        BlockType ground = blockFor(chunk, baseX, baseZ, x, surfaceY - 1, z);
+        if (!net.zaminmc.torch.server.block.WorldSolidity.isSolid(ground)
+                || ground.equals(bedrock)) {
+            return false;
+        }
+        BlockType cell = blockFor(chunk, baseX, baseZ, x, surfaceY, z);
+        BlockType above = blockFor(chunk, baseX, baseZ, x, surfaceY + 1, z);
+        return !net.zaminmc.torch.server.block.WorldSolidity.isSolid(cell)
+                && !net.zaminmc.torch.server.block.WorldSolidity.isSolid(above);
+    }
+
+    /** One cell read: the chunk inside, the pure terrain outside. */
+    private BlockType blockFor(EngineChunk chunk, int baseX, int baseZ,
+                               int x, int y, int z) {
+        int localX = x - baseX;
+        int localZ = z - baseZ;
+        if (localX >= 0 && localX < 16 && localZ >= 0 && localZ < 16) {
+            return chunk.getBlock(localX, y, localZ);
+        }
+        return surfaceBlockAt(x, y, z);
     }
 
     // ------------------------------------------------------------------ noise core

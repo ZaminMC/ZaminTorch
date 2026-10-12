@@ -521,13 +521,16 @@ public final class EngineServer implements Server, EngineBridge {
                 this.mobManager = mobs;
                 mobs.addListener(new MobEventDispatch());
                 mobs.setEventBus(eventBus); // §27.7: the public spawn gate
-                // Mob persistence (ZMD v1): the population survives restarts; the
-                // boot packs roll only for a fresh world (no restored mobs) — the
-                // maintainer keeps a restored world topped up while players play.
+                // Mob persistence (ZMD v1): the population survives restarts;
+                // a fresh world's animals arrive through the vanilla worldgen
+                // seeding (NaturalSpawner.populateChunk — the seedAnimals pass
+                // + the populate drain), replacing the old synthetic spawn
+                // packs (Slice 12h).
                 mobStore = new MobDataStore(config.worldDataDir().resolve("mobs.bin"));
                 boolean mobsRestored = mobs.restoreAll(mobStore.load());
                 if (!mobsRestored) {
-                    mobs.populateInitial(world.spawnPosition());
+                    // Fresh world: nothing to restore — the pregenerated
+                    // spawn chunks' pending animals drain on the first tick.
                 }
                 // Mob spawners (Slice 12g): the structure-placed spawner
                 // blocks' state + the spawn walk.
@@ -7165,6 +7168,31 @@ public final class EngineServer implements Server, EngineBridge {
                     }
                     chunk.pendingVillagers().clear();
                 }
+                if (!chunk.pendingAnimals().isEmpty()) {
+                    for (net.zaminmc.torch.server.world.EngineChunk.PendingAnimal pending
+                            : chunk.pendingAnimals()) {
+                        // The restart idempotence guard (the villagers' own
+                        // pattern, widened to the pack-cohesion radius — a
+                        // group stays within a few blocks of its records).
+                        if (mobManager.mobOfKindNear(pending.type(),
+                                pending.x(), pending.y(), pending.z(), 8.0)) {
+                            continue;
+                        }
+                        MobEntity animal = mobManager.spawnAt(pending.type(),
+                                new Position(pending.x(), pending.y(), pending.z()));
+                        if (animal != null) {
+                            animal.setBodyYaw(pending.yaw());
+                            if (pending.type() == net.zaminmc.torch.server.entity.MobType.HORSE) {
+                                animal.setHorseSubtype(pending.horseSubtype());
+                                animal.setHorseVariant(pending.horseVariant());
+                            }
+                            if (pending.baby()) {
+                                animal.setBreedingAge(-24_000);
+                            }
+                        }
+                    }
+                    chunk.pendingAnimals().clear();
+                }
                 if (!chunk.pendingGenChests().isEmpty()) {
                     for (net.zaminmc.torch.server.world.EngineChunk.PendingGenChest pending
                             : chunk.pendingGenChests()) {
@@ -7304,8 +7332,9 @@ public final class EngineServer implements Server, EngineBridge {
     private record SpawnSurface(MobManager mobs)
             implements net.zaminmc.torch.server.spawn.NaturalSpawnSystem.Mobs {
         @Override
-        public void spawn(net.zaminmc.torch.server.entity.MobType type, Position at, boolean baby) {
-            mobs.spawnNatural(type, at, baby);
+        public void spawn(net.zaminmc.torch.server.entity.MobType type, Position at,
+                          boolean baby, float yaw) {
+            mobs.spawnNatural(type, at, baby, yaw);
         }
 
         @Override
