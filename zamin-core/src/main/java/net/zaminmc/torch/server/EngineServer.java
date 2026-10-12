@@ -5995,6 +5995,12 @@ public final class EngineServer implements Server, EngineBridge {
                 interactWolfOnTick(player, mob);
                 return;
             }
+            // The ocelot branch (Slice 15e — OcelotEntity.interactMob's own
+            // ladder): the fish tame, the sit toggle.
+            if (mob.type() == net.zaminmc.torch.server.entity.MobType.OCELOT) {
+                interactOcelotOnTick(player, mob);
+                return;
+            }
             // The animal branch: the breeding foods (the vanilla interactMob
             // feeding arm — love for adults, growth for babies) plus the
             // sheep's shears (the interactMob order: shears first).
@@ -6037,6 +6043,8 @@ public final class EngineServer implements Server, EngineBridge {
                     || heldId.equals("minecraft:cooked_chicken")
                     || heldId.equals("minecraft:rabbit")
                     || heldId.equals("minecraft:cooked_rabbit");
+            // OcelotEntity.isBreedingItem: the raw fish only.
+            case OCELOT -> heldId.equals("minecraft:fish");
             default -> false;
         };
     }
@@ -6153,6 +6161,52 @@ public final class EngineServer implements Server, EngineBridge {
         // The fall-through: the shared animal feed (the tamed-only breed
         // arm — the wolf's isBreedingItem is the meat family).
         feedAnimal(player, mob);
+    }
+
+    /**
+     * The ocelot's right-click ladder (OcelotEntity.interactMob): a TAMED
+     * body takes the owner's empty-hand sit toggle; an UNTAMED body within
+     * 3 blocks takes the raw fish — the 1-in-3 tame roll with the coat's
+     * own {@code 1 + nextInt(3)} variant and the entity-event verdict (7
+     * hearts, 6 smoke). The reference's tempt-gate (the slow approach with
+     * the fish) and the creep-flee family ledger with the player-velocity
+     * wave — the distance gate carries the tame's reach here. The breeding
+     * (the raw fish) falls through to the shared animal feed.
+     */
+    private void interactOcelotOnTick(PlayerSession player, MobEntity mob) {
+        double dx = mob.position().x() - player.position().x();
+        double dy = mob.position().y() - player.position().y();
+        double dz = mob.position().z() - player.position().z();
+        if (dx * dx + dy * dy + dz * dz >= 9.0) {
+            return; // squaredDistanceTo >= 9: out of the reference's own reach
+        }
+        var inventory = player.inventory();
+        ItemStack held = inventory.held();
+        String heldId = held.type() == null ? "" : held.type().identifier().toString();
+
+        if (mob.wolfTamed()) {
+            // The owner's empty-hand verb: the sit toggle (a held breeding
+            // fish feeds through the fall-through instead).
+            if (mob.ownerName().equals(player.name())
+                    && !isBreedingItem(mob.type(), heldId)) {
+                mob.toggleWolfSitting();
+                publishWolfState(mob);
+                return;
+            }
+        } else if (heldId.equals("minecraft:fish")) {
+            // The tame roll (interactMob lines 158-176): the fish is eaten;
+            // the 1-in-3 lands the flag, the coat, the owner, the sit.
+            eatFromHand(player);
+            if (gameplayRandom.nextInt(3) == 0) {
+                mob.tameOcelot(player.name(), 1 + gameplayRandom.nextInt(3));
+                publishWolfState(mob);
+                sendMobStatusToAll(mob, 7); // the taming hearts
+            } else {
+                sendMobStatusToAll(mob, 6); // the taming smoke
+            }
+            return;
+        }
+        feedAnimal(player, mob); // the raw-fish breed arm
     }
 
     /** @return the wolf feed's heal value (the FoodItem hunger points, 0 when not meat). */

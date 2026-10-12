@@ -455,7 +455,11 @@ public final class NormalWorldGenerator implements WorldGenerator {
                     new CreatureRow(MobType.PIG, 10, 4, 4),
                     new CreatureRow(MobType.CHICKEN, 10, 4, 4),
                     new CreatureRow(MobType.CHICKEN, 10, 4, 4), // JungleBiome's own second row
-                    new CreatureRow(MobType.COW, 8, 4, 4));
+                    new CreatureRow(MobType.COW, 8, 4, 4),
+                    // JungleBiome's ocelot (line 48: weight 2, 1-1 — the
+                    // reference rides its monster list; the populate seeding
+                    // carries it here, the jungle-only row, Slice 15e).
+                    new CreatureRow(MobType.OCELOT, 2, 1, 1));
             case PLAINS -> List.of(
                     new CreatureRow(MobType.SHEEP, 12, 4, 4),
                     new CreatureRow(MobType.RABBIT, 10, 3, 3),

@@ -83,6 +83,20 @@ public enum MobType {
             List.of(),
             "mob.wolf.bark", "mob.wolf.hurt", "mob.wolf.death"),
 
+    /**
+     * The jungle cat (Slice 15e — OcelotEntity): the 0.6x0.7 body, 10
+     * health (the tame never changes the ceiling — the wolf's flip is its
+     * own), movement 0.3 (the chaser band). Silent untamed (the ambient
+     * sound returns ""); the tamed purr/meow family rides the ambient-sound
+     * slice. The 3.0 melee (tryDamage's own override). No drops
+     * (dropItems' empty override). The untamed body despawns past 2400
+     * ticks — the wolf's own rule (both TameableEntity's canDespawn
+     * shape).
+     */
+    OCELOT(98, 0.6, 0.7, 10.0f, 0.05, false, Traits.NONE,
+            List.of(),
+            "", "mob.cat.hitt", "mob.cat.hitt", 3.0f),
+
     /** Hostile melee: chases the nearest player in range and attacks. */
     ZOMBIE(54, 0.6, 1.8, 20.0f, 0.04, true, Traits.NONE,
             List.of(new ItemRoll(BuiltinItems.ROTTEN_FLESH, 0, 2)),
