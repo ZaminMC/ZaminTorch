@@ -2781,3 +2781,43 @@ updated for the seven-built-in snapshot.
 
 Fresh suite: **889 green (796 core + 19 api + 74 protocol)**,
 `--max-workers=1`, zero failures.
+
+## Slice 16b — the mob-combat-target family (the wolf's hunts, the feud, the revenge and owner arms)
+
+**Scope**: the targetSelector's single-target state over the wolf and the
+zombie — the mob-vs-mob hunts, the skeleton feud with the skeleton's own
+flee, RevengeGoal with the call-others, AttackWithOwnerGoal +
+OwnerHurtGoal, and the wolf's takeDamage shave.
+
+**The state**: `mobAttackTarget` on the body — the reference's
+setAttackTarget. The hunt scan (ActiveTargetGoal's 1-in-10 cadence, the
+32-block follow range) updates BEFORE the goal walk so the stroll's
+yielding gate (goalHasTarget) sees the live target; the chase mind runs
+against its position after the goal walk; the melee consume damages IT
+(hurtByMob) instead of the nearest player. The wolf's angry posture
+follows the write; the target's death stands the anger down.
+
+**The hunts**: the wolf's sheep/rabbits (UNTAMED —
+UntamedActiveTargetGoal) and the always-on skeleton feud; the zombie's
+villagers. The skeleton's flee-from-wolves: a wolf within 6 blocks owns
+the movement (the 1.0/1.2 speeds over the 0.25 base), computed before
+the goal walk.
+
+**The arms**: RevengeGoal — a hostile kind or a wolf hit by a mob targets
+its attacker, the wolf and the zombie calling their nearby targetless
+kin (the call-others family); the owner arms as event-site joins — the
+player's STANDING tamed wolves (the sitting pet keeps its seat) target
+the mob their owner attacked (the player-melee site) and the mob that
+attacked their owner (the onMobAttackedPlayer site).
+
+**The shave**: the manager's hurtByMob applies the wolf's
+(amount + 1) / 2 on a mob attacker before the walk; the sheep takes the
+whole hit; the revenge fires inside.
+
+**Tests**: MobTargetFamilyTest (8: the untamed hunt with the tame gate,
+the feud's precedence + the death clear, the skeleton flee, the zombie's
+villager hunt, the posture law, the shave + the revenge through the real
+manager, the owner-arm gates, the follow-range bound).
+
+Fresh suite: **897 green (804 core + 19 api + 74 protocol)**,
+`--max-workers=1`, zero failures.

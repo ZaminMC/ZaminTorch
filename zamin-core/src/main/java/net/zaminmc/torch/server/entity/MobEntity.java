@@ -194,6 +194,16 @@ public final class MobEntity implements LivingEntity {
         default PlayerView nearestPlayerView(double x, double y, double z, double range) {
             return null;
         }
+
+        /**
+         * The nearest live mob of the kind within {@code range} — the
+         * mob-vs-mob target family's read (ActiveTargetGoal's scan and
+         * FleeEntityGoal's scare range). The default answers null so stub
+         * worlds carry no mob-vs-mob mind.
+         */
+        default MobEntity nearestMobOfKind(double x, double y, double z, double range, MobType kind) {
+            return null;
+        }
     }
 
     /**
@@ -774,7 +784,8 @@ public final class MobEntity implements LivingEntity {
         if (type == MobType.WOLF) {
             tickWolfClock();
             // mobTick's own clears: an angry wolf with no target stands down
-            // (WolfEntity.mobTick lines 178-180).
+            // (WolfEntity.mobTick lines 178-180) — the mob target family
+            // (16b) keeps the posture through goalHasTarget.
             if (wolfAngry() && !goalHasTarget(night)) {
                 setWolfAngry(false);
             }
@@ -1041,6 +1052,24 @@ public final class MobEntity implements LivingEntity {
      * the mode-derived band (wander/panic/chase).
      */
     private double goalWalkSpeed = Double.NaN;
+
+    // ------------------------------------- the mob-vs-mob targets (16b)
+
+    /**
+     * The single mob-vs-mob attack target (the reference's
+     * {@code setAttackTarget} state — the targetSelector's whole family
+     * writes it): the wolf's sheep/rabbit/skeleton hunts, the zombie's
+     * villager hunt, and the revenge/owner arms all land here. The chase
+     * mind runs against its position while it lives; the melee consume
+     * damages it instead of the nearest player.
+     */
+    private MobEntity mobAttackTarget;
+    /**
+     * The skeleton's pending wolf scare (Slice 16b — computed before the
+     * goal walk so the stroll yields through goalHasTarget): the nearest
+     * live wolf within the 6-block flee range, or null.
+     */
+    private MobEntity pendingScareWolf;
 
     /**
      * The tamed body's attack damage (the reference's {@code setTamed}
@@ -2198,6 +2227,15 @@ public final class MobEntity implements LivingEntity {
         postureSprinting = false;
         goalWalkSpeed = Double.NaN;
 
+        // The mob-vs-mob target state (Slice 16b) updates BEFORE the goal
+        // walk — the stroll's yielding gate (goalHasTarget) reads the live
+        // target, so the scan and the dead-target clear must land first.
+        MobEntity mobTarget = tickMobTargeting();
+        pendingScareWolf = type == MobType.SKELETON
+                ? world.nearestMobOfKind(position.x(), position.y(), position.z(),
+                        SKELETON_WOLF_FLEE_RANGE, MobType.WOLF)
+                : null;
+
         Position target = world.nearestPlayer(position.x(), position.y(), position.z(),
                 type.hostile ? AGGRO_RANGE : 8.0);
         boolean canHunt = type.hostile && (!type.traits.neutralByDay() || night);
@@ -2208,6 +2246,24 @@ public final class MobEntity implements LivingEntity {
         // and panic claim the body first, the stroll cycle only when no hunt
         // is on. What remains below is the combat mind.
         if (goals.tick(this, night)) {
+            return;
+        }
+
+        // The skeleton's flee-from-wolves (goal priority 3 over the attack
+        // family's 4): a wolf within 6 blocks owns the movement whatever
+        // else the skeleton was doing (Slice 16b).
+        if (tickSkeletonWolfFlee()) {
+            return;
+        }
+
+        // The mob-vs-mob target family (Slice 16b — the targetSelector's
+        // single target): the hunts (the wolf's sheep/rabbits/skeletons,
+        // the zombie's villagers) and the revenge/owner arms. The target
+        // outranks the player hunt — setAttackTarget is the single write.
+        // (The state itself updated before the goal walk above; the scan
+        // ran there so the stroll's yielding gate could see it.)
+        if (mobTarget != null) {
+            tickMobTargetChase(mobTarget);
             return;
         }
 
@@ -2644,9 +2700,158 @@ public final class MobEntity implements LivingEntity {
         return postureSprinting;
     }
 
-    /** Whether a hunt target is live this tick (the stroll goal yields). */
+    // ------------------------------------- the mob-vs-mob targets (Slice 16b)
+
+    /** ActiveTargetGoal's follow range: the generic attribute base 32. */
+    private static final double MOB_TARGET_FOLLOW_RANGE = 32.0;
+    /** ActiveTargetGoal's canStart cadence gate: a 1-in-10 scan. */
+    private static final int HUNT_SCAN_CHANCE = 10;
+    /** FleeEntityGoal's wolf scare for the skeleton: 6 blocks at 1.0/1.2. */
+    private static final double SKELETON_WOLF_FLEE_RANGE = 6.0;
+    /** The skeleton's flee speeds over its 0.25 base: the 1.0 far walk. */
+    private static final double SKELETON_WOLF_FLEE_FAR = 1.0 / 0.25;
+    /** The close sprint: the reference's 1.2. */
+    private static final double SKELETON_WOLF_FLEE_CLOSE = 1.2 / 0.25;
+    /** The melee reach against a mob target (the same band as the player). */
+    private static final double MOB_MELEE_ATTACK_RANGE = 2.0;
+
+    /** @return the live mob-vs-mob attack target, or null. */
+    public MobEntity mobAttackTarget() {
+        return mobAttackTarget;
+    }
+
+    /**
+     * The single-target write ({@code setAttackTarget}): the wolf's angry
+     * posture follows it — a wild wolf goes angry on any target, and the
+     * target's death stands it down (WolfEntity.setAttackTarget lines
+     * 88-94).
+     */
+    public void setMobAttackTarget(MobEntity target) {
+        mobAttackTarget = target;
+        if (type == MobType.WOLF) {
+            if (target == null) {
+                setWolfAngry(false);
+            } else if (!wolfTamed()) {
+                setWolfAngry(true);
+            }
+        }
+    }
+
+    /**
+     * The hunt scan (ActiveTargetGoal.canStart over the target family):
+     * the 1-in-10 cadence gate, then the nearest legal prey within the
+     * follow range — the wolf's sheep/rabbits (the UNTAMED arm only, the
+     * reference's UntamedActiveTargetGoal) and the skeleton feud (any
+     * taming state), the zombie's villagers. A live target is kept until
+     * it dies (the goal's own shouldContinue — no re-targeting mid-hunt).
+     *
+     * @return the mob the chase mind runs against this tick, or null.
+     */
+    MobEntity tickMobTargeting() {
+        if (mobAttackTarget != null && mobAttackTarget.dead()) {
+            setMobAttackTarget(null); // shouldContinue: the target died
+        }
+        if (mobAttackTarget == null && (type == MobType.WOLF || type == MobType.ZOMBIE)
+                && random.nextInt(HUNT_SCAN_CHANCE) == 0) {
+            MobEntity found = null;
+            double best = MOB_TARGET_FOLLOW_RANGE * MOB_TARGET_FOLLOW_RANGE;
+            if (type == MobType.WOLF) {
+                // targetSelector 5 (ActiveTargetGoal SkeletonEntity): any
+                // taming state; 4 (UntamedActiveTargetGoal AnimalEntity):
+                // sheep or rabbit, the untamed arm only.
+                MobEntity skeleton = world.nearestMobOfKind(
+                        position.x(), position.y(), position.z(),
+                        MOB_TARGET_FOLLOW_RANGE, MobType.SKELETON);
+                if (skeleton != null) {
+                    found = skeleton;
+                } else if (!wolfTamed()) {
+                    MobEntity sheep = world.nearestMobOfKind(
+                            position.x(), position.y(), position.z(),
+                            MOB_TARGET_FOLLOW_RANGE, MobType.SHEEP);
+                    MobEntity rabbit = world.nearestMobOfKind(
+                            position.x(), position.y(), position.z(),
+                            MOB_TARGET_FOLLOW_RANGE, MobType.RABBIT);
+                    if (sheep != null && rabbit != null) {
+                        found = distanceSquaredTo(sheep) <= distanceSquaredTo(rabbit) ? sheep : rabbit;
+                    } else {
+                        found = sheep != null ? sheep : rabbit;
+                    }
+                }
+            } else { // the zombie: targetSelector 2's villager hunt
+                found = world.nearestMobOfKind(position.x(), position.y(), position.z(),
+                        MOB_TARGET_FOLLOW_RANGE, MobType.VILLAGER);
+            }
+            if (found != null && !found.dead()) {
+                setMobAttackTarget(found);
+            }
+        }
+        return mobAttackTarget;
+    }
+
+    /** @return the squared distance to the other mob's position. */
+    private double distanceSquaredTo(MobEntity other) {
+        double dx = other.position().x() - position.x();
+        double dy = other.position().y() - position.y();
+        double dz = other.position().z() - position.z();
+        return dx * dx + dy * dy + dz * dz;
+    }
+
+    /**
+     * The chase mind's mob-target arm (MeleeAttackGoal's tick against the
+     * single target): the eyes and the feet on the prey, the melee arm
+     * inside the same reach band the player hunt uses.
+     */
+    private void tickMobTargetChase(MobEntity target) {
+        double dx = target.position().x() - position.x();
+        double dy = target.position().y() - position.y();
+        double dz = target.position().z() - position.z();
+        double horizontal = Math.sqrt(dx * dx + dz * dz);
+        mode = Mode.CHASE;
+        modeTicks = 0;
+        yaw = angleTo(dx, dz);
+        headYaw = yaw;
+        tickPathFollowing(target.position());
+        if (horizontal <= MOB_MELEE_ATTACK_RANGE && Math.abs(dy) <= MELEE_ATTACK_VERTICAL_RANGE
+                && attackCooldown == 0) {
+            attackCooldown = MELEE_ATTACK_COOLDOWN;
+            pendingMeleeAttack = true;
+        }
+    }
+
+    /**
+     * The skeleton's flee-from-wolves (FleeEntityGoal(WolfEntity.class,
+     * 6.0F, 1.0, 1.2) at goal priority 3 — above the ranged attack's own
+     * 4): a wolf within 6 blocks owns the skeleton's movement whatever
+     * else it was doing. The scare itself is computed before the goal walk
+     * (the stroll yields through goalHasTarget's read of the pending
+     * scare).
+     */
+    private boolean tickSkeletonWolfFlee() {
+        MobEntity wolf = pendingScareWolf;
+        if (type != MobType.SKELETON || wolf == null) {
+            return false;
+        }
+        double dx = position.x() - wolf.position().x();
+        double dy = position.y() - wolf.position().y();
+        double dz = position.z() - wolf.position().z();
+        boolean close = dx * dx + dy * dy + dz * dz < FLEE_CLOSE_SQUARED;
+        goalWalkSpeed = close ? SKELETON_WOLF_FLEE_CLOSE : SKELETON_WOLF_FLEE_FAR;
+        mode = Mode.PANIC;
+        modeTicks = 0;
+        yaw = angleTo(dx, dz); // directly away from the wolf
+        headYaw = yaw;
+        clearPath();
+        return true;
+    }
+
+    /** Whether a hunt target is live this tick (the stroll goal yields):
+     *  the player hunt, a live mob-vs-mob target (16b — the single
+     *  attackTarget state), or the skeleton's pending wolf-flee (a wolf
+     *  never skeleton-flees, so the wolf's angry-clear never sees the
+     *  flee arm). */
     boolean goalHasTarget(boolean night) {
-        return targetHuntable && visibleTarget != null;
+        return (targetHuntable && visibleTarget != null) || mobAttackTarget != null
+                || pendingScareWolf != null;
     }
 
     void goalTickIdleWander(Position target) {

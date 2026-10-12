@@ -718,20 +718,28 @@ public final class MobManager {
                 continue;
             }
             if (mob.consumePendingMeleeAttack()) {
-                PlayerSession target = nearestPlayingPlayer(players, mob);
-                if (target != null && target.health() > 0 && !target.dead()) {
-                    for (Listener listener : listeners) {
-                        // The kind's own attack damage (the reference's ATTACK_DAMAGE
-                        // attribute — the enderman's 7.0, the rest 2.0; the slime's
-                        // own size — getDamageAmount, Slice 12k).
-                        listener.onMobAttackedPlayer(mob, target, mob.attackDamage());
-                    }
-                    // The slime's contact squish (damageTargetEntity line
-                    // 201: mob.attack at the reference's pitch band).
-                    if (mob.consumeSlimeAttackSound()) {
-                        float pitch = (random.nextFloat() - random.nextFloat()) * 0.2F + 1.0F;
+                // Slice 16b: the mob-vs-mob target family first — a live
+                // mob target owns the swing (the reference's single
+                // attackTarget read by the melee goal).
+                MobEntity mobTarget = mob.mobAttackTarget();
+                if (mobTarget != null && !mobTarget.dead()) {
+                    hurtByMob(mob, mobTarget, mob.attackDamage());
+                } else {
+                    PlayerSession target = nearestPlayingPlayer(players, mob);
+                    if (target != null && target.health() > 0 && !target.dead()) {
                         for (Listener listener : listeners) {
-                            listener.onMobSoundAt(mob, "mob.attack", 1.0F, pitch);
+                            // The kind's own attack damage (the reference's ATTACK_DAMAGE
+                            // attribute — the enderman's 7.0, the rest 2.0; the slime's
+                            // own size — getDamageAmount, Slice 12k).
+                            listener.onMobAttackedPlayer(mob, target, mob.attackDamage());
+                        }
+                        // The slime's contact squish (damageTargetEntity line
+                        // 201: mob.attack at the reference's pitch band).
+                        if (mob.consumeSlimeAttackSound()) {
+                            float pitch = (random.nextFloat() - random.nextFloat()) * 0.2F + 1.0F;
+                            for (Listener listener : listeners) {
+                                listener.onMobSoundAt(mob, "mob.attack", 1.0F, pitch);
+                            }
                         }
                     }
                 }
@@ -848,6 +856,92 @@ public final class MobManager {
     public boolean hurt(MobEntity mob, float amount, double attackerYaw) {
         return hurt(mob, amount, attackerYaw,
                 net.zaminmc.torch.event.DamageCause.MELEE);
+    }
+
+    /**
+     * Melee hit from another mob (Slice 16b — the mob-vs-mob target family's
+     * damage land): the attacker's identity rides the walk. The wolf's own
+     * takeDamage shaves a non-player non-arrow attacker to
+     * {@code (amount + 1) / 2} (WolfEntity lines 262-268), and the victim's
+     * RevengeGoal answers: the hostile kinds and the wolves target their
+     * attacker, the wolf and the zombie calling their nearby kin.
+     */
+    public boolean hurtByMob(MobEntity attacker, MobEntity victim, float amount) {
+        Objects.requireNonNull(attacker, "attacker");
+        Objects.requireNonNull(victim, "victim");
+        if (victim.type() == MobType.WOLF) {
+            // WolfEntity.takeDamage: a mob's hit rounds up to half.
+            amount = (amount + 1.0f) / 2.0f;
+        }
+        double kbYaw = Math.toDegrees(Math.atan2(
+                -(victim.position().x() - attacker.position().x()),
+                victim.position().z() - attacker.position().z()));
+        boolean landed = hurt(victim, amount, kbYaw,
+                net.zaminmc.torch.event.DamageCause.MELEE);
+        if (landed && !victim.dead()) {
+            applyRevenge(victim, attacker);
+        }
+        return landed;
+    }
+
+    /**
+     * RevengeGoal's arm (Slice 16b): the victim — any hostile kind or a
+     * wolf — targets its attacker, and the call-others family (the wolf's
+     * and the zombie's own {@code true} flag) passes the anger to every
+     * nearby same-kind body with no live target.
+     */
+    private void applyRevenge(MobEntity victim, MobEntity attacker) {
+        if (attacker.dead()) {
+            return;
+        }
+        boolean revengeArmed = victim.type().hostile || victim.type() == MobType.WOLF;
+        if (!revengeArmed) {
+            return;
+        }
+        victim.setMobAttackTarget(attacker);
+        boolean callOthers = victim.type() == MobType.WOLF || victim.type() == MobType.ZOMBIE;
+        if (!callOthers) {
+            return;
+        }
+        for (MobEntity kin : mobs) {
+            if (kin == victim || kin.type() != victim.type() || kin.dead()) {
+                continue;
+            }
+            if (kin.mobAttackTarget() != null) {
+                continue; // the reference's own gate: only the targetless join
+            }
+            double dx = kin.position().x() - victim.position().x();
+            double dy = kin.position().y() - victim.position().y();
+            double dz = kin.position().z() - victim.position().z();
+            if (dx * dx + dy * dy + dz * dz <= 32.0 * 32.0) {
+                kin.setMobAttackTarget(attacker);
+            }
+        }
+    }
+
+    /**
+     * The owner arms (Slice 16b — AttackWithOwnerGoal + OwnerHurtGoal):
+     * every STANDING tamed wolf the player owns joins the fight on the
+     * target — the mob their owner just attacked, or the mob that just
+     * attacked their owner. A sitting wolf never joins (SitGoal's own
+     * claim on the movement).
+     */
+    public void ownerWolvesJoinFight(String ownerName, MobEntity target) {
+        if (ownerName == null || ownerName.isEmpty() || target == null || target.dead()) {
+            return;
+        }
+        for (MobEntity wolf : mobs) {
+            if (wolf.type() != MobType.WOLF || !wolf.wolfTamed() || wolf.dead()) {
+                continue;
+            }
+            if (wolf.wolfSitting()) {
+                continue; // the sitting pet stays seated
+            }
+            if (!ownerName.equals(wolf.ownerName())) {
+                continue;
+            }
+            wolf.setMobAttackTarget(target);
+        }
     }
 
     /**
