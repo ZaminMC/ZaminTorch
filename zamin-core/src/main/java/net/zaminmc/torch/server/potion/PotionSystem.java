@@ -39,9 +39,15 @@ public final class PotionSystem {
         /** A body's squared distance to a point (the proximity falloff). */
         double squaredDistanceTo(Object body, double x, double y, double z);
 
-        /** The magic-damage arm (DamageSource.MAGIC — poison never kills,
-         * wither does, the death cause carries). */
-        void hurt(Object body, float amount, String cause);
+        /**
+         * The damage arm (DamageSource.MAGIC — poison never kills,
+         * wither does, the death cause carries). The attacker rides the
+         * splash's {@code DamageSource.magic(potion, thrower)} shape (null
+         * for the periodic effects and dispenser-launched potions); the
+         * magic flag separates the magic family from the wither's own
+         * source — the witch's 85% magic shave keys on it.
+         */
+        void hurt(Object body, float amount, String cause, Object attacker, boolean magic);
 
         /** The heal arm. */
         void heal(Object body, float amount);
@@ -217,10 +223,10 @@ public final class PotionSystem {
             case StatusEffects.REGENERATION -> bodies.heal(body, 1.0f);
             case StatusEffects.POISON -> {
                 if (bodies.healthOf(body) > 1.0f) {
-                    bodies.hurt(body, 1.0f, "was killed by magic");
+                    bodies.hurt(body, 1.0f, "was killed by magic", null, true);
                 }
             }
-            case StatusEffects.WITHER -> bodies.hurt(body, 1.0f, "withered away");
+            case StatusEffects.WITHER -> bodies.hurt(body, 1.0f, "withered away", null, false);
             case StatusEffects.HUNGER -> bodies.exhaust(body, 0.025f * (instance.amplifier() + 1));
             case StatusEffects.SATURATION -> bodies.feed(body, instance.amplifier() + 1, 1.0f);
             default -> { /* the attribute family: the packet is the behavior */ }
@@ -248,7 +254,7 @@ public final class PotionSystem {
                 bodies.heal(body, (int) (proximity * (4 << amplifier) + 0.5));
             } else {
                 bodies.hurt(body, (int) (proximity * (6 << amplifier) + 0.5),
-                        "was killed by magic");
+                        "was killed by magic", null, true);
             }
         }
     }
@@ -294,8 +300,13 @@ public final class PotionSystem {
      * the 20-tick floor.
      *
      * @param directHit the body the potion struck (or null — a block hit).
+     * @param thrower   the throwing body (or null — a dispenser or a
+     *                  removed thrower): rides the instant-damage arm as
+     *                  the {@code DamageSource.magic} attacker — the
+     *                  witch's own-splash immunity keys on it.
      */
-    public void splash(double x, double y, double z, int metadata, Object directHit) {
+    public void splash(double x, double y, double z, int metadata, Object directHit,
+                       Object thrower) {
         List<StatusEffectInstance> set = PotionHelper.getStatusEffects(metadata);
         if (!set.isEmpty()) {
             // The scan box (onCollision lines 74-75): the potion's own
@@ -314,7 +325,7 @@ public final class PotionSystem {
                 }
                 for (StatusEffectInstance instance : set) {
                     if (StatusEffects.isInstant(instance.id())) {
-                        applyInstant(body, instance.id(), instance.amplifier(), proximity);
+                        applySplashInstant(body, instance, proximity, thrower);
                     } else {
                         int duration = (int) (proximity * instance.duration() + 0.5);
                         if (duration > 20) {
@@ -325,7 +336,25 @@ public final class PotionSystem {
                 }
             }
         }
-        // The world event 2002 (the potion burst particle carrying the
-        // color) rides the particle slice (ledgered).
+    }
+
+    /**
+     * The splash's instant arm (StatusEffect.affectHealth lines 166-180 —
+     * the three-arg shape {@code affectHealth(potion, thrower, target)}):
+     * the damage flows as {@code DamageSource.magic(potion, thrower)} so
+     * the witch's own-splash immunity (attacker == self) applies; the
+     * heal flows directly.
+     */
+    private void applySplashInstant(Object body, StatusEffectInstance instance,
+                                    double proximity, Object thrower) {
+        int id = instance.id();
+        boolean undead = bodies.undead(body);
+        boolean heals = (id == StatusEffects.INSTANT_HEALTH) != undead;
+        if (heals) {
+            bodies.heal(body, (int) (proximity * (4 << instance.amplifier()) + 0.5));
+        } else {
+            bodies.hurt(body, (int) (proximity * (6 << instance.amplifier()) + 0.5),
+                    "was killed by magic", thrower, true);
+        }
     }
 }

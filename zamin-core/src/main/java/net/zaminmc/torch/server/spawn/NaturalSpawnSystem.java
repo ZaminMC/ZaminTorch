@@ -137,7 +137,8 @@ public final class NaturalSpawnSystem {
                     new SpawnEntry(MobType.ZOMBIE, 100, 4, 4),
                     new SpawnEntry(MobType.SKELETON, 100, 4, 4),
                     new SpawnEntry(MobType.CREEPER, 100, 4, 4),
-                    new SpawnEntry(MobType.ENDERMAN, 10, 1, 4));
+                    new SpawnEntry(MobType.ENDERMAN, 10, 1, 4),
+                    new SpawnEntry(MobType.WITCH, 5, 1, 1));
             case CREATURE -> List.of(
                     // Biome lines 279-283 + the plains' horse row
                     // (PlainsBiome line 20: weight 5, groups 2-6).

@@ -33,7 +33,7 @@ public final class FxManager {
     private static final Logger LOGGER = Logger.getLogger(FxManager.class.getName());
 
     /** One broadcast unit. The adapter translates each kind per its version. */
-    public sealed interface FxEvent permits Sound, BlockShatter, ItemShatter, Poof {
+    public sealed interface FxEvent permits Sound, BlockShatter, ItemShatter, Poof, PotionSplash {
     }
 
     /** A named sound at a position (historical 1.8 resource name). */
@@ -62,6 +62,13 @@ public final class FxManager {
     }
 
     /** The white puff (the snowball's splat, the egg's miss). */
+    /** The splash potion's burst (the 2002 world event, data = the potion value). */
+    public record PotionSplash(Position position, int potionData) implements FxEvent {
+        public PotionSplash {
+            java.util.Objects.requireNonNull(position, "position");
+        }
+    }
+
     public record Poof(Position position) implements FxEvent {
         public Poof {
             Objects.requireNonNull(position, "position");
@@ -101,6 +108,15 @@ public final class FxManager {
     }
 
     /** Emits the white shatter puff. Any thread. */
+    /**
+     * The splash potion's burst (PotionEntity.onCollision's closing
+     * {@code world.doEvent(2002, pos, statusEffect)}): the color-carrying
+     * particle burst at the impact.
+     */
+    public void potionSplash(Position position, int potionData) {
+        emit(new PotionSplash(position, potionData));
+    }
+
     public void poof(Position position) {
         emit(new Poof(position));
     }

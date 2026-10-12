@@ -2570,6 +2570,12 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         }
         if (mob.type() == net.zaminmc.torch.server.entity.MobType.HORSE) {
             writeHorseMetadata(out, mob);
+        } else if (mob.type() == net.zaminmc.torch.server.entity.MobType.WITCH) {
+            // The witch's drinking flag (the synced-data slot 21): the
+            // client raises the drinking pose and the held potion from it.
+            out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5)
+                    | Protocol18.WITCH_DRINKING_METADATA_INDEX);
+            out.writeByte(mob.witchDrinking() ? 1 : 0);
         } else if (mob.type() == net.zaminmc.torch.server.entity.MobType.PIG) {
             out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | Protocol18.PIG_SADDLE_METADATA_INDEX);
             out.writeByte(mob.pigSaddled() ? 1 : 0);
@@ -2718,6 +2724,46 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | Protocol18.LIVING_FLAGS_METADATA_INDEX);
         out.writeByte(mob.burning() ? Protocol18.LIVING_FLAG_BURNING : 0);
         out.writeByte(Protocol18.METADATA_TERMINATOR);
+        channel.writeAndFlush(out);
+    }
+
+    /**
+     * Set Entity Metadata (0x1C) for the witch's index-21 byte: the
+     * drinking flag flip (the client raises the drinking pose and the held
+     * potion). Any thread.
+     */
+    void sendWitchDrinking(MobEntity mob) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(12);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_ENTITY_METADATA);
+        ByteBufOps.writeVarInt(out, mob.entityId());
+        out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5)
+                | Protocol18.WITCH_DRINKING_METADATA_INDEX);
+        out.writeByte(mob.witchDrinking() ? 1 : 0);
+        out.writeByte(Protocol18.METADATA_TERMINATOR);
+        channel.writeAndFlush(out);
+    }
+
+    /**
+     * Effect / world event (0x28, protocol 47): i32 effect id, i64 packed
+     * pos, i32 data, bool global — the 2002 potion splash's
+     * color-carrying burst (the client derives the particle family and the
+     * color from the data). Any thread.
+     */
+    void sendWorldEvent(int eventId, int x, int y, int z, int data, boolean global) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(24);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_WORLD_EVENT);
+        out.writeInt(eventId);
+        ByteBufOps.writePackedBlockPosition(out, x, y, z);
+        out.writeInt(data);
+        out.writeBoolean(global);
         channel.writeAndFlush(out);
     }
 
@@ -3073,6 +3119,18 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             }
             sendParticles(Protocol18.PARTICLE_SNOWBALL_POOF, false, at,
                     0.2f, 0.2f, 0.2f, 0.2f, 8, new int[0]);
+        } else if (event instanceof net.zaminmc.torch.server.fx.FxManager.PotionSplash splash) {
+            at = splash.position();
+            if (beyondFeedbackRange(observer, at)) {
+                return;
+            }
+            // The 2002 world event (PotionEntity.onCollision's closing
+            // doEvent): the data carries the potion value — the client
+            // spawns the item-crack crumbs and the color-tinted spell
+            // burst from it, and the instants tint the spell family.
+            sendWorldEvent(Protocol18.WORLD_EVENT_POTION_SPLASH,
+                    (int) Math.floor(at.x()), (int) Math.floor(at.y()),
+                    (int) Math.floor(at.z()), splash.potionData(), false);
         }
     }
 
@@ -3130,6 +3188,21 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             case POTION -> Protocol18.OBJECT_POTION;
         };
         int throwerWireId = resolveThrowerWireId(current, projectile.throwerId());
+        // The objectData field (TrackedEntity.createAddEntityPacket 1:1):
+        // the arrow carries the shooter's id (its own id when the shooter
+        // is gone — the reference's own fallback), the potion carries the
+        // damage value (the client builds the bottle with it), the fireball
+        // carries the shooter or nothing (a dispensed charge rides bare),
+        // and the snowball/egg pair carries nothing at all. The velocity
+        // shorts are present ONLY when objectData > 0 (the packet's own
+        // read shape — a bare data-0 write with trailing shorts corrupts
+        // the client's frame).
+        int objectData = switch (projectile.kind()) {
+            case ARROW -> throwerWireId > 0 ? throwerWireId : projectile.entityId();
+            case POTION -> projectile.potionDamage();
+            case SMALL_FIREBALL -> throwerWireId;
+            case SNOWBALL, EGG -> 0;
+        };
         ByteBuf out = Unpooled.buffer(48);
         ByteBufOps.writeVarInt(out, Protocol18.S2C_SPAWN_ENTITY);
         ByteBufOps.writeVarInt(out, projectile.entityId());
@@ -3139,11 +3212,13 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeInt((int) Math.floor(projectile.position().z() * 32.0));
         out.writeByte(0); // pitch: the client re-aims the model from velocity
         out.writeByte(0); // yaw
-        out.writeInt(throwerWireId);
-        // The velocity triple: i16 at 1/8000 blocks per tick.
-        out.writeShort((int) Math.round(projectile.velocityX() * 8000.0));
-        out.writeShort((int) Math.round(projectile.velocityY() * 8000.0));
-        out.writeShort((int) Math.round(projectile.velocityZ() * 8000.0));
+        out.writeInt(objectData);
+        if (objectData > 0) {
+            // The velocity triple: i16 at 1/8000 blocks per tick.
+            out.writeShort((int) Math.round(projectile.velocityX() * 8000.0));
+            out.writeShort((int) Math.round(projectile.velocityY() * 8000.0));
+            out.writeShort((int) Math.round(projectile.velocityZ() * 8000.0));
+        }
         channel.writeAndFlush(out);
     }
 

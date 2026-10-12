@@ -87,8 +87,13 @@ public final class ProjectileManager {
      * impact. Wired by the engine; runs on the tick thread.
      */
     public interface PotionSink {
-        /** The splash at the impact point ({@code directHit} null on a block hit). */
-        void splash(double x, double y, double z, int damage, Object directHit);
+        /**
+         * The splash at the impact point ({@code directHit} null on a block
+         * hit; {@code throwerId} the launching body's engine id, -1 for a
+         * dispenser — the witch's own-splash immunity keys on the resolved
+         * thrower).
+         */
+        void splash(double x, double y, double z, int damage, Object directHit, int throwerId);
     }
 
     /** Damage application callbacks (the engine owns the combat rules). */
@@ -159,7 +164,7 @@ public final class ProjectileManager {
     /** The fireball's landing arm; optional until the engine wires it. */
     private FireSink fireSink = (x, y, z) -> { };
     /** The potion's splash arm; optional until the engine wires it. */
-    private PotionSink potionSink = (x, y, z, damage, directHit) -> { };
+    private PotionSink potionSink = (x, y, z, damage, directHit, throwerId) -> { };
 
     /** Wires the fireball's fire-placement arm. */
     public void setFireSink(FireSink sink) {
@@ -353,7 +358,7 @@ public final class ProjectileManager {
                 // The splash on the struck body (PotionEntity.onCollision's
                 // result.entity arm — the direct hit answers proximity 1.0).
                 potionSink.splash(point.x(), point.y(), point.z(),
-                        projectile.potionDamage(), mob);
+                        projectile.potionDamage(), mob, projectile.throwerId());
             } else {
                 hitMob(projectile, mob);
             }
@@ -366,7 +371,7 @@ public final class ProjectileManager {
                      && projectile.age() <= THROWER_IMMUNITY_TICKS)) {
             if (projectile.kind() == ProjectileEntity.Kind.POTION) {
                 potionSink.splash(point.x(), point.y(), point.z(),
-                        projectile.potionDamage(), player);
+                        projectile.potionDamage(), player, projectile.throwerId());
             } else {
                 hitPlayer(projectile, player);
             }
@@ -396,7 +401,7 @@ public final class ProjectileManager {
                 // The block splash (onCollision's null-entity arm: the box
                 // scan around the impact point alone).
                 potionSink.splash(point.x(), point.y(), point.z(),
-                        projectile.potionDamage(), null);
+                        projectile.potionDamage(), null, projectile.throwerId());
                 remove(projectile, "hit");
                 return true;
             }

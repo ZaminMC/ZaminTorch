@@ -4,6 +4,7 @@ import net.zaminmc.torch.entity.PlayerState;
 
 import net.zaminmc.torch.item.ItemStack;
 import net.zaminmc.torch.util.Position;
+import net.zaminmc.torch.server.item.BuiltinItems;
 import net.zaminmc.torch.server.item.ItemRoll;
 import net.zaminmc.torch.server.player.PlayerSession;
 
@@ -137,6 +138,21 @@ public final class MobManager {
          */
         default void onMobBred(MobEntity parent, MobEntity mate, MobEntity baby) {
         }
+
+        /**
+         * The witch's drinking flag flipped (the index-21 metadata byte —
+         * the client raises the drinking pose and the held potion).
+         */
+        default void onMobWitchDrinkingChanged(MobEntity mob, boolean drinking) {
+        }
+
+        /**
+         * The witch's idle spell-swirl roll fired (the reference's
+         * {@code doEntityEvent(this, (byte)15)} — the Entity Event packet
+         * the client answers with the purple particles).
+         */
+        default void onMobWitchAura(MobEntity mob) {
+        }
     }
 
     private final MobEntity.WorldQuery world;
@@ -147,6 +163,8 @@ public final class MobManager {
     private int nextEntityId;
     /** Surface finder for population rolls: topmost solid y at (x, z), or -1. */
     private final java.util.function.BiFunction<Integer, Integer, Integer> surfaceY;
+    /** The potion system (the witch's drink application); null until wired. */
+    private volatile net.zaminmc.torch.server.potion.PotionSystem potionSystem;
 
     public MobManager(MobEntity.WorldQuery world, Random random, LootSink lootSink,
                       int firstEntityId,
@@ -160,6 +178,11 @@ public final class MobManager {
 
     public void addListener(Listener listener) {
         listeners.add(Objects.requireNonNull(listener, "listener"));
+    }
+
+    /** Wires the potion system (the witch's drink lands its effects through it). */
+    public void setPotionSystem(net.zaminmc.torch.server.potion.PotionSystem potionSystem) {
+        this.potionSystem = potionSystem;
     }
 
     /**
@@ -180,6 +203,16 @@ public final class MobManager {
 
     public int size() {
         return mobs.size();
+    }
+
+    /**
+     * The shared body random (the stream every mob ticks on — the
+     * reference's per-entity Random carries over as the engine's one
+     * shared stream): exposed so the engine-side arms (the witch's
+     * weakness roll) keep drawing from the same sequence.
+     */
+    public Random random() {
+        return random;
     }
 
     /** @return the live mob with the engine id, or null (no dead ids reused). */
@@ -271,6 +304,11 @@ public final class MobManager {
         MobEntity mob = new MobEntity(nextEntityId++, type, position, random, world);
         mob.setBreedFinder(this::scanForMate);
         mob.setRemovalHook(() -> remove(mob, "api")); // the public despawn path
+        if (type == MobType.WITCH) {
+            // The drink ladder's hasStatusEffect gates (mobTick lines
+            // 107-121): the live store read through the potion system.
+            mob.setWitchEffectQuery(effectId -> witchHasEffect(mob, effectId));
+        }
         mobs.add(mob);
         for (Listener listener : listeners) {
             listener.onMobSpawned(mob);
@@ -552,6 +590,7 @@ public final class MobManager {
             boolean wasPriming = mob.fuseActive();
             boolean wasBurning = mob.burning();
             int wasHorseFlags = mob.horseFlagsRaw();
+            boolean wasWitchDrinking = mob.witchDrinking();
             boolean moved = mob.tick(night);
             if (wasPriming != mob.fuseActive()) {
                 for (Listener listener : listeners) {
@@ -561,6 +600,16 @@ public final class MobManager {
             if (wasBurning != mob.burning()) {
                 for (Listener listener : listeners) {
                     listener.onMobBurningChanged(mob, mob.burning());
+                }
+            }
+            if (wasWitchDrinking != mob.witchDrinking()) {
+                for (Listener listener : listeners) {
+                    listener.onMobWitchDrinkingChanged(mob, mob.witchDrinking());
+                }
+            }
+            if (mob.consumeWitchAura()) {
+                for (Listener listener : listeners) {
+                    listener.onMobWitchAura(mob);
                 }
             }
             if (wasHorseFlags != mob.horseFlagsRaw()) {
@@ -581,6 +630,17 @@ public final class MobManager {
                 mob.clearRangedTarget();
                 for (Listener listener : listeners) {
                     listener.onMobRangedAttack(mob, aim);
+                }
+            }
+            // The witch's completed drink (WitchEntity.mobTick lines 98-115,
+            // through PotionItem.finishUsing): the effect set lands on the
+            // body — the instant arm applies, the timed arm installs (the
+            // same math as the player's drink).
+            int witchDrink = mob.consumeWitchDrink();
+            if (witchDrink > 0) {
+                net.zaminmc.torch.server.potion.PotionSystem potions = potionSystem;
+                if (potions != null) {
+                    potions.finishDrinking(mob, witchDrink);
                 }
             }
             if (mob.consumePendingExplosion()) {
@@ -753,19 +813,52 @@ public final class MobManager {
         // with the rare-loot-table slice — the engine tables carry no
         // rare rows yet.
         int looting = mob.lootingLevel();
-        for (ItemRoll roll : mob.type().loot) {
+        if (mob.type() == MobType.WITCH) {
+            // WitchEntity.dropItems (lines 178-192): 1-3 rows; per row the
+            // count roll, then the LOOT member roll (the stick appears
+            // twice — the double weight), then the looting bonus on top of
+            // the count; each unit drops as its own single-item stack
+            // (the reference's per-unit dropItem loop).
+            int rows = random.nextInt(3) + 1;
+            for (int row = 0; row < rows; row++) {
+                int count = random.nextInt(3);
+                var item = WITCH_LOOT[random.nextInt(WITCH_LOOT.length)];
+                if (looting > 0) {
+                    count += random.nextInt(looting + 1);
+                }
+                for (int unit = 0; unit < count; unit++) {
+                    lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()),
+                            ItemStack.of(item, 1));
+                }
+            }
+        } else {
+            for (ItemRoll roll : mob.type().loot) {
             int count = roll.roll(random) + random.nextInt(1 + looting);
             if (count <= 0) {
                 continue;
             }
-            lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()),
-                    ItemStack.of(roll.type(), count));
+                lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()),
+                        ItemStack.of(roll.type(), count));
+            }
         }
         // The worn gear and the donkey chest spill with the body
         // (HorseBaseEntity.dropInventoryAndChest on the death path).
         for (ItemStack stack : mob.spillMountGear()) {
             lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()), stack);
         }
+    }
+
+    /** WitchEntity's LOOT array (line 33): the stick carries the double weight. */
+    private static final net.zaminmc.torch.item.ItemType[] WITCH_LOOT = {
+            BuiltinItems.GLOWSTONE_DUST, BuiltinItems.SUGAR, BuiltinItems.REDSTONE,
+            BuiltinItems.SPIDER_EYE, BuiltinItems.GLASS_BOTTLE, BuiltinItems.GUNPOWDER,
+            BuiltinItems.STICK, BuiltinItems.STICK
+    };
+
+    /** The witch's live effect-store read (the drink ladder's gates). */
+    private boolean witchHasEffect(MobEntity mob, int effectId) {
+        net.zaminmc.torch.server.potion.PotionSystem potions = potionSystem;
+        return potions != null && potions.hasEffect(mob, effectId);
     }
 
     /**
