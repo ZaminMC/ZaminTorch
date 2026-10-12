@@ -163,6 +163,14 @@ public final class MobManager {
         default void onMobSoundAt(MobEntity mob, String soundName,
                                   float volume, float pitch) {
         }
+
+        /** The wolf's tamed/sitting/angry/collar state moved (the metadata update). */
+        default void onWolfStateChanged(MobEntity mob) {
+        }
+
+        /** The world's doEntityEvent byte (7 hearts, 6 smoke, 18 love...). */
+        default void onMobStatusEvent(MobEntity mob, int status) {
+        }
     }
 
     private final MobEntity.WorldQuery world;
@@ -601,7 +609,7 @@ public final class MobManager {
             mob.tickDespawnWindow(mob.persistent(),
                     despawnNearest == null ? null : despawnSquared);
             if (despawnNearest != null && net.zaminmc.torch.server.spawn.NaturalSpawnSystem.shouldDespawn(
-                    mob.persistent(), mob.type().hostile, despawnSquared,
+                    mob.persistent(), mob.canDespawn(), despawnSquared,
                     mob.farFromPlayerTicks(), random)) {
                 if (mob.hasRider()) {
                     dismountMob(mob, false);

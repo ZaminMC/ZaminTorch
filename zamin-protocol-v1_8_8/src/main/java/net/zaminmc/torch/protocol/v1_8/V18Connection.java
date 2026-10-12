@@ -2588,6 +2588,12 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             out.writeByte((Protocol18.METADATA_TYPE_INT << 5)
                     | Protocol18.VILLAGER_PROFESSION_METADATA_INDEX);
             out.writeInt(mob.profession());
+        } else if (mob.type() == net.zaminmc.torch.server.entity.MobType.WOLF) {
+            // The wolf's block (registerSyncedData): the state byte 16
+            // (sitting | angry << 1 | tamed << 2), the owner string 17, the
+            // health float 18 (the tail-wag read), the begging byte 19, the
+            // collar dye byte 20.
+            writeWolfMetadata(out, mob);
         } else {
             writeKindStatusMetadata(out, mob);
         }
@@ -2618,6 +2624,23 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             case SHEEP -> mob.sheared() ? Protocol18.SHEEP_STATUS_SHEARED : (byte) 0;
             default -> null;
         };
+    }
+
+    /** The wolf's metadata block: state Byte 16 (sitting | angry << 1 | tamed << 2),
+     * owner String 17, health Float 18, begging Byte 19, collar Byte 20. */
+    private static void writeWolfMetadata(ByteBuf out, MobEntity mob) {
+        out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | Protocol18.WOLF_STATE_METADATA_INDEX);
+        out.writeByte(mob.wolfFlagsRaw());
+        if (!mob.ownerName().isEmpty()) {
+            out.writeByte((Protocol18.METADATA_TYPE_STRING << 5) | Protocol18.WOLF_OWNER_METADATA_INDEX);
+            ByteBufOps.writeString(out, mob.ownerName());
+        }
+        out.writeByte((Protocol18.METADATA_TYPE_FLOAT << 5) | Protocol18.WOLF_HEALTH_METADATA_INDEX);
+        out.writeFloat(mob.health());
+        out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | Protocol18.WOLF_BEGGING_METADATA_INDEX);
+        out.writeByte(mob.wolfBegging() ? 1 : 0);
+        out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | Protocol18.WOLF_COLLAR_METADATA_INDEX);
+        out.writeByte(mob.wolfCollarColor());
     }
 
     /** The horse's metadata block: flags Int 16, subtype Byte 19, variant Int 20,
@@ -2658,7 +2681,25 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     }
 
     /**
-     * Set Entity Metadata (0x1C) for the horse's index-16 flag Int: a tame
+     * Set Entity Metadata (0x1C) for the wolf's whole state block: the
+     * index-16 byte, the owner string when it stands, the health float,
+     * the begging byte, the collar byte — the tame, the sit toggle, and
+     * the collar change all ride this one writer. Any thread.
+     */
+    void sendWolfState(MobEntity mob) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(32);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_ENTITY_METADATA);
+        ByteBufOps.writeVarInt(out, mob.entityId());
+        writeWolfMetadata(out, mob);
+        out.writeByte(Protocol18.METADATA_TERMINATOR);
+        channel.writeAndFlush(out);
+    }
+
+    /** Set Entity Metadata (0x1C) for the horse's index-16 flag Int: a tame
      * flip, a saddle going on, the rear of a buck, the graze of a feed. The
      * full flag word rides every time (the Int delta needs no bit targeting).
      * Any thread.

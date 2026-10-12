@@ -2628,3 +2628,72 @@ on re-run, the protocol module's documented load class.
 
 Fresh suite: **872 green (779 core + 19 api + 74 protocol)**,
 `--max-workers=1`, the one flake re-verified green.
+
+## Slice 15d — the wolf (WolfEntity 1:1, the tameable family)
+
+**Scope**: the tamer's companion — the kind, the tame interaction with
+its full state flip, the wire block, the breed gates, the despawn rules,
+and the forest's worldgen row. The combat-goal family (the untamed
+hunts-sheep/rabbits, the attack-with-owner, the skeleton feud, the beg
+goal's held-item gaze) ledgers below with its own wave — the mob-vs-mob
+target selection doesn't exist in the engine yet.
+
+**The kind**: WOLF 95 (the community dataset), 0.6x0.8 (setSize), 8
+health wild / 20 tamed (initAttributes' own branch + setTamed's
+attribute recompute), movement 0.3 (the chaser band — the enderman's
+twin reference attribute), hostile=false, no loot (Item.byId(-1)), the
+mob.wolf.* sound trio (the idle's dynamic bark/whine/growl walk rides
+the ambient-sound slice).
+
+**The state family** (MobEntity): the index-16 state byte (sitting 0x1 |
+angry 0x2 | tamed 0x4 — TameableEntity's bits + the wolf's own), the
+collar dye byte (index 20, RED at spawn — the reference's default), the
+begging flag (index 19), the per-instance attack damage (4.0 tamed over
+the 2.0 wild default — the melee walk's read), the tamed max-health
+override (heal clamps at 20 not 8), and the wolf's own tick clock with
+mobTick's angry-clear (a targetless angry wolf stands down).
+
+**The tame** (interactWolfOnTick, the reference's interactMob ladder):
+the untamed body takes the bone (the creative hand spares the stack) and
+rolls the 1-in-3 — the win flips the whole body (the flag, the owner, the
+20 health, the 4.0 damage, the sitting start, the Entity Status 7
+hearts) or smokes (6); the tamed body takes the meat heal under 20
+(the canBeCooked family: the porkchop/beef/rabbit 3, the cooked pair 8/5,
+the chicken pair 2/6), then the owner's empty hand toggles the sit (a
+held breeding food feeds instead — the reference's own gate); the
+breeding falls through to the shared animal feed — the wolf's
+isBreedingItem is the meat family, and canBreedWith gates BOTH bodies
+tamed and NEITHER sitting.
+
+**The wire**: the join view's wolf block (state byte 16, owner string
+17, health float 18 — the tail-wag read, begging 19, collar 20) + the
+Set Entity Metadata writer (sendWolfState) riding the new
+onWolfStateChanged listener, and the taming verdict's Entity Status
+(7/6) through the new onMobStatusEvent listener — the same dispatch
+shape the love burst rides.
+
+**The rules**: persistent() covers the tamed wolf (never leaves);
+canDespawn() — the new per-mob despawn gate — answers !tamed && ticks >
+2400 (the wolf's own canDespawn override; the shared call site moved
+off type().hostile). The worldgen: FOREST split out of the default
+family with the ForestBiome variant-0 wolf row 5/4-4 (the taiga's
+8/4-4 row has no taiga biome yet — ledgered).
+
+**Ledgered for their own waves**: the untamed hunts-sheep/rabbits +
+attack-with-owner + revenge + skeleton feud (the mob-combat-target
+wave), the WolfBegGoal (the held-item gaze needs a player-inventory
+query on the mind's WorldQuery), the water-shake cycle (the particle
+system), the collar dye arm (the dye item family — only bone meal
+registers today), the non-player non-arrow (amount+1)/2 damage shave
+(the attacker identity doesn't reach the hurt walk yet), the sheep's
+color pick + the ocelot's creep-flee (their slices), and the tamed
+state's persistence (the ZMD v2 wave with the horse's flags).
+
+**Tests**: WolfEntityTest (6: the kind identity, the tame's full flip,
+the tamed ceiling heal, the sit toggle + the angry clear, the breed
+gates' tamed-and-standing law, the despawn pair). The interact ladder
+rides a protocol acceptance follow-up with the ocelot's (the tame roll
+needs the live window; the unit seam is the mob's own state).
+
+Fresh suite: **878 green (785 core + 19 api + 74 protocol)**,
+`--max-workers=1`, zero failures.
