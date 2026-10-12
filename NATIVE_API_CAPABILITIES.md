@@ -22,7 +22,7 @@ Stability classes (§27.4): `Stable`, `Experimental`, `Internal`.
 | Server state/lifecycle | `EngineServer` | `Server` (state, worlds, players, awaitShutdown) | any thread for reads | — | Stable | api smoke | VERIFIED | — |
 | Dimension collection | `EngineServer.worlds()` | `Server.worlds()` (both booted dimensions) | any thread | — | Stable | `EventApiAcceptanceTest` | VERIFIED | — |
 | Difficulty | `EngineServer.difficulty()` | `Server.difficulty()` (the id read; the set arm rides the difficulty slice) | any thread | — | Stable | `WorldApiAcceptanceTest` (the band) | IMPLEMENTED | the setter path (the engine's own `/difficulty` command) rides the difficulty slice |
-| TPS observation | `EngineTicker.averageTps` | none | any thread | — | — | — | NOT AUDITED | — |
+| TPS observation | `EngineTicker.averageTps` (the 1m/5m/15m Paper windows) | **`Server.tps(int windowSeconds)`** — any thread, best-effort snapshot | any thread | — | Experimental | `SchedulerApiAcceptanceTest` (the sane band) | IMPLEMENTED | 20.0 before enough data accumulates |
 | Configuration | `EngineConfig` | none (launcher-side file) | boot | — | — | — | NOT AUDITED | — |
 
 ## 2. World, chunk, block
@@ -87,7 +87,8 @@ Stability classes (§27.4): `Stable`, `Experimental`, `Internal`.
 
 | Capability | Engine implementation | Public entry point | Threading | Hooks | Stability | Tests | Status | Omissions |
 |---|---|---|---|---|---|---|---|---|
-| Tick submission | `EngineTicker.submit` | **`World.execute(Runnable)`** — the §27.6 owner path for plugins | submit any thread; run on the owner lane | — | Experimental | `EntityApiAcceptanceTest` (the foreign-thread arms) | IMPLEMENTED | delayed/repeating task controls (the scheduler wave) |
+| Tick submission | `EngineTicker.submit` | **`World.execute(Runnable)`** — the §27.6 owner path for plugins | submit any thread; run on the owner lane | — | Experimental | `EntityApiAcceptanceTest` (the foreign-thread arms) | IMPLEMENTED | — |
+| Scheduler/task controls (delay + repeat + cancel) | `EngineTicker`'s due-time queue (`scheduleTask` + the head-of-tick drain; `EngineScheduler` view) | **`Server.scheduler()`** — `runNextTick` / `runLater(delayTicks)` / `runRepeating(delay, interval)` returning the cancellable `Task` | submit any thread; bodies on the owner context at the head of the due tick, due-then-submission order; a throwing body is logged and skipped, the loop never dies | — | Experimental | `SchedulerApiAcceptanceTest` (5) | IMPLEMENTED | the immediate path keeps its own admission lane (`World.execute`); the cron-calendar (wall-clock schedules) is not part of §27.3's tick-domain family |
 | Owner-context execution | `OwnershipDomain`, `SimulationScheduler` | none | owner | — | — | — | NOT AUDITED | §27.6 owner-context API |
 | Async compute | `ComputeSubsystem`, `ComputeTicket` | none | any thread → owner | — | — | — | NOT AUDITED | §27.3 safe async computation |
 | Cross-owner requests | `CrossOwnerRouter` | none | owner → owner | — | — | — | NOT AUDITED | §27.3 |

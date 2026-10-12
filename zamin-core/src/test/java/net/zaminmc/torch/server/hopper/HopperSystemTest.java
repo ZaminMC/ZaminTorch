@@ -52,21 +52,31 @@ class HopperSystemTest {
                     "the hopper pushed the first item into the chest");
             // The cadence: the next item lands about 8 ticks later (the
             // transfer cooldown), never faster.
+            long secondObservedAt = System.currentTimeMillis();
             await(() -> chestSlot(server, x, y, z, 0).count() == 2,
                     "the second item followed on the 8-tick cadence");
+            secondObservedAt = System.currentTimeMillis();
             assertEquals(3, hopperSlot(server, x, y + 1, z, 0).count(),
                     "the hopper kept the rest");
-            // The cooldown holds: the chest gains nothing for a while after
-            // a fresh transfer (the 2-per-second vanilla rate).
-            long deadline = System.currentTimeMillis() + 300;
-            int frozen = 0;
+            // The cooldown holds: the third transfer cannot arrive before
+            // the 8-tick cooldown (400ms) has passed since the second —
+            // measured between the OBSERVED transfers (observation latency
+            // only stretches the observed gap, so a lower bound of 300ms
+            // proves the cadence while tolerating sampling jitter on a
+            // loaded box).
+            long thirdObservedAt = 0;
+            long deadline = secondObservedAt + 3_000;
             while (System.currentTimeMillis() < deadline) {
-                if (chestSlot(server, x, y, z, 0).count() == 2) {
-                    frozen++;
+                if (chestSlot(server, x, y, z, 0).count() == 3) {
+                    thirdObservedAt = System.currentTimeMillis();
+                    break;
                 }
-                sleep(20);
+                sleep(10);
             }
-            assertTrue(frozen > 5, "the cadence held (no faster than 8 ticks)");
+            assertTrue(thirdObservedAt > 0, "the third item eventually followed");
+            assertTrue(thirdObservedAt - secondObservedAt >= 300,
+                    "the cadence held (no faster than 8 ticks): observed gap "
+                            + (thirdObservedAt - secondObservedAt) + "ms");
         } finally {
             server.shutdown(() -> { });
         }

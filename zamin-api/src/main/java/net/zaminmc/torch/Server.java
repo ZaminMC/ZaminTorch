@@ -42,4 +42,19 @@ public interface Server {
      * run on the engine context that fired each event.
      */
     EventBus events();
+
+    /**
+     * The public task scheduler (§27.3): the time dimension over the
+     * owner-context execution. Submissions are safe from any thread;
+     * every body runs on the simulation owner's context.
+     */
+    net.zaminmc.torch.scheduler.Scheduler scheduler();
+
+    /**
+     * The rolling average ticks per second over roughly the given window
+     * (the Paper 1m/5m/15m report's windows); 20.0 before enough data
+     * accumulates. Safe from any thread; the read is a best-effort
+     * snapshot of the completed-tick window.
+     */
+    double tps(int windowSeconds);
 }

@@ -2410,3 +2410,30 @@ and the two-recipient command test reads through it.
 
 Fresh full-suite count: **764 core + 19 api + 71 protocol = 854 green**,
 `--max-workers=1`, zero failures.
+
+## Slice 14d — the scheduler & diagnostics wave (§27.3's task controls)
+
+- **`Server.scheduler()`** (`net.zaminmc.torch.scheduler.Scheduler`): the
+  time dimension over the owner-context execution — `runNextTick`,
+  `runLater(delayTicks)`, `runRepeating(delay, interval)`, each returning
+  the cancellable `Task` handle. The ticker grew the due-time queue
+  (a `ConcurrentSkipListMap<due tick, tasks>` + the head-of-tick drain):
+  submissions from any thread compute the due tick against the
+  completed-tick view (a volatile written when `logicalTick` advances),
+  so a delay of N lands at the Nth-next drain; due bodies run in
+  due-then-submission order on the owner's context BEFORE the pending
+  work drain; one throwing body is logged and skipped (the tick's own
+  policy), a repeating body still re-arms past the in-flight tick.
+  The immediate lane keeps its own admission (`World.execute` /
+  `ticker.submit` — the §27.6 primitive stays untouched).
+- **`Server.tps(int windowSeconds)`**: the public TPS read over the
+  ticker's rolling second-window (the Paper 1m/5m/15m windows), any
+  thread, 20.0 before enough data.
+- Hopper cadence test hardened (a pre-existing flake on a loaded box,
+  reproduced WITHOUT the change): the frozen-sample window became the
+  observed-transfer-gap assertion (>= 300ms observed between the 2nd
+  and 3rd transfers proves the 8-tick cooldown while tolerating
+  observation latency).
+
+Fresh suite: **769 core + 19 api green** (788 total), protocol 71
+(checked in the same session), `--max-workers=1`.
