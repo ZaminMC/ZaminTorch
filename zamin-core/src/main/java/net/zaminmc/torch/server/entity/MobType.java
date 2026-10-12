@@ -261,7 +261,22 @@ public enum MobType {
      */
     GUARDIAN(68, 0.85, 0.85, 30.0f, 0.5, true, Traits.NONE,
             List.of(), // the custom drop walk (GuardianEntity.dropItems)
-            "mob.guardian.idle", "mob.guardian.hit", "mob.guardian.death", 6.0f);
+            "mob.guardian.idle", "mob.guardian.hit", "mob.guardian.death", 6.0f),
+
+    /**
+     * The mushroom cow (Slice 17b — MooshroomEntity over the cow): the
+     * same 0.9x1.3/10-health body, the wheat breeding, and the leather +
+     * raw beef drops — the mooshroom's own arms are the interaction pair:
+     * the bowl fills with the mushroom stew (the adult only), the shears
+     * shear it INTO a plain cow with five red mushrooms (the tool wear +
+     * the {@code mob.sheep.shear} sound). The mycelium spawn floor rides
+     * the mushroom-biome slice (ledgered: the engine's biome family
+     * carries no mushroom island).
+     */
+    MOOSHROOM(96, 0.9, 1.3, 10.0f, 0.035, false, Traits.NONE,
+            List.of(new ItemRoll(BuiltinItems.BEEF, 1, 3),
+                    new ItemRoll(BuiltinItems.LEATHER, 0, 2)),
+            "mob.cow.say", "mob.cow.hurt", "mob.cow.hurt");
 
     /**
      * The AI trait set beyond the walk-chase-panic baseline.

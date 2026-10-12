@@ -2971,3 +2971,31 @@ clear).
 
 Fresh suite: **915 green (822 core + 19 api + 74 protocol)**,
 `--max-workers=1`, zero failures.
+
+## Slice 17b — the mooshroom (the mushroom cow)
+
+**Scope**: MooshroomEntity over the cow — the bowl-to-stew interaction,
+the shear-into-a-cow conversion, the wire rows for the bowl pair.
+
+**The kind** (96, the cow's 0.9x1.3/10-health body, the wheat breeding,
+the leather + raw beef loot, the cow's sound family): the child breeds
+its own kind (makeChild), the mycelium spawn floor ledgered with the
+mushroom-biome slice (the engine's biome family carries no mushroom
+island).
+
+**The interactions** (interactMob's own ladder before the wheat arm):
+the bowl fills with the mushroom stew (the adult only — a single bowl
+swaps in the hand, a stacked one picks up the stew and consumes one
+bowl, the creative hand keeps the stack), and the shears shear it INTO
+a plain cow — the body replaces itself at the same position and health
+(the new setHealthCarried clamp), five red mushrooms pop, the tool
+wears one use, and the `mob.sheep.shear` sound lands.
+
+**The wire**: the bowl 281 and the mushroom stew 282 (the stack-1
+FoodItem(6, 0.6F) with the 7.2 saturation fold).
+
+**Tests**: MooshroomEntityTest (3: the identity, the conversion's health
+carry with the clamp, the baby's own kind).
+
+Fresh suite: **918 green (825 core + 19 api + 74 protocol)**,
+`--max-workers=1`, zero failures.

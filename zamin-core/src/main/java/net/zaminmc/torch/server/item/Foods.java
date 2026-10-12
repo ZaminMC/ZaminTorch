@@ -70,7 +70,10 @@ public final class Foods {
             // 10x0.6x2=12.0).
             Map.entry(net.zaminmc.torch.util.Identifier.parse("minecraft:rabbit"), new Nutrition(3, 1.8f)),
             Map.entry(net.zaminmc.torch.util.Identifier.parse("minecraft:cooked_rabbit"), new Nutrition(5, 6.0f)),
-            Map.entry(net.zaminmc.torch.util.Identifier.parse("minecraft:rabbit_stew"), new Nutrition(10, 12.0f)));
+            Map.entry(net.zaminmc.torch.util.Identifier.parse("minecraft:rabbit_stew"), new Nutrition(10, 12.0f)),
+            // The mooshroom's stew (Slice 17b — the reference's Item.java:
+            // FoodItem(6, 0.6F); the dataset saturation fold 6*0.6*2=7.2).
+            Map.entry(net.zaminmc.torch.util.Identifier.parse("minecraft:mushroom_stew"), new Nutrition(6, 7.2f)));
 
     private Foods() {
     }
