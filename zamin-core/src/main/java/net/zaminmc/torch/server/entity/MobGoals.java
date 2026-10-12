@@ -9,6 +9,10 @@ import java.util.List;
  * the ones the body always had (panic, the idle/wander cycle with its look-at
  * glance, the fluid swim-up); the goal layer is the community architecture
  * wrapped around them so new goals join by priority, not by editing the mind.
+ *
+ * <p>Each built-in carries a stable id (the addressable identity of the
+ * public registration surface, §27.3): "float", "panic", "breed",
+ * "stroll".</p>
  */
 final class MobGoals {
 
@@ -17,6 +21,7 @@ final class MobGoals {
 
     /** Priority 0, additive: a body in fluid always swims upward a little. */
     static final MobGoal FLOAT = new MobGoal() {
+        @Override public String goalId() { return "float"; }
         @Override public int priority() { return 0; }
         @Override public boolean exclusive() { return false; }
         @Override public boolean canUse(MobEntity mob, boolean night) {
@@ -29,6 +34,7 @@ final class MobGoals {
 
     /** Priority 1, exclusive: the hurt panic outranks everything but floating. */
     static final MobGoal PANIC = new MobGoal() {
+        @Override public String goalId() { return "panic"; }
         @Override public int priority() { return 1; }
         @Override public boolean exclusive() { return true; }
         @Override public boolean canUse(MobEntity mob, boolean night) {
@@ -46,6 +52,7 @@ final class MobGoals {
      * pending flag (the manager executes it — it owns spawning).
      */
     static final MobGoal BREED = new MobGoal() {
+        @Override public String goalId() { return "breed"; }
         @Override public int priority() { return 2; }
         @Override public boolean exclusive() { return true; }
         @Override public boolean canUse(MobEntity mob, boolean night) {
@@ -78,6 +85,7 @@ final class MobGoals {
      * LookAtPlayer glance folded into the idle band.
      */
     static final MobGoal RANDOM_STROLL = new MobGoal() {
+        @Override public String goalId() { return "stroll"; }
         @Override public int priority() { return 4; }
         @Override public boolean exclusive() { return true; }
         @Override public boolean canUse(MobEntity mob, boolean night) {

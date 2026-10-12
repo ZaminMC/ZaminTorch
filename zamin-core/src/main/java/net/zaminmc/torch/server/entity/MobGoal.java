@@ -24,4 +24,14 @@ public interface MobGoal {
 
     /** Drives the body for one tick (the simulation context only). */
     void tick(MobEntity mob, boolean night);
+
+    /**
+     * The stable id of a BUILT-IN goal (the addressable identity for the
+     * public registration surface, §27.3): {@code "float"}, {@code "panic"},
+     * {@code "breed"}, {@code "stroll"}. An empty string (the default)
+     * marks an engine-internal or custom goal with no built-in id.
+     */
+    default String goalId() {
+        return "";
+    }
 }

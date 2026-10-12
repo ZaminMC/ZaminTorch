@@ -1,5 +1,6 @@
 package net.zaminmc.torch.entity;
 
+import net.zaminmc.torch.entity.ai.GoalRegistration;
 import net.zaminmc.torch.util.Position;
 import net.zaminmc.torch.util.Rotation;
 
@@ -76,4 +77,13 @@ public interface LivingEntity extends Entity {
      * animation). Idempotent. Simulation context.
      */
     void despawn();
+
+    /**
+     * The mind's registration surface (§27.3's mob-AI family): register,
+     * remove, restore, and observe this body's goals. The mutation verbs
+     * carry their own admission onto the owner lane (see
+     * {@link GoalRegistration}) — the handle itself is safe to obtain
+     * from any thread.
+     */
+    GoalRegistration goals();
 }

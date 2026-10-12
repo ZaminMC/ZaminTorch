@@ -2473,3 +2473,57 @@ Fresh suite: **769 core + 19 api green** (788 total), protocol 71
 Fresh suite: **792 green (773 core + 19 api)**, `--max-workers=1`, zero
 failures; the protocol module carries no wire change this slice (71 from
 the same session's earlier run).
+
+## Slice 15a — the AI-goal registration surface (§27.3's mob-AI family)
+
+**Scope**: the first of the three remaining §27.3 waves the last session
+named — the goal mind's public registration surface. A plugin-facing
+`Goal` contract and `GoalRegistration` handle now live in `zamin-api`
+(`net.zaminmc.torch.entity.ai`), carried by `LivingEntity.goals()`.
+
+**The public shape**:
+- `Goal` — priority, exclusive, `canUse(LivingEntity, night)`,
+  `tick(LivingEntity, night)`: stateless decisions over the live handle
+  (the engine object IS the handle, §27.5 — the adapter casts, never
+  copies). Runs on the owner lane beside the built-ins; a throwing body
+  isolates per the mind's own policy.
+- `GoalRegistration` — `register` (the goal's own priority band, stable
+  insertion order within a band), `goals()` (the identity-preserving
+  snapshot: customs come back BY IDENTITY; built-ins dress as per-call
+  views that also PROBE willingness — §27.3's "querying intermediate
+  decisions"), `remove(Goal)` (identity match over customs and built-in
+  views alike), `removeBuiltIn(id)` / `restoreBuiltIn(id)` (the stable
+  ids "float", "panic", "breed", "stroll" — the compose/replace verb and
+  its way back).
+
+**The ownership protocol (§27.6, the honest part)**: every mutation
+admits onto the owner lane — `MobManager` wires the world's `execute` into
+each spawned body (`setGoalAdmission`), so registrations land between
+ticks from ANY thread, never inside the selector's walk (a mutation
+requested from inside a goal body re-queues at the next admission
+window). The verbs deliberately carry NO synchronous verdict — the
+mutation has not run when they return — and `goals()` is the
+confirmation channel. No blocking handshakes, no thread-name checks, no
+deadlock window. Bare harnesses (no admission wired) mutate inline under
+the caller's own context, matching the entity family's documented
+contract.
+
+**Engine shape**: `GoalSelector` became the registry — the built-in family
+plus registered customs in ONE priority-ordered list, the built-ins
+parking restorable on removal (both the stable-id path AND the view
+path), the tick walk unchanged (same-order scan, nothing mutates
+mid-iteration). `MobGoal` grew `goalId()` for the stable addressing; the
+built-ins carry their ids. Two thin adapters bridge the type gap
+(`PluginGoalAdapter` public→engine, `BuiltinGoalView` engine→public).
+
+**Tests**: `GoalApiAcceptanceTest` (4) — the registered goal ticks on the
+owner lane (`zamin-tick` captured from a foreign thread's registration);
+the stroll's exclusive claim blocks lower bands until removed by id and
+re-blocks after restore; the gated exclusive custom claims the band below
+it (open gate freezes the counter, close resumes, remove-by-identity ends
+it); the snapshot addresses built-ins by view (probe + remove + the
+stable-id restore reaching the view-removal path too — the restorable
+parking fixed for BOTH removal roads).
+
+Fresh suite: **867 green (777 core + 19 api + 71 protocol)**,
+`--max-workers=1`, zero failures.

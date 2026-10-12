@@ -254,6 +254,11 @@ public final class MobEntity implements LivingEntity {
 
     // The goal layer (the community PathfinderGoal architecture).
     private final GoalSelector goals = MobGoals.standard();
+    // The registration surface built on first use (the public goals() view).
+    private net.zaminmc.torch.entity.ai.GoalRegistration goalRegistration;
+    // The owner-lane admission for mind mutations (wired by the manager at
+    // spawn; null in bare harnesses — the caller then owns the context).
+    private java.util.function.Consumer<Runnable> goalAdmission;
     private Position visibleTarget;
     private boolean targetHuntable;
 
@@ -362,6 +367,36 @@ public final class MobEntity implements LivingEntity {
     /** Called once by the owning manager at spawn. */
     public void setRemovalHook(Runnable removalHook) {
         this.removalHook = removalHook;
+    }
+
+    /**
+     * The owner-lane admission for mind mutations (§27.6's explicit command
+     * protocol): the manager wires the world's {@code execute} at spawn, so
+     * goal registrations land between ticks regardless of the calling
+     * thread. Null in bare harnesses — the caller then owns the context.
+     */
+    public void setGoalAdmission(java.util.function.Consumer<Runnable> admission) {
+        this.goalAdmission = admission;
+    }
+
+    /** The wired admission (null when bare). */
+    java.util.function.Consumer<Runnable> goalAdmission() {
+        return goalAdmission;
+    }
+
+    /** The mind's selector (package view for the registration surface). */
+    GoalSelector goalSelector() {
+        return goals;
+    }
+
+    @Override
+    public net.zaminmc.torch.entity.ai.GoalRegistration goals() {
+        net.zaminmc.torch.entity.ai.GoalRegistration surface = goalRegistration;
+        if (surface == null) {
+            surface = GoalRegistrationSurface.of(this);
+            goalRegistration = surface;
+        }
+        return surface;
     }
 
     @Override
