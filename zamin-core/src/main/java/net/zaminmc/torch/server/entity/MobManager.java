@@ -193,6 +193,33 @@ public final class MobManager {
         /** The world's doEntityEvent byte (7 hearts, 6 smoke, 18 love...). */
         default void onMobStatusEvent(MobEntity mob, int status) {
         }
+
+        /**
+         * The guardian's state moved (Slice 17a — the wire's guardian
+         * block: the index-16 flag word's moving/elder bits and the
+         * index-17 beam target id; the Set Entity Metadata republishes
+         * the whole pair).
+         */
+        default void onGuardianStateChanged(MobEntity mob) {
+        }
+
+        /**
+         * The guardian's laser completed (Slice 17a — the charged beam's
+         * hit: the magic half pierces armor with no knockback, the melee
+         * half walks the full armor/enchantment path — the pair the
+         * reference's own {@code takeDamage} ladder lands).
+         */
+        default void onMobGuardianLaserHit(MobEntity mob, PlayerSession target,
+                                           float magicDamage, float meleeDamage) {
+        }
+
+        /**
+         * The elder's aura cycle fired (Slice 17a — mobAiTick's 1200-tick
+         * cadence: the survival players within 50 blocks take the
+         * Mining Fatigue III / 6000-tick curse, the weaker rows only).
+         */
+        default void onMobGuardianAura(MobEntity elder) {
+        }
     }
 
     private final MobEntity.WorldQuery world;
@@ -653,6 +680,8 @@ public final class MobManager {
             boolean wasBegging = mob.wolfBegging();
             int wasPosture = mob.postureFlags();
             boolean wasGhastCharging = mob.ghastCharging();
+            boolean wasGuardianMoving = mob.guardianMoving();
+            boolean wasGuardianBeam = mob.guardianBeamTargetId() != 0;
             boolean moved = mob.tick(night);
             if (wasPriming != mob.fuseActive()) {
                 for (Listener listener : listeners) {
@@ -705,6 +734,56 @@ public final class MobManager {
             if (wasGhastCharging != mob.ghastCharging()) {
                 for (Listener listener : listeners) {
                     listener.onMobGhastChargingChanged(mob);
+                }
+            }
+            // The guardian's charge cycle (Slice 17a — the laser family):
+            // the beam id's live resolution over the session registry (the
+            // wire's slot 17 carries the target), the beam's Event 21 at
+            // the start, the completed charge's magic + melee pair on the
+            // nearest player, the elder's aura cadence, and the state flip
+            // the wire republishes.
+            if (mob.type() == MobType.GUARDIAN) {
+                boolean wasBeam = wasGuardianBeam;
+                int wasMoving = wasGuardianMoving ? 1 : 0;
+                if (mob.guardianBeamActive()) {
+                    PlayerSession beamTarget = nearestPlayingPlayer(players, mob);
+                    mob.setGuardianBeamTargetId(
+                            beamTarget != null ? beamTarget.engineEntityId() : 0);
+                } else {
+                    mob.setGuardianBeamTargetId(0);
+                }
+                if (mob.consumeGuardianBeamStart()) {
+                    // doEntityEvent(this, (byte)21): the attack warning the
+                    // client answers with the mob.guardian.attack sound.
+                    for (Listener listener : listeners) {
+                        listener.onMobStatusEvent(mob, 21);
+                    }
+                }
+                if (mob.consumeGuardianLaserHit()) {
+                    PlayerSession laserTarget = nearestPlayingPlayer(players, mob);
+                    if (laserTarget != null && laserTarget.health() > 0
+                            && !laserTarget.dead()) {
+                        // The magic half (1.0 + the elder's 2.0 — the hard
+                        // bump lands at the engine's difficulty read) and
+                        // the melee half (the ATTACK_DAMAGE attribute's own).
+                        float magic = mob.guardianElder()
+                                ? 1.0F + 2.0F : 1.0F;
+                        for (Listener listener : listeners) {
+                            listener.onMobGuardianLaserHit(mob, laserTarget,
+                                    magic, mob.attackDamage());
+                        }
+                    }
+                }
+                if (mob.consumeGuardianAura()) {
+                    for (Listener listener : listeners) {
+                        listener.onMobGuardianAura(mob);
+                    }
+                }
+                if (wasMoving != (mob.guardianMoving() ? 1 : 0)
+                        || wasBeam != (mob.guardianBeamTargetId() != 0)) {
+                    for (Listener listener : listeners) {
+                        listener.onGuardianStateChanged(mob);
+                    }
                 }
             }
             // The pigman's delayed angry sound (Slice 16d — mobAiTick's
@@ -827,7 +906,7 @@ public final class MobManager {
             }
             if (mob.idleSoundDue()) {
                 for (Listener listener : listeners) {
-                    listener.onMobSound(mob, mob.type().idleSound);
+                    listener.onMobSound(mob, mob.effectiveIdleSound());
                 }
             }
         }
@@ -1164,6 +1243,34 @@ public final class MobManager {
             for (int unit = 0; unit < nuggets; unit++) {
                 lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()),
                         ItemStack.of(BuiltinItems.GOLD_NUGGET, 1));
+            }
+            return;
+        }
+        if (mob.type() == MobType.GUARDIAN) {
+            // GuardianEntity.dropItems (lines 383-398): the prismarine
+            // shards' own double roll — `nextInt(3) + nextInt(1+looting)`
+            // as ONE stack of count i; then the fish-or-crystals pair (the
+            // first `nextInt(3 + looting) > 1` drops the raw fish, else the
+            // second rolls for the crystals); the elder's wet sponge rides
+            // the player-kill arm (the `loot` flag — the engine's stand-in
+            // is the looting level: only a player's kill carries one).
+            int shards = random.nextInt(3) + random.nextInt(1 + looting);
+            if (shards > 0) {
+                lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()),
+                        new ItemStack(BuiltinItems.PRISMARINE_SHARD, shards, 0, null));
+            }
+            if (random.nextInt(3 + looting) > 1) {
+                lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()),
+                        ItemStack.of(BuiltinItems.FISH, 1));
+            } else if (random.nextInt(3 + looting) > 1) {
+                lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()),
+                        ItemStack.of(BuiltinItems.PRISMARINE_CRYSTALS, 1));
+            }
+            if (mob.guardianElder() && looting > 0) {
+                // The wet sponge (Blocks.SPONGE with damage 1 — the engine's
+                // stack damage field carries the variant).
+                lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()),
+                        new ItemStack(BuiltinItems.SPONGE, 1, 1, null));
             }
             return;
         }

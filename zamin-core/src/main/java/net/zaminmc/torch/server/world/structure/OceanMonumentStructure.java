@@ -62,30 +62,86 @@ public final class OceanMonumentStructure {
      * all water family (the reference's isBiomeWithin).
      */
     private boolean isFeatureChunk(int chunkX, int chunkZ, StructureWorld world) {
-        int floorX = chunkX;
-        int floorZ = chunkZ;
-        if (chunkX < 0) {
-            floorX -= SPACING - 1;
-        }
-        if (chunkZ < 0) {
-            floorZ -= SPACING - 1;
-        }
-        int cellX = floorX / SPACING;
-        int cellZ = floorZ / SPACING;
-        // world.setRandomSeed(k, l, 10387313) — World.java lines 2637-2641.
-        Random random = new Random(cellX * 341873128712L + cellZ * 132897987541L
-                + this.worldSeed + 10387313L);
-        int pickX = cellX * SPACING
-                + (random.nextInt(SPACING - SEPARATION) + random.nextInt(SPACING - SEPARATION)) / 2;
-        int pickZ = cellZ * SPACING
-                + (random.nextInt(SPACING - SEPARATION) + random.nextInt(SPACING - SEPARATION)) / 2;
-        if (chunkX != pickX || chunkZ != pickZ) {
+        long pick = pickOfCell(cellOf(chunkX), cellOf(chunkZ));
+        if (chunkX != unpackX(pick) || chunkZ != unpackZ(pick)) {
             return false;
         }
         if (world.biomeAt(chunkX * 16 + 8, chunkZ * 16 + 8) != Biome.DEEP_OCEAN) {
             return false;
         }
         return isBiomeWithin(world, chunkX * 16 + 8, chunkZ * 16 + 8, 29);
+    }
+
+    /** @return the spacing-cell coordinate of a chunk (the negative-aware floor). */
+    private static int cellOf(int chunk) {
+        int floor = chunk;
+        if (chunk < 0) {
+            floor -= SPACING - 1;
+        }
+        return floor / SPACING;
+    }
+
+    /**
+     * The cell's own pick chunk (isFeatureChunk's seed walk, lines 71-81):
+     * {@code setRandomSeed(k, l, 10387313)} then the reference's own
+     * two-roll average {@code (nextInt(spacing - separation) +
+     * nextInt(spacing - separation)) / 2} per axis — deterministic in
+     * (cellX, cellZ, worldSeed) alone.
+     */
+    private long pickOfCell(int cellX, int cellZ) {
+        Random random = new Random(cellX * 341873128712L + cellZ * 132897987541L
+                + this.worldSeed + 10387313L);
+        int pickX = cellX * SPACING
+                + (random.nextInt(SPACING - SEPARATION) + random.nextInt(SPACING - SEPARATION)) / 2;
+        int pickZ = cellZ * SPACING
+                + (random.nextInt(SPACING - SEPARATION) + random.nextInt(SPACING - SEPARATION)) / 2;
+        return ((long) pickX << 32) | (pickZ & 0xFFFFFFFFL);
+    }
+
+    /** @return the packed pick's x chunk. */
+    private static int unpackX(long packed) {
+        return (int) (packed >> 32);
+    }
+
+    /** @return the packed pick's z chunk. */
+    private static int unpackZ(long packed) {
+        return (int) packed;
+    }
+
+    /**
+     * The reference's isInsideBounds walk (StructureFeature lines 98-107,
+     * over the loaded starts — Slice 17a): whether a monument start's
+     * bounds contain the position, the spawn entries' monument arm. The
+     * engine's deterministic stand-in: the nine surrounding 32-chunk
+     * biome cells each derive their own pick chunk (the same seed walk
+     * isFeatureChunk runs), the horizontal 58-block box filter running
+     * before the biome gates so the common no-monument cell costs two
+     * longs.
+     */
+    public boolean insideBounds(StructureWorld world, int x, int y, int z) {
+        int cellX = cellOf((int) Math.floor((double) x / (SPACING * 16.0)));
+        int cellZ = cellOf((int) Math.floor((double) z / (SPACING * 16.0)));
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dz = -1; dz <= 1; dz++) {
+                long pick = pickOfCell(cellX + dx, cellZ + dz);
+                int pickX = unpackX(pick);
+                int pickZ = unpackZ(pick);
+                // The 58-block piece anchored at the -29 offset: the pick
+                // chunk's own [16*pick-21, 16*pick+36] window.
+                if (x < pickX * 16 - 21 || x > pickX * 16 + 36) {
+                    continue;
+                }
+                if (z < pickZ * 16 - 21 || z > pickZ * 16 + 36) {
+                    continue;
+                }
+                StructureStart start = createStart(pickX, pickZ, world);
+                if (start != null && start.getBounds() != null
+                        && start.getBounds().contains(x, y, z)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /**

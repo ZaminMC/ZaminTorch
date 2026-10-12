@@ -259,14 +259,19 @@ public final class OceanMonumentPieces {
         }
 
         /**
-         * The elder guardian spawn (spawnElderGuardian lines 1387-1401): the
-         * guardian entity rides the guardian-mob slice — the engine's
-         * stand-in is the documented no-op (the ledger's envelope note).
+         * The elder guardian spawn (spawnElderGuardian lines 1387-1401,
+         * 1:1 — Slice 17a): the transformed cell inside the clip box
+         * queues the elder through the structure view's pending record —
+         * the reference's own bounds gate, the heal-to-max riding the
+         * engine's setElder flip.
          */
-        @SuppressWarnings("unused")
         void spawnElderGuardian(StructureWorld world, StructureBox clip, int x, int y, int z) {
-            // No entity system for the guardian yet — the position check
-            // stays for the record (the reference's bounds.contains gate).
+            int wx = this.transformX(x, z);
+            int wy = this.transformY(y);
+            int wz = this.transformZ(x, z);
+            if (clip.contains(wx, wy, wz)) {
+                world.spawnElderGuardian(wx, wy, wz);
+            }
         }
     }
 

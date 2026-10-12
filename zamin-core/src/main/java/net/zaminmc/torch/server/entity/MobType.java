@@ -244,7 +244,24 @@ public enum MobType {
      */
     BAT(65, 0.5, 0.9, 6.0f, 0.0, false, Traits.NONE,
             List.of(), // no drops (BatEntity's null getDropItem)
-            "mob.bat.idle", "mob.bat.hurt", "mob.bat.death");
+            "mob.bat.idle", "mob.bat.hurt", "mob.bat.death"),
+
+    /**
+     * The ocean monument's hunter (Slice 17a — GuardianEntity): the
+     * 0.85x0.85/30-health body, movement 0.5 (the fastest hostile walk
+     * in the water column — the swim owns the movement, the reference's
+     * {@code moveRelative} 0.1-scale velocity update with the 0.9 decay),
+     * the 6.0 melee that only ever lands through the laser's charged
+     * beam (the magic + melee pair at the reference's own
+     * {@code getAttackChargeTime()}), the thorns reflect on a melee hit
+     * while the body stands still, and the elder variant (the 1.9975
+     * hull, 80 health, 8.0, speed 0.3 — the monument's own three). The
+     * land pairs ({@code mob.guardian.land.*}) and the elder sound
+     * family ride the manager's dynamic reads (the in-water check).
+     */
+    GUARDIAN(68, 0.85, 0.85, 30.0f, 0.5, true, Traits.NONE,
+            List.of(), // the custom drop walk (GuardianEntity.dropItems)
+            "mob.guardian.idle", "mob.guardian.hit", "mob.guardian.death", 6.0f);
 
     /**
      * The AI trait set beyond the walk-chase-panic baseline.

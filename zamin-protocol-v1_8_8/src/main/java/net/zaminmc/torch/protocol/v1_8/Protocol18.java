@@ -250,6 +250,15 @@ final class Protocol18 {
     static final int WOLF_HEALTH_METADATA_INDEX = 18;
     static final int WOLF_BEGGING_METADATA_INDEX = 19;
     static final int WOLF_COLLAR_METADATA_INDEX = 20;
+    // The guardian's block (GuardianEntity.registerSyncedData): the
+    // index-16 flag Int (bit 0x02 the swim's moving, bit 0x04 the elder)
+    // and the 17 beam-target Int (the laser's live victim id — 0 = none;
+    // the client draws the beam from it).
+    static final int GUARDIAN_BEAM_METADATA_INDEX = 17;
+    /** The swim steering bit (GuardianEntity's setDataFlagValue(2)). */
+    static final int GUARDIAN_FLAG_MOVING = 0x02;
+    /** The elder bit (GuardianEntity's setDataFlagValue(4)). */
+    static final int GUARDIAN_FLAG_ELDER = 0x04;
 
     // The living-flags bit map (1.8's Entity flags byte, index 0):
     // 0x01 burning, 0x02 crouched, 0x08 riding, 0x10 sprinting, 0x20 eating.

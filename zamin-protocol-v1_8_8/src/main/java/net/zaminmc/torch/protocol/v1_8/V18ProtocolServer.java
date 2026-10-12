@@ -329,6 +329,14 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                 }
             }
 
+            /** The guardian's state moved (the flag word + the beam pair). */
+            @Override
+            public void onGuardianStateChanged(net.zaminmc.torch.server.entity.MobEntity mob) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendGuardianState(mob);
+                }
+            }
+
             @Override
             public void onMobWitchAura(net.zaminmc.torch.server.entity.MobEntity mob) {
                 // The Entity Event byte 15 (WitchEntity.doEvent's spell

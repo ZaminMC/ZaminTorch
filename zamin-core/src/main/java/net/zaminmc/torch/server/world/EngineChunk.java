@@ -159,6 +159,22 @@ public final class EngineChunk {
         return pendingMobSpawners;
     }
 
+    /** One populate-time elder guardian (Slice 17a — the monument's own). */
+    public record PendingElderGuardian(int x, int y, int z) {
+    }
+
+    private final List<PendingElderGuardian> pendingElderGuardians = new ArrayList<>();
+
+    /** Records one elder guardian spawn (generator thread, during generate). */
+    public void addPendingElderGuardian(int x, int y, int z) {
+        pendingElderGuardians.add(new PendingElderGuardian(x, y, z));
+    }
+
+    /** @return the pending elder records (empty when none). */
+    public List<PendingElderGuardian> pendingElderGuardians() {
+        return pendingElderGuardians;
+    }
+
     /** Records one populate-time animal (the generator's seeding walk). */
     public void addPendingAnimal(PendingAnimal animal) {
         pendingAnimals.add(java.util.Objects.requireNonNull(animal, "animal"));

@@ -2307,6 +2307,16 @@ public final class EngineServer implements Server, EngineBridge {
     private static final int FIRE_ASPECT_SECONDS_PER_LEVEL = 4;
     /** The tick clock the fire seconds ride ({@code setOnFireFor} converts × 20). */
     private static final int TICKS_PER_SECOND = 20;
+    // The guardian family (Slice 17a): the hard-difficulty magic bump on the
+    // laser (the reference's own +2.0F arm) and the elder's aura constants
+    // (mobAiTick's 50-block reach, the Fatigue III / 6000-tick curse, the
+    // 1200-tick weaker-row refresh floor, the ghost-curse game state 10).
+    private static final float GUARDIAN_MAGIC_HARD_BONUS = 2.0f;
+    private static final double ELDER_AURA_RADIUS_SQUARED = 2500.0;
+    private static final int ELDER_AURA_DURATION = 6000;
+    private static final int ELDER_AURA_AMPLIFIER = 2;
+    private static final int ELDER_AURA_REFRESH_BELOW = 1200;
+    private static final int GAME_STATE_ELDER_GUARDIAN_CURSE = 10;
 
     /**
      * A player attacked an entity (Use Entity 0x02, mouse=1): validates reach,
@@ -2426,6 +2436,20 @@ public final class EngineServer implements Server, EngineBridge {
             mob.setLootingLevel(EnchantmentHelper.lootingLevel(held));
             boolean landed = mobManager.hurt(mob, damage, kbYaw);
             if (landed) {
+                // Slice 17a — GuardianEntity.takeDamage's spike reflect: a
+                // still body's thorns wound the melee attacker (2.0F with
+                // the damage.thorns sound at 0.5 — the reference's own
+                // living-source check; the magic and explosive families and
+                // a swimming body never spike).
+                if (mob.guardianSpikesMeleeAttacker()) {
+                    // The attacker's own takeDamage walk (the reference's
+                    // livingentity.takeDamage pair — the same tick, the
+                    // same walk) with the thorns sound.
+                    damageOnTick(attacker, mob.guardianThornsDamage(), true,
+                            "was slain by " + titledMobName(mob), 0.0f,
+                            net.zaminmc.torch.event.DamageCause.MAGIC);
+                    fxManager.sound(attacker.position(), "damage.thorns", 0.5f, 1.0f);
+                }
                 // Slice 16d — ZombiePigmanEntity.takeDamage's getAngryTo:
                 // a player's hit angers the pigman and its whole nearby
                 // group (the manager's propagation walk).
@@ -7628,6 +7652,30 @@ public final class EngineServer implements Server, EngineBridge {
                     }
                     chunk.pendingMobSpawners().clear();
                 }
+                if (!chunk.pendingElderGuardians().isEmpty()) {
+                    // Slice 17a — the monument's own three (the reference's
+                    // spawnElderGuardian): the elder flip arms the 1.9975
+                    // hull, the 80 health, the 8.0 melee and the persistent
+                    // never-despawn rule; the restart idempotence guard is
+                    // the villagers' own pattern (a guard already standing
+                    // there means a previous life drained it).
+                    for (net.zaminmc.torch.server.world.EngineChunk.PendingElderGuardian pending
+                            : chunk.pendingElderGuardians()) {
+                        if (mobManager.mobOfKindNear(
+                                net.zaminmc.torch.server.entity.MobType.GUARDIAN,
+                                pending.x() + 0.5, pending.y(), pending.z() + 0.5, 2.0)) {
+                            continue;
+                        }
+                        MobEntity elder = mobManager.spawnAt(
+                                net.zaminmc.torch.server.entity.MobType.GUARDIAN,
+                                new Position(pending.x() + 0.5, pending.y(),
+                                        pending.z() + 0.5));
+                        if (elder != null) {
+                            elder.setGuardianElder(true); // the setElder + heal pair
+                        }
+                    }
+                    chunk.pendingElderGuardians().clear();
+                }
             }
         }
     }
@@ -7700,6 +7748,62 @@ public final class EngineServer implements Server, EngineBridge {
             implements net.zaminmc.torch.server.spawn.NaturalSpawnSystem.WorldQuery {
         private final EngineWorld target;
         private final boolean nether;
+        /**
+         * The monument bounds consult (Slice 17a — the guardian's spawn
+         * rows): deterministic from the world seed, the same placement
+         * math the world generator's own monuments ride.
+         */
+        private final net.zaminmc.torch.server.world.structure.OceanMonumentStructure monuments =
+                new net.zaminmc.torch.server.world.structure.OceanMonumentStructure(worldSeed);
+        /**
+         * The monument consult's biome view: the pure fbm answer the
+         * placement gates read (the generator's own biomeAt — never the
+         * chunk array, so the bounds check stays deterministic even over
+         * unloaded chunks).
+         */
+        private final net.zaminmc.torch.server.world.structure.StructureWorld monumentBiomes =
+                new net.zaminmc.torch.server.world.structure.StructureWorld() {
+                    @Override
+                    public net.zaminmc.torch.block.BlockType blockAt(int x, int y, int z) {
+                        return target.getBlock(new BlockPosition(x, y, z));
+                    }
+
+                    @Override
+                    public boolean isLiquid(net.zaminmc.torch.block.BlockType type) {
+                        return net.zaminmc.torch.server.block.FluidBlocks.isFluid(type.identifier());
+                    }
+
+                    @Override
+                    public void setBlock(int x, int y, int z, net.zaminmc.torch.block.BlockType type) {
+                        // the bounds consult never writes
+                    }
+
+                    @Override
+                    public int seaLevel() {
+                        return 63;
+                    }
+
+                    @Override
+                    public net.zaminmc.torch.server.world.structure.StructurePalette palette() {
+                        throw new UnsupportedOperationException(
+                                "the monument bounds consult reads no palette");
+                    }
+
+                    @Override
+                    public boolean isOpaque(net.zaminmc.torch.block.BlockType type) {
+                        return false;
+                    }
+
+                    @Override
+                    public net.zaminmc.torch.server.world.Biome biomeAt(int x, int z) {
+                        var generator = target.generator();
+                        if (generator instanceof
+                                net.zaminmc.torch.server.world.NormalWorldGenerator normal) {
+                            return normal.biomeAt(x, z); // the pure fbm answer
+                        }
+                        return net.zaminmc.torch.server.world.Biome.PLAINS;
+                    }
+                };
 
         SpawnWorldQuery(EngineWorld target, boolean nether) {
             this.target = target;
@@ -7709,6 +7813,14 @@ public final class EngineServer implements Server, EngineBridge {
         @Override
         public Object blockAt(BlockPosition position) {
             return target.getBlock(position);
+        }
+
+        @Override
+        public boolean insideMonument(int x, int y, int z) {
+            if (nether) {
+                return false; // the nether carries no monuments
+            }
+            return monuments.insideBounds(monumentBiomes, x, y, z);
         }
 
         @Override
@@ -8060,6 +8172,8 @@ public final class EngineServer implements Server, EngineBridge {
                     ? mob.slimeSize()
                     : mob.type() == net.zaminmc.torch.server.entity.MobType.GHAST
                     ? 5 // GhastEntity's own xpDrop
+                    : mob.type() == net.zaminmc.torch.server.entity.MobType.GUARDIAN
+                    ? 10 // GuardianEntity's own xpDrop (line 52)
                     : ExperienceAwards.forMobKill(mob.type().hostile, gameplayRandom);
             experienceOrbs.spawnBurst(mob.position(), amount, 3);
         }
@@ -8175,6 +8289,98 @@ public final class EngineServer implements Server, EngineBridge {
             double dz = target.z() - origin.z();
             projectileManager.launchGhastFireball(mob.entityId(), origin, dx, dy, dz);
             fxManager.sound(mob.position(), "mob.ghast.fireball", 10.0f, 1.0f);
+        }
+
+        /**
+         * The guardian's laser completed (Slice 17a — the charged beam's
+         * hit, GuardianAttackEntityGoal.tick lines 508-522): the magic half
+         * pierces armor with no knockback ({@code DamageSource.magic}), the
+         * melee half walks the full armor/enchantment ladder
+         * ({@code DamageSource.mob} — the attack-damage attribute's own).
+         */
+        @Override
+        public void onMobGuardianLaserHit(MobEntity mob, PlayerSession target,
+                                           float magicDamage, float meleeDamage) {
+            for (MobManager.Listener listener : mobListeners) {
+                listener.onMobGuardianLaserHit(mob, target, magicDamage, meleeDamage);
+            }
+            String cause = "was slain by " + titledMobName(mob);
+            // The hard-difficulty bump (+2.0F on the magic half — the
+            // reference's own arm; the difficulty id: 3 = hard).
+            float magic = magicDamage
+                    + (difficulty() == 3 ? GUARDIAN_MAGIC_HARD_BONUS : 0.0f);
+            if (magic > 0.0f) {
+                // The magic pierce: no knockback, no armor shave (the
+                // potion family's own arm).
+                damageOnTick(target, magic, true, cause, 0.0f,
+                        net.zaminmc.torch.event.DamageCause.MAGIC);
+            }
+            // The melee half: the armor + enchantment ladder, the melee
+            // exhaustion — the onMobAttackedPlayer walk's own shape.
+            ItemStack[] thornsRow = target.inventory().armorStacks();
+            damageOnTick(target,
+                    applyEnchantProtection(target, applyArmor(target, meleeDamage),
+                            DamageKind.MELEE),
+                    cause, DamageKind.MELEE);
+            applyThornsWildcard(target, thornsRow, new ThornsTarget() {
+                @Override
+                public void takeThornsDamage(int amount, PlayerSession wearer) {
+                    if (mobManager != null) {
+                        mob.setLootingLevel(EnchantmentHelper.lootingLevel(
+                                wearer.inventory().held()));
+                        mobManager.hurt(mob, amount, wearer.rotation().yaw());
+                    }
+                }
+
+                @Override
+                public Position position() {
+                    return mob.position();
+                }
+            });
+        }
+
+        /**
+         * The elder's aura cycle (Slice 17a — mobAiTick lines 354-374): the
+         * survival players within 50 blocks take the Mining Fatigue III
+         * curse (6000 ticks) — only the weaker rows (amplifier under 2 or
+         * duration under 1200) — each preceded by the ghost-curse game
+         * state (event 10).
+         */
+        @Override
+        public void onMobGuardianAura(MobEntity elder) {
+            for (MobManager.Listener listener : mobListeners) {
+                listener.onMobGuardianAura(elder);
+            }
+            if (potionSystem == null) {
+                return;
+            }
+            for (PlayerSession player : players.all()) {
+                if (player.state() != PlayerState.PLAYING || player.dead()
+                        || player.gamemode() != GameMode.SURVIVAL) {
+                    continue; // the reference's interactionManager.isSurvival gate
+                }
+                double dx = player.position().x() - elder.position().x();
+                double dy = player.position().y() - elder.position().y();
+                double dz = player.position().z() - elder.position().z();
+                if (dx * dx + dy * dy + dz * dz >= ELDER_AURA_RADIUS_SQUARED) {
+                    continue;
+                }
+                var existing = potionSystem.get(player,
+                        net.zaminmc.torch.server.potion.StatusEffects.MINING_FATIGUE);
+                if (existing != null && existing.amplifier() >= ELDER_AURA_AMPLIFIER
+                        && existing.duration() >= ELDER_AURA_REFRESH_BELOW) {
+                    continue; // the stronger row stays
+                }
+                // GameEventS2CPacket(10, 0.0F): the elder-guardian ghost
+                // curse overlay the client renders.
+                var link = player.link();
+                if (link != null) {
+                    link.playGameState(GAME_STATE_ELDER_GUARDIAN_CURSE, 0.0f);
+                }
+                potionSystem.add(player, new net.zaminmc.torch.server.potion.StatusEffectInstance(
+                        net.zaminmc.torch.server.potion.StatusEffects.MINING_FATIGUE,
+                        ELDER_AURA_DURATION, ELDER_AURA_AMPLIFIER));
+            }
         }
 
         @Override

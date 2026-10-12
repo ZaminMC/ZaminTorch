@@ -72,6 +72,15 @@ public final class NaturalSpawnSystem {
     public record SpawnEntry(MobType type, int weight, int minGroup, int maxGroup) {
     }
 
+    /**
+     * The ocean monument's own monster rows (OceanMonumentStructure's
+     * static SPAWN_ENTRIES, Slice 17a): the guardian at weight 1, groups
+     * of 2-4 — the only monster that spawns inside the monument bounds
+     * (the reference's getSpawnEntries swap).
+     */
+    private static final List<SpawnEntry> MONUMENT_MONSTER_ENTRIES = List.of(
+            new SpawnEntry(MobType.GUARDIAN, 1, 2, 4));
+
     /** The engine's mob surface. */
     public interface Mobs {
         /**
@@ -115,6 +124,17 @@ public final class NaturalSpawnSystem {
          * WorldChunk.getRandomForSlime reads the world seed).
          */
         long worldSeed();
+
+        /**
+         * Whether the position stands inside a generated ocean monument's
+         * bounds (Slice 17a — the reference's OverworldChunkGenerator
+         * getSpawnEntries monument arm: the guardian's spawn rows replace
+         * the monster list inside). The default answers false (the stub
+         * worlds carry no monuments).
+         */
+        default boolean insideMonument(int x, int y, int z) {
+            return false;
+        }
     }
 
     private final Mobs mobs;
@@ -315,9 +335,18 @@ public final class NaturalSpawnSystem {
                         if (sdx * sdx + sdy * sdy + sdz * sdz < SPAWN_KEEP_OUT_SQUARED) {
                             continue;
                         }
-                        // The entry picks once per pack (lines 93-99).
+                        // The entry picks once per pack (lines 93-99) —
+                        // the position-aware resolution: inside the
+                        // monument bounds the monster list IS the guardian
+                        // rows (OverworldChunkGenerator.getSpawnEntries
+                        // lines 451-454, Slice 17a).
                         if (entry == null) {
-                            entry = pickWeighted(entries);
+                            List<SpawnEntry> candidates = entries;
+                            if (category == Category.MONSTER
+                                    && world.insideMonument(x, y, z)) {
+                                candidates = MONUMENT_MONSTER_ENTRIES;
+                            }
+                            entry = pickWeighted(candidates);
                             if (entry == null) {
                                 break;
                             }
@@ -370,6 +399,15 @@ public final class NaturalSpawnSystem {
     private boolean isValidSpawnCell(MobType type, BlockPosition cell, int ambientDarkness) {
         if (cell.y() <= 0) {
             return false; // the void floor: nothing below y=1 ever grounds a spawn
+        }
+        if (type == MobType.GUARDIAN) {
+            // SpawnPlacement.ENVIRONMENTS (line 67): the guardian's own
+            // IN_WATER environment — the liquid cell with the liquid below
+            // and the non-solid above (isValidSpawnPos lines 150-155); no
+            // light gate at all (canSpawnAtLightLevel answers true).
+            return isFluidAt(cell.x(), cell.y(), cell.z())
+                    && isFluidAt(cell.x(), cell.y() - 1, cell.z())
+                    && !isSolidAt(cell.x(), cell.y() + 1, cell.z());
         }
         BlockPosition below = cell.offset(0, -1, 0);
         Object belowType = world.blockAt(below);
@@ -426,6 +464,14 @@ public final class NaturalSpawnSystem {
             // SquidEntity.canSpawn: the y 45-seaLevel band, in water.
             return y > 45 && y < 62
                     && isWaterAt(x, y, z);
+        }
+        if (type == MobType.GUARDIAN) {
+            // GuardianEntity.canSpawn (line 418): the open-sky 1-in-20
+            // roll — the covered position (the monument's interior, the
+            // sky-light under 15 stand-in for the reference's
+            // hasSkyAccessIgnoreLiquids) always passes.
+            return random.nextInt(20) == 0
+                    || world.skyLightAt(new BlockPosition(x, y, z)) < 15;
         }
         if (type != MobType.SLIME) {
             return true; // every other kind carries no entity-level gate

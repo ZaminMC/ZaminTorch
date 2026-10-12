@@ -793,6 +793,8 @@ public final class MobEntity implements LivingEntity {
             tickWolfClock(); // the tameable family's shared clock
         } else if (type == MobType.ZOMBIE_PIGMAN) {
             tickPigmanAnger(); // the anger's decay + the delayed sound (16d)
+        } else if (type == MobType.GUARDIAN) {
+            tickGuardianClock(); // the elder's aura cadence (17a)
         }
         if (hurtFlash > 0) {
             hurtFlash--;
@@ -1201,6 +1203,11 @@ public final class MobEntity implements LivingEntity {
             // override adds 2 on top.
             return slimeSize + (type == MobType.MAGMA_CUBE ? 2 : 0);
         }
+        if (type == MobType.GUARDIAN && guardianElder) {
+            // setElder line 141: the elder's own ATTACK_DAMAGE 8.0 (the
+            // laser's melee half reads the attribute live).
+            return GUARDIAN_ELDER_DAMAGE;
+        }
         return type.attackDamage;
     }
 
@@ -1244,12 +1251,31 @@ public final class MobEntity implements LivingEntity {
 
     /** @return the body's hurt sound (the slime family's is size-dependent). */
     public String hurtSound() {
+        if (type == MobType.GUARDIAN) {
+            return guardianSoundKind() + "hit";
+        }
         return type.slimeFamily() ? slimeSoundName() : type.hurtSound;
     }
 
     /** @return the body's death sound (the slime family's is size-dependent). */
     public String deathSound() {
+        if (type == MobType.GUARDIAN) {
+            return guardianSoundKind() + "death";
+        }
         return type.slimeFamily() ? slimeSoundName() : type.deathSound;
+    }
+
+    /**
+     * The guardian's sound family prefix (getHurtSound/getDeathSound lines
+     * 210-226): the land pair when the body stands dry ({@code
+     * mob.guardian.land.}), else the elder's own ({@code
+     * mob.guardian.elder.}) or the plain water family.
+     */
+    private String guardianSoundKind() {
+        if (!world.inFluid(position.x(), position.y() + 0.2, position.z())) {
+            return "mob.guardian.land.";
+        }
+        return guardianElder ? "mob.guardian.elder." : "mob.guardian.";
     }
 
     /** The hop cadence counter (MovementControl's jumpCooldownTicks). */
@@ -1410,6 +1436,316 @@ public final class MobEntity implements LivingEntity {
         position = new Position(position.x() + velocityX, position.y() + velocityY,
                 position.z() + velocityZ);
         onGround = false;
+    }
+
+    // ------------------------------------- the guardian (17a)
+
+    /** The laser's charge time (getAttackChargeTime: the elder's own 60). */
+    private static final int GUARDIAN_ATTACK_CHARGE_TICKS = 80;
+    /** The elder's own charge (getAttackChargeTime's elder arm). */
+    private static final int ELDER_ATTACK_CHARGE_TICKS = 60;
+    /** The charge cycle's start offset (GuardianAttackEntityGoal.start: -10). */
+    private static final int GUARDIAN_CHARGE_START = -10;
+    /** The laser hit's magic base (tick line 517: the flat 1.0F). */
+    private static final float GUARDIAN_MAGIC_BASE = 1.0f;
+    /** The hard-difficulty magic bump (tick lines 509-512: +2.0F — the engine's walk adds it). */
+    private static final float GUARDIAN_MAGIC_HARD_BONUS = 2.0f;
+    /** The elder's own magic bump (tick lines 514-516: +2.0F). */
+    private static final float GUARDIAN_MAGIC_ELDER_BONUS = 2.0f;
+    /** The still body's spike reflect (takeDamage lines 422-429: 2.0F on the melee family). */
+    private static final float GUARDIAN_THORNS_DAMAGE = 2.0f;
+    /** The elder's hull (setElder line 139: 1.9975F on both axes). */
+    private static final double GUARDIAN_ELDER_SIZE = 1.9975;
+    /** The elder's health ceiling (setElder line 142: MAX_HEALTH 80). */
+    private static final float GUARDIAN_ELDER_HEALTH = 80.0f;
+    /** The elder's melee (setElder line 141: ATTACK_DAMAGE 8.0). */
+    private static final float GUARDIAN_ELDER_DAMAGE = 8.0f;
+    /** The elder's speed (setElder line 140: MOVEMENT_SPEED 0.3). */
+    private static final double GUARDIAN_ELDER_WALK = 0.3;
+    /** The elder's mining-fatigue aura (mobAiTick: every 1200 ticks, the body's own cadence). */
+    private static final int GUARDIAN_ELDER_AURA_INTERVAL = 1200;
+    /** The aura's reach (squared: 2500 = 50 blocks, squaredDistanceTo < 2500). */
+    private static final double GUARDIAN_ELDER_AURA_RADIUS_SQUARED = 2500.0;
+    /** The aura's own duration (6000 ticks of Fatigue III). */
+    private static final int GUARDIAN_ELDER_AURA_DURATION = 6000;
+    /** The aura's amplifier (the 1.8.8 elder's own III). */
+    private static final int GUARDIAN_ELDER_AURA_AMPLIFIER = 2;
+    /** The aura's re-application floor (the 1200-duration arm: only weaker rows re-land). */
+    private static final int GUARDIAN_ELDER_AURA_REFRESH_BELOW = 1200;
+    /** The target validator's beyond-the-flop gate (squaredDistanceTo > 9). */
+    private static final double GUARDIAN_TARGET_MIN_SQUARED = 9.0;
+    /** The wander cadence (WanderAroundGoal's interval 80 — the re-roll). */
+    private static final int GUARDIAN_WANDER_INTERVAL = 80;
+    /** The swim's velocity scale (moveRelative: updateVelocity(…, 0.1F)). */
+    private static final double GUARDIAN_SWIM_SCALE = 0.1;
+    /** The swim's per-tick decay (velocity *= 0.9). */
+    private static final double GUARDIAN_SWIM_DECAY = 0.9;
+    /** The idle sink (velocityY -= 0.005 when neither steering nor hunting). */
+    private static final double GUARDIAN_IDLE_SINK = 0.005;
+    /** The land flop's rise (mobTick line 324: velocityY += 0.5). */
+    private static final double GUARDIAN_FLOP_RISE = 0.5;
+    /** The land flop's horizontal band ((rand*2-1) * 0.4 per axis). */
+    private static final double GUARDIAN_FLOP_BAND = 0.4;
+
+    /** The elder flag (setElder — the monument's own three carry it). */
+    private boolean guardianElder;
+    /** The swim steering flag (GuardianMovementControl's moving — the wire's slot-16 bit 0x02, the thorns gate). */
+    private boolean guardianMoving;
+    /** The charge cycle ({@code Integer.MIN_VALUE} = idle; -10 start, 0 = the beam on, the charge time = the hit). */
+    private int guardianChargeTicks = Integer.MIN_VALUE;
+    /** The beam's live target id (the wire's slot 17; 0 = none — the manager resolves the session id). */
+    private int guardianBeamTargetId;
+    /** Set when the beam starts (the charge crosses 0); the manager resolves the id + the Event 21. */
+    private boolean pendingGuardianBeamStart;
+    /** Set when the laser's charge completes; the manager lands the magic + melee pair on the target. */
+    private boolean pendingGuardianLaserHit;
+    /** Set when the elder's aura cycle fires; the manager walks the players. */
+    private boolean pendingGuardianAura;
+    /** The wander's steering target (the re-rolled swim direction). */
+    private double guardianSteerX;
+    private double guardianSteerY;
+    private double guardianSteerZ;
+    private boolean guardianHasSteer;
+
+    /** @return whether the body is the elder variant (the wire's slot-16 bit 0x04). */
+    public boolean guardianElder() {
+        return guardianElder;
+    }
+
+    /** @return the swim steering flag (the wire's slot-16 bit 0x02, the thorns gate). */
+    public boolean guardianMoving() {
+        return guardianMoving;
+    }
+
+    /** @return the beam's live target id (the wire's slot 17; 0 = none). */
+    public int guardianBeamTargetId() {
+        return guardianBeamTargetId;
+    }
+
+    /**
+     * @return whether the charge window carries a live beam (the charge
+     * crossed 0 — the wire's slot 17 carries the target's id until the
+     * hit or the hunt's break clears it).
+     */
+    public boolean guardianBeamActive() {
+        return guardianChargeTicks >= 0 && guardianChargeTicks < guardianChargeTime();
+    }
+
+    /** The manager's beam write (the session id the charge window carries). */
+    public void setGuardianBeamTargetId(int targetId) {
+        guardianBeamTargetId = targetId;
+    }
+
+    /** @return the laser's charge time (the elder's own 60). */
+    public int guardianChargeTime() {
+        return guardianElder ? ELDER_ATTACK_CHARGE_TICKS : GUARDIAN_ATTACK_CHARGE_TICKS;
+    }
+
+    /**
+     * The elder flip (setElder lines 132-146): the 1.9975 hull, the
+     * speed 0.3, the damage 8.0, the 80-health ceiling (healed here —
+     * the reference's own {@code spawnElderGuardian} heals to the new
+     * max), and the persistent never-despawn rule.
+     */
+    public void setGuardianElder(boolean elder) {
+        guardianElder = elder;
+        if (elder) {
+            persistent = true; // setPersistent (the elder never despawns)
+            health = GUARDIAN_ELDER_HEALTH;
+        }
+    }
+
+    /**
+     * @return the guardian's thorns verdict — a still body spikes its
+     * melee attacker ({@code !isMoving() && !source.getMagic() &&
+     * source.getSource() instanceof LivingEntity && !source.isExplosive()}).
+     */
+    public boolean guardianSpikesMeleeAttacker() {
+        return type == MobType.GUARDIAN && !guardianMoving;
+    }
+
+    /** @return the spike reflect's damage (the flat 2.0F). */
+    public float guardianThornsDamage() {
+        return GUARDIAN_THORNS_DAMAGE;
+    }
+
+    /** @return and clears the beam-start verdict (the Event 21 site). */
+    public boolean consumeGuardianBeamStart() {
+        boolean value = pendingGuardianBeamStart;
+        pendingGuardianBeamStart = false;
+        return value;
+    }
+
+    /** @return and clears the completed-charge verdict (the laser hit). */
+    public boolean consumeGuardianLaserHit() {
+        boolean value = pendingGuardianLaserHit;
+        pendingGuardianLaserHit = false;
+        return value;
+    }
+
+    /** @return and clears the elder's aura verdict (the 1200-tick cadence). */
+    public boolean consumeGuardianAura() {
+        boolean value = pendingGuardianAura;
+        pendingGuardianAura = false;
+        return value;
+    }
+
+    /**
+     * The guardian's own tick clock ({@code this.ticks} — the elder's aura
+     * cadence: {@code (ticks + getNetworkId()) % 1200 == 0}, the per-body
+     * offset the reference staggers the monuments' three by). The walk
+     * itself — which players stand within the 50-block reach — is the
+     * manager's (the session registry lives there).
+     */
+    void tickGuardianClock() {
+        guardianTicks++;
+        if (guardianElder && (guardianTicks + entityId) % GUARDIAN_ELDER_AURA_INTERVAL == 0) {
+            pendingGuardianAura = true;
+        }
+    }
+
+    /** The guardian's own ticks-lived counter (the aura's cadence input). */
+    private int guardianTicks;
+
+    /**
+     * The guardian's mind (GuardianAttackEntityGoal + the wander family):
+     * the laser's charge cycle against the nearest player beyond the
+     * flop band with a clear line (the target validator's {@code > 9}
+     * squared), then the squid-style wander re-roll at the guardian's
+     * own 80-tick cadence when the hunt is off.
+     */
+    private void tickGuardianMind(Position target, boolean canHunt) {
+        boolean hunting = false;
+        if (target != null && canHunt && world.clearLine(eyePosition(), target)) {
+            double dx = target.x() - position.x();
+            double dy = target.y() - position.y();
+            double dz = target.z() - position.z();
+            double squared = dx * dx + dy * dy + dz * dz;
+            if (squared > GUARDIAN_TARGET_MIN_SQUARED) {
+                hunting = true;
+                // The look stays on the target every charge tick (the
+                // reference's own setLookatValues(…, 90.0F, 90.0F)).
+                yaw = angleTo(dx, dz);
+                headYaw = yaw;
+                if (guardianChargeTicks == Integer.MIN_VALUE) {
+                    // start(): the -10 offset, the navigation stop, the look.
+                    guardianChargeTicks = GUARDIAN_CHARGE_START;
+                    clearPath();
+                }
+                // tick(): the charge climbs while the target stays seen.
+                guardianChargeTicks++;
+                if (guardianChargeTicks == 0) {
+                    // setBeamTag(target id) + doEntityEvent(this, (byte)21).
+                    pendingGuardianBeamStart = true;
+                } else if (guardianChargeTicks >= guardianChargeTime()) {
+                    // The hit: the magic base + the elder bump (the hard
+                    // bump rides the engine's difficulty read), then the
+                    // melee lands through the manager's pair.
+                    pendingGuardianLaserHit = true;
+                    guardianChargeTicks = Integer.MIN_VALUE; // stop()
+                    guardianBeamTargetId = 0; // setBeamTag(0)
+                }
+            }
+        }
+        if (!hunting && guardianChargeTicks != Integer.MIN_VALUE) {
+            // The hunt broke (no target, no line, inside the flop band):
+            // stop() — the beam clears, the target resets.
+            guardianChargeTicks = Integer.MIN_VALUE;
+            guardianBeamTargetId = 0;
+        }
+        guardianMoving = !hunting && (guardianHasSteer
+                && (guardianSteerX != 0.0 || guardianSteerY != 0.0 || guardianSteerZ != 0.0));
+        if (hunting) {
+            return; // the charge stands still (the navigation stop)
+        }
+        // The wander (WanderAroundGoal 1.0, the interval 80): the re-rolled
+        // swim direction — the squid's own model at the guardian's cadence.
+        // The water-favor arm (WaterPathNavigation's getPathfindingFavor:
+        // the waypoints never leave the water): a dry cell re-rolls with
+        // the climbing vertical.
+        boolean dryCell = !world.inFluid(position.x(), position.y() + 0.2, position.z());
+        if (!guardianHasSteer || random.nextInt(GUARDIAN_WANDER_INTERVAL) == 0 || dryCell) {
+            float bearing = random.nextFloat() * (float) Math.PI * 2.0f;
+            guardianSteerX = Math.cos(bearing) * GUARDIAN_SWIM_SCALE;
+            guardianSteerY = dryCell
+                    ? GUARDIAN_SWIM_SCALE / 2.0 // the climb back to the column
+                    : -0.05 + random.nextFloat() * 0.1;
+            guardianSteerZ = Math.sin(bearing) * GUARDIAN_SWIM_SCALE;
+            guardianHasSteer = true;
+            yaw = angleTo(guardianSteerX, guardianSteerZ);
+        }
+    }
+
+    /**
+     * The guardian's body (GuardianMovementControl + moveRelative + mobTick's
+     * flop): in water the sinusoidal swim — the steering target joins the
+     * {@code sin((ticks + id) * 0.5) * 0.05} horizontal drift and the
+     * {@code sin((ticks + id) * 0.75) * 0.25} vertical, the position
+     * integrates the velocity, then the 0.9 decay and the idle sink; on
+     * land the grounded body flops (the +0.5 rise, the ±0.4 horizontal, the
+     * random yaw) between the gravity falls.
+     */
+    private void tickGuardianBody(boolean inFluid) {
+        if (inFluid) {
+            double steerX = guardianMoving ? guardianSteerX : 0.0;
+            double steerY = guardianMoving ? guardianSteerY : 0.0;
+            double steerZ = guardianMoving ? guardianSteerZ : 0.0;
+            velocityX += steerX;
+            velocityY += steerY;
+            velocityZ += steerZ;
+            // The bobbing arms (the movement control's own: lines 553-559 —
+            // the lifetime clock + the body's own network id phase them).
+            double drift = Math.sin((guardianTicks + entityId) * 0.5) * 0.05;
+            double cosYaw = Math.cos(Math.toRadians(yaw));
+            double sinYaw = Math.sin(Math.toRadians(yaw));
+            velocityX += drift * cosYaw;
+            velocityZ += drift * sinYaw;
+            velocityY += Math.sin((guardianTicks + entityId) * 0.75) * 0.05
+                    * (sinYaw + cosYaw) * 0.25;
+            double newX = position.x() + velocityX;
+            double newY = position.y() + velocityY;
+            double newZ = position.z() + velocityZ;
+            // The seabed rest (move()'s own collision): a sinking body in
+            // water stands on the solid floor instead of passing through.
+            if (velocityY <= 0 && world.isSolidAt(newX, newY - GROUND_EPSILON, newZ)) {
+                newY = world.supportY(newX, newY - GROUND_EPSILON, newZ);
+                velocityY = 0.0;
+                onGround = true;
+            } else {
+                onGround = false;
+            }
+            position = new Position(newX, newY, newZ);
+            velocityX *= GUARDIAN_SWIM_DECAY;
+            velocityY *= GUARDIAN_SWIM_DECAY;
+            velocityZ *= GUARDIAN_SWIM_DECAY;
+            if (!guardianMoving && guardianChargeTicks == Integer.MIN_VALUE) {
+                velocityY -= GUARDIAN_IDLE_SINK; // the idle drift down
+            }
+            return;
+        }
+        // The land body (mobTick lines 321-330 + the standard fall): the
+        // grounded flop — the +0.5 rise, the ±0.4 horizontal pair, the
+        // random yaw — between the gravity falls with the ground snap.
+        if (onGround) {
+            velocityY += GUARDIAN_FLOP_RISE;
+            velocityX += (random.nextFloat() * 2.0F - 1.0F) * GUARDIAN_FLOP_BAND;
+            velocityZ += (random.nextFloat() * 2.0F - 1.0F) * GUARDIAN_FLOP_BAND;
+            yaw = random.nextFloat() * 360.0F;
+            onGround = false;
+        } else {
+            velocityY = (velocityY - GRAVITY_PER_TICK) * 0.98;
+        }
+        double newX = position.x() + velocityX;
+        double newY = position.y() + velocityY;
+        double newZ = position.z() + velocityZ;
+        if (velocityY <= 0 && world.isSolidAt(newX, newY - GROUND_EPSILON, newZ)) {
+            newY = world.supportY(newX, newY - GROUND_EPSILON, newZ);
+            velocityY = 0.0;
+            onGround = true;
+        } else {
+            onGround = false;
+        }
+        position = new Position(newX, newY, newZ);
     }
 
     /** The anger window's roll: {@code 400 + nextInt(400)} ticks. */
@@ -1904,11 +2240,26 @@ public final class MobEntity implements LivingEntity {
             idleSoundTimer--;
             return false;
         }
-        if (!dead && !type.idleSound.isEmpty()) {
-            idleSoundTimer = 160 + random.nextInt(320); // 8-24 s
+        if (!dead && !effectiveIdleSound().isEmpty()) {
+            // The guardian's own cadence (getAmbientSoundInterval line
+            // 197): 160 ticks flat — no random spread.
+            idleSoundTimer = type == MobType.GUARDIAN
+                    ? 160 : 160 + random.nextInt(320); // 8-24 s
             return true;
         }
         return false;
+    }
+
+    /**
+     * @return the body's idle sound (the guardian's own family reads the
+     * water state live — the land pair, the elder's own, or the plain
+     * water prefix).
+     */
+    public String effectiveIdleSound() {
+        if (type == MobType.GUARDIAN) {
+            return guardianSoundKind() + "idle";
+        }
+        return type.idleSound;
     }
 
     /** @return and clears whether a skeleton shot is armed this tick. */
@@ -2646,6 +2997,10 @@ public final class MobEntity implements LivingEntity {
             tickBatMind();
             return;
         }
+        if (type == MobType.GUARDIAN) {
+            tickGuardianMind(target, canHunt);
+            return;
+        }
 
         // The goal layer (the community PathfinderGoal architecture): float
         // and panic claim the body first, the stroll cycle only when no hunt
@@ -3362,7 +3717,14 @@ public final class MobEntity implements LivingEntity {
      * size-scaled {@code 0.51000005 * size}).
      */
     public double bodyHeight() {
-        return type.slimeFamily() ? 0.51000005 * slimeSize : type.height;
+        if (type.slimeFamily()) {
+            return 0.51000005 * slimeSize;
+        }
+        if (type == MobType.GUARDIAN && guardianElder) {
+            // setElder line 139: the elder's own 1.9975 hull.
+            return GUARDIAN_ELDER_SIZE;
+        }
+        return type.height;
     }
 
     /**
@@ -3370,7 +3732,14 @@ public final class MobEntity implements LivingEntity {
      * size-scaled {@code 0.51000005 * size}).
      */
     public double bodyWidth() {
-        return type.slimeFamily() ? 0.51000005 * slimeSize : type.width;
+        if (type.slimeFamily()) {
+            return 0.51000005 * slimeSize;
+        }
+        if (type == MobType.GUARDIAN && guardianElder) {
+            // setElder line 139: the elder's own 1.9975 hull.
+            return GUARDIAN_ELDER_SIZE;
+        }
+        return type.width;
     }
 
     /**
@@ -3378,7 +3747,15 @@ public final class MobEntity implements LivingEntity {
      * slime's own {@code 0.625 * height} — getEyeHeight line 208).
      */
     private double eyeHeight() {
-        return type.slimeFamily() ? 0.625 * bodyHeight() : type.height * 0.85;
+        if (type.slimeFamily()) {
+            return 0.625 * bodyHeight();
+        }
+        if (type == MobType.GUARDIAN) {
+            // GuardianEntity.getEyeHeight line 234: the mid-body eye —
+            // height * 0.5 (the elder's own hull scales it).
+            return bodyHeight() * 0.5;
+        }
+        return type.height * 0.85;
     }
 
     private void tickBody() {
@@ -3411,6 +3788,14 @@ public final class MobEntity implements LivingEntity {
             position = new Position(position.x() + velocityX, position.y() + velocityY,
                     position.z() + velocityZ);
             onGround = false;
+            return;
+        }
+        // The guardian's swim (Slice 17a — GuardianEntity.moveRelative +
+        // the movement control): the sinusoidal water body or the land
+        // flop owns the whole integration (no walk, no ground snap).
+        if (type == MobType.GUARDIAN && !dead) {
+            boolean guardianInFluid = world.inFluid(position.x(), position.y() + 0.2, position.z());
+            tickGuardianBody(guardianInFluid);
             return;
         }
         // Fire contact arms the burn (the historical setFire on
