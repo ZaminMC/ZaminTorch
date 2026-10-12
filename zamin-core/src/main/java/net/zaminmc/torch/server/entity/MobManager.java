@@ -162,6 +162,17 @@ public final class MobManager {
         listeners.add(Objects.requireNonNull(listener, "listener"));
     }
 
+    /**
+     * Wires the public event bus (§27.7): every spawn fires
+     * {@link net.zaminmc.torch.event.entity.MobSpawnEvent} before the entity
+     * joins the world; a cancelled spawn returns null and consumes no id.
+     */
+    public void setEventBus(net.zaminmc.torch.server.event.EngineEventBus eventBus) {
+        this.eventBus = eventBus;
+    }
+
+    private volatile net.zaminmc.torch.server.event.EngineEventBus eventBus;
+
     /** @return an unmodifiable view of live mobs (diagnostics/tests). */
     public List<MobEntity> all() {
         return List.copyOf(mobs);
@@ -228,10 +239,23 @@ public final class MobManager {
     /**
      * Spawns one mob of the kind at the exact position (validated by callers).
      * Tick-thread context.
+     *
+     * @return the spawned mob, or null when the public
+     *         {@link net.zaminmc.torch.event.entity.MobSpawnEvent} cancelled
+     *         the spawn (no id consumed, no listeners notified)
      */
     public MobEntity spawnAt(MobType type, Position position) {
         Objects.requireNonNull(type, "type");
         Objects.requireNonNull(position, "position");
+        var bus = eventBus;
+        if (bus != null) {
+            var event = new net.zaminmc.torch.event.entity.MobSpawnEvent(
+                    type.identifier().toString(), position);
+            bus.fire(event);
+            if (event.cancelled()) {
+                return null;
+            }
+        }
         MobEntity mob = new MobEntity(nextEntityId++, type, position, random, world);
         mob.setBreedFinder(this::scanForMate);
         mobs.add(mob);
@@ -301,7 +325,10 @@ public final class MobManager {
             if (y < 0) {
                 continue; // no surface in that column (unloaded chunk etc.)
             }
-            spawned.add(spawnAt(type, new Position(x + 0.5, y + 1.0, z + 0.5)));
+            MobEntity mob = spawnAt(type, new Position(x + 0.5, y + 1.0, z + 0.5));
+            if (mob != null) {
+                spawned.add(mob); // a cancelled member simply never joins the pack
+            }
         }
         return spawned;
     }

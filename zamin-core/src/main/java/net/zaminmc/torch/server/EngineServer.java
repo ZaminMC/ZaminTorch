@@ -168,6 +168,13 @@ public final class EngineServer implements Server, EngineBridge {
     private final PlayerRegistry players = new PlayerRegistry();
     private final AtomicReference<ServerState> state = new AtomicReference<>(ServerState.NEW);
     private final CountDownLatch shutdownLatch = new CountDownLatch(1);
+    /**
+     * The public event bus (§27.7): the plugin-facing observe/cancel surface.
+     * Created eagerly — available to every subsystem's wiring pass regardless
+     * of construction order, and returned by {@link #events()}.
+     */
+    private final net.zaminmc.torch.server.event.EngineEventBus eventBus =
+            new net.zaminmc.torch.server.event.EngineEventBus();
 
     private FrozenBlockRegistry blockRegistry;
     private EngineWorld world;
@@ -506,6 +513,7 @@ public final class EngineServer implements Server, EngineBridge {
                         (x, z) -> surfaceY(x, z));
                 this.mobManager = mobs;
                 mobs.addListener(new MobEventDispatch());
+                mobs.setEventBus(eventBus); // §27.7: the public spawn gate
                 // Mob persistence (ZMD v1): the population survives restarts; the
                 // boot packs roll only for a fresh world (no restored mobs) — the
                 // maintainer keeps a restored world topped up while players play.
@@ -878,6 +886,7 @@ public final class EngineServer implements Server, EngineBridge {
                         session -> session.gamemode(), new DropService(new java.util.Random()), itemEntities,
                         type -> blockRegistry.lookup(type.identifier()),
                         this::publishInventoryChanged);
+                blockInteraction.setEventBus(eventBus); // §27.7: the public break/place gates
                 // A survival-broken furnace spills its slots, and a survival-
                 // broken chest spills its 27, into the world first. The same
                 // hook emits the break/place feedback through the FX bus.
@@ -928,6 +937,7 @@ public final class EngineServer implements Server, EngineBridge {
                 registerBuiltinCommands(dispatcher);
                 commands = dispatcher;
                 chatService = new ChatService(ticker, dispatcher, this::publishChat);
+                chatService.setEventBus(eventBus); // §27.7: the public chat gate
                 // The permanent architecture's Phase 1-3 wiring completes
                 // BEFORE the readiness latch: the simulation domain (Phase
                 // 1 — every EngineWorld mutation asserts through it), the
@@ -1078,12 +1088,23 @@ public final class EngineServer implements Server, EngineBridge {
 
     @Override
     public Collection<World> worlds() {
-        return world == null ? java.util.List.of() : java.util.List.of((World) world);
+        // Both live dimensions (the nether boots alongside the overworld — 8b).
+        if (world == null) {
+            return java.util.List.of();
+        }
+        return netherWorld == null
+                ? java.util.List.of((World) world)
+                : java.util.List.of((World) world, (World) netherWorld);
     }
 
     @Override
     public Collection<Player> players() {
         return players.publicView();
+    }
+
+    @Override
+    public net.zaminmc.torch.event.EventBus events() {
+        return eventBus;
     }
 
     public EngineWorld world() {
