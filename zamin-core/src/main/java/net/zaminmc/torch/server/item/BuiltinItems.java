@@ -230,6 +230,18 @@ public final class BuiltinItems {
             Identifier.parse("minecraft:glistering_melon"), "Glistering Melon", 64);
     public static final EngineItemType RABBIT_FOOT = new EngineItemType(
             Identifier.parse("minecraft:rabbit_foot"), "Rabbit's Foot", 64);
+    // The rabbit family (Slice 12l — the reference's Item.java lines
+    // 715-719: the raw rabbit 411 FoodItem(3, 0.3F), the cooked rabbit 412
+    // FoodItem(5, 0.6F), the rabbit stew 413 FoodItem(10, 0.6F) with the
+    // bowl-return stack-1 rule, the hide 415 a plain material).
+    public static final EngineItemType RABBIT = new EngineItemType(
+            Identifier.parse("minecraft:rabbit"), "Raw Rabbit", 64);
+    public static final EngineItemType COOKED_RABBIT = new EngineItemType(
+            Identifier.parse("minecraft:cooked_rabbit"), "Cooked Rabbit", 64);
+    public static final EngineItemType RABBIT_STEW = new EngineItemType(
+            Identifier.parse("minecraft:rabbit_stew"), "Rabbit Stew", 1);
+    public static final EngineItemType RABBIT_HIDE = new EngineItemType(
+            Identifier.parse("minecraft:rabbit_hide"), "Rabbit Hide", 64);
     // The fish family (Slice 11i — the reference's Item.java lines 635-636:
     // the raw fish 349 and the cooked fish 350, the four variants riding
     // the damage field: 0 cod, 1 salmon, 2 clownfish, 3 pufferfish).
@@ -586,6 +598,7 @@ public final class BuiltinItems {
                 DISPENSER, DROPPER, FIRE_CHARGE, POTION, GLASS_BOTTLE,
                 GHAST_TEAR, NETHER_WART, SPIDER_EYE, FERMENTED_SPIDER_EYE,
                 BLAZE_POWDER, MAGMA_CREAM, GLISTERING_MELON, RABBIT_FOOT,
+                RABBIT, COOKED_RABBIT, RABBIT_STEW, RABBIT_HIDE,
                 FISH, COOKED_FISH,
                 BREWING_STAND,
                 OAK_SLAB, STONE_SLAB, COBBLESTONE_SLAB, SANDSTONE_SLAB,

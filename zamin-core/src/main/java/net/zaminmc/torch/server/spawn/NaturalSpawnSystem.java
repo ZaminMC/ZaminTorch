@@ -151,6 +151,7 @@ public final class NaturalSpawnSystem {
                     // Biome lines 279-283 + the plains' horse row
                     // (PlainsBiome line 20: weight 5, groups 2-6).
                     new SpawnEntry(MobType.SHEEP, 12, 4, 4),
+                    new SpawnEntry(MobType.RABBIT, 10, 3, 3),
                     new SpawnEntry(MobType.PIG, 10, 4, 4),
                     new SpawnEntry(MobType.CHICKEN, 10, 4, 4),
                     new SpawnEntry(MobType.COW, 8, 4, 4),

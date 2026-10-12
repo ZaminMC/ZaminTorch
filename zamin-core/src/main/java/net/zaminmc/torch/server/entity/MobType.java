@@ -54,6 +54,20 @@ public enum MobType {
                     new ItemRoll(BuiltinItems.MUTTON, 1, 2)),
             "mob.sheep.say", "mob.sheep.say", "mob.sheep.say"),
 
+    /**
+     * The hopping wanderer (Slice 12l — RabbitEntity): the 0.6x0.7 body,
+     * 10 health, movement attribute 0.3 (the engine's animal band); the
+     * hop cycle owns the movement (the zeroed-input model, the slime's
+     * pattern). Drops: the reference's dropItems — the hide 0-1
+     * (nextInt(2) + nextInt(1+looting)) and the raw rabbit 0-1 (the
+     * cooked swap rides the burn arm; the foot's rare 2.5% roll ledgers
+     * with the rare-loot-table slice).
+     */
+    RABBIT(101, 0.6, 0.7, 10.0f, 0.035, false, Traits.NONE,
+            List.of(new ItemRoll(BuiltinItems.RABBIT_HIDE, 0, 1),
+                    new ItemRoll(BuiltinItems.RABBIT, 0, 1)),
+            "mob.rabbit.idle", "mob.rabbit.hurt", "mob.rabbit.death"),
+
     /** Hostile melee: chases the nearest player in range and attacks. */
     ZOMBIE(54, 0.6, 1.8, 20.0f, 0.04, true, Traits.NONE,
             List.of(new ItemRoll(BuiltinItems.ROTTEN_FLESH, 0, 2)),
