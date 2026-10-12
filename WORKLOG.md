@@ -2821,3 +2821,35 @@ manager, the owner-arm gates, the follow-range bound).
 
 Fresh suite: **897 green (804 core + 19 api + 74 protocol)**,
 `--max-workers=1`, zero failures.
+
+## Slice 16c — the nether's monster pair (MagmaCubeEntity + GhastEntity)
+
+**Scope**: the magma cube over the generalized slime family, the ghast's
+flight + the charged fireball cycle, the large-fireball projectile with
+its detonation arm, the fire-immune family, and the fix for the wire
+rows.
+
+**The magma cube**: the slime family's type checks generalized to
+`slimeFamily()` (the size system, the split with own-kind children, the
+contact damage, the initialize roll, the index-16 size byte) with the
+magma's own overrides — the 4x hop cadence, the 0.42 + size*0.1 jump,
+the +2 damage, the always-on landing sound, the mob.magmacube pair, the
+`nextInt(4) - 2` magma-cream drop (the size-1 gate).
+
+**The ghast**: the flight body (no gravity, the ±16 targets, the 0.1
+bursts on the 2-7 cadence with the LOS gate, the 0.91 drag, the per-axis
+collision integration), the LookAroundGoal, the ShootFireballGoal cycle
+(the 20-tick charge, the 1007 at 10, the launch at 20 with the -40
+cooldown, the index-16 charging byte), the fireball's kind (Spawn Object
+64, the 0.4-sigma jitter, the flat 6.0, the ExplosionSink wired to the
+boundary-scoped detonateAt at 8*power+1, the fire placement).
+
+**The fix**: the magma-cream/ghast-tear wire rows already existed (the
+brewing slice) — the duplicates threw at LegacyBlockIds' static init and
+killed every join flow (the failure mode is a join timeout, not a
+compile error). Removed; the protocol suite is green again.
+
+**Tests**: NetherMonsterTest (4).
+
+Fresh suite: **901 green (808 core + 19 api + 74 protocol)**,
+`--max-workers=1`, zero failures.
