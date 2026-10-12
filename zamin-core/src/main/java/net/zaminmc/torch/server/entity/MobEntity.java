@@ -743,6 +743,10 @@ public final class MobEntity implements LivingEntity {
         if (type == MobType.ENDERMAN) {
             tickEndermanEnvironment(night);
         }
+        // The witch's defensive drink (WitchEntity.mobTick lines 96-131).
+        if (type == MobType.WITCH) {
+            tickWitchDrink(night);
+        }
         return fixedPoint() != before || beforeYaw != yaw || beforeHeadYaw != headYaw;
     }
 
@@ -780,6 +784,112 @@ public final class MobEntity implements LivingEntity {
 
     /** The enderman's far-target window (the ChasePlayerGoal's counter). */
     private int farFromTargetTicks;
+
+    // ---- the witch's drink (WitchEntity.mobTick lines 96-131) -----------
+
+    /** The drinking potion's metadata (0 = not drinking; the drink is not splash). */
+    private int witchDrink;
+    /** The drink timer (the useDuration: 32 ticks). */
+    private int witchDrinkTicks;
+
+    /** Whether the witch is mid-drink (the aggressive flag). */
+    public boolean witchDrinking() {
+        return witchDrink > 0;
+    }
+
+    /**
+     * The witch's defensive drink roll (the reference's own ladder): the
+     * 15% water breathing when submerged, the 15% fire resistance when
+     * burning, the 5% instant health when hurt, the 25% speed when the
+     * target is far — each gated on the witch not already carrying the
+     * effect (the reference's own {@code hasStatusEffect} clauses). The
+     * engine's walk runs inside the body tick; the MANAGER applies the
+     * effect when the timer completes (the potion system is engine-side).
+     */
+    private void tickWitchDrink(boolean night) {
+        if (witchDrink > 0) {
+            // The reference's own post-decrement (mobTick line 90): the
+            // timer starts at 32 and completes when the check reads 0 —
+            // the aggressive window spans 33 ticks, the effects landing
+            // on the thirty-third.
+            if (witchDrinkTicks-- <= 0) {
+                completedWitchDrink = witchDrink;
+                witchDrink = 0;
+            }
+        } else {
+            int choice = 0;
+            if (random.nextFloat() < 0.15F && world.inFluid(position.x(), position.y() + 0.2, position.z())
+                    && !witchHasEffect(net.zaminmc.torch.server.potion.StatusEffects.WATER_BREATHING)) {
+                choice = WITCH_WATER_BREATHING;
+            } else if (random.nextFloat() < 0.15F && burning()
+                    && !witchHasEffect(net.zaminmc.torch.server.potion.StatusEffects.FIRE_RESISTANCE)) {
+                choice = WITCH_FIRE_RESISTANCE;
+            } else if (random.nextFloat() < 0.05F && health < type.maxHealth) {
+                choice = WITCH_INSTANT_HEALTH;
+            } else if (random.nextFloat() < 0.25F && visibleTarget != null
+                    && !witchHasEffect(net.zaminmc.torch.server.potion.StatusEffects.SPEED)
+                    && position.distanceSquared(visibleTarget) > 121.0) {
+                choice = WITCH_SPEED;
+            }
+            if (choice > 0) {
+                witchDrink = choice;
+                witchDrinkTicks = WITCH_DRINK_DURATION_TICKS;
+            }
+        }
+        // The idle spell swirl (mobTick line 135): the 0.075% roll every
+        // tick, drinking or not — the wire rides the Entity Event byte 15.
+        if (random.nextFloat() < 0.00075F) {
+            pendingWitchAura = true;
+        }
+    }
+
+    /** Set when the witch's aura roll fired; consumed by the manager. */
+    private boolean pendingWitchAura;
+
+    /** @return whether the spell-swirl roll fired this tick (the event 15). */
+    public boolean consumeWitchAura() {
+        boolean value = pendingWitchAura;
+        pendingWitchAura = false;
+        return value;
+    }
+
+    /**
+     * The witch's effect query (the reference's {@code hasStatusEffect}
+     * clauses in the drink ladder): wired by the manager at spawn so the
+     * roll sees the potion system's live store. Null (or a null effect
+     * store) means the witch carries nothing.
+     */
+    private java.util.function.IntPredicate witchEffectQuery;
+
+    /** Wires the drink ladder's effect query (the manager at spawn). */
+    public void setWitchEffectQuery(java.util.function.IntPredicate query) {
+        this.witchEffectQuery = query;
+    }
+
+    /** @return whether the witch carries the effect (no store = absent). */
+    private boolean witchHasEffect(int effectId) {
+        java.util.function.IntPredicate query = witchEffectQuery;
+        return query != null && query.test(effectId);
+    }
+
+    /** The completed drink's metadata (consumed by the manager's tick). */
+    private int completedWitchDrink;
+
+    /** @return the completed drink's metadata (0 = none this tick). */
+    public int consumeWitchDrink() {
+        int metadata = completedWitchDrink;
+        completedWitchDrink = 0;
+        return metadata;
+    }
+
+    /** The reference's drink choices (WitchEntity.mobTick lines 105-127). */
+    static final int WITCH_WATER_BREATHING = 8237;
+    static final int WITCH_FIRE_RESISTANCE = 16307;
+    static final int WITCH_INSTANT_HEALTH = 16341;
+    static final int WITCH_SPEED = 16274;
+    /** The potion use duration (PotionItem.getUseDuration): 32 ticks. */
+    static final int WITCH_DRINK_DURATION_TICKS = 32;
+
 
     /** The hurt window's own cadence (the reference's i-frame length). */
     private static final int HURT_WINDOW_TICKS = 10;
@@ -1863,6 +1973,9 @@ public final class MobEntity implements LivingEntity {
             walk = type.walkSpeed * PANIC_SPEED_MULTIPLIER;
         } else if (mode == Mode.CHASE) {
             walk = type.walkSpeed * (type.traits.ranged() ? 1.0 : 1.1);
+        }
+        if (witchDrink > 0) {
+            walk = 0.0; // the drinking speed penalty (WitchEntity's -0.25 on the 0.25 base → 0)
         }
         if (inFluid && walk > 0) {
             walk *= 0.5; // wading drag

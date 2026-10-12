@@ -288,6 +288,25 @@ public final class V18ProtocolServer implements ProtocolAdapter {
             }
 
             @Override
+            public void onMobWitchDrinkingChanged(net.zaminmc.torch.server.entity.MobEntity mob,
+                                                 boolean drinking) {
+                // The index-21 metadata byte: the client raises the drinking
+                // pose and the held potion from the flag (Slice 12j).
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendWitchDrinking(mob);
+                }
+            }
+
+            @Override
+            public void onMobWitchAura(net.zaminmc.torch.server.entity.MobEntity mob) {
+                // The Entity Event byte 15 (WitchEntity.doEvent's spell
+                // swirl): the client spawns the purple particles itself.
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendMobStatus(mob, Protocol18.ENTITY_EVENT_WITCH_AURA);
+                }
+            }
+
+            @Override
             public void onMobAttackedPlayer(net.zaminmc.torch.server.entity.MobEntity mob,
                                             net.zaminmc.torch.server.player.PlayerSession target, float damage) {
                 // The health sync rides the survival listener; the victim's

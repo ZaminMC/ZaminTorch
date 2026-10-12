@@ -113,7 +113,17 @@ public enum MobType {
      */
     ENDERMAN(58, 0.6, 2.9, 40.0f, 0.05, true, Traits.NONE,
             List.of(new ItemRoll(BuiltinItems.ENDER_PEARL, 0, 1)),
-            "mob.endermen.idle", "mob.endermen.hit", "mob.endermen.death", 7.0f);
+            "mob.endermen.idle", "mob.endermen.hit", "mob.endermen.death", 7.0f),
+
+    /**
+     * The potion-thrower (Slice 12i — the natural-spawn row): keeps its
+     * distance and throws splash potions by the target's state, drinks
+     * defensive potions (the reference's WitchEntity: 26 health, the
+     * silent mob — all three sound hooks null).
+     */
+    WITCH(66, 0.6, 1.95, 26.0f, 0.03, true, new Traits(true, false, false, false),
+            List.of(), // the custom drop walk (WitchEntity.dropItems)
+            "", "", "", 0.0f);
 
     /**
      * The AI trait set beyond the walk-chase-panic baseline.

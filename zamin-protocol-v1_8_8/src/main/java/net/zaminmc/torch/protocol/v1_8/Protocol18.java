@@ -77,8 +77,23 @@ final class Protocol18 {
     static final int S2C_HELD_ITEM_CHANGE = 0x09;
     /** Block Action (0x24, protocol 47): i64 pos, u8 action, u8 param, u32 block. */
     static final int S2C_BLOCK_ACTION = 0x24;
-    /** Block Break Animation (0x28, protocol 47): varint id, i64 pos, u8 stage. */
-    static final int S2C_BLOCK_MINING_PROGRESS = 0x28;
+    /**
+     * Block Break Animation (0x25, protocol 47 — the NetworkProtocol's own
+     * registration order: #37 in the clientbound play list): varint id,
+     * i64 pos, u8 stage. (0x28 was never the break animation — that slot
+     * is the world Effect packet.)
+     */
+    static final int S2C_BLOCK_MINING_PROGRESS = 0x25;
+    /**
+     * Effect / world event (0x28, protocol 47 — #40 in the clientbound
+     * play list): i32 effect id, i64 pos, i32 data, bool global. The 2002
+     * potion splash rides it with the potion's damage as the data.
+     */
+    static final int S2C_WORLD_EVENT = 0x28;
+    /** The world event ids (ServerWorld.doEvent's own): the potion burst. */
+    static final int WORLD_EVENT_POTION_SPLASH = 2002;
+    /** The witch's idle spell swirl (Entity Event byte 15 — the client's own doEvent arm). */
+    static final int ENTITY_EVENT_WITCH_AURA = 15;
     /** The chest lid Block Action: action 1, param 1 = open / 0 = close. */
     static final int BLOCK_ACTION_CHEST_LID = 1;
     static final int CHEST_LEGACY_BLOCK_ID = 54;
@@ -154,16 +169,25 @@ final class Protocol18 {
     static final int OBJECT_FALLING_BLOCK = 70;
     /** The primed TNT's object type (1.8.8 EntityList: EntityTNTPrimed = 20, object id 50). */
     static final int OBJECT_PRIMED_TNT = 50;
-    // Ranged combat objects (community entities.json): the projectile's
-    // objectData carries the thrower's entity id, announced with a velocity
-    // triple like every non-zero objectData.
+    // Ranged combat objects (TrackedEntity.createAddEntityPacket's own
+    // wire map, 1.8.8): the objectData field is the SHOOTER's id for the
+    // arrow family (announced with the velocity triple — the client reads
+    // the shorts only when objectData > 0) and the carried payload for the
+    // potion (the damage value) and the falling block (the serialized id).
+    // The snowball and the egg carry no data: vanilla sends them bare
+    // (no velocity shorts on the wire at all).
     static final int OBJECT_ARROW = 60;
     static final int OBJECT_SNOWBALL = 61;
     static final int OBJECT_EGG = 62;
     /** The dispensed fire charge (Slice 11a — community entities.json). */
     static final int OBJECT_SMALL_FIREBALL = 63;
-    /** Thrown potion (Spawn Object type 68). */
-    static final int OBJECT_POTION = 68;
+    /**
+     * Thrown potion (TrackedEntity's own type 73 — the client builds it
+     * with the objectData as the potion's damage value, so the bottle
+     * renders with the right color; 68 was the guardian's MOB id, never a
+     * spawn-object type).
+     */
+    static final int OBJECT_POTION = 73;
     /** Leash knot (Spawn Object type 77 — TrackedEntity's own). */
     static final int OBJECT_LEASH_KNOT = 77;
     /** The vehicles (community entities.json object types). */
@@ -214,6 +238,8 @@ final class Protocol18 {
     static final int PIG_SADDLE_METADATA_INDEX = 16;
     /** The villager profession (the index-16 Int: 0 farmer .. 4 butcher). */
     static final int VILLAGER_PROFESSION_METADATA_INDEX = 16;
+    /** The witch's drinking flag (WitchEntity's own synced-data slot 21). */
+    static final int WITCH_DRINKING_METADATA_INDEX = 21;
 
     // The living-flags bit map (1.8's Entity flags byte, index 0):
     // 0x01 burning, 0x02 crouched, 0x08 riding, 0x10 sprinting, 0x20 eating.

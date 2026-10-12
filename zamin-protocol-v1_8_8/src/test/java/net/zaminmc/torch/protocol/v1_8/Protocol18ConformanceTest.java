@@ -67,8 +67,18 @@ class Protocol18ConformanceTest {
         m.put("S2C_CHUNK_DATA", 0x21);
         m.put("S2C_BLOCK_CHANGE", 0x23);
         m.put("S2C_BLOCK_ACTION", 0x24);
-        m.put("S2C_BLOCK_MINING_PROGRESS", 0x28);
+        // Block Break Animation: #37 in the 1.8.8 client's own
+        // NetworkProtocol registration order (reference/1.8.8 — the
+        // decoder table the real client resolves ids through). This row
+        // sat at 0x28 for three slices — the Effect packet's slot —
+        // because the write-side payload happened to parse when the
+        // client skipped it; the reference's registration order is the
+        // authority (the drift this table exists to catch, caught late).
+        m.put("S2C_BLOCK_MINING_PROGRESS", 0x25);
         m.put("S2C_EXPLOSION", 0x27);
+        // Effect / world event: #40 in the same registration order — the
+        // 2002 potion splash rides it.
+        m.put("S2C_WORLD_EVENT", 0x28);
         m.put("S2C_NAMED_SOUND_EFFECT", 0x29);
         m.put("S2C_WORLD_PARTICLES", 0x2A);
         m.put("S2C_CHANGE_GAME_STATE", 0x2B);

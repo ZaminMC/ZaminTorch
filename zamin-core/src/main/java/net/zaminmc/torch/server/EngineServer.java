@@ -807,8 +807,14 @@ public final class EngineServer implements Server, EngineBridge {
                 // cadenced periodic application, and the splash's area walk.
                 potionSystem = new net.zaminmc.torch.server.potion.PotionSystem(
                         new PotionBodies());
-                projectiles.setPotionSink((x, y, z, damage, directHit) ->
-                        potionSystem.splash(x, y, z, damage, directHit));
+                projectiles.setPotionSink((x, y, z, damage, directHit, throwerId) -> {
+                    potionSystem.splash(x, y, z, damage, directHit,
+                            resolveSplashThrower(throwerId));
+                    // The world event 2002 (PotionEntity.onCollision's own
+                    // closing doEvent): the color-carrying burst particles.
+                    fxManager.potionSplash(new Position(x, y, z), damage);
+                });
+                mobs.setPotionSystem(potionSystem); // the witch's drink arm (12i)
                 // The leashes (Slice 11c): the knots + the per-tick walk.
                 leadSystem = new net.zaminmc.torch.server.leash.LeadSystem(
                         new LeadSurface(), KNOT_ID_BASE);
@@ -7016,6 +7022,28 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /**
+     * Resolves a splash's thrower body from the engine id (the
+     * {@code DamageSource.magic(potion, thrower)} attacker): a live mob,
+     * a playing player, or null for dispensers and removed throwers.
+     */
+    private Object resolveSplashThrower(int throwerId) {
+        if (throwerId < 0) {
+            return null; // the dispenser arm (the no-thrower constructor)
+        }
+        net.zaminmc.torch.server.entity.MobEntity mob = mobManager.byId(throwerId);
+        if (mob != null) {
+            return mob;
+        }
+        for (PlayerSession player : players.all()) {
+            if (player.engineEntityId() == throwerId
+                    && player.state() == PlayerState.PLAYING) {
+                return player;
+            }
+        }
+        return null;
+    }
+
+    /**
      * The potion bodies (Slice 11b — the PotionSystem's application sink):
      * the engine's own model fanned through the narrow interface. The
      * players and the mobs stay the engine's; the splash scans them by
@@ -7061,13 +7089,27 @@ public final class EngineServer implements Server, EngineBridge {
         }
 
         @Override
-        public void hurt(Object body, float amount, String cause) {
+        public void hurt(Object body, float amount, String cause, Object attacker,
+                         boolean magic) {
             if (body instanceof PlayerSession player) {
                 // The magic damage: no knockback, no protection shave (the
                 // reference's DamageSource.MAGIC pierces armor).
                 damageOnTick(player, amount, true, cause, 0.0f);
             } else {
-                mobManager.hurtWithoutKnockback((MobEntity) body, amount);
+                MobEntity mob = (MobEntity) body;
+                if (mob.type() == net.zaminmc.torch.server.entity.MobType.WITCH) {
+                    // WitchEntity.getDamageAfterEffectsAndEnchantments
+                    // (lines 163-175): the witch's own splash never lands
+                    // (attacker == self), and every magic source pays the
+                    // 85% shave — poison and other witches' potions alike.
+                    if (attacker == mob) {
+                        amount = 0.0f;
+                    }
+                    if (magic) {
+                        amount = (float) (amount * 0.15);
+                    }
+                }
+                mobManager.hurtWithoutKnockback(mob, amount);
             }
         }
 
@@ -7706,6 +7748,12 @@ public final class EngineServer implements Server, EngineBridge {
 
         @Override
         public void onMobRangedAttack(MobEntity mob, Position aimPoint) {
+            // The witch's throw (WitchEntity.doRangedAttack lines 197-216):
+            // the splash potion with the reference's own choice ladder.
+            if (mob.type() == net.zaminmc.torch.server.entity.MobType.WITCH) {
+                witchRangedAttack(mob, aimPoint);
+                return;
+            }
             // The skeleton loosed: launch the arrow through the projectile
             // system (the same physics and hit resolution player arrows ride).
             Position origin = mob.eyePosition();
@@ -7807,7 +7855,79 @@ public final class EngineServer implements Server, EngineBridge {
         }
     }
 
-    /** Broadcasts the arm-swing animation of one entity (the ranged shot). */
+    /**
+     * The witch's ranged attack (WitchEntity.doRangedAttack lines 194-215):
+     * the splash potion with the reference's own choice ladder — the far
+     * target without slowness gets slowness, the healthy target without
+     * poison gets poison, the close target without weakness may get
+     * weakness, everything else gets the strong harming default. The
+     * trajectory is the reference's own {@code dispense(d1, d2 + f * 0.2F,
+     * d3, 0.75F, 8.0F)}: the direction triple measures from the witch's
+     * FEET (d0 - this.y), the spawn point is the reference's own
+     * ThrownEntity constructor seat (the eye height 1.62, the 0.1 dip,
+     * the 0.16 perpendicular hand offset — the vanilla quirk the
+     * construction applies along the yaw). The throw itself is silent —
+     * the reference plays no bow draw for the witch (the splash's 2002
+     * burst is the tell). The target's velocity lead-ahead (target.x +
+     * velocityX) rides the engine's client-authoritative movement model:
+     * the session carries no velocity read (a documented difference).
+     */
+    private void witchRangedAttack(MobEntity mob, Position aimPoint) {
+        if (mob.witchDrinking()) {
+            return; // the reference's gate: no throw while drinking
+        }
+        // The spawn seat (ThrownEntity's thrower constructor): the eye
+        // height 1.62 (WitchEntity's own), dipped 0.1, the 0.16 hand
+        // offset along the yaw's cosine/sine — the vanilla perpendicular.
+        double yawRadians = Math.toRadians(mob.yaw());
+        Position feet = mob.position();
+        Position origin = new Position(
+                feet.x() - Math.cos(yawRadians) * 0.16,
+                feet.y() + 1.62 - 0.1,
+                feet.z() - Math.sin(yawRadians) * 0.16);
+        // The target resolves as the nearest player to the AI's aim point
+        // (the AI ticks the aim at the target's own position).
+        PlayerSession target = null;
+        double best = 4.0; // within two blocks of the aim
+        for (PlayerSession candidate : players.all()) {
+            if (candidate.state() != net.zaminmc.torch.entity.PlayerState.PLAYING
+                    || candidate.dead()) {
+                continue;
+            }
+            double distance = candidate.position().distanceSquared(aimPoint);
+            if (distance < best) {
+                best = distance;
+                target = candidate;
+            }
+        }
+        // The reference's choice ladder (lines 204-212): the horizontal
+        // measures feet-to-feet exactly like the reference's own d1/d3.
+        int metadata = 32732; // the strong harming default
+        double d1 = aimPoint.x() - feet.x();
+        double d2 = (aimPoint.y() + 1.62 - 1.1) - feet.y(); // the chest aim
+        double d3 = aimPoint.z() - feet.z();
+        float horizontal = (float) Math.sqrt(d1 * d1 + d3 * d3);
+        if (target != null) {
+            if (horizontal >= 8.0F && !potionSystem.hasEffect(target,
+                    net.zaminmc.torch.server.potion.StatusEffects.SLOWNESS)) {
+                metadata = 32698; // the slowness splash
+            } else if (target.health() >= 8.0F && !potionSystem.hasEffect(target,
+                    net.zaminmc.torch.server.potion.StatusEffects.POISON)) {
+                metadata = 32660; // the poison splash
+            } else if (horizontal <= 3.0F && !potionSystem.hasEffect(target,
+                    net.zaminmc.torch.server.potion.StatusEffects.WEAKNESS)
+                    && mobManager.random().nextFloat() < 0.25F) {
+                metadata = 32696; // the weakness splash
+            }
+        }
+        ProjectileEntity potion = projectileManager.launchVector(
+                ProjectileEntity.Kind.POTION, mob.entityId(), origin,
+                d1, d2 + horizontal * 0.2F, d3, 0.75, 8.0);
+        if (potion != null) {
+            potion.setPotionDamage(metadata);
+        }
+    }
+
     private void publishMobSwing(MobEntity mob) {
         for (MobSwingObserver observer : swingObservers) {
             observer.onMobSwing(mob);

@@ -2180,3 +2180,84 @@ isolation).
 **Next:** the witch (the potion-thrower arm over the landed potion
 system) and the slime (the size family + the split), then back to the
 API waves.
+
+## Slice 12j — the witch (the natural-spawn monster row)
+
+**The audit**: the session resumed over an uncommitted Witch stub (the
+kind row, the drink ladder, the ranged attack, the loot walk, an
+uncompilable test). The reference re-read (`WitchEntity.java` 1:1) and
+seven gaps found — including a real wire-level bug family in the Spawn
+Object writer.
+
+**The drink** (mobTick lines 87-141): the ladder now carries the
+reference's own hasStatusEffect gates (water breathing / fire
+resistance / speed — the rolls stay first, the short-circuit order
+kept), the timer uses the reference's POST-decrement (the window spans
+33 full ticks, the effects land on the 34th), and the completed drink
+applies through `finishDrinking` (the same PotionItem math as the
+player's — instants apply, the previous stub only installed them into
+the store and the heal never landed). The gates read the LIVE effect
+stores through a per-witch query the manager wires at spawn. The
+7.5E-4 spell-swirl roll runs every tick (Entity Event 15).
+
+**The movement stop**: the drinking speed penalty (the -0.25 modifier
+on the 0.25 base — witches stand still while drinking) lands as the
+walk gate.
+
+**The throw** (doRangedAttack lines 194-215): the trajectory now
+measures the aim triple from the witch's FEET (the old eye-measured d2
+threw the arc 1.66 blocks low — the potions landed short), the spawn
+seat is the reference's own ThrownEntity constructor (the eye 1.62,
+the 0.1 dip, the 0.16 perpendicular hand offset), the weakness roll
+draws from the mob's shared stream, and the bow sound is GONE (the
+reference's witch throws silently).
+
+**The combat rules** (getDamageAfterEffectsAndEnchantments lines
+163-175): the witch's own splash never lands (attacker == self → 0)
+and every magic source pays the 85% shave — the PotionSystem's hurt
+arm grew the DamageSource shape (attacker + magic flag), the splash
+carries the thrower end-to-end (ProjectileSink → the engine's resolver
+→ the instant arm), and the witch's rules land in the engine's
+PotionBodies. The poison's periodic tick pays the shave too (1.0 →
+0.15) — exactly the reference's magic source.
+
+**The drops** (dropItems lines 178-192): the reference's roll order
+(count → item → looting bonus) and the per-unit single-item stacks
+(the old walk merged them into one counted stack and skipped the item
+roll on a zero count — both RNG-stream divergences).
+
+**The wire family** (the audit's finds, all fixed):
+- The potion's Spawn Object type was **68** — the guardian's MOB id;
+  the wire truth is **73**, and the objectData carries the POTION
+  VALUE (the client builds the bottle's color from it), not the
+  thrower's id.
+- The velocity shorts are now conditional on objectData > 0 (the
+  packet's own read shape) — the dispensed fire charge's data-0 spawn
+  previously wrote six trailing bytes the client would never read (a
+  frame-corruption class).
+- The snowball/egg pair sends bare (no data, no velocity — vanilla's
+  own shape).
+- **The block break animation sat at 0x28** — the Effect packet's
+  slot. The reference's own NetworkProtocol registration order pins it
+  at 0x25; the conformance table's row carried the same drift (its
+  "community-verified" comment masked it). Both corrected.
+- The world Effect packet (0x28) landed for the 2002 potion splash
+  (the FxManager's PotionSplash event, fired at every splash
+  resolution — the color-carrying burst, 64-block broadcast).
+- The witch's drinking flag rides the index-21 metadata (the join
+  view + the flip events).
+
+**The spawn row**: the monster table's witch entry (5/1/1 — Biome
+line 290, the default list).
+
+**Tests**: `WitchEntityTest` (6: the kind identity, the heal through
+the manager + potion system, the 33-tick window with the 34th-tick
+completion, the stand-still, the live-store gate refusal, the
+single-item drops) + `WitchAcceptanceTest` (3: the own-splash immunity
+on a live booted server, the 0.9 shave on the 6.0 harming splash, the
+0.15 poison tick — all through the tick-lane execute primitive). The
+fresh full-suite count **738 green in zamin-core** (+9), plus the
+protocol module's 71 (one documented load flake, green in isolation).
+
+**Next:** the slime (the size family + the split-on-kill) — the last
+default-list monster without an entity — then back to the API waves.
