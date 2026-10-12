@@ -45,6 +45,7 @@ public final class EngineChunk {
      */
     private final List<PendingVillager> pendingVillagers = new ArrayList<>();
     private final List<PendingGenChest> pendingGenChests = new ArrayList<>();
+    private final List<PendingAnimal> pendingAnimals = new ArrayList<>();
 
     /** One populate-time villager (the reference's structure addEntity). */
     public record PendingVillager(int x, int y, int z, int profession) {
@@ -60,6 +61,19 @@ public final class EngineChunk {
     }
 
     public record PendingGenChest(int x, int y, int z, List<StructureWorld.GenLootSlot> slots) {
+    }
+
+    /**
+     * One populate-time animal (the reference's NaturalSpawner.populateChunk
+     * addEntity): the kind, the exact body placement (the +0.5 centers with
+     * the rolled yaw), the horse group's shared dice (the reference's
+     * EntityHorseGroupData: the first member's type + color, re-rolled
+     * markings recorded per member), and the per-member baby flag.
+     */
+    public record PendingAnimal(net.zaminmc.torch.server.entity.MobType type,
+                                double x, double y, double z, float yaw,
+                                boolean baby,
+                                int horseSubtype, int horseVariant) {
     }
 
     public EngineChunk(ChunkPosition position, BlockType air) {
@@ -143,6 +157,16 @@ public final class EngineChunk {
 
     public List<PendingMobSpawner> pendingMobSpawners() {
         return pendingMobSpawners;
+    }
+
+    /** Records one populate-time animal (the generator's seeding walk). */
+    public void addPendingAnimal(PendingAnimal animal) {
+        pendingAnimals.add(java.util.Objects.requireNonNull(animal, "animal"));
+    }
+
+    /** @return the pending animal records (empty when none). */
+    public List<PendingAnimal> pendingAnimals() {
+        return pendingAnimals;
     }
 
     /** @return the pending villager records (empty when none). */

@@ -221,8 +221,20 @@ public final class MobManager {
      * deterministically; the villagers persist).
      */
     public boolean villagerNear(double x, double y, double z, double radius) {
+        return mobOfKindNear(net.zaminmc.torch.server.entity.MobType.VILLAGER, x, y, z, radius);
+    }
+
+    /**
+     * The kind-aware near probe (the populate drains' idempotence guard):
+     * whether a mob of the kind stands within the radius of the position.
+     * The animal seeding uses the pack-cohesion radius (8 — a group stays
+     * within a few blocks; the guard holds the restart re-drain, the same
+     * accepted class as the villagers' own 1.0 note).
+     */
+    public boolean mobOfKindNear(net.zaminmc.torch.server.entity.MobType kind,
+                                 double x, double y, double z, double radius) {
         for (MobEntity mob : mobs) {
-            if (mob.type() != MobType.VILLAGER) {
+            if (mob.type() != kind || mob.dead()) {
                 continue;
             }
             Position at = mob.position();
@@ -355,21 +367,9 @@ public final class MobManager {
         }
     }
 
-    /**
-     * Fills the spawn area with passive packs at boot (no persistence: the
-     * population rebuilds, the §146 pattern). Tick-thread context.
-     */
-    public void populateInitial(Position spawnCenter) {
-        int packs = PASSIVE_CAP / 3;
-        MobType[] passives = {MobType.PIG, MobType.COW, MobType.CHICKEN,
-                MobType.SHEEP, MobType.HORSE};
-        for (int p = 0; p < packs; p++) {
-            int dx = random.nextInt(61) - 30;
-            int dz = random.nextInt(61) - 30;
-            Position center = new Position(spawnCenter.x() + dx, spawnCenter.y(), spawnCenter.z() + dz);
-            spawnGroup(passives[random.nextInt(passives.length)], center, 2 + random.nextInt(2));
-        }
-    }
+    // (populateInitial removed — Slice 12h: the fresh world's animals arrive
+    // through the vanilla worldgen seeding, NaturalSpawner.populateChunk's
+    // engine port, not the synthetic spawn packs.)
 
     /**
      * Shears a sheep on a player's behalf: rolls 1-3 wool, strips the coat,
@@ -849,9 +849,21 @@ public final class MobManager {
     }
 
     /** Spawns one mob at the exact position (the natural cycle's own). */
+    public MobEntity spawnNatural(MobType type, Position position, boolean baby, float yaw) {
+        MobEntity mob = spawnAt(type, position);
+        if (mob != null) {
+            mob.setBodyYaw(yaw);
+            if (baby) {
+                mob.setBreedingAge(-24_000);
+            }
+        }
+        return mob;
+    }
+
+    /** The yaw-less legacy arm (the pre-worldgen callers' shape). */
     public MobEntity spawnNatural(MobType type, Position position, boolean baby) {
         MobEntity mob = spawnAt(type, position);
-        if (baby) {
+        if (mob != null && baby) {
             mob.setBreedingAge(-24_000);
         }
         return mob;

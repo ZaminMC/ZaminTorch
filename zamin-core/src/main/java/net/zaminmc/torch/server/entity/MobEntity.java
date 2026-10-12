@@ -437,14 +437,14 @@ public final class MobEntity implements LivingEntity {
                 new PathBody(), new PathWorldView(), (float) AGGRO_RANGE);
         this.modeTicks = random.nextInt(IDLE_TICKS);
         this.idleSoundTimer = 160 + random.nextInt(320); // first chatter 8-24 s out
-        // The herd look: roughly one donkey in five, plain coats dominating
-        // (the historical variant split; colors 0-6, markings 0-3).
+        // The herd look — the reference's own initialize dice
+        // (HorseBaseEntity.initialize lines 1262-1280): 1 in 10 the donkey,
+        // otherwise the horse coat = the color nextInt(7) | the marking
+        // nextInt(5) << 8.
         if (type == MobType.HORSE) {
-            this.horseSubtype = random.nextInt(100) < 20
+            this.horseSubtype = random.nextInt(10) == 0
                     ? HORSE_SUBTYPE_DONKEY : HORSE_SUBTYPE_HORSE;
-            int color = random.nextInt(7);
-            int marking = random.nextInt(10) < 6 ? 0 : 1 + random.nextInt(3);
-            this.variant = color | (marking << 8);
+            this.variant = random.nextInt(7) | random.nextInt(5) << 8;
         }
         // The villager's career and stock: profession 0-4 (the DataWatcher
         // Int), the offers from the fixed career table (the trade slice).
@@ -1131,6 +1131,16 @@ public final class MobEntity implements LivingEntity {
 
     public void setHorseSubtype(int subtype) {
         this.horseSubtype = subtype;
+    }
+
+    /** Sets the coat directly (the group's shared color | the re-rolled marking). */
+    public void setHorseVariant(int variant) {
+        this.variant = variant;
+    }
+
+    /** Sets the body yaw (the spawn walks' setPositionAndAngles). */
+    public void setBodyYaw(float yaw) {
+        this.yaw = yaw;
     }
 
     /** Whether a chest rides the donkey (flag 0x08, the vanilla rule). */

@@ -74,8 +74,11 @@ public final class NaturalSpawnSystem {
 
     /** The engine's mob surface. */
     public interface Mobs {
-        /** Spawns one mob at the exact position (the group's baby flag). */
-        void spawn(MobType type, Position at, boolean baby);
+        /**
+         * Spawns one mob at the exact position with the walk's own yaw roll
+         * (the reference's setPositionAndAngles: the group's baby flag).
+         */
+        void spawn(MobType type, Position at, boolean baby, float yaw);
 
         /** The live count of the category (MONSTER = hostile). */
         int countOf(Category category);
@@ -281,8 +284,11 @@ public final class NaturalSpawnSystem {
                         // passive lands grown.
                         boolean baby = entry.type() == MobType.HORSE
                                 && random.nextInt(HORSE_BABY_ROLL) == 0;
+                        // The reference's setPositionAndAngles (line 109): the
+                        // walk's own yaw roll lands with the body.
+                        float yaw = random.nextFloat() * 360.0F;
                         mobs.spawn(entry.type(),
-                                new Position(centerX, y, centerZ), baby);
+                                new Position(centerX, y, centerZ), baby, yaw);
                         packCount++;
                         if (packCount >= LIMIT_PER_CHUNK) {
                             chunkDone = true; // continue label129
