@@ -5982,20 +5982,25 @@ public final class EngineServer implements Server, EngineBridge {
     /** @return whether the kind breeds and feeds like an animal. */
     private static boolean isAnimal(MobType type) {
         return type == MobType.PIG || type == MobType.COW || type == MobType.SHEEP
-                || type == MobType.CHICKEN || type == MobType.HORSE;
+                || type == MobType.CHICKEN || type == MobType.HORSE || type == MobType.RABBIT;
     }
 
     /**
      * The vanilla AnimalEntity.isBreedingItem table (the per-kind override):
      * the pig takes the carrot, the cow and sheep the wheat, the chicken the
      * seeds; the horse family feeds through its own golden table instead.
+     * The rabbit's own family (RabbitEntity.isTempting): the carrot, the
+     * golden carrot and the dandelion (the reference's yellow flower).
      */
-    private static String breedingItemOf(MobType type) {
+    private static boolean isBreedingItem(MobType type, String heldId) {
         return switch (type) {
-            case PIG -> "minecraft:carrot";
-            case COW, SHEEP -> "minecraft:wheat";
-            case CHICKEN -> "minecraft:wheat_seeds";
-            default -> "";
+            case PIG -> heldId.equals("minecraft:carrot");
+            case COW, SHEEP -> heldId.equals("minecraft:wheat");
+            case CHICKEN -> heldId.equals("minecraft:wheat_seeds");
+            case RABBIT -> heldId.equals("minecraft:carrot")
+                    || heldId.equals("minecraft:golden_carrot")
+                    || heldId.equals("minecraft:dandelion");
+            default -> false;
         };
     }
 
@@ -6038,13 +6043,9 @@ public final class EngineServer implements Server, EngineBridge {
      * stack — the vanilla eat() rule). @return whether the food was taken.
      */
     private boolean feedAnimal(PlayerSession player, MobEntity mob) {
-        String breedingItem = breedingItemOf(mob.type());
-        if (breedingItem.isEmpty()) {
-            return false;
-        }
         ItemStack held = player.inventory().held();
         String heldId = held.type() == null ? "" : held.type().identifier().toString();
-        if (!heldId.equals(breedingItem)) {
+        if (!isBreedingItem(mob.type(), heldId)) {
             return false;
         }
         if (mob.isBaby()) {

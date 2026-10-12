@@ -63,7 +63,14 @@ public final class Foods {
             Map.entry(net.zaminmc.torch.util.Identifier.parse("minecraft:potato"), new Nutrition(1, 0.6f)),
             Map.entry(net.zaminmc.torch.util.Identifier.parse("minecraft:baked_potato"), new Nutrition(5, 6.0f)),
             Map.entry(net.zaminmc.torch.util.Identifier.parse("minecraft:golden_carrot"), new Nutrition(6, 14.4f)),
-            Map.entry(net.zaminmc.torch.util.Identifier.parse("minecraft:golden_apple"), new Nutrition(4, 9.6f)));
+            Map.entry(net.zaminmc.torch.util.Identifier.parse("minecraft:golden_apple"), new Nutrition(4, 9.6f)),
+            // The rabbit family (Slice 12l — the reference's Item.java lines
+            // 715-717: FoodItem(3, 0.3F), FoodItem(5, 0.6F), FoodItem(10,
+            // 0.6F); the dataset saturation fold: 3x0.3x2=1.8, 5x0.6x2=6.0,
+            // 10x0.6x2=12.0).
+            Map.entry(net.zaminmc.torch.util.Identifier.parse("minecraft:rabbit"), new Nutrition(3, 1.8f)),
+            Map.entry(net.zaminmc.torch.util.Identifier.parse("minecraft:cooked_rabbit"), new Nutrition(5, 6.0f)),
+            Map.entry(net.zaminmc.torch.util.Identifier.parse("minecraft:rabbit_stew"), new Nutrition(10, 12.0f)));
 
     private Foods() {
     }

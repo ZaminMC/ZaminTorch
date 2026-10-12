@@ -2437,3 +2437,39 @@ Fresh full-suite count: **764 core + 19 api + 71 protocol = 854 green**,
 
 Fresh suite: **769 core + 19 api green** (788 total), protocol 71
 (checked in the same session), `--max-workers=1`.
+
+## Slice 12l — the rabbit (the natural-spawn animal + the entity family)
+
+- **The items** (Item.java lines 715-719): rabbit 411 FoodItem(3, 0.3F),
+  cooked_rabbit 412 FoodItem(5, 0.6F), rabbit_stew 413 FoodItem(10, 0.6F)
+  with the stack-1 bowl rule, rabbit_hide 415 the plain material (the
+  foot 414 already lived for brewing). The Foods table carries the
+  nutrition (3/1.8, 5/6.0, 10/12.0 — the dataset saturation fold).
+- **The kind**: MobType.RABBIT (101, the 0.6x0.7 body, 10 health, the
+  animal walk band; the reference's own mob.rabbit.* sound trio).
+- **The hop movement** (RabbitEntity's Action model over the engine's
+  zeroed-input lane, the slime's pattern): between hops the body is
+  still; on the HOP cadence (jumpDelay 10) the body launches — the
+  facing impulse at walkSpeed x 1.2 (the reference's setSpeed(1.5 x
+  actionSpeed)) and the 0.2 strength rise — with the hop sound at the
+  reference's 0.8-centered pitch band; the idle rabbit sits (the NONE
+  action); in fluid the 80% swim arm launches.
+- **The breeding family** (isTempting): the carrot, the golden carrot
+  and the dandelion — the breedingItemOf single-item table became the
+  isBreedingItem(kind, held) multi-item gate (the rabbit is the first
+  multi-food animal).
+- **The spawn rows**: the base Biome passive list's rabbit 10/3-3 landed
+  in the worldgen creature tables (jungle/plains/forest-default — the
+  reference's own base-list order, sheep first) and the natural CREATURE
+  table.
+- Ledgered: the killer-bunny variant family (skin 99: the 8 damage, the
+  8 armor, the player-hunting goals — the index-18 variant byte rides a
+  future spawn-egg/command surface), the RaidFarmGoal (the carrot-crop
+  eating — no carrot crop block yet), the flee-wolf goal (no wolves
+  yet), the 2.5% rabbit-foot rare drop (the rare-loot-table slice), the
+  natural variant roll nextInt(6) (every engine rabbit renders brown
+  until the variant byte carries).
+
+Fresh suite: **792 green (773 core + 19 api)**, `--max-workers=1`, zero
+failures; the protocol module carries no wire change this slice (71 from
+the same session's earlier run).

@@ -996,6 +996,59 @@ public final class MobEntity implements LivingEntity {
         velocityY = 0.42;
     }
 
+    // ---- the rabbit's hop cycle (Slice 12l — RabbitEntity's own
+    // movement model over the engine's input lane) ----
+
+    /** The HOP action's parameters (the reference's own Action enum):
+     * speed 0.8 (1.5x at launch = 1.2), jumpStrength 0.2, jumpDelay 10. */
+    private static final double RABBIT_HOP_SPEED = 1.2;
+    private static final double RABBIT_HOP_STRENGTH = 0.2;
+    private static final int RABBIT_HOP_DELAY = 10;
+
+    /** Ticks until the rabbit's next hop (zeroed input between hops). */
+    private int rabbitHopCooldown;
+
+    /**
+     * The rabbit's movement tick (RabbitEntity.mobAiTick + the MovementControl):
+     * between hops the body is still (the zeroed input); on the cadence the
+     * body launches — the facing impulse at the hop speed and the hop
+     * strength rise — and the hop sound plays (the reference's
+     * startAction: 1.5x the action speed, the pitch band 0.8-centered).
+     * The swim arm launches at a higher cadence (the reference's
+     * canSwim navigation).
+     */
+    private void tickRabbitHop(boolean inFluid) {
+        if (inFluid) {
+            if (random.nextFloat() < 0.8F) {
+                launchRabbitHop();
+            }
+            return;
+        }
+        if (!onGround) {
+            return; // airborne: the hop's momentum carries
+        }
+        if (--rabbitHopCooldown > 0) {
+            return; // between hops the body is still (the zeroed input)
+        }
+        rabbitHopCooldown = RABBIT_HOP_DELAY;
+        if (mode == Mode.IDLE) {
+            return; // the idle rabbit sits (the NONE action)
+        }
+        launchRabbitHop();
+        pendingSlimeSound = new SlimeSound("mob.rabbit.hop",
+                1.0F,
+                ((random.nextFloat() - random.nextFloat()) * 0.2F + 1.0F) * 0.8F);
+    }
+
+    /** One hop launch: the facing impulse at the hop speed, the strength rise. */
+    private void launchRabbitHop() {
+        double radians = Math.toRadians(yaw);
+        velocityX += -Math.sin(radians) * type.walkSpeed * RABBIT_HOP_SPEED;
+        velocityZ += Math.cos(radians) * type.walkSpeed * RABBIT_HOP_SPEED;
+        velocityY = RABBIT_HOP_STRENGTH;
+    }
+
+
     /** One queued slime sound (the jump's squish or the landing thud). */
     record SlimeSound(String name, float volume, float pitch) {
     }
@@ -2202,6 +2255,13 @@ public final class MobEntity implements LivingEntity {
         }
         if (witchDrink > 0) {
             walk = 0.0; // the drinking speed penalty (WitchEntity's -0.25 on the 0.25 base → 0)
+        }
+        if (type == MobType.RABBIT) {
+            // The rabbit's hop cycle owns the movement (the zeroed-input
+            // model — the HOP action's cadence, the reference's own
+            // MovementControl rule: grounded and not jumping means no walk).
+            tickRabbitHop(inFluid);
+            walk = 0.0;
         }
         if (type == MobType.SLIME) {
             // The landing (SlimeEntity.tick lines 101-123): the first
