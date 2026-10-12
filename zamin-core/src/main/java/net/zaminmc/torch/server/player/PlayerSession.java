@@ -744,6 +744,63 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
         health = Math.max(0.0f, health - amount);
     }
 
+    // ---- the public Player surface's additions (§27.5: the session IS the
+    // handle — every call resolves to the live authoritative state) ------
+
+    /**
+     * The engine's inventory wire-sync hook, installed at boot: the API's
+     * give() must re-sync the client exactly like the engine's own pickup
+     * paths. Null until wired (the tests' bare sessions).
+     */
+    private volatile java.util.function.Consumer<PlayerSession> inventorySyncHook;
+
+    /** Called once by the server at wiring time. */
+    public void setInventorySyncHook(java.util.function.Consumer<PlayerSession> hook) {
+        this.inventorySyncHook = hook;
+    }
+
+    /** Restores health up to the maximum (the API's heal). */
+    public void heal(float amount) {
+        if (amount <= 0 || dead) {
+            return;
+        }
+        health = Math.min(MAX_HEALTH, health + amount);
+    }
+
+    @Override
+    public long totalExperience() {
+        return totalXp();
+    }
+
+    @Override
+    public net.zaminmc.torch.item.ItemStack heldItem() {
+        return inventory.held();
+    }
+
+    @Override
+    public int heldSlot() {
+        return inventory.heldSlot();
+    }
+
+    @Override
+    public int countOf(net.zaminmc.torch.item.ItemType type) {
+        return inventory.countOf(type);
+    }
+
+    @Override
+    public net.zaminmc.torch.item.ItemStack give(net.zaminmc.torch.item.ItemStack stack) {
+        java.util.Objects.requireNonNull(stack, "stack");
+        if (stack.isEmpty()) {
+            return stack;
+        }
+        net.zaminmc.torch.item.ItemStack leftover = inventory.pickUp(stack);
+        var hook = inventorySyncHook;
+        if (hook != null) {
+            hook.accept(this); // the wire re-sync, the engine pickup path's own rule
+        }
+        return leftover;
+    }
+
     // --- combat invulnerability frames (the historical 10-tick hurt window) ---
 
     /** Ticks left before the next hit may land; the historical half-second. */

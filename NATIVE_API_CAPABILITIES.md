@@ -46,11 +46,11 @@ Stability classes (§27.4): `Stable`, `Experimental`, `Internal`.
 | Capability | Engine implementation | Public entry point | Threading | Hooks | Stability | Tests | Status | Omissions |
 |---|---|---|---|---|---|---|---|---|
 | Player identity/state | `PlayerSession` | `Player` (uuid, name, state, world, position, rotation, onGround) | any thread | — | Stable | api | VERIFIED | — |
-| Player health/food | `PlayerSession.health/food/saturation` | none | owner | — | — | — | NOT AUDITED | — |
-| Player XP | `totalXp`, `experienceLevel`, enchanting seed | none | owner | — | — | — | NOT AUDITED | — |
-| Player inventory | `PlayerInventory` (36 slots + held) | none | owner | — | — | — | NOT AUDITED | — |
-| Player gamemode | `PlayerSession.gamemode/setGamemode` | none | owner | — | — | — | NOT AUDITED | — |
-| Player fire | `ignite/extinguish/tickFire` | none | owner | — | — | — | NOT AUDITED | — |
+| Player body | `PlayerSession` health/food/saturation/dead/hurt/heal/addExhaustion | **`Player`** — the body family | reads consistent on owner; mutations owner-context | — | Experimental | `PlayerApiAcceptanceTest` | IMPLEMENTED | the armor-points walk; the breath window |
+| Player XP | `totalXp`, `experienceLevel`, enchanting seed | **`Player`** — totalExperience/addExperience/experienceLevel | owner context for mutations | — | Experimental | `PlayerApiAcceptanceTest` | IMPLEMENTED | the enchanting-cost arm |
+| Player inventory | `PlayerInventory` (36 slots + held) | **`Player`** — heldItem/heldSlot/countOf/give (the vanilla pickup rules; the give wire-syncs through the engine's own inventory fan-out) | owner context | — | Experimental | `PlayerApiAcceptanceTest` (2: the give/overflow ladder, the sync-hook fire) | IMPLEMENTED | slot-level reads/writes + armor (the container/inventory wave) |
+| Player gamemode | `PlayerSession.gamemode/setGamemode` | **`Player.gamemode/setGamemode`** | owner context | — | Experimental | `PlayerApiAcceptanceTest` | IMPLEMENTED | — |
+| Player fire | `ignite/extinguish/tickFire` | **`Player`** — burning/ignite/extinguish | owner context | — | Experimental | `PlayerApiAcceptanceTest` | IMPLEMENTED | — |
 | Mob registry/spawn | `MobManager.spawnAt/spawnGroup` | `World.entities()` live view; `LivingEntity` handles (spawn still engine-side; the API spawn gate is the event) | owner context (enumerate inside `World.execute`) | `MobSpawnEvent` cancel | Experimental | `EntityApiAcceptanceTest` (4) | IMPLEMENTED | public spawn-with-parameters call (spawn eggs etc.); item-entity/projectile/vehicle handles |
 | Mob lifecycle | `MobManager.Listener` (internal) + `LivingEntity.despawn()` | the handle's despawn (routes the manager's removal, reason `"api"`); `MobSpawnEvent` observes arrivals | owner context | spawn observe/cancel; despawn is a handle mutation | Experimental | `EntityApiAcceptanceTest` | IMPLEMENTED | death events |
 | Mob state | `MobEntity` (health, velocity, AI, breeding, leash…) | **`LivingEntity`** — the engine object IS the handle (§27.5): position, rotation, velocity, health, persistent, heal/hurt/addVelocity/navigateToward/despawn | simulation context (the documented owner path is `World.execute`) | — | Experimental | `EntityApiAcceptanceTest` (4: live view, owner-context mutation ladder, snapshots, despawn) | IMPLEMENTED | breeding/leash/mount arms (their own waves) |
