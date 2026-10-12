@@ -529,6 +529,10 @@ public final class EngineServer implements Server, EngineBridge {
                 this.mobManager = mobs;
                 mobs.addListener(new MobEventDispatch());
                 mobs.setEventBus(eventBus); // §27.7: the public spawn gate
+                // §27.6's admission protocol for the mind: goal registrations
+                // (the public goals() surface) land on the world's owner lane,
+                // between ticks, from any thread.
+                mobs.setGoalAdmission(world::execute);
                 // Mob persistence (ZMD v1): the population survives restarts;
                 // a fresh world's animals arrive through the vanilla worldgen
                 // seeding (NaturalSpawner.populateChunk — the seedAnimals pass

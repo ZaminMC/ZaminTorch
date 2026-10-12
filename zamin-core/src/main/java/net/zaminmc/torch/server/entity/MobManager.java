@@ -175,6 +175,8 @@ public final class MobManager {
     private final java.util.function.BiFunction<Integer, Integer, Integer> surfaceY;
     /** The potion system (the witch's drink application); null until wired. */
     private volatile net.zaminmc.torch.server.potion.PotionSystem potionSystem;
+    /** The owner-lane admission for goal registrations (§27.6); null until wired. */
+    private volatile java.util.function.Consumer<Runnable> goalAdmission;
 
     public MobManager(MobEntity.WorldQuery world, Random random, LootSink lootSink,
                       int firstEntityId,
@@ -193,6 +195,15 @@ public final class MobManager {
     /** Wires the potion system (the witch's drink lands its effects through it). */
     public void setPotionSystem(net.zaminmc.torch.server.potion.PotionSystem potionSystem) {
         this.potionSystem = potionSystem;
+    }
+
+    /**
+     * Wires the owner-lane admission every spawned body's mind mutations
+     * ride (§27.6's explicit command protocol — the world's {@code execute}).
+     * Called once by the server after the world's admission exists.
+     */
+    public void setGoalAdmission(java.util.function.Consumer<Runnable> admission) {
+        this.goalAdmission = admission;
     }
 
     /**
@@ -314,6 +325,7 @@ public final class MobManager {
         MobEntity mob = new MobEntity(nextEntityId++, type, position, random, world);
         mob.setBreedFinder(this::scanForMate);
         mob.setRemovalHook(() -> remove(mob, "api")); // the public despawn path
+        mob.setGoalAdmission(goalAdmission); // §27.6: mind mutations admit onto the owner lane
         if (type == MobType.WITCH) {
             // The drink ladder's hasStatusEffect gates (mobTick lines
             // 107-121): the live store read through the potion system.
