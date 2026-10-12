@@ -2402,6 +2402,11 @@ public final class EngineServer implements Server, EngineBridge {
             mob.setLootingLevel(EnchantmentHelper.lootingLevel(held));
             boolean landed = mobManager.hurt(mob, damage, kbYaw);
             if (landed) {
+                // Slice 16b — OwnerHurtGoal: the attacker's standing tamed
+                // wolves join the fight on the victim (the owner's own
+                // getLastAttackedMob + getLastAttackTime change, the event-site
+                // arm).
+                mobManager.ownerWolvesJoinFight(attacker.name(), mob);
                 // The knockback-enchantment extra rides the attacker's look
                 // yaw (the reference's addVelocity arm), and the attacker's
                 // motion decays to 60% with the sprint wiped (lines 983-992).
@@ -8011,6 +8016,12 @@ public final class EngineServer implements Server, EngineBridge {
             for (MobManager.Listener listener : mobListeners) {
                 listener.onMobAttackedPlayer(mob, target, damage);
             }
+            // Slice 16b — AttackWithOwnerGoal: the victim's standing tamed
+            // wolves join the fight on the attacker (the owner's own
+            // getAttacker + getLastAttackedTime change, the event-site arm).
+            if (mobManager != null && !mob.dead()) {
+                mobManager.ownerWolvesJoinFight(target.name(), mob);
+            }
             // The same-thread survival damage path; the victim's armor eats
             // its share first (the 1.8 envelope), then the enchantment-
             // protection step (the reference's effects-and-enchantments half).
@@ -8375,6 +8386,33 @@ public final class EngineServer implements Server, EngineBridge {
                 }
             }
             return best == null ? null : best.position();
+        }
+
+        /**
+         * The nearest live mob of the kind (ActiveTargetGoal's scan /
+         * FleeEntityGoal's scare read, Slice 16b): the mob-vs-mob target
+         * family's world walk over the manager's live list.
+         */
+        @Override
+        public MobEntity nearestMobOfKind(double x, double y, double z, double range,
+                                           net.zaminmc.torch.server.entity.MobType kind) {
+            MobEntity best = null;
+            double bestDistance = range * range;
+            for (MobEntity mob : mobManager.all()) {
+                if (mob.dead() || mob.type() != kind) {
+                    continue;
+                }
+                Position p = mob.position();
+                double dx = p.x() - x;
+                double dy = p.y() - y;
+                double dz = p.z() - z;
+                double distance = dx * dx + dy * dy + dz * dz;
+                if (distance <= bestDistance) {
+                    bestDistance = distance;
+                    best = mob;
+                }
+            }
+            return best;
         }
 
         /**
