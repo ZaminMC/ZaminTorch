@@ -22,4 +22,13 @@ public interface BlockRegistry {
 
     /** @return all registered block types. The collection is read-only. */
     Collection<BlockType> all();
+
+    /**
+     * @return the block's survival data (hardness, tool gates, material,
+     *         light behavior, drops) — never null; the
+     *         {@link BlockData#UNREGISTERED} default when the engine
+     *         carries no behavior row for the type. Frozen data, safe
+     *         from any thread.
+     */
+    BlockData dataOf(BlockType type);
 }

@@ -1157,6 +1157,11 @@ public final class EngineServer implements Server, EngineBridge {
         return blockRegistry;
     }
 
+    @Override
+    public net.zaminmc.torch.block.BlockRegistry blocks() {
+        return blockRegistry;
+    }
+
     /** The command dispatcher (public: the wire layer's tab completion reads it). */
     public CommandService commands() {
         return commands;

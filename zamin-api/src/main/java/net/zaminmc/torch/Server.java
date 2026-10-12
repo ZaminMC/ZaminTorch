@@ -21,6 +21,13 @@ public interface Server {
      */
     int difficulty();
 
+    /**
+     * The block registry (Slice 14b): the frozen block-type set with the
+     * survival-data reads. Frozen before gameplay begins; every call is
+     * safe from any thread.
+     */
+    net.zaminmc.torch.block.BlockRegistry blocks();
+
     /** All currently loaded worlds. Read-only view. */
     Collection<World> worlds();
 
