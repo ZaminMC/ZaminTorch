@@ -81,6 +81,63 @@ final class MobGoals {
     };
 
     /**
+     * Priority 3, additive (LOOK control only — WolfBegGoal's own shape):
+     * the wolf's begging gaze. The nearest player within 8 blocks holding a
+     * bone (the untamed gate) or the meat breeding family holds the head
+     * for a {@code 40 + nextInt(40)} window; the wire's index-19 flag and
+     * the stroll's glance both yield to it.
+     */
+    static final MobGoal BEG = new MobGoal() {
+        @Override public String goalId() { return "beg"; }
+        @Override public int priority() { return 3; }
+        @Override public boolean exclusive() { return false; }
+        @Override public boolean canUse(MobEntity mob, boolean night) {
+            return mob.goalBegCanUse();
+        }
+        @Override public void tick(MobEntity mob, boolean night) {
+            mob.goalBegTick();
+        }
+    };
+
+    /**
+     * Priority 3, exclusive: the ocelot's fish-follow (TemptGoal 1:1). The
+     * cat walks to the nearest fish-holder within 10 blocks at the 0.6
+     * creep (the shared-flags sneak posture), holds at 2.5 blocks, and
+     * only that tempted state opens the tame's fish arm. A player who
+     * moves or turns inside 6 blocks scares the cat off for 100 ticks.
+     */
+    static final MobGoal TEMPT = new MobGoal() {
+        @Override public String goalId() { return "tempt"; }
+        @Override public int priority() { return 3; }
+        @Override public boolean exclusive() { return true; }
+        @Override public boolean canUse(MobEntity mob, boolean night) {
+            return mob.goalTemptCanUse();
+        }
+        @Override public void tick(MobEntity mob, boolean night) {
+            mob.goalTemptTick();
+        }
+    };
+
+    /**
+     * Priority 3, exclusive: the untamed ocelot's player-flee
+     * (FleeEntityGoal 1:1). Any live player within 16 blocks sends the
+     * wild cat running the other way — the far walk at 0.8, the 7-block
+     * close band sprinting at 1.33 (the shared-flags sprint posture). The
+     * tamed cat never flees (onTamedChanged's own removal).
+     */
+    static final MobGoal FLEE_PLAYER = new MobGoal() {
+        @Override public String goalId() { return "flee_player"; }
+        @Override public int priority() { return 3; }
+        @Override public boolean exclusive() { return true; }
+        @Override public boolean canUse(MobEntity mob, boolean night) {
+            return mob.goalFleePlayerCanUse();
+        }
+        @Override public void tick(MobEntity mob, boolean night) {
+            mob.goalFleePlayerTick();
+        }
+    };
+
+    /**
      * Priority 4, exclusive: the idle/wander cycle, with the historical
      * LookAtPlayer glance folded into the idle band.
      */
@@ -96,8 +153,15 @@ final class MobGoals {
         }
     };
 
-    /** The selector the mob runs: float + panic + breed + stroll, in priority order. */
+    /**
+     * The selector the mob runs: float + panic + breed + the awareness band
+     * (beg, tempt, flee — the wolf and the ocelot's own, all kind-gated)
+     * + stroll, in priority order. The band-3 order matters: the beg is
+     * additive so it runs first every tick, then the tempt outranks the
+     * flee (the reference's own 3-over-4), so a fish-holder holds a
+     * tempted cat even with players around.
+     */
     static GoalSelector standard() {
-        return new GoalSelector(List.of(FLOAT, PANIC, BREED, RANDOM_STROLL));
+        return new GoalSelector(List.of(FLOAT, PANIC, BREED, BEG, TEMPT, FLEE_PLAYER, RANDOM_STROLL));
     }
 }

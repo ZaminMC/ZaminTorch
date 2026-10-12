@@ -2732,3 +2732,52 @@ the despawn pair).
 
 Fresh suite: **882 green (789 core + 19 api + 74 protocol)**,
 `--max-workers=1`, zero failures.
+
+## Slice 16a — the mind's awareness (PlayerView + the ocelot's tempt/creep-flee + the wolf's beg)
+
+**Scope**: the player-velocity/held-item awareness wave the 15d/15e
+ledgers named: the WorldQuery's `PlayerView` (the nearest live player's
+position, rotation, and held item), the TEMPT goal, the FLEE_PLAYER
+goal, the BEG goal, the shared-flags postures on the wire, and the
+tame's own tempt gate.
+
+**The view**: `MobEntity.PlayerView` — position/yaw/pitch/heldItem —
+with `WorldQuery.nearestPlayerView(x, y, z, range)` defaulting to null
+(the stub worlds keep their no-player semantics). The engine's
+`MobWorldQuery` answers it from the session registry (the same nearest
+walk `nearestPlayer` runs).
+
+**TEMPT** ("tempt", band 3, exclusive): TemptGoal 1:1 — the fresh start
+takes the NEAREST player within 10 holding the raw fish (not the nearest
+fish-holder), the walk at 0.6 over the 0.3 base (the new goal-walk-speed
+multiplier the body's walk reads), the 2.5-block hold with the cleared
+path, the scared check (within 6 blocks: no move beyond 0.01, no turn
+beyond 5 degrees — the position sample updates only beyond that band,
+the rotation sample every tick), the 100-tick stop penalty.
+
+**FLEE_PLAYER** ("flee_player", band 3, exclusive): FleeEntityGoal 1:1
+— any live player within 16 sends the UNTAMED cat the other way: 0.8 far,
+1.33 inside 7 blocks, the heading directly away, the PANIC walk.
+
+**BEG** ("beg", band 3, ADDITIVE — the LOOK control only): WolfBegGoal
+1:1 — the nearest player within 8 holding a bone (untamed) or the meat
+family holds the gaze over its own 40+nextInt(40) window; the index-19
+flag rides the manager's wolf-state flip detection (the whole block
+republishes); the stroll's glance yields while begging.
+
+**The postures**: the tempt walk's 0.6 sets the shared-flags SNEAK bit
+(0x02), the flee close's 1.33 the SPRINT bit (0x10) — both through the
+living-flags byte at index 0 (the extended spawn/living-flags writers +
+the manager's posture flip event → `sendMobLivingFlags`).
+
+**The tame gate**: the ocelot's fish arm now requires the live tempt
+state (`interactMob`'s own gate — a cat that never crept takes no fish).
+
+**Tests**: TemptBegGoalsTest (7: the follow + the creep posture, the
+scared check with the 100-tick penalty, the nearest-only gate, the flee
+with the close sprint + the tamed refusal, the beg window + the family
+gates, the selector's band-3 law, the kind gates). GoalApiAcceptanceTest
+updated for the seven-built-in snapshot.
+
+Fresh suite: **889 green (796 core + 19 api + 74 protocol)**,
+`--max-workers=1`, zero failures.

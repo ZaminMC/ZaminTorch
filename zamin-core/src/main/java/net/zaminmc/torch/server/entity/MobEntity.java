@@ -183,6 +183,37 @@ public final class MobEntity implements LivingEntity {
                     ? net.zaminmc.torch.server.entity.ai.pathing.CellMaterial.SOLID
                     : net.zaminmc.torch.server.entity.ai.pathing.CellMaterial.AIR;
         }
+
+        /**
+         * The nearest player's live view within {@code range} — the
+         * tempt/beg family's read (TemptGoal's {@code getNearestPlayer(mob,
+         * 10.0)} + {@code getItemInHand()}). The default answers null so
+         * stub worlds keep their no-player semantics: a mind without the
+         * view never tempts and never begs.
+         */
+        default PlayerView nearestPlayerView(double x, double y, double z, double range) {
+            return null;
+        }
+    }
+
+    /**
+     * The player view the mind's awareness goals read (TemptGoal's
+     * {@code player} reference): the live position and rotation every tick
+     * (the scared-by-movement check compares them against the last seen
+     * sample) plus the held item's identity (the tempt and the beg gates).
+     */
+    public interface PlayerView {
+        /** The player's live position. */
+        Position position();
+
+        /** The player's live yaw (the scared rotation check). */
+        float yaw();
+
+        /** The player's live pitch (the scared rotation check). */
+        float pitch();
+
+        /** The held item's identifier, or null when the hand is empty. */
+        String heldItem();
     }
 
     /** What the mob is doing (the vanilla-style goal set of this slice). */
@@ -962,6 +993,55 @@ public final class MobEntity implements LivingEntity {
     private byte wolfCollarColor = 1; // DyeColor.RED.getId() = 1
     /** The begging head-tilt (the wire's index 19 — the bone-holding player's gaze). */
     private boolean wolfBegging;
+
+    // ---------------------------------------------- the mind's awareness (16a)
+
+    /**
+     * TemptGoal's live pair: whether the goal owns the body this tick (the
+     * ocelot's tame gate reads it — {@code interactMob} only takes the fish
+     * from a player the cat is currently tempted by) and the stop-penalty
+     * delay ({@code 100} ticks, the reference's own re-arm).
+     */
+    private boolean temptActive;
+    private int temptDelay;
+    /**
+     * TemptGoal's tracked sample: the player's last recorded position and
+     * rotation. While the player stands within 6 blocks, any move beyond
+     * 0.01 blocks or turn beyond 5 degrees scares the cat off the fish;
+     * beyond 6 blocks the position keeps updating (the reference's own
+     * asymmetric bookkeeping — the rotation sample updates every tick).
+     */
+    private double temptSampleX;
+    private double temptSampleY;
+    private double temptSampleZ;
+    private float temptSampleYaw;
+    private float temptSamplePitch;
+
+    /**
+     * The wolf's begging state (WolfBegGoal): the live window counts down
+     * from {@code 40 + nextInt(40)} ticks while the attractive player stays
+     * within the 8-block reach; the wire's index-19 flag rides it.
+     */
+    private int begTimer;
+
+    /**
+     * The ocelot's shared-flag postures (OcelotEntity.mobAiTick): the creep
+     * (a tempt walk at the 0.6 goal speed sets sneaking) and the flee sprint
+     * (the 1.33 close speed sets sprinting) — both ride the Entity flags
+     * byte at index 0 (0x02 / 0x10).
+     */
+    private boolean postureSneaking;
+    private boolean postureSprinting;
+
+    /**
+     * The goal-driven walk speed for this tick, as a multiple of the kind's
+     * own base (the reference's goal {@code speed} parameter over the
+     * movement attribute): the tempt's 0.6 on the ocelot's 0.3 base writes
+     * 2.0; the flee's 0.8/1.33 write 2.67/4.43. NaN (the default) keeps
+     * the mode-derived band (wander/panic/chase).
+     */
+    private double goalWalkSpeed = Double.NaN;
+
     /**
      * The tamed body's attack damage (the reference's {@code setTamed}
      * recompute: 4.0 tamed over the 2.0 wild kind default — the per-instance
@@ -2109,6 +2189,15 @@ public final class MobEntity implements LivingEntity {
     private void tickMind(boolean night) {
         modeTicks++;
 
+        // The awareness goals' per-tick defaults clear before the goal walk:
+        // the ocelot's postures only stand when the owning goal sets them
+        // again this tick (the reference's mobAiTick reads the movement
+        // control every tick — a body not walking a goal speed stands
+        // normal), and the goal walk speed falls back to the mode band.
+        postureSneaking = false;
+        postureSprinting = false;
+        goalWalkSpeed = Double.NaN;
+
         Position target = world.nearestPlayer(position.x(), position.y(), position.z(),
                 type.hostile ? AGGRO_RANGE : 8.0);
         boolean canHunt = type.hostile && (!type.traits.neutralByDay() || night);
@@ -2287,6 +2376,274 @@ public final class MobEntity implements LivingEntity {
         }
     }
 
+    // ------------------------------------- the awareness goals (Slice 16a)
+
+    /** TemptGoal's range: {@code getNearestPlayer(mob, 10.0)}. */
+    private static final double TEMPT_RANGE = 10.0;
+    /** The scared window: the player's move tolerance inside 6 blocks. */
+    private static final double TEMPT_SCARED_DISTANCE_SQUARED = 0.010000000000000002;
+    /** The scared rotation tolerance, degrees. */
+    private static final double TEMPT_SCARED_ROTATION = 5.0;
+    /** TemptGoal's stop() re-arm: the cat sulks 100 ticks before trying again. */
+    private static final int TEMPT_DELAY = 100;
+    /** The tempt's approach stop: within 2.5 blocks the feet hold. */
+    private static final double TEMPT_STOP_DISTANCE_SQUARED = 6.25;
+    /** The goal speed over the ocelot's 0.3 base: the creep at 0.6. */
+    private static final double TEMPT_WALK_MULTIPLIER = 0.6 / 0.3;
+    /** FleeEntityGoal's reach: players within 16 blocks scare the wild cat. */
+    private static final double FLEE_PLAYER_RANGE = 16.0;
+    /** The flee's close band: the scary player within 7 blocks sprints. */
+    private static final double FLEE_CLOSE_SQUARED = 49.0;
+    /** The flee's far speed over the base (0.8 on the 0.3 ocelot). */
+    private static final double FLEE_FAR_MULTIPLIER = 0.8 / 0.3;
+    /** The flee's close speed over the base (1.33 on the 0.3 — the sprint). */
+    private static final double FLEE_CLOSE_MULTIPLIER = 1.33 / 0.3;
+    /** WolfBegGoal's reach: the bone-holder's gaze window. */
+    private static final double BEG_RANGE = 8.0;
+    /** WolfBegGoal's timer: {@code 40 + nextInt(40)} ticks of begging. */
+    private static final int BEG_TIMER_BASE = 40;
+
+    /** @return whether the tempt goal is live (the ocelot's tame gate reads it). */
+    public boolean temptActive() {
+        return temptActive;
+    }
+
+    /**
+     * TemptGoal's canStart/shouldContinue pair (the ocelot's fish-follow):
+     * a fresh start finds the nearest player within 10 blocks holding the
+     * raw fish — the delay gate first (100 ticks after a stop). A live goal
+     * runs the scared check every tick: the player within 6 blocks may not
+     * move beyond 0.01 blocks or turn beyond 5 degrees; the sample updates
+     * beyond that band, and the rotation sample always does. A death on
+     * any road applies the stop(): the delay re-arms and the feet release.
+     */
+    boolean goalTemptCanUse() {
+        if (type != MobType.OCELOT) {
+            return false;
+        }
+        if (temptActive) {
+            PlayerView view = world.nearestPlayerView(
+                    position.x(), position.y(), position.z(), TEMPT_RANGE);
+            if (view == null) {
+                goalTemptStop();
+                return false;
+            }
+            // shouldContinue's scared check (TemptGoal lines 52-72).
+            double dx = view.position().x() - position.x();
+            double dy = view.position().y() - position.y();
+            double dz = view.position().z() - position.z();
+            if (dx * dx + dy * dy + dz * dz < 36.0) {
+                double px = view.position().x() - temptSampleX;
+                double py = view.position().y() - temptSampleY;
+                double pz = view.position().z() - temptSampleZ;
+                if (px * px + py * py + pz * pz > TEMPT_SCARED_DISTANCE_SQUARED) {
+                    goalTemptStop();
+                    return false;
+                }
+                if (Math.abs(view.yaw() - temptSampleYaw) > TEMPT_SCARED_ROTATION
+                        || Math.abs(view.pitch() - temptSamplePitch) > TEMPT_SCARED_ROTATION) {
+                    goalTemptStop();
+                    return false;
+                }
+            } else {
+                temptSampleX = view.position().x();
+                temptSampleY = view.position().y();
+                temptSampleZ = view.position().z();
+            }
+            temptSampleYaw = view.yaw();
+            temptSamplePitch = view.pitch();
+            // The canStart re-check: the player still holds the fish.
+            if (!"minecraft:fish".equals(view.heldItem())) {
+                goalTemptStop();
+                return false;
+            }
+            return true;
+        }
+        // canStart (lines 36-49): the delay gate, then the nearest player's
+        // held item — the nearest player only, not the nearest fish-holder.
+        if (temptDelay > 0) {
+            temptDelay--;
+            return false;
+        }
+        PlayerView view = world.nearestPlayerView(
+                position.x(), position.y(), position.z(), TEMPT_RANGE);
+        if (view == null) {
+            return false;
+        }
+        if (!"minecraft:fish".equals(view.heldItem())) {
+            return false;
+        }
+        // start(): the sample lands, the flag flips.
+        temptActive = true;
+        temptSampleX = view.position().x();
+        temptSampleY = view.position().y();
+        temptSampleZ = view.position().z();
+        temptSampleYaw = view.yaw();
+        temptSamplePitch = view.pitch();
+        return true;
+    }
+
+    /** TemptGoal's stop(): the delay re-arms and the feet release. */
+    private void goalTemptStop() {
+        temptActive = false;
+        temptDelay = TEMPT_DELAY;
+        clearPath();
+    }
+
+    /**
+     * TemptGoal's tick (lines 95-102): the eyes stay on the player; the
+     * feet walk the path at the creep speed unless the 2.5-block hold
+     * band closes. The walk rides the goal-speed multiplier (2.0 — the
+     * 0.6 over the 0.3 base), and the ocelot's mobAiTick posture turns
+     * that walk into the shared-flags sneak.
+     */
+    void goalTemptTick() {
+        PlayerView view = world.nearestPlayerView(
+                position.x(), position.y(), position.z(), TEMPT_RANGE);
+        if (view == null) {
+            return;
+        }
+        double dx = view.position().x() - position.x();
+        double dy = view.position().y() - position.y();
+        double dz = view.position().z() - position.z();
+        headYaw = angleTo(dx, dz); // the look control's 30-degree grip
+        double squared = dx * dx + dy * dy + dz * dz;
+        if (squared < TEMPT_STOP_DISTANCE_SQUARED) {
+            clearPath(); // the hold: the cat sits at the fish-holder's feet
+            goalWalkSpeed = 0.0;
+            postureSneaking = false; // the stopped walk stands normal (mobAiTick)
+            return;
+        }
+        goalWalkSpeed = TEMPT_WALK_MULTIPLIER;
+        postureSneaking = true; // mobAiTick: the 0.6 walk is the creep
+        mode = Mode.WANDER;
+        modeTicks = 0;
+        tickPathFollowing(view.position());
+    }
+
+    /**
+     * FleeEntityGoal's canStart (the untamed ocelot, players only): the
+     * 16-block scare range — any live player inside it. The tamed cat
+     * never flees (onTamedChanged removes the goal).
+     */
+    boolean goalFleePlayerCanUse() {
+        return type == MobType.OCELOT && !wolfTamed() && world.nearestPlayerView(
+                position.x(), position.y(), position.z(), FLEE_PLAYER_RANGE) != null;
+    }
+
+    /**
+     * FleeEntityGoal's tick: away from the scary player — the far walk at
+     * 0.8 over the base, the 7-block close band sprinting at 1.33 with the
+     * shared-flags sprint bit (the ocelot's mobAiTick own postures).
+     */
+    void goalFleePlayerTick() {
+        PlayerView view = world.nearestPlayerView(
+                position.x(), position.y(), position.z(), FLEE_PLAYER_RANGE);
+        if (view == null) {
+            return;
+        }
+        double dx = position.x() - view.position().x();
+        double dy = position.y() - view.position().y();
+        double dz = position.z() - view.position().z();
+        boolean close = dx * dx + dy * dy + dz * dz < FLEE_CLOSE_SQUARED;
+        goalWalkSpeed = close ? FLEE_CLOSE_MULTIPLIER : FLEE_FAR_MULTIPLIER;
+        if (close) {
+            postureSprinting = true; // the 1.33 sprint bit
+        }
+        mode = Mode.PANIC; // the fleeing body: the panic walk, no grazing
+        modeTicks = 0;
+        yaw = angleTo(dx, dz); // directly away from the player
+        headYaw = yaw;
+    }
+
+    /**
+     * WolfBegGoal's isAttractive (lines 65-71): the untamed wolf begs at a
+     * bone-holder; any taming state begs at its own breeding food (the meat
+     * family — isBreedingItem's table).
+     */
+    private boolean begAttractive(String heldItem) {
+        if (heldItem == null) {
+            return false;
+        }
+        if (!wolfTamed() && heldItem.equals("minecraft:bone")) {
+            return true;
+        }
+        return switch (heldItem) {
+            case "minecraft:porkchop", "minecraft:cooked_porkchop", "minecraft:beef",
+                    "minecraft:cooked_beef", "minecraft:chicken", "minecraft:cooked_chicken",
+                    "minecraft:rabbit", "minecraft:cooked_rabbit" -> true;
+            default -> false;
+        };
+    }
+
+    /**
+     * WolfBegGoal's canStart + shouldContinue pair: the nearest player
+     * within 8 blocks holding an attractive item. A fresh start rolls the
+     * timer ({@code 40 + nextInt(40)}) and raises the wire's begging flag;
+     * the live window only continues while the timer, the reach, and the
+     * attraction hold. The stop clears the flag (the manager's flip
+     * detection publishes it).
+     */
+    boolean goalBegCanUse() {
+        if (type != MobType.WOLF) {
+            return false;
+        }
+        PlayerView view = world.nearestPlayerView(
+                position.x(), position.y(), position.z(), BEG_RANGE);
+        if (view == null || !begAttractive(view.heldItem())) {
+            if (wolfBegging) {
+                setWolfBegging(false); // stop(): the head comes up
+            }
+            return false;
+        }
+        double dx = view.position().x() - position.x();
+        double dy = view.position().y() - position.y();
+        double dz = view.position().z() - position.z();
+        if (dx * dx + dy * dy + dz * dz > BEG_RANGE * BEG_RANGE) {
+            if (wolfBegging) {
+                setWolfBegging(false);
+            }
+            return false;
+        }
+        if (!wolfBegging) {
+            setWolfBegging(true); // start(): the head tilts
+            begTimer = BEG_TIMER_BASE + random.nextInt(BEG_TIMER_BASE);
+        }
+        return true;
+    }
+
+    /**
+     * WolfBegGoal's tick: the head stays on the player's eyes while the
+     * timer burns; the timer out (or the player leaving) is the stop.
+     */
+    void goalBegTick() {
+        if (--begTimer <= 0) {
+            setWolfBegging(false);
+            return;
+        }
+        PlayerView view = world.nearestPlayerView(
+                position.x(), position.y(), position.z(), BEG_RANGE);
+        if (view != null) {
+            headYaw = angleTo(view.position().x() - position.x(),
+                    view.position().z() - position.z());
+        }
+    }
+
+    /** @return the ocelot's living-flag posture bits: sneak 0x02 | sprint 0x10. */
+    public int postureFlags() {
+        return (postureSneaking ? 0x02 : 0) | (postureSprinting ? 0x10 : 0);
+    }
+
+    /** @return the tempt creep's sneak posture (the shared flags bit). */
+    public boolean postureSneaking() {
+        return postureSneaking;
+    }
+
+    /** @return the flee's sprint posture (the shared flags bit). */
+    public boolean postureSprinting() {
+        return postureSprinting;
+    }
+
     /** Whether a hunt target is live this tick (the stroll goal yields). */
     boolean goalHasTarget(boolean night) {
         return targetHuntable && visibleTarget != null;
@@ -2300,8 +2657,9 @@ public final class MobEntity implements LivingEntity {
         switch (mode) {
             case IDLE -> {
                 // The historical LookAtPlayer: an idle mob glances at a
-                // nearby player now and then.
-                if (target != null && modeTicks % 30 == 0 && random.nextInt(3) == 0) {
+                // nearby player now and then — unless the beg owns the look
+                // (WolfBegGoal claims the LOOK control for its whole window).
+                if (!wolfBegging && target != null && modeTicks % 30 == 0 && random.nextInt(3) == 0) {
                     headYaw = angleTo(target.x() - position.x(), target.z() - position.z());
                 }
                 if (modeTicks >= IDLE_TICKS + random.nextInt(IDLE_TICKS)) {
@@ -2454,6 +2812,11 @@ public final class MobEntity implements LivingEntity {
         }
         if (witchDrink > 0) {
             walk = 0.0; // the drinking speed penalty (WitchEntity's -0.25 on the 0.25 base → 0)
+        }
+        if (!Double.isNaN(goalWalkSpeed)) {
+            // The awareness goals' own speed (TemptGoal/FleeEntityGoal's
+            // parameter over the movement attribute) overrides the band.
+            walk = type.walkSpeed * goalWalkSpeed;
         }
         if (type == MobType.RABBIT) {
             // The rabbit's hop cycle owns the movement (the zeroed-input

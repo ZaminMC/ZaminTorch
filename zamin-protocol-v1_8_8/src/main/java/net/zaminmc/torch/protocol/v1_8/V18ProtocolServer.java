@@ -297,7 +297,15 @@ public final class V18ProtocolServer implements ProtocolAdapter {
 
             @Override
             public void onMobBurningChanged(net.zaminmc.torch.server.entity.MobEntity mob,
-                                            boolean burning) {
+                                             boolean burning) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendMobLivingFlags(mob);
+                }
+            }
+
+            /** The ocelot's creep/flee postures (the shared flags byte). */
+            @Override
+            public void onMobPostureChanged(net.zaminmc.torch.server.entity.MobEntity mob) {
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
                     connection.sendMobLivingFlags(mob);
                 }

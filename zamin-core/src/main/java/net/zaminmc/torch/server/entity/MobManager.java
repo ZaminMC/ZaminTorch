@@ -69,6 +69,13 @@ public final class MobManager {
         default void onMobBurningChanged(MobEntity mob, boolean burning) {
         }
 
+        /**
+         * The ocelot's posture bits changed (the shared flags byte at
+         * index 0: the tempt's sneak 0x02, the flee's sprint 0x10).
+         */
+        default void onMobPostureChanged(MobEntity mob) {
+        }
+
         /** A melee hunter landed a hit on a player (damage already validated). */
         void onMobAttackedPlayer(MobEntity mob, PlayerSession target, float damage);
 
@@ -628,6 +635,8 @@ public final class MobManager {
             boolean wasBurning = mob.burning();
             int wasHorseFlags = mob.horseFlagsRaw();
             boolean wasWitchDrinking = mob.witchDrinking();
+            boolean wasBegging = mob.wolfBegging();
+            int wasPosture = mob.postureFlags();
             boolean moved = mob.tick(night);
             if (wasPriming != mob.fuseActive()) {
                 for (Listener listener : listeners) {
@@ -637,6 +646,20 @@ public final class MobManager {
             if (wasBurning != mob.burning()) {
                 for (Listener listener : listeners) {
                     listener.onMobBurningChanged(mob, mob.burning());
+                }
+            }
+            if (wasBegging != mob.wolfBegging()) {
+                // WolfBegGoal's start/stop pair rides the whole wolf-state
+                // block (the begging byte 19 sits inside it).
+                for (Listener listener : listeners) {
+                    listener.onWolfStateChanged(mob);
+                }
+            }
+            if (wasPosture != mob.postureFlags()) {
+                // The ocelot's creep/flee postures ride the shared flags
+                // byte at index 0 (the sneak and sprint bits).
+                for (Listener listener : listeners) {
+                    listener.onMobPostureChanged(mob);
                 }
             }
             if (wasWitchDrinking != mob.witchDrinking()) {

@@ -6193,9 +6193,11 @@ public final class EngineServer implements Server, EngineBridge {
                 publishWolfState(mob);
                 return;
             }
-        } else if (heldId.equals("minecraft:fish")) {
-            // The tame roll (interactMob lines 158-176): the fish is eaten;
-            // the 1-in-3 lands the flag, the coat, the owner, the sit.
+        } else if (heldId.equals("minecraft:fish") && mob.temptActive()) {
+            // The tame roll (interactMob lines 158-176): the reference's own
+            // gate — the tempt goal must be live (the cat crept to the fish)
+            // AND the player still within the 3-block reach. The fish is
+            // eaten; the 1-in-3 lands the flag, the coat, the owner, the sit.
             eatFromHand(player);
             if (gameplayRandom.nextInt(3) == 0) {
                 mob.tameOcelot(player.name(), 1 + gameplayRandom.nextInt(3));
@@ -8373,6 +8375,55 @@ public final class EngineServer implements Server, EngineBridge {
                 }
             }
             return best == null ? null : best.position();
+        }
+
+        /**
+         * The awareness goals' player view (TemptGoal's own read): the
+         * nearest live player's position, rotation, and held item.
+         */
+        @Override
+        public net.zaminmc.torch.server.entity.MobEntity.PlayerView nearestPlayerView(
+                double x, double y, double z, double range) {
+            PlayerSession best = null;
+            double bestDistance = range * range;
+            for (PlayerSession player : players.all()) {
+                if (player.state() != PlayerState.PLAYING || player.dead()) {
+                    continue;
+                }
+                Position p = player.position();
+                double dx = p.x() - x;
+                double dy = p.y() - y;
+                double dz = p.z() - z;
+                double distance = dx * dx + dy * dy + dz * dz;
+                if (distance <= bestDistance) {
+                    bestDistance = distance;
+                    best = player;
+                }
+            }
+            if (best == null) {
+                return null;
+            }
+            PlayerSession session = best;
+            net.zaminmc.torch.item.ItemStack held = session.heldItem();
+            String heldId = held.isEmpty() || held.type() == null
+                    ? null : held.type().identifier().toString();
+            return new net.zaminmc.torch.server.entity.MobEntity.PlayerView() {
+                @Override public Position position() {
+                    return session.position();
+                }
+
+                @Override public float yaw() {
+                    return session.rotation().yaw();
+                }
+
+                @Override public float pitch() {
+                    return session.rotation().pitch();
+                }
+
+                @Override public String heldItem() {
+                    return heldId;
+                }
+            };
         }
     }
 

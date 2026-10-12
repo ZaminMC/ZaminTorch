@@ -2559,9 +2559,10 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         // Int + subtype + variant + owner + armor, the pig's saddle byte at
         // 16, the creeper's swell / the sheep's coat byte at 16 — then the
         // terminator. Passive kinds also carry the age byte (index 12: -1
-        // baby, 0 adult — the PassiveEntity register).
+        // baby, 0 adult — the PassiveEntity register). The flags byte
+        // carries the ocelot's postures beside the burn bit.
         out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | Protocol18.LIVING_FLAGS_METADATA_INDEX);
-        out.writeByte(mob.burning() ? Protocol18.LIVING_FLAG_BURNING : 0);
+        out.writeByte(mobLivingFlagsOf(mob));
         out.writeByte((Protocol18.METADATA_TYPE_FLOAT << 5) | Protocol18.LIVING_HEALTH_METADATA_INDEX);
         out.writeFloat(mob.health());
         if (!mob.type().hostile) {
@@ -2779,7 +2780,8 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
 
     /**
      * Set Entity Metadata (0x1C) for the living-flags byte: the burn bit
-     * catching or dying out on a mob body. Any thread.
+     * catching or dying out on a mob body, and the ocelot's own postures
+     * (the tempt creep's sneak 0x02, the flee sprint's 0x10). Any thread.
      */
     void sendMobLivingFlags(MobEntity mob) {
         Channel channel = adapter.channelOf(this);
@@ -2790,9 +2792,14 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeVarInt(out, Protocol18.S2C_ENTITY_METADATA);
         ByteBufOps.writeVarInt(out, mob.entityId());
         out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | Protocol18.LIVING_FLAGS_METADATA_INDEX);
-        out.writeByte(mob.burning() ? Protocol18.LIVING_FLAG_BURNING : 0);
+        out.writeByte(mobLivingFlagsOf(mob));
         out.writeByte(Protocol18.METADATA_TERMINATOR);
         channel.writeAndFlush(out);
+    }
+
+    /** The living-flags byte: burning | the ocelot's postures (sneak 0x02, sprint 0x10). */
+    static int mobLivingFlagsOf(MobEntity mob) {
+        return (mob.burning() ? Protocol18.LIVING_FLAG_BURNING : 0) | mob.postureFlags();
     }
 
     /**
