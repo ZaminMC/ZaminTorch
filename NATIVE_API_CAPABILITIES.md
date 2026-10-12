@@ -51,9 +51,10 @@ Stability classes (§27.4): `Stable`, `Experimental`, `Internal`.
 | Player inventory | `PlayerInventory` (36 slots + held) | none | owner | — | — | — | NOT AUDITED | — |
 | Player gamemode | `PlayerSession.gamemode/setGamemode` | none | owner | — | — | — | NOT AUDITED | — |
 | Player fire | `ignite/extinguish/tickFire` | none | owner | — | — | — | NOT AUDITED | — |
-| Mob registry/spawn | `MobManager.spawnAt/spawnGroup` | none | owner | — | — | — | NOT AUDITED | the cancellable hook |
-| Mob lifecycle | `MobManager.Listener` (internal) | none | owner callback | internal only | — | — | NOT AUDITED | — |
-| Mob state | `MobEntity` (health, velocity, AI, breeding, leash…) | none | owner | — | — | — | NOT AUDITED | the snapshot read |
+| Mob registry/spawn | `MobManager.spawnAt/spawnGroup` | `World.entities()` live view; `LivingEntity` handles (spawn still engine-side; the API spawn gate is the event) | owner context (enumerate inside `World.execute`) | `MobSpawnEvent` cancel | Experimental | `EntityApiAcceptanceTest` (4) | IMPLEMENTED | public spawn-with-parameters call (spawn eggs etc.); item-entity/projectile/vehicle handles |
+| Mob lifecycle | `MobManager.Listener` (internal) + `LivingEntity.despawn()` | the handle's despawn (routes the manager's removal, reason `"api"`); `MobSpawnEvent` observes arrivals | owner context | spawn observe/cancel; despawn is a handle mutation | Experimental | `EntityApiAcceptanceTest` | IMPLEMENTED | death events |
+| Mob state | `MobEntity` (health, velocity, AI, breeding, leash…) | **`LivingEntity`** — the engine object IS the handle (§27.5): position, rotation, velocity, health, persistent, heal/hurt/addVelocity/navigateToward/despawn | simulation context (the documented owner path is `World.execute`) | — | Experimental | `EntityApiAcceptanceTest` (4: live view, owner-context mutation ladder, snapshots, despawn) | IMPLEMENTED | breeding/leash/mount arms (their own waves) |
+| Entity snapshots | `MobEntity.snapshot()` | **`EntitySnapshot`** — the immutable any-thread view | capture on owner, consume anywhere | — | Experimental | `EntityApiAcceptanceTest` | IMPLEMENTED | — |
 | Mob AI goals | `GoalSelector`, `MobGoals` | none | owner | — | — | — | NOT AUDITED | register/replace (§27.3) |
 | Item entities | `ItemEntityManager.spawnDropAtBlock` | none | owner | — | — | — | NOT AUDITED | — |
 | Projectiles | `ProjectileManager` | none | owner | — | — | — | NOT AUDITED | — |
@@ -86,7 +87,7 @@ Stability classes (§27.4): `Stable`, `Experimental`, `Internal`.
 
 | Capability | Engine implementation | Public entry point | Threading | Hooks | Stability | Tests | Status | Omissions |
 |---|---|---|---|---|---|---|---|---|
-| Tick submission | `EngineTicker.submit` | none | any thread | — | — | — | NOT AUDITED | §27.3 requires scheduler/task controls |
+| Tick submission | `EngineTicker.submit` | **`World.execute(Runnable)`** — the §27.6 owner path for plugins | submit any thread; run on the owner lane | — | Experimental | `EntityApiAcceptanceTest` (the foreign-thread arms) | IMPLEMENTED | delayed/repeating task controls (the scheduler wave) |
 | Owner-context execution | `OwnershipDomain`, `SimulationScheduler` | none | owner | — | — | — | NOT AUDITED | §27.6 owner-context API |
 | Async compute | `ComputeSubsystem`, `ComputeTicket` | none | any thread → owner | — | — | — | NOT AUDITED | §27.3 safe async computation |
 | Cross-owner requests | `CrossOwnerRouter` | none | owner → owner | — | — | — | NOT AUDITED | §27.3 |

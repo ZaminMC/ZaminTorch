@@ -484,6 +484,13 @@ public final class EngineServer implements Server, EngineBridge {
                 world.addChunkLoadListener(lightEngine);
                 pregenerateSpawnArea(world);
                 ticker.attachWorld(world);
+                // The public §27.6 owner path: plugins execute on the
+                // authoritative lane through World.execute (the ticker's
+                // between-ticks submission).
+                world.attachOwnerExecutor(ticker::submit);
+                // The public §27.5 entity view: the mob population capture.
+                world.attachEntityView(() -> mobManager != null ? mobManager.all()
+                        : java.util.List.<net.zaminmc.torch.server.entity.MobEntity>of());
                 // Item entities and drops: simulation-owned systems on the world owner.
                 ItemEntityManager itemEntities = new ItemEntityManager(
                         shapeGround,
@@ -949,6 +956,11 @@ public final class EngineServer implements Server, EngineBridge {
                         .create("simulation:" + config.worldName());
                 world.attachDomain(simulationDomain);
                 ticker.attachNetherWorld(netherWorld);
+                // The nether's public §27.6 owner path (same authoritative
+                // lane) + its §27.5 entity view (empty until its own
+                // population lands — the engine's mobs live in the overworld).
+                netherWorld.attachOwnerExecutor(ticker::submit);
+                netherWorld.attachEntityView(() -> java.util.List.of());
                 simulationScheduler = new net.zaminmc.torch.server.concurrent.SimulationScheduler();
                 ticker.attachScheduler(simulationScheduler, simulationDomain);
                 computeSubsystem = new net.zaminmc.torch.server.concurrent.ComputeSubsystem();

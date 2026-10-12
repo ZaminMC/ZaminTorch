@@ -3,7 +3,10 @@ package net.zaminmc.torch;
 import net.zaminmc.torch.block.BlockPosition;
 import net.zaminmc.torch.block.BlockType;
 import net.zaminmc.torch.block.ChunkPosition;
+import net.zaminmc.torch.entity.LivingEntity;
 import net.zaminmc.torch.util.Position;
+
+import java.util.Collection;
 
 /**
  * A world holds authoritative block, entity and simulation state under one name.
@@ -39,4 +42,18 @@ public interface World {
 
     /** @return whether the chunk containing this position is loaded for gameplay. */
     boolean isChunkLoaded(ChunkPosition position);
+
+    /**
+     * The live entities of this world. Simulation context (§27.6): the
+     * collection reflects the population at call time; inspect it inside
+     * {@link #execute}.
+     */
+    Collection<LivingEntity> entities();
+
+    /**
+     * Runs work on the world's authoritative simulation context (§27.6 —
+     * the owner path for plugins). Safe to call from any thread; the
+     * runnable runs between ticks, ordered after already-submitted work.
+     */
+    void execute(Runnable work);
 }

@@ -258,6 +258,7 @@ public final class MobManager {
         }
         MobEntity mob = new MobEntity(nextEntityId++, type, position, random, world);
         mob.setBreedFinder(this::scanForMate);
+        mob.setRemovalHook(() -> remove(mob, "api")); // the public despawn path
         mobs.add(mob);
         for (Listener listener : listeners) {
             listener.onMobSpawned(mob);

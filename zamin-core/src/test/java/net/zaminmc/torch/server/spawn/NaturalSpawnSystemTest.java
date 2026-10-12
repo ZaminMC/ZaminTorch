@@ -158,6 +158,9 @@ class NaturalSpawnSystemTest {
                     net.zaminmc.torch.block.BlockType t) { return false; }
             @Override public boolean isChunkLoaded(
                     net.zaminmc.torch.block.ChunkPosition p) { return true; }
+            @Override public java.util.Collection<net.zaminmc.torch.entity.LivingEntity> entities() { return java.util.List.of(); }
+            @Override public void execute(Runnable work) { work.run(); }
+
         };
     }
 
