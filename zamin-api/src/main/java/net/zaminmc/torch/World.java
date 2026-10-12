@@ -56,4 +56,35 @@ public interface World {
      * runnable runs between ticks, ordered after already-submitted work.
      */
     void execute(Runnable work);
+
+    /**
+     * Sets the world's time of day (wrapped on the 24000-tick day). Owner
+     * context: call through {@link #execute} from outside the simulation.
+     * The clock lands on this world only — the engine's own {@code /time}
+     * command walks every dimension; a plugin targeting each world calls
+     * each world.
+     *
+     * @throws IllegalStateException if called outside the world's allowed execution context
+     */
+    void setTimeOfDay(long timeOfDay);
+
+    /**
+     * @return the block light level (0-15) at the position; 0 outside
+     *         loaded chunks. Best-effort read, safe from any thread.
+     */
+    int blockLightAt(BlockPosition position);
+
+    /**
+     * @return the sky light level (0-15) at the position; 15 outside
+     *         loaded chunks (open sky). Best-effort read, safe from any
+     *         thread.
+     */
+    int skyLightAt(BlockPosition position);
+
+    /**
+     * @return the biome's stable name at the column (for example
+     *         {@code "plains"}), or {@code "plains"} outside loaded
+     *         chunks (the implicit default). Safe from any thread.
+     */
+    String biomeAt(BlockPosition position);
 }

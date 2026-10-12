@@ -473,6 +473,9 @@ public final class EngineServer implements Server, EngineBridge {
                 netherPortalForcer = new PortalForcer(netherWorld, worldSeed, 128);
                 LOGGER.info(() -> "Nether dimension '"
                         + netherWorld.name() + "' ready (seed " + worldSeed + ")");
+                // The public block-change observation covers the nether's
+                // commits too (the event carries the world's own name).
+                netherWorld.addChangeListener(new PublicBlockChangeBridge());
                 // Light (§475/§476): derived world state, recomputed on every
                 // committed change and on chunk generation. Registered FIRST
                 // (before spawn pregeneration) so every generated chunk — boot
@@ -482,6 +485,11 @@ public final class EngineServer implements Server, EngineBridge {
                 lightEngine = new net.zaminmc.torch.server.world.light.LightEngine(world);
                 world.addChangeListener(lightEngine);
                 world.addChunkLoadListener(lightEngine);
+                // The public §27.7 post-commit observation: every committed
+                // block change — player, explosion, piston, fluid, growth —
+                // fires BlockChangedEvent through the engine bus (the
+                // bridge implements the combined pair).
+                world.addChangeListener(new PublicBlockChangeBridge());
                 pregenerateSpawnArea(world);
                 ticker.attachWorld(world);
                 // The public §27.6 owner path: plugins execute on the
@@ -1295,6 +1303,7 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /** @return the runtime difficulty id (0 peaceful .. 3 hard). */
+    @Override
     public int difficulty() {
         return difficulty;
     }
@@ -7018,6 +7027,30 @@ public final class EngineServer implements Server, EngineBridge {
                 }
             }
             return null;
+        }
+    }
+
+    /**
+     * The public §27.7 post-commit observation bridge (Slice 14a): every
+     * committed block change in a booted world — whatever caused it —
+     * fires {@link net.zaminmc.torch.event.block.BlockChangedEvent}
+     * through the engine's event bus. Runs on the committing owner
+     * context; the bus isolates handler exceptions.
+     */
+    private final class PublicBlockChangeBridge
+            implements net.zaminmc.torch.server.world.WorldChangeListener {
+        @Override
+        public void onBlockChanged(EngineWorld world, BlockPosition position, BlockType newType) {
+            // The combined pair carries the event (onBlockReplaced).
+        }
+
+        @Override
+        public void onBlockReplaced(EngineWorld world, BlockPosition position,
+                                    BlockType oldType, BlockType newType) {
+            eventBus.fire(new net.zaminmc.torch.event.block.BlockChangedEvent(
+                    world.name(), position,
+                    oldType == null ? null : oldType.identifier().toString(),
+                    newType.identifier().toString()));
         }
     }
 

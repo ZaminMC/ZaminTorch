@@ -17,6 +17,15 @@ public interface WorldChangeListener {
     void onBlockChanged(EngineWorld world, BlockPosition position, BlockType newType);
 
     /**
+     * The complete pair in one call (Slice 14a — the public event's shape):
+     * the old and the new type of one committed change. Runs first, inside
+     * the same commit; the default ignores it.
+     */
+    default void onBlockReplaced(EngineWorld world, BlockPosition position,
+                                 BlockType oldType, BlockType newType) {
+    }
+
+    /**
      * The removal companion: the OLD type at the position that just became
      * something else (air included). Runs inside the same commit, after
      * {@link #onBlockChanged}; the default ignores it. The redstone family

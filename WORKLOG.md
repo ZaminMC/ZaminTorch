@@ -2323,3 +2323,40 @@ seed derivation). The fresh full-suite count **746 green in zamin-core**
 **Next:** back to the API waves (the §27.3 audit's next family), or the
 rabbit/wolf/ocelot rows (their entity slices), or the brewing stand's
 block entity + GUI.
+
+## Slice 14a — the world & block API wave (§27.3)
+
+**The family** (the §27.3 checklist's own first bullet — "world, chunk,
+block, block-state, and world-generation operations"): five capabilities
+through the public interfaces, no engine internals.
+
+- **`World.setTimeOfDay(long)`**: the owner-context clock set (the
+  floorMod wrap on the 24000-tick day; the per-world independence — the
+  engine's `/time` walks every dimension, a plugin loops `worlds()`).
+- **`World.blockLightAt` / `skyLightAt`**: the any-thread best-effort
+  reads over the light engine's committed state (0 block / 15 sky
+  outside loaded chunks — the engine's own documented totals).
+- **`World.biomeAt`**: the column's stable family name (the read over
+  the chunk's generation-derived biome row; "plains" outside loaded
+  chunks — the implicit default).
+- **`Server.difficulty()`**: the 1.8.8 difficulty id read (the set arm
+  rides the difficulty slice).
+- **`BlockChangedEvent`** (§27.7's post-commit observation): every
+  committed block change — player, explosion, piston, fluid, growth —
+  fires through the public bus, carrying the world name, the position
+  and the complete old/new type pair. NOT cancellable by design (the
+  commit already happened). The engine bridge: the `WorldChangeListener`
+  grew the combined `onBlockReplaced(world, pos, old, new)` default
+  (fired first inside the same commit, ignored by every existing
+  listener), and the EngineServer registers its bridge on BOTH booted
+  dimensions.
+
+**The test fakes**: the seven anonymous World test fakes grew the four
+new methods (the established pattern — the API stays abstract).
+
+**Tests**: `WorldApiAcceptanceTest` (5: the noon landing + the 25000
+wrap + the per-world independence, the glowstone source cell at 15,
+the biome families + the unloaded default, the difficulty band, the
+change event's pair both ways + the unsubscribe silence). The fresh
+full-suite count **770 green across zamin-core + zamin-api** (746 + 5 new
++ the api module's own 19), `--max-workers=1`, zero failures.
