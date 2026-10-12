@@ -90,6 +90,14 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                         channel.pipeline()
                                 .addLast(FrameCodec.DECODER_NAME, new FrameCodec.Decoder())
                                 .addLast(FrameCodec.ENCODER_NAME, new FrameCodec.Encoder())
+                                // §27.3's interception point: every PLAY-state
+                                // outbound frame walks the hook registry between
+                                // the connection's writers and the length-prefix
+                                // encoder — the raw wire form, inspectable.
+                                .addAfter(FrameCodec.ENCODER_NAME, PacketHookOutboundHandler.NAME,
+                                        new PacketHookOutboundHandler(
+                                                (net.zaminmc.torch.server.net.PacketHookRegistry)
+                                                        engine.protocolHooks(), connection))
                                 .addLast("connection", connection);
                         connections.put(connection, channel);
                         allChannels.add(channel);
