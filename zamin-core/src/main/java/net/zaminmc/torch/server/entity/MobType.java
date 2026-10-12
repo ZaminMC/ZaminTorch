@@ -103,7 +103,17 @@ public enum MobType {
     /** The fortress's spawner mob (Slice 12g): the nether's ranged fire. */
     BLAZE(61, 0.6, 1.8, 20.0f, 0.045, true, new Traits(true, false, false, false),
             List.of(new ItemRoll(BuiltinItems.BLAZE_POWDER, 0, 1)),
-            "mob.blaze.breathe", "mob.blaze.hit", "mob.blaze.death");
+            "mob.blaze.breathe", "mob.blaze.hit", "mob.blaze.death"),
+
+    /**
+     * The tall portal-walker (Slice 12i — the natural-spawn row): melee
+     * chases, dodges projectiles, teleports randomly when hurt or in
+     * daylight, blinks toward a fleeing target, and takes water damage
+     * (the reference's EndermanEntity: 40 health, the 0-1 pearl drop).
+     */
+    ENDERMAN(58, 0.6, 2.9, 40.0f, 0.05, true, Traits.NONE,
+            List.of(new ItemRoll(BuiltinItems.ENDER_PEARL, 0, 1)),
+            "mob.endermen.idle", "mob.endermen.hit", "mob.endermen.death", 7.0f);
 
     /**
      * The AI trait set beyond the walk-chase-panic baseline.
@@ -137,10 +147,23 @@ public enum MobType {
     public final String idleSound;
     public final String hurtSound;
     public final String deathSound;
+    /**
+     * The kind's melee attack damage (the reference's ATTACK_DAMAGE
+     * attribute at the easy tier — the zombie's 2.0, the enderman's 7.0;
+     * Slice 12i made the flat 2.0 per-kind).
+     */
+    public final float attackDamage;
 
     MobType(int legacyTypeId, double width, double height, float maxHealth,
             double walkSpeed, boolean hostile, Traits traits, List<ItemRoll> loot,
             String idleSound, String hurtSound, String deathSound) {
+        this(legacyTypeId, width, height, maxHealth, walkSpeed, hostile, traits, loot,
+                idleSound, hurtSound, deathSound, 2.0f);
+    }
+
+    MobType(int legacyTypeId, double width, double height, float maxHealth,
+            double walkSpeed, boolean hostile, Traits traits, List<ItemRoll> loot,
+            String idleSound, String hurtSound, String deathSound, float attackDamage) {
         this.legacyTypeId = legacyTypeId;
         this.width = width;
         this.height = height;
@@ -152,6 +175,7 @@ public enum MobType {
         this.idleSound = idleSound;
         this.hurtSound = hurtSound;
         this.deathSound = deathSound;
+        this.attackDamage = attackDamage;
     }
 
     /** @return whether the kind is undead (burns in daylight, the historical rule). */

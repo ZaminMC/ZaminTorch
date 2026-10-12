@@ -130,13 +130,14 @@ public final class NaturalSpawnSystem {
     private List<SpawnEntry> entriesOf(Category category) {
         return switch (category) {
             case MONSTER -> List.of(
-                    // Biome lines 284-287: the four common hostiles at 100
-                    // each, groups of 4 (slime/enderman/witch ride their own
-                    // entity slices).
+                    // Biome lines 284-290: the four common hostiles at 100
+                    // each, groups of 4 + the enderman's own row (Slice 12i;
+                    // slime/witch ride their own entity slices).
                     new SpawnEntry(MobType.SPIDER, 100, 4, 4),
                     new SpawnEntry(MobType.ZOMBIE, 100, 4, 4),
                     new SpawnEntry(MobType.SKELETON, 100, 4, 4),
-                    new SpawnEntry(MobType.CREEPER, 100, 4, 4));
+                    new SpawnEntry(MobType.CREEPER, 100, 4, 4),
+                    new SpawnEntry(MobType.ENDERMAN, 10, 1, 4));
             case CREATURE -> List.of(
                     // Biome lines 279-283 + the plains' horse row
                     // (PlainsBiome line 20: weight 5, groups 2-6).

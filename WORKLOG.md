@@ -2131,3 +2131,52 @@ flake (the documented class, green in isolation).
 **Next:** the remaining vanilla rows — the slime/enderman/witch spawn
 rows (their entity slices), the dispenser's spawn eggs, or the §27 API
 waves (the scheduler/task controls, the container/inventory surface).
+
+## Slice 12i — the enderman (the natural-spawn row + the teleport family)
+
+**The reference port** (`entity/living/mob/monster/EndermanEntity.java`):
+
+- **The kind**: id 58, the 0.6x2.9 body, 40 health, the 0-1 ender pearl
+  drop, the reference's own sound names. The per-kind attack damage
+  landed with it (the flat 2.0 became the MobType field — the enderman's
+  7.0, every other kind at the engine's easy-tier 2.0).
+- **The three teleport walks**:
+  - `teleportRandomly` (lines 167-174): the +-32-block cube.
+  - `teleportTo` (lines 186-238): the drop-to-solid-ground walk, the
+    body-clearance gate (the 2.9-tall body's own cells clear of solids
+    and fluids), the position committed only on a clean landing.
+  - `teleportToward` (lines 176-184): 16 blocks along the
+    toward-target direction with the reference's own jitter bands (the
+    `(random-0.5)*8` x/z and the `nextInt(16)-8` y).
+- **The far-target gate** (the ChasePlayerGoal, line 425): a target
+  beyond 16 blocks for 30 ticks blinks the body closer.
+- **The projectile dodge** (takeDamage lines 299-309): the projectile
+  NEVER lands — 64 teleport attempts instead, wired into the engine's
+  ProjectileCombatSink.
+- **The armor-bypass response** (lines 311-316): the magic/environment
+  family (hurtWithoutKnockback) teleports 9 times in 10.
+- **The water clock** (mobAiTick line 145): standing in fluid costs 1.0
+  on the 10-tick cadence.
+- **The daylight blink** (mobAiTick lines 153-159): the reference's own
+  rate `nextFloat() * 30 < (brightness - 0.4) * 2` over the sky light
+  (the WorldQuery grew the `skyLight` read; the stub worlds answer full
+  bright).
+- **The spawn row**: the monster table's own enderman row (10/1-4 —
+  Biome line 289).
+
+**The envelope notes** (all in the ledger row): the block-carry goal and
+the stare-anger (the crosshair + scream arm) ride their own slices; the
+teleport's portal particles + the sound ride the FX slice; the wire
+carries the spawn through the existing MobEventDispatch (id 58).
+
+**Tests**: `EndermanEntityTest` (6: the kind identity, the
+drop-to-ground landing, the blocked-landing refusal keeping the body,
+the random band, the toward-blink closing the distance with the reach,
+the water clock's ~10-tick cadence with the exact 1.0 hits). The fresh
+full-suite count **729 green in zamin-core** (+6), `--max-workers=1`,
+one projectile-test load flake (the documented class, green in
+isolation).
+
+**Next:** the witch (the potion-thrower arm over the landed potion
+system) and the slime (the size family + the split), then back to the
+API waves.

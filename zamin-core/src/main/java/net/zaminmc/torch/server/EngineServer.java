@@ -7414,6 +7414,17 @@ public final class EngineServer implements Server, EngineBridge {
                 }
             }
             mob.setLootingLevel(looting);
+            // The enderman's projectile dodge (EndermanEntity.takeDamage
+            // lines 299-309): the projectile NEVER lands — 64 teleport
+            // attempts instead, and no damage either way.
+            if (mob.type() == net.zaminmc.torch.server.entity.MobType.ENDERMAN) {
+                for (int i = 0; i < 64; i++) {
+                    if (mob.teleportRandomly()) {
+                        break;
+                    }
+                }
+                return false;
+            }
             return mobManager.hurt(mob, damage, kbYaw);
         }
 
