@@ -123,7 +123,7 @@ Stability classes (§27.4): `Stable`, `Experimental`, `Internal`.
 
 | Capability | Engine implementation | Public entry point | Threading | Hooks | Stability | Tests | Status | Omissions |
 |---|---|---|---|---|---|---|---|---|
-| Packet send/inspect | `zamin-protocol-v1_8_8` | none | wire thread | — | — | — | NOT AUDITED | interception hooks |
+| Packet send/inspect | `zamin-protocol-v1_8_8` (the `PacketHookOutboundHandler` between the connection's writers and the frame encoder) | **`Server.protocolHooks()`** → `protocol.ProtocolHooks` — `addListener(PacketListener)`/`removeListener` (any thread) + the live `listeners()` snapshot; every PLAY-state outbound frame walks the registry in registration order with `OutboundPacket` (the recipient `Player`, the `packetId` in the ACTIVE version's table, a payload COPY, `cancel()`, `payload(byte[])` — the re-payload verb keeps the id) | registration any thread; the listener runs on the recipient's WIRE thread (no blocking, no live-state writes — simulation work goes through `World.execute`); the handle is callback-scoped | the interception walk (a throwing listener is logged and skipped; the frame keeps its applied state) | Experimental | `PacketHookApiTest` (3) | IMPLEMENTED | login/status-phase frames ride untouched (documented scope; the connection-lifecycle family observes through the join/quit events); inbound (C2S) inspection rides its own wave; no per-recipient filtering verb (a listener checks `recipient()` itself) |
 
 ---
 

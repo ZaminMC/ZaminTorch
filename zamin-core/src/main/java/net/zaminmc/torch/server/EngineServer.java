@@ -176,6 +176,10 @@ public final class EngineServer implements Server, EngineBridge {
     private final net.zaminmc.torch.server.event.EngineEventBus eventBus =
             new net.zaminmc.torch.server.event.EngineEventBus();
 
+    /** The outbound packet hooks (§27.3) — the registry the protocol adapter's walk consults. */
+    private final net.zaminmc.torch.server.net.PacketHookRegistry packetHooks =
+            new net.zaminmc.torch.server.net.PacketHookRegistry();
+
     private FrozenBlockRegistry blockRegistry;
     private EngineWorld world;
     /**
@@ -1189,6 +1193,12 @@ public final class EngineServer implements Server, EngineBridge {
     @Override
     public net.zaminmc.torch.dispenser.DispenseBehaviors dispenserBehaviors() {
         return dispenserSystem.behaviors();
+    }
+
+    /** The outbound packet hooks (§27.3) — registration safe from any thread, firing on the wire threads. */
+    @Override
+    public net.zaminmc.torch.protocol.ProtocolHooks protocolHooks() {
+        return packetHooks;
     }
 
     @Override

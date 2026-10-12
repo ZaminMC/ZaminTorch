@@ -2575,3 +2575,56 @@ ways; the documented load-sensitivity class, not a regression.
 
 Fresh suite: **798 green (779 core + 19 api)**, `--max-workers=1
 --rerun-tasks`, zero failures; protocol unchanged this slice (71).
+
+## Slice 15c — the packet interception hooks (§27.3's protocol family)
+
+**Scope**: the third of the §27.3 waves — the outbound packet hooks:
+observe, cancel, and re-payload the active protocol version's frames,
+verified against a real wire.
+
+**The public shape** (`zamin-api`, `net.zaminmc.torch.protocol`):
+- `OutboundPacket` — the callback-scoped handle: the recipient `Player`,
+  the `packetId` in the ACTIVE version's table (protocol 47 here — the
+  deliberate version-shaped surface of §27.8), a payload COPY (the wire's
+  own bytes never leak), `cancel()`, and `payload(byte[])` — the
+  re-payload verb keeps the id (a listener never rewrites a frame's
+  identity; a malformed replacement is the replacer's own protocol error).
+- `PacketListener` — runs on the recipient's WIRE thread (registration
+  order, exception-isolated; no blocking, no live-state writes —
+  simulation work goes through `World.execute`).
+- `ProtocolHooks` — addListener/removeListener (any thread) + the live
+  `listeners()` snapshot; mounted at `Server.protocolHooks()`.
+
+**The interception point**: one Netty `PacketHookOutboundHandler` per
+connection, installed `addAfter` the frame encoder — between the
+connection's writers and the length-prefixing, so the walk sees the RAW
+wire form (varint id + payload). The id varint is parsed non-destructively
+(its byte length drives both the payload slice and the rebuild); a
+cancelled frame is released and never reaches the socket; a replaced
+payload is rebuilt with the SAME id varint verbatim. Pre-login frames
+(status/login) ride untouched — the documented scope: gameplay traffic;
+connection lifecycle observes through the join/quit events.
+
+**Engine**: `PacketHookRegistry` (the listener registry — COW list, the
+honest carrier for a rare-mutation any-thread table iterated on wire
+threads; the ownership stays with the listeners' own §27.6 contracts),
+mounted on EngineServer; `engine.protocolHooks()` casts to the registry
+for the handler's fire.
+
+**Debug war stories**: the first placement (`addBefore` the encoder) saw
+the LENGTH-PREFIXED frames — the wire's own ids read as garbage (a
+12KB chunk read as "packet 12558"); `addAfter` is the tail-side seat.
+The scripted test clients also cannot survive the shared base's 250ms
+keep-alive (the ×3 factor kicks silent connections at 750ms) — this
+suite overrides `keepAliveIntervalMs()` per the base's own law.
+
+**Tests**: `PacketHookApiTest` (3, over the real wire) — the listener
+observes the chat frame (the id, the recipient, the payload) from a
+foreign-thread registration; the cancelled frame never reaches the wire
+(1.5s silent window on the watcher's stream); the replaced payload rides
+(the original is gone, the rewritten JSON arrives). The full-suite pass
+carried one SurvivalFlowIntegrationTest flake — green in isolation and
+on re-run, the protocol module's documented load class.
+
+Fresh suite: **872 green (779 core + 19 api + 74 protocol)**,
+`--max-workers=1`, the one flake re-verified green.

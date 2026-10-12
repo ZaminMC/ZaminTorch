@@ -65,4 +65,12 @@ public interface Server {
      * confirms.
      */
     net.zaminmc.torch.dispenser.DispenseBehaviors dispenserBehaviors();
+
+    /**
+     * The protocol hooks (§27.3's packet interception surface): observe,
+     * cancel, and re-payload the outbound frames of the active protocol
+     * version. Registration is safe from any thread; the listeners run on
+     * each recipient's wire thread.
+     */
+    net.zaminmc.torch.protocol.ProtocolHooks protocolHooks();
 }
