@@ -2697,3 +2697,38 @@ needs the live window; the unit seam is the mob's own state).
 
 Fresh suite: **878 green (785 core + 19 api + 74 protocol)**,
 `--max-workers=1`, zero failures.
+
+## Slice 15e — the ocelot (OcelotEntity 1:1, the jungle cat)
+
+**Scope**: the second tameable — the fish tame with the coat roll, the
+shared tameable state family (the wolf's bits generalized), the wire
+block, the breed gates, the jungle worldgen row, the despawn pair.
+
+**The kind**: OCELOT 98, 0.6x0.7, 10 health (NO tame flip — the wolf's
+20 is its own; the cat keeps whatever it had), movement 0.3 (the chaser
+band), the 3.0 melee (tryDamage's own override), silent untamed (""), the
+mob.cat.hitt pair, no drops (dropItems' empty override).
+
+**The tame** (interactOcelotOnTick, the reference's interactMob): the raw
+fish inside the 3-block reach (squaredDistanceTo < 9 — the reference's
+own gate), the 1-in-3 roll flipping the flag + the coat byte (1 +
+nextInt(3): the tamed coats) + the owner + the sitting start, with the
+Entity Status 7/6 verdicts; the tamed body takes the owner's empty-hand
+sit toggle; the raw-fish breeding falls through to the shared feed. The
+tempt-gate (the slow approach) and the creep-flee family ledger with the
+player-velocity wave — the held-item gaze's own ledger (the wolf's beg).
+
+**The shared family**: the wolf's index-16 bits + owner + the 2400-tick
+clock generalized to isTameableKind() (persistent when tamed; canDespawn
+= !tamed && ticks > 2400; canBreedWith's both-tamed-and-standing gates).
+
+**The wire**: the ocelot's own block (state byte 16, owner string 17,
+coat byte 18 — the wolf's 18 is health, the ocelot's is the coat) in both
+the join view and the shared sendWolfState (the kind picks the writer).
+
+**Tests**: OcelotEntityTest (4: the kind identity, the fish tame's
+no-health-flip state law, the breed gates + the wolf cross-kind refusal,
+the despawn pair).
+
+Fresh suite: **882 green (789 core + 19 api + 74 protocol)**,
+`--max-workers=1`, zero failures.

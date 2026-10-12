@@ -348,9 +348,9 @@ public final class MobEntity implements LivingEntity {
     private boolean persistent;
     private int farFromPlayerTicks;
 
-    /** The despawn's persistence flag (the leashed family and the tamed wolf never leave). */
+    /** The despawn's persistence flag (the leashed family and the tamed tameables never leave). */
     public boolean persistent() {
-        return persistent || leashed || (type == MobType.WOLF && wolfTamed());
+        return persistent || leashed || (isTameableKind() && wolfTamed());
     }
 
     /**
@@ -362,10 +362,15 @@ public final class MobEntity implements LivingEntity {
      * leaves its owner behind).
      */
     public boolean canDespawn() {
-        if (type == MobType.WOLF) {
+        if (isTameableKind()) {
             return !wolfTamed() && wolfTicksExisted > 2400;
         }
         return type.hostile;
+    }
+
+    /** @return whether the kind carries TameableEntity's state family (the wolf and the ocelot). */
+    private boolean isTameableKind() {
+        return type == MobType.WOLF || type == MobType.OCELOT;
     }
 
     /** Marks the body persistent (named/bred mobs ride their own slices). */
@@ -742,6 +747,8 @@ public final class MobEntity implements LivingEntity {
             if (wolfAngry() && !goalHasTarget(night)) {
                 setWolfAngry(false);
             }
+        } else if (type == MobType.OCELOT) {
+            tickWolfClock(); // the tameable family's shared clock
         }
         if (hurtFlash > 0) {
             hurtFlash--;
@@ -1032,9 +1039,36 @@ public final class MobEntity implements LivingEntity {
         wolfFlags |= WOLF_FLAG_SITTING; // sitGoal.setEnabledWithOwner(true)
     }
 
-    /** The wolf's own tick clock ({@code this.ticks}). */
+    /** The wolf's own tick clock ({@code this.ticks} — the tameable family's
+     * 2400-tick despawn gate; the ocelot shares it). */
     void tickWolfClock() {
         wolfTicksExisted++;
+    }
+
+    /**
+     * The cat's coat variant (OcelotEntity's own synced slot 18: 0 the
+     * wild ocelot skin, 1-3 the tamed cat coats — the tame's own
+     * {@code 1 + nextInt(3)} roll).
+     */
+    private int catVariant;
+
+    /** @return the cat's coat variant byte (0 wild, 1-3 the tamed coats). */
+    public int catVariant() {
+        return catVariant;
+    }
+
+    /**
+     * The ocelot's tame (interactMob lines 163-172): the flag, the owner, the
+     * coat roll ({@code 1 + nextInt(3)}), and the sitting start — NO health
+     * flip (the cat keeps its 10 ceiling; the wolf's 20 is its own).
+     */
+    public void tameOcelot(String owner, int variant) {
+        wolfFlags |= WOLF_FLAG_TAMED;
+        if (owner != null && !owner.isEmpty()) {
+            ownerName = owner;
+        }
+        catVariant = variant;
+        wolfFlags |= WOLF_FLAG_SITTING; // sitGoal.setEnabledWithOwner(true)
     }
 
     /** @return the slime's size byte (1, 2, or 4; 1 for every other kind). */
@@ -1741,8 +1775,9 @@ public final class MobEntity implements LivingEntity {
         if (breedingAge != 0 || other.breedingAge != 0) {
             return false;
         }
-        // WolfEntity.canBreedWith: both bodies tamed, neither sitting.
-        if (type == MobType.WOLF) {
+        // WolfEntity.canBreedWith (and OcelotEntity's own — the same shape):
+        // both bodies tamed, neither sitting.
+        if (isTameableKind()) {
             if (!wolfTamed() || !other.wolfTamed()
                     || wolfSitting() || other.wolfSitting()) {
                 return false;

@@ -2594,6 +2594,11 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             // health float 18 (the tail-wag read), the begging byte 19, the
             // collar dye byte 20.
             writeWolfMetadata(out, mob);
+        } else if (mob.type() == net.zaminmc.torch.server.entity.MobType.OCELOT) {
+            // The ocelot's block: the state byte 16 (sitting | tamed — the
+            // tameable family's bits, no angry), the owner string 17, and
+            // the cat coat byte 18 (0 wild, 1-3 the tamed coats).
+            writeOcelotMetadata(out, mob);
         } else {
             writeKindStatusMetadata(out, mob);
         }
@@ -2624,6 +2629,19 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             case SHEEP -> mob.sheared() ? Protocol18.SHEEP_STATUS_SHEARED : (byte) 0;
             default -> null;
         };
+    }
+
+    /** The ocelot's metadata block: state Byte 16, owner String 17,
+     * coat Byte 18 (OcelotEntity's own synced slot). */
+    private static void writeOcelotMetadata(ByteBuf out, MobEntity mob) {
+        out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | Protocol18.WOLF_STATE_METADATA_INDEX);
+        out.writeByte(mob.wolfFlagsRaw());
+        if (!mob.ownerName().isEmpty()) {
+            out.writeByte((Protocol18.METADATA_TYPE_STRING << 5) | Protocol18.WOLF_OWNER_METADATA_INDEX);
+            ByteBufOps.writeString(out, mob.ownerName());
+        }
+        out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | Protocol18.WOLF_HEALTH_METADATA_INDEX);
+        out.writeByte(mob.catVariant()); // the coat — the ocelot's own slot 18
     }
 
     /** The wolf's metadata block: state Byte 16 (sitting | angry << 1 | tamed << 2),
@@ -2681,10 +2699,10 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     }
 
     /**
-     * Set Entity Metadata (0x1C) for the wolf's whole state block: the
-     * index-16 byte, the owner string when it stands, the health float,
-     * the begging byte, the collar byte — the tame, the sit toggle, and
-     * the collar change all ride this one writer. Any thread.
+     * Set Entity Metadata (0x1C) for the tameable family's state block
+     * (the wolf's whole block, the ocelot's own — the kind picks the
+     * writer): the tame, the sit toggle, and the coat change all ride
+     * this one writer. Any thread.
      */
     void sendWolfState(MobEntity mob) {
         Channel channel = adapter.channelOf(this);
@@ -2694,7 +2712,11 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBuf out = Unpooled.buffer(32);
         ByteBufOps.writeVarInt(out, Protocol18.S2C_ENTITY_METADATA);
         ByteBufOps.writeVarInt(out, mob.entityId());
-        writeWolfMetadata(out, mob);
+        if (mob.type() == net.zaminmc.torch.server.entity.MobType.OCELOT) {
+            writeOcelotMetadata(out, mob);
+        } else {
+            writeWolfMetadata(out, mob);
+        }
         out.writeByte(Protocol18.METADATA_TERMINATOR);
         channel.writeAndFlush(out);
     }
