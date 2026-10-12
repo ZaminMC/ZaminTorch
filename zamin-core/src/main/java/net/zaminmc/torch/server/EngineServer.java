@@ -9507,6 +9507,9 @@ public final class EngineServer implements Server, EngineBridge {
             Optional<PlayerSnapshot> saved = playerStore == null
                     ? Optional.empty() : playerStore.load(offlineUuid);
             PlayerSession session = new PlayerSession(offlineUuid, username, link);
+            // The API's give() re-syncs the wire exactly like the engine's own
+            // pickup paths (§27.5: the handle resolves to live behavior).
+            session.setInventorySyncHook(this::publishInventoryChanged);
             // The engine-global identity (the projectile thrower band) rides in
             // from here; the wire-local ids remain the adapter's business.
             session.assignEngineEntityId(nextPlayerEntityId++);

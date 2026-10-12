@@ -2044,3 +2044,33 @@ population). The fresh full-suite count **713 green in zamin-core** (+4),
 
 **Next:** the player wave (Slice 13c) — the health/food/XP/inventory
 surface over PlayerSession, then the scheduler/task controls.
+
+## Slice 13c — the player wave: the body/progression/inventory surface
+
+**The §27.3 player-state list over `Player`** (the session IS the handle,
+the same §27.5 contract):
+
+- **The body family**: health/food/saturation/dead reads, hurt/heal
+  (the new clamped restore)/addExhaustion mutations.
+- **The progression family**: experienceLevel/totalExperience
+  (delegating the engine's totalXp)/addExperience.
+- **The mode + fire family**: gamemode/setGamemode (the authoritative
+  switch), burning/ignite/extinguish.
+- **The inventory family**: heldItem/heldSlot/countOf/give — give rides
+  the engine's own vanilla pickup rules (stack merge first, empty slots
+  next) and re-syncs the wire through the engine's inventory fan-out
+  (the sync hook installed at session creation; the API give behaves
+  exactly like the engine's ground-pickup path).
+- **The threading contract on the interface**: reads consistent on the
+  owner, mutations owner-context (the documented path World.execute).
+
+**Tests**: `PlayerApiAcceptanceTest` (5: the hurt/heal ladder with the
+cap, the XP award crossing levels, the mode switch + the fire
+ignite/extinguish cycle, the give/overflow ladder — 5 + 61 diamonds
+splitting across two stacks, the sync-hook firing on the API give). The
+fresh full-suite count **718 green in zamin-core** (+5),
+`--max-workers=1`, ZERO failures.
+
+**Next:** the §27.3 checklist continues — the scheduler/task controls
+(delayed/repeating), then back to the vanilla rows: the worldgen animal
+seeding, the remaining spawn categories.
