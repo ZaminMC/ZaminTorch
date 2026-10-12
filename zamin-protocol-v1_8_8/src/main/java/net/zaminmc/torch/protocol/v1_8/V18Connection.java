@@ -2591,6 +2591,11 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             // the client raises the mouth open from it.
             out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | Protocol18.KIND_STATUS_METADATA_INDEX);
             out.writeByte(mob.ghastCharging() ? 1 : 0);
+        } else if (mob.type() == net.zaminmc.torch.server.entity.MobType.BAT) {
+            // The bat's roosting flag (BatEntity's synced slot 16, bit 0):
+            // the client raises the hanging pose from it.
+            out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | Protocol18.KIND_STATUS_METADATA_INDEX);
+            out.writeByte(mob.batRoosting() ? 1 : 0);
         } else if (mob.type() == net.zaminmc.torch.server.entity.MobType.PIG) {
             out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | Protocol18.PIG_SADDLE_METADATA_INDEX);
             out.writeByte(mob.pigSaddled() ? 1 : 0);

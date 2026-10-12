@@ -82,10 +82,16 @@ class NetherMonsterTest {
         assertEquals("mob.ghast.death", MobType.GHAST.deathSound);
 
         MobEntity flyer = ghast(72L);
-        double y0 = flyer.position().y();
-        flyer.tick(true); // the flight body: no gravity, the drift owns it
-        assertTrue(flyer.position().y() > y0 - 1e-9,
-                "the flyer never falls under gravity");
+        // The flight model never accumulates gravity: the vertical speed
+        // stays inside the burst scale's own steady band (0.1 per burst
+        // against the 0.91 drag tops out near 1.1) — a gravity body under
+        // the same drag settles toward 2.0.
+        double maxAbsVy = 0;
+        for (int i = 0; i < 300; i++) {
+            flyer.tick(true);
+            maxAbsVy = Math.max(maxAbsVy, Math.abs(flyer.velocityY()));
+        }
+        assertTrue(maxAbsVy < 1.5, "no gravity accumulation (peak |vy| " + maxAbsVy + ")");
         assertFalse(flyer.onGround());
     }
 

@@ -1263,7 +1263,154 @@ public final class MobEntity implements LivingEntity {
     /** The landing edge tracker (the wasOnGround flag). */
     private boolean wasSlimeGrounded = true;
 
-    // ------------------------------------- the zombie pigman (Slice 16d)
+    // ------------------------------------- the squid and the bat (16e)
+
+    /** SquidEntity's SwimAroundGoal cadence: the 1-in-50 direction roll. */
+    private static final int SQUID_DIRECTION_CHANCE = 50;
+    /** The squid's tentacle-cycle speed band (1/(rand+1) * 0.2). */
+    private float squidTentacleSpeed = 0.1f;
+    /** The tentacle stroke's phase (the 2π walk). */
+    private float squidTentacleMovement;
+    /** The stroke's drive: 1.0 in the first half, decaying after. */
+    private float squidSpeed;
+    /** The swim direction target (the SwimAroundGoal's setTarget). */
+    private float squidTargetX;
+    private float squidTargetY;
+    private float squidTargetZ;
+
+    /**
+     * The squid's mind (SwimAroundGoal): the 1-in-50 direction re-roll —
+     * a random bearing's {@code cos * 0.2 / -0.1+rand*0.2 / sin * 0.2}
+     * triple, or the stop target past the 100-tick despawn window.
+     */
+    private void tickSquidMind() {
+        if (random.nextInt(SQUID_DIRECTION_CHANCE) == 0 || !hasSquidTarget()) {
+            float bearing = random.nextFloat() * (float) Math.PI * 2.0f;
+            squidTargetX = (float) Math.cos(bearing) * 0.2f;
+            squidTargetY = -0.1f + random.nextFloat() * 0.2f;
+            squidTargetZ = (float) Math.sin(bearing) * 0.2f;
+        }
+    }
+
+    private boolean hasSquidTarget() {
+        return squidTargetX != 0.0f || squidTargetY != 0.0f || squidTargetZ != 0.0f;
+    }
+
+    /**
+     * The squid's body (SquidEntity.mobTick): the tentacle stroke phases
+     * the drive — the first half of the 2π cycle swims at speed 1.0, the
+     * second decays — and the velocity IS the direction target times the
+     * drive (a direct set). Out of water the body sinks (velocityY -= 0.08
+     * with the 0.98 drag, no horizontal).
+     */
+    private void tickSquidBody(boolean inFluid) {
+        squidTentacleMovement += squidTentacleSpeed;
+        if (squidTentacleMovement > Math.PI * 2) {
+            squidTentacleMovement -= (float) (Math.PI * 2);
+            if (random.nextInt(10) == 0) {
+                squidTentacleSpeed = 1.0f / (random.nextFloat() + 1.0f) * 0.2f;
+            }
+        }
+        if (inFluid) {
+            if (squidTentacleMovement < Math.PI) {
+                float phase = squidTentacleMovement / (float) Math.PI;
+                if (phase > 0.75f) {
+                    squidSpeed = 1.0f; // the power stroke
+                }
+            } else {
+                squidSpeed *= 0.9f; // the recovery
+            }
+            velocityX = squidTargetX * squidSpeed;
+            velocityY = squidTargetY * squidSpeed;
+            velocityZ = squidTargetZ * squidSpeed;
+        } else {
+            velocityX = 0.0;
+            velocityY = (velocityY - 0.08) * 0.98; // the stranded sink
+            velocityZ = 0.0;
+        }
+    }
+
+    /** The bat's roosting flag (BatEntity's synced slot 16, bit 0). */
+    private boolean batRoosting = true;
+    /** The bat's flight anchor (the re-rolled hangPos). */
+    private double batHangX;
+    private double batHangY;
+    private double batHangZ;
+    private boolean batHasHang;
+
+    /** @return whether the bat hangs from a ceiling (the index-16 bit). */
+    public boolean batRoosting() {
+        return batRoosting;
+    }
+
+    /** Sets the roosting posture (the spawn starts hanging). */
+    public void setBatRoosting(boolean roosting) {
+        batRoosting = roosting;
+    }
+
+    /**
+     * The bat's mind (BatEntity.mobAiTick): the roost holds while a solid
+     * ceiling stays above and no player stands within 4 (the head glances
+     * on the 1-in-200); the flight wanders toward the re-rolled hangPos
+     * (±7/±6 cube, every 30 ticks or within 2 blocks), the velocity
+     * lerping toward the signum band; the 1-in-100 re-roost on a solid
+     * block above.
+     */
+    private void tickBatMind() {
+        if (batRoosting) {
+            boolean ceilingSolid = world.isSolidAt(position.x(), position.y() + type.height, position.z());
+            if (!ceilingSolid) {
+                batRoosting = false; // the 1015 event rides the sound slice
+            } else if (random.nextInt(200) == 0) {
+                headYaw = random.nextInt(360);
+            }
+            Position player = world.nearestPlayer(position.x(), position.y(), position.z(), 4.0);
+            if (player != null) {
+                batRoosting = false;
+            }
+            return;
+        }
+        if (!batHasHang || random.nextInt(30) == 0
+                || (batHangX - position.x()) * (batHangX - position.x())
+                        + (batHangY - position.y()) * (batHangY - position.y())
+                        + (batHangZ - position.z()) * (batHangZ - position.z()) < 4.0) {
+            batHangX = (int) position.x() + random.nextInt(7) - random.nextInt(7);
+            batHangY = (int) position.y() + random.nextInt(6) - 2;
+            batHangZ = (int) position.z() + random.nextInt(7) - random.nextInt(7);
+            batHasHang = true;
+        }
+        double d0 = batHangX + 0.5 - position.x();
+        double d1 = batHangY + 0.1 - position.y();
+        double d2 = batHangZ + 0.5 - position.z();
+        velocityX += (Math.signum(d0) * 0.5 - velocityX) * 0.1;
+        velocityY += (Math.signum(d1) * 0.7 - velocityY) * 0.1;
+        velocityZ += (Math.signum(d2) * 0.5 - velocityZ) * 0.1;
+        yaw += Math.toDegrees(Math.atan2(velocityZ, velocityX)) - 90.0 - yaw;
+        if (random.nextInt(100) == 0
+                && world.isSolidAt(position.x(), position.y() + type.height, position.z())) {
+            batRoosting = true; // the re-roost
+        }
+    }
+
+    /**
+     * The bat's body (BatEntity.tick): the roost freezes the velocity and
+     * snaps the body to the ceiling (floor(y) + 1 - height); the flight
+     * decays the vertical (0.6) with no gravity.
+     */
+    private void tickBatBody() {
+        if (batRoosting) {
+            velocityX = 0;
+            velocityY = 0;
+            velocityZ = 0;
+            position = new Position(position.x(),
+                    Math.floor(position.y()) + 1.0 - type.height, position.z());
+            return;
+        }
+        velocityY *= 0.6;
+        position = new Position(position.x() + velocityX, position.y() + velocityY,
+                position.z() + velocityZ);
+        onGround = false;
+    }
 
     /** The anger window's roll: {@code 400 + nextInt(400)} ticks. */
     private static final int PIGMAN_ANGER_BASE = 400;
@@ -2483,6 +2630,23 @@ public final class MobEntity implements LivingEntity {
             goalWalkSpeed = PIGMAN_ANGRY_CHASE_MULTIPLIER;
         }
 
+        // The custom minds (16c/16e — the ghast, the squid, the bat):
+        // their reference goal sets carry NO shared goals (no float, no
+        // panic, no stroll — only their own SwimAround/MoveAround/roost
+        // families), so they preempt the goal layer entirely.
+        if (type == MobType.GHAST) {
+            tickGhastMind(target, canHunt);
+            return;
+        }
+        if (type == MobType.SQUID) {
+            tickSquidMind();
+            return;
+        }
+        if (type == MobType.BAT) {
+            tickBatMind();
+            return;
+        }
+
         // The goal layer (the community PathfinderGoal architecture): float
         // and panic claim the body first, the stroll cycle only when no hunt
         // is on. What remains below is the combat mind.
@@ -2513,13 +2677,6 @@ public final class MobEntity implements LivingEntity {
         // mind — the hop movement lands in the body tick below.
         if (type.slimeFamily()) {
             tickSlimeMind(target, canHunt);
-            return;
-        }
-
-        // The ghast's own mind (Slice 16c — the flight + the fireball
-        // cycle; the body's flight replaces the walk below).
-        if (type == MobType.GHAST) {
-            tickGhastMind(target, canHunt);
             return;
         }
 
@@ -3237,6 +3394,23 @@ public final class MobEntity implements LivingEntity {
         if (type == MobType.GHAST && !dead) {
             tickGhastBody();
             integrateFlight();
+            return;
+        }
+        // The bat's flight (Slice 16e — BatEntity.tick): the roost snap or
+        // the hangPos wander; no gravity, no walk.
+        if (type == MobType.BAT && !dead) {
+            tickBatBody();
+            return;
+        }
+        // The squid's swim (Slice 16e — SquidEntity.mobTick): the tentacle
+        // stroke owns the velocity; the position integrates it directly
+        // (no gravity, no walk).
+        if (type == MobType.SQUID && !dead) {
+            boolean squidInFluid = world.inFluid(position.x(), position.y() + 0.2, position.z());
+            tickSquidBody(squidInFluid);
+            position = new Position(position.x() + velocityX, position.y() + velocityY,
+                    position.z() + velocityZ);
+            onGround = false;
             return;
         }
         // Fire contact arms the burn (the historical setFire on
