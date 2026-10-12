@@ -260,7 +260,7 @@ public final class V18ProtocolServer implements ProtocolAdapter {
             public void onMobHurt(net.zaminmc.torch.server.entity.MobEntity mob) {
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
                     connection.sendMobStatus(mob, net.zaminmc.torch.protocol.v1_8.Protocol18.ENTITY_STATUS_HURT);
-                    connection.sendMobSound(mob.type().hurtSound, mob.position(), 1.0f, 1.0f);
+                    connection.sendMobSound(mob.hurtSound(), mob.position(), 1.0f, 1.0f);
                 }
             }
 
@@ -268,7 +268,15 @@ public final class V18ProtocolServer implements ProtocolAdapter {
             public void onMobDied(net.zaminmc.torch.server.entity.MobEntity mob) {
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
                     connection.sendMobStatus(mob, net.zaminmc.torch.protocol.v1_8.Protocol18.ENTITY_STATUS_DEAD);
-                    connection.sendMobSound(mob.type().deathSound, mob.position(), 1.0f, 1.0f);
+                    connection.sendMobSound(mob.deathSound(), mob.position(), 1.0f, 1.0f);
+                }
+            }
+
+            @Override
+            public void onMobSoundAt(net.zaminmc.torch.server.entity.MobEntity mob,
+                                     String soundName, float volume, float pitch) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendSound(soundName, mob.position(), volume, pitch);
                 }
             }
 

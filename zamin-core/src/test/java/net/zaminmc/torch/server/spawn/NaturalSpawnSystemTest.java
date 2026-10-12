@@ -90,6 +90,11 @@ class NaturalSpawnSystemTest {
         public boolean isChunkLoaded(int chunkX, int chunkZ) {
             return true; // the fake world: every chunk stands loaded
         }
+
+        @Override
+        public long worldSeed() {
+            return 0L; // the fake world's seed (the slime-chunk derivation)
+        }
     }
 
     /** The spawn ledger. */

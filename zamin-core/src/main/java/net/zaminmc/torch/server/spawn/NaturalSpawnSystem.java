@@ -109,6 +109,12 @@ public final class NaturalSpawnSystem {
          * distances; at view distance 9 or more the two are identical).
          */
         boolean isChunkLoaded(int chunkX, int chunkZ);
+
+        /**
+         * The world's own seed (the slime-chunk derivation's input —
+         * WorldChunk.getRandomForSlime reads the world seed).
+         */
+        long worldSeed();
     }
 
     private final Mobs mobs;
@@ -131,12 +137,14 @@ public final class NaturalSpawnSystem {
         return switch (category) {
             case MONSTER -> List.of(
                     // Biome lines 284-290: the four common hostiles at 100
-                    // each, groups of 4 + the enderman's own row (Slice 12i;
-                    // slime/witch ride their own entity slices).
+                    // each, groups of 4 + the enderman's row (Slice 12i)
+                    // + the witch (12j) + the slime (12k) — the full
+                    // default monster list.
                     new SpawnEntry(MobType.SPIDER, 100, 4, 4),
                     new SpawnEntry(MobType.ZOMBIE, 100, 4, 4),
                     new SpawnEntry(MobType.SKELETON, 100, 4, 4),
                     new SpawnEntry(MobType.CREEPER, 100, 4, 4),
+                    new SpawnEntry(MobType.SLIME, 100, 4, 4),
                     new SpawnEntry(MobType.ENDERMAN, 10, 1, 4),
                     new SpawnEntry(MobType.WITCH, 5, 1, 1));
             case CREATURE -> List.of(
@@ -289,6 +297,12 @@ public final class NaturalSpawnSystem {
                         // The reference's setPositionAndAngles (line 109): the
                         // walk's own yaw roll lands with the body.
                         float yaw = random.nextFloat() * 360.0F;
+                        // The entity's own canSpawn gate (line 112 — after
+                        // the yaw roll, before the initialize): the slime's
+                        // swamp/chunk arms; every other kind carries none.
+                        if (!canSpawnAt(entry.type(), x, y, z, chunkX, chunkZ)) {
+                            continue;
+                        }
                         mobs.spawn(entry.type(),
                                 new Position(centerX, y, centerZ), baby, yaw);
                         packCount++;
@@ -356,6 +370,35 @@ public final class NaturalSpawnSystem {
         }
         int actualLight = Math.max(world.skyLightAt(cell), world.blockLightAt(cell));
         return actualLight > 8;
+    }
+
+    /**
+     * The entity-level spawn gates (the spawner's own consult, line 112):
+     * only the slime carries one (SlimeEntity.canSpawn lines 235-259) —
+     * the swampland band (the moon-phased night roll — the engine's biome
+     * family carries no swamp, so the arm short-circuits before its
+     * rolls exactly like a plains spawn in the reference) and the famous
+     * slime-chunk arm: the shared {@code nextInt(10)}, then the chunk's
+     * own seeded random ({@code WorldChunk.getRandomForSlime(987234911L)}
+     * 1:1 — {@code seed + cx*cx*4987142 + cx*5947611 + cz*cz*4392871L +
+     * cz*389711 ^ 987234911L}), then the {@code y < 40} depth gate.
+     */
+    private boolean canSpawnAt(MobType type, int x, int y, int z, int chunkX, int chunkZ) {
+        if (type != MobType.SLIME) {
+            return true; // every other kind carries no entity-level gate
+        }
+        // The slime-chunk arm (line 253). The superflat refusal (line 238:
+        // the 3-in-4 gate) never runs — the engine's world is normal.
+        if (random.nextInt(10) != 0) {
+            return false;
+        }
+        long slimeSeed = world.worldSeed()
+                + (long) chunkX * chunkX * 4987142L
+                + (long) chunkX * 5947611L
+                + (long) chunkZ * chunkZ * 4392871L
+                + (long) chunkZ * 389711L
+                ^ 987234911L;
+        return new Random(slimeSeed).nextInt(10) == 0 && y < 40;
     }
 
     /** The weighted pick (WeightedPicker.pick). */

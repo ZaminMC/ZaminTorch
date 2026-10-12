@@ -153,6 +153,16 @@ public final class MobManager {
          */
         default void onMobWitchAura(MobEntity mob) {
         }
+
+        /**
+         * A mob's own sound with the reference's volume/pitch pair (the
+         * slime's squish family: the jump and the landing rides roll
+         * their own pitch — getSoundVolume 0.4*size, the pitch band
+         * {@code (rand - rand) * 0.2 + 1}).
+         */
+        default void onMobSoundAt(MobEntity mob, String soundName,
+                                  float volume, float pitch) {
+        }
     }
 
     private final MobEntity.WorldQuery world;
@@ -505,6 +515,10 @@ public final class MobManager {
         // The breeds defer to the loop's end: a baby spawned mid-iteration
         // would add to the iterated list (the ConcurrentModification trap).
         List<MobEntity[]> pendingBreeds = new ArrayList<>();
+        // The slime splits defer the same way (the children join after the
+        // iteration closes — the reference's remove() runs inside its own
+        // removal walk, the engine's tick loop owns the equivalent).
+        List<MobEntity> pendingSlimeSplits = new ArrayList<>();
 
         Iterator<MobEntity> iterator = mobs.iterator();
         while (iterator.hasNext()) {
@@ -516,6 +530,9 @@ public final class MobManager {
                     listener.onMobRemoved(mob, "died");
                 }
                 dropLoot(mob); // the loot lands after the body leaves the wire
+                if (mob.type() == MobType.SLIME && mob.slimeSize() > 1) {
+                    pendingSlimeSplits.add(mob); // the death split (12k)
+                }
                 continue;
             }
 
@@ -662,9 +679,33 @@ public final class MobManager {
                 if (target != null && target.health() > 0 && !target.dead()) {
                     for (Listener listener : listeners) {
                         // The kind's own attack damage (the reference's ATTACK_DAMAGE
-                        // attribute — the enderman's 7.0, the rest 2.0; Slice 12i).
-                        listener.onMobAttackedPlayer(mob, target, mob.type().attackDamage);
+                        // attribute — the enderman's 7.0, the rest 2.0; the slime's
+                        // own size — getDamageAmount, Slice 12k).
+                        listener.onMobAttackedPlayer(mob, target, mob.attackDamage());
                     }
+                    // The slime's contact squish (damageTargetEntity line
+                    // 201: mob.attack at the reference's pitch band).
+                    if (mob.consumeSlimeAttackSound()) {
+                        float pitch = (random.nextFloat() - random.nextFloat()) * 0.2F + 1.0F;
+                        for (Listener listener : listeners) {
+                            listener.onMobSoundAt(mob, "mob.attack", 1.0F, pitch);
+                        }
+                    }
+                }
+            }
+            // The slime's jump and landing squish (getSoundVolume 0.4 * size).
+            MobEntity.SlimeSound jumpSound = mob.consumeSlimeSound();
+            if (jumpSound != null) {
+                for (Listener listener : listeners) {
+                    listener.onMobSoundAt(mob, jumpSound.name(),
+                            jumpSound.volume(), jumpSound.pitch() * 0.8F);
+                }
+            }
+            MobEntity.SlimeSound landSound = mob.consumeSlimeLandSound();
+            if (landSound != null) {
+                for (Listener listener : listeners) {
+                    listener.onMobSoundAt(mob, landSound.name(),
+                            landSound.volume(), landSound.pitch() / 0.8F);
                 }
             }
             // The breed polls (the vanilla goal's landing converts into the
@@ -699,6 +740,10 @@ public final class MobManager {
         // The deferred breeds land after the iteration (the loop is closed).
         for (MobEntity[] pair : pendingBreeds) {
             breed(pair[0], pair[1]);
+        }
+        // The deferred slime splits land after the iteration too.
+        for (MobEntity parent : pendingSlimeSplits) {
+            splitSlime(parent);
         }
     }
 
@@ -813,6 +858,11 @@ public final class MobManager {
         // with the rare-loot-table slice — the engine tables carry no
         // rare rows yet.
         int looting = mob.lootingLevel();
+        if (mob.type() == MobType.SLIME && mob.slimeSize() > 1) {
+            // getDropItem's null arm: only the smallest body carries the
+            // slime balls (the split family drops nothing).
+            return;
+        }
         if (mob.type() == MobType.WITCH) {
             // WitchEntity.dropItems (lines 178-192): 1-3 rows; per row the
             // count roll, then the LOOT member roll (the stick appears
@@ -854,6 +904,37 @@ public final class MobManager {
             BuiltinItems.SPIDER_EYE, BuiltinItems.GLASS_BOTTLE, BuiltinItems.GUNPOWDER,
             BuiltinItems.STICK, BuiltinItems.STICK
     };
+
+    /**
+     * The slime's death split (SlimeEntity.remove lines 157-181): a body
+     * over size 1 that died spawns 2-4 children at half the size, placed
+     * on the reference's own {@code (k%2 - 0.5) * size / 4} pair grid
+     * half a block up, each with its own yaw roll. The custom-name and
+     * persistent carries ride their own missing features (no mob names;
+     * the persistence walks below).
+     */
+    private void splitSlime(MobEntity parent) {
+        if (parent.type() != MobType.SLIME || parent.slimeSize() <= 1) {
+            return;
+        }
+        int parentSize = parent.slimeSize();
+        Position at = parent.position();
+        int children = 2 + random.nextInt(3);
+        for (int k = 0; k < children; k++) {
+            float offsetX = (k % 2 - 0.5F) * parentSize / 4.0F;
+            float offsetZ = (k / 2 - 0.5F) * parentSize / 4.0F;
+            MobEntity child = spawnAt(MobType.SLIME, new Position(
+                    at.x() + offsetX, at.y() + 0.5, at.z() + offsetZ));
+            if (child == null) {
+                continue; // the spawn event refused the child
+            }
+            child.setSlimeSize(parentSize / 2);
+            if (parent.persistent()) {
+                child.setPersistent(true);
+            }
+            child.setBodyYaw(random.nextFloat() * 360.0F);
+        }
+    }
 
     /** The witch's live effect-store read (the drink ladder's gates). */
     private boolean witchHasEffect(MobEntity mob, int effectId) {
@@ -954,6 +1035,9 @@ public final class MobManager {
         MobEntity mob = spawnAt(type, position);
         if (mob != null) {
             mob.setBodyYaw(yaw);
+            if (type == MobType.SLIME) {
+                mob.initializeSlimeSize(); // SlimeEntity.initialize (12k)
+            }
             if (baby) {
                 mob.setBreedingAge(-24_000);
             }
