@@ -388,6 +388,9 @@ public final class BuiltinItems {
             Identifier.parse("minecraft:leather"), "Leather", 64);
     public static final EngineItemType ROTTEN_FLESH = new EngineItemType(
             Identifier.parse("minecraft:rotten_flesh"), "Rotten Flesh", 64);
+    /** The pigman's drop (ZombiePigmanEntity.dropItems; community id 371). */
+    public static final EngineItemType GOLD_NUGGET = new EngineItemType(
+            Identifier.parse("minecraft:gold_nugget"), "Gold Nugget", 64);
 
     // Ore blocks that drop themselves (iron ore historically needs smelting).
     public static final EngineItemType COAL_ORE = new EngineItemType(
@@ -584,7 +587,7 @@ public final class BuiltinItems {
                 COAL, DIAMOND, IRON_INGOT, STONE, SAND, GLASS, GRAVEL, FLINT, BEEF, COOKED_BEEF,
                 PORKCHOP, COOKED_PORKCHOP, RAW_CHICKEN, COOKED_CHICKEN,
                 BOW, ARROW, SNOWBALL, EGG,
-                FEATHER, LEATHER, ROTTEN_FLESH,
+                FEATHER, LEATHER, ROTTEN_FLESH, GOLD_NUGGET,
                 COAL_ORE, IRON_ORE, DIAMOND_ORE, GOLD_ORE, REDSTONE_ORE,
                 WOODEN_PICKAXE, STONE_PICKAXE, IRON_PICKAXE, DIAMOND_PICKAXE, GOLDEN_PICKAXE,
                 WOODEN_AXE, STONE_AXE, IRON_AXE, DIAMOND_AXE, GOLDEN_AXE,

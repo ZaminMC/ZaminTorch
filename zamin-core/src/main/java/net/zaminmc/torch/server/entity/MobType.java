@@ -206,7 +206,21 @@ public enum MobType {
      */
     GHAST(56, 4.0, 4.0, 10.0f, 0.0, true, Traits.NONE,
             List.of(), // the custom drop walk (GhastEntity.dropItems)
-            "mob.ghast.moan", "mob.ghast.scream", "mob.ghast.death", 0.0f);
+            "mob.ghast.moan", "mob.ghast.scream", "mob.ghast.death", 0.0f),
+
+    /**
+     * The nether's neutral horde (Slice 16d — ZombiePigmanEntity over
+     * the zombie's body): the fire-immune hull, the 5.0 attack, and the
+     * ANGER model — the group aggro on a player's hit: the 400+nextInt(400)
+     * window decaying per tick, the delayed angry sound, the +0.05 speed
+     * boost while it lasts, and the propagation to every nearby pigman
+     * (RevengeGoal's own setMobEntityTarget override). The hunt only runs
+     * while angry (TargetPlayerGoal's isAngry gate).
+     */
+    ZOMBIE_PIGMAN(57, 0.6, 1.8, 20.0f, 0.037, true, Traits.NONE,
+            List.of(), // the custom drop walk (ZombiePigmanEntity.dropItems)
+            "mob.zombiepig.zpig", "mob.zombiepig.zpighurt", "mob.zombiepig.zpigdeath",
+            5.0f);
 
     /**
      * The AI trait set beyond the walk-chase-panic baseline.
@@ -283,7 +297,7 @@ public enum MobType {
      * zombie pigman joins with its own slice).
      */
     public boolean fireImmune() {
-        return this == BLAZE || this == MAGMA_CUBE || this == GHAST;
+        return this == BLAZE || this == MAGMA_CUBE || this == GHAST || this == ZOMBIE_PIGMAN;
     }
 
     /** @return whether the kind rides the slime's size/hop/split family. */

@@ -707,6 +707,15 @@ public final class MobManager {
                     listener.onMobGhastChargingChanged(mob);
                 }
             }
+            // The pigman's delayed angry sound (Slice 16d — mobAiTick's
+            // angerSoundDelay arm: volume * 2, the 1.8-centered band).
+            if (mob.consumePigmanAngrySound()) {
+                float pitch = (random.nextFloat() - random.nextFloat()) * 0.2F + 1.0F;
+                for (Listener listener : listeners) {
+                    listener.onMobSoundAt(mob, "mob.zombiepig.zpigangry",
+                            2.0F, pitch * 1.8F);
+                }
+            }
             if (wasHorseFlags != mob.horseFlagsRaw()) {
                 for (Listener listener : listeners) {
                     listener.onHorseFlagsChanged(mob);
@@ -955,6 +964,31 @@ public final class MobManager {
     }
 
     /**
+     * The pigman group anger (Slice 16d — takeDamage's getAngryTo +
+     * RevengeGoal's own setMobEntityTarget override): the hurt body and
+     * every calm pigman within 32 blocks of it anger at the attacking
+     * player together.
+     */
+    public void pigmenBecomeAngryAt(MobEntity victim, String attackerName) {
+        if (victim.type() != MobType.ZOMBIE_PIGMAN || attackerName == null) {
+            return;
+        }
+        victim.becomeAngryTo(attackerName);
+        for (MobEntity pigman : mobs) {
+            if (pigman == victim || pigman.type() != MobType.ZOMBIE_PIGMAN
+                    || pigman.dead() || pigman.isAngry()) {
+                continue; // the already-angry keep their own window
+            }
+            double dx = pigman.position().x() - victim.position().x();
+            double dy = pigman.position().y() - victim.position().y();
+            double dz = pigman.position().z() - victim.position().z();
+            if (dx * dx + dy * dy + dz * dz <= 32.0 * 32.0) {
+                pigman.becomeAngryTo(attackerName);
+            }
+        }
+    }
+
+    /**
      * The owner arms (Slice 16b — AttackWithOwnerGoal + OwnerHurtGoal):
      * every STANDING tamed wolf the player owns joins the fight on the
      * target — the mob their owner just attacked, or the mob that just
@@ -1113,6 +1147,23 @@ public final class MobManager {
             for (int unit = 0; unit < powder; unit++) {
                 lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()),
                         ItemStack.of(BuiltinItems.GUNPOWDER, 1));
+            }
+            return;
+        }
+        if (mob.type() == MobType.ZOMBIE_PIGMAN) {
+            // ZombiePigmanEntity.dropItems (lines 130-139): 0-1 rotten
+            // flesh, then 0-1 gold nugget — the counts widen by the FULL
+            // looting (nextInt(2 + looting), the reference's own bound);
+            // each unit as its own single-item stack.
+            int flesh = random.nextInt(2 + looting);
+            for (int unit = 0; unit < flesh; unit++) {
+                lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()),
+                        ItemStack.of(BuiltinItems.ROTTEN_FLESH, 1));
+            }
+            int nuggets = random.nextInt(2 + looting);
+            for (int unit = 0; unit < nuggets; unit++) {
+                lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()),
+                        ItemStack.of(BuiltinItems.GOLD_NUGGET, 1));
             }
             return;
         }

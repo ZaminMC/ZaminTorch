@@ -120,13 +120,26 @@ public final class NaturalSpawnSystem {
     private final Mobs mobs;
     private final WorldQuery world;
     private final Random random;
+    /** Whether this cycle serves the nether dimension (the HellBiome rows). */
+    private final boolean nether;
     /** The spawning-chunk set (rebuilt every tick, the reference's own). */
     private final Set<Long> spawningChunks = new HashSet<>();
 
     public NaturalSpawnSystem(Mobs mobs, WorldQuery world, Random random) {
+        this(mobs, world, random, false);
+    }
+
+    /**
+     * The dimension-aware cycle: the nether instance walks the HellBiome
+     * rows (Slice 16d — GhastEntity 50/4-4, ZombiePigmanEntity 100/4-4,
+     * MagmaCubeEntity 1/4-4, every category but MONSTER empty — the
+     * reference's own hell table has no creature/ambient/water rows).
+     */
+    public NaturalSpawnSystem(Mobs mobs, WorldQuery world, Random random, boolean nether) {
         this.mobs = Objects.requireNonNull(mobs, "mobs");
         this.world = Objects.requireNonNull(world, "world");
         this.random = Objects.requireNonNull(random, "random");
+        this.nether = nether;
     }
 
     // ------------------------------------------------------------------
@@ -134,6 +147,18 @@ public final class NaturalSpawnSystem {
     // ------------------------------------------------------------------
 
     private List<SpawnEntry> entriesOf(Category category) {
+        if (nether) {
+            // HellBiome lines 14-16: the nether's own monster table, and
+            // nothing else (no creature/ambient/water rows — the reference's
+            // own hell list).
+            return switch (category) {
+                case MONSTER -> List.of(
+                        new SpawnEntry(MobType.GHAST, 50, 4, 4),
+                        new SpawnEntry(MobType.ZOMBIE_PIGMAN, 100, 4, 4),
+                        new SpawnEntry(MobType.MAGMA_CUBE, 1, 4, 4));
+                default -> List.of();
+            };
+        }
         return switch (category) {
             case MONSTER -> List.of(
                     // Biome lines 284-290: the four common hostiles at 100
