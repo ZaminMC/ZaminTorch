@@ -31,9 +31,11 @@ public interface Goal {
 
     /**
      * The priority band: lower runs first. The built-in family occupies
-     * 0 (float), 1 (panic), 2 (breed), and 4 (stroll); a custom goal that
-     * must outrank the stroll sits at 3, one that yields to every built-in
-     * sits at 5 or higher.
+     * 0 (float), 1 (panic), 2 (breed), 3 (the awareness band — beg, tempt,
+     * flee_player: kind-gated to the wolf and the ocelot, idle on every
+     * other kind), and 4 (stroll); a custom goal that must outrank the
+     * stroll joins band 3 (after the built-ins, in join order), one that
+     * yields to every built-in sits at 5 or higher.
      */
     int priority();
 
