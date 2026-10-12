@@ -143,6 +143,7 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:feather"), 288),
             Map.entry(Identifier.parse("minecraft:leather"), 334),
             Map.entry(Identifier.parse("minecraft:rotten_flesh"), 367),
+            Map.entry(Identifier.parse("minecraft:gold_nugget"), 371),
             // pickaxes (dataset-verified ids and durabilities)
             Map.entry(Identifier.parse("minecraft:wooden_pickaxe"), 270),
             Map.entry(Identifier.parse("minecraft:stone_pickaxe"), 274),

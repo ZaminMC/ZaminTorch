@@ -791,6 +791,8 @@ public final class MobEntity implements LivingEntity {
             }
         } else if (type == MobType.OCELOT) {
             tickWolfClock(); // the tameable family's shared clock
+        } else if (type == MobType.ZOMBIE_PIGMAN) {
+            tickPigmanAnger(); // the anger's decay + the delayed sound (16d)
         }
         if (hurtFlash > 0) {
             hurtFlash--;
@@ -1261,7 +1263,69 @@ public final class MobEntity implements LivingEntity {
     /** The landing edge tracker (the wasOnGround flag). */
     private boolean wasSlimeGrounded = true;
 
-    // ------------------------------------------ the ghast (Slice 16c)
+    // ------------------------------------- the zombie pigman (Slice 16d)
+
+    /** The anger window's roll: {@code 400 + nextInt(400)} ticks. */
+    private static final int PIGMAN_ANGER_BASE = 400;
+    /** The angry sound's own delay: {@code nextInt(40)} ticks. */
+    private static final int PIGMAN_ANGER_SOUND_BOUND = 40;
+    /** The angry speed boost (the +0.05 attribute modifier on the 0.23
+     * base, expressed as the chase multiplier). */
+    private static final double PIGMAN_ANGRY_CHASE_MULTIPLIER = 1.1 * (0.28 / 0.23);
+    /** The anger's group radius (RevengeGoal's call-others box: the
+     * follow range 32 around the hurt body). */
+    private static final double PIGMAN_ANGER_RADIUS_SQUARED = 32.0 * 32.0;
+
+    /** The decaying anger window (0 = the calm neutral state). */
+    private int pigmanAnger;
+    /** The angry sound's countdown (0 = idle). */
+    private int pigmanAngerSoundDelay;
+    /** The anger's target player (the attacker's name — the anger keys on
+     * the player, not the mob-target state). */
+    private String pigmanAngerTarget = "";
+    /** Set when the delayed angry sound fires; consumed by the manager. */
+    private boolean pendingPigmanAngrySound;
+
+    /** @return whether the pigman is angry (TargetPlayerGoal's gate). */
+    public boolean isAngry() {
+        return pigmanAnger > 0;
+    }
+
+    /**
+     * The anger lands ({@code getAngryTo}): the 400+nextInt(400) window,
+     * the delayed angry sound, and the attacker's identity. The group
+     * propagation is the manager's own walk (the call-others family).
+     */
+    public void becomeAngryTo(String playerName) {
+        pigmanAnger = PIGMAN_ANGER_BASE + random.nextInt(PIGMAN_ANGER_BASE);
+        pigmanAngerSoundDelay = random.nextInt(PIGMAN_ANGER_SOUND_BOUND);
+        if (playerName != null) {
+            pigmanAngerTarget = playerName;
+        }
+    }
+
+    /** @return the anger's target player name (the attacker), or "". */
+    public String angerTargetName() {
+        return pigmanAngerTarget;
+    }
+
+    /** @return and clears the delayed angry sound. */
+    public boolean consumePigmanAngrySound() {
+        boolean value = pendingPigmanAngrySound;
+        pendingPigmanAngrySound = false;
+        return value;
+    }
+
+    /** The anger's own per-tick walk (mobAiTick): the decay, the delayed
+     * sound, and the angry speed boost through the goal-walk multiplier. */
+    private void tickPigmanAnger() {
+        if (pigmanAnger > 0) {
+            pigmanAnger--;
+            if (pigmanAngerSoundDelay > 0 && --pigmanAngerSoundDelay == 0) {
+                pendingPigmanAngrySound = true;
+            }
+        }
+    }
 
     /** ShootFireballGoal's charge cycle: 20 to the launch, -40 after. */
     private int ghastChargeTicks;
@@ -2408,9 +2472,16 @@ public final class MobEntity implements LivingEntity {
 
         Position target = world.nearestPlayer(position.x(), position.y(), position.z(),
                 type.hostile ? AGGRO_RANGE : 8.0);
-        boolean canHunt = type.hostile && (!type.traits.neutralByDay() || night);
+        boolean canHunt = type.hostile && (!type.traits.neutralByDay() || night)
+                && (type != MobType.ZOMBIE_PIGMAN || isAngry()); // the neutral gate (16d)
         this.visibleTarget = target;
         this.targetHuntable = canHunt;
+
+        // The angry pigman's own speed boost (the +0.05 modifier on the
+        // 0.23 base — mobAiTick's ATTACKING_SPEED_BOOST).
+        if (type == MobType.ZOMBIE_PIGMAN && isAngry() && target != null) {
+            goalWalkSpeed = PIGMAN_ANGRY_CHASE_MULTIPLIER;
+        }
 
         // The goal layer (the community PathfinderGoal architecture): float
         // and panic claim the body first, the stroll cycle only when no hunt

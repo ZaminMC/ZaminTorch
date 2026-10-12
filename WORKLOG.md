@@ -2853,3 +2853,28 @@ compile error). Removed; the protocol suite is green again.
 
 Fresh suite: **901 green (808 core + 19 api + 74 protocol)**,
 `--max-workers=1`, zero failures.
+
+## Slice 16d — the zombie pigman + the nether's natural spawn cycle
+
+**Scope**: the anger model (the group aggro), the neutral hunt gate, the
+drop pair, and the nether's own spawn cycle with the HellBiome rows.
+
+**The anger**: `becomeAngryTo(player)` — the 400+nextInt(400) window, the
+delayed angry sound (volume*2, the 1.8 band), the attacker's name; the
+manager's `pigmenBecomeAngryAt` — the hurt body + every calm pigman
+within 32 blocks anger together (the already-angry keep their own
+windows); the landing site — the player's melee on the pigman. The hunt
+gate: the pigman's mind hunts players only while angry; the +0.05 boost
+as the 1.34x chase multiplier.
+
+**The nether's cycle**: the second NaturalSpawnSystem with the nether
+flag (the HellBiome monster rows, everything else empty), the
+SpawnWorldQuery parameterized per dimension (the nether's sky light 0,
+the floor scan below the bedrock roof), and the tick feeding it the
+nether players only.
+
+**Tests**: ZombiePigmanTest (4: the identity, the window's roll + decay,
+the delayed sound, the group anger through the manager).
+
+Fresh suite: **905 green (812 core + 19 api + 74 protocol)**,
+`--max-workers=1`, zero failures.

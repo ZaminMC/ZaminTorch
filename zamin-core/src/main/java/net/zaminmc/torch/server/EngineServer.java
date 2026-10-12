@@ -271,6 +271,8 @@ public final class EngineServer implements Server, EngineBridge {
     private net.zaminmc.torch.server.leash.LeadSystem leadSystem;
     /** The natural spawn cycle (Slice 11d): the 1:1 NaturalSpawner port. */
     private net.zaminmc.torch.server.spawn.NaturalSpawnSystem naturalSpawns;
+    /** The nether's own cycle (Slice 16d — the HellBiome rows). */
+    private net.zaminmc.torch.server.spawn.NaturalSpawnSystem naturalSpawnsNether;
     /** The brewing stands (Slice 11e): the 1:1 brew-cycle port. */
     private net.zaminmc.torch.server.brewing.BrewingStandSystem brewingStands;
     /** The tripwire subsystem (Slice 10c): the occupancy scan + the hook walk. */
@@ -844,8 +846,14 @@ public final class EngineServer implements Server, EngineBridge {
                 // The natural spawn cycle (Slice 11d): the 1:1 walk.
                 naturalSpawns = new net.zaminmc.torch.server.spawn.NaturalSpawnSystem(
                         new SpawnSurface(mobs),
-                        new SpawnWorldQuery(),
+                        new SpawnWorldQuery(world, false),
                         new java.util.Random());
+                // The nether's own cycle (Slice 16d): the HellBiome rows over
+                // the nether's chunks — the ghast, the pigman, the magma cube.
+                naturalSpawnsNether = new net.zaminmc.torch.server.spawn.NaturalSpawnSystem(
+                        new SpawnSurface(mobs),
+                        new SpawnWorldQuery(netherWorld, true),
+                        new java.util.Random(), true);
                 // Vehicles (§ vehicles slice): boats and minecarts on the
                 // shared body model; the engine owns the mounted rider.
                 VehicleManager vehicles = new VehicleManager(
@@ -894,6 +902,16 @@ public final class EngineServer implements Server, EngineBridge {
                     // 180: the spawner walk every tick, the caps scaled by
                     // the spawning-chunk count).
                     naturalSpawns.tick(players.all(), world.timeOfDay());
+                    // The nether's own cycle (Slice 16d): only the players
+                    // standing in the nether feed its spawning-chunk set.
+                    java.util.List<PlayerSession> netherPlayers = new java.util.ArrayList<>();
+                    for (PlayerSession player : players.all()) {
+                        if (player.dimension() == -1
+                                && player.state() == PlayerState.PLAYING) {
+                            netherPlayers.add(player);
+                        }
+                    }
+                    naturalSpawnsNether.tick(netherPlayers, netherWorld.timeOfDay());
                     drainGenerationAttachments(); // the populate-time villagers + loot chests (Slice 12b)
                     tickMobPotions(); // the mobs' effect stores (Slice 11b)
                     tickLeashes(); // the leash physics + the knots (Slice 11c)
@@ -2408,6 +2426,12 @@ public final class EngineServer implements Server, EngineBridge {
             mob.setLootingLevel(EnchantmentHelper.lootingLevel(held));
             boolean landed = mobManager.hurt(mob, damage, kbYaw);
             if (landed) {
+                // Slice 16d — ZombiePigmanEntity.takeDamage's getAngryTo:
+                // a player's hit angers the pigman and its whole nearby
+                // group (the manager's propagation walk).
+                if (mob.type() == net.zaminmc.torch.server.entity.MobType.ZOMBIE_PIGMAN) {
+                    mobManager.pigmenBecomeAngryAt(mob, attacker.name());
+                }
                 // Slice 16b — OwnerHurtGoal: the attacker's standing tamed
                 // wolves join the fight on the victim (the owner's own
                 // getLastAttackedMob + getLastAttackTime change, the event-site
@@ -7674,30 +7698,41 @@ public final class EngineServer implements Server, EngineBridge {
     /** The natural spawn cycle's world read (Slice 11d). */
     private final class SpawnWorldQuery
             implements net.zaminmc.torch.server.spawn.NaturalSpawnSystem.WorldQuery {
+        private final EngineWorld target;
+        private final boolean nether;
+
+        SpawnWorldQuery(EngineWorld target, boolean nether) {
+            this.target = target;
+            this.nether = nether;
+        }
+
         @Override
         public Object blockAt(BlockPosition position) {
-            return world.getBlock(position);
+            return target.getBlock(position);
         }
 
         @Override
         public int surfaceHeight(int x, int z) {
+            if (nether) {
+                return netherSurfaceY(x, z);
+            }
             int at = surfaceY(x, z);
             return at < 0 ? 0 : at;
         }
 
         @Override
         public int blockLightAt(BlockPosition position) {
-            return world.blockLightAt(position);
+            return target.blockLightAt(position);
         }
 
         @Override
         public int skyLightAt(BlockPosition position) {
-            return world.skyLightAt(position);
+            return nether ? 0 : target.skyLightAt(position); // the roofed dimension is always dark
         }
 
         @Override
         public Position spawnPoint() {
-            return world.spawnPosition();
+            return target.spawnPosition();
         }
 
         @Override
@@ -7705,7 +7740,7 @@ public final class EngineServer implements Server, EngineBridge {
             // The loaded-box gate (the border's engine stand-in): the spawn
             // walk never forces a generation — an unloaded chunk simply
             // joins the count without ever hosting a pack.
-            return world.isChunkLoaded(
+            return target.isChunkLoaded(
                     new net.zaminmc.torch.block.ChunkPosition(chunkX, chunkZ));
         }
 
@@ -7713,6 +7748,30 @@ public final class EngineServer implements Server, EngineBridge {
         public long worldSeed() {
             return worldSeed;
         }
+    }
+
+    /**
+     * The nether's floor scan (Slice 16d): below the bedrock roof, the
+     * first solid cell with two air cells above it — a standable spawn
+     * cell (the engine's stand-in for the reference's own
+     * getTopSolidOrLiquidBlock under a roofed dimension — the vanilla
+     * roof-band spawn quirk ledgered with the worldgen slice).
+     */
+    private int netherSurfaceY(int x, int z) {
+        EngineChunk chunk = netherWorld.peek(
+                new net.zaminmc.torch.block.ChunkPosition(x >> 4, z >> 4));
+        if (chunk == null) {
+            chunk = netherWorld.getOrGenerate(
+                    new net.zaminmc.torch.block.ChunkPosition(x >> 4, z >> 4));
+        }
+        for (int y = 120; y >= 31; y--) {
+            if (!chunk.getBlock(x & 15, y, z & 15).equals(netherWorld.airType())
+                    && chunk.getBlock(x & 15, y + 1, z & 15).equals(netherWorld.airType())
+                    && chunk.getBlock(x & 15, y + 2, z & 15).equals(netherWorld.airType())) {
+                return y;
+            }
+        }
+        return -1;
     }
 
     /**
