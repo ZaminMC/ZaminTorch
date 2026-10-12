@@ -5989,6 +5989,12 @@ public final class EngineServer implements Server, EngineBridge {
                 interactMountOnTick(player, mob);
                 return;
             }
+            // The wolf branch (Slice 15d — WolfEntity.interactMob's own
+            // ladder): the tame, the feed, the sit toggle.
+            if (mob.type() == net.zaminmc.torch.server.entity.MobType.WOLF) {
+                interactWolfOnTick(player, mob);
+                return;
+            }
             // The animal branch: the breeding foods (the vanilla interactMob
             // feeding arm — love for adults, growth for babies) plus the
             // sheep's shears (the interactMob order: shears first).
@@ -6002,7 +6008,8 @@ public final class EngineServer implements Server, EngineBridge {
     /** @return whether the kind breeds and feeds like an animal. */
     private static boolean isAnimal(MobType type) {
         return type == MobType.PIG || type == MobType.COW || type == MobType.SHEEP
-                || type == MobType.CHICKEN || type == MobType.HORSE || type == MobType.RABBIT;
+                || type == MobType.CHICKEN || type == MobType.HORSE || type == MobType.RABBIT
+                || type == MobType.WOLF; // the wolf feeds through its own ladder, breeds here
     }
 
     /**
@@ -6020,6 +6027,16 @@ public final class EngineServer implements Server, EngineBridge {
             case RABBIT -> heldId.equals("minecraft:carrot")
                     || heldId.equals("minecraft:golden_carrot")
                     || heldId.equals("minecraft:dandelion");
+            // WolfEntity.isBreedingItem: the FoodItem.canBeCooked() family —
+            // the meats (the fish pair + the mutton ride their item slices).
+            case WOLF -> heldId.equals("minecraft:porkchop")
+                    || heldId.equals("minecraft:cooked_porkchop")
+                    || heldId.equals("minecraft:beef")
+                    || heldId.equals("minecraft:cooked_beef")
+                    || heldId.equals("minecraft:chicken")
+                    || heldId.equals("minecraft:cooked_chicken")
+                    || heldId.equals("minecraft:rabbit")
+                    || heldId.equals("minecraft:cooked_rabbit");
             default -> false;
         };
     }
@@ -6079,6 +6096,89 @@ public final class EngineServer implements Server, EngineBridge {
             return true;
         }
         return false;
+    }
+
+    /**
+     * The wolf's right-click ladder (WolfEntity.interactMob, the reference's
+     * own order): a TAMED body takes the meat heal under 20 health, then the
+     * owner's empty hand toggles the sit; an UNTAMED body takes the bone —
+     * the 1-in-3 tame roll with the entity-event verdict (7 hearts, 6
+     * smoke) — and the breeding food falls through to the shared animal
+     * feed. Tick-thread context.
+     */
+    private void interactWolfOnTick(PlayerSession player, MobEntity mob) {
+        double dx = mob.position().x() - player.position().x();
+        double dy = mob.position().y() - player.position().y();
+        double dz = mob.position().z() - player.position().z();
+        double horizontal = Math.sqrt(dx * dx + dz * dz);
+        if (horizontal > MELEE_REACH + mob.type().width * 0.5 || dy < -2.0 || dy > 4.0) {
+            return; // out of reach: the server-side refusal
+        }
+        var inventory = player.inventory();
+        ItemStack held = inventory.held();
+        String heldId = held.type() == null ? "" : held.type().identifier().toString();
+
+        if (mob.wolfTamed()) {
+            // The meat heal (interactMob lines 300-313): the canBeCooked
+            // family under the tamed maximum.
+            int heal = wolfFeedHeal(heldId);
+            if (heal > 0 && mob.health() < mob.maxHealth()) {
+                mob.heal(heal);
+                eatFromHand(player);
+                return;
+            }
+            // The owner's empty-hand verb (lines 327-332): the sit toggle —
+            // a held breeding food feeds through the fall-through below
+            // instead (the reference's own isBreedingItem gate).
+            if (mob.ownerName().equals(player.name())
+                    && !isBreedingItem(mob.type(), heldId)) {
+                mob.toggleWolfSitting();
+                publishWolfState(mob);
+                return;
+            }
+        } else if (heldId.equals("minecraft:bone") && !mob.wolfAngry()) {
+            // The tame roll (lines 333-359): the bone is always eaten; the
+            // 1-in-3 roll tames (the full flip: the 20-health tamed body,
+            // the owner, the sitting start, the hearts) or smokes.
+            eatFromHand(player);
+            if (gameplayRandom.nextInt(3) == 0) {
+                mob.tameWolf(player.name());
+                publishWolfState(mob);
+                sendMobStatusToAll(mob, 7); // the taming hearts
+            } else {
+                sendMobStatusToAll(mob, 6); // the taming smoke
+            }
+            return;
+        }
+        // The fall-through: the shared animal feed (the tamed-only breed
+        // arm — the wolf's isBreedingItem is the meat family).
+        feedAnimal(player, mob);
+    }
+
+    /** @return the wolf feed's heal value (the FoodItem hunger points, 0 when not meat). */
+    private static int wolfFeedHeal(String itemId) {
+        return switch (itemId) {
+            case "minecraft:porkchop", "minecraft:beef", "minecraft:rabbit" -> 3;
+            case "minecraft:cooked_porkchop", "minecraft:cooked_beef" -> 8;
+            case "minecraft:chicken" -> 2;
+            case "minecraft:cooked_chicken" -> 6;
+            case "minecraft:cooked_rabbit" -> 5;
+            default -> 0; // the fish pair + the mutton ride their item slices
+        };
+    }
+
+    /** Rings the mob-status entity event to every tracking connection (doEntityEvent). */
+    private void sendMobStatusToAll(MobEntity mob, int status) {
+        for (MobManager.Listener listener : mobListeners) {
+            listener.onMobStatusEvent(mob, status);
+        }
+    }
+
+    /** The wolf's state fan-out (the metadata update seam). */
+    private void publishWolfState(MobEntity mob) {
+        for (MobManager.Listener listener : mobListeners) {
+            listener.onWolfStateChanged(mob);
+        }
     }
 
     /** The vanilla eat(): the creative hand keeps the stack. */

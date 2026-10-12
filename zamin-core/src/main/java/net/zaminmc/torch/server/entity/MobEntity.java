@@ -348,9 +348,24 @@ public final class MobEntity implements LivingEntity {
     private boolean persistent;
     private int farFromPlayerTicks;
 
-    /** The despawn's persistence flag (the leashed family never leaves). */
+    /** The despawn's persistence flag (the leashed family and the tamed wolf never leave). */
     public boolean persistent() {
-        return persistent || leashed;
+        return persistent || leashed || (type == MobType.WOLF && wolfTamed());
+    }
+
+    /**
+     * The reference's {@code canDespawn()} — whether the despawn rules
+     * apply at all. The monsters answer true; the animals false
+     * (AnimalEntity's own override — a penned cow stays penned); the wolf
+     * answers true only UNTAMED and past 2400 ticks (its own override —
+     * a lone wild wolf moves on after two minutes, a tamed one never
+     * leaves its owner behind).
+     */
+    public boolean canDespawn() {
+        if (type == MobType.WOLF) {
+            return !wolfTamed() && wolfTicksExisted > 2400;
+        }
+        return type.hostile;
     }
 
     /** Marks the body persistent (named/bred mobs ride their own slices). */
@@ -540,9 +555,9 @@ public final class MobEntity implements LivingEntity {
         return health;
     }
 
-    /** @return the kind's health ceiling ({@code getMaxHealth}). */
+    /** @return the kind's health ceiling ({@code getMaxHealth} — the tamed wolf's own 20). */
     public float maxHealth() {
-        return type.maxHealth;
+        return type == MobType.WOLF && wolfTamed() ? 20.0f : type.maxHealth;
     }
 
     /** Restores health, clamped at the ceiling ({@code heal}). */
@@ -550,7 +565,7 @@ public final class MobEntity implements LivingEntity {
         if (amount <= 0 || dead) {
             return;
         }
-        health = Math.min(type.maxHealth, health + amount);
+        health = Math.min(maxHealth(), health + amount);
     }
 
     public boolean onGround() {
@@ -720,6 +735,14 @@ public final class MobEntity implements LivingEntity {
         float beforeYaw = yaw;
         float beforeHeadYaw = headYaw;
 
+        if (type == MobType.WOLF) {
+            tickWolfClock();
+            // mobTick's own clears: an angry wolf with no target stands down
+            // (WolfEntity.mobTick lines 178-180).
+            if (wolfAngry() && !goalHasTarget(night)) {
+                setWolfAngry(false);
+            }
+        }
         if (hurtFlash > 0) {
             hurtFlash--;
         }
@@ -918,6 +941,102 @@ public final class MobEntity implements LivingEntity {
      */
     private int slimeSize = 1;
 
+    // ------------------------------------------------ the wolf (Slice 15d)
+
+    /** TameableEntity's index-16 bits: sitting 0x1, angry (the wolf's own) 0x2, tamed 0x4. */
+    private static final int WOLF_FLAG_SITTING = 0x1;
+    private static final int WOLF_FLAG_ANGRY = 0x2;
+    private static final int WOLF_FLAG_TAMED = 0x4;
+    /** The wolf's own ticks-lived counter ({@code this.ticks} — the 2400-tick despawn gate). */
+    private int wolfTicksExisted;
+    /** The wolf's state byte on the wire's index 16 (sitting | angry &lt;&lt; 1 | tamed &lt;&lt; 2). */
+    private int wolfFlags;
+    /** The collar color's dye metadata (the wire's index 20 — RED at spawn, the reference's own default). */
+    private byte wolfCollarColor = 1; // DyeColor.RED.getId() = 1
+    /** The begging head-tilt (the wire's index 19 — the bone-holding player's gaze). */
+    private boolean wolfBegging;
+    /**
+     * The tamed body's attack damage (the reference's {@code setTamed}
+     * recompute: 4.0 tamed over the 2.0 wild kind default — the per-instance
+     * override the melee walk reads).
+     */
+    private float wolfAttackDamage;
+
+    /** @return the wolf's raw index-16 state byte (the wire writer's view). */
+    public int wolfFlagsRaw() {
+        return wolfFlags;
+    }
+
+    /** @return whether the wolf is tamed (TameableEntity's bit). */
+    public boolean wolfTamed() {
+        return (wolfFlags & WOLF_FLAG_TAMED) != 0;
+    }
+
+    /** @return whether the wolf sits (the owner's empty-hand toggle). */
+    public boolean wolfSitting() {
+        return (wolfFlags & WOLF_FLAG_SITTING) != 0;
+    }
+
+    /** @return whether the wolf is angry (the untamed hostile posture). */
+    public boolean wolfAngry() {
+        return (wolfFlags & WOLF_FLAG_ANGRY) != 0;
+    }
+
+    /** Sets or clears the angry posture (WolfEntity.setAngry's own bit). */
+    public void setWolfAngry(boolean angry) {
+        if (angry) {
+            wolfFlags |= WOLF_FLAG_ANGRY;
+        } else {
+            wolfFlags &= ~WOLF_FLAG_ANGRY;
+        }
+    }
+
+    /** Toggles the sitting posture (the owner's empty-hand verb, SitGoal). */
+    public void toggleWolfSitting() {
+        wolfFlags ^= WOLF_FLAG_SITTING;
+    }
+
+    /** @return the collar color's dye metadata (index 20). */
+    public int wolfCollarColor() {
+        return wolfCollarColor & 0xFF;
+    }
+
+    /** Sets the collar color (the dye arm's write, index 20). */
+    public void setWolfCollarColor(int dyeMetadata) {
+        wolfCollarColor = (byte) (dyeMetadata & 0xF);
+    }
+
+    /** @return the begging head-tilt (index 19). */
+    public boolean wolfBegging() {
+        return wolfBegging;
+    }
+
+    /** Sets the begging head-tilt (WolfBegGoal's write, index 19). */
+    public void setWolfBegging(boolean begging) {
+        wolfBegging = begging;
+    }
+
+    /**
+     * The tame lands (interactMob lines 343-351): the flag, the owner, the
+     * health flip to the tamed maximum ({@code setTamed}'s own attribute
+     * recompute — 20 over the wild 8), the attack-damage recompute (4.0),
+     * and the sitting start.
+     */
+    public void tameWolf(String owner) {
+        wolfFlags |= WOLF_FLAG_TAMED;
+        if (owner != null && !owner.isEmpty()) {
+            ownerName = owner;
+        }
+        wolfAttackDamage = 4.0f;
+        this.health = 20.0f; // setHealth(20) under setTamed's raised ceiling
+        wolfFlags |= WOLF_FLAG_SITTING; // sitGoal.setEnabledWithOwner(true)
+    }
+
+    /** The wolf's own tick clock ({@code this.ticks}). */
+    void tickWolfClock() {
+        wolfTicksExisted++;
+    }
+
     /** @return the slime's size byte (1, 2, or 4; 1 for every other kind). */
     public int slimeSize() {
         return type == MobType.SLIME ? slimeSize : 1;
@@ -929,6 +1048,9 @@ public final class MobEntity implements LivingEntity {
      * getDamageAmount line 215).
      */
     public float attackDamage() {
+        if (type == MobType.WOLF && wolfTamed()) {
+            return wolfAttackDamage; // setTamed's recompute: 4.0
+        }
         return type == MobType.SLIME ? slimeSize : type.attackDamage;
     }
 
@@ -1618,6 +1740,13 @@ public final class MobEntity implements LivingEntity {
         }
         if (breedingAge != 0 || other.breedingAge != 0) {
             return false;
+        }
+        // WolfEntity.canBreedWith: both bodies tamed, neither sitting.
+        if (type == MobType.WOLF) {
+            if (!wolfTamed() || !other.wolfTamed()
+                    || wolfSitting() || other.wolfSitting()) {
+                return false;
+            }
         }
         if (type == MobType.HORSE) {
             if (isMule() || other.isMule()) {

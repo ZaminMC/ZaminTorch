@@ -421,8 +421,24 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                 }
             }
 
+            /** The wolf's tamed/sitting/angry/collar state moved (the metadata update). */
             @Override
-            public void onMobLoveBurst(net.zaminmc.torch.server.entity.MobEntity mob) {
+            public void onWolfStateChanged(net.zaminmc.torch.server.entity.MobEntity mob) {
+            for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                connection.sendWolfState(mob);
+            }
+        }
+
+        /** The world's doEntityEvent byte (the wolf's taming verdicts here). */
+        @Override
+        public void onMobStatusEvent(net.zaminmc.torch.server.entity.MobEntity mob, int status) {
+            for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                connection.sendMobStatus(mob, status);
+            }
+        }
+
+        @Override
+        public void onMobLoveBurst(net.zaminmc.torch.server.entity.MobEntity mob) {
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
                     connection.sendMobStatus(mob, Protocol18.ENTITY_STATUS_LOVE);
                 }

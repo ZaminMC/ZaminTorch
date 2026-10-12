@@ -240,6 +240,15 @@ final class Protocol18 {
     static final int VILLAGER_PROFESSION_METADATA_INDEX = 16;
     /** The witch's drinking flag (WitchEntity's own synced-data slot 21). */
     static final int WITCH_DRINKING_METADATA_INDEX = 21;
+    // The wolf's block (WolfEntity.registerSyncedData): the index-16 state
+    // byte (TameableEntity's sitting 0x1 | tamed 0x4 bits + the wolf's own
+    // angry 0x2), the 17 owner string, the 18 health float (the client's
+    // tail-wag read), the 19 begging byte, the 20 collar dye byte.
+    static final int WOLF_STATE_METADATA_INDEX = 16;
+    static final int WOLF_OWNER_METADATA_INDEX = 17;
+    static final int WOLF_HEALTH_METADATA_INDEX = 18;
+    static final int WOLF_BEGGING_METADATA_INDEX = 19;
+    static final int WOLF_COLLAR_METADATA_INDEX = 20;
 
     // The living-flags bit map (1.8's Entity flags byte, index 0):
     // 0x01 burning, 0x02 crouched, 0x08 riding, 0x10 sprinting, 0x20 eating.
@@ -260,6 +269,9 @@ final class Protocol18 {
     static final int ENTITY_STATUS_HURT = 2;
     static final int ENTITY_STATUS_DEAD = 3;
     static final int ENTITY_STATUS_LOVE = 18;
+    /** TameableEntity.addTamingParticles' verdict pair: 7 hearts, 6 smoke. */
+    static final int ENTITY_STATUS_TAME_HEARTS = 7;
+    static final int ENTITY_STATUS_TAME_SMOKE = 6;
     /** The passive age byte (index 12: -1 baby, 0 adult — PassiveEntity). */
     static final int PASSIVE_AGE_METADATA_INDEX = 12;
 

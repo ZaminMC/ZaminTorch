@@ -68,6 +68,21 @@ public enum MobType {
                     new ItemRoll(BuiltinItems.RABBIT, 0, 1)),
             "mob.rabbit.idle", "mob.rabbit.hurt", "mob.rabbit.death"),
 
+    /**
+     * The tamer's companion (Slice 15d — WolfEntity): the 0.6x0.8 body,
+     * 8 health wild ({@code 20} the moment the tame lands — the reference's
+     * own attribute flip), movement 0.3 (the engine's chaser band — the
+     * enderman's twin, the same reference attribute). No drops
+     * ({@code Item.byId(-1)} — shearing a dead wolf is not a thing). The
+     * sounds: the bark/panting idle (the whine under 10 health tamed, the
+     * growl angry — the dynamic walk reads the state), hurt, death. The
+     * untamed body despawns past 2400 ticks ({@code canDespawn}); a tamed
+     * one never does.
+     */
+    WOLF(95, 0.6, 0.8, 8.0f, 0.05, false, Traits.NONE,
+            List.of(),
+            "mob.wolf.bark", "mob.wolf.hurt", "mob.wolf.death"),
+
     /** Hostile melee: chases the nearest player in range and attacks. */
     ZOMBIE(54, 0.6, 1.8, 20.0f, 0.04, true, Traits.NONE,
             List.of(new ItemRoll(BuiltinItems.ROTTEN_FLESH, 0, 2)),

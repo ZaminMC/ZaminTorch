@@ -463,6 +463,14 @@ public final class NormalWorldGenerator implements WorldGenerator {
                     new CreatureRow(MobType.CHICKEN, 10, 4, 4),
                     new CreatureRow(MobType.COW, 8, 4, 4),
                     new CreatureRow(MobType.HORSE, 5, 2, 6)); // PlainsBiome line 17
+            case FOREST -> List.of( // ForestBiome's own table (line 48: the
+                    // wolf 5/4-4 on the variant-0 forest — Slice 15d)
+                    new CreatureRow(MobType.SHEEP, 12, 4, 4),
+                    new CreatureRow(MobType.RABBIT, 10, 3, 3),
+                    new CreatureRow(MobType.PIG, 10, 4, 4),
+                    new CreatureRow(MobType.CHICKEN, 10, 4, 4),
+                    new CreatureRow(MobType.COW, 8, 4, 4),
+                    new CreatureRow(MobType.WOLF, 5, 4, 4));
             default -> List.of( // FOREST + the default family
                     new CreatureRow(MobType.SHEEP, 12, 4, 4),
                     new CreatureRow(MobType.RABBIT, 10, 3, 3),
