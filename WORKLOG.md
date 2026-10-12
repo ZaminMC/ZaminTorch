@@ -2360,3 +2360,53 @@ the biome families + the unloaded default, the difficulty band, the
 change event's pair both ways + the unsubscribe silence). The fresh
 full-suite count **770 green across zamin-core + zamin-api** (746 + 5 new
 + the api module's own 19), `--max-workers=1`, zero failures.
+
+## Slice 14c — the lifecycle & damage event wave (§27.7's second family)
+
+The six new public events + the vanilla join/quit broadcasts:
+
+- **`PlayerJoinEvent` / `PlayerQuitEvent`** (the §27.7 post-commit
+  observations): the join fires on the joining connection's context after
+  the session is fully constructed (registered, restored, positioned);
+  the quit fires on the disconnect walk right before the registry drops
+  the handle — handlers still see live state. Both carry the mutable
+  vanilla broadcast line; `null` suppresses the delivery.
+- **The vanilla yellow broadcasts themselves** (a fidelity gap the wave
+  closed): `multiplayer.player.joined` / `multiplayer.player.left` in
+  yellow, 1:1 with `PlayerManager.onLogin` lines 136-145 and
+  `ServerPlayNetworkHandler.onDisconnect` lines 573-576. The reference
+  broadcasts BEFORE `add(player)` — the joiner never sees their own
+  line; the engine's early register skips the joiner the same way.
+- **`PlayerDamageEvent`** (cancellable, mutable amount): gates EVERY
+  player damage entry — `damageOnTick` grew the `DamageCause` parameter
+  threaded through its whole overload family (void, in-fire, on-fire,
+  cactus, starve, fall, drown, thorns, mob melee, the potion magic arm),
+  `projectileHitPlayerOnTick` (PROJECTILE), and the explosion's own
+  player walk (EXPLOSION, zero-motion on cancel). A cancelled hit lands
+  nothing: no health loss, no exhaustion, no bruise window, no death.
+  The amount is the post-armor, post-enchantment value.
+- **`MobDamageEvent`** (cancellable, mutable amount, the live
+  `LivingEntity` handle): `MobManager.hurt` grew the four-arg cause
+  overload (melee callers default MELEE; the projectile site passes
+  PROJECTILE; the explosion site EXPLOSION) and `hurtWithoutKnockback`
+  reads MAGIC. A cancelled hit answers the refused-takeDamage verdict —
+  no health, no knockback, no listeners. The enderman's teleport dodge
+  now sits behind the gate too.
+- **`PlayerDeathEvent`** (cancellable = keepInventory): fires in
+  `dieOnTick` after the body dies (effects cleared, seat open) but
+  BEFORE the scatter — a cancelled event keeps the experience and the
+  whole inventory on the body; the death itself still resolves. The
+  death line is mutable (the broadcast and the log read it).
+- **`MobDeathEvent`** (observation): fires at `MobEventDispatch.onMobDied`
+  before the XP release — the kill-counter point, not cancellable.
+- **`event.DamageCause`**: the public damage-source classification —
+  the engine's own `DamageKind` constants verbatim (the reference's
+  `DamageSource` predicates) plus `MAGIC` (the potion family's arm).
+
+Protocol-suite adaptation: the shared-server chat reads now meet the
+join broadcasts, so `TestClient18` grew
+`readChatLineSkippingBroadcasts` (drains the yellow join/left lines)
+and the two-recipient command test reads through it.
+
+Fresh full-suite count: **764 core + 19 api + 71 protocol = 854 green**,
+`--max-workers=1`, zero failures.

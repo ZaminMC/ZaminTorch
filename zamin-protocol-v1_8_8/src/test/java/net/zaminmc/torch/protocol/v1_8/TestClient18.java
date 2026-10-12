@@ -753,6 +753,23 @@ final class TestClient18 implements AutoCloseable {
         return ByteBufOps.readString(buffer, 4096);
     }
 
+    /**
+     * Reads chat lines until one that is NOT the vanilla yellow join/quit
+     * broadcast ("... joined the game" / "... left the game") — the shared
+     * server broadcasts other tests' connections, and those lines may sit
+     * in front of the line a test waits for.
+     */
+    String readChatLineSkippingBroadcasts(long timeoutMs) throws IOException {
+        long deadline = System.currentTimeMillis() + timeoutMs;
+        while (true) {
+            long remaining = Math.max(1, deadline - System.currentTimeMillis());
+            String line = readChatLine(remaining);
+            if (!line.contains(" joined the game") && !line.contains(" left the game")) {
+                return line;
+            }
+        }
+    }
+
     /** Reads a Block Change packet, returning {x, y, z, legacyId}. The wire
      * carries the packed state (id << 4) | metadata; unpacked here. */
     /**
