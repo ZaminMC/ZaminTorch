@@ -106,6 +106,17 @@ public final class ProjectileManager {
         void explode(Position at, float power);
     }
 
+    /**
+     * The ender pearl's landing arm (Slice 17c — EnderPearlEntity.
+     * onCollision lines 45-71): the thrower's teleport verdict — the
+     * engine resolves the player, the 5% endermite roll at the thrower's
+     * pre-teleport feet, the position carry, and the 5.0 fall toll.
+     */
+    public interface PearlSink {
+        /** The thrower teleports to the pearl's landing point. */
+        void teleportThrower(int throwerId, Position at);
+    }
+
     /** Damage application callbacks (the engine owns the combat rules). */
     public interface CombatSink {
         /**
@@ -177,6 +188,8 @@ public final class ProjectileManager {
     private PotionSink potionSink = (x, y, z, damage, directHit, throwerId) -> { };
     /** The ghast fireball's explosion arm; optional until the engine wires it. */
     private ExplosionSink explosionSink = (at, power) -> { };
+    /** The ender pearl's teleport arm (Slice 17c); optional until wired. */
+    private PearlSink pearlSink = (throwerId, at) -> { };
 
     /** Wires the fireball's fire-placement arm. */
     public void setFireSink(FireSink sink) {
@@ -191,6 +204,11 @@ public final class ProjectileManager {
     /** Wires the ghast fireball's explosion arm. */
     public void setExplosionSink(ExplosionSink sink) {
         this.explosionSink = Objects.requireNonNull(sink, "sink");
+    }
+
+    /** Wires the ender pearl's teleport arm (Slice 17c). */
+    public void setPearlSink(PearlSink sink) {
+        this.pearlSink = Objects.requireNonNull(sink, "sink");
     }
 
     public ProjectileManager(SolidQuery solid, HitResolver hits, CombatSink combat,
@@ -410,14 +428,22 @@ public final class ProjectileManager {
         if (player != null && !player.dead()
                 && !(player.engineEntityId() == projectile.throwerId()
                      && projectile.age() <= THROWER_IMMUNITY_TICKS)) {
-            if (projectile.kind() == ProjectileEntity.Kind.POTION) {
+            if (projectile.kind() == ProjectileEntity.Kind.ENDER_PEARL
+                    && player.engineEntityId() == projectile.throwerId()) {
+                // EnderPearlEntity.onCollision lines 33-35: the owner is a
+                // pass-through — the pearl keeps flying (the reference's
+                // own early return; the pearl-boost trick's rule).
+            } else if (projectile.kind() == ProjectileEntity.Kind.POTION) {
                 potionSink.splash(point.x(), point.y(), point.z(),
                         projectile.potionDamage(), player, projectile.throwerId());
             } else {
                 hitPlayer(projectile, player);
             }
-            remove(projectile, "hit");
-            return true;
+            if (projectile.kind() != ProjectileEntity.Kind.ENDER_PEARL
+                    || player.engineEntityId() != projectile.throwerId()) {
+                remove(projectile, "hit");
+                return true;
+            }
         }
         // --- block hit --------------------------------------------------------
         if (solid.solidAt(point.x(), point.y(), point.z())) {
@@ -426,6 +452,17 @@ public final class ProjectileManager {
                 for (Listener listener : listeners) {
                     listener.onProjectileLanded(projectile);
                 }
+                return true;
+            }
+            if (projectile.kind() == ProjectileEntity.Kind.ENDER_PEARL) {
+                // EnderPearlEntity.onCollision (Slice 17c): the thrower
+                // teleports to the landing point — the last crossed air
+                // cell (the reference's own position carry, the fireball's
+                // fire-placement stand-in shape). The 5% endermite roll,
+                // the fall-distance reset and the 5.0 fall toll ride the
+                // engine's sink.
+                pearlSink.teleportThrower(projectile.throwerId(), from);
+                remove(projectile, "hit");
                 return true;
             }
             if (projectile.kind() == ProjectileEntity.Kind.SMALL_FIREBALL) {
@@ -473,6 +510,11 @@ public final class ProjectileManager {
             combat.mobIgniteFromProjectile(mob);
         }
         float damage = damageOf(projectile);
+        if (projectile.kind() == ProjectileEntity.Kind.ENDER_PEARL) {
+            // EnderPearlEntity.onCollision line 36: the struck body takes
+            // the thrown family's 0.0 damage — the bruise without the wound.
+            damage = 0.0f;
+        }
         if (projectile.kind() == ProjectileEntity.Kind.LARGE_FIREBALL) {
             // FireballEntity.onHit lines 33-37: the struck body takes the
             // flat 6.0 fireball hit, then the explosion lands below (the
@@ -517,6 +559,12 @@ public final class ProjectileManager {
             combat.playerIgniteFromProjectile(player);
         }
         float damage = damageOf(projectile);
+        if (projectile.kind() == ProjectileEntity.Kind.ENDER_PEARL) {
+            // EnderPearlEntity.onCollision line 36: the struck player takes
+            // the thrown family's 0.0 — the bruise without the wound (the
+            // owner never reaches here; the resolution passes them through).
+            damage = 0.0f;
+        }
         if (projectile.kind() == ProjectileEntity.Kind.LARGE_FIREBALL) {
             // FireballEntity.onHit: the flat 6.0 fireball hit.
             damage = 6.0f;

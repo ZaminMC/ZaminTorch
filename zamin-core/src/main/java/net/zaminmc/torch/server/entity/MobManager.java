@@ -840,6 +840,20 @@ public final class MobManager {
                 }
                 continue;
             }
+            // The endermite's lifetime wall (Slice 17c — EndermiteEntity
+            // mobTick lines 125-127): the non-persistent body removes
+            // itself at 2400 ticks — no death animation, no loot (the
+            // reference's own remove()).
+            if (mob.consumeEndermiteExpire()) {
+                if (mob.hasRider()) {
+                    dismountMob(mob, false);
+                }
+                iterator.remove();
+                for (Listener listener : listeners) {
+                    listener.onMobRemoved(mob, "expired");
+                }
+                continue;
+            }
             if (mob.consumePendingMeleeAttack()) {
                 // Slice 16b: the mob-vs-mob target family first — a live
                 // mob target owns the swing (the reference's single
