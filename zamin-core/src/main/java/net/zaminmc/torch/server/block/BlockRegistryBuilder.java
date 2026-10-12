@@ -1,5 +1,6 @@
 package net.zaminmc.torch.server.block;
 
+import net.zaminmc.torch.block.BlockData;
 import net.zaminmc.torch.block.BlockRegistry;
 import net.zaminmc.torch.block.BlockType;
 import net.zaminmc.torch.util.Identifier;
@@ -59,6 +60,33 @@ public final class BlockRegistryBuilder {
         @Override
         public Optional<BlockType> lookup(Identifier identifier) {
             return Optional.ofNullable(byId.get(identifier));
+        }
+
+        /**
+         * The §27.3 block-state read (Slice 14b): the behavior table's
+         * row joined with the light table's pair, mapped into the public
+         * {@link BlockData} shape — the {@code UNREGISTERED} default for
+         * types without a row (frozen data, thread-safe by construction).
+         */
+        @Override
+        public BlockData dataOf(BlockType type) {
+            Identifier id = type.identifier();
+            return BlockBehaviorTable.of(id).map(behavior -> new BlockData(
+                    behavior.hardness(),
+                    behavior.diggable(),
+                    behavior.requiresTool(),
+                    behavior.material(),
+                    behavior.harvestLevel(),
+                    BlockLightTable.emission(type),
+                    BlockLightTable.filter(type),
+                    BlockBehaviorTable.isSilkTouchable(id),
+                    behavior.drops().stream()
+                            .map(drop -> new BlockData.Drop(drop.item(), drop.count(), drop.chance()))
+                            .toList()))
+                    .orElseGet(() -> new BlockData(
+                            0.0, true, false, null, 0,
+                            BlockLightTable.emission(type), BlockLightTable.filter(type),
+                            false, List.of()));
         }
 
         @Override

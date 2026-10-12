@@ -66,7 +66,7 @@ public final class BlockLightTable {
 
             // The fluids: water attenuates two per cell (dataset filterLight 2)
             // and emits nothing; lava emits the historical 15 (its glow).
-            Map.entry(Identifier.parse("minecraft:water"), new LightData(0, 2)),
+            Map.entry(Identifier.parse("minecraft:water"), new LightData(0, 3)),
             Map.entry(Identifier.parse("minecraft:falling_water"), new LightData(0, 2)),
             Map.entry(Identifier.parse("minecraft:lava"), new LightData(15, 0)),
             Map.entry(Identifier.parse("minecraft:falling_lava"), new LightData(15, 0)),
@@ -284,6 +284,54 @@ public final class BlockLightTable {
             Map.entry(Identifier.parse("minecraft:stained_clay_orange"), new LightData(0, 15)),
             Map.entry(Identifier.parse("minecraft:stained_clay_yellow"), new LightData(0, 15)),
             Map.entry(Identifier.parse("minecraft:mossy_cobblestone"), new LightData(0, 15)),
+            // The six rows the total-function read of Slice 14b exposed:
+            // cobblestone/obsidian/tnt are plain opaques; the web filters
+            // almost nothing (opacity 1); the portal PAIR emits the famous
+            // 11 (BlockNetherPortal's own lightLevel).
+            Map.entry(Identifier.parse("minecraft:cobblestone"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:obsidian"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:tnt"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:cobweb"), new LightData(0, 1)),
+            Map.entry(Identifier.parse("minecraft:nether_portal"), new LightData(11, 0)),
+            Map.entry(Identifier.parse("minecraft:nether_portal_z"), new LightData(11, 0)),
+            // The flowing fluid levels (Slice 14b's total-function read
+            // exposed the family gap): the water levels pay the source's
+            // opacity 3, the lava levels carry the source's emission 15
+            // (the reference registers both forms with the same light
+            // pair — setOpacity(3) / setLight(1.0F)).
+            Map.entry(Identifier.parse("minecraft:flowing_water_1"), new LightData(0, 3)),
+            Map.entry(Identifier.parse("minecraft:flowing_water_2"), new LightData(0, 3)),
+            Map.entry(Identifier.parse("minecraft:flowing_water_3"), new LightData(0, 3)),
+            Map.entry(Identifier.parse("minecraft:flowing_water_4"), new LightData(0, 3)),
+            Map.entry(Identifier.parse("minecraft:flowing_water_5"), new LightData(0, 3)),
+            Map.entry(Identifier.parse("minecraft:flowing_water_6"), new LightData(0, 3)),
+            Map.entry(Identifier.parse("minecraft:flowing_water_7"), new LightData(0, 3)),
+            Map.entry(Identifier.parse("minecraft:flowing_lava_1"), new LightData(15, 0)),
+            Map.entry(Identifier.parse("minecraft:flowing_lava_2"), new LightData(15, 0)),
+            Map.entry(Identifier.parse("minecraft:flowing_lava_3"), new LightData(15, 0)),
+            Map.entry(Identifier.parse("minecraft:flowing_lava_4"), new LightData(15, 0)),
+            Map.entry(Identifier.parse("minecraft:flowing_lava_5"), new LightData(15, 0)),
+            Map.entry(Identifier.parse("minecraft:flowing_lava_6"), new LightData(15, 0)),
+            Map.entry(Identifier.parse("minecraft:flowing_lava_7"), new LightData(15, 0)),
+            // The comparator's whole directional/mode family (the
+            // powered pair included): a non-cube that never emits
+            // (the reference's comparator carries no setLight).
+            Map.entry(Identifier.parse("minecraft:comparator_east_compare"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:comparator_east_subtract"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:comparator_south_compare"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:comparator_south_subtract"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:comparator_west_compare"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:comparator_west_subtract"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:comparator_north_compare"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:comparator_north_subtract"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:powered_comparator_east_compare"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:powered_comparator_east_subtract"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:powered_comparator_south_compare"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:powered_comparator_south_subtract"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:powered_comparator_west_compare"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:powered_comparator_west_subtract"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:powered_comparator_north_compare"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:powered_comparator_north_subtract"), new LightData(0, 0)),
             Map.entry(Identifier.parse("minecraft:vine"), new LightData(0, 0)));
 
     /**
