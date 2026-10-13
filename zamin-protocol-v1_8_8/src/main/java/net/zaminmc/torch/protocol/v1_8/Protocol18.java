@@ -261,6 +261,16 @@ final class Protocol18 {
      * the synced slot 13 — 0 the archer, 1 the wither variant).
      */
     static final int SKELETON_TYPE_METADATA_INDEX = 13;
+    /**
+     * The short metadata type (the 1.8 DataWatcher order: 1 short — the
+     * enderman's carried block rides it).
+     */
+    static final int METADATA_TYPE_SHORT = 1;
+    /**
+     * The enderman's screaming byte (EndermanEntity.registerSyncedData line
+     * 82: the synced slot 18) — the client swaps the jaw texture from it.
+     */
+    static final int ENDERMAN_SCREAMING_METADATA_INDEX = 18;
     // The wolf's block (WolfEntity.registerSyncedData): the index-16 state
     // byte (TameableEntity's sitting 0x1 | tamed 0x4 bits + the wolf's own
     // angry 0x2), the 17 owner string, the 18 health float (the client's

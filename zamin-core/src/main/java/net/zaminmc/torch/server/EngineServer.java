@@ -2511,6 +2511,16 @@ public final class EngineServer implements Server, EngineBridge {
             // The killer's Looting rides the death loot walk (the reference's
             // die() reading getLootingLevel off the killer entity).
             mob.setLootingLevel(EnchantmentHelper.lootingLevel(held));
+            // The enderman's player-hand marker (Slice 19d — takeDamage
+            // lines 291-296): the melee wound's own anger carrier; the
+            // creative hand calms instead (the reference's own branch).
+            if (mob.type() == net.zaminmc.torch.server.entity.MobType.ENDERMAN) {
+                if (attacker.gamemode() == GameMode.CREATIVE) {
+                    mob.setEndermanAngry(false);
+                } else {
+                    mob.setEndermanAttackedByPlayer(true);
+                }
+            }
             boolean landed = mobManager.hurt(mob, damage, kbYaw);
             if (landed) {
                 // LivingEntity.takeDamage lines 678-680: a player's landed
@@ -8744,6 +8754,61 @@ public final class EngineServer implements Server, EngineBridge {
         }
 
         /**
+         * The enderman's pickup (Slice 19d — PickUpBlockGoal.tick lines
+         * 452-465): the world's block leaves for the body's hands — the
+         * write lands, the carry completes, the wire's state flips. The
+         * host re-check keeps the intent honest (the roll's read and the
+         * write share the same tick lane, but a crossed write rolls
+         * empty-handed).
+         */
+        @Override
+        public void onEndermanPickup(net.zaminmc.torch.server.entity.MobEntity mob) {
+            BlockPosition at = new BlockPosition(mob.endermanPickupX(),
+                    mob.endermanPickupY(), mob.endermanPickupZ());
+            var type = world.getBlock(at);
+            if (type.identifier().value().equals("air")) {
+                return; // the cell changed under the roll
+            }
+            mob.completeEndermanPickup(type);
+            world.setBlock(at, blockRegistry.require(
+                    net.zaminmc.torch.util.Identifier.parse("minecraft:air")));
+        }
+
+        /**
+         * The enderman's place (Slice 19d — PlaceBlockGoal.tick lines
+         * 483-496): the carried block lands at the intent's cell — the
+         * re-check keeps the air-and-support gate honest.
+         */
+        @Override
+        public void onEndermanPlace(net.zaminmc.torch.server.entity.MobEntity mob) {
+            BlockPosition at = new BlockPosition(mob.endermanPlaceX(),
+                    mob.endermanPlaceY(), mob.endermanPlaceZ());
+            var type = world.getBlock(at);
+            var below = world.getBlock(at.offset(0, -1, 0));
+            if (!type.identifier().value().equals("air")
+                    || below.identifier().value().equals("air")) {
+                return; // the cell changed under the roll
+            }
+            var carried = mob.endermanCarried();
+            if (carried == null) {
+                return;
+            }
+            world.setBlock(at, carried);
+            mob.completeEndermanPlace();
+        }
+
+        /**
+         * The enderman's state flip (Slice 19d): the carried short + the
+         * screaming byte republish through the adapter's fan-out.
+         */
+        @Override
+        public void onEndermanStateChanged(net.zaminmc.torch.server.entity.MobEntity mob) {
+            for (MobManager.Listener listener : mobListeners) {
+                listener.onEndermanStateChanged(mob);
+            }
+        }
+
+        /**
          * The snow golem's volley (Slice 17d — SnowGolemEntity.
          * doRangedAttack lines 89-96): the snowball launches from the
          * golem's own height, aimed at the target's eye band pulled to the
@@ -9296,6 +9361,15 @@ public final class EngineServer implements Server, EngineBridge {
 
                 @Override public String heldItem() {
                     return heldId;
+                }
+
+                @Override public String helmetItem() {
+                    // The armor head slot's identity (isLookedAtBy's pumpkin
+                    // gate — the engine's armor order mirrors the
+                    // historical inventory.armor[3]).
+                    var helmet = session.inventory().armorAt(0);
+                    return helmet == null || helmet.isEmpty() || helmet.type() == null
+                            ? null : helmet.type().identifier().toString();
                 }
             };
         }

@@ -2798,6 +2798,19 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                         | Protocol18.GUARDIAN_BEAM_METADATA_INDEX);
                 out.writeInt(mob.guardianBeamTargetId());
             }
+        } else if (mob.type() == net.zaminmc.torch.server.entity.MobType.ENDERMAN) {
+            // The enderman's block (registerSyncedData lines 78-83): the
+            // carried block's Short at 16 (Block.serialize's combined
+            // id<<4 | meta — the client draws the held block from it) and
+            // the screaming byte at 18 (the jaw texture swap). The 17 byte
+            // stays unwritten like the reference itself (its own legacy
+            // slot never updates in 1.8.8).
+            out.writeByte((Protocol18.METADATA_TYPE_SHORT << 5)
+                    | Protocol18.KIND_STATUS_METADATA_INDEX);
+            out.writeShort(endermanCarriedShort(mob));
+            out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5)
+                    | Protocol18.ENDERMAN_SCREAMING_METADATA_INDEX);
+            out.writeByte(mob.endermanAngry() ? 1 : 0);
         } else if (mob.type() == net.zaminmc.torch.server.entity.MobType.PIG) {
             out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | Protocol18.PIG_SADDLE_METADATA_INDEX);
             out.writeByte(mob.pigSaddled() ? 1 : 0);
@@ -3096,6 +3109,48 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeByte(mob.blazeFireActive() ? 1 : 0);
         out.writeByte(Protocol18.METADATA_TERMINATOR);
         channel.writeAndFlush(out);
+    }
+
+    /**
+     * Set Entity Metadata (0x1C) for the enderman's whole block (Slice
+     * 19d): the carried block's Short at 16 and the screaming byte at
+     * 18 — both republished on either flip. Any thread.
+     */
+    void sendEndermanState(MobEntity mob) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(16);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_ENTITY_METADATA);
+        ByteBufOps.writeVarInt(out, mob.entityId());
+        out.writeByte((Protocol18.METADATA_TYPE_SHORT << 5)
+                | Protocol18.KIND_STATUS_METADATA_INDEX);
+        out.writeShort(endermanCarriedShort(mob));
+        out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5)
+                | Protocol18.ENDERMAN_SCREAMING_METADATA_INDEX);
+        out.writeByte(mob.endermanAngry() ? 1 : 0);
+        out.writeByte(Protocol18.METADATA_TERMINATOR);
+        channel.writeAndFlush(out);
+    }
+
+    /**
+     * The carried block's wire form (setCarriedBlock line 273 —
+     * {@code Block.serialize(state) & 65535}): the legacy id shifted
+     * into the high nibble with the variant metadata below it; empty
+     * hands answer 0 (air).
+     */
+    private static int endermanCarriedShort(MobEntity mob) {
+        var carried = mob.endermanCarried();
+        if (carried == null) {
+            return 0;
+        }
+        var legacy = LegacyBlockIds.legacyId(carried.identifier());
+        if (legacy.isEmpty()) {
+            return 0;
+        }
+        return ((legacy.get() & 0xFFF) << 4)
+                | (LegacyBlockIds.metadataOf(carried.identifier()) & 0xF);
     }
 
     /**
