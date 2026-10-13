@@ -152,6 +152,12 @@ public final class ComputeSubsystem {
     private final Thread[] workers;
     private final int admissionCapacity;
 
+    /** @return the queued-but-not-yet-picked computations right now
+     *  (the public AsyncCompute read surface's own). */
+    public int queuedCount() {
+        return admission.size();
+    }
+
     /**
      * Creates the subsystem with the default admission capacity and a
      * conservative worker count ({@code max(1, cores / 4)} capped at
