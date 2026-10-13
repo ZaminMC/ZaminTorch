@@ -4075,3 +4075,23 @@ normal terrain, no whitelist, the whole world one region). The protocol
 suite green after the accessor rename (77 tests).
 
 The API ledger's Configuration row graduates NOT AUDITED → IMPLEMENTED.
+
+## Slice 23e — the world-deltas audit decision (the last NOT AUDITED row)
+
+**The decision:** `WorldDeltaSnapshot`'s row graduates NOT AUDITED →
+AUDITED with the recorded rationale — the delta state's every
+observable value already reads through the public World surface
+(`World.getBlock` the authoritative cell, `World.totalTicks`/
+`timeOfDay` the clocks); the delta-set enumeration itself stays internal
+because its meaning is bound to the delta persistence format (the flat
+generator's determinism contract, §541), not to a stable gameplay
+contract. A public "modified-since-generation" enumeration would be a
+NEW capability, not an exposure of an existing one; it rides its own
+wave if plugin demand names it (§27.3's rule: record the inaccessible
+capability with the concrete reason).
+
+**The milestone:** the capability ledger now carries zero NOT AUDITED
+rows — every engine subsystem behind §27.3's audit list has either a
+public entry point with a plugin-facing test (IMPLEMENTED) or a
+recorded decision naming exactly what stands between the engine and the
+surface (AUDITED with rationale).
