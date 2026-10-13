@@ -8449,6 +8449,19 @@ public final class EngineServer implements Server, EngineBridge {
             for (MobManager.Listener listener : mobListeners) {
                 listener.onMobAttackedPlayer(mob, target, damage);
             }
+            // Slice 18b — the cave spider's venomous bite
+            // (CaveSpiderEntity.tryDamage lines 25-45): a landed hit
+            // poisons by the difficulty — NORMAL the 7-second curse, HARD
+            // the 15-second, the weaker rows nothing.
+            if (mob.type() == net.zaminmc.torch.server.entity.MobType.CAVE_SPIDER) {
+                int poisonSeconds = difficulty() == 2 ? 7 : difficulty() == 3 ? 15 : 0;
+                if (poisonSeconds > 0) {
+                    potionSystem.add(target,
+                            new net.zaminmc.torch.server.potion.StatusEffectInstance(
+                                    net.zaminmc.torch.server.potion.StatusEffects.POISON,
+                                    poisonSeconds * 20, 0));
+                }
+            }
             // Slice 16b — AttackWithOwnerGoal: the victim's standing tamed
             // wolves join the fight on the attacker (the owner's own
             // getAttacker + getLastAttackedTime change, the event-site arm).
