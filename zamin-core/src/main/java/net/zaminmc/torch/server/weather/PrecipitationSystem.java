@@ -26,11 +26,15 @@ import java.util.Random;
  * </ul>
  *
  * <p>The third arm ({@code randomPrecipitationTick} — the cauldron's rain
- * fill) ledgers with the cauldron family: the engine registers none. The
- * engine's biome set answers warm everywhere (the ocean pair's 0.5 is the
- * coldest — Biome's own registration table), so both arms stay no-ops on
- * generated terrain exactly like vanilla plains; the frozen families the
- * generator adds later arm the same walk without a change here.</p>
+ * fill) landed with the cauldron family (Slice 23i): the same 1-in-16
+ * walk dispatches the block's own precipitation tick on the surface
+ * cell while it rains in a rainy biome.</p>
+ *
+ * <p>The engine's biome set answers warm everywhere (the ocean pair's 0.5 is
+ * the coldest — Biome's own registration table), so the freeze/snow arms
+ * stay no-ops on generated terrain exactly like vanilla plains; the frozen
+ * families the generator adds later arm the same walk without a change
+ * here.</p>
  *
  * <p>Stream envelope (the 20c shape): the system owns its Random + LCG —
  * the reference shares one stream with the lightning and random-tick arms,
@@ -77,6 +81,20 @@ public final class PrecipitationSystem {
 
         /** Writes the snow layer (the snow's commit). */
         void placeSnowAt(int x, int y, int z);
+
+        /**
+         * The column's biome rain flag ({@code biome.isRainy()} — the
+         * cauldron fill's own gate; the desert's dry columns refuse it).
+         */
+        boolean isRainyBiomeAt(int x, int z);
+
+        /**
+         * The block's own precipitation tick ({@code randomPrecipitationTick}
+         * — the cauldron's rain fill today): the engine dispatches on the
+         * block at the cell; the random is the walk's own stream (the
+         * envelope note below).
+         */
+        void randomPrecipitationTick(int x, int y, int z, Random random);
     }
 
     private final Surface surface;
@@ -133,8 +151,15 @@ public final class PrecipitationSystem {
             surface.placeSnowAt(x, surfaceY, z);
             snows.add(new int[]{x, surfaceY, z});
         }
-        // The randomPrecipitationTick arm (the cauldron's rain fill)
-        // ledgers with the cauldron family — the engine registers none.
+        // The randomPrecipitationTick arm (lines 337-339): the block AT
+        // the surface cell (the cauldron standing in the open IS the
+        // precipitation-blocking block), only while it rains and the
+        // biome is rainy. The block's own roll (the cauldron's 1-in-20)
+        // rides the walk's stream — the envelope note: the reference's
+        // world-random role played by this system's own Random.
+        if (raining && surface.isRainyBiomeAt(x, z)) {
+            surface.randomPrecipitationTick(x, freezeY, z, random);
+        }
     }
 
     /**

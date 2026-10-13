@@ -4218,3 +4218,58 @@ RangedCombat, the dispenser batch, ItemEntityManagerTest).
 The §6 mob-spawn row's omission closes for the projectile and
 item-entity families (the vehicle spawn event rides the vehicle
 family's own wave).
+
+## Slice 23i — the cauldron family (vanilla 1:1 — the weather row's third arm closes)
+
+**The block:** `server/cauldron/CauldronBlocks` — the four flattened
+LEVEL states (`minecraft:cauldron` + `cauldron_level1..3`, legacy 118
+with the level on the nibble, `of(level)`/`levelOf`), registered in the
+boot chain; the behavior row (Block.java line 1242's strength 2.0, the
+cauldron-item drop whatever the level) + the light row (opacity 0 —
+CauldronBlock line 57's isSolidRender false, Block line 216's rule) +
+the CAULDRON item (380 — Item.java line 676) with the wire's ITEM_OVERRIDES
+split (the block keeps 118, the item 380).
+
+**The use arms** (CauldronBlock.use lines 77-160, through
+useItemOnBlockOnTick's dispatch): the water bucket fills any non-full
+cauldron to 3 (survival swaps for the empty bucket), the glass bottle
+drains one level into the water potion (metadata 0, the bottle pays one
+unit, a full inventory drops the potion at the rim), both arms consume
+the use whatever the level, and anything else falls through to the
+placement proposal — the armor/banner wash arms omit CLEANLY (the
+engine's armor carries no color model: hasColor answers false exactly
+like the reference's uncolored leather; no banner item exists).
+
+**The rain fill** (the weather row's ledgered third arm,
+randomPrecipitationTick lines 168-175): the same 1-in-16 walk dispatches
+the block's own tick on the surface cell while it rains in a rainy biome
+— the 1-in-20 `nextInt(20) == 1` roll, the level+1 write under the 3
+cap. The Surface interface gains isRainyBiomeAt + randomPrecipitationTick;
+the Biome enum gains the rain flag (disableRain's model: the desert +
+hell false, reference lines 76/97).
+
+**The off-by-one the third arm exposed:** the EngineServer's
+precipitationHeight answered the topmost BLOCK instead of the
+reference's getPrecipitationHeight (the first FREE cell above) — both
+frozen arms stayed no-ops whatever the cell (the warm-biome temperature
+gate masked it), but the cauldron dispatch read height-1 and found air.
+Both surfaces (the lightning + the precipitation) now answer
+`surfaceY + 1` 1:1; the lightning suite still green.
+
+**The rest:** the comparator's analog row (the level IS the signal,
+lines 188-195) + the burning player's douse in the fire walk
+(onEntityCollision lines 67-74: the feet dipping to
+`y + (6+3*level)/16` extinguish and spend one level). The burning MOB's
+douse ledgers with the mob block-query extension (the WorldQuery
+carries no block-type read today).
+
+**The latent landmine fixed:** throwFromPlayer never guarded the empty
+stack — pickUp's empty leftover (everything fit) reached the ItemEntity
+ctor's "cannot be empty" throw and killed the whole tick task. The
+cauldron's bucket arm exposed it; the guard now answers the obvious
+contract (an empty overflow throws nothing).
+
+Tests: CauldronAcceptanceTest (4) + the precipitation stub's two new
+Surface methods. The neighboring suites green (weather batch, lightning,
+fire, block behavior/data, world model, block interaction; the protocol
+module compiles).

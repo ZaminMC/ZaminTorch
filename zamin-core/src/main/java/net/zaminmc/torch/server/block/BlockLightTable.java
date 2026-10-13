@@ -431,6 +431,14 @@ public final class BlockLightTable {
             entries.put(Identifier.parse("minecraft:hopper_" + facing + "_disabled"),
                     new LightData(0, 0));
         }
+        // The cauldron (CauldronBlock line 57's isSolidRender false — Block
+        // line 216's opacity 0): the rim shape passes light untouched,
+        // whatever the water level.
+        entries.put(Identifier.parse("minecraft:cauldron"), new LightData(0, 0));
+        for (int level = 1; level <= 3; level++) {
+            entries.put(Identifier.parse("minecraft:cauldron_level" + level),
+                    new LightData(0, 0));
+        }
         for (int bits = 0; bits < 16; bits++) {
             StringBuilder wire = new StringBuilder("minecraft:tripwire");
             if ((bits & 1) != 0) {

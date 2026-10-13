@@ -295,6 +295,10 @@ public final class BuiltinItems {
             Identifier.parse("minecraft:cooked_fish"), "Cooked Fish", 64);
     public static final EngineItemType BREWING_STAND = new EngineItemType(
             Identifier.parse("minecraft:brewing_stand"), "Brewing Stand", 64);
+    // The cauldron item (reference Item.java line 676: legacy 380, the
+    // PlaceableItem of the cauldron block, the brewing tab).
+    public static final EngineItemType CAULDRON = new EngineItemType(
+            Identifier.parse("minecraft:cauldron"), "Cauldron", 64);
     public static final EngineItemType OAK_FENCE = new EngineItemType(
             Identifier.parse("minecraft:oak_fence"), "Oak Fence", 64);
     // The bed item (community items.json: legacy 355) — places both halves.
@@ -701,6 +705,7 @@ public final class BuiltinItems {
                 STONE_BRICKS,
                 FISH, COOKED_FISH,
                 BREWING_STAND,
+                CAULDRON,
                 OAK_SLAB, STONE_SLAB, COBBLESTONE_SLAB, SANDSTONE_SLAB,
                 OAK_STAIRS, COBBLESTONE_STAIRS,
                 RAIL, BOAT, MINECART, CHEST_MINECART,

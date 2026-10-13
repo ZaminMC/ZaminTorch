@@ -545,6 +545,13 @@ final class LegacyBlockIds {
             }
             merged.put(Identifier.parse(name.toString()), 117);
         }
+        // The cauldron family: legacy 118 — the LEVEL property (0-3) rides
+        // the nibble (CauldronBlock lines 198-205: the level IS the
+        // metadata).
+        merged.put(Identifier.parse("minecraft:cauldron"), 118);
+        for (int level = 1; level <= 3; level++) {
+            merged.put(Identifier.parse("minecraft:cauldron_level" + level), 118);
+        }
         // The tripwire family (Slice 10c): the wire 132, the hook 131 — the
         // four stored bits ride the wire's nibble, the facing/attached/
         // powered the hook's.
@@ -625,7 +632,10 @@ final class LegacyBlockIds {
             // The brewing stand item (Slice 11e): the block family keeps
             // legacy 117, the item form is 379 (the same split as the
             // hopper's 410).
-            Map.entry(Identifier.parse("minecraft:brewing_stand"), 379));
+            Map.entry(Identifier.parse("minecraft:brewing_stand"), 379),
+            // The cauldron item (Item.java line 676): legacy 380 — the
+            // block family keeps 118, the item form diverges.
+            Map.entry(Identifier.parse("minecraft:cauldron"), 380));
 
     /** The damage-aware reverse map is declared after {@link #METADATA}. */
 
@@ -870,6 +880,11 @@ final class LegacyBlockIds {
                     ? value.substring(0, value.length() - "_triggered".length()) : value;
             String facing = rest.substring(rest.lastIndexOf('_') + 1);
             return directionNibble(facing) | (triggered ? 8 : 0);
+        }
+        if (value.startsWith("cauldron_level")) {
+            // The LEVEL property rides the nibble whole — CauldronBlock
+            // lines 203-205 (getMetadataFromState = state.get(LEVEL)).
+            return Integer.parseInt(value.substring("cauldron_level".length()));
         }
         if (value.startsWith("brewing_stand") && value.length() > "brewing_stand".length()) {
             // has_bottle_i << i — BrewingStandBlock lines 145-153 (bit i =
