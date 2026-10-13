@@ -223,6 +223,16 @@ public final class MobEntity implements LivingEntity {
         default boolean biomeHotAt(double x, double y, double z) {
             return false;
         }
+
+        /**
+         * The block identifier of the cell (Slice 18c — the silverfish's
+         * InfestStone roll reads the adjacent block's identity). The
+         * default answers null so stub worlds never host the infestation;
+         * the real query maps the world's own block read.
+         */
+        default net.zaminmc.torch.util.Identifier blockIdAt(int x, int y, int z) {
+            return null;
+        }
     }
 
     /**
@@ -827,6 +837,8 @@ public final class MobEntity implements LivingEntity {
             tickEndermiteClock(); // the lifetime despawn (17c)
         } else if (type == MobType.SNOW_GOLEM) {
             tickSnowGolemEnvironment(); // the melts (17d)
+        } else if (type == MobType.SILVERFISH) {
+            tickSilverfishClock(); // the wake-up + the infest rolls (18c)
         }
         if (hurtFlash > 0) {
             hurtFlash--;
@@ -1920,6 +1932,97 @@ public final class MobEntity implements LivingEntity {
     /** @return the fire-active flag (the synced slot-16 bit). */
     public boolean blazeFireActive() {
         return blazeFireActive;
+    }
+
+    // --------------------------------------------------------------
+    // The silverfish (Slice 18c — SilverfishEntity's egg-hosting life)
+    // --------------------------------------------------------------
+
+    /** WakeUpFriendsGoal's cooldown (armed by the hurt walk, 20 ticks). */
+    private int silverfishWakeCooldown;
+    /** Set when the wake-up cooldown expires; the manager consumes. */
+    private boolean pendingSilverfishWake;
+    /** Set when the infest roll fires; the manager consumes. */
+    private boolean pendingSilverfishInfest;
+    /** The infest target cell (InfestStoneGoal's dir offset). */
+    private int silverfishInfestX;
+    private int silverfishInfestY;
+    private int silverfishInfestZ;
+
+    /**
+     * Arms the wake-up (WakeUpFriendsGoal.onDamaged lines 198-201): the
+     * entity-sourced or magic hurt sets the 20-tick cooldown — the swarm
+     * scan fires when it expires (the already-armed clock never resets).
+     */
+    public void armSilverfishWake() {
+        if (silverfishWakeCooldown == 0) {
+            silverfishWakeCooldown = 20;
+        }
+    }
+
+    /**
+     * The silverfish's clock (WakeUpFriendsGoal.tick lines 210-236 +
+     * InfestStoneGoal.canStart lines 142-163): the wake-up countdown
+     * ends in the scan verdict; the infest roll fires only with no
+     * target in sight — a 1-in-10 chance to slip into an adjacent
+     * infestable block (the body disappears into the egg).
+     */
+    private void tickSilverfishClock() {
+        if (silverfishWakeCooldown > 0) {
+            silverfishWakeCooldown--;
+            if (silverfishWakeCooldown <= 0) {
+                pendingSilverfishWake = true;
+            }
+        }
+        // InfestStoneGoal.canStart: the targetless body rolls the
+        // 1-in-10; the direction pick walks the six facings, the
+        // adjacent cell read through the world's block identity.
+        if (visibleTarget == null && random.nextInt(10) == 0) {
+            int facing = random.nextInt(6);
+            int dx = facing == 0 ? 1 : facing == 1 ? -1 : 0;
+            int dy = facing == 2 ? 1 : facing == 3 ? -1 : 0;
+            int dz = facing == 4 ? 1 : facing == 5 ? -1 : 0;
+            int bx = (int) Math.floor(position.x()) + dx;
+            int by = (int) Math.floor(position.y() + 0.5) + dy;
+            int bz = (int) Math.floor(position.z()) + dz;
+            net.zaminmc.torch.util.Identifier block = world.blockIdAt(bx, by, bz);
+            if (block != null
+                    && net.zaminmc.torch.server.block.InfestedBlocks.canBeInfested(block)) {
+                pendingSilverfishInfest = true;
+                silverfishInfestX = bx;
+                silverfishInfestY = by;
+                silverfishInfestZ = bz;
+            }
+        }
+    }
+
+    /** @return and clears the wake-up scan verdict. */
+    public boolean consumeSilverfishWake() {
+        boolean value = pendingSilverfishWake;
+        pendingSilverfishWake = false;
+        return value;
+    }
+
+    /** @return and clears the infest verdict. */
+    public boolean consumeSilverfishInfest() {
+        boolean value = pendingSilverfishInfest;
+        pendingSilverfishInfest = false;
+        return value;
+    }
+
+    /** @return the infest target cell's x. */
+    public int silverfishInfestX() {
+        return silverfishInfestX;
+    }
+
+    /** @return the infest target cell's y. */
+    public int silverfishInfestY() {
+        return silverfishInfestY;
+    }
+
+    /** @return the infest target cell's z. */
+    public int silverfishInfestZ() {
+        return silverfishInfestZ;
     }
 
     /** @return and clears the fireball volley verdict. */
@@ -4156,6 +4259,10 @@ public final class MobEntity implements LivingEntity {
             // CaveSpiderEntity.getEyeHeight line 53: the flat 0.45F — not
             // the generic 0.85 share (0.425) the default would give.
             return 0.45;
+        }
+        if (type == MobType.SILVERFISH) {
+            // SilverfishEntity.getEyeHeight line 45: the flat 0.1F.
+            return 0.1;
         }
         return type.height * 0.85;
     }

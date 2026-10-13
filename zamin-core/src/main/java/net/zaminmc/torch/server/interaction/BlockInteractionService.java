@@ -440,6 +440,16 @@ public final class BlockInteractionService {
                         : net.zaminmc.torch.server.enchantment.EnchantmentHelper
                                 .fortuneLevel(heldStack));
         wearHeldTool(player, behavior);
+        // The infested egg's burst (InfestedBlock.dropItems lines 79-88):
+        // the survival break spawns the silverfish at the block's own
+        // position — the doTileDrops gamerule gates the reference's own
+        // arm (the engine's default-on stand-in).
+        if (net.zaminmc.torch.server.block.InfestedBlocks.isInfested(current.identifier())) {
+            InfestedBurstHook burst = infestedBurstHook;
+            if (burst != null) {
+                burst.onEggBroken(target);
+            }
+        }
         SurvivalXpHook xp = survivalXpListener;
         if (xp != null) {
             xp.onSurvivalBreak(player, current, target); // the award sees the broken block
@@ -537,6 +547,24 @@ public final class BlockInteractionService {
     public void setBlockBrokenListener(
             java.util.function.BiConsumer<BlockPosition, net.zaminmc.torch.block.BlockType> listener) {
         this.blockBrokenListener = listener;
+    }
+
+    /**
+     * The infested-egg burst (Slice 18c — InfestedBlock.dropItems lines
+     * 79-88): a SURVIVAL break of an egg spawns the silverfish at the
+     * block's own position (the creative break skips the reference's
+     * afterMinedByPlayer arm entirely, so no burst). Tick-thread context.
+     */
+    public interface InfestedBurstHook {
+        void onEggBroken(BlockPosition position);
+    }
+
+    /** The egg burst sink (the engine's mob-spawn wiring). */
+    private volatile InfestedBurstHook infestedBurstHook;
+
+    /** Registers the egg-burst hook (the engine's silverfish wiring). */
+    public void setInfestedBurstHook(InfestedBurstHook hook) {
+        this.infestedBurstHook = hook;
     }
 
     /**

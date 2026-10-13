@@ -99,6 +99,23 @@ public final class MobManager {
         }
 
         /**
+         * The silverfish's wake-up scan expired (WakeUpFriendsGoal.tick
+         * lines 210-236): the engine walks the 10/5/10 box and breaks
+         * every monster egg it finds (each break spawning its silverfish),
+         * the reference's own 50% early stop.
+         */
+        default void onSilverfishWake(MobEntity mob) {
+        }
+
+        /**
+         * The silverfish's infest roll fired (InfestStoneGoal.start lines
+         * 171-187): the engine writes the egg for the adjacent host block
+         * and removes the body (the reference's animateSpawn + remove).
+         */
+        default void onSilverfishInfest(MobEntity mob) {
+        }
+
+        /**
          * The ghast loosed its charged fireball at the target (the launch
          * rides the engine's projectile system; the 1008 launch sound
          * lands with it).
@@ -772,6 +789,18 @@ public final class MobManager {
                     listener.onMobBlazeFireChanged(mob);
                 }
             }
+            // The silverfish's egg-hosting verdicts (Slice 18c): the
+            // wake-up scan's expiry and the infest roll's fire.
+            if (mob.consumeSilverfishWake()) {
+                for (Listener listener : listeners) {
+                    listener.onSilverfishWake(mob);
+                }
+            }
+            if (mob.consumeSilverfishInfest()) {
+                for (Listener listener : listeners) {
+                    listener.onSilverfishInfest(mob);
+                }
+            }
             // The guardian's charge cycle (Slice 17a — the laser family):
             // the beam id's live resolution over the session registry (the
             // wire's slot 17 carries the target), the beam's Event 21 at
@@ -1207,6 +1236,17 @@ public final class MobManager {
             if (amount <= 0) {
                 return false;
             }
+        }
+        // The silverfish's swarm wake (Slice 18c —
+        // SilverfishEntity.takeDamage lines 77-87): the entity-sourced or
+        // magic hurt arms the 20-tick cooldown; the environmental family
+        // never wakes the nest.
+        if (mob.type() == MobType.SILVERFISH
+                && (cause == net.zaminmc.torch.event.DamageCause.MELEE
+                    || cause == net.zaminmc.torch.event.DamageCause.PROJECTILE
+                    || cause == net.zaminmc.torch.event.DamageCause.EXPLOSION
+                    || cause == net.zaminmc.torch.event.DamageCause.MAGIC)) {
+            mob.armSilverfishWake();
         }
         mob.hurt(amount);
         mob.knockbackFrom(attackerYaw);

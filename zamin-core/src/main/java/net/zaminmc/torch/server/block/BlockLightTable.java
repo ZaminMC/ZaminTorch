@@ -234,6 +234,13 @@ public final class BlockLightTable {
             Map.entry(Identifier.parse("minecraft:cracked_stone_bricks"), new LightData(0, 15)),
             Map.entry(Identifier.parse("minecraft:chiseled_stone_bricks"), new LightData(0, 15)),
             Map.entry(Identifier.parse("minecraft:infested_stone_bricks"), new LightData(0, 15)),
+            // The infested family (Slice 18c — the egg's six flattened
+            // blocks): plain opaques like their hosts.
+            Map.entry(Identifier.parse("minecraft:infested_stone"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:infested_cobblestone"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:infested_mossy_stone_bricks"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:infested_cracked_stone_bricks"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:infested_chiseled_stone_bricks"), new LightData(0, 15)),
             Map.entry(Identifier.parse("minecraft:stone_brick_slab"), new LightData(0, 15)),
             Map.entry(Identifier.parse("minecraft:mob_spawner"), new LightData(0, 0)),
             Map.entry(Identifier.parse("minecraft:iron_door_west"), new LightData(0, 15)),

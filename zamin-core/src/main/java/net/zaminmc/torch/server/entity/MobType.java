@@ -138,10 +138,17 @@ public enum MobType {
             List.of(new ItemRoll(BuiltinItems.STRING, 0, 2)),
             "mob.spider.say", "mob.spider.say", "mob.spider.death"),
 
-    /** The stronghold's spawner mob (Slice 12g): the infestation. */
+    /**
+     * The stronghold's infestation (Slice 18c — SilverfishEntity 1:1): the
+     * 0.4x0.3/8-health body, the 1.0 ATTACK_DAMAGE (initAttributes line
+     * 53), the flat 0.1 eye, the 0.25 walk — the ARTHROPOD family, no
+     * drops, and the egg-hosting life (the wake-up swarm, the
+     * infest-into-stone). No natural spawn rows (the eggs and the spawner
+     * are the only sources — the reference's own spawnless kind).
+     */
     SILVERFISH(60, 0.4, 0.3, 8.0f, 0.045, true, Traits.NONE,
             List.of(),
-            "mob.silverfish.say", "mob.silverfish.hit", "mob.silverfish.kill"),
+            "mob.silverfish.say", "mob.silverfish.hit", "mob.silverfish.kill", 1.0f),
 
     /**
      * The fortress's spawner mob (Slice 18a — the nether's ranged fire,

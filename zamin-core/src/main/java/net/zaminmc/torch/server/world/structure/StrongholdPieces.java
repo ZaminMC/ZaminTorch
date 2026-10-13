@@ -1448,8 +1448,8 @@ public final class StrongholdPieces {
             this.setBlockState(world, frame(palette, west, random), 7, 3, 9, clip);
             this.setBlockState(world, frame(palette, west, random), 7, 3, 10, clip);
             this.setBlockState(world, frame(palette, west, random), 7, 3, 11, clip);
-            // The silverfish spawner (lines 381-393): the block lands; the
-            // spawner block entity ledgers with the mob-spawner slice.
+            // The silverfish spawner (lines 381-393): the block and its
+            // own mob (setType("Silverfish") — Slice 18c wired the kind).
             if (!this.hasSpawner) {
                 int spawnerY = this.transformY(3);
                 int spawnerX = this.transformX(5, 6);
@@ -1457,6 +1457,8 @@ public final class StrongholdPieces {
                 if (clip.contains(spawnerX, spawnerY, spawnerZ)) {
                     this.hasSpawner = true;
                     this.setBlockState(world, palette.mobSpawner(), 5, 3, 6, clip);
+                    world.placeMobSpawner(spawnerX, spawnerY, spawnerZ,
+                            net.zaminmc.torch.server.entity.MobType.SILVERFISH);
                 }
             }
             return true;

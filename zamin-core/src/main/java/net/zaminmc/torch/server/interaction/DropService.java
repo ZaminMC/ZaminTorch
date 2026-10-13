@@ -6,6 +6,7 @@ import net.zaminmc.torch.item.ItemType;
 import net.zaminmc.torch.server.block.BlockBehavior;
 import net.zaminmc.torch.server.block.BlockBehaviorTable;
 import net.zaminmc.torch.server.item.BuiltinItems;
+import net.zaminmc.torch.util.Identifier;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -63,6 +64,27 @@ public final class DropService {
         }
         if (!BlockBehaviorTable.canHarvest(behavior, heldTool)) {
             return List.of(); // historical: breakable but yields nothing by hand
+        }
+        // The infested family (Slice 18c — InfestedBlock.getSilkTouchDrop
+        // lines 59-76 + getBaseDropCount 0): the egg never drops by hand
+        // (the silverfish burst is the break path's spawn, not a drop
+        // row); under silk the HOST's item — the stone brick variants
+        // riding the item's damage field (mossy 1, cracked 2, chiseled
+        // 3).
+        if (net.zaminmc.torch.server.block.InfestedBlocks.isInfested(broken.identifier())) {
+            if (!silkTouch) {
+                return List.of();
+            }
+            Identifier hostItem = net.zaminmc.torch.server.block.InfestedBlocks.silkDropItem(
+                    broken.identifier());
+            ItemType itemType = BuiltinItems.lookup(hostItem).orElse(null);
+            if (itemType == null) {
+                throw new IllegalStateException(
+                        "Infested egg's silk item is unregistered: " + hostItem);
+            }
+            return List.of(new ItemStack(itemType, 1,
+                    net.zaminmc.torch.server.block.InfestedBlocks.silkDropDamage(
+                            broken.identifier())));
         }
         // The silk arm: the block's own item (the reference's
         // getSilkTouchDrop — Item.byBlock with the state metadata), one

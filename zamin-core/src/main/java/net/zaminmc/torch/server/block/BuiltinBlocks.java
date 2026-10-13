@@ -383,8 +383,28 @@ public final class BuiltinBlocks {
             Identifier.parse("minecraft:cracked_stone_bricks"), "Cracked Stone Bricks", 2);
     public static final EngineBlockType CHISELED_STONE_BRICKS = new EngineBlockType(
             Identifier.parse("minecraft:chiseled_stone_bricks"), "Chiseled Stone Bricks", 3);
+    // The infested family (Slice 18c — the reference's InfestedBlock: the
+    // single MONSTER_EGG block 97 with the SIX host variants): the
+    // stonebrick egg is the stronghold's own pick (StoneBrickPicker's
+    // < 0.55 band — the wire metadata 2, the reference's Variant.
+    // STONEBRICK); the stone and cobblestone eggs are the InfestStone
+    // goal's own writes; the mossy/cracked/chiseled eggs complete the
+    // silk-drop family (the host ItemStack's damage 1/2/3).
     public static final EngineBlockType INFESTED_STONE_BRICKS = new EngineBlockType(
-            Identifier.parse("minecraft:infested_stone_bricks"), "Infested Stone Bricks", 4);
+            Identifier.parse("minecraft:infested_stone_bricks"), "Infested Stone Bricks", 2);
+    public static final EngineBlockType INFESTED_STONE = new EngineBlockType(
+            Identifier.parse("minecraft:infested_stone"), "Infested Stone", 0);
+    public static final EngineBlockType INFESTED_COBBLESTONE = new EngineBlockType(
+            Identifier.parse("minecraft:infested_cobblestone"), "Infested Cobblestone", 1);
+    public static final EngineBlockType INFESTED_MOSSY_STONE_BRICKS = new EngineBlockType(
+            Identifier.parse("minecraft:infested_mossy_stone_bricks"),
+            "Infested Mossy Stone Bricks", 3);
+    public static final EngineBlockType INFESTED_CRACKED_STONE_BRICKS = new EngineBlockType(
+            Identifier.parse("minecraft:infested_cracked_stone_bricks"),
+            "Infested Cracked Stone Bricks", 4);
+    public static final EngineBlockType INFESTED_CHISELED_STONE_BRICKS = new EngineBlockType(
+            Identifier.parse("minecraft:infested_chiseled_stone_bricks"),
+            "Infested Chiseled Stone Bricks", 5);
     public static final EngineBlockType STONE_BRICK_SLAB = new EngineBlockType(
             Identifier.parse("minecraft:stone_brick_slab"), "Stone Brick Slab", 5);
     public static final EngineBlockType MOB_SPAWNER = new EngineBlockType(
@@ -632,6 +652,11 @@ public final class BuiltinBlocks {
                 .register(CRACKED_STONE_BRICKS)
                 .register(CHISELED_STONE_BRICKS)
                 .register(INFESTED_STONE_BRICKS)
+                .register(INFESTED_STONE)
+                .register(INFESTED_COBBLESTONE)
+                .register(INFESTED_MOSSY_STONE_BRICKS)
+                .register(INFESTED_CRACKED_STONE_BRICKS)
+                .register(INFESTED_CHISELED_STONE_BRICKS)
                 .register(STONE_BRICK_SLAB)
                 .register(MOB_SPAWNER)
                 .register(IRON_DOOR_LOWER_W)
