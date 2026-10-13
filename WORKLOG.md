@@ -3912,3 +3912,33 @@ traffic today).
 Tests: AsyncComputeApiAcceptanceTest (2: the pure result delivered on
 the tick thread with its generation + the counters; the queued-cancel
 arm + the throwing computation's isolation + the survivor submission).
+
+## Slice 22i — the hopper GUI window + the contents persistence (vanilla 1:1)
+
+**The window (the reference's HopperBlock.use lines 135-146 + HopperMenu):**
+right-clicking a placed hopper opens the 41-slot menu — ContainerKind.HOPPER,
+openHopperOnTick (the lazy entity create, the carried-window close, the wire
+id), the use-dispatch arm, and the click routing (clickHopperWindowOnTick —
+mode 0 the cursor walk over the five slots through the shared WindowClicks,
+mode 1 the quick-move pair (any stack enters — the reference's plain
+InventorySlots, no filters), mode 2 the number-key exchange on the player's
+own slots, mode 4 the drop-click). The wire layout exactly the reference's:
+5 container slots, 5-31 the main inventory (engine 9-35), 32-40 the hotbar.
+
+**The wire**: Open Window 0x2D "minecraft:hopper" (5 GUI slots) + the
+authoritative 41-slot Window Items (sendHopperWindow/sendHopperWindowItems
+in the adapter, the chest family's own shape).
+
+**The entity arms**: HopperBlockEntity gains the chest's own click family
+(clickSlot over WindowClicks, dropFromSlot, quickMoveToInventory,
+quickMoveIn — matching partials first, then the first empty slot).
+
+**The persistence**: HopperDataStore ("ZHD" v1 — the chest store's own
+durability rules: atomic writes, the corrupt quarantine, the loud failures)
+wired at boot (restoreAll) and saveAllNow.
+
+Tests: HopperWindowAcceptanceTest (2: the open + the cursor-dance click
+landing the stack + the quick-move back; the contents surviving a restart
+over the same data dir — polling waits, robust under load). The neighboring
+suites (Hopper/WindowClick/Chest/Dispenser batches) green. The vanilla
+ledger's hopper row: the GUI + persistence gaps closed.
