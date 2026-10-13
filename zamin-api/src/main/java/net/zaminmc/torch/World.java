@@ -3,7 +3,12 @@ package net.zaminmc.torch;
 import net.zaminmc.torch.block.BlockPosition;
 import net.zaminmc.torch.block.BlockType;
 import net.zaminmc.torch.block.ChunkPosition;
+import net.zaminmc.torch.entity.DroppedItem;
+import net.zaminmc.torch.entity.ExperienceOrb;
+import net.zaminmc.torch.entity.FallingBlock;
 import net.zaminmc.torch.entity.LivingEntity;
+import net.zaminmc.torch.entity.Projectile;
+import net.zaminmc.torch.entity.Vehicle;
 import net.zaminmc.torch.util.Position;
 
 import java.util.Collection;
@@ -49,6 +54,51 @@ public interface World {
      * {@link #execute}.
      */
     Collection<LivingEntity> entities();
+
+    /**
+     * The dropped items of this world (§27.3's entity family): a
+     * point-in-time population view — simulation context, inspect it
+     * inside {@link #execute}. Worlds without the family answer empty.
+     */
+    default Collection<DroppedItem> itemEntities() {
+        return java.util.List.of();
+    }
+
+    /**
+     * The projectiles in flight (§27.3's projectile family): a
+     * point-in-time population view — simulation context, inspect it
+     * inside {@link #execute}. Worlds without the family answer empty.
+     */
+    default Collection<Projectile> projectiles() {
+        return java.util.List.of();
+    }
+
+    /**
+     * The falling block bodies (§27.3's gravity family): a point-in-time
+     * population view — simulation context, inspect it inside
+     * {@link #execute}. Worlds without the family answer empty.
+     */
+    default Collection<FallingBlock> fallingBlocks() {
+        return java.util.List.of();
+    }
+
+    /**
+     * The vehicles (§27.3's mount family): a point-in-time population
+     * view — simulation context, inspect it inside {@link #execute}.
+     * Worlds without the family answer empty.
+     */
+    default Collection<Vehicle> vehicles() {
+        return java.util.List.of();
+    }
+
+    /**
+     * The experience orbs (§27.3's XP family): a point-in-time
+     * population view — simulation context, inspect it inside
+     * {@link #execute}. Worlds without the family answer empty.
+     */
+    default Collection<ExperienceOrb> experienceOrbs() {
+        return java.util.List.of();
+    }
 
     /**
      * Runs work on the world's authoritative simulation context (§27.6 —

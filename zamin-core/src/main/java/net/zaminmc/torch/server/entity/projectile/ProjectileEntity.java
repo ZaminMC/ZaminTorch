@@ -1,5 +1,6 @@
 package net.zaminmc.torch.server.entity.projectile;
 
+import net.zaminmc.torch.util.Identifier;
 import net.zaminmc.torch.util.Position;
 
 import java.util.Objects;
@@ -12,37 +13,42 @@ import java.util.Objects;
  * then resolve block and entity collisions. Arrows that land stick; the
  * shard-family projectiles (snowball, egg) shatter on any impact.</p>
  */
-public final class ProjectileEntity {
+public final class ProjectileEntity implements net.zaminmc.torch.entity.Projectile {
 
     /** The projectiles the engine launches. */
     public enum Kind {
         /** The bow's arrow: sticks where it lands, hurts what it hits. */
-        ARROW(60),
+        ARROW(60, net.zaminmc.torch.entity.ProjectileKind.ARROW),
         /** The snowball: no damage, knockback only, shatters on impact. */
-        SNOWBALL(61),
+        SNOWBALL(61, net.zaminmc.torch.entity.ProjectileKind.SNOWBALL),
         /** The egg: like the snowball, but may hatch a chick. */
-        EGG(62),
+        EGG(62, net.zaminmc.torch.entity.ProjectileKind.EGG),
         /** The dispensed fire charge (Slice 11a): accelerates along its
          * direction, places fire where it lands, burns what it hits. */
-        SMALL_FIREBALL(63),
+        SMALL_FIREBALL(63, net.zaminmc.torch.entity.ProjectileKind.SMALL_FIREBALL),
         /** The ghast's charged fireball (Slice 16c — FireballEntity):
          * the same accelerating flight, the 6.0 direct hit plus the
          * power-1 explosion where it lands. */
-        LARGE_FIREBALL(64),
+        LARGE_FIREBALL(64, net.zaminmc.torch.entity.ProjectileKind.LARGE_FIREBALL),
         /** The thrown potion (Slice 11b): splashes its effect set where it
          * lands, carrying the potion metadata as the payload. */
-        POTION(68),
+        POTION(68, net.zaminmc.torch.entity.ProjectileKind.SPLASH_POTION),
         /** The ender pearl (Slice 17c — EnderPearlEntity): the thrower
          * teleports to the landing point with the 5.0 fall toll, and a
          * pearl-spawned endermite may ride (the 5% roll at the thrower's
          * pre-teleport feet). */
-        ENDER_PEARL(65);
+        ENDER_PEARL(65, net.zaminmc.torch.entity.ProjectileKind.ENDER_PEARL);
 
         /** Protocol 47's Spawn Object entity type id. */
         public final int objectType;
 
-        Kind(int objectType) {
+        /** The public API's kind (§27.3 — the stable surface the engine
+         * kind maps onto). */
+        public final net.zaminmc.torch.entity.ProjectileKind apiKind;
+
+        Kind(int objectType, net.zaminmc.torch.entity.ProjectileKind apiKind) {
             this.objectType = objectType;
+            this.apiKind = apiKind;
         }
     }
 
@@ -255,5 +261,40 @@ public final class ProjectileEntity {
             ticksInGround++;
         }
         return position;
+    }
+
+    // ------------------------------------------------------------------
+    // The public API surface (§27.3 — the Projectile handle). The engine
+    // class IS the handle (§27.5's zero-allocation shape).
+    // ------------------------------------------------------------------
+
+    /** The public kind (the engine kind's stable API mapping). */
+    @Override
+    public net.zaminmc.torch.entity.ProjectileKind projectileKind() {
+        return kind.apiKind;
+    }
+
+    @Override
+    public int throwerEntityId() {
+        return throwerId;
+    }
+
+    @Override
+    public Identifier typeIdentifier() {
+        return kind.apiKind.identifier();
+    }
+
+    /**
+     * The any-thread-consumable view (§27.6): captured on the owner
+     * context inside {@code World.execute}. Health/maxHealth do not
+     * apply to the projectile body (1/1); {@code dead} answers false —
+     * the removal contract is the population view's disappearance.
+     */
+    @Override
+    public net.zaminmc.torch.entity.EntitySnapshot snapshot() {
+        return new net.zaminmc.torch.entity.EntitySnapshot(
+                entityId, kind.apiKind.identifier(), position, 0.0f,
+                vx, vy, vz,
+                1.0f, 1.0f, inGround, false);
     }
 }

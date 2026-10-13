@@ -3321,3 +3321,42 @@ conformance carries the 0x35 row.
 
 Fresh suite: **951 green (857 core + 19 api + 75 protocol)**,
 `--max-workers=1`, zero failures.
+
+---
+
+## Slice 19a — the §27.3 entity-family API wave (items, projectiles,
+falling blocks, vehicles, XP orbs)
+
+**The public handles**: five new zamin-api interfaces over the engine's
+non-living populations — `DroppedItem`, `Projectile` (+ the public
+`ProjectileKind`: arrow/snowball/egg/small+large fireball/splash
+potion/ender pearl), `FallingBlock`, `Vehicle` (+ `VehicleKind`), and
+`ExperienceOrb`. Each follows the `MobEntity`/`LivingEntity` pattern
+(§27.5's zero-allocation shape: the engine class IS the handle — no
+wrapper per access): the engine bodies implement the interfaces with
+`typeIdentifier()` (the canonical kind ids — minecraft:item, per-kind
+projectile ids, minecraft:falling_block, minecraft:boat/minecart,
+minecraft:xp_orb) and `snapshot()` (the any-thread-consumable view;
+health/maxHealth answer 1/1 on the non-living bodies except the
+vehicle's real 4.0 hull).
+
+**The World surface**: `itemEntities()`, `projectiles()`,
+`fallingBlocks()`, `vehicles()`, `experienceOrbs()` — point-in-time
+population views (the managers' `all()` defensive copies) captured
+through volatile suppliers attached at boot; the interface's default
+empty answers keep the stub worlds' contract. The nether keeps the
+empty views (its drops/projectiles route through the overworld
+managers — the same envelope as its mob view).
+
+**The engine wiring**: `EngineWorld.attachEntityFamilyViews` (the five
+suppliers), the EngineServer boot attaching them after the last family
+manager exists.
+
+**Tests**: `EntityFamilyApiAcceptanceTest` (4: the drop's identity +
+contents + the pickup-delay band through the World alone, the arrow's
+kind + thrower, the falling sand's block identity, the boat + orb pair
+with the snapshot captured on the owner context and consumed on a
+foreign thread — §27.6's documented off-owner contract).
+
+Ledgers: the five capability rows NOT AUDITED → IMPLEMENTED
+(Experimental).

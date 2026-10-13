@@ -16,7 +16,7 @@ import java.util.Random;
  * (every observer must agree on it). Riding is server-authoritative: the
  * mounted player's body follows the vehicle, the client only steers.</p>
  */
-public abstract class VehicleEntity {
+public abstract class VehicleEntity implements net.zaminmc.torch.entity.Vehicle {
 
     public static final double GRAVITY_PER_TICK = 0.04;
     /** The vanilla kill plane: a vehicle below it is gone without a drop. */
@@ -24,7 +24,17 @@ public abstract class VehicleEntity {
     public static final float MAX_HEALTH = 4.0f;
 
     /** The vehicle kinds (the wire's object types live in the adapter). */
-    public enum Kind { BOAT, MINECART }
+    public enum Kind {
+        BOAT(net.zaminmc.torch.entity.VehicleKind.BOAT),
+        MINECART(net.zaminmc.torch.entity.VehicleKind.MINECART);
+
+        /** The public API's kind (§27.3 — the stable surface). */
+        public final net.zaminmc.torch.entity.VehicleKind apiKind;
+
+        Kind(net.zaminmc.torch.entity.VehicleKind apiKind) {
+            this.apiKind = apiKind;
+        }
+    }
 
     /** Minimal world query the vehicle needs (tick-thread context only). */
     public interface WorldQuery {
@@ -227,5 +237,39 @@ public abstract class VehicleEntity {
     protected void decay(double factor) {
         velocityX *= factor;
         velocityZ *= factor;
+    }
+
+    // ------------------------------------------------------------------
+    // The public API surface (§27.3 — the Vehicle handle).
+    // ------------------------------------------------------------------
+
+    /** The public kind (the engine kind's stable API mapping). */
+    @Override
+    public net.zaminmc.torch.entity.VehicleKind vehicleKind() {
+        return kind().apiKind;
+    }
+
+    @Override
+    public net.zaminmc.torch.util.Identifier typeIdentifier() {
+        return kind().apiKind.identifier();
+    }
+
+    /**
+     * The any-thread-consumable view (§27.6): captured on the owner
+     * context inside {@code World.execute}. The vehicle's hull carries
+     * real health (the 4.0 ceiling) — the only non-living family that
+     * does.
+     */
+    @Override
+    public net.zaminmc.torch.entity.EntitySnapshot snapshot() {
+        return new net.zaminmc.torch.entity.EntitySnapshot(
+                entityId(), kind().apiKind.identifier(), position(), rotation().yaw(),
+                velocityX, velocityY, velocityZ,
+                health(), MAX_HEALTH, onGround(), dead());
+    }
+
+    @Override
+    public int riderEntityId() {
+        return passengerId();
     }
 }
