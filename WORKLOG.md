@@ -3124,3 +3124,30 @@ the fall dampening, the sigma formula).
 
 Fresh suite: **932 green (839 core + 19 api + 74 protocol)**,
 `--max-workers=1`, zero failures.
+
+## Slice 18b — the cave spider (the mineshaft's venom)
+
+**Scope**: CaveSpiderEntity over the spider family + the spider family's
+drop correction.
+
+**The kind** (59, the 0.7x0.5 hull, the 12 health over the spider's 16):
+the flat 0.45 eye (getEyeHeight line 53 — not the generic 0.85 share's
+0.425), the ARTHROPOD category, the spider's sounds and traits.
+
+**The venomous bite** (tryDamage lines 25-45): every landed melee hit
+poisons by the difficulty — NORMAL the 7-second curse, HARD the
+15-second, the weaker rows nothing — through the EngineServer's melee
+consume site into the potion system's player store.
+
+**The spider family's drop correction**: the SPIDER_EYE conditional
+landed (a 1-in-3 base roll OR any looting luck, one eye) beside the
+string walk, both the spider and the cave spider — the pre-18b row
+carried only the string.
+
+**Tests**: CaveSpiderEntityTest (4: the identity + the family traits,
+the flat 0.45 eye, the venomous bite through the live melee pipeline at
+hard (the 300-tick curse) then normal (the 140-tick), the easy tier's
+no-venom).
+
+Fresh suite: **843 green in zamin-core**, `--max-workers=1`, zero
+failures.

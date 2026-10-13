@@ -1298,6 +1298,22 @@ public final class MobManager {
             }
             return;
         }
+        if (mob.type() == MobType.SPIDER || mob.type() == MobType.CAVE_SPIDER) {
+            // SpiderEntity.dropItems (lines 104-109): the string walk
+            // (the getDropItem roll widened by the looting) then the eye's
+            // own conditional — a 1-in-3 base, or any looting luck. The
+            // cave spider rides the family (no getDropItem override).
+            int string = random.nextInt(3) + random.nextInt(1 + looting);
+            for (int unit = 0; unit < string; unit++) {
+                lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()),
+                        ItemStack.of(BuiltinItems.STRING, 1));
+            }
+            if (random.nextInt(3) == 0 || random.nextInt(1 + looting) > 0) {
+                lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()),
+                        ItemStack.of(BuiltinItems.SPIDER_EYE, 1));
+            }
+            return;
+        }
         if (mob.type() == MobType.BLAZE) {
             // BlazeEntity.dropItems (lines 145-153): nextInt(2 + looting)
             // single blaze rods — the full-looting bound like the pigman's

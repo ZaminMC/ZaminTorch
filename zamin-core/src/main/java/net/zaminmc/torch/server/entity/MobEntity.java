@@ -4152,6 +4152,11 @@ public final class MobEntity implements LivingEntity {
             // SnowGolemEntity.getEyeHeight line 97: the flat 1.7F.
             return 1.7;
         }
+        if (type == MobType.CAVE_SPIDER) {
+            // CaveSpiderEntity.getEyeHeight line 53: the flat 0.45F — not
+            // the generic 0.85 share (0.425) the default would give.
+            return 0.45;
+        }
         return type.height * 0.85;
     }
 
