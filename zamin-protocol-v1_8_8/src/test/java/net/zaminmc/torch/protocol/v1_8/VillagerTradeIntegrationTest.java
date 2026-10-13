@@ -8,6 +8,7 @@ import org.junit.jupiter.api.TestInstance;
 import java.io.IOException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -34,30 +35,16 @@ class VillagerTradeIntegrationTest extends ProtocolTestBase {
             client.readLoginSuccess();
             client.readUntilPositionAndLook();
 
-            // The buy stock FIRST: STOCK_MAX_USES is 7 and a career's first
-            // offer buys 8-24 per trade, so the full budget spends up to
-            // 24×7 = 168 of one currency — each stack tops up three times
-            // (64×3 = 192 covers the worst case). Stocking before the spawn
-            // keeps the villager fresh (it strolls) for the reach-gated
-            // interact; the buys validate at trade execution, not at open.
-            for (int round = 0; round < 3; round++) {
-                client.sendChat("/give minecraft:wheat 64");
-                Thread.sleep(150);
-                client.sendChat("/give minecraft:paper 64");
-                Thread.sleep(150);
-                client.sendChat("/give minecraft:beef 64");
-                Thread.sleep(150);
-                client.sendChat("/give minecraft:porkchop 64");
-                Thread.sleep(150);
-                client.sendChat("/give minecraft:iron_ingot 64");
-                Thread.sleep(150);
-                client.sendChat("/give minecraft:rotten_flesh 64");
-                Thread.sleep(150);
-            }
+            // The buy stock FIRST-pass removed: the 1:1 career model
+            // (Slice 21g) rolls any career of any profession at the first
+            // open, so the actually-needed currency is stocked after the
+            // list arrives (below) — five stacks cover the worst band
+            // (the cleric's flesh 40 x 7 = 280).
 
-            // A farmer with a pen-free deterministic stock: the profession is
-            // random per spawn, so force one through the seeded reroll — the
-            // test spawns villagers until a farmer shows (bounded).
+            // One villager near the anchor: the profession and the career
+            // both roll at the spawn and the first open — the actually-
+            // rolled career's currency is stocked after the open (the
+            // buys validate at execution, not at the open).
             client.sendChat("/spawnmob villager 1");
             int villagerId = -1;
             long deadline = System.currentTimeMillis() + 20_000;
@@ -95,7 +82,28 @@ class VillagerTradeIntegrationTest extends ProtocolTestBase {
             assertEquals(3, (Integer) window[2], "the merchant GUI's 3 slots");
 
             int[][] offers = readTradeList(client, windowId);
-            assertEquals(3, offers.length, "three offers on the list");
+            // The 1:1 career model (Slice 21g): the first open rolls the
+            // career and its opening level — the list carries that
+            // career's level-1 rows (2-4 for the farmer's careers).
+            var villager = server.mobs().byId(villagerId);
+            assertNotNull(villager, "the trader lives");
+            var stock = villager.offers();
+            assertEquals(stock.length, offers.length,
+                    "the rolled career's level-1 rows on the list");
+
+            // The actually-rolled currency (the buys validate at the
+            // execution, not at the open): five stacks cover the worst
+            // band and the inventory keeps room for the payout.
+            var player = server.playerRegistry().byName("Trader").orElseThrow();
+            var firstOffer = stock[0];
+            String currency = firstOffer.buy1().type().identifier().toString();
+            for (int round = 0; round < 5; round++) {
+                client.sendChat("/give " + currency + " 64");
+                Thread.sleep(120);
+            }
+            assertTrue(player.inventory().countOf(firstOffer.buy1().type())
+                    >= firstOffer.buy1().count(),
+                    "the rolled career's currency stocked (" + currency + ")");
 
             // Select the first row: the result slot previews (Set Slot 2).
             int offerIndex = 0;
@@ -103,13 +111,9 @@ class VillagerTradeIntegrationTest extends ProtocolTestBase {
             int[] result = readSetSlotOfWindow(client, windowId, 2, 20_000);
             assertTrue(result[0] != -1, "the result slot previews the offer's payout");
 
-            // The execution: a plain left-click on slot 2 pays out. Find the
-            // buy requirement server-side and satisfy it (the stock was given).
-            var villager = server.mobs().byId(villagerId);
-            var offer = villager.offers()[offerIndex];
-            var player = server.playerRegistry().byName("Trader").orElseThrow();
-            assertTrue(player.inventory().countOf(offer.buy1().type()) >= offer.buy1().count(),
-                    "the test stocked the buy currency");
+            // The execution: a plain left-click on slot 2 pays out (the
+            // stocked currency satisfies the buy).
+            var offer = stock[offerIndex];
 
             client.sendWindowClick(windowId, 2, 0, 0, 1);
             awaitCondition(() -> villager.offerUses(offerIndex) == 1,
@@ -118,11 +122,13 @@ class VillagerTradeIntegrationTest extends ProtocolTestBase {
                     "the result paid into the inventory");
 
             // The budget: charge the rest out, the row greys on the next list.
-            for (int i = 1; i < offer.maxUses(); i++) {
+            // The open window holds the level-up countdown (the customer
+            // gate), so the budget stays the fresh 7 through the loop.
+            for (int i = 1; i < villager.offerMaxUses(offerIndex); i++) {
                 client.sendWindowClick(windowId, 2, 0, 0, 2 + i);
                 Thread.sleep(60);
             }
-            awaitCondition(() -> villager.offerUses(offerIndex) == offer.maxUses(),
+            awaitCondition(() -> villager.offerUses(offerIndex) == villager.offerMaxUses(offerIndex),
                     "the budget spent out");
             assertFalse2(villager.offerAvailable(offerIndex), "the spent-out offer refuses");
         }

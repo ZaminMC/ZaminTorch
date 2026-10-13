@@ -30,4 +30,9 @@ public record TradeOffer(ItemStack buy1, ItemStack buy2, ItemStack result, int m
     public boolean hasSecondBuy() {
         return !buy2.isEmpty();
     }
+
+    /** The single-buy form (the reference's two-arg TradeOffer). */
+    public TradeOffer(ItemStack buy1, ItemStack result, int maxUses) {
+        this(buy1, ItemStack.EMPTY, result, maxUses);
+    }
 }

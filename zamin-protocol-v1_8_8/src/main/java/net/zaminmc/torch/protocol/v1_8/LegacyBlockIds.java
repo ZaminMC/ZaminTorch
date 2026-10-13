@@ -361,6 +361,20 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:lead"), 420),
             Map.entry(Identifier.parse("minecraft:carrot_on_a_stick"), 398),
             Map.entry(Identifier.parse("minecraft:emerald"), 388),
+            // The villager's trade stock (Slice 21g — the reference's
+            // Item.java registrations): fishing rod 346, clock 347, cake
+            // 354, cookie 357, melon 360, ender eye 381, experience
+            // bottle 384, written book 387, pumpkin pie 400, name tag 421.
+            Map.entry(Identifier.parse("minecraft:fishing_rod"), 346),
+            Map.entry(Identifier.parse("minecraft:clock"), 347),
+            Map.entry(Identifier.parse("minecraft:cake"), 354),
+            Map.entry(Identifier.parse("minecraft:cookie"), 357),
+            Map.entry(Identifier.parse("minecraft:melon"), 360),
+            Map.entry(Identifier.parse("minecraft:ender_eye"), 381),
+            Map.entry(Identifier.parse("minecraft:experience_bottle"), 384),
+            Map.entry(Identifier.parse("minecraft:written_book"), 387),
+            Map.entry(Identifier.parse("minecraft:pumpkin_pie"), 400),
+            Map.entry(Identifier.parse("minecraft:name_tag"), 421),
             // The stronghold set (Slice 12c — the reference's own legacy
             // ids): the stone-brick family over 98 (the mossy/cracked pair
             // in the metadata nibble), the silverfish stone-brick monster

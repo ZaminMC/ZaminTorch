@@ -371,6 +371,36 @@ public final class BuiltinItems {
             Identifier.parse("minecraft:lapis"), "Lapis Lazuli", 64);
     public static final EngineItemType ENCHANTED_BOOK = new EngineItemType(
             Identifier.parse("minecraft:enchanted_book"), "Enchanted Book", 1);
+
+    // The villager's trade stock (Slice 21g — the reference's Item.java
+    // registrations): fishing rod 346 (the tool rod, max 1), clock 347,
+    // cake 354 (stack 1 — the placed block's item), cookie 357 (food 2),
+    // melon 360 (food 2 — the melon block's item), ender eye 381,
+    // experience bottle 384, written book 387 (stack 16), pumpkin pie 400
+    // (food 8), name tag 421.
+    public static final EngineItemType FISHING_ROD = new EngineItemType(
+            Identifier.parse("minecraft:fishing_rod"), "Fishing Rod", 1);
+    public static final EngineItemType CLOCK = new EngineItemType(
+            Identifier.parse("minecraft:clock"), "Clock", 64);
+    public static final EngineItemType CAKE = new EngineItemType(
+            Identifier.parse("minecraft:cake"), "Cake", 1);
+    public static final EngineItemType COOKIE = new EngineItemType(
+            Identifier.parse("minecraft:cookie"), "Cookie", 64);
+    public static final EngineItemType MELON = new EngineItemType(
+            Identifier.parse("minecraft:melon"), "Melon", 64);
+    public static final EngineItemType ENDER_EYE = new EngineItemType(
+            Identifier.parse("minecraft:ender_eye"), "Eye of Ender", 64);
+    public static final EngineItemType EXPERIENCE_BOTTLE = new EngineItemType(
+            Identifier.parse("minecraft:experience_bottle"), "Bottle o' Enchanting", 64);
+    public static final EngineItemType WRITTEN_BOOK = new EngineItemType(
+            Identifier.parse("minecraft:written_book"), "Written Book", 16);
+    public static final EngineItemType PUMPKIN_PIE = new EngineItemType(
+            Identifier.parse("minecraft:pumpkin_pie"), "Pumpkin Pie", 64);
+    public static final EngineItemType NAME_TAG = new EngineItemType(
+            Identifier.parse("minecraft:name_tag"), "Name Tag", 64);
+    // The cleric's stock (the glowstone block's item form — legacy 348).
+    public static final EngineItemType GLOWSTONE = new EngineItemType(
+            Identifier.parse("minecraft:glowstone"), "Glowstone", 64);
     public static final EngineItemType BOOKSHELF = new EngineItemType(
             Identifier.parse("minecraft:bookshelf"), "Bookshelf", 64);
     public static final EngineItemType ENCHANTING_TABLE = new EngineItemType(

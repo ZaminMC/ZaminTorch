@@ -7311,10 +7311,11 @@ public final class EngineServer implements Server, EngineBridge {
             return false; // stale window (the trader gone): rejected, resync restores
         }
         int index = session.selectedTrade();
-        if (index < 0 || index >= villager.offers().length || !villager.offerAvailable(index)) {
+        TradeOffer[] offers = villager.offers();
+        if (index < 0 || index >= offers.length || !villager.offerAvailable(index)) {
             return false; // nothing selected or the budget spent out (greyed)
         }
-        TradeOffer offer = villager.offers()[index];
+        TradeOffer offer = offers[index];
         var inventory = session.inventory();
         // The buys validate against the player's own inventory (the 1.8
         // merchant GUI's pseudo-slots are display-only).
@@ -7333,7 +7334,14 @@ public final class EngineServer implements Server, EngineBridge {
         if (!remainder.isEmpty()) {
             throwFromPlayer(session, remainder); // a full inventory drops it (nothing lost)
         }
-        villager.chargeOfferUse(index);
+        // VillagerEntity.trade (lines 604-633): the use charges with the
+        // level-up arm's own bookkeeping, the yes sound at the body, and
+        // the XP orb the reference spawns beside it.
+        int xp = villager.villagerTrade(index);
+        fxManager.sound(villager.position(), "mob.villager.yes", 1.0f,
+                1.0f / (gameplayRandom.nextFloat() * 0.4f + 0.8f));
+        experienceOrbs.spawnOrb(new Position(villager.position().x(),
+                villager.position().y() + 0.5, villager.position().z()), xp);
         return true;
     }
 

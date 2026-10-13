@@ -3653,3 +3653,47 @@ the gate is new coverage). Ledgered: the fireball-kill achievement arm
 (no achievement surface), the own-fireball reflection (the missing
 player-attacks-fireball deflection family), the magma cube's size*3 armor
 (the missing mob armor model).
+
+## Slice 21g — the villager trade system 1:1 (the career model over the fixed stock)
+
+The pre-21g stand-in (the explicitly-simplified three fixed offers per
+profession) replaced with the reference's own model:
+
+**The TRADE_SOURCES tables 1:1** (VillagerTrades rewritten): the five
+professions' career/level generator tables exactly as the reference
+declares them — the farmer's four careers (the farmer/fisherman/shepherd/
+fletcher with the shepherd's sixteen wool-color rows), the librarian's
+six levels, the cleric's four, the blacksmith's three careers, the
+butcher's two. The five generator shapes: EmeraldForItems, ItemsForEmeralds
+(with the addRandomEnchantment polish at `5 + nextInt(15)`),
+EmeraldsForVillagerTypeItem's negative-amount direction flip,
+ItemsForItemsAndEmeralds (the compound buy), and EnchantedItemForEmeralds
+(the random enchantment at its own level range, the
+`2 + nextInt(5 + level*10) + 3*level` price capped 64).
+
+**The lazy career state** (MobEntity): the first `offers()` consult rolls
+the career `nextInt(careers) + 1` at level 1 (the reference's
+traderOffers == null gate); levelUp appends the career's next level;
+the per-offer live maxUses array carries the re-green extensions.
+
+**The trade bookkeeping** (villagerTrade): the use charge, the 40-tick
+level-up arm on the first use or the 1-in-5 (the willing flag + the +5
+XP), the emerald riches, the `3 + nextInt(4)` XP band — the execution
+spawns the orb beside the body and plays mob.villager.yes.
+
+**The level-up walk** (tickVillagerLevelUp, customer-gated by the
+manager's open-window registry): the spent-out re-greens
+`nextInt(6) + nextInt(6) + 2`, the next level's appends.
+
+**The wire**: the MC|TrList carries the live uses + the extended
+maxUses (the pre-21g `spentOut ? maxUses : 0` stand-in corrected). The
+ten new trade items (fishing rod 346, clock 347, cake 354, cookie 357,
+melon 360, ender eye 381, experience bottle 384, written book 387,
+pumpkin pie 400, name tag 421) + their wire ids.
+
+Tests: VillagerTradeTest (7, rewritten) + VillagerTradeIntegrationTest
+(the rolled career's rows on the wire, the post-open currency stocking).
+Fresh suite: 913 core + 19 api + 77 protocol green, --max-workers=1.
+Ledgered: the village system (the reputation, the mating gates, the
+farm goal), the Regeneration window (the mob-side effect family), the
+haggle customer ambient, the Offers NBT persistence.
