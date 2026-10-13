@@ -97,6 +97,9 @@ public final class EngineWorld implements World {
     /** The public vehicle view (§27.3): attached at boot. */
     private volatile java.util.function.Supplier<
             java.util.List<? extends net.zaminmc.torch.entity.Vehicle>> vehicleView;
+    /** The public container view (the chest/furnace/hopper family; boot wiring). */
+    private volatile net.zaminmc.torch.container.Containers containerView
+            = net.zaminmc.torch.container.Containers.EMPTY;
 
     /** The public experience-orb view (§27.3): attached at boot. */
     private volatile java.util.function.Supplier<
@@ -273,6 +276,12 @@ public final class EngineWorld implements World {
         this.orbView = java.util.Objects.requireNonNull(orbs, "orbs");
     }
 
+    /** Attaches the public container view (the chest/furnace/hopper
+     *  family's boot wiring; §27.3's block-entity reads). */
+    public void attachContainerView(net.zaminmc.torch.container.Containers view) {
+        this.containerView = java.util.Objects.requireNonNull(view, "view");
+    }
+
     /** Attaches the owner-context executor (the boot wiring; §27.6). */
     public void attachOwnerExecutor(java.util.function.Consumer<Runnable> executor) {
         this.ownerExecutor = java.util.Objects.requireNonNull(executor, "executor");
@@ -340,6 +349,11 @@ public final class EngineWorld implements World {
         // manager's all() contract) — the same point-in-time shape as
         // entities() above; the raw cast bridges the capture wildcard.
         return (java.util.Collection) view.get();
+    }
+
+    @Override
+    public net.zaminmc.torch.container.Containers containers() {
+        return containerView;
     }
 
     @Override

@@ -92,6 +92,18 @@ public interface World {
     }
 
     /**
+     * The position-keyed container family (§27.3's block-entity read
+     * surface): the chests, furnaces, and hoppers of this world. The
+     * lookups are best-effort from any thread; the returned views are
+     * LIVE handles — owner-context consistent (wrap multi-slot reads in
+     * {@link #execute} off the lane). Worlds without the family answer
+     * empty lookups.
+     */
+    default net.zaminmc.torch.container.Containers containers() {
+        return net.zaminmc.torch.container.Containers.EMPTY;
+    }
+
+    /**
      * The experience orbs (§27.3's XP family): a point-in-time
      * population view — simulation context, inspect it inside
      * {@link #execute}. Worlds without the family answer empty.
