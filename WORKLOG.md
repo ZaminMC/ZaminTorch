@@ -3849,3 +3849,37 @@ on-lane chest/furnace/hopper writes; the cart cargo through
 World.vehicles()). The neighboring suites re-run green (Inventory/
 Armor/Player/WindowClick/Death/Enchant batches + the full protocol
 suite 76).
+
+## Slice 22g — the explosion/TNT/redstone API wave (the §27.7 detonation gate + the TNT family + the power reads)
+
+**`event.world.ExplosionEvent`**: the pre-commit cancellable gate over
+the `detonateAt` walk (every detonation family rides it — the creeper
+blast, the primed TNT, the chain reaction). Fired at the walk's head,
+before any destruction: a cancelled blast destroys nothing, wounds
+nobody, sends no Explosion packet (the priming body itself already left
+at the fuse's end — only its consequence is undone). The event carries
+the world, the center, the power (the vanilla creeper 3.0 / TNT 4.0).
+
+**`World.primedTnt()`** → `entity.PrimedTnt`: the TNT family view — the
+engine's own `TntSystem.PrimedTnt` bodies ARE the handles (§27.5 — the
+class now implements the public interface: position, velocity,
+fuseTicks, onGround, typeIdentifier minecraft:primed_tnt, the any-thread
+snapshot). The EngineWorld supplier wiring at boot.
+
+**`World.redstone()`** → `block.RedstoneSignals`: the power reads —
+`powerAt(pos)` (the strong-power neighbor walk over the engine's own
+consult: sources, wire decay, the whole `neighborSignal` semantics) and
+`poweredAt(pos)` (the boolean form). Owner-context consistent reads.
+
+**The piston/fluid rows audited honestly**: their states are block
+states (World.getBlock reads the extension/orientation/level cells) —
+no redundant public surface; the observe hooks ride the
+interaction-events wave.
+
+Tests: ExplosionTntRedstoneApiAcceptanceTest (2: the cancelled twin —
+the gate fires exactly once with the vanilla TNT power and the stone
+cluster stands — plus the uncancelled twin that tears it; the primed
+body's family view + snapshot + the lever's 15 feed through both read
+forms + the far cell's zero). The explosion/redstone/TNT/explosion-event
+ledger rows graduate NOT AUDITED → IMPLEMENTED; the piston/fluid rows →
+AUDITED with the block-state rationale.

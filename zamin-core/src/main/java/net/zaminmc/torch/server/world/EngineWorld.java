@@ -109,6 +109,14 @@ public final class EngineWorld implements World {
     private volatile net.zaminmc.torch.block.ScheduledUpdates scheduledUpdateView
             = net.zaminmc.torch.block.ScheduledUpdates.EMPTY;
 
+    /** The public redstone view (the power walks; boot wiring). */
+    private volatile net.zaminmc.torch.block.RedstoneSignals redstoneView
+            = net.zaminmc.torch.block.RedstoneSignals.EMPTY;
+
+    /** The public primed-TNT view (§27.3): attached at boot. */
+    private volatile java.util.function.Supplier<
+            java.util.List<? extends net.zaminmc.torch.entity.PrimedTnt>> primedTntView;
+
     /** The public experience-orb view (§27.3): attached at boot. */
     private volatile java.util.function.Supplier<
             java.util.List<? extends net.zaminmc.torch.entity.ExperienceOrb>> orbView;
@@ -302,6 +310,19 @@ public final class EngineWorld implements World {
         this.scheduledUpdateView = java.util.Objects.requireNonNull(view, "view");
     }
 
+    /** Attaches the public redstone view (the power walks' boot wiring;
+     *  §27.3's redstone family). */
+    public void attachRedstoneView(net.zaminmc.torch.block.RedstoneSignals view) {
+        this.redstoneView = java.util.Objects.requireNonNull(view, "view");
+    }
+
+    /** Attaches the public primed-TNT view (the TNT family's boot
+     *  wiring; §27.3). */
+    public void attachPrimedTntView(java.util.function.Supplier<
+            java.util.List<? extends net.zaminmc.torch.entity.PrimedTnt>> view) {
+        this.primedTntView = java.util.Objects.requireNonNull(view, "view");
+    }
+
     /** Attaches the owner-context executor (the boot wiring; §27.6). */
     public void attachOwnerExecutor(java.util.function.Consumer<Runnable> executor) {
         this.ownerExecutor = java.util.Objects.requireNonNull(executor, "executor");
@@ -396,6 +417,22 @@ public final class EngineWorld implements World {
     @Override
     public net.zaminmc.torch.block.ScheduledUpdates scheduledUpdates() {
         return scheduledUpdateView;
+    }
+
+    @Override
+    public net.zaminmc.torch.block.RedstoneSignals redstone() {
+        return redstoneView;
+    }
+
+    @Override
+    public java.util.Collection<net.zaminmc.torch.entity.PrimedTnt> primedTnt() {
+        var view = primedTntView;
+        if (view == null) {
+            return java.util.List.of();
+        }
+        // The supplier's capture already copied the population list (the
+        // system's primedBodies() contract) — a stable point-in-time view.
+        return new java.util.ArrayList<>(view.get());
     }
 
     @Override
