@@ -43,6 +43,14 @@ public final class ProjectileManager {
     static final int THROWABLE_AGE_TICKS = 200;
     /** Ticks a thrower ignores their own projectile (the launch-overlap rule). */
     static final int THROWER_IMMUNITY_TICKS = 5;
+    /**
+     * The fireball family's own shooter-immunity window (Slice 25b —
+     * ProjectileEntity's collision scan line 119: {@code inAirTicks >= 25},
+     * five times the thrown family's 5 — the window that makes the
+     * deflected-fireball-kills-the-ghast trick work: the fireball is
+     * usually past 25 air ticks by the time the punch turns it around).
+     */
+    static final int FIREBALL_THROWER_IMMUNITY_TICKS = 25;
     /** The vanilla kill plane: a projectile below it stops being simulated. */
     static final double VOID_KILL_Y = -64.0;
     /** The egg's chick roll: one chance in eight (the historical omelet). */
@@ -172,6 +180,14 @@ public final class ProjectileManager {
 
         /** A projectile left the world (shattered, hit, expired or unloaded). */
         void onProjectileRemoved(ProjectileEntity projectile, String reason);
+
+        /**
+         * A player's punch deflected a fireball (Slice 25b — the velocity
+         * and the shooter both flip; the wire re-publishes the velocity so
+         * the client's own fireball model turns around with it).
+         */
+        default void onProjectileDeflected(ProjectileEntity projectile) {
+        }
     }
 
     private final SolidQuery solid;
@@ -483,7 +499,7 @@ public final class ProjectileManager {
         MobEntity mob = hits.mobAt(point);
         if (mob != null && !mob.dead()
                 && !(mob.entityId() == projectile.throwerId()
-                     && projectile.age() <= THROWER_IMMUNITY_TICKS)) {
+                     && projectile.age() <= throwerImmunityTicksOf(projectile))) {
             if (projectile.kind() == ProjectileEntity.Kind.POTION) {
                 // The splash on the struck body (PotionEntity.onCollision's
                 // result.entity arm — the direct hit answers proximity 1.0).
@@ -498,7 +514,7 @@ public final class ProjectileManager {
         PlayerSession player = hits.playerAt(point);
         if (player != null && !player.dead()
                 && !(player.engineEntityId() == projectile.throwerId()
-                     && projectile.age() <= THROWER_IMMUNITY_TICKS)) {
+                     && projectile.age() <= throwerImmunityTicksOf(projectile))) {
             if (projectile.kind() == ProjectileEntity.Kind.ENDER_PEARL
                     && player.engineEntityId() == projectile.throwerId()) {
                 // EnderPearlEntity.onCollision lines 33-35: the owner is a
@@ -693,6 +709,47 @@ public final class ProjectileManager {
         fx.poof(projectile.position());
         fx.sound(projectile.position(), "random.glass", 0.5f,
                 0.7f + random.nextFloat() * 0.3f);
+    }
+
+    /**
+     * The fireball family's own immunity window (the reference's two
+     * collision scans: ProjectileEntity line 119's {@code inAirTicks >= 25}
+     * against ThrownEntity line 165's {@code ticksInAir >= 5}).
+     */
+    private static int throwerImmunityTicksOf(ProjectileEntity projectile) {
+        return projectile.kind() == ProjectileEntity.Kind.LARGE_FIREBALL
+                || projectile.kind() == ProjectileEntity.Kind.SMALL_FIREBALL
+                ? FIREBALL_THROWER_IMMUNITY_TICKS : THROWER_IMMUNITY_TICKS;
+    }
+
+    /**
+     * The player's punch on a fireball (Slice 25b — ProjectileEntity
+     * .takeDamage lines 248-273): the velocity becomes the attacker's
+     * normalized look vector, the acceleration becomes look * 0.1, and the
+     * attacker becomes the new shooter (the deflected blast credits the
+     * puncher — the shooter-immunity window flips with the reassignment,
+     * so a fireball past its 25 air ticks now ignores the PLAYER and can
+     * strike the ghast that loosed it). The wire re-publishes the
+     * velocity (the reference's velocityChanged flag → the tracker's
+     * Entity Velocity packet). Only the fireball family carries the arm;
+     * the ballistic kinds answer false exactly the reference's takeDamage
+     * (arrows and shards have no deflect surface).
+     *
+     * @return whether the punch landed (the attack's own verdict — the
+     *         caller charges the melee exhaustion on it)
+     */
+    public boolean deflect(ProjectileEntity projectile, int attackerId,
+                           double lookX, double lookY, double lookZ) {
+        Objects.requireNonNull(projectile, "projectile");
+        if (projectile.kind() != ProjectileEntity.Kind.LARGE_FIREBALL
+                && projectile.kind() != ProjectileEntity.Kind.SMALL_FIREBALL) {
+            return false; // the thrown family and arrows take no deflection
+        }
+        projectile.deflectBy(attackerId, lookX, lookY, lookZ);
+        for (Listener listener : listeners) {
+            listener.onProjectileDeflected(projectile);
+        }
+        return true;
     }
 
     private void remove(ProjectileEntity projectile, String reason) {

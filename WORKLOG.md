@@ -4488,3 +4488,43 @@ Tests: ZombieVillagerConversionTest (10) + MobDataStoreTest grew to 6
 landing on the engine bodies). Fresh suite: 954 core tests, the two
 documented compute-drain load flakes (RangedCombat/Hopper) green in
 isolation; the protocol suite 77 green.
+
+## Slice 25b — the fireball deflection family (the punch that turns the blast around)
+
+**The reference:** `ProjectileEntity.takeDamage` lines 248-273 (the fireball
+parent's own arm — both the ghast's large fireball and the dispensed fire
+charge carry it) + the collision scan's shooter window (line 119's
+`inAirTicks >= 25` against `ThrownEntity`'s `ticksInAir >= 5`).
+
+**The deflect walk:** the player's punch on a fireball redirects it — the
+velocity becomes the attacker's normalized look vector, the acceleration
+follows at `look * 0.1` (the reference's own velocity*0.1), and the puncher
+becomes the NEW SHOOTER: the deflected blast credits the player, and the
+shooter-immunity window flips with the reassignment — a fireball past its
+25 air ticks now ignores the player and can strike the ghast that loosed
+it, the famous deflect-kill.
+
+**The landing sites:** `ProjectileManager.deflect` (the fireball kinds
+only — the thrown family and arrows answer false exactly the reference's
+takeDamage surface), `ProjectileEntity.deflectBy` (the velocity +
+acceleration + shooter writes; the thrower field grew mutable for the
+re-credit), and the melee dispatch's fireball branch (the vehicle arm's
+own shape: the reach window over the fireball's pick radius, the look
+vector through the same swapped-trig walk the launches carry, and the
+landed attack's 0.3 exhaustion). The wire re-publishes the velocity (Set
+Entity Velocity 0x12 — the reference's velocityChanged flag → the
+tracker's packet) so the client's own fireball model turns around with
+the punch; the per-tick teleports carry the trajectory from there.
+
+**The immunity window split:** the engine's single 5-tick
+THROWER_IMMUNITY grew kind-dependent — the fireball family's own 25
+(`ProjectileEntity` line 119), the thrown family's 5
+(`ThrownEntity` line 165), selected at both collision sites through
+`throwerImmunityTicksOf`.
+
+Tests: FireballDeflectionTest (4: the punch walk — the look velocity, the
+0.1 acceleration, the shooter re-credit, the wire event; the
+thrown-family refusals + the fire charge's family arm; the 25-tick
+window — the shooter immune inside, the deflected strike landing at tick
+26; the thrown family's 5-tick control). The neighboring suites green
+(projectile manager, bow family).
