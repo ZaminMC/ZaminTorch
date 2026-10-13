@@ -98,6 +98,18 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                                         new PacketHookOutboundHandler(
                                                 (net.zaminmc.torch.server.net.PacketHookRegistry)
                                                         engine.protocolHooks(), connection))
+                                // §27.3's inbound interception point (the C2S
+                                // mirror): every PLAY-state frame a session sends
+                                // walks the inbound hook registry between the
+                                // length-prefix decoder and the connection's own
+                                // dispatch — observe-or-drop, never re-payload.
+                                // (addLast here, before the connection's own
+                                // addLast below: the inbound traversal order is
+                                // Decoder -> this handler -> connection.)
+                                .addLast(PacketHookInboundHandler.NAME,
+                                        new PacketHookInboundHandler(
+                                                (net.zaminmc.torch.server.net.PacketHookRegistry)
+                                                        engine.protocolHooks(), connection))
                                 .addLast("connection", connection);
                         connections.put(connection, channel);
                         allChannels.add(channel);

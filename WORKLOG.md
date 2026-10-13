@@ -4143,3 +4143,40 @@ cancel, the chest-open observe, the sign-change observe, the per-block
 explosion destroy. The piston/fluid observe hooks and the furnace
 burn/cook hooks stay ledgered for their own waves (the §27.7 rule:
 hooks land with the mechanics that need them, never speculatively).
+
+## Slice 23g — the inbound packet-inspection wave (§27.3's C2S mirror)
+
+**The surface:** `ProtocolHooks`'s inbound family —
+`addInboundListener(InboundPacketListener)` / `removeInboundListener` /
+`inboundListeners()` (any thread, registration-order,
+exception-isolated — the outbound registry's own law) + the live
+`InboundPacket` handle: `sender()` (the Player), `packetId()` (the
+ACTIVE version's table — protocol 47 here), `payload()` (the fresh
+copy), `cancel()` / `cancelled()`. A dropped frame never decodes: no
+authoritative mutation, no semantic event — the sender's client believes
+it sent, the engine simply did not listen.
+
+**The deliberate boundary:** NO payload-replacement verb on the inbound
+side. The engine's parsers own the decode (a hand-replaced payload
+could corrupt authoritative state mid-walk); a plugin that wants to
+change a player's intent implements it at the semantic layer — the
+command/event surfaces — not by rewriting bytes. Observe-or-drop is the
+whole contract, documented on the handle.
+
+**The wiring:** `PacketHookRegistry` gains the second registry +
+`fireInbound` (the mirror of the outbound fire); the protocol side
+gains `PacketHookInboundHandler` — one Netty handler per connection
+between the length-prefix decoder and the connection's own dispatch
+(placed with addLast BEFORE the connection's addLast: the inbound
+traversal order is Decoder → hook → connection; the first attempt's
+addBefore("connection", ...) failed at initChannel — the name does not
+exist until the next line, the NoSuchElementException killed every
+channel at birth, diagnosed from the test's captured stderr).
+
+Tests: PacketHookInboundApiTest (2: the observation — the chat frame
+seen pre-decode with the sender/payload copy/the registry verbs; the
+drop — the cancelled chat never broadcasts, the uncancelled twin lands
+once the listener leaves). The outbound PacketHookApiTest still green
+(the pipeline change is additive).
+
+The protocol ledger row's inbound omission closes.
