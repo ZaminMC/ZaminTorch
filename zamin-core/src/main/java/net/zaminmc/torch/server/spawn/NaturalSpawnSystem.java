@@ -273,6 +273,23 @@ public final class NaturalSpawnSystem {
         return tick(players, timeOfDay, timeOfDay % 400L == 0L);
     }
 
+    /**
+     * The gradient-aware cycle (Slice 20b — the rain/thunder shaves ride
+     * {@code calculateAmbientDarkness} lines 1013-1015): the plain overload
+     * delegates with the clear sky.
+     */
+    public int tick(Iterable<PlayerSession> players, long timeOfDay,
+                    float rainGradient, float thunderGradient) {
+        this.rainGradient = rainGradient;
+        this.thunderGradient = thunderGradient;
+        return tick(players, timeOfDay, timeOfDay % 400L == 0L);
+    }
+
+    /** The live weather gradients (calculateAmbientDarkness's own shaves). */
+    private volatile float rainGradient;
+    /** The thunder gradient (the second shave). */
+    private volatile float thunderGradient;
+
     /** The cycle with the explicit rare flag (the 400-tick arm). */
     public int tick(Iterable<PlayerSession> players, long timeOfDay, boolean rareMobs) {
         // The spawning-chunk set (lines 34-53): the 17x17 grid around
@@ -307,7 +324,7 @@ public final class NaturalSpawnSystem {
 
         int spawned = 0;
         Position worldSpawn = world.spawnPoint();
-        int ambientDarkness = ambientDarkness(timeOfDay);
+        int ambientDarkness = ambientDarkness(timeOfDay, rainGradient, thunderGradient);
 
         for (Category category : Category.values()) {
             // The rare gate (lines 58-59): CREATURE (rare=true) walks only
@@ -599,11 +616,27 @@ public final class NaturalSpawnSystem {
      * noon, 11 at midnight.
      */
     public static int ambientDarkness(long timeOfDay) {
+        return ambientDarkness(timeOfDay, 0.0f, 0.0f);
+    }
+
+    /**
+     * The ambient darkness (World.calculateAmbientDarkness lines
+     * 1004-1016, the full walk): the dimension's own time-fraction walk,
+     * the two weather shaves ({@code 1 - rain*5/16} then
+     * {@code 1 - thunder*5/16}), then the
+     * {@code (int)((1 - clamp(1 - (2cos + 0.5))) * 11)} shape — 0 at noon,
+     * 11 at midnight.
+     */
+    public static int ambientDarkness(long timeOfDay, float rainGradient, float thunderGradient) {
         float fraction = celestialFraction(timeOfDay);
         float f1 = 1.0f - (float) (Math.cos(fraction * Math.PI * 2.0) * 2.0 + 0.5);
         f1 = Math.min(1.0f, Math.max(0.0f, f1));
         f1 = 1.0f - f1;
-        f1 = 1.0f - f1; // no rain, no thunder (the clear-sky walk)
+        // Lines 1013-1015: the rain and thunder shaves — a storming sky
+        // darkens the day the monsters can spawn through.
+        f1 = (float) (f1 * (1.0 - rainGradient * 5.0 / 16.0));
+        f1 = (float) (f1 * (1.0 - thunderGradient * 5.0 / 16.0));
+        f1 = 1.0f - f1;
         return (int) (f1 * 11.0f);
     }
 

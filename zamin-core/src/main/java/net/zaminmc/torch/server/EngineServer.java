@@ -302,10 +302,9 @@ public final class EngineServer implements Server, EngineBridge {
     private volatile long worldSeed;
     /** Runtime whitelist enforcement (server.properties boot value; /whitelist on|off). */
     private volatile boolean whitelistEnforced;
-    /** The weather state (the historical always-clear default; /weather drives it). */
-    private volatile boolean raining;
-    /** Weather countdown in ticks; -1 = holds until the next /weather. */
-    private volatile long weatherTicks = -1;
+    /** The weather state (Slice 20b — the 1.8.8 cycle; the pre-20b boolean
+     * model replaced). */
+    private volatile net.zaminmc.torch.server.weather.WeatherSystem weather;
     private final java.util.List<ChatListener> chatListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     private final java.util.List<ItemEntityManager.Listener> itemListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     private final java.util.List<MobManager.Listener> mobListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
@@ -580,7 +579,46 @@ public final class EngineServer implements Server, EngineBridge {
                 // gravity/torch/grass/fire rules. Registered as a world listener before
                 // the adapter, so engine-side rules observe every commit first.
                 blockUpdateSystem = new BlockUpdateSystem(world, itemEntities, falling);
-                blockUpdateSystem.setFireEnvironment(() -> raining, gameplayRandom);
+                blockUpdateSystem.setFireEnvironment(this::raining, gameplayRandom);
+                // The weather cycle (Slice 20b — World.tickWeather 1:1): the
+                // overworld's own system (the nether has no sky). The wire
+                // fan is ServerWorld.tickWeather's own publishes — the
+                // gradient pushes (7/8) and the raining flip pair (1/2),
+                // the overworld's players only.
+                weather = new net.zaminmc.torch.server.weather.WeatherSystem(
+                        new java.util.Random(worldSeed));
+                weather.addListener(new net.zaminmc.torch.server.weather.WeatherSystem.Listener() {
+                    @Override
+                    public void onRainGradientChanged(float gradient) {
+                        for (PlayerSession player : players.all()) {
+                            if (player.dimension() == 0) {
+                                player.link().playGameState(7, gradient);
+                            }
+                        }
+                    }
+
+                    @Override
+                    public void onThunderGradientChanged(float gradient) {
+                        for (PlayerSession player : players.all()) {
+                            if (player.dimension() == 0) {
+                                player.link().playGameState(8, gradient);
+                            }
+                        }
+                    }
+
+                    @Override
+                    public void onRainingFlipped(boolean rainingNow) {
+                        // The reference's closing fan (lines 873-878): the
+                        // 1/2 flip pair + the gradient re-push in order.
+                        for (PlayerSession player : players.all()) {
+                            if (player.dimension() == 0) {
+                                player.link().updateWeather(rainingNow);
+                            }
+                        }
+                        onRainGradientChanged(weather.rainGradient());
+                        onThunderGradientChanged(weather.thunderGradient());
+                    }
+                });
                 // The world itself dispatches every committed change (§208): the
                 // neighbor-update system observes player- AND engine-driven changes.
                 world.addChangeListener(blockUpdateSystem);
@@ -959,10 +997,17 @@ public final class EngineServer implements Server, EngineBridge {
                     itemEntities.tick(players.all());
                     experienceOrbs.tick(players.all()); // the XP bodies pay out
                     mobs.tick(players.all(), world.timeOfDay());
+                    // The weather cycle (Slice 20b — the tick walk before
+                    // the spawns: the reference's own tick order, the
+                    // gradient shaving the same tick's ambient darkness).
+                    tickWeather();
                     // The natural cycle (Slice 11d — ServerWorld.tick line
                     // 180: the spawner walk every tick, the caps scaled by
-                    // the spawning-chunk count).
-                    naturalSpawns.tick(players.all(), world.timeOfDay());
+                    // the spawning-chunk count). The gradients feed the
+                    // ambient-darkness shaves (calculateAmbientDarkness
+                    // lines 1013-1015).
+                    naturalSpawns.tick(players.all(), world.timeOfDay(),
+                            weather.rainGradient(), weather.thunderGradient());
                     // The nether's own cycle (Slice 16d): only the players
                     // standing in the nether feed its spawning-chunk set.
                     java.util.List<PlayerSession> netherPlayers = new java.util.ArrayList<>();
@@ -982,7 +1027,6 @@ public final class EngineServer implements Server, EngineBridge {
                     tickBrewingViewers();
                     tickEnchantingViewers();
                     tickPlayerBodies();
-                    tickWeather();            // /weather's countdown (the auto-clear)
                     // The portal caches' eviction walk (the reference's
                     // PortalForcer.tick per world).
                     worldPortalForcer.tick(world.totalTicks());
@@ -6033,9 +6077,12 @@ public final class EngineServer implements Server, EngineBridge {
         // The morning jump (the historical wake-up at 0) with the cycle sync.
         world.setTimeOfDay(0);
         publishTimeChanged();
-        // Sleeping clears the rain (the historical wake-up weather).
-        if (raining) {
-            setWeather(false, -1);
+        // Sleeping clears the weather (ServerWorld.wakeSleepingPlayers →
+        // clearWeather lines 248-256: both flags drop, both clocks zero —
+        // the auto-cycle rerolls fresh).
+        net.zaminmc.torch.server.weather.WeatherSystem cycle = weather;
+        if (cycle != null) {
+            cycle.clearWeather();
         }
         LOGGER.info(() -> session.name() + " slept through the night");
     }
@@ -10682,54 +10729,69 @@ public final class EngineServer implements Server, EngineBridge {
 
     /** /weather &lt;clear|rain&gt; [seconds]: the Change Game State broadcast. */
     private String weatherCommand(CommandSender sender, String[] args) {
-        if (args.length < 1 || !(args[0].equalsIgnoreCase("clear")
-                || args[0].equalsIgnoreCase("rain"))) {
-            return "Usage: /weather <clear|rain> [seconds]";
+        // WeatherCommand.run lines 19-52: three arms over the shared
+        // duration — the explicit seconds gate 1..1000000, the default
+        // (300 + nextInt(600)) * 20 (5-15 minutes).
+        if (args.length < 1 || args.length > 2
+                || !(args[0].equalsIgnoreCase("clear")
+                || args[0].equalsIgnoreCase("rain")
+                || args[0].equalsIgnoreCase("thunder"))) {
+            return "Usage: /weather <clear|rain|thunder> [seconds]";
         }
-        boolean target = args[0].equalsIgnoreCase("rain");
-        long durationTicks = -1;
+        int durationTicks = net.zaminmc.torch.server.weather.WeatherSystem
+                .defaultDurationTicks();
         if (args.length >= 2) {
             try {
-                durationTicks = Long.parseLong(args[1]) * 20L;
+                int seconds = Integer.parseInt(args[1]);
+                if (seconds < 1 || seconds > 1_000_000) {
+                    return "Duration must be 1..1000000 seconds";
+                }
+                durationTicks = seconds * 20;
             } catch (NumberFormatException malformed) {
-                return "Duration must be seconds: /weather <clear|rain> [seconds]";
+                return "Duration must be seconds: /weather <clear|rain|thunder> [seconds]";
             }
         }
-        setWeather(target, durationTicks);
-        return target ? "Set the weather to rain" : "Set the weather to clear";
+        net.zaminmc.torch.server.weather.WeatherSystem cycle = weather;
+        if (cycle == null) {
+            return "The world is not up yet";
+        }
+        String arm = args[0].toLowerCase(java.util.Locale.ROOT);
+        cycle.setWeather(!arm.equals("clear"), arm.equals("thunder"), durationTicks);
+        return arm.equals("clear") ? "Set the weather to clear"
+                : arm.equals("rain") ? "Set the weather to rain"
+                : "Set the weather to thunder";
     }
 
     /**
-     * Weather commit: the state flips, the broadcast fans out through every
-     * link (Change Game State 1/2), and a duration schedules the auto-clear.
-     * Safe from any thread.
+     * The weather cycle's own commit surface (the public engine API over
+     * the 1.8.8 model — the pre-20b boolean setter kept as the delegate).
+     * Safe from any thread; the tick owns the walk.
      */
     public void setWeather(boolean rain, long durationTicks) {
-        this.raining = rain;
-        this.weatherTicks = durationTicks;
-        for (PlayerSession player : players.all()) {
-            player.link().updateWeather(rain);
+        net.zaminmc.torch.server.weather.WeatherSystem cycle = weather;
+        if (cycle != null) {
+            cycle.setWeather(rain, false,
+                    durationTicks < 0 ? net.zaminmc.torch.server.weather.WeatherSystem
+                            .defaultDurationTicks() : (int) Math.min(Integer.MAX_VALUE, durationTicks));
         }
-        LOGGER.info(() -> "Weather set to " + (rain ? "rain" : "clear"));
     }
 
-    /** @return whether rain is falling (the join's initial state push). */
+    /** @return whether the rain flag is set (the fire environment's read). */
     public boolean raining() {
-        return raining;
+        net.zaminmc.torch.server.weather.WeatherSystem cycle = weather;
+        return cycle != null && cycle.raining();
     }
 
-    /** The weather countdown (the tick handler drives the auto-clear). */
+    /** @return the overworld's weather cycle (present once the world is up). */
+    public net.zaminmc.torch.server.weather.WeatherSystem weather() {
+        return weather;
+    }
+
+    /** The weather walk (the tick handler drives the whole cycle). */
     private void tickWeather() {
-        if (weatherTicks > 0 && !raining) {
-            return;
-        }
-        long left = weatherTicks;
-        if (left > 0) {
-            left--;
-            weatherTicks = left;
-            if (left == 0) {
-                setWeather(false, -1);
-            }
+        net.zaminmc.torch.server.weather.WeatherSystem cycle = weather;
+        if (cycle != null) {
+            cycle.tick();
         }
     }
 
@@ -11398,8 +11460,14 @@ public final class EngineServer implements Server, EngineBridge {
     @Override
     public void joinCompleted(PlayerSession session) {
         session.markPlaying();
-        // The join learns the sky state (a rainy world never looks wrong).
-        session.link().updateWeather(raining);
+        // The join learns the sky state (PlayerManager's own join pair:
+        // GameEventS2CPacket(7, rain) + (8, thunder) — the live gradients,
+        // never the boolean).
+        net.zaminmc.torch.server.weather.WeatherSystem cycle = weather;
+        if (cycle != null && session.dimension() == 0) {
+            session.link().playGameState(7, cycle.rainGradient());
+            session.link().playGameState(8, cycle.thunderGradient());
+        }
         LOGGER.info(() -> "Player in play state: " + session.name());
     }
 
