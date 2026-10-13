@@ -1174,6 +1174,29 @@ public final class EngineServer implements Server, EngineBridge {
                         config.worldDataDir().resolve("brewing_stands.bin"));
                 brewingStands.restoreAll(brewingStore.load());
                 hopperSystem.setBrewingLookup(brewingStands::getOrCreate);
+                // The rolling containers' scan (Slice 25e — getInventoryAt's
+                // entity fallback): the chest minecarts inside the cell's
+                // 1x1x1 box, the hopper's cart arm.
+                hopperSystem.setCartLookup(cell -> {
+                    java.util.List<net.zaminmc.torch.server.entity.vehicle.ChestMinecartEntity>
+                            found = new java.util.ArrayList<>();
+                    double cx = cell.x() + 0.5;
+                    double cy = cell.y() + 0.5;
+                    double cz = cell.z() + 0.5;
+                    for (net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle
+                            : vehicleManager.all()) {
+                        if (!(vehicle
+                                instanceof net.zaminmc.torch.server.entity.vehicle.ChestMinecartEntity cart)) {
+                            continue;
+                        }
+                        Position at = vehicle.position();
+                        if (Math.abs(at.x() - cx) <= 0.5 && Math.abs(at.y() - cy) <= 0.5
+                                && Math.abs(at.z() - cz) <= 0.5) {
+                            found.add(cart);
+                        }
+                    }
+                    return found;
+                });
                 // The potions (Slice 11b): the per-body effect stores, the
                 // cadenced periodic application, and the splash's area walk.
                 potionSystem = new net.zaminmc.torch.server.potion.PotionSystem(

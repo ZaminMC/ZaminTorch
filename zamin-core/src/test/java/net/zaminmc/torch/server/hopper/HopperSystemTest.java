@@ -367,6 +367,52 @@ class HopperSystemTest {
         }
     }
 
+    /**
+     * The cart arm (Slice 25e — getInventoryAt lines 466-472): a chest
+     * minecart parked on the hopper IS the container above — the pull
+     * drains it one item per transfer, and the push into a cart at the
+     * hopper's facing side lands the same way.
+     */
+    @Test
+    void theHopperPullsFromTheChestMinecartAbove() throws Exception {
+        EngineServer server = boot(EngineConfig.WHOLE_WORLD_REGION_SIZE);
+        try {
+            int x = 30, z = 30, y = 40;
+            server.ticker().submit(() -> {
+                // The hopper facing down (no block container below: the
+                // cart arm above is the walk under test).
+                server.world().setBlock(new BlockPosition(x, y, z),
+                        HopperBlocks.hopperOf(0, true));
+                // The chest minecart standing on the hopper — its body
+                // sits inside the cell above.
+                net.zaminmc.torch.server.entity.vehicle.VehicleEntity cart =
+                        server.vehicles().spawnChestMinecart(
+                                new net.zaminmc.torch.util.Position(x + 0.5, y + 1.0, z + 0.5));
+                // The cart's cargo: a stack of diamonds in the first slot.
+                ((net.zaminmc.torch.server.entity.vehicle.ChestMinecartEntity) cart)
+                        .chest().setSlot(0, ItemStack.of(
+                                net.zaminmc.torch.server.item.BuiltinItems.DIAMOND, 5));
+            });
+            // The pull drains the cart one item per transfer (the 8-tick
+            // cadence): the hopper's first slot gains the diamonds.
+            await(() -> hopperSlot(server, x, y, z, 0).count() == 1,
+                    "the hopper pulled the first item from the chest minecart");
+            await(() -> hopperSlot(server, x, y, z, 0).count() == 5,
+                    "the whole stack drained off the cart");
+            // The cart's own slot emptied with it.
+            await(() -> {
+                var cart = server.vehicles().all().stream()
+                        .filter(v -> v instanceof
+                                net.zaminmc.torch.server.entity.vehicle.ChestMinecartEntity)
+                        .findFirst().orElse(null);
+                return cart != null && ((net.zaminmc.torch.server.entity.vehicle.ChestMinecartEntity) cart)
+                        .chest().snapshotSlots()[0].isEmpty();
+            }, "the cart's first slot emptied");
+        } finally {
+            server.shutdown(() -> { });
+        }
+    }
+
     private EngineServer boot(int regionSizeChunks) throws Exception {
         EngineConfig config = new EngineConfig("127.0.0.1", 0,
                 "hpt" + Math.abs(UUID.randomUUID().hashCode() % 100000),

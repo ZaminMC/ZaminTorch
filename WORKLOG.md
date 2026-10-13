@@ -4573,3 +4573,26 @@ netherrack platform in the nether holds a nether-spawned pigman whose
 support read answers from the nether's blocks). The neighboring suites
 green (nether monsters, the conversion family, the store, the manager,
 the dimension walk, the spawner, the integration).
+
+## Slice 25e — the hopper's cart arm (the rolling container resolves)
+
+**The reference:** `HopperBlockEntity.getInventoryAt` lines 466-472 — the
+entity fallback: when no block container sits at the cell, the 1×1×1 box
+around the cell's center scans the INVENTORY entities and picks a RANDOM
+one — the chest minecart parked on the hopper (or at its facing side) IS
+the container.
+
+**The engine's arm:** `containerSlotsAt`'s new fallback (after every
+block-container branch) — the wired `cartLookup` scans the chest
+minecarts inside the cell's box (the engine's own 1×1×1 mirror), the
+random pick matches the reference's own `list.get(random.nextInt(...))`,
+and the 27-slot view rides the SAME `chestSlot` adapter the block chest
+uses (the cart's `ChestBlockEntity` IS the engine's own 27-slot
+container since Slice 21a — zero new click semantics). Both arms inherit
+the fallback through the shared resolution: the pull-above and the
+push-facing.
+
+Tests: HopperSystemTest's cart arm (the live engine: a chest minecart
+standing on the hopper drains into it one item per transfer — the whole
+stack and the cart's own slot emptying). The neighboring hopper suites
+green (the window, the persistence).
