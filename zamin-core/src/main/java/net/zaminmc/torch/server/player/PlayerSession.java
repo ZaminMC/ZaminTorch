@@ -81,6 +81,12 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
          * containerMountId's cart id.
          */
         CHEST_MINECART,
+        /**
+         * The hopper (the reference's HopperMenu — the 5-slot GUI over the
+         * block entity at containerPosition; the same ownership as the
+         * chest).
+         */
+        HOPPER,
         /** The villager trading window (offers ride the MC|TrList plugin message). */
         VILLAGER,
         /** The enchanting table (2 transient slots living in the session's menu, seed + costs included). */

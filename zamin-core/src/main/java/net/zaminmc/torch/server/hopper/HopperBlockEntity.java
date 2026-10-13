@@ -116,6 +116,94 @@ public final class HopperBlockEntity {
         bump();
     }
 
+    // --- the GUI window's click semantics (the reference's HopperMenu,
+    // --- the chest's own shapes — the hopper has no slot filters) ---------
+
+    /**
+     * Cursor click on one of the five hopper slots (the window's mode 0):
+     * the shared {@code WindowClicks} semantics over the slot grid and the
+     * player's cursor.
+     */
+    public void clickSlot(int slot, int button,
+                          net.zaminmc.torch.server.player.PlayerInventory inventory) {
+        rangeCheck(slot);
+        net.zaminmc.torch.server.player.WindowClicks.click(slots, slot, button,
+                inventory.cursorBox());
+        bump();
+    }
+
+    /**
+     * Semantic drop-click (window click mode 4) on a hopper slot.
+     * @return the stack that left the slot (possibly empty); the caller
+     *         throws it into the world.
+     */
+    public ItemStack dropFromSlot(int slot, boolean entireStack) {
+        rangeCheck(slot);
+        ItemStack current = slots[slot];
+        if (current.isEmpty()) {
+            return ItemStack.EMPTY;
+        }
+        ItemStack dropped = entireStack ? current : current.split(1);
+        slots[slot] = current.withCount(current.count() - dropped.count());
+        bump();
+        return dropped;
+    }
+
+    /**
+     * Semantic shift-click out of a hopper slot (quickMoveItem's first arm):
+     * the stack moves into the inventory; a remainder stays.
+     */
+    public void quickMoveToInventory(int slot,
+                                     net.zaminmc.torch.server.player.PlayerInventory inventory) {
+        rangeCheck(slot);
+        ItemStack moving = slots[slot];
+        if (moving.isEmpty()) {
+            return;
+        }
+        slots[slot] = ItemStack.EMPTY;
+        ItemStack remaining = inventory.pickUp(moving);
+        if (!remaining.isEmpty()) {
+            slots[slot] = remaining;
+        }
+        bump();
+    }
+
+    /**
+     * Semantic shift-click from the player inventory into the hopper
+     * (quickMoveItem's second arm): any stack is accepted (the reference's
+     * plain InventorySlots — no filters), matching partials first, then the
+     * first empty slot; a remainder comes back.
+     */
+    public ItemStack quickMoveIn(ItemStack moving) {
+        if (moving.isEmpty()) {
+            return ItemStack.EMPTY;
+        }
+        for (int slot = 0; slot < SLOT_COUNT && !moving.isEmpty(); slot++) {
+            ItemStack current = slots[slot];
+            if (!current.isEmpty()
+                    && net.zaminmc.torch.server.player.WindowClicks
+                            .stacksMergeable(current, moving)
+                    && current.count() < current.type().maxStackSize()) {
+                int capacity = current.type().maxStackSize() - current.count();
+                int transfer = Math.min(capacity, moving.count());
+                slots[slot] = current.withCount(current.count() + transfer);
+                moving = moving.withCount(moving.count() - transfer);
+            }
+        }
+        if (moving.isEmpty()) {
+            bump();
+            return ItemStack.EMPTY;
+        }
+        for (int slot = 0; slot < SLOT_COUNT; slot++) {
+            if (slots[slot].isEmpty()) {
+                slots[slot] = moving;
+                bump();
+                return ItemStack.EMPTY;
+            }
+        }
+        return moving; // hopper full: the whole remainder comes back
+    }
+
     /** @return a defensive copy of the five slots, index-aligned. */
     public ItemStack[] snapshotSlots() {
         return slots.clone();

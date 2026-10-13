@@ -420,6 +420,16 @@ final class Protocol18 {
     static final String DROPPER_WINDOW_TYPE = "minecraft:dropper";
     static final String DISPENSER_WINDOW_TITLE = "{\"text\":\"Dispenser\"}";
     static final String DROPPER_WINDOW_TITLE = "{\"text\":\"Dropper\"}";
+
+    /** The hopper window (the reference's HopperMenu): 5 + 27 + 9 = 41 slots. */
+    static final String HOPPER_WINDOW_TYPE = "minecraft:hopper";
+    static final String HOPPER_WINDOW_TITLE = "{\"text\":\"Hopper\"}";
+    static final int HOPPER_WINDOW_SLOTS = 41;
+    static final int HOPPER_WIRE_SLOT_LAST = 4;
+    static final int HOPPER_WIRE_SLOT_MAIN_FIRST = 5;
+    static final int HOPPER_WIRE_SLOT_MAIN_LAST = 31;
+    static final int HOPPER_WIRE_SLOT_HOTBAR_FIRST = 32;
+    static final int HOPPER_WIRE_SLOT_HOTBAR_LAST = 40;
     static final int DISPENSER_WINDOW_SLOTS = 45;
     static final int DISPENSER_WIRE_SLOT_LAST = 8;
     static final int DISPENSER_WIRE_SLOT_MAIN_FIRST = 9;

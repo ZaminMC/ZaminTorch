@@ -949,6 +949,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                     case CHEST -> sendChestWindow(channel, player, windowId);
                     case CHEST_MINECART -> sendChestMinecartWindow(channel, player, windowId);
                     case DISPENSER -> sendDispenserWindow(channel, player, windowId);
+                    case HOPPER -> sendHopperWindow(channel, player, windowId);
                     case BREWING_STAND -> sendBrewingWindow(channel, player, windowId);
                     case ENCHANTING_TABLE -> sendEnchantingWindow(channel, player, windowId);
                     default -> sendCraftingTableWindow(channel, player, windowId);
@@ -1071,6 +1072,31 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeString(out, dropper
                 ? Protocol18.DROPPER_WINDOW_TITLE : Protocol18.DISPENSER_WINDOW_TITLE);
         out.writeByte(9); // the GUI's own slots: 3 rows of 3
+        channel.writeAndFlush(out);
+        sendContainerWindowItems(channel, windowId, player);
+    }
+
+    /**
+     * Open Window (0x2D) for the hopper (the reference's HopperMenu —
+     * "minecraft:hopper", five GUI slots), followed by the authoritative
+     * 41-slot contents. Called on the tick thread by the engine's open
+     * dispatch.
+     */
+    private void sendHopperWindow(Channel channel, PlayerSession player, int windowId) {
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        var position = player.openContainerPosition();
+        var hopper = position == null ? null : engine.hopper().peek(position);
+        if (hopper == null) {
+            return; // stale open (state discarded): nothing to show
+        }
+        ByteBuf out = Unpooled.buffer(48);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_OPEN_WINDOW);
+        out.writeByte(windowId);
+        ByteBufOps.writeString(out, Protocol18.HOPPER_WINDOW_TYPE);
+        ByteBufOps.writeString(out, Protocol18.HOPPER_WINDOW_TITLE);
+        out.writeByte(5); // the GUI's own slots: the hopper's five
         channel.writeAndFlush(out);
         sendContainerWindowItems(channel, windowId, player);
     }
@@ -1831,6 +1857,15 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             return;
         }
         if (player.openContainerKind()
+                == net.zaminmc.torch.server.player.PlayerSession.ContainerKind.HOPPER) {
+            var position = player.openContainerPosition();
+            var hopper = position == null ? null : engine.hopper().peek(position);
+            if (hopper != null) {
+                sendHopperWindowItems(channel, windowId, hopper, player);
+            }
+            return;
+        }
+        if (player.openContainerKind()
                 == net.zaminmc.torch.server.player.PlayerSession.ContainerKind.BREWING_STAND) {
             var position = player.openContainerPosition();
             var stand = position == null ? null : engine.brewingStands().peek(position);
@@ -2066,6 +2101,40 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 stack = inventory.get(wireSlot);
             } else {
                 stack = inventory.get(wireSlot - Protocol18.DISPENSER_WIRE_SLOT_HOTBAR_FIRST);
+            }
+            writeSlot(out, stack);
+        }
+        channel.writeAndFlush(out);
+    }
+
+    /**
+     * Full authoritative sync of the hopper window (the reference's
+     * HopperMenu): 41 slots — 0-4 the container, 5-31 main (engine 9-35),
+     * 32-40 hotbar (engine 0-8). Any thread; owner supplies the session
+     * state.
+     */
+    private void sendHopperWindowItems(Channel channel, int windowId,
+                                       net.zaminmc.torch.server.hopper.HopperBlockEntity hopper,
+                                       PlayerSession player) {
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(96);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_WINDOW_ITEMS);
+        out.writeByte(windowId);
+        out.writeShort(Protocol18.HOPPER_WINDOW_SLOTS);
+        var containerSlots = hopper.snapshotSlots();
+        java.util.List<net.zaminmc.torch.item.ItemStack> inventory =
+                player == null ? java.util.List.of() : player.inventory().snapshot();
+        for (int wireSlot = 0; wireSlot < Protocol18.HOPPER_WINDOW_SLOTS; wireSlot++) {
+            net.zaminmc.torch.item.ItemStack stack;
+            if (wireSlot <= Protocol18.HOPPER_WIRE_SLOT_LAST) {
+                stack = containerSlots[wireSlot];
+            } else if (wireSlot <= Protocol18.HOPPER_WIRE_SLOT_MAIN_LAST) {
+                // main: wire 5-31 == engine 9-35 (offset by the hotbar band)
+                stack = inventory.get(wireSlot - Protocol18.HOPPER_WIRE_SLOT_MAIN_FIRST + 9);
+            } else {
+                stack = inventory.get(wireSlot - Protocol18.HOPPER_WIRE_SLOT_HOTBAR_FIRST);
             }
             writeSlot(out, stack);
         }

@@ -148,6 +148,14 @@ public final class EngineServer implements Server, EngineBridge {
     private static final int CHEST_WIRE_SLOT_MAIN_LAST = 53;
     private static final int CHEST_WIRE_SLOT_HOTBAR_FIRST = 54;
     private static final int CHEST_WIRE_SLOT_HOTBAR_LAST = 62;
+
+    /** The hopper window's wire layout (the reference's HopperMenu): 5
+     *  container slots, then the main inventory 5-31, then the hotbar 32-40. */
+    private static final int HOPPER_WIRE_SLOT_LAST = 4;
+    private static final int HOPPER_WIRE_SLOT_MAIN_FIRST = 5;
+    private static final int HOPPER_WIRE_SLOT_MAIN_LAST = 31;
+    private static final int HOPPER_WIRE_SLOT_HOTBAR_FIRST = 32;
+    private static final int HOPPER_WIRE_SLOT_HOTBAR_LAST = 40;
     // The dispenser/dropper window (Slice 11a — DispenserMenu): 3x3
     // container slots then the same inventory layout the chest uses.
     private static final int DISPENSER_WIRE_SLOT_LAST = 8;
@@ -242,6 +250,7 @@ public final class EngineServer implements Server, EngineBridge {
     private net.zaminmc.torch.server.brewing.BrewingStandDataStore brewingStore;
     private ChestManager chestManager;
     private ChestDataStore chestStore;
+    private net.zaminmc.torch.server.hopper.HopperDataStore hopperStore;
     /** The mob spawner state (Slice 12g — the structure spawners). */
     private net.zaminmc.torch.server.spawner.SpawnerManager spawnerManager;
     private net.zaminmc.torch.server.spawner.SpawnerManager spawners;
@@ -957,6 +966,11 @@ public final class EngineServer implements Server, EngineBridge {
                         world, redstoneSystem, itemEntities, chestManager, furnaceManager);
                 world.addChangeListener(hopperSystem); // the placement creates the BE state
                 redstoneSystem.addNeighborListener(hopperSystem::neighborHeard);
+                // The hopper contents' own ZHD persistence (the chest store's
+                // own durability rules).
+                hopperStore = new net.zaminmc.torch.server.hopper.HopperDataStore(
+                        config.worldDataDir().resolve("hoppers.bin"));
+                hopperSystem.restoreAll(hopperStore.load());
                 // The tripwire (Slice 10c): the occupancy scan + the hook's
                 // chain walk, riding the redstone family's scheduled-tick
                 // queue + the cross-system neighbor bus.
@@ -4072,6 +4086,7 @@ public final class EngineServer implements Server, EngineBridge {
                     case FURNACE -> clickFurnaceWindowOnTick(session, wireSlot, button, mode);
                     case CHEST -> clickChestWindowOnTick(session, wireSlot, button, mode);
                     case CHEST_MINECART -> clickChestMinecartWindowOnTick(session, wireSlot, button, mode);
+                    case HOPPER -> clickHopperWindowOnTick(session, wireSlot, button, mode);
                     case DISPENSER -> clickDispenserWindowOnTick(session, wireSlot, button, mode);
                     case BREWING_STAND -> clickBrewingStandWindowOnTick(session, wireSlot, button, mode);
                     case HORSE -> clickHorseWindowOnTick(session, wireSlot, button, mode);
@@ -4477,6 +4492,111 @@ public final class EngineServer implements Server, EngineBridge {
             return wireSlot - CHEST_WIRE_SLOT_HOTBAR_FIRST; // hotbar (engine 0-8)
         }
         return -1;
+    }
+
+    /**
+     * Wire slot -&gt; engine slot inside a hopper window (the reference's
+     * HopperMenu layout: 5-31 maps to main inventory engine slots 9-35;
+     * 32-40 to hotbar 0-8); -1 for the hopper's own five slots.
+     */
+    private static int hopperEngineSlotOf(int wireSlot) {
+        if (wireSlot >= HOPPER_WIRE_SLOT_MAIN_FIRST && wireSlot <= HOPPER_WIRE_SLOT_MAIN_LAST) {
+            return wireSlot - HOPPER_WIRE_SLOT_MAIN_FIRST
+                    + net.zaminmc.torch.server.player.PlayerInventory.HOTBAR_SLOTS;
+        }
+        if (wireSlot >= HOPPER_WIRE_SLOT_HOTBAR_FIRST && wireSlot <= HOPPER_WIRE_SLOT_HOTBAR_LAST) {
+            return wireSlot - HOPPER_WIRE_SLOT_HOTBAR_FIRST; // hotbar (engine 0-8)
+        }
+        return -1;
+    }
+
+    /**
+     * Click routing for the hopper window (the reference's HopperMenu —
+     * five container slots, the plain InventorySlot semantics, no filters):
+     * mode 0 the cursor walk, mode 1 the quick-move pair, mode 2 the
+     * number-key exchange (the player's own slots only), mode 4 the
+     * drop-click. Tick-thread context.
+     */
+    private boolean clickHopperWindowOnTick(PlayerSession session, int wireSlot, int button,
+                                            int mode) {
+        var inventory = session.inventory();
+        var position = session.openContainerPosition();
+        var hopper = position == null ? null : hopperSystem.peek(position);
+        if (hopper == null) {
+            return false; // stale window (state discarded): rejected, resync restores
+        }
+        switch (mode) {
+            case 0 -> {
+                if (wireSlot >= 0 && wireSlot <= HOPPER_WIRE_SLOT_LAST) {
+                    hopper.clickSlot(wireSlot, button, inventory);
+                    return true;
+                }
+                int engineSlot = hopperEngineSlotOf(wireSlot);
+                if (engineSlot >= 0) {
+                    inventory.clickSlot(engineSlot, button);
+                    return true;
+                }
+                return false;
+            }
+            case 1 -> {
+                if (wireSlot >= 0 && wireSlot <= HOPPER_WIRE_SLOT_LAST) {
+                    hopper.quickMoveToInventory(wireSlot, inventory);
+                    return true;
+                }
+                int engineSlot = hopperEngineSlotOf(wireSlot);
+                if (engineSlot >= 0) {
+                    // Any stack moves in: the hopper has no slot filters (the
+                    // reference's plain InventorySlots). Remainder returns.
+                    net.zaminmc.torch.item.ItemStack peek = inventory.snapshot().get(engineSlot);
+                    if (peek.isEmpty()) {
+                        return false; // empty slot shift-click: nothing moves
+                    }
+                    net.zaminmc.torch.item.ItemStack moving = inventory.dropFromSlot(engineSlot, true);
+                    net.zaminmc.torch.item.ItemStack remainder = hopper.quickMoveIn(moving);
+                    if (!remainder.isEmpty()) {
+                        inventory.pickUp(remainder); // hopper full: put the rest back
+                    }
+                    return true;
+                }
+                return false;
+            }
+            case 2 -> {
+                // Number keys exchange main inventory and hotbar only; the
+                // hopper slots are rejected per packet (the resync restores).
+                int engineSlot = hopperEngineSlotOf(wireSlot);
+                if (engineSlot >= net.zaminmc.torch.server.player.PlayerInventory.HOTBAR_SLOTS
+                        && button >= 0 && button < 9) {
+                    inventory.swapWithHotbar(engineSlot, button);
+                    return true;
+                }
+                return false;
+            }
+            case 3 -> {
+                return false; // middle-click clone: rejected in survival
+            }
+            case 4 -> {
+                if (wireSlot >= 0 && wireSlot <= HOPPER_WIRE_SLOT_LAST) {
+                    net.zaminmc.torch.item.ItemStack dropped = hopper.dropFromSlot(wireSlot, button != 0);
+                    if (!dropped.isEmpty()) {
+                        throwFromPlayer(session, dropped);
+                    }
+                    return true;
+                }
+                int engineSlot = hopperEngineSlotOf(wireSlot);
+                if (engineSlot >= 0) {
+                    net.zaminmc.torch.item.ItemStack dropped =
+                            inventory.dropFromSlot(engineSlot, button != 0);
+                    if (!dropped.isEmpty()) {
+                        throwFromPlayer(session, dropped);
+                    }
+                    return true;
+                }
+                return false;
+            }
+            default -> {
+                return false; // drag painting (5) / unknown mode: rejected
+            }
+        }
     }
 
     /**
@@ -5002,6 +5122,11 @@ public final class EngineServer implements Server, EngineBridge {
             // DispenserBlock.use lines 78-94: the container opens (the
             // dropper keeps its own menu type on the wire).
             openDispenserOnTick(session, clicked, onTableOpened);
+            return;
+        }
+        if (net.zaminmc.torch.server.hopper.HopperBlocks.isHopper(current)) {
+            // HopperBlock.use lines 135-146: the container menu opens.
+            openHopperOnTick(session, clicked, onTableOpened);
             return;
         }
         if (net.zaminmc.torch.server.brewing.BrewingStandBlocks.isBrewingStand(current)) {
@@ -7848,6 +7973,28 @@ public final class EngineServer implements Server, EngineBridge {
         // The lid swings for every other observer (the historical Block
         // Action 1; the opener's client animates its own view).
         publishChestLid(position, session, true);
+    }
+
+    /**
+     * Opens the hopper container at the clicked block (the reference's
+     * HopperBlock.use lines 135-146 + HopperMenu): assigns the wire window
+     * id, lazily creates the block-entity state, closes any carried window
+     * state first, and reports the id for the adapter's Open Window + slot
+     * sync. The five slots live in the world — closing the window later
+     * leaves them inside (the historical container behavior, the same
+     * ownership as the chest). Tick-thread context.
+     */
+    private void openHopperOnTick(PlayerSession session, net.zaminmc.torch.block.BlockPosition position,
+                                  java.util.function.IntConsumer onTableOpened) {
+        closeOpenContainerOnTick(session);
+        dropGridToWorld(session, session.crafting()); // the vanilla close: the 2x2 grid drops
+
+        hopperSystem.getOrCreate(position);
+        int windowId = nextContainerWindowId;
+        nextContainerWindowId = nextContainerWindowId >= LAST_CONTAINER_WINDOW_ID
+                ? FIRST_CONTAINER_WINDOW_ID : nextContainerWindowId + 1;
+        session.openContainerWindow(windowId, PlayerSession.ContainerKind.HOPPER, position);
+        onTableOpened.accept(windowId);
     }
 
     /**
@@ -11805,6 +11952,9 @@ public final class EngineServer implements Server, EngineBridge {
                 }
                 if (chestStore != null && chestManager != null) {
                     chestStore.save(chestManager.snapshot());
+                }
+                if (hopperStore != null && hopperSystem != null) {
+                    hopperStore.save(hopperSystem.snapshot());
                 }
                 if (dispenserStore != null && dispenserSystem != null) {
                     dispenserStore.save(dispenserSystem.snapshot());
