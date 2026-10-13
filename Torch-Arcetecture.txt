@@ -986,3 +986,181 @@ Torch succeeds at its native API goal when developers can inspect, extend, repla
 The governing principle is:
 
 **Expose the engine's capabilities, not merely the abstractions Torch maintainers happen to anticipate. Preserve contracts deliberately, and enforce safe execution without withholding useful control.**
+
+---
+
+# 28. PLUGIN CONCURRENCY, DEADLOCKS, AND LIFECYCLE — REQUIRED CONTRACT
+
+This section makes plugin safety a first-class part of Torch's engine and native API architecture. Plugins are untrusted with respect to correctness: even well-intentioned plugin code may block, re-enter callbacks, retain stale references, throw exceptions, or access state from the wrong execution context. Do not assume that plugin authors understand Torch's ownership model.
+
+The goal is not to restrict plugins to a shallow API. The goal is to expose deep engine control through explicit, enforceable execution contracts.
+
+## 28.1 Required plugin execution model
+
+Every plugin callback and task must have a documented execution category. At minimum distinguish:
+
+1. **Authoritative gameplay callback:** runs in a validated owner context and may perform only the mutations allowed to that owner.
+2. **Snapshot/read callback:** receives immutable or explicitly versioned data and has no implicit mutation authority.
+3. **Asynchronous computation:** runs on a bounded compute executor using immutable inputs; returns a result or intent for validation by the authoritative owner.
+4. **Blocking I/O task:** database, filesystem, HTTP, or other potentially blocking work runs outside simulation workers and returns results through a defined handoff.
+5. **Lifecycle/control callback:** load, enable, disable, reload, and shutdown have explicit threading, timeout, and resource-cleanup semantics.
+
+Do not let a callback's execution category be inferred from its method name or the thread that happens to run it. The API and diagnostics must identify the actual context.
+
+A plugin-created thread does not acquire authority to mutate Torch state. A thread-safe collection does not make the game state stored in it safe to mutate. Possessing an entity, inventory, world, chunk, or block reference does not grant permission to mutate it.
+
+## 28.2 Deadlock prevention is an API requirement
+
+Do not expose ordinary gameplay methods that secretly perform blocking cross-owner calls. In particular, an owner must not synchronously wait for work whose completion requires another owner or the same bounded simulation pool to make progress.
+
+Prohibit, or explicitly detect and reject, patterns such as:
+
+- owner A submits work to owner B and blocks waiting for the result while B waits for A;
+- a callback waits on a future, latch, monitor, or task queued behind itself;
+- a worker blocks waiting for work scheduled onto the same saturated bounded pool;
+- plugin code performs a synchronous cross-owner operation while holding a lock needed by the target owner;
+- lifecycle shutdown waits for a callback or task that is itself waiting for shutdown to complete;
+- nested event dispatch or reentrant API calls create a dependency cycle.
+
+Timeouts can limit how long a caller waits; they do not make a cyclic dependency correct. Do not use timeouts as the primary deadlock strategy.
+
+The default cross-owner API should offer explicit nonblocking request/command operations with completion stages, cancellation, deadlines where meaningful, and documented failure/stale-result behavior. Completion callbacks must not run on an arbitrary simulation owner unless that execution context is explicitly part of the contract. Provide owner-local synchronous operations only when the caller is already in the correct validated context and the operation is genuinely local.
+
+Where a multi-owner operation must appear atomic to gameplay, define a dedicated protocol (for example, prepare/validate/commit with deterministic ordering or a single designated authority). Do not implement atomicity by blocking owners in a cycle.
+
+Development diagnostics should detect suspicious blocking from simulation contexts where practical. Provide useful reports containing the plugin, task/callback, source owner, target owner, wait dependency, and duration. Avoid false claims that every arbitrary Java-level deadlock can be detected or prevented.
+
+## 28.3 Data-race prevention and authority enforcement
+
+Every public operation that touches live mutable state must state and enforce one of these contracts:
+
+- **Owner-only:** legal only while executing in the authoritative owner's validated context.
+- **Snapshot:** returns immutable or safely published data with a documented consistency/version guarantee.
+- **Command/request:** submits a mutation request to the authoritative owner; the request may be rejected, delayed, cancelled, or found stale.
+- **Explicit concurrent contract:** safe from multiple contexts because its synchronization, conflict behavior, and consistency model are deliberately specified and tested.
+
+Do not leave the threading contract unspecified.
+
+Live mutable engine objects must not expose setters or mutable collections that bypass owner checks. Prefer handles/facades whose operations resolve the current authoritative object and validate its lifecycle, owner, and generation. A handle is not a lock and is not proof that its target remains valid.
+
+Owner assertions must check logical owner identity and generation, not just Java thread identity. Enforce them at the mutation boundary, not only in optional convenience wrappers. In development/test builds, illegal mutation should fail loudly with actionable context. Production behavior must be deliberate, observable, and documented; silently ignoring an illegal mutation is not an acceptable default.
+
+For cross-owner work, carry the minimum immutable data needed to express the intent. Validate target lifecycle, owner, generation, relevant state version, permissions, and gameplay preconditions at commit time. A check performed before an asynchronous delay is not sufficient. Define idempotency or duplicate detection for requests that may be retried.
+
+## 28.4 Events, hooks, ordering, and reentrancy
+
+Every event/hook family must document:
+
+- which owner or coordinator dispatches it;
+- whether it is synchronous, asynchronous, or split into phases;
+- the state that listeners may read or mutate;
+- listener ordering and priority semantics;
+- whether cancellation is supported and the exact point at which cancellation remains effective;
+- whether nested dispatch/reentrant calls are permitted;
+- how listener exceptions are isolated and reported;
+- whether dispatch can cross an owner boundary;
+- what happens if the target entity/world/plugin is removed or migrated during dispatch.
+
+Do not change a historically synchronous event into an asynchronous event merely to increase throughput. That can change observable gameplay ordering and break plugins. Where asynchronous observation is useful, provide a distinct API with explicit snapshot semantics instead of silently changing the original event contract.
+
+Do not hold engine-wide locks while invoking arbitrary plugin callbacks. Do not call plugin code from partially committed state unless the event contract explicitly defines that phase and all invariants remain valid. Avoid invoking callbacks while holding locks that the callback could indirectly reacquire. Reentrancy must either be supported with defined invariants or rejected with a clear diagnostic; it must not be accidental.
+
+Events that affect multiple owners require an explicit protocol. Define whether the event is local, coordinated, or observational; do not broadcast mutable live objects to listeners running concurrently on different owners.
+
+## 28.5 Plugin lifecycle and owned resources
+
+Plugin lifecycle must be a state machine with explicit transitions, at minimum:
+
+`DISCOVERED → LOADED → ENABLING → ENABLED → DISABLING → DISABLED → UNLOADED`
+
+Failure transitions must be defined. A plugin that fails during enable must not be treated as fully enabled; partial registrations and resources must be rolled back or tracked for cleanup.
+
+Every plugin-owned resource must be registered with a lifecycle owner or resource scope. This includes event listeners, scheduled tasks, repeating/delayed jobs, commands, hooks, executor submissions, subscriptions, network handlers, metrics, temporary state, and compatibility-layer registrations. Disabling/unloading a plugin must prevent new work from being admitted and cancel or invalidate outstanding work according to its contract.
+
+Cancellation alone is not proof that a running callback has stopped. Define how disable behaves when callbacks are already executing: cooperative cancellation, bounded draining, invalidation of late results, and a documented policy for work that does not stop. Do not permit a late task to mutate state after its plugin has been disabled or its target generation has changed.
+
+Classloader unloading is best-effort and requires releasing references held by threads, static registries, callbacks, thread context classloaders, and engine-owned resource tables. Do not claim a plugin is unloaded merely because its lifecycle method returned.
+
+Define reload semantics separately from disable/enable. Reload must not create duplicate listeners, tasks, commands, or classloaders, and must not leave two plugin generations concurrently controlling the same resource unless an explicit handover protocol permits it.
+
+## 28.6 Plugin-created concurrency and shared resources
+
+Document what Torch guarantees about plugin code and what remains the plugin author's responsibility.
+
+- Plugins may use their own executors for independent work, but must not use those executors as a route around Torch's ownership rules.
+- Prefer Torch-managed bounded executors or explicit task APIs for CPU work and blocking I/O so resource usage can be measured and admission-controlled.
+- Do not run arbitrary blocking plugin code on simulation workers.
+- Do not allow one plugin to monopolize shared execution capacity without quotas, backpressure, or diagnostics.
+- Shared plugin data remains the plugin's responsibility unless Torch provides a specific concurrent data abstraction.
+- Thread context, permissions, tracing context, and plugin identity must be propagated deliberately across supported asynchronous boundaries.
+- Exceptions must be attributed to the responsible plugin/task and must not silently corrupt owner scheduling or terminate unrelated owners.
+
+Torch cannot guarantee safety against arbitrary plugin code that deliberately mutates internals through reflection, unsafe operations, native code, or leaked implementation references. A Java plugin API is not a security sandbox. Reduce accidental violations through API boundaries and enforcement; treat hostile-code isolation as a separate process/security problem.
+
+## 28.7 Compatibility plugins and legacy main-thread assumptions
+
+The future Bukkit/Spigot/Paper compatibility layer must explicitly translate legacy scheduling and event assumptions. Do not map every legacy synchronous callback to an arbitrary owner worker.
+
+Inventory compatibility requirements for each supported API include:
+
+- main-thread checks and `isPrimaryThread`-style assumptions;
+- synchronous task scheduling and repeating-task order;
+- asynchronous task restrictions;
+- world/entity/block/inventory access from legacy async tasks;
+- event priority, cancellation, and reentrancy;
+- plugin disable cancellation and task cleanup;
+- calls that synchronously wait for world state;
+- callbacks that expect immediate mutation visibility.
+
+Preserve legacy synchronous semantics where required by the compatibility contract, even if the implementation uses a coordinator or owner-routing mechanism internally. If an operation cannot preserve its expected semantics safely, document the incompatibility and provide a deliberate alternative; do not silently weaken ordering or introduce a blocking cross-owner call.
+
+Native Torch APIs may offer better owner-aware and asynchronous primitives, but compatibility adapters must not force those newer semantics onto existing plugins without evidence and an explicit compatibility decision.
+
+## 28.8 Required adversarial tests
+
+Add repeatable tests for these cases before claiming plugin concurrency is safe:
+
+1. **Reciprocal owner requests:** owner A requests B while B requests A; neither owner may block the progress required by the other.
+2. **Same-pool self-wait:** a task waits for work queued behind itself; detect/reject the invalid wait or prove the scheduler contract makes it impossible.
+3. **Wrong-owner mutation:** a plugin attempts to mutate an entity, block, or inventory outside its current authority; the operation must be rejected or explicitly routed.
+4. **Stale async result:** pathfinding/AI or plugin computation completes after movement, migration, removal, reload, or generation change; it must not commit stale state.
+5. **Migration during callback/task:** queued and running work must have deterministic, documented outcomes and must not create two writers.
+6. **Disable during execution:** disable a plugin while a callback, delayed task, or async computation is active; late results must be invalidated and resources cleaned up.
+7. **Reentrant event:** a listener triggers an operation that dispatches the same or a dependent event; behavior must be defined and must not deadlock or corrupt partial state.
+8. **Exception isolation:** a listener/task throws; owner progress, other plugins, and cleanup must follow the documented failure policy.
+9. **Queue saturation and noisy plugin:** a plugin floods tasks or blocks its own executor; unrelated owners must retain progress and overload must be observable.
+10. **Blocking I/O pressure:** slow database/HTTP/filesystem calls must not consume simulation-worker capacity.
+11. **Cross-owner transaction:** hoppers, pistons, damage, projectiles, and inventories must not duplicate, lose, or reorder authoritative state.
+12. **Shutdown:** outstanding tasks, completions, and plugin disable hooks terminate or time out according to a documented policy without waiting in a dependency cycle.
+
+Use deterministic test doubles where possible, repeated stress runs, randomized interleavings, bounded test timeouts, and reproducible traces. A stress test passing once is not proof of race freedom. Use targeted invariants and state-transition assertions as well.
+
+## 28.9 Required observability
+
+Provide or plan diagnostics that can answer:
+
+- which plugin callback/task is running or blocked;
+- which owner and generation it belongs to;
+- whether it is allowed to mutate current state;
+- queue depth, wait time, execution time, cancellation delay, and starvation;
+- cross-owner request source, target, age, and completion/failure status;
+- stale-result rejection counts;
+- plugin task/listener/resource counts before and after disable/reload;
+- repeated exceptions, timeouts, and suspected dependency cycles.
+
+Tracing should correlate a gameplay operation across owner handoffs without requiring global blocking. Diagnostics must be bounded and configurable so observability itself does not become an unbounded memory or CPU cost.
+
+## 28.10 Completion criteria
+
+Do not declare the plugin concurrency architecture complete until:
+
+- every public live-state API operation has an explicit execution/consistency contract;
+- owner and generation enforcement occurs at authoritative mutation boundaries;
+- ordinary cross-owner APIs do not hide blocking waits;
+- event dispatch ordering, cancellation, exception, and reentrancy semantics are documented;
+- plugin lifecycle owns and cleans up registrations and outstanding work;
+- legacy main-thread assumptions have an explicit compatibility strategy;
+- the adversarial tests above exist or each unavailable test is recorded as a concrete blocker;
+- known limitations are stated honestly, including the fact that arbitrary plugin code is not sandboxed.
+
+**Final plugin rule: broad engine access is required; implicit mutation authority, hidden blocking, undefined callback ordering, and unowned asynchronous work are not.**
