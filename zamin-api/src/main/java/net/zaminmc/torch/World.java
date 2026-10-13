@@ -128,6 +128,25 @@ public interface World {
     }
 
     /**
+     * The redstone read surface (§27.3's redstone family): the power
+     * walks a plugin may consult. Owner-context consistent reads (wrap
+     * in {@link #execute} off the lane). Worlds without the family
+     * answer nothing powered.
+     */
+    default net.zaminmc.torch.block.RedstoneSignals redstone() {
+        return net.zaminmc.torch.block.RedstoneSignals.EMPTY;
+    }
+
+    /**
+     * The primed TNT bodies in flight (§27.3's TNT family): a
+     * point-in-time population view — simulation context, inspect it
+     * inside {@link #execute}. Worlds without the family answer empty.
+     */
+    default Collection<net.zaminmc.torch.entity.PrimedTnt> primedTnt() {
+        return java.util.List.of();
+    }
+
+    /**
      * The experience orbs (§27.3's XP family): a point-in-time
      * population view — simulation context, inspect it inside
      * {@link #execute}. Worlds without the family answer empty.

@@ -1210,6 +1210,13 @@ public final class EngineServer implements Server, EngineBridge {
                 world.attachScheduledUpdateView(
                         new net.zaminmc.torch.server.block.ScheduledUpdateViews(
                                 blockUpdateSystem, world));
+                // The public §27.3 redstone views: the engine's own power walks
+                // (owner-context consistent reads).
+                world.attachRedstoneView(
+                        new net.zaminmc.torch.server.redstone.RedstoneSignalViews(
+                                redstoneSystem));
+                // The public §27.3 primed-TNT view: the live fuse bodies.
+                world.attachPrimedTntView(tntSystem::primedBodies);
                 ticker.setTickHandler(() -> {
                     // The per-region boundary walk FIRST (the §7 protocol's
                     // target-side apply): every live region domain drains its
@@ -10310,6 +10317,18 @@ public final class EngineServer implements Server, EngineBridge {
     private void detonateAt(double cx, double cy, double cz, float power, float maxDamage) {
         BlockPosition blockCenter = new BlockPosition(
                 (int) Math.floor(cx), (int) Math.floor(cy), (int) Math.floor(cz));
+
+        // §27.7: the public explosion gate BEFORE any destruction — the
+        // blocks still stand, nobody is wounded, no knockback is computed.
+        // A cancelled blast never tears the world (the priming body itself
+        // already left at the fuse's end — only its consequence is undone).
+        net.zaminmc.torch.event.world.ExplosionEvent gate =
+                new net.zaminmc.torch.event.world.ExplosionEvent(
+                        world, new Position(cx, cy, cz), power);
+        eventBus.fire(gate);
+        if (gate.cancelled()) {
+            return; // nothing destroyed, nobody hurt, no packet
+        }
 
         // The destruction (each commit wakes the fluid and neighbor systems).
         // The blast rides the boundary scope (the Phase 4 spatial activation

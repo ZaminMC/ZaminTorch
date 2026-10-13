@@ -64,8 +64,9 @@ public final class TntSystem implements WorldChangeListener {
     /** The point-blank cap on easy difficulty ((8 * 2 * power + 1) / 2). */
     public static final float MAX_DAMAGE = 32.0f;
 
-    /** One primed body in flight. */
-    public static final class PrimedTnt {
+    /** One primed body in flight (the engine object IS the public handle, §27.5). */
+    public static final class PrimedTnt
+            implements net.zaminmc.torch.entity.PrimedTnt {
         private final int entityId;
         private double x, y, z;
         private double velocityX, velocityY, velocityZ;
@@ -110,6 +111,36 @@ public final class TntSystem implements WorldChangeListener {
 
         public int fuse() {
             return fuse;
+        }
+
+        // --- the public §27.3 handle surface (the TNT family) --------------
+
+        @Override
+        public net.zaminmc.torch.util.Position position() {
+            return new net.zaminmc.torch.util.Position(x, y, z);
+        }
+
+        @Override
+        public int fuseTicks() {
+            return fuse;
+        }
+
+        @Override
+        public boolean onGround() {
+            return onGround;
+        }
+
+        @Override
+        public net.zaminmc.torch.util.Identifier typeIdentifier() {
+            return net.zaminmc.torch.util.Identifier.parse("minecraft:primed_tnt");
+        }
+
+        @Override
+        public net.zaminmc.torch.entity.EntitySnapshot snapshot() {
+            return new net.zaminmc.torch.entity.EntitySnapshot(
+                    entityId, typeIdentifier(), position(), 0.0f,
+                    velocityX, velocityY, velocityZ,
+                    0.0f, 0.0f, onGround, false);
         }
     }
 
