@@ -20,6 +20,7 @@ import net.zaminmc.torch.util.Position;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.Random;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -89,6 +90,28 @@ public final class HopperSystem implements WorldChangeListener {
                     net.zaminmc.torch.server.brewing.BrewingStandBlockEntity> lookup) {
         this.brewingLookup = Objects.requireNonNull(lookup, "lookup");
     }
+
+    /**
+     * The rolling containers' scan (Slice 25e — the reference's entity
+     * fallback in getInventoryAt lines 466-472: when no block container
+     * sits at the cell, the 1x1x1 box around the cell's center picks a
+     * random INVENTORY entity — the chest minecart). Wired after
+     * construction (the vehicle manager's boot order).
+     */
+    private java.util.function.Function<BlockPosition,
+            java.util.List<net.zaminmc.torch.server.entity.vehicle.ChestMinecartEntity>>
+            cartLookup = position -> java.util.List.of();
+
+    /** Wires the rolling containers' scan (the cart arm). */
+    public void setCartLookup(
+            java.util.function.Function<BlockPosition,
+                    java.util.List<net.zaminmc.torch.server.entity.vehicle.ChestMinecartEntity>>
+                    lookup) {
+        this.cartLookup = Objects.requireNonNull(lookup, "lookup");
+    }
+
+    /** The cart arm's own pick (getInventoryAt line 470: a random one from the box). */
+    private final Random random = new Random();
 
     public HopperSystem(EngineWorld world, RedstoneSystem redstone,
                         ItemEntityManager itemEntities, ChestManager chests,
@@ -497,6 +520,23 @@ public final class HopperSystem implements WorldChangeListener {
                 slots.add(furnaceSlot(furnace, FurnaceBlockEntity.SLOT_FUEL, at));
             } else {
                 slots.add(furnaceSlot(furnace, FurnaceBlockEntity.SLOT_FUEL, at));
+            }
+            return slots;
+        }
+        // The entity fallback (Slice 25e — getInventoryAt lines 466-472):
+        // no block container at the cell, so the 1x1x1 box around the
+        // cell's center scans the INVENTORY entities — the chest minecart
+        // parked above a hopper (or at its facing side) IS the container,
+        // a random one picked when several share the cell.
+        java.util.List<net.zaminmc.torch.server.entity.vehicle.ChestMinecartEntity> carts =
+                cartLookup.apply(at);
+        if (!carts.isEmpty()) {
+            net.zaminmc.torch.server.entity.vehicle.ChestMinecartEntity cart =
+                    carts.get(random.nextInt(carts.size()));
+            ChestBlockEntity chest = cart.chest();
+            List<ContainerSlot> slots = new ArrayList<>(ChestBlockEntity.SLOT_COUNT);
+            for (int i = 0; i < ChestBlockEntity.SLOT_COUNT; i++) {
+                slots.add(chestSlot(chest, i));
             }
             return slots;
         }
