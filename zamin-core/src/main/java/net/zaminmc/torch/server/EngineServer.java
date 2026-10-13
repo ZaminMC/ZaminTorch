@@ -1204,11 +1204,13 @@ public final class EngineServer implements Server, EngineBridge {
                         vehicles::all,
                         experienceOrbs::all);
                 // The public §27.3 container views: the position-keyed
-                // chest/furnace/hopper reads over the three managers (the
-                // engine objects dressed as live handles, §27.5) — the
-                // write arms assert this world's authoritative context.
+                // chest/furnace/hopper/brewing-stand reads over the four
+                // managers (the engine objects dressed as live handles,
+                // §27.5) — the write arms assert this world's
+                // authoritative context.
                 world.attachContainerView(new ContainerViews(
-                        chestManager, furnaceManager, hopperSystem, world));
+                        chestManager, furnaceManager, hopperSystem,
+                        brewingStands, world));
                 // The public §27.3 block-entity views beyond the containers:
                 // the spawner/sign reads — the spawners filtered to this
                 // world's own dimension (the manager is global).
