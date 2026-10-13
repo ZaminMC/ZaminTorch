@@ -7355,6 +7355,25 @@ public final class EngineServer implements Server, EngineBridge {
                     return;
                 }
             }
+            // The zombie-villager cure (Slice 25a — ZombieEntity.interactMob
+            // lines 457-480): the plain golden apple on a WEAKENED
+            // villager-skinned zombie arms the conversion. The weakness
+            // gates first (a splash potion's 1.5-minute window is the
+            // famous recipe), the apple's own plain form (the notched
+            // apple is its own item id in the engine's registry).
+            if (mob.type() == MobType.ZOMBIE && mob.zombieVillager()) {
+                ItemStack heldCure = player.inventory().held();
+                String heldCureId = heldCure.type() == null
+                        ? "" : heldCure.type().identifier().toString();
+                if (heldCureId.equals("minecraft:golden_apple")
+                        && potionSystem != null
+                        && potionSystem.hasEffect(mob,
+                                net.zaminmc.torch.server.potion.StatusEffects.WEAKNESS)
+                        && mobManager.cureZombieVillager(mob)) {
+                    eatFromHand(player); // the reference's own size-- (creative spares)
+                }
+                return; // no other arm runs on the zombie villager
+            }
             // The villager branch: right-click opens the trading window.
             if (mob.isTrader()) {
                 interactVillagerOnTick(player, mob);
@@ -10558,6 +10577,18 @@ public final class EngineServer implements Server, EngineBridge {
         @Override
         public boolean mobGriefing() {
             return gameRules.getBoolean("mobGriefing");
+        }
+
+        /**
+         * The zombie villager's cure accelerator (Slice 25a —
+         * getTicksUntilConversionDecrement lines 549-559): the iron bars
+         * and bed cells the 1%-roll scan counts.
+         */
+        @Override
+        public boolean isIronBarsOrBed(int x, int y, int z) {
+            net.zaminmc.torch.util.Identifier id = blockIdAt(x, y, z);
+            return id.toString().equals("minecraft:iron_bars")
+                    || id.toString().equals("minecraft:bed");
         }
 
         @Override

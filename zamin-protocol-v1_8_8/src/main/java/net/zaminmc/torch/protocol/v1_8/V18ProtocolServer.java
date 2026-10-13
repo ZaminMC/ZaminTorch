@@ -375,6 +375,22 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                 }
             }
 
+            /** The zombie villager's pair (the slots 13/14 bytes, Slice 25a). */
+            @Override
+            public void onZombieStateChanged(net.zaminmc.torch.server.entity.MobEntity mob) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendZombieState(mob);
+                }
+            }
+
+            /** The reference's own world events (1016 infect, 1017 un-infect). */
+            @Override
+            public void onWorldEventAt(net.zaminmc.torch.util.Position position, int eventId) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendWorldEvent(position, eventId);
+                }
+            }
+
             /**
              * The enderman's whole state (the carried Short + the screaming
              * byte, Slice 19d).

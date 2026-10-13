@@ -2880,6 +2880,21 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5)
                     | Protocol18.SKELETON_TYPE_METADATA_INDEX);
             out.writeByte(mob.skeletonWither() ? 1 : 0);
+        } else if (mob.type() == net.zaminmc.torch.server.entity.MobType.ZOMBIE) {
+            // The zombie's own block (ZombieEntity.registerSyncedData lines
+            // 91-96, Slice 25a): the index-12 baby byte (1 — the zombie's
+            // own flag, not the passive family's -1), the 13 villager-skin
+            // byte, the 14 converting byte (the cure's countdown — the
+            // client swaps the villager texture and the shaking pose).
+            out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5)
+                    | Protocol18.ZOMBIE_BABY_METADATA_INDEX);
+            out.writeByte(mob.isBaby() ? 1 : 0);
+            out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5)
+                    | Protocol18.ZOMBIE_VILLAGER_METADATA_INDEX);
+            out.writeByte(mob.zombieVillager() ? 1 : 0);
+            out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5)
+                    | Protocol18.ZOMBIE_CONVERTING_METADATA_INDEX);
+            out.writeByte(mob.zombieConverting() ? 1 : 0);
         } else if (mob.type() == net.zaminmc.torch.server.entity.MobType.SLIME) {
             // The slime's size (the synced-data slot 16): the client scales
             // the whole body from the byte (1, 2, or 4).
@@ -3235,6 +3250,57 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | Protocol18.KIND_STATUS_METADATA_INDEX);
         out.writeByte(mob.blazeFireActive() ? 1 : 0);
         out.writeByte(Protocol18.METADATA_TERMINATOR);
+        channel.writeAndFlush(out);
+    }
+
+    /**
+     * Set Entity Metadata (0x1C) for the zombie villager's pair (Slice
+     * 25a — ZombieEntity.registerSyncedData lines 91-96): the index-13
+     * villager-skin byte and the index-14 converting byte, republished
+     * when the cure arms. Any thread.
+     */
+    void sendZombieState(MobEntity mob) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(14);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_ENTITY_METADATA);
+        ByteBufOps.writeVarInt(out, mob.entityId());
+        out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5)
+                | Protocol18.ZOMBIE_VILLAGER_METADATA_INDEX);
+        out.writeByte(mob.zombieVillager() ? 1 : 0);
+        out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5)
+                | Protocol18.ZOMBIE_CONVERTING_METADATA_INDEX);
+        out.writeByte(mob.zombieConverting() ? 1 : 0);
+        out.writeByte(Protocol18.METADATA_TERMINATOR);
+        channel.writeAndFlush(out);
+    }
+
+    /**
+     * The Effect packet (0x28) for the reference's own world events —
+     * the zombie villager's infect 1016 and un-infect 1017
+     * ({@code world.doEvent(null, id, pos, 0)}): the client plays the
+     * event's sound itself from the id (WorldRenderer lines 1957-1961,
+     * the volume-2.0 mob.zombie pair). Chunk-gated like the spawner's
+     * own 2004. Any thread.
+     */
+    void sendWorldEvent(net.zaminmc.torch.util.Position at, int eventId) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY
+                || chunkTracker == null) {
+            return;
+        }
+        var blockPos = at.toBlockPosition();
+        if (!chunkTracker.hasChunk(blockPos.chunkPosition().packed())) {
+            return; // the observer cannot see that event
+        }
+        ByteBuf out = Unpooled.buffer(20);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_WORLD_EVENT);
+        out.writeInt(eventId);
+        ByteBufOps.writePackedBlockPosition(out, blockPos.x(), blockPos.y(), blockPos.z());
+        out.writeInt(0); // data
+        out.writeBoolean(false); // not global
         channel.writeAndFlush(out);
     }
 

@@ -78,4 +78,74 @@ class MobDataStoreTest {
         assertEquals(3.5f, cow.health(), "the saved body restores");
         assertEquals(45.0f, cow.yaw(), "the saved facing restores");
     }
+
+    @Test
+    void theStateBlockRoundTripsThroughTheV2File() {
+        Path file = tempDir.resolve("worlds/w/mobs.bin");
+        MobDataStore store = new MobDataStore(file);
+        // The converting zombie villager (IsVillager + ConversionTime), the
+        // traded villager (Profession/Career/CareerLevel/Riches), the
+        // killer rabbit (the 99 coat), a baby (the negative Age), the
+        // wither skeleton, and a size-4 slime — the reference's own NBT
+        // fields, one record each.
+        List<MobManager.MobSnapshot> saved = List.of(
+                new MobManager.MobSnapshot("ZOMBIE", 1.5, 8.0, 0.5, 90f, 18f,
+                        new MobManager.MobStateExtras(true, 4321, 0, 0, 0, 0,
+                                0, 0, false, 1)),
+                new MobManager.MobSnapshot("VILLAGER", 3.5, 8.0, 0.5, 0f, 20f,
+                        new MobManager.MobStateExtras(false, 0, 2, 1, 3, 12,
+                                0, 0, false, 1)),
+                new MobManager.MobSnapshot("RABBIT", -2.5, 8.0, -1.5, 0f, 10f,
+                        new MobManager.MobStateExtras(false, 0, 0, 0, 0, 0,
+                                99, -8000, false, 1)),
+                new MobManager.MobSnapshot("SKELETON", 5.5, 8.0, 0.5, 0f, 20f,
+                        new MobManager.MobStateExtras(false, 0, 0, 0, 0, 0,
+                                0, 0, true, 1)),
+                new MobManager.MobSnapshot("SLIME", 7.5, 8.0, 0.5, 0f, 16f,
+                        new MobManager.MobStateExtras(false, 0, 0, 0, 0, 0,
+                                0, 0, false, 4)));
+        store.save(saved);
+        assertEquals(saved, store.load(), "the whole state block round-trips");
+    }
+
+    @Test
+    void theRestoredStateLandsOnTheEngineBodies() {
+        MobManager manager = new MobManager(
+                new MobEntity.WorldQuery() {
+                    @Override
+                    public boolean isSolid(double x, double y, double z) {
+                        return false;
+                    }
+
+                    @Override
+                    public net.zaminmc.torch.util.Position nearestPlayer(double x, double y, double z,
+                                                                double range) {
+                        return null;
+                    }
+                },
+                new java.util.Random(7), (position, stack) -> { }, 3000,
+                (x, z) -> 4);
+        List<MobManager.MobSnapshot> saved = List.of(
+                new MobManager.MobSnapshot("ZOMBIE", 1.5, 8.0, 0.5, 90f, 18f,
+                        new MobManager.MobStateExtras(true, 4321, 0, 0, 0, 0,
+                                0, 0, false, 1)),
+                new MobManager.MobSnapshot("VILLAGER", 3.5, 8.0, 0.5, 0f, 20f,
+                        new MobManager.MobStateExtras(false, 0, 2, 1, 3, 12,
+                                0, -6000, false, 1)));
+        assertTrue(manager.restoreAll(saved));
+
+        MobEntity zombie = manager.all().stream()
+                .filter(m -> m.type() == MobType.ZOMBIE).findFirst().orElseThrow();
+        assertTrue(zombie.zombieVillager(), "IsVillager restores (readCustomNbt line 340)");
+        assertTrue(zombie.zombieConverting(), "ConversionTime > -1 arms the countdown");
+        assertEquals(4321, zombie.zombieConversionTicks());
+
+        MobEntity villager = manager.all().stream()
+                .filter(m -> m.type() == MobType.VILLAGER).findFirst().orElseThrow();
+        assertEquals(2, villager.profession());
+        assertEquals(1, villager.villagerCareer());
+        assertEquals(3, villager.villagerCareerLevel());
+        assertEquals(12, villager.villagerRiches());
+        assertTrue(villager.isBaby(), "the negative Age restores the childhood");
+    }
 }

@@ -311,6 +311,23 @@ public final class MobManager {
          */
         default void onRabbitFarmEat(MobEntity rabbit) {
         }
+
+        /**
+         * A world event fired at a position (Slice 25a — the reference's
+         * {@code world.doEvent(null, id, pos, 0)}: the zombie villager's
+         * infect 1016 and un-infect 1017 events, the sounds the client
+         * plays from the Effect packet itself).
+         */
+        default void onWorldEventAt(Position position, int eventId) {
+        }
+
+        /**
+         * The zombie villager's wire state moved (Slice 25a — the synced
+         * slot-13 villager byte and the slot-14 converting byte: the Set
+         * Entity Metadata republishes the pair when the cure arms).
+         */
+        default void onZombieStateChanged(MobEntity mob) {
+        }
     }
 
     private final MobEntity.WorldQuery world;
@@ -327,6 +344,14 @@ public final class MobManager {
     private volatile java.util.function.Consumer<Runnable> goalAdmission;
     /** The difficulty read (0 peaceful .. 3 hard); null until wired. */
     private volatile java.util.function.IntSupplier difficultyRead;
+
+    /**
+     * The staged zombie-villager infections (Slice 25a): the killing blow
+     * lands deep inside the melee walk, so the replacement defers to the
+     * tick loop's close — the same deferred shape the breeds and the
+     * splits carry. Tick-lane only (hurtByMob runs inside the loop).
+     */
+    private final List<MobEntity> stagedInfections = new ArrayList<>();
 
     public MobManager(MobEntity.WorldQuery world, Random random, LootSink lootSink,
                       int firstEntityId,
@@ -792,6 +817,11 @@ public final class MobManager {
         // iteration closes — the reference's remove() runs inside its own
         // removal walk, the engine's tick loop owns the equivalent).
         List<MobEntity> pendingSlimeSplits = new ArrayList<>();
+        // The zombie-villager infections and conversions defer the same
+        // way (Slice 25a — onKill's replacement and convertToVillager's
+        // spawn/remove pair both land after the loop closes; the infections
+        // stage through the field the melee walk writes).
+        List<MobEntity> pendingConversions = new ArrayList<>();
 
         Iterator<MobEntity> iterator = mobs.iterator();
         while (iterator.hasNext()) {
@@ -1220,6 +1250,12 @@ public final class MobManager {
                             landSound.volume(), landSound.pitch() / 0.8F);
                 }
             }
+            // The zombie villager's cure countdown completed its walk
+            // (ZombieEntity.tick lines 236-243): the conversion lands after
+            // the loop — the spawn/remove pair cannot run mid-iteration.
+            if (mob.consumeZombieConversionComplete()) {
+                pendingConversions.add(mob);
+            }
             // The breed polls (the vanilla goal's landing converts into the
             // real spawn after the loop — the manager owns the mob lifecycle).
             MobEntity mate = mob.consumePendingBreed();
@@ -1257,14 +1293,48 @@ public final class MobManager {
         for (MobEntity parent : pendingSlimeSplits) {
             splitSlime(parent);
         }
+        // The deferred infections land after the iteration too (Slice 25a —
+        // ZombieEntity.onKill's removeEntity walk replaces the victim with
+        // the villager-skinned zombie).
+        for (MobEntity victim : stagedInfections) {
+            infectVillager(victim);
+        }
+        stagedInfections.clear();
+        // The deferred conversions (Slice 25a — convertToVillager's walk).
+        for (MobEntity zombie : pendingConversions) {
+            convertZombieToVillager(zombie);
+        }
+        pendingConversions.clear();
     }
 
     /**
-     * The persistable view of one live mob (ZMD payload, version 1): kind,
-     * position, facing and remaining health. Dying/dead mobs are not captured
-     * — their loot lands on the tick that finishes the death animation.
+     * The persistable view of one live mob (ZMD payload, version 2): kind,
+     * position, facing, remaining health, and the kind's own state block
+     * (null when the kind carries none — the v1 shape). Dying/dead mobs
+     * are not captured — their loot lands on the tick that finishes the
+     * death animation.
      */
-    public record MobSnapshot(String type, double x, double y, double z, float yaw, float health) {
+    public record MobSnapshot(String type, double x, double y, double z, float yaw,
+                              float health, MobStateExtras extras) {
+        /** The v1-compatible shape (no extras — every v1 record loads this way). */
+        public MobSnapshot(String type, double x, double y, double z, float yaw, float health) {
+            this(type, x, y, z, yaw, health, null);
+        }
+    }
+
+    /**
+     * The per-kind state the v2 store carries (Slice 25c — the reference's
+     * own NBT fields): the zombie's IsVillager/ConversionTime pair, the
+     * villager's Profession/Career/CareerLevel/Riches quartet, the rabbit's
+     * coat byte, the shared Age int (babies survive restarts), the
+     * skeleton's wither variant, and the slime family's size.
+     */
+    public record MobStateExtras(
+            boolean zombieVillager, int zombieConversionTicks,
+            int villagerProfession, int villagerCareer, int villagerCareerLevel,
+            int villagerRiches,
+            int rabbitVariant, int breedingAge,
+            boolean skeletonWither, int slimeSize) {
     }
 
     /**
@@ -1286,9 +1356,51 @@ public final class MobManager {
             }
             MobEntity mob = spawnAt(type, new Position(snapshot.x(), snapshot.y(), snapshot.z()));
             mob.restore(snapshot.health(), snapshot.yaw());
+            MobStateExtras extras = snapshot.extras();
+            if (extras != null) {
+                restoreStateExtras(mob, extras);
+            }
             any = true;
         }
         return any;
+    }
+
+    /**
+     * The state block's restore (Slice 25c): each field lands only on the
+     * kind that reads it — the reference's own readCustomNbt dispatch.
+     */
+    private static void restoreStateExtras(MobEntity mob, MobStateExtras extras) {
+        if (mob.type() == MobType.ZOMBIE) {
+            // ZombieEntity.readCustomNbt lines 334-346: IsVillager + the
+            // ConversionTime gate ({@code > -1} arms the countdown).
+            if (extras.zombieVillager()) {
+                mob.setZombieVillager(true);
+            }
+            if (extras.zombieConversionTicks() > 0) {
+                mob.setZombieConversionTime(extras.zombieConversionTicks());
+            }
+        }
+        if (mob.type() == MobType.VILLAGER) {
+            // VillagerEntity.readCustomNbt lines 445-448.
+            mob.setVillagerProfession(extras.villagerProfession());
+            mob.restoreVillagerTradeState(extras.villagerCareer(),
+                    extras.villagerCareerLevel(), extras.villagerRiches());
+        }
+        if (mob.type() == MobType.RABBIT) {
+            mob.setRabbitVariant(extras.rabbitVariant());
+        }
+        if (extras.breedingAge() != 0) {
+            mob.setBreedingAge(extras.breedingAge());
+        }
+        if (mob.type() == MobType.SKELETON && extras.skeletonWither()) {
+            mob.setSkeletonWither(true);
+            mob.setHeldEquipment(net.zaminmc.torch.item.ItemStack.of(
+                    net.zaminmc.torch.server.item.BuiltinItems.STONE_SWORD, 1));
+        }
+        if ((mob.type() == MobType.SLIME || mob.type() == MobType.MAGMA_CUBE)
+                && extras.slimeSize() > 0) {
+            mob.setSlimeSize(extras.slimeSize());
+        }
     }
 
     /** @return the persistable snapshot of every living mob. Tick-thread context. */
@@ -1300,9 +1412,36 @@ public final class MobManager {
             }
             Position position = mob.position();
             saved.add(new MobSnapshot(mob.type().name(), position.x(), position.y(),
-                    position.z(), mob.yaw(), mob.health()));
+                    position.z(), mob.yaw(), mob.health(), stateExtrasOf(mob)));
         }
         return saved;
+    }
+
+    /**
+     * The per-kind state block (Slice 25c): only the fields the kind reads
+     * land in the record — a plain cow carries nothing but its age, the
+     * kinds without their own state carry the age alone.
+     */
+    private static MobStateExtras stateExtrasOf(MobEntity mob) {
+        boolean zombieVillager = mob.type() == MobType.ZOMBIE && mob.zombieVillager();
+        int zombieConversion = mob.type() == MobType.ZOMBIE && mob.zombieConverting()
+                ? Math.max(0, mob.zombieConversionTicks()) : 0;
+        int profession = 0;
+        int career = 0;
+        int careerLevel = 0;
+        int riches = 0;
+        if (mob.type() == MobType.VILLAGER) {
+            profession = mob.profession();
+            career = mob.villagerCareer();
+            careerLevel = mob.villagerCareerLevel();
+            riches = mob.villagerRiches();
+        }
+        int rabbitVariant = mob.type() == MobType.RABBIT ? mob.rabbitVariant() : 0;
+        boolean wither = mob.type() == MobType.SKELETON && mob.skeletonWither();
+        int slimeSize = mob.type() == MobType.SLIME || mob.type() == MobType.MAGMA_CUBE
+                ? mob.slimeSize() : 1;
+        return new MobStateExtras(zombieVillager, zombieConversion, profession, career,
+                careerLevel, riches, rabbitVariant, mob.breedingAge(), wither, slimeSize);
     }
 
     /**
@@ -1367,6 +1506,13 @@ public final class MobManager {
             }
             if (!victim.dead()) {
                 applyRevenge(victim, attacker);
+            } else if (attacker.type() == MobType.ZOMBIE
+                    && victim.type() == MobType.VILLAGER) {
+                // ZombieEntity.onKill (lines 352-378, fired from die's own
+                // attacker credit): a zombie's killing blow on a villager
+                // infects — the difficulty gate and the NORMAL coin ride
+                // the staging walk, the replacement lands after the loop.
+                stageZombieInfection(victim);
             }
         }
         return landed;
@@ -1433,6 +1579,124 @@ public final class MobManager {
                 pigman.becomeAngryTo(attackerName);
             }
         }
+    }
+
+    /**
+     * ZombieEntity.onKill's difficulty gate (lines 352-357): NORMAL and
+     * HARD carry the infection arm — on NORMAL the reference's own early
+     * coin ({@code nextBoolean()}) refuses half the kills, on HARD every
+     * kill lands, and EASY and below never infect. The staging defers the
+     * replacement to the tick loop's close.
+     */
+    private void stageZombieInfection(MobEntity victim) {
+        java.util.function.IntSupplier difficultyAt = difficultyRead;
+        int difficulty = difficultyAt == null ? 2 : difficultyAt.getAsInt();
+        if (difficulty != 2 && difficulty != 3) {
+            return; // EASY and PEACEFUL never carry the arm
+        }
+        if (difficulty != 3 && random.nextBoolean()) {
+            return; // NORMAL: the reference's own early coin
+        }
+        stagedInfections.add(victim);
+    }
+
+    /**
+     * ZombieEntity.onKill's replacement walk (lines 358-377): the villager
+     * body leaves immediately ({@code removeEntity} — no death animation
+     * window, the destroy packet lands straight away) and a villager-skinned
+     * zombie takes its place at the same position and rotation — a baby for
+     * a baby ({@code setBaby(true)}) — with the 1016 infect event at the
+     * body ({@code doEvent(null, 1016, pos, 0)}). The {@code MobSpawnEvent}
+     * gate rides {@link #spawnAt} as every spawn does; a refused infection
+     * still removes the victim (the kill already landed).
+     */
+    private void infectVillager(MobEntity victim) {
+        if (!mobs.contains(victim)) {
+            return; // the body already left (a second kill landed first)
+        }
+        Position at = victim.position();
+        float yaw = victim.bodyYawLive();
+        boolean baby = victim.isBaby();
+        remove(victim, "infected");
+        MobEntity zombie = spawnAt(MobType.ZOMBIE, at);
+        if (zombie != null) {
+            zombie.setZombieVillager(true);
+            zombie.setBodyYaw(yaw);
+            if (baby) {
+                zombie.setBreedingAge(-24_000);
+            }
+        }
+        for (Listener listener : listeners) {
+            listener.onWorldEventAt(at, 1016);
+        }
+    }
+
+    /**
+     * convertToVillager (lines 519-537): the countdown burned out — a fresh
+     * villager takes the zombie's place (its own {@code initialize} rolls
+     * the profession, {@code nextInt(5)}), a baby zombie converts into a
+     * baby villager ({@code setBreedingAge(-24000)}), the zombie leaves
+     * ({@code removeEntity}), the newcomer carries the 200-tick NAUSEA
+     * ({@code addStatusEffect(StatusEffect.NAUSEA.id, 200, 0)}), and the
+     * 1017 un-infect event sounds at the body.
+     */
+    private void convertZombieToVillager(MobEntity zombie) {
+        if (!mobs.contains(zombie)) {
+            return; // the body already left (a killing blow won the race)
+        }
+        Position at = zombie.position();
+        float yaw = zombie.bodyYawLive();
+        boolean baby = zombie.isBaby();
+        remove(zombie, "converted");
+        MobEntity villager = spawnAt(MobType.VILLAGER, at);
+        if (villager != null) {
+            villager.setBodyYaw(yaw);
+            if (baby) {
+                villager.setBreedingAge(-24_000);
+            }
+            net.zaminmc.torch.server.potion.PotionSystem potions = potionSystem;
+            if (potions != null) {
+                potions.add(villager, new net.zaminmc.torch.server.potion.StatusEffectInstance(
+                        net.zaminmc.torch.server.potion.StatusEffects.NAUSEA, 200, 0));
+            }
+        }
+        for (Listener listener : listeners) {
+            listener.onWorldEventAt(at, 1017);
+        }
+    }
+
+    /**
+     * The cure's walk (interactMob lines 457-480 + setConversionTime's own
+     * side effects, lines 482-488): the golden apple on the weakened
+     * villager-skinned zombie arms the conversion —
+     * {@code nextInt(2401) + 3600} ticks — clears the Weakness, installs
+     * the Strength for the whole window (the reference's own
+     * {@code Math.min(difficultyId - 1, 0)} amplifier — the observed 0 on
+     * every difficulty that can carry the arm), and fires the entity
+     * event 16 (the mob.zombie.remedy sound the client plays at the
+     * body). The apple is eaten by the caller (the interact walk's own
+     * {@code eatFromHand}).
+     */
+    public boolean cureZombieVillager(MobEntity mob) {
+        Objects.requireNonNull(mob, "mob");
+        if (mob.type() != MobType.ZOMBIE || !mob.zombieVillager() || mob.dead()) {
+            return false;
+        }
+        mob.setZombieConversionTime(random.nextInt(2401) + 3600);
+        net.zaminmc.torch.server.potion.PotionSystem potions = potionSystem;
+        if (potions != null) {
+            potions.remove(mob, net.zaminmc.torch.server.potion.StatusEffects.WEAKNESS);
+            java.util.function.IntSupplier difficultyAt = difficultyRead;
+            int difficulty = difficultyAt == null ? 2 : difficultyAt.getAsInt();
+            potions.add(mob, new net.zaminmc.torch.server.potion.StatusEffectInstance(
+                    net.zaminmc.torch.server.potion.StatusEffects.STRENGTH,
+                    mob.zombieConversionTicks(), Math.min(difficulty - 1, 0)));
+        }
+        for (Listener listener : listeners) {
+            listener.onZombieStateChanged(mob);
+            listener.onMobStatusEvent(mob, 16);
+        }
+        return true;
     }
 
     /**
@@ -1999,6 +2263,13 @@ public final class MobManager {
             mob.setBodyYaw(yaw);
             if (type == MobType.SLIME) {
                 mob.initializeSlimeSize(); // SlimeEntity.initialize (12k)
+            }
+            if (type == MobType.ZOMBIE && random.nextFloat() < 0.05F) {
+                // ZombieEntity.initialize's Data roll (line 401: the 5%
+                // villager skin — {@code world.random.nextFloat() < 0.05F}):
+                // the natural zombie villager the cure's whole family keys
+                // on (Slice 25a).
+                mob.setZombieVillager(true);
             }
             if (baby) {
                 mob.setBreedingAge(-24_000);
