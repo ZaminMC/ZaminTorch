@@ -3773,6 +3773,59 @@ public final class MobEntity implements LivingEntity {
         this.leashHolderKnot = null;
     }
 
+    // --- the public §27.3 leash family (the LivingEntity handle's reads
+    // over the state above — the engine object IS the handle, §27.5) ------
+
+    @Override
+    public boolean leashed() {
+        return leashed;
+    }
+
+    @Override
+    public net.zaminmc.torch.entity.LeashHolderKind leashHolderKind() {
+        if (!leashed) {
+            return net.zaminmc.torch.entity.LeashHolderKind.NONE;
+        }
+        return leashHolderPlayer != null
+                ? net.zaminmc.torch.entity.LeashHolderKind.PLAYER
+                : net.zaminmc.torch.entity.LeashHolderKind.KNOT;
+    }
+
+    @Override
+    public java.util.Optional<java.util.UUID> leashHolderPlayerUuid() {
+        net.zaminmc.torch.server.player.PlayerSession holder = leashHolderPlayer();
+        return holder == null ? java.util.Optional.empty()
+                : java.util.Optional.of(holder.uuid());
+    }
+
+    @Override
+    public java.util.Optional<net.zaminmc.torch.block.BlockPosition> leashKnotPosition() {
+        net.zaminmc.torch.server.leash.LeashKnot knot = leashHolderKnot();
+        return knot == null ? java.util.Optional.empty()
+                : java.util.Optional.of(knot.fence());
+    }
+
+    /** The leash system's detach hook, set at spawn (the public unleash path). */
+    private java.util.function.Consumer<Boolean> leashDetacher;
+
+    /** Called by the owning manager at spawn (and by the retro-wiring setter). */
+    public void setLeashDetacher(java.util.function.Consumer<Boolean> detacher) {
+        this.leashDetacher = detacher;
+    }
+
+    @Override
+    public void unleash(boolean dropLead) {
+        java.util.function.Consumer<Boolean> hook = leashDetacher;
+        if (hook != null) {
+            hook.accept(dropLead); // the system's walk: the clear + the wire + the drop
+        } else {
+            // The bare-wiring fallback (a manager without the leash
+            // system attached): the state still clears — the reference's
+            // own first arm.
+            clearLeash();
+        }
+    }
+
     /**
      * The leash's navigation arm (PathFinderMobEntity line 96: the
      * {@code getNavigation().moveTo(entity, 1.0)} follow) — the walking

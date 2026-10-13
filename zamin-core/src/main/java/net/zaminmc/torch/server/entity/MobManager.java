@@ -365,6 +365,23 @@ public final class MobManager {
         this.goalAdmission = admission;
     }
 
+    /** The leash system's detach hook (the public unleash path). */
+    private java.util.function.BiConsumer<MobEntity, Boolean> leashDetacher;
+
+    /**
+     * Wires the leash system's detach walk behind the public
+     * {@code LivingEntity.unleash} (§27.3's leash family). Called once by
+     * the server when the LeadSystem attaches — the setter retro-wires
+     * every already-spawned body too (the boot order restores mobs before
+     * the leash system exists), and {@code spawnAt} wires fresh spawns.
+     */
+    public void setLeashDetacher(java.util.function.BiConsumer<MobEntity, Boolean> detacher) {
+        this.leashDetacher = detacher;
+        for (MobEntity mob : mobs) {
+            mob.setLeashDetacher(drop -> detacher.accept(mob, drop));
+        }
+    }
+
     /**
      * Wires the public event bus (§27.7): every spawn fires
      * {@link net.zaminmc.torch.event.entity.MobSpawnEvent} before the entity
@@ -484,6 +501,10 @@ public final class MobManager {
         MobEntity mob = new MobEntity(nextEntityId++, type, position, random, world);
         mob.setBreedFinder(this::scanForMate);
         mob.setRemovalHook(() -> remove(mob, "api")); // the public despawn path
+        var detacher = leashDetacher;
+        if (detacher != null) {
+            mob.setLeashDetacher(drop -> detacher.accept(mob, drop)); // the public unleash path
+        }
         mob.setGoalAdmission(goalAdmission); // §27.6: mind mutations admit onto the owner lane
         if (type == MobType.SKELETON) {
             // SkeletonEntity.initialize's else arm (line 224 →

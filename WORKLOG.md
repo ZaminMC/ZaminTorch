@@ -4015,3 +4015,38 @@ RegistryApiAcceptanceTest still green (the view shape unchanged).
 The API ledger's Enchanting row graduates NOT AUDITED → IMPLEMENTED
 (the omissions column now names the offer math, the menu window state,
 and the random-enchant verb as the remaining engine-side families).
+
+## Slice 23c — the leash API wave (§27.3's entity family)
+
+**The surface:** `LivingEntity`'s leash family — `leashed()`,
+`leashHolderKind()` (the new public `entity.LeashHolderKind`:
+NONE/PLAYER/KNOT), `leashHolderPlayerUuid()` (Optional<UUID> — the
+holder's own uuid, no PlayerSession leak), `leashKnotPosition()`
+(Optional<BlockPosition> — the fence the knot ties to), and
+`unleash(boolean dropLead)` — the §27.6 owner-context mutation routed
+through the LeadSystem's own detach walk (clearLeash + the wire's
+onMobDetached + the optional drop at the mob's feet).
+
+**The wiring:** MobEntity carries the public reads over its own leash
+state + a `leashDetacher` hook (the removalHook pattern); MobManager
+gains `setLeashDetacher(BiConsumer)` — spawnAt wires fresh spawns, the
+setter retro-wires the already-spawned (the boot order restores mobs at
+line 564, the LeadSystem attaches at 1137 — both orders covered);
+EngineServer wires the hook with the §27.6 assert:
+`world.requireMutationContext("unleash")` before the system's walk (the
+bare-wired rigs keep their tolerant shape).
+
+**The naming:** the API's holder read is `leashHolderPlayerUuid()` —
+the engine's own `leashHolderPlayer()` (PlayerSession) keeps its name;
+the uuid form avoids the return-type-only clash.
+
+Tests: LeashApiAcceptanceTest (3: the player-hold arm through the
+reference's interactMobWithLead path + the holder-kind/uuid reads + the
+unleash-with-drop landing the lead item at the mob; the fence tie
+through useLeadOnFence + the knot reads + the creative unleash's
+no-drop; the off-lane unleash failing diagnosably + the leash surviving
+the rejected write + the handle-identity walk through World.entities()).
+The neighboring suites green (EntityApi, LeadSystem batch, GoalApi,
+EntityFamilyApi).
+
+The API ledger's Leashes row graduates NOT AUDITED → IMPLEMENTED.
