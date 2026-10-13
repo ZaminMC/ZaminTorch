@@ -14,7 +14,11 @@ import java.util.Objects;
  * state owned by the simulation context; the id is engine-global from the
  * experience band so every observer agrees on it.</p>
  */
-public final class ExperienceOrbEntity {
+public final class ExperienceOrbEntity implements net.zaminmc.torch.entity.ExperienceOrb {
+
+    /** The public kind identifier (§27.3): the experience-orb body. */
+    private static final net.zaminmc.torch.util.Identifier TYPE_IDENTIFIER =
+            net.zaminmc.torch.util.Identifier.parse("minecraft:xp_orb");
 
     /** Shared with items (the physics slice will unify the small-body model). */
     public static final double GRAVITY_PER_TICK = 0.04;
@@ -144,5 +148,28 @@ public final class ExperienceOrbEntity {
         return (Math.round(position.x() * 32.0) << 42)
                 | (Math.round(position.y() * 32.0) << 21)
                 | Math.round(position.z() * 32.0);
+    }
+
+    // ------------------------------------------------------------------
+    // The public API surface (§27.3 — the ExperienceOrb handle).
+    // ------------------------------------------------------------------
+
+    @Override
+    public net.zaminmc.torch.util.Identifier typeIdentifier() {
+        return TYPE_IDENTIFIER;
+    }
+
+    /**
+     * The any-thread-consumable view (§27.6): captured on the owner
+     * context inside {@code World.execute}. Health/maxHealth do not
+     * apply to the orb body (1/1); {@code dead} answers the lifetime's
+     * expiry state.
+     */
+    @Override
+    public net.zaminmc.torch.entity.EntitySnapshot snapshot() {
+        return new net.zaminmc.torch.entity.EntitySnapshot(
+                entityId, TYPE_IDENTIFIER, position, 0.0f,
+                velocityX, velocityY, velocityZ,
+                1.0f, 1.0f, onGround, expired());
     }
 }

@@ -1,6 +1,7 @@
 package net.zaminmc.torch.server.entity;
 
 import net.zaminmc.torch.item.ItemStack;
+import net.zaminmc.torch.util.Identifier;
 import net.zaminmc.torch.util.Position;
 
 import java.util.Objects;
@@ -14,7 +15,10 @@ import java.util.Objects;
  * wire ids are observer-local today). Physics is deliberately simplified
  * (gravity + ground snap) and marked for the physics slice.</p>
  */
-public final class ItemEntity {
+public final class ItemEntity implements net.zaminmc.torch.entity.DroppedItem {
+
+    /** The public kind identifier (§27.3): the item-entity body. */
+    private static final Identifier TYPE_IDENTIFIER = Identifier.parse("minecraft:item");
 
     /** Historical constants, documented for the physics slice to revisit. */
     public static final double GRAVITY_PER_TICK = 0.04;
@@ -178,5 +182,38 @@ public final class ItemEntity {
         return (Math.round(position.x() * 32.0) << 42)
                 | (Math.round(position.y() * 32.0) << 21)
                 | Math.round(position.z() * 32.0);
+    }
+
+    // ------------------------------------------------------------------
+    // The public API surface (§27.3 — the DroppedItem handle). The
+    // engine class IS the handle (§27.5's zero-allocation shape: no
+    // wrapper per access; the internal implementation may change behind
+    // this surface).
+    // ------------------------------------------------------------------
+
+    @Override
+    public Identifier typeIdentifier() {
+        return TYPE_IDENTIFIER;
+    }
+
+    /**
+     * The any-thread-consumable view (§27.6): captured on the owner
+     * context inside {@code World.execute}. Health/maxHealth do not
+     * apply to the item body (1/1); {@code dead} answers false — the
+     * removal contract is the population view's disappearance, not a
+     * corpse flag.
+     */
+    @Override
+    public net.zaminmc.torch.entity.EntitySnapshot snapshot() {
+        return new net.zaminmc.torch.entity.EntitySnapshot(
+                entityId, TYPE_IDENTIFIER, position, 0.0f,
+                velocityX, velocityY, velocityZ,
+                1.0f, 1.0f, onGround, false);
+    }
+
+    /** The public pickup-delay read (the manager's own cadence state). */
+    @Override
+    public int pickupDelayTicks() {
+        return pickupDelay;
     }
 }

@@ -909,6 +909,18 @@ public final class EngineServer implements Server, EngineBridge {
                         VEHICLE_ID_BASE);
                 this.vehicleManager = vehicles;
                 vehicles.addListener(new VehicleEventDispatch());
+                // The public §27.3 entity-family views: the five engine
+                // populations captured as stable point-in-time copies (the
+                // managers' all() contract) behind the World interface.
+                // The nether keeps the default empty views (its drops/
+                // projectiles/vehicles route through the overworld's
+                // managers today — the same envelope as its mob view).
+                world.attachEntityFamilyViews(
+                        itemEntities::all,
+                        projectiles::all,
+                        falling::all,
+                        vehicles::all,
+                        experienceOrbs::all);
                 ticker.setTickHandler(() -> {
                     // The per-region boundary walk FIRST (the §7 protocol's
                     // target-side apply): every live region domain drains its

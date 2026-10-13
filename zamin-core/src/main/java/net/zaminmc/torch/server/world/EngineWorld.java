@@ -78,6 +78,29 @@ public final class EngineWorld implements World {
      */
     private volatile java.util.function.Supplier<
             java.util.Collection<? extends net.zaminmc.torch.entity.LivingEntity>> entityView;
+
+    /**
+     * The public dropped-item view (§27.3's entity family): the point-in-time
+     * population supplier, attached at boot. Simulation-context reads.
+     */
+    private volatile java.util.function.Supplier<
+            java.util.List<? extends net.zaminmc.torch.entity.DroppedItem>> itemView;
+
+    /** The public projectile view (§27.3): attached at boot. */
+    private volatile java.util.function.Supplier<
+            java.util.List<? extends net.zaminmc.torch.entity.Projectile>> projectileView;
+
+    /** The public falling-block view (§27.3): attached at boot. */
+    private volatile java.util.function.Supplier<
+            java.util.List<? extends net.zaminmc.torch.entity.FallingBlock>> fallingBlockView;
+
+    /** The public vehicle view (§27.3): attached at boot. */
+    private volatile java.util.function.Supplier<
+            java.util.List<? extends net.zaminmc.torch.entity.Vehicle>> vehicleView;
+
+    /** The public experience-orb view (§27.3): attached at boot. */
+    private volatile java.util.function.Supplier<
+            java.util.List<? extends net.zaminmc.torch.entity.ExperienceOrb>> orbView;
     /**
      * The owner-context executor (§27.6): routes work onto the authoritative
      * simulation lane (the engine ticker between ticks). Attached at boot.
@@ -228,6 +251,28 @@ public final class EngineWorld implements World {
         this.entityView = java.util.Objects.requireNonNull(view, "view");
     }
 
+    /** Attaches the public entity-family views (the boot wiring; §27.3's
+     *  entity families — items, projectiles, falling blocks, vehicles,
+     *  experience orbs). Each supplier's capture must be a stable
+     *  point-in-time copy (the managers' {@code all()} contract). */
+    public void attachEntityFamilyViews(
+            java.util.function.Supplier<
+                    java.util.List<? extends net.zaminmc.torch.entity.DroppedItem>> items,
+            java.util.function.Supplier<
+                    java.util.List<? extends net.zaminmc.torch.entity.Projectile>> projectiles,
+            java.util.function.Supplier<
+                    java.util.List<? extends net.zaminmc.torch.entity.FallingBlock>> fallingBlocks,
+            java.util.function.Supplier<
+                    java.util.List<? extends net.zaminmc.torch.entity.Vehicle>> vehicles,
+            java.util.function.Supplier<
+                    java.util.List<? extends net.zaminmc.torch.entity.ExperienceOrb>> orbs) {
+        this.itemView = java.util.Objects.requireNonNull(items, "items");
+        this.projectileView = java.util.Objects.requireNonNull(projectiles, "projectiles");
+        this.fallingBlockView = java.util.Objects.requireNonNull(fallingBlocks, "fallingBlocks");
+        this.vehicleView = java.util.Objects.requireNonNull(vehicles, "vehicles");
+        this.orbView = java.util.Objects.requireNonNull(orbs, "orbs");
+    }
+
     /** Attaches the owner-context executor (the boot wiring; §27.6). */
     public void attachOwnerExecutor(java.util.function.Consumer<Runnable> executor) {
         this.ownerExecutor = java.util.Objects.requireNonNull(executor, "executor");
@@ -242,6 +287,71 @@ public final class EngineWorld implements World {
         }
         // The supplier's own capture already copied the population list
         // (the manager's all() contract) — a stable point-in-time view.
+        return (java.util.Collection) view.get();
+    }
+
+    @Override
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public java.util.Collection<net.zaminmc.torch.entity.DroppedItem> itemEntities() {
+        var view = itemView;
+        if (view == null) {
+            return java.util.List.of();
+        }
+        // The supplier's capture already copied the population (the
+        // manager's all() contract) — the same point-in-time shape as
+        // entities() above; the raw cast bridges the capture wildcard.
+        return (java.util.Collection) view.get();
+    }
+
+    @Override
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public java.util.Collection<net.zaminmc.torch.entity.Projectile> projectiles() {
+        var view = projectileView;
+        if (view == null) {
+            return java.util.List.of();
+        }
+        // The supplier's capture already copied the population (the
+        // manager's all() contract) — the same point-in-time shape as
+        // entities() above; the raw cast bridges the capture wildcard.
+        return (java.util.Collection) view.get();
+    }
+
+    @Override
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public java.util.Collection<net.zaminmc.torch.entity.FallingBlock> fallingBlocks() {
+        var view = fallingBlockView;
+        if (view == null) {
+            return java.util.List.of();
+        }
+        // The supplier's capture already copied the population (the
+        // manager's all() contract) — the same point-in-time shape as
+        // entities() above; the raw cast bridges the capture wildcard.
+        return (java.util.Collection) view.get();
+    }
+
+    @Override
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public java.util.Collection<net.zaminmc.torch.entity.Vehicle> vehicles() {
+        var view = vehicleView;
+        if (view == null) {
+            return java.util.List.of();
+        }
+        // The supplier's capture already copied the population (the
+        // manager's all() contract) — the same point-in-time shape as
+        // entities() above; the raw cast bridges the capture wildcard.
+        return (java.util.Collection) view.get();
+    }
+
+    @Override
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public java.util.Collection<net.zaminmc.torch.entity.ExperienceOrb> experienceOrbs() {
+        var view = orbView;
+        if (view == null) {
+            return java.util.List.of();
+        }
+        // The supplier's capture already copied the population (the
+        // manager's all() contract) — the same point-in-time shape as
+        // entities() above; the raw cast bridges the capture wildcard.
         return (java.util.Collection) view.get();
     }
 

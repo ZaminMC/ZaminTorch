@@ -23,7 +23,11 @@ import java.util.Objects;
  * of falling forever ({@code doEntityDrops}, on by default). Community
  * entities.json (pc/1.8, FallingSand id 70) confirms the 0.98 box.</p>
  */
-public final class FallingBlockEntity {
+public final class FallingBlockEntity implements net.zaminmc.torch.entity.FallingBlock {
+
+    /** The public kind identifier (§27.3): the falling-block body. */
+    private static final net.zaminmc.torch.util.Identifier TYPE_IDENTIFIER =
+            net.zaminmc.torch.util.Identifier.parse("minecraft:falling_block");
 
     /** Historical gravity, shared with items and mobs (physics slice unifies). */
     public static final double GRAVITY_PER_TICK = 0.04;
@@ -213,5 +217,34 @@ public final class FallingBlockEntity {
         position = new Position(position.x(), newBottom, position.z());
         velocityY *= 0.98;
         return Step.MOVED;
+    }
+
+    // ------------------------------------------------------------------
+    // The public API surface (§27.3 — the FallingBlock handle).
+    // ------------------------------------------------------------------
+
+    @Override
+    public net.zaminmc.torch.util.Identifier typeIdentifier() {
+        return TYPE_IDENTIFIER;
+    }
+
+    /**
+     * The any-thread-consumable view (§27.6): captured on the owner
+     * context inside {@code World.execute}. Health/maxHealth do not
+     * apply to the falling body (1/1); the vertical-only flight carries
+     * no horizontal velocity.
+     */
+    @Override
+    public net.zaminmc.torch.entity.EntitySnapshot snapshot() {
+        return new net.zaminmc.torch.entity.EntitySnapshot(
+                entityId, TYPE_IDENTIFIER, position, 0.0f,
+                0.0, velocityY, 0.0,
+                1.0f, 1.0f, onGround, false);
+    }
+
+    /** The public block read (the engine's own {@link #blockType()}). */
+    @Override
+    public BlockType block() {
+        return blockType;
     }
 }
