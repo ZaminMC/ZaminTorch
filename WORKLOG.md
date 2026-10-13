@@ -4374,3 +4374,27 @@ neighboring suites green (block update, weather, lifecycle, mining XP,
 body survival, silverfish, enderman carry, rabbit, peaceful
 difficulty, TNT, explosion API, cauldron, fire, command API, spawn
 egg, event API, vehicles, dispenser, hopper window).
+
+## Slice 24b — the vehicle spawn gate (§27.7's spawn family completes)
+
+**The event:** `event.entity.VehicleSpawnEvent` — the cancellable
+pre-commit gate over the mount family's spawn chokepoints: the public
+VehicleKind + the position. A cancelled spawn consumes no id, spawns no
+body, sends no wire frame — and the placing item is NOT consumed (the
+same withholding semantics the BlockPlaceEvent family carries).
+
+**The wiring:** VehicleManager's three spawn verbs (boat, minecart,
+chest minecart) each fire the gate BEFORE the id consumption and the
+construction — the manager gained the event-bus field + setter, the
+engine wires it beside the other §27.7 gates. The item-placement path
+(EngineServer's spawnVehicleUseOnTick) now withholds the item when the
+gate refuses (the null return skips consumePlaced); the
+structure-seeded chest carts' loot fill was already null-safe (the
+instanceof arm skips a cancelled spawn's empty hand).
+
+Tests: VehicleSpawnEventAcceptanceTest (2: the boat placement — the
+kind/position reads, the empty world, the item withheld, the
+uncancelled twin with the item paid; the manager verb — the null
+return, the no-id contract, the uncancelled twin carrying the chest
+kind). The neighboring suites green (vehicle manager, entity family,
+the spawn-event batch, the mineshaft structure seeding).

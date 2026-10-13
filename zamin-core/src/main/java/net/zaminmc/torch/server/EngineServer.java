@@ -1319,6 +1319,7 @@ public final class EngineServer implements Server, EngineBridge {
                         new java.util.Random(),
                         VEHICLE_ID_BASE);
                 this.vehicleManager = vehicles;
+                vehicles.setEventBus(eventBus); // §27.7: the public vehicle spawn gate
                 vehicles.addListener(new VehicleEventDispatch());
                 // The public §27.3 entity-family views: the five engine
                 // populations captured as stable point-in-time copies (the
@@ -7172,11 +7173,17 @@ public final class EngineServer implements Server, EngineBridge {
             spawnAt = new Position(railCell.x() + 0.5, railCell.y() + 0.06, railCell.z() + 0.5);
         }
         if (boat) {
-            vehicleManager.spawnBoat(spawnAt);
+            if (vehicleManager.spawnBoat(spawnAt) == null) {
+                return; // the §27.7 gate withheld the boat — the item stays
+            }
         } else if (chestCart) {
-            vehicleManager.spawnChestMinecart(spawnAt);
+            if (vehicleManager.spawnChestMinecart(spawnAt) == null) {
+                return; // the §27.7 gate withheld the cart — the item stays
+            }
         } else {
-            vehicleManager.spawnMinecart(spawnAt);
+            if (vehicleManager.spawnMinecart(spawnAt) == null) {
+                return; // the §27.7 gate withheld the cart — the item stays
+            }
         }
         consumePlaced(session, creativeHeld);
     }
