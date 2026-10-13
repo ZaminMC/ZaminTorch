@@ -1833,6 +1833,11 @@ public final class EngineServer implements Server, EngineBridge {
         return furnaceManager;
     }
 
+    /** The simulation-owned spawner block entities (present once the world is up). */
+    public net.zaminmc.torch.server.spawner.SpawnerManager spawners() {
+        return spawners;
+    }
+
     /** The simulation-owned chest block entities (present once the world is up). */
     public ChestManager chests() {
         return chestManager;
@@ -3266,6 +3271,14 @@ public final class EngineServer implements Server, EngineBridge {
                 }
                 return;
             }
+            // The spawn egg's in-air use (Slice 20a — SpawnEggItem.
+            // startUsing lines 94-131): the crosshair's liquid target is
+            // the only in-air spawn — the crosshair's solid target belongs
+            // to the block-use path.
+            if (held.type().equals(BuiltinItems.SPAWN_EGG)) {
+                useSpawnEggInAir(session);
+                return;
+            }
             // Food: the eat timer.
             if (Foods.nutritionOf(held.type(), held.damage()).isEmpty()) {
                 return;
@@ -4656,6 +4669,17 @@ public final class EngineServer implements Server, EngineBridge {
         if (useFarmingOnTick(session, clicked)) {
             return; // the hoe/seed/bone-meal use was consumed
         }
+        // The spawn egg (Slice 20a — SpawnEggItem.useOn lines 63-92): the
+        // damage field names the kind; against a spawner the egg re-types
+        // the block entity, against anything else the body lands at the
+        // clicked face's offset cell (the fence's UP face lifts it by its
+        // own half-block). An unknown id never spawns — the reference's
+        // containsKey gate — but the use is still consumed.
+        net.zaminmc.torch.item.ItemStack eggHeld = session.inventory().held();
+        if (!eggHeld.isEmpty() && eggHeld.type().equals(BuiltinItems.SPAWN_EGG)) {
+            useSpawnEggOnBlock(session, clicked, face, eggHeld);
+            return; // the egg consumed the use (the reference's own true)
+        }
         net.zaminmc.torch.item.ItemStack heldNow = session.inventory().held();
         String heldId = heldNow.isEmpty() ? "" : heldNow.type().identifier().toString();
         if (heldId
@@ -5505,6 +5529,160 @@ public final class EngineServer implements Server, EngineBridge {
             publishInventoryChanged(session);
         }
         return true;
+    }
+
+    /**
+     * The spawn egg's block use (SpawnEggItem.useOn lines 63-92): against a
+     * spawner the egg re-types the block entity (the reference's
+     * {@code mobspawner.setType(Entities.getKey(metadata))} — an unknown id
+     * clears the type the same way the reference's null key does) and the
+     * tile republishes for the next chunk send; against anything else the
+     * body spawns at the clicked face's offset cell center — the fence's UP
+     * face lifts the spawn by its own half-block (the reference's
+     * FenceBlock quirk, useOn lines 78-81). The stack pays one unit in
+     * survival; an unregistered id never spawns (the containsKey gate).
+     * Tick-thread context.
+     */
+    private void useSpawnEggOnBlock(PlayerSession session, BlockPosition clicked, int face,
+                                    net.zaminmc.torch.item.ItemStack held) {
+        net.zaminmc.torch.server.entity.MobType kind =
+                net.zaminmc.torch.server.item.SpawnEggs.typeOf(held.damage());
+        EngineWorld useWorld = session.dimension() == -1 ? netherWorld : world;
+        net.zaminmc.torch.block.BlockType block = useWorld.getBlock(clicked);
+        if (block.identifier().equals(BuiltinBlocks.MOB_SPAWNER.identifier())) {
+            // The spawner arm (useOn lines 68-82): the re-type lands even
+            // for an id the spawn path refuses — the reference's own null
+            // key. The delay keeps its clock (setType never touches it).
+            spawnerManager.getOrCreate(session.dimension(), clicked).setType(kind);
+            spawnerManager.refreshWireTiles();
+            if (session.gamemode() != GameMode.CREATIVE) {
+                session.inventory().consumeHeld(1);
+                publishInventoryChanged(session);
+            }
+            return;
+        }
+        if (kind == null) {
+            return; // the unknown id: no body, no payment (spawnEntity's gate)
+        }
+        // The spawn cell: the clicked face's offset (useOn line 82), with
+        // the fence's UP face adding its 0.5 hull (lines 78-81).
+        BlockPosition target = offsetByFace(clicked, face);
+        if (target == null) {
+            return; // a malformed face index: nothing to offset
+        }
+        double lift = 0.0;
+        if (face == 1 && block.identifier().equals(BuiltinBlocks.FENCE.identifier())) {
+            lift = 0.5;
+        }
+        mobManager.spawnFromEgg(kind, new Position(
+                target.x() + 0.5, target.y() + lift, target.z() + 0.5));
+        if (session.gamemode() != GameMode.CREATIVE) {
+            session.inventory().consumeHeld(1);
+            publishInventoryChanged(session);
+        }
+    }
+
+    /**
+     * The spawn egg's in-air use (SpawnEggItem.startUsing lines 94-131): the
+     * crosshair's own liquid target — the 5.0-block liquid ray — is the
+     * ONLY in-air spawn (a solid hit is the reference's quiet no-op: the
+     * block-use path already owned it). The body lands at the liquid cell's
+     * center and the stack pays one unit in survival. Tick-thread context.
+     */
+    private void useSpawnEggInAir(PlayerSession session) {
+        BlockPosition liquidCell = rayTraceBlocks(session, true);
+        if (liquidCell == null) {
+            return; // the clean miss: no body, no payment
+        }
+        EngineWorld useWorld = session.dimension() == -1 ? netherWorld : world;
+        BlockType at = useWorld.getBlock(liquidCell);
+        if (FluidBlocks.kindOf(at.identifier()) == null) {
+            return; // the solid hit: the reference's startUsing only answers liquids
+        }
+        net.zaminmc.torch.server.entity.MobType kind = net.zaminmc.torch.server.item.SpawnEggs
+                .typeOf(session.inventory().held().damage());
+        if (kind == null) {
+            return; // the unknown id: no body, no payment
+        }
+        mobManager.spawnFromEgg(kind, new Position(
+                liquidCell.x() + 0.5, liquidCell.y() + 0.5, liquidCell.z() + 0.5));
+        if (session.gamemode() != GameMode.CREATIVE) {
+            session.inventory().consumeHeld(1);
+            publishInventoryChanged(session);
+        }
+    }
+
+    /**
+     * The item's own use target ({@code Item.getUseTarget} lines 262-279 +
+     * {@code World.rayTrace} lines 639-745): the eye's look vector walked
+     * 5.0 blocks over the block grid, the first cell that canRayTrace
+     * answers — a liquid SOURCE counts only when liquids are allowed
+     * ({@code LiquidBlock.canRayTrace} line 88: the flowing cells pass),
+     * every other non-air block always counts ({@code AirBlock} line 30:
+     * air never does).
+     *
+     * @return the hittable cell, or null when the ray runs its 5.0 blocks
+     *         clean (the reference's miss)
+     */
+    private BlockPosition rayTraceBlocks(PlayerSession session, boolean allowLiquids) {
+        EngineWorld useWorld = session.dimension() == -1 ? netherWorld : world;
+        Position eye = new Position(session.position().x(),
+                session.position().y() + 1.62, session.position().z());
+        double yaw = Math.toRadians(session.rotation().yaw());
+        double pitch = Math.toRadians(session.rotation().pitch());
+        double dx = -Math.sin(yaw) * Math.cos(pitch);
+        double dy = -Math.sin(pitch);
+        double dz = Math.cos(yaw) * Math.cos(pitch);
+        double reach = 5.0;
+        // The Amanatides-Woo walk (World.rayTrace's own boundary ladder
+        // under its 200-step cap): each axis steps to its next grid
+        // boundary, the smallest parametric t advances the cell.
+        int x = (int) Math.floor(eye.x());
+        int y = (int) Math.floor(eye.y());
+        int z = (int) Math.floor(eye.z());
+        double tDeltaX = dx == 0 ? Double.MAX_VALUE : Math.abs(1.0 / dx);
+        double tDeltaY = dy == 0 ? Double.MAX_VALUE : Math.abs(1.0 / dy);
+        double tDeltaZ = dz == 0 ? Double.MAX_VALUE : Math.abs(1.0 / dz);
+        int stepX = dx > 0 ? 1 : -1;
+        int stepY = dy > 0 ? 1 : -1;
+        int stepZ = dz > 0 ? 1 : -1;
+        double tMaxX = dx == 0 ? Double.MAX_VALUE
+                : ((dx > 0 ? x + 1.0 - eye.x() : eye.x() - x) / Math.abs(dx));
+        double tMaxY = dy == 0 ? Double.MAX_VALUE
+                : ((dy > 0 ? y + 1.0 - eye.y() : eye.y() - y) / Math.abs(dy));
+        double tMaxZ = dz == 0 ? Double.MAX_VALUE
+                : ((dz > 0 ? z + 1.0 - eye.z() : eye.z() - z) / Math.abs(dz));
+        for (int step = 0; step < 200; step++) {
+            BlockType at = useWorld.getBlock(new BlockPosition(x, y, z));
+            if (FluidBlocks.kindOf(at.identifier()) != null) {
+                if (allowLiquids && FluidBlocks.isSource(at.identifier())) {
+                    return new BlockPosition(x, y, z);
+                }
+                // the flowing cell passes the ray through (canRayTrace's gate)
+            } else if (!at.equals(useWorld.airType())) {
+                return new BlockPosition(x, y, z);
+            }
+            if (tMaxX < tMaxY && tMaxX < tMaxZ) {
+                if (tMaxX > reach) {
+                    return null;
+                }
+                x += stepX;
+                tMaxX += tDeltaX;
+            } else if (tMaxY < tMaxZ) {
+                if (tMaxY > reach) {
+                    return null;
+                }
+                y += stepY;
+                tMaxY += tDeltaY;
+            } else {
+                if (tMaxZ > reach) {
+                    return null;
+                }
+                z += stepZ;
+                tMaxZ += tDeltaZ;
+            }
+        }
+        return null;
     }
 
     /**

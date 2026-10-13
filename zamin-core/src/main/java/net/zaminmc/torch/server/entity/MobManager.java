@@ -527,6 +527,47 @@ public final class MobManager {
     }
 
     /**
+     * The egg's own spawn ({@code SpawnEggItem.spawnEntity} lines 131-153):
+     * the reference's setPositionAndAngles — the wrapped random facing over
+     * the shared random — then the ambient sound the reference's
+     * playAmbientSound plays at the spawn (the silent kinds stay silent).
+     * The per-kind initialize arms (the skeleton's bow, the witch's effect
+     * query) already ride {@link #spawnAt}. Tick-thread context.
+     *
+     * @return the spawned mob, or null when the spawn event cancelled it
+     */
+    public MobEntity spawnFromEgg(MobType type, Position position) {
+        MobEntity spawned = spawnAt(type, position);
+        if (spawned != null) {
+            // MathHelper.wrapDegrees(world.random.nextFloat() * 360.0F):
+            // the random facing [0, 360) wrapped to [-180, 180).
+            float facing = wrapDegrees(random.nextFloat() * 360.0f);
+            spawned.setBodyYaw(facing);
+            // playAmbientSound: getAmbientSound() == null never plays — the
+            // engine's empty-string idle is the same silence.
+            String ambient = spawned.effectiveIdleSound();
+            if (!ambient.isEmpty()) {
+                for (Listener listener : listeners) {
+                    listener.onMobSound(spawned, ambient);
+                }
+            }
+        }
+        return spawned;
+    }
+
+    /** {@link MathHelper#wrapDegrees}' own band: the value to [-180, 180). */
+    private static float wrapDegrees(float value) {
+        float f = value % 360.0f;
+        if (f >= 180.0f) {
+            f -= 360.0f;
+        }
+        if (f < -180.0f) {
+            f += 360.0f;
+        }
+        return f;
+    }
+
+    /**
      * Spawns {@code count} mobs of the kind near the given center on the
      * surface (the command path). Tick-thread context.
      */

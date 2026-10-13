@@ -3418,3 +3418,21 @@ the blast ladder (the scaled-source family at the explosion player-walk:
 peaceful never wounds, easy halves plus one, hard lifts a half — before the
 Blast Protection shave). PeacefulDifficultyTest (3). Fresh suite: 871 core +
 19 api green, `--max-workers=1`, zero failures.
+
+### Slice 20a — the spawn eggs
+
+`SpawnEggItem` 1:1 over the engine's item/use surfaces: the item (383, the
+damage field naming the entity registration id), the mapping (the reference's
+registerWithSpawnEgg set — 27 kinds; the golems 97/99, the giant 53 and the
+enderer dragon 63 carry no eggs, faithful to the reference's own gaps), the
+block use (the spawner re-type arm through the manager's getOrCreate + the
+wire-tile republish — an unknown id clears the type exactly as the reference's
+null key does; the face-offset spawn with the fence UP-face's +0.5 quirk; the
+survival consume / the creative keep), the in-air use (the engine's FIRST
+block-grid raycast — the Amanatides-Woo walk over the reference's canRayTrace
+semantics: the liquid SOURCE counts only with liquids allowed, the flowing
+cells pass, air never counts, the 200-step cap, the 5.0 reach; the spawn at
+the liquid cell's center), and the spawn itself (`MobManager.spawnFromEgg`:
+the wrapped random facing + the ambient sound at the spawn, the per-kind
+initialize arms already riding spawnAt). SpawnEggTest (6). Fresh suite 877
+core + 19 api + 75 protocol green, `--max-workers=1`, zero failures.
