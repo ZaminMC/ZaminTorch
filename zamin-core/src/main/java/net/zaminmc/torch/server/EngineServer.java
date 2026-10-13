@@ -20,6 +20,7 @@ import net.zaminmc.torch.server.block.RandomTickSystem;
 import net.zaminmc.torch.server.chest.ChestBlockEntity;
 import net.zaminmc.torch.server.chest.ChestDataStore;
 import net.zaminmc.torch.server.chest.ChestManager;
+import net.zaminmc.torch.server.container.ContainerViews;
 import net.zaminmc.torch.server.config.EngineConfig;
 import net.zaminmc.torch.server.crafting.CraftingService;
 import net.zaminmc.torch.server.entity.FallingBlockEntityManager;
@@ -1188,6 +1189,11 @@ public final class EngineServer implements Server, EngineBridge {
                         falling::all,
                         vehicles::all,
                         experienceOrbs::all);
+                // The public §27.3 container views: the position-keyed
+                // chest/furnace/hopper reads over the three managers (the
+                // engine objects dressed as live handles, §27.5).
+                world.attachContainerView(new ContainerViews(
+                        chestManager, furnaceManager, hopperSystem));
                 ticker.setTickHandler(() -> {
                     // The per-region boundary walk FIRST (the §7 protocol's
                     // target-side apply): every live region domain drains its

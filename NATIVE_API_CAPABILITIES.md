@@ -71,9 +71,9 @@ Stability classes (§27.4): `Stable`, `Experimental`, `Internal`.
 | Explosion service | `ExplosionService` | none | owner | — | — | — | NOT AUDITED | — |
 | Redstone | `RedstoneSystem` | none | owner | — | — | — | NOT AUDITED | — |
 | Pistons | `PistonSystem` | none | owner | — | — | — | NOT AUDITED | — |
-| Hoppers | `HopperSystem` | none | owner | — | — | — | NOT AUDITED | transfer query/cancel |
-| Chests | `ChestManager` | none | owner | — | — | — | NOT AUDITED | — |
-| Furnaces | `FurnaceManager` | none | owner | — | — | — | NOT AUDITED | — |
+| Hoppers | `HopperSystem` + `HopperBlockEntity` | **`World.containers().hopperAt(pos)`** → `container.Containers.Hopper` — the live 5-slot view (slotCount, slots() copy, slot(i), transferCooldown) over the engine's own entity (§27.5) | lookup best-effort any thread; reads owner-context consistent (wrap in `World.execute` off-lane) | — | Experimental | `ContainerApiAcceptanceTest` (the placed hopper's grid + the set stack, the miss arms) | IMPLEMENTED | the transfer observe/cancel hooks; the slot-level writes (the container/inventory wave) |
+| Chests | `ChestManager` + `ChestBlockEntity` | **`World.containers().chestAt(pos)`** → `container.Containers.Chest` — the live 27-slot view (slotCount, slots() copy, slot(i)) over the engine's own entity (§27.5) | lookup best-effort any thread; reads owner-context consistent | — | Experimental | `ContainerApiAcceptanceTest` (the placed chest's grid, the engine-set stack, the out-of-range + empty-position misses, the off-lane lookup) | IMPLEMENTED | the slot-level writes + the click semantics (the container/inventory wave); no chest-open observe event |
+| Furnaces | `FurnaceManager` + `FurnaceBlockEntity` | **`World.containers().furnaceAt(pos)`** → `container.Containers.Furnace` — the live view (input/fuel/output copies, burnTimeRemaining, burnTimeTotal, cookTime) over the engine's own entity (§27.5) | lookup best-effort any thread; reads owner-context consistent | — | Experimental | `ContainerApiAcceptanceTest` (the input stack, the cold furnace's zeros, the miss arms) | IMPLEMENTED | the slot writes; the burn/cook observe hooks (the interaction-events wave) |
 | Crafting | `CraftingService` | none | any thread (pure) | — | — | — | NOT AUDITED | recipe registry read |
 | Brewing | `PotionSystem` | none | owner | — | — | — | NOT AUDITED | — |
 | Enchanting | `EnchantmentHelper`, enchanting menu | none | owner | — | — | — | NOT AUDITED | — |

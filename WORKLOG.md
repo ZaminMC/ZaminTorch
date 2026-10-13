@@ -3718,3 +3718,19 @@ Tests: RegistryApiAcceptanceTest (2: the order invariant + the
 foreign-thread log-to-planks match + the 3x3 chest ring + the empty-grid
 miss; the known enchantment rows + the id order + the off-lane read).
 The ledger rows graduate to IMPLEMENTED.
+
+## Slice 22b — the container-family API wave (chests, furnaces, hoppers)
+
+§27.3's block-entity read surface over `World.containers()`: the
+position-keyed `container.Containers` family — `chestAt`/`furnaceAt`/
+`hopperAt` lookups (best-effort from any thread, empty on a miss) over
+the three managers' own block entities (§27.5: the engine objects behind
+the live views). The chest's 27-slot view (slots()/slot(i) copies), the
+furnace's burn/cook state (input/fuel/output, burnTimeRemaining/
+burnTimeTotal, cookTime), the hopper's 5-slot view + the transfer
+cooldown. The EngineWorld's containerView wiring at boot; the ContainerViews
+adapter in the server's own package.
+
+Tests: ContainerApiAcceptanceTest (2: the chest's public reads + the
+off-lane lookup, the furnace/hopper views + the miss arms). The three
+ledger rows graduate NOT AUDITED → IMPLEMENTED.
