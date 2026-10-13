@@ -3267,3 +3267,57 @@ archer's no-curse) + LegacyBlockIdsIntegrityTest (1).
 
 Fresh suite: **949 green (855 core + 19 api + 75 protocol)**,
 `--max-workers=1`, one documented chest load flake green in isolation.
+
+---
+
+## Slice 18e — the spawner's dimension model + wire surface
+
+**The dimension fix**: every spawner now carries the dimension it lives
+in — the spawn cell gate and the broken-block cleanup read the spawner's
+OWN world through the dimension-aware resolver (the EngineServer passes
+the overworld/nether pair; `drainGenerationAttachments` types each
+pending spawner under its own world, with the wire snapshot refresh on
+the typed path). This closes the pre-18e blind sweep that removed a
+nether fortress's blaze spawner on its first tick: the overworld read at
+the same coordinates never answers a spawner block, so the cleanup
+misread every nether spawner as broken and dropped it.
+
+**The tile wire (0x35)**: the Update Block Entity packet finally carries
+the spinning body. The immutable per-chunk `SpawnerTile` snapshot
+(rebuilt on every mutation, published through a volatile, read
+cross-thread by the chunk-send path) feeds the packet on every chunk
+send and every resend — gated to the tile's own dimension (a chunk (x,
+z) exists in both worlds; only the observer's dimension's tiles replay).
+The payload is the reference's own `writeNbt` family: EntityId (the wire
+entity registration names — `PigZombie`, `LavaSlime`, `MushroomCow`,
+`SnowMan`, `Ozelot`, `EntityHorse`, `VillagerGolem` spellings included),
+x/y/z, the Delay short + the six timing shorts, and the SpawnData
+compound with the id member (SpawnPotentials removed, the reference's
+own createUpdatePacket shape).
+
+**The two broadcasts**: the fired cycle's flame burst
+(MobSpawner.tick line 108's `doEvent(2004, blockpos, 0)` — the Effect
+packet, chunk-gated per connection) and the delay reroll's spin reset
+(`broadcastEvent(1)` → the Block Action packet, event byte 1 over the
+legacy block id 52, chunk-gated). Both fan out through the manager's
+listener list into the protocol adapter.
+
+**The conformance row**: `S2C_UPDATE_BLOCK_ENTITY = 0x35` added to the
+table — the NetworkProtocol registration order's own #54 (after MapData
+0x34, before OpenSignEditor 0x36).
+
+**The test hardening**: MobIntegrationTest's `/time set night` read
+walked into the periodic 20-tick Time Update race — the first packet
+after the chat may still carry the pre-command day. The read now walks
+Time Updates until the post-command night lands (the wire guarantees no
+ordering between the in-flight periodic packet and the command's
+application — the same interleaving contract the chat reader already
+handles for join/quit broadcasts).
+
+**Tests**: SpawnerManagerTest grew to 5 (the nether spawner's
+own-dimension survival + the mirror broken-block removal, the wire
+surface — the per-chunk tile snapshot + both broadcasts). Protocol
+conformance carries the 0x35 row.
+
+Fresh suite: **951 green (857 core + 19 api + 75 protocol)**,
+`--max-workers=1`, zero failures.

@@ -191,7 +191,13 @@ final class SlotNbt {
         }
     }
 
-    private static void writeShortString(ByteBuf out, String value) {
+    /**
+     * One NBT name/value string (Slice 18e: package-shared with the
+     * spawner tile writer): the short-length modified UTF-8 — Java's
+     * {@code DataOutput.writeUTF} shape, NOT the protocol's varint
+     * strings.
+     */
+    static void writeShortString(ByteBuf out, String value) {
         byte[] encoded = ModifiedUtf8.encode(value);
         if (encoded.length > Short.MAX_VALUE) {
             throw new IllegalArgumentException("NBT string too long: " + encoded.length);

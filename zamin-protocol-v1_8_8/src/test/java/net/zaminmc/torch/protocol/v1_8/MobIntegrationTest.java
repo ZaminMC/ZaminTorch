@@ -95,10 +95,21 @@ class MobIntegrationTest extends ProtocolTestBase {
             assertEquals(319, loot[5], "raw porkchop (community items.json id)");
 
             // The /time cycle reaches the client through Time Update (0x03).
+            // The periodic 20-tick sync (Slice 8c) may still carry the
+            // pre-command day: the wire guarantees no ordering between the
+            // in-flight periodic packet and the command's application, so
+            // the read walks Time Updates until the post-command night
+            // lands (the same interleaving contract the chat reader
+            // already handles for join/quit broadcasts).
             client.sendChat("/time set night");
-            long[] time = client.readTimeUpdate(15_000);
-            assertTrue(time[1] >= MobManager.NIGHT_START,
-                    "the client's clock shows night after the set");
+            long nightDeadline = System.currentTimeMillis() + 15_000;
+            boolean night = false;
+            while (!night && System.currentTimeMillis() < nightDeadline) {
+                long[] time = client.readTimeUpdate(
+                        Math.max(1, nightDeadline - System.currentTimeMillis()));
+                night = time[1] >= MobManager.NIGHT_START;
+            }
+            assertTrue(night, "the client's clock shows night after the set");
         }
     }
 
