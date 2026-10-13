@@ -407,14 +407,15 @@ public final class EngineServer implements Server, EngineBridge {
         // Registry freeze: built-ins registered during boot preparation must be frozen
         // before any world exists (registry lifecycle: create -> register -> freeze).
         if (blockRegistry == null) {
-            blockRegistry = net.zaminmc.torch.server.brewing.BrewingStandBlocks.registerAll(
+            blockRegistry = net.zaminmc.torch.server.cauldron.CauldronBlocks.registerAll(
+                    net.zaminmc.torch.server.brewing.BrewingStandBlocks.registerAll(
                     net.zaminmc.torch.server.dispenser.DispenserSystem.registerBlocks(
                     net.zaminmc.torch.server.hopper.HopperSystem.registerBlocks(
                     net.zaminmc.torch.server.piston.PistonSystem.registerBlocks(
                     net.zaminmc.torch.server.redstone.TripwireBlocks.registerAll(
                     net.zaminmc.torch.server.redstone.RedstoneBlocks.registerAll(
                             FluidBlocks.registerAll(
-                                    BuiltinBlocks.registerAll(new BlockRegistryBuilder())))))))).freeze();
+                                    BuiltinBlocks.registerAll(new BlockRegistryBuilder()))))))))).freeze();
         }
 
         state.set(ServerState.STARTING);
@@ -651,7 +652,10 @@ public final class EngineServer implements Server, EngineBridge {
                         new net.zaminmc.torch.server.weather.LightningSystem.Surface() {
                             @Override
                             public int precipitationHeight(int x, int z) {
-                                return surfaceY(x, z);
+                                // getPrecipitationHeight: the first FREE cell
+                                // above the surface (the bolt's own seat,
+                                // findLightningTarget's blockpos).
+                                return surfaceY(x, z) + 1;
                             }
 
                             @Override
@@ -746,7 +750,17 @@ public final class EngineServer implements Server, EngineBridge {
                         new net.zaminmc.torch.server.weather.PrecipitationSystem.Surface() {
                             @Override
                             public int precipitationHeight(int x, int z) {
-                                return surfaceY(x, z);
+                                // The reference's getPrecipitationHeight: the
+                                // FIRST FREE CELL above the surface — the cell
+                                // the snow lands on, one above the topmost
+                                // block (the cauldron fill's dispatch reads
+                                // height-1 = the surface block itself). The
+                                // pre-23i shape answered the surface block
+                                // directly — an off-by-one the warm-biome
+                                // temperature gate masked (both frozen arms
+                                // stayed no-ops); the cauldron's third arm
+                                // exposed it.
+                                return surfaceY(x, z) + 1;
                             }
 
                             @Override
@@ -801,6 +815,43 @@ public final class EngineServer implements Server, EngineBridge {
                             public void placeSnowAt(int x, int y, int z) {
                                 world.setBlock(new BlockPosition(x, y, z),
                                         BuiltinBlocks.SNOW_LAYER);
+                            }
+
+                            @Override
+                            public boolean isRainyBiomeAt(int x, int z) {
+                                // Biome.isRainy: the dry desert/hell columns
+                                // refuse the fill; the temperate set allows
+                                // it (the plains' own answer).
+                                String name = world.biomeAt(new BlockPosition(x, 64, z));
+                                try {
+                                    return net.zaminmc.torch.server.world.Biome
+                                            .valueOf(name.toUpperCase(java.util.Locale.ROOT))
+                                            .rainy();
+                                } catch (IllegalArgumentException unknown) {
+                                    return net.zaminmc.torch.server.world.Biome.PLAINS
+                                            .rainy();
+                                }
+                            }
+
+                            @Override
+                            public void randomPrecipitationTick(int x, int y, int z,
+                                                                java.util.Random random) {
+                                // The block's own precipitation tick — the
+                                // cauldron's rain fill today (CauldronBlock
+                                // lines 168-175: the 1-in-20 roll, the
+                                // level+1 write under the 3 cap).
+                                BlockType block = world.getBlock(new BlockPosition(x, y, z));
+                                if (net.zaminmc.torch.server.cauldron.CauldronBlocks
+                                        .isCauldron(block)) {
+                                    if (random.nextInt(20) == 1) {
+                                        int level = net.zaminmc.torch.server.cauldron
+                                                .CauldronBlocks.levelOf(block);
+                                        if (level < 3) {
+                                            setCauldronLevel(new BlockPosition(x, y, z),
+                                                    level + 1);
+                                        }
+                                    }
+                                }
                             }
                         }, new java.util.Random(worldSeed ^ 0x21C));
                 lightning.addListener(new net.zaminmc.torch.server.weather.LightningSystem.Listener() {
@@ -925,6 +976,11 @@ public final class EngineServer implements Server, EngineBridge {
                                 : net.zaminmc.torch.server.redstone.RedstoneSystem.containerFullness(
                                         new net.zaminmc.torch.item.ItemStack[]{
                                                 furnace.input(), furnace.fuel(), furnace.output()}, 64);
+                    }
+                    if (net.zaminmc.torch.server.cauldron.CauldronBlocks.isCauldron(block)) {
+                        // The cauldron's level IS the signal (CauldronBlock
+                        // lines 188-195: getAnalogSignal = LEVEL).
+                        return net.zaminmc.torch.server.cauldron.CauldronBlocks.levelOf(block);
                     }
                     return -1;
                 });
@@ -2693,6 +2749,23 @@ public final class EngineServer implements Server, EngineBridge {
             session.extinguish();
             session.resetFireDamageTimer();
         }
+        // The cauldron's douse (CauldronBlock.onEntityCollision lines 67-74):
+        // a burning body dipping to the water surface extinguishes and the
+        // cauldron spends one level — `minY <= y + (6 + 3*level)/16`.
+        if (session.burning()
+                && net.zaminmc.torch.server.cauldron.CauldronBlocks.isCauldron(feetBlock)) {
+            int level = net.zaminmc.torch.server.cauldron.CauldronBlocks.levelOf(feetBlock);
+            double waterSurface = Math.floor(session.position().y())
+                    + (6.0 + 3.0 * level) / 16.0;
+            if (level > 0 && session.position().y() <= waterSurface) {
+                session.extinguish();
+                session.resetFireDamageTimer();
+                setCauldronLevel(new BlockPosition(
+                        (int) Math.floor(session.position().x()),
+                        (int) Math.floor(session.position().y()),
+                        (int) Math.floor(session.position().z())), level - 1);
+            }
+        }
         session.tickFire();
     }
 
@@ -4105,6 +4178,9 @@ public final class EngineServer implements Server, EngineBridge {
 
     /** Historical throw: look direction, ~0.3 speed, small upward bias. */
     private void throwFromPlayer(PlayerSession session, net.zaminmc.torch.item.ItemStack dropped) {
+        if (dropped == null || dropped.isEmpty()) {
+            return; // nothing to throw: the inventory took it all (pickUp's empty leftover)
+        }
         double yaw = Math.toRadians(session.rotation().yaw());
         double pitch = Math.toRadians(session.rotation().pitch());
         double dx = -Math.sin(yaw) * Math.cos(pitch);
@@ -5207,6 +5283,17 @@ public final class EngineServer implements Server, EngineBridge {
             openBrewingStandOnTick(session, clicked, onTableOpened);
             return;
         }
+        if (net.zaminmc.torch.server.cauldron.CauldronBlocks.isCauldron(current)) {
+            // CauldronBlock.use lines 77-160: the bucket/bottle arms consume
+            // the use (the reference's true); anything else falls through to
+            // the placement proposal exactly like the reference's false —
+            // the armor/banner wash arms only consumed on colored pieces,
+            // and the engine's armor carries no color model (hasColor
+            // always false — the reference's own uncolored-leather answer).
+            if (useCauldronOnTick(session, clicked, current)) {
+                return;
+            }
+        }
         if (current.identifier().equals(net.zaminmc.torch.server.block.BuiltinBlocks.CRAFTING_TABLE.identifier())) {
             openCraftingTableOnTick(session, onTableOpened);
             return;
@@ -6101,6 +6188,73 @@ public final class EngineServer implements Server, EngineBridge {
             }
         }
         return false;
+    }
+
+    /**
+     * The cauldron's use arms (CauldronBlock.use lines 77-160): the water
+     * bucket fills any non-full cauldron to 3 (the bucket empties in the
+     * hand, survival only), the glass bottle drains one level into the
+     * water potion (metadata 0 — the bottle pays one unit, survival
+     * only). Both arms consume the use whatever the level (the
+     * reference's true); anything else answers false — the placement
+     * proposal follows. Tick-thread context.
+     */
+    private boolean useCauldronOnTick(PlayerSession session, BlockPosition clicked,
+                                      BlockType cauldron) {
+        net.zaminmc.torch.item.ItemStack held = session.inventory().held();
+        if (held.isEmpty()) {
+            // The reference's bare-hand true: the use consumed, nothing
+            // happens (lines 82-85).
+            return true;
+        }
+        int level = net.zaminmc.torch.server.cauldron.CauldronBlocks.levelOf(cauldron);
+        if (held.type().equals(BuiltinItems.WATER_BUCKET)) {
+            // Lines 89-99: the fill to 3, the bucket swap (survival).
+            if (level < 3) {
+                if (session.gamemode() != GameMode.CREATIVE) {
+                    session.inventory().consumeHeld(1);
+                    throwOverflow(session, java.util.List.of(session.inventory().pickUp(
+                            ItemStack.of(BuiltinItems.BUCKET, 1))));
+                }
+                setCauldronLevel(clicked, 3);
+                publishInventoryChanged(session);
+            }
+            return true;
+        }
+        if (held.type().equals(BuiltinItems.GLASS_BOTTLE)) {
+            // Lines 100-120: the drain of one level into the water potion
+            // (metadata 0); the bottle pays one unit (survival); a full
+            // inventory drops the potion at the cauldron's rim.
+            if (level > 0) {
+                if (session.gamemode() != GameMode.CREATIVE) {
+                    session.inventory().consumeHeld(1);
+                    net.zaminmc.torch.item.ItemStack leftover = session.inventory().pickUp(
+                            new ItemStack(BuiltinItems.POTION, 1, 0));
+                    if (!leftover.isEmpty()) {
+                        throwFromPlayer(session, leftover); // the rim drop (line 105)
+                    }
+                }
+                setCauldronLevel(clicked, level - 1);
+                publishInventoryChanged(session);
+            }
+            return true;
+        }
+        // The armor/banner wash arms (lines 122-159): the engine's armor
+        // carries no color model and no banner item exists — hasColor
+        // answers false exactly like the reference's uncolored leather, and
+        // the use falls through to the placement proposal.
+        return false;
+    }
+
+    /**
+     * The cauldron's level write (setLevel lines 162-165): the state swap
+     * with the flag-2 shape (no neighbor re-light, the comparators woken).
+     * Tick-thread context.
+     */
+    private void setCauldronLevel(BlockPosition position, int level) {
+        world.setBlock(position,
+                net.zaminmc.torch.server.cauldron.CauldronBlocks.of(level));
+        redstoneSystem.wakeComparators(position);
     }
 
     /**

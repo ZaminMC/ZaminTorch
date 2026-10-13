@@ -107,6 +107,19 @@ class PrecipitationSystemTest {
         public void placeSnowAt(int x, int y, int z) {
             snowWrites.add(new int[]{x, y, z});
         }
+
+        /** The precipitation ticks dispatched (the cauldron fill's count). */
+        final List<int[]> precipitationTicks = new ArrayList<>();
+
+        @Override
+        public boolean isRainyBiomeAt(int x, int z) {
+            return true; // the temperate default
+        }
+
+        @Override
+        public void randomPrecipitationTick(int x, int y, int z, Random random) {
+            precipitationTicks.add(new int[]{x, y, z});
+        }
     }
 
     /**

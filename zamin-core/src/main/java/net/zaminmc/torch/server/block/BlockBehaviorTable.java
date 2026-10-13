@@ -863,6 +863,15 @@ public final class BlockBehaviorTable {
             }
             behaviors.put(Identifier.parse(name.toString()), brewingStand);
         }
+        // The cauldron family (Block.java line 1242's strength 2.0): every
+        // level state drops the cauldron item (getDropItem lines 178-180);
+        // pickaxe-shaped by hand, no tool gate.
+        BlockBehavior cauldron = new BlockBehavior(2.0, true, false, "rock", 0,
+                List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:cauldron"), 1)));
+        behaviors.put(Identifier.parse("minecraft:cauldron"), cauldron);
+        for (int level = 1; level <= 3; level++) {
+            behaviors.put(Identifier.parse("minecraft:cauldron_level" + level), cauldron);
+        }
         // The tripwire (Slice 10c, community blocks.json: hardness 0, instant
         // by hand): the wire drops string unless disarmed (the shears arm);
         // the hook drops the hook item.
