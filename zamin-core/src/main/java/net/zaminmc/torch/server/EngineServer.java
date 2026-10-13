@@ -1718,6 +1718,43 @@ public final class EngineServer implements Server, EngineBridge {
                 }
                 return java.util.Optional.empty();
             }
+
+            // The enchanting data predicates (§27.3's registry wave — the
+            // reference's own tables over the pure any-thread read).
+            @Override
+            public boolean canEnchant(int id, net.zaminmc.torch.item.ItemStack stack) {
+                var entry = net.zaminmc.torch.server.enchantment.Enchantments.byId(id);
+                return entry != null && entry.canEnchant(stack, true);
+            }
+
+            @Override
+            public boolean isCompatible(int id, int otherId) {
+                var entry = net.zaminmc.torch.server.enchantment.Enchantments.byId(id);
+                var other = net.zaminmc.torch.server.enchantment.Enchantments.byId(otherId);
+                if (entry == null || other == null) {
+                    return true; // no known conflict
+                }
+                return entry.isCompatible(other);
+            }
+
+            @Override
+            public int enchantabilityOf(net.zaminmc.torch.item.ItemStack stack) {
+                return net.zaminmc.torch.server.enchantment.Enchantments.enchantabilityOf(stack);
+            }
+
+            @Override
+            public java.util.OptionalInt minXp(int id, int level) {
+                var entry = net.zaminmc.torch.server.enchantment.Enchantments.byId(id);
+                return entry == null ? java.util.OptionalInt.empty()
+                        : java.util.OptionalInt.of(entry.minXP(level));
+            }
+
+            @Override
+            public java.util.OptionalInt maxXp(int id, int level) {
+                var entry = net.zaminmc.torch.server.enchantment.Enchantments.byId(id);
+                return entry == null ? java.util.OptionalInt.empty()
+                        : java.util.OptionalInt.of(entry.maxXP(level));
+            }
         };
     }
 

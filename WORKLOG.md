@@ -3977,3 +3977,41 @@ green alone and under --max-workers=1).
 The vanilla ledger's hopper-era container row already covered the stand's
 mechanics (Slice 11e); the API ledger's Brewing row graduates
 NOT AUDITED → IMPLEMENTED.
+
+## Slice 23b — the enchanting data API wave (§27.3's registry predicates)
+
+**The surface:** `Server.enchantments()`'s data wave — five predicates
+over the frozen tables, all pure any-thread reads:
+`canEnchant(id, stack)` (the reference's Enchantment.canEnchant — the
+damage family's axe arm from DamageEnchantment line 71-72 and
+efficiency's shears arm from EfficiencyEnchantment line 24; the book's
+take-everything stays the table's own flag, the predicate answers the
+category walk's false), `isCompatible(id, otherId)` (the family
+conflicts — the protections' subtype exclusion with feather falling's
+pairing, the damage trio's mutual exclusion; unknown ids answer true),
+`enchantabilityOf(stack)` (the material/armor tier tables — wood 15,
+stone 5, iron 14, diamond 10, gold 22; leather 15, chain 12, iron 9,
+gold 25, diamond 10; the book/bow/rod 1; the shears' historical 0),
+`minXp(id, level)` / `maxXp(id, level)` (the per-family curves as
+OptionalInt — unknown ids empty).
+
+**The wiring:** EnchantmentRegistry gains the five defaults (the
+tolerant stand-ins); the EngineServer anonymous impl overrides them over
+Enchantments.byId / Entry.canEnchant(stack, true) / Entry.isCompatible /
+Enchantments.enchantabilityOf / Entry.minXP/maxXP.
+
+**The reference quirks pinned:** efficiency's max curve rides the BASE
+min (super.getMinXpRequirement — 1 + level*10 + 50, NOT its own min):
+level 1 the window 1..61, level 5 the window 41..101.
+
+Tests: EnchantmentDataApiAcceptanceTest (3: the category walk + the
+axe/shears arms + the book's false + the unknown/empty tolerance + the
+off-lane read; the family conflicts both directions + the FF pairing +
+the unknown tolerance + the off-lane read; the tier ladder over five
+tool materials and four armor tiers + the three quirks + four families'
+XP curves + the BASE-curve max quirk + the off-lane tier read). The
+RegistryApiAcceptanceTest still green (the view shape unchanged).
+
+The API ledger's Enchanting row graduates NOT AUDITED → IMPLEMENTED
+(the omissions column now names the offer math, the menu window state,
+and the random-enchant verb as the remaining engine-side families).
