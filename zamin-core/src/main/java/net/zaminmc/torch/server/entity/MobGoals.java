@@ -123,17 +123,45 @@ final class MobGoals {
      * (FleeEntityGoal 1:1). Any live player within 16 blocks sends the
      * wild cat running the other way — the far walk at 0.8, the 7-block
      * close band sprinting at 1.33 (the shared-flags sprint posture). The
-     * tamed cat never flees (onTamedChanged's own removal).
+     * tamed cat never flees (onTamedChanged's own removal). The rabbit's
+     * own flee (Slice 21d — the wolf within 16 at 1.33 both bands) rides
+     * the same band; the killer bunny never flees (setVariant's own
+     * removeGoal).
      */
     static final MobGoal FLEE_PLAYER = new MobGoal() {
         @Override public String goalId() { return "flee_player"; }
         @Override public int priority() { return 3; }
         @Override public boolean exclusive() { return true; }
         @Override public boolean canUse(MobEntity mob, boolean night) {
-            return mob.goalFleePlayerCanUse();
+            return mob.goalFleePlayerCanUse() || mob.goalFleeWolfCanUse();
         }
         @Override public void tick(MobEntity mob, boolean night) {
-            mob.goalFleePlayerTick();
+            if (mob.type() == MobType.RABBIT) {
+                mob.goalFleeWolfTick();
+            } else {
+                mob.goalFleePlayerTick();
+            }
+        }
+    };
+
+    /**
+     * Priority 4, exclusive: the rabbit's garden raid (Slice 21d —
+     * RaidFarmGoal over GoToBlockGoal 1:1). A hungry rabbit scans the
+     * ±16 box on the reference's own spiral for a farmland cell with
+     * age-7 carrots, walks there at 0.7, and eats the crop (the world
+     * write lands through the manager's intent). Yields while any hunt
+     * is live — the reference's own priority order (the attack family's
+     * 4 over the farm's 5).
+     */
+    static final MobGoal RABBIT_RAID_FARM = new MobGoal() {
+        @Override public String goalId() { return "rabbit_raid_farm"; }
+        @Override public int priority() { return 4; }
+        @Override public boolean exclusive() { return true; }
+        @Override public boolean canUse(MobEntity mob, boolean night) {
+            return !mob.goalHasTarget(night) && mob.goalRabbitFarmCanUse();
+        }
+        @Override public void tick(MobEntity mob, boolean night) {
+            mob.goalRabbitFarmTick();
         }
     };
 
@@ -156,12 +184,13 @@ final class MobGoals {
     /**
      * The selector the mob runs: float + panic + breed + the awareness band
      * (beg, tempt, flee — the wolf and the ocelot's own, all kind-gated)
-     * + stroll, in priority order. The band-3 order matters: the beg is
-     * additive so it runs first every tick, then the tempt outranks the
-     * flee (the reference's own 3-over-4), so a fish-holder holds a
-     * tempted cat even with players around.
+     * + the rabbit's garden raid + stroll, in priority order. The band-3
+     * order matters: the beg is additive so it runs first every tick, then
+     * the tempt outranks the flee (the reference's own 3-over-4), so a
+     * fish-holder holds a tempted cat even with players around.
      */
     static GoalSelector standard() {
-        return new GoalSelector(List.of(FLOAT, PANIC, BREED, BEG, TEMPT, FLEE_PLAYER, RANDOM_STROLL));
+        return new GoalSelector(List.of(FLOAT, PANIC, BREED, BEG, TEMPT, FLEE_PLAYER,
+                RABBIT_RAID_FARM, RANDOM_STROLL));
     }
 }

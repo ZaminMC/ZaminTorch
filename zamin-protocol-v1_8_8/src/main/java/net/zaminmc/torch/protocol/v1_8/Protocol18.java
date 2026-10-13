@@ -276,6 +276,12 @@ final class Protocol18 {
      * 82: the synced slot 18) — the client swaps the jaw texture from it.
      */
     static final int ENDERMAN_SCREAMING_METADATA_INDEX = 18;
+    /**
+     * The rabbit's coat byte (RabbitEntity.registerSyncedData line 116:
+     * the synced slot 18) — 0-5 the natural skins, 99 the killer bunny
+     * (the client swaps the body texture and the red eyes from it).
+     */
+    static final int RABBIT_TYPE_METADATA_INDEX = 18;
     // The wolf's block (WolfEntity.registerSyncedData): the index-16 state
     // byte (TameableEntity's sitting 0x1 | tamed 0x4 bits + the wolf's own
     // angry 0x2), the 17 owner string, the 18 health float (the client's

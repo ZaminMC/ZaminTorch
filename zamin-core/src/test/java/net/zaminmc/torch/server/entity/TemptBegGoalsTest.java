@@ -226,18 +226,22 @@ class TemptBegGoalsTest {
     @Test
     void theGoalsRideTheStandardSelector() {
         // The selector's own band-3 order: beg (additive) before tempt
-        // before flee, all below the stroll's exclusive claim.
+        // before flee, then the rabbit's garden raid (Slice 21d) below the
+        // stroll's exclusive claim.
         GoalSelector selector = MobGoals.standard();
         var snapshot = selector.snapshot();
-        assertEquals(7, snapshot.size(), "float, panic, breed, beg, tempt, flee, stroll");
+        assertEquals(8, snapshot.size(),
+                "float, panic, breed, beg, tempt, flee, rabbit_raid_farm, stroll");
         assertEquals("beg", snapshot.get(3).goalId());
         assertFalse(snapshot.get(3).exclusive(), "the beg is LOOK-only, additive");
         assertEquals("tempt", snapshot.get(4).goalId());
         assertTrue(snapshot.get(4).exclusive());
         assertEquals("flee_player", snapshot.get(5).goalId());
         assertTrue(snapshot.get(5).exclusive());
-        assertEquals("stroll", snapshot.get(6).goalId());
-        assertEquals(4, snapshot.get(6).priority());
+        assertEquals("rabbit_raid_farm", snapshot.get(6).goalId());
+        assertTrue(snapshot.get(6).exclusive());
+        assertEquals("stroll", snapshot.get(7).goalId());
+        assertEquals(4, snapshot.get(7).priority());
     }
 
     @Test

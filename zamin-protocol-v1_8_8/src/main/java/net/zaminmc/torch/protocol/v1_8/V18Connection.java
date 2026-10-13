@@ -2861,6 +2861,14 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5)
                     | Protocol18.ENDERMAN_SCREAMING_METADATA_INDEX);
             out.writeByte(mob.endermanAngry() ? 1 : 0);
+        } else if (mob.type() == net.zaminmc.torch.server.entity.MobType.RABBIT) {
+            // The rabbit's coat byte (RabbitEntity.registerSyncedData line
+            // 116: the synced slot 18): 0-5 the natural skins, 99 the
+            // killer bunny — the client swaps the body texture and the
+            // red eyes from it (Slice 21d).
+            out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5)
+                    | Protocol18.RABBIT_TYPE_METADATA_INDEX);
+            out.writeByte(mob.rabbitVariant());
         } else if (mob.type() == net.zaminmc.torch.server.entity.MobType.PIG) {
             out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | Protocol18.PIG_SADDLE_METADATA_INDEX);
             out.writeByte(mob.pigSaddled() ? 1 : 0);

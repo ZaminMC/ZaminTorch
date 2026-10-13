@@ -302,6 +302,15 @@ public final class MobManager {
          */
         default void onMobGuardianAura(MobEntity elder) {
         }
+
+        /**
+         * The rabbit's garden eat (Slice 21d — RaidFarmGoal.tick lines
+         * 566-579): the age-7 carrots vanish (the air write + the
+         * neighbor updates), the block-dust burst pops, and the hunger
+         * clock refills to 100 (onEatFromGarden).
+         */
+        default void onRabbitFarmEat(MobEntity rabbit) {
+        }
     }
 
     private final MobEntity.WorldQuery world;
@@ -487,6 +496,12 @@ public final class MobManager {
             // The drink ladder's hasStatusEffect gates (mobTick lines
             // 107-121): the live store read through the potion system.
             mob.setWitchEffectQuery(effectId -> witchHasEffect(mob, effectId));
+        }
+        if (type == MobType.RABBIT) {
+            // RabbitEntity.initialize (lines 336-353): the natural coat —
+            // {@code nextInt(6)}, the six natural skins; the killer's 99
+            // only ever lands through setVariant (the NBT /summon arm).
+            mob.setRabbitVariant(random.nextInt(6));
         }
         mobs.add(mob);
         for (Listener listener : listeners) {
@@ -1105,6 +1120,21 @@ public final class MobManager {
                             jumpSound.volume(), jumpSound.pitch() * 0.8F);
                 }
             }
+            // The rabbit's hop animation (RabbitEntity.mobTick lines
+            // 202-206: the doEntityEvent(1) at the jump-tick clock's
+            // zero) — the client's own hop bounce answers it.
+            if (mob.consumeRabbitJumpStatus()) {
+                for (Listener listener : listeners) {
+                    listener.onMobStatusEvent(mob, 1);
+                }
+            }
+            // The rabbit's garden eat (RaidFarmGoal.tick lines 566-579): the
+            // world write + the block-dust burst land through the intent.
+            if (mob.consumeRabbitFarmEat()) {
+                for (Listener listener : listeners) {
+                    listener.onRabbitFarmEat(mob);
+                }
+            }
             MobEntity.SlimeSound landSound = mob.consumeSlimeLandSound();
             if (landSound != null) {
                 for (Listener listener : listeners) {
@@ -1274,7 +1304,10 @@ public final class MobManager {
         if (attacker.dead()) {
             return;
         }
-        boolean revengeArmed = victim.type().hostile || victim.type() == MobType.WOLF;
+        boolean revengeArmed = victim.type().hostile || victim.type() == MobType.WOLF
+                // The killer bunny's own RevengeGoal (setVariant line 324:
+                // targetSelector 1, hurt → the attacker).
+                || victim.rabbitKiller();
         if (!revengeArmed) {
             return;
         }
@@ -1576,6 +1609,31 @@ public final class MobManager {
             }
             return;
         }
+        if (mob.type() == MobType.RABBIT) {
+            // RabbitEntity.dropItems (lines 280-296): the hide walk
+            // {@code nextInt(2) + nextInt(1 + looting)}, then the meat
+            // {@code nextInt(2)} with the fire's cooked swap — each unit
+            // its own single-item stack. The rare foot (dropRareItem line
+            // 276) rides the player-kill window's 0.025 + looting * 0.01
+            // roll (LivingEntity.die lines 766-768).
+            int hides = random.nextInt(2) + random.nextInt(1 + looting);
+            for (int unit = 0; unit < hides; unit++) {
+                lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()),
+                        ItemStack.of(BuiltinItems.RABBIT_HIDE, 1));
+            }
+            int meat = random.nextInt(2);
+            for (int unit = 0; unit < meat; unit++) {
+                lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()),
+                        ItemStack.of(mob.burning()
+                                ? BuiltinItems.COOKED_RABBIT : BuiltinItems.RABBIT, 1));
+            }
+            if (mob.playerHitRecently()
+                    && random.nextFloat() < RARE_DROP_BASE + looting * 0.01F) {
+                lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()),
+                        ItemStack.of(BuiltinItems.RABBIT_FOOT, 1));
+            }
+            return;
+        }
         if (mob.type() == MobType.GHAST) {
             // GhastEntity.dropItems (lines 98-113): 0-1 ghast tears, then
             // 0-2 gunpowder, both widened by the looting bonus, each
@@ -1762,6 +1820,12 @@ public final class MobManager {
         }
         MobEntity baby = spawnAt(childTypeOf(parent, mate), parent.position());
         baby.setHorseSubtype(childSubtypeOf(parent, mate));
+        if (baby.type() == MobType.RABBIT) {
+            // RabbitEntity.makeChild (lines 302-309): the coat comes from
+            // either parent — the reference's own {@code nextBoolean()} coin.
+            baby.setRabbitVariant(random.nextBoolean()
+                    ? parent.rabbitVariant() : mate.rabbitVariant());
+        }
         parent.setBreedingAge(MobEntity.ADULT_BREED_COOLDOWN_TICKS);
         mate.setBreedingAge(MobEntity.ADULT_BREED_COOLDOWN_TICKS);
         parent.resetLove();

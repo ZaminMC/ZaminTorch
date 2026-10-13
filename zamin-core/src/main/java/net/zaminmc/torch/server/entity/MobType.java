@@ -55,17 +55,18 @@ public enum MobType {
             "mob.sheep.say", "mob.sheep.say", "mob.sheep.say"),
 
     /**
-     * The hopping wanderer (Slice 12l — RabbitEntity): the 0.6x0.7 body,
-     * 10 health, movement attribute 0.3 (the engine's animal band); the
-     * hop cycle owns the movement (the zeroed-input model, the slime's
-     * pattern). Drops: the reference's dropItems — the hide 0-1
-     * (nextInt(2) + nextInt(1+looting)) and the raw rabbit 0-1 (the
-     * cooked swap rides the burn arm; the foot's rare 2.5% roll ledgers
-     * with the rare-loot-table slice).
+     * The hopping wanderer (Slices 12l + 21d — RabbitEntity 1:1): the
+     * 0.6x0.7 body, 10 health, movement attribute 0.3 (the engine's
+     * animal band); the hop cycle owns the movement — the Action enum's
+     * own five rows (NONE/HOP/STEP/SPRINT/ATTACK, the per-action speed,
+     * strength, delay, and duration). The drops live in the manager's
+     * dedicated arm (the reference's own shape: the hide + the meat with
+     * the fire's cooked swap + the rare foot's 0.025 roll), the six-skin
+     * coat + the killer's 99 ride the synced slot 18, and the garden
+     * raid / the carrot-family tempt / the wolf-flee ride the goal layer.
      */
     RABBIT(101, 0.6, 0.7, 10.0f, 0.035, false, Traits.NONE,
-            List.of(new ItemRoll(BuiltinItems.RABBIT_HIDE, 0, 1),
-                    new ItemRoll(BuiltinItems.RABBIT, 0, 1)),
+            List.of(),
             "mob.rabbit.idle", "mob.rabbit.hurt", "mob.rabbit.death"),
 
     /**
