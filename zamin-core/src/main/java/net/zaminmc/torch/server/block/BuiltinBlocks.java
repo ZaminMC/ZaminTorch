@@ -516,6 +516,10 @@ public final class BuiltinBlocks {
             Identifier.parse("minecraft:snow"), "Snow");
     public static final EngineBlockType SNOW_LAYER = new EngineBlockType(
             Identifier.parse("minecraft:snow_layer"), "Snow Layer");
+    // The ice (legacy 79, Slice 21c — the precipitation freeze arm's write;
+    // the reference's Material.ICE translucent block, slipperiness 0.98).
+    public static final EngineBlockType ICE = new EngineBlockType(
+            Identifier.parse("minecraft:ice"), "Ice");
     public static final EngineBlockType IRON_BLOCK = new EngineBlockType(
             Identifier.parse("minecraft:iron_block"), "Block of Iron");
     public static final EngineBlockType PUMPKIN = new EngineBlockType(
@@ -696,6 +700,7 @@ public final class BuiltinBlocks {
                 .register(VINE)
                 .register(SNOW)
                 .register(SNOW_LAYER)
+                .register(ICE)
                 .register(IRON_BLOCK)
                 .register(PUMPKIN)
                 .register(LIT_PUMPKIN)

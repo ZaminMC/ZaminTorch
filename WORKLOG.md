@@ -3540,3 +3540,27 @@ gradient restarts its walk from 0, the corrupt quarantine with the .corrupt
 copy). Fresh suite: the weather family + the neighbor chunk green,
 `--max-workers=1` (one SpawnEggTest natural-spawn load flake in the chunk
 run — the documented environmental class, green in isolation).
+
+### Slice 21c — the ice/snow precipitation arm
+
+`PrecipitationSystem` (tickChunks lines 325-341 + World.canFreeze lines
+1927-1954 + canSnowFall lines 1960-1978): the 1-in-16 roll per ticking chunk
+(running before the rain gates — the reference's own stream order), the
+randomTickLCG-derived in-chunk pick, the precipitation height, then the gate
+chain — the freeze (NO rain gate: the cold freezes dry; temperature ≤ 0.15,
+block light < 10, the water SOURCE, and the surrounded-by-water shore rule
+refusing the lake's heart) and the snow (the rain gate alone; temperature,
+light, air, and SNOW_LAYER.canBePlaced's solid support). The Biome enum
+carries the reference's registration temperatures (the ocean pair 0.5, the
+plains 0.8, the desert/hell 2.0, the forest 0.7, the jungle 0.95) — every
+generated column refuses both arms (the vanilla-plains envelope, faithfully);
+the y>64 noise shave ledgers with the noise slice (on the warm set even the
+extreme shave cannot cross the gate). The ICE block registers (legacy 79, the
+translucent filter-3 light row). The stream keeps the 20c envelope (each
+weather system owns its Random + LCG). The per-chunk walk runs the lightning
+arm then the ice/snow arm — the reference's own order. The third arm
+(randomPrecipitationTick — the cauldron's rain fill) stays ledgered.
+PrecipitationSystemTest (4: the LCG pick derivation — the first advance's
+own (7, 12), the freeze's dry run + the shore rule, the warm/light/dry-rain/
+support gates, the biome temperature table). Fresh suite: the weather family
++ the block/world/entity/package chunks green, `--max-workers=1`.

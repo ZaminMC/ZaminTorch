@@ -288,6 +288,9 @@ public final class BlockLightTable {
             Map.entry(Identifier.parse("minecraft:lit_pumpkin"), new LightData(15, 0)),
             Map.entry(Identifier.parse("minecraft:snow"), new LightData(0, 15)),
             Map.entry(Identifier.parse("minecraft:snow_layer"), new LightData(0, 15)),
+            // The ice (Slice 21c): the reference's translucent Material.ICE —
+            // the dataset's filterLight 3 (the historical opacity 3).
+            Map.entry(Identifier.parse("minecraft:ice"), new LightData(0, 3)),
             Map.entry(Identifier.parse("minecraft:iron_block"), new LightData(0, 15)),
             Map.entry(Identifier.parse("minecraft:pumpkin"), new LightData(0, 15)),
 
