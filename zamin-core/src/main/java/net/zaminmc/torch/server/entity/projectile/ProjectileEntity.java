@@ -55,8 +55,13 @@ public final class ProjectileEntity implements net.zaminmc.torch.entity.Projecti
     /** The engine-global entity id (its own id band). */
     private final int entityId;
     private final Kind kind;
-    /** The thrower's engine-global id (player session id or mob id), or -1. */
-    private final int throwerId;
+    /**
+     * The thrower's engine-global id (player session id or mob id), or -1.
+     * Not final: the fireball family's deflection re-credits the puncher
+     * (ProjectileEntity.takeDamage line 266 — the attacker becomes the
+     * new shooter).
+     */
+    private int throwerId;
     private Position position;
     private double vx;
     private double vy;
@@ -236,6 +241,37 @@ public final class ProjectileEntity implements net.zaminmc.torch.entity.Projecti
         if (fireTicks > 0) {
             fireTicks--;
         }
+    }
+
+    /** The fireball family's per-tick acceleration components (the deflection tests read them). */
+    public double accelerationX() {
+        return accelerationX;
+    }
+
+    public double accelerationY() {
+        return accelerationY;
+    }
+
+    public double accelerationZ() {
+        return accelerationZ;
+    }
+
+    /**
+     * The player's punch on a fireball (Slice 25b — ProjectileEntity
+     * .takeDamage lines 248-273): the velocity becomes the attacker's
+     * normalized look vector, the acceleration becomes look * 0.1 (the
+     * reference's own {@code velocity * 0.1}), and the attacker becomes
+     * the new shooter — the deflected fireball's blast credits the
+     * puncher. Package-private: the manager's deflect verb is the caller.
+     */
+    void deflectBy(int attackerId, double lookX, double lookY, double lookZ) {
+        this.throwerId = attackerId;
+        this.vx = lookX;
+        this.vy = lookY;
+        this.vz = lookZ;
+        this.accelerationX = lookX * 0.1;
+        this.accelerationY = lookY * 0.1;
+        this.accelerationZ = lookZ * 0.1;
     }
 
     /**

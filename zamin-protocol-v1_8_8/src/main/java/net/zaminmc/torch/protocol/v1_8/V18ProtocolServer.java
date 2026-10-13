@@ -938,6 +938,14 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                     connection.sendProjectileRemoved(projectile);
                 }
             }
+
+            /** The deflected fireball (Slice 25b — the velocity re-publish). */
+            @Override
+            public void onProjectileDeflected(net.zaminmc.torch.server.entity.projectile.ProjectileEntity projectile) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendProjectileVelocity(projectile);
+                }
+            }
         });
         // Vehicle sync: spawn (Spawn Object), per-tick movement (Entity
         // Teleport + the rider's seat re-anchor), mount/dismount (Attach

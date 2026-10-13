@@ -3872,6 +3872,26 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     }
 
     /**
+     * Set Entity Velocity (0x12) for a deflected fireball (Slice 25b — the
+     * reference's velocityChanged flag → the tracker's own velocity packet):
+     * the client's fireball model turns around with the punch. The three
+     * i16 components ride the 1/8000 blocks-per-tick scale. Any thread.
+     */
+    void sendProjectileVelocity(net.zaminmc.torch.server.entity.projectile.ProjectileEntity projectile) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(16);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_ENTITY_VELOCITY);
+        ByteBufOps.writeVarInt(out, projectile.entityId());
+        out.writeShort((int) Math.round(projectile.velocityX() * 8000.0));
+        out.writeShort((int) Math.round(projectile.velocityY() * 8000.0));
+        out.writeShort((int) Math.round(projectile.velocityZ() * 8000.0));
+        channel.writeAndFlush(out);
+    }
+
+    /**
      * The observer-local thrower id: the thrower's own client recognizes its
      * own wire id; other observers use the remote-player id they already
      * track; mob throwers keep their engine id (one id space). Unknown

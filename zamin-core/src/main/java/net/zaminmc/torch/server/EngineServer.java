@@ -3121,6 +3121,39 @@ public final class EngineServer implements Server, EngineBridge {
                 attacker.addExhaustion(ATTACK_EXHAUSTION);
                 return;
             }
+            // The fireball deflection (Slice 25b — ProjectileEntity.takeDamage
+            // lines 248-273): the player's punch on a fireball redirects it —
+            // the velocity becomes the attacker's look vector, the
+            // acceleration look*0.1, and the puncher becomes the new shooter
+            // (the deflected blast credits the player; a fireball past its
+            // 25-tick window can now strike the ghast that loosed it).
+            if (projectileManager != null) {
+                net.zaminmc.torch.server.entity.projectile.ProjectileEntity fireball =
+                        projectileManager.byId(targetEntityId);
+                if (fireball != null) {
+                    Position eye = attacker.position();
+                    Position target = fireball.position();
+                    double dx = target.x() - eye.x();
+                    double dy = target.y() - eye.y();
+                    double dz = target.z() - eye.z();
+                    if (Math.sqrt(dx * dx + dz * dz) > MELEE_REACH + 1.0
+                            || dy < -2.0 || dy > 4.0) {
+                        return; // out of reach (the 1.0 pick-radius window)
+                    }
+                    // getLookVector: the normalized look from yaw/pitch (the
+                    // same swapped-trig walk the launches carry).
+                    double yawRadians = Math.toRadians(attacker.rotation().yaw());
+                    double pitchRadians = Math.toRadians(attacker.rotation().pitch());
+                    double lookX = -Math.sin(yawRadians) * Math.cos(pitchRadians);
+                    double lookY = -Math.sin(pitchRadians);
+                    double lookZ = Math.cos(yawRadians) * Math.cos(pitchRadians);
+                    if (projectileManager.deflect(fireball, attacker.engineEntityId(),
+                            lookX, lookY, lookZ)) {
+                        attacker.addExhaustion(ATTACK_EXHAUSTION); // the landed attack's own cost
+                    }
+                    return; // the fireball family takes no further attack arms
+                }
+            }
             MobEntity mob = mobManager.byId(targetEntityId);
             if (mob == null || mob.dead()) {
                 return; // already gone: nothing to hit
@@ -8601,6 +8634,13 @@ public final class EngineServer implements Server, EngineBridge {
         void onProjectileLanded(ProjectileEntity projectile);
 
         void onProjectileRemoved(ProjectileEntity projectile, String reason);
+
+        /**
+         * A player's punch deflected a fireball (Slice 25b — the velocity
+         * and the shooter both flip; the wire re-publishes the velocity).
+         */
+        default void onProjectileDeflected(ProjectileEntity projectile) {
+        }
     }
 
     private final java.util.List<ProjectileListener> projectileListeners =
@@ -8638,6 +8678,13 @@ public final class EngineServer implements Server, EngineBridge {
         public void onProjectileRemoved(ProjectileEntity projectile, String reason) {
             for (ProjectileListener listener : projectileListeners) {
                 listener.onProjectileRemoved(projectile, reason);
+            }
+        }
+
+        @Override
+        public void onProjectileDeflected(ProjectileEntity projectile) {
+            for (ProjectileListener listener : projectileListeners) {
+                listener.onProjectileDeflected(projectile);
             }
         }
     }
