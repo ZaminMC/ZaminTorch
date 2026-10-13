@@ -1036,12 +1036,12 @@ Every public operation that touches live mutable state must state and enforce on
 
 - **Owner-only:** legal only while executing in the authoritative owner's validated context.
 - **Snapshot:** returns immutable or safely published data with a documented consistency/version guarantee.
-- **Command/request:** submits a mutation request to the authoritative owner; the request may be rejected, delayed, cancelled, or found stale.
+- **Command/request:** submits a mutation request to the authoritative owner. A particular request may be rejected, delayed, cancelled, or found stale when its actual preconditions require that outcome. This does not make the underlying capability unavailable: Torch must provide a documented way to invoke every meaningful native capability through a valid execution path, including owner routing or a coordinated protocol where required. A rejection is an operation result, not an acceptable substitute for implementing the capability.
 - **Explicit concurrent contract:** safe from multiple contexts because its synchronization, conflict behavior, and consistency model are deliberately specified and tested.
 
 Do not leave the threading contract unspecified.
 
-Live mutable engine objects must not expose setters or mutable collections that bypass owner checks. Prefer handles/facades whose operations resolve the current authoritative object and validate its lifecycle, owner, and generation. A handle is not a lock and is not proof that its target remains valid.
+Live mutable engine objects must not expose setters or mutable collections that bypass owner checks. Handles/facades may resolve the current authoritative object and validate lifecycle, owner, and generation, but they must not omit meaningful engine operations available in the underlying subsystem. The native API must expose those operations through appropriate owner-aware methods, commands, snapshots, or coordinated protocols. A handle is not a lock and is not proof that its target remains valid. Enforcing execution rules determines how a capability is accessed, never whether Torch exposes that capability.
 
 Owner assertions must check logical owner identity and generation, not just Java thread identity. Enforce them at the mutation boundary, not only in optional convenience wrappers. In development/test builds, illegal mutation should fail loudly with actionable context. Production behavior must be deliberate, observable, and documented; silently ignoring an illegal mutation is not an acceptable default.
 
@@ -1112,9 +1112,9 @@ Inventory compatibility requirements for each supported API include:
 - calls that synchronously wait for world state;
 - callbacks that expect immediate mutation visibility.
 
-Preserve legacy synchronous semantics where required by the compatibility contract, even if the implementation uses a coordinator or owner-routing mechanism internally. If an operation cannot preserve its expected semantics safely, document the incompatibility and provide a deliberate alternative; do not silently weaken ordering or introduce a blocking cross-owner call.
+Preserve legacy synchronous semantics where required by the compatibility contract, even if the implementation uses a coordinator or owner-routing mechanism internally. If a specific legacy operation cannot preserve its expected semantics, document the exact compatibility limitation and provide a deliberate alternative; do not silently weaken ordering or introduce a blocking cross-owner call.
 
-Native Torch APIs may offer better owner-aware and asynchronous primitives, but compatibility adapters must not force those newer semantics onto existing plugins without evidence and an explicit compatibility decision.
+A limitation in the Bukkit/Spigot/Paper compatibility adapter must never become a limitation in Torch's native API. Native Torch APIs must expose the underlying engine capability through a valid owner-aware or coordinated path even when legacy semantics cannot be reproduced exactly. Compatibility constraints govern the adapter, not the native engine's capability surface.
 
 ## 28.8 Required adversarial tests
 
@@ -1163,4 +1163,4 @@ Do not declare the plugin concurrency architecture complete until:
 - the adversarial tests above exist or each unavailable test is recorded as a concrete blocker;
 - known limitations are stated honestly, including the fact that arbitrary plugin code is not sandboxed.
 
-**Final plugin rule: broad engine access is required; implicit mutation authority, hidden blocking, undefined callback ordering, and unowned asynchronous work are not.**
+**Final plugin rule: complete meaningful engine access through the native API is mandatory. Ownership, concurrency, lifecycle, and consistency contracts govern how each capability is used; they must never be used as a reason to omit it. Rejecting an invalid operation is not the same as withholding its capability. Compatibility limitations stay within compatibility adapters. Implicit mutation authority, hidden blocking, undefined callback ordering, and unowned asynchronous work are not acceptable.**
