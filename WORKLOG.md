@@ -3805,3 +3805,47 @@ lookups + the off-lane reads; the harvest ladder + the speed ladder).
 The block-behavior-tables ledger row graduates NOT AUDITED →
 IMPLEMENTED (the dataOf reads were already there since 14b — the row
 was stale); the item-types row's enumeration omission cleared.
+
+## Slice 22f — the inventory API wave (the player slots + armor, the container writes, the cart cargo)
+
+§27.3's player-inventory + container-write families:
+
+**`Player.inventory()`** → `Player.Inventory`: the slot-level surface over
+the engine's own PlayerInventory — resolved through a COVARIANT RETURN
+(PlayerInventory implements Player.Inventory; the engine's own accessor
+`session.inventory()` now satisfies the API method — the engine object IS
+the handle, §27.5, zero call-site churn across the engine's 144 uses).
+The reads: slotCount (36), slot(i)/slots() (the forgiving copies),
+heldSlot, armorSlotCount (4), armorAt(i)/armorStacks() (the EMPTY-filled
+row — the engine's effect hooks read both shapes through the null/
+isEmpty-guarded helpers, and ItemStack's record immutability keeps the
+live-vs-copy distinction behavior-free). The writes: setSlot(i, stack)
+and setArmor(i, stack) (the vanilla kind gate) fire the new change
+callback — the same fan-out the give() path rides (a redundant full
+window push for the three engine paths that already publish, benign and
+idempotent); selectHotbarSlot deliberately does NOT — the client predicts
+its own held-slot swap (the historical rule the engine's
+held-item-change path keeps, documented in the API javadoc). armorAt's
+out-of-range answer moved from the engine's throw to the API's EMPTY
+(only in-range engine callers ever hit it — verified by grep).
+
+**The container writes**: Containers.Chest/Hopper `setSlot(i, stack)` +
+Containers.Furnace `setInput/setFuel/setOutput` — the §27.6
+owner-context arms over the engine's own block entities, asserting
+through the world's requireMutationContext (an off-lane write fails with
+the operation-named violation). The boot wiring now passes the world to
+ContainerViews; the legacy three-arg constructor keeps the bare-tests'
+shape.
+
+**The cart cargo**: `Vehicle.cargo()` → `Vehicle.Cargo` — the chest
+minecart's rolling 27-slot grid over the engine's own cart chest (the
+engine object behind the handle, §27.5); the boat and the plain minecart
+answer empty.
+
+Tests: InventoryApiAcceptanceTest (3: the slot round trip + the copy
+isolation + the hotbar select; the armor kind gate (the refused sword)
++ the helmet landing + the clear; the chest off-lane violation + the
+on-lane chest/furnace/hopper writes; the cart cargo through
+World.vehicles()). The neighboring suites re-run green (Inventory/
+Armor/Player/WindowClick/Death/Enchant batches + the full protocol
+suite 76).
