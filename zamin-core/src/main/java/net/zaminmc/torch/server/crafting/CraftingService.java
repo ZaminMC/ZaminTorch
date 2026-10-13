@@ -78,6 +78,11 @@ public final class CraftingService {
         return Optional.empty();
     }
 
+    /** @return the frozen recipe list in the vanilla match order (§27.3's read). */
+    public List<CraftingRecipe> recipes() {
+        return recipes;
+    }
+
     /**
      * Resolves a recipe result into a stack. Unresolvable identifiers yield
      * empty (a generated recipe can never hit this while its items are

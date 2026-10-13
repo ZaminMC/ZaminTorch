@@ -3697,3 +3697,24 @@ Fresh suite: 913 core + 19 api + 77 protocol green, --max-workers=1.
 Ledgered: the village system (the reputation, the mating gates, the
 farm goal), the Regeneration window (the mob-side effect family), the
 haggle customer ambient, the Offers NBT persistence.
+
+## Slice 22a — the registry-family API wave (Recipes + Enchantments)
+
+§27.3's read surfaces over the frozen registries (the first two of the 28
+NOT AUDITED rows):
+
+**`Server.recipes()`** → `crafting.Recipes`: the recipe set in the vanilla
+match order (shaped first, larger footprints first), the 2x2 and 3x3 match
+verbs over public ItemStacks with the reference's own semantics (the offset
+scan with the mirror-first rule, the multiset rule), and the immutable
+RecipeView (the result identity/count/damage, shaped, the ingredient count).
+Any thread — the registry is frozen at boot and every read is pure.
+
+**`Server.enchantments()`** → `enchantment.EnchantmentRegistry`: the id-
+ordered views with `byId`/`byKey` lookups (id/key/weight/maxLevel). Any
+thread.
+
+Tests: RegistryApiAcceptanceTest (2: the order invariant + the
+foreign-thread log-to-planks match + the 3x3 chest ring + the empty-grid
+miss; the known enchantment rows + the id order + the off-lane read).
+The ledger rows graduate to IMPLEMENTED.

@@ -116,8 +116,8 @@ Stability classes (§27.4): `Stable`, `Experimental`, `Internal`.
 |---|---|---|---|---|---|---|---|---|
 | Block types | `FrozenBlockRegistry` | `BlockRegistry` (partial) | any thread | — | Stable | api | AUDITED | by-id lookup |
 | Item types | `BuiltinItems` | `ItemType`/`ItemStack` value types | any thread | — | Stable | api | VERIFIED | registry enumeration |
-| Enchantments | `EnchantmentRegistry` | none | any thread | — | — | — | NOT AUDITED | — |
-| Recipes | `CraftingService` | none | any thread | — | — | — | NOT AUDITED | enumeration/registration |
+| Enchantments | `Enchantments` (the server-side registry, the reference's ALL table) | **`Server.enchantments()`** → `enchantment.EnchantmentRegistry` — `all()` (the id-ordered views), `byId(int)`, `byKey(String)`; the view carries id/key/weight/maxLevel | any thread (the frozen set) | — | Experimental | `RegistryApiAcceptanceTest` (the known rows — protection 0/10/4, sharpness 16/10/5 —, the id order, the miss arms, the off-lane read) | IMPLEMENTED | the compatibility/XP-curve reads and the canEnchant predicate stay engine-side (the enchanting-menu wave); no registration verb (the reference's set is final) |
+| Recipes | `CraftingService` (the frozen match-ordered set) | **`Server.recipes()`** → `crafting.Recipes` — `all()` (the vanilla-order views: result identity/count/damage, shaped, ingredient count), `match(grid2x2)`, `match3x3(grid)` (the reference's own matching over public ItemStacks) | any thread (the pure frozen set) | — | Experimental | `RegistryApiAcceptanceTest` (the order invariant, the log-to-planks match from a foreign thread, the 3x3 chest ring, the empty-grid miss) | IMPLEMENTED | the registration verb (custom recipes) rides its own wave — the set is frozen at boot; the ingredient-level pattern views (the per-cell identities) stay engine-side |
 
 ## 8. Protocol (§27.3 packet construction/inspection/interception)
 

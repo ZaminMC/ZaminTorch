@@ -73,4 +73,18 @@ public interface Server {
      * each recipient's wire thread.
      */
     net.zaminmc.torch.protocol.ProtocolHooks protocolHooks();
+
+    /**
+     * The recipe registry (§27.3's crafting read surface): the frozen
+     * recipe set with the reference's own matching semantics. Every read
+     * is pure — safe from any thread.
+     */
+    net.zaminmc.torch.crafting.Recipes recipes();
+
+    /**
+     * The enchantment registry (§27.3's registry read surface): the
+     * frozen enchantment set (the reference's Enchantment.ALL table).
+     * Every read is pure — safe from any thread.
+     */
+    net.zaminmc.torch.enchantment.EnchantmentRegistry enchantments();
 }
