@@ -15,8 +15,9 @@ import java.util.Random;
  * for): the chest minecart with its loot rolls LANDED with Slice 21a (the
  * corridor's two nextInt(100) arms — the rail cell + the cart record
  * materializing into the vehicle manager at chunk publish); the
- * cave-spider mob spawner's own logic rides the mob-spawner slice (the
- * corridor keeps the cobweb arm the reference pairs with it).</p>
+ * cave-spider mob spawner landed with the corridor's own section walk
+ * (the cobweb arm's spawner pair — the block + the typed record, the
+ * reference's setType("CaveSpider")).</p>
  */
 public final class MineshaftPieces {
 
