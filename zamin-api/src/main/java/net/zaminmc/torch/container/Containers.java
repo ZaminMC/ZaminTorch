@@ -8,8 +8,8 @@ import java.util.Optional;
 
 /**
  * The position-keyed container family (§27.3's block-entity read
- * surface): the chests, furnaces, and hoppers of one world, reached
- * through {@link World#containers()}.
+ * surface): the chests, furnaces, hoppers, and brewing stands of one
+ * world, reached through {@link World#containers()}.
  *
  * <p><b>Threading (§27.6):</b> the lookups are best-effort from any
  * thread (a container that does not exist answers empty); the returned
@@ -33,6 +33,10 @@ public interface Containers {
         @Override public Optional<Hopper> hopperAt(BlockPosition position) {
             return Optional.empty();
         }
+
+        @Override public Optional<BrewingStand> brewingStandAt(BlockPosition position) {
+            return Optional.empty();
+        }
     };
 
     /**
@@ -52,6 +56,12 @@ public interface Containers {
      *         no hopper block entity stands there.
      */
     Optional<Hopper> hopperAt(BlockPosition position);
+
+    /**
+     * @return the brewing stand at the position (a live handle), or
+     *         empty when no brewing stand block entity stands there.
+     */
+    Optional<BrewingStand> brewingStandAt(BlockPosition position);
 
     /** A chest's live read surface (the 27-slot container). */
     interface Chest {
@@ -138,8 +148,53 @@ public interface Containers {
 
         /**
          * Writes one slot (an empty stack clears it; out-of-range writes
-         * are ignored). Owner context (§27.6 — an off-lane write fails
+         * are ignored). Owner context (§27.6 — call through
+         * {@link World#execute} off the lane; an off-lane write fails
          * diagnosably).
+         */
+        void setSlot(int index, ItemStack stack);
+    }
+
+    /**
+     * A brewing stand's live read surface (the 4-slot container + the
+     * brew cycle): slots 0-2 the potion bottles, slot 3 the ingredient
+     * — the vanilla {@code minecraft:brewing_stand} layout.
+     */
+    interface BrewingStand {
+        /** @return the stand's own grid position. */
+        BlockPosition position();
+
+        /** @return the slot count (the vanilla stand's 4). */
+        int slotCount();
+
+        /**
+         * @return a copy of the 4 slots (empty cells as empty stacks) —
+         *         owner-context consistent (wrap in {@link World#execute}
+         *         for a consistent multi-slot read off the lane).
+         */
+        ItemStack[] slots();
+
+        /** @return one slot's stack copy (empty when out of range). */
+        ItemStack slot(int index);
+
+        /** @return the ingredient slot's stack copy (slot 3). */
+        ItemStack ingredient();
+
+        /** @return the remaining brew ticks (the 400-tick cycle; 0 = idle). */
+        int brewTicksRemaining();
+
+        /**
+         * Writes one slot (an empty stack clears it). The reference's
+         * own slot rules ride the write: the ingredient slot takes
+         * brewing ingredients (up to 64), the potion slots take potions
+         * and glass bottles (one per slot); anything else fails with an
+         * {@link IllegalArgumentException} so a plugin learns the
+         * reference's gate instead of a silent no-op. Owner context
+         * (§27.6 — call through {@link World#execute} off the lane; an
+         * off-lane write fails diagnosably).
+         *
+         * @throws IllegalArgumentException when a non-empty stack is not
+         *         allowed in the slot (the reference's isItemAllowed)
          */
         void setSlot(int index, ItemStack stack);
     }

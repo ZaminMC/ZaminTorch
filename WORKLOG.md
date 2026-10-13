@@ -3942,3 +3942,38 @@ landing the stack + the quick-move back; the contents surviving a restart
 over the same data dir — polling waits, robust under load). The neighboring
 suites (Hopper/WindowClick/Chest/Dispenser batches) green. The vanilla
 ledger's hopper row: the GUI + persistence gaps closed.
+
+## Slice 23a — the brewing stand API wave (§27.3's container family completes)
+
+**The surface:** `World.containers().brewingStandAt(pos)` →
+`container.Containers.BrewingStand` — the live 4-slot view over the
+engine's own `BrewingStandBlockEntity` (§27.5: the engine object IS the
+handle): slotCount (the vanilla 4), slots() (the isolated copy), slot(i),
+ingredient() (slot 3), brewTicksRemaining() (the 400-tick cycle read),
+and setSlot(i, stack) — the §27.6 owner-context write that carries the
+reference's own isItemAllowed gates (the ingredient slot takes brewing
+ingredients, the potion slots take potions and glass bottles; an illegal
+non-empty stack fails with IllegalArgumentException so a plugin learns
+the vanilla rule instead of a silent no-op — the engine's setItem
+already clamps, the view diagnoses).
+
+**The wiring:** ContainerViews gains the BrewingStandSystem (the fourth
+position-keyed manager, the full-shape constructor; the legacy
+constructors keep their shape) + the BrewingStandView adapter;
+EngineServer passes brewingStands at the same attachContainerView site
+(the boot order safe: the system constructs at the hopper-lookup wiring,
+the view at the world attach — later in the same walk).
+
+Tests: BrewingStandApiAcceptanceTest (3: the lookup + the live view +
+the fresh-stand reads + the miss arms + the off-lane best-effort lookup;
+the off-lane write violation + the on-lane bottle/ingredient writes + the
+slots-copy isolation + the reference slot gates both directions + the
+empty-stack clear; the brew cycle armed through the public write + the
+timer read + the missing-ingredient cancellation). The neighboring
+suites green (Container/Inventory/HopperWindow/brewing batch; the
+HopperWindow restart arm is load-sensitive under parallel workers —
+green alone and under --max-workers=1).
+
+The vanilla ledger's hopper-era container row already covered the stand's
+mechanics (Slice 11e); the API ledger's Brewing row graduates
+NOT AUDITED → IMPLEMENTED.

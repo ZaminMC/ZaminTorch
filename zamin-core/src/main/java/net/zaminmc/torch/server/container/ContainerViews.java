@@ -3,6 +3,8 @@ package net.zaminmc.torch.server.container;
 import net.zaminmc.torch.block.BlockPosition;
 import net.zaminmc.torch.container.Containers;
 import net.zaminmc.torch.item.ItemStack;
+import net.zaminmc.torch.server.brewing.BrewingStandBlockEntity;
+import net.zaminmc.torch.server.brewing.BrewingStandSystem;
 import net.zaminmc.torch.server.chest.ChestBlockEntity;
 import net.zaminmc.torch.server.chest.ChestManager;
 import net.zaminmc.torch.server.furnace.FurnaceBlockEntity;
@@ -14,7 +16,7 @@ import java.util.Optional;
 
 /**
  * The public container views (§27.3's block-entity read surface): the
- * three position-keyed managers dressed as the {@link Containers} family
+ * four position-keyed managers dressed as the {@link Containers} family
  * — the engine's own block entities ARE the handles (§27.5), read
  * through live views (the owner-context consistency contract of
  * {@code World.containers()}). The write verbs assert the world's
@@ -26,11 +28,12 @@ public final class ContainerViews implements Containers {
     private final ChestManager chests;
     private final FurnaceManager furnaces;
     private final HopperSystem hoppers;
+    private final BrewingStandSystem brewingStands;
     private final net.zaminmc.torch.server.world.EngineWorld world;
 
     public ContainerViews(ChestManager chests, FurnaceManager furnaces,
                           HopperSystem hoppers) {
-        this(chests, furnaces, hoppers, null);
+        this(chests, furnaces, hoppers, null, null);
     }
 
     /**
@@ -41,9 +44,23 @@ public final class ContainerViews implements Containers {
     public ContainerViews(ChestManager chests, FurnaceManager furnaces,
                           HopperSystem hoppers,
                           net.zaminmc.torch.server.world.EngineWorld world) {
+        this(chests, furnaces, hoppers, null, world);
+    }
+
+    /**
+     * The full shape: the brewing stands ride the same position-keyed
+     * family (§27.3's container wave — the stand's own live view).
+     *
+     * @param world the owning world (the write arms' ownership assert);
+     *              null keeps the legacy read-only shape
+     */
+    public ContainerViews(ChestManager chests, FurnaceManager furnaces,
+                          HopperSystem hoppers, BrewingStandSystem brewingStands,
+                          net.zaminmc.torch.server.world.EngineWorld world) {
         this.chests = chests;
         this.furnaces = furnaces;
         this.hoppers = hoppers;
+        this.brewingStands = brewingStands;
         this.world = world;
     }
 
@@ -63,6 +80,16 @@ public final class ContainerViews implements Containers {
     public Optional<Hopper> hopperAt(BlockPosition position) {
         HopperBlockEntity entity = hoppers.peek(position);
         return entity == null ? Optional.empty() : Optional.of(new HopperView(entity, position));
+    }
+
+    @Override
+    public Optional<BrewingStand> brewingStandAt(BlockPosition position) {
+        if (brewingStands == null) {
+            return Optional.empty();
+        }
+        BrewingStandBlockEntity entity = brewingStands.peek(position);
+        return entity == null ? Optional.empty()
+                : Optional.of(new BrewingStandView(entity, position));
     }
 
     /** The chest's live view (the engine object behind the handle). */
@@ -220,6 +247,67 @@ public final class ContainerViews implements Containers {
         net.zaminmc.torch.server.world.EngineWorld owner = world;
         if (owner != null) {
             owner.requireMutationContext("setContainerSlot");
+        }
+    }
+
+    /** The brewing stand's live view. */
+    private final class BrewingStandView implements BrewingStand {
+        private final BrewingStandBlockEntity entity;
+        private final BlockPosition position;
+
+        BrewingStandView(BrewingStandBlockEntity entity, BlockPosition position) {
+            this.entity = entity;
+            this.position = position;
+        }
+
+        @Override public BlockPosition position() {
+            return position;
+        }
+
+        @Override public int slotCount() {
+            return BrewingStandBlockEntity.SLOT_COUNT;
+        }
+
+        @Override public ItemStack[] slots() {
+            ItemStack[] snapshot = entity.snapshotSlots();
+            ItemStack[] copy = new ItemStack[snapshot.length];
+            for (int i = 0; i < snapshot.length; i++) {
+                copy[i] = snapshot[i] == null ? ItemStack.EMPTY : snapshot[i];
+            }
+            return copy;
+        }
+
+        @Override public ItemStack slot(int index) {
+            if (index < 0 || index >= BrewingStandBlockEntity.SLOT_COUNT) {
+                return ItemStack.EMPTY;
+            }
+            ItemStack stack = entity.getItem(index);
+            return stack == null ? ItemStack.EMPTY : stack;
+        }
+
+        @Override public ItemStack ingredient() {
+            return slot(BrewingStandBlockEntity.SLOT_INGREDIENT);
+        }
+
+        @Override public int brewTicksRemaining() {
+            return entity.timer();
+        }
+
+        @Override public void setSlot(int index, ItemStack stack) {
+            requireWrite();
+            if (index < 0 || index >= BrewingStandBlockEntity.SLOT_COUNT) {
+                return;
+            }
+            ItemStack clamped = java.util.Objects.requireNonNull(stack, "stack");
+            // The reference's own slot gate (isItemAllowed): a plugin
+            // learns the vanilla rule instead of a silent no-op.
+            if (!clamped.isEmpty()
+                    && !BrewingStandBlockEntity.isItemAllowed(index, clamped)) {
+                throw new IllegalArgumentException("The brewing stand's slot "
+                        + index + " refuses " + clamped.type().identifier()
+                        + " (the reference's isItemAllowed gate)");
+            }
+            entity.setItem(index, clamped);
         }
     }
 }
