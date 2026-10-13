@@ -66,10 +66,41 @@ public final class ItemEntityManager {
         listeners.add(Objects.requireNonNull(listener, "listener"));
     }
 
+    /** The public §27.7 item-spawn gate (null until the server wires the bus). */
+    private net.zaminmc.torch.server.event.EngineEventBus eventBus;
+
+    /**
+     * Wires the public item-spawn gate: every drop (the block-break
+     * loot, the mob deaths, the player throws, the container spills,
+     * the dispenser's plain egress) fires the cancellable pre-commit
+     * event before the entity joins the world. Called once by the
+     * server at boot.
+     */
+    public void setEventBus(net.zaminmc.torch.server.event.EngineEventBus eventBus) {
+        this.eventBus = eventBus;
+    }
+
+    /**
+     * The spawn gate: fires the §27.7 event, answers whether the drop
+     * may enter the world. Runs on the spawn's own (tick) context.
+     */
+    private boolean admitSpawn(ItemStack stack, Position position) {
+        if (eventBus == null) {
+            return true;
+        }
+        net.zaminmc.torch.event.entity.ItemSpawnEvent gate =
+                new net.zaminmc.torch.event.entity.ItemSpawnEvent(stack, position);
+        eventBus.fire(gate);
+        return !gate.cancelled();
+    }
+
     /**
      * Spawns a dropped item near the given block with the historical pop
      * velocity, returns the new entity. Caller supplies the stack; count and
      * validity are the caller's contract.
+     *
+     * @return the new entity, or null when the §27.7 gate cancelled the
+     *         drop (the stack never enters the world; no id is consumed)
      */
     public ItemEntity spawnDropAtBlock(Position blockPosition, ItemStack stack,
                                        int pickupDelayTicks) {
@@ -79,7 +110,11 @@ public final class ItemEntityManager {
         double x = blockPosition.x() + 0.5 + (random.nextDouble() * 0.2 - 0.1);
         double y = blockPosition.y() + 0.5;
         double z = blockPosition.z() + 0.5 + (random.nextDouble() * 0.2 - 0.1);
-        ItemEntity entity = new ItemEntity(nextEntityId++, new Position(x, y, z),
+        Position at = new Position(x, y, z);
+        if (!admitSpawn(stack, at)) {
+            return null; // the §27.7 gate withheld the drop
+        }
+        ItemEntity entity = new ItemEntity(nextEntityId++, at,
                 stack, pickupDelayTicks);
         entity.setVelocity(random.nextDouble() * 0.2 - 0.1, 0.2, random.nextDouble() * 0.2 - 0.1);
         entities.add(entity);
@@ -89,8 +124,16 @@ public final class ItemEntityManager {
         return entity;
     }
 
-    /** Spawns an entity at an exact position with exact velocity (player throws). */
+    /**
+     * Spawns an entity at an exact position with exact velocity (player throws).
+     *
+     * @return the new entity, or null when the §27.7 gate cancelled the
+     *         drop (no id is consumed)
+     */
     public ItemEntity spawnThrown(Position origin, ItemStack stack) {
+        if (!admitSpawn(stack, origin)) {
+            return null; // the §27.7 gate withheld the throw
+        }
         ItemEntity entity = new ItemEntity(nextEntityId++, origin, stack,
                 ItemEntity.PICKUP_DELAY_PLAYER_THROW_TICKS);
         entities.add(entity);

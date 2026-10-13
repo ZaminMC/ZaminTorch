@@ -564,11 +564,13 @@ public final class DispenserSystem implements WorldChangeListener {
         // remainder — the reference's in-place split decomposed.
         ItemStack one = stack.split(1);
         ItemEntity entity = itemEntities.spawnThrown(new Position(at.x(), y, at.z()), one);
-        double out = random.nextDouble() * 0.1 + 0.2;
-        entity.setVelocity(
-                OFFSETS[facing][0] * out + random.nextGaussian() * ITEM_SPREAD,
-                0.2 + random.nextGaussian() * ITEM_SPREAD,
-                OFFSETS[facing][2] * out + random.nextGaussian() * ITEM_SPREAD);
+        if (entity != null) { // the §27.7 gate may withhold the egress
+            double out = random.nextDouble() * 0.1 + 0.2;
+            entity.setVelocity(
+                    OFFSETS[facing][0] * out + random.nextGaussian() * ITEM_SPREAD,
+                    0.2 + random.nextGaussian() * ITEM_SPREAD,
+                    OFFSETS[facing][2] * out + random.nextGaussian() * ITEM_SPREAD);
+        }
         fx.sound(centerOf(pos), "random.click", 1.0f, 1.0f);
         return consumeOne(stack);
     }

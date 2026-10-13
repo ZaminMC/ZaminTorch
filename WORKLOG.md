@@ -4180,3 +4180,41 @@ once the listener leaves). The outbound PacketHookApiTest still green
 (the pipeline change is additive).
 
 The protocol ledger row's inbound omission closes.
+
+## Slice 23h — the entity-spawn event family (§27.7's spawn gates complete)
+
+**The two events** (the cancellable pre-commit gates over the engine's
+two spawn chokepoints, both firing on the walk's own tick context):
+
+1. **`event.entity.ItemSpawnEvent`** — over ItemEntityManager's two
+spawn bodies (spawnDropAtBlock + spawnThrown): the block-break loot,
+the mob deaths, the player throws, the container spills, the
+dispenser's plain egress all ride the same chokepoint. Carries the
+stack + the position. A cancelled drop never enters the world: no id
+consumed, nothing lies on the ground — the clean-drops plugin's own
+verb. The cancelled spawn returns null (the MobManager.spawnAt
+contract's own shape); the two callers that touched the return now
+null-check (the player-throw velocity + the dispenser egress
+velocity).
+
+2. **`event.entity.ProjectileSpawnEvent`** — over ProjectileManager's
+five launch variants (launch, launchVector, launchFireball,
+launchGhastFireball, launchBlazeFireball) through the shared
+admitLaunch gate: the bow shot, the snowball/egg/potion throws, the
+dispenser's projectile arms, the blaze and ghast volleys all ride the
+same chokepoint. Carries the PUBLIC ProjectileKind (the apiKind
+mapping) + the thrower's entity id (-1 for the anonymous fireball) +
+the origin. A cancelled shot consumes no id, spawns no body, sends no
+wire frame — the launch returns null (most callers already
+null-checked; the one that didn't now does).
+
+Tests: EntitySpawnEventAcceptanceTest (2: the item gate — the stack
+reads, the null return, the empty ground, the uncancelled twin with
+the entity carrying the stack; the projectile gate — the public kind
+read, the null return, the empty sky, the uncancelled twin). The
+neighboring suites green (EntityFamilyApi, EventApi, InteractionEvent,
+RangedCombat, the dispenser batch, ItemEntityManagerTest).
+
+The §6 mob-spawn row's omission closes for the projectile and
+item-entity families (the vehicle spawn event rides the vehicle
+family's own wave).
