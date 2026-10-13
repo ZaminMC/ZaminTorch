@@ -11,7 +11,10 @@ public enum VehicleKind {
     BOAT("minecraft:boat"),
 
     /** The rideable minecart. */
-    MINECART("minecraft:minecart");
+    MINECART("minecraft:minecart"),
+
+    /** The chest minecart (the 27-slot rolling container). */
+    CHEST_MINECART("minecraft:chest_minecart");
 
     private final Identifier identifier;
 

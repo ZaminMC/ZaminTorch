@@ -3474,3 +3474,51 @@ order #42 — the type byte 1, the fixed-point 1/32 coordinates) + the
 LIGHTNING damage cause (both enums, additive). LightningSystemTest (4).
 Fresh suite 888 core (one documented compute-drain load flake, green in
 isolation) + 75 protocol green, `--max-workers=1`.
+
+### Slice 21a — the chest minecart
+
+`ChestMinecartEntity` + `InventoryMinecartEntity` + the corridor's cart arms
+1:1: the cart body (`ChestMinecartEntity` extends the now-open minecart
+family — the kind-aware constructor, the `minecartTypeIndex()` wire surface,
+the `railDragFactor()` hook) carries a `ChestBlockEntity` (the composition
+gives the 27-slot container the chest's own click semantics — the reference's
+`ChestMenu` over the cart), the fullness drag (`applySlowown`'s
+`0.98 + (15 - signal) * 0.001` — an empty cart rolls 0.995, a full one 0.98),
+the interact's chest menu (`InventoryMinecartEntity.interact` ->
+`openChestMenu` — never the seat; the window's `isValid` reach gate:
+squaredDistanceTo > 64.0 refuses the clicks of a player the cart rolled away
+from), and the death's three-drop chain (`MinecartEntity.dropItems`' MINECART
+item, `InventoryMinecart`'s contents spill, `ChestMinecart`'s CHEST block —
+never the chest-minecart item). The void's correction: `outOfWorld` ->
+`setDead` never runs `dropItems` — the whole vehicle family now consumes
+without a drop (the pre-21a always-drop arm fixed for the boat and the plain
+cart too). The wire: the Spawn Object's objectData carries the minecart type
+index (`TrackedEntity` lines 413-415 — 1 for the chest) and a nonzero index
+arms the velocity triple (`AddEntityS2CPacket`'s `data > 0` shape — the
+±3.9 clamp, the ×8000 fixed-point, three shorts); the window opens as
+"minecraft:chest" with the "container.minecart" title over the 63-slot items.
+The mineshaft: the corridor's two 1-in-100 cart arms (the air-gated rail cell
+with the boolean orientation, the cart at the cell's +0.5 center) with the
+loot walk (`LOOT_ENTRIES`' thirteen rows — the lapis band rides the dye's
+damage 4, the enchanted book rides `addAll`'s own tail with the reference's
+argument-evaluation order (the book's enchantment rolls before the amount's
+nextInt(4)) — the weighted pick, the count band, the stack-split arm, the
+random slot at 27), the populate-time pending record materializing into the
+vehicle manager at chunk publish (the idempotence guard: a cart already
+standing on the record's cell skips the re-spawn). The items: the chest
+minecart 342 (the rail-place arm), the melon/pumpkin seeds 292/294 (the loot
+rows). Tests: `ChestMinecartTest` (6: the type index, the fullness drag
+bands, the death's three-drop chain, the void's no-drop, the interact's menu
++ the click routing + the reach gate, the item's rail placement) +
+`MineshaftStructureTest.theCorridorRecordsItsLootCarryingChestMinecart` (the
+scan over the regions, the rail under the cart, the table bands + the lapis
+damage + the book's enchantment, the deterministic twin) +
+`VehicleIntegrationTest.chestMinecartPlacesOpensAndServesItsMenuOverTheWire`
+(the objectData 1 + the zero velocity triple + the Open Window + the 63-slot
+items over the real wire). Fresh suite: 895 core (144 classes) + 19 api +
+76 protocol (32 classes), `--max-workers=1`, zero failures. Ledgered: the
+vehicle family's persistence (the chest cart's contents included — the
+vehicles carry no store), the hopper's cart arm (a hopper pulling from a
+chest minecart above it), the furnace/tnt/hopper/command-block/spawner
+minecart variants, the chest cart's 27 slots as a public API handle (the
+container/inventory wave).

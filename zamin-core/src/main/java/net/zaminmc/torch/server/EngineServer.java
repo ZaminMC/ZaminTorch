@@ -1066,11 +1066,35 @@ public final class EngineServer implements Server, EngineBridge {
                 // shared body model; the engine owns the mounted rider.
                 VehicleManager vehicles = new VehicleManager(
                         new VehicleWorldQuery(),
-                        vehicle -> itemEntities.spawnDropAtBlock(
-                                new Position(vehicle.position().x(), vehicle.position().y() + 0.3,
-                                        vehicle.position().z()),
-                                vehicleDropStack(vehicle),
-                                ItemEntity.PICKUP_DELAY_DROP_TICKS),
+                        vehicle -> {
+                            // The death drops (Slice 21a — the reference's
+                            // dropItems chain): the plain cart/boat item first
+                            // (MinecartEntity.dropItems), then the chest
+                            // variant's extras (the contents spill, then a
+                            // CHEST block — never the chest-minecart item).
+                            itemEntities.spawnDropAtBlock(
+                                    new Position(vehicle.position().x(), vehicle.position().y() + 0.3,
+                                            vehicle.position().z()),
+                                    vehicleDropStack(vehicle),
+                                    ItemEntity.PICKUP_DELAY_DROP_TICKS);
+                            if (vehicle instanceof net.zaminmc.torch.server.entity.vehicle.ChestMinecartEntity cart) {
+                                for (ItemStack stack : cart.chest().snapshotSlots()) {
+                                    if (stack == null || stack.isEmpty()) {
+                                        continue;
+                                    }
+                                    itemEntities.spawnDropAtBlock(
+                                            new Position(vehicle.position().x(),
+                                                    vehicle.position().y() + 0.3,
+                                                    vehicle.position().z()),
+                                            stack, ItemEntity.PICKUP_DELAY_DROP_TICKS);
+                                }
+                                itemEntities.spawnDropAtBlock(
+                                        new Position(vehicle.position().x(), vehicle.position().y() + 0.3,
+                                                vehicle.position().z()),
+                                        ItemStack.of(BuiltinItems.CHEST, 1),
+                                        ItemEntity.PICKUP_DELAY_DROP_TICKS);
+                            }
+                        },
                         new java.util.Random(),
                         VEHICLE_ID_BASE);
                 this.vehicleManager = vehicles;
@@ -3831,6 +3855,7 @@ public final class EngineServer implements Server, EngineBridge {
                     case CRAFTING_TABLE -> clickContainerWindowOnTick(session, wireSlot, button, mode);
                     case FURNACE -> clickFurnaceWindowOnTick(session, wireSlot, button, mode);
                     case CHEST -> clickChestWindowOnTick(session, wireSlot, button, mode);
+                    case CHEST_MINECART -> clickChestMinecartWindowOnTick(session, wireSlot, button, mode);
                     case DISPENSER -> clickDispenserWindowOnTick(session, wireSlot, button, mode);
                     case BREWING_STAND -> clickBrewingStandWindowOnTick(session, wireSlot, button, mode);
                     case HORSE -> clickHorseWindowOnTick(session, wireSlot, button, mode);
@@ -4978,13 +5003,20 @@ public final class EngineServer implements Server, EngineBridge {
         }
         if (heldId.equals("minecraft:boat")
                 || creativeHeld.map(t -> t.identifier().value().equals("boat")).orElse(false)) {
-            spawnVehicleUseOnTick(session, clicked, face, creativeHeld, true);
+            spawnVehicleUseOnTick(session, clicked, face, creativeHeld, true, false);
             return; // the boat spawns at the water the use names
         }
         if (heldId.equals("minecraft:minecart")
                 || creativeHeld.map(t -> t.identifier().value().equals("minecart")).orElse(false)) {
-            spawnVehicleUseOnTick(session, clicked, face, creativeHeld, false);
+            spawnVehicleUseOnTick(session, clicked, face, creativeHeld, false, false);
             return; // the minecart spawns on the rail the use names
+        }
+        if (heldId.equals("minecraft:chest_minecart")
+                || creativeHeld.map(t -> t.identifier().value().equals("chest_minecart")).orElse(false)) {
+            // The chest minecart's own place arm (Slice 21a — MinecartItem
+            // over the chest variant): the same rail gate, the chest body.
+            spawnVehicleUseOnTick(session, clicked, face, creativeHeld, false, true);
+            return;
         }
         if (heldId.equals("minecraft:pumpkin") || heldId.equals("minecraft:lit_pumpkin")
                 || creativeHeld.map(t -> t.identifier().value().equals("pumpkin")
@@ -6432,7 +6464,8 @@ public final class EngineServer implements Server, EngineBridge {
      * boats paddle ashore); a minecart only spawns on a rail. Tick-thread.
      */
     private void spawnVehicleUseOnTick(PlayerSession session, BlockPosition clicked, int face,
-                                       java.util.Optional<BlockType> creativeHeld, boolean boat) {
+                                       java.util.Optional<BlockType> creativeHeld, boolean boat,
+                                       boolean chestCart) {
         BlockPosition target = offsetByFace(clicked, face);
         if (target == null) {
             return;
@@ -6477,6 +6510,8 @@ public final class EngineServer implements Server, EngineBridge {
         }
         if (boat) {
             vehicleManager.spawnBoat(spawnAt);
+        } else if (chestCart) {
+            vehicleManager.spawnChestMinecart(spawnAt);
         } else {
             vehicleManager.spawnMinecart(spawnAt);
         }
@@ -6606,6 +6641,13 @@ public final class EngineServer implements Server, EngineBridge {
                 double horizontal = Math.sqrt(dx * dx + dz * dz);
                 if (horizontal > MELEE_REACH + 0.7 || dy < -2.0 || dy > 4.0) {
                     return; // out of reach: the server-side refusal
+                }
+                // The chest minecart's interact opens the chest menu (the
+                // reference's InventoryMinecartEntity.interact — never the
+                // seat; Slice 21a).
+                if (vehicle instanceof net.zaminmc.torch.server.entity.vehicle.ChestMinecartEntity cart) {
+                    openChestMinecartInventoryOnTick(player, cart);
+                    return;
                 }
                 vehicleManager.mount(vehicle, player.engineEntityId());
                 return;
@@ -7230,6 +7272,123 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /**
+     * Opens the chest minecart's chest menu (Slice 21a — the reference's
+     * InventoryMinecartEntity.interact -> openChestMenu: the "minecraft:chest"
+     * window over the cart's own 27 slots). Tick-thread context.
+     */
+    private void openChestMinecartInventoryOnTick(
+            PlayerSession session,
+            net.zaminmc.torch.server.entity.vehicle.ChestMinecartEntity cart) {
+        closeOpenContainerOnTick(session);
+        dropGridToWorld(session, session.crafting()); // the vanilla close: the 2x2 grid drops
+        int windowId = nextContainerWindowId;
+        nextContainerWindowId = nextContainerWindowId >= LAST_CONTAINER_WINDOW_ID
+                ? FIRST_CONTAINER_WINDOW_ID : nextContainerWindowId + 1;
+        session.openChestMinecartWindow(windowId, cart.entityId());
+        for (VehicleListener listener : vehicleListeners) {
+            listener.onChestMinecartWindowOpened(session, cart, windowId);
+        }
+    }
+
+    /**
+     * The chest minecart window's clicks (Slice 21a): the same chest-menu
+     * semantics over the cart's own 27 slots (the reference's ChestMenu over
+     * the cart — no slot filters, the shared cursor walk). The validity gate
+     * is the reference's own isValid: a gone cart or a player beyond 8
+     * blocks (squaredDistanceTo > 64.0) refuses the click. Tick-thread
+     * context.
+     */
+    private boolean clickChestMinecartWindowOnTick(PlayerSession session, int wireSlot,
+                                                   int button, int mode) {
+        var inventory = session.inventory();
+        var cart = session.containerMountId() >= 0 && vehicleManager != null
+                ? vehicleManager.byId(session.containerMountId()) : null;
+        if (!(cart instanceof net.zaminmc.torch.server.entity.vehicle.ChestMinecartEntity chestCart)) {
+            return false; // stale window (cart gone): rejected, resync restores
+        }
+        // The reference's isValid reach gate (InventoryMinecartEntity lines
+        // 83-85): removed carts already failed the lookup above.
+        double dx = cart.position().x() - session.position().x();
+        double dy = cart.position().y() - session.position().y();
+        double dz = cart.position().z() - session.position().z();
+        if (dx * dx + dy * dy + dz * dz > 64.0) {
+            return false; // the cart rolled away: the click refuses
+        }
+        var chest = chestCart.chest();
+        switch (mode) {
+            case 0 -> {
+                if (wireSlot >= 0 && wireSlot <= CHEST_WIRE_SLOT_LAST) {
+                    chest.clickSlot(wireSlot, button, inventory);
+                    return true;
+                }
+                int engineSlot = chestEngineSlotOf(wireSlot);
+                if (engineSlot >= 0) {
+                    inventory.clickSlot(engineSlot, button);
+                    return true;
+                }
+                return false;
+            }
+            case 1 -> {
+                if (wireSlot >= 0 && wireSlot <= CHEST_WIRE_SLOT_LAST) {
+                    chest.quickMoveToInventory(wireSlot, inventory);
+                    return true;
+                }
+                int engineSlot = chestEngineSlotOf(wireSlot);
+                if (engineSlot >= 0) {
+                    net.zaminmc.torch.item.ItemStack peek = inventory.snapshot().get(engineSlot);
+                    if (peek.isEmpty()) {
+                        return false; // empty slot shift-click: nothing moves
+                    }
+                    net.zaminmc.torch.item.ItemStack moving = inventory.dropFromSlot(engineSlot, true);
+                    net.zaminmc.torch.item.ItemStack remainder = chest.quickMoveIn(moving);
+                    if (!remainder.isEmpty()) {
+                        inventory.pickUp(remainder); // cart full: put the rest back
+                    }
+                    return true;
+                }
+                return false;
+            }
+            case 2 -> {
+                // Number keys exchange main inventory and hotbar only; the
+                // cart's slots are rejected per packet (the resync restores
+                // truth).
+                int engineSlot = chestEngineSlotOf(wireSlot);
+                if (engineSlot >= net.zaminmc.torch.server.player.PlayerInventory.HOTBAR_SLOTS
+                        && button >= 0 && button < 9) {
+                    inventory.swapWithHotbar(engineSlot, button);
+                    return true;
+                }
+                return false;
+            }
+            case 3 -> {
+                return false; // middle-click clone: rejected in survival
+            }
+            case 4 -> {
+                if (wireSlot >= 0 && wireSlot <= CHEST_WIRE_SLOT_LAST) {
+                    net.zaminmc.torch.item.ItemStack dropped = chest.dropFromSlot(wireSlot, button != 0);
+                    if (!dropped.isEmpty()) {
+                        throwFromPlayer(session, dropped);
+                    }
+                    return true;
+                }
+                int engineSlot = chestEngineSlotOf(wireSlot);
+                if (engineSlot >= 0) {
+                    net.zaminmc.torch.item.ItemStack dropped =
+                            inventory.dropFromSlot(engineSlot, button != 0);
+                    if (!dropped.isEmpty()) {
+                        throwFromPlayer(session, dropped);
+                    }
+                    return true;
+                }
+                return false;
+            }
+            default -> {
+                return false; // drag painting (5) / unknown mode: rejected
+            }
+        }
+    }
+
+    /**
      * The horse window's clicks: slot 0 is the saddle, slot 1 the armor row
      * (one-item kind-gated swaps, the vanilla rule); a chested mount rides
      * the 15-slot chest grid on 2-16 (the shared cursor semantics); the
@@ -7776,6 +7935,15 @@ public final class EngineServer implements Server, EngineBridge {
                                  PlayerSession rider);
 
         void onVehicleBroken(net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle);
+
+        /**
+         * The chest minecart's chest menu opened (Slice 21a): the adapter
+         * unicasts Open Window + the window items to the opener.
+         */
+        default void onChestMinecartWindowOpened(PlayerSession opener,
+                net.zaminmc.torch.server.entity.vehicle.VehicleEntity cart,
+                int windowId) {
+        }
     }
 
     private final java.util.List<VehicleListener> vehicleListeners =
@@ -8247,7 +8415,7 @@ public final class EngineServer implements Server, EngineBridge {
                                     BuiltinItems.lookup(
                                             net.zaminmc.torch.util.Identifier.parse(slot.itemId()));
                             type.ifPresent(itemType -> {
-                                ItemStack stack = ItemStack.of(itemType, slot.count());
+                                ItemStack stack = new ItemStack(itemType, slot.count(), slot.damage());
                                 // The enchanted-book arm (Slice 12c): the
                                 // rolled enchantment rides the stack.
                                 if (slot.enchantments() != null && !slot.enchantments().isEmpty()) {
@@ -8290,6 +8458,50 @@ public final class EngineServer implements Server, EngineBridge {
                         }
                     }
                     chunk.pendingGenDispensers().clear();
+                }
+                if (!chunk.pendingChestMinecarts().isEmpty()) {
+                    // Slice 21a — the mineshaft's loot-carrying chest minecart
+                    // (the reference's placeChestWithLoot over the cart): the
+                    // cart materializes into the vehicle manager with the
+                    // rolled contents installed; the restart idempotence guard
+                    // is the villagers' own pattern (a cart already standing
+                    // on the record's cell means a previous life drained it).
+                    for (net.zaminmc.torch.server.world.EngineChunk.PendingChestMinecart pending
+                            : chunk.pendingChestMinecarts()) {
+                        boolean alreadyThere = false;
+                        for (net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle
+                                : vehicleManager.all()) {
+                            if (vehicle instanceof net.zaminmc.torch.server.entity.vehicle.ChestMinecartEntity
+                                    && Math.abs(vehicle.position().x() - (pending.x() + 0.5)) < 1.0
+                                    && Math.abs(vehicle.position().y() - (pending.y() + 0.5)) < 1.0
+                                    && Math.abs(vehicle.position().z() - (pending.z() + 0.5)) < 1.0) {
+                                alreadyThere = true;
+                                break;
+                            }
+                        }
+                        if (alreadyThere) {
+                            continue;
+                        }
+                        net.zaminmc.torch.server.entity.vehicle.VehicleEntity spawned =
+                                vehicleManager.spawnChestMinecart(new Position(
+                                        pending.x() + 0.5, pending.y() + 0.5, pending.z() + 0.5));
+                        if (spawned instanceof net.zaminmc.torch.server.entity.vehicle.ChestMinecartEntity cart) {
+                            for (net.zaminmc.torch.server.world.structure.StructureWorld.GenLootSlot slot
+                                    : pending.slots()) {
+                                java.util.Optional<net.zaminmc.torch.item.ItemType> type =
+                                        BuiltinItems.lookup(
+                                                net.zaminmc.torch.util.Identifier.parse(slot.itemId()));
+                                type.ifPresent(itemType -> {
+                                    ItemStack stack = new ItemStack(itemType, slot.count(), slot.damage());
+                                    if (slot.enchantments() != null && !slot.enchantments().isEmpty()) {
+                                        stack = stack.withEnchantments(slot.enchantments());
+                                    }
+                                    cart.chest().setSlot(slot.slot(), stack);
+                                });
+                            }
+                        }
+                    }
+                    chunk.pendingChestMinecarts().clear();
                 }
                 if (!chunk.pendingMobSpawners().isEmpty()) {
                     for (net.zaminmc.torch.server.world.EngineChunk.PendingMobSpawner pending

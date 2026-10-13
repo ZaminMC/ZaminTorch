@@ -101,6 +101,16 @@ public interface StructureWorld {
     }
 
     /**
+     * The loot-carrying chest minecart (Slice 21a — the reference's
+     * MineshaftPieces.placeChestWithLoot over the cart): the rail block
+     * lands through the ordinary setBlock path; the cart record (position
+     * + the rolled contents) rides the chunk's pending queue and
+     * materializes into the vehicle manager when the chunk publishes.
+     */
+    default void placeGenChestMinecart(int x, int y, int z, List<GenLootSlot> slots) {
+    }
+
+    /**
      * The typed mob spawner (the reference's
      * {@code getSpawner().setType(...)}): the spawner block lands through
      * the ordinary setBlock path; the typed record rides the chunk's
@@ -124,15 +134,29 @@ public interface StructureWorld {
 
     /**
      * One rolled chest slot (the loot walk's setItem record). The optional
+     * damage field carries the reference's metadata column (the mineshaft's
+     * lapis band rides the dye's damage 4, Slice 21a); the optional
      * enchantment map carries the reference's enchanted-book loot arm
      * (EnchantedBookItem.createLoot — a random level-30 enchantment riding
-     * the stack); every ordinary entry leaves it null.
+     * the stack); every ordinary entry leaves both null/zero.
      */
-    record GenLootSlot(int slot, String itemId, int count, java.util.Map<Integer, Integer> enchantments) {
+    record GenLootSlot(int slot, String itemId, int count, int damage,
+                       java.util.Map<Integer, Integer> enchantments) {
 
         /** The plain shape (the village's own loot records). */
         public GenLootSlot(int slot, String itemId, int count) {
-            this(slot, itemId, count, null);
+            this(slot, itemId, count, 0, null);
+        }
+
+        /** The enchanted shape (the book arm). */
+        public GenLootSlot(int slot, String itemId, int count,
+                           java.util.Map<Integer, Integer> enchantments) {
+            this(slot, itemId, count, 0, enchantments);
+        }
+
+        /** The metadata-carrying shape (the dye damage column). */
+        public GenLootSlot(int slot, String itemId, int count, int damage) {
+            this(slot, itemId, count, damage, null);
         }
     }
 }

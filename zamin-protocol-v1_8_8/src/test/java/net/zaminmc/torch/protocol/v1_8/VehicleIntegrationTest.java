@@ -124,9 +124,11 @@ class VehicleIntegrationTest extends ProtocolTestBase {
                     new net.zaminmc.torch.block.BlockPosition(bx, ry, bz)).equals(rail),
                     "rail line seeded");
 
-            // The placement: the minecart item on the rail's top face.
+            // The placement: the rideable minecart (objectData 0 — a
+            // chest cart from an earlier test in the shared server is
+            // skipped by the type-index read).
             client.sendBlockPlacement(bx, ry, bz, 1, 328);
-            int[] spawn = client.readSpawnObjectOfType(10, 20_000);
+            int[] spawn = client.readSpawnOfMinecartType(0, 20_000);
             int cartId = spawn[0];
             assertTrue(cartId >= 5_000_000, "the vehicle id lives in its own band");
 
@@ -155,6 +157,69 @@ class VehicleIntegrationTest extends ProtocolTestBase {
             client.sendSteerVehicle(0.0f, 0.0f, 2);
             int[] dismount = client.readAttachEntity(20_000);
             assertEquals(0, dismount[2], "the cart seat cleared");
+        }
+    }
+
+    /**
+     * Slice 21a — the chest minecart over the real wire: the item places
+     * the chest variant (Spawn Entity object type 10 with objectData 1 —
+     * the chest box index — and the AddEntityS2CPacket velocity triple that
+     * a nonzero data arms), and the interact opens the chest menu (Open
+     * Window "minecraft:chest" + the 63-slot Window Items) instead of the
+     * seat.
+     */
+    @Test
+    void chestMinecartPlacesOpensAndServesItsMenuOverTheWire() throws Exception {
+        try (TestClient18 client = new TestClient18("127.0.0.1", adapter.boundPort())) {
+            client.sendHandshake(47, 2);
+            client.sendLoginStart("ChestCartRider");
+            client.readLoginSuccess();
+            client.readUntilPositionAndLook();
+
+            var session = server.playerRegistry().byName("ChestCartRider").orElseThrow();
+            server.ticker().submit(() -> session.setGamemode(
+                    net.zaminmc.torch.GameMode.CREATIVE));
+            Thread.sleep(200);
+            client.sendCreativeSlot(36, 342); // the chest minecart item
+            Thread.sleep(200);
+
+            var anchor = session.position();
+            int bx = (int) Math.floor(anchor.x()) + 2;
+            int bz = (int) Math.floor(anchor.z());
+            int ry = (int) Math.floor(anchor.y());
+            var rail = net.zaminmc.torch.server.block.BuiltinBlocks.RAIL_EW;
+            server.ticker().submit(() -> {
+                for (int dx = -2; dx <= 2; dx++) {
+                    server.world().setBlock(
+                            new net.zaminmc.torch.block.BlockPosition(bx + dx, ry, bz), rail);
+                }
+            });
+            awaitCondition(() -> server.world().getBlock(
+                    new net.zaminmc.torch.block.BlockPosition(bx, ry, bz)).equals(rail),
+                    "rail line seeded");
+
+            // The placement: objectData 1 (the chest index) + the velocity
+            // triple the reference's data > 0 shape arms.
+            client.sendBlockPlacement(bx, ry, bz, 1, 342);
+            int[] spawn = client.readSpawnOfMinecartType(1, 20_000);
+            int cartId = spawn[0];
+            assertEquals(1, spawn[5], "the chest cart's objectData names the chest variant");
+            assertTrue(spawn[6] == 0 && spawn[7] == 0 && spawn[8] == 0,
+                    "the fresh cart carries the zero velocity triple");
+
+            // The interact opens the chest menu — never the seat.
+            client.sendUseEntity(cartId, Protocol18.USE_ENTITY_INTERACT);
+            Object[] open = client.readOpenWindow(20_000);
+            int windowId = (Integer) open[0];
+            assertTrue(windowId > 0, "the chest menu opened over the cart");
+            assertEquals("minecraft:chest", open[1],
+                    "the cart serves the reference's own chest menu type");
+            assertEquals(27, ((Integer) open[2]).intValue(),
+                    "the GUI's own 27 slots");
+            // The authoritative 63-slot contents follow the open.
+            int[] items = client.readWindowItems(20_000);
+            assertEquals(windowId, items[0], "the contents name the open window");
+            assertEquals(63, items[1], "the chest menu's 63-slot layout");
         }
     }
 }

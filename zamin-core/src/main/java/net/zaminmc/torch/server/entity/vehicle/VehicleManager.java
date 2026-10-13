@@ -41,6 +41,18 @@ public final class VehicleManager {
     /** The break drop sink (the engine's item-entity spawner). */
     public interface DropSink {
         void dropVehicleItem(VehicleEntity vehicle);
+
+        /**
+         * The chest minecart's death extras (Slice 21a — the reference's
+         * dropItems chain): the contents spill first (InventoryMinecart's
+         * InventoryUtils.dropItems), then the CHEST block item
+         * (ChestMinecart's own dropItem). The plain minecart item already
+         * landed through {@link #dropVehicleItem} (MinecartEntity's own
+         * dropItems — the cart item, never the chest-minecart item).
+         */
+        default void dropChestMinecartExtras(VehicleEntity vehicle,
+                java.util.List<net.zaminmc.torch.item.ItemStack> contents) {
+        }
     }
 
     private final VehicleEntity.WorldQuery world;
@@ -124,6 +136,11 @@ public final class VehicleManager {
         return spawn(new MinecartEntity(nextEntityId++, at, random));
     }
 
+    /** The chest minecart (the 27-slot rolling container). */
+    public VehicleEntity spawnChestMinecart(Position at) {
+        return spawn(new ChestMinecartEntity(nextEntityId++, at, random));
+    }
+
     private VehicleEntity spawn(VehicleEntity vehicle) {
         vehicles.add(vehicle);
         for (Listener listener : listeners) {
@@ -143,6 +160,9 @@ public final class VehicleManager {
             VehicleEntity vehicle = cursor.next();
             vehicle.tickHurtCooldown();
             if (vehicle.inVoid()) {
+                // The void consumes without a drop (the reference's
+                // outOfWorld -> setDead: no dropItems call ever runs —
+                // Slice 21a's correction of the pre-21a always-drop arm).
                 removeVehicle(cursor, vehicle, "fell out of world");
                 continue;
             }
@@ -165,7 +185,22 @@ public final class VehicleManager {
         if (vehicle.hasPassenger()) {
             dismount(vehicle);
         }
-        drops.dropVehicleItem(vehicle);
+        boolean broke = "broke".equals(reason);
+        if (broke) {
+            // The death drops (takeDamage's dropItems chain): the plain
+            // minecart/boat item first, then the chest variant's extras.
+            drops.dropVehicleItem(vehicle);
+            if (vehicle instanceof ChestMinecartEntity cart) {
+                java.util.List<net.zaminmc.torch.item.ItemStack> contents =
+                        new java.util.ArrayList<>();
+                for (net.zaminmc.torch.item.ItemStack stack : cart.chest().snapshotSlots()) {
+                    if (stack != null && !stack.isEmpty()) {
+                        contents.add(stack);
+                    }
+                }
+                drops.dropChestMinecartExtras(vehicle, contents);
+            }
+        }
         for (Listener listener : listeners) {
             listener.onVehicleBroken(vehicle);
         }

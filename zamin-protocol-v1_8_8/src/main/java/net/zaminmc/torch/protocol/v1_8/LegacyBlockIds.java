@@ -224,6 +224,10 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:cactus"), 81),
             // farming items (community items.json)
             Map.entry(Identifier.parse("minecraft:wheat_seeds"), 295),
+            // The melon/pumpkin seed pair (Slice 21a, community items.json):
+            // the mineshaft's chest-minecart loot rows.
+            Map.entry(Identifier.parse("minecraft:melon_seeds"), 292),
+            Map.entry(Identifier.parse("minecraft:pumpkin_seeds"), 294),
             Map.entry(Identifier.parse("minecraft:wheat"), 296),
             Map.entry(Identifier.parse("minecraft:bread"), 297),
             Map.entry(Identifier.parse("minecraft:bone_meal"), 351),
@@ -343,6 +347,10 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:rail_ew"), 66),
             Map.entry(Identifier.parse("minecraft:boat"), 333),
             Map.entry(Identifier.parse("minecraft:minecart"), 328),
+            // The chest minecart item (Slice 21a, community items.json 342):
+            // the wire's own item id; the entity rides Spawn Object's
+            // objectData 1 instead (TrackedEntity's minecart type byte).
+            Map.entry(Identifier.parse("minecraft:chest_minecart"), 342),
             // The mount slice (community items.json): saddle 329, horse
             // armors 417/418/419, lead 420, carrot on a stick 398, and the
             // villager currency (emerald 388).

@@ -1474,7 +1474,7 @@ public final class StrongholdPieces {
     // ------------------------------------------------------------ the loot walk
 
     /** The enchanted-book loot row (EnchantedBookItem.createLoot's appended entry). */
-    private record BookRow(int minCount, int maxCount, int weight, Map<Integer, Integer> enchantments) {
+    record BookRow(int minCount, int maxCount, int weight, Map<Integer, Integer> enchantments) {
     }
 
     /**

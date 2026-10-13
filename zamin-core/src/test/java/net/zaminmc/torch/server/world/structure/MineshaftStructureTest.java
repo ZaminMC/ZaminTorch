@@ -10,6 +10,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -151,5 +152,103 @@ class MineshaftStructureTest {
                 }
             }
         }
+    }
+
+    /**
+     * Slice 21a — the corridor's chest-minecart arms (the reference's two
+     * 1-in-100 rolls per section, lines 301-325): scanning mineshaft starts
+     * until a chunk's populate records a loot-carrying cart, then the rail
+     * under it and the loot's own table bands (the count min..max, the
+     * stack-split arm, the lapis damage 4, the enchanted book's
+     * enchantment map).
+     */
+    @Test
+    void theCorridorRecordsItsLootCarryingChestMinecart() {
+        NormalWorldGenerator generator = new NormalWorldGenerator(registry, "chest-cart-scan");
+        MineshaftStructure mineshafts = new MineshaftStructure(generator.seed());
+        EngineChunk hitChunk = null;
+        EngineChunk.PendingChestMinecart record = null;
+        var air = registry.require(net.zaminmc.torch.util.Identifier.parse("minecraft:air"));
+        long deadline = System.currentTimeMillis() + 120_000;
+        outer:
+        for (int regionX = 80; regionX < 900 && System.currentTimeMillis() < deadline; regionX++) {
+            for (int regionZ = 80; regionZ < 900; regionZ++) {
+                StructureStart start = mineshafts.createStart(regionX, regionZ, probeWorld());
+                if (start == null) {
+                    continue;
+                }
+                int fromChunkX = (start.getBounds().minX >> 4) - 1;
+                int toChunkX = (start.getBounds().maxX >> 4) + 1;
+                int fromChunkZ = (start.getBounds().minZ >> 4) - 1;
+                int toChunkZ = (start.getBounds().maxZ >> 4) + 1;
+                for (int cx = fromChunkX; cx <= toChunkX; cx++) {
+                    for (int cz = fromChunkZ; cz <= toChunkZ; cz++) {
+                        EngineChunk chunk = new EngineChunk(new ChunkPosition(cx, cz), air);
+                        generator.generate(chunk);
+                        if (!chunk.pendingChestMinecarts().isEmpty()) {
+                            hitChunk = chunk;
+                            record = chunk.pendingChestMinecarts().get(0);
+                            break outer;
+                        }
+                    }
+                }
+            }
+        }
+        assertNotNull(record,
+                "some corridor between the scanned regions recorded a chest minecart");
+
+        // The rail under the cart (placeChestWithLoot's setBlockState): the
+        // cell in the recording chunk's own array.
+        var railId = recordCellId(hitChunk, record);
+        assertTrue(railId.equals("minecraft:rail") || railId.equals("minecraft:rail_ew"),
+                "the rail landed under the cart: " + railId + " at "
+                        + record.x() + "," + record.y() + "," + record.z());
+
+        // The loot's own law: 3..6 rolls' worth of slots, every item from
+        // the reference's table (or the enchanted book), counts in band,
+        // the lapis row's damage 4, the book's enchantment map.
+        java.util.Set<String> table = java.util.Set.of(
+                "minecraft:iron_ingot", "minecraft:gold_ingot", "minecraft:redstone",
+                "minecraft:lapis", "minecraft:diamond", "minecraft:coal", "minecraft:bread",
+                "minecraft:iron_pickaxe", "minecraft:rail", "minecraft:melon_seeds",
+                "minecraft:pumpkin_seeds", "minecraft:saddle", "minecraft:iron_horse_armor",
+                "minecraft:enchanted_book");
+        int slotWrites = 0;
+        for (var slot : record.slots()) {
+            assertTrue(table.contains(slot.itemId()),
+                    "the rolled item came from the reference's table: " + slot.itemId());
+            assertTrue(slot.count() >= 1, "every roll lands at least one");
+            assertTrue(slot.slot() >= 0 && slot.slot() < 27,
+                    "the slot draw is the cart's own 27");
+            slotWrites++;
+            if (slot.itemId().equals("minecraft:lapis")) {
+                assertEquals(4, slot.damage(), "the lapis band rides the dye's damage 4");
+            }
+            if (slot.itemId().equals("minecraft:enchanted_book")) {
+                assertNotNull(slot.enchantments(),
+                        "the book carries its rolled enchantment");
+                assertFalse(slot.enchantments().isEmpty(), "the book's enchantment is real");
+            }
+        }
+        assertTrue(slotWrites >= 1, "the loot walk landed at least one slot write");
+
+        // Determinism: the same seed regenerates the identical record.
+        NormalWorldGenerator twin = new NormalWorldGenerator(registry, "chest-cart-scan");
+        EngineChunk twinChunk = new EngineChunk(hitChunk.position(), air);
+        twin.generate(twinChunk);
+        assertEquals(1, twinChunk.pendingChestMinecarts().size(),
+                "the twin recorded the same single cart");
+        EngineChunk.PendingChestMinecart twinRecord = twinChunk.pendingChestMinecarts().get(0);
+        assertEquals(record.x(), twinRecord.x(), "the twin cart's cell matches");
+        assertEquals(record.y(), twinRecord.y(), "the twin cart's cell matches");
+        assertEquals(record.z(), twinRecord.z(), "the twin cart's cell matches");
+        assertEquals(record.slots(), twinRecord.slots(), "the twin loot is identical");
+    }
+
+    /** @return the recording chunk's block id string at the record's cell. */
+    private static String recordCellId(EngineChunk chunk, EngineChunk.PendingChestMinecart record) {
+        int localX = record.x() - (chunk.position().x() << 4);
+        int localZ = record.z() - (chunk.position().z() << 4);
+        return chunk.getBlock(localX, record.y(), localZ).identifier().toString();
     }
 }

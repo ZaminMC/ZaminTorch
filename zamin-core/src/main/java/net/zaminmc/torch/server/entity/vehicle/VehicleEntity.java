@@ -26,7 +26,9 @@ public abstract class VehicleEntity implements net.zaminmc.torch.entity.Vehicle 
     /** The vehicle kinds (the wire's object types live in the adapter). */
     public enum Kind {
         BOAT(net.zaminmc.torch.entity.VehicleKind.BOAT),
-        MINECART(net.zaminmc.torch.entity.VehicleKind.MINECART);
+        MINECART(net.zaminmc.torch.entity.VehicleKind.MINECART),
+        /** The chest minecart (Slice 21a — the 27-slot rolling container). */
+        CHEST_MINECART(net.zaminmc.torch.entity.VehicleKind.CHEST_MINECART);
 
         /** The public API's kind (§27.3 — the stable surface). */
         public final net.zaminmc.torch.entity.VehicleKind apiKind;
@@ -168,8 +170,11 @@ public abstract class VehicleEntity implements net.zaminmc.torch.entity.Vehicle 
 
     /** @return whether the point lies in the vehicle's body box. */
     public boolean contains(double x, double y, double z) {
-        double halfWidth = kind == Kind.BOAT ? 0.7 : 0.6;
-        double height = kind == Kind.BOAT ? 0.4 : 0.7;
+        // The chest minecart rides the cart hull (the same 0.98x0.7 body
+        // the reference's MinecartEntity.setSize gives every cart).
+        boolean boat = kind == Kind.BOAT;
+        double halfWidth = boat ? 0.7 : 0.6;
+        double height = boat ? 0.4 : 0.7;
         return Math.abs(x - position.x()) <= halfWidth
                 && y >= position.y() - 0.2 && y <= position.y() + height
                 && Math.abs(z - position.z()) <= halfWidth;

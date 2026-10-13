@@ -947,6 +947,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 switch (player.openContainerKind()) {
                     case FURNACE -> sendFurnaceWindow(channel, player, windowId);
                     case CHEST -> sendChestWindow(channel, player, windowId);
+                    case CHEST_MINECART -> sendChestMinecartWindow(channel, player, windowId);
                     case DISPENSER -> sendDispenserWindow(channel, player, windowId);
                     case BREWING_STAND -> sendBrewingWindow(channel, player, windowId);
                     case ENCHANTING_TABLE -> sendEnchantingWindow(channel, player, windowId);
@@ -1019,6 +1020,27 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeString(out, Protocol18.CHEST_WINDOW_TYPE);
         ByteBufOps.writeString(out, Protocol18.CHEST_WINDOW_TITLE);
         out.writeByte(27); // the GUI's own slots: 3 rows of 9
+        channel.writeAndFlush(out);
+        sendContainerWindowItems(channel, windowId, player);
+    }
+
+    /**
+     * Open Window (0x2D) for the chest minecart (Slice 21a — the reference's
+     * ChestMinecartEntity.getMenuType "minecraft:chest" + the
+     * "container.minecart" title): the chest GUI over the cart's own 27
+     * slots, followed by the authoritative 63-slot contents. Called on the
+     * tick thread by the engine's open dispatch.
+     */
+    void sendChestMinecartWindow(Channel channel, PlayerSession player, int windowId) {
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(48);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_OPEN_WINDOW);
+        out.writeByte(windowId);
+        ByteBufOps.writeString(out, Protocol18.CHEST_WINDOW_TYPE);
+        ByteBufOps.writeString(out, Protocol18.MINECART_CHEST_WINDOW_TITLE);
+        out.writeByte(27); // the GUI's own slots: the chest menu over the cart
         channel.writeAndFlush(out);
         sendContainerWindowItems(channel, windowId, player);
     }
@@ -1788,6 +1810,14 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             var chest = position == null ? null : engine.chests().peek(position);
             if (chest != null) {
                 sendChestWindowItems(channel, windowId, chest, player);
+            }
+            return;
+        }
+        if (player.openContainerKind()
+                == net.zaminmc.torch.server.player.PlayerSession.ContainerKind.CHEST_MINECART) {
+            var cart = engineVehicleChest(player.containerMountId());
+            if (cart != null) {
+                sendChestWindowItems(channel, windowId, cart, player);
             }
             return;
         }
@@ -3762,8 +3792,12 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
 
     /**
      * Spawn Entity (0x0E) for a vehicle: object type 1 = boat, 10 = minecart
-     * (community entities.json), objectData 0 (the velocity rides the
-     * per-tick teleport sync instead). Chunk-gated like every spawn.
+     * (community entities.json); a minecart's objectData carries the type
+     * index (TrackedEntity lines 413-415: 0 rideable, 1 chest, 2 furnace,
+     * 3 TNT, 4 spawner, 5 hopper, 6 command block) and a nonzero index
+     * also arms the velocity triple (AddEntityS2CPacket's data > 0 shape —
+     * three shorts, velocity * 8000 clamped to ±3.9, Slice 21a). Chunk-gated
+     * like every spawn.
      */
     void sendVehicleSpawn(net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle) {
         Channel channel = adapter.channelOf(this);
@@ -3778,6 +3812,8 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         int objectType = vehicle.kind() == net.zaminmc.torch.server.entity.vehicle.VehicleEntity.Kind.BOAT
                 ? Protocol18.OBJECT_BOAT
                 : Protocol18.OBJECT_MINECART;
+        int objectData = vehicle instanceof net.zaminmc.torch.server.entity.vehicle.MinecartEntity cart
+                ? cart.minecartTypeIndex() : 0;
         ByteBuf out = Unpooled.buffer(40);
         ByteBufOps.writeVarInt(out, Protocol18.S2C_SPAWN_ENTITY);
         ByteBufOps.writeVarInt(out, vehicle.entityId());
@@ -3787,8 +3823,37 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeInt((int) Math.floor(vehicle.position().z() * 32.0));
         out.writeByte((int) Math.round(vehicle.rotation().pitch() / 360.0 * 256.0));
         out.writeByte((int) Math.floor(vehicle.rotation().yaw() * 256.0 / 360.0));
-        out.writeInt(0); // objectData 0: no velocity triple follows
+        out.writeInt(objectData);
+        if (objectData > 0) {
+            // AddEntityS2CPacket lines 39-71: the ±3.9 clamp, the 8000
+            // fixed-point, one short per axis (a fresh cart carries zeros).
+            double vx = clampWireVelocity(vehicle.velocityX());
+            double vy = clampWireVelocity(vehicle.velocityY());
+            double vz = clampWireVelocity(vehicle.velocityZ());
+            out.writeShort((int) (vx * 8000.0));
+            out.writeShort((int) (vy * 8000.0));
+            out.writeShort((int) (vz * 8000.0));
+        }
         channel.writeAndFlush(out);
+    }
+
+    /** The reference's ±3.9 velocity clamp (AddEntityS2CPacket's d3). */
+    private static double clampWireVelocity(double velocity) {
+        return Math.max(-3.9, Math.min(3.9, velocity));
+    }
+
+    /**
+     * The open chest-minecart window's container (Slice 21a): the session's
+     * mount id names the cart; a gone cart (broken while open) answers null
+     * and the resync skips — the engine's own close walk drops the window.
+     */
+    private net.zaminmc.torch.server.chest.ChestBlockEntity engineVehicleChest(int vehicleId) {
+        if (vehicleId < 0 || engine.vehicles() == null) {
+            return null;
+        }
+        var vehicle = engine.vehicles().byId(vehicleId);
+        return vehicle instanceof net.zaminmc.torch.server.entity.vehicle.ChestMinecartEntity cart
+                ? cart.chest() : null;
     }
 
     /**

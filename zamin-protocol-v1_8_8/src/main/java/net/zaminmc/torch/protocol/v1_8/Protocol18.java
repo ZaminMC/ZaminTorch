@@ -398,6 +398,8 @@ final class Protocol18 {
     // end 62 — main 27-53, hotbar 54-62 — 63 slots total).
     static final String CHEST_WINDOW_TYPE = "minecraft:chest";
     static final String CHEST_WINDOW_TITLE = "{\"text\":\"Chest\"}";
+    /** The chest minecart's own title (the reference's "container.minecart"). */
+    static final String MINECART_CHEST_WINDOW_TITLE = "{\"text\":\"Minecart\"}";
     static final int CHEST_WINDOW_SLOTS = 63;
     static final int CHEST_WIRE_SLOT_LAST = 26;
     static final int CHEST_WIRE_SLOT_MAIN_FIRST = 27;
