@@ -1137,6 +1137,14 @@ public final class EngineServer implements Server, EngineBridge {
                 leadSystem = new net.zaminmc.torch.server.leash.LeadSystem(
                         new LeadSurface(), KNOT_ID_BASE);
                 leadSystem.setSurvivalRead(world, BuiltinBlocks.FENCE.identifier());
+                // The public §27.3 unleash path: the handle's verb routes
+                // the system's own detach walk (the clear + the wire + the
+                // drop) behind the §27.6 owner-context assert — the setter
+                // retro-wires the restored mobs too.
+                mobs.setLeashDetacher((mob, dropLead) -> {
+                    world.requireMutationContext("unleash");
+                    leadSystem.detachLeash(mob, dropLead);
+                });
                 // The natural spawn cycle (Slice 11d): the 1:1 walk.
                 naturalSpawns = new net.zaminmc.torch.server.spawn.NaturalSpawnSystem(
                         new SpawnSurface(mobs, false),

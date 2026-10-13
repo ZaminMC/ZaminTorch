@@ -86,4 +86,39 @@ public interface LivingEntity extends Entity {
      * from any thread.
      */
     GoalRegistration goals();
+
+    /**
+     * Whether the mob carries a live lead (the reference's
+     * {@code isLeashed}). Simulation context.
+     */
+    boolean leashed();
+
+    /**
+     * Which shape holds the lead — a player's hand, a fence knot, or
+     * none ({@link LeashHolderKind#NONE} when not leashed). Simulation
+     * context.
+     */
+    LeashHolderKind leashHolderKind();
+
+    /**
+     * @return the holding player's uuid — empty when the holder is a
+     *         knot or the mob carries no lead. Simulation context.
+     */
+    java.util.Optional<java.util.UUID> leashHolderPlayerUuid();
+
+    /**
+     * @return the knot's fence position — empty when the holder is a
+     *         player or the mob carries no lead. Simulation context.
+     */
+    java.util.Optional<net.zaminmc.torch.block.BlockPosition> leashKnotPosition();
+
+    /**
+     * Releases the lead (the reference's {@code detachLeash}): the
+     * leash state clears and the wire unhooks; {@code dropLead} drops
+     * the lead item at the mob's feet (the reference's dropItem arm —
+     * a creative-style release passes false). Owner context (§27.6 —
+     * call through {@code World.execute} off the lane; an off-lane
+     * unleash fails diagnosably).
+     */
+    void unleash(boolean dropLead);
 }
