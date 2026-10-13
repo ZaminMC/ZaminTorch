@@ -1014,6 +1014,24 @@ public final class MobManager {
                             2.0F, pitch * 1.8F);
                 }
             }
+            // The pigman's attacker re-acquisition (Slice 21e —
+            // ZombiePigmanEntity.mobAiTick lines 79-83): while the anger
+            // window burns and the named attacker is live, the revenge
+            // state re-pins to them — the kill-credit window
+            // (playerHitTimer, the reference's recentlyHit stamp) never
+            // lapses across the chase, so the drops and the XP credit
+            // the attacker even minutes in.
+            if (mob.type() == MobType.ZOMBIE_PIGMAN && mob.isAngry()) {
+                String angerTarget = mob.angerTargetName();
+                if (!angerTarget.isEmpty()) {
+                    for (PlayerSession player : players) {
+                        if (angerTarget.equals(player.name())) {
+                            mob.markPlayerHit(); // the re-armed window
+                            break;
+                        }
+                    }
+                }
+            }
             if (wasHorseFlags != mob.horseFlagsRaw()) {
                 for (Listener listener : listeners) {
                     listener.onHorseFlagsChanged(mob);
@@ -1651,10 +1669,12 @@ public final class MobManager {
             return;
         }
         if (mob.type() == MobType.ZOMBIE_PIGMAN) {
-            // ZombiePigmanEntity.dropItems (lines 130-139): 0-1 rotten
+            // ZombiePigmanEntity.dropItems (lines 169-186): 0-1 rotten
             // flesh, then 0-1 gold nugget — the counts widen by the FULL
             // looting (nextInt(2 + looting), the reference's own bound);
-            // each unit as its own single-item stack.
+            // each unit as its own single-item stack. dropRareItem (line
+            // 189): the single gold ingot on the player-kill window's
+            // 0.025 + looting * 0.01 roll.
             int flesh = random.nextInt(2 + looting);
             for (int unit = 0; unit < flesh; unit++) {
                 lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()),
@@ -1664,6 +1684,11 @@ public final class MobManager {
             for (int unit = 0; unit < nuggets; unit++) {
                 lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()),
                         ItemStack.of(BuiltinItems.GOLD_NUGGET, 1));
+            }
+            if (mob.playerHitRecently()
+                    && random.nextFloat() < RARE_DROP_BASE + looting * 0.01F) {
+                lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()),
+                        ItemStack.of(BuiltinItems.GOLD_INGOT, 1));
             }
             return;
         }
