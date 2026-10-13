@@ -78,6 +78,19 @@ final class Protocol18 {
     /** Block Action (0x24, protocol 47): i64 pos, u8 action, u8 param, u32 block. */
     static final int S2C_BLOCK_ACTION = 0x24;
     /**
+     * Update Block Entity (0x35 — the PLAY registration order's own slot,
+     * the reference NetworkProtocol lines 122-195: the fifty-fourth
+     * clientbound play packet): position + the tile type byte + the NBT
+     * compound. The spawner's spinning body rides it (Slice 18e).
+     */
+    static final int S2C_UPDATE_BLOCK_ENTITY = 0x35;
+    /** The tile type byte: 1 = the mob spawner (BlockEntity ids, 1.8.8). */
+    static final byte BLOCK_ENTITY_TYPE_MOB_SPAWNER = 1;
+    /** The spawner's legacy block id (the block event's type word). */
+    static final int SPAWNER_LEGACY_BLOCK_ID = 52;
+    /** The fired cycle's flame burst (MobSpawner.tick line 108: doEvent 2004). */
+    static final int WORLD_EVENT_SPAWNER_FLAMES = 2004;
+    /**
      * Block Break Animation (0x25, protocol 47 — the NetworkProtocol's own
      * registration order: #37 in the clientbound play list): varint id,
      * i64 pos, u8 stage. (0x28 was never the break animation — that slot

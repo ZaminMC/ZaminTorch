@@ -242,6 +242,32 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                 connection.sendSignUpdate(position, lines);
             }
         });
+        // The spawner's broadcasts (Slice 18e): the fired cycle's flames
+        // (doEvent 2004 — the Effect packet) and the delay reroll's spin
+        // reset (the block event 1 — the Block Action packet), both
+        // chunk-gated per connection inside the senders.
+        if (server.spawnerManager() != null) {
+            server.spawnerManager().addListener(
+                    new net.zaminmc.torch.server.spawner.SpawnerManager.Listener() {
+                @Override
+                public void onSpawnerFired(int dimension,
+                        net.zaminmc.torch.block.BlockPosition position) {
+                    for (V18Connection connection
+                            : connections.keySet().toArray(new V18Connection[0])) {
+                        connection.sendSpawnerFlames(position);
+                    }
+                }
+
+                @Override
+                public void onSpawnerDelayRerolled(int dimension,
+                        net.zaminmc.torch.block.BlockPosition position) {
+                    for (V18Connection connection
+                            : connections.keySet().toArray(new V18Connection[0])) {
+                        connection.sendSpawnerSpinReset(position);
+                    }
+                }
+            });
+        }
         // Living mobs: engine decides lifecycle, adapter renders protocol 47.
         server.addMobListener(new net.zaminmc.torch.server.entity.MobManager.Listener() {
             @Override

@@ -551,14 +551,18 @@ public final class EngineServer implements Server, EngineBridge {
                     // spawn chunks' pending animals drain on the first tick.
                 }
                 // Mob spawners (Slice 12g): the structure-placed spawner
-                // blocks' state + the spawn walk.
+                // blocks' state + the spawn walk — dimension-aware since
+                // 18e (the cell gate + the cleanup read the spawner's own
+                // world; the fortress's blaze spawners no longer die on
+                // their first tick).
                 spawnerManager = new net.zaminmc.torch.server.spawner.SpawnerManager(
                         new java.util.Random(),
                         () -> players.all().stream()
                                 .map(net.zaminmc.torch.server.player.PlayerSession::position)
                                 .toList(),
                         mobs,
-                        world);
+                        dimension -> dimension == -1 && netherWorld != null
+                                ? netherWorld : world);
                 this.spawners = spawnerManager;
                 // Falling blocks (§470): the block→entity→block transition for
                 // gravity blocks; occupied landings drop as items.
@@ -1224,6 +1228,15 @@ public final class EngineServer implements Server, EngineBridge {
      */
     public EngineWorld netherWorld() {
         return netherWorld;
+    }
+
+    /**
+     * The mob spawner system's public surface (Slice 18e — the wire's tile
+     * read + the protocol adapter's listener registration): null before
+     * the boot's construction window.
+     */
+    public net.zaminmc.torch.server.spawner.SpawnerManager spawnerManager() {
+        return spawnerManager;
     }
 
     /** The nether dimension's ownership domain ("simulation:nether"). */
@@ -7754,7 +7767,9 @@ public final class EngineServer implements Server, EngineBridge {
      * steady tick. Tick-thread context.
      */
     private void drainGenerationAttachments() {
+        int dimension = 0;
         for (EngineWorld world : new EngineWorld[]{this.world, netherWorld}) {
+            int worldDimension = dimension++;
             for (net.zaminmc.torch.server.world.EngineChunk chunk : world.loadedChunks()) {
                 if (!chunk.pendingVillagers().isEmpty()) {
                     for (net.zaminmc.torch.server.world.EngineChunk.PendingVillager pending
@@ -7874,12 +7889,16 @@ public final class EngineServer implements Server, EngineBridge {
                                 new net.zaminmc.torch.block.BlockPosition(
                                         pending.x(), pending.y(), pending.z());
                         net.zaminmc.torch.server.spawner.SpawnerManager.MobSpawnerBlockEntity spawner =
-                                spawnerManager.getOrCreate(position);
+                                spawnerManager.getOrCreate(worldDimension, position);
                         // The same guard: a typed spawner (the ZSD-less
                         // in-memory model — a re-publish re-types it)
                         // skips the re-set.
                         if (spawner.type() == null) {
                             spawner.setType(pending.mobType());
+                            // The wire snapshot refresh (the 18e tile view
+                            // carries the type; the rebuild rides the getOrCreate
+                            // path's publication).
+                            spawnerManager.refreshWireTiles();
                         }
                     }
                     chunk.pendingMobSpawners().clear();

@@ -86,6 +86,10 @@ class Protocol18ConformanceTest {
         m.put("S2C_TAB_COMPLETE", 0x3A);
         m.put("S2C_PLUGIN_MESSAGE", 0x3F);
         m.put("S2C_UPDATE_SIGN", 0x33);
+        // Update Block Entity: #54 in the same registration order
+        // (NetworkProtocol line 173 — after MapData 0x34, before
+        // OpenSignEditor 0x36): the spawner's spinning body rides it.
+        m.put("S2C_UPDATE_BLOCK_ENTITY", 0x35);
         m.put("S2C_OPEN_WINDOW", 0x2D);
         m.put("S2C_CLOSE_WINDOW", 0x2E);
         m.put("S2C_SET_SLOT", 0x2F);

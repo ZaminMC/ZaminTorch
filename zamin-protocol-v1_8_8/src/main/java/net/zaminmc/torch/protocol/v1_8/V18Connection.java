@@ -2180,6 +2180,167 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     }
 
     /**
+     * Update Block Entity (0x35, type 1) for one mob spawner
+     * (MobSpawnerBlockEntity.createUpdatePacket lines 56-61): the position,
+     * the tile type byte, and the NBT compound — the reference's writeNbt
+     * family (EntityId + the timing shorts + SpawnData, SpawnPotentials
+     * removed) — the client spins the display entity from it. Any thread.
+     */
+    void sendSpawnerTile(
+            net.zaminmc.torch.server.spawner.SpawnerManager.SpawnerTile tile) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        writeSpawnerTile(channel, tile);
+    }
+
+    /** The tile packet's own writer (the static chunk-send path's form). */
+    private static void writeSpawnerTile(Channel channel,
+            net.zaminmc.torch.server.spawner.SpawnerManager.SpawnerTile tile) {
+        net.zaminmc.torch.block.BlockPosition position = tile.position();
+        String name = wireEntityNameOf(tile.type());
+        ByteBuf out = Unpooled.buffer(96);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_UPDATE_BLOCK_ENTITY);
+        ByteBufOps.writePackedBlockPosition(out, position.x(), position.y(), position.z());
+        out.writeByte(Protocol18.BLOCK_ENTITY_TYPE_MOB_SPAWNER);
+        // The NBT compound (the root: type byte + the empty short-length
+        // name, then the named tags in the reference's own order).
+        out.writeByte(10);              // TAG_Compound (the root marker)
+        out.writeShort(0);              // the root name: empty
+        writeNbtInt(out, "x", position.x());
+        writeNbtInt(out, "y", position.y());
+        writeNbtInt(out, "z", position.z());
+        writeNbtShort(out, "Delay", tile.delay());
+        writeNbtShort(out, "MinSpawnDelay", 200);
+        writeNbtShort(out, "MaxSpawnDelay", 800);
+        writeNbtShort(out, "SpawnCount", 4);
+        writeNbtShort(out, "MaxNearbyEntities", 6);
+        writeNbtShort(out, "RequiredPlayerRange", 16);
+        writeNbtShort(out, "SpawnRange", 4);
+        writeNbtString(out, "EntityId", name);
+        // SpawnData (writeNbt line 240): the next entry's properties — the
+        // client's display entity reads the "id" member.
+        out.writeByte(10);              // TAG_Compound
+        SlotNbt.writeShortString(out, "SpawnData");
+        writeNbtString(out, "id", name);
+        out.writeByte(0);               // end of SpawnData
+        out.writeByte(0);               // end of the root
+        channel.writeAndFlush(out);
+    }
+
+    /** One named NBT Int (tag 3). */
+    private static void writeNbtInt(ByteBuf out, String name, int value) {
+        out.writeByte(3);
+        SlotNbt.writeShortString(out, name);
+        out.writeInt(value);
+    }
+
+    /** One named NBT Short (tag 2). */
+    private static void writeNbtShort(ByteBuf out, String name, int value) {
+        out.writeByte(2);
+        SlotNbt.writeShortString(out, name);
+        out.writeShort(value);
+    }
+
+    /** One named NBT String (tag 8) — the short-length modified UTF-8. */
+    private static void writeNbtString(ByteBuf out, String name, String value) {
+        out.writeByte(8);
+        SlotNbt.writeShortString(out, name);
+        SlotNbt.writeShortString(out, value);
+    }
+
+    /**
+     * The fired cycle's flames (MobSpawner.tick line 108:
+     * {@code world.doEvent(2004, blockpos, 0)}): the Effect packet with the
+     * spawner position — the client draws the burst itself. Chunk-gated.
+     * Any thread.
+     */
+    void sendSpawnerFlames(net.zaminmc.torch.block.BlockPosition position) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY
+                || chunkTracker == null) {
+            return;
+        }
+        if (!chunkTracker.hasChunk(position.chunkPosition().packed())) {
+            return; // the observer cannot see that spawner
+        }
+        ByteBuf out = Unpooled.buffer(20);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_WORLD_EVENT);
+        out.writeInt(Protocol18.WORLD_EVENT_SPAWNER_FLAMES);
+        ByteBufOps.writePackedBlockPosition(out, position.x(), position.y(), position.z());
+        out.writeInt(0); // data
+        out.writeBoolean(false);
+        channel.writeAndFlush(out);
+    }
+
+    /**
+     * The delay reroll's spin reset (delay line 187 → broadcastEvent(1) →
+     * addBlockEvent(pos, MOB_SPAWNER, 1, 0)): the Block Action packet —
+     * the client resets its spin rate to the min-delay band. Chunk-gated.
+     * Any thread.
+     */
+    void sendSpawnerSpinReset(net.zaminmc.torch.block.BlockPosition position) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY
+                || chunkTracker == null) {
+            return;
+        }
+        if (!chunkTracker.hasChunk(position.chunkPosition().packed())) {
+            return; // the observer cannot see that spawner
+        }
+        ByteBuf out = Unpooled.buffer(16);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_BLOCK_ACTION);
+        ByteBufOps.writePackedBlockPosition(out, position.x(), position.y(), position.z());
+        out.writeByte(1);  // the event: the spin reset
+        out.writeByte(0);  // the param
+        out.writeInt(Protocol18.SPAWNER_LEGACY_BLOCK_ID);
+        channel.writeAndFlush(out);
+    }
+
+    /**
+     * The reference's own entity registration names (Entities.java lines
+     * 255-286): the wire's {@code EntityId} strings the 1.8.8 client
+     * resolves through its own Entities table — "PigZombie" for the
+     * pigman, "LavaSlime" for the magma cube, "MushroomCow" for the
+     * mooshroom, "SnowMan" for the snow golem, "Ozelot" for the ocelot
+     * (the reference's own spellings).
+     */
+    static String wireEntityNameOf(net.zaminmc.torch.server.entity.MobType type) {
+        return switch (type) {
+            case CREEPER -> "Creeper";
+            case SKELETON -> "Skeleton";
+            case SPIDER -> "Spider";
+            case ZOMBIE -> "Zombie";
+            case SLIME -> "Slime";
+            case GHAST -> "Ghast";
+            case ZOMBIE_PIGMAN -> "PigZombie";
+            case ENDERMAN -> "Enderman";
+            case CAVE_SPIDER -> "CaveSpider";
+            case SILVERFISH -> "Silverfish";
+            case BLAZE -> "Blaze";
+            case MAGMA_CUBE -> "LavaSlime";
+            case BAT -> "Bat";
+            case WITCH -> "Witch";
+            case ENDERMITE -> "Endermite";
+            case GUARDIAN -> "Guardian";
+            case PIG -> "Pig";
+            case SHEEP -> "Sheep";
+            case COW -> "Cow";
+            case CHICKEN -> "Chicken";
+            case SQUID -> "Squid";
+            case WOLF -> "Wolf";
+            case MOOSHROOM -> "MushroomCow";
+            case SNOW_GOLEM -> "SnowMan";
+            case OCELOT -> "Ozelot";
+            case IRON_GOLEM -> "VillagerGolem";
+            case HORSE -> "EntityHorse";
+            case RABBIT -> "Rabbit";
+            case VILLAGER -> "Villager";
+        };
+    }
+
+    /**
      * Held Item Change (0x09, community-verified layout: i8 slot) — the
      * server's confirm of the owner's hotbar switch. Any thread.
      */
@@ -3936,6 +4097,20 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             if (dimension == 0) {
                 for (var entry : engine.signs().inChunk(chunk.position())) {
                     writeSignUpdate(channel, entry.getKey(), entry.getValue());
+                }
+            }
+            // The spawner tile replay (Slice 18e — the same protocol 47
+            // gap): every spawner in the freshly sent column re-sends its
+            // Update Block Entity (the reference's PlayerChunkMap sending
+            // the block entity's createUpdatePacket with the chunk), the
+            // tile's own dimension gating the walk (a chunk (x, z) exists
+            // in both worlds — only this observer's dimension's tiles).
+            var spawnerManager = engine.spawnerManager();
+            if (spawnerManager != null) {
+                for (var tile : spawnerManager.spawnersIn(chunk.position().packed())) {
+                    if (tile.dimension() == dimension) {
+                        writeSpawnerTile(channel, tile);
+                    }
                 }
             }
         }
