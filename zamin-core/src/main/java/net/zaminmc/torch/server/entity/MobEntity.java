@@ -180,6 +180,15 @@ public final class MobEntity implements LivingEntity {
         }
 
         /**
+         * The dimension context switch (Slice 25d — the reference's
+         * Entity.world: every body reads its own world). The shared query
+         * flips its active dimension before each body's walk; the stub
+         * worlds keep the single-dimension default.
+         */
+        default void setActiveDimension(int dimension) {
+        }
+
+        /**
          * Whether the cell is iron bars or a bed (Slice 25a — the zombie
          * villager's cure accelerator, ZombieEntity
          * .getTicksUntilConversionDecrement lines 549-559: the 1%-roll scan
@@ -461,6 +470,24 @@ public final class MobEntity implements LivingEntity {
     private boolean zombieVillager;
     private int ticksUntilConversion = -1;
     private boolean pendingZombieConversionComplete;
+
+    /**
+     * The body's dimension (Slice 25d — the reference's Entity.dimension:
+     * 0 the overworld, -1 the nether). The shared world query flips to
+     * the body's own world before every walk (setActiveDimension) — the
+     * nether mobs' physics, scans, and spawns read the nether's blocks.
+     */
+    private int dimension;
+
+    /** @return the dimension the body lives in (0 overworld, -1 nether). */
+    public int dimension() {
+        return dimension;
+    }
+
+    /** Sets the body's dimension (the spawn walks and the restore stamp it). */
+    public void setDimension(int dimension) {
+        this.dimension = dimension;
+    }
 
     /** The despawn's persistence flag (the leashed family and the tamed tameables never leave). */
     public boolean persistent() {

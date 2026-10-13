@@ -2832,6 +2832,12 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 || chunkTracker == null) {
             return;
         }
+        // Slice 25d: the mob's own dimension gates the observer (the same
+        // chunk coordinates exist in both worlds — a nether body never
+        // spawns for an overworld observer, whatever the chunk view holds).
+        if (dimensionOfSession() != mob.dimension()) {
+            return;
+        }
         var blockPos = mob.position().toBlockPosition();
         if (!chunkTracker.hasChunk(blockPos.chunkPosition().packed())) {
             return; // observer cannot see that chunk yet
@@ -3507,6 +3513,10 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     void sendMobMoved(net.zaminmc.torch.server.entity.MobEntity mob) {
         Channel channel = adapter.channelOf(this);
         if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        // Slice 25d: the body's own dimension gates the observer.
+        if (dimensionOfSession() != mob.dimension()) {
             return;
         }
         long[] last = mobSyncState.get(mob.entityId());

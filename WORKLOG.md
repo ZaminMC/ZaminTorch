@@ -4528,3 +4528,48 @@ thrown-family refusals + the fire charge's family arm; the 25-tick
 window — the shooter immune inside, the deflected strike landing at tick
 26; the thrown family's 5-tick control). The neighboring suites green
 (projectile manager, bow family).
+
+## Slice 25d — the dimension-aware MobWorldQuery (every body reads its own world)
+
+**The reference's model:** `Entity.world` — every body carries its own
+world; the nether's pigmen, ghasts, magma cubes, and blazes read the
+NETHER's blocks, not the overworld's at the same coordinates.
+
+**The engine's pre-25d limitation closed:** the shared `MobWorldQuery`
+read the overworld for everyone (the documented engine-wide gap since
+Slice 16d's nether spawn cycle).
+
+**The design:** `MobEntity.dimension` (0/-1, the reference's
+Entity.dimension) + the WorldQuery's new `setActiveDimension` default
+(the stub worlds keep the single-dimension no-op) + the manager's
+per-body flip before every walk (`world.setActiveDimension(mob.dimension())`
+in both tick arms — the tick-lane-only mutable context). The engine's
+query resolves every read through `activeWorld()` — the solidity pair,
+the support, the fluids/lava/fire, the block identity, the pathing
+material, the iron-bars/bed scan — and the scans filter by dimension:
+`nearestPlayer`, `nearestPlayerView`, `nearestMobOfKind`, and
+`nearestHostileMob` answer their own dimension's bodies only.
+
+**The player walks:** the melee target (`nearestPlayingPlayer`) and the
+despawn window's nearest-player scan filter by the body's dimension — a
+nether body never measures an overworld player standing at the same
+coordinates.
+
+**The stamps:** `spawnNaturalNether` stamps -1; every spawner body
+carries its spawner's own dimension (the 18e dimension model's spawn
+arm); the ZMD v2 state block gained the dimension byte (bit 6 — a nether
+pigman restores into the nether, never the overworld; the -1 lands as
+the u8 255 and reads back through the signed byte).
+
+**The wire:** the mob spawn and move packets gate on the observer's own
+dimension (`connection.dimensionOfSession() != mob.dimension()` — the
+same coords exist in both worlds; a nether body never spawns for an
+overworld observer, whatever the chunk view holds).
+
+Tests: DimensionAwareMobQueryTest (4: the per-body flip through the
+recording stub + the nether stamp; the dimension round-trip through the
+store + the restore; the bare body's default; the LIVE ENGINE walk — a
+netherrack platform in the nether holds a nether-spawned pigman whose
+support read answers from the nether's blocks). The neighboring suites
+green (nether monsters, the conversion family, the store, the manager,
+the dimension walk, the spawner, the integration).

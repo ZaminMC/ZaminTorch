@@ -47,6 +47,8 @@ public final class MobDataStore {
     private static final int FLAG_BREEDING_AGE = 0x08;
     private static final int FLAG_SKELETON_WITHER = 0x10;
     private static final int FLAG_SLIME_SIZE = 0x20;
+    /** The body's dimension (Slice 25d — Entity.dimension, 0 the overworld). */
+    private static final int FLAG_DIMENSION = 0x40;
 
     private final Path file;
 
@@ -163,6 +165,9 @@ public final class MobDataStore {
         if (extras.slimeSize() != 1) {
             flags |= FLAG_SLIME_SIZE;
         }
+        if (extras.dimension() != 0) {
+            flags |= FLAG_DIMENSION;
+        }
         out.writeByte(flags);
         if ((flags & FLAG_ZOMBIE_VILLAGER) != 0) {
             out.writeByte(1);
@@ -185,6 +190,9 @@ public final class MobDataStore {
         }
         if ((flags & FLAG_SLIME_SIZE) != 0) {
             out.writeByte(extras.slimeSize());
+        }
+        if ((flags & FLAG_DIMENSION) != 0) {
+            out.writeByte(extras.dimension());
         }
     }
 
@@ -227,9 +235,14 @@ public final class MobDataStore {
         if ((flags & FLAG_SLIME_SIZE) != 0) {
             slimeSize = in.readUnsignedByte();
         }
+        int dimension = 0;
+        if ((flags & FLAG_DIMENSION) != 0) {
+            // The byte carries the dimension (-1 lands as the u8 255).
+            dimension = in.readByte();
+        }
         return new MobManager.MobStateExtras(zombieVillager, zombieConversion,
                 profession, career, careerLevel, riches, rabbitVariant, breedingAge,
-                wither, slimeSize);
+                wither, slimeSize, dimension);
     }
 
     private static void writeString(DataOutputStream out, String value) throws IOException {

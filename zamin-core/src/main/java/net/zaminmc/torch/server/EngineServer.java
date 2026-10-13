@@ -10586,34 +10586,97 @@ public final class EngineServer implements Server, EngineBridge {
      * world the tick thread owns. Called only on the simulation context.
      */
     private final class MobWorldQuery implements MobEntity.WorldQuery {
+        /**
+         * The active dimension (Slice 25d — the reference's Entity.world:
+         * every body reads its own world). The manager's tick loop flips
+         * this before each body's walk; the reads resolve through it.
+         * Tick-lane only (the manager's own context).
+         */
+        private int activeDimension = 0;
+
+        /** The dimension context switch (the manager's per-body flip). */
+        @Override
+        public void setActiveDimension(int dimension) {
+            this.activeDimension = dimension;
+        }
+
+        /** The world the active dimension lives in (the nether's stand-in: the overworld when unbooted). */
+        private EngineWorld activeWorld() {
+            return activeDimension == -1 && netherWorld != null ? netherWorld : world;
+        }
+
+        /** The dimension-aware solidity (the overworld helpers stay for the dimension-blind systems). */
+        private boolean solidInDimension(double x, double y, double z) {
+            if (y < net.zaminmc.torch.block.BlockPosition.MIN_Y
+                    || y > net.zaminmc.torch.block.BlockPosition.MAX_Y) {
+                return false;
+            }
+            return WorldSolidity.isSolid(activeWorld().getBlock(blockAt(x, y, z)));
+        }
+
+        private boolean solidAtPointInDimension(double x, double y, double z) {
+            if (y < net.zaminmc.torch.block.BlockPosition.MIN_Y
+                    || y > net.zaminmc.torch.block.BlockPosition.MAX_Y) {
+                return false;
+            }
+            return WorldSolidity.isSolidAt(activeWorld().getBlock(blockAt(x, y, z)), y);
+        }
+
+        private double supportYInDimension(double x, double y, double z) {
+            if (y < net.zaminmc.torch.block.BlockPosition.MIN_Y
+                    || y > net.zaminmc.torch.block.BlockPosition.MAX_Y) {
+                return Double.NEGATIVE_INFINITY;
+            }
+            return WorldSolidity.supportY(activeWorld().getBlock(blockAt(x, y, z)), y);
+        }
+
+        private net.zaminmc.torch.block.BlockType blockInDimensionBoundsSafe(
+                double x, double y, double z) {
+            if (y < net.zaminmc.torch.block.BlockPosition.MIN_Y
+                    || y > net.zaminmc.torch.block.BlockPosition.MAX_Y) {
+                return world.airType();
+            }
+            return activeWorld().getBlock(blockAt(x, y, z));
+        }
+
+        /** The dimension-aware fluid read. */
+        private boolean fluidInDimension(double x, double y, double z) {
+            if (y < net.zaminmc.torch.block.BlockPosition.MIN_Y
+                    || y > net.zaminmc.torch.block.BlockPosition.MAX_Y) {
+                return false;
+            }
+            return FluidBlocks.kindOf(
+                    activeWorld().getBlock(blockAt(x, y, z)).identifier()) != null;
+        }
+
         @Override
         public boolean isSolid(double x, double y, double z) {
-            return solidAt(x, y, z);
+            return solidInDimension(x, y, z);
         }
 
         @Override
         public boolean isSolidAt(double x, double y, double z) {
-            return solidAtPoint(x, y, z);
+            return solidAtPointInDimension(x, y, z);
         }
 
         @Override
         public double supportY(double x, double y, double z) {
-            return supportYAt(x, y, z);
+            return supportYInDimension(x, y, z);
         }
 
         @Override
         public boolean inFluid(double x, double y, double z) {
-            return fluidAt(x, y, z);
+            return fluidInDimension(x, y, z);
         }
 
         @Override
         public boolean inLava(double x, double y, double z) {
-            return FluidBlocks.isLava(blockAtBoundsSafe(x, y, z).identifier());
+            return FluidBlocks.isLava(blockInDimensionBoundsSafe(x, y, z).identifier());
         }
 
         @Override
         public boolean inFire(double x, double y, double z) {
-            return WorldSolidity.isFire(blockAtBoundsSafe(x, y, z).identifier());
+            return WorldSolidity.isFire(blockInDimensionBoundsSafe(x, y, z).identifier());
         }
 
         /**
@@ -10629,11 +10692,13 @@ public final class EngineServer implements Server, EngineBridge {
         /**
          * The zombie villager's cure accelerator (Slice 25a —
          * getTicksUntilConversionDecrement lines 549-559): the iron bars
-         * and bed cells the 1%-roll scan counts.
+         * and bed cells the 1%-roll scan counts, read from the body's own
+         * dimension.
          */
         @Override
         public boolean isIronBarsOrBed(int x, int y, int z) {
-            net.zaminmc.torch.util.Identifier id = blockIdAt(x, y, z);
+            net.zaminmc.torch.util.Identifier id = blockInDimensionBoundsSafe(
+                    x + 0.5, y + 0.5, z + 0.5).identifier();
             return id.toString().equals("minecraft:iron_bars")
                     || id.toString().equals("minecraft:bed");
         }
@@ -10641,7 +10706,7 @@ public final class EngineServer implements Server, EngineBridge {
         @Override
         public net.zaminmc.torch.server.entity.ai.pathing.CellMaterial pathMaterialAt(int x, int y, int z) {
             return net.zaminmc.torch.server.entity.ai.pathing.PathBlocks.materialOf(
-                    blockAtBoundsSafe(x, y, z));
+                    blockInDimensionBoundsSafe(x + 0.5, y + 0.5, z + 0.5));
         }
 
         /**
@@ -10650,14 +10715,15 @@ public final class EngineServer implements Server, EngineBridge {
          */
         @Override
         public net.zaminmc.torch.util.Identifier blockIdAt(int x, int y, int z) {
-            return blockAtBoundsSafe(x + 0.5, y + 0.5, z + 0.5).identifier();
+            return blockInDimensionBoundsSafe(x + 0.5, y + 0.5, z + 0.5).identifier();
         }
 
         @Override
         public boolean touchingCactus(double x, double y, double z) {
             int by = (int) Math.floor(y);
-            return WorldSolidity.isCactus(blockAtBoundsSafe(x, y, z).identifier())
-                    || WorldSolidity.isCactus(blockAtBoundsSafe(x, by - 1.0, z).identifier());
+            return WorldSolidity.isCactus(blockInDimensionBoundsSafe(x, y, z).identifier())
+                    || WorldSolidity.isCactus(
+                            blockInDimensionBoundsSafe(x, by - 1.0, z).identifier());
         }
 
         @Override
@@ -10683,7 +10749,10 @@ public final class EngineServer implements Server, EngineBridge {
             PlayerSession best = null;
             double bestDistance = range * range;
             for (PlayerSession player : players.all()) {
-                if (player.state() != PlayerState.PLAYING || player.dead()) {
+                if (player.state() != PlayerState.PLAYING || player.dead()
+                        // Slice 25d: the body reads its own world's players
+                        // (the same coords exist in both dimensions).
+                        || player.dimension() != activeDimension) {
                     continue;
                 }
                 Position p = player.position();
@@ -10710,7 +10779,9 @@ public final class EngineServer implements Server, EngineBridge {
             MobEntity best = null;
             double bestDistance = range * range;
             for (MobEntity mob : mobManager.all()) {
-                if (mob.dead() || mob.type() != kind) {
+                if (mob.dead() || mob.type() != kind
+                        // Slice 25d: the scan reads its own dimension's mobs.
+                        || mob.dimension() != activeDimension) {
                     continue;
                 }
                 Position p = mob.position();
@@ -10738,7 +10809,9 @@ public final class EngineServer implements Server, EngineBridge {
             MobEntity best = null;
             double bestDistance = range * range;
             for (MobEntity mob : mobManager.all()) {
-                if (mob.dead() || !mob.type().hostile) {
+                if (mob.dead() || !mob.type().hostile
+                        // Slice 25d: the scan reads its own dimension's mobs.
+                        || mob.dimension() != activeDimension) {
                     continue;
                 }
                 Position p = mob.position();
@@ -10776,7 +10849,10 @@ public final class EngineServer implements Server, EngineBridge {
             PlayerSession best = null;
             double bestDistance = range * range;
             for (PlayerSession player : players.all()) {
-                if (player.state() != PlayerState.PLAYING || player.dead()) {
+                if (player.state() != PlayerState.PLAYING || player.dead()
+                        // Slice 25d: the awareness goals read their own
+                        // dimension's players.
+                        || player.dimension() != activeDimension) {
                     continue;
                 }
                 Position p = player.position();
