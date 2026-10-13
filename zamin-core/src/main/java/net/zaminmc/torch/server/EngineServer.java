@@ -4708,7 +4708,107 @@ public final class EngineServer implements Server, EngineBridge {
             spawnVehicleUseOnTick(session, clicked, face, creativeHeld, false);
             return; // the minecart spawns on the rail the use names
         }
+        if (heldId.equals("minecraft:pumpkin") || heldId.equals("minecraft:lit_pumpkin")
+                || creativeHeld.map(t -> t.identifier().value().equals("pumpkin")
+                        || t.identifier().value().equals("lit_pumpkin")).orElse(false)) {
+            placePumpkinOnTick(session, clicked, face, creativeHeld,
+                    heldId.equals("minecraft:lit_pumpkin"));
+            return; // the golem-build check rides the placement (Slice 17d)
+        }
         blockInteraction.placeFromUseOnTick(session, clicked, face, creativeHeld);
+    }
+
+    /**
+     * The pumpkin placement (Slice 17d — PumpkinBlock.onAdded +
+     * trySpawnGolem lines 53-112): the block lands like any woody block
+     * (the historical FACING rotation ledgers with the metadata slice —
+     * the engine registers the unrotated form), then the build scan runs:
+     * the snow pattern (two snow blocks under the head) builds the snow
+     * golem, the iron cross (the 3-wide chest row + the base, the ~ air
+     * guards at the head's sides and the base's sides) builds the iron
+     * golem — player-created, both bodies landing at the pattern's own
+     * spawn cell with the +0.05 hop. Tick-thread context.
+     */
+    private void placePumpkinOnTick(PlayerSession session, BlockPosition clicked, int face,
+                                    java.util.Optional<BlockType> creativeHeld, boolean lit) {
+        BlockPosition target = offsetByFace(clicked, face);
+        if (target == null || !world.getBlock(target).equals(world.airType())) {
+            return;
+        }
+        if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5) {
+            return;
+        }
+        if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE
+                && session.inventory().held().isEmpty()) {
+            return;
+        }
+        // PumpkinBlock.canBePlaced (lines 123-125): the replaceable material
+        // gate + the solid top below.
+        if (!WorldSolidity.isSolid(world.getBlock(target.offset(0, -1, 0)))) {
+            return;
+        }
+        world.setBlock(target, lit ? BuiltinBlocks.LIT_PUMPKIN : BuiltinBlocks.PUMPKIN);
+        consumePlaced(session, creativeHeld);
+        trySpawnGolem(target);
+    }
+
+    /**
+     * The golem build scan (trySpawnGolem 1:1 — the snow column first, the
+     * iron cross second, the body blocks clearing to air on the match):
+     * the snow golem spawns at the bottom snow cell, the iron golem at the
+     * base's center cell with the player-created flag.
+     */
+    private void trySpawnGolem(BlockPosition head) {
+        // The snow pattern (getSnowGolemPattern): "^" / "#" / "#" — the
+        // head over two snow blocks.
+        boolean snowBody = isBlockAt(head.offset(0, -1, 0), BuiltinBlocks.SNOW)
+                && isBlockAt(head.offset(0, -2, 0), BuiltinBlocks.SNOW);
+        if (snowBody) {
+            world.setBlock(head, world.airType());
+            world.setBlock(head.offset(0, -1, 0), world.airType());
+            world.setBlock(head.offset(0, -2, 0), world.airType());
+            BlockPosition at = head.offset(0, -2, 0);
+            mobManager.spawnAt(net.zaminmc.torch.server.entity.MobType.SNOW_GOLEM,
+                    new Position(at.x() + 0.5, at.y() + 0.05, at.z() + 0.5));
+            return;
+        }
+        // The iron pattern (getIronGolemPattern): "~^~" / "###" / "~#~" — the
+        // head over the 3-wide chest row, the single base under the middle
+        // — the reference's BlockPattern.find tries both horizontal axes.
+        for (int axis = 0; axis < 2; axis++) {
+            int dx = axis == 0 ? 1 : 0;
+            int dz = axis == 0 ? 0 : 1;
+            BlockPosition chest = head.offset(0, -1, 0);
+            BlockPosition base = head.offset(0, -2, 0);
+            boolean ironCross = isBlockAt(chest, BuiltinBlocks.IRON_BLOCK)
+                    && isBlockAt(chest.offset(dx, 0, dz), BuiltinBlocks.IRON_BLOCK)
+                    && isBlockAt(chest.offset(-dx, 0, -dz), BuiltinBlocks.IRON_BLOCK)
+                    && isBlockAt(base, BuiltinBlocks.IRON_BLOCK)
+                    && isBlockAt(head.offset(dx, 0, dz), world.airType())
+                    && isBlockAt(head.offset(-dx, 0, -dz), world.airType())
+                    && isBlockAt(base.offset(dx, 0, dz), world.airType())
+                    && isBlockAt(base.offset(-dx, 0, -dz), world.airType());
+            if (!ironCross) {
+                continue;
+            }
+            world.setBlock(head, world.airType());
+            world.setBlock(chest, world.airType());
+            world.setBlock(chest.offset(dx, 0, dz), world.airType());
+            world.setBlock(chest.offset(-dx, 0, -dz), world.airType());
+            world.setBlock(base, world.airType());
+            MobEntity golem = mobManager.spawnAt(
+                    net.zaminmc.torch.server.entity.MobType.IRON_GOLEM,
+                    new Position(base.x() + 0.5, base.y() + 0.05, base.z() + 0.5));
+            if (golem != null) {
+                golem.setPersistent(true); // setPlayerCreated: never despawns
+            }
+            return;
+        }
+    }
+
+    /** @return whether the cell holds exactly the given block type. */
+    private boolean isBlockAt(BlockPosition at, BlockType type) {
+        return world.getBlock(at).equals(type);
     }
 
     /**
@@ -8411,6 +8511,37 @@ public final class EngineServer implements Server, EngineBridge {
         }
 
         /**
+         * The snow golem's volley (Slice 17d — SnowGolemEntity.
+         * doRangedAttack lines 89-96): the snowball launches from the
+         * golem's own height, aimed at the target's eye band pulled to the
+         * 1.1 mark — the reference's own {@code dispense(d1, d2 + f, d3,
+         * 1.6F, 12.0F)} with the horizontal-distance rise.
+         */
+        @Override
+        public void onMobRangedAttackMob(MobEntity shooter, MobEntity target) {
+            for (MobManager.Listener listener : mobListeners) {
+                listener.onMobRangedAttackMob(shooter, target);
+            }
+            Position origin = new Position(shooter.position().x(),
+                    shooter.position().y() + 1.7, shooter.position().z());
+            double d0 = target.position().y() + target.bodyHeight() - 1.1;
+            double d1 = target.position().x() - origin.x();
+            double d2 = d0 - origin.y();
+            double d3 = target.position().z() - origin.z();
+            double horizontal = Math.sqrt(d1 * d1 + d3 * d3);
+            double rise = horizontal * 0.2; // the dispense f term
+            double dx = d1;
+            double dy = d2 + rise;
+            double dz = d3;
+            float yaw = (float) Math.toDegrees(Math.atan2(-dx, dz));
+            float pitch = (float) -Math.toDegrees(Math.atan2(dy, horizontal));
+            projectileManager.launch(ProjectileEntity.Kind.SNOWBALL,
+                    shooter.entityId(), origin, yaw, pitch, 1.6);
+            fxManager.sound(shooter.position(), "random.bow", 1.0f,
+                    1.0f / (fxRandom.nextFloat() * 0.4f + 0.8f));
+        }
+
+        /**
          * The guardian's laser completed (Slice 17a — the charged beam's
          * hit, GuardianAttackEntityGoal.tick lines 508-522): the magic half
          * pierces armor with no knockback ({@code DamageSource.magic}), the
@@ -8831,6 +8962,46 @@ public final class EngineServer implements Server, EngineBridge {
                 }
             }
             return best;
+        }
+
+        /**
+         * The golem family's hostile scan (Slice 17d —
+         * TrackIronGolemTargetGoal + the snow golem's Monster filter): the
+         * nearest live hostile mob, the golem's own kind excluded from the
+         * golem family itself (a snow golem never hunts another golem —
+         * GolemEntity is not a Monster in the reference).
+         */
+        @Override
+        public MobEntity nearestHostileMob(double x, double y, double z, double range) {
+            MobEntity best = null;
+            double bestDistance = range * range;
+            for (MobEntity mob : mobManager.all()) {
+                if (mob.dead() || !mob.type().hostile) {
+                    continue;
+                }
+                Position p = mob.position();
+                double dx = p.x() - x;
+                double dy = p.y() - y;
+                double dz = p.z() - z;
+                double distance = dx * dx + dy * dy + dz * dz;
+                if (distance <= bestDistance) {
+                    bestDistance = distance;
+                    best = mob;
+                }
+            }
+            return best;
+        }
+
+        /**
+         * The hot-biome read (Slice 17d — the snow golem's melt): the
+         * engine's biome family carries exactly one hot biome (the desert,
+         * the reference's temperature 2.0 > 1.0).
+         */
+        @Override
+        public boolean biomeHotAt(double x, double y, double z) {
+            return world.biomeAt(new BlockPosition(
+                    (int) Math.floor(x), (int) Math.floor(y), (int) Math.floor(z)))
+                    .equals("desert");
         }
 
         /**

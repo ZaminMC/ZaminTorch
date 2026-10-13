@@ -246,6 +246,19 @@ public final class BuiltinItems {
             Identifier.parse("minecraft:bowl"), "Bowl", 64);
     public static final EngineItemType MUSHROOM_STEW = new EngineItemType(
             Identifier.parse("minecraft:mushroom_stew"), "Mushroom Stew", 1);
+    // The golem family's block items (Slice 17d — the item ids share the
+    // block ids for all five; the snowball 332 already lives for the
+    // shard family).
+    public static final EngineItemType SNOW_BLOCK = new EngineItemType(
+            Identifier.parse("minecraft:snow"), "Snow", 64);
+    public static final EngineItemType SNOW_LAYER = new EngineItemType(
+            Identifier.parse("minecraft:snow_layer"), "Snow Layer", 64);
+    public static final EngineItemType IRON_BLOCK = new EngineItemType(
+            Identifier.parse("minecraft:iron_block"), "Block of Iron", 64);
+    public static final EngineItemType PUMPKIN = new EngineItemType(
+            Identifier.parse("minecraft:pumpkin"), "Pumpkin", 64);
+    public static final EngineItemType LIT_PUMPKIN = new EngineItemType(
+            Identifier.parse("minecraft:lit_pumpkin"), "Jack o'Lantern", 64);
     public static final EngineItemType RABBIT_HIDE = new EngineItemType(
             Identifier.parse("minecraft:rabbit_hide"), "Rabbit Hide", 64);
     // The fish family (Slice 11i — the reference's Item.java lines 635-636:
@@ -617,6 +630,7 @@ public final class BuiltinItems {
                 BLAZE_POWDER, MAGMA_CREAM, GLISTERING_MELON, RABBIT_FOOT,
                 RABBIT, COOKED_RABBIT, RABBIT_STEW, RABBIT_HIDE,
                 BOWL, MUSHROOM_STEW,
+                SNOW_BLOCK, SNOW_LAYER, IRON_BLOCK, PUMPKIN, LIT_PUMPKIN,
                 FISH, COOKED_FISH,
                 BREWING_STAND,
                 OAK_SLAB, STONE_SLAB, COBBLESTONE_SLAB, SANDSTONE_SLAB,

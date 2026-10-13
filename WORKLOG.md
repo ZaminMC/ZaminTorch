@@ -3031,3 +3031,46 @@ the flat eye, the lifetime wall's persistent gate).
 Fresh suite: **921 green (828 core + 19 api + 74 protocol)**,
 `--max-workers=1`, zero failures (one documented HorseIntegration load
 flake, green on the isolation re-run).
+
+## Slice 17d — the golem pair (the pumpkin's builders)
+
+**Scope**: IronGolemEntity + SnowGolemEntity + the five build blocks +
+the pumpkin's build patterns.
+
+**The blocks**: the snow pair (the full block 80 with the 4-snowball
+drop, the thin layer 78 — a walk-through ground cover), the iron block
+(42, the stone-tier rock), and the pumpkin pair (86/91 — the jack
+o'lantern's famous 15 emission), all with their behavior rows, light
+rows, wire ids, and item forms.
+
+**The iron golem** (99, the 1.4x2.9/100-health body, movement 0.25):
+the reverse hunt — the nearest hostile mob within 32 (GoToEntityTarget
+Goal's range) owns the walk and the melee, the body never hunting
+players (the canAttack gate); the heavy hit ({@code 7 + nextInt(15)},
+tryDamage line 202) with the landed-launch uppercut (velocityY += 0.4)
+through the manager's hurtByMob pipeline, the Entity Event 4 swing-up
+with the {@code mob.irongolem.throw} sound; the drops (the 0-2 poppies
++ the 3-5 iron ingots, per-unit stacks).
+
+**The snow golem** (97, the 0.7x1.9/4-health body, the 1.7 flat eye):
+the 20-tick snowball volley at the hostile kinds within 10 blocks (the
+reference's own dispense aim — the eye band pulled to the 1.1 mark with
+the horizontal-distance rise, the 1.6 speed), the melts (the water
+contact's 1.0 per tick, the hot biome's — the engine's desert — the
+same), and the 0-15 snowball drops.
+
+**The build**: the pumpkin placement (the canBePlaced solid-top gate)
+runs trySpawnGolem — the snow column (two snow blocks under the head)
+builds the snow golem at the bottom cell, the iron cross (the 3-wide
+chest row + the base with the ~ air guards, BOTH horizontal axes —
+BlockPattern.find's rotations) builds the player-created iron golem
+(persistent, never despawns) at the base's center, the body blocks
+clearing to air on the match, both bodies landing at the +0.05 hop.
+
+**Tests**: GolemEntityTest (4: the identities, the heavy band + the
+launch, the hostile hunt, the volley + the melts) + the registry count
+pin (174).
+
+Fresh suite: **925 green (832 core + 19 api + 74 protocol)**,
+`--max-workers=1` — two documented load flakes (the hopper cadence and
+the mob-integration clock, both green on the isolation re-runs).
