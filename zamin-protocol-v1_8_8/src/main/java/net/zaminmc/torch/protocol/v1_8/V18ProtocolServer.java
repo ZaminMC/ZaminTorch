@@ -363,6 +363,17 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                 }
             }
 
+            /**
+             * The enderman's whole state (the carried Short + the screaming
+             * byte, Slice 19d).
+             */
+            @Override
+            public void onEndermanStateChanged(net.zaminmc.torch.server.entity.MobEntity mob) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendEndermanState(mob);
+                }
+            }
+
             /** The guardian's state moved (the flag word + the beam pair). */
             @Override
             public void onGuardianStateChanged(net.zaminmc.torch.server.entity.MobEntity mob) {

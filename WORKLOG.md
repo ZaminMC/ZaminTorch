@@ -3360,3 +3360,45 @@ foreign thread — §27.6's documented off-owner contract).
 
 Ledgers: the five capability rows NOT AUDITED → IMPLEMENTED
 (Experimental).
+
+---
+
+## Slice 19d — the enderman's provocation + carry (the stare + the blocks)
+
+**The hunt-gate correction**: the pre-19d enderman hunted any player in
+the shared aggro band — the reference's body is NEUTRAL until provoked.
+The engine's canHunt now carries the enderman's own gate: only the stare
+or the wound arms the hunt.
+
+**The stare (LookAtPlayerGoal 1:1)**: the nearest player within the
+reference's own FOLLOW_RANGE 64; the look-vector dot band
+`1 - 0.025 / distance` aimed at the body's mid-height; the carved
+pumpkin's veil (the PlayerView helmet read — the engine's armor head
+slot); the clearLine sight gate; the 5-tick creepy window ending in the
+mob.endermen.stare scream + the anger; the hunting body's close-stare
+escape (a staring target inside 4 blocks teleports the body away).
+
+**The takeDamage ladder**: every wound angers (the reference's own
+no-attacker clause reaches the environmental family); the player's melee
+hand marks the permanent anger at the engine's own melee site (the
+creative hand calms instead — the reference's own branch); the
+projectile's unknown origin clears the marker; the endermite's exemption
+rides the endermite-aware hurt overload; the 1-in-100 calm decay; the
+daylight blink clears the whole provocation.
+
+**The carry (PickUpBlockGoal + PlaceBlockGoal 1:1)**: the 1-in-20 pickup
+roll over the ±2/±3/±2 box against the reference's own fourteen-block
+HOLDABLE set (grass, dirt, sand, gravel, the two flowers, the two
+mushrooms, tnt, cactus, clay, pumpkin, melon, mycelium) — the world's
+air write + the carry completing through the manager's intent drain; the
+1-in-2000 place roll over the ±1/±2/±1 box with the air-and-support
+gate.
+
+**The wire**: the carried block's Short at the synced slot 16
+(Block.serialize's combined id<<4|meta through the protocol's legacy
+table) and the screaming byte at 18 — the join view carries both, the
+flip republishes them through the manager's drain.
+
+**Tests**: EndermanCarryStareTest (7). Fresh suite: 872 core green (the
+documented lifecycle load flake green in isolation) + 19 api + 75
+protocol, `--max-workers=1`.

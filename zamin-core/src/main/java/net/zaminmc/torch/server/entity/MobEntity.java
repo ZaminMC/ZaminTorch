@@ -254,6 +254,17 @@ public final class MobEntity implements LivingEntity {
 
         /** The held item's identifier, or null when the hand is empty. */
         String heldItem();
+
+        /**
+         * The helmet slot's identifier, or null when bare (Slice 19d —
+         * the enderman's stare gate: a carved pumpkin blinds the stare
+         * check, EndermanEntity.isLookedAtBy's armor[3] read). The
+         * default answers null so stub worlds keep their no-armor
+         * semantics.
+         */
+        default String helmetItem() {
+            return null;
+        }
     }
 
     /** What the mob is doing (the vanilla-style goal set of this slice). */
@@ -937,6 +948,9 @@ public final class MobEntity implements LivingEntity {
         } else {
             waterDamageTimer = 1; // re-arms: the first wet tick hurts fast
         }
+        // The anger decay (mobAiTick lines 152-154): a body angry without
+        // a player's hand behind it calms on the 1-in-100 roll.
+        tickEndermanCalm();
         if (!night && !dead) {
             float brightness = Math.min(1.0f, world.skyLight(
                     (int) Math.floor(position.x()),
@@ -944,6 +958,10 @@ public final class MobEntity implements LivingEntity {
                     (int) Math.floor(position.z())) / 15.0f);
             if (brightness > 0.5f
                     && random.nextFloat() * 30.0f < (brightness - 0.4f) * 2.0f) {
+                // The daylight blink clears the whole provocation (lines
+                // 159-162): the target, the anger, and the player's hand.
+                setEndermanAngry(false);
+                endermanAttackedByPlayer = false;
                 teleportRandomly();
             }
         }
@@ -954,6 +972,271 @@ public final class MobEntity implements LivingEntity {
 
     /** The enderman's far-target window (the ChasePlayerGoal's counter). */
     private int farFromTargetTicks;
+
+    // ---- the enderman's provocation + carry (EndermanEntity, Slice 19d) ---
+
+    /** The reference's HOLDABLE_BLOCKS (the static block lines 328-343). */
+    private static final java.util.Set<String> ENDERMAN_HOLDABLE = java.util.Set.of(
+            "grass", "dirt", "sand", "gravel",
+            "yellow_flower", "red_flower",
+            "brown_mushroom", "red_mushroom",
+            "tnt", "cactus", "clay", "pumpkin", "melon_block", "mycelium");
+
+    /** The carried block (null = air hands). */
+    private net.zaminmc.torch.block.BlockType endermanCarried;
+    /** The screaming flag (the synced slot 18's byte). */
+    private boolean endermanAngry;
+    /** Whether the anger came from a player's own hand (the decay gate). */
+    private boolean endermanAttackedByPlayer;
+    /** The stare's creepy countdown (LookAtPlayerGoal's 5-tick window). */
+    private int endermanCreepyTicks;
+    /** A pending stare scream (the manager drains it for the sound). */
+    private boolean endermanStareScream;
+    /** A pending pickup intent: the cell the enderman lifted a block from. */
+    private int endermanPickupX;
+    private int endermanPickupY;
+    private int endermanPickupZ;
+    private boolean endermanPickupPending;
+    /** A pending place intent: the cell the carried block goes to. */
+    private int endermanPlaceX;
+    private int endermanPlaceY;
+    private int endermanPlaceZ;
+    private boolean endermanPlacePending;
+    /** The wire's state-dirty flag (the carried block or the scream flipped). */
+    private boolean endermanStateDirty;
+
+    /** The carried block, or null for empty hands. */
+    public net.zaminmc.torch.block.BlockType endermanCarried() {
+        return endermanCarried;
+    }
+
+    /** The screaming flag (isAngry, the synced slot 18). */
+    public boolean endermanAngry() {
+        return endermanAngry;
+    }
+
+    /** Sets the screaming flag (the wire's slot-18 flip rides the drain). */
+    public void setEndermanAngry(boolean angry) {
+        if (endermanAngry != angry) {
+            endermanAngry = angry;
+            endermanStateDirty = true;
+        }
+    }
+
+    /** The player-hand anger marker (the decay gate, takeDamage line 295). */
+    public void setEndermanAttackedByPlayer(boolean attacked) {
+        endermanAttackedByPlayer = attacked;
+    }
+
+    /** The manager's drain: the wire's state flip. */
+    public boolean consumeEndermanStateDirty() {
+        if (endermanStateDirty) {
+            endermanStateDirty = false;
+            return true;
+        }
+        return false;
+    }
+
+    /** The manager's drain: the pickup intent (the cell + the block). */
+    public boolean consumeEndermanPickup() {
+        if (endermanPickupPending) {
+            endermanPickupPending = false;
+            return true;
+        }
+        return false;
+    }
+
+    /** The pickup intent's cell x. */
+    public int endermanPickupX() {
+        return endermanPickupX;
+    }
+
+    /** The pickup intent's cell y. */
+    public int endermanPickupY() {
+        return endermanPickupY;
+    }
+
+    /** The pickup intent's cell z. */
+    public int endermanPickupZ() {
+        return endermanPickupZ;
+    }
+
+    /** The manager's drain: the place intent. */
+    public boolean consumeEndermanPlace() {
+        if (endermanPlacePending) {
+            endermanPlacePending = false;
+            return true;
+        }
+        return false;
+    }
+
+    /** The place intent's cell x. */
+    public int endermanPlaceX() {
+        return endermanPlaceX;
+    }
+
+    /** The place intent's cell y. */
+    public int endermanPlaceY() {
+        return endermanPlaceY;
+    }
+
+    /** The place intent's cell z. */
+    public int endermanPlaceZ() {
+        return endermanPlaceZ;
+    }
+
+    /** The manager's drain: the stare scream (the sound plays at the body). */
+    public boolean consumeEndermanStareScream() {
+        if (endermanStareScream) {
+            endermanStareScream = false;
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * The manager-side pickup completion (the listener's write landed):
+     * the carried block becomes the picked type and the wire's state
+     * flips.
+     */
+    public void completeEndermanPickup(net.zaminmc.torch.block.BlockType picked) {
+        endermanCarried = picked;
+        endermanStateDirty = true;
+    }
+
+    /** The manager-side place completion (the listener's write landed). */
+    public void completeEndermanPlace() {
+        endermanCarried = null;
+        endermanStateDirty = true;
+    }
+
+    /**
+     * The enderman's provocation walk (LookAtPlayerGoal 1:1 adapted to the
+     * engine's mind): the nearest player's stare — the look vector
+     * crossing the body's mid-height band, the carved pumpkin blinding
+     * the check, the line-of-sight gate — counts the 5-tick creepy window
+     * down, then the scream, the anger, and the hunt. While the hunt runs
+     * against a staring player inside 4 blocks the body blinks randomly
+     * (LookAtPlayerGoal.tick lines 418-424).
+     */
+    private void tickEndermanProvocation(boolean hunting) {
+        if (!endermanAngry) {
+            PlayerView view = world.nearestPlayerView(
+                    position.x(), position.y(), position.z(), ENDERMAN_STARE_RANGE);
+            if (view != null && isLookedAtBy(view)) {
+                if (endermanCreepyTicks == 0) {
+                    endermanCreepyTicks = 5; // start()'s own value
+                }
+                if (--endermanCreepyTicks <= 0) {
+                    endermanCreepyTicks = 0;
+                    endermanStareScream = true;
+                    setEndermanAngry(true);
+                    endermanAttackedByPlayer = true; // shouldContinue's own write
+                }
+            } else {
+                endermanCreepyTicks = 0; // stop(): the window re-arms fresh
+            }
+            return;
+        }
+        // The hunted stare: a target that keeps looking from inside 4
+        // blocks teleports the body away (the reference's own escape).
+        if (hunting) {
+            PlayerView view = world.nearestPlayerView(
+                    position.x(), position.y(), position.z(), ENDERMAN_STARE_RANGE);
+            if (view != null && isLookedAtBy(view)
+                    && position.distanceSquared(view.position()) < 16.0) {
+                teleportRandomly();
+            }
+        }
+    }
+
+    /** The stare scan's range (the reference's FOLLOW_RANGE 64). */
+    private static final double ENDERMAN_STARE_RANGE = 64.0;
+
+    /**
+     * The stare check (isLookedAtBy lines 106-118): the player's look
+     * vector against the normalized body-to-eye direction, the 0.025 band
+     * over the distance, the carved pumpkin blinding, the line of sight.
+     */
+    private boolean isLookedAtBy(PlayerView player) {
+        String helmet = player.helmetItem();
+        if (helmet != null && (helmet.equals("minecraft:pumpkin")
+                || helmet.equals("pumpkin"))) {
+            return false; // the carved pumpkin's veil
+        }
+        Position eye = player.position();
+        double lookX = -Math.sin(Math.toRadians(player.yaw()))
+                * Math.cos(Math.toRadians(player.pitch()));
+        double lookY = -Math.sin(Math.toRadians(player.pitch()));
+        double lookZ = Math.cos(Math.toRadians(player.yaw()))
+                * Math.cos(Math.toRadians(player.pitch()));
+        // The band's target: the body's middle (minY + height / 2).
+        double dx = position.x() - eye.x();
+        double dy = position.y() + type.height / 2.0 - (eye.y() + 1.62);
+        double dz = position.z() - eye.z();
+        double distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        if (distance < 1.0E-4) {
+            return true; // inside the body: every look crosses it
+        }
+        double magnitude = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        double dot = (lookX * dx + lookY * dy + lookZ * dz) / magnitude;
+        if (dot <= 1.0 - 0.025 / distance) {
+            return false;
+        }
+        // canSee: the eye-to-mid segment crosses nothing solid.
+        return world.clearLine(eye,
+                new Position(position.x(), position.y() + type.height / 2.0, position.z()));
+    }
+
+    /**
+     * The carry arms (PickUpBlockGoal + PlaceBlockGoal 1:1): the
+     * 1-in-20 pickup roll over the ±2/±3/±2 box around the body (the
+     * holdable set, the world write riding the manager's drain), and the
+     * 1-in-2000 place roll over the ±1/±2/±1 box (air at the cell, a
+     * solid full cube below).
+     */
+    private void tickEndermanCarry() {
+        if (endermanCarried == null) {
+            if (random.nextInt(20) != 0) {
+                return;
+            }
+            int x = (int) Math.floor(position.x() - 2.0 + random.nextDouble() * 4.0);
+            int y = (int) Math.floor(position.y() + random.nextDouble() * 3.0);
+            int z = (int) Math.floor(position.z() - 2.0 + random.nextDouble() * 4.0);
+            net.zaminmc.torch.util.Identifier block = world.blockIdAt(x, y, z);
+            if (block != null && ENDERMAN_HOLDABLE.contains(block.value())) {
+                endermanPickupX = x;
+                endermanPickupY = y;
+                endermanPickupZ = z;
+                endermanPickupPending = true;
+            }
+        } else {
+            if (random.nextInt(2000) != 0) {
+                return;
+            }
+            int x = (int) Math.floor(position.x() - 1.0 + random.nextDouble() * 2.0);
+            int y = (int) Math.floor(position.y() + random.nextDouble() * 2.0);
+            int z = (int) Math.floor(position.z() - 1.0 + random.nextDouble() * 2.0);
+            net.zaminmc.torch.util.Identifier at = world.blockIdAt(x, y, z);
+            net.zaminmc.torch.util.Identifier below = world.blockIdAt(x, y - 1, z);
+            boolean airAt = at == null || at.value().equals("air");
+            boolean solidBelow = below != null && !below.value().equals("air")
+                    && world.isSolid(x + 0.5, y - 0.5, z + 0.5);
+            if (airAt && solidBelow) {
+                endermanPlaceX = x;
+                endermanPlaceY = y;
+                endermanPlaceZ = z;
+                endermanPlacePending = true;
+            }
+        }
+    }
+
+    /** The anger decay (mobAiTick lines 152-154): the 1-in-100 calm-down. */
+    private void tickEndermanCalm() {
+        if (endermanAngry && !endermanAttackedByPlayer && random.nextInt(100) == 0) {
+            setEndermanAngry(false);
+        }
+    }
 
     // ---- the witch's drink (WitchEntity.mobTick lines 96-131) -----------
 
@@ -3572,9 +3855,21 @@ public final class MobEntity implements LivingEntity {
         Position target = world.nearestPlayer(position.x(), position.y(), position.z(),
                 type.hostile ? AGGRO_RANGE : 8.0);
         boolean canHunt = type.hostile && (!type.traits.neutralByDay() || night)
-                && (type != MobType.ZOMBIE_PIGMAN || isAngry()); // the neutral gate (16d)
+                && (type != MobType.ZOMBIE_PIGMAN || isAngry()) // the neutral gate (16d)
+                // The enderman's own provocation gate (19d — the reference's
+                // LookAtPlayerGoal/takeDamage model): the neutral body hunts
+                // only the stare or the wound provoked.
+                && (type != MobType.ENDERMAN || endermanAngry);
         this.visibleTarget = target;
         this.targetHuntable = canHunt;
+
+        // The enderman's provocation + carry (19d): the stare window and
+        // the block arms run whatever the hunt state (the reference's own
+        // goal family runs below the hunt's).
+        if (type == MobType.ENDERMAN) {
+            tickEndermanProvocation(canHunt && target != null);
+            tickEndermanCarry();
+        }
 
         // The angry pigman's own speed boost (the +0.05 modifier on the
         // 0.23 base — mobAiTick's ATTACKING_SPEED_BOOST).

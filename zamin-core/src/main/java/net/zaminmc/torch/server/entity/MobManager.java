@@ -125,6 +125,39 @@ public final class MobManager {
         }
 
         /**
+         * The enderman's whole wire state flipped (Slice 19d — the
+         * carried block's short at the synced slot 16 and the screaming
+         * byte at 18: the client draws the held block and swaps the
+         * jaw from it).
+         */
+        default void onEndermanStateChanged(MobEntity mob) {
+        }
+
+        /**
+         * The enderman lifted a block (PickUpBlockGoal.tick lines
+         * 452-465): the intent's cell — the engine writes air and the
+         * body takes the block.
+         */
+        default void onEndermanPickup(MobEntity mob) {
+        }
+
+        /**
+         * The enderman set its carried block down (PlaceBlockGoal.tick
+         * lines 483-496): the intent's cell — the engine writes the
+         * carried block and the hands empty.
+         */
+        default void onEndermanPlace(MobEntity mob) {
+        }
+
+        /**
+         * The stare scream fired (LookAtPlayerGoal.tick line 412 — the
+         * creepy window's end): the mob.endermen.stare sound at the
+         * body.
+         */
+        default void onEndermanStare(MobEntity mob) {
+        }
+
+        /**
          * The ghast loosed its charged fireball at the target (the launch
          * rides the engine's projectile system; the 1008 launch sound
          * lands with it).
@@ -820,6 +853,32 @@ public final class MobManager {
                     listener.onSilverfishInfest(mob);
                 }
             }
+            // The enderman's carry + provocation (Slice 19d): the wire's
+            // state flip (the carried short + the screaming byte), the
+            // pickup/place intents (the world writes), and the stare
+            // scream's sound.
+            if (mob.consumeEndermanStateDirty()) {
+                for (Listener listener : listeners) {
+                    listener.onEndermanStateChanged(mob);
+                }
+            }
+            if (mob.consumeEndermanPickup()) {
+                for (Listener listener : listeners) {
+                    listener.onEndermanPickup(mob);
+                }
+            }
+            if (mob.consumeEndermanPlace()) {
+                for (Listener listener : listeners) {
+                    listener.onEndermanPlace(mob);
+                }
+            }
+            if (mob.consumeEndermanStareScream()) {
+                // LookAtPlayerGoal.tick line 412: the stare sound at the
+                // body (the pigman's own anger-sound pattern).
+                for (Listener listener : listeners) {
+                    listener.onMobSoundAt(mob, "mob.endermen.stare", 1.0F, 1.0F);
+                }
+            }
             // The guardian's charge cycle (Slice 17a — the laser family):
             // the beam id's live resolution over the session registry (the
             // wire's slot 17 carries the target), the beam's Event 21 at
@@ -1114,8 +1173,12 @@ public final class MobManager {
         double kbYaw = Math.toDegrees(Math.atan2(
                 -(victim.position().x() - attacker.position().x()),
                 victim.position().z() - attacker.position().z()));
+        // The endermite's exemption rides the inner walk (the cause alone
+        // cannot tell the kin from a claw — EndermanEntity.takeDamage
+        // lines 286-288).
         boolean landed = hurt(victim, amount, kbYaw,
-                net.zaminmc.torch.event.DamageCause.MELEE);
+                net.zaminmc.torch.event.DamageCause.MELEE,
+                attacker.type() == MobType.ENDERMITE);
         if (landed) {
             if (attacker.type() == MobType.IRON_GOLEM) {
                 // tryDamage line 204: the landed golem hit launches the
@@ -1239,6 +1302,17 @@ public final class MobManager {
      */
     public boolean hurt(MobEntity mob, float amount, double attackerYaw,
                         net.zaminmc.torch.event.DamageCause cause) {
+        return hurt(mob, amount, attackerYaw, cause, false);
+    }
+
+    /**
+     * The full walk with the endermite awareness (Slice 19d): the
+     * pearl-spawned kin's melee never angers the tall body — the
+     * reference's own exemption (takeDamage lines 286-288) — so the
+     * mob-vs-mob melee site passes the attacker's identity through.
+     */
+    boolean hurt(MobEntity mob, float amount, double attackerYaw,
+                 net.zaminmc.torch.event.DamageCause cause, boolean endermiteAttacker) {
         Objects.requireNonNull(mob, "mob");
         if (amount <= 0 || mob.dead()) {
             return false;
@@ -1266,6 +1340,19 @@ public final class MobManager {
                     || cause == net.zaminmc.torch.event.DamageCause.EXPLOSION
                     || cause == net.zaminmc.torch.event.DamageCause.MAGIC)) {
             mob.armSilverfishWake();
+        }
+        // The enderman's provocation (Slice 19d — takeDamage lines
+        // 281-309): every wound angers the body (the reference's own
+        // no-attacker clause reaches even the environmental family); the
+        // player's-hand marker lands at the engine's player-melee site
+        // (the cause alone cannot tell a hand from a claw); the
+        // projectile's unknown origin clears it (the dodge path's own
+        // follow-up).
+        if (mob.type() == MobType.ENDERMAN && !endermiteAttacker) {
+            mob.setEndermanAngry(true);
+            if (cause == net.zaminmc.torch.event.DamageCause.PROJECTILE) {
+                mob.setEndermanAttackedByPlayer(false);
+            }
         }
         mob.hurt(amount);
         mob.knockbackFrom(attackerYaw);
