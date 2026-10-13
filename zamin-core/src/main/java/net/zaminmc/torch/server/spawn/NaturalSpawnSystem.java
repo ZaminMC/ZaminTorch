@@ -81,6 +81,20 @@ public final class NaturalSpawnSystem {
     private static final List<SpawnEntry> MONUMENT_MONSTER_ENTRIES = List.of(
             new SpawnEntry(MobType.GUARDIAN, 1, 2, 4));
 
+    /**
+     * The fortress's own monster rows (FortressStructure's constructor,
+     * Slice 18a — the reference's monsterSpawnEntries): the blaze at 10
+     * (groups 2-3), the pigman at 5, the skeleton at 10, the magma cube at
+     * 3 — the nether's spawn consult swaps to these rows inside a
+     * fortress's piece bounds, or its start bounds over nether bricks
+     * (NetherChunkGenerator.getSpawnEntries lines 383-392).
+     */
+    private static final List<SpawnEntry> FORTRESS_MONSTER_ENTRIES = List.of(
+            new SpawnEntry(MobType.BLAZE, 10, 2, 3),
+            new SpawnEntry(MobType.ZOMBIE_PIGMAN, 5, 4, 4),
+            new SpawnEntry(MobType.SKELETON, 10, 4, 4),
+            new SpawnEntry(MobType.MAGMA_CUBE, 3, 4, 4));
+
     /** The engine's mob surface. */
     public interface Mobs {
         /**
@@ -133,6 +147,18 @@ public final class NaturalSpawnSystem {
          * worlds carry no monuments).
          */
         default boolean insideMonument(int x, int y, int z) {
+            return false;
+        }
+
+        /**
+         * Whether the position stands inside a generated nether fortress
+         * (Slice 18a — the reference's
+         * NetherChunkGenerator.getSpawnEntries fortress arm): true inside
+         * a PIECE's bounds, or inside the START's bounds with nether
+         * bricks under the feet. The default answers false (the stub
+         * worlds carry no fortresses).
+         */
+        default boolean insideFortress(int x, int y, int z) {
             return false;
         }
     }
@@ -339,12 +365,19 @@ public final class NaturalSpawnSystem {
                         // the position-aware resolution: inside the
                         // monument bounds the monster list IS the guardian
                         // rows (OverworldChunkGenerator.getSpawnEntries
-                        // lines 451-454, Slice 17a).
+                        // lines 451-454, Slice 17a); inside a fortress the
+                        // nether's monster table IS the fortress rows
+                        // (NetherChunkGenerator.getSpawnEntries lines
+                        // 383-392, Slice 18a — the piece bounds, or the
+                        // start bounds over nether bricks).
                         if (entry == null) {
                             List<SpawnEntry> candidates = entries;
-                            if (category == Category.MONSTER
-                                    && world.insideMonument(x, y, z)) {
-                                candidates = MONUMENT_MONSTER_ENTRIES;
+                            if (category == Category.MONSTER) {
+                                if (world.insideMonument(x, y, z)) {
+                                    candidates = MONUMENT_MONSTER_ENTRIES;
+                                } else if (world.insideFortress(x, y, z)) {
+                                    candidates = FORTRESS_MONSTER_ENTRIES;
+                                }
                             }
                             entry = pickWeighted(candidates);
                             if (entry == null) {

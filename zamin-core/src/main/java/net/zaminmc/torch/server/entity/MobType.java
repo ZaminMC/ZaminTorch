@@ -143,10 +143,18 @@ public enum MobType {
             List.of(),
             "mob.silverfish.say", "mob.silverfish.hit", "mob.silverfish.kill"),
 
-    /** The fortress's spawner mob (Slice 12g): the nether's ranged fire. */
+    /**
+     * The fortress's spawner mob (Slice 18a — the nether's ranged fire,
+     * BlazeEntity 1:1): the 0.6x1.8 fire-immune hull, the 6.0 melee
+     * (initAttributes line 42), the 0.23 walk, the FOLLOW_RANGE 48, the
+     * xpDrop 10 (line 29), and the rod drops through the manager's own
+     * walk ({@code dropItems}: {@code nextInt(2 + looting)} single rods,
+     * the player-kill gate). The fireball volley, the hover rise, and
+     * the water drown ride MobEntity's blaze arms.
+     */
     BLAZE(61, 0.6, 1.8, 20.0f, 0.045, true, new Traits(true, false, false, false),
-            List.of(new ItemRoll(BuiltinItems.BLAZE_POWDER, 0, 1)),
-            "mob.blaze.breathe", "mob.blaze.hit", "mob.blaze.death"),
+            List.of(), // the custom drop walk (BlazeEntity.dropItems)
+            "mob.blaze.breathe", "mob.blaze.hit", "mob.blaze.death", 6.0f),
 
     /**
      * The tall portal-walker (Slice 12i — the natural-spawn row): melee

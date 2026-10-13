@@ -84,6 +84,21 @@ public final class MobManager {
         }
 
         /**
+         * The blaze's fire-active flag flipped (BlazeEntity's synced slot
+         * 16 byte — the client raises the burning rods from it).
+         */
+        default void onMobBlazeFireChanged(MobEntity mob) {
+        }
+
+        /**
+         * The blaze loosed one volley fireball at its target (the launch
+         * rides the engine's projectile system; the 1009 shot event lands
+         * with it — AttackGoal lines 230-244).
+         */
+        default void onMobBlazeFireball(MobEntity mob) {
+        }
+
+        /**
          * The ghast loosed its charged fireball at the target (the launch
          * rides the engine's projectile system; the 1008 launch sound
          * lands with it).
@@ -744,6 +759,19 @@ public final class MobManager {
                     listener.onMobGhastChargingChanged(mob);
                 }
             }
+            // The blaze's volley cycle (Slice 18a — AttackGoal's step
+            // walk): the fireball launch at steps 2-4 and the fire-active
+            // flag's flip on the wire's index-16 byte.
+            if (mob.consumeBlazeFireball()) {
+                for (Listener listener : listeners) {
+                    listener.onMobBlazeFireball(mob);
+                }
+            }
+            if (mob.consumeBlazeFireDirty()) {
+                for (Listener listener : listeners) {
+                    listener.onMobBlazeFireChanged(mob);
+                }
+            }
             // The guardian's charge cycle (Slice 17a — the laser family):
             // the beam id's live resolution over the session registry (the
             // wire's slot 17 carries the target), the beam's Event 21 at
@@ -1267,6 +1295,17 @@ public final class MobManager {
             for (int unit = 0; unit < count; unit++) {
                 lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()),
                         ItemStack.of(BuiltinItems.MAGMA_CREAM, 1));
+            }
+            return;
+        }
+        if (mob.type() == MobType.BLAZE) {
+            // BlazeEntity.dropItems (lines 145-153): nextInt(2 + looting)
+            // single blaze rods — the full-looting bound like the pigman's
+            // pair, each unit its own single-item stack.
+            int rods = random.nextInt(2 + looting);
+            for (int unit = 0; unit < rods; unit++) {
+                lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()),
+                        ItemStack.of(BuiltinItems.BLAZE_ROD, 1));
             }
             return;
         }

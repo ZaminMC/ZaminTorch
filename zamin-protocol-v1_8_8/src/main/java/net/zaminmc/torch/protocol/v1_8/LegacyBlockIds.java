@@ -89,6 +89,10 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:spider_eye"), 375),
             Map.entry(Identifier.parse("minecraft:fermented_spider_eye"), 376),
             Map.entry(Identifier.parse("minecraft:blaze_powder"), 377),
+            // The blaze's own rod (Slice 18a — the reference's Item.java id
+            // 369: BlazeEntity.getDropItem's drop, brewed into stands only
+            // after the powder's family).
+            Map.entry(Identifier.parse("minecraft:blaze_rod"), 369),
             Map.entry(Identifier.parse("minecraft:magma_cream"), 378),
             Map.entry(Identifier.parse("minecraft:glistering_melon"), 382),
             Map.entry(Identifier.parse("minecraft:rabbit_foot"), 414),

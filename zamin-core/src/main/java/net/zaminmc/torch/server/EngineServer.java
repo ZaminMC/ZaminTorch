@@ -8042,6 +8042,37 @@ public final class EngineServer implements Server, EngineBridge {
             return monuments.insideBounds(monumentBiomes, x, y, z);
         }
 
+        /**
+         * The fortress consult (Slice 18a —
+         * NetherChunkGenerator.getSpawnEntries lines 383-392): the strict
+         * piece-bounds arm, or the start's envelope when the cell stands
+         * on nether bricks (the reference's own second clause). The
+         * consult's world view is the same generic adapter the monument
+         * consult rides — the fortress start's creation never reads it
+         * (the fortress's placement math is pure (seed, region), unlike
+         * the monument's biome gates).
+         */
+        @Override
+        public boolean insideFortress(int x, int y, int z) {
+            if (!nether) {
+                return false; // the overworld carries no fortresses
+            }
+            net.zaminmc.torch.server.world.structure.FortressStructure fortresses =
+                    new net.zaminmc.torch.server.world.structure.FortressStructure(worldSeed);
+            if (fortresses.insideBounds(monumentBiomes, x, y, z, true)) {
+                return true; // the piece walk
+            }
+            if (fortresses.insideBounds(monumentBiomes, x, y, z, false)) {
+                // The floor gate: the cell under the feet is nether brick
+                // (the reference's exact-block getBlockState(pos.down())
+                // read — the fence and the stairs never carry the rows).
+                Object below = target.getBlock(new BlockPosition(x, y - 1, z));
+                return below != null
+                        && below.toString().contains("[minecraft:nether_bricks]");
+            }
+            return false;
+        }
+
         @Override
         public int surfaceHeight(int x, int z) {
             if (nether) {
@@ -8393,6 +8424,8 @@ public final class EngineServer implements Server, EngineBridge {
                     ? 5 // GhastEntity's own xpDrop
                     : mob.type() == net.zaminmc.torch.server.entity.MobType.GUARDIAN
                     ? 10 // GuardianEntity's own xpDrop (line 52)
+                    : mob.type() == net.zaminmc.torch.server.entity.MobType.BLAZE
+                    ? 10 // BlazeEntity's own xpDrop (line 29)
                     : ExperienceAwards.forMobKill(mob.type().hostile, gameplayRandom);
             experienceOrbs.spawnBurst(mob.position(), amount, 3);
         }
@@ -8508,6 +8541,56 @@ public final class EngineServer implements Server, EngineBridge {
             double dz = target.z() - origin.z();
             projectileManager.launchGhastFireball(mob.entityId(), origin, dx, dy, dz);
             fxManager.sound(mob.position(), "mob.ghast.fireball", 10.0f, 1.0f);
+        }
+
+        /**
+         * The blaze loosed one volley fireball (BlazeEntity.AttackGoal
+         * lines 230-244): the small fireball spawns at the blaze's own
+         * mid band + 0.5 (the reference's own spawn write), aimed at the
+         * target's mid band with the horizontal-only gaussian spread
+         * (sigma {@code sqrt(sqrt(d0)) * 0.5}) and the ctor's own 0.4
+         * per-axis tilt; the shot rides world event 1009 — the client
+         * plays {@code mob.ghast.fireball} at volume 2.0 (the reference's
+         * own event, the blaze's shared shot sound).
+         */
+        @Override
+        public void onMobBlazeFireball(MobEntity mob) {
+            // The target this tick: the nearest player the volley aimed at.
+            PlayerSession target = null;
+            double nearest = Double.MAX_VALUE;
+            for (PlayerSession player : players.all()) {
+                if (player.state() != net.zaminmc.torch.entity.PlayerState.PLAYING
+                        || player.dead()) {
+                    continue;
+                }
+                double dx = player.position().x() - mob.position().x();
+                double dy = player.position().y() - mob.position().y();
+                double dz = player.position().z() - mob.position().z();
+                double squared = dx * dx + dy * dy + dz * dz;
+                if (squared < nearest) {
+                    nearest = squared;
+                    target = player;
+                }
+            }
+            if (target == null || nearest >= 256.0) {
+                return; // the target slipped beyond the volley band
+            }
+            // AttackGoal lines 214-216: the aim toward the target's MID
+            // band (the shape's minY + height/2 against the blaze's own).
+            double dx = target.position().x() - mob.position().x();
+            double dy = target.position().y() + 1.8 / 2.0
+                    - (mob.position().y() + mob.bodyHeight() / 2.0);
+            double dz = target.position().z() - mob.position().z();
+            // The reference's own spawn write: y = blaze.y + height/2 + 0.5.
+            Position origin = new Position(mob.position().x(),
+                    mob.position().y() + mob.bodyHeight() / 2.0 + 0.5,
+                    mob.position().z());
+            projectileManager.launchBlazeFireball(mob.entityId(), origin,
+                    dx, dy, dz, mob.blazeFireballSigma(nearest));
+            // World event 1009 (WorldRenderer line 1939): the shot the
+            // clients answer with mob.ghast.fireball at volume 2.0.
+            fxManager.sound(mob.position(), "mob.ghast.fireball", 2.0f,
+                    (gameplayRandom.nextFloat() - gameplayRandom.nextFloat()) * 0.2f + 1.0f);
         }
 
         /**

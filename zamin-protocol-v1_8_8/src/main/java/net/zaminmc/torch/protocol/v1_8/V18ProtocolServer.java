@@ -329,6 +329,14 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                 }
             }
 
+            /** The blaze's fire-active flag (the index-16 byte, Slice 18a). */
+            @Override
+            public void onMobBlazeFireChanged(net.zaminmc.torch.server.entity.MobEntity mob) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendBlazeFire(mob);
+                }
+            }
+
             /** The guardian's state moved (the flag word + the beam pair). */
             @Override
             public void onGuardianStateChanged(net.zaminmc.torch.server.entity.MobEntity mob) {
