@@ -272,6 +272,12 @@ public final class BuiltinItems {
             Identifier.parse("minecraft:lit_pumpkin"), "Jack o'Lantern", 64);
     public static final EngineItemType RABBIT_HIDE = new EngineItemType(
             Identifier.parse("minecraft:rabbit_hide"), "Rabbit Hide", 64);
+    // The spawn egg (Slice 20a — Item.java line 683: id 383, the reference's
+    // "monsterPlacer"): the one item whose damage field names a MOB — the
+    // entity registration id (50 creeper .. 120 villager). Stack 64; the
+    // kind dispatch lives in SpawnEggs; the egg colors are client-side.
+    public static final EngineItemType SPAWN_EGG = new EngineItemType(
+            Identifier.parse("minecraft:spawn_egg"), "Spawn Egg", 64);
     // The fish family (Slice 11i — the reference's Item.java lines 635-636:
     // the raw fish 349 and the cooked fish 350, the four variants riding
     // the damage field: 0 cod, 1 salmon, 2 clownfish, 3 pufferfish).
@@ -648,6 +654,7 @@ public final class BuiltinItems {
                 BLAZE_POWDER, MAGMA_CREAM, GLISTERING_MELON, RABBIT_FOOT,
                 BLAZE_ROD,
                 RABBIT, COOKED_RABBIT, RABBIT_STEW, RABBIT_HIDE,
+                SPAWN_EGG,
                 BOWL, MUSHROOM_STEW,
                 SNOW_BLOCK, SNOW_LAYER, IRON_BLOCK, PUMPKIN, LIT_PUMPKIN,
                 STONE_BRICKS,

@@ -96,6 +96,10 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:magma_cream"), 378),
             Map.entry(Identifier.parse("minecraft:glistering_melon"), 382),
             Map.entry(Identifier.parse("minecraft:rabbit_foot"), 414),
+            // The spawn egg (Slice 20a — Item.java line 683's registration,
+            // id 383): the damage field carries the entity id (SpawnEggs'
+            // own table).
+            Map.entry(Identifier.parse("minecraft:spawn_egg"), 383),
             // The fish family (Slice 11i, the reference's Item.java lines
             // 635-636): the raw fish 349 and the cooked fish 350 — the four
             // variants ride the damage field (0 cod, 1 salmon, 2 clownfish,
