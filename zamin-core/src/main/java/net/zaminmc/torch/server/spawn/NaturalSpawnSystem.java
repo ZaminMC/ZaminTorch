@@ -49,6 +49,9 @@ public final class NaturalSpawnSystem {
     private static final double SPAWN_KEEP_OUT_SQUARED = 576.0;
     /** The per-chunk limit (MobEntity.getLimitPerChunk: 4). */
     private static final int LIMIT_PER_CHUNK = 4;
+
+    /** The ghast's own per-chunk cap (GhastEntity.getLimitPerChunk line 131). */
+    private static final int GHAST_LIMIT_PER_CHUNK = 1;
     /** The horse baby roll (HorseBaseEntity.initialize lines 1284-1286:
      * nextInt(5) == 0 — the ONLY animal that spawns as a baby; the cows,
      * pigs, sheep and chickens never do). */
@@ -442,7 +445,12 @@ public final class NaturalSpawnSystem {
                         mobs.spawn(entry.type(),
                                 new Position(centerX, y, centerZ), baby, yaw);
                         packCount++;
-                        if (packCount >= LIMIT_PER_CHUNK) {
+                        // MobEntity.getLimitPerChunk (NaturalSpawner line
+                        // 121): the kind's own cap — the ghast's 1 (its
+                        // override line 130), every other kind the 4.
+                        int limit = entry.type() == MobType.GHAST
+                                ? GHAST_LIMIT_PER_CHUNK : LIMIT_PER_CHUNK;
+                        if (packCount >= limit) {
                             chunkDone = true; // continue label129
                         }
                     }
@@ -529,6 +537,13 @@ public final class NaturalSpawnSystem {
      * cz*389711 ^ 987234911L}), then the {@code y < 40} depth gate.
      */
     private boolean canSpawnAt(MobType type, int x, int y, int z, int chunkX, int chunkZ) {
+        if (type == MobType.GHAST) {
+            // GhastEntity.canSpawn (line 126): the 1-in-20 roll — the
+            // giant body stays rare whatever the weight rows say (the
+            // difficulty != PEACEFUL arm rides the MONSTER category's
+            // own peaceful gate).
+            return random.nextInt(20) == 0;
+        }
         if (type == MobType.SQUID) {
             // SquidEntity.canSpawn: the y 45-seaLevel band, in water.
             return y > 45 && y < 62
