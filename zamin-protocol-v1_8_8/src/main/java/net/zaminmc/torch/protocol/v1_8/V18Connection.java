@@ -1470,6 +1470,26 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     }
 
     @Override
+    public void spawnLightning(int entityId, double x, double y, double z) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        // Spawn Global Entity (0x2C, AddGlobalEntityS2CPacket): the entity
+        // id, the type byte (1 = thunderbolt — the packet's only member),
+        // and the fixed-point 1/32 coordinates (the packet ctor's own
+        // MathHelper.floor(v * 32.0) encoding).
+        ByteBuf out = Unpooled.buffer(20);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_SPAWN_GLOBAL_ENTITY);
+        ByteBufOps.writeVarInt(out, entityId);
+        out.writeByte(Protocol18.GLOBAL_ENTITY_THUNDERBOLT);
+        out.writeInt((int) Math.floor(x * 32.0));
+        out.writeInt((int) Math.floor(y * 32.0));
+        out.writeInt((int) Math.floor(z * 32.0));
+        channel.writeAndFlush(out);
+    }
+
+    @Override
     public void resyncPosition() {
         Channel channel = adapter.channelOf(this);
         if (channel == null || !channel.isActive() || state != WireState.PLAY) {

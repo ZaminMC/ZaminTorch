@@ -305,6 +305,8 @@ public final class EngineServer implements Server, EngineBridge {
     /** The weather state (Slice 20b — the 1.8.8 cycle; the pre-20b boolean
      * model replaced). */
     private volatile net.zaminmc.torch.server.weather.WeatherSystem weather;
+    /** The lightning family (Slice 20c — the strike roll + the bolt life). */
+    private volatile net.zaminmc.torch.server.weather.LightningSystem lightning;
     private final java.util.List<ChatListener> chatListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     private final java.util.List<ItemEntityManager.Listener> itemListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     private final java.util.List<MobManager.Listener> mobListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
@@ -338,6 +340,8 @@ public final class EngineServer implements Server, EngineBridge {
     private static final int TNT_ID_BASE = VEHICLE_ID_BASE + 1_000_000;
     /** Leash knots get the band above the TNT bodies. */
     private static final int KNOT_ID_BASE = TNT_ID_BASE + 1_000_000;
+    /** Lightning bolts get the band above the leash knots. */
+    private static final int LIGHTNING_ID_BASE = KNOT_ID_BASE + 1_000_000;
 
     /** The shared shape-aware physics query (items, falling blocks, projectiles). */
     private final ShapeGround shapeGround = new ShapeGround();
@@ -617,6 +621,123 @@ public final class EngineServer implements Server, EngineBridge {
                         }
                         onRainGradientChanged(weather.rainGradient());
                         onThunderGradientChanged(weather.thunderGradient());
+                    }
+                });
+                // The lightning family (Slice 20c — ServerWorld.tickChunks
+                // lines 313-321 + LightningBoltEntity): the strike roll,
+                // the target resolution, and the bolt's own two-tick life.
+                lightning = new net.zaminmc.torch.server.weather.LightningSystem(
+                        new net.zaminmc.torch.server.weather.LightningSystem.Surface() {
+                            @Override
+                            public int precipitationHeight(int x, int z) {
+                                return surfaceY(x, z);
+                            }
+
+                            @Override
+                            public boolean isAirAt(int x, int y, int z) {
+                                return world.getBlock(new BlockPosition(x, y, z))
+                                        .equals(world.airType());
+                            }
+
+                            @Override
+                            public boolean isSolidAt(int x, int y, int z) {
+                                return net.zaminmc.torch.server.block.WorldSolidity
+                                        .isSolid(world.getBlock(new BlockPosition(x, y, z)));
+                            }
+
+                            @Override
+                            public void placeFireAt(int x, int y, int z) {
+                                world.setBlock(new BlockPosition(x, y, z),
+                                        BuiltinBlocks.FIRE);
+                            }
+
+                            @Override
+                            public java.util.List<net.zaminmc.torch.server.weather.LightningSystem.StruckBody> skyVisibleBodies(
+                                    double minX, double minY, double minZ,
+                                    double maxX, double maxY, double maxZ) {
+                                java.util.List<net.zaminmc.torch.server.weather.LightningSystem.StruckBody> bodies =
+                                        new java.util.ArrayList<>();
+                                for (PlayerSession player : players.all()) {
+                                    if (player.state() != PlayerState.PLAYING
+                                            || player.dead() || player.dimension() != 0) {
+                                        continue;
+                                    }
+                                    Position at = player.position();
+                                    if (at.x() >= minX && at.x() <= maxX
+                                            && at.y() >= minY && at.y() <= maxY
+                                            && at.z() >= minZ && at.z() <= maxZ
+                                            && at.y() >= surfaceY(
+                                                    (int) Math.floor(at.x()), (int) Math.floor(at.z()))) {
+                                        bodies.add(new net.zaminmc.torch.server.weather.LightningSystem.StruckBody() {
+                                            @Override
+                                            public Position position() {
+                                                return at;
+                                            }
+
+                                            @Override
+                                            public void strike() {
+                                                // Entity.struckByLightning lines
+                                                // 1546-1552: 5.0 + the 8-second
+                                                // burn through the player arms.
+                                                damageOnTick(player, 5.0f, 0.0f,
+                                                        "was struck by lightning",
+                                                        DamageKind.LIGHTNING);
+                                                igniteWithFireProtection(player, 8);
+                                            }
+                                        });
+                                    }
+                                }
+                                for (net.zaminmc.torch.server.entity.MobEntity mob : mobs.all()) {
+                                    Position at = mob.position();
+                                    if (at.x() >= minX && at.x() <= maxX
+                                            && at.y() >= minY && at.y() <= maxY
+                                            && at.z() >= minZ && at.z() <= maxZ
+                                            && at.y() >= surfaceY(
+                                                    (int) Math.floor(at.x()), (int) Math.floor(at.z()))) {
+                                        bodies.add(new net.zaminmc.torch.server.weather.LightningSystem.StruckBody() {
+                                            @Override
+                                            public Position position() {
+                                                return at;
+                                            }
+
+                                            @Override
+                                            public void strike() {
+                                                // The mob arm: the manager's
+                                                // hurt walk + the 8-second ignite.
+                                                mobs.hurt(mob, 5.0f, 0.0,
+                                                        net.zaminmc.torch.event.DamageCause.LIGHTNING);
+                                                mob.ignite(160);
+                                            }
+                                        });
+                                    }
+                                }
+                                return bodies;
+                            }
+                        }, new java.util.Random(), LIGHTNING_ID_BASE);
+                lightning.setDifficultyRead(() -> difficulty);
+                lightning.addListener(new net.zaminmc.torch.server.weather.LightningSystem.Listener() {
+                    @Override
+                    public void onBoltStruck(int entityId, double x, double y, double z) {
+                        // The Spawn Global Entity fan: the overworld's
+                        // players only (the bolt is a global body of that
+                        // dimension).
+                        for (PlayerSession player : players.all()) {
+                            if (player.dimension() == 0) {
+                                player.link().spawnLightning(entityId, x, y, z);
+                            }
+                        }
+                    }
+
+                    @Override
+                    public void onThunderPair(double x, double y, double z,
+                                              float thunderPitch, float explodePitch) {
+                        // tick lines 87-90: the thunder at the global
+                        // volume (10000 — every client hears it) and the
+                        // explode pair at 2.
+                        fxManager.sound(new Position(x, y, z),
+                                "ambient.weather.thunder", 10000.0f, thunderPitch);
+                        fxManager.sound(new Position(x, y, z),
+                                "random.explode", 2.0f, explodePitch);
                     }
                 });
                 // The world itself dispatches every committed change (§208): the
@@ -1001,6 +1122,18 @@ public final class EngineServer implements Server, EngineBridge {
                     // the spawns: the reference's own tick order, the
                     // gradient shaving the same tick's ambient darkness).
                     tickWeather();
+                    // The lightning family (Slice 20c — ServerWorld.
+                    // tickChunks lines 313-321): the per-chunk strike roll
+                    // over the loaded window, then the live bolts' walk.
+                    if (lightning != null) {
+                        for (net.zaminmc.torch.server.world.EngineChunk chunk
+                                : world.loadedChunks()) {
+                            lightning.tryStrikeAtChunk(chunk.position().x(),
+                                    chunk.position().z(),
+                                    weather.raining(), weather.thundering());
+                        }
+                        lightning.tick();
+                    }
                     // The natural cycle (Slice 11d — ServerWorld.tick line
                     // 180: the spawner walk every tick, the caps scaled by
                     // the spawning-chunk count). The gradients feed the

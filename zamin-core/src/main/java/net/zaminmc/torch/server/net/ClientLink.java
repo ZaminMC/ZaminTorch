@@ -73,4 +73,12 @@ public interface ClientLink {
      */
     default void playGameState(int reason, float value) {
     }
+
+    /**
+     * Spawns the lightning bolt (Spawn Global Entity 0x2C, type 1 — the
+     * fixed-point 1/32 coordinates). Safe from any thread; default no-op
+     * for engine-internal links.
+     */
+    default void spawnLightning(int entityId, double x, double y, double z) {
+    }
 }

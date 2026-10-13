@@ -37,7 +37,9 @@ public enum DamageCause {
     /** {@code outOfWorld}: the void (every piece contributes zero). */
     OUT_OF_WORLD,
     /** The potion family's periodic/instant arm ({@code DamageSource.magic}). */
-    MAGIC;
+    MAGIC,
+    /** The lightning bolt ({@code DamageSource.lightningBolt}). */
+    LIGHTNING;
 
     /** The reference {@code DamageSource.isFire} family. */
     public boolean isFire() {
