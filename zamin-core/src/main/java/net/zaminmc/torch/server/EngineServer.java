@@ -527,6 +527,7 @@ public final class EngineServer implements Server, EngineBridge {
                         new java.util.Random(),
                         ENTITY_ID_BASE);
                 this.itemEntities = itemEntities;
+                itemEntities.setEventBus(eventBus); // §27.7: the public item-spawn gate
                 itemEntities.addListener(new ItemEventDispatch());
                 // Furnace block entities: world-state simulation, ZFD persistence.
                 furnaceManager = new FurnaceManager();
@@ -1036,6 +1037,7 @@ public final class EngineServer implements Server, EngineBridge {
                         new java.util.Random(),
                         PROJECTILE_ID_BASE);
                 this.projectileManager = projectiles;
+                projectiles.setEventBus(eventBus); // §27.7: the public projectile-spawn gate
                 projectiles.addListener(new ProjectileEventDispatch());
                 // The fireball's landing arm (SmallFireballEntity.onHit): the
                 // fire block at the air cell the fireball crossed before the
@@ -3631,7 +3633,9 @@ public final class EngineServer implements Server, EngineBridge {
         var origin = session.position();
         ItemEntity entity = itemEntities.spawnThrown(
                 new net.zaminmc.torch.util.Position(origin.x(), origin.y() + 1.0, origin.z()), stack);
-        entity.setVelocity((Math.random() - 0.5) * 0.2, 0.2, (Math.random() - 0.5) * 0.2);
+        if (entity != null) { // the §27.7 gate may withhold the throw
+            entity.setVelocity((Math.random() - 0.5) * 0.2, 0.2, (Math.random() - 0.5) * 0.2);
+        }
     }
 
     private void publishInventoryChanged(PlayerSession player) {

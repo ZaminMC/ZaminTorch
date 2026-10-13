@@ -225,6 +225,36 @@ public final class ProjectileManager {
         listeners.add(Objects.requireNonNull(listener, "listener"));
     }
 
+    /** The public §27.7 projectile-spawn gate (null until the server wires the bus). */
+    private net.zaminmc.torch.server.event.EngineEventBus eventBus;
+
+    /**
+     * Wires the public projectile-spawn gate: every launch (the bow shot,
+     * the snowball throw, the splash potion, the dispenser's projectile
+     * arms, the blaze and ghast volleys) fires the cancellable pre-commit
+     * event before the body joins the world. Called once by the server at
+     * boot.
+     */
+    public void setEventBus(net.zaminmc.torch.server.event.EngineEventBus eventBus) {
+        this.eventBus = eventBus;
+    }
+
+    /**
+     * The launch gate: fires the §27.7 event (the public kind form),
+     * answers whether the shot may enter the world. Runs on the launch's
+     * own (tick) context; a cancelled shot consumes no entity id.
+     */
+    private boolean admitLaunch(ProjectileEntity.Kind kind, int throwerId, Position origin) {
+        if (eventBus == null) {
+            return true;
+        }
+        net.zaminmc.torch.event.entity.ProjectileSpawnEvent gate =
+                new net.zaminmc.torch.event.entity.ProjectileSpawnEvent(
+                        kind.apiKind, throwerId, origin);
+        eventBus.fire(gate);
+        return !gate.cancelled();
+    }
+
     public List<ProjectileEntity> all() {
         return List.copyOf(projectiles);
     }
@@ -245,6 +275,9 @@ public final class ProjectileManager {
     public ProjectileEntity launch(ProjectileEntity.Kind kind, int throwerId,
                                    Position origin, double yawDegrees, double pitchDegrees,
                                    double speed) {
+        if (!admitLaunch(kind, throwerId, origin)) {
+            return null; // the §27.7 gate swallowed the shot
+        }
         double yaw = Math.toRadians(yawDegrees);
         double pitch = Math.toRadians(pitchDegrees);
         double dx = -Math.sin(yaw) * Math.cos(pitch);
@@ -276,6 +309,9 @@ public final class ProjectileManager {
     public ProjectileEntity launchVector(ProjectileEntity.Kind kind, int throwerId,
                                          Position origin, double dx, double dy, double dz,
                                          double force, double variation) {
+        if (!admitLaunch(kind, throwerId, origin)) {
+            return null; // the §27.7 gate swallowed the shot
+        }
         double length = Math.sqrt(dx * dx + dy * dy + dz * dz);
         if (length < 1.0E-4) {
             length = 1.0;
@@ -304,6 +340,9 @@ public final class ProjectileManager {
      */
     public ProjectileEntity launchFireball(Position origin,
                                            double directionX, double directionY, double directionZ) {
+        if (!admitLaunch(ProjectileEntity.Kind.SMALL_FIREBALL, -1, origin)) {
+            return null; // the §27.7 gate swallowed the shot
+        }
         ProjectileEntity projectile = new ProjectileEntity(nextEntityId++,
                 ProjectileEntity.Kind.SMALL_FIREBALL, origin,
                 directionX + random.nextGaussian() * 0.05,
@@ -326,6 +365,9 @@ public final class ProjectileManager {
     public ProjectileEntity launchGhastFireball(int throwerId, Position origin,
                                                 double directionX, double directionY,
                                                 double directionZ) {
+        if (!admitLaunch(ProjectileEntity.Kind.LARGE_FIREBALL, throwerId, origin)) {
+            return null; // the §27.7 gate swallowed the shot
+        }
         ProjectileEntity projectile = new ProjectileEntity(nextEntityId++,
                 ProjectileEntity.Kind.LARGE_FIREBALL, throwerId, origin,
                 0.0, 0.0, 0.0);
@@ -352,6 +394,9 @@ public final class ProjectileManager {
     public ProjectileEntity launchBlazeFireball(int throwerId, Position origin,
                                                  double directionX, double directionY,
                                                  double directionZ, double spread) {
+        if (!admitLaunch(ProjectileEntity.Kind.SMALL_FIREBALL, throwerId, origin)) {
+            return null; // the §27.7 gate swallowed the shot
+        }
         ProjectileEntity projectile = new ProjectileEntity(nextEntityId++,
                 ProjectileEntity.Kind.SMALL_FIREBALL, throwerId, origin,
                 0.0, 0.0, 0.0);
