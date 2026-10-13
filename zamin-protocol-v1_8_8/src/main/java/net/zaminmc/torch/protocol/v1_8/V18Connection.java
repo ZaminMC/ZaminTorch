@@ -2592,6 +2592,14 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5)
                     | Protocol18.WITCH_DRINKING_METADATA_INDEX);
             out.writeByte(mob.witchDrinking() ? 1 : 0);
+        } else if (mob.type() == net.zaminmc.torch.server.entity.MobType.SKELETON) {
+            // The skeleton's type byte (SkeletonEntity.registerSyncedData
+            // line 72: the synced slot 13): 0 the archer, 1 the wither
+            // variant — the client swaps the taller charcoal body and the
+            // skull texture from it (Slice 18d).
+            out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5)
+                    | Protocol18.SKELETON_TYPE_METADATA_INDEX);
+            out.writeByte(mob.skeletonWither() ? 1 : 0);
         } else if (mob.type() == net.zaminmc.torch.server.entity.MobType.SLIME) {
             // The slime's size (the synced-data slot 16): the client scales
             // the whole body from the byte (1, 2, or 4).
@@ -2652,6 +2660,14 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         }
         out.writeByte(Protocol18.METADATA_TERMINATOR);
         channel.writeAndFlush(out);
+
+        // The mob's held item (setEquipment slot 0 — the skeleton's bow,
+        // the wither variant's stone sword) rides Entity Equipment right
+        // after the spawn, the player body's own wire order (Slice 18d).
+        net.zaminmc.torch.item.ItemStack held = mob.heldEquipment();
+        if (held != null) {
+            writeEquipment(channel, mob.entityId(), Protocol18.EQUIPMENT_SLOT_HELD, held);
+        }
 
         mobSyncState.put(mob.entityId(), new long[] {
                 (long) Math.floor(mob.position().x() * 32.0),

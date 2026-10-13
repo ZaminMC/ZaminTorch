@@ -2,6 +2,7 @@ package net.zaminmc.torch.server.entity;
 
 import net.zaminmc.torch.entity.EntitySnapshot;
 import net.zaminmc.torch.entity.LivingEntity;
+import net.zaminmc.torch.item.ItemStack;
 import net.zaminmc.torch.util.Position;
 import net.zaminmc.torch.util.Rotation;
 
@@ -848,9 +849,19 @@ public final class MobEntity implements LivingEntity {
         }
         // The fire clock: the historical 1 damage per second while burning.
         // Dead bodies stop burning (the death animation freezes the body).
+        // The immune body (Entity.update lines 322-327 + takeFireDamage
+        // lines 739-743): the flames burn FOUR times as fast and never
+        // wound — the blaze and the wither skeleton stand in their own
+        // element (Slice 18d's reference-backed fix).
         if (!dead && fireTicks > 0) {
             fireTicks--;
-            if (++fireDamageTimer >= 20) {
+            if (fireImmune()) {
+                fireTicks -= 3; // the reference's own 4x drain
+                if (fireTicks < 0) {
+                    fireTicks = 0;
+                }
+                fireDamageTimer = 0; // no wound ever arms against the immune
+            } else if (++fireDamageTimer >= 20) {
                 fireDamageTimer = 0;
                 hurt(FIRE_DAMAGE_PER_SECOND);
             }
@@ -862,6 +873,10 @@ public final class MobEntity implements LivingEntity {
                 regrownThisTick = true;
             }
         }
+        // The player's hit window decays through the death animation too
+        // (LivingEntity.update lines 254-255 — the walk runs before the
+        // dead gate; dropRareItem reads the live remainder).
+        tickPlayerHitTimer();
 
         if (dead) {
             deathTicks++;
@@ -1241,6 +1256,11 @@ public final class MobEntity implements LivingEntity {
     public float attackDamage() {
         if (type == MobType.WOLF && wolfTamed()) {
             return wolfAttackDamage; // setTamed's recompute: 4.0
+        }
+        if (type == MobType.SKELETON && skeletonWither) {
+            // The nether initialize (lines 217-224): the wither variant's
+            // own ATTACK_DAMAGE 4.0 over the archer's flat.
+            return SKELETON_WITHER_DAMAGE;
         }
         if (type.slimeFamily()) {
             // getDamageAmount line 215: the size; MagmaCubeEntity's own
@@ -2023,6 +2043,112 @@ public final class MobEntity implements LivingEntity {
     /** @return the infest target cell's z. */
     public int silverfishInfestZ() {
         return silverfishInfestZ;
+    }
+
+    // --------------------------------------------------------------
+    // The wither skeleton (Slice 18d — SkeletonEntity.setType(1))
+    // --------------------------------------------------------------
+
+    /** The wither variant's flag (the nether initialize's 4-in-5 roll). */
+    private boolean skeletonWither;
+
+    /** The wither variant's melee (initialize line 221: ATTACK_DAMAGE 4.0). */
+    private static final float SKELETON_WITHER_DAMAGE = 4.0f;
+
+    /** The wither variant's hull (setType line 281: setSize(0.72F, 2.535F)). */
+    private static final double SKELETON_WITHER_HEIGHT = 2.535;
+
+    /** The wither variant's width (setType line 281's own 0.72F). */
+    private static final double SKELETON_WITHER_WIDTH = 0.72;
+
+    /**
+     * The wither effect's duration on a landed melee hit (tryDamage line
+     * 99: {@code new StatusEffectInstance(StatusEffect.WITHER.id, 200)} —
+     * a flat 10 seconds, no amplifier, no difficulty gate).
+     */
+    public static final int SKELETON_WITHER_EFFECT_TICKS = 200;
+
+    /** The mob's held item (setEquipment slot 0 — the bow, the stone sword). */
+    private ItemStack heldEquipment;
+
+    /**
+     * The player's recent-hit window (LivingEntity's own playerHitTimer,
+     * lines 92/254/679: 100 ticks from the player's last wound — the
+     * dropRareItem gate and the XP gate read it).
+     */
+    private int playerHitTimer;
+
+    /**
+     * The wither variant (setType lines 289-297): the taller 0.72x2.535
+     * hull, the fire immunity, the 4.0 melee (the stone-sword arm) over
+     * the archer's bow — the flag lands once at the spawn (the reference's
+     * own initialize roll).
+     */
+    public void setSkeletonWither(boolean wither) {
+        this.skeletonWither = wither;
+    }
+
+    /** @return the wither variant's flag. */
+    public boolean skeletonWither() {
+        return skeletonWither;
+    }
+
+    /**
+     * @return the wither effect's duration on the variant's landed melee
+     * hit (tryDamage line 99: the flat 200 ticks).
+     */
+    public int skeletonWitherEffectTicks() {
+        return SKELETON_WITHER_EFFECT_TICKS;
+    }
+
+    /**
+     * @return whether the body never ignites — the kind's own immunity
+     * or the wither variant's (setType line 291:
+     * {@code immuneToFire = type == 1}).
+     */
+    public boolean fireImmune() {
+        return type.fireImmune() || (type == MobType.SKELETON && skeletonWither);
+    }
+
+    /**
+     * The held equipment (setEquipment slot 0): the bow at the archer's
+     * spawn (addRandomEquipment line 211), the stone sword at the wither
+     * conversion (initialize line 220). The wire rides the Entity
+     * Equipment packet; the drops ride the manager's equipment walk.
+     *
+     * @param held the held stack, or null for the empty hand.
+     */
+    public void setHeldEquipment(ItemStack held) {
+        this.heldEquipment = held;
+    }
+
+    /** @return the held stack, or null for the empty hand. */
+    public ItemStack heldEquipment() {
+        return heldEquipment;
+    }
+
+    /**
+     * The player's hit window arms (LivingEntity.takeDamage lines
+     * 678-680: {@code playerHitTimer = 100} when the attacker is a
+     * player — the tamed wolf's own arm rides the pet slice).
+     */
+    public void markPlayerHit() {
+        playerHitTimer = 100;
+    }
+
+    /**
+     * @return whether a player wounded the body inside the last 100
+     * ticks (LivingEntity.die's dropRareItem gate, line 766).
+     */
+    public boolean playerHitRecently() {
+        return playerHitTimer > 0;
+    }
+
+    /** The window's own decay (LivingEntity.mobTick lines 254-255). */
+    private void tickPlayerHitTimer() {
+        if (playerHitTimer > 0) {
+            playerHitTimer--;
+        }
     }
 
     /** @return and clears the fireball volley verdict. */
@@ -3558,10 +3684,13 @@ public final class MobEntity implements LivingEntity {
                 tickCreeperMind(target, horizontal, dy);
                 return;
             }
-            if (type.traits.ranged()) {
+            if (type.traits.ranged() && !skeletonWither) {
                 tickSkeletonMind(target, horizontal, dy);
                 return;
             }
+            // The wither variant's melee (the nether initialize lines
+            // 218-220: the meleeAttackGoal replaces the archer's ranged
+            // goal under the stone sword).
 
             // The melee hunter (zombie, night spider).
             mode = Mode.CHASE;
@@ -4216,6 +4345,10 @@ public final class MobEntity implements LivingEntity {
             // setElder line 139: the elder's own 1.9975 hull.
             return GUARDIAN_ELDER_SIZE;
         }
+        if (type == MobType.SKELETON && skeletonWither) {
+            // setType line 296: the wither variant's taller hull.
+            return SKELETON_WITHER_HEIGHT;
+        }
         return type.height;
     }
 
@@ -4230,6 +4363,10 @@ public final class MobEntity implements LivingEntity {
         if (type == MobType.GUARDIAN && guardianElder) {
             // setElder line 139: the elder's own 1.9975 hull.
             return GUARDIAN_ELDER_SIZE;
+        }
+        if (type == MobType.SKELETON && skeletonWither) {
+            // setType line 296: the wither variant's wider hull.
+            return SKELETON_WITHER_WIDTH;
         }
         return type.width;
     }
@@ -4254,6 +4391,12 @@ public final class MobEntity implements LivingEntity {
         if (type == MobType.SNOW_GOLEM) {
             // SnowGolemEntity.getEyeHeight line 97: the flat 1.7F.
             return 1.7;
+        }
+        if (type == MobType.SKELETON) {
+            // getEyeHeight line 314: the archer's own 1.74; the wither
+            // variant keeps the generic share of its OWN taller hull
+            // (2.535 * 0.85 — super.getEyeHeight reads the live size).
+            return skeletonWither ? bodyHeight() * 0.85 : 1.74;
         }
         if (type == MobType.CAVE_SPIDER) {
             // CaveSpiderEntity.getEyeHeight line 53: the flat 0.45F — not
@@ -4308,8 +4451,9 @@ public final class MobEntity implements LivingEntity {
             return;
         }
         // Fire contact arms the burn (the historical setFire on
-        // collision) — the fire-immune kinds (immuneToFire) never ignite.
-        if (!dead && !type.fireImmune()
+        // collision) — the fire-immune kinds (immuneToFire) never ignite,
+        // the wither variant joining them (setType line 291).
+        if (!dead && !fireImmune()
                 && world.inFire(position.x(), position.y(), position.z())) {
             ignite(FIRE_TICKS);
         }

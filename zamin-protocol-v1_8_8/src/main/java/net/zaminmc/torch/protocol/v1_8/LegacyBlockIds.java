@@ -114,6 +114,9 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:string"), 287),
             Map.entry(Identifier.parse("minecraft:gunpowder"), 289),
             Map.entry(Identifier.parse("minecraft:slime_ball"), 341),
+            // The wither skeleton's rare head (Slice 18d — community id 397;
+            // the damage field carries the variant, 1 = wither).
+            Map.entry(Identifier.parse("minecraft:skull"), 397),
             Map.entry(Identifier.parse("minecraft:mutton"), 423),
             Map.entry(Identifier.parse("minecraft:cooked_mutton"), 424),
             Map.entry(Identifier.parse("minecraft:bucket"), 325),
@@ -429,8 +432,7 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:snow_layer"), 78),
             Map.entry(Identifier.parse("minecraft:iron_block"), 42),
             Map.entry(Identifier.parse("minecraft:pumpkin"), 86),
-            Map.entry(Identifier.parse("minecraft:lit_pumpkin"), 91),
-            Map.entry(Identifier.parse("minecraft:chiseled_stone_bricks"), 98)));
+            Map.entry(Identifier.parse("minecraft:lit_pumpkin"), 91)));
 
     /**
      * The redstone family's base ids (Slice 9a): the wire's sixteen power
