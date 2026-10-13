@@ -3615,3 +3615,25 @@ Ledgered: the killer's 8 armor (the engine's missing mob armor model), the
 "Killer Bunny" name (the name-tag wire family), the variant's persistence
 (the MobDataStore's minimal snapshot), the mobGriefing gate (default-on
 stand-in), the STEP JumpControl wiring (the walk model's step arm).
+
+## Slice 21e — the pigman refinements (the attacker re-acquisition + the gold ingot)
+
+ZombiePigmanEntity.mobAiTick lines 79-83: while the anger window burns and
+the named attacker is live, the credit window (playerHitTimer — the
+reference's recentlyHit bookkeeping) re-arms every tick through the
+manager's players walk — the pigman killed mid-chase still credits the
+attacker for the drops, the looting level, and the XP. The named player
+gone, the window lapses at 100 like any other body.
+
+dropRareItem line 189: the single gold ingot on the player-kill window's
+`0.025 + looting * 0.01` roll, beside the flesh/nugget pair in the
+manager's dedicated drop arm.
+
+Tests: ZombiePigmanTest +2 (the rare ingot's window gate, the chase-kill
+credit at 150 ticks with the lapse-on-gone negative). The nether
+neighbor suites green. Ledgered: the re-acquisition's
+stamp-vs-countdown deobfuscation ambiguity (the engine models the
+never-lapsing credit window); the ghast's own-fireball reflection (needs
+the player-attacks-fireball deflection family), the magma cube's size*3
+armor (the missing mob armor model), the ghast's 1-in-20 canSpawn +
+1-per-chunk limit (the natural spawn cycle's own gates — Slice 21f).

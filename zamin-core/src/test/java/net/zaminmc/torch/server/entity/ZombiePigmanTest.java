@@ -1,8 +1,12 @@
 package net.zaminmc.torch.server.entity;
 
+import net.zaminmc.torch.item.ItemStack;
+import net.zaminmc.torch.server.item.BuiltinItems;
 import net.zaminmc.torch.util.Position;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -125,5 +129,144 @@ class ZombiePigmanTest {
             hurtWindow++;
         }
         assertTrue(hurtWindow >= 400, "the re-rolled window holds the base");
+    }
+
+    /** A playing session named for the anger's target (the manager's
+     * players walk resolves the name). */
+    private static net.zaminmc.torch.server.player.PlayerSession playingPlayerNamed(
+            String name, Position at) {
+        net.zaminmc.torch.server.net.ClientLink link =
+                new net.zaminmc.torch.server.net.ClientLink() {
+                    @Override public boolean isActive() { return true; }
+                    @Override public void kick(String reason) { }
+                };
+        var session = new net.zaminmc.torch.server.player.PlayerSession(
+                java.util.UUID.nameUUIDFromBytes(name.getBytes()), name, link);
+        session.authenticate();
+        session.beginJoin(new net.zaminmc.torch.World() {
+            @Override public String name() { return "stub"; }
+            @Override public long timeOfDay() { return 0; }
+            @Override public long totalTicks() { return 0; }
+            @Override public Position spawnPosition() { return Position.ZERO; }
+            @Override public net.zaminmc.torch.block.BlockType getBlock(
+                    net.zaminmc.torch.block.BlockPosition p) { return null; }
+            @Override public boolean setBlock(
+                    net.zaminmc.torch.block.BlockPosition p,
+                    net.zaminmc.torch.block.BlockType t) { return false; }
+            @Override public boolean isChunkLoaded(
+                    net.zaminmc.torch.block.ChunkPosition p) { return true; }
+            @Override public java.util.Collection<net.zaminmc.torch.entity.LivingEntity> entities() {
+                return java.util.List.of();
+            }
+            @Override public void execute(Runnable work) { work.run(); }
+            @Override public void setTimeOfDay(long timeOfDay) { }
+            @Override public int blockLightAt(net.zaminmc.torch.block.BlockPosition p) { return 0; }
+            @Override public int skyLightAt(net.zaminmc.torch.block.BlockPosition p) { return 15; }
+            @Override public String biomeAt(net.zaminmc.torch.block.BlockPosition p) { return "plains"; }
+        }, Position.ZERO);
+        session.markPlaying();
+        session.applyMovement(at, net.zaminmc.torch.util.Rotation.ZERO, true);
+        return session;
+    }
+
+    @Test
+    void theRareGoldIngotRidesThePlayerKillWindow() {
+        // ZombiePigmanEntity.dropRareItem line 189: the single gold ingot
+        // on LivingEntity.die's 0.025 + looting * 0.01 roll — only inside
+        // the player-kill window.
+        class Loot implements MobManager.LootSink {
+            final List<ItemStack> drops = new ArrayList<>();
+            @Override public void spawnLootDrop(Position position, ItemStack stack) {
+                drops.add(stack);
+            }
+        }
+        Loot loot = new Loot();
+        MobManager alwaysRare = new MobManager(worldAt(null),
+                new Random(84L) {
+                    @Override public float nextFloat() {
+                        return 0.0f;
+                    }
+                }, loot, 961_000, (x, z) -> 8);
+        MobEntity credited = alwaysRare.spawnAt(MobType.ZOMBIE_PIGMAN,
+                new Position(0.5, 8.0, 0.5));
+        credited.markPlayerHit();
+        alwaysRare.hurt(credited, 999.0f, 0.0);
+        for (int t = 0; t < MobEntity.DEATH_TICKS + 1; t++) {
+            alwaysRare.tick(List.of(), MobManager.NIGHT_START);
+        }
+        assertTrue(loot.drops.stream().anyMatch(d -> d.type() == BuiltinItems.GOLD_INGOT),
+                "the player-kill window answers the rare ingot");
+        // No player hit — the window never arms.
+        Loot noHit = new Loot();
+        MobManager neverHit = new MobManager(worldAt(null),
+                new Random(85L) {
+                    @Override public float nextFloat() {
+                        return 0.0f;
+                    }
+                }, noHit, 962_000, (x, z) -> 8);
+        MobEntity cold = neverHit.spawnAt(MobType.ZOMBIE_PIGMAN,
+                new Position(0.5, 8.0, 0.5));
+        neverHit.hurt(cold, 999.0f, 0.0);
+        for (int t = 0; t < MobEntity.DEATH_TICKS + 1; t++) {
+            neverHit.tick(List.of(), MobManager.NIGHT_START);
+        }
+        assertTrue(noHit.drops.stream().noneMatch(d -> d.type() == BuiltinItems.GOLD_INGOT),
+                "the rare ingot needs the player-kill window");
+    }
+
+    @Test
+    void theAngerKeepsTheKillCreditAliveAcrossTheChase() {
+        // ZombiePigmanEntity.mobAiTick lines 79-83: while the anger burns
+        // and the named attacker is live, the credit window re-arms — the
+        // pigman killed 150 ticks into the chase still credits the
+        // attacker. The named player gone, the window lapses at 100.
+        class Loot implements MobManager.LootSink {
+            final List<ItemStack> drops = new ArrayList<>();
+            @Override public void spawnLootDrop(Position position, ItemStack stack) {
+                drops.add(stack);
+            }
+        }
+        var attacker = playingPlayerNamed("Chaser", new Position(5.5, 8.0, 0.5));
+        Loot loot = new Loot();
+        MobManager manager = new MobManager(worldAt(null),
+                new Random(86L) {
+                    @Override public float nextFloat() {
+                        return 0.0f;
+                    }
+                }, loot, 963_000, (x, z) -> 8);
+        MobEntity chased = manager.spawnAt(MobType.ZOMBIE_PIGMAN,
+                new Position(0.5, 8.0, 0.5));
+        chased.becomeAngryTo("Chaser");
+        chased.markPlayerHit(); // the wound that started the anger
+        // 150 ticks — past the 100-tick window, the anger still burning.
+        for (int t = 0; t < 150; t++) {
+            manager.tick(List.of(attacker), MobManager.NIGHT_START);
+        }
+        assertTrue(chased.isAngry(), "the anger still burns at 150");
+        assertTrue(chased.playerHitRecently(),
+                "the re-acquisition keeps the credit window armed");
+        manager.hurt(chased, 999.0f, 0.0);
+        for (int t = 0; t < MobEntity.DEATH_TICKS + 1; t++) {
+            manager.tick(List.of(attacker), MobManager.NIGHT_START);
+        }
+        assertTrue(loot.drops.stream().anyMatch(d -> d.type() == BuiltinItems.GOLD_INGOT),
+                "the chase kill still credits the attacker");
+        // The named player gone: the window lapses and never re-arms.
+        Loot lone = new Loot();
+        MobManager empty = new MobManager(worldAt(null),
+                new Random(87L) {
+                    @Override public float nextFloat() {
+                        return 0.0f;
+                    }
+                }, lone, 964_000, (x, z) -> 8);
+        MobEntity abandoned = empty.spawnAt(MobType.ZOMBIE_PIGMAN,
+                new Position(0.5, 8.0, 0.5));
+        abandoned.becomeAngryTo("Ghost");
+        abandoned.markPlayerHit();
+        for (int t = 0; t < 150; t++) {
+            empty.tick(List.of(), MobManager.NIGHT_START);
+        }
+        assertFalse(abandoned.playerHitRecently(),
+                "no live attacker, no re-arm — the window lapses at 100");
     }
 }
