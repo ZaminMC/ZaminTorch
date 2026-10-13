@@ -1396,6 +1396,9 @@ public final class EngineServer implements Server, EngineBridge {
                 ticker.attachScheduler(simulationScheduler, simulationDomain);
                 computeSubsystem = new net.zaminmc.torch.server.concurrent.ComputeSubsystem();
                 ticker.attachCompute(computeSubsystem, simulationDomain);
+                // The public §27.3 compute view over the real subsystem + domain.
+                computeView = new net.zaminmc.torch.server.concurrent.AsyncComputeView(
+                        computeSubsystem, simulationDomain);
                 domainWorkerPool = new net.zaminmc.torch.server.concurrent.DomainWorkerPool();
                 ticker.attachDomainPool(domainWorkerPool);
                 crossOwnerRouter = new net.zaminmc.torch.server.concurrent.CrossOwnerRouter();
@@ -1593,6 +1596,18 @@ public final class EngineServer implements Server, EngineBridge {
 
     private final net.zaminmc.torch.item.ItemRegistry itemRegistryView =
             new net.zaminmc.torch.server.item.ItemRegistryView();
+
+    /** The public async-compute view (§27.3's compute family; wired at boot). */
+    @Override
+    public net.zaminmc.torch.concurrent.AsyncCompute compute() {
+        net.zaminmc.torch.concurrent.AsyncCompute view = computeView;
+        if (view == null) {
+            throw new IllegalStateException("compute is unavailable before the server boots");
+        }
+        return view;
+    }
+
+    private volatile net.zaminmc.torch.concurrent.AsyncCompute computeView;
 
     /** The public scheduler view (built on first use; the ticker exists from boot). */
     @Override

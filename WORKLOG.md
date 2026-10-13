@@ -3883,3 +3883,32 @@ body's family view + snapshot + the lever's 15 feed through both read
 forms + the far cell's zero). The explosion/redstone/TNT/explosion-event
 ledger rows graduate NOT AUDITED → IMPLEMENTED; the piston/fluid rows →
 AUDITED with the block-state rationale.
+
+## Slice 22h — the async-compute API wave (the §27.3 compute family)
+
+**`Server.compute()`** → `concurrent.AsyncCompute`: the engine's own
+ComputeSubsystem dressed as the public safe-computation surface —
+`submit(input, compute, onFresh, onStale)` binds to the server's
+simulation owner domain; the pure function runs on the bounded pool
+over the immutable input; the result (or the staleness verdict)
+delivers at the head of a near tick on the owner's validated context
+(the ticker's own drain — the §27.3/§27.6 contract: fresh results apply
+inside the domain, stale results never apply, admission is bounded with
+an explicit refusal, the handle is never a blocking promise, §28.2).
+The lifecycle handle: generation/isDone/isCancelled/isFailed/failure/
+tryCancel (a queued task cancels; a running one completes and validates
+at the drain). The §27.9 diagnostics: submittedCount/rejectedCount/
+failedCount/queuedCount over the subsystem's own counters (the three
+existing + the new queuedCount).
+
+The view (AsyncComputeView) is wired at boot over the real subsystem +
+simulation domain; the §5 ledger rows updated honestly: the
+owner-context-execution row rides the already-implemented World.execute
+(the §27.6 owner path); the snapshots row rides the already-implemented
+EntitySnapshot family; the cross-owner row ledgered as the
+parallel-lane milestone's own (the router is engine-internal region
+traffic today).
+
+Tests: AsyncComputeApiAcceptanceTest (2: the pure result delivered on
+the tick thread with its generation + the counters; the queued-cancel
+arm + the throwing computation's isolation + the survivor submission).

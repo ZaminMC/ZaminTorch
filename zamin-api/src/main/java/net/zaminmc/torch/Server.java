@@ -35,6 +35,13 @@ public interface Server {
      */
     net.zaminmc.torch.item.ItemRegistry items();
 
+    /**
+     * The safe asynchronous-computation surface (§27.3's compute
+     * family): pure calculations on the bounded pool, results validated
+     * and published on the simulation owner's context.
+     */
+    net.zaminmc.torch.concurrent.AsyncCompute compute();
+
     /** All currently loaded worlds. Read-only view. */
     Collection<World> worlds();
 
