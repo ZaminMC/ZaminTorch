@@ -4596,3 +4596,17 @@ Tests: HopperSystemTest's cart arm (the live engine: a chest minecart
 standing on the hopper drains into it one item per transfer — the whole
 stack and the cart's own slot emptying). The neighboring hopper suites
 green (the window, the persistence).
+
+## Slice 25f — the mineshaft's cave-spider spawner verified (the stale ledger row corrected)
+
+The corridor's cobweb-and-spawner pair (MineshaftPieces lines 327-341) was
+ALREADY live in the engine — the section walk places the mob-spawner block
+and the typed CAVE_SPIDER record through the pending-spawner drain — but
+the ledger still carried it as "ledgered with the mob-spawner block entity
+slice" and the class javadoc said "rides the mob-spawner slice." The
+corrections: the stale javadoc fixed, the ledger row graduated, and the
+missing COVERAGE landed — MineshaftStructureTest's new walk probes seeds
+until a start's generated chunks carry a pending spawner record, asserting
+the CAVE_SPIDER type and the block cell (every cobweb corridor rolls one —
+~3% of corridors are cobweb corridors and a start's recursive walk carries
+many, so a few seeds always answer).

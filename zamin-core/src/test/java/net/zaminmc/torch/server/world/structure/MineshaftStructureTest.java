@@ -251,4 +251,61 @@ class MineshaftStructureTest {
         int localZ = record.z() - (chunk.position().z() << 4);
         return chunk.getBlock(localX, record.y(), localZ).identifier().toString();
     }
+
+    /**
+     * The cobweb-and-spawner pair (Slice 25f's verification — the reference's
+     * lines 327-341: every cobweb corridor carries ONE cave-spider spawner at
+     * its first section's random cell): some seed's start must leave a mob
+     * spawner block plus a typed CAVE_SPIDER record in its generated chunks.
+     */
+    @Test
+    void theCobwebCorridorsCarryTheCaveSpiderSpawner() {
+        // Walk seeds until a start carries the spawner (every cobweb
+        // corridor rolls one — ~3% of corridors are cobweb corridors, and a
+        // start's recursive walk carries many corridors, so a few seeds
+        // always answer).
+        for (int seedAttempt = 0; seedAttempt < 40; seedAttempt++) {
+            String seed = "spawner-probe-" + seedAttempt;
+            NormalWorldGenerator generator = new NormalWorldGenerator(registry, seed);
+            MineshaftStructure mineshafts = new MineshaftStructure(seed.hashCode());
+            for (int regionX = 60; regionX < 300; regionX++) {
+                for (int regionZ = 60; regionZ < 300; regionZ++) {
+                    StructureStart start = mineshafts.createStart(regionX, regionZ, probeWorld());
+                    if (start == null) {
+                        continue;
+                    }
+                    int fromChunkX = (start.getBounds().minX >> 4) - 1;
+                    int toChunkX = (start.getBounds().maxX >> 4) + 1;
+                    int fromChunkZ = (start.getBounds().minZ >> 4) - 1;
+                    int toChunkZ = (start.getBounds().maxZ >> 4) + 1;
+                    for (int cx = fromChunkX; cx <= toChunkX; cx++) {
+                        for (int cz = fromChunkZ; cz <= toChunkZ; cz++) {
+                            EngineChunk chunk = new EngineChunk(new ChunkPosition(cx, cz),
+                                    registry.require(net.zaminmc.torch.util.Identifier.parse(
+                                            "minecraft:air")));
+                            generator.generate(chunk);
+                            if (!chunk.pendingMobSpawners().isEmpty()) {
+                                for (var record : chunk.pendingMobSpawners()) {
+                                    assertEquals(
+                                            net.zaminmc.torch.server.entity.MobType.CAVE_SPIDER,
+                                            record.mobType(),
+                                            "the mineshaft's spawner is the cave spider");
+                                    assertEquals("minecraft:mob_spawner",
+                                            chunk.getBlock(
+                                                    record.x() & 15, record.y(), record.z() & 15)
+                                                    .identifier().toString(),
+                                            "the spawner block sits at the record's cell");
+                                }
+                                return; // the first typed record proves the pair
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        // Not one of the 40 seeds' starts carried a cobweb corridor — a
+        // statistical impossibility at ~3% per corridor (the walk's many
+        // corridors per start); the assertion stays a loud failure.
+        assertTrue(false, "no probed start carried the cave-spider spawner");
+    }
 }
