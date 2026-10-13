@@ -121,6 +121,18 @@ public final class DispenserSystem implements WorldChangeListener {
         this.random = Objects.requireNonNull(random, "random");
     }
 
+    /** The public §27.7 dispense gate (null until the server wires the bus). */
+    private net.zaminmc.torch.server.event.EngineEventBus eventBus;
+
+    /**
+     * Wires the public dispense gate: every dispense (built-in and
+     * custom behaviors alike) fires the cancellable pre-commit event
+     * before the behavior walk. Called once by the server at boot.
+     */
+    public void setEventBus(net.zaminmc.torch.server.event.EngineEventBus eventBus) {
+        this.eventBus = eventBus;
+    }
+
     /** @return the block types the family registers at boot. */
     public static net.zaminmc.torch.server.block.BlockRegistryBuilder registerBlocks(
             net.zaminmc.torch.server.block.BlockRegistryBuilder builder) {
@@ -257,6 +269,20 @@ public final class DispenserSystem implements WorldChangeListener {
                     ItemStack stack = container.getItem(slot);
                     if (stack.isEmpty()) {
                         return; // emptied between the pick and the walk
+                    }
+                    // §27.7: the public dispense gate BEFORE the behavior
+                    // walk — the stack still sits in the reservoir, no item
+                    // has left. A cancelled dispense keeps the stack where
+                    // it is (not even the empty click sounds).
+                    if (eventBus != null) {
+                        net.zaminmc.torch.event.block.DispenseEvent gate =
+                                new net.zaminmc.torch.event.block.DispenseEvent(
+                                        world, pos, Direction.byId(facing), stack, target,
+                                        DispenserBlocks.isDropper(type));
+                        eventBus.fire(gate);
+                        if (gate.cancelled()) {
+                            return; // the stack stays untouched
+                        }
                     }
                     ItemStack remainder = DispenserBlocks.isDropper(type)
                             ? dropperDispense(pos, facing, container, slot, stack)
