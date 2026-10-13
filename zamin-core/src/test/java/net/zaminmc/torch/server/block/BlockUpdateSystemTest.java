@@ -73,7 +73,7 @@ class BlockUpdateSystemTest {
     /** Advances the world clock and drains the system (the engine's rhythm). */
     private void advance(BlockUpdateSystem system, int ticks) {
         for (int i = 0; i < ticks; i++) {
-            world.tickTime();
+            world.tickTime(true);
             system.tick();
         }
     }

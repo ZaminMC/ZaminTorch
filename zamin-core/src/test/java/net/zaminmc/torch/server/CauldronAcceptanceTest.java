@@ -221,8 +221,11 @@ class CauldronAcceptanceTest {
         await(() -> CauldronBlocks.isCauldron(server.world().getBlock(at)),
                 "the half-full cauldron stands");
 
-        PlayerSession walker = join("Walker", new Position(30.5, 40.0, 30.5));
-        // Ignite the body, then place it inside the cauldron cell.
+        // Ignite the body BESIDE the cauldron (the test's own intent —
+        // "ignite, then place inside"): joining straight into the cell
+        // races the same-tick douse against the ignite (the burn window
+        // collapses to a sub-tick sliver the poll can never see).
+        PlayerSession walker = join("Walker", new Position(30.5, 40.0, 31.5));
         server.ticker().submit(() -> walker.ignite(200));
         await(() -> walker.burning(), "the walker burns");
         server.ticker().submit(() -> walker.applyMovement(

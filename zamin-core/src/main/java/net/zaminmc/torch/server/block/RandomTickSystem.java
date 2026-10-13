@@ -40,10 +40,25 @@ public final class RandomTickSystem {
 
     private final EngineWorld world;
     private final Random random;
+    /**
+     * The {@code randomTickSpeed} read (Slice 24a — ServerWorld.tickChunks
+     * line 343: {@code getInt("randomTickSpeed")} per tick walk; the
+     * picks-per-section band rides the rule). Null keeps the historical
+     * default three (the rule's own default value).
+     */
+    private volatile java.util.function.IntSupplier randomTickSpeedRead;
 
     public RandomTickSystem(EngineWorld world, Random random) {
         this.world = Objects.requireNonNull(world, "world");
         this.random = Objects.requireNonNull(random, "random");
+    }
+
+    /**
+     * Attaches the {@code randomTickSpeed} read (the game-rule table's
+     * picks-per-section band — Slice 24a).
+     */
+    public void setRandomTickSpeedRead(java.util.function.IntSupplier read) {
+        this.randomTickSpeedRead = java.util.Objects.requireNonNull(read, "read");
     }
 
     /** Advances one tick of random growth. Tick-thread context. */
@@ -52,8 +67,14 @@ public final class RandomTickSystem {
             if (!withinPlayerRange(chunk.position(), players)) {
                 continue;
             }
+            // randomTickSpeed (Slice 24a — ServerWorld.tickChunks line
+            // 343): the rule answers the per-section pick count, read
+            // once per chunk walk; 0 stops the walk entirely (the
+            // reference's own l2 > 0 gate).
+            java.util.function.IntSupplier speedRead = randomTickSpeedRead;
+            int picks = speedRead != null ? speedRead.getAsInt() : PICKS_PER_SECTION;
             for (int section = 0; section < SECTIONS; section++) {
-                for (int pick = 0; pick < PICKS_PER_SECTION; pick++) {
+                for (int pick = 0; pick < picks; pick++) {
                     int x = chunk.position().x() * 16 + random.nextInt(16);
                     int y = section * 16 + random.nextInt(16);
                     int z = chunk.position().z() * 16 + random.nextInt(16);

@@ -92,6 +92,17 @@ public final class BlockInteractionService {
     private volatile MiningProgressListener miningProgressListener;
     /** The public event bus (§27.7 observe/cancel); null until wired. */
     private volatile EngineEventBus eventBus;
+    /**
+     * The {@code doTileDrops} read (Slice 24a — Block.java's dropBlock
+     * gate: the break still commits, nothing lands on the ground). Null
+     * keeps the historical always-drop behavior.
+     */
+    private volatile java.util.function.BooleanSupplier tileDropsRead;
+
+    /** Wires the {@code doTileDrops} read (the game-rule table's block-drop gate). */
+    public void setTileDropsRead(java.util.function.BooleanSupplier tileDropsRead) {
+        this.tileDropsRead = java.util.Objects.requireNonNull(tileDropsRead, "tileDropsRead");
+    }
 
     /** Active survival mining sessions, keyed by player. Tick-thread confined. */
     private final Map<UUID, MiningSession> miningSessions = new HashMap<>();
@@ -767,6 +778,12 @@ public final class BlockInteractionService {
     /** Drop calculation (§434): committed break -&gt; drops -&gt; item entities. */
     private void publishDrops(BlockPosition broken, BlockType brokenType, ItemType heldTool,
                               boolean silkTouch, int fortune) {
+        // doTileDrops (Slice 24a — Block.java: the world's dropBlock runs
+        // only under the rule; the break itself already committed).
+        java.util.function.BooleanSupplier dropsRead = tileDropsRead;
+        if (dropsRead != null && !dropsRead.getAsBoolean()) {
+            return;
+        }
         List<ItemStack> drops = dropService.dropsFor(brokenType, heldTool, silkTouch, fortune);
         if (drops.isEmpty()) {
             return;

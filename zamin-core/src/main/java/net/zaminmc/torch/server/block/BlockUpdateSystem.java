@@ -129,6 +129,19 @@ public final class BlockUpdateSystem implements WorldChangeListener {
     }
 
     /**
+     * The {@code doFireTick} read (Slice 24a — FireBlock.tick line 145:
+     * the gate sits at the TOP of the fire's own tick — a false rule
+     * freezes the flame entirely, no spread, no self-extinguish, no
+     * re-schedule). Null keeps the historical always-burn behavior.
+     */
+    private volatile java.util.function.BooleanSupplier fireTickRead;
+
+    /** Wires the {@code doFireTick} read (the game-rule table's fire gate). */
+    public void setFireTickRead(java.util.function.BooleanSupplier fireTickRead) {
+        this.fireTickRead = Objects.requireNonNull(fireTickRead, "fireTickRead");
+    }
+
+    /**
      * A block was committed: request updates for it and its neighbors (§466
      * "neighbor/update request"). Runs on the simulation thread through the
      * world-listener path.
@@ -425,6 +438,15 @@ public final class BlockUpdateSystem implements WorldChangeListener {
      * Tick-thread context.
      */
     private void tickFire(BlockPosition at, long now) {
+        // doFireTick (Slice 24a — FireBlock.tick line 145): the gate sits
+        // before EVERYTHING the fire does on its own tick — no spread, no
+        // rain douse, no burn-away, and crucially no re-schedule: the
+        // flame freezes inert until the rule returns (a neighbor commit
+        // re-arms it, the reference's own scheduleTick-on-update path).
+        java.util.function.BooleanSupplier fireRead = fireTickRead;
+        if (fireRead != null && !fireRead.getAsBoolean()) {
+            return;
+        }
         BlockType below = world.getBlock(at.offset(0, -1, 0));
         boolean belowFlammable = isFlammable(below.identifier());
         boolean belowSupports = !below.equals(world.airType())

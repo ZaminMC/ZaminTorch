@@ -42,6 +42,16 @@ public interface Server {
      */
     net.zaminmc.torch.concurrent.AsyncCompute compute();
 
+    /**
+     * The world's game-rule table (§27.3 — the 1.8.8 gamerule family):
+     * the fifteen vanilla rules plus any custom additions. One shared
+     * table for the whole server (the reference's own shape — every
+     * dimension's derived data delegates to the overworld's rules).
+     * Reads are safe from any thread; {@code set} is an owner-context
+     * mutation (§27.6).
+     */
+    net.zaminmc.torch.gamerule.GameRules gameRules();
+
     /** All currently loaded worlds. Read-only view. */
     Collection<World> worlds();
 
