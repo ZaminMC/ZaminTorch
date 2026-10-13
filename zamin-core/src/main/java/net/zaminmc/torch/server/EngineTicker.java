@@ -39,6 +39,13 @@ public final class EngineTicker {
      */
     private volatile EngineWorld netherWorld;
     private volatile Runnable tickHandler;
+    /**
+     * The {@code doDaylightCycle} read (Slice 24a — the shared game-rule
+     * table's day-clock gate; both dimensions read the SAME rule, the
+     * reference's derived-data delegation). Null keeps the historical
+     * always-advance behavior (the default-true rule's own view).
+     */
+    private volatile java.util.function.BooleanSupplier daylightCycleRead;
     private volatile net.zaminmc.torch.server.concurrent.SimulationScheduler scheduler;
     private volatile net.zaminmc.torch.server.concurrent.OwnershipDomain schedulerDomain;
     private volatile net.zaminmc.torch.server.concurrent.ComputeSubsystem compute;
@@ -81,6 +88,14 @@ public final class EngineTicker {
 
     EngineTicker(int tickRateHz) {
         this.tickIntervalNanos = TimeUnit.SECONDS.toNanos(1) / tickRateHz;
+    }
+
+    /**
+     * Attaches the {@code doDaylightCycle} read (the game-rule table's
+     * day-clock gate — Slice 24a). Called during boot wiring.
+     */
+    public void setDaylightCycleRead(java.util.function.BooleanSupplier read) {
+        this.daylightCycleRead = java.util.Objects.requireNonNull(read, "read");
     }
 
     /** Attaches the world this ticker owns. Called once, on the tick thread, before the loop starts. */
@@ -366,10 +381,16 @@ public final class EngineTicker {
             }
             logicalTick++;
             completedTickView = logicalTick;
-            world.tickTime();
+            // The day clock walks only under doDaylightCycle (Slice 24a —
+            // ServerWorld.tick lines 190-192); the total clock always
+            // walks. One shared read: every dimension's rules delegate to
+            // the same table.
+            java.util.function.BooleanSupplier daylightRead = daylightCycleRead;
+            boolean advanceDaylight = daylightRead == null || daylightRead.getAsBoolean();
+            world.tickTime(advanceDaylight);
             EngineWorld nether = netherWorld;
             if (nether != null) {
-                nether.tickTime();
+                nether.tickTime(advanceDaylight);
             }
             Runnable handler = tickHandler;
             if (handler != null) {

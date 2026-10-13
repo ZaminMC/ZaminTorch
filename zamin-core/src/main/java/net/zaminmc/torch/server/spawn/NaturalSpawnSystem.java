@@ -188,6 +188,23 @@ public final class NaturalSpawnSystem {
     private volatile java.util.function.IntSupplier difficultyRead;
 
     /**
+     * The {@code doMobSpawning} read (Slice 24a — ServerWorld.tick line
+     * 176: the whole natural cycle skips when the rule is off; the
+     * spawner blocks and eggs are the reference's own exceptions).
+     * Null keeps the historical always-spawn behavior (the rule's own
+     * default-true view).
+     */
+    private volatile java.util.function.BooleanSupplier mobSpawningRead;
+
+    /**
+     * Wires the {@code doMobSpawning} read (the game-rule table's
+     * natural-cycle gate — Slice 24a).
+     */
+    public void setMobSpawningRead(java.util.function.BooleanSupplier mobSpawningRead) {
+        this.mobSpawningRead = java.util.Objects.requireNonNull(mobSpawningRead, "mobSpawningRead");
+    }
+
+    /**
      * Wires the difficulty read (Slice 19e — MonsterEntity.canSpawn line
      * 131: the monster family never spawns on a peaceful world).
      */
@@ -295,6 +312,12 @@ public final class NaturalSpawnSystem {
 
     /** The cycle with the explicit rare flag (the 400-tick arm). */
     public int tick(Iterable<PlayerSession> players, long timeOfDay, boolean rareMobs) {
+        // doMobSpawning (Slice 24a — ServerWorld.tick line 176): the
+        // whole natural cycle skips when the rule is off.
+        java.util.function.BooleanSupplier spawningRead = mobSpawningRead;
+        if (spawningRead != null && !spawningRead.getAsBoolean()) {
+            return 0;
+        }
         // The spawning-chunk set (lines 34-53): the 17x17 grid around
         // every non-spectator player, the outer ring counted but excluded.
         spawningChunks.clear();

@@ -613,11 +613,19 @@ public final class EngineWorld implements World {
         return chunks.size();
     }
 
-    /** Advances simulation time. Called only by the owning tick context. */
-    public void tickTime() {
+    /**
+     * Advances simulation time. Called only by the owning tick context.
+     * The total clock always walks; the day clock advances only under
+     * the {@code doDaylightCycle} gate (Slice 24a — ServerWorld.tick
+     * lines 190-192: {@code setTime(time + 1)} unconditionally,
+     * {@code setTimeOfDay(timeOfDay + 1)} only when the rule holds).
+     */
+    public void tickTime(boolean advanceDaylight) {
         requireOwnership("tickTime");
         totalTicks++;
-        timeOfDay = (timeOfDay + 1) % DAY_LENGTH_TICKS;
+        if (advanceDaylight) {
+            timeOfDay = (timeOfDay + 1) % DAY_LENGTH_TICKS;
+        }
     }
 
     /** Historical day length in ticks (the world's own cycle). */

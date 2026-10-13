@@ -4273,3 +4273,104 @@ Tests: CauldronAcceptanceTest (4) + the precipitation stub's two new
 Surface methods. The neighboring suites green (weather batch, lightning,
 fire, block behavior/data, world model, block interaction; the protocol
 module compiles).
+
+## Slice 24a — the gamerule family (the fifteen-rule table 1:1 + every engine gate)
+
+**The table:** `server/gamerule/GameRules` — the reference port of
+`world/GameRules.java`: the TreeMap table with the fifteen 1.8.8 rules
+and their exact defaults/types, the string-value model with the parsed
+boolean/int views (the int parse falls back to the boolean's 1/0, the
+NumberFormatException swallows silently — the reference's own parse),
+the ANY_VALUE extension arm (`set` on an unknown name ADDS it), the
+sorted enumeration, and `isType`. One shared instance per server — the
+reference's own shape, where every dimension's
+`ReadOnlyWorldData.getGameRules()` delegates to the overworld's table.
+
+**The threading contract (§27.6/§28.3):** mutations run ONLY on the
+simulation context — the `/gamerule` command's dispatch already rides
+the tick lane, and the public `set` route asserts the world's own
+mutation context (the off-lane call throws the loud refusal, never a
+silent race). Reads are any-thread safe through an immutable published
+snapshot (the AtomicReference swap — each read sees one whole parsed
+table state; Value is immutable so the snapshot is honestly shareable).
+
+**The persistence:** `GameRuleDataStore` — the "ZGR" format (magic +
+count + name/value UTF pairs), the weather store's own durability rules
+(atomic move, corrupt = preserved as .corrupt beside the path, loud
+failures), saved at saveAllNow, loaded at boot. The reference's own
+placement is WorldData's `GameRules` NBT compound — the engine's
+world/data/gamerules.bin.
+
+**The gameplay gates (each the reference's own consult site):**
+
+- **doDaylightCycle** — EngineTicker.tickTime: the total clock walks
+  unconditionally, the day clock gates (ServerWorld.tick 190-192).
+  EngineWorld.tickTime grew the `advanceDaylight` parameter.
+- **naturalRegeneration** — BOTH regen arms: the peaceful pair
+  (PlayerEntity.tick 443 — the rule AND the difficulty) and the food>=18
+  walk (HungerManager.tick 41). Starvation still bites with the rule off.
+- **keepInventory** — dieOnTick: the rule composes with the §27.7
+  PlayerDeathEvent's cancel arm (either keeps the inventory + XP; the
+  death still resolves).
+- **showDeathMessages** — the death broadcast gates; the event's own
+  null-suppress (a plugin's silent death) composes with it.
+- **doMobLoot** — MobManager.dropLoot's whole body + the kill-reward XP
+  burst + the breed-reward burst (LivingEntity.die, AnimalBreedGoal).
+- **doTileDrops** — the break's publishDrops (Block.java's dropBlock
+  gate): the break commits, nothing lands.
+- **doEntityDrops** — the vehicle drop sink (the cart item + the chest
+  extras): the body still breaks.
+- **doMobSpawning** — BOTH natural cycles (overworld + nether share the
+  one table) + the pearl's endermite arm (EnderPearlEntity 52); the
+  teleport itself always runs.
+- **doFireTick** — BlockUpdateSystem.tickFire's whole body INCLUDING the
+  re-schedule (FireBlock.tick 145): a false rule freezes the flame
+  inert — no spread, no douse, no burn-away — until a neighbor commit
+  re-arms it.
+- **randomTickSpeed** — RandomTickSystem's per-section pick band, read
+  once per chunk walk; 0 stops the walk (tickChunks 343's `l2 > 0`).
+- **mobGriefing** — the creeper + ghast-fireball destructive flag
+  (CreeperEntity 208, FireballEntity 33: detonateAt grew the
+  `destructive` parameter — the wounds, knockback, and packet still
+  land; TNT passes true unconditionally, PrimedTntEntity 75), the
+  enderman carry pair (PickUpBlockGoal 446 + PlaceBlockGoal 476 — the
+  carried body keeps what it holds), the rabbit's raid-farm canStart
+  (RaidFarmGoal 534), and the silverfish wake's silent host swap
+  (WakeUpFriendsGoal 222-227: a no-grief world converts the egg back to
+  its host stone — no break, no fish — the walk may still stop on the
+  coin). The MobEntity WorldQuery gained the `mobGriefing()` default
+  (the default-true stand-in; the engine's query overrides with the
+  live read).
+
+**The command:** `/gamerule` (level 2) — GameRuleCommand 1:1: the bare
+form's listArgs shape (`a, b, c and d`), the query line
+`rule = value`, the unknown-rule miss, the boolean validation
+(`'x' is not true or false` — the refused value never lands), the set
+success (`Game rule %s has been updated to: %s`), and the reference's
+extension arm (an unknown name adds a custom ANY_VALUE rule).
+
+**The public surface (§27.3/§27.5):** `Server.gameRules()` →
+`gamerule.GameRules` — the engine object IS the handle: `get/
+getBoolean/getInt/names/contains` (any thread, the snapshot contract)
++ `set` (owner context, the loud refusal).
+
+**The cauldron race fixed:** CauldronAcceptanceTest's douse arm joined
+the walker straight INTO the cauldron cell — the ignite and the same-
+tick douse collapsed the burn window to a sub-tick sliver the 50 ms
+poll could never see (the suite-order flake the baseline exposed). The
+join now lands beside the cauldron (the test's own documented intent:
+"ignite, then place inside"); the assertions unchanged.
+
+Tests: GameRuleAcceptanceTest (11) — the table 1:1, the command forms +
+the extension arm, keepInventory's death keep, showDeathMessages'
+suppressed broadcast + the loud twin, doMobLoot's withheld loot/XP +
+the dropping control, doTileDrops' withheld drop, doDaylightCycle's
+frozen day clock over a walking total clock + the resume, mobGriefing's
+intact blocks in the wounded blast + the destructive control,
+naturalRegeneration's held wounds + the resumed control, the ZGR
+restart round-trip (three typed pairs over the same world dir), the
+any-thread reads + the off-lane set refusal + the on-lane set. The
+neighboring suites green (block update, weather, lifecycle, mining XP,
+body survival, silverfish, enderman carry, rabbit, peaceful
+difficulty, TNT, explosion API, cauldron, fire, command API, spawn
+egg, event API, vehicles, dispenser, hopper window).

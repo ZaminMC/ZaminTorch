@@ -347,6 +347,24 @@ public final class MobManager {
         this.difficultyRead = java.util.Objects.requireNonNull(difficultyRead, "difficultyRead");
     }
 
+    /**
+     * The {@code doMobLoot} read (Slice 24a — LivingEntity.die's gate:
+     * the loot rolls and the XP release both skip when the rule is
+     * off). Null keeps the historical always-drop behavior.
+     */
+    private volatile java.util.function.BooleanSupplier mobLootRead;
+
+    /** Wires the {@code doMobLoot} read (the game-rule table's loot gate). */
+    public void setMobLootRead(java.util.function.BooleanSupplier mobLootRead) {
+        this.mobLootRead = java.util.Objects.requireNonNull(mobLootRead, "mobLootRead");
+    }
+
+    /** @return whether mob loot may drop (the doMobLoot rule's view). */
+    boolean mobLootEnabled() {
+        java.util.function.BooleanSupplier read = mobLootRead;
+        return read == null || read.getAsBoolean();
+    }
+
     public void addListener(Listener listener) {
         listeners.add(Objects.requireNonNull(listener, "listener"));
     }
@@ -1565,6 +1583,12 @@ public final class MobManager {
 
     /** Rolls the kind's loot table into the world at the body. */
     private void dropLoot(MobEntity mob) {
+        // doMobLoot (Slice 24a — LivingEntity.die lines 82-92: the whole
+        // dropFewItems walk skips when the rule is off; the body still
+        // dies, the animation still plays, nothing lands).
+        if (!mobLootEnabled()) {
+            return;
+        }
         Position at = mob.position();
         // The Looting widening (the reference's dropFewItems shape, e.g.
         // CowEntity: `nextInt(3) + nextInt(1 + lootingMultiplier)` — every

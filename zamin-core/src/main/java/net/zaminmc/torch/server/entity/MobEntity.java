@@ -167,6 +167,18 @@ public final class MobEntity implements LivingEntity {
             return false;
         }
 
+        /**
+         * The {@code mobGriefing} rule's view (Slice 24a — the reference
+         * reads it at the mob's own world: the enderman's carry pair, the
+         * rabbit's garden raid, the farmland trample, the creeper's
+         * block-damaging blast). The stub worlds answer the default-true
+         * stand-in (the rule's own default view); the engine's query
+         * overrides with the live table read.
+         */
+        default boolean mobGriefing() {
+            return true;
+        }
+
         /** @return whether the point's block (or the one below) is a cactus. */
         default boolean touchingCactus(double x, double y, double z) {
             return false;
@@ -1216,6 +1228,13 @@ public final class MobEntity implements LivingEntity {
      * solid full cube below).
      */
     private void tickEndermanCarry() {
+        // mobGriefing (Slice 24a — PickUpBlockGoal.canStart line 446 +
+        // PlaceBlockGoal.canStart line 476): the whole carry pair gates
+        // on the rule — a no-grief world's endermen neither pick up nor
+        // put down blocks (the carried body keeps what it holds).
+        if (!world.mobGriefing()) {
+            return;
+        }
         if (endermanCarried == null) {
             if (random.nextInt(20) != 0) {
                 return;
@@ -3201,6 +3220,13 @@ public final class MobEntity implements LivingEntity {
      */
     boolean goalRabbitFarmCanUse() {
         if (type != MobType.RABBIT) {
+            return false;
+        }
+        // mobGriefing (Slice 24a — RaidFarmGoal.canStart line 534's first
+        // gate): a no-grief world never opens the raid window; an ALIVE
+        // window continues (the reference re-checks only at canStart, the
+        // garden walk honors a window opened under the rule).
+        if (!world.mobGriefing()) {
             return false;
         }
         if (rabbitFarmHasTarget) {

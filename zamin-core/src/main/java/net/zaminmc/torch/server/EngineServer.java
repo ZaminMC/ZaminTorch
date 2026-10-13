@@ -316,6 +316,14 @@ public final class EngineServer implements Server, EngineBridge {
      * model replaced). */
     private volatile net.zaminmc.torch.server.weather.WeatherSystem weather;
     private net.zaminmc.torch.server.weather.WeatherDataStore weatherStore;
+    /**
+     * The game-rule table (Slice 24a — the 1.8.8 GameRules port): one
+     * shared instance per server — every dimension's derived data
+     * delegates to the overworld's table (the reference's own
+     * ReadOnlyWorldData.getGameRules).
+     */
+    private volatile net.zaminmc.torch.server.gamerule.GameRules gameRules;
+    private net.zaminmc.torch.server.gamerule.GameRuleDataStore gameRuleStore;
     /** The lightning family (Slice 20c — the strike roll + the bolt life). */
     private volatile net.zaminmc.torch.server.weather.LightningSystem lightning;
     /** The ice/snow precipitation arm (Slice 21c — tickChunks lines 325-341). */
@@ -599,6 +607,9 @@ public final class EngineServer implements Server, EngineBridge {
                 // the adapter, so engine-side rules observe every commit first.
                 blockUpdateSystem = new BlockUpdateSystem(world, itemEntities, falling);
                 blockUpdateSystem.setFireEnvironment(this::raining, gameplayRandom);
+                // The game-rule reads (Slice 24a): the fire's own freeze
+                // gate (doFireTick — FireBlock.tick line 145).
+                blockUpdateSystem.setFireTickRead(() -> gameRules.getBoolean("doFireTick"));
                 // The weather cycle (Slice 20b — World.tickWeather 1:1): the
                 // overworld's own system (the nether has no sky). The wire
                 // fan is ServerWorld.tickWeather's own publishes — the
@@ -606,6 +617,31 @@ public final class EngineServer implements Server, EngineBridge {
                 // the overworld's players only.
                 weather = new net.zaminmc.torch.server.weather.WeatherSystem(
                         new java.util.Random(worldSeed));
+                // The game-rule table (Slice 24a — the 1.8.8 GameRules
+                // port): one shared instance, both dimensions delegating
+                // (the reference's derived-data model). Loaded before the
+                // systems that read it wire up.
+                gameRules = new net.zaminmc.torch.server.gamerule.GameRules();
+                gameRuleStore = new net.zaminmc.torch.server.gamerule.GameRuleDataStore(
+                        config.worldDataDir().resolve("gamerules.bin"));
+                var persistedRules = gameRuleStore.load();
+                if (persistedRules != null) {
+                    gameRules.restore(persistedRules);
+                }
+                // The day-clock gate (Slice 24a): doDaylightCycle answers
+                // whether tickTime advances the time-of-day (both
+                // dimensions — one shared table).
+                ticker.setDaylightCycleRead(() -> gameRules.getBoolean("doDaylightCycle"));
+                // The public set route's ownership gate (§27.6): the same
+                // mutation context the world's own writes assert through.
+                gameRules.setOwnershipCheck(() -> {
+                    try {
+                        world.requireMutationContext("gamerule set");
+                        return true;
+                    } catch (IllegalStateException offLane) {
+                        return false;
+                    }
+                });
                 // The weather persistence (Slice 21b — WorldData's own save
                 // fields): the five flags/clocks survive restarts; the
                 // gradients never persist (the reference's fresh fields
@@ -1004,7 +1040,7 @@ public final class EngineServer implements Server, EngineBridge {
                         world, redstoneSystem,
                         position -> solidAt(position.x(), position.y() - 0.1, position.z()),
                         (center, power) -> detonateAt(center.x(), center.y(), center.z(), power,
-                                net.zaminmc.torch.server.tnt.TntSystem.MAX_DAMAGE),
+                                net.zaminmc.torch.server.tnt.TntSystem.MAX_DAMAGE, true),
                         fxManager, gameplayRandom, TNT_ID_BASE);
                 world.addChangeListener(tntSystem);
                 tntSystem.addListener(new TntEventDispatch());
@@ -1083,6 +1119,9 @@ public final class EngineServer implements Server, EngineBridge {
                 experienceOrbs.addListener(new OrbEventDispatch());
                 // Random ticks (§471 pattern): grass growth and decay.
                 randomTicks = new RandomTickSystem(world, new java.util.Random());
+                // The game-rule read (Slice 24a): randomTickSpeed answers
+                // the per-section pick band (ServerWorld.tickChunks 343).
+                randomTicks.setRandomTickSpeedRead(() -> gameRules.getInt("randomTickSpeed"));
                 // Projectiles (arrows, shards): the tick-thread physics system,
                 // with damage semantics staying here in the combat callbacks.
                 ProjectileManager projectiles = new ProjectileManager(
@@ -1149,9 +1188,13 @@ public final class EngineServer implements Server, EngineBridge {
                 // The ghast fireball's detonation (Slice 16c —
                 // FireballEntity.onHit's explosion, the reference's own
                 // 8*power+1 center wound): the same boundary-scoped walk the
-                // TNT rides, at the fireball's power 1.
+                // TNT rides, at the fireball's power 1. The mobGriefing rule
+                // answers the destructive flag (Slice 24a — FireballEntity
+                // line 33's own consult): a no-grief world wounds and
+                // knocks but never breaks blocks.
                 projectiles.setExplosionSink((at, power) -> detonateAt(
-                        at.x(), at.y(), at.z(), power, 8.0f * power + 1.0f));
+                        at.x(), at.y(), at.z(), power, 8.0f * power + 1.0f,
+                        gameRules.getBoolean("mobGriefing")));
                 // The ender pearl's teleport arm (Slice 17c —
                 // EnderPearlEntity.onCollision lines 45-71): the 5%
                 // player-spawned endermite at the thrower's pre-teleport
@@ -1164,8 +1207,12 @@ public final class EngineServer implements Server, EngineBridge {
                         return; // the reference's connection-alive gate
                     }
                     // The 5% passenger (line 53): the endermite spawns at the
-                    // thrower's own pre-teleport feet, not the landing.
-                    if (gameplayRandom.nextFloat() < ENDER_PEARL_ENDERMITE_CHANCE) {
+                    // thrower's own pre-teleport feet, not the landing. The
+                    // doMobSpawning rule gates the spawn (Slice 24a —
+                    // EnderPearlEntity.onCollision line 52's own consult);
+                    // the teleport itself always runs.
+                    if (gameRules.getBoolean("doMobSpawning")
+                            && gameplayRandom.nextFloat() < ENDER_PEARL_ENDERMITE_CHANCE) {
                         MobEntity endermite = mobManager.spawnAt(
                                 net.zaminmc.torch.server.entity.MobType.ENDERMITE,
                                 new Position(thrower.position().x(), thrower.position().y(),
@@ -1192,6 +1239,9 @@ public final class EngineServer implements Server, EngineBridge {
                 // The difficulty reads (Slice 19e): the peaceful sweep
                 // (MonsterEntity.tick) + the spawn gate (canSpawn).
                 mobs.setDifficultyRead(() -> difficulty);
+                // The game-rule read (Slice 24a): doMobLoot gates the
+                // death loot walk (LivingEntity.die).
+                mobs.setMobLootRead(() -> gameRules.getBoolean("doMobLoot"));
                 // The leashes (Slice 11c): the knots + the per-tick walk.
                 leadSystem = new net.zaminmc.torch.server.leash.LeadSystem(
                         new LeadSurface(), KNOT_ID_BASE);
@@ -1221,11 +1271,23 @@ public final class EngineServer implements Server, EngineBridge {
                 // reference's canSpawn consult).
                 naturalSpawns.setDifficultyRead(() -> difficulty);
                 naturalSpawnsNether.setDifficultyRead(() -> difficulty);
+                // The game-rule read (Slice 24a): doMobSpawning gates the
+                // whole natural cycle (ServerWorld.tick line 176) — both
+                // dimensions share the one table.
+                naturalSpawns.setMobSpawningRead(() -> gameRules.getBoolean("doMobSpawning"));
+                naturalSpawnsNether.setMobSpawningRead(() -> gameRules.getBoolean("doMobSpawning"));
                 // Vehicles (§ vehicles slice): boats and minecarts on the
                 // shared body model; the engine owns the mounted rider.
                 VehicleManager vehicles = new VehicleManager(
                         new VehicleWorldQuery(),
                         vehicle -> {
+                            // doEntityDrops (Slice 24a — MinecartEntity's
+                            // own dropItems gate): the cart item and the
+                            // chest extras both skip when the rule is off;
+                            // the body still breaks.
+                            if (!gameRules.getBoolean("doEntityDrops")) {
+                                return;
+                            }
                             // The death drops (Slice 21a — the reference's
                             // dropItems chain): the plain cart/boat item first
                             // (MinecartEntity.dropItems), then the chest
@@ -1400,6 +1462,9 @@ public final class EngineServer implements Server, EngineBridge {
                         type -> blockRegistry.lookup(type.identifier()),
                         this::publishInventoryChanged);
                 blockInteraction.setEventBus(eventBus); // §27.7: the public break/place gates
+                // The game-rule read (Slice 24a): doTileDrops gates the
+                // break's drop walk (Block.java's own gate).
+                blockInteraction.setTileDropsRead(() -> gameRules.getBoolean("doTileDrops"));
                 // A survival-broken furnace spills its slots, and a survival-
                 // broken chest spills its 27, into the world first. The same
                 // hook emits the break/place feedback through the FX bus.
@@ -1688,6 +1753,21 @@ public final class EngineServer implements Server, EngineBridge {
             throw new IllegalStateException("compute is unavailable before the server boots");
         }
         return view;
+    }
+
+    /**
+     * The public game-rule view (§27.3 — Slice 24a): the shared table
+     * itself (§27.5 — the engine object IS the handle); the reads are
+     * snapshot-safe from any thread, the {@code set} route carries the
+     * ownership assert.
+     */
+    @Override
+    public net.zaminmc.torch.gamerule.GameRules gameRules() {
+        net.zaminmc.torch.server.gamerule.GameRules rules = gameRules;
+        if (rules == null) {
+            throw new IllegalStateException("game rules are unavailable before the server boots");
+        }
+        return rules;
     }
 
     private volatile net.zaminmc.torch.concurrent.AsyncCompute computeView;
@@ -2816,8 +2896,10 @@ public final class EngineServer implements Server, EngineBridge {
         }
         // The peaceful regen family (Slice 19e — PlayerEntity.tick lines
         // 443-450): a heart a second and a food point a half-second —
-        // the difficulty's own mercy, before the exhaustion walk.
-        if (difficulty == 0) {
+        // the difficulty's own mercy, before the exhaustion walk. The
+        // naturalRegeneration rule gates BOTH the peaceful pair (Slice
+        // 24a — PlayerEntity.tick line 443's own consult).
+        if (difficulty == 0 && gameRules.getBoolean("naturalRegeneration")) {
             session.advancePeacefulTick();
             boolean changed = false;
             if (session.peacefulTick() % 20 == 0
@@ -2847,7 +2929,11 @@ public final class EngineServer implements Server, EngineBridge {
             }
             publishBodyChanged(session);
         }
-        if (session.food() >= 18 && session.health() < PlayerSession.MAX_HEALTH) {
+        // naturalRegeneration (Slice 24a — HungerManager.tick line 41's
+        // own gate): the food>=18 regen arm skips when the rule is off;
+        // the starvation arm below still walks.
+        if (gameRules.getBoolean("naturalRegeneration")
+                && session.food() >= 18 && session.health() < PlayerSession.MAX_HEALTH) {
             session.advanceBodyTimer();
             if (session.bodyTimer() >= PlayerSession.BODY_TIMER_PERIOD) {
                 session.resetBodyTimer();
@@ -3661,7 +3747,12 @@ public final class EngineServer implements Server, EngineBridge {
                 new net.zaminmc.torch.event.player.PlayerDeathEvent(
                         session, session.name() + " " + causeMessage);
         eventBus.fire(deathEvent);
-        if (!deathEvent.cancelled()) {
+        // keepInventory (Slice 24a — PlayerEntity.onDeath line 636's own
+        // gate): the rule and a cancelled event compose — either keeps
+        // the experience and the whole inventory on the body; the death
+        // still resolves (the respawn walk stays).
+        if (!deathEvent.cancelled()
+                && !gameRules.getBoolean("keepInventory")) {
             // The death XP scatter (the historical 7-per-level rule, capped at
             // 100) lands at the body before the total resets — vanilla drops the
             // orbs where the player fell, and the newcomer starts from zero.
@@ -3689,7 +3780,11 @@ public final class EngineServer implements Server, EngineBridge {
         }
         publishBodyChanged(session);
         publishDied(session);
-        String deathLine = deathEvent.deathMessage();
+        // showDeathMessages (Slice 24a — PlayerEntity.onDeath line 659:
+        // the broadcast skips when the rule is off; the null-suppress —
+        // a plugin's silent death — composes with it).
+        String deathLine = gameRules.getBoolean("showDeathMessages")
+                ? deathEvent.deathMessage() : null;
         if (deathLine != null) {
             for (PlayerSession online : players.all()) {
                 systemMessage(online, deathLine);
@@ -9689,6 +9784,12 @@ public final class EngineServer implements Server, EngineBridge {
             // release right after. Not cancellable (the death is already
             // authoritative); the observation point for kill counters.
             eventBus.fire(new net.zaminmc.torch.event.entity.MobDeathEvent(mob));
+            // doMobLoot (Slice 24a — LivingEntity.die's own XP gate): the
+            // kill reward skips when the rule is off; the death itself
+            // still resolves.
+            if (!gameRules.getBoolean("doMobLoot")) {
+                return;
+            }
             // The kill reward (the historical getExperienceValue): the body
             // releases its XP band at the death point; orbs wait out their
             // pickup delay while the death animation plays. The slime's own
@@ -9917,6 +10018,23 @@ public final class EngineServer implements Server, EngineBridge {
                         var type = world.getBlock(at);
                         if (net.zaminmc.torch.server.block.InfestedBlocks.isInfested(
                                 type.identifier())) {
+                            // mobGriefing (Slice 24a — WakeUpFriendsGoal.tick
+                            // lines 222-227): under the rule the egg breaks
+                            // (its silverfish bursts with it); a no-grief
+                            // world SILENTLY converts the egg back to its
+                            // host stone — no break, no fish — the walk may
+                            // still stop on the coin.
+                            if (!gameRules.getBoolean("mobGriefing")) {
+                                var host = net.zaminmc.torch.server.block.InfestedBlocks
+                                        .hostOf(type.identifier());
+                                if (host != null) {
+                                    world.setBlock(at, blockRegistry.require(host));
+                                }
+                                if (gameplayRandom.nextBoolean()) {
+                                    return; // the reference's early stop
+                                }
+                                continue;
+                            }
                             // breakBlock(pos, true): the egg leaves (its
                             // silverfish bursts with it), the walk may stop.
                             // The world's own commit path carries the wire
@@ -10209,8 +10327,12 @@ public final class EngineServer implements Server, EngineBridge {
             for (MobManager.Listener listener : mobListeners) {
                 listener.onMobBred(parent, mate, baby);
             }
-            // The breed reward (AnimalBreedGoal.breed under doMobLoot):
+            // The breed reward (AnimalBreedGoal.breed under doMobLoot —
+            // Slice 24a: the rule gates this burst too):
             // random.nextInt(7) + 1 orbs at the parent.
+            if (!gameRules.getBoolean("doMobLoot")) {
+                return;
+            }
             experienceOrbs.spawnBurst(parent.position(),
                     1 + gameplayRandom.nextInt(7), 1);
         }
@@ -10419,6 +10541,16 @@ public final class EngineServer implements Server, EngineBridge {
         @Override
         public boolean inFire(double x, double y, double z) {
             return WorldSolidity.isFire(blockAtBoundsSafe(x, y, z).identifier());
+        }
+
+        /**
+         * The mobGriefing rule's live view (Slice 24a): the enderman's
+         * carry pair and the rabbit's garden raid read it through the
+         * body's own world query, exactly the reference's consult.
+         */
+        @Override
+        public boolean mobGriefing() {
+            return gameRules.getBoolean("mobGriefing");
         }
 
         @Override
@@ -10697,7 +10829,11 @@ public final class EngineServer implements Server, EngineBridge {
      */
     private void explodeOnTick(MobEntity creeper) {
         Position center = creeper.position();
-        detonateAt(center.x(), center.y() + 0.5, center.z(), CREEPER_POWER, BLAST_MAX_DAMAGE);
+        // mobGriefing (Slice 24a — CreeperEntity.explode line 208): the
+        // destructive flag rides the rule; a no-grief world's blast
+        // wounds and knocks but never breaks blocks.
+        detonateAt(center.x(), center.y() + 0.5, center.z(), CREEPER_POWER, BLAST_MAX_DAMAGE,
+                gameRules.getBoolean("mobGriefing"));
     }
 
     /**
@@ -10707,7 +10843,8 @@ public final class EngineServer implements Server, EngineBridge {
      * caller's easy-difficulty cap, and the wire fan-out. Tick-thread
      * context.
      */
-    private void detonateAt(double cx, double cy, double cz, float power, float maxDamage) {
+    private void detonateAt(double cx, double cy, double cz, float power, float maxDamage,
+                            boolean destructive) {
         BlockPosition blockCenter = new BlockPosition(
                 (int) Math.floor(cx), (int) Math.floor(cy), (int) Math.floor(cz));
 
@@ -10734,6 +10871,10 @@ public final class EngineServer implements Server, EngineBridge {
         // to the world's vertical bounds (a ground-level blast would
         // otherwise walk the scope off the bottom — the bedrock floor
         // stops the rays, the scope must not crash first).
+        // The destructive flag (Slice 24a — Explosion.damageBlocks line
+        // 156's own gate): a false flag (mobGriefing off) skips the whole
+        // block walk — the wounds, the knockback, and the packet still
+        // run below, exactly the reference's shape.
         int blastReach = (int) Math.ceil(power * 2.0) + 2;
         BlockPosition scopeMin = new BlockPosition(
                 blockCenter.x() - blastReach,
@@ -10744,8 +10885,10 @@ public final class EngineServer implements Server, EngineBridge {
                 Math.min(BlockPosition.MAX_Y, blockCenter.y() + blastReach),
                 blockCenter.z() + blastReach);
         java.util.List<ExplosionService.Destroyed> destroyed = new java.util.ArrayList<>();
-        world.executeInRegions(scopeMin, scopeMax,
-                () -> destroyed.addAll(explosionService.detonate(blockCenter, power)));
+        if (destructive) {
+            world.executeInRegions(scopeMin, scopeMax,
+                    () -> destroyed.addAll(explosionService.detonate(blockCenter, power)));
+        }
         // The historical drop roll: one block in `power` survives as loot.
         java.util.List<int[]> blockOffsets = new java.util.ArrayList<>();
         for (ExplosionService.Destroyed removed : destroyed) {
@@ -10939,6 +11082,9 @@ public final class EngineServer implements Server, EngineBridge {
         commands.register(new CommandService.Command("give",
                 "Give yourself an item: /give <name> [count] [metadata]",
                 playerCommand(this::giveCommand)));
+        commands.register(new CommandService.Command("gamerule",
+                "Query or set a game rule: /gamerule <rule> [true|false|value]",
+                2, this::gameruleCommand));
         commands.register(new CommandService.Command("time",
                 "Query or set the day: /time query | /time set <day|noon|night|midnight|ticks>",
                 this::timeCommand));
@@ -12004,8 +12150,57 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /**
-     * /time query, or /time set &lt;day|noon|night|midnight|ticks&gt;: moves the
-     * world's day clock (the same value Time Update 0x03 carries). Runs on the
+     * The {@code /gamerule} command (Slice 24a — GameRuleCommand 1:1):
+     * the bare form lists every rule in the reference's listArgs shape
+     * ({@code "a, b, c and d"}), the one-arg form answers the query
+     * line, and the set arm validates boolean rules before the write.
+     * Level 2 (the reference's own permission). Runs on the tick thread
+     * through chat dispatch — the same lane the engine's own reads use.
+     */
+    private String gameruleCommand(CommandSender sender, String[] args) {
+        net.zaminmc.torch.server.gamerule.GameRules rules = gameRules;
+        switch (args.length) {
+            case 0 -> {
+                // listArgs (AbstractCommand lines 370-382): comma-separated
+                // with " and " before the last name.
+                StringBuilder list = new StringBuilder();
+                var names = rules.names();
+                int index = 0;
+                for (String name : names) {
+                    if (index > 0) {
+                        list.append(index == names.size() - 1 ? " and " : ", ");
+                    }
+                    list.append(name);
+                    index++;
+                }
+                return list.toString();
+            }
+            case 1 -> {
+                if (!rules.contains(args[0])) {
+                    return "No game rule called '" + args[0] + "' exists";
+                }
+                return args[0] + " = " + rules.get(args[0]);
+            }
+            default -> {
+                // parseString(args, 1): the value is the remaining words
+                // joined — the engine's command splitter already hands the
+                // raw tail.
+                String value = String.join(" ", java.util.Arrays.asList(args)
+                        .subList(1, args.length));
+                if (rules.isType(args[0],
+                        net.zaminmc.torch.server.gamerule.GameRules.Type.BOOLEAN_VALUE)
+                        && !"true".equals(value) && !"false".equals(value)) {
+                    return "'" + value + "' is not true or false";
+                }
+                rules.set(args[0], value);
+                return "Game rule " + args[0] + " has been updated to: " + value;
+            }
+        }
+    }
+
+    /**
+     * The {@code /time} command's own walk: the query line, the add arm,
+     * and the set arm over the named stops. The clock lands on the
      * tick thread through chat dispatch; every client hears the new time
      * through the time listeners.
      */
@@ -12212,6 +12407,9 @@ public final class EngineServer implements Server, EngineBridge {
                 }
                 if (weatherStore != null && weather != null) {
                     weatherStore.save(weather.snapshot());
+                }
+                if (gameRuleStore != null && gameRules != null) {
+                    gameRuleStore.save(gameRules.entries());
                 }
                 if (mobStore != null && mobManager != null) {
                     mobStore.save(mobManager.snapshot());
