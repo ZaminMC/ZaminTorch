@@ -181,6 +181,17 @@ public final class NaturalSpawnSystem {
      * MagmaCubeEntity 1/4-4, every category but MONSTER empty — the
      * reference's own hell table has no creature/ambient/water rows).
      */
+    /** The difficulty read (0 peaceful .. 3 hard); null until wired. */
+    private volatile java.util.function.IntSupplier difficultyRead;
+
+    /**
+     * Wires the difficulty read (Slice 19e — MonsterEntity.canSpawn line
+     * 131: the monster family never spawns on a peaceful world).
+     */
+    public void setDifficultyRead(java.util.function.IntSupplier difficultyRead) {
+        this.difficultyRead = java.util.Objects.requireNonNull(difficultyRead, "difficultyRead");
+    }
+
     public NaturalSpawnSystem(Mobs mobs, WorldQuery world, Random random, boolean nether) {
         this.mobs = Objects.requireNonNull(mobs, "mobs");
         this.world = Objects.requireNonNull(world, "world");
@@ -303,6 +314,14 @@ public final class NaturalSpawnSystem {
             // every 400 ticks — the animal spawn throttle.
             if (category == Category.CREATURE && !rareMobs) {
                 continue;
+            }
+            // The peaceful gate (Slice 19e — MonsterEntity.canSpawn line
+            // 131): the monster family never spawns on a peaceful world.
+            if (category == Category.MONSTER) {
+                java.util.function.IntSupplier difficultyAt = difficultyRead;
+                if (difficultyAt != null && difficultyAt.getAsInt() == 0) {
+                    continue;
+                }
             }
             List<SpawnEntry> entries = entriesOf(category);
             if (entries.isEmpty()) {

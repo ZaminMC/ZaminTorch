@@ -3402,3 +3402,19 @@ flip republishes them through the manager's drain.
 **Tests**: EndermanCarryStareTest (7). Fresh suite: 872 core green (the
 documented lifecycle load flake green in isolation) + 19 api + 75
 protocol, `--max-workers=1`.
+
+### Slice 19e — the difficulty family (the peaceful law)
+
+`MonsterEntity.tick` 33-38 + `canSpawn` 131 + `PlayerEntity.tick` 443-451 +
+`takeDamage` 786-798: the peaceful sweep (a hostile body leaves the very next
+tick whatever path brought it — the spawner, the egg, the command, the
+conversion; `MobManager`'s per-tick `removeHostiles()` behind the engine's
+difficulty read), the spawn gate (the MONSTER category never spawns on
+peaceful — both dimensions' `NaturalSpawnSystem` consult), the regen pair (a
+heart a second on the body's own % 20 clock, a food point a half-second on
+% 10, both arms running beside each other exactly as the reference runs them —
+`tickFoodEconomy`'s peaceful arm over the session's `peacefulTick` clock), and
+the blast ladder (the scaled-source family at the explosion player-walk:
+peaceful never wounds, easy halves plus one, hard lifts a half — before the
+Blast Protection shave). PeacefulDifficultyTest (3). Fresh suite: 871 core +
+19 api green, `--max-workers=1`, zero failures.

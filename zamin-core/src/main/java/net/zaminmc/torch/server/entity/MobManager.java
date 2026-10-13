@@ -316,6 +316,8 @@ public final class MobManager {
     private volatile net.zaminmc.torch.server.potion.PotionSystem potionSystem;
     /** The owner-lane admission for goal registrations (§27.6); null until wired. */
     private volatile java.util.function.Consumer<Runnable> goalAdmission;
+    /** The difficulty read (0 peaceful .. 3 hard); null until wired. */
+    private volatile java.util.function.IntSupplier difficultyRead;
 
     public MobManager(MobEntity.WorldQuery world, Random random, LootSink lootSink,
                       int firstEntityId,
@@ -325,6 +327,15 @@ public final class MobManager {
         this.lootSink = Objects.requireNonNull(lootSink, "lootSink");
         this.nextEntityId = firstEntityId;
         this.surfaceY = Objects.requireNonNull(surfaceY, "surfaceY");
+    }
+
+    /**
+     * Wires the difficulty read (Slice 19e — the reference's MonsterEntity
+     * .tick model: a hostile body on a peaceful world leaves the very
+     * next tick, whatever path brought it there).
+     */
+    public void setDifficultyRead(java.util.function.IntSupplier difficultyRead) {
+        this.difficultyRead = java.util.Objects.requireNonNull(difficultyRead, "difficultyRead");
     }
 
     public void addListener(Listener listener) {
@@ -669,6 +680,15 @@ public final class MobManager {
      */
     public void tick(Iterable<PlayerSession> players, long timeOfDay) {
         boolean night = isNight(timeOfDay);
+
+        // The peaceful sweep (Slice 19e — MonsterEntity.tick lines 33-38):
+        // a hostile body on a peaceful world leaves the very next tick —
+        // the arrival path never matters (the spawner, the egg, the
+        // command, the conversion).
+        java.util.function.IntSupplier difficultyAt = difficultyRead;
+        if (difficultyAt != null && difficultyAt.getAsInt() == 0) {
+            removeHostiles();
+        }
 
         // The breeds defer to the loop's end: a baby spawned mid-iteration
         // would add to the iterated list (the ConcurrentModification trap).
