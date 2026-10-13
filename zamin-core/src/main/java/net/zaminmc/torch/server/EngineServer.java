@@ -1054,6 +1054,7 @@ public final class EngineServer implements Server, EngineBridge {
                 dispenserSystem = new net.zaminmc.torch.server.dispenser.DispenserSystem(
                         world, redstoneSystem, itemEntities, projectiles, tntSystem,
                         hopperSystem, fxManager, new java.util.Random());
+                dispenserSystem.setEventBus(eventBus); // §27.7: the public dispense gate
                 // The dispenser family's slot persistence (Slice 11f, the
                 // ledgered ZDD): the nine slots survive restarts.
                 dispenserStore = new net.zaminmc.torch.server.dispenser.DispenserDataStore(
@@ -1855,7 +1856,18 @@ public final class EngineServer implements Server, EngineBridge {
         if (dx * dx + dy * dy + dz * dz > 8.0 * 8.0) {
             return; // too far from the sender: the anti-grief guard
         }
-        signManager.set(position, lines);
+        // §27.7: the sign-edit gate BEFORE the text commits — the sign
+        // still carries its old lines. A cancelled edit keeps them; a
+        // handler's rewritten lines ride the walk when not cancelled.
+        net.zaminmc.torch.event.block.SignChangeEvent gate =
+                new net.zaminmc.torch.event.block.SignChangeEvent(
+                        world.name(), position, player.uuid(), player.name(), lines);
+        eventBus.fire(gate);
+        if (gate.cancelled()) {
+            return; // the old text stands, no viewer replay
+        }
+        String[] applied = gate.lines();
+        signManager.set(position, applied);
         for (SignListener listener : signListeners) {
             listener.onSignChanged(position, signManager.peek(position));
         }
@@ -8030,6 +8042,10 @@ public final class EngineServer implements Server, EngineBridge {
         // The lid swings for every other observer (the historical Block
         // Action 1; the opener's client animates its own view).
         publishChestLid(position, session, true);
+        // §27.7: the post-commit chest-open observation — the window is
+        // assigned and the lid swings; handlers observe, they do not veto.
+        eventBus.fire(new net.zaminmc.torch.event.block.ChestOpenEvent(
+                world.name(), position, session.uuid(), session.name()));
     }
 
     /**
@@ -10592,6 +10608,20 @@ public final class EngineServer implements Server, EngineBridge {
                             ItemStack.of(item, 1), ItemEntity.PICKUP_DELAY_DROP_TICKS);
                 }
             }
+        }
+        // §27.7: the per-block post-commit observation — the cells are
+        // already air and the drop rolls resolved; handlers observe the
+        // destruction list, they do not veto it (the pre-commit gate
+        // above is the veto point).
+        if (!destroyed.isEmpty()) {
+            java.util.List<net.zaminmc.torch.event.world.ExplosionDestroyEvent.DestroyedCell>
+                    cells = new java.util.ArrayList<>(destroyed.size());
+            for (ExplosionService.Destroyed removed : destroyed) {
+                cells.add(new net.zaminmc.torch.event.world.ExplosionDestroyEvent.DestroyedCell(
+                        removed.position(), removed.type().identifier().toString()));
+            }
+            eventBus.fire(new net.zaminmc.torch.event.world.ExplosionDestroyEvent(
+                    world, new Position(cx, cy, cz), power, cells));
         }
 
         // Player wounds: distance falloff to double the power, then the

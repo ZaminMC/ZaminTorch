@@ -4095,3 +4095,51 @@ rows — every engine subsystem behind §27.3's audit list has either a
 public entry point with a plugin-facing test (IMPLEMENTED) or a
 recorded decision naming exactly what stands between the engine and the
 surface (AUDITED with rationale).
+
+## Slice 23f — the interaction-events wave (§27.7's named omissions close)
+
+**The four events** (every handler registered through the public bus,
+firing on the walk's own owner context):
+
+1. **`event.block.DispenseEvent`** — the cancellable pre-commit gate
+inside the dispense walk's boundary scope, BEFORE the behavior runs:
+carries the world/origin/facing (Direction)/stack/facingCell/dropper
+reads. A cancelled dispense keeps the stack in its slot untouched (no
+item leaves, no projectile spawns, not even the empty click sounds).
+Wraps the whole family — built-in and custom behaviors alike (the
+§27.3 registration surface is unaffected). DispenserSystem gains the
+setEventBus wiring.
+
+2. **`event.block.ChestOpenEvent`** — the post-commit observation in
+openChestOnTick, after the window id assigns and the lid swings: the
+worldName/position/openerId/openerName reads. Not cancellable (the
+window already opened).
+
+3. **`event.block.SignChangeEvent`** — the cancellable + rewritable gate
+in editSignOnTick, BEFORE signManager.set: the sign still carries its
+old lines. Cancel keeps the old text (no viewer replay);
+`setLines(String[])` replaces the submitted lines wholesale (a null or
+wrong-length array is ignored — the submitted lines stand) and the walk
+applies the handler's answer.
+
+4. **`event.world.ExplosionDestroyEvent`** — the per-block post-commit
+observation in detonateAt, after the destruction and the drop rolls
+resolve, before the wound falloff: the world/center/power reads + the
+immutable cells() list (position + previousType per destroyed cell, in
+the detonation walk's own order). Not cancellable — the pre-commit
+ExplosionEvent above it is the veto point.
+
+Tests: InteractionEventAcceptanceTest (4: the dispense cancel — the
+field reads, the stack staying, no projectile — plus the uncancelled
+twin with the one-unit payment; the chest-open identity reads after the
+use-dispatch; the sign cancel arm + the rewrite arm + the identity
+reads; the explosion destruction list with the post-commit air truth —
+the TNT's own seat correctly absent, the prime consumed it). The
+neighboring suites green (DispenseBehavior, EventApi, ExplosionTnt-
+Redstone, BlockEntity, HopperWindow, the chest + dispenser batches).
+
+The ledger's four long-named omissions close: the dispense observe/
+cancel, the chest-open observe, the sign-change observe, the per-block
+explosion destroy. The piston/fluid observe hooks and the furnace
+burn/cook hooks stay ledgered for their own waves (the §27.7 rule:
+hooks land with the mechanics that need them, never speculatively).
