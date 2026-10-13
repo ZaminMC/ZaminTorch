@@ -74,6 +74,13 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
         BREWING_STAND,
         /** The horse inventory (saddle + armor slots live on the mount at containerPosition's mount id). */
         HORSE,
+        /**
+         * The chest minecart's chest menu (Slice 21a — the reference's
+         * InventoryMinecartEntity.interact opens the chest menu over the
+         * cart): 27 GUI slots, the slot state lives on the vehicle at
+         * containerMountId's cart id.
+         */
+        CHEST_MINECART,
         /** The villager trading window (offers ride the MC|TrList plugin message). */
         VILLAGER,
         /** The enchanting table (2 transient slots living in the session's menu, seed + costs included). */
@@ -629,6 +636,12 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
     public void openHorseWindow(int windowId, int mountEngineId) {
         openContainerWindow(windowId, ContainerKind.HORSE, null);
         this.containerMountId = mountEngineId;
+    }
+
+    /** Opens the chest minecart's chest menu (the cart's engine id rides along). */
+    public void openChestMinecartWindow(int windowId, int cartEngineId) {
+        openContainerWindow(windowId, ContainerKind.CHEST_MINECART, null);
+        this.containerMountId = cartEngineId;
     }
 
     /** Opens the villager trading window (the trader's engine id rides along). */

@@ -957,6 +957,24 @@ final class TestClient18 implements AutoCloseable {
         throw new IOException("Timed out waiting for a spawn of object type " + objectType);
     }
 
+    /**
+     * Reads a Spawn Entity of a minecart (object type 10) whose objectData
+     * names the variant index (0 rideable, 1 chest, ... — Slice 21a's
+     * family split): other minecarts already in view are skipped, so a
+     * test names its own cart.
+     */
+    int[] readSpawnOfMinecartType(int minecartTypeIndex, long timeoutMs) throws IOException {
+        long deadline = System.currentTimeMillis() + timeoutMs;
+        while (System.currentTimeMillis() < deadline) {
+            int[] spawn = readSpawnObjectOfType(10,
+                    Math.max(1, deadline - System.currentTimeMillis()));
+            if (spawn[5] == minecartTypeIndex) {
+                return spawn;
+            }
+        }
+        throw new IOException("Timed out waiting for a minecart of type index " + minecartTypeIndex);
+    }
+
     /** Reads an Attach Entity packet, returning {riderId, vehicleId, riding}. */
     int[] readAttachEntity(long timeoutMs) throws IOException {
         byte[] payload = readPacketOfType(Protocol18.S2C_ATTACH_ENTITY, timeoutMs);

@@ -333,6 +333,12 @@ public final class NormalWorldGenerator implements WorldGenerator {
                     }
 
                     @Override
+                    public void placeGenChestMinecart(int x, int y, int z,
+                            java.util.List<net.zaminmc.torch.server.world.structure.StructureWorld.GenLootSlot> slots) {
+                        chunk.addPendingChestMinecart(x, y, z, slots);
+                    }
+
+                    @Override
                     public void placeMobSpawner(int x, int y, int z,
                             net.zaminmc.torch.server.entity.MobType mobType) {
                         chunk.addPendingMobSpawner(x, y, z, mobType);

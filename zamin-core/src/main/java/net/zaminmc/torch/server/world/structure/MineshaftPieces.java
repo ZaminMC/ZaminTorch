@@ -12,15 +12,62 @@ import java.util.Random;
  * Crossing and the Stairs.
  *
  * <p><b>Ledgered</b> (the reference's arms the engine lacks the systems
- * for): the chest minecart with its loot rolls (the corridor's two
- * nextInt(100) arms — the entity and the loot table ride the minecart
- * family's own slice) and the cave-spider mob spawner (the block entity
- + the spawner logic ride the mob-spawner slice; the corridor keeps the
- * cobweb arm the reference pairs with it).</p>
+ * for): the chest minecart with its loot rolls LANDED with Slice 21a (the
+ * corridor's two nextInt(100) arms — the rail cell + the cart record
+ * materializing into the vehicle manager at chunk publish); the
+ * cave-spider mob spawner's own logic rides the mob-spawner slice (the
+ * corridor keeps the cobweb arm the reference pairs with it).</p>
  */
 public final class MineshaftPieces {
 
     private MineshaftPieces() {
+    }
+
+    /**
+     * The chest-minecart loot table (LOOT_ENTRIES lines 22-36, 1:1): the
+     * thirteen ordinary rows with the reference's own min/max count bands
+     * and weights (the enchanted book rides addAll's own tail below).
+     */
+    private static final List<LootRow> LOOT_ENTRIES = List.of(
+            new LootRow("minecraft:iron_ingot", 1, 5, 10),
+            new LootRow("minecraft:gold_ingot", 1, 3, 5),
+            new LootRow("minecraft:redstone", 4, 9, 5),
+            // The lapis band (the reference's DYE + BLUE metadata 4 — the
+            // engine's lapis item is the dye 351 whose damage 4 is blue).
+            new LootRow("minecraft:lapis", 4, 9, 5),
+            new LootRow("minecraft:diamond", 1, 2, 3),
+            new LootRow("minecraft:coal", 3, 8, 10),
+            new LootRow("minecraft:bread", 1, 3, 15),
+            new LootRow("minecraft:iron_pickaxe", 1, 1, 1),
+            new LootRow("minecraft:rail", 4, 8, 1),
+            new LootRow("minecraft:melon_seeds", 2, 4, 10),
+            new LootRow("minecraft:pumpkin_seeds", 2, 4, 10),
+            new LootRow("minecraft:saddle", 1, 1, 3),
+            new LootRow("minecraft:iron_horse_armor", 1, 1, 1));
+
+    /** The total weight (WeightedPicker's own pick denominator). */
+    private static final int LOOT_TOTAL_WEIGHT = LOOT_ENTRIES.stream()
+            .mapToInt(LootRow::weight).sum();
+
+    /** One loot row (the reference's LootEntry: min/max count + weight + the metadata column). */
+    private record LootRow(String itemId, int minChance, int maxChance, int weight, int damage) {
+
+        /** The plain shape (metadata 0). */
+        LootRow(String itemId, int minChance, int maxChance, int weight) {
+            this(itemId, minChance, maxChance, weight, 0);
+        }
+    }
+
+    /** WeightedPicker.pick: the descending-weight walk over the table. */
+    private static LootRow pickLoot(Random random) {
+        int pick = random.nextInt(LOOT_TOTAL_WEIGHT);
+        for (LootRow entry : LOOT_ENTRIES) {
+            pick -= entry.weight();
+            if (pick < 0) {
+                return entry;
+            }
+        }
+        return LOOT_ENTRIES.get(LOOT_ENTRIES.size() - 1);
     }
 
     /** The next-piece roll (createPiece lines 45-65): corridor / stairs / crossing. */
@@ -271,8 +318,17 @@ public final class MineshaftPieces {
                 this.setBlockStateWithThreshold(world, clip, random, 0.05F, 2, 2, at + 2, palette.cobweb());
                 this.setBlockStateWithThreshold(world, clip, random, 0.05F, 1, 2, at - 1, palette.torch());
                 this.setBlockStateWithThreshold(world, clip, random, 0.05F, 1, 2, at + 1, palette.torch());
-                // The chest-minecart arms (lines 301-325) ledger with the
-                // minecart entity family's own slice.
+                // The chest-minecart arms (lines 301-325, Slice 21a): the
+                // two 1-in-100 rolls per section — the rail cell + the cart
+                // record (the loot walk mirrors LootEntry.addLoot with the
+                // enchanted book riding addAll's own tail).
+                if (random.nextInt(100) == 0) {
+                    this.placeChestMinecartWithLoot(world, clip, random, 2, 0, at - 1);
+                }
+                if (random.nextInt(100) == 0) {
+                    this.placeChestMinecartWithLoot(world, clip, random, 0, 0, at + 1);
+                }
+
                 // The cobweb-and-spawner pair (lines 327-341, 1:1): the
                 // spawner at the section's random cell — the block + the
                 // typed record (the reference's setType("CaveSpider")).
@@ -310,6 +366,80 @@ public final class MineshaftPieces {
                 }
             }
             return true;
+        }
+
+        /**
+         * The loot-carrying chest minecart (the Corridor's own
+         * placeChestWithLoot override, lines 246-259 + LootEntry.addLoot
+         * lines 34-48): the air-gated rail cell (the boolean orientation
+         * walk), then the cart record with the rolled contents — the
+         * reference's world.addEntity rides the chunk's pending queue
+         * here (the cart materializes into the vehicle manager at chunk
+         * publish, Slice 21a).
+         */
+        private void placeChestMinecartWithLoot(StructureWorld world, StructureBox clip,
+                                                Random random, int x, int y, int z) {
+            StructurePalette palette = world.palette();
+            int wx = this.transformX(x, z);
+            int wy = this.transformY(y);
+            int wz = this.transformZ(x, z);
+            if (!clip.contains(wx, wy, wz) || !world.isAir(world.blockAt(wx, wy, wz))) {
+                return; // the reference's bounds.contains + Material.AIR gate
+            }
+            // The rail under the cart (the nextBoolean orientation).
+            this.setBlockState(world, palette.rail(this.railMetadata(random.nextBoolean() ? 1 : 0)),
+                    x, y, z, clip);
+            // The book row rolls FIRST (the reference's argument order:
+            // addAll's createLoot consumes the stream before the amount's
+            // nextInt(4)).
+            var bookRow = StrongholdPieces.rollBookLoot(random, 1, 1, 1);
+            int amount = 3 + random.nextInt(4);
+            java.util.Map<Integer, StructureWorld.GenLootSlot> slots = new java.util.LinkedHashMap<>();
+            for (int i = 0; i < amount; i++) {
+                // WeightedPicker.pick over the table with the book row
+                // appended at the end (LootEntry.addAll's own order).
+                int total = LOOT_TOTAL_WEIGHT + bookRow.weight();
+                int pick = random.nextInt(total);
+                LootRow chosen = null;
+                for (LootRow entry : LOOT_ENTRIES) {
+                    pick -= entry.weight();
+                    if (pick < 0) {
+                        chosen = entry;
+                        break;
+                    }
+                }
+                boolean isBook = false;
+                if (chosen == null) {
+                    pick -= bookRow.weight();
+                    isBook = pick < 0;
+                }
+                if (isBook) {
+                    // The enchanted book (the reference's own shape: the
+                    // book stacks to one, so the rolled count splits into
+                    // single-book stacks at their own random slots).
+                    int slot = random.nextInt(27);
+                    slots.put(slot, new StructureWorld.GenLootSlot(slot,
+                            "minecraft:enchanted_book", 1, bookRow.enchantments()));
+                    continue;
+                }
+                int count = chosen.minChance()
+                        + random.nextInt(chosen.maxChance() - chosen.minChance() + 1);
+                int maxStack = net.zaminmc.torch.server.item.BuiltinItems.lookup(
+                                net.zaminmc.torch.util.Identifier.parse(chosen.itemId()))
+                        .map(net.zaminmc.torch.item.ItemType::maxStackSize).orElse(64);
+                if (maxStack >= count) {
+                    int slot = random.nextInt(27);
+                    slots.put(slot, new StructureWorld.GenLootSlot(slot, chosen.itemId(), count,
+                            chosen.damage()));
+                } else {
+                    for (int k = 0; k < count; k++) {
+                        int slot = random.nextInt(27);
+                        slots.put(slot, new StructureWorld.GenLootSlot(slot, chosen.itemId(), 1,
+                                chosen.damage()));
+                    }
+                }
+            }
+            world.placeGenChestMinecart(wx, wy, wz, List.copyOf(slots.values()));
         }
     }
 

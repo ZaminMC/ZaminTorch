@@ -116,10 +116,16 @@ public final class BuiltinItems {
             Identifier.parse("minecraft:cooked_beef"), "Steak", 64);
 
     // The farming slice (community items.json legacy ids: seeds 295,
-    // wheat 296, bread 297, bone meal 351). Bread is the iconic crop food;
-    // bone meal is the instant-grow dust (dye damage 15 on the wire).
+    // wheat 296, bread 297, bone meal 351; the melon/pumpkin seed pair
+    // 292/294 lands with the mineshaft's chest-minecart loot, Slice 21a).
+    // Bread is the iconic crop food; bone meal is the instant-grow dust
+    // (dye damage 15 on the wire).
     public static final EngineItemType WHEAT_SEEDS = new EngineItemType(
             Identifier.parse("minecraft:wheat_seeds"), "Wheat Seeds", 64);
+    public static final EngineItemType MELON_SEEDS = new EngineItemType(
+            Identifier.parse("minecraft:melon_seeds"), "Melon Seeds", 64);
+    public static final EngineItemType PUMPKIN_SEEDS = new EngineItemType(
+            Identifier.parse("minecraft:pumpkin_seeds"), "Pumpkin Seeds", 64);
     public static final EngineItemType WHEAT = new EngineItemType(
             Identifier.parse("minecraft:wheat"), "Wheat", 64);
     public static final EngineItemType BREAD = new EngineItemType(
@@ -322,6 +328,11 @@ public final class BuiltinItems {
             Identifier.parse("minecraft:boat"), "Boat", 1);
     public static final EngineItemType MINECART = new EngineItemType(
             Identifier.parse("minecraft:minecart"), "Minecart", 1);
+    // The chest minecart item (community items.json 342, Slice 21a): the
+    // rail-place arm spawns the chest variant; its death, 1:1, never drops
+    // this item — the cart spills a minecart + a chest block instead.
+    public static final EngineItemType CHEST_MINECART = new EngineItemType(
+            Identifier.parse("minecraft:chest_minecart"), "Minecart with Chest", 1);
 
     // The mount slice (community items.json: saddle 329, iron/gold/diamond
     // horse armor 417/418/419, lead 420, carrot on a stick 398, emerald 388).
@@ -643,7 +654,7 @@ public final class BuiltinItems {
                 WOODEN_SWORD, STONE_SWORD, IRON_SWORD, DIAMOND_SWORD, GOLDEN_SWORD,
                 SHEARS,
                 WOODEN_HOE, STONE_HOE, IRON_HOE, DIAMOND_HOE, GOLDEN_HOE,
-                WHEAT_SEEDS, WHEAT, BREAD, BONE_MEAL, SIGN,
+                WHEAT_SEEDS, MELON_SEEDS, PUMPKIN_SEEDS, WHEAT, BREAD, BONE_MEAL, SIGN,
                 CARROT, POTATO, BAKED_POTATO, APPLE, GOLDEN_CARROT, GOLDEN_APPLE, HAY_BLOCK,
                 OAK_DOOR, LADDER, OAK_FENCE, BED,
                 REDSTONE, REDSTONE_TORCH, REPEATER, COMPARATOR, PISTON, STICKY_PISTON, TNT,
@@ -662,7 +673,7 @@ public final class BuiltinItems {
                 BREWING_STAND,
                 OAK_SLAB, STONE_SLAB, COBBLESTONE_SLAB, SANDSTONE_SLAB,
                 OAK_STAIRS, COBBLESTONE_STAIRS,
-                RAIL, BOAT, MINECART,
+                RAIL, BOAT, MINECART, CHEST_MINECART,
                 SADDLE, IRON_HORSE_ARMOR, GOLDEN_HORSE_ARMOR, DIAMOND_HORSE_ARMOR,
                 OBSIDIAN, OAK_SAPLING,
                 LEAD, CARROT_ON_A_STICK, EMERALD,

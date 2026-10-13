@@ -969,6 +969,18 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                     connection.sendVehicleRemoved(vehicle);
                 }
             }
+
+            /** The chest minecart's chest menu opened (Slice 21a): the opener's unicast. */
+            @Override
+            public void onChestMinecartWindowOpened(net.zaminmc.torch.server.player.PlayerSession opener,
+                                                    net.zaminmc.torch.server.entity.vehicle.VehicleEntity cart,
+                                                    int windowId) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    if (connection.currentSession() == opener) {
+                        connection.sendChestMinecartWindow(channelOf(connection), opener, windowId);
+                    }
+                }
+            }
         });
         LOGGER.info(() -> "1.8.8 protocol listening on " + server.config().host() + ":" + server.config().port());
     }

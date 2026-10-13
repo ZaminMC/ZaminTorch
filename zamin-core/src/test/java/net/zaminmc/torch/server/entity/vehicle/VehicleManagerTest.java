@@ -205,7 +205,7 @@ class VehicleManagerTest {
     }
 
     @Test
-    void theVoidConsumesTheVehicleLikeEveryBody() {
+    void theVoidConsumesTheVehicleWithoutADrop() {
         List<ItemStack> drops = new ArrayList<>();
         VehicleManager manager = new VehicleManager(dryWorld(),
                 vehicle -> drops.add(ItemStack.of(BuiltinItems.BOAT, 1)),
@@ -213,7 +213,9 @@ class VehicleManagerTest {
         VehicleEntity boat = manager.spawnBoat(new Position(0.5, -65.0, 0.5));
         manager.tick();
         assertEquals(0, manager.all().size(), "the vehicle below the kill plane is gone");
-        assertEquals(1, drops.size(), "the void drop fired (the boat item)");
+        // Slice 21a's 1:1 correction: the reference's outOfWorld -> setDead
+        // never runs dropItems — the void consumes without a drop.
+        assertEquals(0, drops.size(), "the void leaves no drop");
         assertNull(manager.byId(boat.entityId()));
     }
 }

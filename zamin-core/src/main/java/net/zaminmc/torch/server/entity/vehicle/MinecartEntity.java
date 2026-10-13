@@ -11,8 +11,12 @@ import java.util.Random;
  * orientations), the steer accelerates along it, and an L-corner turns
  * when the current axis runs out. Off the rail it grinds to a halt under
  * heavy drag and falls with gravity.
+ *
+ * <p>Slice 21a opens the family: the chest variant extends this body with
+ * the 27-slot container and its own rail drag (the reference's
+ * {@code applySlowdown} fullness walk).</p>
  */
-public final class MinecartEntity extends VehicleEntity {
+public class MinecartEntity extends VehicleEntity {
 
     public static final double HALF_HEIGHT = 0.35;
     /** The rail top offset: the cart rides just above the rail cell floor. */
@@ -32,7 +36,33 @@ public final class MinecartEntity extends VehicleEntity {
     private int lastAxis = AXIS_NONE;
 
     public MinecartEntity(int entityId, Position position, Random random) {
-        super(entityId, Kind.MINECART, position, random);
+        this(entityId, Kind.MINECART, position, random);
+    }
+
+    /** The family constructor (the chest variant names its own kind). */
+    protected MinecartEntity(int entityId, Kind kind, Position position, Random random) {
+        super(entityId, kind, position, random);
+    }
+
+    /**
+     * The wire's minecart type index (TrackedEntity lines 413-415 — the
+     * Spawn Object objectData field): 0 rideable, 1 chest, 2 furnace,
+     * 3 TNT, 4 spawner, 5 hopper, 6 command block. The chest variant
+     * overrides with 1; a nonzero index also arms the velocity triple
+     * (AddEntityS2CPacket's {@code data > 0} shape).
+     */
+    public int minecartTypeIndex() {
+        return 0;
+    }
+
+    /**
+     * The on-rail velocity multiplier the kind applies every tick (the
+     * reference's {@code applySlowdown} — 1.0 for the plain cart whose
+     * own walk keeps the historical {@code 0.997}); the chest variant
+     * overrides with the fullness drag.
+     */
+    protected double railDragFactor() {
+        return 1.0;
     }
 
     @Override
@@ -62,6 +92,10 @@ public final class MinecartEntity extends VehicleEntity {
         if (input.forward() != 0.0f) {
             speed = Math.min(speed + RAIL_ACCELERATION * Math.abs(input.forward()), RAIL_SPEED_CAP);
         }
+        // The kind's own drag (the reference's applySlowdown runs after the
+        // move; our speed-carry model applies the same factor to the next
+        // tick's carried speed).
+        speed *= railDragFactor();
 
         // The next cell on the axis: a rail continues it; otherwise an
         // L-corner turns onto the perpendicular rail, or the track ends.

@@ -56,6 +56,11 @@ public final class EngineChunk {
                                        List<StructureWorld.GenLootSlot> slots) {
     }
 
+    /** One populate-time chest minecart (Slice 21a — the mineshaft's own). */
+    public record PendingChestMinecart(int x, int y, int z,
+                                       List<StructureWorld.GenLootSlot> slots) {
+    }
+
     public record PendingMobSpawner(int x, int y, int z,
                                     net.zaminmc.torch.server.entity.MobType mobType) {
     }
@@ -142,6 +147,19 @@ public final class EngineChunk {
     public void addPendingGenDispenser(int x, int y, int z, int facing,
                                        List<StructureWorld.GenLootSlot> slots) {
         pendingGenDispensers.add(new PendingGenDispenser(x, y, z, facing, List.copyOf(slots)));
+    }
+
+    private final List<PendingChestMinecart> pendingChestMinecarts = new ArrayList<>();
+
+    /** Records one loot-carrying chest minecart (generator thread). */
+    public void addPendingChestMinecart(int x, int y, int z,
+                                         List<StructureWorld.GenLootSlot> slots) {
+        pendingChestMinecarts.add(new PendingChestMinecart(x, y, z, List.copyOf(slots)));
+    }
+
+    /** @return the pending chest-minecart records (empty when none). */
+    public List<PendingChestMinecart> pendingChestMinecarts() {
+        return pendingChestMinecarts;
     }
 
     public List<PendingGenDispenser> pendingGenDispensers() {
