@@ -44,4 +44,34 @@ public interface Vehicle extends Entity {
 
     /** Whether the vehicle rests on the ground. Simulation context. */
     boolean onGround();
+
+    /**
+     * The cargo of a container vehicle (the chest minecart's rolling
+     * 27-slot chest); empty for the boat and the plain minecart.
+     * Simulation context. The cargo's write verbs run on the world's
+     * authoritative simulation context (§27.6).
+     */
+    default java.util.Optional<Cargo> cargo() {
+        return java.util.Optional.empty();
+    }
+
+    /** A container vehicle's cargo (the rolling chest grid). */
+    interface Cargo {
+
+        /** @return the slot count (the vanilla chest cart's 27). */
+        int slotCount();
+
+        /** @return a copy of the slots (empty cells as empty stacks). */
+        net.zaminmc.torch.item.ItemStack[] slots();
+
+        /** @return one slot's stack copy (empty when out of range). */
+        net.zaminmc.torch.item.ItemStack slot(int index);
+
+        /**
+         * Writes one slot (an empty stack clears it; out-of-range writes
+         * are ignored). Owner context (§27.6 — an off-lane write fails
+         * diagnosably).
+         */
+        void setSlot(int index, net.zaminmc.torch.item.ItemStack stack);
+    }
 }

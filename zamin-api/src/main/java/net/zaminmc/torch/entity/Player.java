@@ -107,4 +107,65 @@ public interface Player {
      * @return the remainder that did not fit (empty when everything landed)
      */
     ItemStack give(ItemStack stack);
+
+    // --- slot-level inventory (the container/inventory wave) ---------------
+
+    /**
+     * The live slot-level view over the player's inventory (§27.3's
+     * player-inventory family): the 36-slot grid (0-8 the hotbar, 9-35
+     * the main inventory) and the four armor slots (head, chest, legs,
+     * feet). The engine's own inventory IS the handle (§27.5).
+     *
+     * <p>Reads are owner-context consistent; the write verbs run on the
+     * world's authoritative simulation context (§27.6 — the documented
+     * owner path is {@code World.execute}) and re-sync the wire exactly
+     * like the engine's own inventory paths.</p>
+     */
+    Inventory inventory();
+
+    /** The player's live inventory view (the 36 slots + the armor row). */
+    interface Inventory {
+
+        /** @return the storage slot count (the historical 36: hotbar + main). */
+        int slotCount();
+
+        /** @return one storage slot's stack copy (empty when out of range). */
+        ItemStack slot(int index);
+
+        /** @return a copy of the 36 storage slots (empty cells as empty stacks). */
+        ItemStack[] slots();
+
+        /**
+         * Writes one storage slot (an empty stack clears it). Owner
+         * context; the wire re-syncs.
+         */
+        void setSlot(int index, ItemStack stack);
+
+        /** @return the held hotbar slot index (0..8). */
+        int heldSlot();
+
+        /**
+         * Selects the held hotbar slot (0..8; cancels an in-progress eat,
+         * the historical rule). Owner context; the wire re-syncs.
+         */
+        void selectHotbarSlot(int slot);
+
+        /** @return the armor slot count (the historical 4). */
+        int armorSlotCount();
+
+        /** @return one armor slot's stack copy (0 head, 1 chest, 2 legs, 3 feet; empty when out of range). */
+        ItemStack armorAt(int armorSlot);
+
+        /** @return a copy of the four armor stacks in slot order (empty cells as empty stacks). */
+        ItemStack[] armorStacks();
+
+        /**
+         * Writes one armor slot, enforcing the vanilla kind rule: only
+         * armor of the matching slot may enter; an empty stack clears.
+         * Owner context; the wire re-syncs.
+         *
+         * @return whether the write was accepted (a wrong-kind stack is refused)
+         */
+        boolean setArmor(int armorSlot, ItemStack stack);
+    }
 }

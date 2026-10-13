@@ -22,8 +22,18 @@ import java.util.Random;
  * leaves the inventory untouched. The one deliberate partial transition is
  * pickup (§433): Minecraft's historical behavior fills what fits and leaves
  * the remainder in the world, which {@link #pickUp} models exactly.</p>
+ *
+ * <p><b>The public §27.3 slot-level view (the container/inventory wave):</b>
+ * this class implements {@link Player.Inventory} — the engine object IS the
+ * handle (§27.5), reached through {@code Player.inventory()} by the covariant
+ * return on the session. The write verbs that the API documents as
+ * wire-resyncing ({@link #setSlot}, {@link #setArmor}) fire the change
+ * callback after every accepted write (the pickup path's own fan-out);
+ * {@link #selectHotbarSlot} deliberately does not — the client predicts its
+ * own held-slot swap (the historical rule the engine's held-item-change path
+ * keeps).</p>
  */
-public final class PlayerInventory {
+public final class PlayerInventory implements net.zaminmc.torch.entity.Player.Inventory {
 
     public static final int HOTBAR_SLOTS = 9;
     public static final int MAIN_SLOTS = 27;
@@ -430,27 +440,15 @@ public final class PlayerInventory {
 
     // ------------------------------------------------------------------ armor (§armor)
 
-    /** @return the equipped stack in the armor slot (0=head, 1=chest, 2=legs, 3=feet). */
-    public ItemStack armorAt(int armorSlot) {
-        if (armorSlot < 0 || armorSlot >= ARMOR_SLOTS) {
-            throw new IllegalArgumentException("Armor slot out of range: " + armorSlot);
-        }
-        return armor[armorSlot];
-    }
-
-    /**
-     * The four armor stacks in slot order — the shape the enchantment effect
-     * hooks walk (the reference {@code getEquipment} array the protection
-     * sum, the fire-timer shortening and the blast shaving read).
-     */
-    public ItemStack[] armorStacks() {
-        return new ItemStack[]{armor[0], armor[1], armor[2], armor[3]};
-    }
+    // armorAt(int) now lives as the public §27.3 override below (the
+    // forgiving out-of-range read); setArmor here keeps the engine's own
+    // throwing-range contract for internal range discipline.
 
     /**
      * Sets one armor slot, enforcing the kind rule: only armor of the
      * matching slot may enter (the historical inventory's type gate). An
-     * empty stack clears. @return whether the write was accepted.
+     * empty stack clears. @return whether the write was accepted. The
+     * public §27.3 arm: an accepted write fires the change callback.
      */
     public boolean setArmor(int armorSlot, ItemStack stack) {
         if (armorSlot < 0 || armorSlot >= ARMOR_SLOTS) {
@@ -464,6 +462,7 @@ public final class PlayerInventory {
             }
         }
         armor[armorSlot] = stack.isEmpty() ? ItemStack.EMPTY : stack;
+        fireChange();
         return true;
     }
 
@@ -626,6 +625,8 @@ public final class PlayerInventory {
     /**
      * Directly sets a slot — reserved for explicit engine commands (the
      * creative inventory's write path), validated against the slot range.
+ * The public §27.3 arm: an accepted write fires the change callback
+     * (the wire re-sync, the pickup path's own fan-out).
      */
     public void setSlot(int slot, ItemStack stack) {
         if (slot < 0 || slot >= TOTAL_SLOTS) {
@@ -633,10 +634,128 @@ public final class PlayerInventory {
         }
         Objects.requireNonNull(stack, "stack");
         slots[slot] = stack;
+        fireChange();
     }
 
     /** @return an immutable copy of the backing slot array, index-aligned. */
     List<ItemStack> slotsView() {
         return new ArrayList<>(List.of(slots));
+    }
+
+    // --- the public slot-level read surface (the API's Inventory view) -----
+
+    /** The public §27.3 slot count: the historical 36. */
+    @Override
+    public int slotCount() {
+        return TOTAL_SLOTS;
+    }
+
+    /**
+     * The public §27.3 single-slot read: EMPTY when out of range — the
+     * forgiving read of the API's contract.
+     */
+    @Override
+    public ItemStack slot(int index) {
+        return slotCopy(index);
+    }
+
+    /** The public §27.3 grid copy: the 36 slots (nulls as EMPTY). */
+    @Override
+    public ItemStack[] slots() {
+        return slotsCopy();
+    }
+
+    /** The public §27.3 armor count: the historical 4. */
+    @Override
+    public int armorSlotCount() {
+        return ARMOR_SLOTS;
+    }
+
+    /**
+     * The public §27.3 armor read: EMPTY when out of range (the API's
+     * forgiving contract — the pre-wave engine throw only ever met
+     * in-range engine callers).
+     */
+    @Override
+    public ItemStack armorAt(int armorSlot) {
+        if (armorSlot < 0 || armorSlot >= ARMOR_SLOTS) {
+            return ItemStack.EMPTY;
+        }
+        ItemStack at = armor[armorSlot];
+        return at == null ? ItemStack.EMPTY : at;
+    }
+
+    /**
+     * The public §27.3 armor-row copy: the four stacks with nulls as EMPTY
+     * (the engine's effect hooks read both shapes through the null/
+     * isEmpty-guarded helpers — the record's immutability keeps the
+     * live-vs-copy distinction behavior-free).
+     */
+    @Override
+    public ItemStack[] armorStacks() {
+        ItemStack[] copy = new ItemStack[ARMOR_SLOTS];
+        for (int i = 0; i < ARMOR_SLOTS; i++) {
+            ItemStack at = armor[i];
+            copy[i] = at == null ? ItemStack.EMPTY : at;
+        }
+        return copy;
+    }
+
+    /**
+     * @return one storage slot's stack (EMPTY when out of range — the
+     * public view's own forgiving read).
+     */
+    public ItemStack slotCopy(int index) {
+        if (index < 0 || index >= TOTAL_SLOTS) {
+            return ItemStack.EMPTY;
+        }
+        ItemStack at = slots[index];
+        return at == null ? ItemStack.EMPTY : at;
+    }
+
+    /** @return a copy of the 36 storage slots (nulls as EMPTY — the public view's shape). */
+    public ItemStack[] slotsCopy() {
+        ItemStack[] copy = new ItemStack[TOTAL_SLOTS];
+        for (int i = 0; i < TOTAL_SLOTS; i++) {
+            ItemStack at = slots[i];
+            copy[i] = at == null ? ItemStack.EMPTY : at;
+        }
+        return copy;
+    }
+
+    /** @return one armor slot's stack (EMPTY when out of range). */
+    public ItemStack armorCopy(int armorSlot) {
+        if (armorSlot < 0 || armorSlot >= ARMOR_SLOTS) {
+            return ItemStack.EMPTY;
+        }
+        ItemStack at = armor[armorSlot];
+        return at == null ? ItemStack.EMPTY : at;
+    }
+
+    /** @return a copy of the four armor stacks (nulls as EMPTY). */
+    public ItemStack[] armorCopies() {
+        return armorStacks();
+    }
+
+    // --- the wire re-sync callback (the public write arms' fan-out) -------
+
+    /**
+     * The change callback the session wires at boot: fires after every
+     * accepted public write (setSlot/setArmor) — the same fan-out the
+     * give() path rides. Null until wired (the tests' bare inventories).
+     */
+    private volatile Runnable changeCallback;
+
+    /** Called by the session when the engine's sync hook is installed. */
+    void setChangeCallback(Runnable callback) {
+        this.changeCallback = callback;
+    }
+
+    /** Fires the wire re-sync (never throws back into the writer). */
+    private void fireChange() {
+        Runnable callback = changeCallback;
+        if (callback != null) {
+            callback.run();
+        }
     }
 }

@@ -17,19 +17,34 @@ import java.util.Optional;
  * three position-keyed managers dressed as the {@link Containers} family
  * — the engine's own block entities ARE the handles (§27.5), read
  * through live views (the owner-context consistency contract of
- * {@code World.containers()}).
+ * {@code World.containers()}). The write verbs assert the world's
+ * authoritative mutation context (§27.6 — an off-lane write fails
+ * diagnosably).
  */
 public final class ContainerViews implements Containers {
 
     private final ChestManager chests;
     private final FurnaceManager furnaces;
     private final HopperSystem hoppers;
+    private final net.zaminmc.torch.server.world.EngineWorld world;
 
     public ContainerViews(ChestManager chests, FurnaceManager furnaces,
                           HopperSystem hoppers) {
+        this(chests, furnaces, hoppers, null);
+    }
+
+    /**
+     * @param world the owning world (the write arms' ownership assert);
+     *              null keeps the legacy read-only shape (the tests' bare
+     *              wiring — the write verbs then skip the assert).
+     */
+    public ContainerViews(ChestManager chests, FurnaceManager furnaces,
+                          HopperSystem hoppers,
+                          net.zaminmc.torch.server.world.EngineWorld world) {
         this.chests = chests;
         this.furnaces = furnaces;
         this.hoppers = hoppers;
+        this.world = world;
     }
 
     @Override
@@ -51,7 +66,7 @@ public final class ContainerViews implements Containers {
     }
 
     /** The chest's live view (the engine object behind the handle). */
-    private static final class ChestView implements Chest {
+    private final class ChestView implements Chest {
         private final ChestBlockEntity entity;
         private final BlockPosition position;
 
@@ -84,10 +99,18 @@ public final class ContainerViews implements Containers {
             ItemStack[] all = slots();
             return index < all.length ? all[index] : ItemStack.EMPTY;
         }
+
+        @Override public void setSlot(int index, ItemStack stack) {
+            requireWrite();
+            if (index < 0 || index >= ChestBlockEntity.SLOT_COUNT || stack == null) {
+                return;
+            }
+            entity.setSlot(index, stack);
+        }
     }
 
     /** The furnace's live view. */
-    private static final class FurnaceView implements Furnace {
+    private final class FurnaceView implements Furnace {
         private final FurnaceBlockEntity entity;
         private final BlockPosition position;
 
@@ -124,13 +147,28 @@ public final class ContainerViews implements Containers {
             return entity.cookTime();
         }
 
+        @Override public void setInput(ItemStack stack) {
+            requireWrite();
+            entity.setSlot(0, java.util.Objects.requireNonNull(stack, "stack"));
+        }
+
+        @Override public void setFuel(ItemStack stack) {
+            requireWrite();
+            entity.setSlot(1, java.util.Objects.requireNonNull(stack, "stack"));
+        }
+
+        @Override public void setOutput(ItemStack stack) {
+            requireWrite();
+            entity.setSlot(2, java.util.Objects.requireNonNull(stack, "stack"));
+        }
+
         private static ItemStack copy(ItemStack stack) {
             return stack == null ? ItemStack.EMPTY : stack;
         }
     }
 
     /** The hopper's live view. */
-    private static final class HopperView implements Hopper {
+    private final class HopperView implements Hopper {
         private final HopperBlockEntity entity;
         private final BlockPosition position;
 
@@ -166,6 +204,22 @@ public final class ContainerViews implements Containers {
 
         @Override public int transferCooldown() {
             return entity.isOnCooldown() ? HopperBlockEntity.TRANSFER_COOLDOWN : 0;
+        }
+
+        @Override public void setSlot(int index, ItemStack stack) {
+            requireWrite();
+            if (index < 0 || index >= HopperBlockEntity.SLOT_COUNT || stack == null) {
+                return;
+            }
+            entity.setItem(index, stack);
+        }
+    }
+
+    /** The write arms' ownership assert (§27.6). */
+    private void requireWrite() {
+        net.zaminmc.torch.server.world.EngineWorld owner = world;
+        if (owner != null) {
+            owner.requireMutationContext("setContainerSlot");
         }
     }
 }

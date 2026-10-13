@@ -70,6 +70,14 @@ public interface Containers {
 
         /** @return one slot's stack copy (empty when out of range). */
         ItemStack slot(int index);
+
+        /**
+         * Writes one slot (an empty stack clears it; out-of-range writes
+         * are ignored). Owner context (§27.6 — call through
+         * {@link World#execute} off the lane; an off-lane write fails
+         * diagnosably).
+         */
+        void setSlot(int index, ItemStack stack);
     }
 
     /** A furnace's live read surface (the burn/cook state + the 3 slots). */
@@ -94,6 +102,18 @@ public interface Containers {
 
         /** @return the cook progress ticks (the 200-tick walk to 200). */
         int cookTime();
+
+        /**
+         * Writes the input slot (an empty stack clears it). Owner
+         * context (§27.6 — an off-lane write fails diagnosably).
+         */
+        void setInput(ItemStack stack);
+
+        /** Writes the fuel slot. Owner context. */
+        void setFuel(ItemStack stack);
+
+        /** Writes the output slot. Owner context. */
+        void setOutput(ItemStack stack);
     }
 
     /** A hopper's live read surface (the 5-slot container + the cooldown). */
@@ -115,5 +135,12 @@ public interface Containers {
 
         /** @return the remaining transfer cooldown ticks (0 = ready). */
         int transferCooldown();
+
+        /**
+         * Writes one slot (an empty stack clears it; out-of-range writes
+         * are ignored). Owner context (§27.6 — an off-lane write fails
+         * diagnosably).
+         */
+        void setSlot(int index, ItemStack stack);
     }
 }

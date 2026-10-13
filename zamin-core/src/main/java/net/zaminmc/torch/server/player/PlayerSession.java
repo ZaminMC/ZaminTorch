@@ -761,18 +761,6 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
     // ---- the public Player surface's additions (§27.5: the session IS the
     // handle — every call resolves to the live authoritative state) ------
 
-    /**
-     * The engine's inventory wire-sync hook, installed at boot: the API's
-     * give() must re-sync the client exactly like the engine's own pickup
-     * paths. Null until wired (the tests' bare sessions).
-     */
-    private volatile java.util.function.Consumer<PlayerSession> inventorySyncHook;
-
-    /** Called once by the server at wiring time. */
-    public void setInventorySyncHook(java.util.function.Consumer<PlayerSession> hook) {
-        this.inventorySyncHook = hook;
-    }
-
     /** Restores health up to the maximum (the API's heal). */
     public void heal(float amount) {
         if (amount <= 0 || dead) {
@@ -813,6 +801,28 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
             hook.accept(this); // the wire re-sync, the engine pickup path's own rule
         }
         return leftover;
+    }
+
+    // --- the slot-level inventory view (the container/inventory wave) ------
+
+    // PlayerSession.inventory() (the engine accessor) doubles as the public
+    // §27.3 slot-level view through a covariant return: PlayerInventory
+    // implements Player.Inventory — the engine object IS the handle (§27.5).
+
+    /**
+     * The engine's inventory wire-sync hook, installed at boot: the API's
+     * give() and the slot-write arms must re-sync the client exactly like
+     * the engine's own inventory paths. Null until wired (the tests' bare
+     * sessions).
+     */
+    private volatile java.util.function.Consumer<PlayerSession> inventorySyncHook;
+
+    /** Called once by the server at wiring time. */
+    public void setInventorySyncHook(java.util.function.Consumer<PlayerSession> hook) {
+        this.inventorySyncHook = hook;
+        // The slot-write arms ride the same fan-out (setSlot/setArmor fire
+        // it after every accepted write — the pickup path's own rule).
+        this.inventory.setChangeCallback(hook == null ? null : () -> hook.accept(this));
     }
 
     // --- combat invulnerability frames (the historical 10-tick hurt window) ---
