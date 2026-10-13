@@ -3637,3 +3637,19 @@ never-lapsing credit window); the ghast's own-fireball reflection (needs
 the player-attacks-fireball deflection family), the magma cube's size*3
 armor (the missing mob armor model), the ghast's 1-in-20 canSpawn +
 1-per-chunk limit (the natural spawn cycle's own gates — Slice 21f).
+
+## Slice 21f — the ghast's spawn gates (the 1-in-20 roll + the 1-per-chunk cap)
+
+GhastEntity.canSpawn line 126 (`random.nextInt(20) == 0 && super.canSpawn()
+&& difficulty != PEACEFUL`): the 1-in-20 entity-level roll in the natural
+spawn system's canSpawnAt walk — the giant body stays rare whatever the
+HellBiome weight rows say (the peaceful arm rides the MONSTER category's own
+peaceful gate, Slice 19e). GhastEntity.getLimitPerChunk line 131 (1): the
+kind's own per-chunk cap in the pack loop — the ghast's pack stops at one,
+every other kind keeps the shared 4.
+
+Tests: the spawn/nether suites green (no existing ghast-spawn assertions —
+the gate is new coverage). Ledgered: the fireball-kill achievement arm
+(no achievement surface), the own-fireball reflection (the missing
+player-attacks-fireball deflection family), the magma cube's size*3 armor
+(the missing mob armor model).
