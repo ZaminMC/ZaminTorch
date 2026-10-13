@@ -28,6 +28,13 @@ public interface Server {
      */
     net.zaminmc.torch.block.BlockRegistry blocks();
 
+    /**
+     * The item registry (the §27.3 registry family): the frozen item-type
+     * set — enumeration and lookups by canonical identifier. Frozen
+     * before gameplay begins; every call is safe from any thread.
+     */
+    net.zaminmc.torch.item.ItemRegistry items();
+
     /** All currently loaded worlds. Read-only view. */
     Collection<World> worlds();
 

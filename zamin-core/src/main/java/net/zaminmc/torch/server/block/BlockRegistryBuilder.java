@@ -93,5 +93,28 @@ public final class BlockRegistryBuilder {
         public Collection<BlockType> all() {
             return all;
         }
+
+        /**
+         * The exact engine verdict (§27.3's tool-interaction read): the
+         * behavior table's own class/tier matching over the reference's
+         * {@code canHarvest} shape.
+         */
+        @Override
+        public boolean canHarvest(BlockType type, net.zaminmc.torch.item.ItemType held) {
+            return BlockBehaviorTable.of(type.identifier())
+                    .map(behavior -> BlockBehaviorTable.canHarvest(behavior, held))
+                    .orElse(false);
+        }
+
+        /**
+         * The exact engine multiplier: the tool material's speed on a
+         * class match, 1.0 otherwise (the table's own rule).
+         */
+        @Override
+        public double miningSpeedMultiplier(BlockType type, net.zaminmc.torch.item.ItemType held) {
+            return BlockBehaviorTable.of(type.identifier())
+                    .map(behavior -> BlockBehaviorTable.speedMultiplier(behavior, held))
+                    .orElse(1.0);
+        }
     }
 }

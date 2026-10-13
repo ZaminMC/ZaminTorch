@@ -1577,6 +1577,15 @@ public final class EngineServer implements Server, EngineBridge {
         return blockRegistry;
     }
 
+    /** The public item registry view (the frozen BuiltinItems set; §27.3). */
+    @Override
+    public net.zaminmc.torch.item.ItemRegistry items() {
+        return itemRegistryView;
+    }
+
+    private final net.zaminmc.torch.item.ItemRegistry itemRegistryView =
+            new net.zaminmc.torch.server.item.ItemRegistryView();
+
     /** The public scheduler view (built on first use; the ticker exists from boot). */
     @Override
     public net.zaminmc.torch.scheduler.Scheduler scheduler() {
