@@ -3564,3 +3564,54 @@ PrecipitationSystemTest (4: the LCG pick derivation — the first advance's
 own (7, 12), the freeze's dry run + the shore rule, the warm/light/dry-rain/
 support gates, the biome temperature table). Fresh suite: the weather family
 + the block/world/entity/package chunks green, `--max-workers=1`.
+
+## Slice 21d — the rabbit 1:1 (the Action model, the killer bunny, the garden raid)
+
+`RabbitEntity` completed 1:1 over the engine's rabbit family:
+
+**The Action model** (the pre-21d hop's 10-tick HOP cadence corrected to the
+reference's own 20): the five rows NONE/HOP/STEP/SPRINT/ATTACK with their
+speed/strength/delay/duration quadruples; the launch at `1.5 x the action
+speed` over the walk band with the action's own rise (getJumpStrength's
+moving-up arm: a target above `y + 0.5` answers the flat 0.5); the landing
+edge's delay re-roll; the ATTACK's hold-until-landing; the SPRINT band from
+the panic/chase modes (mobAiTick's `movementControl.getSpeed() > 0.8`); the
+Entity Status 1 at each hop start (the client's hop bounce).
+
+**The variant family**: the spawn's `nextInt(6)` coat, `setRabbitVariant`'s
+killer 99 (only ever by the explicit set — the NBT /summon arm), makeChild's
+`nextBoolean` coin through the breed landing, and the wire's slot-18 byte in
+the spawn view (the client's skin swap).
+
+**The killer bunny**: the 8.0/3.0 tryDamage pair, the mob.attack strike
+sound, the EvilAttackGoal's `4.0 + 0.6` squared reach at the melee site, the
+player hunt through the engine's canHunt gate, the wolf hunt through the
+1-in-10 mob-target scan, the RevengeGoal arm through applyRevenge, and the
+flee-wolf's own removal. The lunge arm: grounded + delay spent + the target
+within 16 squared → the look, the move, the ATTACK hop.
+
+**The garden raid** (RaidFarmGoal over GoToBlockGoal 1:1): the goal layer's
+"rabbit_raid_farm" band-4 goal — the reference's own ring-walk spiral over
+the ±16 box at the y-1/y+0/y-2 bands, the farmland-with-age-7-carrots
+target, the `200 + nextInt(200)` scan cooldown (10 after an eat), the hungry
+snapshot gate, the approach band `nextInt(nextInt(1200)+1200)+1200`, the 0.7
+walk with the 40-tick re-path, and the eat — the pending intent through the
+manager's drain, the air write + the blockShatter burst + the hunger-100
+refill (onEatFromGarden).
+
+**The awareness arms**: the carrot/golden-carrot/dandelion tempt (the "tempt"
+goal's rabbit arm — the 1.0 walk, the no-scared arm, the 2.5-block hold) and
+the flee-wolf (the "flee_player" goal's rabbit arm — the 16-block scan, 1.33
+both bands).
+
+**The drops** (the dedicated arm): the hide `nextInt(2) + nextInt(1+looting)`
+walk, the meat `nextInt(2)` with the burning cooked swap, and the rare foot
+on the player-kill window's `0.025 + looting * 0.01` roll.
+
+Tests: RabbitEntityTest (9) + the GoalApiAcceptanceTest band-4 update (the
+eighth built-in). Fresh suite: 906 core green (the 4 goal-API assertions
+updated for the new built-in) + 19 api + 76 protocol, `--max-workers=1`.
+Ledgered: the killer's 8 armor (the engine's missing mob armor model), the
+"Killer Bunny" name (the name-tag wire family), the variant's persistence
+(the MobDataStore's minimal snapshot), the mobGriefing gate (default-on
+stand-in), the STEP JumpControl wiring (the walk model's step arm).

@@ -70,9 +70,12 @@ class GoalApiAcceptanceTest {
         throw new AssertionError("Condition not met in time: " + description);
     }
 
-    /** The snapshot holds a goal with the priority/exclusivity pair. */
+    /** The snapshot holds a goal with the priority/exclusivity pair,
+     * willing for this body (the kind-gated rabbit raid shares band 4 but
+     * never wants a pig — Slice 21d). */
     private BooleanSupplier holdsStroll(LivingEntity pig) {
-        return () -> pig.goals().goals().stream().anyMatch(g -> g.priority() == 4 && g.exclusive());
+        return () -> pig.goals().goals().stream()
+                .anyMatch(g -> g.priority() == 4 && g.exclusive() && g.canUse(pig, false));
     }
 
     /** An always-willing additive goal that counts its ticks (priority rides the constructor). */
@@ -130,11 +133,12 @@ class GoalApiAcceptanceTest {
                 "the goal body ran on the simulation owner's thread");
 
         // The snapshot: the plugin's own instance by identity, beside the
-        // seven built-in views (float, panic, breed, beg, tempt, flee_player,
-        // stroll — the awareness band is kind-gated and inert on a pig).
+        // eight built-in views (float, panic, breed, beg, tempt, flee_player,
+        // rabbit_raid_farm, stroll — the awareness band is kind-gated and
+        // inert on a pig).
         List<Goal> live = pig.goals().goals();
         assertTrue(live.contains(goal), "the registered instance is in the snapshot by identity");
-        assertEquals(8, live.size(), "seven built-ins plus the registered goal");
+        assertEquals(9, live.size(), "eight built-ins plus the registered goal");
         server.shutdown(null);
     }
 
@@ -208,9 +212,11 @@ class GoalApiAcceptanceTest {
 
         // The built-ins dress as per-call views — a plugin holding one can
         // remove that built-in by identity through the same remove verb.
+        // Band 4's willing member on a pig is the stroll (the rabbit's
+        // kind-gated raid never wants a pig — Slice 21d).
         List<Goal> live = pig.goals().goals();
         Goal strollView = live.stream()
-                .filter(g -> g.priority() == 4 && g.exclusive())
+                .filter(g -> g.priority() == 4 && g.exclusive() && g.canUse(pig, false))
                 .findFirst()
                 .orElseThrow(() -> new AssertionError("the stroll view is in the snapshot"));
         // The view is a probe too (§27.3's "querying intermediate decisions"):

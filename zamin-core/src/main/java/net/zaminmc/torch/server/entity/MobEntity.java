@@ -1537,6 +1537,12 @@ public final class MobEntity implements LivingEntity {
      * getDamageAmount line 215).
      */
     public float attackDamage() {
+        if (type == MobType.RABBIT) {
+            // tryDamage lines 255-262: the killer's 8.0 wound with the
+            // mob.attack sound; the plain rabbit's 3.0 never arms (no
+            // attack goal holds a target for it).
+            return rabbitKiller() ? 8.0f : 3.0f;
+        }
         if (type == MobType.WOLF && wolfTamed()) {
             return wolfAttackDamage; // setTamed's recompute: 4.0
         }
@@ -2892,56 +2898,396 @@ public final class MobEntity implements LivingEntity {
                 : 0.42;
     }
 
-    // ---- the rabbit's hop cycle (Slice 12l — RabbitEntity's own
-    // movement model over the engine's input lane) ----
-
-    /** The HOP action's parameters (the reference's own Action enum):
-     * speed 0.8 (1.5x at launch = 1.2), jumpStrength 0.2, jumpDelay 10. */
-    private static final double RABBIT_HOP_SPEED = 1.2;
-    private static final double RABBIT_HOP_STRENGTH = 0.2;
-    private static final int RABBIT_HOP_DELAY = 10;
-
-    /** Ticks until the rabbit's next hop (zeroed input between hops). */
-    private int rabbitHopCooldown;
+    // ---- the rabbit's hop cycle (Slices 12l + 21d — RabbitEntity's own
+    // movement model over the engine's input lane: the Action enum 1:1) ----
 
     /**
-     * The rabbit's movement tick (RabbitEntity.mobAiTick + the MovementControl):
-     * between hops the body is still (the zeroed input); on the cadence the
-     * body launches — the facing impulse at the hop speed and the hop
-     * strength rise — and the hop sound plays (the reference's
-     * startAction: 1.5x the action speed, the pitch band 0.8-centered).
-     * The swim arm launches at a higher cadence (the reference's
-     * canSwim navigation).
+     * RabbitEntity.Action's own five rows (lines 389-423): the speed
+     * parameter, the jump strength, the landing delay, and the animation
+     * duration — the NONE idle sit, the HOP walk, the STEP jump-control
+     * hop, the SPRINT panic/flee flight, the ATTACK killer's lunge.
+     */
+    private enum RabbitAction {
+        NONE(0.0F, 0.0F, 30, 1),
+        HOP(0.8F, 0.2F, 20, 10),
+        STEP(1.0F, 0.45F, 14, 14),
+        SPRINT(1.75F, 0.4F, 1, 8),
+        ATTACK(2.0F, 0.7F, 7, 8);
+
+        final float speed;
+        final float jumpStrength;
+        final int jumpDelay;
+        final int jumpDuration;
+
+        RabbitAction(float speed, float jumpStrength, int jumpDelay, int jumpDuration) {
+            this.speed = speed;
+            this.jumpStrength = jumpStrength;
+            this.jumpDelay = jumpDelay;
+            this.jumpDuration = jumpDuration;
+        }
+    }
+
+    /** The live action (mobAiTick's own field; HOP the resting state). */
+    private RabbitAction rabbitAction = RabbitAction.HOP;
+
+    /** Ticks until the rabbit's next hop (jumpDelayTicks — the zeroed-input window). */
+    private int rabbitJumpDelayTicks;
+
+    /** The animation clock (jumpTicks) — the wire's doEntityEvent(1) fires at 0. */
+    private int rabbitJumpTicks;
+
+    /** The running animation length (jumpDuration — 0 between hops). */
+    private int rabbitJumpDuration;
+
+    /** The last tick's grounded state (the landing edge). */
+    private boolean rabbitLastOnGround = true;
+
+    /**
+     * The raid-farm hunger clock (RabbitEntity.ticksBeforeHungry — the
+     * MoreCarrotTicks NBT): 100 after a garden eat, decaying by
+     * {@code nextInt(3)} per tick; zero means hungry.
+     */
+    private int rabbitTicksBeforeHungry;
+
+    /** @return the raid-farm hunger clock (0 hungry — the MoreCarrotTicks NBT). */
+    public int rabbitTicksBeforeHungry() {
+        return rabbitTicksBeforeHungry;
+    }
+
+    /** @return the rabbit's skin variant (the synced slot 18's byte). */
+    public int rabbitVariant() {
+        return rabbitVariant;
+    }
+
+    /** @return whether this is the killer bunny (RabbitType 99). */
+    public boolean rabbitKiller() {
+        return rabbitVariant == 99;
+    }
+
+    /**
+     * RabbitEntity.setVariant (lines 320-333): the skin byte lands on the
+     * synced slot 18 — the 99 arm swaps the whole mind (the flee-wolf goal
+     * leaves, the EvilAttack family and the player/wolf hunts join). The
+     * reference's custom "Killer Bunny" name rides the name-tag family the
+     * engine's mobs do not yet carry on the wire (ledgered).
+     */
+    public void setRabbitVariant(int variant) {
+        rabbitVariant = variant;
+    }
+
+    /** The rabbit's skin variant (the synced slot 18: 0-5 natural, 99 the killer). */
+    private int rabbitVariant;
+
+    /** Queued at each hop start: the world's doEntityEvent(this, (byte)1). */
+    private boolean pendingRabbitJumpStatus;
+
+    /** @return and clears the queued jump event (the client's hop animation). */
+    public boolean consumeRabbitJumpStatus() {
+        boolean value = pendingRabbitJumpStatus;
+        pendingRabbitJumpStatus = false;
+        return value;
+    }
+
+    /**
+     * The rabbit's movement tick (RabbitEntity.mobAiTick lines 120-172 over
+     * the engine's input lane): the action band from the live movement
+     * speed (SPRINT above 0.8 — the panic and the killer's chase; HOP
+     * otherwise; ATTACK holds until the landing's startAction(false) flips
+     * it), the delay burn, the hunger decay, the landing edge's delay
+     * re-roll, the killer's lunge arm (the attack target within 16 squared
+     * and the delay spent: face, move, ATTACK-hop), and the launch itself —
+     * the facing impulse at {@code 1.5 x the action speed} over the walk
+     * band, the action's own jump strength, the hop sound at the
+     * 0.8-centered pitch band (startAction lines 89-101).
      */
     private void tickRabbitHop(boolean inFluid) {
         if (inFluid) {
+            // The swim arm (the reference's canSwim navigation — the body
+            // keeps paddling): the reference launches hops in fluid.
             if (random.nextFloat() < 0.8F) {
-                launchRabbitHop();
+                launchRabbitHop(currentRabbitAction(), Double.NaN);
             }
             return;
         }
+        // mobAiTick lines 121-125: the action band. The movementControl's
+        // speed parameter — the engine's mode carries it (the panic and the
+        // chase run the fast goals; everything else walks).
+        if (rabbitJumpDelayTicks > 0) {
+            rabbitJumpDelayTicks--;
+        }
+        // The hunger decay (line 131-136): only a fed clock decays.
+        if (rabbitTicksBeforeHungry > 0) {
+            rabbitTicksBeforeHungry -= random.nextInt(3);
+            if (rabbitTicksBeforeHungry < 0) {
+                rabbitTicksBeforeHungry = 0;
+            }
+        }
         if (!onGround) {
+            rabbitLastOnGround = false;
             return; // airborne: the hop's momentum carries
         }
-        if (--rabbitHopCooldown > 0) {
+        if (!rabbitLastOnGround) {
+            // The landing edge (lines 138-142): startAction(false) — the
+            // ATTACK flips back to HOP — then the delay re-rolls from the
+            // action the landing left standing.
+            if (rabbitAction == RabbitAction.ATTACK) {
+                rabbitAction = RabbitAction.HOP;
+            }
+            rabbitJumpDelayTicks = rabbitAction.jumpDelay;
+            rabbitJumpTicks = 0;
+            rabbitJumpDuration = 0;
+        }
+        rabbitLastOnGround = true;
+        // The killer's lunge (lines 144-152): grounded, the delay spent, and
+        // a live attack target within 16 squared — the look, the movement
+        // update, and the ATTACK hop.
+        if (rabbitKiller() && rabbitJumpDelayTicks == 0 && visibleTarget != null
+                && targetHuntable) {
+            double dx = visibleTarget.x() - position.x();
+            double dy = visibleTarget.y() - position.y();
+            double dz = visibleTarget.z() - position.z();
+            if (dx * dx + dy * dy + dz * dz < 16.0) {
+                yaw = angleTo(dx, dz);
+                headYaw = yaw;
+                startRabbitJump(RabbitAction.ATTACK, dy);
+                return;
+            }
+        }
+        if (rabbitJumpDelayTicks > 0) {
             return; // between hops the body is still (the zeroed input)
         }
-        rabbitHopCooldown = RABBIT_HOP_DELAY;
         if (mode == Mode.IDLE) {
             return; // the idle rabbit sits (the NONE action)
         }
-        launchRabbitHop();
+        startRabbitJump(currentRabbitAction(), Double.NaN);
+    }
+
+    /**
+     * mobAiTick's action band (lines 121-125): the movementControl speed
+     * above 0.8 answers SPRINT (the reference's 1.33 panic/flee and the
+     * killer's 1.4 chase — the engine's PANIC/CHASE modes carry them),
+     * everything else HOP. The ATTACK holds until the landing flips it.
+     */
+    private RabbitAction currentRabbitAction() {
+        if (rabbitAction == RabbitAction.ATTACK) {
+            return RabbitAction.ATTACK;
+        }
+        return mode == Mode.PANIC || mode == Mode.CHASE
+                ? RabbitAction.SPRINT : RabbitAction.HOP;
+    }
+
+    /**
+     * startJumping (lines 103-107) + startAction's jump arm (lines 89-101):
+     * the navigation speed {@code 1.5 x the action speed}, the animation
+     * clock arms, the hop sound at the 0.8-centered pitch band, and the
+     * launch — the facing impulse over the walk band and the action's jump
+     * strength (getJumpStrength's moving-up arm: {@code 0.5} when the
+     * movement target sits above the body's own y + 0.5).
+     */
+    private void startRabbitJump(RabbitAction action, double targetDy) {
+        rabbitAction = action;
+        rabbitJumpDuration = action.jumpDuration;
+        rabbitJumpTicks = 0;
+        pendingRabbitJumpStatus = true; // mobTick's doEntityEvent(1)
+        launchRabbitHop(action, targetDy);
         pendingSlimeSound = new SlimeSound("mob.rabbit.hop",
                 1.0F,
                 ((random.nextFloat() - random.nextFloat()) * 0.2F + 1.0F) * 0.8F);
     }
 
-    /** One hop launch: the facing impulse at the hop speed, the strength rise. */
-    private void launchRabbitHop() {
+    /**
+     * One hop launch: the facing impulse at {@code 1.5 x the action speed}
+     * over the walk band, the strength rise — getJumpStrength's own
+     * override (line 72-74): a movement target above the body's
+     * {@code y + 0.5} answers the flat 0.5 rise whatever the action.
+     */
+    private void launchRabbitHop(RabbitAction action, double targetDy) {
         double radians = Math.toRadians(yaw);
-        velocityX += -Math.sin(radians) * type.walkSpeed * RABBIT_HOP_SPEED;
-        velocityZ += Math.cos(radians) * type.walkSpeed * RABBIT_HOP_SPEED;
-        velocityY = RABBIT_HOP_STRENGTH;
+        double launchSpeed = 1.5 * action.speed;
+        velocityX += -Math.sin(radians) * type.walkSpeed * launchSpeed;
+        velocityZ += Math.cos(radians) * type.walkSpeed * launchSpeed;
+        velocityY = !Double.isNaN(targetDy) && targetDy > 0.5
+                ? 0.5 : action.jumpStrength;
+    }
+
+    // ---- the rabbit's garden raid (Slice 21d — RaidFarmGoal over
+    // GoToBlockGoal, lines 521-597) ----
+
+    /** RaidFarmGoal's cooldown between scans (GoToBlockGoal.canStart's own). */
+    private int rabbitFarmCooldown;
+
+    /** The garden's farmland cell (GoToBlockGoal.target). */
+    private int rabbitFarmX;
+    private int rabbitFarmY;
+    private int rabbitFarmZ;
+
+    /** Whether the scan found a garden this window (RaidFarmGoal.hasTarget). */
+    private boolean rabbitFarmHasTarget;
+
+    /** The approach clock (GoToBlockGoal.activeTicks — the give-up band). */
+    private int rabbitFarmActiveTicks;
+
+    /** The window's cap (start's own {@code nextInt(nextInt(1200)+1200)+1200}). */
+    private int rabbitFarmMaxTicks;
+
+    /** Whether the body stands at the garden (hasReachedTarget). */
+    private boolean rabbitFarmReached;
+
+    /** The hungry gate's snapshot (RaidFarmGoal.hungry — taken at the scan). */
+    private boolean rabbitFarmHungry;
+
+    /** The pending garden eat (the manager's intent): the carrots' cell. */
+    private boolean pendingRabbitFarmEat;
+
+    /** @return and clears the queued garden eat (the farmland cell above). */
+    public boolean consumeRabbitFarmEat() {
+        boolean value = pendingRabbitFarmEat;
+        pendingRabbitFarmEat = false;
+        return value;
+    }
+
+    /** The eaten garden's carrots cell (the pending intent's target.up()). */
+    public int rabbitFarmEatX() {
+        return rabbitFarmX;
+    }
+
+    public int rabbitFarmEatY() {
+        return rabbitFarmY + 1;
+    }
+
+    public int rabbitFarmEatZ() {
+        return rabbitFarmZ;
+    }
+
+    /**
+     * RaidFarmGoal's eat landing (onEatFromGarden line 363-376): the
+     * hunger clock refills to 100 — the manager's intent completes the
+     * world write and the particle.
+     */
+    public void completeRabbitFarmEat() {
+        rabbitTicksBeforeHungry = 100;
+    }
+
+    /**
+     * RaidFarmGoal.canStart/shouldContinue over GoToBlockGoal (lines
+     * 532-547 + 78-96 + 66-70): a live window continues while the approach
+     * clock stays inside the band and the garden still stands; a closed
+     * window waits out the cooldown ({@code 200 + nextInt(200)} between
+     * scans, 10 after an eat), snapshots the hungry gate, then runs the
+     * spiral hunt — the reference's own ring walk over the ±16 box at the
+     * y-1/y+0/y-2 bands, a farmland cell with age-7 carrots above
+     * answering the target. The mobGriefing gate rides the engine's
+     * default-on stand-in (no gamerule surface yet — ledgered).
+     */
+    boolean goalRabbitFarmCanUse() {
+        if (type != MobType.RABBIT) {
+            return false;
+        }
+        if (rabbitFarmHasTarget) {
+            // shouldContinue (GoToBlockGoal lines 66-70 over the wrapper's
+            // own gate): the approach band and the live garden.
+            if (rabbitFarmActiveTicks >= -rabbitFarmMaxTicks
+                    && rabbitFarmActiveTicks <= 1200
+                    && isRabbitGardenAt(rabbitFarmX, rabbitFarmY, rabbitFarmZ)) {
+                return true;
+            }
+            rabbitFarmHasTarget = false; // stop(): the goal leaves quietly
+            return false;
+        }
+        if (rabbitFarmCooldown > 0) {
+            rabbitFarmCooldown--;
+            return false;
+        }
+        rabbitFarmCooldown = 200 + random.nextInt(200);
+        rabbitFarmHungry = rabbitTicksBeforeHungry == 0;
+        if (!rabbitFarmHungry) {
+            return false;
+        }
+        int cx = (int) Math.floor(position.x());
+        int cy = (int) Math.floor(position.y());
+        int cz = (int) Math.floor(position.z());
+        int range = 16;
+        // GoToBlockGoal.findNearestBlock's own spiral: k the y band
+        // (0, 1, -1 → y-1, y+0, y-2), l the ring radius, i1/j1 the ring's
+        // own cross walk.
+        for (int k = 0; k <= 1; k = k > 0 ? -k : 1 - k) {
+            for (int l = 0; l < range; l++) {
+                for (int i1 = 0; i1 <= l; i1 = i1 > 0 ? -i1 : 1 - i1) {
+                    for (int j1 = i1 < l && i1 > -l ? l : 0; j1 <= l; j1 = j1 > 0 ? -j1 : 1 - j1) {
+                        int x = cx + i1;
+                        int y = cy + k - 1;
+                        int z = cz + j1;
+                        if (isRabbitGardenAt(x, y, z)) {
+                            rabbitFarmX = x;
+                            rabbitFarmY = y;
+                            rabbitFarmZ = z;
+                            rabbitFarmHasTarget = true;
+                            // GoToBlockGoal.start (lines 79-85) — the goal
+                            // arms its window the moment the scan answers:
+                            // activeTicks 0 and the maxTicks roll
+                            // {@code nextInt(nextInt(1200) + 1200) + 1200}.
+                            rabbitFarmActiveTicks = 0;
+                            rabbitFarmMaxTicks = random.nextInt(random.nextInt(1200) + 1200) + 1200;
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * RaidFarmGoal.isValidTarget (lines 583-596): a farmland cell with
+     * age-7 carrots standing above it.
+     */
+    private boolean isRabbitGardenAt(int x, int y, int z) {
+        var below = world.blockIdAt(x, y, z);
+        if (below == null || !below.value().equals("farmland")) {
+            return false;
+        }
+        var above = world.blockIdAt(x, y + 1, z);
+        return above != null && above.value().equals("carrots_stage7");
+    }
+
+    /**
+     * GoToBlockGoal.start + tick over RaidFarmGoal.tick (lines 545-580):
+     * the walk to the farmland's up-center at the 0.7 goal speed with the
+     * 40-tick re-path and the look control, the approach clock counting
+     * the walk, and the eat at the standing cell (squared distance to
+     * the up-center within 1.0) — the carrots vanish through the
+     * manager's intent, the hunger refills, the cooldown re-arms at 10.
+     */
+    void goalRabbitFarmTick() {
+        double tx = rabbitFarmX + 0.5;
+        double ty = rabbitFarmY + 1.0;
+        double tz = rabbitFarmZ + 0.5;
+        double dx = tx - position.x();
+        double dy = ty - position.y();
+        double dz = tz - position.z();
+        double squared = dx * dx + dy * dy + dz * dz;
+        if (squared > 1.0) {
+            // The approach (GoToBlockGoal.tick's walk arm): the clock
+            // counts up, the re-path lands every 40 ticks.
+            rabbitFarmReached = false;
+            rabbitFarmActiveTicks++;
+            headYaw = angleTo(dx, dz); // the look control's 10-degree grip
+            mode = Mode.WANDER;
+            modeTicks = 0;
+            goalWalkSpeed = 0.7 / 0.3;
+            if (rabbitFarmActiveTicks % 40 == 0) {
+                tickPathFollowing(new Position(tx, ty, tz));
+            }
+            return;
+        }
+        // The standing cell (hasReachedTarget): the eat.
+        rabbitFarmReached = true;
+        rabbitFarmActiveTicks--;
+        if (rabbitFarmHasTarget && isRabbitGardenAt(rabbitFarmX, rabbitFarmY, rabbitFarmZ)) {
+            pendingRabbitFarmEat = true; // the manager drains the intent
+        }
+        rabbitFarmHasTarget = false;
+        rabbitFarmCooldown = 10;
     }
 
 
@@ -3854,7 +4200,8 @@ public final class MobEntity implements LivingEntity {
 
         Position target = world.nearestPlayer(position.x(), position.y(), position.z(),
                 type.hostile ? AGGRO_RANGE : 8.0);
-        boolean canHunt = type.hostile && (!type.traits.neutralByDay() || night)
+        boolean canHunt = (type.hostile || (type == MobType.RABBIT && rabbitKiller()))
+                && (!type.traits.neutralByDay() || night)
                 && (type != MobType.ZOMBIE_PIGMAN || isAngry()) // the neutral gate (16d)
                 // The enderman's own provocation gate (19d — the reference's
                 // LookAtPlayerGoal/takeDamage model): the neutral body hunts
@@ -3992,12 +4339,23 @@ public final class MobEntity implements LivingEntity {
             yaw = (float) (Math.toDegrees(Math.atan2(-dx, dz)));
             headYaw = yaw;
             tickPathFollowing(target);
-            if (horizontal <= MELEE_ATTACK_RANGE && Math.abs(dy) <= MELEE_ATTACK_VERTICAL_RANGE
-                    && attackCooldown == 0) {
+            // The killer bunny's own reach (EvilAttackGoal.getReach lines
+            // 438-441: {@code 4.0 + target.width} against the SQUARED
+            // distance — the plain rabbit's 3.0 swing never arms); the
+            // strike's mob.attack sound rides the tryDamage override (lines
+            // 255-258) — the pending flag the manager plays at the swing.
+            boolean killerStrike = type == MobType.RABBIT && rabbitKiller();
+            boolean inReach = killerStrike
+                    ? dx * dx + dy * dy + dz * dz <= 4.0 + 0.6
+                    : horizontal <= MELEE_ATTACK_RANGE && Math.abs(dy) <= MELEE_ATTACK_VERTICAL_RANGE;
+            if (inReach && attackCooldown == 0) {
                 attackCooldown = MELEE_ATTACK_COOLDOWN;
                 // The manager hears the swing through the pending flag; the
                 // attack lands through consumePendingMeleeAttack below.
                 pendingMeleeAttack = true;
+                if (killerStrike) {
+                    pendingSlimeAttackSound = true; // mob.attack at the strike
+                }
             }
             return;
         }
@@ -4150,6 +4508,36 @@ public final class MobEntity implements LivingEntity {
      * any road applies the stop(): the delay re-arms and the feet release.
      */
     boolean goalTemptCanUse() {
+        if (type == MobType.RABBIT) {
+            // The rabbit's own TemptGoal family (lines 59-61: the carrot,
+            // the golden carrot, the dandelion — each its own goal, all at
+            // speed 1.0 and NOT scared by movement): the shared goal carries
+            // the item set; the no-scared arm means shouldContinue is only
+            // the canStart re-check.
+            if (temptActive) {
+                PlayerView view = world.nearestPlayerView(
+                        position.x(), position.y(), position.z(), TEMPT_RANGE);
+                if (view == null || !rabbitTemptItem(view.heldItem())) {
+                    goalTemptStop();
+                    return false;
+                }
+                return true;
+            }
+            if (temptDelay > 0) {
+                temptDelay--;
+                return false;
+            }
+            PlayerView view = world.nearestPlayerView(
+                    position.x(), position.y(), position.z(), TEMPT_RANGE);
+            if (view == null) {
+                return false;
+            }
+            if (!rabbitTemptItem(view.heldItem())) {
+                return false;
+            }
+            temptActive = true;
+            return true;
+        }
         if (type != MobType.OCELOT) {
             return false;
         }
@@ -4222,6 +4610,13 @@ public final class MobEntity implements LivingEntity {
         clearPath();
     }
 
+    /** RabbitEntity.isTempting (lines 298-300): the three-item family. */
+    private static boolean rabbitTemptItem(String heldItem) {
+        return "minecraft:carrot".equals(heldItem)
+                || "minecraft:golden_carrot".equals(heldItem)
+                || "minecraft:dandelion".equals(heldItem);
+    }
+
     /**
      * TemptGoal's tick (lines 95-102): the eyes stay on the player; the
      * feet walk the path at the creep speed unless the 2.5-block hold
@@ -4230,6 +4625,30 @@ public final class MobEntity implements LivingEntity {
      * that walk into the shared-flags sneak.
      */
     void goalTemptTick() {
+        if (type == MobType.RABBIT) {
+            // The rabbit's own tick: the 1.0 goal speed over the band, no
+            // posture (the walk stands normal), the same 2.5-block hold.
+            PlayerView view = world.nearestPlayerView(
+                    position.x(), position.y(), position.z(), TEMPT_RANGE);
+            if (view == null) {
+                return;
+            }
+            double dx = view.position().x() - position.x();
+            double dy = view.position().y() - position.y();
+            double dz = view.position().z() - position.z();
+            headYaw = angleTo(dx, dz);
+            double squared = dx * dx + dy * dy + dz * dz;
+            if (squared < TEMPT_STOP_DISTANCE_SQUARED) {
+                clearPath();
+                goalWalkSpeed = 0.0;
+                return;
+            }
+            goalWalkSpeed = 1.0 / 0.3; // the 1.0 goal parameter over the base
+            mode = Mode.WANDER;
+            modeTicks = 0;
+            tickPathFollowing(view.position());
+            return;
+        }
         PlayerView view = world.nearestPlayerView(
                 position.x(), position.y(), position.z(), TEMPT_RANGE);
         if (view == null) {
@@ -4261,6 +4680,36 @@ public final class MobEntity implements LivingEntity {
     boolean goalFleePlayerCanUse() {
         return type == MobType.OCELOT && !wolfTamed() && world.nearestPlayerView(
                 position.x(), position.y(), position.z(), FLEE_PLAYER_RANGE) != null;
+    }
+
+    /**
+     * The rabbit's own flee (line 66: {@code FleeEntityGoal<>(this,
+     * WolfEntity.class, 16.0F, 1.33, 1.33)}): any live wolf within 16
+     * blocks sends the body running — BOTH speed bands 1.33 (the
+     * reference's own pair). The killer bunny's setVariant(99) removes
+     * this goal (the reference's removeGoal at line 322).
+     */
+    boolean goalFleeWolfCanUse() {
+        return type == MobType.RABBIT && !rabbitKiller() && world.nearestMobOfKind(
+                position.x(), position.y(), position.z(), FLEE_PLAYER_RANGE,
+                MobType.WOLF) != null;
+    }
+
+    /** The rabbit's flee tick: directly away from the wolf at 1.33 both bands. */
+    void goalFleeWolfTick() {
+        MobEntity wolf = world.nearestMobOfKind(
+                position.x(), position.y(), position.z(), FLEE_PLAYER_RANGE,
+                MobType.WOLF);
+        if (wolf == null) {
+            return;
+        }
+        double dx = position.x() - wolf.position().x();
+        double dz = position.z() - wolf.position().z();
+        goalWalkSpeed = 1.33 / 0.3; // both bands share the 1.33 pair
+        mode = Mode.PANIC;
+        modeTicks = 0;
+        yaw = angleTo(dx, dz); // directly away from the wolf
+        headYaw = yaw;
     }
 
     /**
@@ -4427,7 +4876,8 @@ public final class MobEntity implements LivingEntity {
         if (mobAttackTarget != null && mobAttackTarget.dead()) {
             setMobAttackTarget(null); // shouldContinue: the target died
         }
-        if (mobAttackTarget == null && (type == MobType.WOLF || type == MobType.ZOMBIE)
+        if (mobAttackTarget == null && (type == MobType.WOLF || type == MobType.ZOMBIE
+                || (type == MobType.RABBIT && rabbitKiller()))
                 && random.nextInt(HUNT_SCAN_CHANCE) == 0) {
             MobEntity found = null;
             double best = MOB_TARGET_FOLLOW_RANGE * MOB_TARGET_FOLLOW_RANGE;
@@ -4453,6 +4903,13 @@ public final class MobEntity implements LivingEntity {
                         found = sheep != null ? sheep : rabbit;
                     }
                 }
+            } else if (type == MobType.RABBIT) {
+                // The killer bunny's own target family (setVariant lines
+                // 325-326: ActiveTargetGoal over the wolf — the player half
+                // rides the engine's player hunt above): any wolf within the
+                // follow range.
+                found = world.nearestMobOfKind(position.x(), position.y(), position.z(),
+                        MOB_TARGET_FOLLOW_RANGE, MobType.WOLF);
             } else { // the zombie: targetSelector 2's villager hunt
                 found = world.nearestMobOfKind(position.x(), position.y(), position.z(),
                         MOB_TARGET_FOLLOW_RANGE, MobType.VILLAGER);

@@ -9491,6 +9491,38 @@ public final class EngineServer implements Server, EngineBridge {
         }
 
         /**
+         * The rabbit's garden eat (Slice 21d — RaidFarmGoal.tick lines
+         * 566-579): the age-7 carrots vanish (the air write with the
+         * neighbor updates — the reference's own setBlockState(air, 2) +
+         * breakBlock pair), the block-dust burst pops at the eaten cell
+         * (onEatFromGarden's BLOCK_DUST over the carrot state), and the
+         * hunger clock refills to 100.
+         */
+        @Override
+        public void onRabbitFarmEat(net.zaminmc.torch.server.entity.MobEntity rabbit) {
+            for (MobManager.Listener listener : mobListeners) {
+                listener.onRabbitFarmEat(rabbit);
+            }
+            BlockPosition at = new BlockPosition(rabbit.rabbitFarmEatX(),
+                    rabbit.rabbitFarmEatY(), rabbit.rabbitFarmEatZ());
+            var type = world.getBlock(at);
+            if (!type.identifier().value().equals("carrots_stage7")) {
+                rabbit.completeRabbitFarmEat(); // the cell changed: the
+                // clock still refills (the reference's own tick order —
+                // the eat landed, the world just moved on)
+                return;
+            }
+            world.setBlock(at, blockRegistry.require(
+                    net.zaminmc.torch.util.Identifier.parse("minecraft:air")));
+            // onEatFromGarden's particle burst (the carrot block's own
+            // dust at the body's band).
+            fxManager.blockShatter(new Position(at.x() + 0.5, at.y() + 0.5, at.z() + 0.5),
+                    blockRegistry.require(
+                            net.zaminmc.torch.util.Identifier.parse("minecraft:carrots_stage7")));
+            rabbit.completeRabbitFarmEat();
+        }
+
+        /**
          * The snow golem's volley (Slice 17d — SnowGolemEntity.
          * doRangedAttack lines 89-96): the snowball launches from the
          * golem's own height, aimed at the target's eye band pulled to the
