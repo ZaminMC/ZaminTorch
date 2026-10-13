@@ -528,6 +528,13 @@ public final class BuiltinItems {
     /** The small slime's drop (SlimeEntity.getDropItem: size 1 only; community id 341). */
     public static final EngineItemType SLIME_BALL = new EngineItemType(
             Identifier.parse("minecraft:slime_ball"), "Slimeball", 64);
+    /**
+     * The wither skeleton's rare head (SkeletonEntity.dropRareItem line
+     * 204: {@code new ItemStack(Items.SKULL, 1, 1)} — community id 397;
+     * the stack's damage field carries the variant, 1 = wither).
+     */
+    public static final EngineItemType SKULL = new EngineItemType(
+            Identifier.parse("minecraft:skull"), "Skull", 64);
     /** The ghast's rare drop and the magma cube's drop ride the brewing
      * family's registrations (GHAST_TEAR / MAGMA_CREAM — the wire rows
      * landed with Slice 16c). */
@@ -658,6 +665,7 @@ public final class BuiltinItems {
                 PRISMARINE, PRISMARINE_CRYSTALS, PRISMARINE_SHARD, SEA_LANTERN,
                 SPONGE, GOLD_BLOCK,
                 BONE, STRING, GUNPOWDER, WOOL, MUTTON, COOKED_MUTTON, SLIME_BALL,
+                SKULL,
                 BUCKET, WATER_BUCKET, LAVA_BUCKET,
                 FLINT_AND_STEEL, GOLD_INGOT,
                 SUGAR_CANE, CACTUS, SUGAR, PAPER, BOOK,

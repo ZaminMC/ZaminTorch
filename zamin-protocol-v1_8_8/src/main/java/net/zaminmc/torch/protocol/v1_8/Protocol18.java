@@ -243,6 +243,11 @@ final class Protocol18 {
     static final int VILLAGER_PROFESSION_METADATA_INDEX = 16;
     /** The witch's drinking flag (WitchEntity's own synced-data slot 21). */
     static final int WITCH_DRINKING_METADATA_INDEX = 21;
+    /**
+     * The skeleton's type byte (SkeletonEntity.registerSyncedData line 72:
+     * the synced slot 13 — 0 the archer, 1 the wither variant).
+     */
+    static final int SKELETON_TYPE_METADATA_INDEX = 13;
     // The wolf's block (WolfEntity.registerSyncedData): the index-16 state
     // byte (TameableEntity's sitting 0x1 | tamed 0x4 bits + the wolf's own
     // angry 0x2), the 17 owner string, the 18 health float (the client's

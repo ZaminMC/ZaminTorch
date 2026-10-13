@@ -881,13 +881,15 @@ public final class EngineServer implements Server, EngineBridge {
                 leadSystem.setSurvivalRead(world, BuiltinBlocks.FENCE.identifier());
                 // The natural spawn cycle (Slice 11d): the 1:1 walk.
                 naturalSpawns = new net.zaminmc.torch.server.spawn.NaturalSpawnSystem(
-                        new SpawnSurface(mobs),
+                        new SpawnSurface(mobs, false),
                         new SpawnWorldQuery(world, false),
                         new java.util.Random());
                 // The nether's own cycle (Slice 16d): the HellBiome rows over
-                // the nether's chunks — the ghast, the pigman, the magma cube.
+                // the nether's chunks — the ghast, the pigman, the magma cube;
+                // the skeleton's wither conversion rides the nether's own
+                // spawn arm (Slice 18d).
                 naturalSpawnsNether = new net.zaminmc.torch.server.spawn.NaturalSpawnSystem(
-                        new SpawnSurface(mobs),
+                        new SpawnSurface(mobs, true),
                         new SpawnWorldQuery(netherWorld, true),
                         new java.util.Random(), true);
                 // Vehicles (§ vehicles slice): boats and minecarts on the
@@ -2486,6 +2488,9 @@ public final class EngineServer implements Server, EngineBridge {
             mob.setLootingLevel(EnchantmentHelper.lootingLevel(held));
             boolean landed = mobManager.hurt(mob, damage, kbYaw);
             if (landed) {
+                // LivingEntity.takeDamage lines 678-680: a player's landed
+                // wound arms the 100-tick hit window (dropRareItem's gate).
+                mob.markPlayerHit();
                 // Slice 17a — GuardianEntity.takeDamage's spike reflect: a
                 // still body's thorns wound the melee attacker (2.0F with
                 // the damage.thorns sound at 0.5 — the reference's own
@@ -7956,12 +7961,19 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /** The natural spawn cycle's mob surface (Slice 11d). */
-    private record SpawnSurface(MobManager mobs)
+    private record SpawnSurface(MobManager mobs, boolean nether)
             implements net.zaminmc.torch.server.spawn.NaturalSpawnSystem.Mobs {
         @Override
         public void spawn(net.zaminmc.torch.server.entity.MobType type, Position at,
                           boolean baby, float yaw) {
-            mobs.spawnNatural(type, at, baby, yaw);
+            if (nether) {
+                // Slice 18d — the nether's own initialize walk: the
+                // skeletons' wither roll lives at the manager's nether arm
+                // (SkeletonEntity.initialize lines 215-226).
+                mobs.spawnNaturalNether(type, at, baby, yaw);
+            } else {
+                mobs.spawnNatural(type, at, baby, yaw);
+            }
         }
 
         @Override
@@ -8167,10 +8179,12 @@ public final class EngineServer implements Server, EngineBridge {
             // die() gate: entity instanceof PlayerEntity — mob shooters
             // contribute zero).
             int looting = 0;
+            boolean playerShooter = false;
             if (shooterId > 0) {
                 for (PlayerSession candidate : players.all()) {
                     if (candidate.engineEntityId() == shooterId) {
                         looting = EnchantmentHelper.lootingLevel(candidate.inventory().held());
+                        playerShooter = true;
                         break;
                     }
                 }
@@ -8187,8 +8201,14 @@ public final class EngineServer implements Server, EngineBridge {
                 }
                 return false;
             }
-            return mobManager.hurt(mob, damage, kbYaw,
+            boolean landedArrow = mobManager.hurt(mob, damage, kbYaw,
                     net.zaminmc.torch.event.DamageCause.PROJECTILE);
+            if (landedArrow && playerShooter) {
+                // takeDamage lines 678-680: the player shooter's landed
+                // arrow arms the 100-tick hit window.
+                mob.markPlayerHit();
+            }
+            return landedArrow;
         }
 
         @Override
@@ -8318,8 +8338,13 @@ public final class EngineServer implements Server, EngineBridge {
                                         mob.setLootingLevel(
                                                 EnchantmentHelper.lootingLevel(
                                                         wearer.inventory().held()));
-                                        mobManager.hurt(mob, amount,
-                                                wearer.rotation().yaw());
+                                        if (mobManager.hurt(mob, amount,
+                                                wearer.rotation().yaw())) {
+                                            // The thorns wound's attacker is the
+                                            // wearing player — the hit window arms
+                                            // (takeDamage lines 678-680).
+                                            mob.markPlayerHit();
+                                        }
                                         return;
                                     }
                                 }
@@ -8470,6 +8495,17 @@ public final class EngineServer implements Server, EngineBridge {
                                     poisonSeconds * 20, 0));
                 }
             }
+            // Slice 18d — the wither skeleton's cursed blade
+            // (SkeletonEntity.tryDamage lines 96-106): the variant's landed
+            // melee hit applies the flat 10-second WITHER — no amplifier,
+            // no difficulty gate (the reference's own shape).
+            if (mob.type() == net.zaminmc.torch.server.entity.MobType.SKELETON
+                    && mob.skeletonWither()) {
+                potionSystem.add(target,
+                        new net.zaminmc.torch.server.potion.StatusEffectInstance(
+                                net.zaminmc.torch.server.potion.StatusEffects.WITHER,
+                                mob.skeletonWitherEffectTicks(), 0));
+            }
             // Slice 16b — AttackWithOwnerGoal: the victim's standing tamed
             // wolves join the fight on the attacker (the owner's own
             // getAttacker + getLastAttackedTime change, the event-site arm).
@@ -8497,7 +8533,12 @@ public final class EngineServer implements Server, EngineBridge {
                     if (mobManager != null) {
                         mob.setLootingLevel(EnchantmentHelper.lootingLevel(
                                 wearer.inventory().held()));
-                        mobManager.hurt(mob, amount, wearer.rotation().yaw());
+                        if (mobManager.hurt(mob, amount, wearer.rotation().yaw())) {
+                            // The thorns wound's attacker is the wearing
+                            // player — the hit window arms (takeDamage
+                            // lines 678-680).
+                            mob.markPlayerHit();
+                        }
                     }
                 }
 
@@ -8739,7 +8780,12 @@ public final class EngineServer implements Server, EngineBridge {
                     if (mobManager != null) {
                         mob.setLootingLevel(EnchantmentHelper.lootingLevel(
                                 wearer.inventory().held()));
-                        mobManager.hurt(mob, amount, wearer.rotation().yaw());
+                        if (mobManager.hurt(mob, amount, wearer.rotation().yaw())) {
+                            // The thorns wound's attacker is the wearing
+                            // player — the hit window arms (takeDamage
+                            // lines 678-680).
+                            mob.markPlayerHit();
+                        }
                     }
                 }
 

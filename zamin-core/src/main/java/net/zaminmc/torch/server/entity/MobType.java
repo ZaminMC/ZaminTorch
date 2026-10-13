@@ -102,11 +102,15 @@ public enum MobType {
             List.of(new ItemRoll(BuiltinItems.ROTTEN_FLESH, 0, 2)),
             "mob.zombie.say", "mob.zombie.hurt", "mob.zombie.death"),
 
-    /** Hostile ranged: keeps its distance and shoots arrows. */
+    /**
+     * Hostile ranged: keeps its distance and shoots arrows. The wither
+     * variant (Slice 18d — the nether initialize's 4-in-5 roll) rides the
+     * same kind: the taller 0.72x2.535 hull, the fire immunity, the 4.0
+     * melee and the WITHER curse all live on the body's own variant flag.
+     */
     SKELETON(51, 0.6, 1.8, 20.0f, 0.038, true, new Traits(true, false, false, false),
-            List.of(new ItemRoll(BuiltinItems.ARROW, 0, 2),
-                    new ItemRoll(BuiltinItems.BONE, 0, 2)),
-            "mob.skeleton.say", "mob.skeleton.say", "mob.skeleton.say"),
+            List.of(), // the custom drop walk (SkeletonEntity.dropItems)
+            "mob.skeleton.say", "mob.skeleton.hurt", "mob.skeleton.death"),
 
     /** Hostile demolition: closes in, primes, and blows a hole in the world. */
     CREEPER(50, 0.6, 1.8, 20.0f, 0.04, true, new Traits(false, true, false, false),

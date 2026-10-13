@@ -3193,3 +3193,77 @@ break with the creative never-burst).
 
 Fresh suite: **942 green (849 core + 19 api + 74 protocol)**,
 `--max-workers=1`, zero failures.
+
+## Slice 18d — the wither skeleton
+
+**Scope**: SkeletonEntity.setType(1) 1:1 — the variant body, the nether
+initialize, the cursed blade, the reference's own drop law, the held
+equipment surface, and the static-init fix the protocol module needed.
+
+**The variant** (setType lines 277-285): the taller 0.72x2.535 hull, the
+fire immunity (`immuneToFire = type == 1`), the 4.0 ATTACK_DAMAGE (the
+initialize line 221 — the stone-sword arm), and the generic eye share of
+the TALLER hull (getEyeHeight line 314's super arm: 2.535 * 0.85 — the
+in-progress code's `type.height * 0.85` corrected: super reads the live
+size, not the kind's own 1.95).
+
+**The nether initialize** (initialize lines 215-226): the 4-in-5 roll
+(`random.nextInt(5) > 0` over `world.dimension instanceof NetherDimension`)
+— the nether's own natural-spawn arm (`MobManager.spawnNaturalNether`
+through the dimension-aware `SpawnSurface`), the melee goal swap riding
+the wither flag in the mind router (`traits.ranged() && !skeletonWither`),
+and the stone sword replacing the bow. Every other spawn path keeps the
+archer's own bow (addRandomEquipment line 211 — the mob held-equipment
+surface's first member).
+
+**The cursed blade** (tryDamage lines 96-106): every landed melee hit
+applies the flat 200-tick WITHER (tier 0, no difficulty gate) through the
+EngineServer's melee consume site — the cave spider's venom pattern, the
+wither's own shape.
+
+**The player-kill window** (LivingEntity lines 92/254/679): the
+`markPlayerHit` model — 100 ticks from the player's last landed wound
+(melee, the player shooter's projectile, the thorns retaliation), decaying
+through the death animation — the gate `dropRareItem` reads.
+
+**The drop law** (dropItems lines 178-198 + dropEquipment + dropRareItem):
+the wither's coal arm (`nextInt(3 + looting) - 1` — the negative-friendly
+count, most bodies drop nothing), both variants' bones
+(`nextInt(3 + looting)`), the archer's arrows — each unit its own
+single-item stack (the generic ItemRoll path's `nextInt(3) +
+nextInt(1+looting)` replaced with the reference's own bound); the held
+item's 0.085 spill (`nextFloat() - looting * 0.01F < 0.085F` on the
+player-kill window); the wither skull's rare roll (`0.025 + looting *
+0.01`, the SKULL item 397 with the damage field 1) — the engine's first
+rare-drop arm.
+
+**The fire-immunity fix the slice exposed**: the fire clock never gated
+on immunity — a Fire Aspect blaze took tick damage. The reference's own
+model landed (Entity.update lines 322-327 + takeFireDamage 739-743): the
+immune body burns FOUR times as fast and never wounds.
+
+**The static-init fix**: Slice 18c's stone-brick rows doubled
+`minecraft:chiseled_stone_bricks` (12f's temple row already carried it) —
+the `Map.ofEntries` duplicate threw at LegacyBlockIds' clinit, killing
+every join flow's chunk serialization. The duplicate removed and the
+`LegacyBlockIdsIntegrityTest` guard added (the failure now names itself
+in milliseconds, not twenty seconds inside a Netty callback).
+
+**The wire**: the skeleton's type byte at the synced slot 13 (the
+SKELETON_TYPE_METADATA_INDEX — 0 the archer, 1 the wither) and the held
+item's Entity Equipment packet right after the spawn (the player body's
+own wire order).
+
+**The daylight gate**: the wither never joins the dimension-blind
+daylight sweep (it only exists in the nether, where the reference's own
+hasSkyAccess reads false).
+
+**Tests**: WitherSkeletonTest (6: the variant identity + the eye share
+over the live hull, the archer's own body, the 4-in-5 conversion with
+the sword swap + the overworld never converting, the death walk through
+the always-rare rig — the coal/bone/sword/skull law with the archer's
+never-coal, the wither curse through the live melee pipeline with the
+archer's no-curse) + LegacyBlockIdsIntegrityTest (1).
+
+Fresh suite: **949 green (855 core + 19 api + 75 protocol)**,
+`--max-workers=1`, one documented chest load flake green in isolation.

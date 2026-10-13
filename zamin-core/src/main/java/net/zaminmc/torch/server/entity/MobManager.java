@@ -45,6 +45,15 @@ public final class MobManager {
     /** 1.8 day length in ticks (the world's own cycle). */
     public static final long DAY_LENGTH = 24_000;
 
+    /**
+     * The equipment drop chance (MobEntity's own initEquipmentDropChances
+     * line 83: the flat 0.085F every slot carries).
+     */
+    private static final float EQUIPMENT_DROP_CHANCE = 0.085f;
+
+    /** The rare-drop roll's base (LivingEntity.die line 766: 0.025F). */
+    private static final float RARE_DROP_BASE = 0.025f;
+
     /** Where mob loot goes (the engine's item-entity system). */
     public interface LootSink {
         void spawnLootDrop(Position position, ItemStack stack);
@@ -423,6 +432,13 @@ public final class MobManager {
         mob.setBreedFinder(this::scanForMate);
         mob.setRemovalHook(() -> remove(mob, "api")); // the public despawn path
         mob.setGoalAdmission(goalAdmission); // §27.6: mind mutations admit onto the owner lane
+        if (type == MobType.SKELETON) {
+            // SkeletonEntity.initialize's else arm (line 224 →
+            // addRandomEquipment line 211): every archer spawns with the
+            // bow in hand — the nether's wither conversion replaces it
+            // with the stone sword at its own roll below.
+            mob.setHeldEquipment(ItemStack.of(BuiltinItems.BOW, 1));
+        }
         if (type == MobType.WITCH) {
             // The drink ladder's hasStatusEffect gates (mobTick lines
             // 107-121): the live store read through the potion system.
@@ -657,8 +673,11 @@ public final class MobManager {
             // Daylight: the undead ignite (the historical sunlight burn —
             // re-armed every daylight tick until the fire consumes them); the
             // day-neutral spider just stops hunting; creepers are sun-proof.
+            // The wither skeleton never joins: it only exists in the nether,
+            // where the reference's own hasSkyAccess gate reads false (the
+            // engine's dimension-blind sweep's own wither arm, Slice 18d).
             if (mob.type().hostile && !mob.type().traits.neutralByDay() && !night) {
-                if (mob.type().undead()) {
+                if (mob.type().undead() && !mob.skeletonWither()) {
                     boolean wasBurning = mob.burning();
                     mob.ignite(MobEntity.FIRE_TICKS);
                     if (!wasBurning) {
@@ -1365,6 +1384,50 @@ public final class MobManager {
             }
             return;
         }
+        if (mob.type() == MobType.SKELETON) {
+            // SkeletonEntity.dropItems (lines 178-198): the wither variant
+            // drops the coal roll (`nextInt(3 + looting) - 1` — the negative-
+            // friendly count arm, so most wither bodies drop nothing), the
+            // archer the arrows (`nextInt(3 + looting)`); BOTH carry the
+            // bones (`nextInt(3 + looting)` again) — each unit its own
+            // single-item stack, the full-looting bound like the pigman's.
+            if (mob.skeletonWither()) {
+                int coal = random.nextInt(3 + looting) - 1;
+                for (int unit = 0; unit < coal; unit++) {
+                    lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()),
+                            ItemStack.of(BuiltinItems.COAL, 1));
+                }
+            } else {
+                int arrows = random.nextInt(3 + looting);
+                for (int unit = 0; unit < arrows; unit++) {
+                    lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()),
+                            ItemStack.of(BuiltinItems.ARROW, 1));
+                }
+            }
+            int bones = random.nextInt(3 + looting);
+            for (int unit = 0; unit < bones; unit++) {
+                lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()),
+                        ItemStack.of(BuiltinItems.BONE, 1));
+            }
+            // MobEntity.dropEquipment (lines 569-589): the held item drops
+            // on a player kill at the 0.085 chance, widened by the looting
+            // (`nextFloat() - looting * 0.01F < 0.085F` — the reference's
+            // own shape over the one modeled slot).
+            ItemStack held = mob.heldEquipment();
+            if (held != null && mob.playerHitRecently()
+                    && random.nextFloat() - looting * 0.01F < EQUIPMENT_DROP_CHANCE) {
+                lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()), held);
+            }
+            // LivingEntity.die lines 766-768 + SkeletonEntity.dropRareItem
+            // (lines 201-206): the wither variant's rare head — the
+            // 0.025 + looting * 0.01 roll on the player-kill window.
+            if (mob.skeletonWither() && mob.playerHitRecently()
+                    && random.nextFloat() < RARE_DROP_BASE + looting * 0.01F) {
+                lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()),
+                        new ItemStack(BuiltinItems.SKULL, 1, 1, null));
+            }
+            return;
+        }
         if (mob.type() == MobType.GHAST) {
             // GhastEntity.dropItems (lines 98-113): 0-1 ghast tears, then
             // 0-2 gunpowder, both widened by the looting bonus, each
@@ -1637,6 +1700,24 @@ public final class MobManager {
             if (baby) {
                 mob.setBreedingAge(-24_000);
             }
+        }
+        return mob;
+    }
+
+    /**
+     * The nether's own natural spawn (Slice 18d — SkeletonEntity.initialize
+     * lines 215-226): the dimension's skeletons carry the wither roll —
+     * {@code random.nextInt(5) > 0}, the 4-in-5 variant — replacing the
+     * archer's bow with the stone sword (the melee goal swap rides the
+     * wither flag in the mind router). Every other kind walks the shared
+     * overworld shape (no dimension-specific initialize of their own).
+     */
+    public MobEntity spawnNaturalNether(MobType type, Position position, boolean baby,
+                                        float yaw) {
+        MobEntity mob = spawnNatural(type, position, baby, yaw);
+        if (mob != null && type == MobType.SKELETON && random.nextInt(5) > 0) {
+            mob.setSkeletonWither(true);
+            mob.setHeldEquipment(ItemStack.of(BuiltinItems.STONE_SWORD, 1));
         }
         return mob;
     }
