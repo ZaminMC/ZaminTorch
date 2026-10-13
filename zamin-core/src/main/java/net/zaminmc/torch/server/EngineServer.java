@@ -379,7 +379,7 @@ public final class EngineServer implements Server, EngineBridge {
 
     // ------------------------------------------------------------------ lifecycle
 
-    public EngineConfig config() {
+    public EngineConfig engineConfig() {
         return config;
     }
 
@@ -1764,6 +1764,16 @@ public final class EngineServer implements Server, EngineBridge {
                         : java.util.OptionalInt.of(entry.maxXP(level));
             }
         };
+    }
+
+    /** The public configuration read (§27.3) — the frozen boot-time value. */
+    @Override
+    public net.zaminmc.torch.config.ServerConfig config() {
+        return new net.zaminmc.torch.config.ServerConfig(
+                config.host(), config.port(), config.worldName(), config.motd(),
+                config.maxPlayers(), config.viewDistance(), config.tickRateHz(),
+                config.dataDir(), config.gamemode(), config.pvp(), config.levelType(),
+                config.whiteList(), config.regionSizeChunks());
     }
 
     /** The engine's own recipe service (the crafting paths' chokepoint). */

@@ -23,7 +23,7 @@ Stability classes (§27.4): `Stable`, `Experimental`, `Internal`.
 | Dimension collection | `EngineServer.worlds()` | `Server.worlds()` (both booted dimensions) | any thread | — | Stable | `EventApiAcceptanceTest` | VERIFIED | — |
 | Difficulty | `EngineServer.difficulty()` | `Server.difficulty()` (the id read; the set arm rides the difficulty slice) | any thread | — | Stable | `WorldApiAcceptanceTest` (the band) | IMPLEMENTED | the setter path (the engine's own `/difficulty` command) rides the difficulty slice |
 | TPS observation | `EngineTicker.averageTps` (the 1m/5m/15m Paper windows) | **`Server.tps(int windowSeconds)`** — any thread, best-effort snapshot | any thread | — | Experimental | `SchedulerApiAcceptanceTest` (the sane band) | IMPLEMENTED | 20.0 before enough data accumulates |
-| Configuration | `EngineConfig` | none (launcher-side file) | boot | — | — | — | NOT AUDITED | — |
+| Configuration | `EngineConfig` (the validated boot model) | **`Server.config()`** → `config.ServerConfig` — the frozen boot-time settings as an immutable value record: host/port/worldName/motd/maxPlayers/viewDistance/tickRateHz/dataDir/gamemode/pvp/levelType/whiteList/regionSizeChunks (the ADR-6 granularity included, the WHOLE_WORLD sentinel public) | any thread (the frozen value) | — | Stable | `ConfigApiAcceptanceTest` (2: the full field read-back + the stability + the off-lane read; the defaults' historical shape) | IMPLEMENTED | no live setter surface by design (the historical restart rule — a change requires a reboot); the world/player directory derivations stay engine-side (the persistence layout's own) |
 
 ## 2. World, chunk, block
 
