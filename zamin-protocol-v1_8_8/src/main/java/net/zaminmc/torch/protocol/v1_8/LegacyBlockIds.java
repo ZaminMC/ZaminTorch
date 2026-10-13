@@ -442,6 +442,8 @@ final class LegacyBlockIds {
             // 1.8 ids): the snow pair, the iron block, the pumpkin pair.
             Map.entry(Identifier.parse("minecraft:snow"), 80),
             Map.entry(Identifier.parse("minecraft:snow_layer"), 78),
+            // The ice (Slice 21c, community blocks.json): the freeze arm's write.
+            Map.entry(Identifier.parse("minecraft:ice"), 79),
             Map.entry(Identifier.parse("minecraft:iron_block"), 42),
             Map.entry(Identifier.parse("minecraft:pumpkin"), 86),
             Map.entry(Identifier.parse("minecraft:lit_pumpkin"), 91)));

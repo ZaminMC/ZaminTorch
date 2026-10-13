@@ -308,6 +308,8 @@ public final class EngineServer implements Server, EngineBridge {
     private net.zaminmc.torch.server.weather.WeatherDataStore weatherStore;
     /** The lightning family (Slice 20c — the strike roll + the bolt life). */
     private volatile net.zaminmc.torch.server.weather.LightningSystem lightning;
+    /** The ice/snow precipitation arm (Slice 21c — tickChunks lines 325-341). */
+    private volatile net.zaminmc.torch.server.weather.PrecipitationSystem precipitation;
     private final java.util.List<ChatListener> chatListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     private final java.util.List<ItemEntityManager.Listener> itemListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     private final java.util.List<MobManager.Listener> mobListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
@@ -723,6 +725,73 @@ public final class EngineServer implements Server, EngineBridge {
                             }
                         }, new java.util.Random(), LIGHTNING_ID_BASE);
                 lightning.setDifficultyRead(() -> difficulty);
+                // The ice/snow precipitation arm (Slice 21c —
+                // ServerWorld.tickChunks lines 325-341): the freeze runs
+                // without the rain gate (the cold freezes dry), the snow
+                // rides it. The temperature gate (Biome's registration
+                // table) keeps both arms no-ops on the engine's warm biome
+                // set — the vanilla-plains envelope, faithfully.
+                precipitation = new net.zaminmc.torch.server.weather.PrecipitationSystem(
+                        new net.zaminmc.torch.server.weather.PrecipitationSystem.Surface() {
+                            @Override
+                            public int precipitationHeight(int x, int z) {
+                                return surfaceY(x, z);
+                            }
+
+                            @Override
+                            public net.zaminmc.torch.block.BlockType blockAt(int x, int y, int z) {
+                                return world.getBlock(new BlockPosition(x, y, z));
+                            }
+
+                            @Override
+                            public int blockLightAt(int x, int y, int z) {
+                                return world.blockLightAt(new BlockPosition(x, y, z));
+                            }
+
+                            @Override
+                            public boolean isWaterSource(net.zaminmc.torch.block.BlockType type) {
+                                // canFreeze's level-0 gate (the reference's
+                                // FLOWING_WATER.LEVEL == 0 — the source).
+                                return type.identifier()
+                                        .equals(net.zaminmc.torch.server.block.FluidBlocks.WATER_SOURCE);
+                            }
+
+                            @Override
+                            public boolean isAirAt(int x, int y, int z) {
+                                return world.getBlock(new BlockPosition(x, y, z))
+                                        .equals(world.airType());
+                            }
+
+                            @Override
+                            public boolean isSolidAt(int x, int y, int z) {
+                                return net.zaminmc.torch.server.block.WorldSolidity
+                                        .isSolid(world.getBlock(new BlockPosition(x, y, z)));
+                            }
+
+                            @Override
+                            public float temperatureAt(int x, int z) {
+                                String name = world.biomeAt(new BlockPosition(x, 64, z));
+                                try {
+                                    return net.zaminmc.torch.server.world.Biome
+                                            .valueOf(name.toUpperCase(java.util.Locale.ROOT))
+                                            .temperature();
+                                } catch (IllegalArgumentException unknown) {
+                                    return net.zaminmc.torch.server.world.Biome.PLAINS
+                                            .temperature();
+                                }
+                            }
+
+                            @Override
+                            public void placeIceAt(int x, int y, int z) {
+                                world.setBlock(new BlockPosition(x, y, z), BuiltinBlocks.ICE);
+                            }
+
+                            @Override
+                            public void placeSnowAt(int x, int y, int z) {
+                                world.setBlock(new BlockPosition(x, y, z),
+                                        BuiltinBlocks.SNOW_LAYER);
+                            }
+                        }, new java.util.Random(worldSeed ^ 0x21C));
                 lightning.addListener(new net.zaminmc.torch.server.weather.LightningSystem.Listener() {
                     @Override
                     public void onBoltStruck(int entityId, double x, double y, double z) {
@@ -1157,12 +1226,18 @@ public final class EngineServer implements Server, EngineBridge {
                     // The lightning family (Slice 20c — ServerWorld.
                     // tickChunks lines 313-321): the per-chunk strike roll
                     // over the loaded window, then the live bolts' walk.
+                    // The ice/snow arm (Slice 21c) runs second in the same
+                    // per-chunk loop — the reference's own arm order.
                     if (lightning != null) {
                         for (net.zaminmc.torch.server.world.EngineChunk chunk
                                 : world.loadedChunks()) {
                             lightning.tryStrikeAtChunk(chunk.position().x(),
                                     chunk.position().z(),
                                     weather.raining(), weather.thundering());
+                            if (precipitation != null) {
+                                precipitation.tryIceAndSnowAtChunk(chunk.position().x(),
+                                        chunk.position().z(), weather.raining());
+                            }
                         }
                         lightning.tick();
                     }
