@@ -204,6 +204,25 @@ public final class MobEntity implements LivingEntity {
         default MobEntity nearestMobOfKind(double x, double y, double z, double range, MobType kind) {
             return null;
         }
+
+        /**
+         * The nearest live HOSTILE mob within {@code range} — the golem
+         * family's read (TrackIronGolemTargetGoal + the snow golem's
+         * ActiveTargetGoal over Monster.VISIBLE_MONSTER_FILTER). The
+         * default answers null so stub worlds carry no golem mind.
+         */
+        default MobEntity nearestHostileMob(double x, double y, double z, double range) {
+            return null;
+        }
+
+        /**
+         * Whether the position's biome runs hot (the reference's
+         * temperature > 1.0 — the snow golem's melt arm). The default
+         * answers false so stub worlds stay temperate.
+         */
+        default boolean biomeHotAt(double x, double y, double z) {
+            return false;
+        }
     }
 
     /**
@@ -806,6 +825,8 @@ public final class MobEntity implements LivingEntity {
             tickGuardianClock(); // the elder's aura cadence (17a)
         } else if (type == MobType.ENDERMITE) {
             tickEndermiteClock(); // the lifetime despawn (17c)
+        } else if (type == MobType.SNOW_GOLEM) {
+            tickSnowGolemEnvironment(); // the melts (17d)
         }
         if (hurtFlash > 0) {
             hurtFlash--;
@@ -1218,6 +1239,13 @@ public final class MobEntity implements LivingEntity {
             // setElder line 141: the elder's own ATTACK_DAMAGE 8.0 (the
             // laser's melee half reads the attribute live).
             return GUARDIAN_ELDER_DAMAGE;
+        }
+        if (type == MobType.IRON_GOLEM) {
+            // tryDamage line 202: the heavy 7 + nextInt(15) roll — the
+            // golem's own damage draw per swing (the manager's hurtByMob
+            // site reads it through golemDamageRoll instead; this arm
+            // answers the generic walks).
+            return golemDamageRoll();
         }
         return type.attackDamage;
     }
@@ -1649,6 +1677,143 @@ public final class MobEntity implements LivingEntity {
     public boolean consumeEndermiteExpire() {
         boolean value = pendingEndermiteExpire;
         pendingEndermiteExpire = false;
+        return value;
+    }
+
+    // ------------------------------------- the golem pair (17d)
+
+    /** The iron golem's hunt range (GoToEntityTargetGoal's 32.0F). */
+    private static final double GOLEM_HUNT_RANGE = 32.0;
+    /** The iron golem's melee reach (the 1.4-wide body's swing band). */
+    private static final double GOLEM_MELEE_RANGE = 2.6;
+    /** The iron golem's heavy hit (tryDamage line 202: 7 + nextInt(15)). */
+    private static final int GOLEM_DAMAGE_BASE = 7;
+    private static final int GOLEM_DAMAGE_SPREAD = 15;
+    /** The launch the landed golem hit gives (velocityY += 0.4F). */
+    private static final double GOLEM_LAUNCH_Y = 0.4;
+    /** The snow golem's volley cadence (ProjectileAttackGoal's interval 20). */
+    private static final int SNOW_GOLEM_SHOT_INTERVAL = 20;
+    /** The snow golem's volley range (ProjectileAttackGoal's 10.0F). */
+    private static final double SNOW_GOLEM_RANGE = 10.0;
+    /** The melt's cost per contact tick (mobTick: takeDamage 1.0F). */
+    private static final float GOLEM_MELT_DAMAGE = 1.0f;
+
+    /** The golem's live mob target (the golem family's own hunt state). */
+    private MobEntity golemTarget;
+    /** The snow golem's volley clock. */
+    private int snowGolemShotCooldown;
+    /** Set when the iron golem's swing lands this tick; consumed by the manager. */
+    private boolean pendingGolemSwing;
+    /** Set when the snow golem's volley fires; the manager resolves the target. */
+    private boolean pendingSnowGolemShot;
+
+    /**
+     * The iron golem's mind (the goal ladder 1-8 + the target selector's
+     * TrackIronGolemTargetGoal): the nearest hostile mob within 32 owns
+     * the walk and the melee — the body never hunts players (the
+     * canAttack gate) — else the stroll cycle holds.
+     */
+    private void tickIronGolemMind(boolean night) {
+        golemTarget = world.nearestHostileMob(position.x(), position.y(), position.z(),
+                GOLEM_HUNT_RANGE);
+        if (golemTarget == null || golemTarget.dead()) {
+            golemTarget = null;
+            return; // the stroll cycle (the goal layer's default)
+        }
+        double dx = golemTarget.position().x() - position.x();
+        double dy = golemTarget.position().y() - position.y();
+        double dz = golemTarget.position().z() - position.z();
+        double horizontal = Math.sqrt(dx * dx + dz * dz);
+        yaw = angleTo(dx, dz);
+        headYaw = yaw;
+        if (horizontal > GOLEM_MELEE_RANGE) {
+            mode = Mode.CHASE;
+            tickPathFollowing(golemTarget.position());
+        } else {
+            mode = Mode.IDLE;
+            clearPath();
+            // MeleeAttackGoal's cadence: the swing lands when the cooldown
+                       // allows — the heavy hit + the launch ride the manager.
+            if (attackCooldown == 0) {
+                attackCooldown = GOLEM_MELEE_COOLDOWN;
+                pendingMeleeAttack = true;
+                pendingGolemSwing = true;
+            }
+        }
+    }
+
+    /** The golem's own melee cadence (MeleeAttackGoal's 20-tick cycle). */
+    private static final int GOLEM_MELEE_COOLDOWN = 20;
+
+    /**
+     * The snow golem's mind (ProjectileAttackGoal 1.25/20/10 + the
+     * target selector's Monster filter): the nearest hostile within 10
+     * takes the 20-tick snowball volley — the walk holds the distance
+     * (the goal's 1.25 chase closes only past the range).
+     */
+    private void tickSnowGolemMind() {
+        if (snowGolemShotCooldown > 0) {
+            snowGolemShotCooldown--;
+        }
+        golemTarget = world.nearestHostileMob(position.x(), position.y(), position.z(),
+                SNOW_GOLEM_RANGE);
+        if (golemTarget == null || golemTarget.dead()) {
+            golemTarget = null;
+            return; // the plain stroll
+        }
+        double dx = golemTarget.position().x() - position.x();
+        double dz = golemTarget.position().z() - position.z();
+        yaw = angleTo(dx, dz);
+        headYaw = yaw;
+        if (snowGolemShotCooldown == 0) {
+            snowGolemShotCooldown = SNOW_GOLEM_SHOT_INTERVAL;
+            pendingSnowGolemShot = true;
+        }
+    }
+
+    /**
+     * The snow golem's environmental walk (mobTick lines 43-55): the water
+     * contact melts a layer every tick ({@code DROWN} 1.0), the hot biome
+     * the same ({@code ON_FIRE} — the engine's desert stand-in for the
+     * reference's temperature > 1.0).
+     */
+    private void tickSnowGolemEnvironment() {
+        if (world.inFluid(position.x(), position.y() + 0.2, position.z())) {
+            hurt(GOLEM_MELT_DAMAGE); // isInWaterOrRain → DROWN 1.0F
+        } else if (world.biomeHotAt(position.x(), position.y(), position.z())) {
+            hurt(GOLEM_MELT_DAMAGE); // temperature > 1.0 → ON_FIRE 1.0F
+        }
+    }
+
+    /** @return the golem's live mob target (the hunt's single write). */
+    public MobEntity golemTarget() {
+        return golemTarget;
+    }
+
+    /**
+     * @return the iron golem's heavy hit ({@code 7 + nextInt(15)} —
+     * tryDamage line 202).
+     */
+    public float golemDamageRoll() {
+        return GOLEM_DAMAGE_BASE + random.nextInt(GOLEM_DAMAGE_SPREAD);
+    }
+
+    /** @return the launch the landed golem hit gives (velocityY += 0.4F). */
+    public double golemLaunchY() {
+        return GOLEM_LAUNCH_Y;
+    }
+
+    /** @return and clears the golem's swing verdict (the Event-4 site). */
+    public boolean consumeGolemSwing() {
+        boolean value = pendingGolemSwing;
+        pendingGolemSwing = false;
+        return value;
+    }
+
+    /** @return and clears the snow golem's volley verdict. */
+    public boolean consumeSnowGolemShot() {
+        boolean value = pendingSnowGolemShot;
+        pendingSnowGolemShot = false;
         return value;
     }
 
@@ -3051,6 +3216,16 @@ public final class MobEntity implements LivingEntity {
             tickGuardianMind(target, canHunt);
             return;
         }
+        // The golem pair's own minds (17d — the reverse hunt): the iron
+        // golem walks down the nearest hostile, the snow golem volleys it.
+        if (type == MobType.IRON_GOLEM) {
+            tickIronGolemMind(night);
+            return;
+        }
+        if (type == MobType.SNOW_GOLEM) {
+            tickSnowGolemMind();
+            return;
+        }
 
         // The goal layer (the community PathfinderGoal architecture): float
         // and panic claim the body first, the stroll cycle only when no hunt
@@ -3808,6 +3983,10 @@ public final class MobEntity implements LivingEntity {
         if (type == MobType.ENDERMITE) {
             // EndermiteEntity.getEyeHeight line 57: the flat 0.1F.
             return 0.1;
+        }
+        if (type == MobType.SNOW_GOLEM) {
+            // SnowGolemEntity.getEyeHeight line 97: the flat 1.7F.
+            return 1.7;
         }
         return type.height * 0.85;
     }

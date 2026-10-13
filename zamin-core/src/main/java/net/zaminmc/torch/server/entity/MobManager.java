@@ -190,6 +190,14 @@ public final class MobManager {
         default void onWolfStateChanged(MobEntity mob) {
         }
 
+        /**
+         * The snow golem's volley (Slice 17d — SnowGolemEntity.
+         * doRangedAttack lines 89-96): the 20-tick snowball at the hostile
+         * target — the engine's projectile system owns the launch.
+         */
+        default void onMobRangedAttackMob(MobEntity shooter, MobEntity target) {
+        }
+
         /** The world's doEntityEvent byte (7 hearts, 6 smoke, 18 love...). */
         default void onMobStatusEvent(MobEntity mob, int status) {
         }
@@ -854,6 +862,18 @@ public final class MobManager {
                 }
                 continue;
             }
+            // The snow golem's volley (Slice 17d — ProjectileAttackGoal's
+            // 20-tick cadence over the hostile kinds within 10 blocks): the
+            // snowball launches at the golem's live target through the
+            // engine's projectile system.
+            if (mob.consumeSnowGolemShot()) {
+                MobEntity shotTarget = mob.golemTarget();
+                if (shotTarget != null && !shotTarget.dead()) {
+                    for (Listener listener : listeners) {
+                        listener.onMobRangedAttackMob(mob, shotTarget);
+                    }
+                }
+            }
             if (mob.consumePendingMeleeAttack()) {
                 // Slice 16b: the mob-vs-mob target family first — a live
                 // mob target owns the swing (the reference's single
@@ -1010,13 +1030,36 @@ public final class MobManager {
             // WolfEntity.takeDamage: a mob's hit rounds up to half.
             amount = (amount + 1.0f) / 2.0f;
         }
+        if (attacker.type() == MobType.IRON_GOLEM) {
+            // IronGolemEntity.tryDamage line 202: the golem's own damage
+            // draw — the heavy 7 + nextInt(15) roll per swing.
+            amount = attacker.golemDamageRoll();
+        }
         double kbYaw = Math.toDegrees(Math.atan2(
                 -(victim.position().x() - attacker.position().x()),
                 victim.position().z() - attacker.position().z()));
         boolean landed = hurt(victim, amount, kbYaw,
                 net.zaminmc.torch.event.DamageCause.MELEE);
-        if (landed && !victim.dead()) {
-            applyRevenge(victim, attacker);
+        if (landed) {
+            if (attacker.type() == MobType.IRON_GOLEM) {
+                // tryDamage line 204: the landed golem hit launches the
+                // victim into the air (velocityY += 0.4F) — the famous
+                // uppercut.
+                victim.addVelocity(0.0, attacker.golemLaunchY(), 0.0);
+                if (attacker.consumeGolemSwing()) {
+                    // doEntityEvent(this, (byte)4) + the throw sound: the
+                    // client's swing-up arm rides the wire.
+                    for (Listener listener : listeners) {
+                        listener.onMobStatusEvent(attacker, 4);
+                    }
+                }
+                for (Listener listener : listeners) {
+                    listener.onMobSoundAt(attacker, "mob.irongolem.throw", 1.0F, 1.0F);
+                }
+            }
+            if (!victim.dead()) {
+                applyRevenge(victim, attacker);
+            }
         }
         return landed;
     }
@@ -1285,6 +1328,23 @@ public final class MobManager {
                 // stack damage field carries the variant).
                 lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()),
                         new ItemStack(BuiltinItems.SPONGE, 1, 1, null));
+            }
+            return;
+        }
+        if (mob.type() == MobType.IRON_GOLEM) {
+            // IronGolemEntity.dropItems (lines 236-244): the 0-2 poppies
+            // (the flower's variant 0 rides the stack damage field), then
+            // the 3-5 iron ingots — each unit as its own single-item stack
+            // (the reference's per-unit dropItem loop).
+            int poppies = random.nextInt(3);
+            for (int unit = 0; unit < poppies; unit++) {
+                lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()),
+                        ItemStack.of(BuiltinItems.POPPY, 1));
+            }
+            int ingots = 3 + random.nextInt(3);
+            for (int unit = 0; unit < ingots; unit++) {
+                lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()),
+                        ItemStack.of(BuiltinItems.IRON_INGOT, 1));
             }
             return;
         }

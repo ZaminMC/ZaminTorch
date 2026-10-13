@@ -276,6 +276,13 @@ public final class BlockLightTable {
             Map.entry(Identifier.parse("minecraft:sponge"), new LightData(0, 15)),
             Map.entry(Identifier.parse("minecraft:wet_sponge"), new LightData(0, 15)),
             Map.entry(Identifier.parse("minecraft:gold_block"), new LightData(0, 15)),
+            // The jack o'lantern's famous 15 (Slice 17d — the reference's
+            // own emission), the snow family and the plain pumpkin opaque.
+            Map.entry(Identifier.parse("minecraft:lit_pumpkin"), new LightData(15, 0)),
+            Map.entry(Identifier.parse("minecraft:snow"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:snow_layer"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:iron_block"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:pumpkin"), new LightData(0, 15)),
 
             // The temple set (Slice 12f): the chiseled sandstone + the clay
             // pair + the mossy cobblestone are full opaque cubes; the vine's

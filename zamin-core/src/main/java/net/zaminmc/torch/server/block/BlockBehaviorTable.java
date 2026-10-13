@@ -458,6 +458,28 @@ public final class BlockBehaviorTable {
             Map.entry(Identifier.parse("minecraft:vine"),
                     new BlockBehavior(0.2, true, false, "plants", 0, List.of())),
 
+            // The golem family's blocks (Slice 17d — community blocks.json
+            // 1.8 values): the snow block drops the 4 snowballs
+            // (SnowBlock.getDropItem + quantityDropped 4), the snow layer
+            // drops nothing at all (SnowLayerBlock.getDropItem's null arm
+            // without silk touch), the iron block is a stone-tier pickaxe
+            // rock dropping itself, and the pumpkin pair are woody
+            // self-droppers (the historical 1.0 axe family).
+            Map.entry(Identifier.parse("minecraft:snow"),
+                    new BlockBehavior(0.2, true, false, "snow", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:snowball"), 4)))),
+            Map.entry(Identifier.parse("minecraft:snow_layer"),
+                    new BlockBehavior(0.1, true, false, "snow", 0, List.of())),
+            Map.entry(Identifier.parse("minecraft:iron_block"),
+                    new BlockBehavior(5.0, true, true, "rock", 1,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:iron_block"), 1)))),
+            Map.entry(Identifier.parse("minecraft:pumpkin"),
+                    new BlockBehavior(1.0, true, false, "wood", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:pumpkin"), 1)))),
+            Map.entry(Identifier.parse("minecraft:lit_pumpkin"),
+                    new BlockBehavior(1.0, true, false, "wood", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:lit_pumpkin"), 1)))),
+
             Map.entry(Identifier.parse("minecraft:bed"),
                     new BlockBehavior(0.2, true, false, "wood", 0,
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:bed"), 1)))),

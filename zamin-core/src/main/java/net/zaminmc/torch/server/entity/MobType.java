@@ -290,7 +290,35 @@ public enum MobType {
      */
     ENDERMITE(67, 0.4, 0.3, 8.0f, 0.05, true, Traits.NONE,
             List.of(), // getDropItem's null: no drops at all
-            "mob.silverfish.say", "mob.silverfish.hit", "mob.silverfish.kill", 2.0f);
+            "mob.silverfish.say", "mob.silverfish.hit", "mob.silverfish.kill", 2.0f),
+
+    /**
+     * The village's guardian (Slice 17d — IronGolemEntity): the 1.4x2.9
+     * body, 100 health, movement 0.25 — the heavy melee family (the
+     * {@code 7 + nextInt(15)} hit with the +0.4 launch into the air, the
+     * {@code mob.irongolem.throw} sound, the Event-4 swing-up) hunting
+     * the hostile kinds (the reference's TrackIronGolemTargetGoal — a
+     * player-built body never turns on its builder's kind). Drops the
+     * 3-5 iron ingots + the 0-2 poppies. No natural spawn rows (the
+     * village's own spawn cycle ledgers with the village-defense slice).
+     */
+    IRON_GOLEM(99, 1.4, 2.9, 100.0f, 0.25, false, Traits.NONE,
+            List.of(), // the custom drop walk (IronGolemEntity.dropItems)
+            "", "mob.irongolem.hit", "mob.irongolem.death"),
+
+    /**
+     * The winter scout (Slice 17d — SnowGolemEntity): the 0.7x1.9 body, 4
+     * health, movement 0.2, the 1.7 eye — the ranged family (the 20-tick
+     * snowball volley at the hostile kinds within 10 blocks, the
+     * {@code random.bow} launch) with the melts: the water contact costs
+     * 1 per tick ({@code DROWN}), the hot biome the same ({@code
+     * ON_FIRE} — the engine's desert stand-in). Drops the 0-15
+     * snowballs. No natural spawn rows (the pumpkin build is the only
+     * source).
+     */
+    SNOW_GOLEM(97, 0.7, 1.9, 4.0f, 0.2, false, Traits.NONE,
+            List.of(new ItemRoll(BuiltinItems.SNOWBALL, 0, 15)), // nextInt(16) = 0-15
+            "", "", ""); // GolemEntity's null family — the snow golem never overrides
 
     /**
      * The AI trait set beyond the walk-chase-panic baseline.

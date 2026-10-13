@@ -484,6 +484,25 @@ public final class BuiltinBlocks {
     public static final EngineBlockType VINE = new EngineBlockType(
             Identifier.parse("minecraft:vine"), "Vine", 15);
 
+    // The golem family's blocks (Slice 17d — the reference's
+    // PumpkinBlock.trySpawnGolem patterns + the snow golem's trail): the
+    // full snow block (legacy 80, the 4-snowball drop), the thin snow
+    // layer (78 — a walk-through ground cover), the iron block (42, the
+    // golem body + the reference's own material), the pumpkin pair (86/
+    // 91 — the plain block and the lit lantern, the golem head; the
+    // historical FACING rotation ledgers with the metadata slice — the
+    // engine registers the unrotated form).
+    public static final EngineBlockType SNOW = new EngineBlockType(
+            Identifier.parse("minecraft:snow"), "Snow");
+    public static final EngineBlockType SNOW_LAYER = new EngineBlockType(
+            Identifier.parse("minecraft:snow_layer"), "Snow Layer");
+    public static final EngineBlockType IRON_BLOCK = new EngineBlockType(
+            Identifier.parse("minecraft:iron_block"), "Block of Iron");
+    public static final EngineBlockType PUMPKIN = new EngineBlockType(
+            Identifier.parse("minecraft:pumpkin"), "Pumpkin");
+    public static final EngineBlockType LIT_PUMPKIN = new EngineBlockType(
+            Identifier.parse("minecraft:lit_pumpkin"), "Jack o'Lantern");
+
     private BuiltinBlocks() {
     }
 
@@ -650,6 +669,11 @@ public final class BuiltinBlocks {
                 .register(STAINED_CLAY_YELLOW)
                 .register(MOSSY_COBBLESTONE)
                 .register(VINE)
+                .register(SNOW)
+                .register(SNOW_LAYER)
+                .register(IRON_BLOCK)
+                .register(PUMPKIN)
+                .register(LIT_PUMPKIN)
                 .register(POTATOES_STAGE0)
                 .register(POTATOES_STAGE1)
                 .register(POTATOES_STAGE2)
