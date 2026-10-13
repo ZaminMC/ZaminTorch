@@ -8,16 +8,17 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.logging.Logger;
 
 /**
- * The outbound packet hooks (§27.3's interception surface), engine side:
- * the listener registry the protocol adapter's outbound walk consults.
+ * The packet hooks (§27.3's interception surface), engine side: the
+ * listener registries the protocol adapter's outbound and inbound walks
+ * consult.
  *
- * <p><b>Threading:</b> registration is safe from any thread; the fire
- * happens on each recipient's WIRE thread (the protocol adapter's I/O
- * context). The listener set rides a {@linkplain CopyOnWriteArrayList
- * copy-on-write} registry — the honest carrier for a table registered
- * rarely from any thread and iterated on the wire threads; it is not an
- * ownership substitute (rule 11): the listeners' own engine work still
- * obeys §27.6 (inspect-and-cancel here, simulation work through
+ * <p><b>Threading:</b> registration is safe from any thread; the fires
+ * happen on the wire threads (the protocol adapter's I/O context). The
+ * listener sets ride {@linkplain CopyOnWriteArrayList copy-on-write}
+ * registries — the honest carrier for tables registered rarely from any
+ * thread and iterated on the wire threads; it is not an ownership
+ * substitute (rule 11): the listeners' own engine work still obeys §27.6
+ * (inspect-and-cancel here, simulation work through
  * {@code World.execute}).</p>
  */
 public final class PacketHookRegistry implements net.zaminmc.torch.protocol.ProtocolHooks {
@@ -25,6 +26,8 @@ public final class PacketHookRegistry implements net.zaminmc.torch.protocol.Prot
     private static final Logger LOGGER = Logger.getLogger(PacketHookRegistry.class.getName());
 
     private final CopyOnWriteArrayList<PacketListener> listeners = new CopyOnWriteArrayList<>();
+    private final CopyOnWriteArrayList<net.zaminmc.torch.protocol.InboundPacketListener>
+            inboundListeners = new CopyOnWriteArrayList<>();
 
     @Override
     public boolean addListener(PacketListener listener) {
@@ -41,6 +44,25 @@ public final class PacketHookRegistry implements net.zaminmc.torch.protocol.Prot
     @Override
     public List<PacketListener> listeners() {
         return List.copyOf(listeners);
+    }
+
+    @Override
+    public boolean addInboundListener(
+            net.zaminmc.torch.protocol.InboundPacketListener listener) {
+        Objects.requireNonNull(listener, "listener");
+        return inboundListeners.addIfAbsent(listener);
+    }
+
+    @Override
+    public boolean removeInboundListener(
+            net.zaminmc.torch.protocol.InboundPacketListener listener) {
+        Objects.requireNonNull(listener, "listener");
+        return inboundListeners.remove(listener);
+    }
+
+    @Override
+    public List<net.zaminmc.torch.protocol.InboundPacketListener> inboundListeners() {
+        return List.copyOf(inboundListeners);
     }
 
     /**
@@ -61,6 +83,30 @@ public final class PacketHookRegistry implements net.zaminmc.torch.protocol.Prot
             } catch (RuntimeException error) {
                 LOGGER.warning("A packet listener threw on packet "
                         + packet.packetId() + " to " + packet.recipient().name()
+                        + ": " + error);
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Fires the inbound walk over every registered inbound listener, in
+     * registration order, each isolated — a throwing listener is logged
+     * and skipped, the frame keeps whatever state earlier calls applied
+     * (the cancel stays). Runs on the sender's wire thread.
+     *
+     * @return true when at least one inbound listener stands registered
+     */
+    public boolean fireInbound(net.zaminmc.torch.protocol.InboundPacket packet) {
+        if (inboundListeners.isEmpty()) {
+            return false;
+        }
+        for (net.zaminmc.torch.protocol.InboundPacketListener listener : inboundListeners) {
+            try {
+                listener.onReceive(packet);
+            } catch (RuntimeException error) {
+                LOGGER.warning("An inbound packet listener threw on packet "
+                        + packet.packetId() + " from " + packet.sender().name()
                         + ": " + error);
             }
         }

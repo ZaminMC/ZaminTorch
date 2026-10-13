@@ -38,4 +38,26 @@ public interface ProtocolHooks {
      * snapshot; safe to consume anywhere.
      */
     List<PacketListener> listeners();
+
+    /**
+     * Registers a listener for inbound packets (the C2S mirror — every
+     * PLAY-state frame a session sends, before the engine decodes it).
+     * Safe from any thread.
+     *
+     * @return true when the listener was not already registered
+     */
+    boolean addInboundListener(InboundPacketListener listener);
+
+    /**
+     * Removes an inbound listener. Safe from any thread.
+     *
+     * @return true when the listener stood registered
+     */
+    boolean removeInboundListener(InboundPacketListener listener);
+
+    /**
+     * The live inbound listener set, in registration order — a
+     * point-in-time snapshot; safe to consume anywhere.
+     */
+    List<InboundPacketListener> inboundListeners();
 }
