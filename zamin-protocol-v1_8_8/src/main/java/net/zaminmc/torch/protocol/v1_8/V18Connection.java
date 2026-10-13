@@ -275,7 +275,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeByte(0);                 // dimension: overworld
         out.writeByte(engine.difficulty()); // the runtime difficulty (/difficulty)
         out.writeByte(0);                 // max players (legacy field, unused by client)
-        ByteBufOps.writeString(out, engine.config().levelType()); // the configured level-type (client F3 + server list ping)
+        ByteBufOps.writeString(out, engine.engineConfig().levelType()); // the configured level-type (client F3 + server list ping)
         out.writeBoolean(false);          // reduced debug info
         channel.writeAndFlush(out);
         LOGGER.fine(() -> "Join game sent to " + playerSession.name() + " (entity " + entityId + ")");
@@ -621,7 +621,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeInt(destinationDimension); // the reference's player.dimension
         out.writeByte(engine.difficulty());
         out.writeByte(player.gamemode().legacyId());
-        ByteBufOps.writeString(out, engine.config().levelType()); // respawn mirrors the join's level-type
+        ByteBufOps.writeString(out, engine.engineConfig().levelType()); // respawn mirrors the join's level-type
         channel.writeAndFlush(out);
         player.link().updateAbilities(abilitiesFlagsOf(player.gamemode()));
 
@@ -4189,7 +4189,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         void sendInitial(ChunkPosition center) {
             centerX = center.x();
             centerZ = center.z();
-            forEachInRadius(engine.config().viewDistance(), position -> {
+            forEachInRadius(engine.engineConfig().viewDistance(), position -> {
                 synchronized (sent) {
                     sent.add(position.packed());
                 }
@@ -4215,7 +4215,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             }
             centerX = center.x();
             centerZ = center.z();
-            int view = engine.config().viewDistance();
+            int view = engine.engineConfig().viewDistance();
 
             // Unload bookkeeping: chunks that fell out of range (with one
             // chunk of hysteresis). Protocol 47 has NO unload packet — the

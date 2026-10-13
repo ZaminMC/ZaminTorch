@@ -101,4 +101,12 @@ public interface Server {
      * Every read is pure — safe from any thread.
      */
     net.zaminmc.torch.enchantment.EnchantmentRegistry enchantments();
+
+    /**
+     * The validated server configuration (§27.3's server-lifecycle read
+     * surface): the frozen boot-time settings as an immutable value
+     * snapshot. Safe from any thread; the configuration never changes
+     * at runtime (a change requires a restart — the historical rule).
+     */
+    net.zaminmc.torch.config.ServerConfig config();
 }

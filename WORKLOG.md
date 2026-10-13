@@ -4050,3 +4050,28 @@ The neighboring suites green (EntityApi, LeadSystem batch, GoalApi,
 EntityFamilyApi).
 
 The API ledger's Leashes row graduates NOT AUDITED → IMPLEMENTED.
+
+## Slice 23d — the configuration API wave (§27.3's server-lifecycle read)
+
+**The surface:** `Server.config()` → the new public
+`config.ServerConfig` — an immutable record carrying exactly what the
+operator's file validated at boot: host, port, worldName, motd,
+maxPlayers, viewDistance, tickRateHz, dataDir, gamemode, pvp, levelType,
+whiteList, regionSizeChunks (the ADR-6 spatial granularity — the
+WHOLE_WORLD_REGION_SIZE sentinel public on the API type). Frozen at
+boot: no live setter surface exists by design (the historical restart
+rule). Any thread.
+
+**The wiring:** EngineServer maps its EngineConfig into the public
+record per call. The engine's own accessor renamed `config()` →
+`engineConfig()` (the return-type clash with the API surface — three
+protocol-module call sites updated: V18Connection, V18ProtocolServer,
+StatusResponse).
+
+Tests: ConfigApiAcceptanceTest (2: the full thirteen-field read-back
+through the public surface + the frozen stability + the off-lane
+read + the sentinel; the defaults' historical shape — survival, pvp on,
+normal terrain, no whitelist, the whole world one region). The protocol
+suite green after the accessor rename (77 tests).
+
+The API ledger's Configuration row graduates NOT AUDITED → IMPLEMENTED.

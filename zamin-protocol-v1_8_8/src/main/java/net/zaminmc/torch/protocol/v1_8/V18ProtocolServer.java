@@ -103,7 +103,7 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                         allChannels.add(channel);
                     }
                 });
-        serverChannel = bootstrap.bind(server.config().host(), server.config().port()).sync().channel();
+        serverChannel = bootstrap.bind(server.engineConfig().host(), server.engineConfig().port()).sync().channel();
         // Subscribe to committed world changes for client synchronization (§227):
         // the engine decides what changed, the adapter decides how to tell clients.
         server.addWorldListener((world, position, type) -> {
@@ -982,7 +982,7 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                 }
             }
         });
-        LOGGER.info(() -> "1.8.8 protocol listening on " + server.config().host() + ":" + server.config().port());
+        LOGGER.info(() -> "1.8.8 protocol listening on " + server.engineConfig().host() + ":" + server.engineConfig().port());
     }
 
     @Override
@@ -1083,7 +1083,7 @@ public final class V18ProtocolServer implements ProtocolAdapter {
     /** Broadcasts a remote player's authoritative position to observers in range. */
     void broadcastMovement(PlayerSession mover) {
         var moverChunk = mover.position().toBlockPosition().chunkPosition();
-        long viewSq = (long) engine.config().viewDistance() * engine.config().viewDistance();
+        long viewSq = (long) engine.engineConfig().viewDistance() * engine.engineConfig().viewDistance();
         for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
             PlayerSession observer = connection.currentSession();
             if (observer == null || observer == mover) {

@@ -13,12 +13,12 @@ final class StatusResponse {
     }
 
     static String build(EngineServer server, int onlinePlayers) {
-        String motd = server.config().motd()
+        String motd = server.engineConfig().motd()
                 .replace("\\", "\\\\")
                 .replace("\"", "\\\"");
         return "{\"version\":{\"name\":\"" + Protocol18.VERSION_NAME
                 + "\",\"protocol\":" + Protocol18.PROTOCOL_VERSION
-                + "},\"players\":{\"max\":" + server.config().maxPlayers()
+                + "},\"players\":{\"max\":" + server.engineConfig().maxPlayers()
                 + ",\"online\":" + onlinePlayers
                 + "},\"description\":{\"text\":\"" + motd + "\"}}";
     }
