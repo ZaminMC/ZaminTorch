@@ -3436,3 +3436,23 @@ the liquid cell's center), and the spawn itself (`MobManager.spawnFromEgg`:
 the wrapped random facing + the ambient sound at the spawn, the per-kind
 initialize arms already riding spawnAt). SpawnEggTest (6). Fresh suite 877
 core + 19 api + 75 protocol green, `--max-workers=1`, zero failures.
+
+### Slice 20b — the weather cycle (the 1.8.8 model)
+
+`World.tickWeather` + `WorldData` + `WeatherCommand` + `ServerWorld`'s publishes
+1:1 over the engine's new `WeatherSystem` (the pre-20b boolean + auto-clear
+countdown replaced): the five WorldData fields (the clear-weather hold with
+its 1/2 pin oscillation — the terminal quirk where the first unlocked tick
+flips the rain back on kept), the countdowns with the decrement-to-zero flip
+tick and the four reroll bands, the two gradients walked 0.01 with the
+clamp, the publishes (game state 7/8 per change, the 1/2 flip pair + the
+re-push, the overworld's players only), the `/weather` three arms (the
+default (300+nextInt(600))*20, the 1..1000000-seconds gate), the join view
+(the live gradient pair, PlayerManager's own shape), the sleep reset
+(clearWeather — both flags, zeroed clocks, no hold), and the
+ambient-darkness shaves (the fully-stormed noon reads 5 over the clear 0,
+wired into the natural spawn's light walk). WeatherSystemTest (7). Fresh
+suite 884 core green, `--max-workers=1`, zero failures. Ledgered: the
+lightning family (the strike roll, the bolt entity, the global-entity wire,
+the fire attempts), the ice/snow precipitation arm (a plains no-op by the
+temperature gate — faithful), the weather fields' persistence.
