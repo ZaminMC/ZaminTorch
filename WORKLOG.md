@@ -3780,3 +3780,28 @@ cancelled inside its two-tick window through the scheduler's runLater(1)
 — the sand hovers forever, no falling body; the off-lane cancel/request
 violations naming their operations + the on-lane World.execute path).
 The scheduled-ticks ledger row graduates NOT AUDITED → IMPLEMENTED.
+
+## Slice 22e — the registry-completion API wave (the item registry + the tool verdicts)
+
+§27.3's registry family completed over the frozen tables:
+
+**`Server.items()`** → `item.ItemRegistry`: the frozen BuiltinItems set
+dressed as the public registry — `all()` (the 221-type enumeration),
+`byId(Identifier)`, `byKey(String)` (the short minecraft-namespace
+form). Any thread (the frozen map). The ItemRegistryView adapter in the
+server's own package.
+
+**`BlockRegistry.canHarvest(type, held)` / `miningSpeedMultiplier(type, held)`**:
+the engine's own tool-interaction verdicts opened on the public block
+registry — the class/tier matching (BlockBehaviorTable.canHarvest: the
+empty hand and the mismatched class never harvest a tool-gated block;
+the wooden pickaxe satisfies stone's level 1) and the material speed
+table (wood 2.0, diamond 8.0, the hand 1.0). The API interface carries
+dataOf-derived defaults; the FrozenBlockRegistry overrides with the
+exact engine tables. Any thread (frozen data).
+
+Tests: ItemAndToolDataApiAcceptanceTest (2: the enumeration + the
+lookups + the off-lane reads; the harvest ladder + the speed ladder).
+The block-behavior-tables ledger row graduates NOT AUDITED →
+IMPLEMENTED (the dataOf reads were already there since 14b — the row
+was stale); the item-types row's enumeration omission cleared.

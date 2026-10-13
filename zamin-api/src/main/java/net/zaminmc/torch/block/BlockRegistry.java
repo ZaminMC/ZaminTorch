@@ -31,4 +31,31 @@ public interface BlockRegistry {
      *         from any thread.
      */
     BlockData dataOf(BlockType type);
+
+    /**
+     * @param type the block being mined
+     * @param held the held item, or null for the empty hand
+     * @return whether the held item can harvest DROPS from the block —
+     *         blocks without a tool requirement are harvestable by hand;
+     *         tool-gated blocks need a tool of the matching class whose
+     *         material tier satisfies the block's harvest level
+     *         (breaking works regardless, it just yields nothing and
+     *         takes the slow timing — the historical rule). Frozen
+     *         data; safe from any thread.
+     */
+    default boolean canHarvest(BlockType type, net.zaminmc.torch.item.ItemType held) {
+        return !dataOf(type).requiresTool();
+    }
+
+    /**
+     * @param type the block being mined
+     * @param held the held item, or null for the empty hand
+     * @return the mining speed multiplier the held item contributes:
+     *         the tool material's speed when its class matches the
+     *         block's material family, 1.0 otherwise (the empty hand or
+     *         a mismatched tool). Frozen data; safe from any thread.
+     */
+    default double miningSpeedMultiplier(BlockType type, net.zaminmc.torch.item.ItemType held) {
+        return 1.0;
+    }
 }
