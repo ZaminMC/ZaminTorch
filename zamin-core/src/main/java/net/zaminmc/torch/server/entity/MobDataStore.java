@@ -15,11 +15,17 @@ import java.util.Objects;
 import java.util.logging.Logger;
 
 /**
- * File-backed mob state ("ZMD" format, version 1), one file per world.
+ * File-backed mob state ("ZMD" format), one file per world.
  *
- * <p>Layout: magic 'Z','M','D',1 — mobs(varint count; each: type(string) —
- * x(f64) y(f64) z(f64) — yaw(f32) health(f32)). The payload is exactly
- * {@link MobManager.MobSnapshot}.</p>
+ * <p>Layout: magic 'Z','M','D',2 — mobs(varint count; each: type(string) —
+ * x(f64) y(f64) z(f64) — yaw(f32) health(f32) — the v2 state block:
+ * flags(u8 bitmask) then, per bit, the kind's own fields — bit 0 the
+ * zombie's villager byte + converting varint, bit 1 the villager's
+ * profession byte + career/careerLevel/riches varints, bit 2 the rabbit's
+ * coat byte, bit 3 the breeding-age int, bit 4 the skeleton's wither byte,
+ * bit 5 the slime family's size byte). Version 1 files (the bare
+ * six-field records) still load — every record answers the no-extras
+ * shape. The payload is exactly {@link MobManager.MobSnapshot}.</p>
  *
  * <p>The same durability rules as the world, furnace, chest and player
  * stores: writes are atomic (temp file then atomic move), corrupt files load
@@ -33,7 +39,14 @@ public final class MobDataStore {
     private static final int MAGIC_0 = 'Z';
     private static final int MAGIC_1 = 'M';
     private static final int MAGIC_2 = 'D';
-    private static final int FORMAT_VERSION = 1;
+    private static final int FORMAT_VERSION = 2;
+    /** The v2 state block's bits (Slice 25c): one per kind's own family. */
+    private static final int FLAG_ZOMBIE_VILLAGER = 0x01;
+    private static final int FLAG_VILLAGER_TRADE = 0x02;
+    private static final int FLAG_RABBIT_VARIANT = 0x04;
+    private static final int FLAG_BREEDING_AGE = 0x08;
+    private static final int FLAG_SKELETON_WITHER = 0x10;
+    private static final int FLAG_SLIME_SIZE = 0x20;
 
     private final Path file;
 
@@ -64,6 +77,7 @@ public final class MobDataStore {
                     out.writeDouble(mob.z());
                     out.writeFloat(mob.yaw());
                     out.writeFloat(mob.health());
+                    writeExtras(out, mob.extras());
                 }
             }
             Files.move(temp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
@@ -86,7 +100,7 @@ public final class MobDataStore {
                 throw new IOException("Not a ZMD file");
             }
             int version = in.readByte();
-            if (version != FORMAT_VERSION) {
+            if (version != FORMAT_VERSION && version != 1) {
                 throw new IOException("Unsupported ZMD version: " + version);
             }
             int count = readVarInt(in);
@@ -101,7 +115,9 @@ public final class MobDataStore {
                 double z = in.readDouble();
                 float yaw = in.readFloat();
                 float health = in.readFloat();
-                loaded.add(new MobManager.MobSnapshot(type, x, y, z, yaw, health));
+                MobManager.MobStateExtras extras = version == 1
+                        ? null : readExtras(in);
+                loaded.add(new MobManager.MobSnapshot(type, x, y, z, yaw, health, extras));
             }
             return loaded;
         } catch (IOException | RuntimeException corrupt) {
@@ -118,6 +134,102 @@ public final class MobDataStore {
             }
             return List.of();
         }
+    }
+
+    /** Writes the v2 state block (the flags byte + the present fields). */
+    private static void writeExtras(DataOutputStream out, MobManager.MobStateExtras extras)
+            throws IOException {
+        if (extras == null) {
+            out.writeByte(0); // the bare shape (a v1-equivalent record)
+            return;
+        }
+        int flags = 0;
+        if (extras.zombieVillager()) {
+            flags |= FLAG_ZOMBIE_VILLAGER;
+        }
+        if (extras.villagerCareer() != 0 || extras.villagerCareerLevel() != 0
+                || extras.villagerRiches() != 0 || extras.villagerProfession() != 0) {
+            flags |= FLAG_VILLAGER_TRADE;
+        }
+        if (extras.rabbitVariant() != 0) {
+            flags |= FLAG_RABBIT_VARIANT;
+        }
+        if (extras.breedingAge() != 0) {
+            flags |= FLAG_BREEDING_AGE;
+        }
+        if (extras.skeletonWither()) {
+            flags |= FLAG_SKELETON_WITHER;
+        }
+        if (extras.slimeSize() != 1) {
+            flags |= FLAG_SLIME_SIZE;
+        }
+        out.writeByte(flags);
+        if ((flags & FLAG_ZOMBIE_VILLAGER) != 0) {
+            out.writeByte(1);
+            writeVarInt(out, Math.max(0, extras.zombieConversionTicks()));
+        }
+        if ((flags & FLAG_VILLAGER_TRADE) != 0) {
+            out.writeByte(extras.villagerProfession());
+            writeVarInt(out, Math.max(0, extras.villagerCareer()));
+            writeVarInt(out, Math.max(0, extras.villagerCareerLevel()));
+            writeVarInt(out, Math.max(0, extras.villagerRiches()));
+        }
+        if ((flags & FLAG_RABBIT_VARIANT) != 0) {
+            out.writeByte(extras.rabbitVariant());
+        }
+        if ((flags & FLAG_BREEDING_AGE) != 0) {
+            out.writeInt(extras.breedingAge()); // the signed int (babies are negative)
+        }
+        if ((flags & FLAG_SKELETON_WITHER) != 0) {
+            out.writeByte(1);
+        }
+        if ((flags & FLAG_SLIME_SIZE) != 0) {
+            out.writeByte(extras.slimeSize());
+        }
+    }
+
+    /** Reads the v2 state block back (null for the bare zero-flags shape). */
+    private static MobManager.MobStateExtras readExtras(DataInputStream in)
+            throws IOException {
+        int flags = in.readUnsignedByte();
+        if (flags == 0) {
+            return null; // the bare shape — the v1-equivalent record
+        }
+        boolean zombieVillager = false;
+        int zombieConversion = 0;
+        int profession = 0;
+        int career = 0;
+        int careerLevel = 0;
+        int riches = 0;
+        int rabbitVariant = 0;
+        int breedingAge = 0;
+        boolean wither = false;
+        int slimeSize = 1;
+        if ((flags & FLAG_ZOMBIE_VILLAGER) != 0) {
+            zombieVillager = in.readUnsignedByte() == 1;
+            zombieConversion = readVarInt(in);
+        }
+        if ((flags & FLAG_VILLAGER_TRADE) != 0) {
+            profession = in.readUnsignedByte();
+            career = readVarInt(in);
+            careerLevel = readVarInt(in);
+            riches = readVarInt(in);
+        }
+        if ((flags & FLAG_RABBIT_VARIANT) != 0) {
+            rabbitVariant = in.readUnsignedByte();
+        }
+        if ((flags & FLAG_BREEDING_AGE) != 0) {
+            breedingAge = in.readInt();
+        }
+        if ((flags & FLAG_SKELETON_WITHER) != 0) {
+            wither = in.readUnsignedByte() == 1;
+        }
+        if ((flags & FLAG_SLIME_SIZE) != 0) {
+            slimeSize = in.readUnsignedByte();
+        }
+        return new MobManager.MobStateExtras(zombieVillager, zombieConversion,
+                profession, career, careerLevel, riches, rabbitVariant, breedingAge,
+                wither, slimeSize);
     }
 
     private static void writeString(DataOutputStream out, String value) throws IOException {

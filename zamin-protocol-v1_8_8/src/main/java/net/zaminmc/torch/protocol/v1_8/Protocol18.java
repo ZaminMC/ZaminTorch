@@ -325,6 +325,26 @@ final class Protocol18 {
     static final int ENTITY_STATUS_TAME_SMOKE = 6;
     /** The passive age byte (index 12: -1 baby, 0 adult — PassiveEntity). */
     static final int PASSIVE_AGE_METADATA_INDEX = 12;
+    // The zombie's own block (ZombieEntity.registerSyncedData lines
+    // 91-96): the index-12 baby byte (1 baby — the zombie's own flag, not
+    // the passive family's -1), the 13 villager-skin byte, the 14
+    // converting byte (the cure's countdown).
+    static final int ZOMBIE_BABY_METADATA_INDEX = 12;
+    static final int ZOMBIE_VILLAGER_METADATA_INDEX = 13;
+    static final int ZOMBIE_CONVERTING_METADATA_INDEX = 14;
+    /**
+     * Entity status 16 on a zombie (ZombieEntity.doEvent line 492): the
+     * client plays mob.zombie.remedy at the body — the cure's own sound.
+     */
+    static final int ENTITY_STATUS_ZOMBIE_REMEDY = 16;
+    /**
+     * World events 1016/1017 (ZombieEntity.onKill line 376 +
+     * convertToVillager line 537): the client plays mob.zombie.infect /
+     * mob.zombie.unfect at volume 2.0 from the Effect packet itself
+     * (WorldRenderer lines 1957-1961).
+     */
+    static final int WORLD_EVENT_ZOMBIE_INFECT = 1016;
+    static final int WORLD_EVENT_ZOMBIE_UNFECT = 1017;
 
     // Animation (0x0B) code 0 = arm swing.
     static final int ANIMATION_ARM_SWING = 0;

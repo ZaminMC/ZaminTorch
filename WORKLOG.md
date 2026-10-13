@@ -4398,3 +4398,93 @@ uncancelled twin with the item paid; the manager verb — the null
 return, the no-id contract, the uncancelled twin carrying the chest
 kind). The neighboring suites green (vehicle manager, entity family,
 the spawn-event batch, the mineshaft structure seeding).
+
+## Slice 25a — the zombie villager 1:1 (the infect/cure/convert family)
+
+**The reference:** `ZombieEntity.java`'s own conversion family — the whole
+cure loop vanilla runs.
+
+**The infection (onKill lines 352-378):** a zombie's killing blow on a
+villager converts the victim — NORMAL carries the reference's own early
+coin (`nextBoolean()`), HARD always infects, EASY and below never. The
+staging lands deep inside the melee walk (`hurtByMob`'s die-moment arm),
+so the replacement defers to the tick loop's close: the villager leaves
+immediately (`removeEntity` — no death-animation window), a villager-skinned
+zombie takes its place at the same position and rotation (baby for a
+baby — `setBaby(true)`), and the **1016 world event** sounds (the client
+plays `mob.zombie.infect` at volume 2.0 from the Effect packet itself —
+the engine's new generic `sendWorldEvent`, chunk-gated like the spawner's
+2004).
+
+**The cure (interactMob lines 457-480 + setConversionTime 482-488):** the
+plain golden apple on a WEAKENED villager zombie (the splash potion's
+famous recipe) arms the conversion — `nextInt(2401) + 3600` ticks —
+clears the Weakness, installs the Strength for the whole window (the
+reference's own `Math.min(difficultyId - 1, 0)` amplifier — the observed
+0 on every difficulty that can carry the arm), and fires the entity
+event 16 (the client plays `mob.zombie.remedy` at the body). The
+interact dispatch consumes the apple through the shared `eatFromHand`
+(the creative hand spares the stack); a refused cure (no weakness, no
+apple, the plain zombie, a dead body) never consumes and never blocks
+the arm's return.
+
+**The countdown (tick 236-243 + getTicksUntilConversionDecrement
+540-563):** one decrement per tick, and a 1%-per-tick roll scans the
+8-cube around the body for **iron bars and beds** — every found cell (up
+to 14 counted) adds a 30% chance of one more decrement, the famous
+iron-bars cure accelerator. The walk rides the WorldQuery's new
+`isIronBarsOrBed` (the engine's query maps the live block; the stub
+worlds answer false). The completing tick hands the conversion to the
+manager.
+
+**The completion (convertToVillager 519-537):** a fresh villager takes
+the zombie's place (the construction's own `nextInt(5)` profession roll —
+the reference's `initialize`), a baby zombie converts into a baby
+villager (`setBreedingAge(-24000)`), the newcomer carries the 200-tick
+NAUSEA through the PotionSystem, and the **1017 world event** sounds
+(`mob.zombie.unfect`).
+
+**The despawn exemption (canDespawn line 511):** the converting body
+never leaves — the cure's countdown outlives every despawn window.
+
+**The natural-spawn arm (initialize line 401):** the 5% villager-skin
+Data roll rides `spawnNatural`'s zombie arm.
+
+**The wire:** the zombie's own metadata block — the slot-12 baby byte
+(the zombie's own 1, not the passive family's -1), the slot-13 villager
+byte, the slot-14 converting byte — in the spawn view, and the Set
+Entity Metadata pair republished when the cure arms
+(`onZombieStateChanged` → `sendZombieState`).
+
+Ledgered (their own slices): the chicken jockey (the baby's 5% ride —
+the mob-riding-mob family), the zombie's reinforcements/leader/
+door-breaking initialize rolls (the zombie-attributes slice), and the
+converted villager's `setConvertedZombie` reputation arm (the
+village-detection slice).
+
+## Slice 25c — the MobDataStore extension (ZMD v2 — the state block)
+
+The reference's own NBT fields now survive restarts: the format gains a
+version-2 state block per record — a flags byte then, per bit, the
+kind's own family. Bit 0 the zombie's IsVillager + ConversionTime; bit 1
+the villager's Profession/Career/CareerLevel/Riches quartet; bit 2 the
+rabbit's coat byte (the killer's 99 survives restarts); bit 3 the
+breeding-age int (babies of every kind survive restarts — the signed
+int, negatives ride writeInt); bit 4 the skeleton's wither variant (with
+its stone sword); bit 5 the slime family's size. Version 1 files still
+load (every record answers the bare no-extras shape); the v1 round-trip
+equality holds (a zero-flags block reads back as the null extras).
+
+The capture walks `snapshot()`'s new `stateExtrasOf` (only the fields
+the kind reads land in the record — the reference's own
+writeCustomNbt dispatch); the restore lands each field on the kind that
+reads it (`restoreStateExtras` — the zombie's `ConversionTime > -1`
+gate included). The villager's trade state restores through the new
+package-private `restoreVillagerTradeState` (the stock re-rolls lazily
+on the first open, the reference's own `traderOffers == null` shape).
+
+Tests: ZombieVillagerConversionTest (10) + MobDataStoreTest grew to 6
+(the v2 state-block round-trip through the file + the restored state
+landing on the engine bodies). Fresh suite: 954 core tests, the two
+documented compute-drain load flakes (RangedCombat/Hopper) green in
+isolation; the protocol suite 77 green.

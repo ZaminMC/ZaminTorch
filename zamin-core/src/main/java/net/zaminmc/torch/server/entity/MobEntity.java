@@ -179,6 +179,17 @@ public final class MobEntity implements LivingEntity {
             return true;
         }
 
+        /**
+         * Whether the cell is iron bars or a bed (Slice 25a — the zombie
+         * villager's cure accelerator, ZombieEntity
+         * .getTicksUntilConversionDecrement lines 549-559: the 1%-roll scan
+         * counts IRON_BARS and BED cells). The stub worlds answer false;
+         * the engine's query maps the live block.
+         */
+        default boolean isIronBarsOrBed(int x, int y, int z) {
+            return false;
+        }
+
         /** @return whether the point's block (or the one below) is a cactus. */
         default boolean touchingCactus(double x, double y, double z) {
             return false;
@@ -442,6 +453,15 @@ public final class MobEntity implements LivingEntity {
     private boolean persistent;
     private int farFromPlayerTicks;
 
+    // The zombie villager's conversion state (Slice 25a — ZombieEntity's
+    // own fields): the villager skin flag (the synced slot 13's byte) and
+    // the cure's countdown (ticksUntilConversion; -1 = not converting —
+    // the synced slot 14's byte answers that). The completing tick's flag
+    // hands the conversion to the manager's own walk.
+    private boolean zombieVillager;
+    private int ticksUntilConversion = -1;
+    private boolean pendingZombieConversionComplete;
+
     /** The despawn's persistence flag (the leashed family and the tamed tameables never leave). */
     public boolean persistent() {
         return persistent || leashed || (isTameableKind() && wolfTamed());
@@ -456,6 +476,11 @@ public final class MobEntity implements LivingEntity {
      * leaves its owner behind).
      */
     public boolean canDespawn() {
+        // ZombieEntity.canDespawn (line 511): the converting body never
+        // leaves — the cure's countdown outlives every despawn window.
+        if (type == MobType.ZOMBIE && zombieConverting()) {
+            return false;
+        }
         if (isTameableKind()) {
             return !wolfTamed() && wolfTicksExisted > 2400;
         }
@@ -883,6 +908,8 @@ public final class MobEntity implements LivingEntity {
             tickSnowGolemEnvironment(); // the melts (17d)
         } else if (type == MobType.SILVERFISH) {
             tickSilverfishClock(); // the wake-up + the infest rolls (18c)
+        } else if (type == MobType.ZOMBIE && zombieConverting()) {
+            tickZombieConversion(); // the cure's countdown (25a)
         }
         if (hurtFlash > 0) {
             hurtFlash--;
@@ -4130,6 +4157,94 @@ public final class MobEntity implements LivingEntity {
         return profession;
     }
 
+    // ------------------------------------- zombie-villager API (the conversion slice)
+
+    /** @return whether the zombie wears the villager skin (the synced slot 13's byte). */
+    public boolean zombieVillager() {
+        return zombieVillager;
+    }
+
+    /**
+     * setType (lines 154-156): the villager skin flag — the synced slot
+     * 13's byte ({@code isVillager() ? 1 : 0}); the infection arm and the
+     * 5% natural-spawn Data roll are the only setters.
+     */
+    public void setZombieVillager(boolean villager) {
+        this.zombieVillager = villager;
+    }
+
+    /** @return whether the cure's countdown runs (isConverting — the synced slot 14's byte). */
+    public boolean zombieConverting() {
+        return ticksUntilConversion > -1;
+    }
+
+    /** @return the conversion countdown's remaining ticks (-1 when not converting). */
+    public int zombieConversionTicks() {
+        return ticksUntilConversion;
+    }
+
+    /**
+     * setConversionTime (line 482): arms the cure's countdown. The
+     * Weakness removal, the Strength pair, and the entity-event 16 all
+     * ride the manager's own cure walk (the reference fires them around
+     * this very call).
+     */
+    public void setZombieConversionTime(int time) {
+        this.ticksUntilConversion = Math.max(0, time);
+    }
+
+    /**
+     * tick's conversion walk (lines 236-243): the countdown advances every
+     * tick by {@link #zombieConversionDecrement()}; the completing tick
+     * hands the conversion to the manager (the spawn/remove pair is the
+     * manager's own — convertToVillager).
+     */
+    private void tickZombieConversion() {
+        ticksUntilConversion -= zombieConversionDecrement();
+        if (ticksUntilConversion <= 0) {
+            ticksUntilConversion = 0;
+            pendingZombieConversionComplete = true;
+        }
+    }
+
+    /**
+     * getTicksUntilConversionDecrement (lines 540-563): normally one; a
+     * 1%-per-tick roll scans the 8-cube around the body for iron bars and
+     * beds — every found cell (up to 14 counted) adds a 30% chance of one
+     * more decrement, the famous iron-bars cure accelerator.
+     */
+    private int zombieConversionDecrement() {
+        int decrement = 1;
+        if (random.nextFloat() < 0.01F) {
+            int found = 0;
+            int baseX = (int) position.x();
+            int baseY = (int) position.y();
+            int baseZ = (int) position.z();
+            for (int x = baseX - 4; x < baseX + 4 && found < 14; x++) {
+                for (int y = baseY - 4; y < baseY + 4 && found < 14; y++) {
+                    for (int z = baseZ - 4; z < baseZ + 4 && found < 14; z++) {
+                        if (world.isIronBarsOrBed(x, y, z)) {
+                            if (random.nextFloat() < 0.3F) {
+                                decrement++;
+                            }
+                            found++;
+                        }
+                    }
+                }
+            }
+        }
+        return decrement;
+    }
+
+    /** @return whether the conversion completed this tick (the manager consumes). */
+    boolean consumeZombieConversionComplete() {
+        if (pendingZombieConversionComplete) {
+            pendingZombieConversionComplete = false;
+            return true;
+        }
+        return false;
+    }
+
     /** @return the villager's career (0 until the first open rolls it). */
     public int villagerCareer() {
         return villagerCareer;
@@ -4237,6 +4352,18 @@ public final class MobEntity implements LivingEntity {
     /** @return the villager's riches (the absorbed emerald payments). */
     public int villagerRiches() {
         return villagerRiches;
+    }
+
+    /**
+     * The trade state's restore (Slice 25c — readCustomNbt lines 445-448:
+     * Career/CareerLevel/Riches land exactly as saved; the career's stock
+     * re-rolls lazily on the first open, the reference's own shape).
+     * Package-private: the manager's restore walk is the only caller.
+     */
+    void restoreVillagerTradeState(int career, int careerLevel, int riches) {
+        this.villagerCareer = career;
+        this.villagerCareerLevel = careerLevel;
+        this.villagerRiches = Math.max(0, riches);
     }
 
     /** @return whether the villager is willing to mate (the food arm's flag). */
