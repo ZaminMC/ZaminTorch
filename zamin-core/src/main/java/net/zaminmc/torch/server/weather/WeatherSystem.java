@@ -226,4 +226,34 @@ public final class WeatherSystem {
     public static int defaultDurationTicks() {
         return (300 + new Random().nextInt(600)) * 20;
     }
+
+    // ------------------------------------------------------------- persistence (Slice 21b)
+
+    /**
+     * The persisted state ({@code WorldData}'s own save fields, lines
+     * 249-253): the five flags/clocks — the gradients never persist (the
+     * reference's fresh {@code World.rain} fields walk from 0 on load).
+     * Tick-thread context.
+     */
+    public WeatherDataStore.WeatherState snapshot() {
+        return new WeatherDataStore.WeatherState(clearWeatherTime, raining, rainTime,
+                thundering, thunderTime);
+    }
+
+    /**
+     * The boot restore ({@code WorldData(NbtCompound)} lines 94-98): the
+     * five fields come back exactly as saved. A null state keeps the
+     * fresh-world defaults (clear — the first tick's reroll band draws the
+     * clocks). Boot-time context, before the first tick.
+     */
+    public void restore(WeatherDataStore.WeatherState state) {
+        if (state == null) {
+            return;
+        }
+        this.clearWeatherTime = state.clearWeatherTime();
+        this.raining = state.raining();
+        this.rainTime = state.rainTime();
+        this.thundering = state.thundering();
+        this.thunderTime = state.thunderTime();
+    }
 }

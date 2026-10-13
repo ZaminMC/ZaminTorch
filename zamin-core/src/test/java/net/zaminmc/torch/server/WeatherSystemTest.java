@@ -267,6 +267,74 @@ class WeatherSystemTest {
         }
     }
 
+    /**
+     * Slice 21b — the weather persistence ({@code WorldData}'s own save
+     * fields): the five flags/clocks survive the restart (the gradients
+     * never persist — the fresh fields walk from 0 like the reference's),
+     * and a corrupt store boots the fresh defaults with the quarantine
+     * copy beside it.
+     */
+    @Test
+    void theWeatherStateSurvivesTheRestart() throws Exception {
+        var console = new net.zaminmc.torch.server.chat.CommandSender() {
+            @Override public String name() { return "Console"; }
+            @Override public void sendMessage(String message) { }
+            @Override public int opLevel() { return 4; }
+            @Override public PlayerSession player() { return null; }
+        };
+
+        // Life one: the thunder arm's flags + clocks land, then the save.
+        EngineServer first = boot();
+        try {
+            first.chatService().dispatchCommand(console, "/weather thunder 120");
+            await(() -> first.raining() && first.weather().thundering(),
+                    "the thunder arm raised both flags");
+            first.saveAllNow();
+        } finally {
+            first.shutdown(null);
+        }
+
+        // Life two: the same dataDir — the flags and the clocks restore
+        // (WorldData lines 94-98: the five fields come back as saved).
+        EngineServer second = boot();
+        try {
+            assertTrue(second.raining(), "the rain flag survived the restart");
+            assertTrue(second.weather().thundering(), "the thunder flag survived");
+            int rainClock = second.weather().rainTime();
+            int clearClock = second.weather().clearWeatherTime();
+            assertTrue(rainClock > 2000 && rainClock <= 120 * 20,
+                    "the rain clock restored inside the command window: " + rainClock);
+            assertEquals(0, clearClock, "the clear-weather hold stayed empty");
+            // The gradients never persist: the fresh fields walk from 0
+            // (a full storm would carry 1.0 — the restart carries the
+            // first few ticks of the walk).
+            assertTrue(second.weather().rainGradient() < 0.5f,
+                    "the gradient restarted its walk from 0");
+        } finally {
+            second.shutdown(null);
+        }
+
+        // The corrupt-store arm: garbage in weather.bin boots the fresh
+        // defaults (clear — the first tick's reroll band draws the clocks)
+        // with the quarantine copy beside the file. The store lives in the
+        // world's own data folder (worldDataDir = <dataDir>/itest/data —
+        // the boot helper's own world name).
+        java.nio.file.Path store = dataDir.resolve("itest").resolve("data")
+                .resolve("weather.bin");
+        java.nio.file.Files.write(store, new byte[]{9, 9, 9, 9, 1, 2, 3, 4, 5, 6, 7, 8});
+        EngineServer third = boot();
+        try {
+            Thread.sleep(300); // a few ticks run
+            assertFalse(third.raining(),
+                    "the corrupt store booted the fresh clear defaults");
+            assertTrue(java.nio.file.Files.exists(
+                            dataDir.resolve("itest").resolve("data").resolve("weather.bin.corrupt")),
+                    "the corrupt copy is preserved beside the store");
+        } finally {
+            third.shutdown(null);
+        }
+    }
+
     private void await(BooleanSupplier condition, String description, long timeoutMillis)
             throws InterruptedException {
         long deadline = System.currentTimeMillis() + timeoutMillis;

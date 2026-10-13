@@ -305,6 +305,7 @@ public final class EngineServer implements Server, EngineBridge {
     /** The weather state (Slice 20b — the 1.8.8 cycle; the pre-20b boolean
      * model replaced). */
     private volatile net.zaminmc.torch.server.weather.WeatherSystem weather;
+    private net.zaminmc.torch.server.weather.WeatherDataStore weatherStore;
     /** The lightning family (Slice 20c — the strike roll + the bolt life). */
     private volatile net.zaminmc.torch.server.weather.LightningSystem lightning;
     private final java.util.List<ChatListener> chatListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
@@ -591,6 +592,13 @@ public final class EngineServer implements Server, EngineBridge {
                 // the overworld's players only.
                 weather = new net.zaminmc.torch.server.weather.WeatherSystem(
                         new java.util.Random(worldSeed));
+                // The weather persistence (Slice 21b — WorldData's own save
+                // fields): the five flags/clocks survive restarts; the
+                // gradients never persist (the reference's fresh fields
+                // walk from 0 on load).
+                weatherStore = new net.zaminmc.torch.server.weather.WeatherDataStore(
+                        config.worldDataDir().resolve("weather.bin"));
+                weather.restore(weatherStore.load());
                 weather.addListener(new net.zaminmc.torch.server.weather.WeatherSystem.Listener() {
                     @Override
                     public void onRainGradientChanged(float gradient) {
@@ -11546,6 +11554,9 @@ public final class EngineServer implements Server, EngineBridge {
                 }
                 if (signStore != null && signManager != null) {
                     signStore.save(signManager.snapshot());
+                }
+                if (weatherStore != null && weather != null) {
+                    weatherStore.save(weather.snapshot());
                 }
                 if (mobStore != null && mobManager != null) {
                     mobStore.save(mobManager.snapshot());
