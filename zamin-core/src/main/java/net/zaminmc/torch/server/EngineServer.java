@@ -1587,6 +1587,86 @@ public final class EngineServer implements Server, EngineBridge {
         return packetHooks;
     }
 
+    /** The public recipe registry (§27.3) — the pure any-thread read over the frozen set. */
+    @Override
+    public net.zaminmc.torch.crafting.Recipes recipes() {
+        return new net.zaminmc.torch.crafting.Recipes() {
+            @Override
+            public java.util.Collection<RecipeView> all() {
+                java.util.List<RecipeView> views = new java.util.ArrayList<>();
+                for (var recipe : craftingRecipes().recipes()) {
+                    views.add(RecipesFacade.viewOf(recipe));
+                }
+                return java.util.List.copyOf(views);
+            }
+
+            @Override
+            public java.util.Optional<RecipeView> match(
+                    net.zaminmc.torch.item.ItemStack[] grid2x2) {
+                return craftingRecipes().match(grid2x2, 2).map(RecipesFacade::viewOf);
+            }
+
+            @Override
+            public java.util.Optional<RecipeView> match3x3(
+                    net.zaminmc.torch.item.ItemStack[] grid3x3) {
+                return craftingRecipes().match(grid3x3, 3).map(RecipesFacade::viewOf);
+            }
+        };
+    }
+
+    /** The public enchantment registry (§27.3) — the pure any-thread read. */
+    @Override
+    public net.zaminmc.torch.enchantment.EnchantmentRegistry enchantments() {
+        return new net.zaminmc.torch.enchantment.EnchantmentRegistry() {
+            @Override
+            public java.util.Collection<EnchantmentView> all() {
+                java.util.List<EnchantmentView> views = new java.util.ArrayList<>();
+                for (var entry : net.zaminmc.torch.server.enchantment.Enchantments.all()) {
+                    views.add(new EnchantmentView(entry.id, entry.key,
+                            entry.weight, entry.maxLevel));
+                }
+                return java.util.List.copyOf(views);
+            }
+
+            @Override
+            public java.util.Optional<EnchantmentView> byId(int id) {
+                for (var entry : net.zaminmc.torch.server.enchantment.Enchantments.all()) {
+                    if (entry.id == id) {
+                        return java.util.Optional.of(new EnchantmentView(
+                                entry.id, entry.key, entry.weight, entry.maxLevel));
+                    }
+                }
+                return java.util.Optional.empty();
+            }
+
+            @Override
+            public java.util.Optional<EnchantmentView> byKey(String key) {
+                for (var entry : net.zaminmc.torch.server.enchantment.Enchantments.all()) {
+                    if (entry.key.equals(key)) {
+                        return java.util.Optional.of(new EnchantmentView(
+                                entry.id, entry.key, entry.weight, entry.maxLevel));
+                    }
+                }
+                return java.util.Optional.empty();
+            }
+        };
+    }
+
+    /** The engine's own recipe service (the crafting paths' chokepoint). */
+    private CraftingService craftingRecipes() {
+        return crafting;
+    }
+
+    /** The recipe view mapping (§27.5: the engine object dressed as a value). */
+    private static final class RecipesFacade {
+        static net.zaminmc.torch.crafting.Recipes.RecipeView viewOf(
+                net.zaminmc.torch.server.crafting.CraftingRecipe recipe) {
+            return new net.zaminmc.torch.crafting.Recipes.RecipeView(
+                    recipe.result().item(), recipe.result().count(),
+                    recipe.result().damage(), recipe.isShaped(), recipe.size());
+        }
+    }
+
     @Override
     public double tps(int windowSeconds) {
         EngineTicker running = ticker;
