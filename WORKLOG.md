@@ -3456,3 +3456,21 @@ suite 884 core green, `--max-workers=1`, zero failures. Ledgered: the
 lightning family (the strike roll, the bolt entity, the global-entity wire,
 the fire attempts), the ice/snow precipitation arm (a plains no-op by the
 temperature gate — faithful), the weather fields' persistence.
+
+### Slice 20c — the lightning family
+
+`ServerWorld.tickChunks` lines 313-321 + `LightningBoltEntity` 1:1 over the
+engine's new `LightningSystem`: the per-chunk strike roll (the 1-in-100000
+consumed BEFORE the flag gates — the reference's own stream discipline), the
+LCG-derived in-chunk pick, findLightningTarget (the ±3-grown box over the
+sky-visible bodies, the random pick, else the precipitation cell), the bolt's
+life (the constructor's fire walk with the air + support gate and the
+NORMAL/HARD difficulty gate, the stage-2 thunder pair at the global 10000
+volume, the stage >= 0 damage box — 5.0 + the 8-second ignite through the
+engine's own player/mob arms, the fire attempts' re-arm quirk where the
+reset to stage 1 re-opens the damage window — the reference's own shape),
+and the death. The wire: the Spawn Global Entity packet (0x2C, registration
+order #42 — the type byte 1, the fixed-point 1/32 coordinates) + the
+LIGHTNING damage cause (both enums, additive). LightningSystemTest (4).
+Fresh suite 888 core (one documented compute-drain load flake, green in
+isolation) + 75 protocol green, `--max-workers=1`.

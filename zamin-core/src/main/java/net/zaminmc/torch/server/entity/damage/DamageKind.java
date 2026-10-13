@@ -39,7 +39,10 @@ public enum DamageKind {
     /** {@code starve}: the reference's {@code setUnblockable} source. */
     STARVE,
     /** {@code outOfWorld}: the void (every piece contributes zero). */
-    OUT_OF_WORLD;
+    OUT_OF_WORLD,
+    /** The lightning bolt ({@code DamageSource.lightningBolt} — an ordinary
+     * source: the armor ladder applies, no projection family). */
+    LIGHTNING;
 
     /** The reference {@code DamageSource.isFire} family. */
     public boolean isFire() {

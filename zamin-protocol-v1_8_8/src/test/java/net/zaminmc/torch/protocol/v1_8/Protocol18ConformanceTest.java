@@ -82,6 +82,9 @@ class Protocol18ConformanceTest {
         m.put("S2C_NAMED_SOUND_EFFECT", 0x29);
         m.put("S2C_WORLD_PARTICLES", 0x2A);
         m.put("S2C_CHANGE_GAME_STATE", 0x2B);
+        // Spawn Global Entity: #42 in the registration order (right after
+        // GameEvent) — the lightning bolt's spawn (Slice 20c).
+        m.put("S2C_SPAWN_GLOBAL_ENTITY", 0x2C);
         m.put("S2C_PLAYER_ABILITIES", 0x39);
         m.put("S2C_TAB_COMPLETE", 0x3A);
         m.put("S2C_PLUGIN_MESSAGE", 0x3F);
