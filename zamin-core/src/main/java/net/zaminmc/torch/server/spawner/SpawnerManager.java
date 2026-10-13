@@ -277,7 +277,12 @@ public final class SpawnerManager {
                 // the engine's stand-in — the body cell + the head cell
                 // must be non-solid.
                 if (canSpawnAt(world, spawner.type(), x, y, z)) {
-                    mobs.spawnAt(spawner.type(), new Position(x, y, z));
+                    MobEntity spawned = mobs.spawnAt(spawner.type(), new Position(x, y, z));
+                    if (spawned != null) {
+                        // The body lives in the spawner's own dimension
+                        // (Slice 25d — the 18e dimension model's spawn arm).
+                        spawned.setDimension(spawner.dimension());
+                    }
                     anySpawned = true;
                 }
             }

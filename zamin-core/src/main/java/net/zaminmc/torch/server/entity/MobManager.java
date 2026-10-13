@@ -844,6 +844,7 @@ public final class MobManager {
                 dismountMob(mob, false);
             }
             if (mob.dying()) {
+                world.setActiveDimension(mob.dimension()); // the body's own world (25d)
                 mob.tick(night);
                 continue;
             }
@@ -879,7 +880,10 @@ public final class MobManager {
             double despawnSquared = Double.MAX_VALUE;
             for (PlayerSession player : players) {
                 if (player.state() != net.zaminmc.torch.entity.PlayerState.PLAYING
-                        || player.dead()) {
+                        || player.dead()
+                        // Slice 25d: the despawn window measures the body's
+                        // own dimension's players only.
+                        || player.dimension() != mob.dimension()) {
                     continue;
                 }
                 Position p = player.position();
@@ -919,6 +923,10 @@ public final class MobManager {
             boolean wasGhastCharging = mob.ghastCharging();
             boolean wasGuardianMoving = mob.guardianMoving();
             boolean wasGuardianBeam = mob.guardianBeamTargetId() != 0;
+            // Slice 25d: the shared query flips to the body's own world
+            // before every walk (the reference's Entity.world — the nether
+            // bodies' physics, scans, and pathing read the nether's blocks).
+            world.setActiveDimension(mob.dimension());
             boolean moved = mob.tick(night);
             if (wasPriming != mob.fuseActive()) {
                 for (Listener listener : listeners) {
@@ -1334,7 +1342,19 @@ public final class MobManager {
             int villagerProfession, int villagerCareer, int villagerCareerLevel,
             int villagerRiches,
             int rabbitVariant, int breedingAge,
-            boolean skeletonWither, int slimeSize) {
+            boolean skeletonWither, int slimeSize, int dimension) {
+
+        /** The overworld shape (the v1-equivalent record, dimension 0). */
+        public MobStateExtras(
+                boolean zombieVillager, int zombieConversionTicks,
+                int villagerProfession, int villagerCareer, int villagerCareerLevel,
+                int villagerRiches,
+                int rabbitVariant, int breedingAge,
+                boolean skeletonWither, int slimeSize) {
+            this(zombieVillager, zombieConversionTicks, villagerProfession, villagerCareer,
+                    villagerCareerLevel, villagerRiches, rabbitVariant, breedingAge,
+                    skeletonWither, slimeSize, 0);
+        }
     }
 
     /**
@@ -1401,6 +1421,11 @@ public final class MobManager {
                 && extras.slimeSize() > 0) {
             mob.setSlimeSize(extras.slimeSize());
         }
+        if (extras.dimension() != 0) {
+            // Slice 25d: the body restores into its own dimension (a nether
+            // pigman never wakes in the overworld).
+            mob.setDimension(extras.dimension());
+        }
     }
 
     /** @return the persistable snapshot of every living mob. Tick-thread context. */
@@ -1441,7 +1466,8 @@ public final class MobManager {
         int slimeSize = mob.type() == MobType.SLIME || mob.type() == MobType.MAGMA_CUBE
                 ? mob.slimeSize() : 1;
         return new MobStateExtras(zombieVillager, zombieConversion, profession, career,
-                careerLevel, riches, rabbitVariant, mob.breedingAge(), wither, slimeSize);
+                careerLevel, riches, rabbitVariant, mob.breedingAge(), wither, slimeSize,
+                mob.dimension());
     }
 
     /**
@@ -2289,9 +2315,12 @@ public final class MobManager {
     public MobEntity spawnNaturalNether(MobType type, Position position, boolean baby,
                                         float yaw) {
         MobEntity mob = spawnNatural(type, position, baby, yaw);
-        if (mob != null && type == MobType.SKELETON && random.nextInt(5) > 0) {
-            mob.setSkeletonWither(true);
-            mob.setHeldEquipment(ItemStack.of(BuiltinItems.STONE_SWORD, 1));
+        if (mob != null) {
+            mob.setDimension(-1); // the body lives in the nether (Slice 25d)
+            if (type == MobType.SKELETON && random.nextInt(5) > 0) {
+                mob.setSkeletonWither(true);
+                mob.setHeldEquipment(ItemStack.of(BuiltinItems.STONE_SWORD, 1));
+            }
         }
         return mob;
     }
@@ -2310,7 +2339,10 @@ public final class MobManager {
         PlayerSession best = null;
         double bestDistance = Double.MAX_VALUE;
         for (PlayerSession player : players) {
-            if (player.state() != net.zaminmc.torch.entity.PlayerState.PLAYING || player.dead()) {
+            if (player.state() != net.zaminmc.torch.entity.PlayerState.PLAYING || player.dead()
+                    // Slice 25d: the melee target reads the body's own
+                    // dimension's players (the same coords exist in both).
+                    || player.dimension() != mob.dimension()) {
                 continue;
             }
             double dx = player.position().x() - mob.position().x();
