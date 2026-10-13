@@ -76,6 +76,17 @@ public final class VehicleManager {
         listeners.add(Objects.requireNonNull(listener, "listener"));
     }
 
+    /**
+     * The public event bus (§27.7's spawn gate); null until the engine
+     * wires it — the unwired window admits every spawn.
+     */
+    private volatile net.zaminmc.torch.server.event.EngineEventBus eventBus;
+
+    /** Wires the §27.7 spawn gate over every spawn family member. */
+    public void setEventBus(net.zaminmc.torch.server.event.EngineEventBus eventBus) {
+        this.eventBus = Objects.requireNonNull(eventBus, "eventBus");
+    }
+
     /** @return every live vehicle (the join replay and diagnostics). */
     public List<VehicleEntity> all() {
         return List.copyOf(vehicles);
@@ -129,16 +140,42 @@ public final class VehicleManager {
     }
 
     public VehicleEntity spawnBoat(Position at) {
+        // §27.7's spawn gate: a cancelled boat consumes no id, spawns no
+        // body, and withholds the placing item (the caller's contract).
+        if (!fireSpawnGate(VehicleEntity.Kind.BOAT.apiKind, at)) {
+            return null;
+        }
         return spawn(new BoatEntity(nextEntityId++, at, random));
     }
 
     public VehicleEntity spawnMinecart(Position at) {
+        if (!fireSpawnGate(VehicleEntity.Kind.MINECART.apiKind, at)) {
+            return null;
+        }
         return spawn(new MinecartEntity(nextEntityId++, at, random));
     }
 
     /** The chest minecart (the 27-slot rolling container). */
     public VehicleEntity spawnChestMinecart(Position at) {
+        if (!fireSpawnGate(VehicleEntity.Kind.CHEST_MINECART.apiKind, at)) {
+            return null;
+        }
         return spawn(new ChestMinecartEntity(nextEntityId++, at, random));
+    }
+
+    /**
+     * The §27.7 pre-commit gate over every spawn family member: the
+     * boat/minecart item placements and the structure-seeded chest
+     * carts. A null bus (the unwired window) admits everything.
+     */
+    private boolean fireSpawnGate(net.zaminmc.torch.entity.VehicleKind kind, Position at) {
+        var bus = eventBus;
+        if (bus == null) {
+            return true;
+        }
+        var event = new net.zaminmc.torch.event.entity.VehicleSpawnEvent(kind, at);
+        bus.fire(event);
+        return !event.cancelled();
     }
 
     private VehicleEntity spawn(VehicleEntity vehicle) {
