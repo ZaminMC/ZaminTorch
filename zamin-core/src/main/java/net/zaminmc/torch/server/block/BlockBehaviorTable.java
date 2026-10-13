@@ -311,14 +311,19 @@ public final class BlockBehaviorTable {
             // values): the stone-brick family 1.5 rock pickaxe-gated
             // (harvest 0) dropping itself — the mossy/cracked variants
             // drop the PLAIN brick (the reference's getStateFromMeta 0 —
-            // Item.getItemFromBlock over the default state), the infested
-            // egg the same (the silverfish burst rides the mob slice);
-            // the spawner 5.0 rock pickaxe-gated dropping nothing (the
-            // reference's null drop item); the smooth brick slab 2.0
+            // Item.getItemFromBlock over the default state); the spawner
+            // 5.0 rock pickaxe-gated dropping nothing (the reference's
+            // null drop item); the smooth brick slab 2.0
             // rock like the stone slab; the iron door 5.0 rock
             // pickaxe-gated dropping itself; the end portal frames -1
             // undiggable dropless (the reference's unbreakable
-            // portal-frame rule).
+            // portal-frame rule). The infested family (Slice 18c —
+            // InfestedBlock's own rows): setStrength(0.0F) — the egg
+            // breaks INSTANTLY by hand (the clay material, no tool gate),
+            // drops NOTHING (getBaseDropCount 0) — the silk arm's host
+            // drop walks the DropService's own infested arm, and the
+            // silverfish burst rides the break path's spawn sink (never
+            // a drop row).
             Map.entry(Identifier.parse("minecraft:stone_bricks"),
                     new BlockBehavior(1.5, true, true, "rock", 0,
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:stone_bricks"), 1)))),
@@ -331,9 +336,18 @@ public final class BlockBehaviorTable {
             Map.entry(Identifier.parse("minecraft:chiseled_stone_bricks"),
                     new BlockBehavior(1.5, true, true, "rock", 0,
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:stone_bricks"), 1)))),
+            Map.entry(Identifier.parse("minecraft:infested_stone"),
+                    new BlockBehavior(0.0, true, false, "clay", 0, List.of())),
+            Map.entry(Identifier.parse("minecraft:infested_cobblestone"),
+                    new BlockBehavior(0.0, true, false, "clay", 0, List.of())),
             Map.entry(Identifier.parse("minecraft:infested_stone_bricks"),
-                    new BlockBehavior(0.75, true, true, "rock", 0,
-                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:stone_bricks"), 1)))),
+                    new BlockBehavior(0.0, true, false, "clay", 0, List.of())),
+            Map.entry(Identifier.parse("minecraft:infested_mossy_stone_bricks"),
+                    new BlockBehavior(0.0, true, false, "clay", 0, List.of())),
+            Map.entry(Identifier.parse("minecraft:infested_cracked_stone_bricks"),
+                    new BlockBehavior(0.0, true, false, "clay", 0, List.of())),
+            Map.entry(Identifier.parse("minecraft:infested_chiseled_stone_bricks"),
+                    new BlockBehavior(0.0, true, false, "clay", 0, List.of())),
             Map.entry(Identifier.parse("minecraft:stone_brick_slab"),
                     new BlockBehavior(2.0, true, true, "rock", 0,
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:stone_brick_slab"), 1)))),

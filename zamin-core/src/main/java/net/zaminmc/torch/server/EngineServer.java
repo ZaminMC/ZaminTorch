@@ -1004,6 +1004,14 @@ public final class EngineServer implements Server, EngineBridge {
                     experienceOrbs.spawnBurst(new Position(at.x() + 0.5, at.y() + 0.5,
                             at.z() + 0.5), amount, 3);
                 });
+                // The infested egg's burst (Slice 18c —
+                // InfestedBlock.dropItems lines 79-88): the survival break
+                // spawns the silverfish at the block's own center (the
+                // reference's setPositionAndAngles at pos + 0.5 on x/z, yaw
+                // 0 — the pre-tick engine spawn).
+                blockInteraction.setInfestedBurstHook(position ->
+                        spawnSilverfishAt(new Position(position.x() + 0.5,
+                                position.y(), position.z() + 0.5)));
                 blockInteraction.setCommitFeedbackListener(commit -> {
                     if (commit.now().equals(world.airType())) {
                         // A break: the shatter burst plus the dig family sound.
@@ -8607,6 +8615,63 @@ public final class EngineServer implements Server, EngineBridge {
         }
 
         /**
+         * The silverfish's wake-up scan (Slice 18c —
+         * WakeUpFriendsGoal.tick lines 210-236): the reference's own
+         * interleaved box walk (the vertical ±5 pair, the horizontal ±10
+         * pair — the (0,0,0) center first) breaking every monster egg it
+         * finds; each break spawns the egg's silverfish, and the walk
+         * stops early on the reference's own 1-in-2 roll per egg.
+         */
+        @Override
+        public void onSilverfishWake(net.zaminmc.torch.server.entity.MobEntity mob) {
+            int cx = (int) Math.floor(mob.position().x());
+            int cy = (int) Math.floor(mob.position().y());
+            int cz = (int) Math.floor(mob.position().z());
+            for (int dy = 0; dy <= 5 && dy >= -5; dy = dy <= 0 ? 1 - dy : -dy) {
+                for (int dx = 0; dx <= 10 && dx >= -10; dx = dx <= 0 ? 1 - dx : -dx) {
+                    for (int dz = 0; dz <= 10 && dz >= -10; dz = dz <= 0 ? 1 - dz : -dz) {
+                        BlockPosition at = new BlockPosition(cx + dx, cy + dy, cz + dz);
+                        var type = world.getBlock(at);
+                        if (net.zaminmc.torch.server.block.InfestedBlocks.isInfested(
+                                type.identifier())) {
+                            // breakBlock(pos, true): the egg leaves (its
+                            // silverfish bursts with it), the walk may stop.
+                            // The world's own commit path carries the wire
+                            // resync and the dig feedback.
+                            world.setBlock(at, world.airType());
+                            spawnSilverfishAt(new Position(at.x() + 0.5, at.y(), at.z() + 0.5));
+                            if (gameplayRandom.nextBoolean()) {
+                                return; // the reference's early stop
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        /**
+         * The silverfish's infest (Slice 18c — InfestStoneGoal.start lines
+         * 171-187): the adjacent host becomes its egg and the body leaves
+         * the world (the reference's animateSpawn + remove; the client's
+         * own smoke burst rides the entity's removal).
+         */
+        @Override
+        public void onSilverfishInfest(net.zaminmc.torch.server.entity.MobEntity mob) {
+            BlockPosition at = new BlockPosition(mob.silverfishInfestX(),
+                    mob.silverfishInfestY(), mob.silverfishInfestZ());
+            var type = world.getBlock(at);
+            net.zaminmc.torch.util.Identifier egg =
+                    net.zaminmc.torch.server.block.InfestedBlocks.eggFor(type.identifier());
+            if (egg == null) {
+                return; // the host changed under the roll: no infest
+            }
+            world.setBlock(at, blockRegistry.require(egg));
+            if (mobManager != null) {
+                mobManager.remove(mob, "infested");
+            }
+        }
+
+        /**
          * The snow golem's volley (Slice 17d — SnowGolemEntity.
          * doRangedAttack lines 89-96): the snowball launches from the
          * golem's own height, aimed at the target's eye band pulled to the
@@ -8985,6 +9050,15 @@ public final class EngineServer implements Server, EngineBridge {
         public net.zaminmc.torch.server.entity.ai.pathing.CellMaterial pathMaterialAt(int x, int y, int z) {
             return net.zaminmc.torch.server.entity.ai.pathing.PathBlocks.materialOf(
                     blockAtBoundsSafe(x, y, z));
+        }
+
+        /**
+         * The block identity of the cell (Slice 18c — the silverfish's
+         * InfestStone roll reads the adjacent block).
+         */
+        @Override
+        public net.zaminmc.torch.util.Identifier blockIdAt(int x, int y, int z) {
+            return blockAtBoundsSafe(x + 0.5, y + 0.5, z + 0.5).identifier();
         }
 
         @Override
@@ -9411,6 +9485,18 @@ public final class EngineServer implements Server, EngineBridge {
     /** Registers an internal chat delivery observer (e.g. the protocol adapter). */
     public void addChatListener(ChatListener listener) {
         chatListeners.add(listener);
+    }
+
+    /**
+     * Spawns the egg-burst silverfish (Slice 18c —
+     * InfestedBlock.dropItems lines 79-88): the body lands at the block's
+     * center with the reference's own zero yaw. Tick-thread context (the
+     * break path's own lane).
+     */
+    private void spawnSilverfishAt(Position at) {
+        if (mobManager != null) {
+            mobManager.spawnAt(net.zaminmc.torch.server.entity.MobType.SILVERFISH, at);
+        }
     }
 
     private void registerBuiltinCommands(CommandService commands) {

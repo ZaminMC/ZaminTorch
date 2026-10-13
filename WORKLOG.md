@@ -3151,3 +3151,45 @@ no-venom).
 
 Fresh suite: **843 green in zamin-core**, `--max-workers=1`, zero
 failures.
+
+## Slice 18c — the silverfish + the infested blocks
+
+**Scope**: SilverfishEntity + InfestedBlock + the stronghold's spawner
+type + the stone-brick item.
+
+**The kind** (60, the 0.4x0.3/8-health body): the 1.0 ATTACK_DAMAGE (the
+pre-18c default 2.0 corrected), the flat 0.1 eye, the ARTHROPOD category,
+no drops, no natural rows (the eggs and the spawner are the only
+sources).
+
+**The egg-hosting life**: the WAKE-UP (the entity-sourced-or-magic hurt
+arms the 20-tick cooldown through the manager's DamageCause gate, the
+expiry's scan walking the reference's own interleaved 10/5/10 box, each
+egg broken with its silverfish spawned, the 1-in-2 early stop) and the
+INFEST (the targetless body's 1-in-10 roll over the six adjacent cells,
+the canBeInfested read through the new WorldQuery.blockIdAt, the egg
+written for the host and the body removed).
+
+**The infested block family**: the SIX flattened eggs (stone 0,
+cobblestone 1, stonebrick 2 — THE WIRE FIX: the pre-18c row carried
+metadata 4, the CRACKED variant; the stronghold's pick is the reference's
+STONEBRICK 2 — mossy 3, cracked 4, chiseled 5, all wire id 97) with the
+reference's own rows (setStrength(0.0F) — the instant hand break, the
+clay material, getBaseDropCount 0) and the silk drop (the stone/
+cobblestone eggs drop their host items, all four brick eggs drop the
+STONE BRICKS item with the damage field 0/1/2/3 — the STONE_BRICKS item
+registered with it, closing a latent crash where the stone-brick
+family's drop rows referenced an unregistered item).
+
+**The burst**: the SURVIVAL break spawns the silverfish at the block's
+center — the creative break never bursts (the reference's
+afterMinedByPlayer arm is survival-only). The stronghold's spawner
+finally carries its SILVERFISH type.
+
+**Tests**: SilverfishEntityTest (6: the identity + the flat eye, the egg
+family's mappings, the hand/silk drop arms, the wake-up clock, the
+infest roll's adjacent-cell law, the egg burst through the live survival
+break with the creative never-burst).
+
+Fresh suite: **942 green (849 core + 19 api + 74 protocol)**,
+`--max-workers=1`, zero failures.

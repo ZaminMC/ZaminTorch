@@ -359,7 +359,13 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:stone_bricks"), 98),
             Map.entry(Identifier.parse("minecraft:mossy_stone_bricks"), 98),
             Map.entry(Identifier.parse("minecraft:cracked_stone_bricks"), 98),
+            Map.entry(Identifier.parse("minecraft:chiseled_stone_bricks"), 98),
             Map.entry(Identifier.parse("minecraft:infested_stone_bricks"), 97),
+            Map.entry(Identifier.parse("minecraft:infested_stone"), 97),
+            Map.entry(Identifier.parse("minecraft:infested_cobblestone"), 97),
+            Map.entry(Identifier.parse("minecraft:infested_mossy_stone_bricks"), 97),
+            Map.entry(Identifier.parse("minecraft:infested_cracked_stone_bricks"), 97),
+            Map.entry(Identifier.parse("minecraft:infested_chiseled_stone_bricks"), 97),
             Map.entry(Identifier.parse("minecraft:stone_brick_slab"), 44),
             Map.entry(Identifier.parse("minecraft:mob_spawner"), 52),
             Map.entry(Identifier.parse("minecraft:iron_door_west"), 71),
@@ -691,7 +697,17 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:mossy_stone_bricks"), 1),
             Map.entry(Identifier.parse("minecraft:cracked_stone_bricks"), 2),
             Map.entry(Identifier.parse("minecraft:chiseled_stone_bricks"), 3),
-            Map.entry(Identifier.parse("minecraft:infested_stone_bricks"), 4),
+            // The infested family (Slice 18c — InfestedBlock.Variant's own
+            // ids: 0 stone, 1 cobble, 2 stonebrick, 3 mossy, 4 cracked,
+            // 5 chiseled; the pre-18c row's 4 carried the WRONG variant —
+            // the stronghold's pick is STONEBRICK, the reference's own
+            // getStateFromMetadata(2)).
+            Map.entry(Identifier.parse("minecraft:infested_stone"), 0),
+            Map.entry(Identifier.parse("minecraft:infested_cobblestone"), 1),
+            Map.entry(Identifier.parse("minecraft:infested_stone_bricks"), 2),
+            Map.entry(Identifier.parse("minecraft:infested_mossy_stone_bricks"), 3),
+            Map.entry(Identifier.parse("minecraft:infested_cracked_stone_bricks"), 4),
+            Map.entry(Identifier.parse("minecraft:infested_chiseled_stone_bricks"), 5),
             Map.entry(Identifier.parse("minecraft:stone_brick_slab"), 5),
             Map.entry(Identifier.parse("minecraft:iron_door_north"), 1),
             Map.entry(Identifier.parse("minecraft:iron_door_east"), 2),

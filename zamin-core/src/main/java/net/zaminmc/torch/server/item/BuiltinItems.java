@@ -257,6 +257,13 @@ public final class BuiltinItems {
             Identifier.parse("minecraft:snow"), "Snow", 64);
     public static final EngineItemType SNOW_LAYER = new EngineItemType(
             Identifier.parse("minecraft:snow_layer"), "Snow Layer", 64);
+    // The stone-brick item (Slice 18c — Item.java's block item for the
+    // brick family, legacy 98): the plain brick's own item form; the
+    // mossy/cracked/chiseled variants ride the damage field (1/2/3) per
+    // the reference's getSilkTouchDrop ItemStacks, and the infested eggs'
+    // silk arm drops it too.
+    public static final EngineItemType STONE_BRICKS = new EngineItemType(
+            Identifier.parse("minecraft:stone_bricks"), "Stone Bricks", 64);
     public static final EngineItemType IRON_BLOCK = new EngineItemType(
             Identifier.parse("minecraft:iron_block"), "Block of Iron", 64);
     public static final EngineItemType PUMPKIN = new EngineItemType(
@@ -636,6 +643,7 @@ public final class BuiltinItems {
                 RABBIT, COOKED_RABBIT, RABBIT_STEW, RABBIT_HIDE,
                 BOWL, MUSHROOM_STEW,
                 SNOW_BLOCK, SNOW_LAYER, IRON_BLOCK, PUMPKIN, LIT_PUMPKIN,
+                STONE_BRICKS,
                 FISH, COOKED_FISH,
                 BREWING_STAND,
                 OAK_SLAB, STONE_SLAB, COBBLESTONE_SLAB, SANDSTONE_SLAB,
