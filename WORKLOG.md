@@ -3522,3 +3522,21 @@ vehicles carry no store), the hopper's cart arm (a hopper pulling from a
 chest minecart above it), the furnace/tnt/hopper/command-block/spawner
 minecart variants, the chest cart's 27 slots as a public API handle (the
 container/inventory wave).
+
+### Slice 21b — the weather persistence
+
+`WeatherDataStore` ("ZWD" v1, beside the other block-entity stores):
+`WorldData`'s own five save fields (lines 249-253 — clearWeatherTime,
+rainTime, raining, thunderTime, thundering) survive restarts through the
+engine's `saveAllNow` (shutdown, console save) and the boot restore; the
+gradients never persist (the reference's fresh `World.rain` fields walk from
+0 on load); a corrupt store boots the fresh defaults (clear — the first
+tick's reroll band draws the clocks) with the quarantine copy beside the
+file, the established store behavior. `WeatherSystem.snapshot()/restore()`
+carry the five fields (tick-thread snapshot, boot-time restore).
+WeatherSystemTest.theWeatherStateSurvivesTheRestart (the three lives: the
+thunder command's flags + clocks restore inside the command window, the
+gradient restarts its walk from 0, the corrupt quarantine with the .corrupt
+copy). Fresh suite: the weather family + the neighbor chunk green,
+`--max-workers=1` (one SpawnEggTest natural-spawn load flake in the chunk
+run — the documented environmental class, green in isolation).
