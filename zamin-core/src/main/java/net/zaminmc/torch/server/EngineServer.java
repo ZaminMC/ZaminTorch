@@ -1194,6 +1194,21 @@ public final class EngineServer implements Server, EngineBridge {
                 // engine objects dressed as live handles, §27.5).
                 world.attachContainerView(new ContainerViews(
                         chestManager, furnaceManager, hopperSystem));
+                // The public §27.3 block-entity views beyond the containers:
+                // the spawner/sign reads — the spawners filtered to this
+                // world's own dimension (the manager is global).
+                world.attachBlockEntityView(
+                        new net.zaminmc.torch.server.blockentity.BlockEntityViews(
+                                spawnerManager, 0, signManager));
+                netherWorld.attachBlockEntityView(
+                        new net.zaminmc.torch.server.blockentity.BlockEntityViews(
+                                spawnerManager, -1, signManager));
+                // The public §27.3 scheduled-update views: the neighbor-update
+                // queue + the gravity fuses — the queries copy, the mutation
+                // arms assert the world's own context.
+                world.attachScheduledUpdateView(
+                        new net.zaminmc.torch.server.block.ScheduledUpdateViews(
+                                blockUpdateSystem, world));
                 ticker.setTickHandler(() -> {
                     // The per-region boundary walk FIRST (the §7 protocol's
                     // target-side apply): every live region domain drains its

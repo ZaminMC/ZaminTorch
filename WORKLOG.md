@@ -3734,3 +3734,49 @@ adapter in the server's own package.
 Tests: ContainerApiAcceptanceTest (2: the chest's public reads + the
 off-lane lookup, the furnace/hopper views + the miss arms). The three
 ledger rows graduate NOT AUDITED → IMPLEMENTED.
+
+## Slice 22c — the block-entity API wave beyond the containers (spawners + signs)
+
+§27.3's read surface over `World.blockEntities()`: the position-keyed
+`blockentity.BlockEntities` family — `spawnerAt(pos)` and `signAt(pos)`
+(both best-effort from any thread, empty on a miss) over the engine's
+own state (§27.5 — the engine objects behind the live views). The
+spawner view carries the spawned kind's canonical identifier + the live
+delay walk, and — beyond the container family's shape — answers only on
+the dimension the spawner lives in (the manager is global; the
+BlockEntityViews constructor takes the world's dimension and filters,
+the overworld view never answering a fortress spawner and the nether
+view never answering a dungeon's). The sign view exposes the four
+editable lines (`lines()` copies, `line(i)` with the empty arms). The
+EngineWorld wiring (attachBlockEntityView) at boot on BOTH dimensions;
+`MobSpawnerBlockEntity.delay()` opened public for the read surface.
+
+Tests: BlockEntityApiAcceptanceTest (2: the spawner kind + delay + the
+dimension filter both ways + the un-typed null + the off-lane lookup;
+the sign lines + the copy isolation + the misses). The spawner + sign
+ledger rows graduate NOT AUDITED → IMPLEMENTED.
+
+## Slice 22d — the scheduled-tick API wave (the neighbor-update queue + the gravity fuses)
+
+§27.3's scheduled-block-tick family over `World.scheduledUpdates()`:
+`block.ScheduledUpdates` — the query arms (`pending()`, `pendingFallChecks()`
+copies of the two tick-confined queues, `pendingAt(pos)`) answer
+best-effort from any thread; the mutation arms (`cancelAt(pos)`,
+`cancelFallCheckAt(pos)`, `requestAt(pos)`) assert the world's
+authoritative context through the new public
+`EngineWorld.requireMutationContext` (§27.6 — an off-lane call fails
+with the operation-named OwnershipViolation, the §28.10 contract). The
+engine side: `BlockUpdateSystem`'s own public surface
+(pendingUpdates/pendingFallChecksView/pendingUpdateAt/cancelUpdate/
+cancelFallCheck/requestUpdate + the ScheduledTickView record) over its
+unchanged private queues — the historical one-update-per-position
+coalescing rule untouched (the cancel arms remove both the queue entry
+and the pending key together; the request arm rides the earliest-wins
+schedule).
+
+Tests: ScheduledUpdatesApiAcceptanceTest (2: the grass-under-stone decay
+observable through the queue's drain + the sand fuse deterministically
+cancelled inside its two-tick window through the scheduler's runLater(1)
+— the sand hovers forever, no falling body; the off-lane cancel/request
+violations naming their operations + the on-lane World.execute path).
+The scheduled-ticks ledger row graduates NOT AUDITED → IMPLEMENTED.

@@ -101,6 +101,14 @@ public final class EngineWorld implements World {
     private volatile net.zaminmc.torch.container.Containers containerView
             = net.zaminmc.torch.container.Containers.EMPTY;
 
+    /** The public block-entity view (the spawner/sign family; boot wiring). */
+    private volatile net.zaminmc.torch.blockentity.BlockEntities blockEntityView
+            = net.zaminmc.torch.blockentity.BlockEntities.EMPTY;
+
+    /** The public scheduled-update view (the neighbor/fuse queue; boot wiring). */
+    private volatile net.zaminmc.torch.block.ScheduledUpdates scheduledUpdateView
+            = net.zaminmc.torch.block.ScheduledUpdates.EMPTY;
+
     /** The public experience-orb view (§27.3): attached at boot. */
     private volatile java.util.function.Supplier<
             java.util.List<? extends net.zaminmc.torch.entity.ExperienceOrb>> orbView;
@@ -282,9 +290,33 @@ public final class EngineWorld implements World {
         this.containerView = java.util.Objects.requireNonNull(view, "view");
     }
 
+    /** Attaches the public block-entity view (the spawner/sign family's
+     *  boot wiring; §27.3's block-entity reads beyond the containers). */
+    public void attachBlockEntityView(net.zaminmc.torch.blockentity.BlockEntities view) {
+        this.blockEntityView = java.util.Objects.requireNonNull(view, "view");
+    }
+
+    /** Attaches the public scheduled-update view (the neighbor/fuse
+     *  queue's boot wiring; §27.3's scheduled-block-tick family). */
+    public void attachScheduledUpdateView(net.zaminmc.torch.block.ScheduledUpdates view) {
+        this.scheduledUpdateView = java.util.Objects.requireNonNull(view, "view");
+    }
+
     /** Attaches the owner-context executor (the boot wiring; §27.6). */
     public void attachOwnerExecutor(java.util.function.Consumer<Runnable> executor) {
         this.ownerExecutor = java.util.Objects.requireNonNull(executor, "executor");
+    }
+
+    /**
+     * Asserts the caller holds this world's authoritative mutation
+     * context — the public §27.6 surface the read-only views ride for
+     * their mutation arms (the cancel/request verbs over tick-confined
+     * engine structures).
+     *
+     * @throws IllegalStateException outside the world's allowed execution context
+     */
+    public void requireMutationContext(String operation) {
+        requireOwnership(operation);
     }
 
     @Override
@@ -354,6 +386,16 @@ public final class EngineWorld implements World {
     @Override
     public net.zaminmc.torch.container.Containers containers() {
         return containerView;
+    }
+
+    @Override
+    public net.zaminmc.torch.blockentity.BlockEntities blockEntities() {
+        return blockEntityView;
+    }
+
+    @Override
+    public net.zaminmc.torch.block.ScheduledUpdates scheduledUpdates() {
+        return scheduledUpdateView;
     }
 
     @Override

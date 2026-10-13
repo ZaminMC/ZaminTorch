@@ -104,6 +104,30 @@ public interface World {
     }
 
     /**
+     * The position-keyed block-entity family beyond the containers
+     * (§27.3's block-entity read surface): the mob spawners and the
+     * signs of this world. The lookups are best-effort from any thread;
+     * the returned views are LIVE handles — owner-context consistent
+     * (wrap multi-field reads in {@link #execute} off the lane). Worlds
+     * without the family answer empty lookups.
+     */
+    default net.zaminmc.torch.blockentity.BlockEntities blockEntities() {
+        return net.zaminmc.torch.blockentity.BlockEntities.EMPTY;
+    }
+
+    /**
+     * The scheduled block-update surface (§27.3's scheduled-block-tick
+     * family): the pending neighbor updates and gravity fuses of this
+     * world — queryable, cancellable, requestable. The queries answer
+     * best-effort from any thread; the mutations run on the
+     * authoritative simulation context (§27.6). Worlds without the
+     * family answer nothing pending.
+     */
+    default net.zaminmc.torch.block.ScheduledUpdates scheduledUpdates() {
+        return net.zaminmc.torch.block.ScheduledUpdates.EMPTY;
+    }
+
+    /**
      * The experience orbs (§27.3's XP family): a point-in-time
      * population view — simulation context, inspect it inside
      * {@link #execute}. Worlds without the family answer empty.
