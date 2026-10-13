@@ -879,6 +879,9 @@ public final class EngineServer implements Server, EngineBridge {
                     thrower.link().resyncPosition();
                 });
                 mobs.setPotionSystem(potionSystem); // the witch's drink arm (12i)
+                // The difficulty reads (Slice 19e): the peaceful sweep
+                // (MonsterEntity.tick) + the spawn gate (canSpawn).
+                mobs.setDifficultyRead(() -> difficulty);
                 // The leashes (Slice 11c): the knots + the per-tick walk.
                 leadSystem = new net.zaminmc.torch.server.leash.LeadSystem(
                         new LeadSurface(), KNOT_ID_BASE);
@@ -896,6 +899,10 @@ public final class EngineServer implements Server, EngineBridge {
                         new SpawnSurface(mobs, true),
                         new SpawnWorldQuery(netherWorld, true),
                         new java.util.Random(), true);
+                // The peaceful spawn gates (both dimensions — the
+                // reference's canSpawn consult).
+                naturalSpawns.setDifficultyRead(() -> difficulty);
+                naturalSpawnsNether.setDifficultyRead(() -> difficulty);
                 // Vehicles (§ vehicles slice): boats and minecarts on the
                 // shared body model; the engine owns the mounted rider.
                 VehicleManager vehicles = new VehicleManager(
@@ -2226,6 +2233,28 @@ public final class EngineServer implements Server, EngineBridge {
         if (session.gamemode() != GameMode.SURVIVAL
                 && session.gamemode() != GameMode.ADVENTURE) {
             return; // creative and spectator bodies carry no hunger
+        }
+        // The peaceful regen family (Slice 19e — PlayerEntity.tick lines
+        // 443-450): a heart a second and a food point a half-second —
+        // the difficulty's own mercy, before the exhaustion walk.
+        if (difficulty == 0) {
+            session.advancePeacefulTick();
+            boolean changed = false;
+            if (session.peacefulTick() % 20 == 0
+                    && session.health() < PlayerSession.MAX_HEALTH) {
+                session.setBody(Math.min(PlayerSession.MAX_HEALTH, session.health() + 1),
+                        session.food(), session.saturation());
+                changed = true;
+            }
+            if (session.peacefulTick() % 10 == 0 && session.food() < PlayerSession.MAX_FOOD) {
+                session.setBody(session.health(),
+                        Math.min(PlayerSession.MAX_FOOD, session.food() + 1),
+                        session.saturation());
+                changed = true;
+            }
+            if (changed) {
+                publishBodyChanged(session);
+            }
         }
         if (session.exhaustion() > PlayerSession.EXHAUSTION_COST) {
             session.setExhaustion(session.exhaustion() - PlayerSession.EXHAUSTION_COST);
@@ -9542,6 +9571,19 @@ public final class EngineServer implements Server, EngineBridge {
             float damage = (float) ((1 - dist / injuryRadius) * maxDamage);
             if (damage <= 0) {
                 continue;
+            }
+            // The difficulty's own scaling (Slice 19e — PlayerEntity.
+            // takeDamage lines 786-797 over the reference's scaled
+            // sources: the explosion family carries the whole ladder —
+            // peaceful never wounds, easy halves plus one, hard lifts a
+            // half — before the protection math sees the number.
+            if (difficulty == 0) {
+                continue; // the peaceful blast never wounds
+            }
+            if (difficulty == 1) {
+                damage = damage / 2.0f + 1.0f;
+            } else if (difficulty == 3) {
+                damage = damage * 1.5f;
             }
             // The reference Explosion walk: the victim's Blast Protection
             // shaves floor(damage * level * 0.15) off the raw blast number

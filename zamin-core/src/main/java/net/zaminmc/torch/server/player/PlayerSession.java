@@ -102,6 +102,7 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
     private volatile float saturation = DEFAULT_SATURATION;
     private float exhaustion;
     private int bodyTimer; // shared regen/starve cadence counter
+    private int peacefulTick; // the peaceful regen family's own clock (19e)
     private float fallDistance;
     private volatile boolean dead;
     // The /reply target: the name of the last player who /tell'd this one.
@@ -958,6 +959,16 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
 
     public int bodyTimer() {
         return bodyTimer;
+    }
+
+    /** Advances the peaceful clock (Slice 19e — the 20/10 regen cadences). */
+    public void advancePeacefulTick() {
+        peacefulTick++;
+    }
+
+    /** The peaceful clock's tick count (the mod-20 heal / mod-10 food). */
+    public int peacefulTick() {
+        return peacefulTick;
     }
 
     /** Starts the eat timer (simulation context; validated by the engine). */
