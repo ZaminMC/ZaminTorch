@@ -3074,3 +3074,53 @@ pin (174).
 Fresh suite: **925 green (832 core + 19 api + 74 protocol)**,
 `--max-workers=1` — two documented load flakes (the hopper cadence and
 the mob-integration clock, both green on the isolation re-runs).
+
+## Slice 18a — the blaze (the fortress's fire)
+
+**Scope**: BlazeEntity 1:1 + the fortress's own spawn overlay rows.
+
+**The kind** (61, the 0.6x1.8/20-health fire-immune hull): the 6.0
+ATTACK_DAMAGE, the xpDrop 10, and the drop correction — the
+`nextInt(2 + looting)` single BLAZE RODs (the item 369 + its wire row;
+the pre-18a row carried BLAZE_POWDER, the reference drops the rod).
+
+**The AttackGoal 1:1**: the step cycle's exact shape — the 60-tick
+charge (the fire-active flag rises on the wire's index-16 byte), the
+three fireball volleys six ticks apart (the `step > 1` gate — the
+reset writes 0 first, so the 4th never fires), the 100-tick cooldown
+with the fire off; the distance bands (d0 < 4 the 20-tick melee with
+the movement follow; d0 < 256 the stand-and-volley — only the look
+moves; beyond the follow walk).
+
+**The mobAiTick arms**: the water contact's DROWN 1.0 per tick, the
+eye-offset re-roll every 100 ticks (`0.5 + gaussian*3`), the hover rise
+(`velocityY += (0.3 - velocityY) * 0.3` toward a higher target's eye
+band), and the fall dampening (`velocityY *= 0.6` airborne and
+falling).
+
+**The fireball**: SmallFireballEntity's shooter ctor — the mid-band
+aim with the HORIZONTAL-only gaussian spread
+`sqrt(sqrt(d0)) * 0.5` + the ctor's own 0.4 per-axis tilt, the spawn at
+`y + height/2 + 0.5`, the world event 1009 at volume 2.0 (the clients
+play mob.ghast.fireball). The snowball's flat 3.0 against the blaze
+(SnowballEntity.onHit lines 26-29).
+
+**The fortress spawn overlay**: FORTRESS_MONSTER_ENTRIES (the blaze
+10/2-3, the pigman 5/4-4, the skeleton 10/4-4, the magma cube 3/4-4)
+consulted inside a fortress PIECE's bounds, or the START's envelope
+over nether bricks (NetherChunkGenerator.getSpawnEntries 1:1 — the
+new FortressStructure.insideBounds consult over the deterministic
+(seed, region) recompute, both arms).
+
+**The engine fix** the hover exposed: the grounded vertical zeroing
+now gates on `velocityY <= 0` — a positive write (the hover, an
+explosion's launch) lifts a grounded body (the reference's own move
+semantics: the ground only re-engages on a fall).
+
+**Tests**: BlazeEntityTest (7: the identity + the rod item, the charge
+cycle's exact tick family 1/61/67/73 + the fire flip + the 100-tick
+cooldown, the 20-tick melee cadence, the hover rise, the DROWN arm,
+the fall dampening, the sigma formula).
+
+Fresh suite: **932 green (839 core + 19 api + 74 protocol)**,
+`--max-workers=1`, zero failures.

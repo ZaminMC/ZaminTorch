@@ -1790,6 +1790,163 @@ public final class MobEntity implements LivingEntity {
         return golemTarget;
     }
 
+    // --------------------------------------------------------------
+    // The blaze (Slice 18a — BlazeEntity 1:1)
+    // --------------------------------------------------------------
+
+    /** AttackGoal's step: 0 idle, 1 charging, 2-4 the volleys, the reset. */
+    private int blazeStep;
+    /** AttackGoal's ticks: the countdown between the steps. */
+    private int blazeTicks;
+    /** mobAiTick's eyeOffset (re-rolled every 100 ticks around 0.5). */
+    private float blazeEyeOffset = 0.5F;
+    /** mobAiTick's fireActivation: the eye-offset re-roll clock. */
+    private int blazeFireActivation;
+    /** The fire-active flag (BlazeEntity's synced slot 16, bit 0). */
+    private boolean blazeFireActive;
+    /** Set when a fireball volley fires this tick; the manager consumes. */
+    private boolean pendingBlazeFireball;
+    /** Set when the fire-active flag flipped; the manager consumes. */
+    private boolean blazeFireDirty;
+
+    /**
+     * The blaze's own mind (BlazeEntity's goal set — no SwimGoal, no
+     * panic, no shared stroll: the AttackGoal at 4 over the wander family,
+     * so the custom mind preempts the standard goal layer): the reference's
+     * exact cycle (AttackGoal.tick lines 202-255) — inside 4 blocks the
+     * 20-tick melee with the movement follow, inside 256 the step cycle
+     * (the 60-tick charge with the fire-up, the three fireball volleys 6
+     * ticks apart, the 100-tick cooldown), beyond the plain follow walk.
+     * The mobAiTick arms run first (lines 109-128): the water drown, the
+     * eye-offset re-roll, and the hover rise toward a higher target.
+     */
+    private void tickBlazeMind(Position target, boolean canHunt) {
+        // mobAiTick lines 110-112: the water contact drowns the body
+        // (DROWN 1.0 per tick — the same shape the snow golem's melt
+        // rides).
+        if (world.inFluid(position.x(), position.y() + 0.2, position.z())) {
+            hurt(1.0f);
+        }
+
+        // mobAiTick lines 115-119: the eye-offset re-roll every 100 ticks.
+        if (--blazeFireActivation <= 0) {
+            blazeFireActivation = 100;
+            blazeEyeOffset = 0.5F + (float) random.nextGaussian() * 3.0F;
+        }
+
+        // mobAiTick lines 121-125: the hover rise — a target whose eye
+        // band sits above the blaze's own (plus the drifting offset)
+        // pulls the body up toward 0.3 (the player's eye 1.62 against the
+        // blaze's own height-scaled band).
+        if (target != null) {
+            double targetEye = target.y() + 1.62;
+            double ownEye = position.y() + eyeHeight() + blazeEyeOffset;
+            if (targetEye > ownEye) {
+                velocityY += (0.3 - velocityY) * 0.3;
+            }
+        }
+
+        if (target == null || !canHunt) {
+            // AttackGoal.stop() lines 197-199: the fire goes out; the
+            // wander family owns the idle band.
+            setBlazeFireActive(false);
+            goalTickIdleWander(target);
+            return;
+        }
+
+        double dx = target.x() - position.x();
+        double dy = target.y() - position.y();
+        double dz = target.z() - position.z();
+        double squared = dx * dx + dy * dy + dz * dz;
+        // The eyes stay on the target (setLookatValues 10.0F, 10.0F — the
+        // look control runs outside the distance arms too).
+        yaw = angleTo(dx, dz);
+        headYaw = yaw;
+
+        // AttackGoal.tick: the timer burns every tick first.
+        blazeTicks--;
+
+        if (squared < 4.0) {
+            // lines 206-212: the close melee (d0 < 4 — the two-block
+            // band) — the 20-tick cadence with the movement follow at the
+            // reference's own speed.
+            if (blazeTicks <= 0) {
+                blazeTicks = 20;
+                pendingMeleeAttack = true;
+            }
+            mode = Mode.CHASE;
+            tickPathFollowing(target);
+        } else if (squared < 256.0) {
+            // lines 213-248: the step cycle (d0 < 256 — the sixteen-block
+            // band). The blaze stands and volleys — only the look moves
+            // (the movement control never fires inside this band).
+            mode = Mode.IDLE;
+            clearPath();
+            if (blazeTicks <= 0) {
+                blazeStep++;
+                if (blazeStep == 1) {
+                    blazeTicks = 60;
+                    setBlazeFireActive(true);
+                } else if (blazeStep <= 4) {
+                    blazeTicks = 6;
+                } else {
+                    blazeTicks = 100;
+                    blazeStep = 0;
+                    setBlazeFireActive(false);
+                }
+                // lines 230-244: the volleys fire from step 2 on (the
+                // reference's own `step > 1` gate — the reset wrote 0
+                // first, so the 4th never fires).
+                if (blazeStep > 1) {
+                    pendingBlazeFireball = true;
+                }
+            }
+        } else {
+            // lines 249-251: beyond the volley band the navigation stops
+            // and the movement control follows the target.
+            mode = Mode.CHASE;
+            tickPathFollowing(target);
+        }
+    }
+
+    /** The synced fire-active flag's write (setFireActive lines 159-168). */
+    private void setBlazeFireActive(boolean active) {
+        if (blazeFireActive != active) {
+            blazeFireActive = active;
+            blazeFireDirty = true;
+        }
+    }
+
+    /** @return the fire-active flag (the synced slot-16 bit). */
+    public boolean blazeFireActive() {
+        return blazeFireActive;
+    }
+
+    /** @return and clears the fireball volley verdict. */
+    public boolean consumeBlazeFireball() {
+        boolean value = pendingBlazeFireball;
+        pendingBlazeFireball = false;
+        return value;
+    }
+
+    /** @return and clears the fire-flag flip verdict. */
+    public boolean consumeBlazeFireDirty() {
+        boolean value = blazeFireDirty;
+        blazeFireDirty = false;
+        return value;
+    }
+
+    /**
+     * The blaze's fireball aim (AttackGoal.tick lines 214-216 + 234-243):
+     * the raw direction toward the target's MID band (the shape's minY +
+     * height/2 minus the blaze's own mid), with the per-volley gaussian
+     * spread sigma {@code sqrt(sqrt(d0)) * 0.5} on the HORIZONTAL pair
+     * only — the vertical component stays exact.
+     */
+    public double blazeFireballSigma(double squared) {
+        return Math.sqrt(Math.sqrt(squared)) * 0.5;
+    }
+
     /**
      * @return the iron golem's heavy hit ({@code 7 + nextInt(15)} —
      * tryDamage line 202).
@@ -3226,6 +3383,13 @@ public final class MobEntity implements LivingEntity {
             tickSnowGolemMind();
             return;
         }
+        // The blaze's own mind (18a — the AttackGoal family): the volley
+        // cycle, the melee close-in, and the mobAiTick arms (the drown,
+        // the eye-offset clock, the hover rise).
+        if (type == MobType.BLAZE) {
+            tickBlazeMind(target, canHunt);
+            return;
+        }
 
         // The goal layer (the community PathfinderGoal architecture): float
         // and panic claim the body first, the stroll cycle only when no hunt
@@ -4042,6 +4206,14 @@ public final class MobEntity implements LivingEntity {
                 && ++cactusDamageTimer % 10 == 0) {
             hurt(1.0f);
         }
+        // The blaze's fall dampening (BlazeEntity.mobTick lines 79-82): an
+        // airborne falling body drifts at 60% per tick before the gravity
+        // arm — the hover's descent stays slow (takeFallDamage's empty
+        // override means the landing never hurts; the engine's mob body
+        // carries no fall damage to suppress).
+        if (type == MobType.BLAZE && !onGround && velocityY < 0.0) {
+            velocityY *= 0.6;
+        }
         // Vertical: gravity + ground snap (the item-entity model). A body in
         // fluid sinks slowly and bobs (the historical fluid buoyancy).
         boolean inFluid = world.inFluid(position.x(), position.y() + 0.2, position.z());
@@ -4050,7 +4222,11 @@ public final class MobEntity implements LivingEntity {
         }
         if (inFluid) {
             velocityY = Math.max(velocityY - GRAVITY_PER_TICK, -0.05) * 0.8;
-        } else if (onGround) {
+        } else if (onGround && velocityY <= 0.0) {
+            // A grounded body at rest carries no vertical speed — but a
+            // POSITIVE write (the blaze's hover, an explosion's launch)
+            // lifts it off the ground (the reference's own move
+            // semantics: the ground only re-engages on a fall).
             velocityY = 0.0;
         } else {
             velocityY = (velocityY - GRAVITY_PER_TICK) * 0.98;

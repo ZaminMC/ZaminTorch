@@ -113,4 +113,38 @@ public final class FortressStructure {
             }
         }
     }
+
+    /**
+     * The spawn consult (Slice 18a — the reference's
+     * FortressStructure.isInside + isInsideBounds over the generated
+     * starts, mirrored through the engine's deterministic recompute): the
+     * strict arm answers a PIECE's own bounds (the reference's
+     * findStructure walk — the pieces' boxes over the start's envelope);
+     * the relaxed arm answers the START's bounds alone (the caller gates
+     * it on the nether-brick floor, the reference's own second clause in
+     * NetherChunkGenerator.getSpawnEntries). Deterministic in (seed,
+     * region) alone — the same starts populate walks.
+     */
+    public boolean insideBounds(StructureWorld world, int x, int y, int z, boolean strict) {
+        int chunkX = x >> 4;
+        int chunkZ = z >> 4;
+        for (int regionX = chunkX - RANGE; regionX <= chunkX + RANGE; regionX++) {
+            for (int regionZ = chunkZ - RANGE; regionZ <= chunkZ + RANGE; regionZ++) {
+                StructureStart start = createStart(regionX, regionZ, world);
+                if (start == null || start.getBounds() == null
+                        || !start.getBounds().contains(x, y, z)) {
+                    continue;
+                }
+                if (!strict) {
+                    return true; // the start's envelope alone
+                }
+                for (StructurePiece piece : start.getPieces()) {
+                    if (piece.getBounds().contains(x, y, z)) {
+                        return true; // the reference's piece walk
+                    }
+                }
+            }
+        }
+        return false;
+    }
 }

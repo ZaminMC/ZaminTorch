@@ -340,6 +340,32 @@ public final class ProjectileManager {
         return projectile;
     }
 
+    /**
+     * Launches the blaze's volley fireball (Slice 18a —
+     * BlazeEntity.AttackGoal lines 234-243 over SmallFireballEntity's
+     * shooter ctor): the aim direction picks up the HORIZONTAL-only
+     * gaussian spread ({@code sigma = sqrt(sqrt(d0)) * 0.5} — the x/z
+     * pair, the vertical stays exact), then the ctor's own 0.4-sigma
+     * per-axis tilt, then normalizes into the 0.1 acceleration. The
+     * thrower's id rides the body for the hit credit. Tick-thread context.
+     */
+    public ProjectileEntity launchBlazeFireball(int throwerId, Position origin,
+                                                 double directionX, double directionY,
+                                                 double directionZ, double spread) {
+        ProjectileEntity projectile = new ProjectileEntity(nextEntityId++,
+                ProjectileEntity.Kind.SMALL_FIREBALL, throwerId, origin,
+                0.0, 0.0, 0.0);
+        projectile.setAccelerationFromDirection(
+                directionX + random.nextGaussian() * spread + random.nextGaussian() * 0.4,
+                directionY + random.nextGaussian() * 0.4,
+                directionZ + random.nextGaussian() * spread + random.nextGaussian() * 0.4);
+        projectiles.add(projectile);
+        for (Listener listener : listeners) {
+            listener.onProjectileSpawned(projectile);
+        }
+        return projectile;
+    }
+
     /** One physics pass over every projectile. Tick-thread context. */
     public void tick() {
         // Backward index walk: removals mid-tick (shatter, hit, expiry) shift
@@ -520,6 +546,12 @@ public final class ProjectileManager {
             // flat 6.0 fireball hit, then the explosion lands below (the
             // fireball's own detonation, at the impact).
             damage = 6.0f;
+        }
+        if (projectile.kind() == ProjectileEntity.Kind.SNOWBALL
+                && mob.type() == net.zaminmc.torch.server.entity.MobType.BLAZE) {
+            // SnowballEntity.onHit lines 26-29: the blaze pays the flat
+            // three for every snowball — the fire family's own bruise.
+            damage = 3.0f;
         }
         double kbYaw = Math.atan2(-projectile.velocityX(), projectile.velocityZ());
         boolean landed = combat.mobHit(mob, damage, kbYaw, projectile.throwerId());

@@ -2606,6 +2606,12 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             // the client raises the mouth open from it.
             out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | Protocol18.KIND_STATUS_METADATA_INDEX);
             out.writeByte(mob.ghastCharging() ? 1 : 0);
+        } else if (mob.type() == net.zaminmc.torch.server.entity.MobType.BLAZE) {
+            // The blaze's fire-active flag (BlazeEntity's synced slot 16,
+            // bit 0 — registerSyncedData line 50): the client raises the
+            // burning rods from it.
+            out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | Protocol18.KIND_STATUS_METADATA_INDEX);
+            out.writeByte(mob.blazeFireActive() ? 1 : 0);
         } else if (mob.type() == net.zaminmc.torch.server.entity.MobType.BAT) {
             // The bat's roosting flag (BatEntity's synced slot 16, bit 0):
             // the client raises the hanging pose from it.
@@ -2892,6 +2898,25 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeVarInt(out, mob.entityId());
         out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | Protocol18.KIND_STATUS_METADATA_INDEX);
         out.writeByte(mob.ghastCharging() ? 1 : 0);
+        out.writeByte(Protocol18.METADATA_TERMINATOR);
+        channel.writeAndFlush(out);
+    }
+
+    /**
+     * Set Entity Metadata (0x1C) for the blaze's index-16 byte: the
+     * fire-active flag flip (the client raises the burning rods). Any
+     * thread.
+     */
+    void sendBlazeFire(MobEntity mob) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(12);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_ENTITY_METADATA);
+        ByteBufOps.writeVarInt(out, mob.entityId());
+        out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | Protocol18.KIND_STATUS_METADATA_INDEX);
+        out.writeByte(mob.blazeFireActive() ? 1 : 0);
         out.writeByte(Protocol18.METADATA_TERMINATOR);
         channel.writeAndFlush(out);
     }

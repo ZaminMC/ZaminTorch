@@ -224,6 +224,10 @@ public final class BuiltinItems {
             Identifier.parse("minecraft:fermented_spider_eye"), "Fermented Spider Eye", 64);
     public static final EngineItemType BLAZE_POWDER = new EngineItemType(
             Identifier.parse("minecraft:blaze_powder"), "Blaze Powder", 64);
+    // The blaze's own drop (Slice 18a — the reference's Item.java line for
+    // the rod, id 369): the plain material, stack 64.
+    public static final EngineItemType BLAZE_ROD = new EngineItemType(
+            Identifier.parse("minecraft:blaze_rod"), "Blaze Rod", 64);
     public static final EngineItemType MAGMA_CREAM = new EngineItemType(
             Identifier.parse("minecraft:magma_cream"), "Magma Cream", 64);
     public static final EngineItemType GLISTERING_MELON = new EngineItemType(
@@ -628,6 +632,7 @@ public final class BuiltinItems {
                 DISPENSER, DROPPER, FIRE_CHARGE, POTION, GLASS_BOTTLE,
                 GHAST_TEAR, NETHER_WART, SPIDER_EYE, FERMENTED_SPIDER_EYE,
                 BLAZE_POWDER, MAGMA_CREAM, GLISTERING_MELON, RABBIT_FOOT,
+                BLAZE_ROD,
                 RABBIT, COOKED_RABBIT, RABBIT_STEW, RABBIT_HIDE,
                 BOWL, MUSHROOM_STEW,
                 SNOW_BLOCK, SNOW_LAYER, IRON_BLOCK, PUMPKIN, LIT_PUMPKIN,
