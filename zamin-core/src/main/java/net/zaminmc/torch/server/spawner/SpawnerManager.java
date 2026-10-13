@@ -86,7 +86,8 @@ public final class SpawnerManager {
             this.dimension = dimension;
         }
 
-        int delay() {
+        /** @return the remaining spawn-delay ticks (the public read surface's own). */
+        public int delay() {
             return delay;
         }
 

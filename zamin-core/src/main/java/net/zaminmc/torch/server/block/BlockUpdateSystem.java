@@ -154,6 +154,81 @@ public final class BlockUpdateSystem implements WorldChangeListener {
         queue.add(new Scheduled(position, dueTick));
     }
 
+    // ------------------------------------------------------------------
+    // The public §27.3 scheduled-tick surface (the query/cancel/request
+    // arms the API's ScheduledUpdates view rides). The queries copy the
+    // tick-confined structures; the mutations run on the world's own
+    // authoritative context (the view asserts it).
+    // ------------------------------------------------------------------
+
+    /** @return a copy of the pending neighbor updates in queue order. */
+    public java.util.List<ScheduledTickView> pendingUpdates() {
+        java.util.List<ScheduledTickView> copy = new java.util.ArrayList<>(queue.size());
+        for (Scheduled entry : queue) {
+            copy.add(new ScheduledTickView(entry.position(), entry.dueTick()));
+        }
+        return copy;
+    }
+
+    /** @return a copy of the pending gravity fuses in fuse order. */
+    public java.util.List<ScheduledTickView> pendingFallChecksView() {
+        java.util.List<ScheduledTickView> copy = new java.util.ArrayList<>(fallChecks.size());
+        for (FallCheck entry : fallChecks) {
+            copy.add(new ScheduledTickView(entry.position(), entry.dueTick()));
+        }
+        return copy;
+    }
+
+    /** @return the pending neighbor update for the position, or null. */
+    public ScheduledTickView pendingUpdateAt(BlockPosition position) {
+        for (Scheduled entry : queue) {
+            if (entry.position().equals(position)) {
+                return new ScheduledTickView(entry.position(), entry.dueTick());
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Cancels the position's pending neighbor update (tick-thread
+     * context — the public view asserts the world's ownership).
+     *
+     * @return whether a pending update was cancelled
+     */
+    public boolean cancelUpdate(BlockPosition position) {
+        if (pending.remove(key(position))) {
+            queue.removeIf(entry -> entry.position().equals(position));
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Cancels the position's pending gravity fuse.
+     *
+     * @return whether a pending fuse was cancelled
+     */
+    public boolean cancelFallCheck(BlockPosition position) {
+        if (pendingFallChecks.remove(key(position))) {
+            fallChecks.removeIf(entry -> entry.position().equals(position));
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Requests a neighbor update for the position due the current tick
+     * (the engine's own schedule arm — a cell already pending keeps its
+     * earlier due tick).
+     */
+    public void requestUpdate(BlockPosition position) {
+        schedule(position, world.totalTicks());
+    }
+
+    /** The immutable public view of one pending scheduled tick. */
+    public record ScheduledTickView(BlockPosition position, long dueTick) {
+    }
+
     /**
      * Runs every update due this tick. Tick-thread context; called from the
      * engine's tick handler after the work queue drained (a commit schedules
