@@ -566,10 +566,28 @@ public final class MobEntity implements LivingEntity {
 
     /** The villager's profession (the DataWatcher index-16 Int, 0-4). */
     private int profession;
-    /** The villager's stock offers (the trade list the client renders). */
-    private TradeOffer[] offers = new TradeOffer[0];
-    /** The use counters, parallel to {@link #offers} (the grey-out budget). */
+    /**
+     * The villager's stock offers (the trade list the client renders) —
+     * grown by the levelUp walk, one level's rows at a time.
+     */
+    private final java.util.List<TradeOffer> villagerStock = new java.util.ArrayList<>();
+    /** The use counters, parallel to the stock (the grey-out budget). */
     private int[] offerUses = new int[0];
+    /** The live use budgets, parallel to the stock (the level-up's own
+     * extension — {@code increaseMaxUses} grows them past the fresh 7). */
+    private int[] offerMaxUses = new int[0];
+    /** The career (0 until the first open rolls it — VillagerEntity.career). */
+    private int villagerCareer;
+    /** The career's level (0 until the first open; grows on the level-ups). */
+    private int villagerCareerLevel;
+    /** The level-up countdown (mobAiTick's 40-tick walk, 0 idle). */
+    private int villagerLevelUpCountdown;
+    /** Whether the pending countdown ends in a level-up (the trade's flag). */
+    private boolean villagerLevelUp;
+    /** The mating willingness (the food arm's flag — Slice 21g's ledger). */
+    private boolean villagerWilling;
+    /** The villager's riches (the emerald payments absorbed, career XP). */
+    private int villagerRiches;
 
     public MobEntity(int entityId, MobType type, Position position,
                      Random random, WorldQuery world) {
@@ -592,13 +610,12 @@ public final class MobEntity implements LivingEntity {
                     ? HORSE_SUBTYPE_DONKEY : HORSE_SUBTYPE_HORSE;
             this.variant = random.nextInt(7) | random.nextInt(5) << 8;
         }
-        // The villager's career and stock: profession 0-4 (the DataWatcher
-        // Int), the offers from the fixed career table (the trade slice).
+        // The villager's profession (VillagerEntity.initialize line 808:
+        // {@code world.random.nextInt(5)}): the career and its stock roll
+        // LAZILY at the first trade open (getOffers → levelUp — the
+        // reference's own traderOffers == null gate).
         if (type == MobType.VILLAGER) {
             this.profession = random.nextInt(5);
-            java.util.List<TradeOffer> stock = VillagerTrades.offersFor(profession);
-            this.offers = stock.toArray(new TradeOffer[0]);
-            this.offerUses = new int[offers.length];
         }
     }
 
@@ -606,16 +623,19 @@ public final class MobEntity implements LivingEntity {
      * The villager's career override (Slice 12b — the reference's
      * VillagePieces spawnVillagers → setProfession): the structure-spawned
      * villagers carry their building's profession (the blacksmith house's
-     * 3, the priest's 2, ...); the stock offers re-roll to match.
+     * 3, the priest's 2, ...); the career state resets so the first open
+     * rolls against the new profession's table.
      */
     public void setVillagerProfession(int profession) {
         if (type != MobType.VILLAGER) {
             return;
         }
         this.profession = Math.max(0, Math.min(4, profession));
-        java.util.List<TradeOffer> stock = VillagerTrades.offersFor(this.profession);
-        this.offers = stock.toArray(new TradeOffer[0]);
-        this.offerUses = new int[offers.length];
+        villagerStock.clear();
+        offerUses = new int[0];
+        offerMaxUses = new int[0];
+        villagerCareer = 0;
+        villagerCareerLevel = 0;
     }
 
     public int entityId() {
@@ -4031,9 +4051,48 @@ public final class MobEntity implements LivingEntity {
         return profession;
     }
 
-    /** @return the villager's stock offers (the trade list the client renders). */
+    /** @return the villager's career (0 until the first open rolls it). */
+    public int villagerCareer() {
+        return villagerCareer;
+    }
+
+    /** @return the career's level (0 until the first open; grows per level-up). */
+    public int villagerCareerLevel() {
+        return villagerCareerLevel;
+    }
+
+    /**
+     * getOffers (lines 633-639): the first consult rolls the career and its
+     * opening level — the lazy stock the reference's {@code traderOffers ==
+     * null} gate carries.
+     */
     public TradeOffer[] offers() {
-        return offers;
+        if (villagerStock.isEmpty() && type == MobType.VILLAGER) {
+            villagerLevelUp();
+        }
+        return villagerStock.toArray(new TradeOffer[0]);
+    }
+
+    /**
+     * levelUp (lines 650-673): the first walk rolls the career
+     * ({@code nextInt(careers) + 1}) at level 1; every later walk advances
+     * the level and appends that level's rolled rows to the standing stock.
+     */
+    void villagerLevelUp() {
+        if (villagerCareer != 0 && villagerCareerLevel != 0) {
+            villagerCareerLevel++;
+        } else {
+            villagerCareer = random.nextInt(VillagerTrades.careerCount(profession)) + 1;
+            villagerCareerLevel = 1;
+        }
+        for (VillagerTrades.TradeSource source : VillagerTrades.levelRows(
+                profession, villagerCareer, villagerCareerLevel)) {
+            TradeOffer offer = source.provide(random);
+            villagerStock.add(offer);
+            offerUses = java.util.Arrays.copyOf(offerUses, offerUses.length + 1);
+            offerMaxUses = java.util.Arrays.copyOf(offerMaxUses, offerMaxUses.length + 1);
+            offerMaxUses[offerMaxUses.length - 1] = offer.maxUses();
+        }
     }
 
     /** @return the use counter of the offer at the index. */
@@ -4044,12 +4103,48 @@ public final class MobEntity implements LivingEntity {
         return offerUses[index];
     }
 
+    /** @return the live use budget of the offer (the level-up's extension included). */
+    public int offerMaxUses(int index) {
+        if (index < 0 || index >= offerMaxUses.length) {
+            throw new IllegalArgumentException("Offer index out of range: " + index);
+        }
+        return offerMaxUses[index];
+    }
+
     /** @return whether the offer still trades (the use budget not spent out). */
     public boolean offerAvailable(int index) {
-        if (index < 0 || index >= offers.length) {
+        if (index < 0 || index >= offerUses.length) {
             return false;
         }
-        return offerUses[index] < offers[index].maxUses();
+        return offerUses[index] < offerMaxUses[index];
+    }
+
+    /**
+     * The trade's own bookkeeping (VillagerEntity.trade lines 604-633): the
+     * use charges, and on the first use or the 1-in-5 roll the 40-tick
+     * level-up countdown arms with the flag; the emerald payments absorb
+     * into the riches.
+     *
+     * @return the XP the trade pays out ({@code 3 + nextInt(4)}, the
+     * level-up arm's +5 included) — the caller spawns the orb.
+     */
+    public int villagerTrade(int index) {
+        if (index < 0 || index >= offerUses.length) {
+            throw new IllegalArgumentException("Offer index out of range: " + index);
+        }
+        offerUses[index]++; // offer.use()
+        int xp = 3 + random.nextInt(4);
+        TradeOffer offer = villagerStock.get(index);
+        if (offerUses[index] == 1 || random.nextInt(5) == 0) {
+            villagerLevelUpCountdown = 40;
+            villagerLevelUp = true;
+            villagerWilling = true;
+            xp += 5;
+        }
+        if (offer.buy1().type() == net.zaminmc.torch.server.item.BuiltinItems.EMERALD) {
+            villagerRiches += offer.buy1().count();
+        }
+        return xp;
     }
 
     /** Charges one use off the offer (the execution's bookkeeping). */
@@ -4058,6 +4153,48 @@ public final class MobEntity implements LivingEntity {
             throw new IllegalArgumentException("Offer index out of range: " + index);
         }
         offerUses[index]++;
+    }
+
+    /** @return the villager's riches (the absorbed emerald payments). */
+    public int villagerRiches() {
+        return villagerRiches;
+    }
+
+    /** @return whether the villager is willing to mate (the food arm's flag). */
+    public boolean villagerWilling() {
+        return villagerWilling;
+    }
+
+    /**
+     * mobAiTick's level-up walk (VillagerEntity lines 377-405): with no
+     * customer standing, the countdown burns down; at zero the armed
+     * level-up lands — every SPENT-OUT offer's budget grows by
+     * {@code nextInt(6) + nextInt(6) + 2} (the re-greens), the career's
+     * next level appends — then the regeneration effect window (the
+     * engine's mob-side effects ledger with the potion-on-mob family).
+     * Called from the manager's tick (the villager branch).
+     */
+    public void tickVillagerLevelUp() {
+        if (villagerLevelUpCountdown <= 0) {
+            return;
+        }
+        villagerLevelUpCountdown--;
+        if (villagerLevelUpCountdown > 0) {
+            return;
+        }
+        if (villagerLevelUp) {
+            for (int i = 0; i < offerUses.length; i++) {
+                if (offerUses[i] >= offerMaxUses[i]) {
+                    offerMaxUses[i] += random.nextInt(6) + random.nextInt(6) + 2;
+                }
+            }
+            villagerLevelUp();
+            villagerLevelUp = false;
+            // The event-14 happy burst + the village reputation ride the
+            // village system the engine does not carry (ledgered).
+        }
+        // The 200-tick Regeneration window rides the mob-side effect
+        // family (the witch's own model) — ledgered.
     }
 
     /** @return whether this kind trades (the villager). */

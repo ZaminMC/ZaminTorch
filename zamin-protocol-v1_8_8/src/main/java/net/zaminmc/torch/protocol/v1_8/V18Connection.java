@@ -1883,18 +1883,18 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBuf payload = Unpooled.buffer(64);
         payload.writeInt(windowId); // the plain int (not a varint — the 1.8 quirk)
         payload.writeByte(offers.length);
-        for (net.zaminmc.torch.server.entity.TradeOffer offer : offers) {
+        for (int i = 0; i < offers.length; i++) {
+            net.zaminmc.torch.server.entity.TradeOffer offer = offers[i];
             writeSlot(payload, offer.buy1());
             writeSlot(payload, offer.result());
             payload.writeBoolean(offer.hasSecondBuy());
             if (offer.hasSecondBuy()) {
                 writeSlot(payload, offer.buy2());
             }
-            boolean spentOut = !villager.offerAvailable(
-                    java.util.Arrays.asList(offers).indexOf(offer));
+            boolean spentOut = !villager.offerAvailable(i);
             payload.writeBoolean(spentOut); // disabled (the greyed row)
-            payload.writeInt(spentOut ? offer.maxUses() : 0); // uses
-            payload.writeInt(offer.maxUses());
+            payload.writeInt(villager.offerUses(i)); // uses (the live count)
+            payload.writeInt(villager.offerMaxUses(i)); // maxUses (the extended budget)
         }
         ByteBuf out = Unpooled.buffer(24 + payload.readableBytes());
         ByteBufOps.writeVarInt(out, Protocol18.S2C_PLUGIN_MESSAGE);

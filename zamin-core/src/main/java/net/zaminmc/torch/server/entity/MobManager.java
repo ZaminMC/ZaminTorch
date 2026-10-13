@@ -1014,6 +1014,27 @@ public final class MobManager {
                             2.0F, pitch * 1.8F);
                 }
             }
+            // The villager's level-up countdown (Slice 21g —
+            // VillagerEntity.mobAiTick lines 377-405): with no customer
+            // standing the countdown burns; at zero the armed level-up
+            // re-greens the spent-out offers and appends the career's
+            // next level. The customer gate (the reference's
+            // {@code !hasCustomer()} read): an open trade window on this
+            // body holds the walk.
+            if (mob.type() == MobType.VILLAGER) {
+                boolean customerStanding = false;
+                for (PlayerSession player : players) {
+                    if (player.state() == net.zaminmc.torch.entity.PlayerState.PLAYING
+                            && player.openContainerKind() == PlayerSession.ContainerKind.VILLAGER
+                            && player.containerMountId() == mob.entityId()) {
+                        customerStanding = true;
+                        break;
+                    }
+                }
+                if (!customerStanding) {
+                    mob.tickVillagerLevelUp();
+                }
+            }
             // The pigman's attacker re-acquisition (Slice 21e —
             // ZombiePigmanEntity.mobAiTick lines 79-83): while the anger
             // window burns and the named attacker is live, the revenge
