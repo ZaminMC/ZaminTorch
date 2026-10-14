@@ -189,6 +189,15 @@ public abstract class VehicleEntity implements net.zaminmc.torch.entity.Vehicle 
         health -= amount;
     }
 
+    /**
+     * The restore's health carry (Slice 25g — the ZVD payload lands the
+     * saved health back on the fresh body, clamped inside the family's
+     * own 4.0 ceiling).
+     */
+    public void setHealthCarried(float restored) {
+        this.health = Math.max(0.0f, Math.min(MAX_HEALTH, restored));
+    }
+
     public void tickHurtCooldown() {
         if (hurtCooldown > 0) {
             hurtCooldown--;
