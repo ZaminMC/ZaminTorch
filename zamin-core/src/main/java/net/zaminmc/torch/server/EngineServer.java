@@ -302,6 +302,8 @@ public final class EngineServer implements Server, EngineBridge {
     private ExperienceOrbManager experienceOrbs;
     private net.zaminmc.torch.server.world.light.LightEngine lightEngine;
     private MobDataStore mobStore;
+    /** The vehicles' persistence store (Slice 25g — the ZVD format). */
+    private net.zaminmc.torch.server.entity.vehicle.VehicleDataStore vehicleStore;
     /** The operator registry (ops.json); loaded at boot, rewritten on /op and /deop. */
     private OpStore opStore = OpStore.load(java.nio.file.Path.of("ops.json"));
     /** The ban registry (banned-players.json) and the whitelist roster. */
@@ -1364,6 +1366,13 @@ public final class EngineServer implements Server, EngineBridge {
                 this.vehicleManager = vehicles;
                 vehicles.setEventBus(eventBus); // §27.7: the public vehicle spawn gate
                 vehicles.addListener(new VehicleEventDispatch());
+                // Vehicle persistence (Slice 25g — the ZVD store): the
+                // whole family's pre-25g gap closes — the carts (and the
+                // chest minecart's cargo) survive restarts like the mobs,
+                // the chests, and the furnaces.
+                vehicleStore = new net.zaminmc.torch.server.entity.vehicle.VehicleDataStore(
+                        config.worldDataDir().resolve("vehicles.bin"));
+                vehicles.restoreAll(vehicleStore.load());
                 // The public §27.3 entity-family views: the five engine
                 // populations captured as stable point-in-time copies (the
                 // managers' all() contract) behind the World interface.
@@ -12665,6 +12674,9 @@ public final class EngineServer implements Server, EngineBridge {
                 }
                 if (mobStore != null && mobManager != null) {
                     mobStore.save(mobManager.snapshot());
+                }
+                if (vehicleStore != null && vehicleManager != null) {
+                    vehicleStore.save(vehicleManager.snapshot());
                 }
             } finally {
                 saved.countDown();

@@ -187,6 +187,79 @@ public final class VehicleManager {
     }
 
     /**
+     * The persistable view of one live vehicle (Slice 25g's ZVD payload):
+     * kind, position, facing, remaining health, and the chest minecart's
+     * 27-slot cargo (null for the other kinds). Broken bodies are not
+     * captured.
+     */
+    public record VehicleSnapshot(String kind, double x, double y, double z, float yaw,
+                                  float health,
+                                  net.zaminmc.torch.item.ItemStack[] cargo) {
+    }
+
+    /** @return the persistable snapshot of every live vehicle. Tick-thread context. */
+    public List<VehicleSnapshot> snapshot() {
+        List<VehicleSnapshot> saved = new ArrayList<>();
+        for (VehicleEntity vehicle : vehicles) {
+            if (vehicle.dead()) {
+                continue;
+            }
+            Position at = vehicle.position();
+            net.zaminmc.torch.item.ItemStack[] cargo = null;
+            if (vehicle instanceof ChestMinecartEntity cart) {
+                cargo = cart.chest().snapshotSlots();
+            }
+            saved.add(new VehicleSnapshot(vehicle.kind().name(), at.x(), at.y(), at.z(),
+                    vehicle.rotation().yaw(), vehicle.health(), cargo));
+        }
+        return saved;
+    }
+
+    /**
+     * Restores the saved population (Slice 25g — the whole vehicle family's
+     * pre-25g gap closes: the carts never carried a store). Unknown kinds
+     * drop with a warning; the spawn gate rides the spawn verbs like every
+     * arrival. Returns whether any vehicle was restored.
+     */
+    public boolean restoreAll(List<VehicleSnapshot> saved) {
+        Objects.requireNonNull(saved, "saved");
+        boolean any = false;
+        for (VehicleSnapshot snapshot : saved) {
+            VehicleEntity.Kind kind;
+            try {
+                kind = VehicleEntity.Kind.valueOf(snapshot.kind());
+            } catch (IllegalArgumentException unknownKind) {
+                continue;
+            }
+            Position at = new Position(snapshot.x(), snapshot.y(), snapshot.z());
+            VehicleEntity restored;
+            switch (kind) {
+                case BOAT -> restored = spawnBoat(at);
+                case MINECART -> restored = spawnMinecart(at);
+                case CHEST_MINECART -> restored = spawnChestMinecart(at);
+                default -> {
+                    continue;
+                }
+            }
+            if (restored != null) {
+                restored.setHealthCarried(snapshot.health());
+                if (snapshot.cargo() != null && restored instanceof ChestMinecartEntity cart) {
+                    for (int slot = 0; slot < snapshot.cargo().length
+                            && slot < net.zaminmc.torch.server.chest.ChestBlockEntity.SLOT_COUNT;
+                            slot++) {
+                        net.zaminmc.torch.item.ItemStack stack = snapshot.cargo()[slot];
+                        if (stack != null && !stack.isEmpty()) {
+                            cart.chest().setSlot(slot, stack);
+                        }
+                    }
+                }
+                any = true;
+            }
+        }
+        return any;
+    }
+
+    /**
      * The tick: steering rides the passenger's input, the body follows its
      * kind's rules, the mounted rider's state rides along (the engine owns
      * the player position while the seat is taken), and the void consumes.
