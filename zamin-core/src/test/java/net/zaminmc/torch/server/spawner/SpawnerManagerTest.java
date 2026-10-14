@@ -137,6 +137,13 @@ class SpawnerManagerTest {
         // The mirror: an overworld spawner whose world lost the block leaves.
         net.zaminmc.torch.block.BlockPosition gonePos =
                 new net.zaminmc.torch.block.BlockPosition(64, 64, 64);
+        // The block-gone discard only decides on a LOADED chunk (the
+        // restart rule — an unloaded chunk's spawner freezes like every
+        // other vanilla block entity): load the chunk with a passing
+        // stone, then leave air behind — the creative-break shape.
+        overworld.setBlock(gonePos,
+                net.zaminmc.torch.server.block.BuiltinBlocks.STONE);
+        overworld.setBlock(gonePos, overworld.airType());
         SpawnerManager.MobSpawnerBlockEntity gone = spawners.getOrCreate(0, gonePos);
         gone.setType(MobType.ZOMBIE);
         gone.setDelay(100);

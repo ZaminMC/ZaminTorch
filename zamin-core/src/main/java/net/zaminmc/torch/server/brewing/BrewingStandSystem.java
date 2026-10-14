@@ -116,7 +116,14 @@ public final class BrewingStandSystem {
             BlockPosition position = entry.getKey();
             BrewingStandBlockEntity stand = entry.getValue();
             if (!BrewingStandBlocks.isBrewingStand(world.getBlock(position))) {
-                return true; // block gone: state discarded
+                // The block-gone discard only decides on a LOADED chunk —
+                // an unloaded chunk reads as air, but the vanilla block
+                // entity freezes there (the restored state of a stand
+                // outside the spawn area survives the restart).
+                return world.isChunkLoadedAt(position);
+            }
+            if (!world.isChunkLoadedAt(position)) {
+                return false; // frozen: an unloaded chunk's stand does not brew
             }
             int beforeSlots = stand.slotsSerial();
             stand.tick();

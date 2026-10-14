@@ -194,14 +194,25 @@ public final class HopperSystem implements WorldChangeListener {
      * discarded (the creative-break path leaves no spill).
      */
     public void tick() {
+        // The creative-break sweep: discard state only when its chunk is
+        // LOADED and the block there is genuinely not a hopper. An unloaded
+        // chunk reads as air, but the vanilla block-entity contract keeps
+        // the state frozen until the chunk returns (the restored state of
+        // a hopper outside the spawn area must survive the restart — the
+        // first-tick eviction closed).
         hoppers.entrySet().removeIf(entry ->
-                !HopperBlocks.isHopper(world.getBlock(entry.getKey())));
+                world.isChunkLoadedAt(entry.getKey())
+                        && !HopperBlocks.isHopper(world.getBlock(entry.getKey())));
         for (Map.Entry<BlockPosition, HopperBlockEntity> entry : List.copyOf(
                 new ArrayList<>(hoppers.entrySet()))) {
+            BlockPosition position = entry.getKey();
             HopperBlockEntity hopper = entry.getValue();
+            if (!world.isChunkLoadedAt(position)) {
+                continue; // frozen: an unloaded chunk's hopper neither cools nor transfers
+            }
             hopper.tickCooldown();
             if (!hopper.isOnCooldown()) {
-                transferItems(entry.getKey(), hopper);
+                transferItems(position, hopper);
             }
         }
     }

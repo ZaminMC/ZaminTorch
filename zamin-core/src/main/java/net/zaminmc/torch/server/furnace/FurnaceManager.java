@@ -117,7 +117,14 @@ public final class FurnaceManager {
             BlockPosition position = entry.getKey();
             FurnaceBlockEntity furnace = entry.getValue();
             if (!isFurnaceBlock(world, position)) {
-                return true; // block gone: state discarded (creative break path)
+                // The block-gone discard only decides on a LOADED chunk —
+                // an unloaded chunk reads as air, but the vanilla block
+                // entity freezes there (the restored state of a furnace
+                // outside the spawn area survives the restart).
+                return world.isChunkLoadedAt(position);
+            }
+            if (!world.isChunkLoadedAt(position)) {
+                return false; // frozen: an unloaded chunk's furnace does not smelt
             }
             int beforeSlots = furnace.slotsSerial();
             boolean wasBurning = furnace.burning();

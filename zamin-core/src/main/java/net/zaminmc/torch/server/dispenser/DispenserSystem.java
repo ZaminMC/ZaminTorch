@@ -687,9 +687,14 @@ public final class DispenserSystem implements WorldChangeListener {
         redstone.wakeComparators(position);
     }
 
-    /** The per-tick sweep: state whose block left the family discards. */
+    /**
+     * The per-tick sweep: state whose block left the family discards — but
+     * only on a LOADED chunk (an unloaded chunk reads as air; the vanilla
+     * block entity freezes there, so restored state survives the restart).
+     */
     public void tick() {
         containers.entrySet().removeIf(entry ->
-                !DispenserBlocks.isFamily(world.getBlock(entry.getKey())));
+                world.isChunkLoadedAt(entry.getKey())
+                        && !DispenserBlocks.isFamily(world.getBlock(entry.getKey())));
     }
 }

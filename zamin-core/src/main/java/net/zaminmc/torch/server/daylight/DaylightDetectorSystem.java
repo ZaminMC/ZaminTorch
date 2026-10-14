@@ -100,6 +100,12 @@ public final class DaylightDetectorSystem implements WorldChangeListener {
         float rain = weather == null ? 0.0F : weather.rainGradient();
         float thunder = weather == null ? 0.0F : weather.thunderGradient();
         for (BlockPosition position : detectors) {
+            // The block-gone discard only decides on a LOADED chunk — an
+            // unloaded chunk reads as air, but the vanilla block entity
+            // freezes there (a restored detector survives the restart).
+            if (!world.isChunkLoadedAt(position)) {
+                continue;
+            }
             BlockType type = world.getBlock(position);
             if (!DaylightDetectorBlocks.isFamily(type)) {
                 detectors.remove(position);

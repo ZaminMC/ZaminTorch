@@ -86,11 +86,14 @@ public final class ChestManager {
     /**
      * Discards state whose block is no longer a chest (creative break removes
      * the block without the survival spill path). Runs once per tick on the
-     * world owner; a chest has no advancing state of its own.
+     * world owner; a chest has no advancing state of its own. State in an
+     * UNLOADED chunk stays frozen — the vanilla block-entity contract (the
+     * restart rule: restored state survives until its chunk loads).
      */
     public void tick(EngineWorld world) {
         chests.entrySet().removeIf(entry ->
-                !isChestBlock(world, entry.getKey()));
+                world.isChunkLoadedAt(entry.getKey())
+                        && !isChestBlock(world, entry.getKey()));
     }
 
     private static boolean isChestBlock(EngineWorld world, BlockPosition position) {
