@@ -5269,3 +5269,32 @@ stained-glass recipes ride their families' slices.
   weak-tamed whine/bark pair with the never-pants ternary, the
   healthy-tamed panting/bark pair), `OcelotEntityTest` +1 (the wild
   silence, the in-love purr, the meow/purreow family).
+
+## Slice 30d — the wolf's water-shake cycle
+
+The reference port of WolfEntity's own closing block (tick lines 193-222)
++ the mobTick start gate (lines 171-176), 1:1.
+
+- The state machine (`MobEntity.tickWolfShake`, the manager's per-wolf
+  consult after the body's tick): the wet re-arm while water-or-rain
+  touches (the new `WorldQuery.isRainingAt` read — the rain flag up AND
+  the point above the precipitation height at its column; the nether
+  never rains), the start gate out of the water (a wet, grounded,
+  navigation-at-rest body starts the shake with the event-8 broadcast),
+  and the +0.05-per-tick walk from the cycle-start sound
+  ("mob.wolf.shake", volume 0.4, the `(rand - rand) * 0.2 + 1` pitch
+  band) to the 2.0 clear.
+- The splash burst (tick lines 212-221): past the 0.4 bend, `sin((progress
+  - 0.4) * PI) * 7` units per tick, each its own particle at a random
+  point in the footprint at `minY + 0.8` riding the body's velocity —
+  the new `onWolfShakeSplash` listener arm renders each as one World
+  Particles unit in the count-0 shape (Slice 30a's helper).
+- The event-8 broadcast and the sound ride the existing channels
+  (`onMobStatusEvent` → Entity Status, `onMobSoundAt` → the named sound).
+- Tests: `WolfEntityTest` +1 (the wet re-arm in water, the start gate out
+  with the event/sound pair armed once, the 45-pass walk to the 2.0 clear
+  with the splash band observed, the dry body never starting).
+
+Ledgered: the client's own event-8 pose (the shake animation's roll) is
+client-rendered from the broadcast — the engine's server model ends at
+the cycle's phases.

@@ -11733,6 +11733,23 @@ public final class EngineServer implements Server, EngineBridge {
             return fluidInDimension(x, y, z);
         }
 
+        /**
+         * The rain read (Slice 30d — World.isRainingAt's shape): the rain
+         * flag up AND the point above the precipitation height at its
+         * column (the first free cell above the surface, the lightning
+         * seat's own consult). The nether never rains (no weather system
+         * owns it — the rain flag lives on the overworld).
+         */
+        @Override
+        public boolean isRainingAt(double x, double y, double z) {
+            net.zaminmc.torch.server.weather.WeatherSystem weatherNow = weather;
+            if (weatherNow == null || !weatherNow.raining() || activeWorld() != world) {
+                return false;
+            }
+            int height = surfaceY((int) Math.floor(x), (int) Math.floor(z)) + 1;
+            return y >= height;
+        }
+
         @Override
         public boolean inLava(double x, double y, double z) {
             return FluidBlocks.isLava(blockInDimensionBoundsSafe(x, y, z).identifier());

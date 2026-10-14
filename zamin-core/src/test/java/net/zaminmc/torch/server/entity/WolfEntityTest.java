@@ -199,4 +199,86 @@ class WolfEntityTest {
         assertTrue(panted, "the 1/3 panting arm observed on the healthy body");
         assertTrue(barkedStrong, "the 2/3 bark arm observed");
     }
+
+    @Test
+    void theWaterShakeCycleWalksTheReferenceLadder() {
+        // Slice 30d — WolfEntity.tick lines 193-222 + mobTick's start gate
+        // lines 171-176. A mutable water pocket: the coat's touch reads it
+        // live, the flip leaves the water.
+        boolean[] water = {true};
+        MobEntity.WorldQuery pocket = new MobEntity.WorldQuery() {
+            @Override
+            public boolean isSolid(double x, double y, double z) {
+                return Math.floor(y) < 8.0;
+            }
+            @Override
+            public Position nearestPlayer(double x, double y, double z, double range) {
+                return null;
+            }
+            @Override
+            public boolean inFluid(double x, double y, double z) {
+                return water[0] && y >= 8.0 && y < 9.0;
+            }
+        };
+        MobEntity wolf = new MobEntity(500, MobType.WOLF, new Position(0.5, 8.0, 0.5),
+                new Random(51L), pocket);
+        // Ground the body first, DRY (the physics walk sets onGround at
+        // rest; the reference's own wolf stands on the floor under the
+        // puddle — the water is the coat's touch, not the seat).
+        water[0] = false;
+        for (int i = 0; i < 10 && !wolf.onGround(); i++) {
+            wolf.tick(false);
+        }
+        assertTrue(wolf.onGround(), "the body rests on the floor");
+
+        // Phase 1: the wet re-arm while water touches — the cycle never
+        // starts IN water (tick lines 193-197 reset every pass).
+        water[0] = true;
+        wolf.tickWolfShake();
+        assertTrue(wolf.wolfWet(), "the water marked the coat");
+        assertFalse(wolf.wolfShaking(), "the cycle never starts in water");
+        assertFalse(wolf.consumePendingWolfShakeEvent(), "no event while wet");
+        wolf.tickWolfShake(); // a second wet pass holds
+        assertTrue(wolf.wolfWet());
+        assertFalse(wolf.wolfShaking());
+
+        // Phase 2: out of the water — the start gate fires (event 8 + the
+        // cycle-start sound at progress zero).
+        water[0] = false;
+        wolf.tickWolfShake();
+        assertTrue(wolf.wolfShaking(), "the start gate fired out of water");
+        assertTrue(wolf.consumePendingWolfShakeEvent(), "the event-8 broadcast armed");
+        assertTrue(wolf.consumePendingWolfShakeSound(), "the cycle-start sound armed");
+        assertFalse(wolf.consumePendingWolfShakeEvent(), "the event is once");
+        assertFalse(wolf.consumePendingWolfShakeSound(), "the sound is once");
+
+        // Phase 3: the +0.05 walk — 40 ticks to the 2.0 end, the splash
+        // burst armed past the 0.4 bend (first around progress 0.45).
+        int splashTicks = 0;
+        boolean sawSplashes = false;
+        for (int i = 0; i < 45; i++) { // the +0.05 walk needs 41 passes past
+            // the start to carry the pre-increment value through 2.0
+            wolf.tickWolfShake();
+            int splashes = wolf.consumePendingWolfShakeSplashes();
+            if (splashes > 0) {
+                sawSplashes = true;
+                assertTrue(splashes <= 7, "sin(..)*7 never exceeds 7: " + splashes);
+                splashTicks++;
+            }
+        }
+        assertTrue(sawSplashes, "the splash burst ran past the 0.4 bend");
+        assertTrue(splashTicks >= 15, "the burst covers the sin band (floor >= 1 needs sin >= 1/7): " + splashTicks);
+        assertFalse(wolf.wolfWet(), "the cycle clears the water at the end");
+        assertFalse(wolf.wolfShaking(), "the cycle ends at the 2.0 walk");
+
+        // Phase 4: a dry body never starts anything.
+        MobEntity dry = new MobEntity(501, MobType.WOLF, new Position(2.5, 8.0, 0.5),
+                new Random(52L), pocket);
+        for (int i = 0; i < 5 && !dry.onGround(); i++) {
+            dry.tick(false);
+        }
+        dry.tickWolfShake();
+        assertFalse(dry.wolfWet(), "a dry body stays dry");
+        assertFalse(dry.wolfShaking());
+    }
 }

@@ -291,6 +291,16 @@ public final class MobManager {
         default void onMobRangedAttackMob(MobEntity shooter, MobEntity target) {
         }
 
+        /**
+         * One water-splash particle of the wolf's shake burst (Slice 30d —
+         * WolfEntity.tick lines 212-221: the server-computed point inside
+         * the footprint at {@code minY + 0.8} riding the body's velocity,
+         * one World Particles unit in the count-0 shape).
+         */
+        default void onWolfShakeSplash(MobEntity mob, Position at,
+                                       double vx, double vy, double vz) {
+        }
+
         /** The world's doEntityEvent byte (7 hearts, 6 smoke, 18 love...). */
         default void onMobStatusEvent(MobEntity mob, int status) {
         }
@@ -1065,6 +1075,44 @@ public final class MobManager {
             if (mob.consumeBlazeFireDirty()) {
                 for (Listener listener : listeners) {
                     listener.onMobBlazeFireChanged(mob);
+                }
+            }
+            // The wolf's water-shake cycle (Slice 30d — WolfEntity.tick's
+            // closing block + mobTick's start gate): the event-8 broadcast,
+            // the cycle-start sound at the reference's own volume/pitch
+            // pair, and the per-tick splash burst past the 0.4 bend.
+            if (mob.type() == MobType.WOLF) {
+                mob.tickWolfShake();
+                if (mob.consumePendingWolfShakeEvent()) {
+                    for (Listener listener : listeners) {
+                        listener.onMobStatusEvent(mob, 8); // doEntityEvent(8)
+                    }
+                }
+                if (mob.consumePendingWolfShakeSound()) {
+                    for (Listener listener : listeners) {
+                        // getSoundVolume 0.4F, the pitch band
+                        // (rand - rand) * 0.2 + 1 (line 200).
+                        listener.onMobSoundAt(mob, "mob.wolf.shake", 0.4f,
+                                (random.nextFloat() - random.nextFloat()) * 0.2f + 1.0f);
+                    }
+                }
+                int splashes = mob.consumePendingWolfShakeSplashes();
+                if (splashes > 0) {
+                    // tick lines 212-221: each unit its own particle at a
+                    // random point in the footprint, minY + 0.8 up, riding
+                    // the body's own velocity.
+                    double halfWidth = mob.type().width * 0.5;
+                    for (int unit = 0; unit < splashes; unit++) {
+                        double px = mob.position().x()
+                                + (random.nextFloat() * 2.0f - 1.0f) * halfWidth;
+                        double pz = mob.position().z()
+                                + (random.nextFloat() * 2.0f - 1.0f) * halfWidth;
+                        double py = mob.position().y() + 0.8;
+                        for (Listener listener : listeners) {
+                            listener.onWolfShakeSplash(mob, new Position(px, py, pz),
+                                    mob.velocityX(), mob.velocityY(), mob.velocityZ());
+                        }
+                    }
                 }
             }
             // The silverfish's egg-hosting verdicts (Slice 18c): the
