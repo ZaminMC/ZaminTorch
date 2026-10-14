@@ -2,6 +2,8 @@ package net.zaminmc.torch.server.concurrent;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -42,6 +44,14 @@ import java.util.logging.Logger;
  * naturally bounded by the domain count; {@link #shutdown()} stops
  * admission and joins in-flight jobs — idempotent, and a job failure is
  * isolated (logged, counted, never kills a worker or the other jobs).</p>
+ *
+ * <p>Same-pool self-wait (master spec §28.2/§28.8 case 2): a worker that
+ * blocks waiting for work queued onto this same bounded pool is a
+ * dependency cycle — the waiter occupies the only capacity the waited-for
+ * work needs. {@link #dispatchAndJoin(List)} therefore refuses loudly when
+ * called from one of this pool's own worker threads: the invalid wait is
+ * DETECTED and REJECTED, never silently entered, and the diagnostic names
+ * the cycle so a mis-built reentrant dispatch is diagnosable on the spot.</p>
  */
 public final class DomainWorkerPool {
 
@@ -51,11 +61,14 @@ public final class DomainWorkerPool {
     static final int MAX_WORKERS = 4;
 
     private final Thread[] workers;
+    /** The live worker identity set — the same-pool self-wait detector's own. */
+    private final Set<Thread> workerIdentity = ConcurrentHashMap.newKeySet();
     private final java.util.concurrent.BlockingQueue<Runnable> dispatch =
             new java.util.concurrent.LinkedBlockingQueue<>();
     private final AtomicBoolean shutdown = new AtomicBoolean(false);
     private final AtomicLong dispatched = new AtomicLong();
     private final AtomicLong failedJobs = new AtomicLong();
+    private final AtomicLong refusedSelfWaits = new AtomicLong();
 
     public DomainWorkerPool() {
         this(defaultWorkerCount());
@@ -70,6 +83,7 @@ public final class DomainWorkerPool {
             Thread worker = new Thread(this::workerLoop, "zamin-domain-" + i);
             worker.setDaemon(false);
             this.workers[i] = worker;
+            workerIdentity.add(worker);
             worker.start();
         }
         LOGGER.fine("Domain worker pool started with " + workerCount + " workers");
@@ -86,27 +100,31 @@ public final class DomainWorkerPool {
     }
 
     private void workerLoop() {
-        while (true) {
-            Runnable job;
-            try {
-                job = dispatch.take();
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                return; // the shutdown interrupts the workers
+        try {
+            while (true) {
+                Runnable job;
+                try {
+                    job = dispatch.take();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    return; // the shutdown interrupts the workers
+                }
+                if (job == POISON) {
+                    return; // the total shutdown's exit marker
+                }
+                try {
+                    job.run();
+                } catch (Throwable t) {
+                    // A job's own failure is isolated: logged, counted, and the
+                    // worker stays live for the next dispatch (the same policy
+                    // the tick loop and the scheduler ride — one failure never
+                    // kills the executor).
+                    failedJobs.incrementAndGet();
+                    LOGGER.log(Level.SEVERE, "Domain worker job failed; isolated", t);
+                }
             }
-            if (job == POISON) {
-                return; // the total shutdown's exit marker
-            }
-            try {
-                job.run();
-            } catch (Throwable t) {
-                // A job's own failure is isolated: logged, counted, and the
-                // worker stays live for the next dispatch (the same policy
-                // the tick loop and the scheduler ride — one failure never
-                // kills the executor).
-                failedJobs.incrementAndGet();
-                LOGGER.log(Level.SEVERE, "Domain worker job failed; isolated", t);
-            }
+        } finally {
+            workerIdentity.remove(Thread.currentThread());
         }
     }
 
@@ -119,12 +137,31 @@ public final class DomainWorkerPool {
      * still completes for the whole batch (a failing domain never blocks
      * the other domains' progress, and the tick edge stays defined).
      *
-     * @throws IllegalStateException when the pool is shut down
+     * <p>The one forbidden caller is one of this pool's OWN workers (master
+     * spec §28.2): the worker would park on the completion latch while the
+     * jobs it waits for need the very capacity it occupies — a guaranteed
+     * dependency cycle whenever the pool is small or the batch is wide. The
+     * call is refused loudly with the cycle named; the refusing worker stays
+     * live and its own job completes, so one mis-built reentrant dispatch
+     * degrades into a diagnosable refusal instead of a silent hang.</p>
+     *
+     * @throws IllegalStateException when the pool is shut down, or when the
+     *         caller is one of the pool's own workers (the same-pool
+     *         self-wait cycle — §28.2/§28.8 case 2)
      */
     public void dispatchAndJoin(List<Runnable> jobs) {
         Objects.requireNonNull(jobs, "jobs");
         if (shutdown.get()) {
             throw new IllegalStateException("Domain worker pool is shut down; dispatch refused");
+        }
+        Thread caller = Thread.currentThread();
+        if (workerIdentity.contains(caller)) {
+            refusedSelfWaits.incrementAndGet();
+            throw new IllegalStateException("Same-pool self-wait refused: thread '"
+                    + caller.getName() + "' is a domain worker of this pool and must not "
+                    + "block waiting for work dispatched onto the same bounded pool "
+                    + "(a dependency cycle the architecture §28.2 forbids; "
+                    + "drain the submitted work from the owning authority instead)");
         }
         if (jobs.isEmpty()) {
             return;
@@ -204,5 +241,11 @@ public final class DomainWorkerPool {
     /** @return the isolated-failure count (telemetry). */
     public long failedJobCount() {
         return failedJobs.get();
+    }
+
+    /** @return how many same-pool self-wait attempts were refused (the
+     *         §28.2 cycle-detection telemetry). */
+    public long refusedSelfWaitCount() {
+        return refusedSelfWaits.get();
     }
 }

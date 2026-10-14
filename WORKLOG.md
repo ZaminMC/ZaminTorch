@@ -4610,3 +4610,89 @@ until a start's generated chunks carry a pending spawner record, asserting
 the CAVE_SPIDER type and the block cell (every cobweb corridor rolls one —
 ~3% of corridors are cobweb corridors and a start's recursive walk carries
 many, so a few seeds always answer).
+
+## Slice 26 — the §28.8 adversarial contract family + the §28.1 storage lane
+
+The master spec's new §28 (plugin concurrency, deadlocks, and lifecycle —
+`74ef313`, strengthened by `08a1aff`) demanded its twelve adversarial
+proofs and the fourth execution category. This slice lands the engine-side
+half: the §28.8 list over the engine's own contracts, and the blocking-I/O
+lane §28.1's category 4 requires before any plugin ever runs on them.
+
+**The same-pool self-wait detector (§28.2/§28.8 case 2):** the one real
+implementation gap. `DomainWorkerPool.dispatchAndJoin` called from one of
+the pool's OWN workers parked on the completion latch while the
+waited-for jobs needed the very capacity the waiter occupies — a
+guaranteed dependency cycle on a small pool or a wide batch. The fix: the
+pool tracks its live worker identity (a concurrent set, registered at
+construction, removed in the worker loop's finally) and refuses the call
+loudly — `IllegalStateException` naming the cycle and the §28.2 rule —
+with the refusal counted in its own telemetry (`refusedSelfWaitCount`).
+The refusing worker stays live: one mis-built reentrant dispatch degrades
+into a diagnosable refusal instead of a silent hang, and the pool serves
+the next dispatch.
+
+**The blocking-I/O lane (§28.1 category 4 — the storage lane):**
+`BlockingIoLane` — the compute subsystem's own mailbox pattern for the
+blocking world: database/filesystem/HTTP work runs on its own bounded pool
+(`torch-io-N`, sized max(1, cores/4) capped 4), never a simulation worker,
+never the compute pool; the submission captures the owning domain and its
+generation; the completion lands in the per-domain mailbox and the owner's
+`drainCompletions` applies fresh ones inside its validated context and
+discards stale ones through the registered fallback (the §6.3 rule). The
+§28.9 observability read: `pendingDeliveries(domain)`. Admission is
+bounded and loud (capacity 128 default, explicit refusal); `tryCancel`
+works while queued; a failing task's result is discarded and never kills
+the worker; shutdown cancels everything queued and interrupts the
+in-flight calls (the lane asks blocking work to be interruptible by
+contract; a task that swallows interruption simply completes and flows
+through the drain).
+
+**The public surface (§28.3's strengthened rule — exposure is mandatory):**
+`concurrent.BlockingIo` (the AsyncCompute-shaped interface:
+`submit(operation, work, onFresh, onStale)`, the counters, the
+cancellable `Task` handle) + `BlockingIoView` over the real lane +
+`Server.blockingIo()` + `EngineServer.blockingIo()` — the lane constructed
+at boot, its per-tick `drainCompletions` wired into the ticker AFTER the
+compute drain (the same owner boundary), and its shutdown ordered after
+the compute shutdown. The capability ledger row rides §5's compute row.
+
+**The §28.8 adversarial list — `AdversarialContractTest`:**
+- case 1 (reciprocal owner requests): two domains' concurrent drains each
+  submit an intent to the OTHER through the router; both apply at the next
+  drain exactly-once, in the TARGET's own context, neither blocks — the
+  one-way intent model is the proof;
+- case 2 (same-pool self-wait): the mis-built reentrant dispatch refused
+  loudly in bounded time, the unrelated batch-mate still ran, the pool
+  stays healthy, the telemetry counted the refusal;
+- case 9 (the noisy owner): a domain floods its own admission past the
+  bound (four loud refusals + `rejectedSubmissions` telemetry) while the
+  quiet domain's work completes inside the noisy drain's own window on a
+  different worker — no shared fate;
+- case 10 (blocking I/O pressure): three parked blocking tasks on
+  `torch-io-*` threads while the simulation runs its ticks on
+  `zamin-domain-*` threads — the disjoint thread families are the direct
+  proof; after the release, the completions land at the owner's drain;
+- case 12 (shutdown): the full stack — scheduler, router, compute, lane,
+  pool — with work in-flight and queued everywhere, shut down in order;
+  every cancellation policy asserted (scheduler cancels queued, router
+  cancels queued, lane cancels queued AND interrupts both in-flight
+  calls), no cycle (the test's own timeout is the proof);
+- case 6 (disable during execution): recorded as the concrete blocker the
+  spec allows — no plugin lifecycle exists yet (the §28.5 state machine
+  lands with the plugin loader slice); the engine-side equivalents
+  (cancel-is-permanent, tryCancel-while-queued, shutdown-cancels-queued)
+  are covered by their own suites. Cases 3/4/5/7/8/11 were already
+  covered by OwnershipDomainTest, OwnershipMigrationTest,
+  EventBusUnitTest, RegionBoundaryTest, and DomainWorkerPoolTest.
+
+Tests: BlockingIoLaneTest (8: the owner's-drain delivery + the
+never-on-the-worker proof, the stale discard through the fallback, the
+drain context demand, the loud admission bound, the failure isolation +
+the survivor, the shutdown cancel/interrupt pair, tryCancel while queued)
++ BlockingIoApiAcceptanceTest (2: the tick-thread delivery with the
+lane-thread proof + the generation; the queued-cancel + the failure
+isolation + the survivor) + AdversarialContractTest (5).
+Fresh suite: 999 core tests (the two load flakes — the hopper restart
+walk and the airborne mining timing — green in isolation under the
+2-core full-suite load), 19 api + 78 protocol green, `--max-workers=1`.

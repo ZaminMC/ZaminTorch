@@ -43,6 +43,14 @@ public interface Server {
     net.zaminmc.torch.concurrent.AsyncCompute compute();
 
     /**
+     * The blocking-I/O surface (§28.1's fourth category — the storage
+     * lane): database, filesystem, HTTP, and other potentially blocking
+     * work on its own bounded pool, completions validated and published
+     * on the simulation owner's context.
+     */
+    net.zaminmc.torch.concurrent.BlockingIo blockingIo();
+
+    /**
      * The world's game-rule table (§27.3 — the 1.8.8 gamerule family):
      * the fifteen vanilla rules plus any custom additions. One shared
      * table for the whole server (the reference's own shape — every
