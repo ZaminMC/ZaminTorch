@@ -348,6 +348,15 @@ final class Protocol18 {
     static final int WORLD_EVENT_ZOMBIE_INFECT = 1016;
     static final int WORLD_EVENT_ZOMBIE_UNFECT = 1017;
 
+    /**
+     * World event 1005 (MusicDiscItem.useOn line 39 + JukeboxBlock
+     * line 58): the Effect packet's record arm — the data carries the
+     * disc's item id to play (the client's own "records." walk,
+     * WorldRenderer lines 1923-1929) or 0 to stop the record at the
+     * position.
+     */
+    static final int WORLD_EVENT_PLAY_RECORD = 1005;
+
     // Animation (0x0B) code 0 = arm swing.
     static final int ANIMATION_ARM_SWING = 0;
     /**

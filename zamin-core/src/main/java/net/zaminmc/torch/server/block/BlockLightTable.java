@@ -78,6 +78,10 @@ public final class BlockLightTable {
             // The note block (Slice 27a): a full opaque cube, no overrides
             // (the reference's plain NoteBlock registration).
             Map.entry(Identifier.parse("minecraft:noteblock"), new LightData(0, 15)),
+            // The jukebox (Slice 27b): a full opaque cube, no overrides —
+            // both variants (the reference's plain registration).
+            Map.entry(Identifier.parse("minecraft:jukebox"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:jukebox_record"), new LightData(0, 15)),
             // The enchanting corner (the reference carries no light overrides:
             // the bookshelf is a full opaque cube, the table a 0.75-high
             // non-cube light passes through; neither emits).

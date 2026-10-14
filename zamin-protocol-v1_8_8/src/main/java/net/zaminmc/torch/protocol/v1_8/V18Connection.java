@@ -3310,6 +3310,43 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     }
 
     /**
+     * The Effect packet (0x28) for the reference's record events — the
+     * jukebox's world event 1005 ({@code MusicDiscItem.useOn} line 39's
+     * {@code doEvent(null, 1005, pos, Item.getId(this))} on the insert,
+     * {@code JukeboxBlock.removeRecord} line 58's {@code doEvent(1005, pos,
+     * 0)} on the eject/break): the client plays "records." + the disc's own
+     * name when the data resolves to a MusicDiscItem, stops the record at
+     * the position otherwise (WorldRenderer lines 1923-1929). Chunk-gated
+     * like every world event. Any thread.
+     */
+    void sendRecordEvent(net.zaminmc.torch.block.BlockPosition at,
+            net.zaminmc.torch.util.Identifier disc) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY
+                || chunkTracker == null) {
+            return;
+        }
+        if (!chunkTracker.hasChunk(at.chunkPosition().packed())) {
+            return; // the observer cannot hear that jukebox
+        }
+        int data = 0; // the stop arm
+        if (disc != null) {
+            java.util.Optional<Integer> legacy = LegacyBlockIds.legacyItemId(disc);
+            if (legacy.isEmpty()) {
+                return; // an unrepresentable disc never reaches the wire
+            }
+            data = legacy.get();
+        }
+        ByteBuf out = Unpooled.buffer(20);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_WORLD_EVENT);
+        out.writeInt(Protocol18.WORLD_EVENT_PLAY_RECORD);
+        ByteBufOps.writePackedBlockPosition(out, at.x(), at.y(), at.z());
+        out.writeInt(data);
+        out.writeBoolean(false); // not global
+        channel.writeAndFlush(out);
+    }
+
+    /**
      * The Effect packet (0x28) for the reference's own world events —
      * the zombie villager's infect 1016 and un-infect 1017
      * ({@code world.doEvent(null, id, pos, 0)}): the client plays the

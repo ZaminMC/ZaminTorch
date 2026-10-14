@@ -873,6 +873,15 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                 connection.sendNoteAction(position, instrument, note);
             }
         });
+        // The jukebox's record events (Slice 27b — the reference's world
+        // event 1005): the same Effect packet carries both directions — the
+        // disc's item id plays it (the client's own "records." walk,
+        // WorldRenderer lines 1923-1929), 0 stops it.
+        server.jukeboxes().addRecordListener((position, disc) -> {
+            for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                connection.sendRecordEvent(position, disc);
+            }
+        });
         // The dig progress: Block Break Animation 0x28 to every observer
         // within the vanilla 32-block radius (ServerWorldEventListener's
         // squared 1024.0 check), except the digger (their client predicts its

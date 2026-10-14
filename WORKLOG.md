@@ -323,8 +323,10 @@ the bottom. The behavior-level status of every mechanic lives in
   the per-dimension TimeUpdate sync); see the ledger's §169 row.
 - The real remaining vanilla gaps (survey, Slice 26 — none present in the
   engine's source tree): the note block family (block 25: the instrument
-  selection from the block below, the redstone trigger, the pitch walk),
-  the jukebox (block 84: the record insert/play/eject), the daylight
+  selection from the block below, the redstone trigger, the pitch walk) —
+  RESOLVED Slice 27a; the jukebox (block 84: the record insert/play/eject)
+  — RESOLVED Slice 27b (the disc table, the four arms, the 1005 event, the
+  ZJD store); the daylight
   sensor (block 151: the sky-light power band), the item frame (entity
   family: placement, the held stack, the rotation, the drop), the
   painting (entity family: the placement walk, the art registry), the
@@ -4761,3 +4763,73 @@ walk + the 25-band wrap; the attack arm's no-tune play; the power edge's
 rising-only replay with the re-rise; the air gate with the
 still-tunes-while-covered rule; the tile lifecycle + the ZND round trip
 + the corrupt-file preservation). BlockRegistryTest's pin moved to 181.
+
+## Slice 25g — the vehicle persistence (the ZVD store)
+
+**The gap:** the carts never carried a store — a restart lost every
+minecart and boat (and the chest minecart's cargo), while the mobs, the
+chests, and the furnaces all survived.
+
+**The store:** `VehicleDataStore` (vehicles.bin, the ZVD format) — the
+kind, position, yaw, remaining health, and the chest minecart's 27-slot
+cargo in the ZCD item form; the atomic-write/quarantine durability
+rules of every store, saved at saveAllNow.
+
+**The arms:** the manager's `snapshot()` (the live population's
+persistable view, broken bodies excluded) and `restoreAll` (the spawn
+verbs ride the §27.7 gate like every arrival, unknown kinds drop, the
+health lands back clamped inside the family's own 4.0 ceiling, the
+cargo refills the cart's chest slot-by-slot).
+
+Tests: VehiclePersistenceTest (1: the whole family — the chest
+minecart's position and cargo, the wounded minecart's health carry, and
+the boat — survives the shutdown-restart cycle on the live engine).
+
+## Slice 27b — the jukebox 1:1 (the record player)
+
+**The reference:** `JukeboxBlock` + its `JukeboxBlockEntity` +
+`MusicDiscItem` (Block.java line 1181's `register(84, "jukebox", ...)`
+— strength 2.0, blast resistance 10.0, STONE sounds; Item.java lines
+735-746's twelve `MusicDiscItem`s, ids 2256-2267, maxStackSize 1).
+
+**The blocks:** `jukebox` (legacy 84, metadata 0) + its HAS_RECORD
+variant `jukebox_record` (metadata 1 — the reference's own
+`getMetadataFromState`: has_record ? 1 : 0) over the shared id; the
+behavior rows (hardness 2.0, drops itself — the record ejects through
+the break hook, not the drop table), the light rows (opaque), and the
+twelve disc items with their legacy ids in the wire's table.
+
+**The four arms:** the INSERT (MusicDiscItem.useOn lines 28-43 — a disc
+against a record-less jukebox stores the count-1 copy, flips the
+variant, broadcasts the world event 1005 carrying the disc's item id,
+and consumes one from the hand through the engine's creative-free
+convention); the EJECT (JukeboxBlock.use lines 30-38 over removeRecord
+lines 51-72 — the stop event, the drop, the flip back; a record-less
+jukebox answers false and the click falls through to the item arms, the
+reference's own order: block.use first, then item.useOn); the BREAK
+(onRemoved lines 74-78 -> the same removeRecord — the record ejects
+with the stop event before the block's own drop); and the COMPARATOR
+READ (getAnalogSignal lines 97-108 — `Item.getId(record) + 1 -
+Item.getId(RECORD_13)`: the disc's table index + 1, 13 -> 1 through
+wait -> 12, 0 with no record).
+
+**The wire:** the same Effect packet (0x28) carries both directions of
+the reference's world event 1005 — the disc's item id plays (the
+client's own "records." + name walk, WorldRenderer lines 1923-1929), 0
+stops — chunk-gated like every world event, through the record
+listener family (the adapter resolves the legacy item id at the
+boundary).
+
+**The persistence:** the ZJD store (jukeboxes.bin — the position plus
+the disc in the ZCD item form, the reference's writeNbt "RecordItem"),
+saved at saveAllNow; the restore lands the record back in the slot and
+flips the HAS_RECORD variant when the block sits there.
+
+Tests: JukeboxSystemTest (6: the disc table's reference order + the
+family predicates; the insert arm's copy/flip/play + the useOn gates —
+a playing jukebox never takes a second disc, a disc against anything
+else never inserts; the eject arm's stop/drop/flip-back + the
+record-less fall-through; the break arm's stop/drop/slot-death; the
+comparator's disc-index math over three discs and the empty read; the
+ZJD round trip + the restore flip + the corrupt file's quarantine).
+
