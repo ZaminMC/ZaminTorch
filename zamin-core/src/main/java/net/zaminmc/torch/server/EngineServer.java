@@ -272,6 +272,10 @@ public final class EngineServer implements Server, EngineBridge {
 
     /** The TNT subsystem (Slice 9f): the ignition arms + the primed bodies. */
     private net.zaminmc.torch.server.tnt.TntSystem tntSystem;
+    /** The note block system (Slice 27a): the note tiles + the three play arms. */
+    private net.zaminmc.torch.server.noteblock.NoteBlockSystem noteBlocks;
+    /** The note tiles' ZND persistence. */
+    private net.zaminmc.torch.server.noteblock.NoteDataStore noteStore;
     /** The hopper subsystem (Slice 10b): the 8-tick transfer cadence. */
     private net.zaminmc.torch.server.hopper.HopperSystem hopperSystem;
     /** The dispenser subsystem (Slice 11a): the 4-tick reaction + the behaviors. */
@@ -1046,6 +1050,20 @@ public final class EngineServer implements Server, EngineBridge {
                         fxManager, gameplayRandom, TNT_ID_BASE);
                 world.addChangeListener(tntSystem);
                 tntSystem.addListener(new TntEventDispatch());
+                // The note blocks (Slice 27a): the note tiles + the three play
+                // arms (the use's tune-and-play, the survival attack's play,
+                // the power-edge's play), the reference's material table for
+                // the instrument selection, and the two-packet broadcast
+                // (the doEvent sound + the Block Action 0x24 relay).
+                noteBlocks = new net.zaminmc.torch.server.noteblock.NoteBlockSystem(
+                        world, redstoneSystem, fxManager);
+                world.addChangeListener(noteBlocks);
+                redstoneSystem.addNeighborListener(noteBlocks::neighborHeard);
+                // The note tiles' own ZND persistence (the hopper store's
+                // own durability rules).
+                noteStore = new net.zaminmc.torch.server.noteblock.NoteDataStore(
+                        config.worldDataDir().resolve("noteblocks.bin"));
+                noteBlocks.restoreAll(noteStore.load());
                 // The cross-system neighbor bus (Slice 9f): the pistons and
                 // the TNT ride the redstone family's neighbor dispatch —
                 // the reference's world-level neighborChanged.
@@ -1491,6 +1509,14 @@ public final class EngineServer implements Server, EngineBridge {
                 // The game-rule read (Slice 24a): doTileDrops gates the
                 // break's drop walk (Block.java's own gate).
                 blockInteraction.setTileDropsRead(() -> gameRules.getBoolean("doTileDrops"));
+                // The dig-start hook (Slice 27a — the reference's
+                // block.startMining arm, ServerPlayerInteractionManager
+                // line 133): the note block plays on the survival start.
+                blockInteraction.setMiningStartListener(position -> {
+                    if (noteBlocks != null) {
+                        noteBlocks.attackFromTick(position);
+                    }
+                });
                 // A survival-broken furnace spills its slots, and a survival-
                 // broken chest spills its 27, into the world first. The same
                 // hook emits the break/place feedback through the FX bus.
@@ -1500,6 +1526,7 @@ public final class EngineServer implements Server, EngineBridge {
                     hopperSystem.onBlockBroken(position);
                     dispenserSystem.onBlockBroken(position);
                     brewingStands.onBlockBroken(position, itemEntities);
+                    noteBlocks.onBlockBroken(position);
                     doorSiblingCleanup(position);
                     bedSiblingCleanup(position, brokenType);
                     bedSpawnCleanup(position);
@@ -2226,6 +2253,12 @@ public final class EngineServer implements Server, EngineBridge {
     /** The TNT subsystem (exposed for behavioral tests). */
     public net.zaminmc.torch.server.tnt.TntSystem tnt() {
         return tntSystem;
+    }
+
+    /** The note block subsystem (Slice 27a — exposed for behavioral tests
+     *  and the protocol adapter's listener registration). */
+    public net.zaminmc.torch.server.noteblock.NoteBlockSystem noteBlocks() {
+        return noteBlocks;
     }
 
     /** Registers a TNT wire-sync observer (the protocol adapter). */
@@ -5449,6 +5482,12 @@ public final class EngineServer implements Server, EngineBridge {
             // DispenserBlock.use lines 78-94: the container opens (the
             // dropper keeps its own menu type on the wire).
             openDispenserOnTick(session, clicked, onTableOpened);
+            return;
+        }
+        if (net.zaminmc.torch.server.noteblock.NoteBlockSystem.isNoteBlock(current)) {
+            // NoteBlock.use lines 41-56: the tune ((note + 1) % 25) then the
+            // play — the use consumed, no placement proposal follows.
+            noteBlocks.useFromTick(clicked);
             return;
         }
         if (net.zaminmc.torch.server.hopper.HopperBlocks.isHopper(current)) {
@@ -12605,6 +12644,9 @@ public final class EngineServer implements Server, EngineBridge {
                 }
                 if (hopperStore != null && hopperSystem != null) {
                     hopperStore.save(hopperSystem.snapshot());
+                }
+                if (noteStore != null && noteBlocks != null) {
+                    noteStore.save(noteBlocks.snapshotTiles());
                 }
                 if (dispenserStore != null && dispenserSystem != null) {
                     dispenserStore.save(dispenserSystem.snapshot());

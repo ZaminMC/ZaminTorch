@@ -75,6 +75,9 @@ public final class BlockLightTable {
             Map.entry(Identifier.parse("minecraft:oak_planks"), new LightData(0, 15)),
             Map.entry(Identifier.parse("minecraft:wool"), new LightData(0, 15)),
             Map.entry(Identifier.parse("minecraft:crafting_table"), new LightData(0, 15)),
+            // The note block (Slice 27a): a full opaque cube, no overrides
+            // (the reference's plain NoteBlock registration).
+            Map.entry(Identifier.parse("minecraft:noteblock"), new LightData(0, 15)),
             // The enchanting corner (the reference carries no light overrides:
             // the bookshelf is a full opaque cube, the table a 0.75-high
             // non-cube light passes through; neither emits).

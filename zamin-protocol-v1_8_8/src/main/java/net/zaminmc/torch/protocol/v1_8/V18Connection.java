@@ -2299,6 +2299,32 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     }
 
     /**
+     * Block Action (0x24, the same community-verified layout) for the note
+     * block (Slice 27a — ServerWorld.doBlockEvents lines 820-842): the
+     * instrument as the action byte, the note as the param byte, block 25
+     * — the client plays its own sound and spawns the note particle. Any
+     * thread.
+     */
+    void sendNoteAction(net.zaminmc.torch.block.BlockPosition position,
+                        int instrument, int note) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY
+                || chunkTracker == null) {
+            return;
+        }
+        if (!chunkTracker.hasChunk(position.chunkPosition().packed())) {
+            return; // the observer cannot see that note block
+        }
+        ByteBuf out = Unpooled.buffer(16);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_BLOCK_ACTION);
+        ByteBufOps.writePackedBlockPosition(out, position.x(), position.y(), position.z());
+        out.writeByte(instrument);
+        out.writeByte(note);
+        out.writeInt(Protocol18.NOTE_BLOCK_LEGACY_BLOCK_ID);
+        channel.writeAndFlush(out);
+    }
+
+    /**
      * Update Block Entity (0x35, type 1) for one mob spawner
      * (MobSpawnerBlockEntity.createUpdatePacket lines 56-61): the position,
      * the tile type byte, and the NBT compound — the reference's writeNbt

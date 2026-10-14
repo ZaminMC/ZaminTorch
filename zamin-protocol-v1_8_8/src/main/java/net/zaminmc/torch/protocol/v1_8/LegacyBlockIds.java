@@ -67,6 +67,9 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:obsidian"), 49),
             // The TNT block (Slice 9f, legacy 46): the block item shares the id.
             Map.entry(Identifier.parse("minecraft:tnt"), 46),
+            // The note block (Slice 27a, legacy 25 — the reference's own
+            // `register(25, "noteblock", ...)`: the block item shares the id).
+            Map.entry(Identifier.parse("minecraft:noteblock"), 25),
             // The dispenser family's item forms (Slice 11a): the block forms
             // share the ids 23/125 (the flattened state families register
             // their own entries below); the fire charge is item-only 385.
