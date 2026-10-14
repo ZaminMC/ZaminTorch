@@ -335,8 +335,9 @@ the bottom. The behavior-level status of every mechanic lives in
   28c; the ender chest (block 130: the per-player ender storage) —
   RESOLVED Slice 29a (the private-grid door model, the ZPD v8 identity
   tail, the obsidian/silk split); and the beacon (block 138: the beam,
-  the area effect, the payment) — the last open row. Each rides the
-  existing redstone/block/entity infrastructure when it lands.
+  the area effect, the payment) — RESOLVED Slice 29b (the pyramid walk,
+  the spread, the payment GUI + the MC|Beacon confirm, the ZBT store).
+  The survey's list is now empty — every named gap has landed.
 - Releases now ride GitHub Releases with changelogs per dev build; the
   dev.13 jar was lost to an environment reset before a release existed
   (tags v0.2.0-dev.13 was never cut; dev.14/dev.15 were back-filled with
@@ -5130,3 +5131,46 @@ own lid from the open/close pair), the `randomDisplayTick` portal particles
 (the particle slice), the open's `ENDER_CHESTS_OPENED` stat (the stats slice),
 and the walk-away `isValid` close (the chest family's click-rejection
 precedent).
+
+## Slice 29b — the beacon 1:1 (the pyramid + the area effects)
+
+The last open Not-started vanilla row: the reference port of
+`block/BeaconBlock` + `block/entity/BeaconBlockEntity` +
+`inventory/menu/BeaconMenu`.
+
+- The state: `BeaconBlockEntity` — levels/primary/secondary + the 1-slot
+  payment inventory (the reference's `isItemAllowed` filter + max-stack-1)
+  and the `getBeaconEffect` six-effect gate.
+- The walk: `BeaconSystem` — the 80-tick global-phase update
+  (`world.getTime() % 80 == 0`), the neighbor-changed recompute, and the
+  two arms 1:1: `updateLevels` (the beam walk's opacity-15 kill with the
+  bedrock exception, through the engine's light table; the pyramid's
+  inside-out full-square rings of the four minerals) and `spreadEffects`
+  (the `levels*10+10` range box, the 180-tick instances over the engine's
+  own `PotionSystem`, the level-4 same-effect amplifier-1 pair and the
+  different-pair secondary arm).
+- The pyramid's two missing minerals registered with the family: the
+  diamond block (57) and the emerald block (133) — the blocks, the items,
+  the iron-tier behavior rows, the light rows, the legacy ids.
+- The GUI: `ContainerKind.BEACON` — the payment click routing over the
+  shared `WindowClicks` with the filter + max-1, the close's payment drop
+  INTO THE WORLD (BeaconMenu.close lines 46-54 — never back into the
+  slot), and the three window properties (levels/primary/secondary)
+  riding the open plus a per-tick viewer diff walk (the brewing pattern).
+- The confirm: the MC|Beacon Custom Payload (the BeaconScreen Done
+  button's two i32s) — the server's own handler: one payment unit
+  consumes, the choices land through the gate, the unpaid confirm is the
+  silent no-op.
+- The wire: Open Window `minecraft:beacon` over the 37-slot layout, the
+  0x35 action-3 tile (the reference's Primary/Secondary/Levels NBT) on
+  every state change and on the chunk-send replay.
+- The persistence: the ZBT store (levels/primary/secondary/payment per
+  position, the chest store's durability rules).
+- Tests: `BeaconSystemTest` (3: the pyramid walk + the beam kill + the
+  bedrock exception, the payment + the selection + the 180-tick spread +
+  the effect gate, the restart round trip).
+
+Ledgered: the beam's stained-glass color sections are client-side state
+(the engine's server model ends at levels), the ACTIVATE_MAX_BEACON
+achievement rides the stats slice, the custom-hover-name carry rides the
+anvil's slice.
