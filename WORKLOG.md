@@ -327,12 +327,15 @@ the bottom. The behavior-level status of every mechanic lives in
   RESOLVED Slice 27a; the jukebox (block 84: the record insert/play/eject)
   — RESOLVED Slice 27b (the disc table, the four arms, the 1005 event, the
   ZJD store); the daylight
-  sensor (block 151: the sky-light power band), the item frame (entity
-  family: placement, the held stack, the rotation, the drop), the
-  painting (entity family: the placement walk, the art registry), the
-  armor stand (entity 30: the placement, the armor slots, the pose), the
-  ender chest (block 130: the per-player ender storage), and the beacon
-  (block 138: the beam, the area effect, the payment). Each rides the
+  sensor (block 151: the sky-light power band) — RESOLVED Slice 27c; the
+  item frame (entity family: placement, the held stack, the rotation,
+  the drop) — RESOLVED Slice 28a; the painting (entity family: the
+  placement walk, the art registry) — RESOLVED Slice 28b; the armor stand
+  (entity 30: the placement, the armor slots, the pose) — RESOLVED Slice
+  28c; the ender chest (block 130: the per-player ender storage) —
+  RESOLVED Slice 29a (the private-grid door model, the ZPD v8 identity
+  tail, the obsidian/silk split); and the beacon (block 138: the beam,
+  the area effect, the payment) — the last open row. Each rides the
   existing redstone/block/entity infrastructure when it lands.
 - Releases now ride GitHub Releases with changelogs per dev build; the
   dev.13 jar was lost to an environment reset before a release existed
@@ -5055,3 +5058,75 @@ protocol suite 78 green (the conformance row for the interact-at
 routing unchanged). Ledgered: the arrow one-shot (the projectile scan
 walks mobs + players only), the EntityTag NBT, the NBT-only flags,
 the gravity walk, the minecart push, the breaking particles.
+
+## The unloaded-chunk state eviction repair (2026-10-14)
+
+The long-ledgered `HopperWindowAcceptanceTest::theHopperContentsSurviveTheRestart`
+failure (marked "verified failing on the clean 2fa30fb baseline" at Slice 28a)
+rooted: the ZHD round trip was never broken — the store saved the hopper with
+its emeralds and the second boot's `load()` read `count=1` back. The first
+`tick()` then threw it away. Every block-entity family's per-tick sweep
+(`hoppers.entrySet().removeIf(entry -> !isHopper(world.getBlock(entry.getKey())))`
+and the same shape in the chest, furnace, dispenser, brewing-stand, sign,
+spawner and daylight-detector systems) treats an UNLOADED chunk's air read as
+"block gone" — and a fresh boot only loads the spawn area, so any restored
+container outside it died on tick one.
+
+- The fix: `EngineWorld.isChunkLoadedAt(BlockPosition)` + the eight sweeps now
+  decide the block-gone discard only on a LOADED chunk. An unloaded chunk's
+  state is FROZEN — the vanilla block-entity contract (a BE in an unloaded
+  chunk neither ticks nor discards; it returns with the chunk).
+- The frozen semantics ride the activity arms too: the furnace's smelt cycle,
+  the brewing stand's brew cycle, and the hopper's cooldown + transfer all
+  skip while the chunk is away (vanilla unloaded-BE behavior — the hopper's
+  cooldown resumes where it froze, not reset).
+- The spawner unit test's gone-block scenario now loads its chunk first (the
+  creative-break shape — `setBlock` force-loads, the sweep decides on real
+  air); the frozen-path spawners survive restarts outside the spawn area.
+- Tests: HopperWindowAcceptanceTest (the restart test green for the first
+  time since it landed), ContainerPersistenceTest, and the eight families'
+  suites green.
+
+## Slice 29a — the ender chest 1:1 (the per-player storage family)
+
+The reference port of `block/EnderChestBlock` + `block/entity/
+EnderChestBlockEntity` + `inventory/EnderChestInventory` — the storage model
+vanilla actually uses: the placed block is only the DOOR, and every use opens
+the player's OWN 27-slot grid riding their identity.
+
+- The block family: `EnderChestBlocks` — legacy 130, four horizontal FACING
+  states, the metadata nibble IS the reference Direction id (2/3/4/5,
+  `getStateFromMetadata` lines 114-127, a Y axis clamping NORTH); the wire's
+  `LegacyBlockIds` family + bare-item 130 with the damage-aware reverse fold.
+- The placement verb: `getPlacementState` lines 63-65 — the placing player's
+  horizontal facing OPPOSITE (the yaw-band walk), the chest family's own rule.
+- The use arm: `use` lines 73-92 — the solid-above refusal at line 80, then
+  the player's OWN grid opens (`ContainerKind.ENDER_CHEST`); the block is
+  never the storage. The click routing is the chest layout over the session's
+  private `ChestBlockEntity` grid with the door-presence liveness gate (a
+  broken door rejects every click until the close arrives).
+- The lid: the BE's own onOpen/onClose broadcast — Block Action 1 over legacy
+  130 (the lid writer resolves the carrier from the world block, so the plain
+  chest's 54 and the ender chest's 130 share one listener family).
+- The wire: Open Window `minecraft:chest` + the Ender Chest title over the
+  63-slot chest layout; the container-items and re-sync branches read the
+  session grid.
+- The drops: `getBaseDropCount` 8 obsidian under the diamond-tier harvest
+  gate (the DropService family branch — silk takes the chest itself,
+  `hasSilkTouchDrops`); the obsidian block's own behavior row
+  (`setStrength(50F)` line 1103, diamond tier, drops itself) landed with the
+  family.
+- The light rows: the reference's `setLight(0.5F)` = emission 7 (the blue
+  glow), the chest's filter-0 shape.
+- The persistence: ZPD v8 — the reference's `EnderItems`, the 27 slots
+  appended per identity at the file tail (older files load an empty grid);
+  the join restore and the leaving save both walk the grid.
+- Tests: `EnderChestAcceptanceTest` (3: the private-grid open + the
+  click-through + the solid-above refusal + the world-store isolation, the
+  identity-carried restart round trip, the obsidian/silk/no-tier drop walk).
+
+Ledgered: the BE's 80-tick viewer-count re-broadcast (the client animates its
+own lid from the open/close pair), the `randomDisplayTick` portal particles
+(the particle slice), the open's `ENDER_CHESTS_OPENED` stat (the stats slice),
+and the walk-away `isValid` close (the chest family's click-rejection
+precedent).
