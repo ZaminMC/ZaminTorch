@@ -47,7 +47,7 @@ public final class PlayerDataStore {
     private static final int MAGIC_0 = 'Z';
     private static final int MAGIC_1 = 'P';
     private static final int MAGIC_2 = 'D';
-    private static final int FORMAT_VERSION = 7;
+    private static final int FORMAT_VERSION = 8;
 
     private final Path directory;
 
@@ -95,6 +95,17 @@ public final class PlayerDataStore {
                     out.writeDouble(snapshot.bedSpawn().x());
                     out.writeDouble(snapshot.bedSpawn().y());
                     out.writeDouble(snapshot.bedSpawn().z());
+                }
+                // ZPD v8: the ender chest tail (the reference's EnderItems —
+                // the player's private 27-slot grid, slot 0-26).
+                List<PlayerSnapshot.SlotStack> ender = snapshot.enderSlots();
+                writeVarInt(out, ender.size());
+                for (PlayerSnapshot.SlotStack stack : ender) {
+                    writeVarInt(out, stack.slot());
+                    writeString(out, stack.item().toString());
+                    writeVarInt(out, stack.count());
+                    writeVarInt(out, stack.damage());
+                    writeOptionalString(out, stack.displayName());
                 }
             }
             Files.move(temp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
@@ -152,8 +163,25 @@ public final class PlayerDataStore {
             if (version >= 7 && in.readBoolean()) {
                 bedSpawn = new Position(in.readDouble(), in.readDouble(), in.readDouble());
             }
+            // Version 8 appends the ender chest slots (the reference's
+            // EnderItems); older saves load an empty grid.
+            List<PlayerSnapshot.SlotStack> enderSlots = new ArrayList<>();
+            if (version >= 8) {
+                int enderCount = readVarInt(in);
+                for (int i = 0; i < enderCount; i++) {
+                    int slot = readVarInt(in);
+                    Identifier item = Identifier.parse(readString(in));
+                    int count = readVarInt(in);
+                    int damage = readVarInt(in);
+                    String displayName = readOptionalString(in);
+                    if (slot >= 0 && slot <= 26) {
+                        enderSlots.add(new PlayerSnapshot.SlotStack(
+                                slot, item, count, damage, displayName));
+                    }
+                }
+            }
             return Optional.of(new PlayerSnapshot(uuid, name, position, rotation, heldSlot,
-                    stacks, health, food, saturation, gamemodeId, totalXp, bedSpawn));
+                    stacks, health, food, saturation, gamemodeId, totalXp, bedSpawn, enderSlots));
         } catch (IOException | RuntimeException corrupt) {
             // A malformed value (bad identifier, out-of-range slot) is corruption
             // just as much as a broken header: quarantine, then treat as absent.

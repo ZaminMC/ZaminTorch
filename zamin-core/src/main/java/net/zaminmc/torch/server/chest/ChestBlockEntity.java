@@ -151,6 +151,12 @@ public final class ChestBlockEntity {
         return slots.clone();
     }
 
+    /** @return the live stack at the slot (read accessor; the hopper's own shape). */
+    public ItemStack getItem(int slot) {
+        rangeCheck(slot);
+        return slots[slot];
+    }
+
     /** Direct slot write for engine commands only (persistence restore). */
     public void setSlot(int slot, ItemStack stack) {
         rangeCheck(slot);

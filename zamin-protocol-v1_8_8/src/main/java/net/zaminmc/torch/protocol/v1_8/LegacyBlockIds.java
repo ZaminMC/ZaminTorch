@@ -76,6 +76,11 @@ final class LegacyBlockIds {
             // block item all share the id).
             Map.entry(Identifier.parse("minecraft:jukebox"), 84),
             Map.entry(Identifier.parse("minecraft:jukebox_record"), 84),
+            // The ender chest's item form (Slice 29a — the block family's
+            // four facing states register through the merge below at legacy
+            // 130; the bare item shares the id, the reference's own block
+            // item).
+            Map.entry(Identifier.parse("minecraft:ender_chest"), 130),
             // The daylight detector's item form (Slice 27c — Item.java
             // line 490's register(Blocks.DAYLIGHT_DETECTOR): legacy 151;
             // the block family's thirty-two states register through the
@@ -560,6 +565,15 @@ final class LegacyBlockIds {
             merged.put(Identifier.parse("minecraft:hopper_" + facing), 154);
             merged.put(Identifier.parse("minecraft:hopper_" + facing + "_disabled"), 154);
         }
+        // The ender chest family (Slice 29a — EnderChestBlock lines 114-127):
+        // legacy 130, the FACING id riding the nibble whole (2/3/4/5 — the
+        // damage-aware reverse resolves every state); the bare item form
+        // shares the id (the block item, damage 0 — the plain reverse
+        // resolves it).
+        for (String facing : new String[]{"north", "south", "west", "east"}) {
+            merged.put(Identifier.parse("minecraft:ender_chest_" + facing), 130);
+        }
+        merged.put(Identifier.parse("minecraft:ender_chest"), 130);
         // The daylight detector family (Slice 27c — Block.java lines
         // 1323/1377): the detector 151, the inverted 178 — the POWER 0-15
         // rides the WHOLE nibble (DaylightDetectorBlock lines 123-130:
@@ -734,6 +748,12 @@ final class LegacyBlockIds {
             // The jukebox's HAS_RECORD variant (Slice 27b — the reference's
             // getMetadataFromState: has_record ? 1 : 0 over legacy id 84).
             Map.entry(Identifier.parse("minecraft:jukebox_record"), 1),
+            // The ender chest facings (Slice 29a — EnderChestBlock lines
+            // 114-127: the metadata IS the FACING id, horizontal 2/3/4/5).
+            Map.entry(Identifier.parse("minecraft:ender_chest_north"), 2),
+            Map.entry(Identifier.parse("minecraft:ender_chest_south"), 3),
+            Map.entry(Identifier.parse("minecraft:ender_chest_west"), 4),
+            Map.entry(Identifier.parse("minecraft:ender_chest_east"), 5),
             Map.entry(Identifier.parse("minecraft:oak_door_east"), 2),
             Map.entry(Identifier.parse("minecraft:oak_door_south"), 3),
             Map.entry(Identifier.parse("minecraft:oak_door_open"), 4),
@@ -1053,6 +1073,14 @@ final class LegacyBlockIds {
         BY_IDENTIFIER.forEach((identifier, legacy) -> {
             if (identifier.namespace().equals("minecraft")
                     && identifier.value().startsWith("hopper_")) {
+                reversed.put((legacy << 4) | metadataOf(identifier), identifier);
+            }
+        });
+        // The ender chest family folds its facings in (the nibble IS the
+        // reference Direction id — 130|2 resolves the north state).
+        BY_IDENTIFIER.forEach((identifier, legacy) -> {
+            if (identifier.namespace().equals("minecraft")
+                    && identifier.value().startsWith("ender_chest_")) {
                 reversed.put((legacy << 4) | metadataOf(identifier), identifier);
             }
         });

@@ -442,6 +442,7 @@ public final class EngineServer implements Server, EngineBridge {
         // before any world exists (registry lifecycle: create -> register -> freeze).
         if (blockRegistry == null) {
             blockRegistry = net.zaminmc.torch.server.cauldron.CauldronBlocks.registerAll(
+                    net.zaminmc.torch.server.chest.EnderChestBlocks.registerAll(
                     net.zaminmc.torch.server.brewing.BrewingStandBlocks.registerAll(
                     net.zaminmc.torch.server.dispenser.DispenserSystem.registerBlocks(
                     net.zaminmc.torch.server.hopper.HopperSystem.registerBlocks(
@@ -450,7 +451,7 @@ public final class EngineServer implements Server, EngineBridge {
                     net.zaminmc.torch.server.redstone.RedstoneBlocks.registerAll(
                     net.zaminmc.torch.server.daylight.DaylightDetectorBlocks.registerAll(
                             FluidBlocks.registerAll(
-                                    BuiltinBlocks.registerAll(new BlockRegistryBuilder())))))))))).freeze();
+                                    BuiltinBlocks.registerAll(new BlockRegistryBuilder()))))))))))).freeze();
         }
 
         state.set(ServerState.STARTING);
@@ -4590,6 +4591,7 @@ public final class EngineServer implements Server, EngineBridge {
                     case CHEST -> clickChestWindowOnTick(session, wireSlot, button, mode);
                     case CHEST_MINECART -> clickChestMinecartWindowOnTick(session, wireSlot, button, mode);
                     case HOPPER -> clickHopperWindowOnTick(session, wireSlot, button, mode);
+                    case ENDER_CHEST -> clickEnderChestWindowOnTick(session, wireSlot, button, mode);
                     case DISPENSER -> clickDispenserWindowOnTick(session, wireSlot, button, mode);
                     case BREWING_STAND -> clickBrewingStandWindowOnTick(session, wireSlot, button, mode);
                     case HORSE -> clickHorseWindowOnTick(session, wireSlot, button, mode);
@@ -5266,6 +5268,101 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /**
+     * Click routing for the open ender chest window (Slice 29a — the
+     * reference's ContainerChest over the player's own EnderChestInventory):
+     * the same 63-slot wire layout as the chest (0-26 the grid, 27-53 main,
+     * 54-62 hotbar), the same click semantics — but the container slots
+     * route to the SESSION's private grid, not the world. The liveness gate
+     * is the block at the open position: a broken ender chest (the window
+     * outlived its door) rejects every click until the close arrives.
+     * Tick-thread context.
+     */
+    private boolean clickEnderChestWindowOnTick(PlayerSession session, int wireSlot, int button,
+                                                int mode) {
+        var inventory = session.inventory();
+        var position = session.openContainerPosition();
+        if (position == null
+                || !net.zaminmc.torch.server.chest.EnderChestBlocks.isFamily(
+                        world.getBlock(position))) {
+            return false; // the door left (stale window): rejected, resync restores
+        }
+        var ender = session.enderChest();
+        switch (mode) {
+            case 0 -> {
+                if (wireSlot >= 0 && wireSlot <= CHEST_WIRE_SLOT_LAST) {
+                    ender.clickSlot(wireSlot, button, inventory);
+                    return true;
+                }
+                int engineSlot = chestEngineSlotOf(wireSlot);
+                if (engineSlot >= 0) {
+                    inventory.clickSlot(engineSlot, button);
+                    return true;
+                }
+                return false;
+            }
+            case 1 -> {
+                if (wireSlot >= 0 && wireSlot <= CHEST_WIRE_SLOT_LAST) {
+                    ender.quickMoveToInventory(wireSlot, inventory);
+                    return true;
+                }
+                int engineSlot = chestEngineSlotOf(wireSlot);
+                if (engineSlot >= 0) {
+                    // Any stack moves in: the ender grid has no slot filters
+                    // (the reference's own SimpleInventory shape). Remainder
+                    // returns to the slot.
+                    net.zaminmc.torch.item.ItemStack peek = inventory.snapshot().get(engineSlot);
+                    if (peek.isEmpty()) {
+                        return false; // empty slot shift-click: nothing moves
+                    }
+                    net.zaminmc.torch.item.ItemStack moving = inventory.dropFromSlot(engineSlot, true);
+                    net.zaminmc.torch.item.ItemStack remainder = ender.quickMoveIn(moving);
+                    if (!remainder.isEmpty()) {
+                        inventory.pickUp(remainder); // grid full: put the rest back
+                    }
+                    return true;
+                }
+                return false;
+            }
+            case 2 -> {
+                // Number keys exchange main inventory and hotbar only; grid
+                // slots are rejected per packet (the resync restores truth).
+                int engineSlot = chestEngineSlotOf(wireSlot);
+                if (engineSlot >= net.zaminmc.torch.server.player.PlayerInventory.HOTBAR_SLOTS
+                        && button >= 0 && button < 9) {
+                    inventory.swapWithHotbar(engineSlot, button);
+                    return true;
+                }
+                return false;
+            }
+            case 3 -> {
+                return false; // middle-click clone: rejected in survival
+            }
+            case 4 -> {
+                if (wireSlot >= 0 && wireSlot <= CHEST_WIRE_SLOT_LAST) {
+                    net.zaminmc.torch.item.ItemStack dropped = ender.dropFromSlot(wireSlot, button != 0);
+                    if (!dropped.isEmpty()) {
+                        throwFromPlayer(session, dropped);
+                    }
+                    return true;
+                }
+                int engineSlot = chestEngineSlotOf(wireSlot);
+                if (engineSlot >= 0) {
+                    net.zaminmc.torch.item.ItemStack dropped =
+                            inventory.dropFromSlot(engineSlot, button != 0);
+                    if (!dropped.isEmpty()) {
+                        throwFromPlayer(session, dropped);
+                    }
+                    return true;
+                }
+                return false;
+            }
+            default -> {
+                return false; // drag painting (5) / unknown mode: rejected
+            }
+        }
+    }
+
+    /**
      * Wire slot -> engine inventory slot inside the dispenser window (9-35
      * maps to main inventory engine slots 9-35 — the layout aligns; 36-44 to
      * hotbar 0-8); -1 for the container's own slots.
@@ -5621,6 +5718,12 @@ public final class EngineServer implements Server, EngineBridge {
             openChestOnTick(session, clicked, onTableOpened);
             return;
         }
+        if (net.zaminmc.torch.server.chest.EnderChestBlocks.isFamily(current)) {
+            // EnderChestBlock.use lines 73-92: the player's OWN inventory
+            // opens (the block is the door, not the storage).
+            openEnderChestOnTick(session, clicked, onTableOpened);
+            return;
+        }
         if (net.zaminmc.torch.server.dispenser.DispenserBlocks.isFamily(current)) {
             // DispenserBlock.use lines 78-94: the container opens (the
             // dropper keeps its own menu type on the wire).
@@ -5855,6 +5958,11 @@ public final class EngineServer implements Server, EngineBridge {
             placePistonOnTick(session, clicked, face, creativeHeld,
                     heldId.equals("minecraft:sticky_piston"));
             return; // the eye/look-facing rule overrides the generic placement
+        }
+        if (heldId.equals("minecraft:ender_chest")
+                || creativeHeld.map(t -> t.identifier().value().startsWith("ender_chest_")).orElse(false)) {
+            placeEnderChestOnTick(session, clicked, face, creativeHeld);
+            return; // the player-facing rule overrides the generic placement
         }
         if (heldId.equals("minecraft:hopper")
                 || creativeHeld.map(t -> t.identifier().value().equals("hopper")).orElse(false)) {
@@ -6530,6 +6638,42 @@ public final class EngineServer implements Server, EngineBridge {
         }
         world.setBlock(target, net.zaminmc.torch.server.redstone.TripwireBlocks.hookOf(
                 face & 7, false, false));
+        consumePlaced(session, creativeHeld);
+    }
+
+    /**
+     * The ender chest placement (Slice 29a — EnderChestBlock.
+     * getPlacementState lines 63-65 + onPlaced lines 68-70): FACING = the
+     * placing player's horizontal facing OPPOSITE (the front points at the
+     * player, the chest family's own rule). Tick-thread context.
+     */
+    private void placeEnderChestOnTick(PlayerSession session, BlockPosition clicked, int face,
+                                       java.util.Optional<BlockType> creativeHeld) {
+        BlockPosition target = offsetByFace(clicked, face);
+        if (target == null || world.getBlock(clicked).equals(world.airType())
+                || !world.getBlock(target).equals(world.airType())) {
+            return;
+        }
+        if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5
+                || intersectsPlayerBox(session.position(), target)) {
+            return;
+        }
+        if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE
+                && session.inventory().held().isEmpty()) {
+            return;
+        }
+        double yaw = ((session.rotation().yaw() % 360.0) + 360.0 + 45.0) % 360.0;
+        int lookBand = (int) (yaw / 90.0) % 4; // 0=S,1=W,2=N,3=E of the look
+        // The look's opposite in reference Direction ids: S->N(2), W->E(5),
+        // N->S(3), E->W(4) — getHorizontalFacing().getOpposite().
+        int facing = switch (lookBand) {
+            case 0 -> 2; // looking south, the front faces north
+            case 1 -> 5; // looking west, the front faces east
+            case 2 -> 3; // looking north, the front faces south
+            default -> 4; // looking east, the front faces west
+        };
+        world.setBlock(target,
+                net.zaminmc.torch.server.chest.EnderChestBlocks.enderChestOf(facing));
         consumePlaced(session, creativeHeld);
     }
 
@@ -8840,6 +8984,34 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /**
+     * Opens the player's own ender chest through the clicked block (Slice
+     * 29a — EnderChestBlock.use lines 73-92): the solid-above gate (line 80
+     * — a solid block on top refuses the open), then the session's private
+     * 27-slot grid opens as the chest GUI. The block itself carries no
+     * state — the position records only which door opened (the close's lid
+     * swing and the stale-window gate). Tick-thread context.
+     */
+    private void openEnderChestOnTick(PlayerSession session,
+                                      net.zaminmc.torch.block.BlockPosition position,
+                                      java.util.function.IntConsumer onTableOpened) {
+        // Line 80: the open gate — a solid block above refuses.
+        if (WorldSolidity.isSolid(world.getBlock(position.offset(0, 1, 0)))) {
+            return; // the use consumed, nothing opens
+        }
+        closeOpenContainerOnTick(session);
+        dropGridToWorld(session, session.crafting()); // the vanilla close: the 2x2 grid drops
+
+        int windowId = nextContainerWindowId;
+        nextContainerWindowId = nextContainerWindowId >= LAST_CONTAINER_WINDOW_ID
+                ? FIRST_CONTAINER_WINDOW_ID : nextContainerWindowId + 1;
+        session.openContainerWindow(windowId, PlayerSession.ContainerKind.ENDER_CHEST, position);
+        onTableOpened.accept(windowId);
+        // The lid swings for every other observer (the BE's own onOpen
+        // broadcast — the Block Action 1 over legacy 130).
+        publishChestLid(position, session, true);
+    }
+
+    /**
      * Opens the hopper container at the clicked block (the reference's
      * HopperBlock.use lines 135-146 + HopperMenu): assigns the wire window
      * id, lazily creates the block-entity state, closes any carried window
@@ -8941,6 +9113,13 @@ public final class EngineServer implements Server, EngineBridge {
             } else if (windowId == session.openContainerWindowId()) {
                 if (session.openContainerKind() == PlayerSession.ContainerKind.CHEST
                         && session.openContainerPosition() != null) {
+                    publishChestLid(session.openContainerPosition(), session, false);
+                }
+                if (session.openContainerKind() == PlayerSession.ContainerKind.ENDER_CHEST
+                        && session.openContainerPosition() != null) {
+                    // The ender chest's own onClose broadcast (the Block
+                    // Action 1 over legacy 130 — the lid closes for the
+                    // other observers).
                     publishChestLid(session.openContainerPosition(), session, false);
                 }
                 returnWindowCarriedItems(session, true);
@@ -13371,6 +13550,24 @@ public final class EngineServer implements Server, EngineBridge {
             LOGGER.warning("Inventory restore rejected for " + session.name() + ": "
                     + invalid.getMessage());
         }
+        // ZPD v8: the ender chest grid returns with the player (the
+        // reference's EnderItems — an empty grid in older files).
+        java.util.List<net.zaminmc.torch.item.ItemStack> enderRestored = new java.util.ArrayList<>(
+                java.util.Collections.nCopies(
+                        net.zaminmc.torch.server.chest.ChestBlockEntity.SLOT_COUNT,
+                        net.zaminmc.torch.item.ItemStack.EMPTY));
+        for (PlayerSnapshot.SlotStack saved : snapshot.enderSlots()) {
+            Optional<net.zaminmc.torch.item.ItemType> type =
+                    net.zaminmc.torch.server.item.BuiltinItems.lookup(saved.item());
+            if (type.isEmpty()) {
+                LOGGER.warning(() -> "Saved ender item no longer registered, dropped: "
+                        + saved.item());
+                continue;
+            }
+            enderRestored.set(saved.slot(), net.zaminmc.torch.item.ItemStack.of(
+                    type.get(), saved.count()).withDamage(saved.damage()));
+        }
+        session.restoreEnderChest(enderRestored);
         session.setBody(snapshot.health(), snapshot.food(), snapshot.saturation());
     }
 
@@ -13397,10 +13594,21 @@ public final class EngineServer implements Server, EngineBridge {
                     net.zaminmc.torch.server.player.PlayerInventory.ARMOR_BASE + i,
                     piece.type().identifier(), piece.count(), piece.damage(), piece.displayName()));
         }
+        // ZPD v8: the ender chest tail (the player's private 27-slot grid).
+        java.util.List<PlayerSnapshot.SlotStack> ender = new java.util.ArrayList<>();
+        net.zaminmc.torch.item.ItemStack[] enderSlots = session.enderChest().snapshotSlots();
+        for (int i = 0; i < enderSlots.length; i++) {
+            net.zaminmc.torch.item.ItemStack stack = enderSlots[i];
+            if (stack.isEmpty()) {
+                continue;
+            }
+            ender.add(new PlayerSnapshot.SlotStack(i, stack.type().identifier(),
+                    stack.count(), stack.damage(), stack.displayName()));
+        }
         return new PlayerSnapshot(session.uuid(), session.name(), session.position(),
                 session.rotation(), session.inventory().heldSlot(), filled,
                 session.health(), session.food(), session.saturation(),
-                session.gamemode().legacyId(), session.totalXp(), session.bedSpawn());
+                session.gamemode().legacyId(), session.totalXp(), session.bedSpawn(), ender);
     }
 
     /**
