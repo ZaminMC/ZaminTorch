@@ -354,6 +354,25 @@ public final class RedstoneBlocks {
                 && (type.identifier().value().startsWith("lever_"));
     }
 
+    /**
+     * The lamp pair (Slice 33 — RedstoneLampBlock): legacy 123 the dark,
+     * 124 the lit. One item (the dark form — getDropItem returns
+     * REDSTONE_LAMP for both states), the lit twin unregistered as an item.
+     */
+    public static boolean isLamp(net.zaminmc.torch.block.BlockType type) {
+        if (type == null || !type.identifier().namespace().equals("minecraft")) {
+            return false;
+        }
+        String value = type.identifier().value();
+        return value.equals("redstone_lamp") || value.equals("lit_redstone_lamp");
+    }
+
+    /** @return whether the lamp state is the lit pair (legacy 124). */
+    public static boolean lampLit(net.zaminmc.torch.block.BlockType type) {
+        return type != null
+                && type.identifier().value().equals("lit_redstone_lamp");
+    }
+
     /** @return whether the lever state is the powered pair. */
     public static boolean leverPowered(net.zaminmc.torch.block.BlockType type) {
         return type.identifier().value().startsWith("lever_") && type.identifier().value().endsWith("_powered");

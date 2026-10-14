@@ -1624,6 +1624,14 @@ public final class EngineServer implements Server, EngineBridge {
                     if (noteBlocks != null) {
                         noteBlocks.attackFromTick(position);
                     }
+                    // RedstoneOreBlock.startMining lines 33-37 -> interact:
+                    // the mining start lights the plain ore too (the same
+                    // swap the use arm carries — the reference's own pair).
+                    if (world.getBlock(position).identifier().equals(
+                            net.zaminmc.torch.server.block.BuiltinBlocks.REDSTONE_ORE.identifier())) {
+                        world.setBlock(position,
+                                net.zaminmc.torch.server.block.BuiltinBlocks.LIT_REDSTONE_ORE);
+                    }
                 });
                 // A survival-broken furnace spills its slots, and a survival-
                 // broken chest spills its 27, into the world first. The same
@@ -5894,6 +5902,15 @@ public final class EngineServer implements Server, EngineBridge {
                                       int cursorY,
                                       java.util.function.IntConsumer onTableOpened) {
         net.zaminmc.torch.block.BlockType current = world.getBlock(clicked);
+        if (current.identifier().equals(
+                net.zaminmc.torch.server.block.BuiltinBlocks.REDSTONE_ORE.identifier())) {
+            // RedstoneOreBlock.use lines 45-50 -> interact (lines 52-57):
+            // the click lights the ore (the particles ride the client's
+            // randomDisplayTick band) — the reference's use returns
+            // super.use, so the click falls through to the placement
+            // proposal too; no consumption here either.
+            world.setBlock(clicked, net.zaminmc.torch.server.block.BuiltinBlocks.LIT_REDSTONE_ORE);
+        }
         if (WorldSolidity.isFurnaceBlock(current.identifier())) {
             openFurnaceOnTick(session, clicked, onTableOpened);
             return;

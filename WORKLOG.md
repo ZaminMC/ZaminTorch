@@ -5470,3 +5470,51 @@ bounce/slow movement family (slipperiness 0.8) and the packed ice's
 the End dimension's generator on its own slice; the hay bale's AXIS
 rotation states ride the metadata-variants slice (the plain Y form is
 registered).
+
+## Slice 33 — the redstone power family: the lamp pair + the lit ore
+
+The reference port of `RedstoneLampBlock.java` + `RedstoneOreBlock.java`'s
+lit twin (the registrations 123/124/74), the first family the
+neighbor-signal bus carries that is not itself a signal source.
+
+- The three new blocks (`BuiltinBlocks`): redstone_lamp 123,
+  lit_redstone_lamp 124 (one item — the dark form; the reference's
+  getDropItem returns the DARK lamp for both states), lit_redstone_ore
+  74 (the plain ore's glowing state).
+- The lamp's flip (`RedstoneSystem`, FAMILY_LAMP + LAMP_TICK_RATE 4):
+  onAdded evaluates immediately (a lit lamp without a feed goes dark, a
+  dark lamp on a feed lights — no tick delay on the brighten),
+  neighborChanged schedules the lit form's 4-tick revert when the feed
+  departs (getTickRate's own delay) and swaps the dark form immediately
+  when one arrives, and the tick dispatch carries the delayed revert.
+  The neighbor arm rides the same six-cell ring the torch/repeater
+  families use.
+- The lit ore's lifecycle: the click arm (`EngineServer.useItemOnBlockOnTick`
+  — the use falls through to the placement proposal, the reference's own
+  super.use return), the mining-start arm (startMining -> interact, the
+  note block's own hook extended), and the revert — the lit form is
+  `setTicksRandomly(true)` and the reference's `Block.randomTick`
+  DELEGATES to `tick` (Block.java lines 434-436), so the glow's duration
+  IS the random-tick band; `RandomTickSystem.randomTick`'s first rule
+  carries it back (no scheduled delay exists in the reference — the
+  discovery that closed the slice's own research question).
+- The drop walks (`DropService`): the redstone arm extended to the lit
+  twin (the same 4+nextInt(2) dust walk with the additive fortune both
+  states); the lamp pair drops the dark item from both states.
+- The light rows: the dark lamp 0/15 (Material.REDSTONE_LAMP is a solid
+  opaque cube), the lit lamp 15/15 (setLight(1.0F)), the lit ore 9/15
+  (setLight(0.625F) — the (int)(0.625*15) truncation).
+- The wire (`LegacyBlockIds`): 123/124/74 — the item shares the dark
+  form's 123.
+- Tests: `RedstoneLampTest` (2: the lamp's immediate light on a
+  torch-fed block + the 4-tick revert after the feed departs over the
+  live engine; the lit ore's random-tick revert through the per-cell
+  probe + the drop rows of both states + the family predicates) +
+  `BlockRegistryTest` 278. Batches: redstone + block + interaction +
+  registry green, the protocol module green except the DonkeyChest
+  integration flake (the documented 2-core load flake — green in
+  isolation, the worklog's own precedent), `--max-workers=1`.
+
+Ledgered: the ore's stepped-on arm (onSteppedOn -> interact) rides the
+entity-walk family the engine's plate scan does not expose yet; the
+interact arm's spark particles are the client's randomDisplayTick band.

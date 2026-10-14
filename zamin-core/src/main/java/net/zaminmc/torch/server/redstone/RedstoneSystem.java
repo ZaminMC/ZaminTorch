@@ -2,6 +2,7 @@ package net.zaminmc.torch.server.redstone;
 
 import net.zaminmc.torch.block.BlockPosition;
 import net.zaminmc.torch.block.BlockType;
+import net.zaminmc.torch.server.block.BuiltinBlocks;
 import net.zaminmc.torch.server.block.WorldSolidity;
 import net.zaminmc.torch.server.item.BuiltinItems;
 import net.zaminmc.torch.server.entity.ItemEntity;
@@ -155,6 +156,10 @@ public final class RedstoneSystem implements WorldChangeListener {
     static final int FAMILY_TRIPWIRE = 6;
     /** The dispenser/dropper family (Slice 11a — the 4-tick reaction). */
     static final int FAMILY_DISPENSER = 7;
+    static final int FAMILY_LAMP = 8;
+
+    /** The lamp's revert delay (RedstoneLampBlock.getTickRate: 4 ticks). */
+    static final int LAMP_TICK_RATE = 4;
 
     /** The plates' re-compute debounce (AbstractPressurePlateBlock.getTickRate). */
     static final int PLATE_TICK_RATE = 20;
@@ -751,6 +756,20 @@ public final class RedstoneSystem implements WorldChangeListener {
             checkComparatorOutput(pos, type);
             return;
         }
+        if (RedstoneBlocks.isLamp(type)) {
+            // RedstoneLampBlock.neighborChanged (lines 40-50): a lit lamp
+            // that lost its feed schedules the 4-tick revert (getTickRate
+            // — the reference's own delay), a dark lamp that gains one
+            // flips IMMEDIATELY (no tick delay on the brighten).
+            if (RedstoneBlocks.lampLit(type)) {
+                if (!hasNeighborSignal(pos)) {
+                    scheduleTick(pos, FAMILY_LAMP, LAMP_TICK_RATE, 0);
+                }
+            } else if (hasNeighborSignal(pos)) {
+                world.setBlock(pos, BuiltinBlocks.LIT_REDSTONE_LAMP);
+            }
+            return;
+        }
         if (RedstoneBlocks.isLever(type)) {
             // LeverBlock.neighborChanged (lines 143-147): the attachment
             // break pops the lever.
@@ -779,6 +798,19 @@ public final class RedstoneSystem implements WorldChangeListener {
 
     /** The per-family onAdded (the reference's onAdded overrides). */
     private void onAdded(BlockPosition pos, BlockType type) {
+        if (RedstoneBlocks.isLamp(type)) {
+            // RedstoneLampBlock.onAdded (lines 29-38): the immediate
+            // evaluation — a lit lamp landing without a feed goes dark, a
+            // dark lamp landing on a feed lights (no tick delay).
+            if (RedstoneBlocks.lampLit(type)) {
+                if (!hasNeighborSignal(pos)) {
+                    world.setBlock(pos, BuiltinBlocks.REDSTONE_LAMP);
+                }
+            } else if (hasNeighborSignal(pos)) {
+                world.setBlock(pos, BuiltinBlocks.LIT_REDSTONE_LAMP);
+            }
+            return;
+        }
         if (RedstoneBlocks.isWire(type)) {
             // RedstoneWireBlock lines 176-198: the power walk, then the
             // VERTICAL two-hop ring (updateNeighbors per the up/down
@@ -908,6 +940,12 @@ public final class RedstoneSystem implements WorldChangeListener {
                 buttonTick(entry.position(), type);
             } else if (RedstoneBlocks.isPlate(type)) {
                 plateTick(entry.position(), type);
+            } else if (RedstoneBlocks.isLamp(type)) {
+                // RedstoneLampBlock.tick (lines 52-60): the lit lamp that
+                // lost its feed reverts dark (the 4-tick delayed reaction).
+                if (RedstoneBlocks.lampLit(type) && !hasNeighborSignal(entry.position())) {
+                    world.setBlock(entry.position(), BuiltinBlocks.REDSTONE_LAMP);
+                }
             } else if (TripwireBlocks.isTripwire(type)) {
                 if (tripwireTicker != null) {
                     tripwireTicker.accept(entry.position());
@@ -1593,6 +1631,9 @@ public final class RedstoneSystem implements WorldChangeListener {
         }
         if (RedstoneBlocks.isComparator(type)) {
             return FAMILY_COMPARATOR;
+        }
+        if (RedstoneBlocks.isLamp(type)) {
+            return FAMILY_LAMP;
         }
         if (RedstoneBlocks.isButton(type)) {
             return FAMILY_BUTTON;

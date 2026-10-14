@@ -91,6 +91,16 @@ public final class RandomTickSystem {
      */
     public void randomTick(BlockPosition position) {
         BlockType type = world.getBlock(position);
+        // The lit redstone ore's revert (Slice 33 — RedstoneOreBlock.tick
+        // lines 59-63 over the default Block.randomTick delegation lines
+        // 434-436): the LIT variant is setTicksRandomly(true), so the
+        // random tick carries it back to the plain ore (no scheduled
+        // delay in the reference — the glow's duration IS the random-tick
+        // band).
+        if (type.identifier().equals(BuiltinBlocks.LIT_REDSTONE_ORE.identifier())) {
+            world.setBlock(position, BuiltinBlocks.REDSTONE_ORE);
+            return;
+        }
         if (WorldSolidity.isCropStage(type.identifier())) {
             tickCropGrowth(position, type);
             return;

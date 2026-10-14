@@ -531,6 +531,14 @@ public final class BlockLightTable {
         entries.put(Identifier.parse("minecraft:slime_block"), new LightData(0, 0));
         entries.put(Identifier.parse("minecraft:end_stone"), new LightData(0, 15));
         entries.put(Identifier.parse("minecraft:packed_ice"), new LightData(0, 15));
+        // The redstone power family (Slice 33): the lamps are full opaque
+        // cubes (Material.REDSTONE_LAMP blocks movement, never
+        // translucent) with the LIT pair's emission 15 (setLight(1.0F));
+        // the lit ore glows 9 (setLight(0.625F) — the (int)(0.625 * 15)
+        // truncation).
+        entries.put(Identifier.parse("minecraft:redstone_lamp"), new LightData(0, 15));
+        entries.put(Identifier.parse("minecraft:lit_redstone_lamp"), new LightData(15, 15));
+        entries.put(Identifier.parse("minecraft:lit_redstone_ore"), new LightData(9, 15));
         return Map.copyOf(entries);
     }
 

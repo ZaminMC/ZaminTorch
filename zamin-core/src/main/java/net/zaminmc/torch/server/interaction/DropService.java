@@ -167,7 +167,8 @@ public final class DropService {
         // 71-77): the drop is the dust, base {@code 4 + nextInt(2)}, and
         // fortune ADDS {@code nextInt(fortune + 1)} — its own override of
         // the OreBlock multiplier shape, never a multiple.
-        if (broken.identifier().value().equals("redstone_ore")) {
+        if (broken.identifier().value().equals("redstone_ore")
+                || broken.identifier().value().equals("lit_redstone_ore")) {
             int count = 4 + random.nextInt(2) + random.nextInt(fortune + 1);
             ItemType dust = BuiltinItems.lookup(
                     Identifier.parse("minecraft:redstone")).orElseThrow();

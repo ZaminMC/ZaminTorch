@@ -457,6 +457,11 @@ public final class BuiltinItems {
             Identifier.parse("minecraft:end_stone"), "End Stone", 64);
     public static final EngineItemType PACKED_ICE_ITEM = new EngineItemType(
             Identifier.parse("minecraft:packed_ice"), "Packed Ice", 64);
+    // The lamp's single item (Slice 33 — Item.java's register(Blocks.
+    // REDSTONE_LAMP): both wire states drop the DARK form (the reference's
+    // getDropItem), so the lit twin never registers an item of its own.
+    public static final EngineItemType REDSTONE_LAMP_ITEM = new EngineItemType(
+            Identifier.parse("minecraft:redstone_lamp"), "Redstone Lamp", 64);
     public static final EngineItemType ENCHANTED_BOOK = new EngineItemType(
             Identifier.parse("minecraft:enchanted_book"), "Enchanted Book", 1);
 
@@ -845,7 +850,7 @@ public final class BuiltinItems {
                 LAPIS_ORE_ITEM, EMERALD_ORE_ITEM, LAPIS_BLOCK_ITEM,
                 REDSTONE_BLOCK_ITEM, COAL_BLOCK_ITEM, QUARTZ_BLOCK_ITEM,
                 BRICK_BLOCK_ITEM, CLAY_ITEM, SLIME_ITEM, END_STONE_ITEM,
-                PACKED_ICE_ITEM,
+                PACKED_ICE_ITEM, REDSTONE_LAMP_ITEM,
                 ITEM_FRAME, PAINTING, ARMOR_STAND,
                 ENDER_PEARL, EMPTY_MAP, COMPASS, IRON_DOOR,
                 NETHER_BRICKS, NETHER_BRICK_FENCE, NETHER_BRICK_STAIRS,

@@ -244,6 +244,22 @@ public final class BlockBehaviorTable {
             Map.entry(Identifier.parse("minecraft:packed_ice"),
                     new BlockBehavior(0.5, true, true, "rock", 1, List.of())),
 
+            // The redstone power family (Slice 33): the lamp pair — one
+            // item (the dark form — RedstoneLampBlock.getDropItem lines
+            // 62-65 returns the DARK lamp for BOTH states), the glass
+            // sounds' 0.3 hardness, no tool gate. The lit ore shares its
+            // plain twin's row exactly (same dust drops, same gates — the
+            // drop arm reads the family walk either way).
+            Map.entry(Identifier.parse("minecraft:redstone_lamp"),
+                    new BlockBehavior(0.3, true, false, null, 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:redstone_lamp"), 1)))),
+            Map.entry(Identifier.parse("minecraft:lit_redstone_lamp"),
+                    new BlockBehavior(0.3, true, false, null, 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:redstone_lamp"), 1)))),
+            Map.entry(Identifier.parse("minecraft:lit_redstone_ore"),
+                    new BlockBehavior(3.0, true, true, "rock", 3,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:redstone"), 4)))),
+
             // Community data (pc/1.8 blocks.json): sand hardness 0.5, material
             // dirt, no tool requirement, drops itself (metadata 0: normal sand;
             // red sand is variant 1, /give reachable). Glass hardness 0.3, no
