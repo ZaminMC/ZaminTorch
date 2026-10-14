@@ -348,6 +348,24 @@ public final class BlockUpdateSystem implements WorldChangeListener {
                     ItemEntity.PICKUP_DELAY_DROP_TICKS);
             return;
         }
+        // The carpet family's support rule (Slice 31 — CarpetBlock's
+        // canSurviveOrBreak lines 79-89 over neighborChanged): only AIR
+        // below breaks it (water and torches carry it), the drop carrying
+        // the family item with the color damage (dropItems' own metadata
+        // walk) and the cell clearing to air.
+        if (net.zaminmc.torch.server.block.DyeFamilyBlocks.isCarpet(identifier)) {
+            if (!world.getBlock(position.offset(0, -1, 0)).equals(world.airType())) {
+                return; // supported
+            }
+            int color = net.zaminmc.torch.server.block.DyeFamilyBlocks.colorOf(identifier);
+            net.zaminmc.torch.item.ItemStack drop = new net.zaminmc.torch.item.ItemStack(
+                    net.zaminmc.torch.server.item.BuiltinItems.CARPET, 1, color);
+            world.setBlock(position, world.airType());
+            itemEntities.spawnDropAtBlock(
+                    new Position(position.x(), position.y(), position.z()),
+                    drop, ItemEntity.PICKUP_DELAY_DROP_TICKS);
+            return;
+        }
         if (identifier.equals(FIRE)) {
             tickFire(position, world.totalTicks());
             return;

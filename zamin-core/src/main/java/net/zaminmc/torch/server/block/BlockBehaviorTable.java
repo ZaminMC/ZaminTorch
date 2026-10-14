@@ -1015,6 +1015,59 @@ public final class BlockBehaviorTable {
         behaviors.put(Identifier.parse("minecraft:stone_pressure_plate_powered"), stonePlate);
         behaviors.put(Identifier.parse("minecraft:wooden_pressure_plate"), woodPlate);
         behaviors.put(Identifier.parse("minecraft:wooden_pressure_plate_powered"), woodPlate);
+
+        // The dye-coloring world families (Slice 31 — the reference's Block
+        // registrations: wool 35 `setStrength(0.8F)` CLOTH, stained glass 95
+        // `setStrength(0.3F)` (getBaseDropCount 0 — the silk-only family),
+        // stained clay 159 `setStrength(1.25F)` STONE, the stained pane 160
+        // `setStrength(0.3F)` (PaneBlock hasDrops false), the carpet 171
+        // `setStrength(0.1F)` CLOTH `setOpacity(0)`, hardened clay 172
+        // `setStrength(1.25F)` STONE). Every member drops its family's own
+        // item with the damage field carrying the color (the reference's
+        // getDropItemMetadata); the glass pair drops nothing by hand (silk
+        // returns the family item — the DropService's family arm).
+        for (int color = 0; color < 16; color++) {
+            // wool (the white keeps the plain minecraft:wool row above)
+            if (color != 0) {
+                behaviors.put(DyeFamilyBlocks.blockOf("wool", color),
+                        new BlockBehavior(0.8, true, false, "wool", 0,
+                                List.of(new BlockBehavior.Drop(DyeFamilyBlocks.WOOL_ITEM, 1, color))));
+            }
+            // stained glass: silk-only (no hand rows), the null material
+            // matching the plain glass/pane rows (no tool class)
+            behaviors.put(DyeFamilyBlocks.stainedGlassBlock(color),
+                    new BlockBehavior(0.3, true, false, null, 0, List.of()));
+            // stained glass pane: silk-only (PaneBlock hasDrops false)
+            behaviors.put(DyeFamilyBlocks.stainedGlassPaneBlock(color),
+                    new BlockBehavior(0.3, true, false, null, 0, List.of()));
+            // carpet: the 1/16-tall cover, no tool class (the reference's
+            // own Material.CARPET — shears accelerate WOOL, never CARPET)
+            behaviors.put(DyeFamilyBlocks.carpetBlock(color),
+                    new BlockBehavior(0.1, true, false, "carpet", 0,
+                            List.of(new BlockBehavior.Drop(DyeFamilyBlocks.CARPET_ITEM, 1, color))));
+            // stained clay: the stone pickaxe family (any tier drops)
+            if (color != 1 && color != 4) {
+                behaviors.put(DyeFamilyBlocks.stainedClayBlock(color),
+                        new BlockBehavior(1.25, true, true, "rock", 0,
+                                List.of(new BlockBehavior.Drop(
+                                        DyeFamilyBlocks.STAINED_HARDENED_CLAY_ITEM, 1, color))));
+            }
+        }
+        // the temple pair joins the family's rows (the loop skips their
+        // colors — the constants predate the family)
+        behaviors.put(Identifier.parse("minecraft:stained_clay_orange"),
+                new BlockBehavior(1.25, true, true, "rock", 0,
+                        List.of(new BlockBehavior.Drop(
+                                DyeFamilyBlocks.STAINED_HARDENED_CLAY_ITEM, 1, 1))));
+        behaviors.put(Identifier.parse("minecraft:stained_clay_yellow"),
+                new BlockBehavior(1.25, true, true, "rock", 0,
+                        List.of(new BlockBehavior.Drop(
+                                DyeFamilyBlocks.STAINED_HARDENED_CLAY_ITEM, 1, 4))));
+        // hardened clay itself (172 — the parent of the stained family)
+        behaviors.put(Identifier.parse("minecraft:hardened_clay"),
+                new BlockBehavior(1.25, true, true, "rock", 0,
+                        List.of(new BlockBehavior.Drop(
+                                Identifier.parse("minecraft:hardened_clay"), 1))));
         return Map.copyOf(behaviors);
     }
 

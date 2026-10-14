@@ -660,7 +660,103 @@ final class LegacyBlockIds {
         merged.put(Identifier.parse("minecraft:stone_pressure_plate_powered"), 70);
         merged.put(Identifier.parse("minecraft:wooden_pressure_plate"), 72);
         merged.put(Identifier.parse("minecraft:wooden_pressure_plate_powered"), 72);
+        // The dye-coloring world families (Slice 31 — the reference's Block
+        // registrations): the fifteen non-white wool members over 35, the
+        // stained glass family 95, the stained panes 160, the carpets 171,
+        // the stained clay family's fourteen new members over 159 (the
+        // temple pair registers in the base map), hardened clay 172 — the
+        // color riding the nibble whole (the METADATA merge below). The
+        // five family ITEM forms register with their block ids too (the
+        // damage-domain items: the stained glass item 95, the pane 160, the
+        // carpet 171, the stained clay 159, hardened clay 172 — the plain
+        // wool item 35 already rides the base map).
+        for (int color = 0; color < 16; color++) {
+            if (color != 0) { // the white wool keeps the plain minecraft:wool entry
+                merged.put(DyeFamilyIds.woolBlock(color), 35);
+            }
+            merged.put(DyeFamilyIds.stainedGlassBlock(color), 95);
+            merged.put(DyeFamilyIds.stainedGlassPaneBlock(color), 160);
+            merged.put(DyeFamilyIds.carpetBlock(color), 171);
+            if (color != 1 && color != 4) { // the temple pair rides the base map
+                merged.put(DyeFamilyIds.stainedClayBlock(color), 159);
+            }
+        }
+        merged.put(Identifier.parse("minecraft:stained_glass"), 95);
+        merged.put(Identifier.parse("minecraft:stained_glass_pane"), 160);
+        merged.put(Identifier.parse("minecraft:carpet"), 171);
+        merged.put(Identifier.parse("minecraft:hardened_clay"), 172);
+        merged.put(Identifier.parse("minecraft:stained_hardened_clay"), 159);
         return Map.copyOf(merged);
+    }
+
+    /**
+     * The dye family's id shapes, mirrored from the engine's
+     * {@code DyeFamilyBlocks} (the protocol module cannot depend on core;
+     * the two tables are pinned together by the Slice 31 tests).
+     */
+    private static final class DyeFamilyIds {
+        private static final String[] COLORS = {
+                "white", "orange", "magenta", "light_blue", "yellow", "lime", "pink",
+                "gray", "silver", "cyan", "purple", "blue", "brown", "green",
+                "red", "black"};
+
+        private DyeFamilyIds() {
+        }
+
+        static Identifier woolBlock(int color) {
+            return Identifier.parse("minecraft:" + COLORS[color & 0xF] + "_wool");
+        }
+
+        static Identifier stainedGlassBlock(int color) {
+            return Identifier.parse("minecraft:stained_glass_" + COLORS[color & 0xF]);
+        }
+
+        static Identifier stainedGlassPaneBlock(int color) {
+            return Identifier.parse("minecraft:stained_glass_pane_" + COLORS[color & 0xF]);
+        }
+
+        static Identifier carpetBlock(int color) {
+            return Identifier.parse("minecraft:carpet_" + COLORS[color & 0xF]);
+        }
+
+        static Identifier stainedClayBlock(int color) {
+            return Identifier.parse("minecraft:stained_clay_" + COLORS[color & 0xF]);
+        }
+
+        static boolean isVariant(Identifier id) {
+            String value = id.value();
+            if (!id.namespace().equals("minecraft")) {
+                return false;
+            }
+            // the wool members (the plain minecraft:wool is the ITEM)
+            for (String color : COLORS) {
+                if (value.equals(color + "_wool")) {
+                    return true;
+                }
+            }
+            return (value.startsWith("stained_glass_pane_") || value.startsWith("stained_glass_")
+                    || value.startsWith("carpet_") || value.startsWith("stained_clay_"))
+                    && hasColorSuffix(value);
+        }
+
+        private static boolean hasColorSuffix(String value) {
+            int underscore = value.lastIndexOf('_');
+            if (underscore < 0 || underscore + 1 >= value.length()) {
+                return false;
+            }
+            String suffix = value.substring(underscore + 1);
+            for (String color : COLORS) {
+                if (suffix.equals(color)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+    }
+
+    /** @return whether the id is a dye family's flattened member (never an item). */
+    static boolean isDyeFamilyVariant(Identifier id) {
+        return DyeFamilyIds.isVariant(id);
     }
 
     /**
@@ -707,7 +803,17 @@ final class LegacyBlockIds {
 
     private static Map<Integer, Identifier> reverse() {
         Map<Integer, Identifier> reversed = new HashMap<>();
-        BY_IDENTIFIER.forEach((identifier, legacyId) -> reversed.put(legacyId, identifier));
+        BY_IDENTIFIER.forEach((identifier, legacyId) -> {
+            // The dye families' flattened members share their legacy id
+            // with the family's single damage-domain ITEM (Slice 31): the
+            // no-meta reverse must keep the ITEM canonical (the creative
+            // slot's plain-id fallback resolves it; the members are only
+            // ever reachable through the damage-aware map below).
+            if (isDyeFamilyVariant(identifier)) {
+                return;
+            }
+            reversed.put(legacyId, identifier);
+        });
         // The item-form overrides (sign item 323) resolve on the creative
         // and slot paths too; item ids never collide with block ids here.
         ITEM_OVERRIDES.forEach((identifier, legacyId) -> reversed.put(legacyId, identifier));
@@ -740,7 +846,7 @@ final class LegacyBlockIds {
      * flora: 0 dead shrub, 1 grass, 2 fern — the engine's tall grass is the
      * real "grass" variant on the wire).
      */
-    private static final Map<Identifier, Integer> METADATA = Map.ofEntries(
+    private static final Map<Identifier, Integer> METADATA = withDyeFamilyMetadata(Map.ofEntries(
             Map.entry(Identifier.parse("minecraft:tall_grass"), 1),
             Map.entry(Identifier.parse("minecraft:sign_west"), 4),
             Map.entry(Identifier.parse("minecraft:sign_north"), 8),
@@ -853,7 +959,32 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:chiseled_sandstone"), 3),
             Map.entry(Identifier.parse("minecraft:stained_clay_orange"), 1),
             Map.entry(Identifier.parse("minecraft:stained_clay_yellow"), 4),
-            Map.entry(Identifier.parse("minecraft:vine"), 15));
+            Map.entry(Identifier.parse("minecraft:vine"), 15)));
+
+    /**
+     * The dye-coloring families' nibble merge (Slice 31): every family
+     * member's color rides the metadata nibble WHOLE (the DyeColor getId
+     * domain — the wire's data value for all five families), including the
+     * plain white wool's explicit 0 (the damage-aware reverse's
+     * {@code 35|0} claim) and the temple pair's own 1/4 (their entries
+     * live in the base map — this merge only adds what it lacks).
+     */
+    private static Map<Identifier, Integer> withDyeFamilyMetadata(Map<Identifier, Integer> base) {
+        Map<Identifier, Integer> merged = new HashMap<>(base);
+        merged.put(Identifier.parse("minecraft:wool"), 0);
+        for (int color = 0; color < 16; color++) {
+            if (color != 0) {
+                merged.put(DyeFamilyIds.woolBlock(color), color);
+            }
+            merged.put(DyeFamilyIds.stainedGlassBlock(color), color);
+            merged.put(DyeFamilyIds.stainedGlassPaneBlock(color), color);
+            merged.put(DyeFamilyIds.carpetBlock(color), color);
+            if (color != 1 && color != 4) {
+                merged.put(DyeFamilyIds.stainedClayBlock(color), color);
+            }
+        }
+        return Map.copyOf(merged);
+    }
 
     /**
      * @return the wire metadata nibble of a block type: the 1.8 data-value

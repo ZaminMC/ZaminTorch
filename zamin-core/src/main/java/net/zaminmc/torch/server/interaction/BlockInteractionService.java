@@ -79,7 +79,7 @@ public final class BlockInteractionService {
     private final java.util.function.Function<PlayerSession, GameMode> gameMode;
     private final DropService dropService;
     private final ItemEntityManager itemEntities;
-    private final java.util.function.Function<net.zaminmc.torch.item.ItemType,
+    private final java.util.function.BiFunction<net.zaminmc.torch.item.ItemType, Integer,
             java.util.Optional<BlockType>> blockItemResolver;
     private final java.util.function.Consumer<PlayerSession> inventorySync;
     /** Post-break hook (furnace spill, future block entities). Tick-thread context. */
@@ -146,7 +146,7 @@ public final class BlockInteractionService {
     public BlockInteractionService(EngineWorld world, EngineTicker ticker,
                                    Consumer<BlockChange> publisher, java.util.function.Function<PlayerSession, GameMode> gameMode,
                                    DropService dropService, ItemEntityManager itemEntities,
-                                   java.util.function.Function<net.zaminmc.torch.item.ItemType,
+                                   java.util.function.BiFunction<net.zaminmc.torch.item.ItemType, Integer,
                                            java.util.Optional<BlockType>> blockItemResolver,
                                    java.util.function.Consumer<PlayerSession> inventorySync) {
         this.world = Objects.requireNonNull(world, "world");
@@ -691,7 +691,7 @@ public final class BlockInteractionService {
         if (heldStack.isEmpty()) {
             return; // nothing held: no-op
         }
-        BlockType heldBlock = blockItemResolver.apply(heldStack.type()).orElse(null);
+        BlockType heldBlock = blockItemResolver.apply(heldStack.type(), heldStack.damage()).orElse(null);
         if (heldBlock == null) {
             LOGGER.fine(() -> "Rejected survival placement of non-block item by " + player.name());
             return;

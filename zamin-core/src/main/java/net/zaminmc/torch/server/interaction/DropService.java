@@ -109,6 +109,28 @@ public final class DropService {
             }
             return List.of(new ItemStack(obsidian, 8));
         }
+        // The dye-coloring families' silk arms (Slice 31 — StainedGlassBlock
+        // + StainedGlassPaneBlock's `hasSilkTouchDrops` true over
+        // getBaseDropCount 0 / PaneBlock's hasDrops false): silk returns the
+        // family's own item with the damage field carrying the color (the
+        // reference's getDropItemMetadata), the bare hand gets nothing at
+        // all. The wool/carpet/stained-clay families drop normally with
+        // damage (their rows) — silk is observably identical to them.
+        if (net.zaminmc.torch.server.block.DyeFamilyBlocks.isStainedGlass(broken.identifier())
+                || net.zaminmc.torch.server.block.DyeFamilyBlocks.isStainedGlassPane(broken.identifier())) {
+            if (!silkTouch) {
+                return List.of();
+            }
+            Identifier familyItem = net.zaminmc.torch.server.block.DyeFamilyBlocks
+                    .dropItemOf(broken.identifier()).orElseThrow();
+            ItemType itemType = BuiltinItems.lookup(familyItem).orElse(null);
+            if (itemType == null) {
+                throw new IllegalStateException(
+                        "Dye family item is unregistered: " + familyItem);
+            }
+            int color = net.zaminmc.torch.server.block.DyeFamilyBlocks.colorOf(broken.identifier());
+            return List.of(new ItemStack(itemType, 1, color));
+        }
         // The silk arm: the block's own item (the reference's
         // getSilkTouchDrop — Item.byBlock with the state metadata), one
         // stack, no chance roll.
@@ -159,7 +181,9 @@ public final class DropService {
                 }
                 count *= (i + 1);
             }
-            drops.add(ItemStack.of(itemType, count));
+            drops.add(drop.damage() == 0
+                    ? ItemStack.of(itemType, count)
+                    : new ItemStack(itemType, count, drop.damage()));
         }
         return drops;
     }

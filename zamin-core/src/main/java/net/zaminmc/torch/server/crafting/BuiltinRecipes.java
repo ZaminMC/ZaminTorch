@@ -38,7 +38,7 @@ public final class BuiltinRecipes {
     }
 
     /** All generated recipes, in dataset order (deterministic matching). */
-    public static final List<CraftingRecipe> ALL = List.of(
+    public static final List<CraftingRecipe> ALL = withDyeRecipes(List.of(
             CraftingRecipe.shaped(new Ingredient[][] {
                     { ing("minecraft:oak_log", true, 0) }
             },
@@ -282,5 +282,81 @@ public final class BuiltinRecipes {
                     { ing("minecraft:cobblestone", false, 0), ing("minecraft:cobblestone", false, 0), ing("minecraft:cobblestone", false, 0) }
             },
                     res("minecraft:cobblestone_stairs", 4, 0))
-    );
+    ));
+
+    /**
+     * The dye-coloring recipe families (Slice 31 — DyeRecipes.java's own
+     * registration set, 1:1): the sixteen wool-coloring rows (a dye of the
+     * DyeColor's own INVERTED item metadata 15-i plus a white wool yields
+     * the color's wool, lines 23-26), the three ring recipes (stained
+     * hardened clay 8-for-1 dye around eight plain, stained glass the
+     * same, lines 27-40), the pane fold (six stained glass into sixteen
+     * panes, lines 41-42), the sixteen carpet rows (two same-color wool
+     * into three carpets, lines 137-139), and the two flower dyes the
+     * engine's flora carries (the dandelion's two yellow, the poppy's one
+     * red — lines 108-113; the remaining flower/double-plant rows ride
+     * their unregistered flora's own slices).
+     */
+    private static List<CraftingRecipe> withDyeRecipes(List<CraftingRecipe> base) {
+        List<CraftingRecipe> recipes = new java.util.ArrayList<>(base);
+        for (int i = 0; i < 16; i++) {
+            // wool coloring: dye(15-i) + white wool -> wool(i)
+            recipes.add(CraftingRecipe.shapeless(java.util.List.of(
+                    ing("minecraft:dye", true, 15 - i),
+                    ing("minecraft:wool", true, 0)),
+                    res("minecraft:wool", 1, i)));
+            // stained hardened clay: eight plain around one dye(i) -> eight (15-i)
+            recipes.add(CraftingRecipe.shaped(new Ingredient[][] {
+                    { ing("minecraft:hardened_clay", false, 0),
+                      ing("minecraft:hardened_clay", false, 0),
+                      ing("minecraft:hardened_clay", false, 0) },
+                    { ing("minecraft:hardened_clay", false, 0),
+                      ing("minecraft:dye", true, i),
+                      ing("minecraft:hardened_clay", false, 0) },
+                    { ing("minecraft:hardened_clay", false, 0),
+                      ing("minecraft:hardened_clay", false, 0),
+                      ing("minecraft:hardened_clay", false, 0) }
+            },
+                    res("minecraft:stained_hardened_clay", 8, 15 - i)));
+            // stained glass: eight glass around one dye(i) -> eight (15-i)
+            recipes.add(CraftingRecipe.shaped(new Ingredient[][] {
+                    { ing("minecraft:glass", false, 0),
+                      ing("minecraft:glass", false, 0),
+                      ing("minecraft:glass", false, 0) },
+                    { ing("minecraft:glass", false, 0),
+                      ing("minecraft:dye", true, i),
+                      ing("minecraft:glass", false, 0) },
+                    { ing("minecraft:glass", false, 0),
+                      ing("minecraft:glass", false, 0),
+                      ing("minecraft:glass", false, 0) }
+            },
+                    res("minecraft:stained_glass", 8, 15 - i)));
+            // stained glass panes: six stained glass(i) -> sixteen panes(i)
+            recipes.add(CraftingRecipe.shaped(new Ingredient[][] {
+                    { ing("minecraft:stained_glass", true, i),
+                      ing("minecraft:stained_glass", true, i),
+                      ing("minecraft:stained_glass", true, i) },
+                    { ing("minecraft:stained_glass", true, i),
+                      ing("minecraft:stained_glass", true, i),
+                      ing("minecraft:stained_glass", true, i) }
+            },
+                    res("minecraft:stained_glass_pane", 16, i)));
+            // carpet: two same-color wool -> three carpets of the color
+            recipes.add(CraftingRecipe.shaped(new Ingredient[][] {
+                    { ing("minecraft:wool", true, i),
+                      ing("minecraft:wool", true, i) }
+            },
+                    res("minecraft:carpet", 3, i)));
+        }
+        // The flower dyes (DyeRecipes lines 108-113 — the two flora the
+        // engine's world grows): the dandelion's TWO yellow (the reference
+        // yields a pair), the poppy's one red.
+        recipes.add(CraftingRecipe.shapeless(java.util.List.of(
+                ing("minecraft:dandelion", false, 0)),
+                res("minecraft:dye", 2, 11)));
+        recipes.add(CraftingRecipe.shapeless(java.util.List.of(
+                ing("minecraft:poppy", false, 0)),
+                res("minecraft:dye", 1, 1)));
+        return List.copyOf(recipes);
+    }
 }

@@ -5298,3 +5298,98 @@ The reference port of WolfEntity's own closing block (tick lines 193-222)
 Ledgered: the client's own event-8 pose (the shake animation's roll) is
 client-rendered from the broadcast — the engine's server model ends at
 the cycle's phases.
+
+## Slice 31 — the dye-coloring world families (the wool craft + the stained families)
+
+The reference port of `DyeRecipes.java`'s full registration set + the
+Block registrations 35/95/159/160/171/172, closing Slice 30b's ledger
+note (the wool-dyeing craft "rides the bone-meal item-model slice" —
+the bone_meal item landed with it, the coloring rows land here).
+
+- The family model (`server/block/DyeFamilyBlocks`): every family is ONE
+  vanilla item whose damage field carries the `DyeColor.getId()` id (0
+  white .. 15 black — the BLOCK-metadata domain, not the dye item's
+  inverted one), expanded into flattened per-color blocks whose wire
+  nibble IS the color. The white wool keeps the plain `minecraft:wool`
+  id (every placed white wool in existing worlds stays valid); the
+  temple slice's orange/yellow stained clay pair joins its family as its
+  own two members.
+- The 78 new blocks: the 15 non-white wool members (legacy 35), the
+  stained glass sixteen (95), the stained panes sixteen (160), the
+  carpets sixteen (171), the stained clay's 14 new members (159),
+  hardened clay (172). The five family items register with their block
+  ids (the wool item's own damage model, Slice 30b's fleece domain).
+- The behavior rows (the reference's own registrations): wool 0.8 CLOTH
+  (shears accelerate), the glass pair 0.3 SILK-ONLY (getBaseDropCount 0
+  / PaneBlock's hasDrops false — the plain hand gets nothing, silk takes
+  the family item with the color damage), carpet 0.1 its own CARPET
+  material (shears accelerate WOOL, never CARPET — the reference's own
+  material split), the clays 1.25 STONE (the pickaxe tier-0 harvest
+  gate). Every drop carries the family item with the color on the
+  damage field (the reference's getDropItemMetadata) — the BlockBehavior
+  Drop record grew the damage field, and the temple pair's
+  unregistered-item latent crash (the pre-31 row referenced
+  `minecraft:stained_clay_orange` as an item) closed with it.
+- The 82 recipes (`withDyeRecipes`, DyeRecipes.java 1:1): the 16
+  shapeless wool colorings (dye 15-i + white wool -> wool i — the
+  inverted dye-item domain), the 16 stained-clay rings (8 hardened clay
+  + dye i -> 8 stained clay 15-i), the 16 stained-glass rings (8 glass
+  + dye i -> 8 stained glass 15-i), the 16 pane folds (6 stained glass
+  i -> 16 panes i), the 16 carpet rows (2 same-color wool -> 3 carpets —
+  the exact-damage gate refuses mixed pairs), and the two flower dyes
+  the engine's flora carries (the dandelion's TWO yellow, the poppy's
+  one red). CraftingRecipeTest 125 recipes / 28 shapeless.
+- The damage-aware placement: the survival resolver consult grew from
+  `ItemType` to `(ItemType, damage)` — ItemBlock.onItemUse's
+  getStateFromMeta walk — resolving the family item to its color member
+  (a lime wool stack places `minecraft:lime_wool`); the creative claim
+  rides the damage-aware wire reverse (id 35 damage 5 -> the lime
+  member's block), and the creative SLOT claim resolves the family ITEM
+  with the damage preserved (the flattened member carries no item of its
+  own — the no-meta reverse keeps the family items canonical).
+- The carpet's support gates (CarpetBlock 1:1): the placement refuses
+  only over AIR (water and torches carry it — `!isAir(pos.down())`,
+  softer than the plate's solid bed) through the engine's use-dispatch
+  arm, and the neighbor-changed pop (canSurviveOrBreak) drops the
+  family item with the color and clears the cell (the BlockUpdateSystem
+  rule, the torch pop's own shape).
+- The world surfaces: the carpets never block a body (the 1/16 shape —
+  the snow layer's own envelope, WorldSolidity's non-solid set), the
+  note-block instruments (the clays STONE bass drum + hardened clay, the
+  stained glass pair GLASS hat, the carpet's own Material.CARPET falls
+  to the harp), and the light table (wool/clay opaque 15; the glass
+  pair, the panes and the carpets pass light untouched — the carpet
+  registration's own explicit `setOpacity(0)`).
+- The wire: LegacyBlockIds' family merge (the 78 members over their
+  five ids, the color riding the METADATA nibble whole, the five item
+  forms beside them), the no-meta reverse EXCLUDING the flattened
+  members (the family items stay canonical — the creative slot's
+  plain-id fallback), and the chunk/block-change writers ride the
+  existing metadataOf surfaces unchanged.
+- Tests: `DyeFamilyBlocksTest` (10: the family model + the placement
+  resolution + the predicates' guards, every member's behavior/light/
+  drop rows over all sixteen colors, the colored drop walks + the
+  pickaxe gates + the silk-only glass pair + the temple repair, the
+  wool-coloring rows' inverted domain + the off-color refusal, the ring
+  recipes' counts and damages, the pane fold + the carpet's same-color
+  demand, the flower dyes' counts, the solidity + instrument tables,
+  the five family items' damage domain) + `DyeFamilyPlacementAcceptanceTest`
+  (2: the lime wool's place/break round trip over the live engine with
+  the drop's damage read-back, the carpet's air refusal + the water
+  survival + the pop's colored drop) + `DyeFamilyWireAcceptanceTest`
+  (2: the creative claim's family-item resolution with the color damage
+  + the placement's block change naming the family id, the stained
+  glass member's wire round trip). Fresh suite: zamin-core 180 classes
+  green (one pre-existing real-time flake — VanillaMiningTimingTest's
+  airborne window passes in isolation, the chest test's own class of
+  load flake), the protocol + api + launcher modules green,
+  `--max-workers=1`.
+
+Ledgered: the remaining flower/double-plant dye rows (the oxeye daisy,
+the sunflower/lilac/rose/peony pair) ride their unregistered flora's
+own slices; the beacon's beamSection color blend is client-side state
+(the beam passes the glass members through the light table's opacity 0
+— the client's own BE walks its world); the carpet's thin collision
+shape rides the solidity stand-in (walk-through like the snow layer);
+the panes' connection states are client-rendered (metadata 0, the
+reference's own resolveVirtualProperties).

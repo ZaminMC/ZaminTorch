@@ -722,7 +722,19 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             int count = packet.readUnsignedByte();
             int damage = packet.readShort();
             SlotNbt.skip(packet); // the claimed slot's optional NBT marker + compound
-            stack = LegacyBlockIds.identifierOf(legacyId & 0xFFFF, damage)
+            // The damage-aware reverse resolves the flattened BLOCK variant
+            // first (the dye families' color members); a slot claim names
+            // the ITEM though — the single damage-domain family item (Slice
+            // 31: wool 35, the stained glass 95, the pane 160, the carpet
+            // 171, the stained clay 159 — the variant block has no item of
+            // its own), so a miss falls back to the plain id with the
+            // damage preserved.
+            java.util.Optional<net.zaminmc.torch.util.Identifier> claimed =
+                    LegacyBlockIds.identifierOf(legacyId & 0xFFFF, damage)
+                            .filter(id -> net.zaminmc.torch.server.item.BuiltinItems
+                                    .lookup(id).isPresent())
+                            .or(() -> LegacyBlockIds.identifierOf(legacyId & 0xFFFF));
+            stack = claimed
                     .flatMap(net.zaminmc.torch.server.item.BuiltinItems::lookup)
                     .map(type -> {
                         try {

@@ -494,6 +494,25 @@ public final class BlockLightTable {
                 }
             }
         }
+        // The dye-coloring world families (Slice 31): the wool and stained
+        // clay members are full opaque cubes (filter 15 — the wool row's
+        // own convention), while the stained glass family (TransparentBlock,
+        // the glass row's own 0), the stained panes (PaneBlock) and the
+        // carpets (`setOpacity(0)` — the registration's own explicit call)
+        // pass light untouched in every color.
+        for (int color = 0; color < 16; color++) {
+            if (color != 0) { // the white wool keeps the plain row above
+                entries.put(DyeFamilyBlocks.blockOf("wool", color), new LightData(0, 15));
+            }
+            entries.put(DyeFamilyBlocks.stainedGlassBlock(color), new LightData(0, 0));
+            entries.put(DyeFamilyBlocks.stainedGlassPaneBlock(color), new LightData(0, 0));
+            entries.put(DyeFamilyBlocks.carpetBlock(color), new LightData(0, 0));
+            if (color != 1 && color != 4) { // the temple pair keeps its rows
+                entries.put(DyeFamilyBlocks.stainedClayBlock(color), new LightData(0, 15));
+            }
+        }
+        // hardened clay itself (172 — the full opaque stone cube)
+        entries.put(Identifier.parse("minecraft:hardened_clay"), new LightData(0, 15));
         return Map.copyOf(entries);
     }
 
