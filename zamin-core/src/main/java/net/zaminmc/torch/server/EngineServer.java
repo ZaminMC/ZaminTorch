@@ -597,6 +597,9 @@ public final class EngineServer implements Server, EngineBridge {
                 // (the public goals() surface) land on the world's owner lane,
                 // between ticks, from any thread.
                 mobs.setGoalAdmission(world::execute);
+                // The crafting consult the sheep's offspring color rides
+                // (Slice 30b — getColorForOffspring's CraftingManager walk).
+                mobs.setCraftingConsult(crafting);
                 // Mob persistence (ZMD v1): the population survives restarts;
                 // a fresh world's animals arrive through the vanilla worldgen
                 // seeding (NaturalSpawner.populateChunk — the seedAnimals pass
@@ -8356,7 +8359,23 @@ public final class EngineServer implements Server, EngineBridge {
         if (mob.type() == MobType.HORSE) {
             return; // the horse family feeds through the mount branch only
         }
-        feedAnimal(player, mob);
+        // The item's own interact consult (PlayerEntity.interact line 898:
+        // the mob's interactMob first, then the held item's arm). The feed
+        // is the mob's arm; the dye is the item's (ItemDye.interact lines
+        // 124-138) — an unsheared sheep of a different color takes the dye
+        // (one unit consumed, no creative guard — the reference's own
+        // shape), and ANY dye-on-sheep use is consumed by the arm.
+        boolean fed = feedAnimal(player, mob);
+        if (!fed && mob.type() == MobType.SHEEP && heldId.equals("minecraft:dye")) {
+            int dyeMetadata = held.damage() & 0xF;
+            int dyeColorId = 15 - dyeMetadata; // byMetadata → getId
+            if (!mob.sheared() && mob.sheepFleeceColor() != dyeColorId) {
+                mob.setSheepFleeceColor(dyeColorId);
+                player.inventory().consumeHeld(1);
+                publishInventoryChanged(player);
+                publishSheepFleece(mob);
+            }
+        }
     }
 
     /**
@@ -8413,6 +8432,23 @@ public final class EngineServer implements Server, EngineBridge {
                 mob.heal(heal);
                 eatFromHand(player);
                 return;
+            }
+            // The dye arm (interactMob lines 314-324): a different color
+            // takes the collar (one unit consumed in survival — the
+            // reference's own {@code !creativeMode} guard); the same color
+            // falls through to the sit toggle below, the reference's own
+            // ladder.
+            if (heldId.equals("minecraft:dye")) {
+                int dyeMetadata = held.damage() & 0xF;
+                if (mob.wolfCollarColor() != dyeMetadata) {
+                    mob.setWolfCollarColor(dyeMetadata);
+                    if (player.gamemode() != GameMode.CREATIVE) {
+                        player.inventory().consumeHeld(1);
+                        publishInventoryChanged(player);
+                    }
+                    publishWolfState(mob);
+                    return;
+                }
             }
             // The owner's empty-hand verb (lines 327-332): the sit toggle —
             // a held breeding food feeds through the fall-through below
@@ -8513,6 +8549,16 @@ public final class EngineServer implements Server, EngineBridge {
     private void publishWolfState(MobEntity mob) {
         for (MobManager.Listener listener : mobListeners) {
             listener.onWolfStateChanged(mob);
+        }
+    }
+
+    /**
+     * The fleece color moved (the dye arm's write): the observers re-send
+     * the index-16 nibble (the color | the sheared bit's byte).
+     */
+    private void publishSheepFleece(MobEntity mob) {
+        for (MobManager.Listener listener : mobListeners) {
+            listener.onSheepFleeceChanged(mob);
         }
     }
 

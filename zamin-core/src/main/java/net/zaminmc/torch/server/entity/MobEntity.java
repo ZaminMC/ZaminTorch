@@ -1443,6 +1443,15 @@ public final class MobEntity implements LivingEntity {
     private byte wolfCollarColor = 1; // DyeColor.RED.getId() = 1
     /** The begging head-tilt (the wire's index 19 — the bone-holding player's gaze). */
     private boolean wolfBegging;
+    /**
+     * The sheep's fleece color as a DyeColor id (the wire's index-16 low
+     * nibble — SheepEntity's {@code getColor().getId()}). WHITE (0) at the
+     * reference's own register default; the domain differs from the collar
+     * (the dye item's damage) and the dye stack (both metadata): a fleece
+     * id of {@code c} is dye damage {@code 15 - c} and wool damage
+     * {@code c} itself (BlockColored's damage = the DyeColor id).
+     */
+    private int sheepFleeceColor;
 
     // ---------------------------------------------- the mind's awareness (16a)
 
@@ -1559,6 +1568,22 @@ public final class MobEntity implements LivingEntity {
     /** Sets the collar color (the dye arm's write, index 20). */
     public void setWolfCollarColor(int dyeMetadata) {
         wolfCollarColor = (byte) (dyeMetadata & 0xF);
+    }
+
+    /**
+     * @return the fleece color's DyeColor id (the index-16 low nibble, the
+     *         wool stack's own damage — SheepEntity.getColor().getId()).
+     */
+    public int sheepFleeceColor() {
+        return sheepFleeceColor & 0xF;
+    }
+
+    /**
+     * Sets the fleece color (the dye arm's write, the index-16 nibble).
+     * Takes the DyeColor id domain (0 = white, 15 = black).
+     */
+    public void setSheepFleeceColor(int dyeColorId) {
+        sheepFleeceColor = dyeColorId & 0xF;
     }
 
     /** @return the begging head-tilt (index 19). */
@@ -3576,13 +3601,38 @@ public final class MobEntity implements LivingEntity {
     }
 
     /**
-     * @return the body's idle sound (the guardian's own family reads the
+     * @return the body's idle sound. The kind's own dynamic families
+     * (Slice 30c): the wolf's own ladder (WolfEntity.getAmbientSound
+     * lines 138-146 — angry growls, a third of the rest whines under a
+     * tamed 10-health body or pants otherwise, the rest barks) and the
+     * ocelot's tamed family (OcelotEntity.getAmbientSound lines 111-121 —
+     * the in-love purr, else a quarter purreow over the meow; the
+     * untamed body stays silent). The guardian's own family reads the
      * water state live — the land pair, the elder's own, or the plain
-     * water prefix).
+     * water prefix.
      */
     public String effectiveIdleSound() {
         if (type == MobType.GUARDIAN) {
             return guardianSoundKind() + "idle";
+        }
+        if (type == MobType.WOLF) {
+            if (wolfAngry()) {
+                return "mob.wolf.growl";
+            }
+            if (random.nextInt(3) == 0) {
+                return wolfTamed() && health() < 10.0f
+                        ? "mob.wolf.whine" : "mob.wolf.panting";
+            }
+            return "mob.wolf.bark";
+        }
+        if (type == MobType.OCELOT) {
+            if (!wolfTamed()) {
+                return ""; // the untamed body stays silent
+            }
+            if (isInLove()) {
+                return "mob.cat.purr";
+            }
+            return random.nextInt(4) == 0 ? "mob.cat.purreow" : "mob.cat.meow";
         }
         return type.idleSound;
     }

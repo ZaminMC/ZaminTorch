@@ -203,6 +203,49 @@ public final class BuiltinRecipes {
                     ing("minecraft:paper", false, 0),
                     ing("minecraft:paper", false, 0)),
                     res("minecraft:book", 1, 0)),
+            // The dye-mix pairs (DyeRecipes.java lines 36-99 — the
+            // reference's own registerShapeless set, 1:1): two dyes in the
+            // crafting grid yield two of the mixed color. The ingredient
+            // and result damages live in the dye item's own metadata domain
+            // (ink sac 0 = black .. bone meal 15 = white). The player table
+            // gets them, and the sheep's offspring color consults the same
+            // rows (SheepEntity.getColorForOffspring's CraftingManager walk).
+            CraftingRecipe.shapeless(java.util.List.of(
+                    ing("minecraft:dye", true, 1),   // red
+                    ing("minecraft:dye", true, 15)), // white
+                    res("minecraft:dye", 2, 9)),     // pink
+            CraftingRecipe.shapeless(java.util.List.of(
+                    ing("minecraft:dye", true, 1),   // red
+                    ing("minecraft:dye", true, 11)), // yellow
+                    res("minecraft:dye", 2, 14)),    // orange
+            CraftingRecipe.shapeless(java.util.List.of(
+                    ing("minecraft:dye", true, 2),   // green (cactus)
+                    ing("minecraft:dye", true, 15)), // white
+                    res("minecraft:dye", 2, 10)),    // lime
+            CraftingRecipe.shapeless(java.util.List.of(
+                    ing("minecraft:dye", true, 0),   // black (ink)
+                    ing("minecraft:dye", true, 15)), // white
+                    res("minecraft:dye", 2, 8)),     // gray
+            CraftingRecipe.shapeless(java.util.List.of(
+                    ing("minecraft:dye", true, 8),   // gray
+                    ing("minecraft:dye", true, 15)), // white
+                    res("minecraft:dye", 2, 7)),     // silver
+            CraftingRecipe.shapeless(java.util.List.of(
+                    ing("minecraft:dye", true, 4),   // blue (lapis)
+                    ing("minecraft:dye", true, 15)), // white
+                    res("minecraft:dye", 2, 12)),    // light blue
+            CraftingRecipe.shapeless(java.util.List.of(
+                    ing("minecraft:dye", true, 4),   // blue
+                    ing("minecraft:dye", true, 2)),  // green
+                    res("minecraft:dye", 2, 6)),     // cyan
+            CraftingRecipe.shapeless(java.util.List.of(
+                    ing("minecraft:dye", true, 4),   // blue
+                    ing("minecraft:dye", true, 1)),  // red
+                    res("minecraft:dye", 2, 5)),     // purple
+            CraftingRecipe.shapeless(java.util.List.of(
+                    ing("minecraft:dye", true, 5),   // purple
+                    ing("minecraft:dye", true, 9)),  // pink
+                    res("minecraft:dye", 2, 13)),    // magenta
             // The collision-shape slice (community recipes.json): a row of
             // three yields six slabs; the 2x3 stair pattern yields four.
             CraftingRecipe.shaped(new Ingredient[][] {

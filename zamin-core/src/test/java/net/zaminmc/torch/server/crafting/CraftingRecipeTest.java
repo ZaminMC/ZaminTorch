@@ -39,10 +39,13 @@ class CraftingRecipeTest {
         // planks, sticks, table, torch, furnace, chest, 16 tools (wood/stone/
         // iron/diamond x pickaxe/axe/shovel/sword) + shears. Gold still needs
         // gold ingot — no gold ore item exists in the registry yet.
-        assertEquals(34, BuiltinRecipes.ALL.size());
+        // + the nine dye-mix pairs (Slice 30b — DyeRecipes' registerShapeless
+        // set): the player table gets them and the sheep's offspring color
+        // consults the same rows.
+        assertEquals(43, BuiltinRecipes.ALL.size());
         long shaped = BuiltinRecipes.ALL.stream().filter(CraftingRecipe::isShaped).count();
         long shapeless = BuiltinRecipes.ALL.size() - shaped;
-        assertEquals(1, shapeless, "the book is the one shapeless craft (leather + papers)");
+        assertEquals(10, shapeless, "the book + the nine dye-mix pairs are the shapeless crafts");
     }
 
     // ---- 3x3 crafting-table matching ---------------------------------------

@@ -47,6 +47,8 @@ public final class MobDataStore {
     private static final int FLAG_BREEDING_AGE = 0x08;
     private static final int FLAG_SKELETON_WITHER = 0x10;
     private static final int FLAG_SLIME_SIZE = 0x20;
+    /** The kind's dye byte (Slice 30b): the sheep's fleece + 1 or the wolf's collar + 1 (0 = absent). */
+    private static final int FLAG_DYE_COLOR = 0x80;
     /** The body's dimension (Slice 25d — Entity.dimension, 0 the overworld). */
     private static final int FLAG_DIMENSION = 0x40;
 
@@ -168,6 +170,9 @@ public final class MobDataStore {
         if (extras.dimension() != 0) {
             flags |= FLAG_DIMENSION;
         }
+        if (extras.dyeColor() != 0) {
+            flags |= FLAG_DYE_COLOR;
+        }
         out.writeByte(flags);
         if ((flags & FLAG_ZOMBIE_VILLAGER) != 0) {
             out.writeByte(1);
@@ -194,6 +199,9 @@ public final class MobDataStore {
         if ((flags & FLAG_DIMENSION) != 0) {
             out.writeByte(extras.dimension());
         }
+        if ((flags & FLAG_DYE_COLOR) != 0) {
+            out.writeByte(extras.dyeColor());
+        }
     }
 
     /** Reads the v2 state block back (null for the bare zero-flags shape). */
@@ -213,6 +221,7 @@ public final class MobDataStore {
         int breedingAge = 0;
         boolean wither = false;
         int slimeSize = 1;
+        int dyeColor = 0;
         if ((flags & FLAG_ZOMBIE_VILLAGER) != 0) {
             zombieVillager = in.readUnsignedByte() == 1;
             zombieConversion = readVarInt(in);
@@ -240,9 +249,12 @@ public final class MobDataStore {
             // The byte carries the dimension (-1 lands as the u8 255).
             dimension = in.readByte();
         }
+        if ((flags & FLAG_DYE_COLOR) != 0) {
+            dyeColor = in.readUnsignedByte();
+        }
         return new MobManager.MobStateExtras(zombieVillager, zombieConversion,
                 profession, career, careerLevel, riches, rabbitVariant, breedingAge,
-                wither, slimeSize, dimension);
+                wither, slimeSize, dimension, dyeColor);
     }
 
     private static void writeString(DataOutputStream out, String value) throws IOException {

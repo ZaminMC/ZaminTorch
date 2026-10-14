@@ -451,14 +451,25 @@ public final class V18ProtocolServer implements ProtocolAdapter {
             @Override
             public void onMobSheared(net.zaminmc.torch.server.entity.MobEntity mob, int woolCount) {
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
-                    connection.sendMobStatusByte(mob, Protocol18.SHEEP_STATUS_SHEARED);
+                    connection.sendMobStatusByte(mob, V18Connection.kindStatusByteOf(mob));
                 }
             }
 
             @Override
             public void onMobCoatRegrown(net.zaminmc.torch.server.entity.MobEntity mob) {
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
-                    connection.sendMobStatusByte(mob, (byte) 0);
+                    connection.sendMobStatusByte(mob, V18Connection.kindStatusByteOf(mob));
+                }
+            }
+
+            /**
+             * The fleece dye's write (Slice 30b): the observers re-send the
+             * index-16 byte — the color nibble with the sheared bit live.
+             */
+            @Override
+            public void onSheepFleeceChanged(net.zaminmc.torch.server.entity.MobEntity mob) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendMobStatusByte(mob, V18Connection.kindStatusByteOf(mob));
                 }
             }
 

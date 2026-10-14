@@ -3252,7 +3252,11 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         return switch (mob.type()) {
             case CREEPER -> mob.fuseActive()
                     ? Protocol18.CREEPER_FUSE_SWELLING : Protocol18.CREEPER_FUSE_IDLE;
-            case SHEEP -> mob.sheared() ? Protocol18.SHEEP_STATUS_SHEARED : (byte) 0;
+            // SheepEntity.registerSyncedData's index-16 byte, 1:1: the low
+            // nibble IS the fleece's DyeColor id (getColor().getId()), the
+            // 0x10 bit the sheared flag (Slice 30b grew the nibble).
+            case SHEEP -> (byte) ((mob.sheepFleeceColor() & 0x0F)
+                    | (mob.sheared() ? 0x10 : 0));
             default -> null;
         };
     }

@@ -119,4 +119,34 @@ class OcelotEntityTest {
         assertFalse(tamed.canDespawn(), "the tamed cat never despawns");
         assertTrue(tamed.persistent());
     }
+
+    @Test
+    void theTamedAmbientFamilyCarriesTheReferenceLadder() {
+        // Slice 30c — OcelotEntity.getAmbientSound lines 111-121: the
+        // untamed body stays silent; the tamed body purrs in love, else a
+        // quarter purreow over the meow.
+        MobEntity wild = ocelot(41L);
+        for (int i = 0; i < 20; i++) {
+            assertEquals("", wild.effectiveIdleSound(), "the wild cat is silent");
+        }
+        MobEntity cat = ocelot(42L);
+        cat.tameWolf("Owner");
+        cat.enterLove(9);
+        for (int i = 0; i < 20; i++) {
+            assertEquals("mob.cat.purr", cat.effectiveIdleSound(),
+                    "the in-love body purrs");
+        }
+        cat.resetLove(); // the purr clears with the love window
+        boolean meowed = false, purreowed = false;
+        for (int i = 0; i < 800; i++) {
+            String sound = cat.effectiveIdleSound();
+            switch (sound) {
+                case "mob.cat.meow" -> meowed = true;
+                case "mob.cat.purreow" -> purreowed = true;
+                default -> throw new AssertionError("outside the family: " + sound);
+            }
+        }
+        assertTrue(meowed, "the meow arm observed");
+        assertTrue(purreowed, "the 1/4 purreow arm observed");
+    }
 }
