@@ -563,6 +563,20 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                 }
             }
 
+            /**
+             * The wolf's shake splash (Slice 30d — WolfEntity.tick lines
+             * 212-221): one World Particles unit in the count-0 shape.
+             */
+            @Override
+            public void onWolfShakeSplash(net.zaminmc.torch.server.entity.MobEntity mob,
+                                          net.zaminmc.torch.util.Position at,
+                                          double vx, double vy, double vz) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendDisplayParticle(Protocol18.PARTICLE_WATER_SPLASH, at,
+                            (float) vx, (float) vy, (float) vz, 1.0f);
+                }
+            }
+
             @Override
             public void onMobGrewUp(net.zaminmc.torch.server.entity.MobEntity mob) {
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {

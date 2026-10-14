@@ -149,6 +149,16 @@ public final class MobEntity implements LivingEntity {
         }
 
         /**
+         * The rain read (Slice 30d — the wolf's {@code isInWaterOrRain}
+         * pair, Entity.isInWaterOrRain over World.isRainingAt): whether the
+         * rain flag is up and the point sits above the precipitation
+         * height at its column. The stub worlds answer dry.
+         */
+        default boolean isRainingAt(double x, double y, double z) {
+            return false;
+        }
+
+        /**
          * The sky light level of the cell (0..15, the enderman's daylight
          * exposure read); the stub worlds answer full bright — the real
          * query maps the world's sky light.
@@ -1452,6 +1462,19 @@ public final class MobEntity implements LivingEntity {
      * {@code c} itself (BlockColored's damage = the DyeColor id).
      */
     private int sheepFleeceColor;
+    // The wolf's water-shake cycle (Slice 30d — WolfEntity.tick's closing
+    // block lines 193-222 + mobTick's start gate lines 171-176): a body
+    // that went wet (water or rain) and came to rest on the ground shakes
+    // the water off over the 0.05-per-tick progress walk, playing the
+    // cycle-start sound, broadcasting event 8, and throwing splash
+    // particles past the 0.4 bend.
+    private boolean wolfWet;
+    private boolean wolfShaking;
+    private float wolfShakeProgress;
+    private float wolfLastShakeProgress;
+    private boolean pendingWolfShakeEvent;
+    private boolean pendingWolfShakeSound;
+    private int pendingWolfShakeSplashes;
 
     // ---------------------------------------------- the mind's awareness (16a)
 
@@ -1584,6 +1607,90 @@ public final class MobEntity implements LivingEntity {
      */
     public void setSheepFleeceColor(int dyeColorId) {
         sheepFleeceColor = dyeColorId & 0xF;
+    }
+
+    // ---------------------------------------------- the wolf's water-shake cycle
+
+    /** @return whether the body carries water (the shake never started yet). */
+    public boolean wolfWet() {
+        return wolfWet;
+    }
+
+    /** @return whether the shake cycle is running (the client's event-8 pose). */
+    public boolean wolfShaking() {
+        return wolfShaking;
+    }
+
+    /**
+     * The shake state machine (WolfEntity.tick's closing block lines 193-222
+     * + mobTick's start gate lines 171-176, 1:1, the reference's own
+     * within-tick order — the gate rides the super walk, the processing
+     * the tick's tail): a wet body resting on the ground with the
+     * navigation done starts the shake with the event-8 broadcast; while
+     * water-or-rain keeps touching, the flags reset and hold; the running
+     * cycle walks {@code +0.05} per tick from the start sound at progress
+     * zero, clears both flags at the 2.0 end, and arms the splash count
+     * past the 0.4 bend — {@code sin((progress - 0.4) * PI) * 7} units.
+     */
+    public void tickWolfShake() {
+        if (type != MobType.WOLF || dead) {
+            return;
+        }
+        // mobTick's start gate (lines 171-176): wet, grounded, not yet
+        // shaking, the navigation at rest — doEntityEvent(8).
+        if (wolfWet && !wolfShaking && onGround && navigation.isDone()) {
+            wolfShaking = true;
+            wolfShakeProgress = 0.0f;
+            wolfLastShakeProgress = 0.0f;
+            pendingWolfShakeEvent = true;
+        }
+        boolean inWaterOrRain = world.inFluid(position.x(), position.y() + 0.2, position.z())
+                || world.isRainingAt(position.x(), position.y() + 0.2, position.z());
+        if (inWaterOrRain) {
+            // tick lines 193-197: the wet re-arm — whatever shake was
+            // running dies, the water stays.
+            wolfWet = true;
+            wolfShaking = false;
+            wolfShakeProgress = 0.0f;
+            wolfLastShakeProgress = 0.0f;
+        } else if (wolfShaking) {
+            // tick lines 198-222: the cycle walk.
+            if (wolfShakeProgress == 0.0f) {
+                pendingWolfShakeSound = true; // "mob.wolf.shake" at the start
+            }
+            wolfLastShakeProgress = wolfShakeProgress;
+            wolfShakeProgress += 0.05f;
+            if (wolfLastShakeProgress >= 2.0f) {
+                wolfWet = false;
+                wolfShaking = false;
+                wolfShakeProgress = 0.0f;
+                wolfLastShakeProgress = 0.0f;
+            } else if (wolfShakeProgress > 0.4f) {
+                pendingWolfShakeSplashes = (int) Math.floor(
+                        Math.sin((wolfShakeProgress - 0.4f) * Math.PI) * 7.0f);
+            }
+        }
+    }
+
+    /** @return and clears the event-8 broadcast (the shake's start). */
+    public boolean consumePendingWolfShakeEvent() {
+        boolean value = pendingWolfShakeEvent;
+        pendingWolfShakeEvent = false;
+        return value;
+    }
+
+    /** @return and clears the cycle-start sound. */
+    public boolean consumePendingWolfShakeSound() {
+        boolean value = pendingWolfShakeSound;
+        pendingWolfShakeSound = false;
+        return value;
+    }
+
+    /** @return and clears this tick's splash count (zero when none due). */
+    public int consumePendingWolfShakeSplashes() {
+        int value = pendingWolfShakeSplashes;
+        pendingWolfShakeSplashes = 0;
+        return value;
     }
 
     /** @return the begging head-tilt (index 19). */
