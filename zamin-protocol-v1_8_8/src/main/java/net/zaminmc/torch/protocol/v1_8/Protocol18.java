@@ -326,6 +326,17 @@ final class Protocol18 {
     static final int PARTICLE_SNOWBALL_POOF = 31;
     static final int PARTICLE_ICON_CRACK = 36;   // data: [itemId, itemMeta]
     static final int PARTICLE_BLOCK_CRACK = 37;  // data: [blockStateId]
+    // The display family (EnumParticleTypes' own ids — ParticleType.java):
+    // the server-side addParticle consults. count 0 = one particle at the
+    // exact position with the offsets as its velocity, the shape
+    // ServerWorld.addParticle sends.
+    static final int PARTICLE_WATER_SPLASH = 5;
+    static final int PARTICLE_SMOKE_NORMAL = 11;
+    static final int PARTICLE_EXPLOSION_LARGE = 1;
+    static final int PARTICLE_VILLAGER_ANGRY = 20;
+    static final int PARTICLE_VILLAGER_HAPPY = 21;
+    static final int PARTICLE_PORTAL = 24;
+    static final int PARTICLE_HEART = 34;
 
     // Entity Status (0x1A) codes the client animates from: the hurt flash
     // (2), the death fall (3), and 18 the love heart burst

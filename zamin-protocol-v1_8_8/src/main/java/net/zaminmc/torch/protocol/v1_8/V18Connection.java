@@ -3912,6 +3912,23 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     }
 
     /**
+     * One server-computed display particle (the ServerWorld.addParticle
+     * shape, 1:1): World Particles with {@code count 0} so the client
+     * renders a single particle at the exact position with the offsets
+     * as its velocity — the ambient breeding heart (AnimalEntity.mobTick's
+     * HEART), the wolf's shake splash and the enderman's portal cloud all
+     * ride it. Distance-culled at the 64-block feedback range. Any thread.
+     */
+    void sendDisplayParticle(int particleId, Position at,
+                             float vx, float vy, float vz, float velocityScale) {
+        if (currentSession() == null
+                || beyondFeedbackRange(currentSession(), at)) {
+            return;
+        }
+        sendParticles(particleId, false, at, vx, vy, vz, velocityScale, 0, new int[0]);
+    }
+
+    /**
      * The generalized Named Sound Effect: one semantic FX bus event becomes
      * one packet. The pitch encodes into the wire's u8 (63 = 1.0). Any thread.
      */

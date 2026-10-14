@@ -541,6 +541,17 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                 }
             }
 
+            /** The ambient heart clock (AnimalEntity.mobTick's own addParticle). */
+            @Override
+            public void onMobAmbientHearts(net.zaminmc.torch.server.entity.MobEntity mob,
+                                           net.zaminmc.torch.util.Position at,
+                                           double vx, double vy, double vz) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendDisplayParticle(Protocol18.PARTICLE_HEART, at,
+                            (float) vx, (float) vy, (float) vz, 1.0f);
+                }
+            }
+
             @Override
             public void onMobGrewUp(net.zaminmc.torch.server.entity.MobEntity mob) {
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {

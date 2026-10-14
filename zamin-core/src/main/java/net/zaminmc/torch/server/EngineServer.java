@@ -11399,6 +11399,14 @@ public final class EngineServer implements Server, EngineBridge {
         }
 
         @Override
+        public void onMobAmbientHearts(MobEntity mob, Position at,
+                                       double vx, double vy, double vz) {
+            for (MobManager.Listener listener : mobListeners) {
+                listener.onMobAmbientHearts(mob, at, vx, vy, vz);
+            }
+        }
+
+        @Override
         public void onMobGrewUp(MobEntity mob) {
             for (MobManager.Listener listener : mobListeners) {
                 listener.onMobGrewUp(mob);
