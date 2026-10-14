@@ -216,6 +216,8 @@ public final class EngineServer implements Server, EngineBridge {
     private volatile net.zaminmc.torch.server.concurrent.SimulationScheduler simulationScheduler;
     /** The Phase 3 compute lane: bounded workers over immutable snapshots. */
     private volatile net.zaminmc.torch.server.concurrent.ComputeSubsystem computeSubsystem;
+    /** The §28.1 fourth-category blocking-I/O lane: the storage lane's own bounded pool. */
+    private volatile net.zaminmc.torch.server.concurrent.BlockingIoLane blockingIoLane;
     /** The Phase 4 domain worker pool: the independent domains' shared execution resources. */
     private volatile net.zaminmc.torch.server.concurrent.DomainWorkerPool domainWorkerPool;
     /** The Phase 4 cross-owner router: the §7 intent protocol's live surface. */
@@ -1571,6 +1573,11 @@ public final class EngineServer implements Server, EngineBridge {
                 // The public §27.3 compute view over the real subsystem + domain.
                 computeView = new net.zaminmc.torch.server.concurrent.AsyncComputeView(
                         computeSubsystem, simulationDomain);
+                // The §28.1 fourth-category storage lane + its public view.
+                blockingIoLane = new net.zaminmc.torch.server.concurrent.BlockingIoLane();
+                ticker.attachIoLane(blockingIoLane, simulationDomain);
+                blockingIoView = new net.zaminmc.torch.server.concurrent.BlockingIoView(
+                        blockingIoLane, simulationDomain);
                 domainWorkerPool = new net.zaminmc.torch.server.concurrent.DomainWorkerPool();
                 ticker.attachDomainPool(domainWorkerPool);
                 crossOwnerRouter = new net.zaminmc.torch.server.concurrent.CrossOwnerRouter();
@@ -1678,6 +1685,9 @@ public final class EngineServer implements Server, EngineBridge {
             if (computeSubsystem != null) {
                 computeSubsystem.shutdown();
             }
+            if (blockingIoLane != null) {
+                blockingIoLane.shutdown();
+            }
             if (domainWorkerPool != null) {
                 domainWorkerPool.shutdown();
             }
@@ -1779,6 +1789,16 @@ public final class EngineServer implements Server, EngineBridge {
         return view;
     }
 
+    /** The public blocking-I/O view (§28.1's fourth category; wired at boot). */
+    @Override
+    public net.zaminmc.torch.concurrent.BlockingIo blockingIo() {
+        net.zaminmc.torch.concurrent.BlockingIo view = blockingIoView;
+        if (view == null) {
+            throw new IllegalStateException("blocking I/O is unavailable before the server boots");
+        }
+        return view;
+    }
+
     /**
      * The public game-rule view (§27.3 — Slice 24a): the shared table
      * itself (§27.5 — the engine object IS the handle); the reads are
@@ -1795,6 +1815,7 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     private volatile net.zaminmc.torch.concurrent.AsyncCompute computeView;
+    private volatile net.zaminmc.torch.concurrent.BlockingIo blockingIoView;
 
     /** The public scheduler view (built on first use; the ticker exists from boot). */
     @Override
@@ -1977,6 +1998,11 @@ public final class EngineServer implements Server, EngineBridge {
     /** The Phase 3 compute lane (public: the offload tests read its telemetry). */
     public net.zaminmc.torch.server.concurrent.ComputeSubsystem computeSubsystem() {
         return computeSubsystem;
+    }
+
+    /** The §28.1 blocking-I/O lane (public: the storage-lane tests read its telemetry). */
+    public net.zaminmc.torch.server.concurrent.BlockingIoLane blockingIoLane() {
+        return blockingIoLane;
     }
 
     /** The Phase 4 cross-owner router (public: the boundary tests read its telemetry). */

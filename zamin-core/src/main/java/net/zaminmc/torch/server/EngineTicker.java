@@ -53,6 +53,8 @@ public final class EngineTicker {
     private volatile net.zaminmc.torch.server.concurrent.DomainWorkerPool domainPool;
     private volatile net.zaminmc.torch.server.concurrent.CrossOwnerRouter crossOwnerRouter;
     private volatile net.zaminmc.torch.server.concurrent.OwnershipDomain routerDomain;
+    private volatile net.zaminmc.torch.server.concurrent.BlockingIoLane ioLane;
+    private volatile net.zaminmc.torch.server.concurrent.OwnershipDomain ioLaneDomain;
     private long logicalTick;
     /**
      * The completed-tick snapshot the public scheduler reads from any
@@ -146,6 +148,19 @@ public final class EngineTicker {
                               net.zaminmc.torch.server.concurrent.OwnershipDomain domain) {
         this.compute = java.util.Objects.requireNonNull(attached, "attached");
         this.computeDomain = java.util.Objects.requireNonNull(domain, "domain");
+    }
+
+    /**
+     * Attaches the blocking-I/O lane (the §28.1 fourth category — the
+     * storage lane): each tick drains the completed blocking tasks at the
+     * owner's boundary after the compute drain — fresh completions apply
+     * inside the domain's context, stale ones run their registered
+     * fallback. Optional; null keeps the no-lane behavior.
+     */
+    public void attachIoLane(net.zaminmc.torch.server.concurrent.BlockingIoLane attached,
+                             net.zaminmc.torch.server.concurrent.OwnershipDomain domain) {
+        this.ioLane = java.util.Objects.requireNonNull(attached, "attached");
+        this.ioLaneDomain = java.util.Objects.requireNonNull(domain, "domain");
     }
 
     /**
@@ -378,6 +393,15 @@ public final class EngineTicker {
             net.zaminmc.torch.server.concurrent.OwnershipDomain computeOwner = computeDomain;
             if (computeAttached != null && computeOwner != null) {
                 computeAttached.drainResults(computeOwner);
+            }
+            // The blocking-I/O drain rides the same owner boundary after the
+            // compute drain (the §28.1 storage lane's defined handoff — the
+            // completions of slow file/network calls apply at the tick edge
+            // with their generation validated; the owner never waits for them).
+            net.zaminmc.torch.server.concurrent.BlockingIoLane ioLaneAttached = ioLane;
+            net.zaminmc.torch.server.concurrent.OwnershipDomain ioOwner = ioLaneDomain;
+            if (ioLaneAttached != null && ioOwner != null) {
+                ioLaneAttached.drainCompletions(ioOwner);
             }
             logicalTick++;
             completedTickView = logicalTick;
