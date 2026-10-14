@@ -224,6 +224,17 @@ public final class MobManager {
         default void onMobLoveBurst(MobEntity mob) {
         }
 
+        /**
+         * One ambient heart particle is due over a body in love (the
+         * AnimalEntity.mobTick clock — every 10th love tick the reference
+         * calls {@code world.addParticle(HEART, ...)} directly with the
+         * server-chosen position and the gaussian velocity; the wire
+         * renders one heart per event, unlike the event-18 burst).
+         */
+        default void onMobAmbientHearts(MobEntity mob, Position at,
+                                        double vx, double vy, double vz) {
+        }
+
         /** A baby crossed into adulthood (the age metadata byte flips to 0). */
         default void onMobGrewUp(MobEntity mob) {
         }
@@ -2184,9 +2195,26 @@ public final class MobManager {
         }
         mob.tickBreedingAge();
         mob.tickLove(); // the ambient hearts flag rides the consume poll below
-        mob.consumePendingAmbientHearts(); // single-heart particles await the
-        // heart id in the community particle data (the burst event covers the
-        // observable feeding/breed moments for now — see the ledger)
+        if (mob.consumePendingAmbientHearts()) {
+            // The AnimalEntity.mobTick heart clock, 1:1 (lines 42-61): one
+            // HEART particle every 10th love tick at a random point inside
+            // the body's footprint, drifting on three fresh gaussians. The
+            // reference's own shapes: x + rand*width*2 - width,
+            // y + 0.5 + rand*height, and the 0.02-sigma velocity cloud.
+            double w = mob.type().width;
+            double h = mob.type().height;
+            Position base = mob.position();
+            Position at = new Position(
+                    base.x() + random.nextFloat() * w * 2.0 - w,
+                    base.y() + 0.5 + random.nextFloat() * h,
+                    base.z() + random.nextFloat() * w * 2.0 - w);
+            double vx = random.nextGaussian() * 0.02;
+            double vy = random.nextGaussian() * 0.02;
+            double vz = random.nextGaussian() * 0.02;
+            for (Listener listener : listeners) {
+                listener.onMobAmbientHearts(mob, at, vx, vy, vz);
+            }
+        }
     }
 
     /**
