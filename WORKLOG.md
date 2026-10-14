@@ -5393,3 +5393,80 @@ own slices; the beacon's beamSection color blend is client-side state
 shape rides the solidity stand-in (walk-through like the snow layer);
 the panes' connection states are client-rendered (metadata 0, the
 reference's own resolveVirtualProperties).
+
+## Slice 32 — the mineral vault: the missing ores, the storage blocks, and three wire-id repairs
+
+The reference port of `Block.java`'s own registrations for the mineral
+family (the lapis/emerald ores, the lapis/redstone/coal/quartz storage
+blocks, the brick/clay/hay/slime/end-stone/packed-ice building set) +
+`MineralRecipes.java`'s storage crafts + `SmeltingManager`'s missing
+smelts + three wire-id repairs found by the block-coverage audit (the
+dropper's 125→158, the nether bricks' 40→112, and the gravel-flint
+Fortune comparison that never matched).
+
+- The 12 new blocks (`BuiltinBlocks`): lapis_ore 21, emerald_ore 129,
+  lapis_block 22, redstone_block 152, coal_block 173, quartz_block 155,
+  brick_block 45, clay 82, hay_block 170, slime_block 165, end_stone
+  121, packed_ice 174 — every id the reference's own `register` rows.
+- The 17 new items (`BuiltinItems`): the materials (clay_ball 337,
+  brick 336, nether_brick 405 — Item.java line 709's own rows) + the
+  block items sharing their block ids (Item.java's BlockItem walk).
+- The behavior rows (`BlockBehaviorTable`): the reference's own
+  strengths (lapis ore/block 3.0, redstone/coal 5.0, quartz 0.8, brick
+  2.0, clay 0.6, hay 0.5, slime 0.0, end stone 3.0, packed ice 0.5) and
+  PickaxeItem.canMineBlock's tier gates (the lapis pair stone-tier band
+  2, the emerald ore iron-tier band 3, the plain stone-materials band
+  1); clay drops its four balls (ClayBlock), packed ice drops nothing
+  bare-handed (PackedIceBlock.getBaseDropCount 0) with the silk set
+  extended to carry it and the new ores.
+- The 1:1 drop walks (`DropService`): the lapis arm (OreBlock's
+  `4 + nextInt(5)` base with the fortune multiplier `nextInt(f+2)-1`
+  clamped, times the base) and the redstone arm (RedstoneOreBlock's own
+  ADDITIVE `4 + nextInt(2) + nextInt(fortune+1)` — never a multiple).
+  The pre-32 redstone_ore row dropped the ORE ITEM — the reference drops
+  the DUST; corrected.
+- The XP bands (`ExperienceAwards`): lapis 2-5, emerald 3-7, quartz 2-5
+  (OreBlock.dropItems' own table).
+- The smelts and fuel (`FurnaceRecipes`): the clay pair (ball→brick
+  0.3, block→hardened clay 0.35), the ore smelts (coal 0.1, redstone
+  0.7, lapis 0.2, diamond 1.0, emerald 1.0, quartz 0.2),
+  netherrack→nether_brick 0.1, and the coal block's 16000-tick burn
+  (FurnaceBlockEntity.getFuelTime's own row — sixteen smelts).
+- The storage crafts (`BuiltinRecipes.withMineralRecipes`): the ten
+  nine-of-a-kind pairs (gold/iron/diamond/emerald/lapis/redstone/coal/
+  hay/slime + the gold ingot↔nugget tail) and the four 2x2 masonries
+  (clay, bricks, quartz, nether bricks) — MineralRecipes' own loop
+  shape, 24 shaped rows (CraftingRecipeTest 149 recipes / 28 shapeless).
+- The light rows (`BlockLightTable`): the vault opaque 15 except the
+  slime pad — the reference's `TransparentBlock(CLAY, false)` whose
+  leaves=false arm passes light whole (opacity 0).
+- The wire (`LegacyBlockIds`): the 15 new rows. Three repairs: the
+  DROPPER's 125→158 (the original was the double wooden slab's id —
+  real clients rendered slabs where droppers stood; the reference's
+  register(158, "dropper")), the NETHER BRICKS' 40→112 (the original
+  was the red mushroom's id — fortress walls rendered as mushrooms), and
+  the DropService gravel-flint walk's `value().equals("minecraft:gravel")`
+  — the namespace never rides value(), so Fortune never widened the
+  flint chance (10 - fortune*3); repaired to the bare comparison.
+- Tests: `MineralVaultBlocksTest` (9: the ores' strengths and tier
+  gates with the tool-class walk, the storage rows + clay's four balls +
+  packed ice's bare-hand nothing, the lapis 4-8 band with the fortune
+  multiply over 500 rolls, the redstone dust's 4-5 band with the
+  additive fortune topping at 8, the silk arms, the XP bands over 300
+  rolls, the smelts/fuel/take-XP rows, the light table, the storage
+  pack/unpack round trips over the live matcher) +
+  `LegacyBlockIdsIntegrityTest` +2 (the dropper family's 158 + the
+  dispenser's untouched 23, the nether bricks' 112 + the material 405 +
+  the 15 vault rows) + `CraftingRecipeTest` 149/28 + `BlockRegistryTest`
+  275. Fresh runs: the touched-area batch green (furnace, interaction,
+  block, crafting, experience, the registry), the protocol module green
+  (2m23s), `--max-workers=1`.
+
+Ledgered: the quartz_ore smelt row is data-completeness only (no
+quartz_ore item is reachable — the engine's quartz ore drops the quartz
+itself; vanilla smelts only silk-touched ore blocks); the slime pad's
+bounce/slow movement family (slipperiness 0.8) and the packed ice's
+0.98 ride the movement slice; the end stone sits in the registry with
+the End dimension's generator on its own slice; the hay bale's AXIS
+rotation states ride the metadata-variants slice (the plain Y form is
+registered).

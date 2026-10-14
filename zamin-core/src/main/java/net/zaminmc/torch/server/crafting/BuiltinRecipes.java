@@ -38,7 +38,7 @@ public final class BuiltinRecipes {
     }
 
     /** All generated recipes, in dataset order (deterministic matching). */
-    public static final List<CraftingRecipe> ALL = withDyeRecipes(List.of(
+    public static final List<CraftingRecipe> ALL = withMineralRecipes(withDyeRecipes(List.of(
             CraftingRecipe.shaped(new Ingredient[][] {
                     { ing("minecraft:oak_log", true, 0) }
             },
@@ -282,7 +282,74 @@ public final class BuiltinRecipes {
                     { ing("minecraft:cobblestone", false, 0), ing("minecraft:cobblestone", false, 0), ing("minecraft:cobblestone", false, 0) }
             },
                     res("minecraft:cobblestone_stairs", 4, 0))
-    ));
+    )));
+
+    /**
+     * The mineral vault's recipe set (Slice 32 — MineralRecipes.java's own
+     * registration walk, 1:1): the nine-of-a-kind storage blocks ("###",
+     * "###", "###" over the ingot/gem/dust rows — gold, iron, diamond,
+     * emerald, lapis, redstone, coal, wheat's hay, the slime ball's
+     * bounce pad) each with the one-item unpack reverse, plus the 2x2
+     * masonries (CraftingManager lines 140-141 + BlockRecipes line 83:
+     * the clay ball's clay, the brick's bricks, the nether brick's
+     * fortress block, the quartz's block) and the gold ingot/nugget pair
+     * (MineralRecipes' own tail rows).
+     */
+    private static List<CraftingRecipe> withMineralRecipes(List<CraftingRecipe> base) {
+        List<CraftingRecipe> recipes = new java.util.ArrayList<>(base);
+        // The nine-of-a-kind storage families: "###","###","###" packs,
+        // the single-item unpacks. Each pair is MineralRecipes' own loop.
+        storagePair(recipes, "minecraft:gold_block", "minecraft:gold_ingot");
+        storagePair(recipes, "minecraft:iron_block", "minecraft:iron_ingot");
+        storagePair(recipes, "minecraft:diamond_block", "minecraft:diamond");
+        storagePair(recipes, "minecraft:emerald_block", "minecraft:emerald");
+        storagePair(recipes, "minecraft:lapis_block", "minecraft:lapis");
+        storagePair(recipes, "minecraft:redstone_block", "minecraft:redstone");
+        storagePair(recipes, "minecraft:coal_block", "minecraft:coal");
+        storagePair(recipes, "minecraft:hay_block", "minecraft:wheat");
+        storagePair(recipes, "minecraft:slime_block", "minecraft:slime_ball");
+        // The gold ingot/nugget pair (MineralRecipes lines 24-27).
+        storagePair(recipes, "minecraft:gold_ingot", "minecraft:gold_nugget");
+        // The 2x2 masonries (CraftingManager lines 140-141: clay and
+        // bricks; line 142: the quartz block; BlockRecipes line 83: the
+        // nether bricks).
+        recipes.add(CraftingRecipe.shaped(new Ingredient[][] {
+                { ing("minecraft:clay_ball", false, 0), ing("minecraft:clay_ball", false, 0) },
+                { ing("minecraft:clay_ball", false, 0), ing("minecraft:clay_ball", false, 0) }
+        },
+                res("minecraft:clay", 1, 0)));
+        recipes.add(CraftingRecipe.shaped(new Ingredient[][] {
+                { ing("minecraft:brick", false, 0), ing("minecraft:brick", false, 0) },
+                { ing("minecraft:brick", false, 0), ing("minecraft:brick", false, 0) }
+        },
+                res("minecraft:brick_block", 1, 0)));
+        recipes.add(CraftingRecipe.shaped(new Ingredient[][] {
+                { ing("minecraft:quartz", false, 0), ing("minecraft:quartz", false, 0) },
+                { ing("minecraft:quartz", false, 0), ing("minecraft:quartz", false, 0) }
+        },
+                res("minecraft:quartz_block", 1, 0)));
+        recipes.add(CraftingRecipe.shaped(new Ingredient[][] {
+                { ing("minecraft:nether_brick", false, 0), ing("minecraft:nether_brick", false, 0) },
+                { ing("minecraft:nether_brick", false, 0), ing("minecraft:nether_brick", false, 0) }
+        },
+                res("minecraft:nether_bricks", 1, 0)));
+        return recipes;
+    }
+
+    /** MineralRecipes' own loop body: the nine pack and the one unpack. */
+    private static void storagePair(List<CraftingRecipe> recipes, String block, String material) {
+        Ingredient mat = ing(material, false, 0);
+        recipes.add(CraftingRecipe.shaped(new Ingredient[][] {
+                { mat, mat, mat },
+                { mat, mat, mat },
+                { mat, mat, mat }
+        },
+                res(block, 1, 0)));
+        recipes.add(CraftingRecipe.shaped(new Ingredient[][] {
+                { ing(block, false, 0) }
+        },
+                res(material, 9, 0)));
+    }
 
     /**
      * The dye-coloring recipe families (Slice 31 — DyeRecipes.java's own

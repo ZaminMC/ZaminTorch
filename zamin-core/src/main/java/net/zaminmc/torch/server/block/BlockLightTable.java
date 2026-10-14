@@ -513,6 +513,24 @@ public final class BlockLightTable {
         }
         // hardened clay itself (172 — the full opaque stone cube)
         entries.put(Identifier.parse("minecraft:hardened_clay"), new LightData(0, 15));
+        // The mineral vault family (Slice 32): every member is a full
+        // opaque cube (filter 15 — the community rows for the ores, the
+        // storage blocks, the masonries, the hay bale, the end stone and
+        // the packed ice) EXCEPT the slime block — the reference's own
+        // TransparentBlock(Material.CLAY, false) whose leaves=false arm
+        // gives light opacity 0 (the translucent pad passes light whole).
+        entries.put(Identifier.parse("minecraft:lapis_ore"), new LightData(0, 15));
+        entries.put(Identifier.parse("minecraft:emerald_ore"), new LightData(0, 15));
+        entries.put(Identifier.parse("minecraft:lapis_block"), new LightData(0, 15));
+        entries.put(Identifier.parse("minecraft:redstone_block"), new LightData(0, 15));
+        entries.put(Identifier.parse("minecraft:coal_block"), new LightData(0, 15));
+        entries.put(Identifier.parse("minecraft:quartz_block"), new LightData(0, 15));
+        entries.put(Identifier.parse("minecraft:brick_block"), new LightData(0, 15));
+        entries.put(Identifier.parse("minecraft:clay"), new LightData(0, 15));
+        entries.put(Identifier.parse("minecraft:hay_block"), new LightData(0, 15));
+        entries.put(Identifier.parse("minecraft:slime_block"), new LightData(0, 0));
+        entries.put(Identifier.parse("minecraft:end_stone"), new LightData(0, 15));
+        entries.put(Identifier.parse("minecraft:packed_ice"), new LightData(0, 15));
         return Map.copyOf(entries);
     }
 

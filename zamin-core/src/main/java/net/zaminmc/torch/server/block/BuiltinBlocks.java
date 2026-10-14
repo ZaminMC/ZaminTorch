@@ -508,6 +508,37 @@ public final class BuiltinBlocks {
     public static final EngineBlockType EMERALD_BLOCK = new EngineBlockType(
             Identifier.parse("minecraft:emerald_block"), "Block of Emerald");
 
+    // The mineral vault family (Slice 32 — the reference's own Block.java
+    // registrations): the two missing ores (lapis 21, emerald 129 —
+    // OreBlock rows 1025/1267) and the storage/compressed blocks
+    // (MineralRecipes' nine-of-a-kind set + the 2x2 masonries). The
+    // behavior rows live in the table; the drop walks (lapis's 4-8 base,
+    // redstone's own additive fortune) ride the DropService's family arms.
+    public static final EngineBlockType LAPIS_ORE = new EngineBlockType(
+            Identifier.parse("minecraft:lapis_ore"), "Lapis Lazuli Ore");
+    public static final EngineBlockType EMERALD_ORE = new EngineBlockType(
+            Identifier.parse("minecraft:emerald_ore"), "Emerald Ore");
+    public static final EngineBlockType LAPIS_BLOCK = new EngineBlockType(
+            Identifier.parse("minecraft:lapis_block"), "Lapis Lazuli Block");
+    public static final EngineBlockType REDSTONE_BLOCK = new EngineBlockType(
+            Identifier.parse("minecraft:redstone_block"), "Block of Redstone");
+    public static final EngineBlockType COAL_BLOCK = new EngineBlockType(
+            Identifier.parse("minecraft:coal_block"), "Block of Coal");
+    public static final EngineBlockType QUARTZ_BLOCK = new EngineBlockType(
+            Identifier.parse("minecraft:quartz_block"), "Block of Quartz");
+    public static final EngineBlockType BRICK_BLOCK = new EngineBlockType(
+            Identifier.parse("minecraft:brick_block"), "Bricks");
+    public static final EngineBlockType CLAY = new EngineBlockType(
+            Identifier.parse("minecraft:clay"), "Clay");
+    public static final EngineBlockType HAY_BLOCK = new EngineBlockType(
+            Identifier.parse("minecraft:hay_block"), "Hay Bale");
+    public static final EngineBlockType SLIME_BLOCK = new EngineBlockType(
+            Identifier.parse("minecraft:slime_block"), "Slime Block");
+    public static final EngineBlockType END_STONE = new EngineBlockType(
+            Identifier.parse("minecraft:end_stone"), "End Stone");
+    public static final EngineBlockType PACKED_ICE = new EngineBlockType(
+            Identifier.parse("minecraft:packed_ice"), "Packed Ice");
+
     // The temple set (Slice 12f — the reference's TemplePieces): the
     // chiseled sandstone (legacy 24/3), the stained hardened clay pair over
     // 159 (the pyramid's blueprint floor — the reference's
@@ -763,6 +794,18 @@ public final class BuiltinBlocks {
                 .register(GOLD_BLOCK)
                 .register(DIAMOND_BLOCK)
                 .register(EMERALD_BLOCK)
+                .register(LAPIS_ORE)
+                .register(EMERALD_ORE)
+                .register(LAPIS_BLOCK)
+                .register(REDSTONE_BLOCK)
+                .register(COAL_BLOCK)
+                .register(QUARTZ_BLOCK)
+                .register(BRICK_BLOCK)
+                .register(CLAY)
+                .register(HAY_BLOCK)
+                .register(SLIME_BLOCK)
+                .register(END_STONE)
+                .register(PACKED_ICE)
                 .register(CHISELED_SANDSTONE)
                 .register(STAINED_CLAY_ORANGE)
                 .register(STAINED_CLAY_YELLOW)

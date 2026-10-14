@@ -19,10 +19,16 @@ public final class ExperienceAwards {
     }
 
     /** Mining rolls: identifier prefix → roll bounds (min inclusive, max exclusive). */
-    private static final Map<String, int[]> MINING_ROLLS = Map.of(
-            "minecraft:coal_ore", new int[]{0, 3},
-            "minecraft:diamond_ore", new int[]{3, 8},
-            "minecraft:redstone_ore", new int[]{1, 6});
+    private static final Map<String, int[]> MINING_ROLLS = Map.ofEntries(
+            Map.entry("minecraft:coal_ore", new int[]{0, 3}),
+            Map.entry("minecraft:diamond_ore", new int[]{3, 8}),
+            Map.entry("minecraft:redstone_ore", new int[]{1, 6}),
+            // The vault's ores (Slice 32 — OreBlock.dropItems lines 58-77 +
+            // RedstoneOreBlock line 84's own 1-5): lapis 2-5, emerald 3-7,
+            // quartz 2-5.
+            Map.entry("minecraft:lapis_ore", new int[]{2, 6}),
+            Map.entry("minecraft:emerald_ore", new int[]{3, 8}),
+            Map.entry("minecraft:quartz_ore", new int[]{2, 6}));
 
     /** Hostile kill reward (the historical 5 XP band, ±0 variance this slice). */
     public static final int HOSTILE_KILL_XP = 5;

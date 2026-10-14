@@ -420,6 +420,43 @@ public final class BuiltinItems {
     // their block forms, 47 and 116).
     public static final EngineItemType LAPIS = new EngineItemType(
             Identifier.parse("minecraft:lapis"), "Lapis Lazuli", 64);
+
+    // The mineral vault's material items (Slice 32 — the reference's
+    // Item.java registrations): the clay ball 337 and the brick 336 (the
+    // smelt pair), the nether brick 405 (Item.java line 709 — the
+    // netherrack smelt and the 2x2 masonry), the slime block's own item
+    // 165 (Item.java's register(Blocks.SLIME)).
+    public static final EngineItemType CLAY_BALL = new EngineItemType(
+            Identifier.parse("minecraft:clay_ball"), "Clay Ball", 16);
+    public static final EngineItemType BRICK = new EngineItemType(
+            Identifier.parse("minecraft:brick"), "Brick", 64);
+    public static final EngineItemType NETHER_BRICK = new EngineItemType(
+            Identifier.parse("minecraft:nether_brick"), "Nether Brick", 64);
+
+    // The vault's block items (Slice 32 — Item.java's BlockItem
+    // registrations: the item id IS the block id for each).
+    public static final EngineItemType LAPIS_ORE_ITEM = new EngineItemType(
+            Identifier.parse("minecraft:lapis_ore"), "Lapis Lazuli Ore", 64);
+    public static final EngineItemType EMERALD_ORE_ITEM = new EngineItemType(
+            Identifier.parse("minecraft:emerald_ore"), "Emerald Ore", 64);
+    public static final EngineItemType LAPIS_BLOCK_ITEM = new EngineItemType(
+            Identifier.parse("minecraft:lapis_block"), "Lapis Lazuli Block", 64);
+    public static final EngineItemType REDSTONE_BLOCK_ITEM = new EngineItemType(
+            Identifier.parse("minecraft:redstone_block"), "Block of Redstone", 64);
+    public static final EngineItemType COAL_BLOCK_ITEM = new EngineItemType(
+            Identifier.parse("minecraft:coal_block"), "Block of Coal", 64);
+    public static final EngineItemType QUARTZ_BLOCK_ITEM = new EngineItemType(
+            Identifier.parse("minecraft:quartz_block"), "Block of Quartz", 64);
+    public static final EngineItemType BRICK_BLOCK_ITEM = new EngineItemType(
+            Identifier.parse("minecraft:brick_block"), "Bricks", 64);
+    public static final EngineItemType CLAY_ITEM = new EngineItemType(
+            Identifier.parse("minecraft:clay"), "Clay", 64);
+    public static final EngineItemType SLIME_ITEM = new EngineItemType(
+            Identifier.parse("minecraft:slime_block"), "Slime Block", 64);
+    public static final EngineItemType END_STONE_ITEM = new EngineItemType(
+            Identifier.parse("minecraft:end_stone"), "End Stone", 64);
+    public static final EngineItemType PACKED_ICE_ITEM = new EngineItemType(
+            Identifier.parse("minecraft:packed_ice"), "Packed Ice", 64);
     public static final EngineItemType ENCHANTED_BOOK = new EngineItemType(
             Identifier.parse("minecraft:enchanted_book"), "Enchanted Book", 1);
 
@@ -804,6 +841,11 @@ public final class BuiltinItems {
                 ENDER_CHEST,
                 LEAD, CARROT_ON_A_STICK, EMERALD,
                 LAPIS, ENCHANTED_BOOK, BOOKSHELF, ENCHANTING_TABLE,
+                CLAY_BALL, BRICK, NETHER_BRICK,
+                LAPIS_ORE_ITEM, EMERALD_ORE_ITEM, LAPIS_BLOCK_ITEM,
+                REDSTONE_BLOCK_ITEM, COAL_BLOCK_ITEM, QUARTZ_BLOCK_ITEM,
+                BRICK_BLOCK_ITEM, CLAY_ITEM, SLIME_ITEM, END_STONE_ITEM,
+                PACKED_ICE_ITEM,
                 ITEM_FRAME, PAINTING, ARMOR_STAND,
                 ENDER_PEARL, EMPTY_MAP, COMPASS, IRON_DOOR,
                 NETHER_BRICKS, NETHER_BRICK_FENCE, NETHER_BRICK_STAIRS,
