@@ -406,6 +406,11 @@ public final class BuiltinItems {
     // sapling block is its own ledger row.
     public static final EngineItemType OBSIDIAN = new EngineItemType(
             Identifier.parse("minecraft:obsidian"), "Obsidian", 64);
+    // The ender chest item (Slice 29a — legacy 130, the block family's own
+    // id): places any of the four facing states (the placement verb's
+    // look-opposite walk), stack 64.
+    public static final EngineItemType ENDER_CHEST = new EngineItemType(
+            Identifier.parse("minecraft:ender_chest"), "Ender Chest", 64);
     public static final EngineItemType OAK_SAPLING = new EngineItemType(
             Identifier.parse("minecraft:oak_sapling"), "Oak Sapling", 64);
 
@@ -771,6 +776,7 @@ public final class BuiltinItems {
                 RAIL, BOAT, MINECART, CHEST_MINECART,
                 SADDLE, IRON_HORSE_ARMOR, GOLDEN_HORSE_ARMOR, DIAMOND_HORSE_ARMOR,
                 OBSIDIAN, OAK_SAPLING,
+                ENDER_CHEST,
                 LEAD, CARROT_ON_A_STICK, EMERALD,
                 LAPIS, ENCHANTED_BOOK, BOOKSHELF, ENCHANTING_TABLE,
                 ITEM_FRAME, PAINTING, ARMOR_STAND,

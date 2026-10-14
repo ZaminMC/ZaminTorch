@@ -950,6 +950,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 switch (player.openContainerKind()) {
                     case FURNACE -> sendFurnaceWindow(channel, player, windowId);
                     case CHEST -> sendChestWindow(channel, player, windowId);
+                    case ENDER_CHEST -> sendEnderChestWindow(channel, player, windowId);
                     case CHEST_MINECART -> sendChestMinecartWindow(channel, player, windowId);
                     case DISPENSER -> sendDispenserWindow(channel, player, windowId);
                     case HOPPER -> sendHopperWindow(channel, player, windowId);
@@ -1026,6 +1027,28 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeByte(27); // the GUI's own slots: 3 rows of 9
         channel.writeAndFlush(out);
         sendContainerWindowItems(channel, windowId, player);
+    }
+
+    /**
+     * Open Window (0x2D) for the ender chest (Slice 29a — the reference's
+     * EnderChestBlock.use: the chest GUI over the player's OWN 27-slot
+     * EnderChestInventory, the "container.enderchest" title), followed by
+     * the authoritative 63-slot contents — the container slots read the
+     * session's private grid. Called on the tick thread by the engine's
+     * open dispatch.
+     */
+    private void sendEnderChestWindow(Channel channel, PlayerSession player, int windowId) {
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(48);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_OPEN_WINDOW);
+        out.writeByte(windowId);
+        ByteBufOps.writeString(out, Protocol18.CHEST_WINDOW_TYPE);
+        ByteBufOps.writeString(out, Protocol18.ENDER_CHEST_WINDOW_TITLE);
+        out.writeByte(27); // the GUI's own slots: 3 rows of 9
+        channel.writeAndFlush(out);
+        sendChestWindowItems(channel, windowId, player.enderChest(), player);
     }
 
     /**
@@ -1843,6 +1866,13 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             return;
         }
         if (player.openContainerKind()
+                == net.zaminmc.torch.server.player.PlayerSession.ContainerKind.ENDER_CHEST) {
+            // The container slots read the session's own grid (Slice 29a —
+            // the block at the position is the door, not the storage).
+            sendChestWindowItems(channel, windowId, player.enderChest(), player);
+            return;
+        }
+        if (player.openContainerKind()
                 == net.zaminmc.torch.server.player.PlayerSession.ContainerKind.CHEST_MINECART) {
             var cart = engineVehicleChest(player.containerMountId());
             if (cart != null) {
@@ -2297,7 +2327,15 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writePackedBlockPosition(out, position.x(), position.y(), position.z());
         out.writeByte(Protocol18.BLOCK_ACTION_CHEST_LID);
         out.writeByte(open ? 1 : 0);
-        out.writeInt(Protocol18.CHEST_LEGACY_BLOCK_ID);
+        // The carrier is the block that actually sits there (Slice 29a — the
+        // ender chest's own BE broadcasts over legacy 130; the plain chest's
+        // over 54).
+        int carrier = Protocol18.CHEST_LEGACY_BLOCK_ID;
+        if (engine.world() != null && net.zaminmc.torch.server.chest.EnderChestBlocks
+                .isFamily(engine.world().getBlock(position))) {
+            carrier = Protocol18.ENDER_CHEST_LEGACY_BLOCK_ID;
+        }
+        out.writeInt(carrier);
         channel.writeAndFlush(out);
     }
 

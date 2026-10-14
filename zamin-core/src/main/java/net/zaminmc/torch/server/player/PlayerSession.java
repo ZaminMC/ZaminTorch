@@ -26,6 +26,15 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
     private final String name;
     private final ClientLink link;
     private final PlayerInventory inventory = new PlayerInventory();
+    /**
+     * The player's private ender chest (Slice 29a — the reference's
+     * EnderChestInventory on the player, not the block): a 27-slot chest
+     * grid owned by the session. Every ender chest block in the world opens
+     * THIS grid; the contents travel with the player (ZPD v8), never with
+     * any placed block.
+     */
+    private final net.zaminmc.torch.server.chest.ChestBlockEntity enderChest =
+            new net.zaminmc.torch.server.chest.ChestBlockEntity();
     private final CraftingGrid crafting = new CraftingGrid();          // window 0: 2x2
     private final CraftingGrid tableCrafting = new CraftingGrid(3, 3); // container: 3x3
     private volatile World world;
@@ -87,6 +96,12 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
          * chest).
          */
         HOPPER,
+        /**
+         * The ender chest (Slice 29a — the reference's EnderChestBlock.use:
+         * the chest GUI over the PLAYER'S OWN 27-slot ender inventory; the
+         * block at containerPosition is the door, not the storage).
+         */
+        ENDER_CHEST,
         /** The villager trading window (offers ride the MC|TrList plugin message). */
         VILLAGER,
         /** The enchanting table (2 transient slots living in the session's menu, seed + costs included). */
@@ -587,6 +602,29 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
      */
     public PlayerInventory inventory() {
         return inventory;
+    }
+
+    /**
+     * The player's private ender chest grid (Slice 29a — the reference's
+     * EnderChestInventory: 27 slots riding the player, opened by every
+     * ender chest block in the world). Same ownership discipline as the
+     * inventory: tick-thread mutations only (the engine's click routing and
+     * the ZPD restore).
+     */
+    public net.zaminmc.torch.server.chest.ChestBlockEntity enderChest() {
+        return enderChest;
+    }
+
+    /**
+     * Restores the persisted ender chest contents (ZPD v8): a full 27-slot
+     * snapshot in engine slot order, empty slots as {@link
+     * net.zaminmc.torch.item.ItemStack#EMPTY}. Join-path only.
+     */
+    public void restoreEnderChest(java.util.List<net.zaminmc.torch.item.ItemStack> slots) {
+        for (int i = 0; i < net.zaminmc.torch.server.chest.ChestBlockEntity.SLOT_COUNT; i++) {
+            enderChest.setSlot(i, i < slots.size() ? slots.get(i)
+                    : net.zaminmc.torch.item.ItemStack.EMPTY);
+        }
     }
 
     /**

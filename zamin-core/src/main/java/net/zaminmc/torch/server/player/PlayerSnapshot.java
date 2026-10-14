@@ -28,11 +28,23 @@ import java.util.UUID;
  * @param totalXp    the saved experience points (ZPD v6+; 0 in older files)
  * @param bedSpawn   the saved bed spawn (ZPD v7+; null in older files or when
  *                   the player never slept)
+ * @param enderSlots the non-empty ender chest slots (ZPD v8+; slot 0-26,
+ *                   the player's private grid)
  */
 public record PlayerSnapshot(UUID uuid, String name, Position position, Rotation rotation,
                              int heldSlot, List<SlotStack> slots,
                              float health, int food, float saturation,
-                             int gamemodeId, long totalXp, Position bedSpawn) {
+                             int gamemodeId, long totalXp, Position bedSpawn,
+                             List<SlotStack> enderSlots) {
+
+    /** The pre-ender-chest shape (ZPD v1-v7 readers and engine callers without one). */
+    public PlayerSnapshot(UUID uuid, String name, Position position, Rotation rotation,
+                          int heldSlot, List<SlotStack> slots,
+                          float health, int food, float saturation,
+                          int gamemodeId, long totalXp, Position bedSpawn) {
+        this(uuid, name, position, rotation, heldSlot, slots, health, food, saturation,
+                gamemodeId, totalXp, bedSpawn, List.of());
+    }
 
     /** The pre-bed-spawn shape (ZPD v1-v6 readers and engine callers without one). */
     public PlayerSnapshot(UUID uuid, String name, Position position, Rotation rotation,

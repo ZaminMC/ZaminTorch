@@ -447,6 +447,10 @@ final class Protocol18 {
     static final String CHEST_WINDOW_TITLE = "{\"text\":\"Chest\"}";
     /** The chest minecart's own title (the reference's "container.minecart"). */
     static final String MINECART_CHEST_WINDOW_TITLE = "{\"text\":\"Minecart\"}";
+    /** The ender chest's own title (the reference's "container.enderchest"). */
+    static final String ENDER_CHEST_WINDOW_TITLE = "{\"text\":\"Ender Chest\"}";
+    /** The ender chest's legacy block id (the lid's Block Action carrier). */
+    static final int ENDER_CHEST_LEGACY_BLOCK_ID = 130;
     static final int CHEST_WINDOW_SLOTS = 63;
     static final int CHEST_WIRE_SLOT_LAST = 26;
     static final int CHEST_WIRE_SLOT_MAIN_FIRST = 27;

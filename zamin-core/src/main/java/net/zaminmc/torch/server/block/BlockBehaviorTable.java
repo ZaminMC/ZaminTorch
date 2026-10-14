@@ -142,6 +142,35 @@ public final class BlockBehaviorTable {
                     new BlockBehavior(2.5, true, false, "wood", 0,
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:chest"), 1)))),
 
+            // The ender chest family (Slice 29a — Block.java lines 1281-1282:
+            // setStrength(22.5F), setBlastResistance(1000.0F), STONE sounds):
+            // obsidian-tier pickaxe harvest (the dataset's harvestTools:
+            // diamond), the foreign-drop walk yields eight obsidian
+            // (EnderChestBlock's own getDropItem + getBaseDropCount 8), and
+            // silk takes the chest itself (hasSilkTouchDrops true). The
+            // facing variants mirror the base row.
+            Map.entry(Identifier.parse("minecraft:ender_chest_north"),
+                    new BlockBehavior(22.5, true, true, "rock", 4,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:obsidian"), 8)))),
+            Map.entry(Identifier.parse("minecraft:ender_chest_south"),
+                    new BlockBehavior(22.5, true, true, "rock", 4,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:obsidian"), 8)))),
+            Map.entry(Identifier.parse("minecraft:ender_chest_west"),
+                    new BlockBehavior(22.5, true, true, "rock", 4,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:obsidian"), 8)))),
+            Map.entry(Identifier.parse("minecraft:ender_chest_east"),
+                    new BlockBehavior(22.5, true, true, "rock", 4,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:obsidian"), 8)))),
+
+            // Obsidian itself (Slice 29a — Block.java line 1103's
+            // setStrength(50.0F).setBlastResistance(2000.0F)): the ender
+            // chest's drop yields it as an item, so the mining row lands with
+            // the family (the dataset's harvestTools: diamond tier, drops
+            // itself).
+            Map.entry(Identifier.parse("minecraft:obsidian"),
+                    new BlockBehavior(50.0, true, true, "rock", 4,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:obsidian"), 1)))),
+
             // Community data (pc/1.8 blocks.json): sand hardness 0.5, material
             // dirt, no tool requirement, drops itself (metadata 0: normal sand;
             // red sand is variant 1, /give reachable). Glass hardness 0.3, no

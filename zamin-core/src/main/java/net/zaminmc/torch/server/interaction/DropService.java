@@ -86,6 +86,29 @@ public final class DropService {
                     net.zaminmc.torch.server.block.InfestedBlocks.silkDropDamage(
                             broken.identifier())));
         }
+        // The ender chest family (Slice 29a — EnderChestBlock lines 48-60:
+        // getDropItem OBSIDIAN, getBaseDropCount 8, hasSilkTouchDrops
+        // true): silk takes the chest itself (the item shares legacy 130),
+        // otherwise eight obsidian flat (the default quantityDropped walk
+        // applies no fortune bonus — the ender chest does not override
+        // quantityDroppedWithBonus).
+        if (net.zaminmc.torch.server.chest.EnderChestBlocks.isFamily(broken)) {
+            if (silkTouch) {
+                ItemType self = BuiltinItems.lookup(
+                        Identifier.parse("minecraft:ender_chest")).orElse(null);
+                if (self == null) {
+                    throw new IllegalStateException(
+                            "Ender chest item is unregistered: minecraft:ender_chest");
+                }
+                return List.of(ItemStack.of(self, 1));
+            }
+            ItemType obsidian = BuiltinItems.lookup(
+                    Identifier.parse("minecraft:obsidian")).orElse(null);
+            if (obsidian == null) {
+                throw new IllegalStateException("Obsidian item is unregistered");
+            }
+            return List.of(new ItemStack(obsidian, 8));
+        }
         // The silk arm: the block's own item (the reference's
         // getSilkTouchDrop — Item.byBlock with the state metadata), one
         // stack, no chance roll.
