@@ -76,6 +76,11 @@ final class LegacyBlockIds {
             // block item all share the id).
             Map.entry(Identifier.parse("minecraft:jukebox"), 84),
             Map.entry(Identifier.parse("minecraft:jukebox_record"), 84),
+            // The daylight detector's item form (Slice 27c — Item.java
+            // line 490's register(Blocks.DAYLIGHT_DETECTOR): legacy 151;
+            // the block family's thirty-two states register through the
+            // merge below, the inverted form (178) has no item).
+            Map.entry(Identifier.parse("minecraft:daylight_detector"), 151),
             // The twelve music discs (Slice 27b — the reference's Item.java
             // lines 735-746, ids 2256-2267 in the registration order; the
             // analog signal and the play-record event carry these ids).
@@ -548,6 +553,14 @@ final class LegacyBlockIds {
             merged.put(Identifier.parse("minecraft:hopper_" + facing), 154);
             merged.put(Identifier.parse("minecraft:hopper_" + facing + "_disabled"), 154);
         }
+        // The daylight detector family (Slice 27c — Block.java lines
+        // 1323/1377): the detector 151, the inverted 178 — the POWER 0-15
+        // rides the WHOLE nibble (DaylightDetectorBlock lines 123-130:
+        // getStateFromMetadata reads POWER from the metadata).
+        for (int power = 0; power <= 15; power++) {
+            merged.put(Identifier.parse("minecraft:daylight_detector_p" + power), 151);
+            merged.put(Identifier.parse("minecraft:daylight_detector_inverted_p" + power), 178);
+        }
         // The dispenser families (Slice 11a): the dispenser 23, the dropper
         // 125 — the facing and the triggered bit ride the nibble
         // (DispenserBlock lines 202-215).
@@ -899,6 +912,11 @@ final class LegacyBlockIds {
             String facing = rest.substring(rest.lastIndexOf('_') + 1);
             return directionNibble(facing) | (disabled ? 8 : 0);
         }
+        if (value.startsWith("daylight_detector_")) {
+            // The POWER property IS the nibble (DaylightDetectorBlock lines
+            // 123-130: POWER = metadata, metadata = POWER).
+            return Integer.parseInt(value.substring(value.lastIndexOf('p') + 1));
+        }
         if (value.startsWith("dispenser_") || value.startsWith("dropper_")) {
             // facing | (triggered ? 8 : 0) — DispenserBlock lines 202-215
             // (getDirection reads id & 7, TRIGGERED reads (metadata & 8) > 0).
@@ -1028,6 +1046,15 @@ final class LegacyBlockIds {
         BY_IDENTIFIER.forEach((identifier, legacy) -> {
             if (identifier.namespace().equals("minecraft")
                     && identifier.value().startsWith("hopper_")) {
+                reversed.put((legacy << 4) | metadataOf(identifier), identifier);
+            }
+        });
+        // The daylight detector family folds its own nibble space in (the
+        // POWER dial 0-15 — the reverse resolves every state).
+        BY_IDENTIFIER.forEach((identifier, legacy) -> {
+            if (identifier.namespace().equals("minecraft")
+                    && (identifier.value().startsWith("daylight_detector_p")
+                    || identifier.value().startsWith("daylight_detector_inverted_p"))) {
                 reversed.put((legacy << 4) | metadataOf(identifier), identifier);
             }
         });

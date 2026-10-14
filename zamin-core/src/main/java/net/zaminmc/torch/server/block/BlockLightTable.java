@@ -438,6 +438,15 @@ public final class BlockLightTable {
             entries.put(Identifier.parse("minecraft:hopper_" + facing + "_disabled"),
                     new LightData(0, 0));
         }
+        // The daylight detector (Slice 27c — DaylightDetectorBlock's own
+        // isSolidRender false, the 0.375-high shape): the sensor band
+        // passes light untouched, every power state of both forms.
+        for (int power = 0; power <= 15; power++) {
+            entries.put(Identifier.parse("minecraft:daylight_detector_p" + power),
+                    new LightData(0, 0));
+            entries.put(Identifier.parse("minecraft:daylight_detector_inverted_p" + power),
+                    new LightData(0, 0));
+        }
         // The cauldron (CauldronBlock line 57's isSolidRender false — Block
         // line 216's opacity 0): the rim shape passes light untouched,
         // whatever the water level.

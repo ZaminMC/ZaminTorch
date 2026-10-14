@@ -278,6 +278,8 @@ public final class EngineServer implements Server, EngineBridge {
     private net.zaminmc.torch.server.jukebox.JukeboxBlockSystem jukeboxes;
 
     private net.zaminmc.torch.server.jukebox.JukeboxDataStore jukeboxStore;
+
+    private net.zaminmc.torch.server.daylight.DaylightDetectorSystem daylightDetectors;
     /** The note tiles' ZND persistence. */
     private net.zaminmc.torch.server.noteblock.NoteDataStore noteStore;
     /** The hopper subsystem (Slice 10b): the 8-tick transfer cadence. */
@@ -434,8 +436,9 @@ public final class EngineServer implements Server, EngineBridge {
                     net.zaminmc.torch.server.piston.PistonSystem.registerBlocks(
                     net.zaminmc.torch.server.redstone.TripwireBlocks.registerAll(
                     net.zaminmc.torch.server.redstone.RedstoneBlocks.registerAll(
+                    net.zaminmc.torch.server.daylight.DaylightDetectorBlocks.registerAll(
                             FluidBlocks.registerAll(
-                                    BuiltinBlocks.registerAll(new BlockRegistryBuilder()))))))))).freeze();
+                                    BuiltinBlocks.registerAll(new BlockRegistryBuilder())))))))))).freeze();
         }
 
         state.set(ServerState.STARTING);
@@ -1086,6 +1089,14 @@ public final class EngineServer implements Server, EngineBridge {
                 jukeboxStore = new net.zaminmc.torch.server.jukebox.JukeboxDataStore(
                         config.worldDataDir().resolve("jukeboxes.bin"));
                 jukeboxes.restoreAll(jukeboxStore.load());
+                // The daylight detectors (Slice 27c): the sky-light power
+                // band — the reference's own math chain (the time fraction,
+                // the ambient darkness, the sun-angle cosine) over the
+                // 20-tick BE gate, the use arm's invert toggle, and the
+                // weak emission consult the redstone system reads.
+                daylightDetectors = new net.zaminmc.torch.server.daylight.DaylightDetectorSystem(
+                        world, weather);
+                world.addChangeListener(daylightDetectors);
                 // The cross-system neighbor bus (Slice 9f): the pistons and
                 // the TNT ride the redstone family's neighbor dispatch —
                 // the reference's world-level neighborChanged.
@@ -1447,6 +1458,7 @@ public final class EngineServer implements Server, EngineBridge {
                     redstoneSystem.tick(); // the torch/repeater scheduled reactions
                     pistonSystem.tick(); // the piston block events + the moving carriers
                     hopperSystem.tick(); // the hoppers' 8-tick transfer cadence
+                    daylightDetectors.tick(); // the 20-tick sky-light power band (Slice 27c)
                     dispenserSystem.tick(); // the stale-state sweep (Slice 11a)
                     tripwireSystem.tick(); // the tripwire occupancy scan
                     tntSystem.tick(); // the primed TNT fuses + physics
@@ -1557,6 +1569,7 @@ public final class EngineServer implements Server, EngineBridge {
                     brewingStands.onBlockBroken(position, itemEntities);
                     noteBlocks.onBlockBroken(position);
                     jukeboxes.onBlockBroken(position);
+                    daylightDetectors.onBlockBroken(position);
                     doorSiblingCleanup(position);
                     bedSiblingCleanup(position, brokenType);
                     bedSpawnCleanup(position);
@@ -2294,6 +2307,11 @@ public final class EngineServer implements Server, EngineBridge {
     /** The jukebox system (Slice 27b): the record slots + the four arms. */
     public net.zaminmc.torch.server.jukebox.JukeboxBlockSystem jukeboxes() {
         return jukeboxes;
+    }
+
+    /** The daylight detector system (Slice 27c): the sky-light power band. */
+    public net.zaminmc.torch.server.daylight.DaylightDetectorSystem daylightDetectors() {
+        return daylightDetectors;
     }
 
     /** Registers a TNT wire-sync observer (the protocol adapter). */
@@ -5535,6 +5553,14 @@ public final class EngineServer implements Server, EngineBridge {
                 return;
             }
         }
+        if (net.zaminmc.torch.server.daylight.DaylightDetectorBlocks.isFamily(current)) {
+            // DaylightDetectorBlock.use lines 66-85: the invert toggle
+            // keeping the POWER level, then the immediate re-update — the
+            // use consumed, no placement proposal follows.
+            if (daylightDetectors.useFromTick(clicked)) {
+                return;
+            }
+        }
         if (net.zaminmc.torch.server.hopper.HopperBlocks.isHopper(current)) {
             // HopperBlock.use lines 135-146: the container menu opens.
             openHopperOnTick(session, clicked, onTableOpened);
@@ -5744,6 +5770,11 @@ public final class EngineServer implements Server, EngineBridge {
                 || creativeHeld.map(t -> t.identifier().value().equals("hopper")).orElse(false)) {
             placeHopperOnTick(session, clicked, face, creativeHeld);
             return; // the clicked-face-opposite rule overrides the generic placement
+        }
+        if (heldId.equals("minecraft:daylight_detector")
+                || creativeHeld.map(t -> t.identifier().value().equals("daylight_detector")).orElse(false)) {
+            placeDaylightDetectorOnTick(session, clicked, face, creativeHeld);
+            return; // the detector's p0 state overrides the generic placement
         }
         if (heldId.equals("minecraft:dispenser") || heldId.equals("minecraft:dropper")
                 || creativeHeld.map(t -> t.identifier().value().equals("dispenser")
@@ -6317,6 +6348,31 @@ public final class EngineServer implements Server, EngineBridge {
         }
         int facing = net.zaminmc.torch.server.hopper.HopperSystem.placementFacing(face);
         world.setBlock(target, net.zaminmc.torch.server.hopper.HopperBlocks.hopperOf(facing, true));
+        consumePlaced(session, creativeHeld);
+    }
+
+    /**
+     * The daylight detector placement (Slice 27c — DaylightDetectorBlock's
+     * defaultState: POWER 0): the flattened family's p0 state lands (the
+     * 20-tick walk takes it from there). Tick-thread context.
+     */
+    private void placeDaylightDetectorOnTick(PlayerSession session, BlockPosition clicked,
+                                              int face,
+                                              java.util.Optional<BlockType> creativeHeld) {
+        BlockPosition target = offsetByFace(clicked, face);
+        if (target == null || world.getBlock(clicked).equals(world.airType())
+                || !world.getBlock(target).equals(world.airType())) {
+            return;
+        }
+        if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5
+                || intersectsPlayerBox(session.position(), target)) {
+            return;
+        }
+        if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE
+                && session.inventory().held().isEmpty()) {
+            return;
+        }
+        world.setBlock(target, net.zaminmc.torch.server.daylight.DaylightDetectorBlocks.ofPower(0));
         consumePlaced(session, creativeHeld);
     }
 

@@ -492,7 +492,8 @@ public final class RedstoneSystem implements WorldChangeListener {
                 && !RedstoneBlocks.isTorch(type)
                 && !RedstoneBlocks.isRepeater(type)
                 && !RedstoneBlocks.isComparator(type)
-                && !net.zaminmc.torch.server.piston.PistonBlocks.isPistonFamily(type);
+                && !net.zaminmc.torch.server.piston.PistonBlocks.isPistonFamily(type)
+                && !net.zaminmc.torch.server.daylight.DaylightDetectorBlocks.isFamily(type);
     }
 
     /**
@@ -541,6 +542,12 @@ public final class RedstoneSystem implements WorldChangeListener {
         if (RedstoneBlocks.isPlate(type)) {
             // AbstractPressurePlateBlock lines 159-161: the plate's output.
             return RedstoneBlocks.platePowered(type) ? 15 : 0;
+        }
+        if (net.zaminmc.torch.server.daylight.DaylightDetectorBlocks.isFamily(type)) {
+            // DaylightDetectorBlock.getSignal lines 43-45: the POWER level
+            // weakly in EVERY direction (no dir gate) — the dial the
+            // 20-tick walk keeps against the sky.
+            return net.zaminmc.torch.server.daylight.DaylightDetectorBlocks.powerOf(type);
         }
         if (TripwireBlocks.isHook(type)) {
             // TripwireHookBlock lines 262-264: weak 15 in every direction
