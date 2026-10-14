@@ -1,0 +1,117 @@
+diff --git a/zamin-core/src/main/java/net/zaminmc/torch/server/EngineServer.java b/zamin-core/src/main/java/net/zaminmc/torch/server/EngineServer.java
+index a477cfb..99a87ac 100755
+--- a/zamin-core/src/main/java/net/zaminmc/torch/server/EngineServer.java
++++ b/zamin-core/src/main/java/net/zaminmc/torch/server/EngineServer.java
+@@ -274,6 +274,10 @@ public final class EngineServer implements Server, EngineBridge {
+     private net.zaminmc.torch.server.tnt.TntSystem tntSystem;
+     /** The note block system (Slice 27a): the note tiles + the three play arms. */
+     private net.zaminmc.torch.server.noteblock.NoteBlockSystem noteBlocks;
++
++    private net.zaminmc.torch.server.jukebox.JukeboxBlockSystem jukeboxes;
++
++    private net.zaminmc.torch.server.jukebox.JukeboxDataStore jukeboxStore;
+     /** The note tiles' ZND persistence. */
+     private net.zaminmc.torch.server.noteblock.NoteDataStore noteStore;
+     /** The hopper subsystem (Slice 10b): the 8-tick transfer cadence. */
+@@ -1024,6 +1030,12 @@ public final class EngineServer implements Server, EngineBridge {
+                         // lines 188-195: getAnalogSignal = LEVEL).
+                         return net.zaminmc.torch.server.cauldron.CauldronBlocks.levelOf(block);
+                     }
++                    if (net.zaminmc.torch.server.jukebox.JukeboxBlocks.isFamily(block)) {
++                        // The jukebox's disc read (JukeboxBlock lines 97-108:
++                        // Item.getId(record) + 1 - Item.getId(RECORD_13) —
++                        // the disc's table index + 1, 0 with no record).
++                        return jukeboxes.analogSignal(position);
++                    }
+                     return -1;
+                 });
+                 // The container-content wake (the reference's
+@@ -1064,6 +1076,16 @@ public final class EngineServer implements Server, EngineBridge {
+                 noteStore = new net.zaminmc.torch.server.noteblock.NoteDataStore(
+                         config.worldDataDir().resolve("noteblocks.bin"));
+                 noteBlocks.restoreAll(noteStore.load());
++                // The jukeboxes (Slice 27b): the record slots + the four
++                // reference arms (the disc's insert through the useOn gate,
++                // the HAS_RECORD eject, the break's own record drop, the
++                // comparator's disc-index read) + the ZJD persistence.
++                jukeboxes = new net.zaminmc.torch.server.jukebox.JukeboxBlockSystem(
++                        world, itemEntities);
++                world.addChangeListener(jukeboxes);
++                jukeboxStore = new net.zaminmc.torch.server.jukebox.JukeboxDataStore(
++                        config.worldDataDir().resolve("jukeboxes.bin"));
++                jukeboxes.restoreAll(jukeboxStore.load());
+                 // The cross-system neighbor bus (Slice 9f): the pistons and
+                 // the TNT ride the redstone family's neighbor dispatch —
+                 // the reference's world-level neighborChanged.
+@@ -1527,6 +1556,7 @@ public final class EngineServer implements Server, EngineBridge {
+                     dispenserSystem.onBlockBroken(position);
+                     brewingStands.onBlockBroken(position, itemEntities);
+                     noteBlocks.onBlockBroken(position);
++                    jukeboxes.onBlockBroken(position);
+                     doorSiblingCleanup(position);
+                     bedSiblingCleanup(position, brokenType);
+                     bedSpawnCleanup(position);
+@@ -2261,6 +2291,11 @@ public final class EngineServer implements Server, EngineBridge {
+         return noteBlocks;
+     }
+ 
++    /** The jukebox system (Slice 27b): the record slots + the four arms. */
++    public net.zaminmc.torch.server.jukebox.JukeboxBlockSystem jukeboxes() {
++        return jukeboxes;
++    }
++
+     /** Registers a TNT wire-sync observer (the protocol adapter). */
+     public void addTntListener(net.zaminmc.torch.server.tnt.TntSystem.Listener listener) {
+         tntListeners.add(java.util.Objects.requireNonNull(listener, "listener"));
+@@ -5490,6 +5525,16 @@ public final class EngineServer implements Server, EngineBridge {
+             noteBlocks.useFromTick(clicked);
+             return;
+         }
++        if (net.zaminmc.torch.server.jukebox.JukeboxBlocks.isFamily(current)) {
++            // JukeboxBlock.use lines 30-38: a playing jukebox ejects its
++            // record (the stop event, the drop, the HAS_RECORD flip); a
++            // record-less one answers false — the click falls through to
++            // the item arms (the disc's useOn insert) and the placement
++            // proposal, the reference's own order.
++            if (jukeboxes.useFromTick(clicked)) {
++                return;
++            }
++        }
+         if (net.zaminmc.torch.server.hopper.HopperBlocks.isHopper(current)) {
+             // HopperBlock.use lines 135-146: the container menu opens.
+             openHopperOnTick(session, clicked, onTableOpened);
+@@ -5545,6 +5590,24 @@ public final class EngineServer implements Server, EngineBridge {
+             }
+             return; // the bottle against anything else never places
+         }
++        // The disc's insert arm (Slice 27b — MusicDiscItem.useOn lines
++        // 28-43): a music disc against a record-less jukebox stores the
++        // copy, flips the HAS_RECORD variant, broadcasts the world event
++        // 1005 carrying the disc's item id, and consumes one from the hand
++        // (the engine's own creative-free convention, the bottle arm's).
++        // A disc against a playing jukebox never inserts (the useOn gate)
++        // and falls through to the placement proposal.
++        net.zaminmc.torch.item.ItemStack discHeld = session.inventory().held();
++        if (!discHeld.isEmpty() && net.zaminmc.torch.server.jukebox.JukeboxBlocks.isMusicDisc(
++                discHeld.type().identifier())) {
++            if (jukeboxes.insertFromTick(clicked, discHeld)) {
++                if (session.gamemode() != GameMode.CREATIVE) {
++                    session.inventory().consumeHeld(1);
++                }
++                publishInventoryChanged(session);
++                return; // the disc consumed the use
++            }
++        }
+         // The lead on a fence (Slice 11c — LeadItem.useOn lines 24-44): every
+         // mob the player holds within the 7-cube ties to the knot at the
+         // fence (creating it on the first taker) — the lead itself is NOT
+@@ -12648,6 +12711,9 @@ public final class EngineServer implements Server, EngineBridge {
+                 if (noteStore != null && noteBlocks != null) {
+                     noteStore.save(noteBlocks.snapshotTiles());
+                 }
++                if (jukeboxStore != null && jukeboxes != null) {
++                    jukeboxStore.save(jukeboxes.snapshotRecords());
++                }
+                 if (dispenserStore != null && dispenserSystem != null) {
+                     dispenserStore.save(dispenserSystem.snapshot());
+                 }
