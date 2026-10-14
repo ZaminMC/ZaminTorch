@@ -388,6 +388,11 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:golden_horse_armor"), 418),
             Map.entry(Identifier.parse("minecraft:diamond_horse_armor"), 419),
             Map.entry(Identifier.parse("minecraft:lead"), 420),
+            // The decoration family (Slice 28a/28b — Item.java's own
+            // DecorationItem registrations): the item frame 389, the
+            // painting 321.
+            Map.entry(Identifier.parse("minecraft:item_frame"), 389),
+            Map.entry(Identifier.parse("minecraft:painting"), 321),
             Map.entry(Identifier.parse("minecraft:carrot_on_a_stick"), 398),
             Map.entry(Identifier.parse("minecraft:emerald"), 388),
             // The villager's trade stock (Slice 21g — the reference's

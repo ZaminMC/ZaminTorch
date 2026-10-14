@@ -4226,6 +4226,146 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     }
 
     /**
+     * Spawn Object (0x0E) for an item frame (Slice 28a — TrackedEntity
+     * lines 493-502): type 71 with the frame's HORIZONTAL FACING riding
+     * the objectData int, the position at the RAW wall-cell corner
+     * (blockPos * 32, no +0.5 — the reference's own override, the client
+     * anchors the model itself), the yaw byte the reference's own
+     * facing*90 walk, followed by the frame's metadata pair (the
+     * displayed stack at slot 8, the rotation byte at slot 9) so a
+     * loaded frame renders on arrival. Any thread.
+     */
+    void sendFrameSpawned(net.zaminmc.torch.server.decoration.ItemFrame frame) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY
+                || chunkTracker == null) {
+            return;
+        }
+        if (!chunkTracker.hasChunk(frame.pos().chunkPosition().packed())) {
+            return; // outside this observer's loaded window
+        }
+        ByteBuf out = Unpooled.buffer(32);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_SPAWN_ENTITY);
+        ByteBufOps.writeVarInt(out, frame.entityId());
+        out.writeByte(Protocol18.OBJECT_ITEM_FRAME);
+        out.writeInt(frame.pos().x() * 32);
+        out.writeInt(frame.pos().y() * 32);
+        out.writeInt(frame.pos().z() * 32);
+        out.writeByte(0); // pitch
+        out.writeByte(frame.facing() * 64); // yaw = facing * 90 degrees, byte-scaled
+        out.writeInt(frame.facing()); // objectData: the horizontal facing id
+        out.writeShort(0); // velocity x
+        out.writeShort(0); // velocity y
+        out.writeShort(0); // velocity z
+        channel.writeAndFlush(out);
+        // The frame's tracked data (the reference sends it on the tracker's
+        // next tick; riding the spawn keeps the join view one packet).
+        ByteBuf meta = Unpooled.buffer(24);
+        ByteBufOps.writeVarInt(meta, Protocol18.S2C_ENTITY_METADATA);
+        ByteBufOps.writeVarInt(meta, frame.entityId());
+        if (!frame.display().isEmpty()) {
+            meta.writeByte((Protocol18.METADATA_TYPE_SLOT << 5) | 8);
+            writeSlot(meta, frame.display());
+        }
+        meta.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | 9);
+        meta.writeByte(frame.rotation());
+        meta.writeByte(Protocol18.METADATA_TERMINATOR);
+        channel.writeAndFlush(meta);
+    }
+
+    /** Destroy Entities (0x13) for one removed item frame. Any thread. */
+    void sendFrameRemoved(int frameEntityId) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(12);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_DESTROY_ENTITIES);
+        ByteBufOps.writeVarInt(out, 1);
+        ByteBufOps.writeVarInt(out, frameEntityId);
+        channel.writeAndFlush(out);
+    }
+
+    /**
+     * Set Entity Metadata (0x1C) for a frame's displayed stack change
+     * (ItemFrameEntity's synced slot 8, the item type). Any thread.
+     */
+    void sendFrameItemChanged(net.zaminmc.torch.server.decoration.ItemFrame frame) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY
+                || chunkTracker == null
+                || !chunkTracker.hasChunk(frame.pos().chunkPosition().packed())) {
+            return;
+        }
+        ByteBuf meta = Unpooled.buffer(24);
+        ByteBufOps.writeVarInt(meta, Protocol18.S2C_ENTITY_METADATA);
+        ByteBufOps.writeVarInt(meta, frame.entityId());
+        meta.writeByte((Protocol18.METADATA_TYPE_SLOT << 5) | 8);
+        writeSlot(meta, frame.display());
+        meta.writeByte(Protocol18.METADATA_TERMINATOR);
+        channel.writeAndFlush(meta);
+    }
+
+    /**
+     * Set Entity Metadata (0x1C) for a frame's rotation change
+     * (ItemFrameEntity's synced slot 9, the byte type). Any thread.
+     */
+    void sendFrameRotationChanged(net.zaminmc.torch.server.decoration.ItemFrame frame) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY
+                || chunkTracker == null
+                || !chunkTracker.hasChunk(frame.pos().chunkPosition().packed())) {
+            return;
+        }
+        ByteBuf meta = Unpooled.buffer(12);
+        ByteBufOps.writeVarInt(meta, Protocol18.S2C_ENTITY_METADATA);
+        ByteBufOps.writeVarInt(meta, frame.entityId());
+        meta.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | 9);
+        meta.writeByte(frame.rotation());
+        meta.writeByte(Protocol18.METADATA_TERMINATOR);
+        channel.writeAndFlush(meta);
+    }
+
+    /**
+     * Spawn Painting (0x10 — AddPaintingS2CPacket's own write, Slice
+     * 28b): varint entity id, the motive's registry string, the packed
+     * wall-cell long, the horizontal facing byte. Any thread.
+     */
+    void sendPaintingSpawned(net.zaminmc.torch.server.decoration.Painting painting) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY
+                || chunkTracker == null) {
+            return;
+        }
+        if (!chunkTracker.hasChunk(painting.pos().chunkPosition().packed())) {
+            return; // outside this observer's loaded window
+        }
+        long packed = ((long) (painting.pos().x() & 0x3FFFFFF) << 38)
+                | ((long) (painting.pos().y() & 0xFFF) << 26)
+                | (painting.pos().z() & 0x3FFFFFF);
+        ByteBuf out = Unpooled.buffer(32);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_SPAWN_PAINTING);
+        ByteBufOps.writeVarInt(out, painting.entityId());
+        ByteBufOps.writeString(out, painting.motive().name);
+        out.writeLong(packed);
+        out.writeByte(painting.facing());
+        channel.writeAndFlush(out);
+    }
+
+    /** Destroy Entities (0x13) for one removed painting. Any thread. */
+    void sendPaintingRemoved(int paintingEntityId) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(12);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_DESTROY_ENTITIES);
+        ByteBufOps.writeVarInt(out, 1);
+        ByteBufOps.writeVarInt(out, paintingEntityId);
+        channel.writeAndFlush(out);
+    }
+
+    /**
      * Attach Entity (0x1B) for a mob's leash (MobEntity.attachLeash's own
      * wire arm): the mob's engine id rides the rider slot; the vehicle is
      * the holder — a player's id in THIS observer's space (own id when the

@@ -50,6 +50,7 @@ class Protocol18ConformanceTest {
         m.put("S2C_SPAWN_ENTITY", 0x0E);
         m.put("S2C_ENTITY_EQUIPMENT", 0x04);
         m.put("S2C_SPAWN_MOB", 0x0F);
+        m.put("S2C_SPAWN_PAINTING", 0x10);
         m.put("S2C_SPAWN_XP_ORB", 0x11);
         m.put("S2C_ENTITY_VELOCITY", 0x12);
         m.put("S2C_DESTROY_ENTITIES", 0x13);

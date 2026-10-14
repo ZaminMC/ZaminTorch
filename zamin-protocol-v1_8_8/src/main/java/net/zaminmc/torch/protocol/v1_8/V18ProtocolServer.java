@@ -698,6 +698,55 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                 }
             }
         });
+        // The decorations (Slice 28a/28b): the frame's Spawn Object 71 +
+        // the metadata pair + the Destroy, the painting's Spawn Painting
+        // + the Destroy, all broadcast to every connection.
+        server.addDecorationListener(new net.zaminmc.torch.server.decoration.DecorationSystem.Listener() {
+            @Override
+            public void onFrameSpawned(net.zaminmc.torch.server.decoration.ItemFrame frame) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendFrameSpawned(frame);
+                }
+            }
+
+            @Override
+            public void onFrameRemoved(net.zaminmc.torch.server.decoration.ItemFrame frame) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendFrameRemoved(frame.entityId());
+                }
+            }
+
+            @Override
+            public void onFrameItemChanged(net.zaminmc.torch.server.decoration.ItemFrame frame) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendFrameItemChanged(frame);
+                }
+            }
+
+            @Override
+            public void onFrameRotationChanged(
+                    net.zaminmc.torch.server.decoration.ItemFrame frame) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendFrameRotationChanged(frame);
+                }
+            }
+
+            @Override
+            public void onPaintingSpawned(
+                    net.zaminmc.torch.server.decoration.Painting painting) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendPaintingSpawned(painting);
+                }
+            }
+
+            @Override
+            public void onPaintingRemoved(
+                    net.zaminmc.torch.server.decoration.Painting painting) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendPaintingRemoved(painting.entityId());
+                }
+            }
+        });
         // The potion effects (Slice 11b — the reference's ServerPlayerEntity
         // overrides lines 772-787): the Entity Effect / Remove Entity Effect
         // packets go to the affected player's own client only; the 600-tick
@@ -1096,6 +1145,17 @@ public final class V18ProtocolServer implements ProtocolAdapter {
         if (leads != null) {
             for (net.zaminmc.torch.server.leash.LeashKnot knot : leads.allKnots()) {
                 newcomer.sendKnotSpawned(knot);
+            }
+        }
+        // The decorations already hanging (Slice 28a/28b): the frames +
+        // the paintings in the same world snapshot.
+        var decorations = engine.decorations();
+        if (decorations != null) {
+            for (net.zaminmc.torch.server.decoration.ItemFrame frame : decorations.allFrames()) {
+                newcomer.sendFrameSpawned(frame);
+            }
+            for (net.zaminmc.torch.server.decoration.Painting painting : decorations.allPaintings()) {
+                newcomer.sendPaintingSpawned(painting);
             }
         }
         // Falling blocks mid-transition when someone joins: spawn them for the

@@ -213,6 +213,10 @@ final class Protocol18 {
     static final int OBJECT_ENDER_PEARL = 65;
     /** Leash knot (Spawn Object type 77 — TrackedEntity's own). */
     static final int OBJECT_LEASH_KNOT = 77;
+    /** Item frame (Spawn Object type 71 — TrackedEntity lines 493-502). */
+    static final int OBJECT_ITEM_FRAME = 71;
+    /** Spawn Painting (0x10 — AddPaintingS2CPacket's own packet). */
+    static final int S2C_SPAWN_PAINTING = 0x10;
     /** The vehicles (community entities.json object types). */
     static final int OBJECT_BOAT = 1;
     static final int OBJECT_MINECART = 10;
