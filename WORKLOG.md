@@ -313,13 +313,25 @@ the bottom. The behavior-level status of every mechanic lives in
 
 ## Not started
 
-- Slice 7 remainder — the leftover effect hooks: thorns (the
-  protection/damage wildcards), the loot family (looting/fortune/silk
-  touch), the bow family (power/punch/flame/infinity), unbreaking,
-  respiration/depth strider — each lands with its gameplay slice.
-- Slice 8 — nether portals.
-- Redstone, potions/brewing, leads, structures, natural spawn cycles
-  (see `VANILLA_1_8_8_COMPATIBILITY.md` section 10).
+- Slice 7 remainder — RESOLVED (survey, Slice 26): thorns, looting,
+  fortune, silk touch, power/punch/flame/infinity, unbreaking,
+  respiration, and depth strider all landed with their gameplay slices
+  (registered in `Enchantments` with their families, wired at the
+  reference's own consult sites). The row was stale; kept for the record.
+- Slice 8 — nether portals — RESOLVED: Slices 8a/8b/8c complete (the
+  frame scan, the ignition, the stand clock, the changeDimension walk,
+  the per-dimension TimeUpdate sync); see the ledger's §169 row.
+- The real remaining vanilla gaps (survey, Slice 26 — none present in the
+  engine's source tree): the note block family (block 25: the instrument
+  selection from the block below, the redstone trigger, the pitch walk),
+  the jukebox (block 84: the record insert/play/eject), the daylight
+  sensor (block 151: the sky-light power band), the item frame (entity
+  family: placement, the held stack, the rotation, the drop), the
+  painting (entity family: the placement walk, the art registry), the
+  armor stand (entity 30: the placement, the armor slots, the pose), the
+  ender chest (block 130: the per-player ender storage), and the beacon
+  (block 138: the beam, the area effect, the payment). Each rides the
+  existing redstone/block/entity infrastructure when it lands.
 - Releases now ride GitHub Releases with changelogs per dev build; the
   dev.13 jar was lost to an environment reset before a release existed
   (tags v0.2.0-dev.13 was never cut; dev.14/dev.15 were back-filled with
