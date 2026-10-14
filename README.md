@@ -83,7 +83,12 @@ automated test proving it.
 
 Grab the latest zip from
 [Releases](https://github.com/ZaminMC/ZaminTorch/releases) (dev builds land
-on the `develop` branch's releases; prereleases included):
+on the `develop` branch's releases; prereleases included). Builds are
+numbered `torch-1.8.8-N` — the numbering continues the old `v0.2.0-dev.N`
+ledger — and are cut automatically from every `develop` push by
+[`.github/workflows/release.yml`](.github/workflows/release.yml),
+with the fat jar `torch-1.8.8-N.jar` and the bundle
+`ZaminTorch-server-1.8.8-N.zip` attached to each:
 
 1. Unzip. Requires **Java 21+** on the PATH.
 2. `./start.sh` (Linux/macOS), `start.bat` (cmd) or `start.ps1` (PowerShell).
@@ -110,6 +115,18 @@ The development server reads `zamin.properties` from the working directory
 configured port. Console commands: `help`, `state`, `save`, `stop`. In-game:
 `/help`, `/ping`. World changes are persisted to `worlds/<world>/zamin-delta.bin`
 and survive restarts.
+
+## Automated releases
+
+Every push to `develop` publishes the next numbered dev build automatically:
+the workflow computes `N` from the tag ledger, stamps the version into
+`distVersion` and `UpdateChecker.BUILD_VERSION`, runs the full test suite
+(one retry for the three documented load flakes), tags `torch-1.8.8-N`, and
+ships the jar + zip as a prerelease with auto-generated notes (commits since
+the previous tag). To title a release, either add a `Release-Title: <title>`
+trailer to a commit message, or cut an off-cycle release with
+`scripts/release.sh "<title>"`. A head commit carrying `[skip ci]` postpones
+its push's release to the next push.
 
 ## Modules
 

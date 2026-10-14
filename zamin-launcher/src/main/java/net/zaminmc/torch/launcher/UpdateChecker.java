@@ -22,15 +22,25 @@ import java.util.logging.Logger;
  * server boots exactly like an online one, just without the banner. The
  * timeout is deliberately small (2s connect/read): a hung proxy must not
  * delay the "Server ready" line beyond a human's patience.</p>
+ *
+ * <p>The torch-1.8.8-N era (build 26 on): releases are prereleases cut
+ * automatically from every develop push, tagged torch-1.8.8-N. The list
+ * endpoint (not /releases/latest, which cannot see prereleases) carries
+ * them; the atom feed remains the rate-limit-free fallback. The parser
+ * still reads the legacy vX.Y.Z-dev.N ledger so a fresh build orders
+ * itself correctly against any tag ever shipped (torch-1.8.8-26 &gt;
+ * v0.2.0-dev.25).</p>
  */
 final class UpdateChecker {
 
-    /** The running build's version — bumped with each released dev build. */
-    static final String BUILD_VERSION = "0.2.0-dev.24";
+    /** The running build's version — stamped by the release workflow. */
+    static final String BUILD_VERSION = "1.8.8-26";
 
     private static final Logger LOGGER = Logger.getLogger(UpdateChecker.class.getName());
+    /** The first page of the release list — newest first, prereleases included
+     *  (/releases/latest skips prereleases, and every automated release is one). */
     private static final String RELEASES_API =
-            "https://api.github.com/repos/ZaminMC/ZaminTorch/releases/latest";
+            "https://api.github.com/repos/ZaminMC/ZaminTorch/releases?per_page=1";
     /** The atom feed carries prereleases too and carries no API rate limit. */
     private static final String RELEASES_ATOM =
             "https://github.com/ZaminMC/ZaminTorch/releases.atom";
@@ -153,7 +163,9 @@ final class UpdateChecker {
         return out.toString();
     }
 
-    /** Pulls {@code "tag_name":"..."} out of the release JSON (no parser dependency). */
+    /** Pulls the first {@code "tag_name":"..."} out of the release JSON (no
+     *  parser dependency) — the list endpoint orders newest-first, so the
+     *  first hit is the latest release, prereleases included. */
     private String extractTag(String body) {
         String marker = "\"tag_name\":\"";
         int at = body.indexOf(marker);
@@ -166,9 +178,13 @@ final class UpdateChecker {
     }
 
     /**
-     * Compares {@code vX.Y.Z-dev.N} tags. Numeric awareness over string order:
-     * {@code 0.2.0-dev.2 > 0.2.0-dev.1 > 0.1.0-dev.9}. Any parse trouble
-     * degrades to a conservative "not newer" so a weird tag never nags.
+     * Compares {@code torch-1.8.8-N} release tags against the running
+     * {@code 1.8.8-N} build (the tag carries a "torch-" prefix the constant
+     * does not), with the legacy {@code vX.Y.Z-dev.N} ledger still readable
+     * so any torch build orders above every legacy one:
+     * {@code torch-1.8.8-26 > v0.2.0-dev.25 > v0.2.0-dev.24}. Numeric
+     * awareness over string order. Any parse trouble degrades to a
+     * conservative "not newer" so a weird tag never nags.
      */
     static boolean isNewer(String candidate, String current) {
         long[] a = parse(candidate);
@@ -184,15 +200,29 @@ final class UpdateChecker {
         return false;
     }
 
+    /**
+     * {@code torch-1.8.8-N} (release tags), {@code 1.8.8-N} (BUILD_VERSION)
+     * and the legacy {@code vX.Y.Z-dev.N} all map to a comparable
+     * (major, minor, patch, build) quadruple; null when unrecognized.
+     */
     private static long[] parse(String version) {
-        if (version == null || version.isBlank() || version.charAt(0) != 'v') {
+        if (version == null || version.isBlank()) {
             return null;
         }
-        String core = version.substring(1); // strip 'v'
-        if (!core.matches("\\d+\\.\\d+\\.\\d+-dev\\.\\d+")) {
+        // The release tag carries a prefix the build constant does not.
+        if (version.startsWith("torch-")) {
+            version = version.substring("torch-".length());
+        }
+        String core;
+        if (version.charAt(0) == 'v') {
+            core = version.substring(1).replace("-dev.", "."); // legacy: v0.2.0-dev.25 -> 0.2.0.25
+        } else {
+            core = version.replace('-', '.'); // torch era: 1.8.8-26 -> 1.8.8.26
+        }
+        if (!core.matches("\\d+\\.\\d+\\.\\d+\\.\\d+")) {
             return null;
         }
-        String[] parts = core.replace("-dev.", ".").split("\\.");
+        String[] parts = core.split("\\.");
         long[] out = new long[parts.length];
         for (int i = 0; i < parts.length; i++) {
             out[i] = Long.parseLong(parts[i]);
