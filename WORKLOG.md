@@ -4924,3 +4924,83 @@ release, print run/release status.
 
 **Fresh suite at this commit:** 10 launcher tests (UpdateCheckerTest),
 green.
+## Slice 28a + 28b — the decoration family 1:1 (the item frame + the painting)
+
+**The gap:** the worklog's own survey (Slice 26) named the item frame and
+the painting among the real remaining vanilla gaps — neither existed in
+the engine's source tree.
+
+**The system:** `server/decoration/DecorationSystem` — the shared
+registry + the reference port of entity/decoration/{DecorationEntity,
+ItemFrameEntity, PaintingEntity} + item/DecorationItem:
+
+- **The placement** (DecorationItem.useOn lines 21-42): the DOWN/UP
+  faces refuse outright; the body lands at the clicked face's offset
+  cell; the canSurvive gate (the solid wall + the clear box + no
+  overlapping decoration) refuses WITHOUT consuming the stack; a landed
+  body consumes one unit (the engine's creative-free convention). The
+  frame's facing = the clicked face's own direction (the art hangs ON
+  that face, pointing away).
+- **The survival walk** (DecorationEntity.canSurvive lines 93-120): the
+  wall scan walks counter-clockwise by width/16 and up by height/16
+  behind the body (the solid-or-diode gate — repeaters and comparators
+  mount art); the hanging box carries updateShape's own math (the
+  0.46875 wall inset, the even-pixel centering `length % 32 == 0 ? 0.5
+  : 0.0` with the height's own lift, the half-extents width/32 along
+  the wall + 1/32 into the room — the reference's d6/d8 axis swap);
+  solid blocks inside the box refuse; another decoration's box inside
+  refuses.
+- **The 100-tick survival poll** (DecorationEntity.tick lines 80-91): a
+  broken wall leaves the body hanging up to five seconds — the
+  reference's own cadence — then the sweep runs the break's drops
+  through the null-attacker arm.
+- **The frame's interact** (ItemFrameEntity.interact lines 180-194):
+  the insert takes the SIZE-1 COPY of the held stack
+  (setDisplayItem's own rule), a loaded frame turns one step through
+  the rotation % 8 byte wrap, both arms wake the comparators
+  (updateNeighborComparators over the frame's cell).
+- **The frame's attack** (takeDamage lines 40-55 +
+  dropItemOrItemFrame lines 79-100): a non-explosive hit on a loaded
+  frame EJECTS the item and keeps the frame on the wall (the creative
+  attacker removes it silently); anything else breaks the frame off the
+  wall with the frame item + the loaded item both dropping (the
+  creative hand sparing both, the doEntityDrops rule gating all).
+- **The painting's fit roll** (PaintingEntity's ctor lines 21-38): every
+  motive that survives the wall collects, one lands at random — over
+  the reference's own twenty-six-entry Motive registry verbatim (KEBAB
+  through DONKEY_KONG, the pixel sizes, the atlas offsets, the
+  SKULL_AND_ROSES_LENGTH constant, the readCustomNbt KEBAB fallback).
+- **The painting's attack** (onAttack lines 87-98): the body falls, the
+  painting item drops, the creative hand spares it.
+- **The comparator's through-the-wall read** (ComparatorBlock.
+  getInputSignal lines 108-128): the cell one beyond the comparator's
+  input block, when it holds air and a frame facing the comparator's
+  own direction, answers the frame's getAnalogSignal (rotation % 8 + 1,
+  0 when bare) — wired into the engine's comparator input walk through
+  the new `setFrameReader` hook beside the deep container read.
+
+**The wire:** the frame's Spawn Object 71 with the horizontal facing
+riding the objectData int and the RAW wall-cell corner (TrackedEntity
+lines 493-502's own override — blockPos * 32, no +0.5), the yaw byte
+the reference's facing*90 walk, the metadata pair (the displayed stack
+at slot 8 type 5, the rotation byte at slot 9) riding the spawn + the
+two Set Entity Metadata change arms; the painting's own Spawn Painting
+packet 0x10 (AddPaintingS2CPacket's write: varint id, the motive's
+registry string, the packed block long, the facing byte); both
+families' Destroy + the join-view fan-out (chunk-gated, the knot's own
+shape). The items: ITEM_FRAME (legacy 389) + PAINTING (legacy 321).
+
+**The persistence:** the ZED store (decorations.bin, magic Z/E/D/1 —
+the frames' position/facing/stack-in-the-ZCD-form/rotation + the
+paintings' position/facing/motive; the jukebox store's own durability
+rules), saved at saveAllNow, restored at boot.
+
+Tests: DecorationSystemTest (7: the motive registry's reference table +
+the lookup; the placement gates — the vertical faces, the wall, the
+solid cell, the overlap refusal; the interact ladder — the bare click,
+the size-1 copy insert, the rotation walk through the wrap, the
+comparator consult both facings; the attack ladder — the eject keeping
+the frame + the diamond's drop, the break dropping both, the creative
+silence; the painting's fit roll over the two-tall one-wide wall + the
+break; the survival poll's grace + sweep on the broken wall; the ZED
+round trip — the stack + rotation + facing + motive).

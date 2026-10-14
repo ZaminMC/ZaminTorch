@@ -185,12 +185,29 @@ public final class RedstoneSystem implements WorldChangeListener {
     private java.util.function.ToIntFunction<BlockPosition> analogReader;
 
     /**
+     * The through-the-wall frame reader (Slice 28a — ComparatorBlock.
+     * getInputSignal lines 118-126): (cell, comparatorFacing) -> 0..15
+     * when an item frame hangs in the air cell facing the comparator, -1
+     * when there is none. Consulted after the deep container read fails
+     * and the deep cell holds air.
+     */
+    private java.util.function.ToIntBiFunction<BlockPosition, Integer> frameReader;
+
+    /**
      * Wires the analog source table (the engine's containers: the chest
      * and furnace block entities through their managers). -1 = not a
      * source.
      */
     public void setAnalogReader(java.util.function.ToIntFunction<BlockPosition> reader) {
         this.analogReader = reader;
+    }
+
+    /**
+     * Wires the item frame's through-the-wall read (the decoration
+     * system's registry). -1 = no frame facing the comparator there.
+     */
+    public void setFrameReader(java.util.function.ToIntBiFunction<BlockPosition, Integer> reader) {
+        this.frameReader = reader;
     }
 
     /**
@@ -1125,6 +1142,17 @@ public final class RedstoneSystem implements WorldChangeListener {
             int deep = analogRead(twoBehind);
             if (deep >= 0) {
                 return deep;
+            }
+            // The frame's through-the-wall read (ComparatorBlock
+            // lines 118-126): the deep cell's air + a frame facing the
+            // comparator answers the rotation signal.
+            if (frameReader != null
+                    && world.getBlock(twoBehind).identifier()
+                            .equals(net.zaminmc.torch.util.Identifier.parse("minecraft:air"))) {
+                int frame = frameReader.applyAsInt(twoBehind, facing);
+                if (frame >= 0) {
+                    return frame;
+                }
             }
         }
         return i;

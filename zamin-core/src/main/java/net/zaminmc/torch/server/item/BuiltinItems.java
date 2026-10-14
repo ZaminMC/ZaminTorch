@@ -452,6 +452,15 @@ public final class BuiltinItems {
     public static final EngineItemType ENCHANTING_TABLE = new EngineItemType(
             Identifier.parse("minecraft:enchanting_table"), "Enchantment Table", 64);
 
+    // The decoration family (Slice 28a/28b — Item.java's DecorationItem
+    // registrations): the item frame (legacy 389) and the painting
+    // (legacy 321), both spawning their entity bodies on the wall the
+    // use names.
+    public static final EngineItemType ITEM_FRAME = new EngineItemType(
+            Identifier.parse("minecraft:item_frame"), "Item Frame", 64);
+    public static final EngineItemType PAINTING = new EngineItemType(
+            Identifier.parse("minecraft:painting"), "Painting", 64);
+
     // The stronghold's chest loot family (Slice 12c — the reference's
     // ChestCorridor/Library/RoomCrossing LootEntry tables): the ender pearl
     // (legacy 368, max 16), the empty map (legacy 395) and the compass
@@ -760,6 +769,7 @@ public final class BuiltinItems {
                 OBSIDIAN, OAK_SAPLING,
                 LEAD, CARROT_ON_A_STICK, EMERALD,
                 LAPIS, ENCHANTED_BOOK, BOOKSHELF, ENCHANTING_TABLE,
+                ITEM_FRAME, PAINTING,
                 ENDER_PEARL, EMPTY_MAP, COMPASS, IRON_DOOR,
                 NETHER_BRICKS, NETHER_BRICK_FENCE, NETHER_BRICK_STAIRS,
                 PRISMARINE, PRISMARINE_CRYSTALS, PRISMARINE_SHARD, SEA_LANTERN,

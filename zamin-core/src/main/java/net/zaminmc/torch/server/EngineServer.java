@@ -280,6 +280,10 @@ public final class EngineServer implements Server, EngineBridge {
     private net.zaminmc.torch.server.jukebox.JukeboxDataStore jukeboxStore;
 
     private net.zaminmc.torch.server.daylight.DaylightDetectorSystem daylightDetectors;
+    /** The decoration family (Slice 28a/28b): the item frames + the paintings. */
+    private net.zaminmc.torch.server.decoration.DecorationSystem decorations;
+    /** The decorations' ZED persistence. */
+    private net.zaminmc.torch.server.decoration.DecorationDataStore decorationStore;
     /** The note tiles' ZND persistence. */
     private net.zaminmc.torch.server.noteblock.NoteDataStore noteStore;
     /** The hopper subsystem (Slice 10b): the 8-tick transfer cadence. */
@@ -377,6 +381,8 @@ public final class EngineServer implements Server, EngineBridge {
     private static final int KNOT_ID_BASE = TNT_ID_BASE + 1_000_000;
     /** Lightning bolts get the band above the leash knots. */
     private static final int LIGHTNING_ID_BASE = KNOT_ID_BASE + 1_000_000;
+    /** Decorations (item frames, paintings) get the band above the lightning. */
+    private static final int DECORATION_ID_BASE = LIGHTNING_ID_BASE + 1_000_000;
 
     /** The shared shape-aware physics query (items, falling blocks, projectiles). */
     private final ShapeGround shapeGround = new ShapeGround();
@@ -1097,6 +1103,22 @@ public final class EngineServer implements Server, EngineBridge {
                 daylightDetectors = new net.zaminmc.torch.server.daylight.DaylightDetectorSystem(
                         world, weather);
                 world.addChangeListener(daylightDetectors);
+                // The decorations (Slice 28a/28b): the item frames + the
+                // paintings — the shared survival poll, the placement/
+                // interact/attack ladders, the through-the-wall comparator
+                // consult, and the ZED persistence.
+                decorations = new net.zaminmc.torch.server.decoration.DecorationSystem(
+                        new DecorationSurface(), DECORATION_ID_BASE, gameplayRandom);
+                decorationStore = new net.zaminmc.torch.server.decoration.DecorationDataStore(
+                        config.worldDataDir().resolve("decorations.bin"));
+                net.zaminmc.torch.server.decoration.DecorationDataStore.DecorationSnapshot
+                        decorationSnapshot = decorationStore.load();
+                decorations.restore(decorationSnapshot.frames(), decorationSnapshot.paintings());
+                // The comparator's through-the-wall frame read (Slice 28a
+                // — ComparatorBlock.getInputSignal lines 118-126): the
+                // reader consults the frame registry at the air cell one
+                // beyond the input block.
+                redstoneSystem.setFrameReader(decorations::frameComparatorRead);
                 // The cross-system neighbor bus (Slice 9f): the pistons and
                 // the TNT ride the redstone family's neighbor dispatch —
                 // the reference's world-level neighborChanged.
@@ -1520,6 +1542,7 @@ public final class EngineServer implements Server, EngineBridge {
                     drainGenerationAttachments(); // the populate-time villagers + loot chests (Slice 12b)
                     tickMobPotions(); // the mobs' effect stores (Slice 11b)
                     tickLeashes(); // the leash physics + the knots (Slice 11c)
+                    tickDecorations(); // the frames' + paintings' survival poll (Slice 28a/28b)
                     randomTicks.tick(players.all()); // §471: grass growth/decay
                     brewingStands.tick(world); // the brew cycles (Slice 11e)
                     tickFurnaceViewers();
@@ -3291,6 +3314,40 @@ public final class EngineServer implements Server, EngineBridge {
             }
             MobEntity mob = mobManager.byId(targetEntityId);
             if (mob == null || mob.dead()) {
+                // The decoration family (Slice 28a/28b): the frame's
+                // attack ladder (the item eject on a loaded frame, the
+                // break otherwise) and the painting's break drop.
+                if (decorations != null) {
+                    net.zaminmc.torch.server.decoration.ItemFrame frame =
+                            decorations.frameById(targetEntityId);
+                    if (frame != null) {
+                        double ddx = frame.hangingPosition().x() - attacker.position().x();
+                        double ddy = frame.hangingPosition().y() - attacker.position().y();
+                        double ddz = frame.hangingPosition().z() - attacker.position().z();
+                        double dHorizontal = Math.sqrt(ddx * ddx + ddz * ddz);
+                        if (dHorizontal <= MELEE_REACH + 1.0 && ddy > -2.0 && ddy < 4.0) {
+                            decorations.attackFrame(frame,
+                                    attacker.gamemode() == net.zaminmc.torch.GameMode.CREATIVE,
+                                    false);
+                            attacker.addExhaustion(ATTACK_EXHAUSTION);
+                        }
+                        return;
+                    }
+                    net.zaminmc.torch.server.decoration.Painting painting =
+                            decorations.paintingById(targetEntityId);
+                    if (painting != null) {
+                        double pdx = painting.pos().x() + 0.5 - attacker.position().x();
+                        double pdy = painting.pos().y() + 0.5 - attacker.position().y();
+                        double pdz = painting.pos().z() + 0.5 - attacker.position().z();
+                        double pHorizontal = Math.sqrt(pdx * pdx + pdz * pdz);
+                        if (pHorizontal <= MELEE_REACH + 1.0 && pdy > -2.0 && pdy < 4.0) {
+                            decorations.attackPainting(painting,
+                                    attacker.gamemode() == net.zaminmc.torch.GameMode.CREATIVE);
+                            attacker.addExhaustion(ATTACK_EXHAUSTION);
+                        }
+                        return;
+                    }
+                }
                 return; // already gone: nothing to hit
             }
             Position eye = attacker.position();
@@ -5837,7 +5894,96 @@ public final class EngineServer implements Server, EngineBridge {
                     heldId.equals("minecraft:lit_pumpkin"));
             return; // the golem-build check rides the placement (Slice 17d)
         }
+        // The item frame's placement (Slice 28a — DecorationItem.useOn
+        // lines 21-42 over ItemFrameEntity): the vertical faces refuse,
+        // the body lands at the clicked face's offset cell, and the
+        // survival gate (the solid wall + the clear box) refuses without
+        // the consume. The frame's facing = the clicked face's own
+        // direction (the art hangs ON that face, pointing away).
+        if (heldId.equals("minecraft:item_frame")
+                || creativeHeld.map(t -> t.identifier().value().equals("item_frame")).orElse(false)) {
+            placeItemFrameOnTick(session, clicked, face, creativeHeld);
+            return;
+        }
+        // The painting's placement (Slice 28b — the same DecorationItem
+        // walk over PaintingEntity): the fit roll collects every motive
+        // that survives the wall and one lands at random.
+        if (heldId.equals("minecraft:painting")
+                || creativeHeld.map(t -> t.identifier().value().equals("painting")).orElse(false)) {
+            placePaintingOnTick(session, clicked, face, creativeHeld);
+            return;
+        }
         blockInteraction.placeFromUseOnTick(session, clicked, face, creativeHeld);
+    }
+
+    /**
+     * The face code to the engine's byIdHorizontal facing (the clicked
+     * face's own direction: 2=north(-Z), 3=south(+Z), 4=west(-X),
+     * 5=east(+X) over the 0=south,1=west,2=north,3=east order).
+     */
+    private static int faceToFacingCode(int face) {
+        return switch (face) {
+            case 2 -> 2; // north
+            case 3 -> 0; // south
+            case 4 -> 1; // west
+            case 5 -> 3; // east
+            default -> -1;
+        };
+    }
+
+    /**
+     * The frame's placement arm (Slice 28a): the reach gate, the
+     * horizontal-face gate, the survival gate, then the consume — the
+     * refused placement still eats the click (DecorationItem.useOn's
+     * own always-true).
+     */
+    private void placeItemFrameOnTick(PlayerSession session, BlockPosition clicked, int face,
+                                      java.util.Optional<BlockType> creativeHeld) {
+        BlockPosition target = offsetByFace(clicked, face);
+        if (target == null) {
+            return;
+        }
+        if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5) {
+            return;
+        }
+        if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE
+                && session.inventory().held().isEmpty()) {
+            return;
+        }
+        int facing = faceToFacingCode(face);
+        if (facing < 0) {
+            return; // the vertical faces: the reference's own refusal
+        }
+        if (decorations.placeFrame(clicked, face, facing)) {
+            consumePlaced(session, creativeHeld); // stack.size--: the body survived
+        }
+    }
+
+    /**
+     * The painting's placement arm (Slice 28b): the same walk with the
+     * motive fit roll — a wall that fits nothing consumes the click but
+     * spares the stack.
+     */
+    private void placePaintingOnTick(PlayerSession session, BlockPosition clicked, int face,
+                                     java.util.Optional<BlockType> creativeHeld) {
+        BlockPosition target = offsetByFace(clicked, face);
+        if (target == null) {
+            return;
+        }
+        if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5) {
+            return;
+        }
+        if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE
+                && session.inventory().held().isEmpty()) {
+            return;
+        }
+        int facing = faceToFacingCode(face);
+        if (facing < 0) {
+            return;
+        }
+        if (decorations.placePainting(clicked, face, facing)) {
+            consumePlaced(session, creativeHeld); // a landed painting consumes one unit
+        }
     }
 
     /**
@@ -7564,6 +7710,32 @@ public final class EngineServer implements Server, EngineBridge {
             }
             MobEntity mob = mobManager.byId(targetEntityId);
             if (mob == null || mob.dead()) {
+                // The item frame's interact (Slice 28a — ItemFrameEntity.
+                // interact lines 180-194): the insert (a copy of the held
+                // stack, one unit off the hand) or the rotation turn.
+                net.zaminmc.torch.server.decoration.ItemFrame frame = decorations != null
+                        ? decorations.frameById(targetEntityId) : null;
+                if (frame != null) {
+                    double fdx = frame.hangingPosition().x() - player.position().x();
+                    double fdy = frame.hangingPosition().y() - player.position().y();
+                    double fdz = frame.hangingPosition().z() - player.position().z();
+                    double fHorizontal = Math.sqrt(fdx * fdx + fdz * fdz);
+                    if (fHorizontal <= MELEE_REACH + 1.0 && fdy > -2.0 && fdy < 4.0) {
+                        if (decorations.interactFrame(frame, player.inventory().held())
+                                == net.zaminmc.torch.server.decoration.DecorationSystem
+                                        .FrameInteract.INSERTED
+                                && player.gamemode() != GameMode.CREATIVE) {
+                            // The insert's one unit off the hand (the
+                            // reference's size--; creative spares).
+                            player.inventory().consumeHeld(1);
+                            publishInventoryChanged(player);
+                        }
+                    }
+                    return;
+                }
+                // The painting has no interact arm (the reference's
+                // PaintingEntity inherits the empty one) — the click
+                // falls through to nothing; the knot arm runs next.
                 // The leash knot (Slice 11c): its own interact — the tie with
                 // a lead in hand, the removal without one (creative releases
                 // the held without the drop).
@@ -9577,6 +9749,37 @@ public final class EngineServer implements Server, EngineBridge {
         }
     }
 
+    /** The decorations' survival poll (Slice 28a/28b — the 100-tick walk). */
+    private void tickDecorations() {
+        decorations.tick();
+    }
+
+    /** The decoration system's engine surface (the world + the drops). */
+    private final class DecorationSurface
+            implements net.zaminmc.torch.server.decoration.DecorationSystem.Surface {
+        @Override
+        public World world() {
+            return world;
+        }
+
+        @Override
+        public void dropItem(Position at, ItemStack stack) {
+            if (!stack.isEmpty()) {
+                itemEntities.spawnDropAtBlock(at, stack, ItemEntity.PICKUP_DELAY_DROP_TICKS);
+            }
+        }
+
+        @Override
+        public boolean doEntityDrops() {
+            return gameRules.getBoolean("doEntityDrops");
+        }
+
+        @Override
+        public void wakeComparators(net.zaminmc.torch.block.BlockPosition cell) {
+            redstoneSystem.wakeComparators(cell);
+        }
+    }
+
     /** The natural spawn cycle's mob surface (Slice 11d). */
     private record SpawnSurface(MobManager mobs, boolean nether)
             implements net.zaminmc.torch.server.spawn.NaturalSpawnSystem.Mobs {
@@ -9782,6 +9985,24 @@ public final class EngineServer implements Server, EngineBridge {
             throw new IllegalStateException("the leash system boots with the world");
         }
         leadSystem.addListener(listener);
+    }
+
+    /**
+     * Registers the decoration observer (the protocol adapter's Spawn
+     * Object 71 + the Spawn Painting + the Set Entity Metadata pair +
+     * the Destroy Entities fan-out).
+     */
+    public void addDecorationListener(
+            net.zaminmc.torch.server.decoration.DecorationSystem.Listener listener) {
+        if (decorations == null) {
+            throw new IllegalStateException("the decoration system boots with the world");
+        }
+        decorations.addListener(listener);
+    }
+
+    /** The decoration system (§27.3's surface — the frames + the paintings). */
+    public net.zaminmc.torch.server.decoration.DecorationSystem decorations() {
+        return decorations;
     }
 
     /**
@@ -12769,6 +12990,11 @@ public final class EngineServer implements Server, EngineBridge {
                 }
                 if (jukeboxStore != null && jukeboxes != null) {
                     jukeboxStore.save(jukeboxes.snapshotRecords());
+                }
+                if (decorationStore != null && decorations != null) {
+                    net.zaminmc.torch.server.decoration.DecorationSystem.Snapshot decorationSaved =
+                            decorations.snapshot();
+                    decorationStore.save(decorationSaved.frames(), decorationSaved.paintings());
                 }
                 if (dispenserStore != null && dispenserSystem != null) {
                     dispenserStore.save(dispenserSystem.snapshot());
