@@ -215,6 +215,8 @@ final class Protocol18 {
     static final int OBJECT_LEASH_KNOT = 77;
     /** Item frame (Spawn Object type 71 — TrackedEntity lines 493-502). */
     static final int OBJECT_ITEM_FRAME = 71;
+    /** Armor stand (Spawn Object type 78 — TrackedEntity line 491). */
+    static final int OBJECT_ARMOR_STAND = 78;
     /** Spawn Painting (0x10 — AddPaintingS2CPacket's own packet). */
     static final int S2C_SPAWN_PAINTING = 0x10;
     /** The vehicles (community entities.json object types). */
@@ -240,6 +242,10 @@ final class Protocol18 {
     static final int METADATA_TYPE_SLOT = 5;
     /** The string metadata type (the horse's owner name — the 1.8 quirk). */
     static final int METADATA_TYPE_STRING = 4;
+    /** The position metadata type (the 1.8 DataWatcher order: 6 position). */
+    static final int METADATA_TYPE_POSITION = 6;
+    /** The rotation metadata type (three floats — the armor stand's pose). */
+    static final int METADATA_TYPE_ROTATION = 7;
     static final int LIVING_FLAGS_METADATA_INDEX = 0;
     static final int LIVING_HEALTH_METADATA_INDEX = 6;
     /** The kind-status byte index (1.8 DataWatcher 16): creeper swell, sheep coat. */

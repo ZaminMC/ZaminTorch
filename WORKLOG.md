@@ -5004,3 +5004,54 @@ the frame + the diamond's drop, the break dropping both, the creative
 silence; the painting's fit roll over the two-tall one-wide wall + the
 break; the survival poll's grace + sweep on the broken wall; the ZED
 round trip — the stack + rotation + facing + motive).
+
+## Slice 28c — the armor stand 1:1
+
+**The gap:** the worklog's own survey (Slice 26) named the armor stand
+among the real remaining vanilla gaps — the entity, its equipment
+surface, and its item did not exist in the engine's source tree.
+
+**The system:** `server/armorstand/ArmorStandSystem` — the reference
+port of entity/living/ArmorStandEntity + item/ArmorStandItem:
+
+- **The placement** (ArmorStandItem.useOn lines 22-68): the DOWN face
+  refuses; a replaceable clicked cell stands there (the face offset
+  otherwise); the cell AND the cell above must be free; no entity may
+  occupy the 1x2x1 box; the yaw snaps through the reference's own
+  `floor((wrapDegrees(yaw - 180) + 22.5) / 45) * 45`; the pose rolls
+  (the head's 0-5 pitch + the ±10 yaw, the body's ±5 yaw).
+- **The equipment swap ladder** (interactAt lines 273-342 + swapItem
+  lines 344-365): the held armor claims its own slot (boots 1, legs 2,
+  chest 3, head 4; the skull and the pumpkin claim the head), the empty
+  hand takes the worn piece the click's own height names (the feet band
+  [0.1, 0.55), the legs [0.4, 1.2), the chest [0.9, 1.6), the head
+  1.6+, the small stand's offsets halved), the hand-slot needs the arms
+  shown, and the swap rules carry the reference's own shape — the
+  creative copy without paying, the single unit's full swap, the
+  big-stack carve, the occupied refusal. **The wire's INTERACT_AT
+  offsets now route into the engine** (the first consumer — every
+  previous packet consumed them blind).
+- **The melee break ladder** (takeDamage lines 412-429): the creative
+  hand removes outright; the first hit stamps the five-tick clock (the
+  wobble); the second hit inside the window breaks — the stand item at
+  the feet plus every worn piece at the head cell.
+- **The fire burn-down** (lines 388-400): the ignite (100 ticks), the
+  4.0 on-fire toll per burning tick, the 0.5 floor breaking with ONLY
+  the equipment dropping — the stand item never drops to fire.
+- **The wire**: Spawn Object 78 at the stand's real feet position, the
+  metadata pair (the status byte at slot 10 + the six Rotation triples
+  at slots 11-16, the wire's type 7), the five Entity Equipment packets
+  riding the spawn + the per-slot change arm, the Destroy, the join
+  view. The item: legacy 416, the reference's own maxStackSize 16.
+- **The persistence**: the ZAD store (armorstands.bin, magic Z/A/D/1 —
+  position, yaw, the five slots, the status byte, the six pose
+  triples), saved at saveAllNow.
+
+Tests: ArmorStandSystemTest (5, all green — the placement gates + the
+snap + the pose bands, the swap ladder's six arms, the melee ladder
+with the aged-world wobble + the double-hit break + the creative
+silence, the fire burn's equipment-only drop, the ZAD round trip). The
+protocol suite 78 green (the conformance row for the interact-at
+routing unchanged). Ledgered: the arrow one-shot (the projectile scan
+walks mobs + players only), the EntityTag NBT, the NBT-only flags,
+the gravity walk, the minecart push, the breaking particles.

@@ -468,12 +468,15 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         int target = ByteBufOps.readVarInt(packet);
         int mouse = ByteBufOps.readVarInt(packet);
         if (mouse == Protocol18.USE_ENTITY_INTERACT_AT) {
-            packet.readFloat();
-            packet.readFloat();
-            packet.readFloat();
-            // INTERACT_AT precedes INTERACT for the same click; the interact
-            // work rides the next packet (the shear path), so this one only
-            // consumes its bytes (the desync rule the real client taught us).
+            float atX = packet.readFloat();
+            float atY = packet.readFloat();
+            float atZ = packet.readFloat();
+            // INTERACT_AT precedes INTERACT for the same click; the armor
+            // stands read the hit's own height (the equipment swap's band
+            // walk — Slice 28c); every other entity ignores the offsets
+            // and the interact work rides the next packet (the shear
+            // path), the desync rule the real client taught us.
+            engine.interactAtEntity(player, target, atX, atY, atZ);
             return;
         }
         if (mouse == Protocol18.USE_ENTITY_INTERACT) {
@@ -4363,6 +4366,97 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeVarInt(out, 1);
         ByteBufOps.writeVarInt(out, paintingEntityId);
         channel.writeAndFlush(out);
+    }
+
+    /**
+     * Spawn Object (0x0E) for an armor stand (Slice 28c — TrackedEntity
+     * line 491): type 78 at the stand's REAL feet position (the entity's
+     * own x/y/z, the AddEntityS2CPacket ctor's walk — unlike the frame's
+     * raw-cell override), the snapped yaw byte, followed by the stand's
+     * metadata (the status byte at slot 10, the six pose triples at
+     * slots 11-16) and the five Entity Equipment packets. Any thread.
+     */
+    void sendStandSpawned(net.zaminmc.torch.server.armorstand.ArmorStand stand) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY
+                || chunkTracker == null) {
+            return;
+        }
+        net.zaminmc.torch.block.BlockPosition cell =
+                new net.zaminmc.torch.block.BlockPosition(
+                        (int) Math.floor(stand.x()), (int) Math.floor(stand.y()),
+                        (int) Math.floor(stand.z()));
+        if (!chunkTracker.hasChunk(cell.chunkPosition().packed())) {
+            return; // outside this observer's loaded window
+        }
+        ByteBuf out = Unpooled.buffer(32);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_SPAWN_ENTITY);
+        ByteBufOps.writeVarInt(out, stand.entityId());
+        out.writeByte(Protocol18.OBJECT_ARMOR_STAND);
+        out.writeInt((int) Math.floor(stand.x() * 32.0));
+        out.writeInt((int) Math.floor(stand.y() * 32.0));
+        out.writeInt((int) Math.floor(stand.z() * 32.0));
+        out.writeByte(0); // pitch
+        out.writeByte((byte) (stand.yaw() * 256.0f / 360.0f)); // the body yaw
+        out.writeInt(0); // objectData
+        out.writeShort(0); // velocity x
+        out.writeShort(0); // velocity y
+        out.writeShort(0); // velocity z
+        channel.writeAndFlush(out);
+        sendStandMetadata(channel, stand);
+        // The five Entity Equipment packets (the join view's own order).
+        for (int slot = 0; slot < 5; slot++) {
+            writeEquipment(channel, stand.entityId(), slot, stand.equipment(slot));
+        }
+    }
+
+    /** The stand's tracked data (the status byte + the six pose triples). */
+    private void sendStandMetadata(Channel channel,
+                                   net.zaminmc.torch.server.armorstand.ArmorStand stand) {
+        ByteBuf meta = Unpooled.buffer(96);
+        ByteBufOps.writeVarInt(meta, Protocol18.S2C_ENTITY_METADATA);
+        ByteBufOps.writeVarInt(meta, stand.entityId());
+        meta.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | 10);
+        meta.writeByte(stand.status());
+        writePoseEntry(meta, 11, stand.head());
+        writePoseEntry(meta, 12, stand.body());
+        writePoseEntry(meta, 13, stand.leftArm());
+        writePoseEntry(meta, 14, stand.rightArm());
+        writePoseEntry(meta, 15, stand.leftLeg());
+        writePoseEntry(meta, 16, stand.rightLeg());
+        meta.writeByte(Protocol18.METADATA_TERMINATOR);
+        channel.writeAndFlush(meta);
+    }
+
+    /** One pose entry (the wire's Rotation type: three floats). */
+    private static void writePoseEntry(ByteBuf meta, int index,
+                                       net.zaminmc.torch.server.armorstand.ArmorStand.Pose pose) {
+        meta.writeByte((Protocol18.METADATA_TYPE_ROTATION << 5) | index);
+        meta.writeFloat(pose.pitch());
+        meta.writeFloat(pose.yaw());
+        meta.writeFloat(pose.roll());
+    }
+
+    /** Destroy Entities (0x13) for one removed armor stand. Any thread. */
+    void sendStandRemoved(int standEntityId) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(12);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_DESTROY_ENTITIES);
+        ByteBufOps.writeVarInt(out, 1);
+        ByteBufOps.writeVarInt(out, standEntityId);
+        channel.writeAndFlush(out);
+    }
+
+    /** One Entity Equipment (0x04) update for a stand's changed slot. Any thread. */
+    void sendStandEquipment(net.zaminmc.torch.server.armorstand.ArmorStand stand, int slot) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        writeEquipment(channel, stand.entityId(), slot, stand.equipment(slot));
     }
 
     /**

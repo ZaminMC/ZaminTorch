@@ -460,6 +460,10 @@ public final class BuiltinItems {
             Identifier.parse("minecraft:item_frame"), "Item Frame", 64);
     public static final EngineItemType PAINTING = new EngineItemType(
             Identifier.parse("minecraft:painting"), "Painting", 64);
+    // The armor stand's item form (Slice 28c — Item.java line 720:
+    // register(416, "armor_stand", ...).setMaxStackSize(16)).
+    public static final EngineItemType ARMOR_STAND = new EngineItemType(
+            Identifier.parse("minecraft:armor_stand"), "Armor Stand", 16);
 
     // The stronghold's chest loot family (Slice 12c — the reference's
     // ChestCorridor/Library/RoomCrossing LootEntry tables): the ender pearl
@@ -769,7 +773,7 @@ public final class BuiltinItems {
                 OBSIDIAN, OAK_SAPLING,
                 LEAD, CARROT_ON_A_STICK, EMERALD,
                 LAPIS, ENCHANTED_BOOK, BOOKSHELF, ENCHANTING_TABLE,
-                ITEM_FRAME, PAINTING,
+                ITEM_FRAME, PAINTING, ARMOR_STAND,
                 ENDER_PEARL, EMPTY_MAP, COMPASS, IRON_DOOR,
                 NETHER_BRICKS, NETHER_BRICK_FENCE, NETHER_BRICK_STAIRS,
                 PRISMARINE, PRISMARINE_CRYSTALS, PRISMARINE_SHARD, SEA_LANTERN,
