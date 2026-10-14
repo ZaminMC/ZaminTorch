@@ -40,6 +40,38 @@ public final class BuiltinItems {
     // registration — the block item shares the id).
     public static final EngineItemType NOTE_BLOCK = new EngineItemType(
             Identifier.parse("minecraft:noteblock"), "Note Block", 64);
+    // The jukebox's item form (legacy 84 — the reference's Block.java
+    // line-1181 registration; the block item shares the id).
+    public static final EngineItemType JUKEBOX = new EngineItemType(
+            Identifier.parse("minecraft:jukebox"), "Jukebox", 64);
+    // The twelve music discs (the reference's Item.java lines 735-746, ids
+    // 2256-2267 in this order): MusicDiscItem's own maxStackSize 1. The
+    // record name rides the identifier ("records." + the item's own record
+    // field, resolved at the wire).
+    public static final EngineItemType RECORD_13 = new EngineItemType(
+            Identifier.parse("minecraft:record_13"), "13 Disc", 1);
+    public static final EngineItemType RECORD_CAT = new EngineItemType(
+            Identifier.parse("minecraft:record_cat"), "Cat Disc", 1);
+    public static final EngineItemType RECORD_BLOCKS = new EngineItemType(
+            Identifier.parse("minecraft:record_blocks"), "Blocks Disc", 1);
+    public static final EngineItemType RECORD_CHIRP = new EngineItemType(
+            Identifier.parse("minecraft:record_chirp"), "Chirp Disc", 1);
+    public static final EngineItemType RECORD_FAR = new EngineItemType(
+            Identifier.parse("minecraft:record_far"), "Far Disc", 1);
+    public static final EngineItemType RECORD_MALL = new EngineItemType(
+            Identifier.parse("minecraft:record_mall"), "Mall Disc", 1);
+    public static final EngineItemType RECORD_MELLOHI = new EngineItemType(
+            Identifier.parse("minecraft:record_mellohi"), "Mellohi Disc", 1);
+    public static final EngineItemType RECORD_STAL = new EngineItemType(
+            Identifier.parse("minecraft:record_stal"), "Stal Disc", 1);
+    public static final EngineItemType RECORD_STRAD = new EngineItemType(
+            Identifier.parse("minecraft:record_strad"), "Strad Disc", 1);
+    public static final EngineItemType RECORD_WARD = new EngineItemType(
+            Identifier.parse("minecraft:record_ward"), "Ward Disc", 1);
+    public static final EngineItemType RECORD_11 = new EngineItemType(
+            Identifier.parse("minecraft:record_11"), "11 Disc", 1);
+    public static final EngineItemType RECORD_WAIT = new EngineItemType(
+            Identifier.parse("minecraft:record_wait"), "Wait Disc", 1);
     public static final EngineItemType TORCH = new EngineItemType(
             Identifier.parse("minecraft:torch"), "Torch", 64);
     // Craftable blocks unlocked by the 3x3 crafting table (legacy 61 / 54).
@@ -705,6 +737,10 @@ public final class BuiltinItems {
                 RABBIT, COOKED_RABBIT, RABBIT_STEW, RABBIT_HIDE,
                 SPAWN_EGG,
                 BOWL, MUSHROOM_STEW,
+                JUKEBOX,
+                RECORD_13, RECORD_CAT, RECORD_BLOCKS, RECORD_CHIRP, RECORD_FAR,
+                RECORD_MALL, RECORD_MELLOHI, RECORD_STAL, RECORD_STRAD,
+                RECORD_WARD, RECORD_11, RECORD_WAIT,
                 SNOW_BLOCK, SNOW_LAYER, IRON_BLOCK, PUMPKIN, LIT_PUMPKIN,
                 STONE_BRICKS,
                 FISH, COOKED_FISH,

@@ -70,6 +70,27 @@ final class LegacyBlockIds {
             // The note block (Slice 27a, legacy 25 — the reference's own
             // `register(25, "noteblock", ...)`: the block item shares the id).
             Map.entry(Identifier.parse("minecraft:noteblock"), 25),
+            // The jukebox (Slice 27b, legacy 84 — the reference's Block.java
+            // line-1181 `register(84, "jukebox", ...)`: the plain block, its
+            // HAS_RECORD variant (the metadata nibble's bit 0), and the
+            // block item all share the id).
+            Map.entry(Identifier.parse("minecraft:jukebox"), 84),
+            Map.entry(Identifier.parse("minecraft:jukebox_record"), 84),
+            // The twelve music discs (Slice 27b — the reference's Item.java
+            // lines 735-746, ids 2256-2267 in the registration order; the
+            // analog signal and the play-record event carry these ids).
+            Map.entry(Identifier.parse("minecraft:record_13"), 2256),
+            Map.entry(Identifier.parse("minecraft:record_cat"), 2257),
+            Map.entry(Identifier.parse("minecraft:record_blocks"), 2258),
+            Map.entry(Identifier.parse("minecraft:record_chirp"), 2259),
+            Map.entry(Identifier.parse("minecraft:record_far"), 2260),
+            Map.entry(Identifier.parse("minecraft:record_mall"), 2261),
+            Map.entry(Identifier.parse("minecraft:record_mellohi"), 2262),
+            Map.entry(Identifier.parse("minecraft:record_stal"), 2263),
+            Map.entry(Identifier.parse("minecraft:record_strad"), 2264),
+            Map.entry(Identifier.parse("minecraft:record_ward"), 2265),
+            Map.entry(Identifier.parse("minecraft:record_11"), 2266),
+            Map.entry(Identifier.parse("minecraft:record_wait"), 2267),
             // The dispenser family's item forms (Slice 11a): the block forms
             // share the ids 23/125 (the flattened state families register
             // their own entries below); the fire charge is item-only 385.
@@ -690,6 +711,9 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:wall_sign_west"), 4),
             Map.entry(Identifier.parse("minecraft:wall_sign_east"), 5),
             Map.entry(Identifier.parse("minecraft:oak_door_north"), 1),
+            // The jukebox's HAS_RECORD variant (Slice 27b — the reference's
+            // getMetadataFromState: has_record ? 1 : 0 over legacy id 84).
+            Map.entry(Identifier.parse("minecraft:jukebox_record"), 1),
             Map.entry(Identifier.parse("minecraft:oak_door_east"), 2),
             Map.entry(Identifier.parse("minecraft:oak_door_south"), 3),
             Map.entry(Identifier.parse("minecraft:oak_door_open"), 4),

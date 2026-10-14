@@ -413,6 +413,15 @@ public final class BuiltinBlocks {
     // strength 0.8, Material.WOOD): the music block with its own tile.
     public static final EngineBlockType NOTE_BLOCK = new EngineBlockType(
             Identifier.parse("minecraft:noteblock"), "Note Block");
+    // The jukebox (legacy 84, the reference's Block.java line-1181
+    // registration — strength 2.0, blast resistance 10.0, STONE sounds):
+    // the plain block and its HAS_RECORD variant share the id; the
+    // metadata nibble's bit 0 is JukeboxBlock.HAS_RECORD
+    // (getMetadataFromState: has_record ? 1 : 0).
+    public static final EngineBlockType JUKEBOX = new EngineBlockType(
+            Identifier.parse("minecraft:jukebox"), "Jukebox");
+    public static final EngineBlockType JUKEBOX_RECORD = new EngineBlockType(
+            Identifier.parse("minecraft:jukebox_record"), "Jukebox", 1);
     // The iron door (legacy 71, the reference's Prison): the lower's four
     // facings in the engine's W/N/E/S band (the oak door's own shape) plus
     // the plain upper half.
@@ -668,6 +677,8 @@ public final class BuiltinBlocks {
                 .register(STONE_BRICK_SLAB)
                 .register(MOB_SPAWNER)
                 .register(NOTE_BLOCK)
+                .register(JUKEBOX)
+                .register(JUKEBOX_RECORD)
                 .register(IRON_DOOR_LOWER_W)
                 .register(IRON_DOOR_LOWER_N)
                 .register(IRON_DOOR_LOWER_E)

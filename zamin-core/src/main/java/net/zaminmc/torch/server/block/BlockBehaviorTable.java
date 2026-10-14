@@ -125,6 +125,19 @@ public final class BlockBehaviorTable {
                     new BlockBehavior(0.8, true, false, "wood", 0,
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:noteblock"), 1)))),
 
+            // The jukebox (Slice 27b — the reference's line-1181
+            // registration: setStrength(2.0F), setBlastResistance(10.0F)):
+            // stone material, no harvest requirement, drops itself; the
+            // HAS_RECORD variant mirrors it (the record ejects through the
+            // break hook, not the drop table — the reference's own
+            // onRemoved walk).
+            Map.entry(Identifier.parse("minecraft:jukebox"),
+                    new BlockBehavior(2.0, true, false, "rock", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:jukebox"), 1)))),
+            Map.entry(Identifier.parse("minecraft:jukebox_record"),
+                    new BlockBehavior(2.0, true, false, "rock", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:jukebox"), 1)))),
+
             Map.entry(Identifier.parse("minecraft:chest"),
                     new BlockBehavior(2.5, true, false, "wood", 0,
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:chest"), 1)))),
