@@ -156,4 +156,47 @@ class WolfEntityTest {
         assertFalse(tamed.canDespawn(), "the tamed wolf never despawns");
         assertTrue(tamed.persistent(), "the tamed wolf is persistent");
     }
+
+    @Test
+    void theAmbientLadderCarriesTheReferenceFamilies() {
+        // Slice 30c — WolfEntity.getAmbientSound lines 138-146: the angry
+        // body always growls; the 1/3 roll whines on a tamed body under 10
+        // health and pants otherwise; the 2/3 barks.
+        MobEntity angry = wolf(31L);
+        angry.setWolfAngry(true);
+        for (int i = 0; i < 20; i++) {
+            assertEquals("mob.wolf.growl", angry.effectiveIdleSound(),
+                    "the angry body always growls");
+        }
+        MobEntity weakTamed = wolf(32L);
+        weakTamed.tameWolf("Owner");
+        weakTamed.setHealthCarried(6.0f);
+        boolean whined = false, barkedWeak = false;
+        for (int i = 0; i < 600; i++) {
+            String sound = weakTamed.effectiveIdleSound();
+            switch (sound) {
+                case "mob.wolf.whine" -> whined = true;
+                case "mob.wolf.bark" -> barkedWeak = true;
+                default -> throw new AssertionError("the weak tamed body never "
+                        + "pants (the reference's ternary): " + sound);
+            }
+        }
+        assertTrue(whined, "the 1/3 whine arm observed under 10 health");
+        assertTrue(barkedWeak, "the 2/3 bark arm observed");
+        MobEntity strongTamed = wolf(33L);
+        strongTamed.tameWolf("Owner");
+        strongTamed.setHealthCarried(20.0f);
+        boolean panted = false, barkedStrong = false;
+        for (int i = 0; i < 600; i++) {
+            String sound = strongTamed.effectiveIdleSound();
+            switch (sound) {
+                case "mob.wolf.panting" -> panted = true;
+                case "mob.wolf.bark" -> barkedStrong = true;
+                default -> throw new AssertionError("a healthy body never "
+                        + "whines: " + sound);
+            }
+        }
+        assertTrue(panted, "the 1/3 panting arm observed on the healthy body");
+        assertTrue(barkedStrong, "the 2/3 bark arm observed");
+    }
 }

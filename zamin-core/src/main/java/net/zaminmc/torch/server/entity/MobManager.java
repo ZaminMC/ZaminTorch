@@ -276,6 +276,14 @@ public final class MobManager {
         }
 
         /**
+         * The sheep's fleece color moved (Slice 30b — the dye arm's write
+         * to the index-16 nibble; the observers re-send the kind byte with
+         * the color | sheared bits).
+         */
+        default void onSheepFleeceChanged(MobEntity mob) {
+        }
+
+        /**
          * The snow golem's volley (Slice 17d — SnowGolemEntity.
          * doRangedAttack lines 89-96): the 20-tick snowball at the hostile
          * target — the engine's projectile system owns the launch.
@@ -355,6 +363,13 @@ public final class MobManager {
     private volatile java.util.function.Consumer<Runnable> goalAdmission;
     /** The difficulty read (0 peaceful .. 3 hard); null until wired. */
     private volatile java.util.function.IntSupplier difficultyRead;
+    /**
+     * The crafting consult for the sheep's offspring color (Slice 30b —
+     * SheepEntity.getColorForOffspring's own
+     * {@code CraftingManager.getResult} over the two-dye grid); null until
+     * wired, in which case the mix falls to the parent coin alone.
+     */
+    private volatile net.zaminmc.torch.server.crafting.CraftingService craftingConsult;
 
     /**
      * The staged zombie-villager infections (Slice 25a): the killing blow
@@ -408,6 +423,15 @@ public final class MobManager {
     /** Wires the potion system (the witch's drink lands its effects through it). */
     public void setPotionSystem(net.zaminmc.torch.server.potion.PotionSystem potionSystem) {
         this.potionSystem = potionSystem;
+    }
+
+    /**
+     * Wires the crafting consult the sheep's offspring color rides
+     * (SheepEntity.getColorForOffspring lines 262-276 — the reference's
+     * own CraftingManager consult over the two-dye 2x1 grid).
+     */
+    public void setCraftingConsult(net.zaminmc.torch.server.crafting.CraftingService consult) {
+        this.craftingConsult = consult;
     }
 
     /**
@@ -578,6 +602,13 @@ public final class MobManager {
             // only ever lands through setVariant (the NBT /summon arm).
             mob.setRabbitVariant(random.nextInt(6));
         }
+        if (type == MobType.SHEEP) {
+            // SheepEntity.initialize line 256 → pickColor (lines 225-238):
+            // the natural fleece roll — 5% black, then gray, then silver,
+            // then brown (18/100 all told), else the 1-in-500 pink over
+            // the white default.
+            mob.setSheepFleeceColor(pickSheepColor(random));
+        }
         mobs.add(mob);
         for (Listener listener : listeners) {
             listener.onMobSpawned(mob);
@@ -720,17 +751,48 @@ public final class MobManager {
     // engine port, not the synthetic spawn packs.)
 
     /**
-     * Shears a sheep on a player's behalf: rolls 1-3 wool, strips the coat,
-     * and reports through {@code onMobSheared} (the caller spawns the drops).
-     * Returns the wool count (0 when the kind is bald or already shorn).
-     * Tick-thread context.
+     * The natural fleece roll (SheepEntity.pickColor lines 225-238, 1:1):
+     * 5/100 black, the next 5/100 gray, the next 5/100 silver, the next
+     * 3/100 brown, else the 1-in-500 pink over the white default.
+     */
+    static int pickSheepColor(java.util.Random roll) {
+        int i = roll.nextInt(100);
+        if (i < 5) {
+            return 15; // DyeColor.BLACK.getId()
+        } else if (i < 10) {
+            return 7; // GRAY
+        } else if (i < 15) {
+            return 8; // SILVER
+        } else if (i < 18) {
+            return 12; // BROWN
+        }
+        return roll.nextInt(500) == 0 ? 6 /* PINK */ : 0 /* WHITE */;
+    }
+
+    /**
+     * Shears a sheep on a player's behalf (SheepEntity.interactMob lines
+     * 146-167, 1:1): the baby gate (a lamb never shears), 1-3 wool of the
+     * body's own color dropping around the coat, the strip, and the report
+     * through {@code onMobSheared}. Returns the wool count (0 when the kind
+     * is bald, already shorn, or a baby). Tick-thread context.
      */
     public int shear(MobEntity mob) {
         Objects.requireNonNull(mob, "mob");
-        if (!mob.shear()) {
+        if (mob.isBaby() || !mob.shear()) {
+            // SheepEntity.interactMob line 149's own gate order: the whole
+            // arm — the strip included — never runs for a lamb.
             return 0;
         }
         int wool = 1 + random.nextInt(3);
+        // The shear drops (interactMob lines 150-159): every unit its own
+        // single-wool stack of the body's color — the wool item's damage
+        // IS the DyeColor id (BlockColored's damage domain) — spawned at
+        // the coat with the spread the item-entity system owns.
+        Position at = mob.position();
+        for (int unit = 0; unit < wool; unit++) {
+            lootSink.spawnLootDrop(new Position(at.x(), at.y() + mob.type().height, at.z()),
+                    new ItemStack(BuiltinItems.WOOL, 1, mob.sheepFleeceColor()));
+        }
         for (Listener listener : listeners) {
             listener.onMobSheared(mob, wool);
         }
@@ -1353,7 +1415,8 @@ public final class MobManager {
             int villagerProfession, int villagerCareer, int villagerCareerLevel,
             int villagerRiches,
             int rabbitVariant, int breedingAge,
-            boolean skeletonWither, int slimeSize, int dimension) {
+            boolean skeletonWither, int slimeSize, int dimension,
+            int dyeColor) {
 
         /** The overworld shape (the v1-equivalent record, dimension 0). */
         public MobStateExtras(
@@ -1364,7 +1427,19 @@ public final class MobManager {
                 boolean skeletonWither, int slimeSize) {
             this(zombieVillager, zombieConversionTicks, villagerProfession, villagerCareer,
                     villagerCareerLevel, villagerRiches, rabbitVariant, breedingAge,
-                    skeletonWither, slimeSize, 0);
+                    skeletonWither, slimeSize, 0, 0);
+        }
+
+        /** The pre-dye shape (Slice 30b added the kind's dye byte). */
+        public MobStateExtras(
+                boolean zombieVillager, int zombieConversionTicks,
+                int villagerProfession, int villagerCareer, int villagerCareerLevel,
+                int villagerRiches,
+                int rabbitVariant, int breedingAge,
+                boolean skeletonWither, int slimeSize, int dimension) {
+            this(zombieVillager, zombieConversionTicks, villagerProfession, villagerCareer,
+                    villagerCareerLevel, villagerRiches, rabbitVariant, breedingAge,
+                    skeletonWither, slimeSize, dimension, 0);
         }
     }
 
@@ -1419,6 +1494,18 @@ public final class MobManager {
         }
         if (mob.type() == MobType.RABBIT) {
             mob.setRabbitVariant(extras.rabbitVariant());
+        }
+        if (mob.type() == MobType.SHEEP && extras.dyeColor() != 0) {
+            // SheepEntity.readCustomNbt line 180: Color = the DyeColor id.
+            // The store shifts by one (0 = absent): the byte lands as
+            // fleece + 1 so the black (0-valid) rows never alias absence.
+            mob.setSheepFleeceColor(extras.dyeColor() - 1);
+        }
+        if (mob.type() == MobType.WOLF && extras.dyeColor() != 0) {
+            // WolfEntity.readCustomNbt line 133: CollarColor = the dye
+            // metadata domain (the index-20 byte's own shape), stored
+            // shifted by one the same way.
+            mob.setWolfCollarColor(extras.dyeColor() - 1);
         }
         if (extras.breedingAge() != 0) {
             mob.setBreedingAge(extras.breedingAge());
@@ -1476,9 +1563,19 @@ public final class MobManager {
         boolean wither = mob.type() == MobType.SKELETON && mob.skeletonWither();
         int slimeSize = mob.type() == MobType.SLIME || mob.type() == MobType.MAGMA_CUBE
                 ? mob.slimeSize() : 1;
+        // The kind's dye byte (Slice 30b), stored shifted by one so 0 stays
+        // the honest absent marker for both domains: the sheep's fleece id
+        // (SheepEntity's always-written Color NBT) or the wolf's collar
+        // metadata (WolfEntity's always-written CollarColor NBT).
+        int dyeColor = 0;
+        if (mob.type() == MobType.SHEEP) {
+            dyeColor = mob.sheepFleeceColor() + 1;
+        } else if (mob.type() == MobType.WOLF) {
+            dyeColor = mob.wolfCollarColor() + 1;
+        }
         return new MobStateExtras(zombieVillager, zombieConversion, profession, career,
                 careerLevel, riches, rabbitVariant, mob.breedingAge(), wither, slimeSize,
-                mob.dimension());
+                mob.dimension(), dyeColor);
     }
 
     /**
@@ -2035,6 +2132,24 @@ public final class MobManager {
             }
             return;
         }
+        if (mob.type() == MobType.SHEEP) {
+            // SheepEntity.dropItems (lines 97-111), 1:1: the unsheared
+            // body carries one wool of its own color (the stack damage IS
+            // the DyeColor id), then the mutton walk —
+            // {@code nextInt(2) + 1 + nextInt(1 + looting)} units, the
+            // fire's cooked swap, each unit its own single-item stack.
+            if (!mob.sheared()) {
+                lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()),
+                        new ItemStack(BuiltinItems.WOOL, 1, mob.sheepFleeceColor()));
+            }
+            int mutton = random.nextInt(2) + 1 + random.nextInt(1 + looting);
+            for (int unit = 0; unit < mutton; unit++) {
+                lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()),
+                        ItemStack.of(mob.burning()
+                                ? BuiltinItems.COOKED_MUTTON : BuiltinItems.MUTTON, 1));
+            }
+            return;
+        }
         if (mob.type() == MobType.ZOMBIE_PIGMAN) {
             // ZombiePigmanEntity.dropItems (lines 169-186): 0-1 rotten
             // flesh, then 0-1 gold nugget — the counts widen by the FULL
@@ -2235,6 +2350,10 @@ public final class MobManager {
             baby.setRabbitVariant(random.nextBoolean()
                     ? parent.rabbitVariant() : mate.rabbitVariant());
         }
+        if (baby.type() == MobType.SHEEP) {
+            // SheepEntity.makeChild line 243: the coat's own mixing ladder.
+            baby.setSheepFleeceColor(offspringSheepColor(parent, mate));
+        }
         parent.setBreedingAge(MobEntity.ADULT_BREED_COOLDOWN_TICKS);
         mate.setBreedingAge(MobEntity.ADULT_BREED_COOLDOWN_TICKS);
         parent.resetLove();
@@ -2253,6 +2372,44 @@ public final class MobManager {
      */
     private static MobType childTypeOf(MobEntity parent, MobEntity mate) {
         return parent.type(); // the engine keys the horse family on one MobType
+    }
+
+    /**
+     * The sheep coat's mixing ladder (SheepEntity.getColorForOffspring
+     * lines 262-276, 1:1): both parents' colors move into the dye domain
+     * (the id's own metadata {@code 15 - id}), the two-dye 2x1 grid goes
+     * through the crafting consult — a matching dye-mix recipe (the
+     * reference's own registerShapeless pairs) hands back the mixed
+     * color's metadata — and an unmatched pair falls to the parent coin.
+     * The answer returns as the fleece's DyeColor id. Package-private for
+     * the behavioral tests (the same package's MobManagerTest).
+     */
+    int offspringSheepColor(MobEntity parent, MobEntity mate) {
+        int i = 15 - (parent.sheepFleeceColor() & 15);
+        int j = 15 - (mate.sheepFleeceColor() & 15);
+        int k;
+        net.zaminmc.torch.server.crafting.CraftingService consult = craftingConsult;
+        java.util.Optional<net.zaminmc.torch.server.crafting.CraftingRecipe> matched =
+                java.util.Optional.empty();
+        if (consult != null) {
+            // The reference's 2x1 CraftingInventory rides the engine's 2x2
+            // matcher: the two dyes fill the top row, the bottom row empty
+            // (the shapeless multiset only counts filled cells).
+            ItemStack[] grid = {
+                    new ItemStack(BuiltinItems.INK_SAC, 1, i),
+                    new ItemStack(BuiltinItems.INK_SAC, 1, j),
+                    ItemStack.EMPTY, ItemStack.EMPTY,
+            };
+            matched = consult.match(grid, 2);
+        }
+        if (matched.isPresent()
+                && matched.get().result().item()
+                        .equals(net.zaminmc.torch.util.Identifier.parse("minecraft:dye"))) {
+            k = matched.get().result().damage();
+        } else {
+            k = random.nextBoolean() ? i : j;
+        }
+        return 15 - k; // DyeColor.byMetadata(k).getId()
     }
 
     /**

@@ -5174,3 +5174,98 @@ Ledgered: the beam's stained-glass color sections are client-side state
 (the engine's server model ends at levels), the ACTIVATE_MAX_BEACON
 achievement rides the stats slice, the custom-hover-name carry rides the
 anvil's slice.
+
+## Slice 30a — the particle display arms (the ambient breeding hearts)
+
+The long-ledgered pendingAmbientHearts stub (the Slice 5 breeding wave
+carried it "awaiting a verified heart id") closes.
+
+- The consult (the reference port of AnimalEntity.mobTick lines 42-61):
+  one HEART particle every 10th love tick at a random point inside the
+  body's footprint (`x + rand*width*2 - width`, `y + 0.5 + rand*height`,
+  the same z), drifting on three fresh 0.02-sigma gaussians.
+- The path: MobManager's love walk (`tickBreedingFor`) now consumes the
+  flag and emits through the new `onMobAmbientHearts(mob, at, vx, vy, vz)`
+  listener arm; EngineServer's dispatch forwards it; the adapter renders
+  it per connection as World Particles in the **count-0 shape** (one
+  particle at the exact position with the offsets as its velocity — the
+  ServerWorld.addParticle form), over the new
+  `V18Connection.sendDisplayParticle` helper with the 64-block feedback
+  cull.
+- The display family's wire ids landed with the helper
+  (ParticleType.java's own table): splash 5, smoke 11, largeexplode 1,
+  angryVillager 20, happyVillager 21, portal 24, heart 34 — the consult
+  sites for the wolf's shake splash and the enderman's portal cloud ride
+  their own slices.
+- Tests: `ParticleDisplayAcceptanceTest` (1: the love feed over the wire,
+  the heart's id/footprint/count-0 shape, the clock's repeat).
+
+Ledgered: the block-crack family's damage-variant consults ride the
+wool/stained-glass variant rows (Slice 30b grew the wool one); the
+client-side randomDisplayTick family (portal particles, brewing bubbles,
+mycelium spores) stays client-rendered in 1.8.8 — the server never calls
+randomDisplayTick (verified: no server-side caller in the reference).
+
+## Slice 30b — the dye family (the sheep's coat + the wolf's collar)
+
+The reference port of SheepEntity + ItemDye's interact arm + WolfEntity's
+dye arm, 1:1.
+
+- The sheep's color state: `sheepFleeceColor` on MobEntity (the DyeColor
+  id domain — the index-16 low nibble, the wool stack's damage, and the
+  offspring-mix input), written to the wire as the grown kind byte (the
+  color nibble | the sheared bit 0x10) on spawn, on shear, on regrow, and
+  on the new dye change (the `onSheepFleeceChanged` listener arm).
+- The natural roll (SheepEntity.pickColor lines 225-238): 5/100 black,
+  5 gray, 5 silver, 3 brown, 1/500 pink, else white — the spawn init.
+- The dye arms: ItemDye.interact on the sheep (an unsheared coat of a
+  different color takes the dye, one unit consumed with NO creative
+  guard — the reference's own shape; any dye-on-sheep use is consumed by
+  the arm) riding the item-after-mob consult order
+  (PlayerEntity.interact line 898); WolfEntity.interactMob's DYE arm on
+  the tamed body (a different color takes the collar in survival, the
+  same color falls through to the sit toggle — the reference's own
+  ladder).
+- The shear (Slice 30b repairs a real gap): the drops now actually spawn
+  — 1-3 wool of the body's own color (every unit its own single stack,
+  the damage IS the DyeColor id), the lamb gate added BEFORE the strip
+  (a baby never shears — the pre-fix marked the coat without dropping).
+- The death drops (SheepEntity.dropItems lines 97-111): the unsheared
+  body carries exactly one wool of its color, then the mutton walk
+  `nextInt(2) + 1 + nextInt(1 + looting)` with the fire's cooked swap —
+  the dedicated arm replaces the generic rows.
+- The offspring mixing (getColorForOffspring lines 262-276): both
+  parents' colors move into the dye domain (15 - id), the two-dye 2x1
+  grid goes through the new `setCraftingConsult(CraftingService)` — the
+  nine two-dye mix pairs from DyeRecipes.java's registerShapeless set now
+  live in BuiltinRecipes (the player crafting table gets them 1:1), and
+  an unmatched pair falls to the parent coin.
+- The persistence (ZMD): the kind's dye byte, FLAG_DYE_COLOR 0x80 — the
+  sheep's fleece + 1 or the wolf's collar + 1 (the +1 shift keeps 0 the
+  honest absent marker so a black collar at metadata 0 never aliases
+  absence); old files load without it.
+- Tests: `SheepDyeFamilyTest` (6: the pick bands, the spawn colors, the
+  mix consult + the parent coin, the shear drops + the lamb gate, the
+  death drops' color + the sheared skip, the dye byte round trip for both
+  domains), `DyeFamilyAcceptanceTest` (1: the lapis dye over the wire —
+  the fleece nibble, the one-unit consume, the blue wool drops),
+  `CraftingRecipeTest` grew to 43 recipes / 10 shapeless.
+
+Ledgered: the wool-dyeing crafting recipe (dye + white wool → colored
+wool) rides the bone-meal item-model slice (the engine's separate
+minecraft:bone_meal item vs the reference's dye-15 row); the carpet and
+stained-glass recipes ride their families' slices.
+
+## Slice 30c — the ambient sound families (the wolf's ladder + the cat)
+
+- The wolf (WolfEntity.getAmbientSound lines 138-146): the angry body
+  always growls; the 1/3 roll whines on a tamed body under 10 health and
+  pants otherwise; the 2/3 barks. `effectiveIdleSound` now carries the
+  dynamic ladder per chatter event.
+- The ocelot (OcelotEntity.getAmbientSound lines 111-121): the untamed
+  body stays silent; the tamed body purrs in love, else a quarter
+  purreow over the meow.
+- Tests: `WolfEntityTest` +2 arms inside the new ambient-ladder case (the
+  weak-tamed whine/bark pair with the never-pants ternary, the
+  healthy-tamed panting/bark pair), `OcelotEntityTest` +1 (the wild
+  silence, the in-love purr, the meow/purreow family).
