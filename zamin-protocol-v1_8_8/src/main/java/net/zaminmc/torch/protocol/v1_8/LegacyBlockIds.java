@@ -177,6 +177,13 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:clay_ball"), 337),
             Map.entry(Identifier.parse("minecraft:brick"), 336),
             Map.entry(Identifier.parse("minecraft:nether_brick"), 405),
+            // The redstone power family (Slice 33 — Block.java's own rows):
+            // the lamp pair 123/124 (the item shares the DARK form's 123 —
+            // the reference's getDropItem; the lit twin has no item), the
+            // lit ore 74 (the plain ore's glowing state).
+            Map.entry(Identifier.parse("minecraft:redstone_lamp"), 123),
+            Map.entry(Identifier.parse("minecraft:lit_redstone_lamp"), 124),
+            Map.entry(Identifier.parse("minecraft:lit_redstone_ore"), 74),
             // The wither skeleton's rare head (Slice 18d — community id 397;
             // the damage field carries the variant, 1 = wither).
             Map.entry(Identifier.parse("minecraft:skull"), 397),

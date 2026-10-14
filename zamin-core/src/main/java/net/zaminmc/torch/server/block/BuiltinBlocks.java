@@ -539,6 +539,18 @@ public final class BuiltinBlocks {
     public static final EngineBlockType PACKED_ICE = new EngineBlockType(
             Identifier.parse("minecraft:packed_ice"), "Packed Ice");
 
+    // The redstone power family (Slice 33 — the reference's own
+    // registrations): the lamp pair (123 the dark, 124 the lit — one item,
+    // the dark form, both states dropping it; RedstoneLampBlock's
+    // neighbor-signal flip) and the ore's glowing state (74 — the click/
+    // step swap's lit twin whose random tick reverts it).
+    public static final EngineBlockType REDSTONE_LAMP = new EngineBlockType(
+            Identifier.parse("minecraft:redstone_lamp"), "Redstone Lamp");
+    public static final EngineBlockType LIT_REDSTONE_LAMP = new EngineBlockType(
+            Identifier.parse("minecraft:lit_redstone_lamp"), "Redstone Lamp");
+    public static final EngineBlockType LIT_REDSTONE_ORE = new EngineBlockType(
+            Identifier.parse("minecraft:lit_redstone_ore"), "Redstone Ore");
+
     // The temple set (Slice 12f — the reference's TemplePieces): the
     // chiseled sandstone (legacy 24/3), the stained hardened clay pair over
     // 159 (the pyramid's blueprint floor — the reference's
@@ -806,6 +818,9 @@ public final class BuiltinBlocks {
                 .register(SLIME_BLOCK)
                 .register(END_STONE)
                 .register(PACKED_ICE)
+                .register(REDSTONE_LAMP)
+                .register(LIT_REDSTONE_LAMP)
+                .register(LIT_REDSTONE_ORE)
                 .register(CHISELED_SANDSTONE)
                 .register(STAINED_CLAY_ORANGE)
                 .register(STAINED_CLAY_YELLOW)
