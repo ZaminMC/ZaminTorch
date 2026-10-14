@@ -309,7 +309,14 @@ public final class SpawnerManager {
             return; // no world to consult: nothing decides a removal
         }
         boolean removed = spawners.entrySet().removeIf(entry ->
-                !isSpawnerBlock(worldResolver.apply(entry.getValue().dimension()), entry.getKey()));
+                !isSpawnerBlock(worldResolver.apply(entry.getValue().dimension()), entry.getKey())
+                        // The block-gone discard only decides on a LOADED
+                        // chunk — an unloaded chunk reads as air, but the
+                        // vanilla block entity freezes there (a restored
+                        // spawner outside the spawn area survives the
+                        // restart; it resumes when its chunk returns).
+                        && worldResolver.apply(entry.getValue().dimension())
+                                .isChunkLoadedAt(entry.getKey()));
         if (removed) {
             republishTiles();
         }

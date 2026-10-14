@@ -68,7 +68,12 @@ public final class SignManager {
      * a sign has no advancing state of its own.
      */
     public void tick(EngineWorld world) {
-        signs.entrySet().removeIf(entry -> !isSignBlock(world, entry.getKey()));
+        // The block-gone discard only decides on a LOADED chunk — an
+        // unloaded chunk reads as air, but the vanilla block entity freezes
+        // there (restored sign text survives the restart).
+        signs.entrySet().removeIf(entry ->
+                world.isChunkLoadedAt(entry.getKey())
+                        && !isSignBlock(world, entry.getKey()));
     }
 
     private static boolean isSignBlock(EngineWorld world, BlockPosition position) {

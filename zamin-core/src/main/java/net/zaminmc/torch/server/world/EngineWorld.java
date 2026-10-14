@@ -264,6 +264,19 @@ public final class EngineWorld implements World {
         return chunks.containsKey(position.packed());
     }
 
+    /**
+     * True when the chunk holding the position is loaded. Unloaded chunks
+     * read as air through {@code getBlock}; state holders must treat that
+     * as "frozen" rather than "gone" — the vanilla block-entity model: a
+     * block entity in an unloaded chunk neither ticks nor discards; it
+     * returns with the chunk (the restart-persistence rule: restored state
+     * survives until its chunk loads and the block there is genuinely
+     * gone).
+     */
+    public boolean isChunkLoadedAt(net.zaminmc.torch.block.BlockPosition position) {
+        return isChunkLoaded(position.chunkPosition());
+    }
+
     /** Attaches the public entity view (the boot wiring; §27.5). */
     public void attachEntityView(java.util.function.Supplier<
             java.util.Collection<? extends net.zaminmc.torch.entity.LivingEntity>> view) {
