@@ -4833,3 +4833,47 @@ record-less fall-through; the break arm's stop/drop/slot-death; the
 comparator's disc-index math over three discs and the empty read; the
 ZJD round trip + the restore flip + the corrupt file's quarantine).
 
+
+## Slice 27c — the daylight detector 1:1 (the sky-light power band)
+
+**The reference:** `DaylightDetectorBlock` +
+`DaylightDetectorBlockEntity` (Block.java lines 1323/1377 —
+`register(151, "daylight_detector", ...)` and
+`register(178, "daylight_detector_inverted", ...)`: strength 0.2, WOOD
+sounds, Material.WOOD, the 0.375-high non-cube shape).
+
+**The blocks:** the flattened family — `daylight_detector_p0..p15`
+(legacy 151) and `daylight_detector_inverted_p0..p15` (legacy 178), the
+POWER property 0-15 riding the WHOLE metadata nibble
+(getStateFromMetadata: POWER = metadata — the dial the client renders);
+the item form 151 (the inverted form has none — the use arm toggles);
+the behavior rows (hardness 0.2, both forms drop the NORMAL detector
+item — getDropItem's own rule); the light rows (the sensor band passes
+light untouched, isSolidRender false).
+
+**The math chain (the reference's own walks, verbatim):** the time
+fraction (Dimension.getTimeOfDay: the -0.25 shift, the wrap, the cosine
+easing `f1 + (f - f1)/3`); the sun angle (the fraction times 2*PI); the
+ambient darkness (calculateAmbientDarkness: the clamped cosine band, the
+rain and thunder gradient scalings `1 - g*5/16`, times 11); the power
+(`round((skyLight - darkness) * cos(angle))` with the detector's own
+night-wrap `f += (f1 - f) * 0.2` pulling the night angle toward the
+horizon), clamped 0-15, the inverted form's 15 - i.
+
+**The arms:** the 20-tick BE gate (the Tickable's own
+`world.getTime() % 20 == 0` over the engine's timeOfDay clock — a frozen
+doDaylightCycle freezes the detector with it, the reference's own
+behavior); the variant flip ONLY when the level changed (the
+setBlockState-if gate); the use arm's invert toggle keeping the POWER
+level with the immediate re-update; the weak emission (getSignal's POWER
+in EVERY direction — no dir gate) through the redstone system's own
+consult, with NO strong arm (the reference overrides getSignal alone)
+and the family excluded from the signal-solid re-radiation set.
+
+Tests: DaylightDetectorSystemTest (3: the math chain's anchors — the
+noon/midnight fractions, the clear/storm darkness bands (the saturated
+midnight never moves), the power walk's extremes + the inverted mirror +
+the dawn mid-band; the live 20-tick walk — the noon lift to p15, the
+weak-emission consult, the midnight drop, the use arm's inverted-midnight
+flip to inverted_p15, the break cleanup + the re-place; the family
+predicates + the band wrap).

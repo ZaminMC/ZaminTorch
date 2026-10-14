@@ -44,6 +44,12 @@ public final class BuiltinItems {
     // line-1181 registration; the block item shares the id).
     public static final EngineItemType JUKEBOX = new EngineItemType(
             Identifier.parse("minecraft:jukebox"), "Jukebox", 64);
+    // The daylight detector's item form (legacy 151 — Item.java line 490's
+    // register(Blocks.DAYLIGHT_DETECTOR); the block family's thirty-two
+    // flattened power states share the id with the nibble carrying the
+    // dial). The inverted form (178) has NO item — the use arm toggles.
+    public static final EngineItemType DAYLIGHT_DETECTOR = new EngineItemType(
+            Identifier.parse("minecraft:daylight_detector"), "Daylight Sensor", 64);
     // The twelve music discs (the reference's Item.java lines 735-746, ids
     // 2256-2267 in this order): MusicDiscItem's own maxStackSize 1. The
     // record name rides the identifier ("records." + the item's own record
@@ -738,6 +744,7 @@ public final class BuiltinItems {
                 SPAWN_EGG,
                 BOWL, MUSHROOM_STEW,
                 JUKEBOX,
+                DAYLIGHT_DETECTOR,
                 RECORD_13, RECORD_CAT, RECORD_BLOCKS, RECORD_CHIRP, RECORD_FAR,
                 RECORD_MALL, RECORD_MELLOHI, RECORD_STAL, RECORD_STRAD,
                 RECORD_WARD, RECORD_11, RECORD_WAIT,

@@ -855,6 +855,19 @@ public final class BlockBehaviorTable {
             behaviors.put(Identifier.parse("minecraft:hopper_" + directions[facing] + "_disabled"),
                     hopper);
         }
+        // The daylight detector (Slice 27c — the reference's own
+        // registration: setStrength(0.2F), WOOD sounds, Material.WOOD, a
+        // 0.375-high non-cube): all thirty-two power states of both forms
+        // drop the NORMAL detector item (getDropItem lines 88-90 — the
+        // inverted form never drops itself).
+        BlockBehavior daylightDetector = new BlockBehavior(0.2, true, false, "wood", 0,
+                List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:daylight_detector"), 1)));
+        for (int power = 0; power <= 15; power++) {
+            behaviors.put(Identifier.parse("minecraft:daylight_detector_p" + power),
+                    daylightDetector);
+            behaviors.put(Identifier.parse("minecraft:daylight_detector_inverted_p" + power),
+                    daylightDetector);
+        }
         // The dispenser and the dropper (Slice 11a, Block.java line 1041's
         // strength 3.5): every facing/triggered variant drops its item.
         BlockBehavior dispenser = new BlockBehavior(3.5, true, false, "stone", 0,
