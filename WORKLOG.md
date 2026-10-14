@@ -4708,3 +4708,56 @@ isolation + the survivor) + AdversarialContractTest (5).
 Fresh suite: 999 core tests (the two load flakes — the hopper restart
 walk and the airborne mining timing — green in isolation under the
 2-core full-suite load), 19 api + 78 protocol green, `--max-workers=1`.
+
+## Slice 27a — the note block family 1:1 (the music block)
+
+**The reference:** `NoteBlock` (register line `noteblock` id 25,
+`setStrength(0.8F)`, Material.WOOD) + `NoteBlockBlockEntity` (the pitch
+byte 0-24 with the reference's own read clamp, the runtime powered flag,
+writeNbt persisting "note" alone) + the master registry's material
+assignments (Block.java's registrations — the evidence for the instrument
+table).
+
+**The three play arms 1:1:** the USE (NoteBlock.use lines 41-56 — the
+tune `(note + 1) % 25` then the play, wired into the engine's use
+dispatch before the placement proposal; the tune persists through the
+ZND store at saveAllNow); the survival ATTACK (NoteBlock.startMining
+lines 58-67 through ServerPlayerInteractionManager line 133 — creative
+never fires it; the engine's new mining-start listener rides after the
+reach gate, so the note plays exactly when the reference's manager would
+call it); and the POWER EDGE (NoteBlock.neighborChanged lines 26-39 over
+the cross-system neighbor bus: only the RISING edge plays, the falling
+edge clears the flag silently, the re-rise replays — the lever walk the
+TNT test uses proves the bus).
+
+**The play itself:** the air-above gate (Material.AIR over the engine's
+registry — only the air type carries it); the instrument from the block
+BELOW's material over the reference's OWN assignments — the engine's
+registered set classified (the quirks preserved: gravel and soul sand
+are SAND material — snare; the infested family is CLAY — harp; glowstone
+and the sea lantern are GLASS — hat; the nether brick fence is STONE at
+line 1236 — bass drum; wool/beds CLOTH and torches/ladders DECORATION —
+harp; the note block itself WOOD — bass guitar); and the reference's
+server walk — the doEvent sound ("note." + instrument, volume 3.0F,
+pitch 2^((note-12)/12)) through the FX bus plus the Block Action 0x24
+relay (block id 25, the instrument as the action byte, the note as the
+param byte, chunk-gated per connection — the doBlockEvents walk the
+chest lid's writer already rode).
+
+**The landing sites:** `server/noteblock/NoteBlockSystem` (the tiles +
+the arms + the material table + the note-action listeners) +
+`NoteDataStore` (the ZND format — noteblocks.bin, the hopper store's own
+durability rules) + the block/item registrations (NOTE_BLOCK both forms
+sharing legacy id 25, the behavior row hardness 0.8/drops itself, the
+light row a full opaque cube filter 15 — the registry pin moved to 181)
++ `BlockInteractionService.setMiningStartListener` (the dig-start hook)
++ the EngineServer wiring (the world-change listener, the neighbor-bus
+registration, the break cleanup, the use arm, the saveAllNow arm) +
+`V18Connection.sendNoteAction` over the chest lid's own layout.
+
+Tests: NoteBlockSystemTest (6: the material table's instruments + the
+reference's sound keys; the use arm's tune-and-play with the exact pitch
+walk + the 25-band wrap; the attack arm's no-tune play; the power edge's
+rising-only replay with the re-rise; the air gate with the
+still-tunes-while-covered rule; the tile lifecycle + the ZND round trip
++ the corrupt-file preservation). BlockRegistryTest's pin moved to 181.

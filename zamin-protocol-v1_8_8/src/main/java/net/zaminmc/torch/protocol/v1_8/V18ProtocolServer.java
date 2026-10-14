@@ -865,6 +865,14 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                 connection.sendChestLid(position, opener, open);
             }
         });
+        // The note action: Block Action 0x24 (block 25, the instrument, the
+        // note) to every chunk-holding observer (Slice 27a — the reference's
+        // doBlockEvents relay).
+        server.noteBlocks().addNoteActionListener((position, instrument, note) -> {
+            for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                connection.sendNoteAction(position, instrument, note);
+            }
+        });
         // The dig progress: Block Break Animation 0x28 to every observer
         // within the vanilla 32-block radius (ServerWorldEventListener's
         // squared 1024.0 check), except the digger (their client predicts its

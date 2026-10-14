@@ -90,6 +90,9 @@ public final class BlockInteractionService {
     private volatile java.util.function.Consumer<Commit> commitFeedbackListener;
     /** The dig-progress broadcast hook (the 0x28 fan-out); null until registered. */
     private volatile MiningProgressListener miningProgressListener;
+    /** The dig-start hook (Slice 27a — the reference's block.startMining arm,
+     *  the note block's play); null until registered. Tick-thread context. */
+    private volatile java.util.function.Consumer<BlockPosition> miningStartListener;
     /** The public event bus (§27.7 observe/cancel); null until wired. */
     private volatile EngineEventBus eventBus;
     /**
@@ -102,6 +105,12 @@ public final class BlockInteractionService {
     /** Wires the {@code doTileDrops} read (the game-rule table's block-drop gate). */
     public void setTileDropsRead(java.util.function.BooleanSupplier tileDropsRead) {
         this.tileDropsRead = java.util.Objects.requireNonNull(tileDropsRead, "tileDropsRead");
+    }
+
+    /** Wires the dig-start hook (the reference's startMining arm — the note
+     *  block's play on the survival dig's start). */
+    public void setMiningStartListener(java.util.function.Consumer<BlockPosition> listener) {
+        this.miningStartListener = java.util.Objects.requireNonNull(listener, "listener");
     }
 
     /** Active survival mining sessions, keyed by player. Tick-thread confined. */
@@ -254,6 +263,12 @@ public final class BlockInteractionService {
         }
         if (!InteractionRules.withinSurvivalReach(player.position(), target)) {
             return;
+        }
+        // The reference's startMining arm (ServerPlayerInteractionManager
+        // line 133: block.startMining before the speed consult) — the note
+        // block plays here; creative never reaches this path.
+        if (miningStartListener != null) {
+            miningStartListener.accept(target);
         }
         MiningSession session = miningSessions.computeIfAbsent(player.uuid(),
                 id -> new MiningSession(player));

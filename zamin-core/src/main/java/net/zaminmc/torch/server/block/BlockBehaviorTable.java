@@ -118,6 +118,13 @@ public final class BlockBehaviorTable {
                     new BlockBehavior(3.5, true, true, "rock", 1,
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:furnace"), 1)))),
 
+            // Community data (pc/1.8 blocks.json): noteblock hardness 0.8
+            // (the reference's own setStrength(0.8F) registration), material
+            // wood, no harvest requirement, drops itself.
+            Map.entry(Identifier.parse("minecraft:noteblock"),
+                    new BlockBehavior(0.8, true, false, "wood", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:noteblock"), 1)))),
+
             Map.entry(Identifier.parse("minecraft:chest"),
                     new BlockBehavior(2.5, true, false, "wood", 0,
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:chest"), 1)))),

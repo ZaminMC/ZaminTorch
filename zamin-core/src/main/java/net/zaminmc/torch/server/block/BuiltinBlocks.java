@@ -409,6 +409,10 @@ public final class BuiltinBlocks {
             Identifier.parse("minecraft:stone_brick_slab"), "Stone Brick Slab", 5);
     public static final EngineBlockType MOB_SPAWNER = new EngineBlockType(
             Identifier.parse("minecraft:mob_spawner"), "Mob Spawner");
+    // The note block (legacy 25, the reference's `noteblock` registration,
+    // strength 0.8, Material.WOOD): the music block with its own tile.
+    public static final EngineBlockType NOTE_BLOCK = new EngineBlockType(
+            Identifier.parse("minecraft:noteblock"), "Note Block");
     // The iron door (legacy 71, the reference's Prison): the lower's four
     // facings in the engine's W/N/E/S band (the oak door's own shape) plus
     // the plain upper half.
@@ -663,6 +667,7 @@ public final class BuiltinBlocks {
                 .register(INFESTED_CHISELED_STONE_BRICKS)
                 .register(STONE_BRICK_SLAB)
                 .register(MOB_SPAWNER)
+                .register(NOTE_BLOCK)
                 .register(IRON_DOOR_LOWER_W)
                 .register(IRON_DOOR_LOWER_N)
                 .register(IRON_DOOR_LOWER_E)

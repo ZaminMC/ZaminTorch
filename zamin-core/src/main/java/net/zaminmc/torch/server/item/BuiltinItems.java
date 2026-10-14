@@ -36,6 +36,10 @@ public final class BuiltinItems {
             Identifier.parse("minecraft:stick"), "Stick", 64);
     public static final EngineItemType CRAFTING_TABLE = new EngineItemType(
             Identifier.parse("minecraft:crafting_table"), "Crafting Table", 64);
+    // The note block's item form (legacy 25, the reference's `noteblock`
+    // registration — the block item shares the id).
+    public static final EngineItemType NOTE_BLOCK = new EngineItemType(
+            Identifier.parse("minecraft:noteblock"), "Note Block", 64);
     public static final EngineItemType TORCH = new EngineItemType(
             Identifier.parse("minecraft:torch"), "Torch", 64);
     // Craftable blocks unlocked by the 3x3 crafting table (legacy 61 / 54).
@@ -676,7 +680,7 @@ public final class BuiltinItems {
         Map<Identifier, ItemType> map = new TreeMap<>();
         for (EngineItemType type : new EngineItemType[] {
                 DIRT, COBBLESTONE, OAK_PLANKS, OAK_LOG,
-                STICK, CRAFTING_TABLE, TORCH, FURNACE, CHEST,
+                STICK, CRAFTING_TABLE, NOTE_BLOCK, TORCH, FURNACE, CHEST,
                 COAL, DIAMOND, IRON_INGOT, STONE, SAND, GLASS, GRAVEL, FLINT, BEEF, COOKED_BEEF,
                 PORKCHOP, COOKED_PORKCHOP, RAW_CHICKEN, COOKED_CHICKEN,
                 BOW, ARROW, SNOWBALL, EGG,
