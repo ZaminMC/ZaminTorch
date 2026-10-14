@@ -294,6 +294,12 @@ final class TestClient18 implements AutoCloseable {
     }
 
     void sendBlockPlacement(int x, int y, int z, int face, int heldItemId) throws IOException {
+        sendBlockPlacement(x, y, z, face, heldItemId, 0);
+    }
+
+    /** The damage-carrying placement claim (the dye families' color member). */
+    void sendBlockPlacement(int x, int y, int z, int face, int heldItemId, int heldDamage)
+            throws IOException {
         ByteBuf body = Unpooled.buffer(24);
         ByteBufOps.writeVarInt(body, Protocol18.C2S_PLAYER_BLOCK_PLACEMENT);
         ByteBufOps.writePackedBlockPosition(body, x, y, z);
@@ -301,9 +307,21 @@ final class TestClient18 implements AutoCloseable {
         body.writeShort(heldItemId);  // 1.8 slot: id
         if (heldItemId >= 0) {
             body.writeByte(1);        // count
-            body.writeShort(0);       // damage
+            body.writeShort(heldDamage); // damage (the variant metadata)
             body.writeByte(0);        // NBT marker: 0 = none (TAG_End)
         }
+        sendPacket(bodyToBytes(body));
+    }
+
+    /** Set Creative Slot (0x10) with the damage field (the family items). */
+    void sendCreativeSlot(int wireSlot, int legacyId, int damage) throws IOException {
+        ByteBuf body = Unpooled.buffer(12);
+        ByteBufOps.writeVarInt(body, Protocol18.C2S_SET_CREATIVE_SLOT);
+        body.writeShort(wireSlot);
+        body.writeShort(legacyId);
+        body.writeByte(1);   // count
+        body.writeShort(damage);
+        body.writeByte(0);   // no NBT marker
         sendPacket(bodyToBytes(body));
     }
 

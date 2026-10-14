@@ -42,10 +42,15 @@ class CraftingRecipeTest {
         // + the nine dye-mix pairs (Slice 30b — DyeRecipes' registerShapeless
         // set): the player table gets them and the sheep's offspring color
         // consults the same rows.
-        assertEquals(43, BuiltinRecipes.ALL.size());
+        // + the dye-coloring families (Slice 31 — DyeRecipes' own set): the 16
+        // wool-coloring rows, the 16 stained-clay rings, the 16 stained-glass
+        // rings, the 16 pane folds, the 16 carpet rows, and the two flower
+        // dyes (dandelion/poppy).
+        assertEquals(125, BuiltinRecipes.ALL.size());
         long shaped = BuiltinRecipes.ALL.stream().filter(CraftingRecipe::isShaped).count();
         long shapeless = BuiltinRecipes.ALL.size() - shaped;
-        assertEquals(10, shapeless, "the book + the nine dye-mix pairs are the shapeless crafts");
+        assertEquals(28, shapeless,
+                "the book + nine dye-mix pairs + 16 wool colorings + two flowers are the shapeless crafts");
     }
 
     // ---- 3x3 crafting-table matching ---------------------------------------

@@ -1603,7 +1603,15 @@ public final class EngineServer implements Server, EngineBridge {
                 blockInteraction = new BlockInteractionService(world, ticker,
                         change -> world.republish(change.position()), // the resync path (§441)
                         session -> session.gamemode(), new DropService(new java.util.Random()), itemEntities,
-                        type -> blockRegistry.lookup(type.identifier()),
+                        // The damage-aware block-item resolution (Slice 31 —
+                        // ItemBlock.onItemUse's getStateFromMeta): the five
+                        // dye-family items place their color's block via the
+                        // stack's damage field, everything else resolves by
+                        // the plain identifier.
+                        (type, damage) -> net.zaminmc.torch.server.block.DyeFamilyBlocks
+                                .placementBlockOf(type.identifier(), damage)
+                                .flatMap(id -> blockRegistry.lookup(id))
+                                .or(() -> blockRegistry.lookup(type.identifier())),
                         this::publishInventoryChanged);
                 blockInteraction.setEventBus(eventBus); // §27.7: the public break/place gates
                 // The game-rule read (Slice 24a): doTileDrops gates the
@@ -6244,6 +6252,17 @@ public final class EngineServer implements Server, EngineBridge {
             placeArmorStandOnTick(session, clicked, face, creativeHeld);
             return;
         }
+        // The carpet family's placement (Slice 31 — CarpetBlock.canBePlaced
+        // over canSurvive lines 91-97 + the ItemBlock damage walk): the
+        // support gate refuses AIR below (water and torches carry it — the
+        // reference's own `!world.isAir(pos.down())` shape, softer than the
+        // plate's solid bed), and the held stack's damage names the color.
+        if (heldId.equals("minecraft:carpet")
+                || creativeHeld.map(t -> net.zaminmc.torch.server.block.DyeFamilyBlocks
+                        .isCarpet(t.identifier())).orElse(false)) {
+            placeCarpetOnTick(session, clicked, face, creativeHeld);
+            return;
+        }
         blockInteraction.placeFromUseOnTick(session, clicked, face, creativeHeld);
     }
 
@@ -6660,6 +6679,58 @@ public final class EngineServer implements Server, EngineBridge {
             return; // the plate needs its solid bed
         }
         world.setBlock(target, net.zaminmc.torch.server.redstone.RedstoneBlocks.plateOf(false, wooden));
+        consumePlaced(session, creativeHeld);
+    }
+
+    /**
+     * The carpet family's placement (Slice 31 — CarpetBlock lines 91-97 +
+     * the ItemBlock damage walk): the support gate refuses only AIR below
+     * (a carpet over water or a torch stands — the reference's own
+     * {@code !world.isAir(pos.down())}, softer than the plate's solid bed),
+     * the body gate never applies (the 1/16 shape never clips a player),
+     * and the held stack's damage names the family's color member.
+     * Tick-thread context.
+     */
+    private void placeCarpetOnTick(PlayerSession session, BlockPosition clicked, int face,
+                                   java.util.Optional<BlockType> creativeHeld) {
+        BlockPosition target = offsetByFace(clicked, face);
+        if (target == null || world.getBlock(clicked).equals(world.airType())
+                || !world.getBlock(target).equals(world.airType())) {
+            return;
+        }
+        if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5) {
+            return;
+        }
+        // The color member: creative claims its block variant directly,
+        // survival reads the held stack's damage field.
+        BlockType carpet;
+        if (creativeHeld.isPresent()) {
+            carpet = creativeHeld.get();
+        } else {
+            net.zaminmc.torch.item.ItemStack held = session.inventory().held();
+            if (held.isEmpty() || !held.type().identifier().value().equals("carpet")) {
+                return;
+            }
+            java.util.Optional<BlockType> resolved = blockRegistry.lookup(
+                    net.zaminmc.torch.server.block.DyeFamilyBlocks.carpetBlock(held.damage()));
+            if (resolved.isEmpty()) {
+                return;
+            }
+            carpet = resolved.get();
+        }
+        if (!net.zaminmc.torch.server.block.DyeFamilyBlocks.isCarpet(carpet.identifier())) {
+            return; // the claimed block is not a family member
+        }
+        // The support gate: only AIR refuses (canSurvive lines 95-97).
+        if (world.getBlock(target.offset(0, -1, 0)).equals(world.airType())) {
+            return;
+        }
+        if (creativeHeld.isEmpty() && session.gamemode() == GameMode.CREATIVE) {
+            // a creative claim that resolved through the held stack
+            world.setBlock(target, carpet);
+            return;
+        }
+        world.setBlock(target, carpet);
         consumePlaced(session, creativeHeld);
     }
 

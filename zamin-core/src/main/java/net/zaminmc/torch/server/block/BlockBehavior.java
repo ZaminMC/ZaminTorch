@@ -38,11 +38,16 @@ public record BlockBehavior(
      * {@code quantityDropped(Random)} overrides (gravel: 10% flint, otherwise
      * gravel). Chance 1.0 first entries reproduce the fixed-drop behavior.
      *
+     * <p>The damage field carries the vanilla data value when the dropped
+     * item is a single damage-domain family member (Slice 31 — the dye
+     * families: a lime wool block yields {@code minecraft:wool} damage 5,
+     * the reference's {@code getDropItemMetadata}).</p>
+     *
      * @param item   canonical item identifier
      * @param count  units yielded when this entry wins
      * @param chance probability in [0,1] that the roll stops here
      */
-    public record Drop(Identifier item, int count, double chance) {
+    public record Drop(Identifier item, int count, double chance, int damage) {
         public Drop {
             if (count < 1) {
                 throw new IllegalArgumentException("Drop count must be positive: " + count);
@@ -50,11 +55,24 @@ public record BlockBehavior(
             if (chance < 0.0 || chance > 1.0) {
                 throw new IllegalArgumentException("Drop chance must be in [0,1]: " + chance);
             }
+            if (damage < 0) {
+                throw new IllegalArgumentException("Drop damage must be non-negative: " + damage);
+            }
         }
 
-        /** The common fixed drop (always yields). */
+        /** The common fixed drop (always yields, damage 0). */
         public Drop(Identifier item, int count) {
-            this(item, count, 1.0);
+            this(item, count, 1.0, 0);
+        }
+
+        /** The chanced drop (the historical quantityDropped rolls). */
+        public Drop(Identifier item, int count, double chance) {
+            this(item, count, chance, 0);
+        }
+
+        /** The fixed drop of a damage-domain family member (Slice 31). */
+        public Drop(Identifier item, int count, int damage) {
+            this(item, count, 1.0, damage);
         }
     }
 

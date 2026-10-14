@@ -39,11 +39,21 @@ public final class WorldSolidity {
                 && !isLadder(id)
                 && !isOpenDoorHalf(id)
                 && !isFlora(id)
+                && !isCarpet(id)
                 && !isRail(id)
                 && !isRedstoneComponent(id)
                 && !isMovingPiston(id)
                 && !isTripwireFamily(id)
                 && !FluidBlocks.isFluid(id);
+    }
+
+    /**
+     * The carpet family (Slice 31 — CarpetBlock's 1/16-tall shape): the
+     * cover never blocks a body (the reference's isCube false), the same
+     * envelope as the snow layer's thin ground cover.
+     */
+    public static boolean isCarpet(Identifier id) {
+        return net.zaminmc.torch.server.block.DyeFamilyBlocks.isCarpet(id);
     }
 
     /**

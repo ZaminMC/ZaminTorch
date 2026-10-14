@@ -149,7 +149,12 @@ public final class NoteBlockSystem implements WorldChangeListener {
             "cobblestone_stairs_east", "cobblestone_stairs_north",
             "cobblestone_stairs_south", "cobblestone_stairs_west",
             "prismarine_rough", "prismarine_bricks", "prismarine_dark",
-            "stained_clay_orange", "stained_clay_yellow");
+            "stained_clay_orange", "stained_clay_yellow",
+            "hardened_clay", "stained_clay_white", "stained_clay_magenta",
+            "stained_clay_light_blue", "stained_clay_lime", "stained_clay_pink",
+            "stained_clay_gray", "stained_clay_silver", "stained_clay_cyan",
+            "stained_clay_purple", "stained_clay_blue", "stained_clay_brown",
+            "stained_clay_green", "stained_clay_red", "stained_clay_black");
 
     /** The SAND-material set (instrument 2 — snare): FallingBlock's own
      *  material — gravel and soul sand carry it too (the reference's
@@ -159,9 +164,25 @@ public final class NoteBlockSystem implements WorldChangeListener {
 
     /** The GLASS-material set (instrument 3 — hat): glass, the pane,
      *  glowstone, the sea lantern (the reference's registrations at lines
-     *  1029/1191 and the sea lantern's own). */
+     *  1029/1191 and the sea lantern's own) + the stained glass family's
+     *  sixteen members and their panes (Slice 31 — the same Material.GLASS
+     *  registrations at lines 1197/1346). */
     private static final Set<String> GLASS_MATERIAL = Set.of(
-            "glass", "glass_pane", "glowstone", "sea_lantern");
+            "glass", "glass_pane", "glowstone", "sea_lantern",
+            "stained_glass_white", "stained_glass_orange", "stained_glass_magenta",
+            "stained_glass_light_blue", "stained_glass_yellow", "stained_glass_lime",
+            "stained_glass_pink", "stained_glass_gray", "stained_glass_silver",
+            "stained_glass_cyan", "stained_glass_purple", "stained_glass_blue",
+            "stained_glass_brown", "stained_glass_green", "stained_glass_red",
+            "stained_glass_black",
+            "stained_glass_pane_white", "stained_glass_pane_orange",
+            "stained_glass_pane_magenta", "stained_glass_pane_light_blue",
+            "stained_glass_pane_yellow", "stained_glass_pane_lime",
+            "stained_glass_pane_pink", "stained_glass_pane_gray",
+            "stained_glass_pane_silver", "stained_glass_pane_cyan",
+            "stained_glass_pane_purple", "stained_glass_pane_blue",
+            "stained_glass_pane_brown", "stained_glass_pane_green",
+            "stained_glass_pane_red", "stained_glass_pane_black");
 
     /** The WOOD-material set (instrument 4 — bass guitar): the planks/log
      *  family, the containers, the fence, the wooden door and slab, the
@@ -176,7 +197,7 @@ public final class NoteBlockSystem implements WorldChangeListener {
             "wall_sign", "wall_sign_east", "wall_sign_south", "wall_sign_west");
 
     /** The reference's instrument selection: the block BELOW's material. */
-    static int instrumentOf(String belowValue) {
+    public static int instrumentOf(String belowValue) {
         if (STONE_MATERIAL.contains(belowValue)) {
             return INSTRUMENT_BASS_DRUM;
         }

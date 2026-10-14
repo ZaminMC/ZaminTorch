@@ -2,6 +2,8 @@ package net.zaminmc.torch.server.block;
 
 import net.zaminmc.torch.util.Identifier;
 
+import java.util.List;
+
 /**
  * The block types built into the engine. This is data, not code: the set grows as
  * gameplay slices require more blocks, always with its canonical identifier first.
@@ -546,11 +548,55 @@ public final class BuiltinBlocks {
     public static final EngineBlockType LIT_PUMPKIN = new EngineBlockType(
             Identifier.parse("minecraft:lit_pumpkin"), "Jack o'Lantern");
 
+    // The dye-coloring world families (Slice 31 — the reference's
+    // DyeRecipes.java + the Block registrations 35/95/159/160/171/172):
+    // every family is ONE vanilla item whose damage field carries the
+    // DyeColor id, expanded here into flattened per-color blocks whose
+    // legacy metadata nibble IS the color. The white wool keeps the plain
+    // minecraft:wool id (every placed white wool in existing worlds stays
+    // valid); the stained clay family folds the temple slice's
+    // orange/yellow pair in as its own two members (the loop skips them —
+    // the constants above ARE the family's registrations for those
+    // colors).
+    public static final EngineBlockType HARDENED_CLAY = new EngineBlockType(
+            Identifier.parse("minecraft:hardened_clay"), "Hardened Clay");
+
+    /** The flattened dye-family blocks (77 entries; see the slice note above). */
+    public static final List<EngineBlockType> DYE_FAMILY_BLOCKS = buildDyeFamilyBlocks();
+
+    private static List<EngineBlockType> buildDyeFamilyBlocks() {
+        List<EngineBlockType> blocks = new java.util.ArrayList<>();
+        for (int color = 0; color < 16; color++) {
+            if (color != 0) { // white wool keeps the plain minecraft:wool id
+                blocks.add(new EngineBlockType(
+                        DyeFamilyBlocks.blockOf("wool", color),
+                        DyeFamilyBlocks.displayName("Wool", color), color));
+            }
+            blocks.add(new EngineBlockType(
+                    DyeFamilyBlocks.stainedGlassBlock(color),
+                    DyeFamilyBlocks.displayName("Stained Glass", color), color));
+            blocks.add(new EngineBlockType(
+                    DyeFamilyBlocks.stainedGlassPaneBlock(color),
+                    DyeFamilyBlocks.displayName("Stained Glass Pane", color), color));
+            blocks.add(new EngineBlockType(
+                    DyeFamilyBlocks.carpetBlock(color),
+                    DyeFamilyBlocks.displayName("Carpet", color), color));
+            // the temple slice's orange (1) / yellow (4) constants are the
+            // family's own registrations for those colors
+            if (color != 1 && color != 4) {
+                blocks.add(new EngineBlockType(
+                        DyeFamilyBlocks.stainedClayBlock(color),
+                        DyeFamilyBlocks.displayName("Stained Clay", color), color));
+            }
+        }
+        return List.copyOf(blocks);
+    }
+
     private BuiltinBlocks() {
     }
 
     public static BlockRegistryBuilder registerAll(BlockRegistryBuilder builder) {
-        return builder
+        builder = builder
                 .register(AIR)
                 .register(STONE)
                 .register(GRASS_BLOCK)
@@ -735,6 +781,11 @@ public final class BuiltinBlocks {
                 .register(POTATOES_STAGE4)
                 .register(POTATOES_STAGE5)
                 .register(POTATOES_STAGE6)
-                .register(POTATOES_STAGE7);
+                .register(POTATOES_STAGE7)
+                .register(HARDENED_CLAY);
+        for (EngineBlockType family : DYE_FAMILY_BLOCKS) {
+            builder = builder.register(family);
+        }
+        return builder;
     }
 }

@@ -688,6 +688,23 @@ public final class BuiltinItems {
     public static final EngineItemType SANDSTONE = new EngineItemType(
             Identifier.parse("minecraft:sandstone"), "Sandstone", 64);
 
+    // The dye-coloring world families' items (Slice 31 — the reference's
+    // Item registrations over the block ids): each family is ONE item whose
+    // damage field carries the DyeColor id (0 white .. 15 black), the same
+    // domain as the wool item's own damage model (the sheep's fleece).
+    // Legacy ids: stained glass 95, stained hardened clay 159, the stained
+    // pane 160, the carpet 171, hardened clay 172.
+    public static final EngineItemType STAINED_GLASS = new EngineItemType(
+            Identifier.parse("minecraft:stained_glass"), "Stained Glass", 64);
+    public static final EngineItemType STAINED_GLASS_PANE = new EngineItemType(
+            Identifier.parse("minecraft:stained_glass_pane"), "Stained Glass Pane", 64);
+    public static final EngineItemType CARPET = new EngineItemType(
+            Identifier.parse("minecraft:carpet"), "Carpet", 64);
+    public static final EngineItemType HARDENED_CLAY = new EngineItemType(
+            Identifier.parse("minecraft:hardened_clay"), "Hardened Clay", 64);
+    public static final EngineItemType STAINED_HARDENED_CLAY = new EngineItemType(
+            Identifier.parse("minecraft:stained_hardened_clay"), "Stained Clay", 64);
+
     // Armor (community items.json legacy ids + maxDurability): the five
     // historical tiers across the four slots. Per-piece armor points ride the
     // Armor registry; a full set totals 7/12/15/11/20 on the 20-point bar.
@@ -799,6 +816,8 @@ public final class BuiltinItems {
                 FLINT_AND_STEEL, GOLD_INGOT,
                 SUGAR_CANE, CACTUS, SUGAR, PAPER, BOOK,
                 TALL_GRASS, DEAD_BUSH, DANDELION, POPPY, SANDSTONE,
+                STAINED_GLASS, STAINED_GLASS_PANE, CARPET,
+                HARDENED_CLAY, STAINED_HARDENED_CLAY,
                 BROWN_MUSHROOM, RED_MUSHROOM, GLOWSTONE_DUST, QUARTZ, NETHERRACK, SOUL_SAND,
                 LEATHER_HELMET, LEATHER_CHESTPLATE, LEATHER_LEGGINGS, LEATHER_BOOTS,
                 CHAINMAIL_HELMET, CHAINMAIL_CHESTPLATE, CHAINMAIL_LEGGINGS, CHAINMAIL_BOOTS,
