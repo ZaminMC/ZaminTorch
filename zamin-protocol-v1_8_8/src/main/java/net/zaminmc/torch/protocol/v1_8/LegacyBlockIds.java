@@ -482,6 +482,12 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:sponge"), 19),
             Map.entry(Identifier.parse("minecraft:wet_sponge"), 19),
             Map.entry(Identifier.parse("minecraft:gold_block"), 41),
+            // The beacon pyramid's minerals + the beacon itself (Slice 29b):
+            // diamond block 57, emerald block 133, the beacon 138 (the block
+            // and its item share the id).
+            Map.entry(Identifier.parse("minecraft:diamond_block"), 57),
+            Map.entry(Identifier.parse("minecraft:emerald_block"), 133),
+            Map.entry(Identifier.parse("minecraft:beacon"), 138),
             Map.entry(Identifier.parse("minecraft:prismarine"), 168),
             Map.entry(Identifier.parse("minecraft:prismarine_crystals"), 410),
             Map.entry(Identifier.parse("minecraft:prismarine_shard"), 409),

@@ -101,6 +101,10 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     // and the brew timer last sent (the window's property 0).
     private int brewingSlotsSynced = -1;
     private int brewingTimerSent = -1;
+    /** The beacon window's sync state (Slice 29b): the payment slot + the three properties. */
+    private int beaconSlotsSynced = -1;
+    private int beaconPropsSynced = -1;
+    private final int[] beaconPropsSent = new int[3];
 
     V18Connection(V18ProtocolServer adapter, EngineServer engine) {
         this.adapter = adapter;
@@ -432,6 +436,17 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                     // MC|TrSel: a single i32 — the selected trade row.
                     int offerIndex = packet.readInt();
                     engine.tradeSelect(player, offerIndex);
+                }
+                // MC|Beacon (Slice 29b — the BeaconScreen's Done button:
+                // two i32s, the primary and the secondary) — the server's
+                // own handler (ServerPlayNetworkHandler lines 1062-1080):
+                // one payment unit consumes, then the choices land through
+                // the reference's effect gate.
+                if (Protocol18.PLUGIN_CHANNEL_BEACON.equals(pluginChannel)
+                        && packet.readableBytes() >= 8) {
+                    int primary = packet.readInt();
+                    int secondary = packet.readInt();
+                    engine.beaconSelect(player, primary, secondary);
                 }
                 // other channels: rest of the frame skipped by the reader
                 // index (frames are length-delimited, so this is exact).
@@ -951,6 +966,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                     case FURNACE -> sendFurnaceWindow(channel, player, windowId);
                     case CHEST -> sendChestWindow(channel, player, windowId);
                     case ENDER_CHEST -> sendEnderChestWindow(channel, player, windowId);
+                    case BEACON -> sendBeaconWindow(channel, player, windowId);
                     case CHEST_MINECART -> sendChestMinecartWindow(channel, player, windowId);
                     case DISPENSER -> sendDispenserWindow(channel, player, windowId);
                     case HOPPER -> sendHopperWindow(channel, player, windowId);
@@ -1049,6 +1065,139 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeByte(27); // the GUI's own slots: 3 rows of 9
         channel.writeAndFlush(out);
         sendChestWindowItems(channel, windowId, player.enderChest(), player);
+    }
+
+    /**
+     * Open Window (0x2D) for the beacon (Slice 29b — the reference's
+     * BeaconBlockEntity.getMenuType "minecraft:beacon" + BeaconMenu's 1
+     * payment slot), followed by the authoritative 37-slot contents and the
+     * three window properties (levels/primary/secondary — the menu's
+     * addListener → updateData walk). Called on the tick thread by the
+     * engine's open dispatch.
+     */
+    private void sendBeaconWindow(Channel channel, PlayerSession player, int windowId) {
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        var position = player.openContainerPosition();
+        var beacon = position == null ? null : engine.beacons().peek(position);
+        if (beacon == null) {
+            return; // stale open (state discarded): nothing to show
+        }
+        beaconSlotsSynced = -1;
+        beaconPropsSynced = -1;
+        java.util.Arrays.fill(beaconPropsSent, -1);
+        ByteBuf out = Unpooled.buffer(48);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_OPEN_WINDOW);
+        out.writeByte(windowId);
+        ByteBufOps.writeString(out, Protocol18.BEACON_WINDOW_TYPE);
+        ByteBufOps.writeString(out, Protocol18.BEACON_WINDOW_TITLE);
+        out.writeByte(1); // the GUI's own slots: the payment alone
+        channel.writeAndFlush(out);
+        sendBeaconWindowItems(channel, windowId, beacon, player);
+    }
+
+    /**
+     * Full authoritative sync of the beacon window (Slice 29b): 37 slots —
+     * 0 the payment, 1-27 main, 28-36 hotbar — then the three properties.
+     */
+    private void sendBeaconWindowItems(Channel channel, int windowId,
+                                       net.zaminmc.torch.server.beacon.BeaconBlockEntity beacon,
+                                       PlayerSession player) {
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(96);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_WINDOW_ITEMS);
+        out.writeByte(windowId);
+        out.writeShort(Protocol18.BEACON_WINDOW_SLOTS);
+        java.util.List<net.zaminmc.torch.item.ItemStack> inventory =
+                player == null ? java.util.List.of() : player.inventory().snapshot();
+        for (int wireSlot = 0; wireSlot < Protocol18.BEACON_WINDOW_SLOTS; wireSlot++) {
+            net.zaminmc.torch.item.ItemStack stack;
+            if (wireSlot == 0) {
+                stack = beacon.payment();
+            } else if (wireSlot <= 27) {
+                stack = inventory.get(wireSlot - 1 + 9); // main: engine 9-35
+            } else {
+                stack = inventory.get(wireSlot - 28); // hotbar: engine 0-8
+            }
+            writeSlot(out, stack);
+        }
+        channel.writeAndFlush(out);
+        // The three properties ride the open (the menu's updateData).
+        sendWindowProperty(channel, windowId, 0, beacon.levels());
+        sendWindowProperty(channel, windowId, 1, beacon.primary());
+        sendWindowProperty(channel, windowId, 2, beacon.secondary());
+        beaconPropsSent[0] = beacon.levels();
+        beaconPropsSent[1] = beacon.primary();
+        beaconPropsSent[2] = beacon.secondary();
+        beaconPropsSynced = beacon.propsSerial();
+        beaconSlotsSynced = beacon.slotsSerial();
+    }
+
+    /**
+     * Per-tick beacon view (engine fan-out to the open viewer, Slice 29b):
+     * the three properties (levels/primary/secondary) whose values moved —
+     * the reference's own detectAndSendChanges — and the payment-slot
+     * resync when it changed. Tick-thread context.
+     */
+    void sendBeaconViewTick(Channel channel, int windowId,
+                            net.zaminmc.torch.server.beacon.BeaconBlockEntity beacon) {
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        int[] values = {beacon.levels(), beacon.primary(), beacon.secondary()};
+        for (int property = 0; property < values.length; property++) {
+            if (values[property] != beaconPropsSent[property]) {
+                beaconPropsSent[property] = values[property];
+                sendWindowProperty(channel, windowId, property, values[property]);
+            }
+        }
+        beaconPropsSynced = beacon.propsSerial();
+        if (beacon.slotsSerial() != beaconSlotsSynced) {
+            beaconSlotsSynced = beacon.slotsSerial();
+            sendBeaconWindowItems(channel, windowId, beacon, session);
+        }
+    }
+
+    /**
+     * Update Block Entity (0x35, type 3) for one beacon
+     * (BeaconBlockEntity.createUpdatePacket lines 196-200): the position,
+     * the tile type byte, and the NBT compound — the reference's writeNbt
+     * (Primary/Secondary/Levels + the position ints). Any thread.
+     */
+    void sendBeaconTile(net.zaminmc.torch.block.BlockPosition position,
+                        net.zaminmc.torch.server.beacon.BeaconBlockEntity beacon) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY
+                || chunkTracker == null) {
+            return;
+        }
+        if (!chunkTracker.hasChunk(position.chunkPosition().packed())) {
+            return; // the observer cannot see that beacon
+        }
+        writeBeaconTile(channel, position, beacon);
+    }
+
+    /** The tile packet's own writer (the static chunk-send path's form). */
+    private static void writeBeaconTile(Channel channel,
+            net.zaminmc.torch.block.BlockPosition position,
+            net.zaminmc.torch.server.beacon.BeaconBlockEntity beacon) {
+        ByteBuf out = Unpooled.buffer(64);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_UPDATE_BLOCK_ENTITY);
+        ByteBufOps.writePackedBlockPosition(out, position.x(), position.y(), position.z());
+        out.writeByte(Protocol18.BLOCK_ENTITY_TYPE_BEACON);
+        out.writeByte(10);              // TAG_Compound (the root marker)
+        out.writeShort(0);              // the root name: empty
+        writeNbtInt(out, "x", position.x());
+        writeNbtInt(out, "y", position.y());
+        writeNbtInt(out, "z", position.z());
+        writeNbtInt(out, "Primary", beacon.primary());
+        writeNbtInt(out, "Secondary", beacon.secondary());
+        writeNbtInt(out, "Levels", beacon.levels());
+        out.writeByte(0);               // end of the root
+        channel.writeAndFlush(out);
     }
 
     /**
@@ -1870,6 +2019,15 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             // The container slots read the session's own grid (Slice 29a —
             // the block at the position is the door, not the storage).
             sendChestWindowItems(channel, windowId, player.enderChest(), player);
+            return;
+        }
+        if (player.openContainerKind()
+                == net.zaminmc.torch.server.player.PlayerSession.ContainerKind.BEACON) {
+            var position = player.openContainerPosition();
+            var beacon = position == null ? null : engine.beacons().peek(position);
+            if (beacon != null) {
+                sendBeaconWindowItems(channel, windowId, beacon, player);
+            }
             return;
         }
         if (player.openContainerKind()
@@ -4759,6 +4917,16 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                     if (tile.dimension() == dimension) {
                         writeSpawnerTile(channel, tile);
                     }
+                }
+            }
+            // The beacon tile replay (Slice 29b — the same protocol 47 gap):
+            // every beacon in the freshly sent column re-sends its Update
+            // Block Entity (the reference's PlayerChunkMap sending the BE's
+            // createUpdatePacket with the chunk — the client's own beam walk
+            // reads the levels from it).
+            if (dimension == 0 && engine.beacons() != null) {
+                for (var entry : engine.beacons().inChunk(chunk.position())) {
+                    writeBeaconTile(channel, entry.getKey(), entry.getValue());
                 }
             }
         }

@@ -119,6 +119,12 @@ public final class BlockLightTable {
             Map.entry(Identifier.parse("minecraft:ender_chest_south"), new LightData(7, 0)),
             Map.entry(Identifier.parse("minecraft:ender_chest_west"), new LightData(7, 0)),
             Map.entry(Identifier.parse("minecraft:ender_chest_east"), new LightData(7, 0)),
+            // The beacon (Slice 29b — the GLASS material's own transparency,
+            // no emission in the reference's registration) + the pyramid's
+            // two missing minerals (opaque cubes, filter 15).
+            Map.entry(Identifier.parse("minecraft:beacon"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:diamond_block"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:emerald_block"), new LightData(0, 15)),
             Map.entry(Identifier.parse("minecraft:furnace"), new LightData(0, 0)),
 
             // The brewing stand (Slice 11e): the reference's setLight(0.125F)

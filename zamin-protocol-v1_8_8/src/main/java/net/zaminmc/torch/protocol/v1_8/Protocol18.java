@@ -91,6 +91,8 @@ final class Protocol18 {
     static final int S2C_UPDATE_BLOCK_ENTITY = 0x35;
     /** The tile type byte: 1 = the mob spawner (BlockEntity ids, 1.8.8). */
     static final byte BLOCK_ENTITY_TYPE_MOB_SPAWNER = 1;
+    /** Update Block Entity's beacon action (createUpdatePacket: 3). */
+    static final byte BLOCK_ENTITY_TYPE_BEACON = 3;
     /** The spawner's legacy block id (the block event's type word). */
     static final int SPAWNER_LEGACY_BLOCK_ID = 52;
     /** The fired cycle's flame burst (MobSpawner.tick line 108: doEvent 2004). */
@@ -451,6 +453,12 @@ final class Protocol18 {
     static final String ENDER_CHEST_WINDOW_TITLE = "{\"text\":\"Ender Chest\"}";
     /** The ender chest's legacy block id (the lid's Block Action carrier). */
     static final int ENDER_CHEST_LEGACY_BLOCK_ID = 130;
+    /** The beacon's own window (the reference's getMenuType "minecraft:beacon"). */
+    static final String BEACON_WINDOW_TYPE = "minecraft:beacon";
+    static final String BEACON_WINDOW_TITLE = "{\"text\":\"Beacon\"}";
+    /** The beacon window's layout: 1 payment slot + 27 main + 9 hotbar. */
+    static final int BEACON_WINDOW_SLOTS = 37;
+    static final String PLUGIN_CHANNEL_BEACON = "MC|Beacon";
     static final int CHEST_WINDOW_SLOTS = 63;
     static final int CHEST_WIRE_SLOT_LAST = 26;
     static final int CHEST_WIRE_SLOT_MAIN_FIRST = 27;

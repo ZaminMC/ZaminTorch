@@ -509,6 +509,14 @@ public final class BuiltinItems {
             Identifier.parse("minecraft:sponge"), "Sponge", 64);
     public static final EngineItemType GOLD_BLOCK = new EngineItemType(
             Identifier.parse("minecraft:gold_block"), "Block of Gold", 64);
+    // The beacon pyramid's minerals (Slice 29b — legacy 57 and 133) + the
+    // beacon item itself (legacy 138, the block's own id).
+    public static final EngineItemType DIAMOND_BLOCK = new EngineItemType(
+            Identifier.parse("minecraft:diamond_block"), "Block of Diamond", 64);
+    public static final EngineItemType EMERALD_BLOCK = new EngineItemType(
+            Identifier.parse("minecraft:emerald_block"), "Block of Emerald", 64);
+    public static final EngineItemType BEACON = new EngineItemType(
+            Identifier.parse("minecraft:beacon"), "Beacon", 64);
 
     // Mob loot (legacy ids from the community dataset: porkchop 319, cooked
     // porkchop 320, raw chicken 365, cooked chicken 366, feather 288,
@@ -784,6 +792,7 @@ public final class BuiltinItems {
                 NETHER_BRICKS, NETHER_BRICK_FENCE, NETHER_BRICK_STAIRS,
                 PRISMARINE, PRISMARINE_CRYSTALS, PRISMARINE_SHARD, SEA_LANTERN,
                 SPONGE, GOLD_BLOCK,
+                DIAMOND_BLOCK, EMERALD_BLOCK, BEACON,
                 BONE, STRING, GUNPOWDER, WOOL, MUTTON, COOKED_MUTTON, SLIME_BALL,
                 SKULL,
                 BUCKET, WATER_BUCKET, LAVA_BUCKET,

@@ -648,6 +648,30 @@ public final class V18ProtocolServer implements ProtocolAdapter {
         });
         // Brewing windows (Slice 11e): the same per-tick view fan-out — the
         // brew timer's property move + the slots resync on change.
+        // The beacon's state changes (Slice 29b — the reference's
+        // PlayerChunkMap re-sending the BE's createUpdatePacket): every
+        // observer holding the beacon's chunk re-receives the 0x35 tile
+        // (the levels/effects the client's own beam walk reads).
+        if (server.beacons() != null) {
+            server.beacons().addListener((position, beacon) -> {
+                if (position == null || beacon == null) {
+                    return; // the removal arm: no tile to refresh
+                }
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendBeaconTile(position, beacon);
+                }
+            });
+        }
+        // The beacon GUI's per-tick view (Slice 29b): the three properties'
+        // moves + the payment resync, diffed per connection.
+        server.addBeaconViewListener((viewer, beacon) -> {
+            for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                if (connection.currentSession() == viewer) {
+                    connection.sendBeaconViewTick(channelOf(connection),
+                            viewer.openContainerWindowId(), beacon);
+                }
+            }
+        });
         server.addBrewingViewListener((viewer, stand) -> {
             for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
                 if (connection.currentSession() == viewer) {
