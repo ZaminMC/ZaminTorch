@@ -253,6 +253,9 @@ public final class EngineServer implements Server, EngineBridge {
     private ChestManager chestManager;
     private ChestDataStore chestStore;
     private net.zaminmc.torch.server.hopper.HopperDataStore hopperStore;
+    /** The beacon system (Slice 29b — the pyramid + the effect spread). */
+    private net.zaminmc.torch.server.beacon.BeaconSystem beaconSystem;
+    private net.zaminmc.torch.server.beacon.BeaconDataStore beaconStore;
     /** The mob spawner state (Slice 12g — the structure spawners). */
     private net.zaminmc.torch.server.spawner.SpawnerManager spawnerManager;
     private net.zaminmc.torch.server.spawner.SpawnerManager spawners;
@@ -443,6 +446,7 @@ public final class EngineServer implements Server, EngineBridge {
         if (blockRegistry == null) {
             blockRegistry = net.zaminmc.torch.server.cauldron.CauldronBlocks.registerAll(
                     net.zaminmc.torch.server.chest.EnderChestBlocks.registerAll(
+                    net.zaminmc.torch.server.beacon.BeaconSystem.registerBlocks(
                     net.zaminmc.torch.server.brewing.BrewingStandBlocks.registerAll(
                     net.zaminmc.torch.server.dispenser.DispenserSystem.registerBlocks(
                     net.zaminmc.torch.server.hopper.HopperSystem.registerBlocks(
@@ -451,7 +455,7 @@ public final class EngineServer implements Server, EngineBridge {
                     net.zaminmc.torch.server.redstone.RedstoneBlocks.registerAll(
                     net.zaminmc.torch.server.daylight.DaylightDetectorBlocks.registerAll(
                             FluidBlocks.registerAll(
-                                    BuiltinBlocks.registerAll(new BlockRegistryBuilder()))))))))))).freeze();
+                                    BuiltinBlocks.registerAll(new BlockRegistryBuilder())))))))))))).freeze();
         }
 
         state.set(ServerState.STARTING);
@@ -1262,6 +1266,18 @@ public final class EngineServer implements Server, EngineBridge {
                 brewingStore = new net.zaminmc.torch.server.brewing.BrewingStandDataStore(
                         config.worldDataDir().resolve("brewing_stands.bin"));
                 brewingStands.restoreAll(brewingStore.load());
+                // The beacons (Slice 29b — the reference port of
+                // BeaconBlock + BeaconBlockEntity): the 80-tick update walk
+                // (the pyramid recompute + the effect spread), the neighbor
+                // recompute, the payment GUI, and the ZBT persistence.
+                beaconSystem = new net.zaminmc.torch.server.beacon.BeaconSystem(
+                        world, itemEntities);
+                world.addChangeListener(beaconSystem);
+                redstoneSystem.addNeighborListener(beaconSystem::neighborHeard);
+                beaconSystem.setPlayers(() -> new java.util.ArrayList<>(players.all()));
+                beaconStore = new net.zaminmc.torch.server.beacon.BeaconDataStore(
+                        config.worldDataDir().resolve("beacons.bin"));
+                beaconSystem.restoreAll(beaconStore.load());
                 hopperSystem.setBrewingLookup(brewingStands::getOrCreate);
                 // The rolling containers' scan (Slice 25e — getInventoryAt's
                 // entity fallback): the chest minecarts inside the cell's
@@ -1290,6 +1306,7 @@ public final class EngineServer implements Server, EngineBridge {
                 // cadenced periodic application, and the splash's area walk.
                 potionSystem = new net.zaminmc.torch.server.potion.PotionSystem(
                         new PotionBodies());
+                beaconSystem.setPotions(potionSystem); // the beacon's spread rides the potion family
                 projectiles.setPotionSink((x, y, z, damage, directHit, throwerId) -> {
                     potionSystem.splash(x, y, z, damage, directHit,
                             resolveSplashThrower(throwerId));
@@ -1558,9 +1575,11 @@ public final class EngineServer implements Server, EngineBridge {
                     tickLeashes(); // the leash physics + the knots (Slice 11c)
                     tickDecorations(); // the frames' + paintings' survival poll (Slice 28a/28b)
                     randomTicks.tick(players.all()); // §471: grass growth/decay
-                    brewingStands.tick(world); // the brew cycles (Slice 11e)
+                    brewingStands.tick(world);
+                beaconSystem.tick(world.totalTicks()); // the brew cycles (Slice 11e)
                     tickFurnaceViewers();
                     tickBrewingViewers();
+                    tickBeaconViewers();
                     tickEnchantingViewers();
                     tickPlayerBodies();
                     // The portal caches' eviction walk (the reference's
@@ -1604,6 +1623,7 @@ public final class EngineServer implements Server, EngineBridge {
                     hopperSystem.onBlockBroken(position);
                     dispenserSystem.onBlockBroken(position);
                     brewingStands.onBlockBroken(position, itemEntities);
+                    beaconSystem.onBlockBroken(position);
                     noteBlocks.onBlockBroken(position);
                     jukeboxes.onBlockBroken(position);
                     daylightDetectors.onBlockBroken(position);
@@ -2320,6 +2340,11 @@ public final class EngineServer implements Server, EngineBridge {
         return hopperSystem;
     }
 
+    /** @return the beacon system (Slice 29b), or null before boot. */
+    public net.zaminmc.torch.server.beacon.BeaconSystem beacons() {
+        return beaconSystem;
+    }
+
     /** The dispenser subsystem (public: the dispenser tests read/write its state). */
     public net.zaminmc.torch.server.dispenser.DispenserSystem dispensers() {
         return dispenserSystem;
@@ -2551,6 +2576,37 @@ public final class EngineServer implements Server, EngineBridge {
             }
             for (BrewingViewListener listener : brewingViewListeners) {
                 listener.onBrewingViewTick(session, stand);
+            }
+        }
+    }
+
+    /** A per-tick beacon-window view: the adapter diffs the properties. */
+    public interface BeaconViewListener {
+        void onBeaconViewTick(PlayerSession viewer,
+                              net.zaminmc.torch.server.beacon.BeaconBlockEntity beacon);
+    }
+
+    private final java.util.List<BeaconViewListener> beaconViewListeners =
+            new java.util.ArrayList<>();
+
+    public void addBeaconViewListener(BeaconViewListener listener) {
+        beaconViewListeners.add(listener);
+    }
+
+    /** Fans the beacon GUI view out to the open viewer(s). Tick-thread context. */
+    private void tickBeaconViewers() {
+        for (PlayerSession session : players.all()) {
+            if (session.openContainerKind() != PlayerSession.ContainerKind.BEACON
+                    || session.openContainerWindowId() < 0) {
+                continue;
+            }
+            var position = session.openContainerPosition();
+            var beacon = position == null ? null : beaconSystem.peek(position);
+            if (beacon == null) {
+                continue;
+            }
+            for (BeaconViewListener listener : beaconViewListeners) {
+                listener.onBeaconViewTick(session, beacon);
             }
         }
     }
@@ -4592,6 +4648,7 @@ public final class EngineServer implements Server, EngineBridge {
                     case CHEST_MINECART -> clickChestMinecartWindowOnTick(session, wireSlot, button, mode);
                     case HOPPER -> clickHopperWindowOnTick(session, wireSlot, button, mode);
                     case ENDER_CHEST -> clickEnderChestWindowOnTick(session, wireSlot, button, mode);
+                    case BEACON -> clickBeaconWindowOnTick(session, wireSlot, button, mode);
                     case DISPENSER -> clickDispenserWindowOnTick(session, wireSlot, button, mode);
                     case BREWING_STAND -> clickBrewingStandWindowOnTick(session, wireSlot, button, mode);
                     case HORSE -> clickHorseWindowOnTick(session, wireSlot, button, mode);
@@ -5363,6 +5420,122 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /**
+     * Click routing for the beacon window (Slice 29b — the reference's
+     * BeaconMenu): wire 0 is the payment slot (the item filter emerald/
+     * diamond/gold ingot/iron ingot, one stack of one — the PaymentSlot's
+     * own rules), wire 1-27 the main inventory, 28-36 the hotbar. The
+     * payment takes any allowed stack whole (max stack 1); the reference's
+     * shift-click arms ride the same layout. Tick-thread context.
+     */
+    private boolean clickBeaconWindowOnTick(PlayerSession session, int wireSlot, int button,
+                                            int mode) {
+        var inventory = session.inventory();
+        var position = session.openContainerPosition();
+        var beacon = position == null ? null : beaconSystem.peek(position);
+        if (beacon == null || !net.zaminmc.torch.server.beacon.BeaconSystem.isBeacon(
+                world.getBlock(position))) {
+            return false; // stale window (state discarded): rejected, resync restores
+        }
+        switch (mode) {
+            case 0 -> {
+                if (wireSlot == 0) {
+                    // The payment slot: the reference's isItemAllowed + the
+                    // max-stack-1 (the PaymentSlot's own pair) over the
+                    // shared historical cursor semantics.
+                    if (!beacon.payment().isEmpty()
+                            || net.zaminmc.torch.server.beacon.BeaconBlockEntity
+                                    .isPaymentItem(inventory.cursor().type())) {
+                        net.zaminmc.torch.item.ItemStack[] box = {beacon.payment()};
+                        net.zaminmc.torch.server.player.WindowClicks.click(box, 0, button,
+                                inventory.cursorBox(), 1,
+                                cursor -> net.zaminmc.torch.server.beacon.BeaconBlockEntity
+                                        .isPaymentItem(cursor.type()));
+                        beacon.setPayment(box[0]);
+                        return true;
+                    }
+                    return false;
+                }
+                int engineSlot = beaconEngineSlotOf(wireSlot);
+                if (engineSlot >= 0) {
+                    inventory.clickSlot(engineSlot, button);
+                    return true;
+                }
+                return false;
+            }
+            case 1 -> {
+                if (wireSlot == 0) {
+                    // Quick-move the payment back into the inventory.
+                    if (beacon.payment().isEmpty()) {
+                        return false;
+                    }
+                    net.zaminmc.torch.item.ItemStack payment = beacon.payment();
+                    beacon.setPayment(net.zaminmc.torch.item.ItemStack.EMPTY);
+                    var leftover = inventory.pickUp(payment);
+                    if (!leftover.isEmpty()) {
+                        beacon.setPayment(leftover); // no room: it stays
+                    }
+                    return true;
+                }
+                int engineSlot = beaconEngineSlotOf(wireSlot);
+                if (engineSlot >= 0) {
+                    net.zaminmc.torch.item.ItemStack peek = inventory.snapshot().get(engineSlot);
+                    if (peek.isEmpty()) {
+                        return false;
+                    }
+                    if (beacon.payment().isEmpty()
+                            && net.zaminmc.torch.server.beacon.BeaconBlockEntity
+                                    .isPaymentItem(peek.type())) {
+                        // One allowed stack moves into the empty payment slot.
+                        net.zaminmc.torch.item.ItemStack moving =
+                                inventory.dropFromSlot(engineSlot, true);
+                        beacon.setPayment(moving);
+                        return true;
+                    }
+                    return false;
+                }
+                return false;
+            }
+            case 4 -> {
+                if (wireSlot == 0) {
+                    if (beacon.payment().isEmpty()) {
+                        return false;
+                    }
+                    throwFromPlayer(session, beacon.payment());
+                    beacon.setPayment(net.zaminmc.torch.item.ItemStack.EMPTY);
+                    return true;
+                }
+                int engineSlot = beaconEngineSlotOf(wireSlot);
+                if (engineSlot >= 0) {
+                    net.zaminmc.torch.item.ItemStack dropped =
+                            inventory.dropFromSlot(engineSlot, button != 0);
+                    if (!dropped.isEmpty()) {
+                        throwFromPlayer(session, dropped);
+                    }
+                    return true;
+                }
+                return false;
+            }
+            default -> {
+                return false; // number keys / clone / drag: rejected
+            }
+        }
+    }
+
+    /**
+     * Wire slot -> engine inventory slot inside the beacon window (1-27 the
+     * main inventory engine 9-35, 28-36 the hotbar engine 0-8); -1 otherwise.
+     */
+    private static int beaconEngineSlotOf(int wireSlot) {
+        if (wireSlot >= 1 && wireSlot <= 27) {
+            return wireSlot + 8; // main inventory (engine 9-35)
+        }
+        if (wireSlot >= 28 && wireSlot <= 36) {
+            return wireSlot - 28; // hotbar (engine 0-8)
+        }
+        return -1;
+    }
+
+    /**
      * Wire slot -> engine inventory slot inside the dispenser window (9-35
      * maps to main inventory engine slots 9-35 — the layout aligns; 36-44 to
      * hotbar 0-8); -1 for the container's own slots.
@@ -5722,6 +5895,12 @@ public final class EngineServer implements Server, EngineBridge {
             // EnderChestBlock.use lines 73-92: the player's OWN inventory
             // opens (the block is the door, not the storage).
             openEnderChestOnTick(session, clicked, onTableOpened);
+            return;
+        }
+        if (net.zaminmc.torch.server.beacon.BeaconSystem.isBeacon(current)) {
+            // BeaconBlock.use lines 34-46: the beacon GUI opens over the
+            // block entity's own payment slot.
+            openBeaconOnTick(session, clicked, onTableOpened);
             return;
         }
         if (net.zaminmc.torch.server.dispenser.DispenserBlocks.isFamily(current)) {
@@ -8538,6 +8717,24 @@ public final class EngineServer implements Server, EngineBridge {
      * previews the offer (the Set Slot), the execution happens on the slot-2
      * click. Safe from any thread; the application runs on the tick thread.
      */
+    /**
+     * The MC|Beacon confirm (Slice 29b — ServerPlayNetworkHandler lines
+     * 1062-1080): only with a payment in the open beacon's slot — one unit
+     * consumes, then the two effect choices land through the reference's
+     * own gate. Safe from any thread.
+     */
+    public void beaconSelect(PlayerSession session, int primary, int secondary) {
+        Objects.requireNonNull(session, "session");
+        ticker.submit(() -> {
+            if (session.openContainerKind() != PlayerSession.ContainerKind.BEACON
+                    || session.openContainerPosition() == null) {
+                return;
+            }
+            beaconSystem.applySelection(session.openContainerPosition(), primary, secondary);
+            publishInventoryChanged(session);
+        });
+    }
+
     public void tradeSelect(PlayerSession player, int offerIndex) {
         Objects.requireNonNull(player, "player");
         ticker.submit(() -> {
@@ -9012,6 +9209,26 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /**
+     * Opens the beacon GUI at the clicked block (Slice 29b —
+     * BeaconBlock.use lines 34-46): the window assigns over the block
+     * entity's own payment slot; the three properties (levels/primary/
+     * secondary) ride the open's window sync. Tick-thread context.
+     */
+    private void openBeaconOnTick(PlayerSession session,
+                                  net.zaminmc.torch.block.BlockPosition position,
+                                  java.util.function.IntConsumer onTableOpened) {
+        closeOpenContainerOnTick(session);
+        dropGridToWorld(session, session.crafting()); // the vanilla close: the 2x2 grid drops
+
+        beaconSystem.getOrCreate(position);
+        int windowId = nextContainerWindowId;
+        nextContainerWindowId = nextContainerWindowId >= LAST_CONTAINER_WINDOW_ID
+                ? FIRST_CONTAINER_WINDOW_ID : nextContainerWindowId + 1;
+        session.openContainerWindow(windowId, PlayerSession.ContainerKind.BEACON, position);
+        onTableOpened.accept(windowId);
+    }
+
+    /**
      * Opens the hopper container at the clicked block (the reference's
      * HopperBlock.use lines 135-146 + HopperMenu): assigns the wire window
      * id, lazily creates the block-entity state, closes any carried window
@@ -9121,6 +9338,16 @@ public final class EngineServer implements Server, EngineBridge {
                     // Action 1 over legacy 130 — the lid closes for the
                     // other observers).
                     publishChestLid(session.openContainerPosition(), session, false);
+                }
+                if (session.openContainerKind() == PlayerSession.ContainerKind.BEACON
+                        && session.openContainerPosition() != null) {
+                    // BeaconMenu.close lines 46-54: the payment drops into
+                    // the WORLD at the player (never back into the slot).
+                    var beacon = beaconSystem.peek(session.openContainerPosition());
+                    if (beacon != null && !beacon.payment().isEmpty()) {
+                        throwFromPlayer(session, beacon.payment());
+                        beacon.setPayment(net.zaminmc.torch.item.ItemStack.EMPTY);
+                    }
                 }
                 returnWindowCarriedItems(session, true);
                 session.closeContainerWindow();
@@ -13359,6 +13586,9 @@ public final class EngineServer implements Server, EngineBridge {
                 }
                 if (brewingStore != null && brewingStands != null) {
                     brewingStore.save(brewingStands.snapshot());
+                }
+                if (beaconStore != null && beaconSystem != null) {
+                    beaconStore.save(beaconSystem.snapshot());
                 }
                 if (signStore != null && signManager != null) {
                     signStore.save(signManager.snapshot());

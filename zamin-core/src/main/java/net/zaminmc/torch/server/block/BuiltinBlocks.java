@@ -499,6 +499,12 @@ public final class BuiltinBlocks {
             Identifier.parse("minecraft:wet_sponge"), "Wet Sponge", 1);
     public static final EngineBlockType GOLD_BLOCK = new EngineBlockType(
             Identifier.parse("minecraft:gold_block"), "Block of Gold");
+    // The beacon pyramid's remaining minerals (Slice 29b — updateLevels
+    // line 145's four: diamond block legacy 57, emerald block 133).
+    public static final EngineBlockType DIAMOND_BLOCK = new EngineBlockType(
+            Identifier.parse("minecraft:diamond_block"), "Block of Diamond");
+    public static final EngineBlockType EMERALD_BLOCK = new EngineBlockType(
+            Identifier.parse("minecraft:emerald_block"), "Block of Emerald");
 
     // The temple set (Slice 12f — the reference's TemplePieces): the
     // chiseled sandstone (legacy 24/3), the stained hardened clay pair over
@@ -709,6 +715,8 @@ public final class BuiltinBlocks {
                 .register(SPONGE)
                 .register(WET_SPONGE)
                 .register(GOLD_BLOCK)
+                .register(DIAMOND_BLOCK)
+                .register(EMERALD_BLOCK)
                 .register(CHISELED_SANDSTONE)
                 .register(STAINED_CLAY_ORANGE)
                 .register(STAINED_CLAY_YELLOW)

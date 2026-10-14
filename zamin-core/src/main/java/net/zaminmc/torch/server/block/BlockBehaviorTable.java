@@ -171,6 +171,22 @@ public final class BlockBehaviorTable {
                     new BlockBehavior(50.0, true, true, "rock", 4,
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:obsidian"), 1)))),
 
+            // The beacon (Slice 29b — BeaconBlock's own setStrength(3.0F),
+            // the GLASS material): no tool gate, drops itself.
+            Map.entry(Identifier.parse("minecraft:beacon"),
+                    new BlockBehavior(3.0, true, false, null, 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:beacon"), 1)))),
+
+            // The beacon pyramid's minerals (Slice 29b — the dataset's own
+            // rows: diamond block hardness 5, emerald block 5, both
+            // pickaxe-gated iron tier (3), dropping themselves).
+            Map.entry(Identifier.parse("minecraft:diamond_block"),
+                    new BlockBehavior(5.0, true, true, "rock", 3,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:diamond_block"), 1)))),
+            Map.entry(Identifier.parse("minecraft:emerald_block"),
+                    new BlockBehavior(5.0, true, true, "rock", 3,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:emerald_block"), 1)))),
+
             // Community data (pc/1.8 blocks.json): sand hardness 0.5, material
             // dirt, no tool requirement, drops itself (metadata 0: normal sand;
             // red sand is variant 1, /give reachable). Glass hardness 0.3, no

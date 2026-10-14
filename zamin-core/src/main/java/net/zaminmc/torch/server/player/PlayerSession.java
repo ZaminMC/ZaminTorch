@@ -102,6 +102,12 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
          * block at containerPosition is the door, not the storage).
          */
         ENDER_CHEST,
+        /**
+         * The beacon (Slice 29b — the reference's BeaconMenu: the 1-slot
+         * payment GUI with the three properties riding the window, the
+         * MC|Beacon confirm applying the choices).
+         */
+        BEACON,
         /** The villager trading window (offers ride the MC|TrList plugin message). */
         VILLAGER,
         /** The enchanting table (2 transient slots living in the session's menu, seed + costs included). */
