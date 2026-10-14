@@ -102,10 +102,13 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:record_11"), 2266),
             Map.entry(Identifier.parse("minecraft:record_wait"), 2267),
             // The dispenser family's item forms (Slice 11a): the block forms
-            // share the ids 23/125 (the flattened state families register
+            // share the ids 23/158 (the flattened state families register
             // their own entries below); the fire charge is item-only 385.
+            // (Slice 32's wire repair: the dropper is legacy 158 — the
+            // original 125 was the double wooden slab's id, a real client
+            // would render slabs where the dropper should be.)
             Map.entry(Identifier.parse("minecraft:dispenser"), 23),
-            Map.entry(Identifier.parse("minecraft:dropper"), 125),
+            Map.entry(Identifier.parse("minecraft:dropper"), 158),
             Map.entry(Identifier.parse("minecraft:fire_charge"), 385),
             // The potion family (Slice 11b, community items.json): the
             // potion 373 with the effect set riding the damage field, the
@@ -152,6 +155,28 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:string"), 287),
             Map.entry(Identifier.parse("minecraft:gunpowder"), 289),
             Map.entry(Identifier.parse("minecraft:slime_ball"), 341),
+            // The mineral vault family (Slice 32 — the reference's own
+            // registrations): the ores (lapis 21, emerald 129), the storage
+            // blocks (lapis 22, redstone 152, coal 173, quartz 155, brick
+            // 45, clay 82, hay 170, slime 165, end stone 121, packed ice
+            // 174 — the item ids ARE the block ids, Item.java's BlockItem
+            // registrations), and the material items (the clay ball 337,
+            // the brick 336, the nether brick 405 — Item.java lines 709+).
+            Map.entry(Identifier.parse("minecraft:lapis_ore"), 21),
+            Map.entry(Identifier.parse("minecraft:emerald_ore"), 129),
+            Map.entry(Identifier.parse("minecraft:lapis_block"), 22),
+            Map.entry(Identifier.parse("minecraft:redstone_block"), 152),
+            Map.entry(Identifier.parse("minecraft:coal_block"), 173),
+            Map.entry(Identifier.parse("minecraft:quartz_block"), 155),
+            Map.entry(Identifier.parse("minecraft:brick_block"), 45),
+            Map.entry(Identifier.parse("minecraft:clay"), 82),
+            Map.entry(Identifier.parse("minecraft:hay_block"), 170),
+            Map.entry(Identifier.parse("minecraft:slime_block"), 165),
+            Map.entry(Identifier.parse("minecraft:end_stone"), 121),
+            Map.entry(Identifier.parse("minecraft:packed_ice"), 174),
+            Map.entry(Identifier.parse("minecraft:clay_ball"), 337),
+            Map.entry(Identifier.parse("minecraft:brick"), 336),
+            Map.entry(Identifier.parse("minecraft:nether_brick"), 405),
             // The wither skeleton's rare head (Slice 18d — community id 397;
             // the damage field carries the variant, 1 = wither).
             Map.entry(Identifier.parse("minecraft:skull"), 397),
@@ -456,10 +481,15 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:compass"), 329),
             Map.entry(Identifier.parse("minecraft:iron_door"), 330),
             // The fortress set (Slice 12d): the nether-brick family — the
-            // bricks 40, the fence 113, the stairs 114 (the ascending
-            // band in the metadata nibble), the wart 115 (the age 0..3)
-            // and the block item trio 405/113/114.
-            Map.entry(Identifier.parse("minecraft:nether_bricks"), 40),
+            // bricks 112 (repaired in Slice 32), the fence 113, the stairs
+            // 114 (the ascending band in the metadata nibble), the wart
+            // 115 (the age 0..3) and the block item trio 405/113/114.
+            // The nether bricks' wire repair (Slice 32): the fortress block
+            // is legacy 112 (Block.java's register(112, "nether_brick")).
+            // The original Slice 12d row carried 40 — the red mushroom's
+            // id — so real clients rendered mushrooms for fortress walls.
+            // The fence 113 and stairs 114 keep their correct rows below.
+            Map.entry(Identifier.parse("minecraft:nether_bricks"), 112),
             Map.entry(Identifier.parse("minecraft:nether_brick_fence"), 113),
             Map.entry(Identifier.parse("minecraft:nether_brick_stairs_east"), 114),
             Map.entry(Identifier.parse("minecraft:nether_brick_stairs_west"), 114),
@@ -588,14 +618,14 @@ final class LegacyBlockIds {
             merged.put(Identifier.parse("minecraft:daylight_detector_p" + power), 151);
             merged.put(Identifier.parse("minecraft:daylight_detector_inverted_p" + power), 178);
         }
-        // The dispenser families (Slice 11a): the dispenser 23, the dropper
-        // 125 — the facing and the triggered bit ride the nibble
-        // (DispenserBlock lines 202-215).
+        // The dispenser families (Slice 11a; the id repaired in Slice 32):
+        // the dispenser 23, the dropper 158 — the facing and the triggered
+        // bit ride the nibble (DispenserBlock lines 202-215).
         for (String facing : new String[]{"down", "up", "north", "south", "west", "east"}) {
             merged.put(Identifier.parse("minecraft:dispenser_" + facing), 23);
             merged.put(Identifier.parse("minecraft:dispenser_" + facing + "_triggered"), 23);
-            merged.put(Identifier.parse("minecraft:dropper_" + facing), 125);
-            merged.put(Identifier.parse("minecraft:dropper_" + facing + "_triggered"), 125);
+            merged.put(Identifier.parse("minecraft:dropper_" + facing), 158);
+            merged.put(Identifier.parse("minecraft:dropper_" + facing + "_triggered"), 158);
         }
         // The brewing stand family (Slice 11e): legacy 117 — the three
         // HAS_BOTTLE bits ride the nibble (BrewingStandBlock lines 145-166:

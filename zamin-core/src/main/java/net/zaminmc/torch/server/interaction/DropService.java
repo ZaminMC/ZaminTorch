@@ -145,13 +145,46 @@ public final class DropService {
             }
             return List.of(ItemStack.of(self, 1));
         }
+        // The lapis ore's variable base (Slice 32 — OreBlock.getBaseDropCount
+        // line 42: {@code 4 + nextInt(5)}) with the OreBlock fortune
+        // multiplier (getDropCount lines 45-56: {@code nextInt(fortune + 2)
+        // - 1} clamped at 0, then {@code base * (i + 1)}) — the drop is
+        // foreign (the lapis dye), so the multiplier applies.
+        if (broken.identifier().value().equals("lapis_ore")) {
+            int base = 4 + random.nextInt(5);
+            if (fortune > 0) {
+                int i = random.nextInt(fortune + 2) - 1;
+                if (i < 0) {
+                    i = 0;
+                }
+                base *= (i + 1);
+            }
+            ItemType lapis = BuiltinItems.lookup(
+                    Identifier.parse("minecraft:lapis")).orElseThrow();
+            return List.of(ItemStack.of(lapis, base));
+        }
+        // The redstone ore's own walk (Slice 32 — RedstoneOreBlock lines
+        // 71-77): the drop is the dust, base {@code 4 + nextInt(2)}, and
+        // fortune ADDS {@code nextInt(fortune + 1)} — its own override of
+        // the OreBlock multiplier shape, never a multiple.
+        if (broken.identifier().value().equals("redstone_ore")) {
+            int count = 4 + random.nextInt(2) + random.nextInt(fortune + 1);
+            ItemType dust = BuiltinItems.lookup(
+                    Identifier.parse("minecraft:redstone")).orElseThrow();
+            return List.of(ItemStack.of(dust, count));
+        }
         List<ItemStack> drops = new ArrayList<>();
         for (BlockBehavior.Drop drop : behavior.drops()) {
             // First successful roll wins (the historical quantityDropped model):
             // gravel rolls the flint chance, otherwise the next entry takes
             // the slot.
-            boolean gravelFlint = broken.identifier().value().equals("minecraft:gravel")
-                    && drop.item().value().equals("minecraft:flint");
+            // The namespace never rides value() (the Identifier record's
+            // own split) — the original "minecraft:gravel" comparison
+            // never matched, so Fortune never widened the flint chance
+            // (a latent Slice 32 find; the repair restores the reference's
+            // GravelBlock.getDropItem walk).
+            boolean gravelFlint = broken.identifier().value().equals("gravel")
+                    && drop.item().value().equals("flint");
             if (gravelFlint) {
                 // The gravel flint walk (GravelBlock.getDropItem): the flint
                 // chance widens with Fortune — nextInt(10 - fortune * 3) == 0

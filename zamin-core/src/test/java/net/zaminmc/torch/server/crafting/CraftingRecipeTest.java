@@ -46,7 +46,11 @@ class CraftingRecipeTest {
         // wool-coloring rows, the 16 stained-clay rings, the 16 stained-glass
         // rings, the 16 pane folds, the 16 carpet rows, and the two flower
         // dyes (dandelion/poppy).
-        assertEquals(125, BuiltinRecipes.ALL.size());
+        // + the mineral vault (Slice 32 — MineralRecipes' own set): the nine
+        // storage pairs (gold/iron/diamond/emerald/lapis/redstone/coal/hay/
+        // slime ×2 each) + the gold ingot/nugget pair + the four 2x2
+        // masonries (clay, bricks, quartz, nether bricks) = 24 shaped rows.
+        assertEquals(149, BuiltinRecipes.ALL.size());
         long shaped = BuiltinRecipes.ALL.stream().filter(CraftingRecipe::isShaped).count();
         long shapeless = BuiltinRecipes.ALL.size() - shaped;
         assertEquals(28, shapeless,

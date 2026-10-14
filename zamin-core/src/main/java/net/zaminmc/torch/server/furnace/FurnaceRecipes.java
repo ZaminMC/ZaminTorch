@@ -39,33 +39,56 @@ public final class FurnaceRecipes {
     public record SmeltResult(Identifier output, int count, int damage) {
     }
 
-    private static final Map<Identifier, SmeltResult> SMELTING = Map.of(
-            Identifier.parse("minecraft:iron_ore"),
-            new SmeltResult(Identifier.parse("minecraft:iron_ingot"), 1, 0),
-            Identifier.parse("minecraft:gold_ore"),
-            new SmeltResult(Identifier.parse("minecraft:gold_ingot"), 1, 0),
-            Identifier.parse("minecraft:cobblestone"),
-            new SmeltResult(Identifier.parse("minecraft:stone"), 1, 0),
-            Identifier.parse("minecraft:sand"),
-            new SmeltResult(Identifier.parse("minecraft:glass"), 1, 0),
-            Identifier.parse("minecraft:beef"),
-            new SmeltResult(Identifier.parse("minecraft:cooked_beef"), 1, 0),
-            Identifier.parse("minecraft:porkchop"),
-            new SmeltResult(Identifier.parse("minecraft:cooked_porkchop"), 1, 0),
-            Identifier.parse("minecraft:chicken"),
-            new SmeltResult(Identifier.parse("minecraft:cooked_chicken"), 1, 0),
+    private static final Map<Identifier, SmeltResult> SMELTING = Map.ofEntries(
+            Map.entry(Identifier.parse("minecraft:iron_ore"),
+            new SmeltResult(Identifier.parse("minecraft:iron_ingot"), 1, 0)),
+            Map.entry(Identifier.parse("minecraft:gold_ore"),
+            new SmeltResult(Identifier.parse("minecraft:gold_ingot"), 1, 0)),
+            Map.entry(Identifier.parse("minecraft:cobblestone"),
+            new SmeltResult(Identifier.parse("minecraft:stone"), 1, 0)),
+            Map.entry(Identifier.parse("minecraft:sand"),
+            new SmeltResult(Identifier.parse("minecraft:glass"), 1, 0)),
+            Map.entry(Identifier.parse("minecraft:beef"),
+            new SmeltResult(Identifier.parse("minecraft:cooked_beef"), 1, 0)),
+            Map.entry(Identifier.parse("minecraft:porkchop"),
+            new SmeltResult(Identifier.parse("minecraft:cooked_porkchop"), 1, 0)),
+            Map.entry(Identifier.parse("minecraft:chicken"),
+            new SmeltResult(Identifier.parse("minecraft:cooked_chicken"), 1, 0)),
             // The mutton pair (Slice 11i's data-gap fix — the item arrived
             // with the living-night slice's own registration comment claiming
             // the smelt, but the row never landed; the community table's own
             // raw -> cooked entry).
-            Identifier.parse("minecraft:mutton"),
-            new SmeltResult(Identifier.parse("minecraft:cooked_mutton"), 1, 0),
+            Map.entry(Identifier.parse("minecraft:mutton"),
+            new SmeltResult(Identifier.parse("minecraft:cooked_mutton"), 1, 0)),
             // The potato pair (Slice 12b — the village farm's second crop:
             // the raw potato bakes at 0.35 XP like the food band).
-            Identifier.parse("minecraft:potato"),
-            new SmeltResult(Identifier.parse("minecraft:baked_potato"), 1, 0),
-            Identifier.parse("minecraft:oak_log"),
-            new SmeltResult(Identifier.parse("minecraft:coal"), 1, 1));
+            Map.entry(Identifier.parse("minecraft:potato"),
+            new SmeltResult(Identifier.parse("minecraft:baked_potato"), 1, 0)),
+            Map.entry(Identifier.parse("minecraft:oak_log"),
+            new SmeltResult(Identifier.parse("minecraft:coal"), 1, 1)),
+            // The vault's smelts (Slice 32 — SmeltingManager lines 25-64):
+            // the clay pair (the ball -> the brick at 0.3, the block ->
+            // hardened clay at 0.35), the missing ore smelts (coal 0.1,
+            // redstone 0.7, lapis 0.2, emerald 1.0, quartz 0.2), and the
+            // netherrack -> nether brick (0.1 — Item.java 405's own row).
+            Map.entry(Identifier.parse("minecraft:clay_ball"),
+            new SmeltResult(Identifier.parse("minecraft:brick"), 1, 0)),
+            Map.entry(Identifier.parse("minecraft:clay"),
+            new SmeltResult(Identifier.parse("minecraft:hardened_clay"), 1, 0)),
+            Map.entry(Identifier.parse("minecraft:coal_ore"),
+            new SmeltResult(Identifier.parse("minecraft:coal"), 1, 0)),
+            Map.entry(Identifier.parse("minecraft:redstone_ore"),
+            new SmeltResult(Identifier.parse("minecraft:redstone"), 1, 0)),
+            Map.entry(Identifier.parse("minecraft:lapis_ore"),
+            new SmeltResult(Identifier.parse("minecraft:lapis"), 1, 0)),
+            Map.entry(Identifier.parse("minecraft:diamond_ore"),
+            new SmeltResult(Identifier.parse("minecraft:diamond"), 1, 0)),
+            Map.entry(Identifier.parse("minecraft:emerald_ore"),
+            new SmeltResult(Identifier.parse("minecraft:emerald"), 1, 0)),
+            Map.entry(Identifier.parse("minecraft:quartz_ore"),
+            new SmeltResult(Identifier.parse("minecraft:quartz"), 1, 0)),
+            Map.entry(Identifier.parse("minecraft:netherrack"),
+            new SmeltResult(Identifier.parse("minecraft:nether_brick"), 1, 0)));
     // The oak_log entry is charcoal: output coal with damage 1, the 1.8 dataset
     // variant (items.json: coal metadata 1 = "Charcoal"). Charcoal burns like
     // coal because the fuel table keys by item type; the registry has exactly
@@ -73,6 +96,9 @@ public final class FurnaceRecipes {
 
     private static final Map<Identifier, Integer> FUEL = Map.ofEntries(
             Map.entry(Identifier.parse("minecraft:coal"), 1600),
+            // The coal block's burn (Slice 32 — FurnaceBlockEntity
+            // getFuelTime line 279: 16000 ticks, the 16-smelt block).
+            Map.entry(Identifier.parse("minecraft:coal_block"), 16000),
             Map.entry(Identifier.parse("minecraft:oak_planks"), 300),
             Map.entry(Identifier.parse("minecraft:oak_log"), 300),
             Map.entry(Identifier.parse("minecraft:stick"), 100),
@@ -98,7 +124,17 @@ public final class FurnaceRecipes {
             Map.entry(Identifier.parse("minecraft:cooked_mutton"), 0.35),
             Map.entry(Identifier.parse("minecraft:baked_potato"), 0.35),
             Map.entry(Identifier.parse("minecraft:cooked_fish"), 0.35),
-            Map.entry(Identifier.parse("minecraft:coal"), 0.15));
+            Map.entry(Identifier.parse("minecraft:coal"), 0.15),
+            // The vault's take XP (Slice 32 — SmeltingManager's own rows):
+            // the brick 0.3, hardened clay 0.35, the ore smelts' bands.
+            Map.entry(Identifier.parse("minecraft:brick"), 0.3),
+            Map.entry(Identifier.parse("minecraft:hardened_clay"), 0.35),
+            Map.entry(Identifier.parse("minecraft:lapis"), 0.2),
+            Map.entry(Identifier.parse("minecraft:emerald"), 1.0),
+            Map.entry(Identifier.parse("minecraft:redstone"), 0.7),
+            Map.entry(Identifier.parse("minecraft:diamond"), 1.0),
+            Map.entry(Identifier.parse("minecraft:quartz"), 0.2),
+            Map.entry(Identifier.parse("minecraft:nether_brick"), 0.1));
 
     /** @return the experience points one taken output item pays. */
     public static double takeExperienceOf(ItemType output) {

@@ -55,7 +55,15 @@ public final class BlockBehaviorTable {
             Identifier.parse("minecraft:diamond_ore"),
             Identifier.parse("minecraft:farmland"),
             Identifier.parse("minecraft:farmland_wet"),
-            Identifier.parse("minecraft:bookshelf"));
+            Identifier.parse("minecraft:bookshelf"),
+            // The mineral vault's silk arms (Slice 32 — the OreBlock silk
+            // gate is the default hasSilkTouchDrops, so lapis/emerald ore
+            // take themselves; PackedIceBlock rides the same default with
+            // its bare-hand count 0).
+            Identifier.parse("minecraft:lapis_ore"),
+            Identifier.parse("minecraft:emerald_ore"),
+            Identifier.parse("minecraft:redstone_ore"),
+            Identifier.parse("minecraft:packed_ice"));
 
     /** @return whether the block's silk touch drops its own item (the reference gate). */
     public static boolean isSilkTouchable(Identifier block) {
@@ -187,6 +195,55 @@ public final class BlockBehaviorTable {
                     new BlockBehavior(5.0, true, true, "rock", 3,
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:emerald_block"), 1)))),
 
+            // The mineral vault family (Slice 32 — the reference's own
+            // rows). Harvest gates are PickaxeItem.canMineBlock's: lapis
+            // ore/block tier >= 1 (the engine's band 2 — stone pickaxe),
+            // emerald ore >= 2 (iron, band 3); the plain stone-material
+            // blocks take any pickaxe (band 1). Clay is the shovel family
+            // (dirt band, ClayBlock's 4 clay balls); hay and slime need no
+            // tool at all.
+            Map.entry(Identifier.parse("minecraft:lapis_ore"),
+                    new BlockBehavior(3.0, true, true, "rock", 2,
+                            // The count is the DropService's family arm:
+                            // OreBlock.getBaseDropCount's 4 + nextInt(5)
+                            // (the fixed 4 here only rides non-family
+                            // callers that read the table raw).
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:lapis"), 4)))),
+            Map.entry(Identifier.parse("minecraft:emerald_ore"),
+                    new BlockBehavior(3.0, true, true, "rock", 3,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:emerald"), 1)))),
+            Map.entry(Identifier.parse("minecraft:lapis_block"),
+                    new BlockBehavior(3.0, true, true, "rock", 2,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:lapis_block"), 1)))),
+            Map.entry(Identifier.parse("minecraft:redstone_block"),
+                    new BlockBehavior(5.0, true, true, "rock", 1,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:redstone_block"), 1)))),
+            Map.entry(Identifier.parse("minecraft:coal_block"),
+                    new BlockBehavior(5.0, true, true, "rock", 1,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:coal_block"), 1)))),
+            Map.entry(Identifier.parse("minecraft:quartz_block"),
+                    new BlockBehavior(0.8, true, true, "rock", 1,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:quartz_block"), 1)))),
+            Map.entry(Identifier.parse("minecraft:brick_block"),
+                    new BlockBehavior(2.0, true, true, "rock", 1,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:brick_block"), 1)))),
+            Map.entry(Identifier.parse("minecraft:clay"),
+                    new BlockBehavior(0.6, true, false, "dirt", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:clay_ball"), 4)))),
+            Map.entry(Identifier.parse("minecraft:hay_block"),
+                    new BlockBehavior(0.5, true, false, null, 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:hay_block"), 1)))),
+            Map.entry(Identifier.parse("minecraft:slime_block"),
+                    new BlockBehavior(0.0, true, false, null, 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:slime_block"), 1)))),
+            Map.entry(Identifier.parse("minecraft:end_stone"),
+                    new BlockBehavior(3.0, true, true, "rock", 1,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:end_stone"), 1)))),
+            // PackedIceBlock.getBaseDropCount 0: the bare pickaxe gets
+            // nothing; silk takes the block itself (the silk set below).
+            Map.entry(Identifier.parse("minecraft:packed_ice"),
+                    new BlockBehavior(0.5, true, true, "rock", 1, List.of())),
+
             // Community data (pc/1.8 blocks.json): sand hardness 0.5, material
             // dirt, no tool requirement, drops itself (metadata 0: normal sand;
             // red sand is variant 1, /give reachable). Glass hardness 0.3, no
@@ -233,7 +290,13 @@ public final class BlockBehaviorTable {
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:gold_ore"), 1)))),
             Map.entry(Identifier.parse("minecraft:redstone_ore"),
                     new BlockBehavior(3.0, true, true, "rock", 3,
-                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:redstone_ore"), 1)))),
+                            // The 1:1 repair (Slice 32 — RedstoneOreBlock
+                            // lines 66-77): the drop is the DUST, base
+                            // 4 + nextInt(2), fortune ADDS nextInt(f+1)
+                            // — the DropService's family arm owns the
+                            // walk; the fixed 4 here is the raw-table
+                            // fallback only.
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:redstone"), 4)))),
             Map.entry(Identifier.parse("minecraft:oak_leaves"),
                     new BlockBehavior(0.2, true, true, "leaves", 1,
                             List.of())),

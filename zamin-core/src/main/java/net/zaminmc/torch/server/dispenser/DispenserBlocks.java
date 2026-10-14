@@ -8,7 +8,8 @@ import net.zaminmc.torch.util.Identifier;
 /**
  * The dispenser and dropper families' block types (Slice 11a — the flattened
  * state model, reference/1.8.8 block/DispenserBlock.java +
- * block/DropperBlock.java): legacy 23 the dispenser, 125 the dropper, six
+ * block/DropperBlock.java): legacy 23 the dispenser, 158 the dropper (the
+ * id repaired in Slice 32 — the original 125 was the double wooden slab's), six
  * FACING values and a TRIGGERED pair per facing. The nibble is the
  * reference's metadata {@code facing | (triggered ? 8 : 0)}
  * (DispenserBlock lines 202-215: getDirection reads {@code id & 7},
