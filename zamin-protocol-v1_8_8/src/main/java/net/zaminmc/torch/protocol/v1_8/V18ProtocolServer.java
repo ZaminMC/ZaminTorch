@@ -747,6 +747,32 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                 }
             }
         });
+        // The armor stands (Slice 28c): the Spawn Object 78 + the pose
+        // metadata + the Entity Equipment family + the Destroy, all
+        // broadcast to every connection.
+        server.addArmorStandListener(new net.zaminmc.torch.server.armorstand.ArmorStandSystem.Listener() {
+            @Override
+            public void onStandSpawned(net.zaminmc.torch.server.armorstand.ArmorStand stand) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendStandSpawned(stand);
+                }
+            }
+
+            @Override
+            public void onStandRemoved(net.zaminmc.torch.server.armorstand.ArmorStand stand) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendStandRemoved(stand.entityId());
+                }
+            }
+
+            @Override
+            public void onStandEquipmentChanged(
+                    net.zaminmc.torch.server.armorstand.ArmorStand stand, int slot) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendStandEquipment(stand, slot);
+                }
+            }
+        });
         // The potion effects (Slice 11b — the reference's ServerPlayerEntity
         // overrides lines 772-787): the Entity Effect / Remove Entity Effect
         // packets go to the affected player's own client only; the 600-tick
@@ -1156,6 +1182,14 @@ public final class V18ProtocolServer implements ProtocolAdapter {
             }
             for (net.zaminmc.torch.server.decoration.Painting painting : decorations.allPaintings()) {
                 newcomer.sendPaintingSpawned(painting);
+            }
+        }
+        // The armor stands already standing (Slice 28c): the same world
+        // snapshot — the equipment rides the spawn's own five packets.
+        var stands = engine.armorStands();
+        if (stands != null) {
+            for (net.zaminmc.torch.server.armorstand.ArmorStand stand : stands.allStands()) {
+                newcomer.sendStandSpawned(stand);
             }
         }
         // Falling blocks mid-transition when someone joins: spawn them for the

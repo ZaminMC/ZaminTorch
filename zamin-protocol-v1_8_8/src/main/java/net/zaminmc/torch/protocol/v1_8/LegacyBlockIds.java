@@ -393,6 +393,8 @@ final class LegacyBlockIds {
             // painting 321.
             Map.entry(Identifier.parse("minecraft:item_frame"), 389),
             Map.entry(Identifier.parse("minecraft:painting"), 321),
+            // The armor stand's item form (Slice 28c — Item.java line 720).
+            Map.entry(Identifier.parse("minecraft:armor_stand"), 416),
             Map.entry(Identifier.parse("minecraft:carrot_on_a_stick"), 398),
             Map.entry(Identifier.parse("minecraft:emerald"), 388),
             // The villager's trade stock (Slice 21g — the reference's

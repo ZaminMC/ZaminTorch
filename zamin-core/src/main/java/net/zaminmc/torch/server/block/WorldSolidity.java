@@ -193,6 +193,15 @@ public final class WorldSolidity {
                 || isCropStage(id);
     }
 
+    /**
+     * The replaceable read (the armor stand's placement gate — the
+     * reference's {@code canBeReplaced}): air and the walk-through flora
+     * answer true; a body may stand there.
+     */
+    public static boolean isReplaceable(Identifier id) {
+        return isFlora(id);
+    }
+
     /** The ladders (block 65): climbable, never block a body. */
     public static boolean isLadder(Identifier id) {
         return id.namespace().equals("minecraft")

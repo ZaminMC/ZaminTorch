@@ -284,6 +284,10 @@ public final class EngineServer implements Server, EngineBridge {
     private net.zaminmc.torch.server.decoration.DecorationSystem decorations;
     /** The decorations' ZED persistence. */
     private net.zaminmc.torch.server.decoration.DecorationDataStore decorationStore;
+    /** The armor stands (Slice 28c). */
+    private net.zaminmc.torch.server.armorstand.ArmorStandSystem armorStands;
+    /** The armor stands' ZAD persistence. */
+    private net.zaminmc.torch.server.armorstand.ArmorStandDataStore armorStandStore;
     /** The note tiles' ZND persistence. */
     private net.zaminmc.torch.server.noteblock.NoteDataStore noteStore;
     /** The hopper subsystem (Slice 10b): the 8-tick transfer cadence. */
@@ -383,6 +387,8 @@ public final class EngineServer implements Server, EngineBridge {
     private static final int LIGHTNING_ID_BASE = KNOT_ID_BASE + 1_000_000;
     /** Decorations (item frames, paintings) get the band above the lightning. */
     private static final int DECORATION_ID_BASE = LIGHTNING_ID_BASE + 1_000_000;
+    /** Armor stands get the band above the decorations. */
+    private static final int ARMOR_STAND_ID_BASE = DECORATION_ID_BASE + 1_000_000;
 
     /** The shared shape-aware physics query (items, falling blocks, projectiles). */
     private final ShapeGround shapeGround = new ShapeGround();
@@ -1119,6 +1125,13 @@ public final class EngineServer implements Server, EngineBridge {
                 // reader consults the frame registry at the air cell one
                 // beyond the input block.
                 redstoneSystem.setFrameReader(decorations::frameComparatorRead);
+                // The armor stands (Slice 28c): the placement/swap/break
+                // ladders + the ZAD persistence.
+                armorStands = new net.zaminmc.torch.server.armorstand.ArmorStandSystem(
+                        new ArmorStandSurface(), ARMOR_STAND_ID_BASE);
+                armorStandStore = new net.zaminmc.torch.server.armorstand.ArmorStandDataStore(
+                        config.worldDataDir().resolve("armorstands.bin"));
+                armorStands.restore(armorStandStore.load());
                 // The cross-system neighbor bus (Slice 9f): the pistons and
                 // the TNT ride the redstone family's neighbor dispatch —
                 // the reference's world-level neighborChanged.
@@ -3342,6 +3355,26 @@ public final class EngineServer implements Server, EngineBridge {
                         double pHorizontal = Math.sqrt(pdx * pdx + pdz * pdz);
                         if (pHorizontal <= MELEE_REACH + 1.0 && pdy > -2.0 && pdy < 4.0) {
                             decorations.attackPainting(painting,
+                                    attacker.gamemode() == net.zaminmc.torch.GameMode.CREATIVE);
+                            attacker.addExhaustion(ATTACK_EXHAUSTION);
+                        }
+                        return;
+                    }
+                }
+                // The armor stands (Slice 28c): the melee break ladder —
+                // the first hit's five-tick stamp (the wobble), the
+                // double-hit break with the stand item + the equipment
+                // drops, the creative instant remove.
+                if (armorStands != null) {
+                    net.zaminmc.torch.server.armorstand.ArmorStand stand =
+                            armorStands.byId(targetEntityId);
+                    if (stand != null) {
+                        double sdx = stand.x() - attacker.position().x();
+                        double sdy = stand.y() + 0.9 - attacker.position().y();
+                        double sdz = stand.z() - attacker.position().z();
+                        double sHorizontal = Math.sqrt(sdx * sdx + sdz * sdz);
+                        if (sHorizontal <= MELEE_REACH + 1.0 && sdy > -2.0 && sdy < 4.0) {
+                            armorStands.attack(stand,
                                     attacker.gamemode() == net.zaminmc.torch.GameMode.CREATIVE);
                             attacker.addExhaustion(ATTACK_EXHAUSTION);
                         }
@@ -5913,6 +5946,14 @@ public final class EngineServer implements Server, EngineBridge {
             placePaintingOnTick(session, clicked, face, creativeHeld);
             return;
         }
+        // The armor stand's placement (Slice 28c — ArmorStandItem.useOn
+        // lines 22-68): the DOWN face refuses, the cell + headroom gate,
+        // the entity box gate, the 45-degree yaw snap, the pose roll.
+        if (heldId.equals("minecraft:armor_stand")
+                || creativeHeld.map(t -> t.identifier().value().equals("armor_stand")).orElse(false)) {
+            placeArmorStandOnTick(session, clicked, face, creativeHeld);
+            return;
+        }
         blockInteraction.placeFromUseOnTick(session, clicked, face, creativeHeld);
     }
 
@@ -5983,6 +6024,28 @@ public final class EngineServer implements Server, EngineBridge {
         }
         if (decorations.placePainting(clicked, face, facing)) {
             consumePlaced(session, creativeHeld); // a landed painting consumes one unit
+        }
+    }
+
+    /**
+     * The armor stand's placement arm (Slice 28c): the reach gate, the
+     * DOWN-face gate, the cell + headroom + entity-box gates, the yaw
+     * snap off the player's own look, then the consume.
+     */
+    private void placeArmorStandOnTick(PlayerSession session, BlockPosition clicked, int face,
+                                       java.util.Optional<BlockType> creativeHeld) {
+        if (distanceSquaredEyeToBlock(session.position(), clicked) > 4.5 * 4.5) {
+            return;
+        }
+        if (face == 0) {
+            return; // DOWN: the reference's own refusal
+        }
+        if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE
+                && session.inventory().held().isEmpty()) {
+            return;
+        }
+        if (armorStands.place(clicked, face, session.rotation().yaw(), gameplayRandom)) {
+            consumePlaced(session, creativeHeld);
         }
     }
 
@@ -7670,6 +7733,43 @@ public final class EngineServer implements Server, EngineBridge {
                                     .toString().equals("minecraft:carrot_on_a_stick");
                     mobManager.steerRidden(mount, sideways, forward, jump, controls);
                 }
+            }
+        });
+    }
+
+    /**
+     * The interact-at arm (Use Entity 0x02 mouse=2, the offset-carrying
+     * click — Slice 28c): the armor stand's equipment swap ladder reads
+     * the hit's own height to name the worn piece. The client follows
+     * with the plain INTERACT (a no-op for the stands — the reference's
+     * own interactAt-then-interact pair).
+     */
+    public void interactAtEntity(PlayerSession player, int targetEntityId,
+                                 double offsetX, double offsetY, double offsetZ) {
+        Objects.requireNonNull(player, "player");
+        ticker.submit(() -> {
+            if (player.state() != PlayerState.PLAYING || player.dead()
+                    || armorStands == null) {
+                return;
+            }
+            net.zaminmc.torch.server.armorstand.ArmorStand stand =
+                    armorStands.byId(targetEntityId);
+            if (stand == null) {
+                return; // only the stands read the offset
+            }
+            double dx = stand.x() - player.position().x();
+            double dy = stand.y() - player.position().y();
+            double dz = stand.z() - player.position().z();
+            double horizontal = Math.sqrt(dx * dx + dz * dz);
+            if (horizontal > MELEE_REACH + 1.0 || dy < -2.0 || dy > 4.0) {
+                return; // out of reach: the server-side refusal
+            }
+            PlayerInventory inventory = player.inventory();
+            int heldSlot = inventory.heldSlot();
+            if (armorStands.interactAt(stand, inventory.held(), offsetY,
+                    player.gamemode() == GameMode.CREATIVE,
+                    replacement -> inventory.setSlot(heldSlot, replacement))) {
+                publishInventoryChanged(player);
             }
         });
     }
@@ -9752,6 +9852,64 @@ public final class EngineServer implements Server, EngineBridge {
     /** The decorations' survival poll (Slice 28a/28b — the 100-tick walk). */
     private void tickDecorations() {
         decorations.tick();
+        armorStands.tick(); // the stands' fire burn-down (Slice 28c)
+    }
+
+    /** The armor stands' engine surface (the world gates + the drops). */
+    private final class ArmorStandSurface
+            implements net.zaminmc.torch.server.armorstand.ArmorStandSystem.Surface {
+        @Override
+        public boolean replaceableAt(net.zaminmc.torch.block.BlockPosition pos) {
+            return WorldSolidity.isReplaceable(world.getBlock(pos).identifier());
+        }
+
+        @Override
+        public boolean airAt(net.zaminmc.torch.block.BlockPosition pos) {
+            return world.getBlock(pos).equals(world.airType());
+        }
+
+        @Override
+        public void dropItem(Position at, ItemStack stack) {
+            if (!stack.isEmpty()) {
+                itemEntities.spawnDropAtBlock(at, stack, ItemEntity.PICKUP_DELAY_DROP_TICKS);
+            }
+        }
+
+        @Override
+        public boolean entityOccupies(double minX, double minY, double minZ,
+                                      double maxX, double maxY, double maxZ) {
+            for (PlayerSession player : players.all()) {
+                Position p = player.position();
+                if (p.x() >= minX - 0.3 && p.x() <= maxX + 0.3
+                        && p.y() >= minY && p.y() <= maxY
+                        && p.z() >= minZ - 0.3 && p.z() <= maxZ + 0.3) {
+                    return true;
+                }
+            }
+            for (MobEntity mob : mobManager.all()) {
+                Position p = mob.position();
+                if (p.x() >= minX - mob.type().width * 0.5
+                        && p.x() <= maxX + mob.type().width * 0.5
+                        && p.y() >= minY && p.y() <= maxY + mob.type().height
+                        && p.z() >= minZ - mob.type().width * 0.5
+                        && p.z() <= maxZ + mob.type().width * 0.5) {
+                    return true;
+                }
+            }
+            for (net.zaminmc.torch.server.armorstand.ArmorStand other : armorStands.allStands()) {
+                if (other.x() >= minX && other.x() <= maxX
+                        && other.z() >= minZ && other.z() <= maxZ
+                        && other.y() >= minY - 1.975 && other.y() <= maxY) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        @Override
+        public long now() {
+            return world.timeOfDay();
+        }
     }
 
     /** The decoration system's engine surface (the world + the drops). */
@@ -10003,6 +10161,24 @@ public final class EngineServer implements Server, EngineBridge {
     /** The decoration system (§27.3's surface — the frames + the paintings). */
     public net.zaminmc.torch.server.decoration.DecorationSystem decorations() {
         return decorations;
+    }
+
+    /** The armor stand system (§27.3's surface). */
+    public net.zaminmc.torch.server.armorstand.ArmorStandSystem armorStands() {
+        return armorStands;
+    }
+
+    /**
+     * Registers the armor stand observer (the protocol adapter's Spawn
+     * Object 78 + the metadata + the Entity Equipment family + the
+     * Destroy fan-out).
+     */
+    public void addArmorStandListener(
+            net.zaminmc.torch.server.armorstand.ArmorStandSystem.Listener listener) {
+        if (armorStands == null) {
+            throw new IllegalStateException("the armor stand system boots with the world");
+        }
+        armorStands.addListener(listener);
     }
 
     /**
@@ -12995,6 +13171,9 @@ public final class EngineServer implements Server, EngineBridge {
                     net.zaminmc.torch.server.decoration.DecorationSystem.Snapshot decorationSaved =
                             decorations.snapshot();
                     decorationStore.save(decorationSaved.frames(), decorationSaved.paintings());
+                }
+                if (armorStandStore != null && armorStands != null) {
+                    armorStandStore.save(armorStands.snapshot());
                 }
                 if (dispenserStore != null && dispenserSystem != null) {
                     dispenserStore.save(dispenserSystem.snapshot());
