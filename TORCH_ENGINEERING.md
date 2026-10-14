@@ -8,8 +8,8 @@
 
 - Build: Gradle Kotlin DSL, Java 21 toolchain, JUnit 5.
 - Modules: `:zamin-api`, `:zamin-core`, `:zamin-protocol-v1_8_8`, `:zamin-launcher`.
-- Current build distribution version in `zamin-launcher/build.gradle.kts`: `0.2.0-dev.25`.
-- Latest release: [v0.2.0-dev.25](https://github.com/ZaminMC/ZaminTorch/releases/tag/v0.2.0-dev.25), with a server JAR and distribution ZIP. 667 tests green at the build's commit (the full suite ran on the same tree; the full pass on 2-core hosts uses `--max-workers=1`).
+- Current build distribution version in `zamin-launcher/build.gradle.kts`: `1.8.8-26` (the torch-1.8.8-N scheme; stamped automatically by the release workflow on every cut).
+- Latest release: cut automatically from every `develop` push by `.github/workflows/release.yml` — prereleases tagged `torch-1.8.8-N` (the numbering continues the legacy `v0.2.0-dev.N` ledger: dev.25 → torch-1.8.8-26), shipping `torch-1.8.8-N.jar` + `ZaminTorch-server-1.8.8-N.zip`. The workflow runs the full suite before publishing (one retry for the three documented load flakes; the flake-free invocation on 2-core hosts is `--max-workers=1`).
 - The committed 1.8.8 reference tree is `reference/1.8.8/`, described by the repository as 1,634 decompiled classes.
 - `Folia-ver-26.2.x.zip` is committed at the repository root.
 - The requested `1.8.8 - mechanics.zip` is not present in the inspected `develop` tree. Recover it before claiming it was inspected or using it as the required implementation source.

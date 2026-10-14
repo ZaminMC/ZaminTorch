@@ -4877,3 +4877,50 @@ the dawn mid-band; the live 20-tick walk — the noon lift to p15, the
 weak-emission consult, the midnight drop, the use arm's inverted-midnight
 flip to inverted_p15, the break cleanup + the re-place; the family
 predicates + the band wrap).
+
+## Release automation — the torch-1.8.8-N era
+
+**The pipeline** (`.github/workflows/release.yml`): every push to `develop`
+now cuts the next numbered dev build automatically. The run computes N over
+BOTH tag ledgers — the legacy `v0.2.0-dev.N` family and the new
+`torch-1.8.8-N` family, one continuous numbering (dev.25 →
+torch-1.8.8-26) — stamps the version into `distVersion`
+(zamin-launcher/build.gradle.kts) and `UpdateChecker.BUILD_VERSION` in the
+workspace, syncs the bump back to develop as a `[skip ci]` commit BEFORE
+building (so the jar is always built from the exact tree that gets tagged,
+even when a rebase pulls newer commits mid-run), runs the full suite with
+one retry for the three documented load flakes
+(LifecycleEvent/HopperSystem/HopperWindow), tags `torch-1.8.8-N`
+(lightweight, matching the v0.2.0-dev.* family), and publishes the fat jar
++ server zip as a prerelease through gh. Release notes are generated from
+the commits since the previous tag; the title comes from a workflow_dispatch
+input or a `Release-Title:` trailer on any commit in the range.
+
+**The rename bridge:** the artifact scheme moves from
+`zamin-server-0.2.0-dev.N.jar` to `torch-1.8.8-N.jar` (tag
+`torch-1.8.8-N`, fat jar `torch-1.8.8-N.jar`, zip
+`ZaminTorch-server-1.8.8-N.zip`, manifest `Implementation-Version`
+`1.8.8-N`). UpdateChecker now reads both ledgers — `torch-1.8.8-N` tags
+against `1.8.8-N` builds, the legacy `v0.2.0-dev.N` tags still parsing so
+any torch build orders above every legacy one — and consults the releases
+LIST endpoint (`/releases?per_page=1`) instead of `/releases/latest`,
+because /latest cannot see prereleases and every automated release is one;
+the atom feed remains the rate-limit-free fallback. Fielded dev.2–dev.25
+builds parse the new tags as noise and stay silent (the accepted cost of
+the rename). UpdateCheckerTest pins the ordering bridge (9 cases: prefix
+non-bumps, numeric comparison, the torch-above-legacy rule, the legacy
+internal order, garbage/null silence).
+
+**The identities and the safety rails:** every pipeline commit, tag push
+and release is authored as Abasing through the encrypted `ABASING_TOKEN`
+repo secret — never `github-actions[bot]`. The bump commit's `[skip ci]`
+breaks the self-retrigger loop; the concurrency group serializes releases;
+a build/test failure pushes no tag and cuts no release (the next run reuses
+the number — the already-pushed bump commit becomes the next release head);
+a run that dies between tag and release is resumed by the orphan-tag repair
+path; re-running a published run is a no-op. `scripts/release.sh` is the
+local gh companion: watch the latest run, dispatch a titled off-cycle
+release, print run/release status.
+
+**Fresh suite at this commit:** 10 launcher tests (UpdateCheckerTest),
+green.

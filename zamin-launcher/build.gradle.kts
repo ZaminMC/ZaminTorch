@@ -25,13 +25,20 @@ tasks.register<JavaExec>("runServer") {
  * zipped for the GitHub release. The update checker inside the launcher
  * compares its build version against the released tag, so this artifact's
  * version constant and the release tag must move together.
+ *
+ * The torch-1.8.8-N scheme (from build 26 on): the release tag is
+ * torch-1.8.8-N, the fat jar torch-1.8.8-N.jar, the zip
+ * ZaminTorch-server-1.8.8-N.zip, and the numbering continues the legacy
+ * v0.2.0-dev.N ledger (dev.25 -> torch-1.8.8-26). The release workflow
+ * (.github/workflows/release.yml) stamps this constant and
+ * UpdateChecker.BUILD_VERSION on every cut.
  */
-val distVersion = "0.2.0-dev.25"
+val distVersion = "1.8.8-26"
 
 val fatJar = tasks.register<Jar>("fatServerJar") {
     group = "zamin"
     description = "Merges every runtime classpath jar into one launchable server jar."
-    archiveFileName.set("zamin-server-$distVersion.jar")
+    archiveFileName.set("torch-$distVersion.jar")
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     dependsOn(tasks.jar) // the launcher jar must exist before it is expanded
     // The runtime-classpath module jars are expanded below; without these
@@ -66,7 +73,7 @@ val stageDist = tasks.register<DefaultTask>("stageDist") {
         startShFile.writeText("""#!/usr/bin/env sh
 # ZaminTorch server launcher (Linux/macOS). Requires Java 21+ on the PATH.
 cd "$(dirname "$0")"
-exec java -Xms256m -Xmx1g -jar zamin-server-$distVersion.jar
+exec java -Xms256m -Xmx1g -jar torch-$distVersion.jar
 """)
         startShFile.setExecutable(true)
 
@@ -74,14 +81,14 @@ exec java -Xms256m -Xmx1g -jar zamin-server-$distVersion.jar
         startBatFile.writeText("""@echo off
 rem ZaminTorch server launcher (Windows). Requires Java 21+ on the PATH.
 cd /d "%~dp0"
-java -Xms256m -Xmx1g -jar zamin-server-$distVersion.jar
+java -Xms256m -Xmx1g -jar torch-$distVersion.jar
 pause
 """)
 
         val startPs1File = dir.resolve("start.ps1")
         startPs1File.writeText("""# ZaminTorch server launcher (PowerShell). Requires Java 21+ on the PATH.
 Set-Location ${'$'}PSScriptRoot
-java -Xms256m -Xmx1g -jar zamin-server-$distVersion.jar
+java -Xms256m -Xmx1g -jar torch-$distVersion.jar
 """)
 
         val quickstartFile = dir.resolve("QUICKSTART.md")
