@@ -837,6 +837,13 @@ public final class BuiltinItems {
             Identifier.parse("minecraft:dandelion"), "Dandelion", 64);
     public static final EngineItemType POPPY = new EngineItemType(
             Identifier.parse("minecraft:poppy"), "Poppy", 64);
+    // The flower family item (Slice 44 — Item.java's own BlockItem row: the
+    // red flower 38) whose damage field carries the FlowerBlock.TYPE id
+    // (0 poppy .. 8 oxeye daisy) — the dye families' own damage-domain
+    // model; the poppy keeps its plain form, the dandelion is the yellow
+    // group's whole family on its own id 37.
+    public static final EngineItemType RED_FLOWER = new EngineItemType(
+            Identifier.parse("minecraft:red_flower"), "Poppy", 64);
     public static final EngineItemType SANDSTONE = new EngineItemType(
             Identifier.parse("minecraft:sandstone"), "Sandstone", 64);
 
@@ -984,7 +991,7 @@ public final class BuiltinItems {
                 BUCKET, WATER_BUCKET, LAVA_BUCKET,
                 FLINT_AND_STEEL, GOLD_INGOT,
                 SUGAR_CANE, CACTUS, SUGAR, PAPER, BOOK,
-                TALL_GRASS, DEAD_BUSH, DANDELION, POPPY, SANDSTONE,
+                TALL_GRASS, DEAD_BUSH, DANDELION, POPPY, RED_FLOWER, SANDSTONE,
                 STAINED_GLASS, STAINED_GLASS_PANE, CARPET,
                 HARDENED_CLAY, STAINED_HARDENED_CLAY,
                 BROWN_MUSHROOM, RED_MUSHROOM, GLOWSTONE_DUST, QUARTZ, NETHERRACK, SOUL_SAND,

@@ -391,7 +391,7 @@ public final class BlockUpdateSystem implements WorldChangeListener {
         // The lily pad's support rule (Slice 42 — LilyPadBlock.canSurvive
         // lines 51-57: the block below must be a WATER SOURCE — flowing
         // water or a departing source pops the pad with its item).
-        if (identifier.equals("waterlily")) {
+        if (identifier.value().equals("waterlily")) {
             BlockType below = world.getBlock(position.offset(0, -1, 0));
             if (FluidBlocks.isSource(below.identifier())
                     && FluidBlocks.kindOf(below.identifier()) == FluidBlocks.Kind.WATER) {
@@ -402,6 +402,64 @@ public final class BlockUpdateSystem implements WorldChangeListener {
                     new Position(position.x(), position.y(), position.z()),
                     ItemStack.of(net.zaminmc.torch.server.item.BuiltinItems.WATERLILY, 1),
                     ItemEntity.PICKUP_DELAY_DROP_TICKS);
+            return;
+        }
+        // The flora support rules (Slice 44 — PlantBlock.canSurviveOrBreak
+        // lines 60-71 over neighborChanged: every flower, the tall grass
+        // and the dead bush re-read their soil on the neighbor bus and pop
+        // with their dropItems walk when it departs — the flowers yield
+        // their own items (getDropItemMetadata's TYPE damage for the
+        // family item), the tall grass rolls the 1/8 seed walk, the dead
+        // bush drops nothing).
+        String floraName = identifier.value();
+        if (FlowerBlocks.isFlowerIdentifier(identifier)
+                || floraName.equals("tall_grass") || floraName.equals("dead_bush")) {
+            BlockType floraSoil = world.getBlock(position.offset(0, -1, 0));
+            boolean supported;
+            if (floraName.equals("dead_bush")) {
+                // DeadBushBlock.canBePlacedOn lines 27-31: the sand, the
+                // hardened/stained clay or the dirt.
+                Identifier soilId = floraSoil.identifier();
+                String soilName = soilId.value();
+                supported = soilName.equals("sand")
+                        || soilName.equals("hardened_clay")
+                        || soilName.equals("stained_hardened_clay")
+                        || soilName.startsWith("stained_hardened_clay_")
+                        || soilName.equals("dirt");
+            } else {
+                // PlantBlock.canBePlacedOn lines 38-41 (the flowers and the
+                // tall grass's own inheritance): the grass, the dirt, the
+                // farmland.
+                supported = FlowerBlocks.isSupported(world, position);
+            }
+            if (supported) {
+                return;
+            }
+            world.setBlock(position, world.airType());
+            ItemStack drop;
+            if (floraName.equals("tall_grass")) {
+                // TallPlantBlock.getDropItem lines 55-58: the 1/8 seed
+                // roll, nothing otherwise.
+                drop = random.nextInt(8) == 0
+                        ? ItemStack.of(net.zaminmc.torch.server.item.BuiltinItems.WHEAT_SEEDS, 1)
+                        : null;
+            } else if (floraName.equals("dead_bush")) {
+                drop = null; // DeadBushBlock.getDropItem line 40: null
+            } else if (floraName.equals("poppy")) {
+                drop = ItemStack.of(net.zaminmc.torch.server.item.BuiltinItems.POPPY, 1);
+            } else if (floraName.equals("dandelion")) {
+                drop = ItemStack.of(net.zaminmc.torch.server.item.BuiltinItems.DANDELION, 1);
+            } else {
+                // The eight family variants: the family item with the TYPE
+                // id in the damage field (FlowerBlock.getDropItemMetadata).
+                drop = new ItemStack(net.zaminmc.torch.server.item.BuiltinItems.RED_FLOWER, 1,
+                        Math.max(0, FlowerBlocks.typeOf(type)));
+            }
+            if (drop != null) {
+                itemEntities.spawnDropAtBlock(
+                        new Position(position.x(), position.y(), position.z()),
+                        drop, ItemEntity.PICKUP_DELAY_DROP_TICKS);
+            }
             return;
         }
         if (identifier.equals(FIRE)) {

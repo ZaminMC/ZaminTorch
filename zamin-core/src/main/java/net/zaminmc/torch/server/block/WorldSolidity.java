@@ -215,6 +215,7 @@ public final class WorldSolidity {
                 || id.equals(BuiltinBlocks.WATERLILY.identifier()) // the 1/64 lily surface
                 || (id.namespace().equals("minecraft")
                         && (id.value().equals("cocoa") || id.value().startsWith("cocoa_")))
+                || FlowerBlocks.isFlowerIdentifier(id)
                 || isCropStage(id);
     }
 

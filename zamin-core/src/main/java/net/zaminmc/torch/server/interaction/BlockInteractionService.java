@@ -102,9 +102,24 @@ public final class BlockInteractionService {
      */
     private volatile java.util.function.BooleanSupplier tileDropsRead;
 
+    /**
+     * The placement-support gate (Slice 44 — PlantBlock.canBePlaced over
+     * canBePlacedOn: the flora consult refusing a placement whose soil is
+     * wrong BEFORE any placement is attempted, the reference's own
+     * no-op). Null keeps the historical place-anywhere behavior for
+     * non-gated kinds.
+     */
+    private volatile java.util.function.BiPredicate<BlockPosition, BlockType> placementSupportGate;
+
     /** Wires the {@code doTileDrops} read (the game-rule table's block-drop gate). */
     public void setTileDropsRead(java.util.function.BooleanSupplier tileDropsRead) {
         this.tileDropsRead = java.util.Objects.requireNonNull(tileDropsRead, "tileDropsRead");
+    }
+
+    /** Wires the placement-support gate (the flora's canBePlaced consult). */
+    public void setPlacementSupportGate(
+            java.util.function.BiPredicate<BlockPosition, BlockType> gate) {
+        this.placementSupportGate = java.util.Objects.requireNonNull(gate, "gate");
     }
 
     /** Wires the dig-start hook (the reference's startMining arm — the note
@@ -667,6 +682,14 @@ public final class BlockInteractionService {
             LOGGER.fine(() -> "Rejected placement (inside player) by " + player.name());
             return;
         }
+        // The canBePlaced consult (Slice 44 — PlantBlock's own gate): the
+        // flora's soil check refuses the placement before any attempt.
+        java.util.function.BiPredicate<BlockPosition, BlockType> supportGate = placementSupportGate;
+        if (supportGate != null && !supportGate.test(target, held)) {
+            LOGGER.fine(() -> "Rejected placement (unsupported soil) by " + player.name());
+            resync(target);
+            return;
+        }
         // The fastplace guard runs the creative path too (the same budget —
         // the creative 1.8 client cannot legitimately outpace it either).
         if (!player.violations().recordPlace(System.nanoTime(), PLACE_WINDOW_NANOS, PLACE_BUDGET)) {
@@ -720,6 +743,14 @@ public final class BlockInteractionService {
                 // The authoritative cell re-sync drops the prediction.
                 resync(target);
             }
+            return;
+        }
+        // The canBePlaced consult (Slice 44 — PlantBlock's own gate): the
+        // flora's soil check refuses the placement before any attempt.
+        java.util.function.BiPredicate<BlockPosition, BlockType> supportGate = placementSupportGate;
+        if (supportGate != null && !supportGate.test(target, heldBlock)) {
+            LOGGER.fine(() -> "Rejected survival placement (unsupported soil) by " + player.name());
+            resync(target);
             return;
         }
         // The fastplace guard (the NCP shape): the rolling 10-tick budget;

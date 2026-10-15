@@ -913,6 +913,12 @@ public final class BuiltinBlocks {
         for (EngineBlockType pod : CocoaBlocks.familyBlocks()) {
             builder = builder.register(pod);
         }
+        // The flower family (Slice 44 — FlowerBlock 1:1): the red flower's
+        // eight new variant states (the poppy 0 keeps its shipped plain
+        // rows above).
+        for (EngineBlockType flower : FlowerBlocks.familyBlocks()) {
+            builder = builder.register(flower);
+        }
         return builder;
     }
 }

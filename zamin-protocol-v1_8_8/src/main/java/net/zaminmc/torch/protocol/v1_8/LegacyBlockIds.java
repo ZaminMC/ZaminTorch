@@ -697,6 +697,20 @@ final class LegacyBlockIds {
                 merged.put(Identifier.parse(name.toString()), 127);
             }
         }
+        // The flower family (Slice 44 — Block.java's own row): the red
+        // flower 38 — the eight new variant states carry the TYPE id whole
+        // in the metadata nibble (FlowerBlock.getMetadataFromState); the
+        // poppy (the TYPE 0) keeps its shipped plain rows, the family item
+        // (Item.java's own BlockItem over the same id) joins them.
+        {
+            String[] flowerTypes = {"blue_orchid", "allium", "houstonia",
+                    "red_tulip", "orange_tulip", "white_tulip", "pink_tulip",
+                    "oxeye_daisy"};
+            for (int type = 1; type <= flowerTypes.length; type++) {
+                merged.put(Identifier.parse("minecraft:" + flowerTypes[type - 1]), 38);
+            }
+        }
+        merged.put(Identifier.parse("minecraft:red_flower"), 38);
         // The ground-cover pair (Slice 42 — Block.java's own rows): the
         // mycelium 110, the waterlily 111 — both single meta-0 states (the
         // snowy side and the boat pass-through are the client's own reads).
@@ -1439,6 +1453,20 @@ final class LegacyBlockIds {
                 }
                 merged.put(Identifier.parse(name.toString()), meta);
             }
+        }
+        // The flower family's metadata nibble (Slice 44 —
+        // FlowerBlock.getMetadataFromState: the TYPE id whole; the poppy's
+        // own 0 row folds the plain (38, 0) reverse to the poppy so a held
+        // family item's damage domain resolves every variant — the slab
+        // families' damage-aware overload's own model).
+        {
+            String[] flowerTypes = {"blue_orchid", "allium", "houstonia",
+                    "red_tulip", "orange_tulip", "white_tulip", "pink_tulip",
+                    "oxeye_daisy"};
+            for (int type = 1; type <= flowerTypes.length; type++) {
+                merged.put(Identifier.parse("minecraft:" + flowerTypes[type - 1]), type);
+            }
+            merged.put(Identifier.parse("minecraft:poppy"), 0);
         }
         merged.put(Identifier.parse("minecraft:wool"), 0);
         for (int color = 0; color < 16; color++) {
