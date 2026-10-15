@@ -462,6 +462,45 @@ public final class BlockUpdateSystem implements WorldChangeListener {
             }
             return;
         }
+        // The double-plant family's support rules (Slice 45 —
+        // DoublePlantBlock.canSurviveOrBreak lines 65-88: the UPPER pops
+        // to air when the cell below stops being the family's own lower
+        // (no drop — getDropItem's UPPER null); the LOWER pops BOTH cells
+        // with the lower's own drop walk when the soil departs or the
+        // upper is gone (the reference's blockpos/blockpos1 pair writes).
+        if (DoublePlantBlocks.isDoublePlantIdentifier(identifier)) {
+            if (DoublePlantBlocks.isUpper(identifier)) {
+                // The UPPER's read (canSurvive lines 96-102): the cell
+                // below must be the family's own lower.
+                if (DoublePlantBlocks.isDoublePlantIdentifier(
+                        world.getBlock(position.offset(0, -1, 0)).identifier())
+                        && !DoublePlantBlocks.isUpper(
+                        world.getBlock(position.offset(0, -1, 0)).identifier())) {
+                    return; // supported
+                }
+                world.setBlock(position, world.airType());
+                return; // the UPPER never drops
+            }
+            // The LOWER's read: the soil AND the upper must both carry.
+            if (DoublePlantBlocks.lowerSurvives(world, position)) {
+                return; // supported
+            }
+            // The pair dies: the upper clears first (flag 2's own write —
+            // no drop from it), then the lower with its drop walk.
+            net.zaminmc.torch.block.BlockPosition upperCell = position.offset(0, 1, 0);
+            if (DoublePlantBlocks.isUpper(world.getBlock(upperCell).identifier())) {
+                world.setBlock(upperCell, world.airType());
+            }
+            world.setBlock(position, world.airType());
+            net.zaminmc.torch.item.ItemStack drop = DoublePlantBlocks.lowerDrop(
+                    type, random);
+            if (drop != null) {
+                itemEntities.spawnDropAtBlock(
+                        new Position(position.x(), position.y(), position.z()),
+                        drop, ItemEntity.PICKUP_DELAY_DROP_TICKS);
+            }
+            return;
+        }
         if (identifier.equals(FIRE)) {
             tickFire(position, world.totalTicks());
             return;

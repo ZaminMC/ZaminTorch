@@ -122,6 +122,28 @@ public final class BlockInteractionService {
         this.placementSupportGate = java.util.Objects.requireNonNull(gate, "gate");
     }
 
+    /**
+     * A mode-aware break report (Slice 45 — the double plants'
+     * beforeMinedByPlayer: the UPPER's break needs the player's mode and
+     * held item — creative removes the lower silently, survival walks the
+     * lower's drops with the shears arm). Null until wired.
+     */
+    public interface BreakReport {
+        /**
+         * One committed break, either mode. {@code previous} is the broken
+         * type (the cell is already air). Tick-thread context.
+         */
+        void onBreak(PlayerSession player, BlockPosition position,
+                BlockType previous, boolean creative);
+    }
+
+    private volatile BreakReport breakReport;
+
+    /** Wires the mode-aware break report (the double-plant pair arm). */
+    public void setBreakReport(BreakReport report) {
+        this.breakReport = java.util.Objects.requireNonNull(report, "report");
+    }
+
     /** Wires the dig-start hook (the reference's startMining arm — the note
      *  block's play on the survival dig's start). */
     public void setMiningStartListener(java.util.function.Consumer<BlockPosition> listener) {
@@ -263,6 +285,10 @@ public final class BlockInteractionService {
         var listener = blockBrokenListener;
         if (listener != null) {
             listener.accept(position, previous);
+        }
+        BreakReport report = breakReport;
+        if (report != null) {
+            report.onBreak(player, position, previous, true);
         }
     }
 
@@ -498,6 +524,10 @@ public final class BlockInteractionService {
         var listener = blockBrokenListener;
         if (listener != null) {
             listener.accept(target, current); // container spill runs after the block is gone
+        }
+        BreakReport report = breakReport;
+        if (report != null) {
+            report.onBreak(player, target, current, false);
         }
     }
 

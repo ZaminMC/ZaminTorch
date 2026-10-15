@@ -711,6 +711,20 @@ final class LegacyBlockIds {
             }
         }
         merged.put(Identifier.parse("minecraft:red_flower"), 38);
+        // The double-plant family (Slice 45 — Block.java's own row): the
+        // six variants' twelve states over 175 — the LOWER carries the
+        // VARIANT id whole, the UPPER carries 8 | the default NORTH
+        // horizontal (the reference's own write, meta 10). The family item
+        // (Item.java's own BlockItem over the same id) joins them.
+        {
+            String[] dpVariants = {"sunflower", "lilac", "double_grass",
+                    "double_fern", "rose", "peony"};
+            for (String variant : dpVariants) {
+                merged.put(Identifier.parse("minecraft:" + variant), 175);
+                merged.put(Identifier.parse("minecraft:" + variant + "_upper"), 175);
+            }
+        }
+        merged.put(Identifier.parse("minecraft:double_plant"), 175);
         // The ground-cover pair (Slice 42 — Block.java's own rows): the
         // mycelium 110, the waterlily 111 — both single meta-0 states (the
         // snowy side and the boat pass-through are the client's own reads).
@@ -1467,6 +1481,18 @@ final class LegacyBlockIds {
                 merged.put(Identifier.parse("minecraft:" + flowerTypes[type - 1]), type);
             }
             merged.put(Identifier.parse("minecraft:poppy"), 0);
+        }
+        // The double-plant family's metadata nibble (Slice 45 —
+        // DoublePlantBlock.getMetadataFromState line 242: the LOWER the
+        // VARIANT id whole; the UPPER 8 | FACING's horizontal — the
+        // default NORTH write, meta 10 for every placed upper).
+        {
+            String[] dpVariants = {"sunflower", "lilac", "double_grass",
+                    "double_fern", "rose", "peony"};
+            for (int variant = 0; variant < dpVariants.length; variant++) {
+                merged.put(Identifier.parse("minecraft:" + dpVariants[variant]), variant);
+                merged.put(Identifier.parse("minecraft:" + dpVariants[variant] + "_upper"), 10);
+            }
         }
         merged.put(Identifier.parse("minecraft:wool"), 0);
         for (int color = 0; color < 16; color++) {

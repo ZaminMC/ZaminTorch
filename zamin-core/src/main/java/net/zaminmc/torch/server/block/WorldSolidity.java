@@ -216,6 +216,7 @@ public final class WorldSolidity {
                 || (id.namespace().equals("minecraft")
                         && (id.value().equals("cocoa") || id.value().startsWith("cocoa_")))
                 || FlowerBlocks.isFlowerIdentifier(id)
+                || DoublePlantBlocks.isDoublePlantIdentifier(id)
                 || isCropStage(id);
     }
 

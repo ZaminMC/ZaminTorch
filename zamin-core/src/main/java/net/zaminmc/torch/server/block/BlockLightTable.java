@@ -604,6 +604,10 @@ public final class BlockLightTable {
         for (EngineBlockType flower : FlowerBlocks.familyBlocks()) {
             merged.put(flower.identifier(), new LightData(0, 0));
         }
+        // The double-plant family (Slice 45 — the CUTOUT pair passes light).
+        for (EngineBlockType plant : DoublePlantBlocks.familyBlocks()) {
+            merged.put(plant.identifier(), new LightData(0, 0));
+        }
         // The ground-cover pair (Slice 42 — the mycelium is an opaque
         // cube like the grass block; the lily pad is the 1/64 surface).
         merged.put(Identifier.parse("minecraft:mycelium"), new LightData(0, 15));
