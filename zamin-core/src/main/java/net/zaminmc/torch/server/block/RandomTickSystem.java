@@ -164,6 +164,13 @@ public final class RandomTickSystem {
         }
         int stage = WorldSolidity.cropStageOf(type.identifier());
         if (stage >= 7) {
+            // The stems' fruit arm (Slice 41 — StemBlock.tick lines 60-84):
+            // a fully-grown stem tries to spawn its fruit beside it (the
+            // engine's crop model carries the same random-tick gate).
+            String stemFamily = MelonBlocks.stemFamilyOf(type.identifier());
+            if (stemFamily != null) {
+                MelonBlocks.trySpawnFruit(world, position, stemFamily, random);
+            }
             return; // fully grown: nothing to advance
         }
         BlockType soil = world.getBlock(position.offset(0, -1, 0));
@@ -194,6 +201,8 @@ public final class RandomTickSystem {
         return switch (family) {
             case "carrots" -> carrotStage(stage);
             case "potatoes" -> potatoStage(stage);
+            case "pumpkin_stem" -> MelonBlocks.stemStage("pumpkin_stem", stage);
+            case "melon_stem" -> MelonBlocks.stemStage("melon_stem", stage);
             default -> wheatStage(stage);
         };
     }

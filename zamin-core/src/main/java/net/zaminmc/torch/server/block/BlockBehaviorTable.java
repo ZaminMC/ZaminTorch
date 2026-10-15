@@ -1263,6 +1263,22 @@ public final class BlockBehaviorTable {
             }
         }
 
+        // The melon family (Slice 41 — MelonBlock/StemBlock's own rows:
+        // the melon `setStrength(1.0F)` over Material.PUMPKIN like the
+        // shipped pumpkin, the stems `setStrength(0.0F)` — the melon's
+        // slice walk and the stems' seed walk ride the DropService).
+        behaviors.put(Identifier.parse("minecraft:melon_block"),
+                new BlockBehavior(1.0, true, false, "wood", 0,
+                        List.of(new BlockBehavior.Drop(
+                                Identifier.parse("minecraft:melon"), 1))));
+        for (String family : MelonBlocks.STEMS.keySet()) {
+            BlockBehavior stem = new BlockBehavior(0.0, true, false, "plant", 0,
+                    List.of(new BlockBehavior.Drop(MelonBlocks.seedsOf(family), 1)));
+            for (int stage = 0; stage <= 7; stage++) {
+                behaviors.put(MelonBlocks.stemStage(family, stage).identifier(), stem);
+            }
+        }
+
         // The huge-mushroom pair (Slice 40 — MushroomBlock's own rows: both
         // `setStrength(0.2F)` WOOD_SOUNDS over Material.WOOD): the drops
         // ride the DropService's own walk (getBaseDropCount's 0-2 plants).

@@ -677,6 +677,16 @@ final class LegacyBlockIds {
                 }
             }
         }
+        // The melon family (Slice 41 — Block.java's own rows): the melon
+        // block 103, the pumpkin stem 104 and the melon stem 105 — the
+        // stems' eight AGE stages over the metadata nibble whole (the
+        // engine's crop naming convention, the wheat/carrots/potatoes
+        // precedent; the melon block's item shares the plain id).
+        merged.put(Identifier.parse("minecraft:melon_block"), 103);
+        for (int stage = 0; stage <= 7; stage++) {
+            merged.put(Identifier.parse("minecraft:pumpkin_stem_stage" + stage), 104);
+            merged.put(Identifier.parse("minecraft:melon_stem_stage" + stage), 105);
+        }
         // The huge-mushroom pair (Slice 40 — Block.java's own rows): the
         // brown 99, the red 100 — the fourteen VARIANT ids (0-10, 14, 15;
         // the bare form carries the all_outside 14 default, the placement
@@ -1379,6 +1389,13 @@ final class LegacyBlockIds {
                 }
                 merged.put(Identifier.parse("minecraft:" + family), 14);
             }
+        }
+        // The melon family's stem stages (Slice 41 —
+        // StemBlock.getMetadataFromState: the AGE whole; stage 0 rides the
+        // 0 default).
+        for (int stage = 1; stage <= 7; stage++) {
+            merged.put(Identifier.parse("minecraft:pumpkin_stem_stage" + stage), stage);
+            merged.put(Identifier.parse("minecraft:melon_stem_stage" + stage), stage);
         }
         merged.put(Identifier.parse("minecraft:wool"), 0);
         for (int color = 0; color < 16; color++) {

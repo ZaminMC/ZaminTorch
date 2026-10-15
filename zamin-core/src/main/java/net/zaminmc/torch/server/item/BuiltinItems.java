@@ -442,6 +442,10 @@ public final class BuiltinItems {
             Identifier.parse("minecraft:brown_mushroom_block"), "Brown Mushroom Block", 64);
     public static final EngineItemType RED_MUSHROOM_BLOCK = new EngineItemType(
             Identifier.parse("minecraft:red_mushroom_block"), "Red Mushroom Block", 64);
+    // The melon block's item (Slice 41 — Item.java's own BlockItem row 449:
+    // register(Blocks.MELON_BLOCK) — the item shares the block id 103).
+    public static final EngineItemType MELON_BLOCK = new EngineItemType(
+            Identifier.parse("minecraft:melon_block"), "Melon", 64);
     // The bed item (community items.json: legacy 355) — places both halves.
     public static final EngineItemType BED = new EngineItemType(
             Identifier.parse("minecraft:bed"), "Bed", 1);
@@ -910,7 +914,7 @@ public final class BuiltinItems {
                 DARK_OAK_FENCE_GATE, ACACIA_FENCE_GATE,
                 GOLDEN_RAIL, DETECTOR_RAIL, ACTIVATOR_RAIL,
                 TRAPDOOR, IRON_TRAPDOOR,
-                BROWN_MUSHROOM_BLOCK, RED_MUSHROOM_BLOCK,
+                BROWN_MUSHROOM_BLOCK, RED_MUSHROOM_BLOCK, MELON_BLOCK,
                 WOODEN_SLAB,
                 STICK, CRAFTING_TABLE, NOTE_BLOCK, TORCH, FURNACE, CHEST,
                 COAL, DIAMOND, IRON_INGOT, STONE, SAND, GLASS, GRAVEL, FLINT, BEEF, COOKED_BEEF,
@@ -933,7 +937,7 @@ public final class BuiltinItems {
                 STONE_PRESSURE_PLATE, WOODEN_PRESSURE_PLATE, HOPPER, TRIPWIRE_HOOK,
                 DISPENSER, DROPPER, FIRE_CHARGE, POTION, GLASS_BOTTLE,
                 GHAST_TEAR, NETHER_WART, SPIDER_EYE, FERMENTED_SPIDER_EYE,
-                BLAZE_POWDER, MAGMA_CREAM, GLISTERING_MELON, RABBIT_FOOT,
+                BLAZE_POWDER, MAGMA_CREAM, GLISTERING_MELON, RABBIT_FOOT, MELON,
                 BLAZE_ROD,
                 RABBIT, COOKED_RABBIT, RABBIT_STEW, RABBIT_HIDE,
                 SPAWN_EGG,

@@ -596,6 +596,8 @@ public final class BuiltinBlocks {
             Identifier.parse("minecraft:iron_block"), "Block of Iron");
     public static final EngineBlockType PUMPKIN = new EngineBlockType(
             Identifier.parse("minecraft:pumpkin"), "Pumpkin");
+    public static final EngineBlockType MELON_BLOCK = new EngineBlockType(
+            Identifier.parse("minecraft:melon_block"), "Melon", 0);
     public static final EngineBlockType LIT_PUMPKIN = new EngineBlockType(
             Identifier.parse("minecraft:lit_pumpkin"), "Jack o'Lantern");
 
@@ -839,6 +841,7 @@ public final class BuiltinBlocks {
                 .register(ICE)
                 .register(IRON_BLOCK)
                 .register(PUMPKIN)
+                .register(MELON_BLOCK)
                 .register(LIT_PUMPKIN)
                 .register(POTATOES_STAGE0)
                 .register(POTATOES_STAGE1)
@@ -892,6 +895,12 @@ public final class BuiltinBlocks {
         // form carries the all_outside default).
         for (EngineBlockType mushroom : MushroomBlocks.familyBlocks()) {
             builder = builder.register(mushroom);
+        }
+        // The melon family (Slice 41 — MelonBlock/StemBlock 1:1): the two
+        // stems' eight AGE states each (the melon block's own constant
+        // rides the plain rows above).
+        for (EngineBlockType stem : MelonBlocks.familyBlocks()) {
+            builder = builder.register(stem);
         }
         return builder;
     }

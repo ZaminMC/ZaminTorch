@@ -7527,14 +7527,22 @@ public final class EngineServer implements Server, EngineBridge {
             }
             return true;
         }
-        if (held.equals("minecraft:wheat_seeds")) {
+        if (held.equals("minecraft:wheat_seeds") || held.equals("minecraft:pumpkin_seeds")
+                || held.equals("minecraft:melon_seeds")) {
             BlockType soil = world.getBlock(clicked);
             boolean farmland = soil.identifier().equals(BuiltinBlocks.FARMLAND.identifier())
                     || soil.identifier().equals(BuiltinBlocks.FARMLAND_WET.identifier());
             if (!farmland || !world.getBlock(clicked.offset(0, 1, 0)).equals(world.airType())) {
                 return false; // seeds only take on open farmland (the historical gate)
             }
-            world.setBlock(clicked.offset(0, 1, 0), BuiltinBlocks.WHEAT_STAGE0);
+            // The seeds name their crop (WheatSeedsItem's own block field —
+            // Slice 41 extends the walk to the stems).
+            BlockType crop = held.equals("minecraft:pumpkin_seeds")
+                    ? net.zaminmc.torch.server.block.MelonBlocks.stemStage("pumpkin_stem", 0)
+                    : held.equals("minecraft:melon_seeds")
+                    ? net.zaminmc.torch.server.block.MelonBlocks.stemStage("melon_stem", 0)
+                    : BuiltinBlocks.WHEAT_STAGE0;
+            world.setBlock(clicked.offset(0, 1, 0), crop);
             session.inventory().consumeHeld(1);
             fxManager.sound(new Position(clicked.x() + 0.5, clicked.y() + 1.5, clicked.z() + 0.5),
                     "dig.grass", 0.6f, 1.1f);
