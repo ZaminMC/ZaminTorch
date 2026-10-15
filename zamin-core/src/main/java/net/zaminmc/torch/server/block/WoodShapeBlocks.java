@@ -94,6 +94,19 @@ public final class WoodShapeBlocks {
                         display, variant | 8));
     }
 
+    /**
+     * The wood's DOUBLE slab state (Slice 58 — the reference's own 125
+     * family: the planks variant id whole in the nibble; the oak carries
+     * the wire's own double_wooden_slab name, the other woods their own
+     * double_{wood}_slab — the family merges in the stats table).
+     */
+    public static EngineBlockType doubleSlabState(int variant) {
+        String wood = WoodVariantBlocks.WOODS.get(variant);
+        String name = variant == 0 ? "double_wooden_slab" : "double_" + wood + "_slab";
+        return new EngineBlockType(Identifier.parse("minecraft:" + name),
+                woodDisplay(wood) + " Slab", variant);
+    }
+
     private static String woodDisplay(String wood) {
         String[] parts = wood.split("_");
         StringBuilder name = new StringBuilder();

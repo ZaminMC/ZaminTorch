@@ -1219,6 +1219,17 @@ public final class BlockBehaviorTable {
             behaviors.put(WoodShapeBlocks.slabStates(variant).get(1).identifier(), slab);
         }
 
+        // The double wooden slabs (Slice 58 — DoubleWoodenSlabBlock's own
+        // row: setStrength(2.0F).setBlastResistance(5.0F) WOOD_SOUNDS; the
+        // drop TWO single slabs (SlabBlock.getBaseDropCount's isDouble ? 2
+        // : 1) with the variant damage (getDropItemMetadata's own band).
+        for (int variant = 0; variant < WoodVariantBlocks.WOODS.size(); variant++) {
+            behaviors.put(WoodShapeBlocks.doubleSlabState(variant).identifier(),
+                    new BlockBehavior(2.0, true, false, "wood", 0,
+                            List.of(new BlockBehavior.Drop(
+                                    Identifier.parse("minecraft:wooden_slab"), 2, variant))));
+        }
+
         // The fence-gate families (Slice 37 — FenceGateBlock's own rows:
         // every gate `setStrength(2.0F).setBlastResistance(5.0F)` WOOD_SOUNDS
         // — the wood class, no tool gate): all sixteen states per family

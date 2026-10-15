@@ -572,9 +572,13 @@ public final class BlockLightTable {
         for (String wood : WoodShapeBlocks.FENCES.keySet()) {
             merged.put(Identifier.parse("minecraft:" + wood + "_fence"), new LightData(0, 15));
         }
-        for (int variant = 1; variant < WoodVariantBlocks.WOODS.size(); variant++) {
+        // The oak's single pair keeps its rows above; the loop covers the
+        // five woods plus (idempotently) the oak — the doubles (Slice 58)
+        // join the opaque-partial band at every variant.
+        for (int variant = 0; variant < WoodVariantBlocks.WOODS.size(); variant++) {
             merged.put(WoodShapeBlocks.slabStates(variant).get(0).identifier(), new LightData(0, 15));
             merged.put(WoodShapeBlocks.slabStates(variant).get(1).identifier(), new LightData(0, 15));
+            merged.put(WoodShapeBlocks.doubleSlabState(variant).identifier(), new LightData(0, 15));
         }
         // The fence-gate families (Slice 37 — FenceGateBlock is a CUTOUT
         // renderer: isSolidRender false, opacity 0; every state passes

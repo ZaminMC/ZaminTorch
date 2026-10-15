@@ -812,6 +812,15 @@ final class LegacyBlockIds {
         // state; the item (Item.java's register(Blocks.BARRIER)) shares the
         // identifier.
         merged.put(Identifier.parse("minecraft:barrier"), 166);
+        // The double wooden slab family (Slice 58 — Block.java's own row
+        // 125): the six planks variants, the variant id whole in the
+        // nibble (the oak carries the wire's own double_wooden_slab name).
+        merged.put(Identifier.parse("minecraft:double_wooden_slab"), 125);
+        merged.put(Identifier.parse("minecraft:double_spruce_slab"), 125);
+        merged.put(Identifier.parse("minecraft:double_birch_slab"), 125);
+        merged.put(Identifier.parse("minecraft:double_jungle_slab"), 125);
+        merged.put(Identifier.parse("minecraft:double_acacia_slab"), 125);
+        merged.put(Identifier.parse("minecraft:double_dark_oak_slab"), 125);
         // The ground-cover pair (Slice 42 — Block.java's own rows): the
         // mycelium 110, the waterlily 111 — both single meta-0 states (the
         // snowy side and the boat pass-through are the client's own reads).
@@ -1641,6 +1650,14 @@ final class LegacyBlockIds {
                 {"anvil_damaged_north", "10"}, {"anvil_damaged_east", "11"}}) {
             merged.put(Identifier.parse("minecraft:" + row[0]), Integer.parseInt(row[1]));
         }
+        // The double wooden slabs' metadata nibbles (Slice 58 — the planks
+        // variant id whole: 1 spruce .. 5 dark oak; the oak rides the 0
+        // default).
+        merged.put(Identifier.parse("minecraft:double_spruce_slab"), 1);
+        merged.put(Identifier.parse("minecraft:double_birch_slab"), 2);
+        merged.put(Identifier.parse("minecraft:double_jungle_slab"), 3);
+        merged.put(Identifier.parse("minecraft:double_acacia_slab"), 4);
+        merged.put(Identifier.parse("minecraft:double_dark_oak_slab"), 5);
         merged.put(Identifier.parse("minecraft:wool"), 0);
         for (int color = 0; color < 16; color++) {
             if (color != 0) {

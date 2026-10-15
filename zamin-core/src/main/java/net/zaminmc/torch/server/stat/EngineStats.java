@@ -238,6 +238,13 @@ public final class EngineStats {
         merges.put("farmland", "dirt");
         merges.put("double_stone_slab", "stone_slab");
         merges.put("double_wooden_slab", "wooden_slab");
+        // The double wooden slabs' per-wood forms (Slice 58 — the vanilla
+        // per-block-id scheme: every 125 state counts on the 126 row).
+        merges.put("double_spruce_slab", "wooden_slab");
+        merges.put("double_birch_slab", "wooden_slab");
+        merges.put("double_jungle_slab", "wooden_slab");
+        merges.put("double_acacia_slab", "wooden_slab");
+        merges.put("double_dark_oak_slab", "wooden_slab");
         merges.put("double_stone_slab2", "stone_slab2");
         // The red sand (Slice 52 — the SandBlock family's RED_SAND variant)
         // counts on the sand row exactly like the reference's single sand
