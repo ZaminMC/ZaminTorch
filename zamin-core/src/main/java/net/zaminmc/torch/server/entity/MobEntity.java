@@ -319,6 +319,15 @@ public final class MobEntity implements LivingEntity {
         }
 
         /**
+         * Every playing player's engine id (EnderDragonEntity.chooseTarget
+         * lines 380-388's own candidate walk — the spectator filter rides
+         * the caller's own gates); empty when the consult is absent.
+         */
+        default int[] playerIds() {
+            return new int[0];
+        }
+
+        /**
          * The living non-undead candidates in the box grown by
          * {@code halfX/halfY/halfX} around the point (mobAiTick lines
          * 255-257's getEntitiesOfType over the UNDEAD_FILTER — creative
@@ -771,6 +780,13 @@ public final class MobEntity implements LivingEntity {
         if (type == MobType.VILLAGER) {
             this.profession = random.nextInt(5);
         }
+        // The dragon's seven parts (ctor lines 64-72): the wire id
+        // convention rides the ORDER — the spawn's eight-id block holds
+        // dragonId+1..+7 (the client re-aligns its locally-built parts by
+        // the same offset on the Spawn Mob 63).
+        if (type == MobType.ENDER_DRAGON) {
+            buildDragonParts(entityId);
+        }
     }
 
     /**
@@ -882,11 +898,25 @@ public final class MobEntity implements LivingEntity {
 
     /** @return true while the death animation still plays (loot comes after). */
     public boolean dying() {
+        if (type == MobType.ENDER_DRAGON) {
+            // The dragon's death walk (Slice 63 — tickPostDeath): the
+            // 200-tick rise-and-spin IS the animation; the standard
+            // 20-tick walk never applies.
+            return dragonTicksSinceDeath >= 0 && dragonTicksSinceDeath < 200;
+        }
         return dead && deathTicks < DEATH_TICKS;
     }
 
     /** @return true once the death animation finished (removal is due). */
     public boolean deathAnimationFinished() {
+        if (type == MobType.ENDER_DRAGON) {
+            // The walk's own end (line 541's remove() at 200) — the
+            // removal rides the portal event's own consume, never the
+            // loop's standard walk (the dragon's XP + portal land through
+            // the pending events; the standard dropLoot finds the empty
+            // loot table).
+            return false;
+        }
         return dead && deathTicks >= DEATH_TICKS;
     }
 
@@ -1086,6 +1116,16 @@ public final class MobEntity implements LivingEntity {
         tickPlayerHitTimer();
 
         if (dead) {
+            if (type == MobType.ENDER_DRAGON && dragonTicksSinceDeath >= 0) {
+                // The dragon's death walk (Slice 63 — tickPostDeath lines
+                // 501-543): the standard dead gate freezes every body, but
+                // the dragon's own walk owns this arm — the mind's death
+                // branch (the rise, the spin, the XP batches, the portal)
+                // runs through tickDragonMind.
+                tickDragonMind(null, false);
+                return fixedPoint() != before || beforeYaw != yaw
+                        || beforeHeadYaw != headYaw;
+            }
             deathTicks++;
             velocityX = 0;
             velocityZ = 0;
@@ -2941,6 +2981,530 @@ public final class MobEntity implements LivingEntity {
     /** The manager's sweep arm marks the sound when a block fell. */
     public void markWitherBlockBreakSound() {
         pendingWitherBlockBreakSound = true;
+    }
+
+    // --------------------------------------------------------------
+    // The ender dragon (Slice 63 — EnderDragonEntity 1:1: the body,
+    // the steering, the parts, the damage gates)
+    // --------------------------------------------------------------
+
+    /**
+     * One server-side hitbox part (EnderDragonPart 1:1): the name, the
+     * size, and the live placement the tick walk writes. Never a wire
+     * entity of its own — the CLIENT builds its parts locally and
+     * re-aligns their ids to the spawn packet's dragonId (the +1..+7
+     * convention the spawn's eight-id block guarantees), so an attack
+     * packet naming a part id resolves HERE.
+     */
+    public static final class DragonPart {
+        /** The reference's ctor order (the wire id convention dragonId+k). */
+        public final int index;
+        public final String name;
+        /** The tick-shrunk size (mobTick lines 242-251 overwrite the ctor's). */
+        public final double width;
+        public final double height;
+        double x;
+        double y;
+        double z;
+
+        DragonPart(int index, String name, double width, double height) {
+            this.index = index;
+            this.name = name;
+            this.width = width;
+            this.height = height;
+        }
+
+        public double x() {
+            return x;
+        }
+
+        public double y() {
+            return y;
+        }
+
+        public double z() {
+            return z;
+        }
+
+        /** The box containment (the part's grown hull for the consults). */
+        public boolean contains(double px, double py, double pz, double grow) {
+            double half = width / 2.0;
+            return px >= x - half - grow && px <= x + half + grow
+                    && py >= y - grow && py <= y + height + grow
+                    && pz >= z - half - grow && pz <= z + half + grow;
+        }
+    }
+
+    /** The steering target (ctor line 77: targetY born 100). */
+    private double dragonTargetX;
+    private double dragonTargetY = 100.0;
+    private double dragonTargetZ;
+    /** The 64-slot (yaw, y) ring the body curve reads (lines 36-42). */
+    private final double[][] dragonSegmentBuffer = new double[64][3];
+    private int dragonLatestSegment = -1;
+    private DragonPart[] dragonParts;
+    private float dragonLastWingPosition;
+    private float dragonWingPosition;
+    private boolean dragonNeedsNewTarget = true;
+    /** The reference's restrictMovement — an immune block met (the half-flap). */
+    private boolean dragonRestrictMovement;
+    /** The turn rate (the reference's rotationSpeed field — the dragon's own). */
+    private float dragonRotationSpeed;
+    /** The player quarry's engine id (the 50% arm), -1 for the point arm. */
+    private int dragonTargetPlayerId = -1;
+    /** The part-hit event (the manager routes the damage walk); consumed once. */
+    private boolean dragonFlungPlayers;
+    private boolean dragonDamagedPlayers;
+    private boolean dragonSweptBlocks;
+    /** The death walk's own clock (tickPostDeath's ticksSinceDeath). */
+    private int dragonTicksSinceDeath = -1;
+    /** The 1018 global event (the death walk's first tick). */
+    private boolean pendingDragonDeathSound;
+    /** An XP batch of {@code amount} at the body (the 1000s and the 2000). */
+    private int pendingDragonXpBatch;
+    /** The walk's 200th tick: the fountain + the removal. */
+    private boolean pendingDragonPortal;
+
+    /**
+     * The seven parts (ctor lines 64-72): the wire id convention rides the
+     * ORDER — head, body, tailBase, tailMiddle, tailEnd, rightWing,
+     * leftWing — each dragonId+1..+7.
+     */
+    private void buildDragonParts(int dragonEntityId) {
+        dragonParts = new DragonPart[]{
+                new DragonPart(dragonEntityId + 1, "head", 3.0, 3.0),
+                new DragonPart(dragonEntityId + 2, "body", 5.0, 3.0),
+                new DragonPart(dragonEntityId + 3, "tail", 2.0, 2.0),
+                new DragonPart(dragonEntityId + 4, "tail", 2.0, 2.0),
+                new DragonPart(dragonEntityId + 5, "tail", 2.0, 2.0),
+                new DragonPart(dragonEntityId + 6, "wing", 4.0, 2.0),
+                new DragonPart(dragonEntityId + 7, "wing", 4.0, 3.0)};
+    }
+
+    /** @return the parts (the attack routing + the projectile consults). */
+    public DragonPart[] dragonParts() {
+        return dragonParts;
+    }
+
+    /** @return the part with the wire entity id, or null (the attack arm). */
+    public DragonPart dragonPartById(int partEntityId) {
+        if (dragonParts == null) {
+            return null;
+        }
+        for (DragonPart part : dragonParts) {
+            if (part.index == partEntityId) {
+                return part;
+            }
+        }
+        return null;
+    }
+
+    /** @return the part whose grown hull holds the point (the arrow's walk). */
+    public DragonPart dragonPartAt(double x, double y, double z) {
+        if (dragonParts == null) {
+            return null;
+        }
+        for (DragonPart part : dragonParts) {
+            if (part.contains(x, y, z, 0.0)) {
+                return part;
+            }
+        }
+        return null;
+    }
+
+    /** The head part (the fling/damage and heal consults' own anchor). */
+    public DragonPart dragonHead() {
+        return dragonParts == null ? null : dragonParts[0];
+    }
+
+    /**
+     * The part damage walk (takeDamage(EnderDragonPart, ...) lines 458-476):
+     * the non-head parts quarter the amount plus one, the target resets to
+     * the head-front with the jitter, the quarry drops, and only a PLAYER
+     * attacker or an EXPLOSION wounds the body — everything else lands
+     * nothing (the plain overload's own refusal, thorns excepted).
+     *
+     * @return the wound the body takes (0 when the source refuses).
+     */
+    public float dragonDamagePart(DragonPart part, float amount,
+                                  boolean playerSource, boolean explosive) {
+        if (part != dragonHead()) {
+            amount = amount / 4.0f + 1.0f; // line 461
+        }
+        // Lines 464-469: the head-front reset with the jitter.
+        float yawRadians = (float) Math.toRadians(yaw);
+        dragonTargetX = position.x() + Math.sin(yawRadians) * 5.0
+                + (random.nextFloat() - 0.5f) * 2.0;
+        dragonTargetY = position.y() + random.nextFloat() * 3.0f + 1.0;
+        dragonTargetZ = position.z() - Math.cos(yawRadians) * 5.0
+                + (random.nextFloat() - 0.5f) * 2.0;
+        dragonTargetPlayerId = -1; // this.target = null (line 470)
+        if (playerSource || explosive) {
+            return amount; // damageDragon (line 472)
+        }
+        return 0.0f;
+    }
+
+    /** The wing-flap read (the client's wings sound rides its own walk). */
+    public float dragonWingPosition() {
+        return dragonWingPosition;
+    }
+
+    /** @return the fling contact verdict; consumed once per tick. */
+    public boolean consumeDragonFlungPlayers() {
+        boolean pending = dragonFlungPlayers;
+        dragonFlungPlayers = false;
+        return pending;
+    }
+
+    /** @return the head-damage contact verdict; consumed once per tick. */
+    public boolean consumeDragonDamagedPlayers() {
+        boolean pending = dragonDamagedPlayers;
+        dragonDamagedPlayers = false;
+        return pending;
+    }
+
+    /** @return the block-sweep verdict (restrictMovement's own arm). */
+    public boolean consumeDragonSweptBlocks() {
+        boolean pending = dragonSweptBlocks;
+        dragonSweptBlocks = false;
+        return pending;
+    }
+
+    /** @return the steering quarry's engine id (-1 for the point arm). */
+    public int dragonTargetPlayerId() {
+        return dragonTargetPlayerId;
+    }
+
+    /**
+     * The death walk's start (the hurt path's health-zero arm): the
+     * standard death (loot, remove) never runs — the body rises and
+     * spins for 200 ticks with the XP batches and the portal.
+     */
+    public void beginDragonDeath() {
+        dragonTicksSinceDeath = 0;
+    }
+
+    /** @return whether the death walk is running. */
+    public boolean dragonDying() {
+        return dragonTicksSinceDeath >= 0;
+    }
+
+    /** @return the death walk's clock (-1 while alive). */
+    public int dragonTicksSinceDeath() {
+        return dragonTicksSinceDeath;
+    }
+
+    /** @return the 1018 event; consumed once. */
+    public boolean consumeDragonDeathSound() {
+        boolean pending = pendingDragonDeathSound;
+        pendingDragonDeathSound = false;
+        return pending;
+    }
+
+    /** @return the XP batch amount (0 when none); consumed once. */
+    public int consumeDragonXpBatch() {
+        int amount = pendingDragonXpBatch;
+        pendingDragonXpBatch = 0;
+        return amount;
+    }
+
+    /** @return the portal-and-remove verdict; consumed once. */
+    public boolean consumeDragonPortal() {
+        boolean pending = pendingDragonPortal;
+        pendingDragonPortal = false;
+        return pending;
+    }
+
+    /** @return the steering target (the point arm's reads). */
+    public double dragonTargetX() {
+        return dragonTargetX;
+    }
+
+    public double dragonTargetY() {
+        return dragonTargetY;
+    }
+
+    public double dragonTargetZ() {
+        return dragonTargetZ;
+    }
+
+    /**
+     * getSegmentProperties (lines 92-109): the interpolated (yaw, y, extra)
+     * at the segment offset — the body curve the head and the tails read.
+     */
+    private double[] dragonSegmentProperties(int segment, float tickDelta) {
+        if (health <= 0.0f) {
+            tickDelta = 0.0f;
+        }
+        tickDelta = 1.0f - tickDelta;
+        int i = dragonLatestSegment - segment & 63;
+        int j = dragonLatestSegment - segment - 1 & 63;
+        double[] out = new double[3];
+        double d0 = dragonSegmentBuffer[i][0];
+        double d1 = wrapDegrees(dragonSegmentBuffer[j][0] - d0);
+        out[0] = d0 + d1 * tickDelta;
+        d0 = dragonSegmentBuffer[i][1];
+        d1 = dragonSegmentBuffer[j][1] - d0;
+        out[1] = d0 + d1 * tickDelta;
+        out[2] = dragonSegmentBuffer[i][2]
+                + (dragonSegmentBuffer[j][2] - dragonSegmentBuffer[i][2]) * tickDelta;
+        return out;
+    }
+
+    /** MathHelper.wrapDegrees — the ±180 band. */
+    private static double wrapDegrees(double value) {
+        value = value % 360.0;
+        if (value >= 180.0) {
+            value -= 360.0;
+        }
+        if (value < -180.0) {
+            value += 360.0;
+        }
+        return value;
+    }
+
+    /**
+     * The dragon's own mind (mobTick lines 112-315, 1:1): the wing flap
+     * over the speed, the steering walk (the quarry's chase or the point's
+     * drift, the 100/22500 re-target band, the velocity shaping, the
+     * rotation-speed yaw), the part placement (the segment-driven head and
+     * tails, the wing flanks), and the contact arms (the fling, the head's
+     * damage) — the crystal heal and the death walk ride Slice 64.
+     */
+    private void tickDragonMind(Position target, boolean canHunt) {
+        // The death walk (tickPostDeath lines 501-543): the rise and the
+        // 20-degree spin, the XP batches, the 1018, and the portal at the
+        // 200th tick — the body stays in the world the whole walk.
+        if (dragonTicksSinceDeath >= 0) {
+            dragonTicksSinceDeath++;
+            if (dragonTicksSinceDeath == 1) {
+                pendingDragonDeathSound = true; // doGlobalEvent(1018)
+            }
+            if (dragonTicksSinceDeath > 150 && dragonTicksSinceDeath % 5 == 0) {
+                pendingDragonXpBatch = 1000; // the orb batches (lines 512-520)
+            }
+            if (dragonTicksSinceDeath == 200) {
+                pendingDragonXpBatch = 2000; // the final batch (lines 530-537)
+                pendingDragonPortal = true; // createPortal + remove
+            }
+            // Line 527-528: the rise and the spin.
+            position = new Position(position.x(), position.y() + 0.1, position.z());
+            yaw = (float) wrapDegrees(yaw + 20.0);
+            return;
+        }
+        // Lines 121-135: the flap — 0.2 / (speed*10 + 1), scaled by
+        // 2^velocityY, halved when the movement restricts.
+        dragonLastWingPosition = dragonWingPosition;
+        float flap = (float) (0.2 / (Math.sqrt(velocityX * velocityX
+                + velocityZ * velocityZ) * 10.0 + 1.0));
+        flap *= (float) Math.pow(2.0, velocityY);
+        dragonWingPosition += dragonRestrictMovement ? flap * 0.5f : flap;
+
+        yaw = (float) wrapDegrees(yaw);
+        // The ring's first fill (lines 141-146).
+        if (dragonLatestSegment < 0) {
+            for (double[] slot : dragonSegmentBuffer) {
+                slot[0] = yaw;
+                slot[1] = position.y();
+            }
+        }
+        if (++dragonLatestSegment == dragonSegmentBuffer.length) {
+            dragonLatestSegment = 0;
+        }
+        dragonSegmentBuffer[dragonLatestSegment][0] = yaw;
+        dragonSegmentBuffer[dragonLatestSegment][1] = position.y();
+
+        // Lines 167-190: the steering target.
+        double dx = dragonTargetX - position.x();
+        double dy = dragonTargetY - position.y();
+        double dz = dragonTargetZ - position.z();
+        double squared = dx * dx + dy * dy + dz * dz;
+        if (dragonTargetPlayerId > 0) {
+            Position quarry = world.entityPositionById(dragonTargetPlayerId);
+            if (quarry != null) {
+                dragonTargetX = quarry.x();
+                dragonTargetZ = quarry.z();
+                double hdx = dragonTargetX - position.x();
+                double hdz = dragonTargetZ - position.z();
+                double hd = Math.sqrt(hdx * hdx + hdz * hdz);
+                // Line 177: 0.4 + dist/80 - 1, capped at 10 — the quarry's
+                // hover band above the feet.
+                double hover = 0.4 + hd / 80.0 - 1.0;
+                if (hover > 10.0) {
+                    hover = 10.0;
+                }
+                dragonTargetY = quarry.y() + hover;
+            }
+        } else {
+            // Lines 184-185: the point's own gaussian drift.
+            dragonTargetX += random.nextGaussian() * 2.0;
+            dragonTargetZ += random.nextGaussian() * 2.0;
+        }
+        if (dragonNeedsNewTarget || squared < 100.0 || squared > 22500.0) {
+            // (the reference's collidedHorizontally/Vertically arms ride the
+            // noClip body — a noClip entity never registers a collision, the
+            // gates stay structurally false)
+            chooseDragonTarget();
+        }
+
+        // Lines 192-238: the velocity shaping.
+        dx = dragonTargetX - position.x();
+        dy = dragonTargetY - position.y();
+        dz = dragonTargetZ - position.z();
+        double horizontal = Math.sqrt(dx * dx + dz * dz);
+        double clampedDy = Math.max(-0.6, Math.min(0.6, dy / horizontal));
+        velocityY += clampedDy * 0.1;
+        yaw = (float) wrapDegrees(yaw);
+        double desired = 180.0 - Math.atan2(dx, dz) * 180.0 / Math.PI;
+        double turn = wrapDegrees(desired - yaw);
+        if (turn > 50.0) {
+            turn = 50.0;
+        }
+        if (turn < -50.0) {
+            turn = -50.0;
+        }
+        // The f5 alignment: the nose vector against the target vector.
+        double len = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        double tx = dx / len;
+        double ty = dy / len;
+        double tz = dz / len;
+        double yawRad = Math.toRadians(yaw);
+        double noseX = Math.sin(yawRad);
+        double noseZ = -Math.cos(yawRad);
+        double noseLen = Math.sqrt(noseX * noseX + velocityY * velocityY + noseZ * noseZ);
+        double nx = noseX / noseLen;
+        double ny = velocityY / noseLen;
+        double nz = noseZ / noseLen;
+        float alignment = (float) ((nx * tx + ny * ty + nz * tz) + 0.5) / 1.5f;
+        if (alignment < 0.0f) {
+            alignment = 0.0f;
+        }
+        dragonRotationSpeed *= 0.8f;
+        double speedFactor = Math.sqrt(velocityX * velocityX + velocityZ * velocityZ) + 1.0;
+        if (speedFactor > 40.0) {
+            speedFactor = 40.0;
+        }
+        dragonRotationSpeed = (float) (dragonRotationSpeed + turn * (0.7 / speedFactor / speedFactor));
+        yaw = (float) (yaw + dragonRotationSpeed * 0.1);
+        // updateVelocity(0, -1, 0.06 * (alignment*f7 + (1-f7))) — the
+        // forward-strafe pair against the yaw.
+        float f7 = (float) (2.0 / (speedFactor + 1.0));
+        float accel = 0.06f * (alignment * f7 + (1.0f - f7));
+        double forwardX = -Math.sin(Math.toRadians(yaw));
+        double forwardZ = Math.cos(Math.toRadians(yaw));
+        velocityX += forwardX * accel;
+        velocityZ += forwardZ * accel;
+        velocityY += -accel; // the strafe's -1 (the flight's own lift model)
+        if (dragonRestrictMovement) {
+            position = new Position(position.x() + velocityX * 0.8,
+                    position.y() + velocityY * 0.8, position.z() + velocityZ * 0.8);
+        } else {
+            position = new Position(position.x() + velocityX,
+                    position.y() + velocityY, position.z() + velocityZ);
+        }
+        // Lines 233-238: the post-move dampening.
+        double vlen = Math.sqrt(velocityX * velocityX + velocityY * velocityY
+                + velocityZ * velocityZ);
+        if (vlen > 0.0) {
+            float f9 = (float) (((velocityX / vlen) * nx + (velocityY / vlen) * ny
+                    + (velocityZ / vlen) * nz) + 1.0) / 2.0f;
+            f9 = 0.8f + 0.15f * f9;
+            velocityX *= f9;
+            velocityZ *= f9;
+        }
+        velocityY *= 0.91;
+
+        // Line 241: the body yaw follows (the engine's single-yaw model —
+        // the reference's bodyYaw field and the yaw ARE one here).
+
+        // Lines 252-307: the part placement.
+        double[] seg5 = dragonSegmentProperties(5, 1.0f);
+        double[] seg10 = dragonSegmentProperties(10, 1.0f);
+        // f12: the pitch between the two segments' y.
+        float f12 = (float) (seg5[1] - seg10[1]) * 10.0f / 180.0f * (float) Math.PI;
+        float pitchCos = (float) Math.cos(f12);
+        float pitchSin = -(float) Math.sin(f12);
+        float yawRad2 = (float) Math.toRadians(yaw);
+        float sinYaw = (float) Math.sin(yawRad2);
+        float cosYaw = (float) Math.cos(yawRad2);
+        // The body (line 259): the center, half a block back.
+        dragonParts[1].x = position.x() + sinYaw * 0.5;
+        dragonParts[1].y = position.y();
+        dragonParts[1].z = position.z() - cosYaw * 0.5;
+        // The wings (lines 261-263): the ±4.5 flanks at +2.
+        dragonParts[5].x = position.x() + cosYaw * 4.5;
+        dragonParts[5].y = position.y() + 2.0;
+        dragonParts[5].z = position.z() + sinYaw * 4.5;
+        dragonParts[6].x = position.x() - cosYaw * 4.5;
+        dragonParts[6].y = position.y() + 2.0;
+        dragonParts[6].z = position.z() - sinYaw * 4.5;
+        // The head (lines 270-278): the segment curve plus the 5.5 nose.
+        double[] seg0 = dragonSegmentProperties(0, 1.0f);
+        float headSin = (float) Math.sin(yawRad2 - dragonRotationSpeed * 0.01f);
+        float headCos = (float) Math.cos(yawRad2 - dragonRotationSpeed * 0.01f);
+        dragonParts[0].x = position.x() + headSin * 5.5 * pitchCos;
+        dragonParts[0].y = position.y() + (seg0[1] - seg5[1]) + pitchSin * 5.5;
+        dragonParts[0].z = position.z() - headCos * 5.5 * pitchCos;
+        // The tails (lines 280-307): the three segment-offset segments.
+        for (int j = 0; j < 3; j++) {
+            DragonPart tail = dragonParts[2 + j];
+            double[] seg = dragonSegmentProperties(12 + j * 2, 1.0f);
+            float tailAngle = (float) (yawRad2
+                    + wrapDegrees(seg[0] - seg5[0]) * Math.PI / 180.0);
+            float tailSin = (float) Math.sin(tailAngle);
+            float tailCos = (float) Math.cos(tailAngle);
+            float back = 1.5f;
+            float reach = (j + 1) * 2.0f;
+            tail.x = position.x() - (sinYaw * back + tailSin * reach) * pitchCos;
+            tail.y = position.y() + (seg[1] - seg5[1]) - (reach + back) * pitchSin + 1.5;
+            tail.z = position.z() + (cosYaw * back + tailCos * reach) * pitchCos;
+        }
+
+        // The contact arms (lines 264-268, damagedTimer == 0 — the engine
+        // carries no hurt cooldown here, the arms run every tick): the
+        // fling against the wing hulls, the damage against the head hull.
+        dragonFlungPlayers = true;
+        dragonDamagedPlayers = true;
+        // The block sweep (line 311): the head and body hulls.
+        dragonSweptBlocks = true;
+    }
+
+    /**
+     * chooseTarget (lines 379-408): the 50% quarry arm (a random
+     * non-spectator player) or the point arm (y 70..120, x/z ±60 around
+     * zero, at least 10 blocks out — the do-while's own loop).
+     */
+    private void chooseDragonTarget() {
+        dragonNeedsNewTarget = false;
+        // The engine's player walk (the world consult names the candidates —
+        // the reference's spectator filter rides the consult's own PLAYING
+        // gate; creative players stay fair game, the reference's own law).
+        java.util.List<Integer> players = new java.util.ArrayList<>();
+        for (int id : world.playerIds()) {
+            Position at = world.entityPositionById(id);
+            if (at != null && !world.entityInvulnerablePlayer(id)) {
+                players.add(id);
+            }
+        }
+        if (random.nextInt(2) == 0 && !players.isEmpty()) {
+            dragonTargetPlayerId = players.get(random.nextInt(players.size()));
+        } else {
+            double sx;
+            double sy;
+            double sz;
+            do {
+                dragonTargetX = 0.0;
+                dragonTargetY = 70.0 + random.nextFloat() * 50.0f;
+                dragonTargetZ = 0.0;
+                dragonTargetX += random.nextFloat() * 120.0f - 60.0f;
+                dragonTargetZ += random.nextFloat() * 120.0f - 60.0f;
+                sx = position.x() - dragonTargetX;
+                sy = position.y() - dragonTargetY;
+                sz = position.z() - dragonTargetZ;
+            } while (sx * sx + sy * sy + sz * sz <= 100.0);
+            dragonTargetPlayerId = -1;
+        }
     }
 
     // --------------------------------------------------------------
@@ -5272,6 +5836,16 @@ public final class MobEntity implements LivingEntity {
             tickWitherMind(target, canHunt);
             return;
         }
+        // The ender dragon's own mind (Slice 63 — EnderDragonEntity
+        // .mobTick 1:1): the wing flap, the steering walk (the quarry
+        // chase or the point drift, the 100/22500 re-target band), the
+        // velocity shaping, the rotation-speed yaw, the part placement,
+        // and the contact arms — the reference carries no goal set at
+        // all (no goals registered, the steering IS the AI).
+        if (type == MobType.ENDER_DRAGON) {
+            tickDragonMind(target, canHunt);
+            return;
+        }
 
         // The goal layer (the community PathfinderGoal architecture): float
         // and panic claim the body first, the stroll cycle only when no hunt
@@ -6196,6 +6770,14 @@ public final class MobEntity implements LivingEntity {
         if (type == MobType.GHAST && !dead) {
             tickGhastBody();
             integrateFlight();
+            return;
+        }
+        // The dragon's flight (Slice 63 — EnderDragonEntity's noClip body):
+        // the mind's steering walk owns the whole integration (the
+        // velocity shaping + the move); no gravity, no ground snap, no
+        // walk, no contact arms (noClip never touches the cactus).
+        if (type == MobType.ENDER_DRAGON && !dead) {
+            onGround = false;
             return;
         }
         // The bat's flight (Slice 16e — BatEntity.tick): the roost snap or
