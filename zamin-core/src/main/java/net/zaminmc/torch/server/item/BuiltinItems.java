@@ -848,6 +848,13 @@ public final class BuiltinItems {
     // over 390, stack 64 like the reference's decorations tab).
     public static final EngineItemType FLOWER_POT = new EngineItemType(
             Identifier.parse("minecraft:flower_pot"), "Flower Pot", 64);
+    // The weighted pressure-plate pair's items (Slice 49a — Item.java's
+    // own BlockItem rows over 147/148, stack 64 like the reference's
+    // redstone tab).
+    public static final EngineItemType LIGHT_WEIGHTED_PRESSURE_PLATE = new EngineItemType(
+            Identifier.parse("minecraft:light_weighted_pressure_plate"), "Weighted Pressure Plate (Light)", 64);
+    public static final EngineItemType HEAVY_WEIGHTED_PRESSURE_PLATE = new EngineItemType(
+            Identifier.parse("minecraft:heavy_weighted_pressure_plate"), "Weighted Pressure Plate (Heavy)", 64);
 
     // Decoration flora + desert stone (the placeable block-item forms; the
     // flowers drop themselves, tall grass/dead bush are /give-reachable).
@@ -1015,7 +1022,7 @@ public final class BuiltinItems {
                 DIAMOND_BLOCK, EMERALD_BLOCK, BEACON,
                 BONE, STRING, GUNPOWDER, WOOL, MUTTON, COOKED_MUTTON, SLIME_BALL,
                 SKULL,
-                BUCKET, WATER_BUCKET, LAVA_BUCKET, MILK_BUCKET, COBBLESTONE_WALL, MOSSY_COBBLESTONE, FLOWER_POT,
+                BUCKET, WATER_BUCKET, LAVA_BUCKET, MILK_BUCKET, COBBLESTONE_WALL, MOSSY_COBBLESTONE, FLOWER_POT, LIGHT_WEIGHTED_PRESSURE_PLATE, HEAVY_WEIGHTED_PRESSURE_PLATE,
                 FLINT_AND_STEEL, GOLD_INGOT,
                 SUGAR_CANE, CACTUS, SUGAR, PAPER, BOOK,
                 TALL_GRASS, DEAD_BUSH, DANDELION, POPPY, RED_FLOWER, DOUBLE_PLANT, SANDSTONE,

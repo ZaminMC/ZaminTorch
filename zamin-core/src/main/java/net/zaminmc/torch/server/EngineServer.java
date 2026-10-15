@@ -1007,6 +1007,43 @@ public final class EngineServer implements Server, EngineBridge {
                     }
                     return false;
                 });
+                // The weighted plates' counting probe (Slice 49a —
+                // WeightedPressurePlateBlock.calculateOutputSignal's
+                // getEntitiesOfType(Entity.class): EVERY entity in the
+                // 0.125-inset box counts — mobs, players and dropped items
+                // alike).
+                redstoneSystem.setPlateCountProbe(plate -> {
+                    double minX = plate.x() + 0.125, maxX = plate.x() + 1 - 0.125;
+                    double minY = plate.y(), maxY = plate.y() + 0.25;
+                    double minZ = plate.z() + 0.125, maxZ = plate.z() + 1 - 0.125;
+                    int count = 0;
+                    for (net.zaminmc.torch.server.entity.MobEntity mob : mobs.all()) {
+                        net.zaminmc.torch.util.Position at = mob.position();
+                        if (at.x() >= minX && at.x() <= maxX && at.y() >= minY && at.y() <= maxY
+                                && at.z() >= minZ && at.z() <= maxZ) {
+                            count++;
+                        }
+                    }
+                    for (PlayerSession body : players.all()) {
+                        if (body.state() != net.zaminmc.torch.entity.PlayerState.PLAYING
+                                || body.gamemode() == GameMode.SPECTATOR) {
+                            continue; // canAvoidTraps
+                        }
+                        net.zaminmc.torch.util.Position at = body.position();
+                        if (at.x() >= minX && at.x() <= maxX && at.y() >= minY && at.y() <= maxY
+                                && at.z() >= minZ && at.z() <= maxZ) {
+                            count++;
+                        }
+                    }
+                    for (ItemEntity item : itemEntities.all()) {
+                        net.zaminmc.torch.util.Position at = item.position();
+                        if (at.x() >= minX && at.x() <= maxX && at.y() >= minY
+                                && at.y() <= maxY && at.z() >= minZ && at.z() <= maxZ) {
+                            count++;
+                        }
+                    }
+                    return count;
+                });
                 // The detector rail's cart probe (Slice 38 —
                 // DetectorRailBlock.updateOutputState's getMinecarts over
                 // the rail's own cell: any minecart body inside the box).

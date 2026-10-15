@@ -1336,6 +1336,21 @@ public final class BlockBehaviorTable {
                                     WallBlocks.variantOf(wall.identifier())))));
         }
 
+        // The weighted pressure-plate pair (Slice 49a —
+        // WeightedPressurePlateBlock's own rows: setStrength(0.5F)
+        // WOOD_SOUNDS over Material.IRON; every state drops its family
+        // item — the POWER nibble never carries into the drop).
+        for (net.zaminmc.torch.server.block.EngineBlockType plate
+                : net.zaminmc.torch.server.redstone.WeightedPlateBlocks.familyBlocks()) {
+            behaviors.put(plate.identifier(),
+                    new BlockBehavior(0.5, true, false, "plant", 0,
+                            java.util.List.of(new BlockBehavior.Drop(
+                                    plate.identifier().value().startsWith("light_weighted")
+                                            ? Identifier.parse("minecraft:light_weighted_pressure_plate")
+                                            : Identifier.parse("minecraft:heavy_weighted_pressure_plate"),
+                                    1))));
+        }
+
         // The flower-pot family (Slice 48 — FlowerPotBlock's own row:
         // setStrength(0.0F) DEFAULT_SOUNDS over Material.DECORATION; the
         // survival break drops the pot AND the plant (getDropItem the pot,
