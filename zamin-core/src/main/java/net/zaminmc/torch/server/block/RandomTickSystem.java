@@ -118,6 +118,39 @@ public final class RandomTickSystem {
             tickFarmlandHydration(position, type);
             return;
         }
+        if (type.identifier().equals(BuiltinBlocks.MYCELIUM.identifier())) {
+            // The mycelium's own walk (Slice 42 — MyceliumBlock.tick lines
+            // 44-67, 1:1): the decay under darkness (brightness < 4 with
+            // an opaque lid) and the four-attempt dirt conversion at
+            // brightness >= 9 with the target's >= 4 gate.
+            if (lightAt(position.offset(0, 1, 0)) < 4
+                    && BlockLightTable.filter(world.getBlock(
+                            position.offset(0, 1, 0))) > 2) {
+                world.setBlock(position, BuiltinBlocks.DIRT);
+                return;
+            }
+            if (lightAt(position.offset(0, 1, 0)) >= 9) {
+                for (int attempt = 0; attempt < SPREAD_ATTEMPTS; attempt++) {
+                    BlockPosition target = position.offset(
+                            random.nextInt(3) - 1,
+                            random.nextInt(5) - 3,
+                            random.nextInt(3) - 1);
+                    if (target.y() < BlockPosition.MIN_Y || target.y() > BlockPosition.MAX_Y) {
+                        continue;
+                    }
+                    if (!world.getBlock(target).identifier().toString().equals("minecraft:dirt")) {
+                        continue;
+                    }
+                    if (lightAt(target.offset(0, 1, 0)) < 4
+                            || BlockLightTable.filter(world.getBlock(
+                                    target.offset(0, 1, 0))) > 2) {
+                        continue;
+                    }
+                    world.setBlock(target, BuiltinBlocks.MYCELIUM);
+                }
+            }
+            return;
+        }
         if (!type.identifier().toString().equals("minecraft:grass_block")) {
             return;
         }

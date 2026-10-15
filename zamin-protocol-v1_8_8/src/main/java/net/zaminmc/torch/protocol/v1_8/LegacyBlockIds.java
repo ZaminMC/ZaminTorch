@@ -677,6 +677,11 @@ final class LegacyBlockIds {
                 }
             }
         }
+        // The ground-cover pair (Slice 42 — Block.java's own rows): the
+        // mycelium 110, the waterlily 111 — both single meta-0 states (the
+        // snowy side and the boat pass-through are the client's own reads).
+        merged.put(Identifier.parse("minecraft:mycelium"), 110);
+        merged.put(Identifier.parse("minecraft:waterlily"), 111);
         // The melon family (Slice 41 — Block.java's own rows): the melon
         // block 103, the pumpkin stem 104 and the melon stem 105 — the
         // stems' eight AGE stages over the metadata nibble whole (the

@@ -366,6 +366,22 @@ public final class BlockUpdateSystem implements WorldChangeListener {
                     drop, ItemEntity.PICKUP_DELAY_DROP_TICKS);
             return;
         }
+        // The lily pad's support rule (Slice 42 — LilyPadBlock.canSurvive
+        // lines 51-57: the block below must be a WATER SOURCE — flowing
+        // water or a departing source pops the pad with its item).
+        if (identifier.equals("waterlily")) {
+            BlockType below = world.getBlock(position.offset(0, -1, 0));
+            if (FluidBlocks.isSource(below.identifier())
+                    && FluidBlocks.kindOf(below.identifier()) == FluidBlocks.Kind.WATER) {
+                return; // supported
+            }
+            world.setBlock(position, world.airType());
+            itemEntities.spawnDropAtBlock(
+                    new Position(position.x(), position.y(), position.z()),
+                    ItemStack.of(net.zaminmc.torch.server.item.BuiltinItems.WATERLILY, 1),
+                    ItemEntity.PICKUP_DELAY_DROP_TICKS);
+            return;
+        }
         if (identifier.equals(FIRE)) {
             tickFire(position, world.totalTicks());
             return;

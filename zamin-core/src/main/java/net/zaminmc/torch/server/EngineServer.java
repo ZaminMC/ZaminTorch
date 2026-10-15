@@ -6209,6 +6209,27 @@ public final class EngineServer implements Server, EngineBridge {
             placeStairsOnTick(session, clicked, face, creativeHeld);
             return; // the ascending-facing rule overrides the generic placement
         }
+        // The lily pad's own use (Slice 42 — LilyPadItem.startUsing lines
+        // 26-51): the aimed cell must be a WATER SOURCE with air above —
+        // the pad takes the surface cell (blockpos.up()).
+        if (heldId.equals("minecraft:waterlily")
+                || creativeHeld.map(t -> t.identifier().value().equals("waterlily")).orElse(false)) {
+            BlockType aimed = world.getBlock(clicked);
+            if (FluidBlocks.kindOf(aimed.identifier()) == FluidBlocks.Kind.WATER
+                    && FluidBlocks.isSource(aimed.identifier())
+                    && world.getBlock(clicked.offset(0, 1, 0)).equals(world.airType())
+                    && distanceSquaredEyeToBlock(session.position(), clicked) <= 4.5 * 4.5) {
+                if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE
+                        && !session.inventory().held().isEmpty()) {
+                    world.setBlock(clicked.offset(0, 1, 0), BuiltinBlocks.WATERLILY);
+                    consumePlaced(session, creativeHeld);
+                } else if (!creativeHeld.isEmpty() || session.gamemode() == GameMode.CREATIVE) {
+                    world.setBlock(clicked.offset(0, 1, 0), BuiltinBlocks.WATERLILY);
+                    consumePlaced(session, creativeHeld);
+                }
+            }
+            return; // the pad's use consumed the right-click either way
+        }
         if (heldId.equals("minecraft:rail")
                 || net.zaminmc.torch.server.block.RailBlocks.isRailItem(heldId)
                 || creativeHeld.map(t -> WorldSolidity.isRail(t.identifier())).orElse(false)) {

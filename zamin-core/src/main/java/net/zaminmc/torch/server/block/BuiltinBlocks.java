@@ -598,6 +598,10 @@ public final class BuiltinBlocks {
             Identifier.parse("minecraft:pumpkin"), "Pumpkin");
     public static final EngineBlockType MELON_BLOCK = new EngineBlockType(
             Identifier.parse("minecraft:melon_block"), "Melon", 0);
+    public static final EngineBlockType MYCELIUM = new EngineBlockType(
+            Identifier.parse("minecraft:mycelium"), "Mycelium", 0);
+    public static final EngineBlockType WATERLILY = new EngineBlockType(
+            Identifier.parse("minecraft:waterlily"), "Lily Pad", 0);
     public static final EngineBlockType LIT_PUMPKIN = new EngineBlockType(
             Identifier.parse("minecraft:lit_pumpkin"), "Jack o'Lantern");
 
@@ -842,6 +846,8 @@ public final class BuiltinBlocks {
                 .register(IRON_BLOCK)
                 .register(PUMPKIN)
                 .register(MELON_BLOCK)
+                .register(MYCELIUM)
+                .register(WATERLILY)
                 .register(LIT_PUMPKIN)
                 .register(POTATOES_STAGE0)
                 .register(POTATOES_STAGE1)
