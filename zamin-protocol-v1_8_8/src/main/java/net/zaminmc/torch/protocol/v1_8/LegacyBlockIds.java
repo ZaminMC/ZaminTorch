@@ -755,6 +755,10 @@ final class LegacyBlockIds {
         merged.put(Identifier.parse("minecraft:potted_fern"), 140);
         merged.put(Identifier.parse("minecraft:potted_acacia_sapling"), 140);
         merged.put(Identifier.parse("minecraft:potted_dark_oak_sapling"), 140);
+        // The trapped chest (Slice 49b — Block.java's own row 146): the
+        // single meta-0 form (the facing nibble rides the metadata-variants
+        // slice); the item (Item.java's own BlockItem) joins it.
+        merged.put(Identifier.parse("minecraft:trapped_chest"), 146);
         // The weighted pressure-plate pair (Slice 49a — Block.java's own
         // rows): the light 147 and the heavy 148 — the sixteen POWER states
         // each, the POWER value in the nibble.

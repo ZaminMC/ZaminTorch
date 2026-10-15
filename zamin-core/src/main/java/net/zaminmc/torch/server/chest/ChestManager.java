@@ -97,8 +97,11 @@ public final class ChestManager {
     }
 
     private static boolean isChestBlock(EngineWorld world, BlockPosition position) {
-        return world.getBlock(position).identifier()
-                .equals(BuiltinBlocks.CHEST.identifier());
+        // Slice 49b: the trapped chest joins the family (ChestBlock(1) —
+        // the same container, the same GUI, the same spill).
+        net.zaminmc.torch.util.Identifier id = world.getBlock(position).identifier();
+        return id.equals(BuiltinBlocks.CHEST.identifier())
+                || id.value().equals("trapped_chest");
     }
 
     /**

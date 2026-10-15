@@ -271,6 +271,19 @@ public final class RedstoneSystem implements WorldChangeListener {
         this.plateCountProbe = probe;
     }
 
+    /**
+     * The trapped chest's viewer count (Slice 49b —
+     * ChestBlock.getSignal lines 379-392: {@code clamp(viewerCount, 0,
+     * 15)} to every side — the indirect-only source, the same value the
+     * comparator's analog arm reads through the container fullness).
+     */
+    private java.util.function.ToIntFunction<BlockPosition> trappedChestViewers;
+
+    /** Wires the trapped chest's viewer-count read. */
+    public void setTrappedChestViewers(java.util.function.ToIntFunction<BlockPosition> read) {
+        this.trappedChestViewers = read;
+    }
+
     /** Wires the detector rail's minecart probe (Slice 38 — the engine's
      *  vehicle manager feeding the occupancy scan). */
     public void setCartProbe(java.util.function.Predicate<BlockPosition> probe) {
@@ -418,7 +431,7 @@ public final class RedstoneSystem implements WorldChangeListener {
      * the second hop that carries a wire's change through the block under
      * it to the family blocks around that block.
      */
-    void updateNeighbors(BlockPosition pos) {
+    public void updateNeighbors(BlockPosition pos) {
         for (int[] offset : OFFSETS) {
             neighborChanged(pos.offset(offset[0], offset[1], offset[2]));
         }
@@ -661,6 +674,17 @@ public final class RedstoneSystem implements WorldChangeListener {
             // TripwireHookBlock lines 262-264: weak 15 in every direction
             // when powered (getSignal).
             return TripwireBlocks.hookPowered(type) ? 15 : 0;
+        }
+        if (type.identifier().value().equals("trapped_chest")) {
+            // ChestBlock.getSignal lines 379-392 (Slice 49b): the viewer
+            // count clamped 0-15, weakly in EVERY direction (the
+            // indirect-only source — the comparator's analog arm reads the
+            // container fullness through its own chain).
+            java.util.function.ToIntFunction<BlockPosition> viewers = trappedChestViewers;
+            if (viewers == null) {
+                return 0;
+            }
+            return Math.max(0, Math.min(15, viewers.applyAsInt(pos)));
         }
         return 0;
     }

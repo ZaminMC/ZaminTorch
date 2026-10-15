@@ -153,6 +153,11 @@ public final class BlockBehaviorTable {
             Map.entry(Identifier.parse("minecraft:chest"),
                     new BlockBehavior(2.5, true, false, "wood", 0,
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:chest"), 1)))),
+            // The trapped chest (Slice 49b — ChestBlock(1)'s own row:
+            // setStrength(2.5F) WOOD_SOUNDS dropping itself).
+            Map.entry(Identifier.parse("minecraft:trapped_chest"),
+                    new BlockBehavior(2.5, true, false, "wood", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:trapped_chest"), 1)))),
 
             // The ender chest family (Slice 29a — Block.java lines 1281-1282:
             // setStrength(22.5F), setBlastResistance(1000.0F), STONE sounds):

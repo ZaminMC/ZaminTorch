@@ -57,7 +57,12 @@ public final class BuiltinBlocks {
     public static final EngineBlockType FURNACE = new EngineBlockType(
             Identifier.parse("minecraft:furnace"), "Furnace");
     public static final EngineBlockType CHEST = new EngineBlockType(
-            Identifier.parse("minecraft:chest"), "Chest");
+            Identifier.parse("minecraft:chest"), "Chest");    // The trapped chest (Slice 49b — ChestBlock(1): setStrength(2.5F)
+    // WOOD_SOUNDS over Material.WOOD — the same container, the
+    // viewer-count power source).
+    public static final EngineBlockType TRAPPED_CHEST = new EngineBlockType(
+            Identifier.parse("minecraft:trapped_chest"), "Trapped Chest");
+
     // The TNT block (legacy 46, Slice 9f): the ignition system's family.
     public static final EngineBlockType TNT = new EngineBlockType(
             Identifier.parse("minecraft:tnt"), "Tnt");
@@ -672,6 +677,7 @@ public final class BuiltinBlocks {
                 .register(TORCH)
                 .register(FURNACE)
                 .register(CHEST)
+                .register(TRAPPED_CHEST)
                 .register(TNT)
                 .register(SAND)
                 .register(GLASS)

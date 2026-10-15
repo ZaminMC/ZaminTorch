@@ -6153,3 +6153,30 @@ heavy (iron) over the weight 150).
 Ledgered: the trapped chest 146 is Slice 49b (the chest system's family
 extension + the viewer-count weak power); the strong-up-only emission
 rides the existing plate branch.
+
+## Slice 49b — the trapped chest: the block 146 (ChestBlock(1) 1:1)
+
+The reference port of the trapped chest — the shared chest model's type-1
+arms (setStrength(2.5F) WOOD_SOUNDS).
+
+- The block + item: `minecraft:trapped_chest` (the single meta-0 form; the
+  facing nibble rides the metadata-variants slice like the shipped plain
+  chest).
+- The chest system's family extension: `ChestManager.isChestBlock` accepts
+  the trapped chest (the same container, GUI, spill and persistence); the
+  open arm routes through the same `openChestOnTick` with the neighbor
+  wake on open (the viewer count changed from 0).
+- The weak power (ChestBlock.getSignal): the viewer count clamped 0-15 in
+  every direction — the indirect-only source, read through the new
+  `setTrappedChestViewers` probe (the sessions holding this chest's window
+  open).
+- The crafting row (BlockRecipes line 21): the chest over the tripwire
+  hook.
+- The behavior row (2.5 WOOD dropping itself), the light row, and the wire
+  row (146).
+- Tests: `TrappedChestBlocksTest` (2) + `BlockRegistryTest` 740 +
+  `CraftingRecipeTest` 198. The full core suite green, the protocol module
+  green, `--max-workers=1`.
+
+Ledgered: the close's neighbor wake rides the container-close family's
+own arms; the TRAPPED_CHESTS_TRIGGERED stat rides the stats slice.
