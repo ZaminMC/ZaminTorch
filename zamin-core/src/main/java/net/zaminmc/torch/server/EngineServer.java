@@ -1717,6 +1717,9 @@ public final class EngineServer implements Server, EngineBridge {
                                 .or(() -> net.zaminmc.torch.server.block.WallBlocks
                                         .placementBlockOf(type.identifier(), damage)
                                         .flatMap(id -> blockRegistry.lookup(id)))
+                                .or(() -> net.zaminmc.torch.server.block.RedSandstoneBlocks
+                                        .placementBlockOf(type.identifier(), damage)
+                                        .flatMap(id -> blockRegistry.lookup(id)))
                                 .or(() -> blockRegistry.lookup(type.identifier())),
                         this::publishInventoryChanged);
                 blockInteraction.setEventBus(eventBus); // §27.7: the public break/place gates
@@ -6412,7 +6415,7 @@ public final class EngineServer implements Server, EngineBridge {
             placeBedOnTick(session, clicked, face, creativeHeld);
             return; // the two-half bed overrides the generic placement
         }
-        if (heldId.endsWith("_slab")
+        if (heldId.endsWith("_slab") || heldId.equals("stone_slab2")
                 || creativeHeld.map(t -> isSlabIdentifier(t.identifier().value())).orElse(false)) {
             placeSlabOnTick(session, clicked, face, creativeHeld, cursorY);
             return; // the half/double rule overrides the generic placement
@@ -8586,14 +8589,16 @@ public final class EngineServer implements Server, EngineBridge {
 
     /** @return whether the identifier value belongs to the slab family. */
     private static boolean isSlabIdentifier(String value) {
-        return value.endsWith("_slab") || value.endsWith("_slab_top");
+        return value.endsWith("_slab") || value.endsWith("_slab_top")
+                || value.equals("stone_slab2") || value.equals("stone_slab2_top");
     }
 
     /** @return whether the identifier value belongs to the stairs family. */
     private static boolean isStairsIdentifier(String value) {
         return WoodShapeBlocks.isStairsItem(value) || WoodShapeBlocks.isStairsState(value)
                 || value.startsWith("oak_stairs") || value.startsWith("cobblestone_stairs")
-                || value.startsWith("sandstone_stairs") || value.startsWith("nether_brick_stairs");
+                || value.startsWith("sandstone_stairs") || value.startsWith("nether_brick_stairs")
+                || value.startsWith("red_sandstone_stairs");
     }
 
     /**
@@ -8620,6 +8625,14 @@ public final class EngineServer implements Server, EngineBridge {
             return new net.zaminmc.torch.block.BlockType[]{
                     BuiltinBlocks.SANDSTONE_SLAB, BuiltinBlocks.SANDSTONE_SLAB_TOP,
                     BuiltinBlocks.SANDSTONE};
+        }
+        // The red sandstone slab pair (Slice 52 — the reference's own
+        // stone_slab2 family: the doubles carry the SEAMLESS bit's plain
+        // form, the family's own 181 double).
+        if (value.equals("stone_slab2") || value.equals("stone_slab2_top")) {
+            return new net.zaminmc.torch.block.BlockType[]{
+                    BuiltinBlocks.STONE_SLAB2, BuiltinBlocks.STONE_SLAB2_TOP,
+                    BuiltinBlocks.DOUBLE_STONE_SLAB2};
         }
         // The wooden-slab families (Slice 36 — the reference's own id 126
         // carrying the variant nibble): each wood's pair doubles into its
@@ -8651,6 +8664,13 @@ public final class EngineServer implements Server, EngineBridge {
             return new net.zaminmc.torch.block.BlockType[]{
                     BuiltinBlocks.COBBLESTONE_STAIRS_SOUTH, BuiltinBlocks.COBBLESTONE_STAIRS_WEST,
                     BuiltinBlocks.COBBLESTONE_STAIRS_NORTH, BuiltinBlocks.COBBLESTONE_STAIRS_EAST};
+        }
+        // The red sandstone stairs (Slice 52 — the family's own four
+        // states over the Bukkit band).
+        if (value.startsWith("red_sandstone_stairs")) {
+            return new net.zaminmc.torch.block.BlockType[]{
+                    BuiltinBlocks.RED_SANDSTONE_STAIRS_SOUTH, BuiltinBlocks.RED_SANDSTONE_STAIRS_WEST,
+                    BuiltinBlocks.RED_SANDSTONE_STAIRS_NORTH, BuiltinBlocks.RED_SANDSTONE_STAIRS_EAST};
         }
         // The new stair families (Slice 36 — the eight over the foundation
         // and the masonry set): the four facings resolve through the

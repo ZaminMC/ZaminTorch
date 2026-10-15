@@ -626,16 +626,25 @@ public final class BlockLightTable {
         for (EngineBlockType pot : FlowerPotBlocks.familyBlocks()) {
             merged.put(pot.identifier(), new LightData(0, 0));
         }
-        // The weighted pressure-plate pair (Slice 49a — the thin 1/16
-        // plate passes light, the flora rule's own band).
-        for (EngineBlockType plate : net.zaminmc.torch.server.redstone
-                .WeightedPlateBlocks.familyBlocks()) {
-            merged.put(plate.identifier(), new LightData(0, 0));
-        }
         // The ground-cover pair (Slice 42 — the mycelium is an opaque
         // cube like the grass block; the lily pad is the 1/64 surface).
         merged.put(Identifier.parse("minecraft:mycelium"), new LightData(0, 15));
         merged.put(Identifier.parse("minecraft:waterlily"), new LightData(0, 0));
+        // The red sandstone family (Slice 52 — 1.8's own four): the red
+        // sand and the three TYPE states are full opaque cubes (the sand's
+        // own row and the RedSandstoneBlock's Material.STONE); the stairs
+        // and the slab pair + the double ride the opaque-partial band
+        // exactly like the masonry stairs and the shipped slabs (filter 15
+        // — one value per cell, the half-block nuance stays out of scope).
+        merged.put(net.zaminmc.torch.server.block.RedSandstoneBlocks.RED_SAND,
+                new LightData(0, 15));
+        for (EngineBlockType member : net.zaminmc.torch.server.block
+                .RedSandstoneBlocks.familyBlocks()) {
+            merged.put(member.identifier(), new LightData(0, 15));
+        }
+        merged.put(Identifier.parse("minecraft:double_stone_slab2"), new LightData(0, 15));
+        merged.put(Identifier.parse("minecraft:stone_slab2"), new LightData(0, 15));
+        merged.put(Identifier.parse("minecraft:stone_slab2_top"), new LightData(0, 15));
         // The melon family (Slice 41 — the melon block is an opaque full
         // cube like the pumpkin; the stems are walk-through plants).
         merged.put(Identifier.parse("minecraft:melon_block"), new LightData(0, 15));

@@ -206,4 +206,42 @@ class LegacyBlockIdsIntegrityTest {
             }
         }
     }
+
+    /**
+     * The red sandstone family (Slice 52 — 1.8's own four, the reference's
+     * Block.java rows 1379-1390): the whole family must ride its own wire
+     * ids with the reference's exact metadata nibbles — the red sand on 12
+     * variant 1 (SandBlock.Variant.RED_SAND), the TYPE band on 179, the
+     * stairs' Bukkit facing band on 180, the double 181 and the slab pair
+     * 182 with the HALF bit 8. The family items share the block ids
+     * (Item.java's register(Blocks.X) reads Block.getId).
+     */
+    @Test
+    void theRedSandstoneFamilyCarriesItsOwnWireRows() {
+        assertEquals(Optional.of(12), LegacyBlockIds.legacyId(
+                net.zaminmc.torch.util.Identifier.parse("minecraft:red_sand")));
+        assertEquals(Optional.of(12), LegacyBlockIds.legacyId(
+                net.zaminmc.torch.util.Identifier.parse("minecraft:sand")));
+        assertEquals(Optional.of(1), Optional.of(
+                LegacyBlockIds.metadataOf(net.zaminmc.torch.util.Identifier.parse("minecraft:red_sand"))));
+        for (String[] row : new String[][] {
+                {"minecraft:red_sandstone", "179", "0"},
+                {"minecraft:chiseled_red_sandstone", "179", "1"},
+                {"minecraft:smooth_red_sandstone", "179", "2"},
+                {"minecraft:red_sandstone_stairs", "180", "0"},
+                {"minecraft:red_sandstone_stairs_west", "180", "1"},
+                {"minecraft:red_sandstone_stairs_south", "180", "2"},
+                {"minecraft:red_sandstone_stairs_north", "180", "3"},
+                {"minecraft:red_sandstone_stairs_east", "180", "0"},
+                {"minecraft:double_stone_slab2", "181", "0"},
+                {"minecraft:stone_slab2", "182", "0"},
+                {"minecraft:stone_slab2_top", "182", "8"}}) {
+            assertEquals(Optional.of(Integer.parseInt(row[1])), LegacyBlockIds.legacyId(
+                            net.zaminmc.torch.util.Identifier.parse(row[0])),
+                    row[0] + " must ride legacy " + row[1]);
+            assertEquals(Integer.parseInt(row[2]), LegacyBlockIds.metadataOf(
+                            net.zaminmc.torch.util.Identifier.parse(row[0])),
+                    row[0] + " must carry metadata " + row[2]);
+        }
+    }
 }

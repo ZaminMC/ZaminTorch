@@ -100,6 +100,9 @@ class Protocol18ConformanceTest {
         m.put("S2C_WINDOW_ITEMS", 0x30);
         m.put("S2C_WINDOW_PROPERTY", 0x31);
         m.put("S2C_CONFIRM_TRANSACTION", 0x32);
+        // Client Statistics 0x37 (Slice 51's stats slice): the stats-family
+        // wire row the Slice 51 commit left out of the conformance table.
+        m.put("S2C_CLIENT_STATISTICS", 0x37);
         m.put("S2C_DISCONNECT", 0x40);
         m.put("S2C_COMBAT_EVENT", 0x42);
         // Not play-state packets, same constant class: the login state's

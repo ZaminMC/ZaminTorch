@@ -62,6 +62,28 @@ public final class BuiltinBlocks {
     // viewer-count power source).
     public static final EngineBlockType TRAPPED_CHEST = new EngineBlockType(
             Identifier.parse("minecraft:trapped_chest"), "Trapped Chest");
+    // The red sandstone family (Slice 52 — 1.8's own four, 1:1): the three
+    // TYPE states over 179 (RedSandstoneBlock: DEFAULT 0, CHISELED 1,
+    // SMOOTH 2 — the TYPE id whole in the nibble), the four facing states
+    // over 180 (the Bukkit band E=0 W=1 S=2 N=3 like the masonry stairs),
+    // the slab pair over 182 (the HALF bit 8 — the RED_SANDSTONE variant
+    // id 0 rides the nibble whole like the reference's
+    // getDropItemMetadata) and the double 181 (the SEAMLESS bit never
+    // settable by gameplay — the plain form registers alone).
+    public static final EngineBlockType RED_SAND = RedSandstoneBlocks.redSand();
+    public static final EngineBlockType RED_SANDSTONE = RedSandstoneBlocks.state(0);
+    public static final EngineBlockType CHISELED_RED_SANDSTONE = RedSandstoneBlocks.state(1);
+    public static final EngineBlockType SMOOTH_RED_SANDSTONE = RedSandstoneBlocks.state(2);
+    public static final EngineBlockType RED_SANDSTONE_STAIRS_EAST = RedSandstoneBlocks.stairsState(0);
+    public static final EngineBlockType RED_SANDSTONE_STAIRS_WEST = RedSandstoneBlocks.stairsState(1);
+    public static final EngineBlockType RED_SANDSTONE_STAIRS_SOUTH = RedSandstoneBlocks.stairsState(2);
+    public static final EngineBlockType RED_SANDSTONE_STAIRS_NORTH = RedSandstoneBlocks.stairsState(3);
+    public static final EngineBlockType DOUBLE_STONE_SLAB2 = new EngineBlockType(
+            Identifier.parse("minecraft:double_stone_slab2"), "Double Red Sandstone Slab");
+    public static final EngineBlockType STONE_SLAB2 = new EngineBlockType(
+            Identifier.parse("minecraft:stone_slab2"), "Red Sandstone Slab");
+    public static final EngineBlockType STONE_SLAB2_TOP = new EngineBlockType(
+            Identifier.parse("minecraft:stone_slab2_top"), "Red Sandstone Slab", 8);
 
     // The TNT block (legacy 46, Slice 9f): the ignition system's family.
     public static final EngineBlockType TNT = new EngineBlockType(
@@ -951,6 +973,16 @@ public final class BuiltinBlocks {
                 .WeightedPlateBlocks.familyBlocks()) {
             builder = builder.register(plate);
         }
+        // The red sandstone family (Slice 52 — 1.8's own four, 1:1): the
+        // red sand + the three TYPE states + the four stairs through the
+        // family hub, the slab pair + the double directly (the single
+        // registration forms).
+        for (EngineBlockType member : RedSandstoneBlocks.familyBlocks()) {
+            builder = builder.register(member);
+        }
+        builder = builder.register(DOUBLE_STONE_SLAB2)
+                .register(STONE_SLAB2)
+                .register(STONE_SLAB2_TOP);
         return builder;
     }
 }

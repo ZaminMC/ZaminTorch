@@ -859,6 +859,18 @@ public final class BuiltinItems {
     // over 146, stack 64 like the chest's own item).
     public static final EngineItemType TRAPPED_CHEST = new EngineItemType(
             Identifier.parse("minecraft:trapped_chest"), "Trapped Chest", 64);
+    // The red sandstone family's items (Slice 52 — Item.java's own rows):
+    // the family item (the VariantBlockItem over 179) whose damage field
+    // carries the RedSandstoneBlock.Type id (0 default, 1 chiseled,
+    // 2 smooth); the stairs (the plain BlockItem over 180) and the slab
+    // (the SlabItem over 182 — the variant id 0 alone, the HALF bit is
+    // the placement's own read).
+    public static final EngineItemType RED_SANDSTONE = new EngineItemType(
+            Identifier.parse("minecraft:red_sandstone"), "Red Sandstone", 64);
+    public static final EngineItemType RED_SANDSTONE_STAIRS = new EngineItemType(
+            Identifier.parse("minecraft:red_sandstone_stairs"), "Red Sandstone Stairs", 64);
+    public static final EngineItemType STONE_SLAB2 = new EngineItemType(
+            Identifier.parse("minecraft:stone_slab2"), "Red Sandstone Slab", 64);
 
     // Decoration flora + desert stone (the placeable block-item forms; the
     // flowers drop themselves, tall grass/dead bush are /give-reachable).
@@ -1027,6 +1039,7 @@ public final class BuiltinItems {
                 BONE, STRING, GUNPOWDER, WOOL, MUTTON, COOKED_MUTTON, SLIME_BALL,
                 SKULL,
                 BUCKET, WATER_BUCKET, LAVA_BUCKET, MILK_BUCKET, COBBLESTONE_WALL, MOSSY_COBBLESTONE, FLOWER_POT, LIGHT_WEIGHTED_PRESSURE_PLATE, HEAVY_WEIGHTED_PRESSURE_PLATE, TRAPPED_CHEST,
+                RED_SANDSTONE, RED_SANDSTONE_STAIRS, STONE_SLAB2,
                 FLINT_AND_STEEL, GOLD_INGOT,
                 SUGAR_CANE, CACTUS, SUGAR, PAPER, BOOK,
                 TALL_GRASS, DEAD_BUSH, DANDELION, POPPY, RED_FLOWER, DOUBLE_PLANT, SANDSTONE,
