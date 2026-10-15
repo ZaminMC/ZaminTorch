@@ -1611,13 +1611,18 @@ public final class EngineServer implements Server, EngineBridge {
                         change -> world.republish(change.position()), // the resync path (§441)
                         session -> session.gamemode(), new DropService(new java.util.Random()), itemEntities,
                         // The damage-aware block-item resolution (Slice 31 —
-                        // ItemBlock.onItemUse's getStateFromMeta): the five
-                        // dye-family items place their color's block via the
-                        // stack's damage field, everything else resolves by
-                        // the plain identifier.
-                        (type, damage) -> net.zaminmc.torch.server.block.DyeFamilyBlocks
+                        // ItemBlock.onItemUse's getStateFromMeta): the wood
+                        // families and the five dye-family items place their
+                        // variant's block via the stack's damage field
+                        // (Slice 35's planks/log/log2/leaves/leaves2/sapling
+                        // domain first), everything else resolves by the
+                        // plain identifier.
+                        (type, damage) -> net.zaminmc.torch.server.block.WoodVariantBlocks
                                 .placementBlockOf(type.identifier(), damage)
                                 .flatMap(id -> blockRegistry.lookup(id))
+                                .or(() -> net.zaminmc.torch.server.block.DyeFamilyBlocks
+                                        .placementBlockOf(type.identifier(), damage)
+                                        .flatMap(id -> blockRegistry.lookup(id)))
                                 .or(() -> blockRegistry.lookup(type.identifier())),
                         this::publishInventoryChanged);
                 blockInteraction.setEventBus(eventBus); // §27.7: the public break/place gates

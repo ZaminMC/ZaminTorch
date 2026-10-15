@@ -852,6 +852,13 @@ public final class BuiltinBlocks {
         for (EngineBlockType family : DYE_FAMILY_BLOCKS) {
             builder = builder.register(family);
         }
+        // The wood-variant foundation (Slice 35 — PlanksBlock.Variant's own
+        // domain): the five new woods' planks/logs/leaves + all six
+        // saplings. The shipped oak planks/log/leaves keep their own
+        // registration rows above.
+        for (EngineBlockType family : WoodVariantBlocks.familyBlocks()) {
+            builder = builder.register(family);
+        }
         // The complete door families (Slice 34 — DoorBlock/DoorItem 1:1):
         // the five new woods' twelve states each, the oak hinge pair, and
         // the iron door's open + hinge states. The shipped oak/iron

@@ -50,7 +50,7 @@ class CraftingRecipeTest {
         // storage pairs (gold/iron/diamond/emerald/lapis/redstone/coal/hay/
         // slime ×2 each) + the gold ingot/nugget pair + the four 2x2
         // masonries (clay, bricks, quartz, nether bricks) = 24 shaped rows.
-        assertEquals(149, BuiltinRecipes.ALL.size());
+        assertEquals(163, BuiltinRecipes.ALL.size()); // + Slice 35's wood-variant rows: 5 log->planks + 6 doors + 3 family-planks crafts
         long shaped = BuiltinRecipes.ALL.stream().filter(CraftingRecipe::isShaped).count();
         long shapeless = BuiltinRecipes.ALL.size() - shaped;
         assertEquals(28, shapeless,

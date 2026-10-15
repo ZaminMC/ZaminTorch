@@ -314,7 +314,7 @@ public final class BlockBehaviorTable {
                             // fallback only.
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:redstone"), 4)))),
             Map.entry(Identifier.parse("minecraft:oak_leaves"),
-                    new BlockBehavior(0.2, true, true, "leaves", 1,
+                    new BlockBehavior(0.2, true, false, "leaves", 1,
                             List.of())),
 
             // Decoration flora (community blocks.json): all instant-break
@@ -1147,6 +1147,33 @@ public final class BlockBehaviorTable {
                 new BlockBehavior(1.25, true, true, "rock", 0,
                         List.of(new BlockBehavior.Drop(
                                 Identifier.parse("minecraft:hardened_clay"), 1))));
+
+        // The wood-variant foundation (Slice 35 — the reference's own
+        // registrations: planks `setStrength(2.0F)` WOOD, logs 2.0 WOOD,
+        // leaves 0.2 LEAVES, saplings 0.0 PLANT): the planks and logs drop
+        // the family item with the variant damage (Item.java's BlockItem
+        // walk — the oak keeps its shipped plain-item rows), the leaves
+        // roll the reference's chance band (the shears arm and the
+        // sapling/apple walks ride the DropService family branch), and the
+        // saplings drop themselves.
+        for (int variant = 0; variant < WoodVariantBlocks.WOODS.size(); variant++) {
+            Identifier planks = WoodVariantBlocks.planksBlock(variant);
+            Identifier log = WoodVariantBlocks.logBlock(variant);
+            Identifier leaves = WoodVariantBlocks.leavesBlock(variant);
+            Identifier sapling = WoodVariantBlocks.saplingBlock(variant);
+            if (variant != 0) {
+                behaviors.put(planks, new BlockBehavior(2.0, true, false, "wood", 0,
+                        List.of(new BlockBehavior.Drop(WoodVariantBlocks.PLANKS_ITEM, 1, variant))));
+                behaviors.put(log, new BlockBehavior(2.0, true, false, "wood", 0,
+                        List.of(new BlockBehavior.Drop(
+                                variant < 4 ? WoodVariantBlocks.LOG_ITEM : WoodVariantBlocks.LOG2_ITEM,
+                                1, WoodVariantBlocks.wireMetaOf("log", variant)))));
+                behaviors.put(leaves, new BlockBehavior(0.2, true, false, "leaves", 0,
+                        List.of())); // the shears/sapling/apple walks ride the DropService branch
+            }
+            behaviors.put(sapling, new BlockBehavior(0.0, true, false, "plant", 0,
+                    List.of(new BlockBehavior.Drop(WoodVariantBlocks.SAPLING_ITEM, 1, variant))));
+        }
 
         // The complete door families (Slice 34 — DoorBlock's own
         // registrations: every wood door `setStrength(3.0F)` WOOD_SOUNDS,

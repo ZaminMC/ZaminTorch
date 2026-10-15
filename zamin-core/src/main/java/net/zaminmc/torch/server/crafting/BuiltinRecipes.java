@@ -43,6 +43,88 @@ public final class BuiltinRecipes {
                     { ing("minecraft:oak_log", true, 0) }
             },
                     res("minecraft:oak_planks", 4, 0)),
+            // The wood-variant foundation's crafts (Slice 35 —
+            // CraftingManager lines 203-226's own rows, 1:1): each wood's
+            // log turns into four planks of its variant (the exact-damage
+            // 1x1 shaped form, the reference's own shape — the item damage
+            // domain carries the bare variant, the engine's upright axis
+            // stand-in), and the six doors ride their planks' variant (the
+            // 2x3 craft, Items 3 doors per 6 planks).
+            CraftingRecipe.shaped(new Ingredient[][] {
+                    { ing("minecraft:log", true, 1) }
+            },
+                    res("minecraft:planks", 4, 1)),
+            CraftingRecipe.shaped(new Ingredient[][] {
+                    { ing("minecraft:log", true, 2) }
+            },
+                    res("minecraft:planks", 4, 2)),
+            CraftingRecipe.shaped(new Ingredient[][] {
+                    { ing("minecraft:log", true, 3) }
+            },
+                    res("minecraft:planks", 4, 3)),
+            CraftingRecipe.shaped(new Ingredient[][] {
+                    { ing("minecraft:log2", true, 0) }
+            },
+                    res("minecraft:planks", 4, 4)),
+            CraftingRecipe.shaped(new Ingredient[][] {
+                    { ing("minecraft:log2", true, 1) }
+            },
+                    res("minecraft:planks", 4, 5)),
+            CraftingRecipe.shaped(new Ingredient[][] {
+                    { ing("minecraft:planks", true, 0), ing("minecraft:planks", true, 0) },
+                    { ing("minecraft:planks", true, 0), ing("minecraft:planks", true, 0) },
+                    { ing("minecraft:planks", true, 0), ing("minecraft:planks", true, 0) }
+            },
+                    res("minecraft:oak_door", 3, 0)),
+            CraftingRecipe.shaped(new Ingredient[][] {
+                    { ing("minecraft:planks", true, 1), ing("minecraft:planks", true, 1) },
+                    { ing("minecraft:planks", true, 1), ing("minecraft:planks", true, 1) },
+                    { ing("minecraft:planks", true, 1), ing("minecraft:planks", true, 1) }
+            },
+                    res("minecraft:spruce_door", 3, 0)),
+            CraftingRecipe.shaped(new Ingredient[][] {
+                    { ing("minecraft:planks", true, 2), ing("minecraft:planks", true, 2) },
+                    { ing("minecraft:planks", true, 2), ing("minecraft:planks", true, 2) },
+                    { ing("minecraft:planks", true, 2), ing("minecraft:planks", true, 2) }
+            },
+                    res("minecraft:birch_door", 3, 0)),
+            CraftingRecipe.shaped(new Ingredient[][] {
+                    { ing("minecraft:planks", true, 3), ing("minecraft:planks", true, 3) },
+                    { ing("minecraft:planks", true, 3), ing("minecraft:planks", true, 3) },
+                    { ing("minecraft:planks", true, 3), ing("minecraft:planks", true, 3) }
+            },
+                    res("minecraft:jungle_door", 3, 0)),
+            CraftingRecipe.shaped(new Ingredient[][] {
+                    { ing("minecraft:planks", true, 4), ing("minecraft:planks", true, 4) },
+                    { ing("minecraft:planks", true, 4), ing("minecraft:planks", true, 4) },
+                    { ing("minecraft:planks", true, 4), ing("minecraft:planks", true, 4) }
+            },
+                    res("minecraft:acacia_door", 3, 0)),
+            CraftingRecipe.shaped(new Ingredient[][] {
+                    { ing("minecraft:planks", true, 5), ing("minecraft:planks", true, 5) },
+                    { ing("minecraft:planks", true, 5), ing("minecraft:planks", true, 5) },
+                    { ing("minecraft:planks", true, 5), ing("minecraft:planks", true, 5) }
+            },
+                    res("minecraft:dark_oak_door", 3, 0)),
+            // The core planks crafts over the family item (the reference's
+            // bare Blocks.PLANKS ingredient matches any variant — the
+            // engine's family-item rows for the shipped oak rows' new twin).
+            CraftingRecipe.shaped(new Ingredient[][] {
+                    { ing("minecraft:planks", false, 0) },
+                    { ing("minecraft:planks", false, 0) }
+            },
+                    res("minecraft:stick", 4, 0)),
+            CraftingRecipe.shaped(new Ingredient[][] {
+                    { ing("minecraft:planks", false, 0), null, ing("minecraft:planks", false, 0) },
+                    { ing("minecraft:planks", false, 0), ing("minecraft:planks", false, 0), ing("minecraft:planks", false, 0) }
+            },
+                    res("minecraft:bowl", 4, 0)),
+            CraftingRecipe.shaped(new Ingredient[][] {
+                    { ing("minecraft:planks", false, 0), ing("minecraft:planks", false, 0), ing("minecraft:planks", false, 0) },
+                    { ing("minecraft:planks", false, 0), ing("minecraft:planks", false, 0), ing("minecraft:planks", false, 0) },
+                    { ing("minecraft:stick", false, 0), null, ing("minecraft:stick", false, 0) }
+            },
+                    res("minecraft:sign", 3, 0)),
             CraftingRecipe.shaped(new Ingredient[][] {
                     { ing("minecraft:coal", false, 0) },
                     { ing("minecraft:stick", false, 0) }

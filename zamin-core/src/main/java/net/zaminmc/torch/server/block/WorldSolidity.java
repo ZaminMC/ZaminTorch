@@ -39,6 +39,7 @@ public final class WorldSolidity {
                 && !isLadder(id)
                 && !isOpenDoorHalf(id)
                 && !isFlora(id)
+                && !WoodVariantBlocks.isSapling(id) // the six saplings: walk-through, never replaceable
                 && !isCarpet(id)
                 && !isRail(id)
                 && !isRedstoneComponent(id)

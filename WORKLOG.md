@@ -5575,3 +5575,49 @@ the wood-variant plank family's own slice; the doEvent 1003/1006 pair
 rides the engine's fx sound bus; the thin 3/16 collision panel rides the
 collision-shape slice (the open pair is walk-through, the closed halves
 flat-solid).
+
+## Slice 35 — the wood-variant foundation: the six woods' material vocabulary
+
+The reference port of `PlanksBlock.Variant`'s own domain — the planks,
+logs, leaves, and saplings of all six woods over the reference's split
+registrations (17/18 the oak..jungle pair, 162/161 the acacia/dark_oak
+pair, 5/6 the planks/saplings).
+
+- The state model (`server/block/WoodVariantBlocks`): per-wood planks/
+  log/leaves blocks (the five new woods; the shipped oak keeps its own
+  ids) + all six saplings, each carrying the reference's exact wire
+  encoding — the & 3 band for the log/leaves domains with the Log2/
+  Leaves2 pair re-basing acacia/dark_oak to 0/1, the bare variant for
+  the planks/saplings. Six damage-domain family items (planks 5, log 17,
+  log2 162, leaves 18, leaves2 161, sapling 6) — the dye families' own
+  model.
+- The placement consult: the chain now reads the wood families first
+  (the stack's damage resolving the variant for all four domains), the
+  dye families after.
+- The leaves' drop walk (`DropService`'s new branch,
+  AbstractLeavesBlock.dropItems lines 178-203 1:1): shears or silk takes
+  the leaf itself (the family item with the variant damage); the bare
+  hand rolls TWO independent walks — the sapling at the wood's own band
+  (1/20, the jungle leaf's 1/40 override, the fortune relief -2<<level
+  clamped at 10) and the oak-only apple at 1/200 (its -10<<level relief
+  clamped at 40). The oak's shipped behavior row corrected (the hand
+  rolls now — requiresTool was suppressing the sapling walk).
+- The crafting rows (CraftingManager lines 203-226 + 191-198): the
+  log->planks pair per new wood (the exact-damage 1x1 shaped form), the
+  SIX DOORS' 2x3 crafts (closing Slice 34's ledgered gap), and the
+  family-planks stick/bowl/sign rows over any variant (the bare
+  Blocks.PLANKS ingredient's own behavior).
+- The behavior rows (2.0 wood / 0.2 leaves / 0.0 saplings), the light
+  rows (15 / 1,1 / 0), the noteblock's bass-guitar set, the wire rows
+  (the block ids + nibbles + the family items), and the solidity rules
+  (the saplings walk-through, never replaceable).
+- Tests: `WoodVariantBlocksTest` (5) + `BlockRegistryTest` 396 +
+  `CraftingRecipeTest` 163. Batches: the touched-area batch green (97
+  tests — redstone, block, interaction, crafting), the protocol
+  integrity + chunk serializer green, `--max-workers=1`.
+
+Ledgered: the log/leaves axis and decay bits ride the
+metadata-direction and tree-decay slices (the upright/fresh forms ship —
+the item damage domain carries the bare variant exactly like the
+reference's own recipes read); the sapling's tree growth rides the
+tree-growth slice; the oak's blocks keep their shipped plain-item drops.

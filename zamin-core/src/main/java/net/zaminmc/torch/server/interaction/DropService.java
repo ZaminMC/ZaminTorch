@@ -6,6 +6,8 @@ import net.zaminmc.torch.item.ItemType;
 import net.zaminmc.torch.server.block.BlockBehavior;
 import net.zaminmc.torch.server.block.BlockBehaviorTable;
 import net.zaminmc.torch.server.item.BuiltinItems;
+import net.zaminmc.torch.server.item.ToolClass;
+import net.zaminmc.torch.server.item.Tools;
 import net.zaminmc.torch.util.Identifier;
 
 import java.util.ArrayList;
@@ -130,6 +132,52 @@ public final class DropService {
             }
             int color = net.zaminmc.torch.server.block.DyeFamilyBlocks.colorOf(broken.identifier());
             return List.of(new ItemStack(itemType, 1, color));
+        }
+        // The leaves family (Slice 35 — AbstractLeavesBlock.dropItems lines
+        // 178-203): shears or silk takes the leaf itself (the family item
+        // with the variant damage — the reference's getSilkTouchDrop); the
+        // bare hand rolls TWO independent walks — the sapling at the wood's
+        // own chance band (1/20, the jungle leaf's 1/40 override, the
+        // fortune relief -2<<level clamped at 10), then the OAK-only apple
+        // at 1/200 (dropAppleWithChance with its -10<<level relief clamped
+        // at 40).
+        if (net.zaminmc.torch.server.block.WoodVariantBlocks.isLeaves(broken.identifier())) {
+            int variant = net.zaminmc.torch.server.block.WoodVariantBlocks
+                    .variantOf(broken.identifier());
+            boolean shears = heldTool != null
+                    && Tools.specOf(heldTool)
+                            .map(spec -> spec.toolClass() == ToolClass.SHEARS)
+                            .orElse(false);
+            if (silkTouch || shears) {
+                Identifier familyItem = variant < 4
+                        ? net.zaminmc.torch.server.block.WoodVariantBlocks.LEAVES_ITEM
+                        : net.zaminmc.torch.server.block.WoodVariantBlocks.LEAVES2_ITEM;
+                ItemType itemType = BuiltinItems.lookup(familyItem).orElse(null);
+                if (itemType == null) {
+                    throw new IllegalStateException(
+                            "Leaves family item is unregistered: " + familyItem);
+                }
+                return List.of(new ItemStack(itemType, 1,
+                        net.zaminmc.torch.server.block.WoodVariantBlocks
+                                .wireMetaOf("leaves", variant)));
+            }
+            java.util.List<ItemStack> leafDrops = new ArrayList<>(2);
+            int saplingChance = net.zaminmc.torch.server.block.WoodVariantBlocks
+                    .saplingChanceOf(broken.identifier(), fortune);
+            if (random.nextInt(saplingChance) == 0) {
+                ItemType sapling = BuiltinItems.lookup(
+                        net.zaminmc.torch.server.block.WoodVariantBlocks.SAPLING_ITEM)
+                        .orElseThrow();
+                leafDrops.add(new ItemStack(sapling, 1, variant));
+            }
+            int appleChance = net.zaminmc.torch.server.block.WoodVariantBlocks
+                    .appleChanceOf(broken.identifier(), fortune);
+            if (appleChance > 0 && random.nextInt(appleChance) == 0) {
+                ItemType apple = BuiltinItems.lookup(
+                        Identifier.parse("minecraft:apple")).orElseThrow();
+                leafDrops.add(ItemStack.of(apple, 1));
+            }
+            return leafDrops;
         }
         // The silk arm: the block's own item (the reference's
         // getSilkTouchDrop — Item.byBlock with the state metadata), one
