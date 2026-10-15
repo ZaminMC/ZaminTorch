@@ -328,6 +328,24 @@ public final class MobEntity implements LivingEntity {
         }
 
         /**
+         * Whether an ender crystal stands at the position
+         * (tickEndCrystalInteraction line 326's {@code connectedCrystal
+         * .removed} read — the link's own liveness probe).
+         */
+        default boolean enderCrystalAliveAt(double x, double y, double z) {
+            return false;
+        }
+
+        /**
+         * The nearest ender crystal's position within the grown range
+         * (tickEndCrystalInteraction lines 337-352's own scan — the
+         * 32-grown box's nearest walk), or null when none/absent.
+         */
+        default double[] nearestEnderCrystal(double x, double y, double z, double range) {
+            return null;
+        }
+
+        /**
          * The living non-undead candidates in the box grown by
          * {@code halfX/halfY/halfX} around the point (mobAiTick lines
          * 255-257's getEntitiesOfType over the UNDEAD_FILTER — creative
@@ -3064,6 +3082,13 @@ public final class MobEntity implements LivingEntity {
     private int pendingDragonXpBatch;
     /** The walk's 200th tick: the fountain + the removal. */
     private boolean pendingDragonPortal;
+    /** The linked crystal's position (tickEndCrystalInteraction's own). */
+    private double dragonCrystalX;
+    private double dragonCrystalY;
+    private double dragonCrystalZ;
+    private boolean dragonHasCrystal;
+    /** The disconnect wound (the linked crystal popped — the 10.0 blast hit). */
+    private boolean pendingDragonCrystalWound;
 
     /**
      * The seven parts (ctor lines 64-72): the wire id convention rides the
@@ -3265,12 +3290,77 @@ public final class MobEntity implements LivingEntity {
     }
 
     /**
-     * The dragon's own mind (mobTick lines 112-315, 1:1): the wing flap
-     * over the speed, the steering walk (the quarry's chase or the point's
-     * drift, the 100/22500 re-target band, the velocity shaping, the
-     * rotation-speed yaw), the part placement (the segment-driven head and
-     * tails, the wing flanks), and the contact arms (the fling, the head's
-     * damage) — the crystal heal and the death walk ride Slice 64.
+     * The sweep's write-back (destroyBlocks' immune-block verdict).
+     */
+    public void dragonSetRestrictMovement(boolean restricted) {
+        this.dragonRestrictMovement = restricted;
+    }
+
+    /** @return the linked crystal's position (the heal beam's anchor). */
+    public boolean dragonHasCrystal() {
+        return dragonHasCrystal;
+    }
+
+    public double dragonCrystalX() {
+        return dragonCrystalX;
+    }
+
+    public double dragonCrystalY() {
+        return dragonCrystalY;
+    }
+
+    public double dragonCrystalZ() {
+        return dragonCrystalZ;
+    }
+
+    /** @return the crystal-pop wound (the disconnect's 10.0); consumed once. */
+    public boolean consumeDragonCrystalWound() {
+        boolean pending = pendingDragonCrystalWound;
+        pendingDragonCrystalWound = false;
+        return pending;
+    }
+
+    /**
+     * The crystal link (tickEndCrystalInteraction lines 324-353, 1:1):
+     * the linked crystal's pop wounds the head with the 10.0 explosive
+     * hit, the linked body heals 1 every 10 ticks under the cap, and the
+     * 1-in-10 re-scan takes the nearest crystal in the grown-32 box.
+     */
+    private void tickDragonCrystalInteraction() {
+        if (dragonHasCrystal) {
+            if (!world.enderCrystalAliveAt(dragonCrystalX, dragonCrystalY, dragonCrystalZ)) {
+                // Lines 326-331: the disconnect's wound — the head part,
+                // the explosive source, the flat 10.0 (the reference's
+                // own takeDamage(this.head, DamageSource.explosion, 10)).
+                dragonDamagePart(dragonHead(), 10.0f, false, true);
+                pendingDragonCrystalWound = true;
+                dragonHasCrystal = false;
+            } else if (modeTicks % 10 == 0 && health < type().maxHealth) {
+                heal(1.0f); // line 332-334
+            }
+        }
+        if (random.nextInt(10) == 0) {
+            // Lines 337-352: the nearest crystal in the 32-grown box.
+            double[] nearest = world.nearestEnderCrystal(position.x(), position.y(),
+                    position.z(), 32.0);
+            if (nearest != null) {
+                dragonCrystalX = nearest[0];
+                dragonCrystalY = nearest[1];
+                dragonCrystalZ = nearest[2];
+                dragonHasCrystal = true;
+            } else {
+                dragonHasCrystal = false;
+            }
+        }
+    }
+
+    /**
+     * The dragon's own mind (mobTick lines 112-315, 1:1): the crystal
+     * link, the wing flap, the steering walk (the quarry chase or the
+     * point drift, the 100/22500 re-target band, the velocity shaping,
+     * the rotation-speed yaw), the part placement (the segment-driven
+     * head and tails, the wing flanks), the contact arms' events, and
+     * the death walk's own arm.
      */
     private void tickDragonMind(Position target, boolean canHunt) {
         // The death walk (tickPostDeath lines 501-543): the rise and the
@@ -3285,7 +3375,10 @@ public final class MobEntity implements LivingEntity {
                 pendingDragonXpBatch = 1000; // the orb batches (lines 512-520)
             }
             if (dragonTicksSinceDeath == 200) {
-                pendingDragonXpBatch = 2000; // the final batch (lines 530-537)
+                // The final batch ADDS to the tick's own 1000 (lines 529-
+                // 537: the >150 arm fires at 200 too — 10x1000 + 2000 =
+                // the 12000 total).
+                pendingDragonXpBatch += 2000;
                 pendingDragonPortal = true; // createPortal + remove
             }
             // Line 527-528: the rise and the spin.
@@ -3296,6 +3389,8 @@ public final class MobEntity implements LivingEntity {
         // Lines 121-135: the flap — 0.2 / (speed*10 + 1), scaled by
         // 2^velocityY, halved when the movement restricts.
         dragonLastWingPosition = dragonWingPosition;
+        // The crystal link (line 128 — the first arm of the living walk).
+        tickDragonCrystalInteraction();
         float flap = (float) (0.2 / (Math.sqrt(velocityX * velocityX
                 + velocityZ * velocityZ) * 10.0 + 1.0));
         flap *= (float) Math.pow(2.0, velocityY);

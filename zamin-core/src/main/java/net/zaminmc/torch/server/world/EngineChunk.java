@@ -213,6 +213,30 @@ public final class EngineChunk {
         return pendingEnderCrystals;
     }
 
+    /**
+     * The chunk-(0,0) dragon spawn (Slice 63 — EndIslandDecorator lines
+     * 21-25): the (0, 128, 0) birth with the rolled yaw.
+     */
+    public record PendingEnderDragon(float yaw) {
+    }
+
+    private PendingEnderDragon pendingEnderDragon;
+
+    /** Records the dragon spawn (generator thread, during generate). */
+    public void markPendingEnderDragon(float yaw) {
+        pendingEnderDragon = new PendingEnderDragon(yaw);
+    }
+
+    /** @return the dragon record (null when this is not chunk (0,0)). */
+    public PendingEnderDragon pendingEnderDragon() {
+        return pendingEnderDragon;
+    }
+
+    /** Clears the dragon record (the drain's take). */
+    public void clearPendingEnderDragon() {
+        pendingEnderDragon = null;
+    }
+
     /** Records one populate-time animal (the generator's seeding walk). */
     public void addPendingAnimal(PendingAnimal animal) {
         pendingAnimals.add(java.util.Objects.requireNonNull(animal, "animal"));

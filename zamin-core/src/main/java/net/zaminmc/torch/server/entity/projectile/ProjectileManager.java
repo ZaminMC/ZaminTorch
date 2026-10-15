@@ -238,6 +238,27 @@ public final class ProjectileManager {
         boolean hitCrystal(double x, double y, double z);
     }
 
+    /**
+     * The dragon-part consult (Slice 63 — EnderDragonPart.takeDamage →
+     * the dragon's own part walk): the projectile's crossing of a part
+     * hull wounds the BODY through the part gates (the non-head /4+1, the
+     * head-front reset, the player-or-explosive source).
+     */
+    public interface DragonSink {
+        /**
+         * The part whose hull holds the point takes the projectile's hit.
+         *
+         * @param damage   the projectile's computed damage (the speed-scaled
+         *                 arrow, the per-kind flats)
+         * @param explosive whether the source is explosive (the fireball
+         *                 family — the damage gate's other arm)
+         * @param shooterId the thrower's engine id (the player-source gate)
+         * @return true when a part took the hit (the projectile dies).
+         */
+        boolean hitDragonPart(double x, double y, double z, float damage,
+                              boolean explosive, int shooterId);
+    }
+
     private final SolidQuery solid;
     private final HitResolver hits;
     private final CombatSink combat;
@@ -256,6 +277,8 @@ public final class ProjectileManager {
     private PearlSink pearlSink = (throwerId, at) -> { };
     /** The ender crystal's pop arm (Slice 62); optional until wired. */
     private CrystalSink crystalSink = (x, y, z) -> false;
+    /** The dragon part's wound arm (Slice 63); optional until wired. */
+    private DragonSink dragonSink = (x, y, z, damage, explosive, shooterId) -> false;
 
     /** Wires the fireball's fire-placement arm. */
     public void setFireSink(FireSink sink) {
@@ -280,6 +303,11 @@ public final class ProjectileManager {
     /** Wires the ender crystal's pop arm (Slice 62). */
     public void setCrystalSink(CrystalSink sink) {
         this.crystalSink = Objects.requireNonNull(sink, "sink");
+    }
+
+    /** Wires the dragon part's wound arm (Slice 63). */
+    public void setDragonSink(DragonSink sink) {
+        this.dragonSink = Objects.requireNonNull(sink, "sink");
     }
 
     public ProjectileManager(SolidQuery solid, HitResolver hits, CombatSink combat,
@@ -639,6 +667,19 @@ public final class ProjectileManager {
             remove(projectile, "hit");
             return true;
         }
+        // --- dragon part hit (Slice 63) ----------------------------------------
+        // EnderDragonPart.takeDamage → the part walk: the projectile's
+        // damage with the per-kind flats (the same numbers hitMob carries)
+        // and the source gates (the fireball family is explosive, the
+        // thrower's id the player gate).
+        if (dragonSink.hitDragonPart(point.x(), point.y(), point.z(),
+                projectileDamageForPart(projectile),
+                projectile.kind() == ProjectileEntity.Kind.LARGE_FIREBALL
+                        || projectile.kind() == ProjectileEntity.Kind.WITHER_SKULL,
+                projectile.throwerId())) {
+            remove(projectile, "hit");
+            return true;
+        }
         // --- block hit --------------------------------------------------------
         if (solid.solidAt(point.x(), point.y(), point.z())) {
             if (projectile.kind() == ProjectileEntity.Kind.ARROW) {
@@ -846,6 +887,25 @@ public final class ProjectileManager {
 
     private boolean rollEggHatch() {
         return random.nextInt(EGG_HATCH_CHANCE) == 0;
+    }
+
+    /**
+     * The projectile's damage against a dragon part (Slice 63 — the same
+     * per-kind flats hitMob carries: the fireball's 6.0, the skull's 8.0,
+     * the speed-scaled arrow, the thrown family's bruise).
+     */
+    private float projectileDamageForPart(ProjectileEntity projectile) {
+        float damage = damageOf(projectile);
+        if (projectile.kind() == ProjectileEntity.Kind.ENDER_PEARL) {
+            damage = 0.0f; // the thrown family's bruise
+        }
+        if (projectile.kind() == ProjectileEntity.Kind.LARGE_FIREBALL) {
+            damage = 6.0f; // FireballEntity.onHit lines 33-37
+        }
+        if (projectile.kind() == ProjectileEntity.Kind.WITHER_SKULL) {
+            damage = 8.0f; // WitherSkullEntity.onHit line 58
+        }
+        return damage;
     }
 
     /** The shard break feedback (the splat puff + the glassy click). */

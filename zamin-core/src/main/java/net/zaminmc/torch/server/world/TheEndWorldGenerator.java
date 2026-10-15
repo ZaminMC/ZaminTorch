@@ -394,8 +394,12 @@ public final class TheEndWorldGenerator implements WorldGenerator {
             int j = this.random.nextInt(16) + 8;
             placePillar(chunk, chunkX * 16 + i, chunkZ * 16 + j);
         }
-        // The dragon's chunk-(0,0) spawn rides the dragon slice (the
-        // reference's EndIslandDecorator lines 25-29).
+        // EndIslandDecorator lines 21-25: the chunk-(0,0) dragon — the
+        // (0, 128, 0) birth with the rolled yaw (the populate record;
+        // the engine drains it with the alive/defeated guards).
+        if (chunkX == 0 && chunkZ == 0) {
+            chunk.markPendingEnderDragon(this.random.nextFloat() * 360.0f);
+        }
     }
 
     /**

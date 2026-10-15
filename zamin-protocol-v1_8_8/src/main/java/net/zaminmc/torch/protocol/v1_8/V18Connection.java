@@ -2756,6 +2756,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             case OCELOT -> "Ozelot";
             case IRON_GOLEM -> "VillagerGolem";
             case WITHER -> "Wither";
+            case ENDER_DRAGON -> "EnderDragon";
             case HORSE -> "EntityHorse";
             case RABBIT -> "Rabbit";
             case VILLAGER -> "Villager";
