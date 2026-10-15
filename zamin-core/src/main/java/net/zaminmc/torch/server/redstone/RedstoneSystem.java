@@ -812,6 +812,10 @@ public final class RedstoneSystem implements WorldChangeListener {
             }
             return;
         }
+        if (net.zaminmc.torch.server.block.FenceGateBlocks.isGate(type)) {
+            fenceGateNeighborChanged(pos, type);
+            return;
+        }
     }
 
     /**
@@ -906,6 +910,51 @@ public final class RedstoneSystem implements WorldChangeListener {
     public void setDoorSoundCallback(
             java.util.function.BiConsumer<BlockPosition, Boolean> callback) {
         this.doorSoundCallback = callback;
+    }
+
+    /**
+     * The gate's signal arm (FenceGateBlock.neighborChanged lines 113-128,
+     * 1:1): only a real signal edge moves the gate — a rising edge opens
+     * (POWERED latching on with it), the falling edge closes a
+     * signal-opened gate, and a bare POWERED mismatch re-latches the bit
+     * without touching OPEN. A manually-opened gate never closes on an
+     * unrelated neighbor change (the {@code flag && !open && !powered} /
+     * {@code !flag && open && powered} pair — the open-close arms fire
+     * only on their own edge shape), and a held-open gate stays open
+     * through the POWERED re-latch. The doEvent 1003/1006 pair rides the
+     * door's own sound callback (the same open/close sounds the client's
+     * event handler plays).
+     */
+    private void fenceGateNeighborChanged(BlockPosition pos, BlockType type) {
+        boolean flag = hasNeighborSignal(pos);
+        if (!flag && !net.zaminmc.torch.server.block.FenceGateBlocks.isPowered(type)) {
+            // The reference's outer gate: nothing to do unless a signal (or
+            // a signal SOURCE neighbor) is involved — an unpowered,
+            // un-fed gate never hears the arm.
+            return;
+        }
+        boolean open = net.zaminmc.torch.server.block.FenceGateBlocks.isOpen(type);
+        boolean powered = net.zaminmc.torch.server.block.FenceGateBlocks.isPowered(type);
+        if (flag && !open && !powered) {
+            world.setBlock(pos, net.zaminmc.torch.server.block.FenceGateBlocks
+                    .withPoweredOpen(type, true, true));
+            playGateSound(pos, true);
+        } else if (!flag && open && powered) {
+            world.setBlock(pos, net.zaminmc.torch.server.block.FenceGateBlocks
+                    .withPoweredOpen(type, false, false));
+            playGateSound(pos, false);
+        } else if (flag != powered) {
+            world.setBlock(pos, net.zaminmc.torch.server.block.FenceGateBlocks
+                    .withPowered(type, flag));
+        }
+    }
+
+    /** The gate's doEvent 1003/1006 pair (the door's own sound arm). */
+    private void playGateSound(BlockPosition pos, boolean opening) {
+        java.util.function.BiConsumer<BlockPosition, Boolean> sound = doorSoundCallback;
+        if (sound != null) {
+            sound.accept(pos, opening);
+        }
     }
 
     /** The door item of a family for the pop arm's drop. */

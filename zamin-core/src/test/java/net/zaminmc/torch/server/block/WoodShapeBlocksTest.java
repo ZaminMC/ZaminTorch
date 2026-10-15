@@ -86,13 +86,16 @@ class WoodShapeBlocksTest {
             assertEquals(6, result.orElseThrow().count());
             assertEquals(variant, result.orElseThrow().damage());
         }
-        // The fences: two planks + four sticks -> three fences.
+        // The fences (the Slice 37 repair — CraftingManager's own shape
+        // "W#W", "W#W"): FOUR PLANKS OUTSIDE, two sticks in the middle
+        // -> three fences (the Slice 36 rows carried the ingredients
+        // transposed — the gate's shape).
         ItemStack stick = stack("minecraft:stick");
         for (int variant = 1; variant < 6; variant++) {
             ItemStack p = new ItemStack(planks.type(), 1, variant);
             var result = service.resultOf3x3(new ItemStack[]{
-                    stick, p, stick,
-                    stick, p, stick,
+                    p, stick, p,
+                    p, stick, p,
                     ItemStack.EMPTY, ItemStack.EMPTY, ItemStack.EMPTY});
             assertTrue(result.isPresent(), "the fence craft over variant " + variant);
             assertEquals("minecraft:" + WoodVariantBlocks.WOODS.get(variant) + "_fence",

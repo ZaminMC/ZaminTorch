@@ -5655,3 +5655,59 @@ Ledgered: the stairs' upside-down HALF bit rides the metadata-variants
 slice; the double_wooden_slab 125 stays the parent-material stand-in;
 the fence gates (107/183-187) are their own slice; the fences'
 1.5-block collision rides the collision-shape slice.
+
+## Slice 37 — the fence gates: the six families (FenceGateBlock 1:1)
+
+The reference port of `FenceGateBlock.java` over PlanksBlock.Variant's
+whole domain — the oak gate 107 plus the five 1.7 woods' gates (spruce
+183, birch 184, jungle 185, dark_oak 186, acacia 187).
+
+- The state model (`server/block/FenceGateBlocks`): sixteen states per
+  family over the reference's exact metadata band (the horizontal facing
+  S=0 W=1 N=2 E=3 | open 4 | powered 8 — getStateFromMetadata lines
+  136-153), the bare meta-0 form sharing the family item's identifier
+  (Item.java's own register(Blocks.FENCE_GATE) rows 451-456 — the item
+  keeps the block id). The IN_WALL virtual property stays the computed
+  render read the reference itself computes at query time (ledgered to
+  the collision-shape slice).
+- The placement (`EngineServer.placeFenceGateOnTick`, 1:1): the facing
+  is the placer's own horizontal facing (getHorizontalFacing — the
+  engine's own look band, byte-identical: floor(yaw/90+0.5)&3), OPEN and
+  POWERED start clear, and canBePlaced's solid-floor gate refuses flora
+  beds.
+- The swing (`toggleFenceGateOnTick`): the open arm's far-side rewrite
+  (FACING == direction.getOpposite() turns the gate to the opener), the
+  close arm keeping the facing, POWERED preserved through the manual
+  swing — and the doEvent 1003/1006 pair riding the fx sound bus (the
+  door's own open/close sounds, the client event handler's own choice).
+- The signal arm (`RedstoneSystem.fenceGateNeighborChanged`, 1:1): the
+  rising edge opens with POWERED latching, the falling edge closes an
+  open+powered gate (the reference never asks WHO opened it — the bits
+  alone decide, so a manually-opened gate that latched POWERED closes
+  when the feed departs), the bare POWERED re-latch without touching
+  OPEN, and the held-open stability through unrelated neighbor changes.
+- The fence-craft REPAIR (a real 1:1 bug the gate work exposed): the
+  shipped Slice 36 fence recipes carried the ingredients TRANSPOSED —
+  stick-plank-stick is the GATE's own shape ("#W#"), not the fence's
+  ("W#W" — CraftingManager lines 59-83: FOUR PLANKS OUTSIDE, two sticks
+  in the middle). All five rows corrected and the missing OAK fence row
+  added (line 60's own recipe — the oak fence never had a craft).
+- The behavior rows (2.0 wood, the family item), the light rows (CUTOUT
+  filter 15 like the fences' own), the walk-through rule (the open band
+  never blocks a body — getCollisionShape's null; the closed states stay
+  solid), the noteblock's bass-guitar family, the crafting rows (four
+  sticks + two exact-variant planks -> one gate per family), and the
+  wire rows (the ids + every state's facing|open|powered nibble).
+- Tests: `FenceGateBlocksTest` (3, live engine — the placement band +
+  the flora refusal, the far-side open rewrite, the signal edge walk
+  with the manual-close/POWERED independence and the arm2 close, the
+  family tables + the crafts) + `WoodShapeBlocksTest` repaired +
+  `CraftingRecipeTest` 188 + `LegacyBlockIdsIntegrityTest` +1. Batches:
+  block + crafting + redstone + noteblock + building acceptance green
+  (110), the protocol integrity + chunk serializer green,
+  `--max-workers=1`.
+
+Ledgered: the closed gate's 1.5-tall panel and the IN_WALL flush form
+ride the collision-shape slice (the flat-solid stand-in ships — the open
+band walks through, the closed blocks like the fence); the gate's
+cobblestone-wall consult rides the wall's own slice (139).
