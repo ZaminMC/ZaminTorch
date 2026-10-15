@@ -50,11 +50,11 @@ class CraftingRecipeTest {
         // storage pairs (gold/iron/diamond/emerald/lapis/redstone/coal/hay/
         // slime ×2 each) + the gold ingot/nugget pair + the four 2x2
         // masonries (clay, bricks, quartz, nether bricks) = 24 shaped rows.
-        assertEquals(203, BuiltinRecipes.ALL.size()); // Slice 52 (203 = 198 + the red sandstone family's five rows) // Slice 49b (198 = 197 + the trapped chest's own row) // Slice 48 (197 = 196 + the flower pot's own row) // Slice 47 (196 = 194 + the wall pair's two rows) // Slice 46 (194 = 193 + the cake's own row) // Slice 35's wood-variant rows + Slice 36's shapes: 8 stairs + 5 slabs + 5 fences + Slice 37's 6 gates + the missing oak fence row
+        assertEquals(205, BuiltinRecipes.ALL.size()); // Slice 57 (205 = 203 + the beacon + the writable book) // Slice 52 (203 = 198 + the red sandstone family's five rows) // Slice 49b (198 = 197 + the trapped chest's own row) // Slice 48 (197 = 196 + the flower pot's own row) // Slice 47 (196 = 194 + the wall pair's two rows) // Slice 46 (194 = 193 + the cake's own row) // Slice 35's wood-variant rows + Slice 36's shapes: 8 stairs + 5 slabs + 5 fences + Slice 37's 6 gates + the missing oak fence row
         long shaped = BuiltinRecipes.ALL.stream().filter(CraftingRecipe::isShaped).count();
         long shapeless = BuiltinRecipes.ALL.size() - shaped;
-        assertEquals(28, shapeless,
-                "the book + nine dye-mix pairs + 16 wool colorings + two flowers are the shapeless crafts");
+        assertEquals(29, shapeless,
+                "the book + the writable book + nine dye-mix pairs + 16 wool colorings + two flowers are the shapeless crafts");
     }
 
     // ---- 3x3 crafting-table matching ---------------------------------------

@@ -883,6 +883,16 @@ public final class BuiltinItems {
     // tab.
     public static final EngineItemType BARRIER_ITEM = new EngineItemType(
             Identifier.parse("minecraft:barrier"), "Barrier", 64);
+    // The nether star (Slice 57 — Item.java's own NetherStarItem row over
+    // 399, stack 64 like the reference's materials tab). The wither's drop
+    // rides the wither boss's own slice; the beacon craft lands here.
+    public static final EngineItemType NETHER_STAR = new EngineItemType(
+            Identifier.parse("minecraft:nether_star"), "Nether Star", 64);
+    // The writable book (Slice 57 — Item.java's own BookAndQuillItem row
+    // over 386, stack 1 — the writing stack; the sign/write flow rides its
+    // own slice).
+    public static final EngineItemType WRITABLE_BOOK = new EngineItemType(
+            Identifier.parse("minecraft:writable_book"), "Book and Quill", 1);
 
     // Decoration flora + desert stone (the placeable block-item forms; the
     // flowers drop themselves, tall grass/dead bush are /give-reachable).
@@ -1052,6 +1062,7 @@ public final class BuiltinItems {
                 SKULL,
                 BUCKET, WATER_BUCKET, LAVA_BUCKET, MILK_BUCKET, COBBLESTONE_WALL, MOSSY_COBBLESTONE, FLOWER_POT, LIGHT_WEIGHTED_PRESSURE_PLATE, HEAVY_WEIGHTED_PRESSURE_PLATE, TRAPPED_CHEST,
                 RED_SANDSTONE, RED_SANDSTONE_STAIRS, STONE_SLAB2, ANVIL_ITEM, BARRIER_ITEM,
+                NETHER_STAR, WRITABLE_BOOK,
                 FLINT_AND_STEEL, GOLD_INGOT,
                 SUGAR_CANE, CACTUS, SUGAR, PAPER, BOOK,
                 TALL_GRASS, DEAD_BUSH, DANDELION, POPPY, RED_FLOWER, DOUBLE_PLANT, SANDSTONE,

@@ -512,6 +512,22 @@ public final class BuiltinRecipes {
                     { ing("minecraft:red_sandstone", false, 0), ing("minecraft:red_sandstone", false, 0), ing("minecraft:red_sandstone", false, 0) }
             },
                     res("minecraft:red_sandstone_stairs", 4, 0)),
+            // The beacon (Slice 57 — BlockRecipes line 82's own row): the
+            // glass cap over the nether star on the obsidian base.
+            CraftingRecipe.shaped(new Ingredient[][] {
+                    { ing("minecraft:glass", false, 0), ing("minecraft:glass", false, 0), ing("minecraft:glass", false, 0) },
+                    { ing("minecraft:glass", false, 0), ing("minecraft:nether_star", false, 0), ing("minecraft:glass", false, 0) },
+                    { ing("minecraft:obsidian", false, 0), ing("minecraft:obsidian", false, 0), ing("minecraft:obsidian", false, 0) }
+            },
+                    res("minecraft:beacon", 1, 0)),
+            // The writable book (Slice 57 — CraftingManager line 58's own
+            // shapeless row): the book over the ink sac (the dye's damage 0)
+            // and the feather.
+            CraftingRecipe.shapeless(java.util.List.of(
+                    ing("minecraft:book", false, 0),
+                    ing("minecraft:dye", true, 0),
+                    ing("minecraft:feather", false, 0)),
+                    res("minecraft:writable_book", 1, 0)),
             // The reed chain (community recipes.json): sugar is one cane
             // (the shapeless 1x1 folded to the shaped form), paper is a row
             // of three canes, a book wraps three papers around a leather.
