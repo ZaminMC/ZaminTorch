@@ -408,6 +408,8 @@ public final class EngineServer implements Server, EngineBridge {
     private volatile ProjectileManager projectileManager;
     /** The engine-side break walk's drop table (the wither's sweep). */
     private volatile DropService witherSweepDrops;
+    /** The skull store (Slice 60 — the tiles + the wither's summon walk). */
+    private volatile net.zaminmc.torch.server.skull.SkullManager skulls;
     /** The vehicles (boats, minecarts); created at boot, tick-thread owned. */
     private volatile net.zaminmc.torch.server.entity.vehicle.VehicleManager vehicleManager;
 
@@ -432,6 +434,11 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /** The airborne projectiles (engine-side simulation state). */
+    /** The skull store (Slice 60 — the tiles + the summon walk). */
+    public net.zaminmc.torch.server.skull.SkullManager skulls() {
+        return skulls;
+    }
+
     public ProjectileManager projectiles() {
         return projectileManager;
     }
@@ -1756,6 +1763,49 @@ public final class EngineServer implements Server, EngineBridge {
                     }
                 });
                 witherSweepDrops = new DropService(new java.util.Random()); // Slice 59: the engine-side break walk's own table
+                // The skull store (Slice 60): the tiles + the summon
+                // walk's own world consults (the tick lane owns both).
+                skulls = new net.zaminmc.torch.server.skull.SkullManager(
+                        new net.zaminmc.torch.server.skull.SkullManager.Host() {
+                            @Override
+                            public net.zaminmc.torch.block.BlockType blockAt(
+                                    BlockPosition position) {
+                                return world.getBlock(position);
+                            }
+
+                            @Override
+                            public void setBlock(BlockPosition position,
+                                    net.zaminmc.torch.block.BlockType type) {
+                                world.setBlock(position, type);
+                            }
+
+                            @Override
+                            public net.zaminmc.torch.block.BlockType airType() {
+                                return world.airType();
+                            }
+
+                            @Override
+                            public int difficulty() {
+                                return EngineServer.this.difficulty;
+                            }
+
+                            @Override
+                            public void summonWither(Position at, float bodyYawDegrees) {
+                                // trySpawn lines 184-201: the birth at the
+                                // top-center cell — the spawn, the axis yaw,
+                                // onSummoned's window + third health, and
+                                // the snowball burst stand-in at the base
+                                // (the reference's own 120-particle column
+                                // rides the fx bus's Poof family).
+                                MobEntity wither = mobManager.spawnAt(
+                                        net.zaminmc.torch.server.entity.MobType.WITHER, at);
+                                if (wither != null) {
+                                    wither.setBodyYaw(bodyYawDegrees);
+                                    wither.witherSummoned();
+                                }
+                                fxManager.poof(new Position(at.x(), at.y() - 1.5, at.z()));
+                            }
+                        });
                 blockInteraction = new BlockInteractionService(world, ticker,
                         change -> world.republish(change.position()), // the resync path (§441)
                         session -> session.gamemode(), new DropService(new java.util.Random()), itemEntities,
@@ -1870,6 +1920,25 @@ public final class EngineServer implements Server, EngineBridge {
                 // broken chest spills its 27, into the world first. The same
                 // hook emits the break/place feedback through the FX bus.
                 blockInteraction.setBlockBrokenListener((position, brokenType) -> {
+                    // The skull's typed drop (Slice 60 — SkullBlock
+                    // .onRemoved lines 132-152): the tile's TYPE rides the
+                    // dropped stack's damage (the block itself carries no
+                    // drop row — the reference's empty dropItems); the
+                    // survival break pays it, the creative break never
+                    // reaches this listener (the NODROP law).
+                    if (skulls != null
+                            && net.zaminmc.torch.server.block.SkullBlocks.isSkull(
+                                    brokenType.identifier())) {
+                        var skullTile = skulls.remove(position);
+                        if (skullTile != null) {
+                            itemEntities.spawnDropAtBlock(new Position(
+                                    position.x() + 0.5, position.y() + 0.5, position.z() + 0.5),
+                                    new net.zaminmc.torch.item.ItemStack(
+                                            BuiltinItems.SKULL, 1, skullTile.type(), null),
+                                    net.zaminmc.torch.server.entity.ItemEntity
+                                            .PICKUP_DELAY_DROP_TICKS);
+                        }
+                    }
                     furnaceManager.onBlockBroken(position, itemEntities);
                     chestManager.onBlockBroken(position, itemEntities);
                     hopperSystem.onBlockBroken(position);
@@ -2499,6 +2568,63 @@ public final class EngineServer implements Server, EngineBridge {
 
     public PlayerRegistry playerRegistry() {
         return players;
+    }
+
+    /**
+     * The skull's placement (Slice 60 — SkullItem.useOn lines 55-81): the
+     * block lands at the clicked face's offset cell carrying the FACE as
+     * its FACING (the item's own rule — the reference's
+     * getPlacementState is dead code here), the tile writes the stack's
+     * TYPE (the damage 0-5), the floor mount takes the placer's yaw as
+     * the 16-step rotation (line 58's {@code floor(yaw * 16 / 360 + 0.5)
+     * & 15}), and a wither skull (type 1) consults the summon walk
+     * (trySpawn) — the soul-sand T found, the whole build vanishes for
+     * the boss's birth.
+     */
+    private void placeSkullOnTick(PlayerSession session, BlockPosition clicked, int face,
+                                  java.util.Optional<BlockType> creativeHeld) {
+        net.zaminmc.torch.server.skull.SkullManager skullStore = skulls;
+        if (skullStore == null) {
+            return; // the store is not wired (the test rig)
+        }
+        BlockPosition target = offsetByFace(clicked, face);
+        if (target == null || world.getBlock(clicked).equals(world.airType())
+                || !world.getBlock(target).equals(world.airType())) {
+            return; // the generic placement gates (bad face / clicked air / occupied)
+        }
+        if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5
+                || intersectsPlayerBox(session.position(), target)) {
+            return; // the placement reach gate (the historical survival reach)
+        }
+        net.zaminmc.torch.item.ItemStack held = session.inventory().held();
+        int type = 0;
+        if (creativeHeld.isPresent()) {
+            // The creative middle-click carry: the plain form (the engine's
+            // carry model carries no damage).
+            type = 0;
+        } else if (held.isEmpty()) {
+            return; // nothing to place
+        } else {
+            type = held.damage() & 0xFF;
+        }
+        // The block with the FACE as its FACING (line 55's own rule).
+        world.setBlock(target,
+                net.zaminmc.torch.server.block.SkullBlocks.forState(face));
+        // The rotation: only the floor mount reads the yaw (line 57-59).
+        int rotation = 0;
+        if (face == 1) {
+            rotation = (int) Math.floor(
+                    session.rotation().yaw() * 16.0f / 360.0f + 0.5f) & 15;
+        }
+        // The tile write + the summon consult (lines 60-81).
+        skullStore.place(target, type, rotation);
+        if (type == 1) {
+            skullStore.trySummonWither(target);
+        }
+        if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE) {
+            session.inventory().consumeHeld(1);
+            publishInventoryChanged(session);
+        }
     }
 
     /** The semantic entry point for player-driven block changes. */
@@ -6415,6 +6541,14 @@ public final class EngineServer implements Server, EngineBridge {
         }
         net.zaminmc.torch.item.ItemStack heldNow = session.inventory().held();
         String heldId = heldNow.isEmpty() ? "" : heldNow.type().identifier().toString();
+        // The skull (Slice 60 — SkullItem.useOn): the block + the tile +
+        // the summon consult override the generic placement (the FACING
+        // rule and the typed drop both need the tile).
+        if (heldId.equals("minecraft:skull")
+                || creativeHeld.map(t -> t.identifier().value().equals("skull")).orElse(false)) {
+            placeSkullOnTick(session, clicked, face, creativeHeld);
+            return;
+        }
         if (heldId
                 .equals("minecraft:sign")
                 || creativeHeld.map(t -> SignManager.isSignType(t)).orElse(false)) {

@@ -6609,3 +6609,45 @@ the 220-tick blue window, the skull family, the sweep, and the drop.
 - Tests: `WitherBossTest` (7) + `WitherSkullTest` (4). The
   entity/projectile batches green (272), the full suite green at the
   commit, `--max-workers=1`.
+
+## Slice 60 — the skull block family + the wither's soul-sand summon
+
+The build that births the boss: `SkullBlock`/`SkullItem`/`trySpawn` 1:1.
+
+- **The block family**: the six facing states over 144 (the FACING
+  nibble the reference's Direction ids, the floor mount at metadata 1
+  carrying the base `minecraft:skull` name), the six facing collision
+  boxes (updateShape 1:1 — the DOWN case falls to the floor box, the
+  reference's own switch-default quirk), the DECORATION pass-whole
+  light, the 1.0 stone dig rows with NO table drop.
+- **The tiles** (`SkullManager`): every skull's TYPE (skeleton 0 ..
+  dragon 5) + the 16-step floor rotation, the wire's 0x35 action-4
+  packet (x/y/z + SkullType + Rot, the new writeNbtByte), the
+  chunk-send replay, and the listener fan (the beacon's own model).
+- **The placement** (`placeSkullOnTick`, the sign's template): the
+  block lands at the clicked face's offset with the FACE as its FACING
+  (the item's own rule), the tile writes the stack's damage as the
+  TYPE, the floor mount takes the placer's yaw as the rotation, and a
+  wither skull consults the summon walk.
+- **The summon** (trySpawn 1:1): the gates (type 1, y at least 2, not
+  peaceful), the 3x3 pattern — three wither-skull TILES (the predicate
+  reads the tile, not the block face) over a soul-sand row on an
+  air/soul-sand/air base — searched in all four horizontal planes with
+  the placed skull at any of the three top cells, the 9-cell clear
+  walk (tiles with it), and the birth: the wither at the top-center
+  +0.5/+0.55/+0.5 with the axis yaw (the X-run reads 0, the Z-run 90
+  — line 191's law), `witherSummoned()`'s 220-tick window + third
+  health, and the Poof stand-in for the 120-particle snowball column.
+- **The typed drop** (onRemoved 1:1): the break reads the tile and
+  drops the skull ITEM with the TYPE as the damage (397 via the
+  ITEM_OVERRIDES split) — the survival break pays it, the creative
+  break never reaches the listener (the NODROP law).
+- **The wire split**: `minecraft:skull` carries block 144 on the chunk
+  wire and item 397 in slots — the sign's own 63/323 model. The
+  duplicate-key collision this slice caught in testing (the base map
+  already carried the item's 397 row from the wither skeleton's drop)
+  threw at static init and stalled every join — the split fixes both
+  directions.
+- Tests: `SkullSummonTest` (5) + `BlockRegistryTest` (778). The
+  protocol module green (the crafting integration suites recovered),
+  the block/item/skull/wither batches green, `--max-workers=1`.

@@ -711,6 +711,22 @@ public final class BlockBehaviorTable {
             Map.entry(Identifier.parse("minecraft:wall_sign_east"),
                     new BlockBehavior(1.0, true, false, "wood", 0,
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:sign"), 1)))),
+            // The skull family (Slice 60 — block 144, setStrength(1.0F)
+            // STONE_SOUNDS): no table drop — the typed drop rides the
+            // break hook's tile read (the reference's empty dropItems +
+            // onRemoved's own walk).
+            Map.entry(Identifier.parse("minecraft:skull"),
+                    new BlockBehavior(1.0, true, false, "stone", 0, List.of())),
+            Map.entry(Identifier.parse("minecraft:skull_down"),
+                    new BlockBehavior(1.0, true, false, "stone", 0, List.of())),
+            Map.entry(Identifier.parse("minecraft:skull_north"),
+                    new BlockBehavior(1.0, true, false, "stone", 0, List.of())),
+            Map.entry(Identifier.parse("minecraft:skull_south"),
+                    new BlockBehavior(1.0, true, false, "stone", 0, List.of())),
+            Map.entry(Identifier.parse("minecraft:skull_west"),
+                    new BlockBehavior(1.0, true, false, "stone", 0, List.of())),
+            Map.entry(Identifier.parse("minecraft:skull_east"),
+                    new BlockBehavior(1.0, true, false, "stone", 0, List.of())),
 
 
             Map.entry(Identifier.parse("minecraft:oak_door"),

@@ -738,6 +738,21 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                 }
             });
         }
+        // The skull tiles (Slice 60 — the same PlayerChunkMap law): every
+        // placement re-publishes the 0x35 tile (the TYPE + rotation the
+        // client's renderer reads); the removal arm needs no packet (the
+        // block's own update carries the vanish).
+        if (server.skulls() != null) {
+            server.skulls().addListener(new net.zaminmc.torch.server.skull.SkullManager.Listener() {
+                @Override
+                public void onSkullTileChanged(net.zaminmc.torch.block.BlockPosition position,
+                        net.zaminmc.torch.server.skull.SkullManager.SkullTile tile) {
+                    for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                        connection.sendSkullTile(tile);
+                    }
+                }
+            });
+        }
         // The beacon GUI's per-tick view (Slice 29b): the three properties'
         // moves + the payment resync, diffed per connection.
         server.addBeaconViewListener((viewer, beacon) -> {
