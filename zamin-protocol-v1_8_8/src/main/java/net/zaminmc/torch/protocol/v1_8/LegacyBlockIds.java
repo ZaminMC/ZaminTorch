@@ -789,6 +789,16 @@ final class LegacyBlockIds {
         merged.put(Identifier.parse("minecraft:double_stone_slab2"), 181);
         merged.put(Identifier.parse("minecraft:stone_slab2"), 182);
         merged.put(Identifier.parse("minecraft:stone_slab2_top"), 182);
+        // The anvil family (Slice 53 — Block.java's own row 145): the twelve
+        // states over the FACING horizontal band (S=0 W=1 N=2 E=3) with the
+        // DAMAGE << 2 in the high pair; the bare name carries the south
+        // form like the gate precedent. The item (Item.java's own AnvilItem
+        // over 145) joins them through the shared identifier.
+        for (String damage : new String[] {"anvil", "anvil_chipped", "anvil_damaged"}) {
+            for (String facing : new String[] {"", "_west", "_north", "_east"}) {
+                merged.put(Identifier.parse("minecraft:" + damage + facing), 145);
+            }
+        }
         // The ground-cover pair (Slice 42 — Block.java's own rows): the
         // mycelium 110, the waterlily 111 — both single meta-0 states (the
         // snowy side and the boat pass-through are the client's own reads).
@@ -1606,6 +1616,18 @@ final class LegacyBlockIds {
         merged.put(Identifier.parse("minecraft:red_sandstone_stairs_south"), 2);
         merged.put(Identifier.parse("minecraft:red_sandstone_stairs_north"), 3);
         merged.put(Identifier.parse("minecraft:stone_slab2_top"), 8);
+        // The anvil's metadata nibbles (Slice 53 — AnvilBlock.
+        // getMetadataFromState: the FACING horizontal id whole in the low
+        // pair, the DAMAGE << 2 in the high pair; the bare south forms ride
+        // the 0/4/8 defaults).
+        for (String[] row : new String[][] {
+                {"anvil_west", "1"}, {"anvil_north", "2"}, {"anvil_east", "3"},
+                {"anvil_chipped", "4"}, {"anvil_chipped_west", "5"},
+                {"anvil_chipped_north", "6"}, {"anvil_chipped_east", "7"},
+                {"anvil_damaged", "8"}, {"anvil_damaged_west", "9"},
+                {"anvil_damaged_north", "10"}, {"anvil_damaged_east", "11"}}) {
+            merged.put(Identifier.parse("minecraft:" + row[0]), Integer.parseInt(row[1]));
+        }
         merged.put(Identifier.parse("minecraft:wool"), 0);
         for (int color = 0; color < 16; color++) {
             if (color != 0) {

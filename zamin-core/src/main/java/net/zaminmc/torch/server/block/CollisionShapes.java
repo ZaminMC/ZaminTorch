@@ -289,6 +289,16 @@ public final class CollisionShapes {
                 || value.endsWith("_stairs_north")) {
             return List.of(new Box(0, 0, 0, 1, 0.5, 1));
         }
+        // The anvil's own band (Slice 53 — AnvilBlock.updateShape): the X
+        // axis facings (W/E) carry the z-thin box, the Z axis facings
+        // (S/N) the x-thin box — the full 1.0 height in both, the DAMAGE
+        // never moves the box.
+        if (net.zaminmc.torch.server.block.AnvilBlocks.isAnvil(type.identifier())) {
+            int facing = net.zaminmc.torch.server.block.AnvilBlocks.facingOf(type.identifier());
+            return facing == 1 || facing == 3
+                    ? List.of(new Box(0, 0, 0.125, 1, 1, 0.875))
+                    : List.of(new Box(0.125, 0, 0, 0.875, 1, 1));
+        }
         // Everything else: the full cube when it blocks a body at all.
         return WorldSolidity.isSolid(type) ? List.of(FULL_CUBE) : List.of();
     }

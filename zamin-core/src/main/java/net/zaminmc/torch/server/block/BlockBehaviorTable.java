@@ -1387,6 +1387,22 @@ public final class BlockBehaviorTable {
                                     Identifier.parse("minecraft:stone_slab2"), 1))));
         }
 
+        // The anvil family (Slice 53 — AnvilBlock's own row:
+        // setStrength(5.0F) over Material.ANVIL with the pickaxe gate —
+        // the harvest-level 1 like the reference's own canHarvestBlock
+        // consult; the drop the family item with the DAMAGE damage
+        // (getDropItemMetadata's own band: the mined chipped form yields
+        // the chipped stack).
+        for (net.zaminmc.torch.server.block.EngineBlockType anvil
+                : net.zaminmc.torch.server.block.AnvilBlocks.familyBlocks()) {
+            behaviors.put(anvil.identifier(),
+                    new BlockBehavior(5.0, true, true, "rock", 1,
+                            java.util.List.of(new BlockBehavior.Drop(
+                                    net.zaminmc.torch.server.block.AnvilBlocks.FAMILY_ITEM, 1,
+                                    net.zaminmc.torch.server.block.AnvilBlocks.damageOf(
+                                            anvil.identifier())))));
+        }
+
         // The weighted pressure-plate pair (Slice 49a —
         // WeightedPressurePlateBlock's own rows: setStrength(0.5F)
         // WOOD_SOUNDS over Material.IRON; every state drops its family

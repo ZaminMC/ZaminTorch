@@ -91,6 +91,20 @@ public final class BlockSoundMap {
             Map.entry("minecraft:gravel", "dig.gravel"),
             // The red sand (Slice 52 — the SandBlock family's own feel).
             Map.entry("minecraft:red_sand", "dig.sand"),
+            // The anvil family (Slice 53 — the reference's ANVIL_SOUNDS: the
+            // "anvil" family whose dig band the client answers).
+            Map.entry("minecraft:anvil", "dig.anvil"),
+            Map.entry("minecraft:anvil_west", "dig.anvil"),
+            Map.entry("minecraft:anvil_north", "dig.anvil"),
+            Map.entry("minecraft:anvil_east", "dig.anvil"),
+            Map.entry("minecraft:anvil_chipped", "dig.anvil"),
+            Map.entry("minecraft:anvil_chipped_west", "dig.anvil"),
+            Map.entry("minecraft:anvil_chipped_north", "dig.anvil"),
+            Map.entry("minecraft:anvil_chipped_east", "dig.anvil"),
+            Map.entry("minecraft:anvil_damaged", "dig.anvil"),
+            Map.entry("minecraft:anvil_damaged_west", "dig.anvil"),
+            Map.entry("minecraft:anvil_damaged_north", "dig.anvil"),
+            Map.entry("minecraft:anvil_damaged_east", "dig.anvil"),
             Map.entry("minecraft:glass", "dig.glass"));
 
     /** The dig family sound name for a block identifier; stone is the default. */

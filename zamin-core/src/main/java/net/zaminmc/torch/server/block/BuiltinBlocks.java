@@ -84,6 +84,24 @@ public final class BuiltinBlocks {
             Identifier.parse("minecraft:stone_slab2"), "Red Sandstone Slab");
     public static final EngineBlockType STONE_SLAB2_TOP = new EngineBlockType(
             Identifier.parse("minecraft:stone_slab2_top"), "Red Sandstone Slab", 8);
+    // The anvil family (Slice 53 — AnvilBlock 1:1): the twelve states over
+    // 145 (the FACING horizontal id S=0 W=1 N=2 E=3 in the low pair, the
+    // DAMAGE << 2 in the high pair — the reference's own
+    // getStateFromMetadata band), the falling family (the two-tick
+    // schedule joins the sand band) with the landing walk (the hurt + the
+    // progression roll).
+    public static final EngineBlockType ANVIL = AnvilBlocks.state(0, 0);
+    public static final EngineBlockType ANVIL_WEST = AnvilBlocks.state(1, 0);
+    public static final EngineBlockType ANVIL_NORTH = AnvilBlocks.state(2, 0);
+    public static final EngineBlockType ANVIL_EAST = AnvilBlocks.state(3, 0);
+    public static final EngineBlockType ANVIL_CHIPPED = AnvilBlocks.state(0, 1);
+    public static final EngineBlockType ANVIL_CHIPPED_WEST = AnvilBlocks.state(1, 1);
+    public static final EngineBlockType ANVIL_CHIPPED_NORTH = AnvilBlocks.state(2, 1);
+    public static final EngineBlockType ANVIL_CHIPPED_EAST = AnvilBlocks.state(3, 1);
+    public static final EngineBlockType ANVIL_DAMAGED = AnvilBlocks.state(0, 2);
+    public static final EngineBlockType ANVIL_DAMAGED_WEST = AnvilBlocks.state(1, 2);
+    public static final EngineBlockType ANVIL_DAMAGED_NORTH = AnvilBlocks.state(2, 2);
+    public static final EngineBlockType ANVIL_DAMAGED_EAST = AnvilBlocks.state(3, 2);
 
     // The TNT block (legacy 46, Slice 9f): the ignition system's family.
     public static final EngineBlockType TNT = new EngineBlockType(
@@ -983,6 +1001,11 @@ public final class BuiltinBlocks {
         builder = builder.register(DOUBLE_STONE_SLAB2)
                 .register(STONE_SLAB2)
                 .register(STONE_SLAB2_TOP);
+        // The anvil family (Slice 53 — AnvilBlock 1:1): the twelve states
+        // through the family hub.
+        for (EngineBlockType anvil : AnvilBlocks.familyBlocks()) {
+            builder = builder.register(anvil);
+        }
         return builder;
     }
 }

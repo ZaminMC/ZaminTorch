@@ -42,6 +42,18 @@ public final class FallingBlockEntityManager {
         void spawnDropAtBlock(BlockPosition position, ItemStack stack);
     }
 
+    /**
+     * The anvil landing hook (Slice 53 — the server's wiring of the
+     * reference's takeFallDamage walk): called on every anvil landing
+     * before the placement consult. The hook applies the hurt, rolls the
+     * DAMAGE progression, and answers the block to place — empty means the
+     * brokeAnvil path (nothing placed, nothing dropped).
+     */
+    public interface AnvilLanding {
+        java.util.Optional<BlockType> onAnvilLanding(
+                FallingBlockEntity entity, BlockPosition landing);
+    }
+
     /** Events the protocol adapter translates into wire updates. */
     public interface Listener {
         void onFallingSpawned(FallingBlockEntity entity);
@@ -63,6 +75,7 @@ public final class FallingBlockEntityManager {
     private final Random random;
     private final List<FallingBlockEntity> entities = new ArrayList<>();
     private final List<Listener> listeners = new ArrayList<>();
+    private AnvilLanding anvilLanding;
     private int nextEntityId;
 
     public FallingBlockEntityManager(FallingBlockEntity.Ground ground,
@@ -77,6 +90,11 @@ public final class FallingBlockEntityManager {
 
     public void addListener(Listener listener) {
         listeners.add(Objects.requireNonNull(listener, "listener"));
+    }
+
+    /** Wires the anvil landing hook (Slice 53). */
+    public void setAnvilLanding(AnvilLanding hook) {
+        this.anvilLanding = Objects.requireNonNull(hook, "hook");
     }
 
     /** @return an unmodifiable view of the live falling entities (diagnostics/tests). */
@@ -135,7 +153,7 @@ public final class FallingBlockEntityManager {
                     iterator.remove();
                     LOGGER.fine(() -> "Falling block " + entity.entityId()
                             + " ended by the vanilla lifetime rule");
-                    dropAsItem(entity);
+                    dropAsItem(entity, entity.blockType());
                     for (Listener listener : listeners) {
                         listener.onFallingEnded(entity, false);
                     }
@@ -161,6 +179,19 @@ public final class FallingBlockEntityManager {
      */
     private boolean landAsBlock(FallingBlockEntity entity) {
         BlockPosition landing = entity.landingPosition();
+        // The anvil's own landing walk (Slice 53): the hook applies the hurt
+        // and the progression roll before the placement consult — empty
+        // means brokeAnvil (the reference's ++j > 2 arm: nothing placed,
+        // nothing dropped).
+        BlockType toPlace = entity.blockType();
+        if (anvilLanding != null
+                && net.zaminmc.torch.server.block.AnvilBlocks.isAnvil(entity.blockType().identifier())) {
+            java.util.Optional<BlockType> progressed = anvilLanding.onAnvilLanding(entity, landing);
+            if (progressed.isEmpty()) {
+                return false; // the brokeAnvil path: no block, no drop
+            }
+            toPlace = progressed.get();
+        }
         // The 1.8 world band is y 0..255 (16 chunk sections); below-world
         // landings drop instead of indexing a nonexistent section (vanilla's
         // setBlockState fails there too).
@@ -168,22 +199,40 @@ public final class FallingBlockEntityManager {
                 && FallingBlockEntity.canBeReplacedOnLanding(world.getBlock(landing))
                 && !FallingBlockEntity.canFallThrough(FallingBlockEntity.blockOrAir(
                         world, landing.offset(0, -1, 0)))) {
-            world.setBlock(landing, entity.blockType());
+            world.setBlock(landing, toPlace);
             return true;
         }
-        dropAsItem(entity);
+        dropAsItem(entity, toPlace);
         return false;
     }
 
     /** The vanilla {@code dropItem}: the block's item pops at the entity. */
-    private void dropAsItem(FallingBlockEntity entity) {
-        net.zaminmc.torch.item.ItemType itemType =
-                net.zaminmc.torch.server.item.BuiltinItems.lookup(entity.blockType().identifier()).orElse(null);
-        if (itemType != null) {
-            BlockPosition at = new BlockPosition((int) Math.floor(entity.position().x()),
-                    Math.max(0, (int) Math.floor(entity.position().y())),
-                    (int) Math.floor(entity.position().z()));
-            dropSink.spawnDropAtBlock(at, ItemStack.of(itemType, 1));
+    private void dropAsItem(FallingBlockEntity entity, BlockType asState) {
+        // The anvil family's item consult (Slice 53 — the reference's
+        // getDropItemMetadata over the falling state): the item is the
+        // family's, the damage the state's DAMAGE id — the progressed state
+        // when the landing hook walked it forward.
+        if (net.zaminmc.torch.server.block.AnvilBlocks.isAnvil(entity.blockType().identifier())) {
+            net.zaminmc.torch.item.ItemType anvilItem =
+                    net.zaminmc.torch.server.item.BuiltinItems.lookup(
+                            net.zaminmc.torch.server.block.AnvilBlocks.FAMILY_ITEM).orElse(null);
+            if (anvilItem != null) {
+                BlockPosition at = dropAt(entity);
+                dropSink.spawnDropAtBlock(at, new ItemStack(anvilItem, 1,
+                        net.zaminmc.torch.server.block.AnvilBlocks.dropDamageOf(asState.identifier())));
+            }
+            return;
         }
+        net.zaminmc.torch.item.ItemType itemType =
+                net.zaminmc.torch.server.item.BuiltinItems.lookup(asState.identifier()).orElse(null);
+        if (itemType != null) {
+            dropSink.spawnDropAtBlock(dropAt(entity), ItemStack.of(itemType, 1));
+        }
+    }
+
+    private BlockPosition dropAt(FallingBlockEntity entity) {
+        return new BlockPosition((int) Math.floor(entity.position().x()),
+                Math.max(0, (int) Math.floor(entity.position().y())),
+                (int) Math.floor(entity.position().z()));
     }
 }

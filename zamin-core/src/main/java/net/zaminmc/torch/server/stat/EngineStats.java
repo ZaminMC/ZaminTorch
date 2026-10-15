@@ -254,6 +254,19 @@ public final class EngineStats {
         merges.put("red_sandstone_stairs_south", "red_sandstone_stairs");
         merges.put("red_sandstone_stairs_north", "red_sandstone_stairs");
         merges.put("stone_slab2_top", "stone_slab2");
+        // The anvil family (Slice 53 — the vanilla per-block-id scheme:
+        // mining any of 145's twelve states counts on the anvil row).
+        merges.put("anvil_west", "anvil");
+        merges.put("anvil_north", "anvil");
+        merges.put("anvil_east", "anvil");
+        merges.put("anvil_chipped", "anvil");
+        merges.put("anvil_chipped_west", "anvil");
+        merges.put("anvil_chipped_north", "anvil");
+        merges.put("anvil_chipped_east", "anvil");
+        merges.put("anvil_damaged", "anvil");
+        merges.put("anvil_damaged_west", "anvil");
+        merges.put("anvil_damaged_north", "anvil");
+        merges.put("anvil_damaged_east", "anvil");
         return merges;
     }
 

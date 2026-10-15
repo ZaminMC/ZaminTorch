@@ -626,6 +626,12 @@ public final class BlockLightTable {
         for (EngineBlockType pot : FlowerPotBlocks.familyBlocks()) {
             merged.put(pot.identifier(), new LightData(0, 0));
         }
+        // The weighted pressure-plate pair (Slice 49a — the thin 1/16
+        // plate passes light, the flora rule's own band).
+        for (EngineBlockType plate : net.zaminmc.torch.server.redstone
+                .WeightedPlateBlocks.familyBlocks()) {
+            merged.put(plate.identifier(), new LightData(0, 0));
+        }
         // The ground-cover pair (Slice 42 — the mycelium is an opaque
         // cube like the grass block; the lily pad is the 1/64 surface).
         merged.put(Identifier.parse("minecraft:mycelium"), new LightData(0, 15));
@@ -645,6 +651,12 @@ public final class BlockLightTable {
         merged.put(Identifier.parse("minecraft:double_stone_slab2"), new LightData(0, 15));
         merged.put(Identifier.parse("minecraft:stone_slab2"), new LightData(0, 15));
         merged.put(Identifier.parse("minecraft:stone_slab2_top"), new LightData(0, 15));
+        // The anvil family (Slice 53 — AnvilBlock's own reads: setOpacity(0)
+        // with isSolidRender false — the CUTOUT 0.98 block passes light
+        // whole like the reference's own anvil).
+        for (EngineBlockType anvil : net.zaminmc.torch.server.block.AnvilBlocks.familyBlocks()) {
+            merged.put(anvil.identifier(), new LightData(0, 0));
+        }
         // The melon family (Slice 41 — the melon block is an opaque full
         // cube like the pumpkin; the stems are walk-through plants).
         merged.put(Identifier.parse("minecraft:melon_block"), new LightData(0, 15));

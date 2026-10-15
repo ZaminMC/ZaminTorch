@@ -228,4 +228,77 @@ class FallingBlockEntityTest {
         assertEquals(world.airType(), world.getBlock(new net.zaminmc.torch.block.BlockPosition(480, 1, 480)),
                 "nothing floated over the air gap");
     }
+
+    @Test
+    void anvilLandingWalksTheHookAndPlacesTheProgressedForm() {
+        // The anvil's landing (Slice 53 — the takeFallDamage walk): a
+        // chipped anvil falls three cells onto a stone floor; the hook's
+        // progression answers the walked state for the placement (the
+        // reference's ++j walk on the landing — chipped walks to damaged).
+        world.getOrGenerate(new ChunkPosition(60, 60));
+        for (int y = 2; y <= 8; y++) {
+            world.setBlock(new BlockPosition(960, y, 960), world.airType());
+        }
+        world.setBlock(new BlockPosition(960, 0, 960), BuiltinBlocks.STONE);
+        world.setBlock(new BlockPosition(960, 1, 960), BuiltinBlocks.STONE);
+
+        List<ItemStack> dropped = new ArrayList<>();
+        FallingBlockEntityManager manager = new FallingBlockEntityManager(
+                ground(), world,
+                (position, stack) -> dropped.add(stack), new Random(5), 5400);
+        // The hook: the hurt is skipped here (the test world carries no
+        // mobs); the progression walks chipped -> damaged, the same facing.
+        manager.setAnvilLanding((entity, landing) -> {
+            int damage = net.zaminmc.torch.server.block.AnvilBlocks
+                    .damageOf(entity.blockType().identifier());
+            int facing = net.zaminmc.torch.server.block.AnvilBlocks
+                    .facingOf(entity.blockType().identifier());
+            int i = (int) Math.ceil(entity.fallDistance() - 1.0F);
+            assertTrue(i > 0, "the three-cell fall accumulates distance");
+            return java.util.Optional.of(managerAnvilState(facing, damage + 1));
+        });
+        manager.startFall(new BlockPosition(960, 5, 960),
+                BuiltinBlocks.ANVIL_CHIPPED_EAST);
+        for (int tick = 0; tick < 200 && manager.size() > 0; tick++) {
+            manager.tick();
+        }
+        assertEquals(0, manager.size(), "the anvil landed");
+        assertEquals(0, dropped.size(), "the supported landing dropped nothing");
+        // The placement carries the hook's progressed state (the damaged
+        // band, damage 2): the reference's ++j walk on the landing.
+        assertEquals(net.zaminmc.torch.util.Identifier.parse("minecraft:anvil_damaged_east"),
+                world.getBlock(new BlockPosition(960, 2, 960)).identifier(),
+                "the landed anvil carries the walked damage");
+    }
+
+    @Test
+    void anvilLandingBreaksOnTheBrokeAnvilPath() {
+        // The brokeAnvil path (Slice 53 — the ++j > 2 arm): the hook
+        // answering empty places nothing and drops nothing.
+        world.getOrGenerate(new ChunkPosition(62, 62));
+        for (int y = 2; y <= 8; y++) {
+            world.setBlock(new BlockPosition(992, y, 992), world.airType());
+        }
+        world.setBlock(new BlockPosition(992, 0, 992), BuiltinBlocks.STONE);
+        world.setBlock(new BlockPosition(992, 1, 992), BuiltinBlocks.STONE);
+
+        List<ItemStack> dropped = new ArrayList<>();
+        FallingBlockEntityManager manager = new FallingBlockEntityManager(
+                ground(), world,
+                (position, stack) -> dropped.add(stack), new Random(5), 5500);
+        manager.setAnvilLanding((entity, landing) -> java.util.Optional.empty());
+        manager.startFall(new BlockPosition(992, 5, 992), BuiltinBlocks.ANVIL);
+        for (int tick = 0; tick < 200 && manager.size() > 0; tick++) {
+            manager.tick();
+        }
+        assertEquals(0, dropped.size(), "the broke anvil drops nothing");
+        assertEquals(world.airType(), world.getBlock(new BlockPosition(992, 2, 992)),
+                "the broke anvil places nothing");
+    }
+
+    /** The test's registry-backed anvil state lookup (the hub's own band). */
+    private net.zaminmc.torch.block.BlockType managerAnvilState(int facing, int damage) {
+        return registry.lookup(net.zaminmc.torch.server.block.AnvilBlocks.stateId(facing, damage))
+                .orElseThrow();
+    }
 }
