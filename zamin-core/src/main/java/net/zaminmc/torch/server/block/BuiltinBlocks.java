@@ -875,6 +875,13 @@ public final class BuiltinBlocks {
         for (EngineBlockType gate : FenceGateBlocks.familyBlocks()) {
             builder = builder.register(gate);
         }
+        // The rail trio (Slice 38 — PoweredRailBlock/DetectorRailBlock 1:1):
+        // the golden/detector/activator families' twelve shape/powered
+        // states each (the bare north_south form shares the family item's
+        // own identifier).
+        for (EngineBlockType rail : RailBlocks.familyBlocks()) {
+            builder = builder.register(rail);
+        }
         return builder;
     }
 }

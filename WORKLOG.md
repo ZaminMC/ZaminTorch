@@ -5711,3 +5711,65 @@ Ledgered: the closed gate's 1.5-tall panel and the IN_WALL flush form
 ride the collision-shape slice (the flat-solid stand-in ships — the open
 band walks through, the closed blocks like the fence); the gate's
 cobblestone-wall consult rides the wall's own slice (139).
+
+## Slice 38 — the rail trio: the golden/detector/activator rails
+
+The reference port of AbstractRailBlock + PoweredRailBlock +
+DetectorRailBlock over the reference's registrations (golden_rail 27,
+detector_rail 28, activator_rail 157 — the reference's own twin of the
+golden rail: register(157, "activator_rail", new PoweredRailBlock()...)).
+
+- The state model (`server/block/RailBlocks`): the six straight shapes
+  over metadata 0-5 (Shape.byId: north_south, east_west, the four
+  ascents — the curves stay the plain rail's own family) with the
+  POWERED bit 8 — twelve states per family, the bare north_south form
+  sharing the family item's identifier.
+- The placement (`placeRailOnTick` generalized): the look-axis rule (the
+  same walk the plain rail owns), the solid-bed gate
+  (AbstractRailBlock.canBePlaced's World.hasSolidTop), the trio items
+  routing through their own consult.
+- The golden family's POWERED walk (`RedstoneSystem.railNeighborChanged`
+  + `isPoweredByConnectedRails`/`isPoweredByRail`, 1:1): the direct feed
+  OR the connected-rails propagation — the 8-deep walk along the run with
+  the reference's own axis math (the ascending shapes' climb/descend
+  steps, the below-cell allowance) and its axis-compat gate (an east-west
+  walker never reads a north-south run); the SAME-family gate
+  (blockstate.getBlock() != this — golden never feeds activator); the
+  flip rings the block below (and above when ascending). The support
+  walk pops the rail when the bed or the ascending shape's headwall
+  departs.
+- The detector family (`FAMILY_DETECTOR_RAIL`): the per-tick cart scan
+  (the onEntityCollision equivalent over the plate precedent — the
+  engine's cart probe), the press/release arms with the two rings and
+  the comparator wake, the 20-tick re-check (getTickRate), and the
+  emission consults (getSignal's 15 weakly in EVERY direction,
+  getDirectSignal's strong UP-only 15, isSignalSolid's exclusion — the
+  source never re-radiates).
+- The cart's ride (`MinecartEntity.tickKind` over the new
+  `WorldQuery.railPowerAt`): the powered golden/activator rail's 0.06
+  boost capped at the reference's 0.4 getMaxSpeed (with the from-rest
+  kick), the unpowered golden rail's brake (under 0.03 the full stop,
+  over it the 0.5 halving) — the reference's own numbers from
+  moveAlongTrack lines 345-349, 428-437, 477-494. The cart's axis read
+  extends to the trio's shapes (railAxisAt's shape consult).
+- The crafting rows (CraftingManager lines 233-237): the golden rail
+  (six gold + a stick + redstone), the activator rail (six iron + the
+  redstone torch + two sticks), the detector rail (six iron + the stone
+  pressure plate + redstone) — six each.
+- The behavior rows (0.7 stone-class, drops the family item), the light
+  rows (the thin track passes light), the solidity rule (walk-through
+  like the plain rail), the items, and the wire rows (the ids + every
+  state's shape|powered nibble).
+- Tests: `RailBlocksTest` (4, live engine — the placement band + the
+  support pop, the three-rail propagation walk with the dark-on-depart,
+  the detector's cart press/release cycle, the family tables + the
+  crafts) + `CraftingRecipeTest` 191. Batches: block + crafting +
+  redstone + vehicle green, the protocol integrity + chunk serializer +
+  vehicle integration green, `--max-workers=1`.
+
+Ledgered: the ascending shapes' ramp physics (the slope gravity
+0.0078125 and the y-climb) ride the cart's own slope slice — the flat
+walk ships; the activator rail's cart-side arms (the TNT cart's prime,
+the hopper cart's halt) ride their own cart slices; the trio's
+curve-free SHAPE vocabulary is the reference's own (the plain rail's
+RailNode auto-shape walk is the plain rail's slice).

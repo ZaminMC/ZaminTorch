@@ -248,6 +248,28 @@ public final class BuiltinRecipes {
                     { ing("minecraft:stick", false, 0), ing("minecraft:planks", true, 5), ing("minecraft:stick", false, 0) }
             },
                     res("minecraft:dark_oak_fence_gate", 1, 0)),
+            // The rail-trio crafts (Slice 38 — CraftingManager lines 233-237):
+            // the powered rail (gold + redstone over a stick), the activator
+            // rail (iron over the redstone torch with two sticks), the
+            // detector rail (iron + redstone over the stone plate) — six each.
+            CraftingRecipe.shaped(new Ingredient[][] {
+                    { ing("minecraft:gold_ingot", false, 0), null, ing("minecraft:gold_ingot", false, 0) },
+                    { ing("minecraft:gold_ingot", false, 0), ing("minecraft:stick", false, 0), ing("minecraft:gold_ingot", false, 0) },
+                    { ing("minecraft:gold_ingot", false, 0), ing("minecraft:redstone", false, 0), ing("minecraft:gold_ingot", false, 0) }
+            },
+                    res("minecraft:golden_rail", 6, 0)),
+            CraftingRecipe.shaped(new Ingredient[][] {
+                    { ing("minecraft:iron_ingot", false, 0), ing("minecraft:stick", false, 0), ing("minecraft:iron_ingot", false, 0) },
+                    { ing("minecraft:iron_ingot", false, 0), ing("minecraft:redstone_torch", false, 0), ing("minecraft:iron_ingot", false, 0) },
+                    { ing("minecraft:iron_ingot", false, 0), ing("minecraft:stick", false, 0), ing("minecraft:iron_ingot", false, 0) }
+            },
+                    res("minecraft:activator_rail", 6, 0)),
+            CraftingRecipe.shaped(new Ingredient[][] {
+                    { ing("minecraft:iron_ingot", false, 0), null, ing("minecraft:iron_ingot", false, 0) },
+                    { ing("minecraft:iron_ingot", false, 0), ing("minecraft:stone_pressure_plate", false, 0), ing("minecraft:iron_ingot", false, 0) },
+                    { ing("minecraft:iron_ingot", false, 0), ing("minecraft:redstone", false, 0), ing("minecraft:iron_ingot", false, 0) }
+            },
+                    res("minecraft:detector_rail", 6, 0)),
             // The core planks crafts over the family item (the reference's
             // bare Blocks.PLANKS ingredient matches any variant — the
             // engine's family-item rows for the shipped oak rows' new twin).

@@ -1227,6 +1227,19 @@ public final class BlockBehaviorTable {
             }
         }
 
+        // The rail trio (Slice 38 — Block.java's own rows: every rail
+        // `setStrength(0.7F)` METAL_SOUNDS over Material.DECORATION — no
+        // tool gate, drops itself): all twelve states per family.
+        for (String family : RailBlocks.RAILS.keySet()) {
+            BlockBehavior rail = new BlockBehavior(0.7, true, false, "stone", 0,
+                    List.of(new BlockBehavior.Drop(RailBlocks.railItem(family), 1)));
+            for (int shape = 0; shape < 6; shape++) {
+                for (boolean powered : new boolean[] {false, true}) {
+                    behaviors.put(RailBlocks.state(family, shape, powered).identifier(), rail);
+                }
+            }
+        }
+
         // The complete door families (Slice 34 — DoorBlock's own
         // registrations: every wood door `setStrength(3.0F)` WOOD_SOUNDS,
         // the iron door `setStrength(5.0F)` Material.IRON — the material's

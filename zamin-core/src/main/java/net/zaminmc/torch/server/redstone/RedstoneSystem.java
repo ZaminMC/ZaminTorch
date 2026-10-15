@@ -168,12 +168,16 @@ public final class RedstoneSystem implements WorldChangeListener {
     /** The dispenser/dropper family (Slice 11a — the 4-tick reaction). */
     static final int FAMILY_DISPENSER = 7;
     static final int FAMILY_LAMP = 8;
+    /** The detector-rail family (Slice 38 — the 20-tick cart re-check). */
+    static final int FAMILY_DETECTOR_RAIL = 9;
 
     /** The lamp's revert delay (RedstoneLampBlock.getTickRate: 4 ticks). */
     static final int LAMP_TICK_RATE = 4;
 
     /** The plates' re-compute debounce (AbstractPressurePlateBlock.getTickRate). */
     static final int PLATE_TICK_RATE = 20;
+    /** The detector rail's re-check (DetectorRailBlock.getTickRate: 20). */
+    static final int DETECTOR_RAIL_TICK_RATE = 20;
     /** The stone button's release (ButtonBlock.getTickRate: 20 stone / 30 wood). */
     static final int STONE_BUTTON_TICKS = 20;
     static final int WOODEN_BUTTON_TICKS = 30;
@@ -183,6 +187,12 @@ public final class RedstoneSystem implements WorldChangeListener {
 
     /** The entity occupancy probe for the plate scan: (position, includeItems) -> occupied. */
     private java.util.function.BiPredicate<BlockPosition, Boolean> plateProbe;
+
+    /** The detector-rail positions (the cart occupancy scan set). */
+    private final java.util.Set<BlockPosition> detectorRailPositions = new java.util.HashSet<>();
+
+    /** The minecart occupancy probe for the detector scan: position -> cart present. */
+    private java.util.function.Predicate<BlockPosition> cartProbe;
 
     /**
      * The comparator's stored analog outputs — the ComparatorBlockEntity
@@ -245,6 +255,12 @@ public final class RedstoneSystem implements WorldChangeListener {
     /** Wires the plate's entity probe (mobs + players, items for the wood rule). */
     public void setPlateProbe(java.util.function.BiPredicate<BlockPosition, Boolean> probe) {
         this.plateProbe = probe;
+    }
+
+    /** Wires the detector rail's minecart probe (Slice 38 — the engine's
+     *  vehicle manager feeding the occupancy scan). */
+    public void setCartProbe(java.util.function.Predicate<BlockPosition> probe) {
+        this.cartProbe = probe;
     }
 
     private final TreeSet<Tick> ticksInOrder = new TreeSet<>();
@@ -330,6 +346,17 @@ public final class RedstoneSystem implements WorldChangeListener {
             platePositions.remove(position);
             if (RedstoneBlocks.platePowered(oldType)) {
                 // AbstractPressurePlateBlock.onRemoved (lines 145-150).
+                updateNeighbors(position);
+                updateNeighbors(position.offset(0, -1, 0));
+            }
+            return;
+        }
+        // The detector rail's departure (Slice 38 — the scan set drops it;
+        // a powered rail's neighbors hear the release).
+        if (net.zaminmc.torch.server.block.RailBlocks.familyOf(oldType) != null
+                && net.zaminmc.torch.server.block.RailBlocks.familyOf(oldType).equals("detector_rail")) {
+            detectorRailPositions.remove(position);
+            if (net.zaminmc.torch.server.block.RailBlocks.isPowered(oldType)) {
                 updateNeighbors(position);
                 updateNeighbors(position.offset(0, -1, 0));
             }
@@ -455,6 +482,15 @@ public final class RedstoneSystem implements WorldChangeListener {
             // block under the plate (the consumer below asks with dir=UP).
             return dir == UP ? ownSignal(pos, type, dir) : 0;
         }
+        if (net.zaminmc.torch.server.block.RailBlocks.familyOf(type) != null
+                && net.zaminmc.torch.server.block.RailBlocks.familyOf(type).equals("detector_rail")) {
+            // DetectorRailBlock.getDirectSignal lines 81-87 (Slice 38):
+            // strong only UP — the block under the rail.
+            if (!net.zaminmc.torch.server.block.RailBlocks.isPowered(type)) {
+                return 0;
+            }
+            return dir == UP ? 15 : 0;
+        }
         if (TripwireBlocks.isHook(type)) {
             // TripwireHookBlock lines 269-277 (getDirectSignal): strong only
             // toward the MOUNT — the wall behind the hook (the reader there
@@ -526,7 +562,10 @@ public final class RedstoneSystem implements WorldChangeListener {
                 && !RedstoneBlocks.isRepeater(type)
                 && !RedstoneBlocks.isComparator(type)
                 && !net.zaminmc.torch.server.piston.PistonBlocks.isPistonFamily(type)
-                && !net.zaminmc.torch.server.daylight.DaylightDetectorBlocks.isFamily(type);
+                && !net.zaminmc.torch.server.daylight.DaylightDetectorBlocks.isFamily(type)
+                && (net.zaminmc.torch.server.block.RailBlocks.familyOf(type) == null
+                || !net.zaminmc.torch.server.block.RailBlocks.familyOf(type)
+                        .equals("detector_rail"));
     }
 
     /**
@@ -575,6 +614,12 @@ public final class RedstoneSystem implements WorldChangeListener {
         if (RedstoneBlocks.isPlate(type)) {
             // AbstractPressurePlateBlock lines 159-161: the plate's output.
             return RedstoneBlocks.platePowered(type) ? 15 : 0;
+        }
+        if (net.zaminmc.torch.server.block.RailBlocks.familyOf(type) != null
+                && net.zaminmc.torch.server.block.RailBlocks.familyOf(type).equals("detector_rail")) {
+            // DetectorRailBlock.getSignal lines 75-78 (Slice 38): the
+            // powered rail's 15 weakly in EVERY direction.
+            return net.zaminmc.torch.server.block.RailBlocks.isPowered(type) ? 15 : 0;
         }
         if (net.zaminmc.torch.server.daylight.DaylightDetectorBlocks.isFamily(type)) {
             // DaylightDetectorBlock.getSignal lines 43-45: the POWER level
@@ -816,6 +861,10 @@ public final class RedstoneSystem implements WorldChangeListener {
             fenceGateNeighborChanged(pos, type);
             return;
         }
+        if (net.zaminmc.torch.server.block.RailBlocks.isTrioRail(type)) {
+            railNeighborChanged(pos, type);
+            return;
+        }
     }
 
     /**
@@ -957,6 +1006,178 @@ public final class RedstoneSystem implements WorldChangeListener {
         }
     }
 
+    /**
+     * The rail trio's neighborChanged (AbstractRailBlock lines 86-111 +
+     * PoweredRailBlock.updateState lines 130-142, 1:1): the support break
+     * pops the rail (the solid-top floor gate + the ascending shape's
+     * headwall), otherwise the golden/activator families re-evaluate the
+     * POWERED bit — the direct feed OR the connected-rails propagation
+     * (isPoweredByConnectedRails' 8-deep walk along the run) — with the
+     * neighbor rings the flip fires (updateNeighbors of the block below,
+     * and above when ascending). The detector family never powers from
+     * feeds (its POWERED is the cart occupancy alone) but keeps the
+     * support pop.
+     */
+    private void railNeighborChanged(BlockPosition pos, BlockType type) {
+        String family = net.zaminmc.torch.server.block.RailBlocks.familyOf(type);
+        int shape = net.zaminmc.torch.server.block.RailBlocks.shapeOf(type);
+        // The support walk (AbstractRailBlock.neighborChanged lines 90-102).
+        boolean unsupported = !hasSupportBelow(pos);
+        if (!unsupported && net.zaminmc.torch.server.block.RailBlocks.isAscending(shape)) {
+            // The ascending shape's headwall: the cell the ramp climbs
+            // into must hold a solid top (lines 94-102).
+            int[] step = ascendingStep(shape);
+            unsupported = !WorldSolidity.isSolid(world.getBlock(
+                    pos.offset(step[0], 0, step[1])));
+        }
+        if (unsupported) {
+            popBlock(pos, railItemOf(family));
+            return;
+        }
+        if (family.equals("detector_rail")) {
+            return; // the detector's POWERED is the cart occupancy alone
+        }
+        // The POWERED re-evaluation (PoweredRailBlock.updateState).
+        boolean powered = net.zaminmc.torch.server.block.RailBlocks.isPowered(type);
+        boolean fed = hasNeighborSignal(pos)
+                || isPoweredByConnectedRails(pos, type, true, 0)
+                || isPoweredByConnectedRails(pos, type, false, 0);
+        if (fed != powered) {
+            world.setBlock(pos, net.zaminmc.torch.server.block.RailBlocks
+                    .withPowered(type, fed));
+            updateNeighbors(pos.offset(0, -1, 0));
+            if (net.zaminmc.torch.server.block.RailBlocks.isAscending(shape)) {
+                updateNeighbors(pos.offset(0, 1, 0));
+            }
+        }
+    }
+
+    /** The ascending shape's climb direction (the headwall's offset). */
+    private static int[] ascendingStep(int shape) {
+        return switch (shape) {
+            case 2 -> new int[] {1, 0};   // ascending_east
+            case 3 -> new int[] {-1, 0};  // ascending_west
+            case 4 -> new int[] {0, -1};  // ascending_north
+            default -> new int[] {0, 1};  // ascending_south
+        };
+    }
+
+    /**
+     * The connected-rails propagation (PoweredRailBlock
+     * isPoweredByConnectedRails + isPoweredByRail lines 32-127, 1:1): the
+     * walk follows the shape's axis forward or backward, stepping onto the
+     * same cell or the one below (the ramp down), up to 8 rails deep; a
+     * same-family rail counts when its axis is compatible (a perpendicular
+     * run never feeds) AND it is itself powered by a direct feed or the
+     * deeper walk.
+     */
+    private boolean isPoweredByConnectedRails(BlockPosition pos, BlockType type,
+                                              boolean forward, int depth) {
+        if (depth >= 8) {
+            return false;
+        }
+        int x = pos.x();
+        int y = pos.y();
+        int z = pos.z();
+        boolean allowBelow = true;
+        String family = net.zaminmc.torch.server.block.RailBlocks.familyOf(type);
+        int shape = net.zaminmc.torch.server.block.RailBlocks.shapeOf(type);
+        boolean axisX;
+        switch (shape) {
+            case 0 -> { // north_south: forward = +Z (south)
+                if (forward) {
+                    z++;
+                } else {
+                    z--;
+                }
+                axisX = false;
+            }
+            case 1 -> { // east_west: forward = -X (west)
+                if (forward) {
+                    x--;
+                } else {
+                    x++;
+                }
+                axisX = true;
+            }
+            case 2 -> { // ascending_east: forward = -X, back climbs +X up
+                if (forward) {
+                    x--;
+                } else {
+                    x++;
+                    y++;
+                    allowBelow = false;
+                }
+                axisX = true;
+            }
+            case 3 -> { // ascending_west
+                if (forward) {
+                    x--;
+                    y++;
+                    allowBelow = false;
+                } else {
+                    x++;
+                }
+                axisX = true;
+            }
+            case 4 -> { // ascending_north: forward = +Z (south), back climbs -Z up
+                if (forward) {
+                    z++;
+                } else {
+                    z--;
+                    y++;
+                    allowBelow = false;
+                }
+                axisX = false;
+            }
+            default -> { // ascending_south
+                if (forward) {
+                    z++;
+                    y++;
+                    allowBelow = false;
+                } else {
+                    z--;
+                }
+                axisX = false;
+            }
+        }
+        return isPoweredByRail(new BlockPosition(x, y, z), forward, depth, axisX, family)
+                || allowBelow && isPoweredByRail(
+                        new BlockPosition(x, y - 1, z), forward, depth, axisX, family);
+    }
+
+    /** The single-rail read (isPoweredByRail lines 106-127, 1:1 — the
+     *  {@code blockstate.getBlock() != this} gate: only the SAME family
+     *  propagates, golden never feeds activator). */
+    private boolean isPoweredByRail(BlockPosition pos, boolean forward, int depth,
+                                    boolean axisX, String family) {
+        BlockType rail = world.getBlock(pos);
+        if (!family.equals(net.zaminmc.torch.server.block.RailBlocks.familyOf(rail))) {
+            return false;
+        }
+        int shape = net.zaminmc.torch.server.block.RailBlocks.shapeOf(rail);
+        // The axis-compat gate (lines 113-124): an east-west walker never
+        // reads a north-south run and vice versa.
+        if (axisX && (shape == 0 || shape == 4 || shape == 5)) {
+            return false;
+        }
+        if (!axisX && (shape == 1 || shape == 2 || shape == 3)) {
+            return false;
+        }
+        return net.zaminmc.torch.server.block.RailBlocks.isPowered(rail)
+                && (hasNeighborSignal(pos)
+                || isPoweredByConnectedRails(pos, rail, forward, depth + 1));
+    }
+
+    /** The rail item of a family for the pop arm's drop. */
+    private static net.zaminmc.torch.item.ItemType railItemOf(String family) {
+        return switch (family) {
+            case "detector_rail" -> BuiltinItems.DETECTOR_RAIL;
+            case "activator_rail" -> BuiltinItems.ACTIVATOR_RAIL;
+            default -> BuiltinItems.GOLDEN_RAIL;
+        };
+    }
+
     /** The door item of a family for the pop arm's drop. */
     private static net.zaminmc.torch.item.ItemType doorItemOf(String family) {
         return switch (family) {
@@ -1050,6 +1271,18 @@ public final class RedstoneSystem implements WorldChangeListener {
                 updateNeighbors(pos.offset(0, -1, 0));
                 scheduleTick(pos, FAMILY_PLATE, PLATE_TICK_RATE, 0);
             }
+            return;
+        }
+        // The detector rail joins its scan set (Slice 38 — the cart
+        // occupancy scan; onEntityCollision's per-tick equivalent).
+        if (net.zaminmc.torch.server.block.RailBlocks.familyOf(type) != null
+                && net.zaminmc.torch.server.block.RailBlocks.familyOf(type).equals("detector_rail")) {
+            detectorRailPositions.add(pos);
+            if (net.zaminmc.torch.server.block.RailBlocks.isPowered(type)) {
+                updateNeighbors(pos);
+                updateNeighbors(pos.offset(0, -1, 0));
+                scheduleTick(pos, FAMILY_DETECTOR_RAIL, DETECTOR_RAIL_TICK_RATE, 0);
+            }
         }
     }
 
@@ -1078,6 +1311,32 @@ public final class RedstoneSystem implements WorldChangeListener {
                 updateNeighbors(plate);
                 updateNeighbors(plate.offset(0, -1, 0));
                 scheduleTick(plate, FAMILY_PLATE, PLATE_TICK_RATE, 0);
+            }
+        }
+        // The detector rail's cart scan (Slice 38 — DetectorRailBlock
+        // lines 69-74 + 107-140: the onEntityCollision equivalent; only
+        // the UNPOWERED rails scan — a powered rail's re-check rides its
+        // 20-tick scheduled tick).
+        if (cartProbe != null) {
+            for (BlockPosition rail : List.copyOf(java.util.Arrays.asList(
+                    detectorRailPositions.toArray(new BlockPosition[0])))) {
+                BlockType type = world.getBlock(rail);
+                if (net.zaminmc.torch.server.block.RailBlocks.familyOf(type) == null
+                        || !net.zaminmc.torch.server.block.RailBlocks.familyOf(type)
+                                .equals("detector_rail")
+                        || net.zaminmc.torch.server.block.RailBlocks.isPowered(type)) {
+                    continue;
+                }
+                if (cartProbe.test(rail)) {
+                    // The press (updateOutputState lines 122-129): the swap,
+                    // the two rings, the re-arm, the comparator wake.
+                    world.setBlock(rail, net.zaminmc.torch.server.block.RailBlocks
+                            .withPowered(type, true));
+                    updateNeighbors(rail);
+                    updateNeighbors(rail.offset(0, -1, 0));
+                    wakeComparators(rail);
+                    scheduleTick(rail, FAMILY_DETECTOR_RAIL, DETECTOR_RAIL_TICK_RATE, 0);
+                }
             }
         }
         ticksThisTick.clear();
@@ -1114,6 +1373,26 @@ public final class RedstoneSystem implements WorldChangeListener {
                 buttonTick(entry.position(), type);
             } else if (RedstoneBlocks.isPlate(type)) {
                 plateTick(entry.position(), type);
+            } else if (net.zaminmc.torch.server.block.RailBlocks.familyOf(type) != null
+                    && net.zaminmc.torch.server.block.RailBlocks.familyOf(type)
+                            .equals("detector_rail")) {
+                // DetectorRailBlock.tick (lines 84-89) + updateOutputState
+                // (lines 107-140): the 20-tick re-check — the cart gone
+                // releases the rail (the swap, the two rings, the
+                // comparator wake); a cart still present re-arms.
+                if (net.zaminmc.torch.server.block.RailBlocks.isPowered(type)) {
+                    if (cartProbe == null || !cartProbe.test(entry.position())) {
+                        world.setBlock(entry.position(),
+                                net.zaminmc.torch.server.block.RailBlocks
+                                        .withPowered(type, false));
+                        updateNeighbors(entry.position());
+                        updateNeighbors(entry.position().offset(0, -1, 0));
+                        wakeComparators(entry.position());
+                    } else {
+                        scheduleTick(entry.position(), FAMILY_DETECTOR_RAIL,
+                                DETECTOR_RAIL_TICK_RATE, 0);
+                    }
+                }
             } else if (RedstoneBlocks.isLamp(type)) {
                 // RedstoneLampBlock.tick (lines 52-60): the lit lamp that
                 // lost its feed reverts dark (the 4-tick delayed reaction).
@@ -1814,6 +2093,10 @@ public final class RedstoneSystem implements WorldChangeListener {
         }
         if (RedstoneBlocks.isPlate(type)) {
             return FAMILY_PLATE;
+        }
+        if (net.zaminmc.torch.server.block.RailBlocks.familyOf(type) != null
+                && net.zaminmc.torch.server.block.RailBlocks.familyOf(type).equals("detector_rail")) {
+            return FAMILY_DETECTOR_RAIL;
         }
         if (TripwireBlocks.isTripwire(type)) {
             return FAMILY_TRIPWIRE;

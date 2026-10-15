@@ -615,6 +615,34 @@ final class LegacyBlockIds {
                 }
             }
         }
+        // The rail trio (Slice 38 — Block.java's own rows): the golden
+        // rail 27, the detector rail 28, the activator rail 157 — the six
+        // straight shapes over metadata 0-5 (Shape.byId) with the POWERED
+        // bit 8, the bare north_south form sharing the family item's
+        // identifier (Item.java's own register(Blocks.POWERED_RAIL) rows).
+        {
+            String[] railFamilies = {"golden_rail", "detector_rail", "activator_rail"};
+            int[] railIds = {27, 28, 157};
+            String[] railShapes = {"", "_east_west", "_ascending_east", "_ascending_west",
+                    "_ascending_north", "_ascending_south"};
+            for (int f = 0; f < railFamilies.length; f++) {
+                for (int shape = 0; shape < 6; shape++) {
+                    for (int powered = 0; powered <= 1; powered++) {
+                        int meta = shape | (powered == 1 ? 8 : 0);
+                        if (meta == 0) {
+                            merged.put(Identifier.parse("minecraft:" + railFamilies[f]), railIds[f]);
+                            continue; // the bare form rides the 0 default
+                        }
+                        StringBuilder name = new StringBuilder("minecraft:").append(railFamilies[f]);
+                        if (powered == 1) {
+                            name.append("_powered");
+                        }
+                        name.append(railShapes[shape]);
+                        merged.put(Identifier.parse(name.toString()), railIds[f]);
+                    }
+                }
+            }
+        }
         // The wood-variant foundation (Slice 35 — Block.java's own rows):
         // planks 5, logs 17 + the Log2 pair 162, leaves 18 + the Leaves2
         // pair 161, saplings 6 — every family member's block id, its
@@ -1219,6 +1247,31 @@ final class LegacyBlockIds {
                             }
                             merged.put(Identifier.parse(name.toString()), meta);
                         }
+                    }
+                }
+            }
+        }
+        // The rail trio's metadata nibble (Slice 38 —
+        // PoweredRailBlock.getMetadataFromState lines 150-163: the shape id
+        // 0-5 (Shape.byId: north_south, east_west, the four ascents) |
+        // powered 8; the bare meta-0 form needs no row).
+        {
+            String[] railFamilies = {"golden_rail", "detector_rail", "activator_rail"};
+            String[] railShapes = {"", "_east_west", "_ascending_east", "_ascending_west",
+                    "_ascending_north", "_ascending_south"};
+            for (String family : railFamilies) {
+                for (int shape = 0; shape < 6; shape++) {
+                    for (int powered = 0; powered <= 1; powered++) {
+                        int meta = shape | (powered == 1 ? 8 : 0);
+                        if (meta == 0) {
+                            continue; // the bare form rides the 0 default
+                        }
+                        StringBuilder name = new StringBuilder("minecraft:").append(family);
+                        if (powered == 1) {
+                            name.append("_powered");
+                        }
+                        name.append(railShapes[shape]);
+                        merged.put(Identifier.parse(name.toString()), meta);
                     }
                 }
             }
