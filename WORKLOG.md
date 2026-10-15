@@ -6491,3 +6491,16 @@ Ledgered: the egg's placement onto the exit portal (the End's
 dragon-death spawn) rides the End dimension's slice; the egg's drop on
 a torch/piston harvest never exists (no item form — the reference
 registers none).
+
+## Slice 56 — the barrier
+
+The reference's `BarrierBlock`, 1:1.
+
+- **The block 166**: `setUnbreakable` (hardness -1, never diggable, no
+  drops), the invisible translucent solid (the -1 render, light passes
+  whole), the full cube that blocks bodies.
+- **The item** over the shared identifier 166 (`register(Blocks.
+  BARRIER)` — the /give route; the reference keeps it off every
+  creative tab).
+- Tests: `BarrierBlockTest` (1) + `BlockRegistryTest` 766. The
+  block/interaction batches green, protocol green, `--max-workers=1`.
