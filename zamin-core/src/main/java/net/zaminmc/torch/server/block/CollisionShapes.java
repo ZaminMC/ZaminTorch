@@ -299,6 +299,12 @@ public final class CollisionShapes {
                     ? List.of(new Box(0, 0, 0.125, 1, 1, 0.875))
                     : List.of(new Box(0.125, 0, 0, 0.875, 1, 1));
         }
+        // The end portal (Slice 54 — EndPortalBlock.addCollisions: the
+        // empty list — the film never blocks a body, exactly like the
+        // reference's own override).
+        if (net.zaminmc.torch.server.block.EndPortalBlocks.isEndPortal(type.identifier())) {
+            return List.of();
+        }
         // Everything else: the full cube when it blocks a body at all.
         return WorldSolidity.isSolid(type) ? List.of(FULL_CUBE) : List.of();
     }

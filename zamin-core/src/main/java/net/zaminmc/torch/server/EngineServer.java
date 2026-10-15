@@ -6476,6 +6476,53 @@ public final class EngineServer implements Server, EngineBridge {
             placeBedOnTick(session, clicked, face, creativeHeld);
             return; // the two-half bed overrides the generic placement
         }
+        // The ender eye's frame arm (Slice 54 — EnderEyeItem.useOn lines
+        // 22-70, 1:1): an empty frame takes the eye (the facing preserved
+        // through the engine's flattened pair), the survival hand pays the
+        // stack, the sixteen SMOKE_NORMAL particles ride the reference's
+        // own 5/16..11/16 offset band, and the frame-complete walk may
+        // fill the 3x3 interior with the portal block.
+        if (heldId.equals("minecraft:ender_eye")
+                || creativeHeld.map(t -> t.identifier().value().equals("ender_eye")).orElse(false)) {
+            BlockType clickedBlock = world.getBlock(clicked);
+            if (net.zaminmc.torch.server.block.EndPortalBlocks.isEmptyFrame(
+                    clickedBlock.identifier())) {
+                int frameFacing = net.zaminmc.torch.server.block.EndPortalBlocks
+                        .frameFacingOf(clickedBlock.identifier());
+                if (frameFacing >= 0
+                        && distanceSquaredEyeToBlock(session.position(), clicked) <= 4.5 * 4.5) {
+                    world.setBlock(clicked, blockRegistry.require(
+                            net.zaminmc.torch.server.block.EndPortalBlocks
+                                    .eyedFrameOf(clickedBlock.identifier()).orElseThrow()));
+                    consumePlaced(session, creativeHeld);
+                    // The reference's own sixteen-particle band: the
+                    // 5/16..11/16 offsets at the frame's 0.8125 height.
+                    for (int i = 0; i < 16; i++) {
+                        double ox = (5.0 + gameplayRandom.nextFloat() * 6.0) / 16.0;
+                        double oz = (5.0 + gameplayRandom.nextFloat() * 6.0) / 16.0;
+                        fxManager.smoke(new Position(
+                                clicked.x() + ox, clicked.y() + 0.8125, clicked.z() + oz));
+                    }
+                    // The frame-complete walk (the reference's own
+                    // geometry over the just-eyed frame).
+                    net.zaminmc.torch.server.block.EndPortalBlocks.tryFillPortal(
+                            new net.zaminmc.torch.server.block.EndPortalBlocks.FrameWorld() {
+                                @Override
+                                public net.zaminmc.torch.block.BlockType getBlock(
+                                        net.zaminmc.torch.block.BlockPosition at) {
+                                    return world.getBlock(at);
+                                }
+
+                                @Override
+                                public void setBlock(net.zaminmc.torch.block.BlockPosition at,
+                                        net.zaminmc.torch.block.BlockType type) {
+                                    world.setBlock(at, type);
+                                }
+                            }, clicked, frameFacing);
+                }
+                return; // the frame arm consumes the use either way
+            }
+        }
         // The anvil (Slice 53 — the facing-and-damage placement overrides
         // the generic arm).
         if (heldId.equals("minecraft:anvil")

@@ -4072,6 +4072,16 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             }
             sendParticles(Protocol18.PARTICLE_SNOWBALL_POOF, false, at,
                     0.2f, 0.2f, 0.2f, 0.2f, 8, new int[0]);
+        } else if (event instanceof net.zaminmc.torch.server.fx.FxManager.Smoke smoke) {
+            at = smoke.position();
+            if (beyondFeedbackRange(observer, at)) {
+                return;
+            }
+            // The reference's own single SMOKE_NORMAL (EnderEyeItem's
+            // sixteen-particle band assembles one event per particle —
+            // the caller emits each at its own offset).
+            sendParticles(Protocol18.PARTICLE_SMOKE_NORMAL, false, at,
+                    0.0f, 0.0f, 0.0f, 0.0f, 1, new int[0]);
         } else if (event instanceof net.zaminmc.torch.server.fx.FxManager.PotionSplash splash) {
             at = splash.position();
             if (beyondFeedbackRange(observer, at)) {
