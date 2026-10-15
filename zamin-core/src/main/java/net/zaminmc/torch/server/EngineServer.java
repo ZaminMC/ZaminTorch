@@ -1698,6 +1698,12 @@ public final class EngineServer implements Server, EngineBridge {
                         return net.zaminmc.torch.server.block.WorldSolidity.isSolid(
                                 world.getBlock(target.offset(0, -1, 0)));
                     }
+                    if (name.equals("flower_pot")) {
+                        // FlowerPotBlock.canBePlaced lines 118-120: the
+                        // block below must have a SOLID TOP.
+                        return net.zaminmc.torch.server.block.WorldSolidity.isSolid(
+                                world.getBlock(target.offset(0, -1, 0)));
+                    }
                     return true;
                 });
                 // The double-plant pair arm (Slice 45 —
@@ -6177,6 +6183,9 @@ public final class EngineServer implements Server, EngineBridge {
         if (useCakeOnTick(session, clicked)) {
             return; // the cake's slice was eaten
         }
+        if (useFlowerPotOnTick(session, clicked)) {
+            return; // the pot's plant was potted
+        }
         if (useFarmingOnTick(session, clicked, face)) {
             return; // the hoe/seed/bone-meal/cocoa use was consumed
         }
@@ -7638,6 +7647,39 @@ public final class EngineServer implements Server, EngineBridge {
         } else {
             world.setBlock(at, world.airType());
         }
+    }
+
+    /**
+     * The flower-pot's planting arm (Slice 48 — FlowerPotBlock.use lines
+     * 66-96): a right click on the EMPTY pot with a pottable item plants
+     * it — the TE's setPlant in the engine's flattened form (the potted
+     * state write); the item consumes unless the hand is creative.
+     * Tick-thread context.
+     */
+    private boolean useFlowerPotOnTick(PlayerSession session, BlockPosition clicked) {
+        BlockType pot = world.getBlock(clicked);
+        if (!net.zaminmc.torch.server.block.FlowerPotBlocks.isPot(pot.identifier())
+                || !net.zaminmc.torch.server.block.FlowerPotBlocks.isEmptyPot(pot.identifier())) {
+            return false; // not an empty pot: the generic path's own
+        }
+        net.zaminmc.torch.item.ItemStack held = session.inventory().held();
+        if (held.isEmpty()
+                || !net.zaminmc.torch.server.block.FlowerPotBlocks.isPottable(
+                        held.type().identifier(), held.damage())) {
+            return false; // nothing pottable: the use falls through
+        }
+        net.zaminmc.torch.util.Identifier potted = net.zaminmc.torch.server.block
+                .FlowerPotBlocks.pottedStateOf(held.type().identifier(), held.damage())
+                .orElse(null);
+        if (potted == null) {
+            return false;
+        }
+        world.setBlock(clicked, blockRegistry.require(potted));
+        if (session.gamemode() != GameMode.CREATIVE) {
+            session.inventory().consumeHeld(1);
+        }
+        publishInventoryChanged(session);
+        return true;
     }
 
     /**

@@ -6089,3 +6089,37 @@ Ledgered: the wall's 1.5-block maxY collision and the per-connection
 0.25-0.75 shape ride the collision-shape slice (the flat-solid stand-in:
 the wall reads SOLID); the connection rendering is the client's own
 virtual read exactly like the reference.
+
+## Slice 48 — the flower-pot family: the pot 140's fourteen states
+
+The reference port of `FlowerPotBlock.java` (Material.DECORATION,
+setStrength(0.0F) DEFAULT_SOUNDS — the empty pot 0 and the thirteen potted
+contents over the LEGACY_DATA band: the poppy 1, the dandelion 2, the six
+saplings 3-6 + 12-13, the red mushroom 7, the brown 8, the cactus 9, the
+dead bush 10, the fern 11).
+
+- The state model (`server/block/FlowerPotBlocks`): the fourteen states
+  with the LEGACY_DATA nibble — the engine's flattened model carries what
+  the reference's block entity holds (the TE's item + metadata).
+- The planting arm `useFlowerPotOnTick` (FlowerPotBlock.use): a right click
+  on the EMPTY pot with a pottable item writes the potted state and
+  consumes unless the hand is creative. The pottable set (isPottablePlant):
+  the dandelion, the poppy, the cactus, the two mushrooms, the six
+  saplings, the dead bush, the tall grass's FERN damage alone.
+- The SOLID-TOP support pop (neighborChanged): a departing support drops
+  the pot AND the plant (the plant item with the TE's metadata — the
+  saplings over the wood damage, the fern the tall grass's 2); the
+  placement gate carries the same SOLID-TOP rule.
+- The FLOWER_POT item (390) + the three-brick crafting row ("# #" / " # ").
+- The behavior rows (0.0, the pot + the plant drops), the light rows (the
+  3/8 pot passes), and the wire rows (the fourteen states at 140 with the
+  content nibble, the item at 390).
+- Tests: `FlowerPotBlocksTest` (1) + `BlockRegistryTest` 707 +
+  `CraftingRecipeTest` 197. The full core suite green, the protocol module
+  green, `--max-workers=1`.
+
+Ledgered: the exotic flower types' potted contents (blue orchid..oxeye
+daisy — the reference renders them through the TE's CONTENTS; the wire's
+LEGACY_DATA has no code for them) and the pot's per-content color tint
+ride the block-entity family; the pot's 3/8-height box rides the
+collision-shape slice; the FLOWERS_POTTED stat rides the stats slice.

@@ -463,6 +463,13 @@ public final class BuiltinRecipes {
                     { ing("minecraft:mossy_cobblestone", false, 0), ing("minecraft:mossy_cobblestone", false, 0), ing("minecraft:mossy_cobblestone", false, 0) }
             },
                     res("minecraft:cobblestone_wall", 6, 1)),
+            // The flower pot (Slice 48 — CraftingManager line 248's own
+            // row): "# #" / " # " over three bricks.
+            CraftingRecipe.shaped(new Ingredient[][] {
+                    { ing("minecraft:brick", false, 0), null, ing("minecraft:brick", false, 0) },
+                    { null, ing("minecraft:brick", false, 0), null }
+            },
+                    res("minecraft:flower_pot", 1, 0)),
             // The reed chain (community recipes.json): sugar is one cane
             // (the shapeless 1x1 folded to the shaped form), paper is a row
             // of three canes, a book wraps three papers around a leather.
