@@ -6504,3 +6504,21 @@ The reference's `BarrierBlock`, 1:1.
   creative tab).
 - Tests: `BarrierBlockTest` (1) + `BlockRegistryTest` 766. The
   block/interaction batches green, protocol green, `--max-workers=1`.
+
+## Slice 57 — the item-gap pair (the nether star + the writable book)
+
+- **The nether star** (`minecraft:nether_star`, Item.java's 399, stack
+  64): the item + the beacon craft (BlockRecipes line 82 — the glass
+  cap `GGG` over the star `GSG` on the obsidian base `OOO`). The
+  wither's drop source rides the wither boss's own slice.
+- **The writable book** (`minecraft:writable_book`, 386, stack 1 — the
+  writing stack): the item + its shapeless craft (CraftingManager line
+  58 — the book, the ink sac (the dye's damage 0), the feather). The
+  sign/write flow rides its own slice.
+- **The audit note**: the netherbrick (405) and the speckled_melon
+  (382) were alias false-positives in the earlier gap scan — both live
+  under their modern names (`nether_brick`/`glistering_melon`) with
+  the correct wire rows; the netherrack smelt (the 0.1F row) already
+  lands on the right item.
+- Tests: `CraftingRecipeTest` 205 + the shapeless band 29. The
+  crafting/item/furnace/brewing batches green, `--max-workers=1`.
