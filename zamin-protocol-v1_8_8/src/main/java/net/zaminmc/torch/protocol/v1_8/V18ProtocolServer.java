@@ -678,7 +678,11 @@ public final class V18ProtocolServer implements ProtocolAdapter {
         });
         server.addExplosionListener(event -> {
             for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
-                connection.sendExplosion(event);
+                // Slice 62: the blast rides only its own dimension's
+                // observers (the same coordinates exist in every world).
+                if (connection.dimensionOfSession() == event.dimension()) {
+                    connection.sendExplosion(event);
+                }
             }
         });
         // Inventory sync: full authoritative window re-sync on change (simple,
@@ -888,6 +892,32 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                 }
             }
         });
+        // The ender crystals (Slice 62): the Spawn Object 200 + the slot-8
+        // Int + the Destroy — the connection's own dimension gate (1) and
+        // chunk window ride the send.
+        server.addEnderCrystalListener(new net.zaminmc.torch.server.endcrystal.EnderCrystalSystem.Listener() {
+            @Override
+            public void onCrystalSpawned(net.zaminmc.torch.server.endcrystal.EnderCrystal crystal) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendCrystalSpawn(crystal);
+                }
+            }
+
+            @Override
+            public void onCrystalRemoved(net.zaminmc.torch.server.endcrystal.EnderCrystal crystal) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendCrystalRemoved(crystal.entityId());
+                }
+            }
+
+            @Override
+            public void onCrystalHealthChanged(
+                    net.zaminmc.torch.server.endcrystal.EnderCrystal crystal) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendCrystalHealth(crystal);
+                }
+            }
+        });
         // The potion effects (Slice 11b — the reference's ServerPlayerEntity
         // overrides lines 772-787): the Entity Effect / Remove Entity Effect
         // packets go to the affected player's own client only; the 600-tick
@@ -969,6 +999,20 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
                     if (connection.currentSession() == player) {
                         connection.sendRespawnSequence(player, destination, dimension);
+                        // Slice 62: the End arrival's own world snapshot —
+                        // the standing pillar crystals the arrival walks
+                        // into (the join snapshot's own shape, re-sent at
+                        // the dimension seam; the send's own gates carry
+                        // the dimension + the chunk window).
+                        if (dimension == 1) {
+                            var crystals = engine.enderCrystals();
+                            if (crystals != null) {
+                                for (net.zaminmc.torch.server.endcrystal.EnderCrystal crystal
+                                        : crystals.all()) {
+                                    connection.sendCrystalSpawn(crystal);
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -1305,6 +1349,16 @@ public final class V18ProtocolServer implements ProtocolAdapter {
         if (stands != null) {
             for (net.zaminmc.torch.server.armorstand.ArmorStand stand : stands.allStands()) {
                 newcomer.sendStandSpawned(stand);
+            }
+        }
+        // The ender crystals already standing (Slice 62): the join's own
+        // world snapshot — the send's own gates refuse them for the
+        // overworld joiner (dimension 0); a future End-anchored join
+        // streams them through this same walk.
+        var crystals = engine.enderCrystals();
+        if (crystals != null) {
+            for (net.zaminmc.torch.server.endcrystal.EnderCrystal crystal : crystals.all()) {
+                newcomer.sendCrystalSpawn(crystal);
             }
         }
         // Falling blocks mid-transition when someone joins: spawn them for the

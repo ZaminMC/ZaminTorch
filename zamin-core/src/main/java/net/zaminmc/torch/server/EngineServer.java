@@ -300,6 +300,12 @@ public final class EngineServer implements Server, EngineBridge {
     private net.zaminmc.torch.server.armorstand.ArmorStandSystem armorStands;
     /** The armor stands' ZAD persistence. */
     private net.zaminmc.torch.server.armorstand.ArmorStandDataStore armorStandStore;
+    /** The ender crystals (Slice 62 — the End pillar tops). */
+    private net.zaminmc.torch.server.endcrystal.EnderCrystalSystem enderCrystals;
+    /** The ender crystals' ZEC persistence (the destroyed-pillar set). */
+    private net.zaminmc.torch.server.endcrystal.EnderCrystalDataStore enderCrystalStore;
+    /** The End world's own blast walk (the crystal's 6.0F death — dimension 1). */
+    private ExplosionService endExplosionService;
     /** The note tiles' ZND persistence. */
     private net.zaminmc.torch.server.noteblock.NoteDataStore noteStore;
     /** The hopper subsystem (Slice 10b): the 8-tick transfer cadence. */
@@ -401,6 +407,7 @@ public final class EngineServer implements Server, EngineBridge {
     private static final int DECORATION_ID_BASE = LIGHTNING_ID_BASE + 1_000_000;
     /** Armor stands get the band above the decorations. */
     private static final int ARMOR_STAND_ID_BASE = DECORATION_ID_BASE + 1_000_000;
+    private static final int ENDER_CRYSTAL_ID_BASE = ARMOR_STAND_ID_BASE + 1_000_000;
 
     /** The shared shape-aware physics query (items, falling blocks, projectiles). */
     private final ShapeGround shapeGround = new ShapeGround();
@@ -1331,6 +1338,22 @@ public final class EngineServer implements Server, EngineBridge {
                 armorStandStore = new net.zaminmc.torch.server.armorstand.ArmorStandDataStore(
                         config.worldDataDir().resolve("armorstands.bin"));
                 armorStands.restore(armorStandStore.load());
+                // The ender crystals (Slice 62 — the End pillar tops): the
+                // End-only registry + the any-damage death + the tick's
+                // fire write, over the End world's own read/write surface.
+                // The crystals themselves rebuild from the generator's
+                // deterministic decorate on every boot; the ZEC store
+                // keeps only the destroyed-pillar marks.
+                enderCrystals = new net.zaminmc.torch.server.endcrystal.EnderCrystalSystem(
+                        new EnderCrystalSurface(), gameplayRandom, ENDER_CRYSTAL_ID_BASE);
+                enderCrystalStore = new net.zaminmc.torch.server.endcrystal.EnderCrystalDataStore(
+                        config.worldDataDir().resolve("DIM1/endercrystals.bin"));
+                enderCrystals.restoreDestroyedCells(enderCrystalStore.load());
+                // The End's own blast walk (the crystal's 6.0F death): the
+                // explosion service bound to the End world — the same ray
+                // fan, committing through the End's own listener path.
+                endExplosionService = new ExplosionService(new BlastWorld(endWorld),
+                        gameplayRandom);
                 // The cross-system neighbor bus (Slice 9f): the pistons and
                 // the TNT ride the redstone family's neighbor dispatch —
                 // the reference's world-level neighborChanged.
@@ -1398,7 +1421,7 @@ public final class EngineServer implements Server, EngineBridge {
                 fluidSystem = new FluidSystem(new FluidWorld(), new FluidSink(itemEntities));
                 world.addChangeListener(fluidSystem);
                 // Explosions: the ray-fan destructor (the creeper's demolition).
-                explosionService = new ExplosionService(new BlastWorld(), new java.util.Random());
+                explosionService = new ExplosionService(new BlastWorld(world), new java.util.Random());
                 // Experience orbs (the historical EntityXPOrb band): the small
                 // physics bodies mining and kills release, simulation-owned.
                 experienceOrbs = new ExperienceOrbManager(this::solidAt,
@@ -1558,6 +1581,12 @@ public final class EngineServer implements Server, EngineBridge {
                             0.0f, "hit the ground too hard", DamageKind.FALL);
                     thrower.link().resyncPosition();
                 });
+                // The ender crystal's pop (Slice 62 — any projectile that
+                // crosses a crystal's box wounds it: EnderCrystalEntity
+                // .takeDamage has no source gate, the arrow's pop is the
+                // canonical one).
+                projectiles.setCrystalSink((x, y, z) -> enderCrystals != null
+                        && enderCrystals.damageAt(x, y, z));
                 mobs.setPotionSystem(potionSystem); // the witch's drink arm (12i)
                 // The difficulty reads (Slice 19e): the peaceful sweep
                 // (MonsterEntity.tick) + the spawn gate (canSpawn).
@@ -3864,6 +3893,26 @@ public final class EngineServer implements Server, EngineBridge {
                         if (sHorizontal <= MELEE_REACH + 1.0 && sdy > -2.0 && sdy < 4.0) {
                             armorStands.attack(stand,
                                     attacker.gamemode() == net.zaminmc.torch.GameMode.CREATIVE);
+                            attacker.addExhaustion(ATTACK_EXHAUSTION);
+                        }
+                        return;
+                    }
+                }
+                // The ender crystals (Slice 62 — EnderCrystalEntity
+                // .takeDamage lines 67-83): ANY landed hit pops the body —
+                // no ladder, no i-frames of its own; the melee arm's reach
+                // band follows the armor stand's own shape (the 2-wide box
+                // at the +1.0 flank).
+                if (enderCrystals != null && attacker.dimension() == 1) {
+                    net.zaminmc.torch.server.endcrystal.EnderCrystal crystal =
+                            enderCrystals.byId(targetEntityId);
+                    if (crystal != null) {
+                        double cdx = crystal.x() - attacker.position().x();
+                        double cdy = crystal.y() + 1.0 - attacker.position().y();
+                        double cdz = crystal.z() - attacker.position().z();
+                        double cHorizontal = Math.sqrt(cdx * cdx + cdz * cdz);
+                        if (cHorizontal <= MELEE_REACH + 1.0 && cdy > -2.0 && cdy < 4.0) {
+                            enderCrystals.damage(crystal);
                             attacker.addExhaustion(ATTACK_EXHAUSTION);
                         }
                         return;
@@ -11459,9 +11508,19 @@ public final class EngineServer implements Server, EngineBridge {
      * steady tick. Tick-thread context.
      */
     private void drainGenerationAttachments() {
-        int dimension = 0;
-        for (EngineWorld world : new EngineWorld[]{this.world, netherWorld}) {
-            int worldDimension = dimension++;
+        // The drained worlds with their REAL dimension ids (0 the overworld,
+        // -1 the nether, 1 the End) — the spawner's own world stamp rides
+        // the value (Slice 62's fix: the pre-62 loop stamped the nether 1,
+        // the End's own id, sending every fortress spawner's cell gate and
+        // tile replay at the overworld).
+        EngineWorld[] drained = {this.world, netherWorld, endWorld};
+        int[] dimensions = {0, -1, 1};
+        for (int w = 0; w < drained.length; w++) {
+            EngineWorld world = drained[w];
+            if (world == null) {
+                continue;
+            }
+            int worldDimension = dimensions[w];
             for (net.zaminmc.torch.server.world.EngineChunk chunk : world.loadedChunks()) {
                 if (!chunk.pendingVillagers().isEmpty()) {
                     for (net.zaminmc.torch.server.world.EngineChunk.PendingVillager pending
@@ -11663,6 +11722,21 @@ public final class EngineServer implements Server, EngineBridge {
                     }
                     chunk.pendingElderGuardians().clear();
                 }
+                if (!chunk.pendingEnderCrystals().isEmpty()) {
+                    // Slice 62 — the pillar tops (EndPillarFeature lines
+                    // 47-49): the crystal record drains exactly once per
+                    // chunk publish; the destroyed-pillar marks (the ZEC
+                    // store's restore) and the standing-body idempotence
+                    // guard both live in the system's own spawn walk.
+                    if (enderCrystals != null) {
+                        for (net.zaminmc.torch.server.world.EngineChunk.PendingEnderCrystal pending
+                                : chunk.pendingEnderCrystals()) {
+                            enderCrystals.spawnFromGeneration(
+                                    pending.x(), pending.y(), pending.z(), pending.yaw());
+                        }
+                    }
+                    chunk.pendingEnderCrystals().clear();
+                }
             }
         }
     }
@@ -11719,6 +11793,49 @@ public final class EngineServer implements Server, EngineBridge {
     private void tickDecorations() {
         decorations.tick();
         armorStands.tick(); // the stands' fire burn-down (Slice 28c)
+        if (enderCrystals != null) {
+            enderCrystals.tick(); // the crystals' spin + the feet fire (Slice 62)
+        }
+    }
+
+    /**
+     * The ender crystals' engine surface (Slice 62): the End world's own
+     * reads/writes — the dimension gate is structural (the surface IS
+     * dimension 1's world; the overworld never sees a crystal).
+     */
+    private final class EnderCrystalSurface
+            implements net.zaminmc.torch.server.endcrystal.EnderCrystalSystem.Surface {
+        @Override
+        public String blockAt(int x, int y, int z) {
+            return endWorld.getBlock(new BlockPosition(x, y, z)).identifier().value();
+        }
+
+        @Override
+        public void setFire(int x, int y, int z) {
+            // EnderCrystalEntity.tick line 49: the plain FIRE write at the
+            // feet cell (anything that is not fire becomes fire — the
+            // reference's own replace, the bedrock cap included).
+            BlockType fire = blockRegistry.require(
+                    net.zaminmc.torch.util.Identifier.parse("minecraft:fire"));
+            endWorld.setBlock(new BlockPosition(x, y, z), fire);
+        }
+
+        @Override
+        public void explode(double x, double y, double z) {
+            // takeDamage line 77: the 6.0F destructive blast in the End's
+            // own world (the reference's six-arg explode — createFire
+            // false, destructive true).
+            detonateAtIn(endWorld, endExplosionService, 1,
+                    x, y, z,
+                    net.zaminmc.torch.server.endcrystal.EnderCrystalSystem.BLAST_POWER,
+                    net.zaminmc.torch.server.endcrystal.EnderCrystalSystem.BLAST_MAX_DAMAGE,
+                    true);
+        }
+
+        @Override
+        public long now() {
+            return endWorld.timeOfDay();
+        }
     }
 
     /** The armor stands' engine surface (the world gates + the drops). */
@@ -12045,6 +12162,23 @@ public final class EngineServer implements Server, EngineBridge {
             throw new IllegalStateException("the armor stand system boots with the world");
         }
         armorStands.addListener(listener);
+    }
+
+    /** The ender-crystal system (§27.3's surface — the End pillar tops). */
+    public net.zaminmc.torch.server.endcrystal.EnderCrystalSystem enderCrystals() {
+        return enderCrystals;
+    }
+
+    /**
+     * Registers the ender-crystal observer (the protocol adapter's Spawn
+     * Object 200 + the slot-8 Int metadata + the Destroy fan-out).
+     */
+    public void addEnderCrystalListener(
+            net.zaminmc.torch.server.endcrystal.EnderCrystalSystem.Listener listener) {
+        if (enderCrystals == null) {
+            throw new IllegalStateException("the ender-crystal system boots with the world");
+        }
+        enderCrystals.addListener(listener);
     }
 
     /**
@@ -13876,16 +14010,26 @@ public final class EngineServer implements Server, EngineBridge {
         }
     }
 
-    /** The world adapter the explosion service commits through. */
+    /**
+     * The explosion's world adapter — parameterized by the TARGET world
+     * (Slice 62: the End's crystals blast through the End's own chunk map;
+     * the overworld bindings pass their own world).
+     */
     private final class BlastWorld implements ExplosionService.World {
+        private final EngineWorld target;
+
+        BlastWorld(EngineWorld target) {
+            this.target = Objects.requireNonNull(target, "target");
+        }
+
         @Override
         public BlockType getBlock(BlockPosition position) {
-            return world.getBlock(position);
+            return target.getBlock(position);
         }
 
         @Override
         public boolean setBlock(BlockPosition position, BlockType type) {
-            return world.setBlock(position, type);
+            return target.setBlock(position, type);
         }
     }
 
@@ -13895,11 +14039,15 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /** One detonation for the wire: the center, the wire radius, the removed
-     * block offsets (relative i8 triples for the packet) and each hit player's
-     * own knockback vector (the historical per-observer motion). */
+     * block offsets (relative i8 triples for the packet), each hit player's
+     * own knockback vector (the historical per-observer motion), and the
+     * dimension the blast lives in (Slice 62 — the adapter's own observer
+     * gate: a nether body never sees an overworld blast at the same
+     * coordinates). */
     public record ExplosionEvent(double x, double y, double z, float radius,
                                  java.util.List<int[]> blockOffsets,
-                                 java.util.Map<UUID, double[]> playerMotion) {
+                                 java.util.Map<UUID, double[]> playerMotion,
+                                 int dimension) {
     }
 
     /** Registers an internal explosion observer (the protocol adapter). */
@@ -13933,14 +14081,26 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /**
-     * One detonation (the generalized explosion walk — the creeper and the
-     * primed TNT ride the same body): the destruction sphere with the
-     * per-power drop roll, the wound falloff to double the power with the
-     * caller's easy-difficulty cap, and the wire fan-out. Tick-thread
-     * context.
+     * One detonation in the OVERWORLD (the generalized walk's own dimension-0
+     * binding — the creeper, the TNT, the fireballs, the wither).
      */
     private void detonateAt(double cx, double cy, double cz, float power, float maxDamage,
                             boolean destructive) {
+        detonateAtIn(world, explosionService, 0, cx, cy, cz, power, maxDamage, destructive);
+    }
+
+    /**
+     * One detonation in the named world (the generalized explosion walk —
+     * the creeper and the primed TNT ride the overworld binding, Slice
+     * 62's ender crystal rides the End one): the destruction sphere with
+     * the per-power drop roll, the wound falloff to double the power with
+     * the caller's easy-difficulty cap, and the wire fan-out. The wounds
+     * and the wire carry the blast's OWN dimension — a body in another
+     * world never takes a same-coordinate blast. Tick-thread context.
+     */
+    private void detonateAtIn(EngineWorld blastWorld, ExplosionService service,
+                              int dimension, double cx, double cy, double cz,
+                              float power, float maxDamage, boolean destructive) {
         BlockPosition blockCenter = new BlockPosition(
                 (int) Math.floor(cx), (int) Math.floor(cy), (int) Math.floor(cz));
 
@@ -13950,7 +14110,7 @@ public final class EngineServer implements Server, EngineBridge {
         // already left at the fuse's end — only its consequence is undone).
         net.zaminmc.torch.event.world.ExplosionEvent gate =
                 new net.zaminmc.torch.event.world.ExplosionEvent(
-                        world, new Position(cx, cy, cz), power);
+                        blastWorld, new Position(cx, cy, cz), power);
         eventBus.fire(gate);
         if (gate.cancelled()) {
             return; // nothing destroyed, nobody hurt, no packet
@@ -13982,8 +14142,8 @@ public final class EngineServer implements Server, EngineBridge {
                 blockCenter.z() + blastReach);
         java.util.List<ExplosionService.Destroyed> destroyed = new java.util.ArrayList<>();
         if (destructive) {
-            world.executeInRegions(scopeMin, scopeMax,
-                    () -> destroyed.addAll(explosionService.detonate(blockCenter, power)));
+            blastWorld.executeInRegions(scopeMin, scopeMax,
+                    () -> destroyed.addAll(service.detonate(blockCenter, power)));
         }
         // The historical drop roll: one block in `power` survives as loot.
         java.util.List<int[]> blockOffsets = new java.util.ArrayList<>();
@@ -13994,7 +14154,12 @@ public final class EngineServer implements Server, EngineBridge {
             if (removed.type().identifier().value().equals("tnt")) {
                 // The chain reaction (TntBlock.onExploded lines 58-65): a
                 // consumed TNT primes a short-fuse body instead of dropping.
-                tntSystem.primeFromBlast(b);
+                // (Slice 62 note: the overworld's own TNT system — the End
+                // carries no ignition listener yet, the tnt-in-End gap
+                // ledgered with the slice.)
+                if (tntSystem != null && dimension == 0) {
+                    tntSystem.primeFromBlast(b);
+                }
                 continue;
             }
             if (gameplayRandom.nextInt(Math.max(1, (int) power)) == 0) {
@@ -14018,15 +14183,19 @@ public final class EngineServer implements Server, EngineBridge {
                         removed.position(), removed.type().identifier().toString()));
             }
             eventBus.fire(new net.zaminmc.torch.event.world.ExplosionDestroyEvent(
-                    world, new Position(cx, cy, cz), power, cells));
+                    blastWorld, new Position(cx, cy, cz), power, cells));
         }
 
         // Player wounds: distance falloff to double the power, then the
         // historical hurt window and the per-observer knockback vector.
+        // The blast's OWN dimension gates the body (Slice 62 — the same
+        // coordinates exist in every world; only the world's bodies take
+        // the blast).
         double injuryRadius = power * 2.0;
         java.util.Map<UUID, double[]> motion = new java.util.HashMap<>();
         for (PlayerSession player : players.all()) {
-            if (player.state() != PlayerState.PLAYING) {
+            if (player.state() != PlayerState.PLAYING
+                    || player.dimension() != dimension) {
                 continue;
             }
             Position p = player.position();
@@ -14098,8 +14267,13 @@ public final class EngineServer implements Server, EngineBridge {
             motion.put(player.uuid(), new double[]{mx, 0.4, mz});
         }
 
-        // Mob wounds: the same falloff, through the manager's hurt path.
+        // Mob wounds: the same falloff, through the manager's hurt path,
+        // in the blast's own dimension (the mob's dimension field — the
+        // nether bodies never take an overworld blast at the same spot).
         for (MobEntity mob : mobManager.all()) {
+            if (mob.dimension() != dimension) {
+                continue;
+            }
             Position p = mob.position();
             double dx = p.x() - cx;
             double dy = (p.y() + mob.type().height * 0.5) - cy;
@@ -14117,9 +14291,10 @@ public final class EngineServer implements Server, EngineBridge {
                     net.zaminmc.torch.event.DamageCause.EXPLOSION);
         }
 
-        // The wire: one Explosion packet per observer, motion included.
+        // The wire: one Explosion packet per observer, motion included —
+        // the adapter's own dimension gate reads the carried field.
         ExplosionEvent event = new ExplosionEvent(cx, cy, cz, power,
-                java.util.List.copyOf(blockOffsets), java.util.Map.copyOf(motion));
+                java.util.List.copyOf(blockOffsets), java.util.Map.copyOf(motion), dimension);
         for (ExplosionListener listener : explosionListeners) {
             listener.onExplosion(event);
         }
@@ -15582,6 +15757,11 @@ public final class EngineServer implements Server, EngineBridge {
                 }
                 if (armorStandStore != null && armorStands != null) {
                     armorStandStore.save(armorStands.snapshot());
+                }
+                if (enderCrystalStore != null && enderCrystals != null) {
+                    // Slice 62 — the destroyed-pillar marks (the crystals
+                    // themselves rebuild from the deterministic decorate).
+                    enderCrystalStore.save(enderCrystals.destroyedCellsSnapshot());
                 }
                 if (dispenserStore != null && dispenserSystem != null) {
                     dispenserStore.save(dispenserSystem.snapshot());

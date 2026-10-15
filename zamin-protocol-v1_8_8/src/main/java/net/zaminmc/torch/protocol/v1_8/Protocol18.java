@@ -225,6 +225,12 @@ final class Protocol18 {
     static final int OBJECT_ITEM_FRAME = 71;
     /** Armor stand (Spawn Object type 78 — TrackedEntity line 491). */
     static final int OBJECT_ARMOR_STAND = 78;
+    /**
+     * Ender crystal (Slice 62 — Spawn Object type 200, the reference's
+     * Entities.json EntityEnderCrystal row): the synced slot-8 Int carries
+     * the damage clock (5 at birth, 0 on the wound).
+     */
+    static final int OBJECT_ENDER_CRYSTAL = 200;
     /** Spawn Painting (0x10 — AddPaintingS2CPacket's own packet). */
     static final int S2C_SPAWN_PAINTING = 0x10;
     /** The vehicles (community entities.json object types). */

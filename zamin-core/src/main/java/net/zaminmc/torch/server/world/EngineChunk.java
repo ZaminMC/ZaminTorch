@@ -181,6 +181,14 @@ public final class EngineChunk {
     public record PendingElderGuardian(int x, int y, int z) {
     }
 
+    /**
+     * One populate-time ender crystal (Slice 62 — the End pillar's own,
+     * EndPillarFeature lines 47-49): the pillar-top birth cell with the
+     * reference's rolled yaw ({@code nextFloat() * 360}).
+     */
+    public record PendingEnderCrystal(int x, int y, int z, float yaw) {
+    }
+
     private final List<PendingElderGuardian> pendingElderGuardians = new ArrayList<>();
 
     /** Records one elder guardian spawn (generator thread, during generate). */
@@ -191,6 +199,18 @@ public final class EngineChunk {
     /** @return the pending elder records (empty when none). */
     public List<PendingElderGuardian> pendingElderGuardians() {
         return pendingElderGuardians;
+    }
+
+    private final List<PendingEnderCrystal> pendingEnderCrystals = new ArrayList<>();
+
+    /** Records one pillar-top crystal spawn (generator thread, during generate). */
+    public void addPendingEnderCrystal(int x, int y, int z, float yaw) {
+        pendingEnderCrystals.add(new PendingEnderCrystal(x, y, z, yaw));
+    }
+
+    /** @return the pending crystal records (empty when none). */
+    public List<PendingEnderCrystal> pendingEnderCrystals() {
+        return pendingEnderCrystals;
     }
 
     /** Records one populate-time animal (the generator's seeding walk). */
