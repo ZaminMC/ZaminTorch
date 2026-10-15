@@ -806,6 +806,10 @@ final class LegacyBlockIds {
         // The dragon egg (Slice 55 — Block.java's own row 122): the single
         // meta-0 state (no item form — getPickItem null).
         merged.put(Identifier.parse("minecraft:dragon_egg"), 122);
+        // The barrier (Slice 56 — Block.java's own row 166): the single
+        // state; the item (Item.java's register(Blocks.BARRIER)) shares the
+        // identifier.
+        merged.put(Identifier.parse("minecraft:barrier"), 166);
         // The ground-cover pair (Slice 42 — Block.java's own rows): the
         // mycelium 110, the waterlily 111 — both single meta-0 states (the
         // snowy side and the boat pass-through are the client's own reads).

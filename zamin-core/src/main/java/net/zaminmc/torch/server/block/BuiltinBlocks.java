@@ -112,6 +112,12 @@ public final class BuiltinBlocks {
     // 1), no item form, the own 5-tick fall schedule, and the click
     // teleport.
     public static final EngineBlockType DRAGON_EGG = DragonEggBlocks.dragonEgg();
+    // The barrier (Slice 56 — BarrierBlock 1:1): the invisible indestructible
+    // solid (Material.BARRIER, setUnbreakable blast 6000001, the -1 render —
+    // the client draws nothing; the translucent block passes light whole).
+    // The item exists (the /give route) but never joins a creative tab.
+    public static final EngineBlockType BARRIER = new EngineBlockType(
+            Identifier.parse("minecraft:barrier"), "Barrier");
 
     // The TNT block (legacy 46, Slice 9f): the ignition system's family.
     public static final EngineBlockType TNT = new EngineBlockType(
@@ -1020,6 +1026,8 @@ public final class BuiltinBlocks {
         builder = builder.register(END_PORTAL);
         // The dragon egg (Slice 55 — DragonEggBlock 1:1): the single state.
         builder = builder.register(DRAGON_EGG);
+        // The barrier (Slice 56 — BarrierBlock 1:1): the single state.
+        builder = builder.register(BARRIER);
         return builder;
     }
 }

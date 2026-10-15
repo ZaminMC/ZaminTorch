@@ -667,6 +667,9 @@ public final class BlockLightTable {
         // render — isSolidRender false, the film passes whole).
         merged.put(net.zaminmc.torch.server.block.DragonEggBlocks.DRAGON_EGG,
                 new LightData(1, 0));
+        // The barrier (Slice 56 — the translucent invisible solid:
+        // isTranslucent true, Material.BARRIER never blocks light).
+        merged.put(Identifier.parse("minecraft:barrier"), new LightData(0, 0));
         // The melon family (Slice 41 — the melon block is an opaque full
         // cube like the pumpkin; the stems are walk-through plants).
         merged.put(Identifier.parse("minecraft:melon_block"), new LightData(0, 15));

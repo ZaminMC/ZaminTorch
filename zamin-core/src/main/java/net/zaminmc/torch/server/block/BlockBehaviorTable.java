@@ -1416,6 +1416,11 @@ public final class BlockBehaviorTable {
         behaviors.put(net.zaminmc.torch.server.block.DragonEggBlocks.DRAGON_EGG,
                 new BlockBehavior(3.0, true, false, "dirt", 0, java.util.List.of()));
 
+        // The barrier (Slice 56 — BarrierBlock's own row: setUnbreakable —
+        // the invisible indestructible solid; dropItems' empty override).
+        behaviors.put(Identifier.parse("minecraft:barrier"),
+                new BlockBehavior(-1.0, false, false, "barrier", 0, java.util.List.of()));
+
         // The weighted pressure-plate pair (Slice 49a —
         // WeightedPressurePlateBlock's own rows: setStrength(0.5F)
         // WOOD_SOUNDS over Material.IRON; every state drops its family
