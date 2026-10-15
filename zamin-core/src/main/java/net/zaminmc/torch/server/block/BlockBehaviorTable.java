@@ -63,7 +63,11 @@ public final class BlockBehaviorTable {
             Identifier.parse("minecraft:lapis_ore"),
             Identifier.parse("minecraft:emerald_ore"),
             Identifier.parse("minecraft:redstone_ore"),
-            Identifier.parse("minecraft:packed_ice"));
+            Identifier.parse("minecraft:packed_ice"),
+            // The huge-mushroom pair (Slice 40 — the full-cube default's
+            // own silk arm: every state takes itself under silk touch).
+            Identifier.parse("minecraft:brown_mushroom_block"),
+            Identifier.parse("minecraft:red_mushroom_block"));
 
     /** @return whether the block's silk touch drops its own item (the reference gate). */
     public static boolean isSilkTouchable(Identifier block) {
@@ -1256,6 +1260,17 @@ public final class BlockBehaviorTable {
                                 .identifier(), trapdoor);
                     }
                 }
+            }
+        }
+
+        // The huge-mushroom pair (Slice 40 — MushroomBlock's own rows: both
+        // `setStrength(0.2F)` WOOD_SOUNDS over Material.WOOD): the drops
+        // ride the DropService's own walk (getBaseDropCount's 0-2 plants).
+        for (String family : MushroomBlocks.MUSHROOMS.keySet()) {
+            BlockBehavior mushroom = new BlockBehavior(0.2, true, false, "wood", 0,
+                    List.of(new BlockBehavior.Drop(MushroomBlocks.plantOf(family), 1)));
+            for (MushroomBlocks.Variant variant : MushroomBlocks.VARIANTS) {
+                behaviors.put(MushroomBlocks.state(family, variant.id()).identifier(), mushroom);
             }
         }
 

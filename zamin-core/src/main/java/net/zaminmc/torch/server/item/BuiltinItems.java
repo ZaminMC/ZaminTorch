@@ -435,6 +435,13 @@ public final class BuiltinItems {
             Identifier.parse("minecraft:trapdoor"), "Trapdoor", 64);
     public static final EngineItemType IRON_TRAPDOOR = new EngineItemType(
             Identifier.parse("minecraft:iron_trapdoor"), "Iron Trapdoor", 64);
+    // The huge-mushroom items (Slice 40 — Item.java's own BlockItem rows
+    // 445-446: register(Blocks.BROWN_MUSHROOM_BLOCK) ... — the items share
+    // the families' ids).
+    public static final EngineItemType BROWN_MUSHROOM_BLOCK = new EngineItemType(
+            Identifier.parse("minecraft:brown_mushroom_block"), "Brown Mushroom Block", 64);
+    public static final EngineItemType RED_MUSHROOM_BLOCK = new EngineItemType(
+            Identifier.parse("minecraft:red_mushroom_block"), "Red Mushroom Block", 64);
     // The bed item (community items.json: legacy 355) — places both halves.
     public static final EngineItemType BED = new EngineItemType(
             Identifier.parse("minecraft:bed"), "Bed", 1);
@@ -903,6 +910,7 @@ public final class BuiltinItems {
                 DARK_OAK_FENCE_GATE, ACACIA_FENCE_GATE,
                 GOLDEN_RAIL, DETECTOR_RAIL, ACTIVATOR_RAIL,
                 TRAPDOOR, IRON_TRAPDOOR,
+                BROWN_MUSHROOM_BLOCK, RED_MUSHROOM_BLOCK,
                 WOODEN_SLAB,
                 STICK, CRAFTING_TABLE, NOTE_BLOCK, TORCH, FURNACE, CHEST,
                 COAL, DIAMOND, IRON_INGOT, STONE, SAND, GLASS, GRAVEL, FLINT, BEEF, COOKED_BEEF,
