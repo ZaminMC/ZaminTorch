@@ -2987,6 +2987,13 @@ public final class EngineServer implements Server, EngineBridge {
             }
             session.tickHurtInvulnerability();
             session.tickGrace();
+            // The stat clocks (the stats slice — ServerPlayerEntity.tick's
+            // own pair): the play time counts ticks (the client's formatter
+            // divides by 20) and the since-death clock accumulates until
+            // the next death resets it.
+            session.stats().increment(
+                    net.zaminmc.torch.server.stat.EngineStats.MINUTES_PLAYED, 1);
+            session.stats().tickTimeSinceDeath();
             // The vanilla void: below the kill plane the out-of-world damage
             // lands every tick (the historical outOfWorld rate) until death —
             // and it pierces creative invulnerability, the historical rule.
@@ -3713,6 +3720,13 @@ public final class EngineServer implements Server, EngineBridge {
             }
             boolean landed = mobManager.hurt(mob, damage, kbYaw);
             if (landed) {
+                // The wound stats (EntityLivingBase.damageEntity's own rows):
+                // the dealt damage counts in tenths and the body remembers
+                // its player attacker for the death's kill credit.
+                attacker.stats().increment(
+                        net.zaminmc.torch.server.stat.EngineStats.DAMAGE_DEALT,
+                        Math.round(damage * 10.0f));
+                mob.setPlayerKiller(attacker);
                 // LivingEntity.takeDamage lines 678-680: a player's landed
                 // wound arms the 100-tick hit window (dropRareItem's gate).
                 mob.markPlayerHit();
@@ -3778,7 +3792,16 @@ public final class EngineServer implements Server, EngineBridge {
                 attacker.addExhaustion(ATTACK_EXHAUSTION);
                 // Tool durability: the historical wear on a living-entity hit.
                 if (net.zaminmc.torch.server.item.Tools.specOf(held.type()).isPresent()) {
+                    int wearBefore = held.damage();
                     attacker.inventory().damageHeld(1, gameplayRandom);
+                    // The broken-tool stat (ItemStack.damageItem's own row):
+                    // the wear passing the durability empties the slot.
+                    if (attacker.inventory().held().isEmpty()
+                            && wearBefore + 1 >= held.type().maxDurability()) {
+                        attacker.stats().increment(
+                                net.zaminmc.torch.server.stat.EngineStats.breakItemOf(
+                                        held.type().identifier()), 1);
+                    }
                     publishInventoryChanged(attacker);
                 }
             }
@@ -3906,7 +3929,15 @@ public final class EngineServer implements Server, EngineBridge {
             }
             attacker.addExhaustion(ATTACK_EXHAUSTION);
             if (net.zaminmc.torch.server.item.Tools.specOf(held.type()).isPresent()) {
+                int wearBefore = held.damage();
                 attacker.inventory().damageHeld(1, gameplayRandom);
+                // The broken-tool stat (the melee arm's own row).
+                if (attacker.inventory().held().isEmpty()
+                        && wearBefore + 1 >= held.type().maxDurability()) {
+                    attacker.stats().increment(
+                            net.zaminmc.torch.server.stat.EngineStats.breakItemOf(
+                                    held.type().identifier()), 1);
+                }
                 publishInventoryChanged(attacker);
             }
             // Knockback — the vanilla applyKnockback (reference/1.8.8
@@ -4182,6 +4213,11 @@ public final class EngineServer implements Server, EngineBridge {
             return;
         }
         session.hurt(amount);
+        // The damage stat (EntityLivingBase.damageEntity's own row): the
+        // taken wound counts in tenths — Math.round(amount * 10).
+        session.stats().increment(
+                net.zaminmc.torch.server.stat.EngineStats.DAMAGE_TAKEN,
+                Math.round(amount * 10.0f));
         // The vanilla damage exhaustion (EntityLivingBase: addFatigue(source.
         // getExhaustion()) when the damage lands).
         if (exhaustionCharge > 0.0f) {
@@ -4218,6 +4254,10 @@ public final class EngineServer implements Server, EngineBridge {
      */
     private void dieOnTick(PlayerSession session, String causeMessage) {
         session.markDead();
+        // The death stats (PlayerEntity.onDeath's own rows): the death
+        // counter advances and the since-death clock resets.
+        session.stats().increment(net.zaminmc.torch.server.stat.EngineStats.DEATHS, 1);
+        session.stats().noteDeath();
         // The dead body's effects clear (the reference's death walk).
         potionSystem.clear(session);
         // The seat opens on death (the vanilla dismount rule).
@@ -4725,7 +4765,22 @@ public final class EngineServer implements Server, EngineBridge {
      * food, saturation) and the adapter re-anchors the wire at world spawn.
      * Safe from any thread.
      */
-    @Override
+    /**
+     * The client's statistics request (the Client Status 0x16 REQUEST_STATS
+     * arm — ServerPlayNetworkHandler's own row): the session's dirty
+     * counters travel through the Client Statistics 0x37 packet, the client
+     * merging the update into its running copy. Safe from any thread.
+     */
+    public void requestStatistics(PlayerSession session) {
+        Objects.requireNonNull(session, "session");
+        ticker.submit(() -> {
+            if (session.state() != PlayerState.PLAYING) {
+                return;
+            }
+            session.link().sendStatistics(session.stats().takeDirty());
+        });
+    }
+
     public void performRespawn(PlayerSession session) {
         Objects.requireNonNull(session, "session");
         ticker.submit(() -> {
@@ -4761,6 +4816,9 @@ public final class EngineServer implements Server, EngineBridge {
             if (dropped.isEmpty()) {
                 return;
             }
+            // The drop stat (PlayerEntity.dropItem's own incrementStat).
+            session.stats().increment(
+                    net.zaminmc.torch.server.stat.EngineStats.DROPS, 1);
             throwFromPlayer(session, dropped);
             publishInventoryChanged(session);
         });
@@ -6000,6 +6058,11 @@ public final class EngineServer implements Server, EngineBridge {
                 return;
             }
             grid.consumeOne();
+            // The crafted-item stat (ContainerWorkbench.onTake's own
+            // incrementStat — the craftItem row over the result's id).
+            session.stats().increment(
+                    net.zaminmc.torch.server.stat.EngineStats.craftItemOf(
+                            result.type().identifier()), result.count());
             net.zaminmc.torch.item.ItemStack remainder = inventory.pickUp(result);
             if (!remainder.isEmpty()) {
                 throwFromPlayer(session, remainder);
@@ -6108,6 +6171,9 @@ public final class EngineServer implements Server, EngineBridge {
             // NoteBlock.use lines 41-56: the tune ((note + 1) % 25) then the
             // play — the use consumed, no placement proposal follows.
             noteBlocks.useFromTick(clicked);
+            // The tune stat (NoteBlock.use's own incrementStat).
+            session.stats().increment(
+                    net.zaminmc.torch.server.stat.EngineStats.NOTE_BLOCKS_TUNED, 1);
             return;
         }
         if (net.zaminmc.torch.server.jukebox.JukeboxBlocks.isFamily(current)) {
@@ -6197,6 +6263,9 @@ public final class EngineServer implements Server, EngineBridge {
                 if (session.gamemode() != GameMode.CREATIVE) {
                     session.inventory().consumeHeld(1);
                 }
+                // The record stat (MusicDiscItem.useOn's own row).
+                session.stats().increment(
+                        net.zaminmc.torch.server.stat.EngineStats.RECORDS_PLAYED, 1);
                 publishInventoryChanged(session);
                 return; // the disc consumed the use
             }
@@ -7417,6 +7486,9 @@ public final class EngineServer implements Server, EngineBridge {
                             ItemStack.of(BuiltinItems.BUCKET, 1))));
                 }
                 setCauldronLevel(clicked, 3);
+                // The fill stat (CauldronBlock.use's own incrementStat).
+                session.stats().increment(
+                        net.zaminmc.torch.server.stat.EngineStats.CAULDRONS_FILLED, 1);
                 publishInventoryChanged(session);
             }
             return true;
@@ -7435,6 +7507,9 @@ public final class EngineServer implements Server, EngineBridge {
                     }
                 }
                 setCauldronLevel(clicked, level - 1);
+                // The drain stat (the same use row's CAULDRONS_USED).
+                session.stats().increment(
+                        net.zaminmc.torch.server.stat.EngineStats.CAULDRONS_USED, 1);
                 publishInventoryChanged(session);
             }
             return true;
@@ -7702,6 +7777,9 @@ public final class EngineServer implements Server, EngineBridge {
             return; // canEat(false): a full body never bites
         }
         int bites = net.zaminmc.torch.server.block.CakeBlocks.bitesOf(cake.identifier());
+        // The bite counts (CakeBlock.eat's own incrementStat).
+        session.stats().increment(
+                net.zaminmc.torch.server.stat.EngineStats.CAKE_SLICES_EATEN, 1);
         int newFood = Math.min(net.zaminmc.torch.server.player.PlayerSession.MAX_FOOD,
                 session.food() + 2);
         float newSaturation = Math.min(newFood, session.saturation() + 0.1f);
@@ -7743,6 +7821,9 @@ public final class EngineServer implements Server, EngineBridge {
         if (session.gamemode() != GameMode.CREATIVE) {
             session.inventory().consumeHeld(1);
         }
+        // The planting counts (FlowerPotBlock.use's own incrementStat).
+        session.stats().increment(
+                net.zaminmc.torch.server.stat.EngineStats.FLOWERS_POTTED, 1);
         publishInventoryChanged(session);
         return true;
     }
@@ -9956,6 +10037,9 @@ public final class EngineServer implements Server, EngineBridge {
         // Opening a container closes the player inventory window (historical):
         // the 2x2 grid returns to the inventory, nothing is lost.
         dropGridToWorld(session, session.crafting()); // the vanilla close: the 2x2 grid drops
+        // The workbench stat (CraftingTableBlock.use's own incrementStat).
+        session.stats().increment(
+                net.zaminmc.torch.server.stat.EngineStats.CRAFTING_TABLE_INTERACTIONS, 1);
 
         int windowId = nextContainerWindowId;
         nextContainerWindowId = nextContainerWindowId >= LAST_CONTAINER_WINDOW_ID
@@ -10004,6 +10088,9 @@ public final class EngineServer implements Server, EngineBridge {
                                    java.util.function.IntConsumer onTableOpened) {
         closeOpenContainerOnTick(session);
         dropGridToWorld(session, session.crafting()); // the vanilla close: the 2x2 grid drops
+        // The container's own interaction stat (the reference's use rows).
+        session.stats().increment(
+                net.zaminmc.torch.server.stat.EngineStats.FURNACE_INTERACTIONS, 1);
 
         FurnaceBlockEntity furnace = furnaceManager.getOrCreate(position);
         int windowId = nextContainerWindowId;
@@ -10040,6 +10127,13 @@ public final class EngineServer implements Server, EngineBridge {
         if (world.getBlock(position).identifier()
                 .equals(net.zaminmc.torch.server.block.BuiltinBlocks.TRAPPED_CHEST.identifier())) {
             redstoneSystem.updateNeighbors(position);
+            // Stats.java's own pair: the trapped chest counts its own row
+            // (ChestBlock(1).use's incrementStat), never CHESTS_OPENED.
+            session.stats().increment(
+                    net.zaminmc.torch.server.stat.EngineStats.TRAPPED_CHESTS_TRIGGERED, 1);
+        } else {
+            session.stats().increment(
+                    net.zaminmc.torch.server.stat.EngineStats.CHESTS_OPENED, 1);
         }
         // §27.7: the post-commit chest-open observation — the window is
         // assigned and the lid swings; handlers observe, they do not veto.
@@ -10064,6 +10158,9 @@ public final class EngineServer implements Server, EngineBridge {
         }
         closeOpenContainerOnTick(session);
         dropGridToWorld(session, session.crafting()); // the vanilla close: the 2x2 grid drops
+        // EnderChestBlock.use's own incrementStat (Stats.ENDER_CHESTS_OPENED).
+        session.stats().increment(
+                net.zaminmc.torch.server.stat.EngineStats.ENDER_CHESTS_OPENED, 1);
 
         int windowId = nextContainerWindowId;
         nextContainerWindowId = nextContainerWindowId >= LAST_CONTAINER_WINDOW_ID
@@ -10086,6 +10183,9 @@ public final class EngineServer implements Server, EngineBridge {
                                   java.util.function.IntConsumer onTableOpened) {
         closeOpenContainerOnTick(session);
         dropGridToWorld(session, session.crafting()); // the vanilla close: the 2x2 grid drops
+        // The container's own interaction stat (the reference's use rows).
+        session.stats().increment(
+                net.zaminmc.torch.server.stat.EngineStats.BEACON_INTERACTIONS, 1);
 
         beaconSystem.getOrCreate(position);
         int windowId = nextContainerWindowId;
@@ -10108,6 +10208,9 @@ public final class EngineServer implements Server, EngineBridge {
                                   java.util.function.IntConsumer onTableOpened) {
         closeOpenContainerOnTick(session);
         dropGridToWorld(session, session.crafting()); // the vanilla close: the 2x2 grid drops
+        // The container's own interaction stat (the reference's use rows).
+        session.stats().increment(
+                net.zaminmc.torch.server.stat.EngineStats.HOPPERS_INSPECTED, 1);
 
         hopperSystem.getOrCreate(position);
         int windowId = nextContainerWindowId;
@@ -10130,7 +10233,17 @@ public final class EngineServer implements Server, EngineBridge {
                                      java.util.function.IntConsumer onTableOpened) {
         closeOpenContainerOnTick(session);
         dropGridToWorld(session, session.crafting()); // the vanilla close: the 2x2 grid drops
+        // The container's own interaction stat (the reference's use rows).
+        session.stats().increment(
+                net.zaminmc.torch.server.stat.EngineStats.DISPENSERS_INSPECTED, 1);
 
+        // The dropper's own row (the reference's separate stat): the family
+        // shares the container but not the counter.
+        if (world.getBlock(position).identifier()
+                .equals(net.zaminmc.torch.util.Identifier.parse("minecraft:dropper"))) {
+            session.stats().increment(
+                    net.zaminmc.torch.server.stat.EngineStats.DROPPERS_INSPECTED, 1);
+        }
         dispenserSystem.getOrCreate(position);
         int windowId = nextContainerWindowId;
         nextContainerWindowId = nextContainerWindowId >= LAST_CONTAINER_WINDOW_ID
@@ -10148,6 +10261,9 @@ public final class EngineServer implements Server, EngineBridge {
                                         java.util.function.IntConsumer onTableOpened) {
         closeOpenContainerOnTick(session);
         dropGridToWorld(session, session.crafting()); // the vanilla close: the 2x2 grid drops
+        // The container's own interaction stat (the reference's use rows).
+        session.stats().increment(
+                net.zaminmc.torch.server.stat.EngineStats.BREWING_STAND_INTERACTIONS, 1);
 
         brewingStands.getOrCreate(position);
         int windowId = nextContainerWindowId;
@@ -10289,6 +10405,10 @@ public final class EngineServer implements Server, EngineBridge {
                         };
                 accepted = menu.enchantButton(enchanter, button, world::getBlock);
                 if (accepted) {
+                    // The enchant stat (ContainerEnchant.onButtonClick's own
+                    // incrementStat — one row per enchanted item).
+                    session.stats().increment(
+                            net.zaminmc.torch.server.stat.EngineStats.ITEMS_ENCHANTED, 1);
                     publishExperienceChanged(session);
                 }
             }
@@ -11492,11 +11612,13 @@ public final class EngineServer implements Server, EngineBridge {
             // contribute zero).
             int looting = 0;
             boolean playerShooter = false;
+            PlayerSession shooter = null;
             if (shooterId > 0) {
                 for (PlayerSession candidate : players.all()) {
                     if (candidate.engineEntityId() == shooterId) {
                         looting = EnchantmentHelper.lootingLevel(candidate.inventory().held());
                         playerShooter = true;
+                        shooter = candidate;
                         break;
                     }
                 }
@@ -11516,6 +11638,12 @@ public final class EngineServer implements Server, EngineBridge {
             boolean landedArrow = mobManager.hurt(mob, damage, kbYaw,
                     net.zaminmc.torch.event.DamageCause.PROJECTILE);
             if (landedArrow && playerShooter) {
+                // The wound stats (the melee arm's own rows over the arrow):
+                // the dealt tenths and the kill-credit carrier.
+                shooter.stats().increment(
+                        net.zaminmc.torch.server.stat.EngineStats.DAMAGE_DEALT,
+                        Math.round(damage * 10.0f));
+                mob.setPlayerKiller(shooter);
                 // takeDamage lines 678-680: the player shooter's landed
                 // arrow arms the 100-tick hit window.
                 mob.markPlayerHit();
@@ -11753,6 +11881,21 @@ public final class EngineServer implements Server, EngineBridge {
         public void onMobDied(MobEntity mob) {
             for (MobManager.Listener listener : mobListeners) {
                 listener.onMobDied(mob);
+            }
+            // The kill credit (LivingEntity.die's own rows over the damage
+            // source's player): the mob counter and the per-type pair, the
+            // entity key the reference's own band (the zombie pigman's
+            // "PigZombie", the ocelot's "Ozelot").
+            net.zaminmc.torch.server.player.PlayerSession killer = mob.playerKiller();
+            if (killer != null && killer.state() == PlayerState.PLAYING) {
+                killer.stats().increment(
+                        net.zaminmc.torch.server.stat.EngineStats.MOBS_KILLED, 1);
+                String entityKey = net.zaminmc.torch.server.stat.EngineStats
+                        .entityKeyOf(mob.type().name());
+                if (entityKey != null) {
+                    killer.stats().increment(
+                            net.zaminmc.torch.server.stat.EngineStats.killEntityOf(entityKey), 1);
+                }
             }
             // §27.7: the public death observation — the health reached zero
             // and the death animation starts; the loot and the experience
@@ -14734,6 +14877,9 @@ public final class EngineServer implements Server, EngineBridge {
                     type.get(), saved.count()).withDamage(saved.damage()));
         }
         session.restoreEnderChest(enderRestored);
+        // ZPD v9: the statistics return with the player (the stats slice —
+        // an empty map in older files).
+        session.stats().load(snapshot.stats());
         session.setBody(snapshot.health(), snapshot.food(), snapshot.saturation());
     }
 
@@ -14774,7 +14920,8 @@ public final class EngineServer implements Server, EngineBridge {
         return new PlayerSnapshot(session.uuid(), session.name(), session.position(),
                 session.rotation(), session.inventory().heldSlot(), filled,
                 session.health(), session.food(), session.saturation(),
-                session.gamemode().legacyId(), session.totalXp(), session.bedSpawn(), ender);
+                session.gamemode().legacyId(), session.totalXp(), session.bedSpawn(), ender,
+                session.stats().snapshot());
     }
 
     /**
@@ -14883,6 +15030,10 @@ public final class EngineServer implements Server, EngineBridge {
         }
         session.markDisconnecting();
         session.markDisconnected();
+        // The leave stat (ServerPlayNetworkHandler.onDisconnect's own
+        // incrementStat) — before the persistence walk so the save carries it.
+        session.stats().increment(
+                net.zaminmc.torch.server.stat.EngineStats.GAMES_LEFT, 1);
         // §27.7: the public quit observation + the vanilla yellow broadcast
         // (ServerPlayNetworkHandler.onDisconnect lines 573-576:
         // multiplayer.player.left in yellow, sent BEFORE the registry

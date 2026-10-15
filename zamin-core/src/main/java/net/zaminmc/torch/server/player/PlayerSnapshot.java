@@ -5,6 +5,7 @@ import net.zaminmc.torch.util.Position;
 import net.zaminmc.torch.util.Rotation;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -35,7 +36,18 @@ public record PlayerSnapshot(UUID uuid, String name, Position position, Rotation
                              int heldSlot, List<SlotStack> slots,
                              float health, int food, float saturation,
                              int gamemodeId, long totalXp, Position bedSpawn,
-                             List<SlotStack> enderSlots) {
+                             List<SlotStack> enderSlots,
+                             Map<String, Integer> stats) {
+
+    /** The pre-stats shape (ZPD v1-v8 readers and engine callers without one). */
+    public PlayerSnapshot(UUID uuid, String name, Position position, Rotation rotation,
+                          int heldSlot, List<SlotStack> slots,
+                          float health, int food, float saturation,
+                          int gamemodeId, long totalXp, Position bedSpawn,
+                          List<SlotStack> enderSlots) {
+        this(uuid, name, position, rotation, heldSlot, slots, health, food, saturation,
+                gamemodeId, totalXp, bedSpawn, enderSlots, Map.of());
+    }
 
     /** The pre-ender-chest shape (ZPD v1-v7 readers and engine callers without one). */
     public PlayerSnapshot(UUID uuid, String name, Position position, Rotation rotation,
@@ -43,7 +55,7 @@ public record PlayerSnapshot(UUID uuid, String name, Position position, Rotation
                           float health, int food, float saturation,
                           int gamemodeId, long totalXp, Position bedSpawn) {
         this(uuid, name, position, rotation, heldSlot, slots, health, food, saturation,
-                gamemodeId, totalXp, bedSpawn, List.of());
+                gamemodeId, totalXp, bedSpawn, List.of(), Map.of());
     }
 
     /** The pre-bed-spawn shape (ZPD v1-v6 readers and engine callers without one). */
@@ -52,7 +64,7 @@ public record PlayerSnapshot(UUID uuid, String name, Position position, Rotation
                           float health, int food, float saturation,
                           int gamemodeId, long totalXp) {
         this(uuid, name, position, rotation, heldSlot, slots, health, food, saturation,
-                gamemodeId, totalXp, null);
+                gamemodeId, totalXp, null, List.of(), Map.of());
     }
 
     /** The pre-XP shape (ZPD v1-v5 readers and engine callers without XP). */

@@ -780,6 +780,26 @@ public final class MobEntity implements LivingEntity {
         this.lootingLevel = Math.max(0, lootingLevel);
     }
 
+    /**
+     * The last player attacker (the stats slice): a landed player wound
+     * (melee or projectile) records the session for the death's kill
+     * credit — the reference's {@code DamageSource.getEntity()} read at
+     * die(). Cleared never; a mob killed later by the environment keeps
+     * its last player wound's credit exactly like the reference's
+     * last-damage-source model.
+     */
+    private transient net.zaminmc.torch.server.player.PlayerSession playerKiller;
+
+    /** Records the player whose wound landed (the kill-credit carrier). */
+    public void setPlayerKiller(net.zaminmc.torch.server.player.PlayerSession attacker) {
+        this.playerKiller = attacker;
+    }
+
+    /** @return the last player whose wound landed, null for environment deaths. */
+    public net.zaminmc.torch.server.player.PlayerSession playerKiller() {
+        return playerKiller;
+    }
+
     /** @return true while the death animation still plays (loot comes after). */
     public boolean dying() {
         return dead && deathTicks < DEATH_TICKS;
