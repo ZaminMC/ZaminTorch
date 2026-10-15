@@ -6522,3 +6522,27 @@ The reference's `BarrierBlock`, 1:1.
   lands on the right item.
 - Tests: `CraftingRecipeTest` 205 + the shapeless band 29. The
   crafting/item/furnace/brewing batches green, `--max-workers=1`.
+
+## Slice 58 — the double wooden slab family
+
+The reference's `DoubleWoodenSlabBlock`/`WoodenSlabBlock`, 1:1.
+
+- **The six variants over 125**: the planks variant id whole in the
+  nibble — the oak carries the wire's own `double_wooden_slab` name,
+  the other woods their own `double_{wood}_slab`.
+  `setStrength(2.0F).setBlastResistance(5.0F)` WOOD_SOUNDS.
+- **The two-slab drop law**: `getBaseDropCount`'s `isDouble ? 2 : 1` —
+  breaking a double yields TWO single slabs with the variant damage.
+- **The slab-merge rewiring**: each wood's pair now doubles into its
+  OWN 125 form — the pre-58 planks stand-in retired (placing a slab
+  onto a same-family slab makes the proper DoubleWoodenSlabBlock
+  state, no longer the full planks cube the client renders with a
+  seam-less texture).
+- **The stats merges**: every 125 state counts on the 126
+  `wooden_slab` row (the vanilla per-block-id scheme).
+- Tests: `DoubleWoodenSlabTest` (2) + `BlockRegistryTest` 772. The
+  block/interaction/stat/crafting batches green, protocol green,
+  `--max-workers=1`.
+
+Ledgered: the seamless skin (the stone-slab 43 family's SEAMLESS bit)
+still rides the metadata-variants slice (no gameplay path sets it).
