@@ -573,6 +573,19 @@ public final class BlockLightTable {
             merged.put(WoodShapeBlocks.slabStates(variant).get(0).identifier(), new LightData(0, 15));
             merged.put(WoodShapeBlocks.slabStates(variant).get(1).identifier(), new LightData(0, 15));
         }
+        // The fence-gate families (Slice 37 — FenceGateBlock is a CUTOUT
+        // renderer: isSolidRender false, opacity 0; every state passes
+        // light whole like the fences' own rows).
+        for (String family : FenceGateBlocks.GATES.keySet()) {
+            for (int facing = 0; facing < 4; facing++) {
+                for (boolean open : new boolean[] {false, true}) {
+                    for (boolean powered : new boolean[] {false, true}) {
+                        merged.put(FenceGateBlocks.state(family, facing, open, powered)
+                                .identifier(), new LightData(0, 15));
+                    }
+                }
+            }
+        }
         // The complete door families (Slice 34 — DoorBlock is a CUTOUT
         // renderer: isSolidRender false, opacity 0; every state passes
         // light whole like the shipped oak rows).

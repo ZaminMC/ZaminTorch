@@ -580,6 +580,41 @@ final class LegacyBlockIds {
                 merged.put(Identifier.parse("minecraft:" + wood + "_door" + suffix), doorIds[w]);
             }
         }
+        // The fence-gate families (Slice 37 — Block.java's own rows): the
+        // oak gate 107 and the five 1.7 woods' gates (spruce 183, birch
+        // 184, jungle 185, dark_oak 186, acacia 187) — the sixteen
+        // facing/open/powered states per family over the reference's own
+        // metadata band (facing | open 4 | powered 8), the bare meta-0
+        // form sharing the family item's identifier (Item.java's own
+        // register(Blocks.FENCE_GATE) rows — the item keeps the block id).
+        int[] gateIds = {107, 183, 184, 185, 186, 187};
+        String[] gateWoods = {"oak", "spruce", "birch", "jungle", "dark_oak", "acacia"};
+        String[] gateFacings = {"south", "west", "north", "east"};
+        for (int g = 0; g < gateWoods.length; g++) {
+            String wood = gateWoods[g];
+            for (int facing = 0; facing < 4; facing++) {
+                for (int open = 0; open <= 1; open++) {
+                    for (int powered = 0; powered <= 1; powered++) {
+                        int meta = facing | (open == 1 ? 4 : 0) | (powered == 1 ? 8 : 0);
+                        if (meta == 0) {
+                            merged.put(Identifier.parse("minecraft:" + wood + "_fence_gate"), gateIds[g]);
+                            continue;
+                        }
+                        StringBuilder name = new StringBuilder("minecraft:").append(wood).append("_fence_gate");
+                        if (powered == 1) {
+                            name.append("_powered");
+                        }
+                        if (open == 1) {
+                            name.append("_open");
+                        }
+                        if (facing != 0) {
+                            name.append('_').append(gateFacings[facing]);
+                        }
+                        merged.put(Identifier.parse(name.toString()), gateIds[g]);
+                    }
+                }
+            }
+        }
         // The wood-variant foundation (Slice 35 — Block.java's own rows):
         // planks 5, logs 17 + the Log2 pair 162, leaves 18 + the Leaves2
         // pair 161, saplings 6 — every family member's block id, its
@@ -1154,6 +1189,38 @@ final class LegacyBlockIds {
                 String wood = slabWoods[variant - 1];
                 merged.put(Identifier.parse("minecraft:" + wood + "_slab"), variant);
                 merged.put(Identifier.parse("minecraft:" + wood + "_slab_top"), variant | 8);
+            }
+        }
+        // The fence-gate families' metadata nibble (Slice 37 —
+        // FenceGateBlock.getMetadataFromState lines 136-153: the horizontal
+        // facing id S=0 W=1 N=2 E=3 | open 4 | powered 8; the bare meta-0
+        // form needs no row — metadataOf's 0 default).
+        {
+            String[] gateWoods = {"oak", "spruce", "birch", "jungle", "dark_oak", "acacia"};
+            String[] gateFacings = {"south", "west", "north", "east"};
+            for (String wood : gateWoods) {
+                for (int facing = 0; facing < 4; facing++) {
+                    for (int open = 0; open <= 1; open++) {
+                        for (int powered = 0; powered <= 1; powered++) {
+                            int meta = facing | (open == 1 ? 4 : 0) | (powered == 1 ? 8 : 0);
+                            if (meta == 0) {
+                                continue; // the bare form rides the 0 default
+                            }
+                            StringBuilder name = new StringBuilder("minecraft:")
+                                    .append(wood).append("_fence_gate");
+                            if (powered == 1) {
+                                name.append("_powered");
+                            }
+                            if (open == 1) {
+                                name.append("_open");
+                            }
+                            if (facing != 0) {
+                                name.append('_').append(gateFacings[facing]);
+                            }
+                            merged.put(Identifier.parse(name.toString()), meta);
+                        }
+                    }
+                }
             }
         }
         merged.put(Identifier.parse("minecraft:wool"), 0);

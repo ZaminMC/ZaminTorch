@@ -164,4 +164,46 @@ class LegacyBlockIdsIntegrityTest {
             }
         }
     }
+
+    /**
+     * The fence-gate families' wire rows (Slice 37 — FenceGateBlock.java's
+     * own registrations): the oak gate 107 and the five 1.7 woods' gates
+     * (spruce 183, birch 184, jungle 185, dark_oak 186, acacia 187), every
+     * state of every family with the reference's exact metadata nibble
+     * (getMetadataFromState lines 136-153: the horizontal facing S=0 W=1
+     * N=2 E=3 | open 4 | powered 8 — the bare meta-0 form keeps the plain
+     * identifier the family's item shares).
+     */
+    @Test
+    void theFenceGateFamiliesCarryTheReferenceIdsAndMetadataNibbles() {
+        String[] woods = {"oak", "spruce", "birch", "jungle", "dark_oak", "acacia"};
+        int[] ids = {107, 183, 184, 185, 186, 187};
+        String[] facings = {"", "_west", "_north", "_east"}; // south is the bare facing
+        for (int w = 0; w < woods.length; w++) {
+            String wood = woods[w];
+            for (int facing = 0; facing < 4; facing++) {
+                for (int open = 0; open <= 1; open++) {
+                    for (int powered = 0; powered <= 1; powered++) {
+                        int meta = facing | (open == 1 ? 4 : 0) | (powered == 1 ? 8 : 0);
+                        StringBuilder name = new StringBuilder("minecraft:")
+                                .append(wood).append("_fence_gate");
+                        if (powered == 1) {
+                            name.append("_powered");
+                        }
+                        if (open == 1) {
+                            name.append("_open");
+                        }
+                        name.append(facings[facing]);
+                        String identifier = name.toString();
+                        assertEquals(Optional.of(ids[w]), LegacyBlockIds.legacyId(
+                                        net.zaminmc.torch.util.Identifier.parse(identifier)),
+                                identifier + " must ride legacy " + ids[w]);
+                        assertEquals(meta, LegacyBlockIds.metadataOf(
+                                        net.zaminmc.torch.util.Identifier.parse(identifier)),
+                                identifier + " must carry metadata " + meta);
+                    }
+                }
+            }
+        }
+    }
 }

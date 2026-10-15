@@ -180,31 +180,74 @@ public final class BuiltinRecipes {
                     { ing("minecraft:planks", true, 5), ing("minecraft:planks", true, 5), ing("minecraft:planks", true, 5) }
             },
                     res("minecraft:wooden_slab", 6, 5)),
+            // The fence crafts (the Slice 37 repair + the missing oak row —
+            // CraftingManager lines 59-83's own shape "W#W", "W#W": FOUR
+            // PLANKS OUTSIDE, TWO STICKS IN THE MIDDLE -> three fences; the
+            // shipped Slice 36 rows carried the ingredients transposed —
+            // the gate's own shape, leaving the real fence craft absent).
+            CraftingRecipe.shaped(new Ingredient[][] {
+                    { ing("minecraft:planks", true, 0), ing("minecraft:stick", false, 0), ing("minecraft:planks", true, 0) },
+                    { ing("minecraft:planks", true, 0), ing("minecraft:stick", false, 0), ing("minecraft:planks", true, 0) }
+            },
+                    res("minecraft:oak_fence", 3, 0)),
+            CraftingRecipe.shaped(new Ingredient[][] {
+                    { ing("minecraft:planks", true, 1), ing("minecraft:stick", false, 0), ing("minecraft:planks", true, 1) },
+                    { ing("minecraft:planks", true, 1), ing("minecraft:stick", false, 0), ing("minecraft:planks", true, 1) }
+            },
+                    res("minecraft:spruce_fence", 3, 0)),
+            CraftingRecipe.shaped(new Ingredient[][] {
+                    { ing("minecraft:planks", true, 2), ing("minecraft:stick", false, 0), ing("minecraft:planks", true, 2) },
+                    { ing("minecraft:planks", true, 2), ing("minecraft:stick", false, 0), ing("minecraft:planks", true, 2) }
+            },
+                    res("minecraft:birch_fence", 3, 0)),
+            CraftingRecipe.shaped(new Ingredient[][] {
+                    { ing("minecraft:planks", true, 3), ing("minecraft:stick", false, 0), ing("minecraft:planks", true, 3) },
+                    { ing("minecraft:planks", true, 3), ing("minecraft:stick", false, 0), ing("minecraft:planks", true, 3) }
+            },
+                    res("minecraft:jungle_fence", 3, 0)),
+            CraftingRecipe.shaped(new Ingredient[][] {
+                    { ing("minecraft:planks", true, 4), ing("minecraft:stick", false, 0), ing("minecraft:planks", true, 4) },
+                    { ing("minecraft:planks", true, 4), ing("minecraft:stick", false, 0), ing("minecraft:planks", true, 4) }
+            },
+                    res("minecraft:acacia_fence", 3, 0)),
+            CraftingRecipe.shaped(new Ingredient[][] {
+                    { ing("minecraft:planks", true, 5), ing("minecraft:stick", false, 0), ing("minecraft:planks", true, 5) },
+                    { ing("minecraft:planks", true, 5), ing("minecraft:stick", false, 0), ing("minecraft:planks", true, 5) }
+            },
+                    res("minecraft:dark_oak_fence", 3, 0)),
+            // The fence-gate crafts (Slice 37 — CraftingManager's own rows
+            // 93-133: "#W#", "#W#" — four sticks + two exact-variant planks
+            // -> one gate per family).
+            CraftingRecipe.shaped(new Ingredient[][] {
+                    { ing("minecraft:stick", false, 0), ing("minecraft:planks", true, 0), ing("minecraft:stick", false, 0) },
+                    { ing("minecraft:stick", false, 0), ing("minecraft:planks", true, 0), ing("minecraft:stick", false, 0) }
+            },
+                    res("minecraft:oak_fence_gate", 1, 0)),
             CraftingRecipe.shaped(new Ingredient[][] {
                     { ing("minecraft:stick", false, 0), ing("minecraft:planks", true, 1), ing("minecraft:stick", false, 0) },
                     { ing("minecraft:stick", false, 0), ing("minecraft:planks", true, 1), ing("minecraft:stick", false, 0) }
             },
-                    res("minecraft:spruce_fence", 3, 0)),
+                    res("minecraft:spruce_fence_gate", 1, 0)),
             CraftingRecipe.shaped(new Ingredient[][] {
                     { ing("minecraft:stick", false, 0), ing("minecraft:planks", true, 2), ing("minecraft:stick", false, 0) },
                     { ing("minecraft:stick", false, 0), ing("minecraft:planks", true, 2), ing("minecraft:stick", false, 0) }
             },
-                    res("minecraft:birch_fence", 3, 0)),
+                    res("minecraft:birch_fence_gate", 1, 0)),
             CraftingRecipe.shaped(new Ingredient[][] {
                     { ing("minecraft:stick", false, 0), ing("minecraft:planks", true, 3), ing("minecraft:stick", false, 0) },
                     { ing("minecraft:stick", false, 0), ing("minecraft:planks", true, 3), ing("minecraft:stick", false, 0) }
             },
-                    res("minecraft:jungle_fence", 3, 0)),
+                    res("minecraft:jungle_fence_gate", 1, 0)),
             CraftingRecipe.shaped(new Ingredient[][] {
                     { ing("minecraft:stick", false, 0), ing("minecraft:planks", true, 4), ing("minecraft:stick", false, 0) },
                     { ing("minecraft:stick", false, 0), ing("minecraft:planks", true, 4), ing("minecraft:stick", false, 0) }
             },
-                    res("minecraft:acacia_fence", 3, 0)),
+                    res("minecraft:acacia_fence_gate", 1, 0)),
             CraftingRecipe.shaped(new Ingredient[][] {
                     { ing("minecraft:stick", false, 0), ing("minecraft:planks", true, 5), ing("minecraft:stick", false, 0) },
                     { ing("minecraft:stick", false, 0), ing("minecraft:planks", true, 5), ing("minecraft:stick", false, 0) }
             },
-                    res("minecraft:dark_oak_fence", 3, 0)),
+                    res("minecraft:dark_oak_fence_gate", 1, 0)),
             // The core planks crafts over the family item (the reference's
             // bare Blocks.PLANKS ingredient matches any variant — the
             // engine's family-item rows for the shipped oak rows' new twin).

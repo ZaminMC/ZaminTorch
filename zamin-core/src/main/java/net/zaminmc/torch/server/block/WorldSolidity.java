@@ -38,6 +38,7 @@ public final class WorldSolidity {
                 && !isSign(id)
                 && !isLadder(id)
                 && !isOpenDoorHalf(id)
+                && !isOpenFenceGate(id)
                 && !isFlora(id)
                 && !WoodVariantBlocks.isSapling(id) // the six saplings: walk-through, never replaceable
                 && !isCarpet(id)
@@ -238,6 +239,25 @@ public final class WorldSolidity {
         }
         return value.contains("_door_open")
                 || (value.contains("_door_upper") && value.endsWith("_open"));
+    }
+
+    /**
+     * The open fence gates (Slice 37 — FenceGateBlock.getCollisionShape
+     * lines 52-61: the open gate returns null — canWalkThrough reads the
+     * OPEN bit): the open band ({@code _open} / {@code _powered_open})
+     * never blocks a body; the closed states stay solid (the flat-solid
+     * stand-in for the 1.5-tall panel — the reference's own Box).
+     */
+    public static boolean isOpenFenceGate(Identifier id) {
+        if (!id.namespace().equals("minecraft")) {
+            return false;
+        }
+        String value = id.value();
+        int gate = value.indexOf("_fence_gate");
+        if (gate < 0) {
+            return false;
+        }
+        return value.substring(gate + "_fence_gate".length()).contains("_open");
     }
 
     /** The signs (standing 63, wall 68): the thin models, walk-through. */

@@ -187,7 +187,8 @@ public final class NoteBlockSystem implements WorldChangeListener {
     /** The WOOD-material set (instrument 4 — bass guitar): the planks/log
      *  family, the containers, the fence, the wooden slab, the signs, and
      *  the note block itself (Material.WOOD — the six wooden door
-     *  families' every state ride the isWoodDoor test, not this set). */
+     *  families' every state ride the isWoodDoor test, not this set; the
+     *  six fence-gate families' states ride the isFenceGate test). */
     private static final Set<String> WOOD_MATERIAL = Set.of(
             "oak_planks", "oak_log", "crafting_table", "chest", "bookshelf",
             "oak_fence", "noteblock",
@@ -209,7 +210,8 @@ public final class NoteBlockSystem implements WorldChangeListener {
         if (GLASS_MATERIAL.contains(belowValue)) {
             return INSTRUMENT_HAT;
         }
-        if (WOOD_MATERIAL.contains(belowValue) || isWoodDoor(belowValue)) {
+        if (WOOD_MATERIAL.contains(belowValue) || isWoodDoor(belowValue)
+                || isFenceGate(belowValue)) {
             return INSTRUMENT_BASS_GUITAR;
         }
         return INSTRUMENT_HARP;
@@ -228,6 +230,18 @@ public final class NoteBlockSystem implements WorldChangeListener {
                 || value.equals("jungle_door") || value.startsWith("jungle_door_")
                 || value.equals("acacia_door") || value.startsWith("acacia_door_")
                 || value.equals("dark_oak_door") || value.startsWith("dark_oak_door_");
+    }
+
+    /** Whether the value is a fence-gate state (the six families'
+     *  sixteen states each — FenceGateBlock's Material.WOOD). */
+    private static boolean isFenceGate(String value) {
+        int gate = value.indexOf("_fence_gate");
+        if (gate < 0) {
+            return false;
+        }
+        String family = value.substring(0, gate);
+        return family.equals("oak") || family.equals("spruce") || family.equals("birch")
+                || family.equals("jungle") || family.equals("dark_oak") || family.equals("acacia");
     }
 
     // ------------------------------------------------------------- the tile lifecycle

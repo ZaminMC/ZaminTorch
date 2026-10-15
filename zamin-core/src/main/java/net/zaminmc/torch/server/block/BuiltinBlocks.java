@@ -868,6 +868,13 @@ public final class BuiltinBlocks {
         // the five new woods' twelve states each, the oak hinge pair, and
         // the iron door's open + hinge states. The shipped oak/iron
         // constants above keep their own registration rows.
-        return WoodDoorFamily.registerAll(builder);
+        builder = WoodDoorFamily.registerAll(builder);
+        // The fence-gate families (Slice 37 — FenceGateBlock 1:1): the six
+        // woods' sixteen facing/open/powered states each (the bare meta-0
+        // form shares the family item's own identifier).
+        for (EngineBlockType gate : FenceGateBlocks.familyBlocks()) {
+            builder = builder.register(gate);
+        }
+        return builder;
     }
 }

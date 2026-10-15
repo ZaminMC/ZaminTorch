@@ -6128,11 +6128,25 @@ public final class EngineServer implements Server, EngineBridge {
             return; // the swing consumes the right-click (the historical door
                     // use: a door swings regardless of what the hand holds)
         }
+        if (net.zaminmc.torch.server.block.FenceGateBlocks.isGate(current)) {
+            // The gate's own use() (FenceGateBlock lines 94-110): the
+            // open/close flip with the far-side facing rewrite — the gate
+            // swings regardless of what the hand holds (the reference's
+            // own true before any item consult).
+            toggleFenceGateOnTick(session, clicked, current);
+            return;
+        }
         if (WoodDoorFamily.isDoorItem(heldId)
                 || creativeHeld.map(t -> WoodDoorFamily.isDoorItem(
                         t.identifier().value())).orElse(false)) {
             placeDoorOnTick(session, clicked, face, creativeHeld);
             return; // the two-half commit overrides the generic placement
+        }
+        if (net.zaminmc.torch.server.block.FenceGateBlocks.isGateItem(heldId)
+                || creativeHeld.map(t -> net.zaminmc.torch.server.block.FenceGateBlocks
+                        .isGateItem(t.identifier().value())).orElse(false)) {
+            placeFenceGateOnTick(session, clicked, face, creativeHeld);
+            return; // the look-facing gate overrides the generic placement
         }
         if (heldId
                 .equals("minecraft:ladder")
@@ -7663,6 +7677,85 @@ public final class EngineServer implements Server, EngineBridge {
     /** Whether the block type is any door half (either family, either half). */
     public static boolean isDoorHalf(net.zaminmc.torch.block.BlockType type) {
         return WoodDoorFamily.isDoor(type);
+    }
+
+    /**
+     * The gate's use() swing (FenceGateBlock.use lines 94-110, 1:1): the
+     * open arm first flips the facing when the player looks from the far
+     * side ({@code state.get(FACING) == direction.getOpposite()} — the
+     * walk-through direction follows the opener), then OPEN flips with
+     * facing and POWERED kept; the close arm drops OPEN only. The doEvent
+     * 1003/1006 pair rides the fx sound bus (the door's own precedent —
+     * the client's event handler plays the same open/close sounds).
+     * Tick-thread context.
+     */
+    private void toggleFenceGateOnTick(PlayerSession session, BlockPosition pos,
+                                       BlockType gate) {
+        int facing = net.zaminmc.torch.server.block.FenceGateBlocks.facingOf(gate);
+        boolean open = net.zaminmc.torch.server.block.FenceGateBlocks.isOpen(gate);
+        int lookBand;
+        if (open) {
+            lookBand = facing; // the close arm never rewrites the facing
+        } else {
+            // Direction.byRotation(player.yaw): the player's own horizontal
+            // facing band (0=S, 1=W, 2=N, 3=E — the engine's own band).
+            double yaw = ((session.rotation().yaw() % 360.0) + 360.0 + 45.0) % 360.0;
+            int playerFacing = (int) (yaw / 90.0) % 4;
+            // The opposite-of-facing rewrite: opening from the far side
+            // turns the gate to face the opener.
+            lookBand = facing == oppositeBand(playerFacing) ? playerFacing : facing;
+        }
+        boolean opening = !open;
+        world.setBlock(pos, net.zaminmc.torch.server.block.FenceGateBlocks.with(
+                gate, lookBand, opening));
+        fxManager.sound(new Position(pos.x() + 0.5, pos.y() + 0.5, pos.z() + 0.5),
+                opening ? "random.door_open" : "random.door_close", 0.8f, 1.0f);
+    }
+
+    /** The horizontal band's opposite (0<->2 south/north, 1<->3 west/east). */
+    private static int oppositeBand(int band) {
+        return (band + 2) & 3;
+    }
+
+    /**
+     * The gate's placement (FenceGateBlock.getPlacementState +
+     * canBePlaced lines 47-49, 89-91): the facing is the placer's own
+     * horizontal facing (getHorizontalFacing — the walk-through axis
+     * follows the placer's look), OPEN and POWERED start clear, and the
+     * floor must be solid ({@code getMaterial().isSolid()}). Tick-thread.
+     */
+    private void placeFenceGateOnTick(PlayerSession session, BlockPosition clicked, int face,
+                                      java.util.Optional<BlockType> creativeHeld) {
+        String held = heldIdentifierOf(session, creativeHeld);
+        String family = held == null ? null
+                : (held.contains(":")
+                        ? held.substring(held.indexOf(':') + 1) : held);
+        if (family == null || !net.zaminmc.torch.server.block.FenceGateBlocks.isGateItem(family)) {
+            return;
+        }
+        String wood = family.substring(0, family.length() - "_fence_gate".length());
+        BlockPosition target = offsetByFace(clicked, face);
+        if (target == null || world.getBlock(clicked).equals(world.airType())
+                || !world.getBlock(target).equals(world.airType())) {
+            return;
+        }
+        if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5
+                || intersectsPlayerBox(session.position(), target)) {
+            return;
+        }
+        if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE
+                && session.inventory().held().isEmpty()) {
+            return;
+        }
+        // canBePlaced: the solid floor (the gate never floats onto flora).
+        if (!WorldSolidity.isSolid(world.getBlock(target.offset(0, -1, 0)))) {
+            return;
+        }
+        double yaw = ((session.rotation().yaw() % 360.0) + 360.0 + 45.0) % 360.0;
+        int lookBand = (int) (yaw / 90.0) % 4; // 0=S,1=W,2=N,3=E
+        world.setBlock(target, net.zaminmc.torch.server.block.FenceGateBlocks
+                .placementState(wood, lookBand));
+        consumePlaced(session, creativeHeld);
     }
 
     /**

@@ -1210,6 +1210,23 @@ public final class BlockBehaviorTable {
             behaviors.put(WoodShapeBlocks.slabStates(variant).get(1).identifier(), slab);
         }
 
+        // The fence-gate families (Slice 37 — FenceGateBlock's own rows:
+        // every gate `setStrength(2.0F).setBlastResistance(5.0F)` WOOD_SOUNDS
+        // — the wood class, no tool gate): all sixteen states per family
+        // drop the family item (the reference's single BlockItem).
+        for (String family : FenceGateBlocks.GATES.keySet()) {
+            BlockBehavior gate = new BlockBehavior(2.0, true, false, "wood", 0,
+                    List.of(new BlockBehavior.Drop(FenceGateBlocks.gateItem(family), 1)));
+            for (int facing = 0; facing < 4; facing++) {
+                for (boolean open : new boolean[] {false, true}) {
+                    for (boolean powered : new boolean[] {false, true}) {
+                        behaviors.put(FenceGateBlocks.state(family, facing, open, powered)
+                                .identifier(), gate);
+                    }
+                }
+            }
+        }
+
         // The complete door families (Slice 34 — DoorBlock's own
         // registrations: every wood door `setStrength(3.0F)` WOOD_SOUNDS,
         // the iron door `setStrength(5.0F)` Material.IRON — the material's

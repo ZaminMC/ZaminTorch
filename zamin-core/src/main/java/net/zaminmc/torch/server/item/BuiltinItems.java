@@ -404,6 +404,21 @@ public final class BuiltinItems {
             Identifier.parse("minecraft:cauldron"), "Cauldron", 64);
     public static final EngineItemType OAK_FENCE = new EngineItemType(
             Identifier.parse("minecraft:oak_fence"), "Oak Fence", 64);
+    // The fence-gate items (Slice 37 — Item.java's own BlockItem rows
+    // 451-456: register(Blocks.FENCE_GATE) ... — the item shares the
+    // family's block id, the plain PlaceableItem form).
+    public static final EngineItemType OAK_FENCE_GATE = new EngineItemType(
+            Identifier.parse("minecraft:oak_fence_gate"), "Oak Fence Gate", 64);
+    public static final EngineItemType SPRUCE_FENCE_GATE = new EngineItemType(
+            Identifier.parse("minecraft:spruce_fence_gate"), "Spruce Fence Gate", 64);
+    public static final EngineItemType BIRCH_FENCE_GATE = new EngineItemType(
+            Identifier.parse("minecraft:birch_fence_gate"), "Birch Fence Gate", 64);
+    public static final EngineItemType JUNGLE_FENCE_GATE = new EngineItemType(
+            Identifier.parse("minecraft:jungle_fence_gate"), "Jungle Fence Gate", 64);
+    public static final EngineItemType DARK_OAK_FENCE_GATE = new EngineItemType(
+            Identifier.parse("minecraft:dark_oak_fence_gate"), "Dark Oak Fence Gate", 64);
+    public static final EngineItemType ACACIA_FENCE_GATE = new EngineItemType(
+            Identifier.parse("minecraft:acacia_fence_gate"), "Acacia Fence Gate", 64);
     // The bed item (community items.json: legacy 355) — places both halves.
     public static final EngineItemType BED = new EngineItemType(
             Identifier.parse("minecraft:bed"), "Bed", 1);
@@ -868,6 +883,8 @@ public final class BuiltinItems {
                 SPRUCE_STAIRS, BIRCH_STAIRS, JUNGLE_STAIRS, ACACIA_STAIRS, DARK_OAK_STAIRS,
                 BRICK_STAIRS, STONE_BRICK_STAIRS, QUARTZ_STAIRS,
                 SPRUCE_FENCE, BIRCH_FENCE, JUNGLE_FENCE, DARK_OAK_FENCE, ACACIA_FENCE,
+                OAK_FENCE_GATE, SPRUCE_FENCE_GATE, BIRCH_FENCE_GATE, JUNGLE_FENCE_GATE,
+                DARK_OAK_FENCE_GATE, ACACIA_FENCE_GATE,
                 WOODEN_SLAB,
                 STICK, CRAFTING_TABLE, NOTE_BLOCK, TORCH, FURNACE, CHEST,
                 COAL, DIAMOND, IRON_INGOT, STONE, SAND, GLASS, GRAVEL, FLINT, BEEF, COOKED_BEEF,
