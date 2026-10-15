@@ -5864,3 +5864,33 @@ Ledgered: the stems' FACING property (the attached-fruit render face)
 is the client's own render read (resolveVirtualProperties); the melon
 block's silk arm takes the default (the slice walk under silk — the
 reference has no silk override).
+
+## Slice 42 — the ground-cover pair: the mycelium 110 + the lily pad 111
+
+The reference port of `MyceliumBlock.java` + `LilyPadBlock.java` (both
+single meta-0 states — the snowy side and the boat pass-through are the
+client's own reads).
+
+- The mycelium: the 0.6 grass row dropping its dirt (getDropItem's own
+  consult), the opaque-cube light row, and the random-tick walk 1:1
+  (the decay under darkness — brightness < 4 with an opacity > 2 lid —
+  and the four-attempt spread to plain dirt at source brightness >= 9
+  with the target's >= 4 gate, the 3x5x3 neighborhood).
+- The lily pad: the 0.0 plant row dropping itself, the walk-through
+  flora rule (the 1/64 surface), the LilyPadItem placement (the aimed
+  water SOURCE with air above — the pad takes the surface cell), and
+  the support pop (canSurvive's water-source rule — flowing water or a
+  departing source pops the pad with its item).
+- The items (register(Blocks.MYCELIUM) 110, register(Blocks.LILY_PAD,
+  new LilyPadItem(...)) 111 — both sharing their block ids) and the
+  wire rows.
+- Tests: `GroundCoverBlocksTest` (2 — the mycelium's spread to a lit
+  dirt neighbor over a pure world + the behavior/light rows, the lily
+  pad's tables + the walk-through rule). Batches: the block batch green,
+  the protocol integrity green, `--max-workers=1`.
+
+Ledgered: the pad's boat-breaking arm (the addCollisions boat skip — a
+colliding boat destroys the pad) rides the vehicle-collision slice; the
+mycelium's spore particles are the client's randomDisplayTick band; the
+mob-spawn override (the mycelium's own spawn-list consult) rides the
+biome-spawn slice.

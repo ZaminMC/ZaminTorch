@@ -212,6 +212,7 @@ public final class WorldSolidity {
                 || id.equals(BuiltinBlocks.RED_MUSHROOM.identifier())
                 || id.equals(BuiltinBlocks.SUGAR_CANE.identifier())
                 || id.equals(BuiltinBlocks.SNOW_LAYER.identifier()) // the thin ground cover
+                || id.equals(BuiltinBlocks.WATERLILY.identifier()) // the 1/64 lily surface
                 || isCropStage(id);
     }
 

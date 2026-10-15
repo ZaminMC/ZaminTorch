@@ -446,6 +446,13 @@ public final class BuiltinItems {
     // register(Blocks.MELON_BLOCK) — the item shares the block id 103).
     public static final EngineItemType MELON_BLOCK = new EngineItemType(
             Identifier.parse("minecraft:melon_block"), "Melon", 64);
+    // The mycelium + lily pad items (Slice 42 — Item.java's own rows
+    // 459-460: register(Blocks.MYCELIUM) and register(Blocks.LILY_PAD,
+    // new LilyPadItem(...)) — both share their block ids).
+    public static final EngineItemType MYCELIUM = new EngineItemType(
+            Identifier.parse("minecraft:mycelium"), "Mycelium", 64);
+    public static final EngineItemType WATERLILY = new EngineItemType(
+            Identifier.parse("minecraft:waterlily"), "Lily Pad", 64);
     // The bed item (community items.json: legacy 355) — places both halves.
     public static final EngineItemType BED = new EngineItemType(
             Identifier.parse("minecraft:bed"), "Bed", 1);
@@ -915,6 +922,7 @@ public final class BuiltinItems {
                 GOLDEN_RAIL, DETECTOR_RAIL, ACTIVATOR_RAIL,
                 TRAPDOOR, IRON_TRAPDOOR,
                 BROWN_MUSHROOM_BLOCK, RED_MUSHROOM_BLOCK, MELON_BLOCK,
+                MYCELIUM, WATERLILY,
                 WOODEN_SLAB,
                 STICK, CRAFTING_TABLE, NOTE_BLOCK, TORCH, FURNACE, CHEST,
                 COAL, DIAMOND, IRON_INGOT, STONE, SAND, GLASS, GRAVEL, FLINT, BEEF, COOKED_BEEF,

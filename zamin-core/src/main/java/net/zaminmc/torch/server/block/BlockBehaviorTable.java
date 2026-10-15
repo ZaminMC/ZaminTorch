@@ -1263,6 +1263,19 @@ public final class BlockBehaviorTable {
             }
         }
 
+        // The ground-cover pair (Slice 42 — MyceliumBlock/LilyPadBlock's
+        // own rows: the mycelium `setStrength(0.6F)` GRASS_SOUNDS dropping
+        // its dirt — getDropItem's own consult; the lily pad
+        // `setStrength(0.0F)` GRASS_SOUNDS dropping itself).
+        behaviors.put(Identifier.parse("minecraft:mycelium"),
+                new BlockBehavior(0.6, true, false, "grass", 0,
+                        List.of(new BlockBehavior.Drop(
+                                Identifier.parse("minecraft:dirt"), 1))));
+        behaviors.put(Identifier.parse("minecraft:waterlily"),
+                new BlockBehavior(0.0, true, false, "plant", 0,
+                        List.of(new BlockBehavior.Drop(
+                                Identifier.parse("minecraft:waterlily"), 1))));
+
         // The melon family (Slice 41 — MelonBlock/StemBlock's own rows:
         // the melon `setStrength(1.0F)` over Material.PUMPKIN like the
         // shipped pumpkin, the stems `setStrength(0.0F)` — the melon's

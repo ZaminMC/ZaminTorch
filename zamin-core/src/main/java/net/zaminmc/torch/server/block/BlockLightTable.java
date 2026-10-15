@@ -596,6 +596,10 @@ public final class BlockLightTable {
                 }
             }
         }
+        // The ground-cover pair (Slice 42 — the mycelium is an opaque
+        // cube like the grass block; the lily pad is the 1/64 surface).
+        merged.put(Identifier.parse("minecraft:mycelium"), new LightData(0, 15));
+        merged.put(Identifier.parse("minecraft:waterlily"), new LightData(0, 0));
         // The melon family (Slice 41 — the melon block is an opaque full
         // cube like the pumpkin; the stems are walk-through plants).
         merged.put(Identifier.parse("minecraft:melon_block"), new LightData(0, 15));
