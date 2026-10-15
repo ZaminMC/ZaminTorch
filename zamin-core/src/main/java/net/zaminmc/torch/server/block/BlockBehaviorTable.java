@@ -1276,6 +1276,20 @@ public final class BlockBehaviorTable {
                                     1.0, CocoaBlocks.BROWN_DYE_DAMAGE))));
         }
 
+        // The flower family (Slice 44 — RedFlowerBlock's own row
+        // `setStrength(0.0F).setSounds(GRASS_SOUNDS)` over Material.PLANT,
+        // Block.java line 1057): the eight new variants drop the family
+        // item with the TYPE id in the damage field (getDropItemMetadata's
+        // own consult) — the poppy keeps its shipped self-drop row.
+        for (net.zaminmc.torch.server.block.EngineBlockType flower
+                : FlowerBlocks.familyBlocks()) {
+            behaviors.put(flower.identifier(),
+                    new BlockBehavior(0.0, true, false, "plant", 0,
+                            List.of(new BlockBehavior.Drop(
+                                    FlowerBlocks.FAMILY_ITEM, 1,
+                                    FlowerBlocks.typeOf(flower)))));
+        }
+
         // The ground-cover pair (Slice 42 — MyceliumBlock/LilyPadBlock's
         // own rows: the mycelium `setStrength(0.6F)` GRASS_SOUNDS dropping
         // its dirt — getDropItem's own consult; the lily pad

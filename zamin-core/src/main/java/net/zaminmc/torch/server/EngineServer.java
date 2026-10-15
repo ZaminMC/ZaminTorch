@@ -1643,12 +1643,44 @@ public final class EngineServer implements Server, EngineBridge {
                                 .or(() -> net.zaminmc.torch.server.block.DyeFamilyBlocks
                                         .placementBlockOf(type.identifier(), damage)
                                         .flatMap(id -> blockRegistry.lookup(id)))
+                                .or(() -> net.zaminmc.torch.server.block.FlowerBlocks
+                                        .placementBlockOf(type.identifier(), damage)
+                                        .flatMap(id -> blockRegistry.lookup(id)))
                                 .or(() -> blockRegistry.lookup(type.identifier())),
                         this::publishInventoryChanged);
                 blockInteraction.setEventBus(eventBus); // §27.7: the public break/place gates
                 // The game-rule read (Slice 24a): doTileDrops gates the
                 // break's drop walk (Block.java's own gate).
                 blockInteraction.setTileDropsRead(() -> gameRules.getBoolean("doTileDrops"));
+                // The placement-support gate (Slice 44 — PlantBlock.canBePlaced
+                // lines 36-38 over canBePlacedOn): the flora consult refusing
+                // a placement whose soil is wrong — the flowers (all nine) and
+                // the tall grass on the grass/dirt/farmland band, the dead
+                // bush on the sand/hardened-clay/dirt band. Every other kind
+                // passes (the historical behavior).
+                blockInteraction.setPlacementSupportGate((target, held) -> {
+                    if (held == null) {
+                        return true;
+                    }
+                    net.zaminmc.torch.util.Identifier id = held.identifier();
+                    String name = id.value();
+                    if (net.zaminmc.torch.server.block.FlowerBlocks.isFlowerIdentifier(id)
+                            || name.equals("tall_grass")) {
+                        return net.zaminmc.torch.server.block.FlowerBlocks
+                                .isSupported(world, target);
+                    }
+                    if (name.equals("dead_bush")) {
+                        net.zaminmc.torch.block.BlockType soil =
+                                world.getBlock(target.offset(0, -1, 0));
+                        String soilName = soil.identifier().value();
+                        return soilName.equals("sand")
+                                || soilName.equals("hardened_clay")
+                                || soilName.equals("stained_hardened_clay")
+                                || soilName.startsWith("stained_hardened_clay_")
+                                || soilName.equals("dirt");
+                    }
+                    return true;
+                });
                 // The dig-start hook (Slice 27a — the reference's
                 // block.startMining arm, ServerPlayerInteractionManager
                 // line 133): the note block plays on the survival start.

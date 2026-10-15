@@ -5931,3 +5931,50 @@ onPlaced's look-based FACING override keeps the placement state's own
 face-opposite (the support reads the clicked log exactly — the
 reference's override can desync the support cell, the engine's shape
 cannot).
+
+## Slice 44 — the flower family + the flora support rules: the red flower's nine types
+
+The reference port of `FlowerBlock.java` (the RED group's TYPE band — the
+poppy 0, the blue orchid 1, the allium 2, the houstonia 3, the four tulips
+4-7, the oxeye daisy 8 — `setStrength(0.0F).setSounds(GRASS_SOUNDS)` over
+Material.PLANT, Block.java line 1057).
+
+- The state model (`server/block/FlowerBlocks`): the eight new variant
+  states as flattened types sharing the wire id 38 with the TYPE id whole
+  in the metadata nibble (FlowerBlock.getMetadataFromState); the poppy
+  keeps its shipped plain rows (the melon slice's bare-form model).
+- The family item: `minecraft:red_flower` (Item.java's own BlockItem row
+  over 38) with the TYPE damage domain — the poppy's own item and the
+  dandelion (the YELLOW group's whole family on 37) keep their plain
+  forms; the placement consult clamps out-of-band damage to the poppy
+  exactly like the reference's own Type.byId.
+- The flora support rules (PlantBlock 1:1): the neighbor-bus pops in
+  `BlockUpdateSystem` — the flowers pop with the family item carrying the
+  TYPE damage (the poppy/dandelion their own items), the tall grass rolls
+  the 1/8 seed walk, the dead bush drops nothing; the soils are the
+  grass/dirt/farmland band (PlantBlock.canBePlacedOn) and the dead bush's
+  own sand/hardened-clay/stained/dirt band (DeadBushBlock's override).
+- The placement gate: `BlockInteractionService.setPlacementSupportGate` —
+  the canBePlaced consult (PlantBlock lines 36-38) refusing a placement
+  whose soil is wrong before any attempt, wired in EngineServer's chain;
+  the damage consult chain's third family arm (wood, dye, flower).
+- The behavior rows (0.0 plants, the family-item drops with the TYPE
+  damage), the light rows (CUTOUT 0), the walk-through solidity rows, and
+  the wire rows (the eight variants at 38 with the TYPE nibble; the
+  poppy's own 0 metadata row folding the plain (38, 0) reverse to the
+  poppy; the family item at 38).
+- Two repairs from the audit: the Slice 42 lily pad's support pop never
+  ran (`Identifier.equals("waterlily")` — an Identifier never equals a
+  String; now reads the value), and the stale BlockRegistryTest re-pin
+  (443 from Slice 36 -> the true 664 + this slice's eight = 672; Slices
+  37-43 had not re-pinned it).
+- Tests: `FlowerBlocksTest` (2 — the nine types' band + the tables + the
+  damage consult with the reference's clamp; the live soil matrix over
+  the hand-set soils) + `BlockRegistryTest` 672. The full core suite
+  green, the protocol module green, `--max-workers=1`.
+
+Ledgered: the blue orchid's swamp-only placement and the flowers'
+bone-meal spread ride the bone-meal item-model slice; the sheep's grazing
+rides the sheep's own refinement; the fern TYPE 2 and the whole
+DOUBLE_PLANT 175 family are Slice 45; the flora's XZ offset rendering
+rides the client's model band.
