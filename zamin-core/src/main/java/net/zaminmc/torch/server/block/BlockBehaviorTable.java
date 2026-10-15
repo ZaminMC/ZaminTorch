@@ -1408,6 +1408,14 @@ public final class BlockBehaviorTable {
         behaviors.put(net.zaminmc.torch.server.block.EndPortalBlocks.END_PORTAL,
                 new BlockBehavior(-1.0, false, false, "portal", 0, java.util.List.of()));
 
+        // The dragon egg (Slice 55 — DragonEggBlock's own row:
+        // setStrength(3.0F) over Material.EGG — diggable by anything, but
+        // the drop consult finds no item (the reference registers none:
+        // getPickItem null, getItemFromBlock null), so the egg never
+        // yields a stack).
+        behaviors.put(net.zaminmc.torch.server.block.DragonEggBlocks.DRAGON_EGG,
+                new BlockBehavior(3.0, true, false, "dirt", 0, java.util.List.of()));
+
         // The weighted pressure-plate pair (Slice 49a —
         // WeightedPressurePlateBlock's own rows: setStrength(0.5F)
         // WOOD_SOUNDS over Material.IRON; every state drops its family
