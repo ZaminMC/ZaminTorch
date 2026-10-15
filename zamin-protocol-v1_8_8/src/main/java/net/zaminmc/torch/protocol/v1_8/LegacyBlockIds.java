@@ -677,6 +677,26 @@ final class LegacyBlockIds {
                 }
             }
         }
+        // The cocoa family (Slice 43 — Block.java's own row): the pod 127 —
+        // the horizontal facing | AGE << 2 (getStateFromMetadata's band);
+        // the bare form is the south/age-0 state.
+        for (int facing = 0; facing < 4; facing++) {
+            for (int age = 0; age <= 2; age++) {
+                int meta = facing | (age << 2);
+                if (meta == 0) {
+                    merged.put(Identifier.parse("minecraft:cocoa"), 127);
+                    continue;
+                }
+                StringBuilder name = new StringBuilder("minecraft:cocoa");
+                if (age > 0) {
+                    name.append("_age").append(age);
+                }
+                if (facing != 0) {
+                    name.append('_').append(new String[]{"south", "west", "north", "east"}[facing]);
+                }
+                merged.put(Identifier.parse(name.toString()), 127);
+            }
+        }
         // The ground-cover pair (Slice 42 — Block.java's own rows): the
         // mycelium 110, the waterlily 111 — both single meta-0 states (the
         // snowy side and the boat pass-through are the client's own reads).
@@ -1401,6 +1421,24 @@ final class LegacyBlockIds {
         for (int stage = 1; stage <= 7; stage++) {
             merged.put(Identifier.parse("minecraft:pumpkin_stem_stage" + stage), stage);
             merged.put(Identifier.parse("minecraft:melon_stem_stage" + stage), stage);
+        }
+        // The cocoa's metadata nibble (Slice 43 — getMetadataFromState:
+        // facing | AGE << 2; the bare meta-0 form rides the 0 default).
+        for (int facing = 0; facing < 4; facing++) {
+            for (int age = 0; age <= 2; age++) {
+                int meta = facing | (age << 2);
+                if (meta == 0) {
+                    continue;
+                }
+                StringBuilder name = new StringBuilder("minecraft:cocoa");
+                if (age > 0) {
+                    name.append("_age").append(age);
+                }
+                if (facing != 0) {
+                    name.append('_').append(new String[]{"south", "west", "north", "east"}[facing]);
+                }
+                merged.put(Identifier.parse(name.toString()), meta);
+            }
         }
         merged.put(Identifier.parse("minecraft:wool"), 0);
         for (int color = 0; color < 16; color++) {

@@ -200,6 +200,15 @@ public final class DropService {
                     net.zaminmc.torch.server.block.MushroomBlocks.plantOf(family)).orElseThrow();
             return List.of(ItemStack.of(plant, count));
         }
+        // The cocoa's dye rolls (Slice 43 — CocoaBlock.dropItems lines
+        // 137-145: 1 dye below age 2, 3 at it — the brown damage 12).
+        if (net.zaminmc.torch.server.block.CocoaBlocks.isCocoa(broken)) {
+            int age = net.zaminmc.torch.server.block.CocoaBlocks.ageOf(broken);
+            ItemType dye = BuiltinItems.lookup(
+                    Identifier.parse("minecraft:dye")).orElseThrow();
+            return List.of(new ItemStack(dye, age >= 2 ? 3 : 1,
+                    net.zaminmc.torch.server.block.CocoaBlocks.BROWN_DYE_DAMAGE));
+        }
         // The melon block's slice walk (Slice 41 — MelonBlock lines 17-31:
         // getDropCount's {@code min(9, 3 + nextInt(5) + nextInt(1 + fortune))}
         // of the melon slice).

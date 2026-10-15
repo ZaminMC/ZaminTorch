@@ -908,6 +908,11 @@ public final class BuiltinBlocks {
         for (EngineBlockType stem : MelonBlocks.familyBlocks()) {
             builder = builder.register(stem);
         }
+        // The cocoa family (Slice 43 — CocoaBlock 1:1): the twelve
+        // facing/age states.
+        for (EngineBlockType pod : CocoaBlocks.familyBlocks()) {
+            builder = builder.register(pod);
+        }
         return builder;
     }
 }

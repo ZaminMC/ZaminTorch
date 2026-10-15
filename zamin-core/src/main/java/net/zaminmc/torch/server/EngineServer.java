@@ -6107,8 +6107,8 @@ public final class EngineServer implements Server, EngineBridge {
         if (useReedOnTick(session, clicked, face, creativeHeld)) {
             return; // the reed/cactus placement override ran
         }
-        if (useFarmingOnTick(session, clicked)) {
-            return; // the hoe/seed/bone-meal use was consumed
+        if (useFarmingOnTick(session, clicked, face)) {
+            return; // the hoe/seed/bone-meal/cocoa use was consumed
         }
         // The spawn egg (Slice 20a — SpawnEggItem.useOn lines 63-92): the
         // damage field names the kind; against a spawner the egg re-types
@@ -7525,7 +7525,7 @@ public final class EngineServer implements Server, EngineBridge {
      * meal jumps a growing crop forward 2-4 stages. Returns whether the use
      * was consumed. Tick-thread context.
      */
-    private boolean useFarmingOnTick(PlayerSession session, BlockPosition clicked) {
+    private boolean useFarmingOnTick(PlayerSession session, BlockPosition clicked, int face) {
         net.zaminmc.torch.item.ItemStack heldStack = session.inventory().held();
         if (heldStack.isEmpty()) {
             return false; // a bare hand never tills, plants or dusts
@@ -7569,6 +7569,31 @@ public final class EngineServer implements Server, EngineBridge {
                     "dig.grass", 0.6f, 1.1f);
             publishInventoryChanged(session);
             return true;
+        }
+        // The cocoa planting (Slice 43 — DyeItem.useOn lines 54-71: the
+        // BROWN dye — the cocoa beans, damage 12 — on a JUNGLE LOG's
+        // horizontal face plants the age-0 pod in the offset cell).
+        if (held.equals("minecraft:dye") && heldStack.damage()
+                == net.zaminmc.torch.server.block.CocoaBlocks.BROWN_DYE_DAMAGE) {
+            BlockType log = world.getBlock(clicked);
+            if (log.identifier().equals(
+                    net.zaminmc.torch.server.block.CocoaBlocks.JUNGLE_LOG)
+                    && face >= 2 && face <= 5) {
+                BlockPosition pod = clicked.offset(
+                        face == 4 ? -1 : face == 5 ? 1 : 0, 0,
+                        face == 2 ? -1 : face == 3 ? 1 : 0);
+                if (world.getBlock(pod).equals(world.airType())
+                        && distanceSquaredEyeToBlock(session.position(), pod) <= 4.5 * 4.5) {
+                    world.setBlock(pod, net.zaminmc.torch.server.block.CocoaBlocks
+                            .placementState(face));
+                    session.inventory().consumeHeld(1);
+                    fxManager.sound(new Position(pod.x() + 0.5, pod.y() + 0.5, pod.z() + 0.5),
+                            "dig.grass", 0.6f, 1.0f);
+                    publishInventoryChanged(session);
+                }
+                return true; // the brown dye's use consumed the click either way
+            }
+            return false; // the other brown-dye arms (the crafting rides elsewhere)
         }
         if (held.equals("minecraft:bone_meal")) {
             // Slice 12b: the whole crop family (the reference's BlockCrops

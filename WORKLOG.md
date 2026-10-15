@@ -5894,3 +5894,40 @@ colliding boat destroys the pad) rides the vehicle-collision slice; the
 mycelium's spore particles are the client's randomDisplayTick band; the
 mob-spawn override (the mycelium's own spawn-list consult) rides the
 biome-spawn slice.
+
+## Slice 43 — the cocoa family: the pod 127
+
+The reference port of `CocoaBlock.java` (the pod
+`setStrength(0.2F).setBlastResistance(5.0F)` WOOD_SOUNDS over
+Material.PLANT, mounted on the jungle log).
+
+- The state model (`server/block/CocoaBlocks`): the horizontal facing
+  (S=0 W=1 N=2 E=3) with the AGE over bits 2-3 — twelve states, the bare
+  form carrying the south/age-0 placement shape; the pods have NO items
+  (the creative pick yields the brown dye — the planting rides the dye's
+  own use arm).
+- The placement (DyeItem.useOn lines 54-71): the BROWN dye — the cocoa
+  beans, the dye family's damage 12 — on a JUNGLE LOG's horizontal face
+  plants the age-0 pod in the offset cell, facing back at its log
+  (getPlacementState's dir.getOpposite()).
+- The support rule (isSupported + neighborChanged's breakCocoa): the
+  FACING cell must be the jungle log; a departed log pops the pod with
+  the AGE band's dye rolls (1 below age 2, 3 at it — the brown damage
+  12) over the neighbor bus.
+- The growth (CocoaBlock.tick lines 44-50): the 1-in-5 AGE advance to 2
+  on the random tick.
+- The drops (DropService): the same 1-or-3 dye rolls on the break walk.
+- The behavior rows (0.2 plant), the light rows (CUTOUT), the
+  walk-through flora rule, and the wire rows (127 + the facing|age
+  nibbles).
+- Tests: `CocoaBlocksTest` (2 — the twelve states' band + the placement
+  facing, the jungle-log support rule + the drop walks + the growth
+  writes). Batches: the block + interaction batches green, the protocol
+  integrity green, `--max-workers=1`.
+
+Ledgered: the pod's per-age collision box (updateShape's 4+age*2 faces)
+rides the collision-shape slice (the walk-through flora stand-in ships);
+onPlaced's look-based FACING override keeps the placement state's own
+face-opposite (the support reads the clicked log exactly — the
+reference's override can desync the support cell, the engine's shape
+cannot).

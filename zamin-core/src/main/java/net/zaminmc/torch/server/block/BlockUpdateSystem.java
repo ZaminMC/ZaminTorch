@@ -366,6 +366,28 @@ public final class BlockUpdateSystem implements WorldChangeListener {
                     drop, ItemEntity.PICKUP_DELAY_DROP_TICKS);
             return;
         }
+        // The cocoa's support rule (Slice 43 — CocoaBlock.neighborChanged
+        // lines 110-114 + breakCocoa lines 116-120 + dropItems lines
+        // 137-145: the FACING cell must be the jungle log; a departed log
+        // pops the pod with the AGE band's dye rolls — 1 below age 2, 3 at
+        // it — the brown dye's own damage 12).
+        if (identifier.value().equals("cocoa") || identifier.value().startsWith("cocoa_")) {
+            int facing = CocoaBlocks.facingOf(world.getBlock(position));
+            if (CocoaBlocks.isSupported(world, position, facing)) {
+                return;
+            }
+            int age = CocoaBlocks.ageOf(world.getBlock(position));
+            world.setBlock(position, world.airType());
+            int count = age >= 2 ? 3 : 1;
+            for (int i = 0; i < count; i++) {
+                itemEntities.spawnDropAtBlock(
+                        new Position(position.x(), position.y(), position.z()),
+                        new ItemStack(net.zaminmc.torch.server.item.BuiltinItems.INK_SAC, 1,
+                                CocoaBlocks.BROWN_DYE_DAMAGE),
+                        ItemEntity.PICKUP_DELAY_DROP_TICKS);
+            }
+            return;
+        }
         // The lily pad's support rule (Slice 42 — LilyPadBlock.canSurvive
         // lines 51-57: the block below must be a WATER SOURCE — flowing
         // water or a departing source pops the pad with its item).

@@ -596,6 +596,10 @@ public final class BlockLightTable {
                 }
             }
         }
+        // The cocoa family (Slice 43 — the CUTOUT pod passes light).
+        for (EngineBlockType pod : CocoaBlocks.familyBlocks()) {
+            merged.put(pod.identifier(), new LightData(0, 0));
+        }
         // The ground-cover pair (Slice 42 — the mycelium is an opaque
         // cube like the grass block; the lily pad is the 1/64 surface).
         merged.put(Identifier.parse("minecraft:mycelium"), new LightData(0, 15));
