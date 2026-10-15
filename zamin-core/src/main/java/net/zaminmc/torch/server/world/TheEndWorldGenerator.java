@@ -53,11 +53,10 @@ import java.util.Random;
  *       obsidian cylinder {@code dx*dx + dz*dz <= r*r + 1} from the
  *       surface to the top, and the BEDROCK cap one above the top. The
  *       crystal that rides the pillar top in the reference
- *       (EndPillarFeature lines 49-51) lands with the ender-crystal
- *       slice — the pillar's own writes are verbatim.</li>
+ *       (EndPillarFeature lines 47-51) lands with Slice 62 — the
+ *       populate record the engine drains at publish.</li>
  *   <li><b>The dragon</b>: the reference spawns the ender dragon when
- *       chunk (0,0) decorates — deferred to the dragon slice with the
- *       crystal.</li>
+ *       chunk (0,0) decorates — deferred to the dragon slice.</li>
  * </ul>
  *
  * <h2>Determinism adaptations (the nether port's own contract)</h2>
@@ -404,9 +403,9 @@ public final class TheEndWorldGenerator implements WorldGenerator {
      * gate (air at the top, END_STONE below), the base ring gate (every
      * ring cell at {@code y - 1} must be END_STONE), the height
      * {@code nextInt(32) + 6}, the radius {@code nextInt(4) + 1}, the
-     * obsidian cylinder {@code dx*dx + dz*dz <= r*r + 1}, and the
-     * BEDROCK cap at the top. Writes clip to the owning chunk (the
-     * nether port's own contract).
+     * obsidian cylinder {@code dx*dx + dz*dz <= r*r + 1}, the crystal
+     * record at the top (lines 47-49), and the BEDROCK cap at the top.
+     * Writes clip to the owning chunk (the nether port's own contract).
      */
     private void placePillar(EngineChunk chunk, int worldX, int worldZ) {
         // world.getSurfaceHeight: the top non-air cell of the column.
@@ -457,9 +456,17 @@ public final class TheEndWorldGenerator implements WorldGenerator {
             }
         }
 
-        // The bedrock cap (place line 55, one above the pillar top) —
-        // the crystal that rides the same cell (lines 49-51) lands with
-        // the ender-crystal slice.
+        // The crystal on the pillar top (EndPillarFeature lines 47-49): the
+        // entity at the +0.5 centers, the pillar-top y, and the reference's
+        // own {@code nextFloat() * 360} yaw roll — recorded as a populate
+        // attachment (the engine drains it at the chunk publish; the
+        // crystal system is live-state, the generator stays offline). The
+        // BEDROCK cap at the same cell lands after it, the reference's own
+        // write order (line 50) — the first tick's fire then eats the cap
+        // (EnderCrystalEntity.tick's feet-cell write).
+        chunk.addPendingEnderCrystal(worldX, surfaceY + height, worldZ,
+                this.random.nextFloat() * 360.0f);
+        // The bedrock cap (place line 50, one above the pillar top).
         setBlockInChunk(chunk, worldX, surfaceY + height, worldZ, bedrock);
     }
 

@@ -223,6 +223,21 @@ public final class ProjectileManager {
         }
     }
 
+    /**
+     * The ender-crystal consult (Slice 62 — EnderCrystalEntity.takeDamage
+     * lines 67-83: ANY damage source pops the crystal — the arrow's pop is
+     * the canonical one). Wired by the engine; runs on the tick thread.
+     */
+    public interface CrystalSink {
+        /**
+         * The crystal whose 2x2x2 box holds the point takes its wound
+         * (the removal + the 6.0F blast ride the system's own death walk).
+         *
+         * @return true when a crystal popped (the projectile dies with it).
+         */
+        boolean hitCrystal(double x, double y, double z);
+    }
+
     private final SolidQuery solid;
     private final HitResolver hits;
     private final CombatSink combat;
@@ -239,6 +254,8 @@ public final class ProjectileManager {
     private ExplosionSink explosionSink = (at, power) -> { };
     /** The ender pearl's teleport arm (Slice 17c); optional until wired. */
     private PearlSink pearlSink = (throwerId, at) -> { };
+    /** The ender crystal's pop arm (Slice 62); optional until wired. */
+    private CrystalSink crystalSink = (x, y, z) -> false;
 
     /** Wires the fireball's fire-placement arm. */
     public void setFireSink(FireSink sink) {
@@ -258,6 +275,11 @@ public final class ProjectileManager {
     /** Wires the ender pearl's teleport arm (Slice 17c). */
     public void setPearlSink(PearlSink sink) {
         this.pearlSink = Objects.requireNonNull(sink, "sink");
+    }
+
+    /** Wires the ender crystal's pop arm (Slice 62). */
+    public void setCrystalSink(CrystalSink sink) {
+        this.crystalSink = Objects.requireNonNull(sink, "sink");
     }
 
     public ProjectileManager(SolidQuery solid, HitResolver hits, CombatSink combat,
@@ -606,6 +628,16 @@ public final class ProjectileManager {
                 remove(projectile, "hit");
                 return true;
             }
+        }
+        // --- crystal hit (Slice 62) -------------------------------------------
+        // EnderCrystalEntity.takeDamage lines 67-83: any damage source pops
+        // the crystal — the arrow's pop is the canonical one. The consult
+        // rides BEFORE the block arm: the pillar-top crystal's feet cell
+        // holds FIRE (non-solid), but the box spans two blocks of height
+        // and the block arm must never shadow the body.
+        if (crystalSink.hitCrystal(point.x(), point.y(), point.z())) {
+            remove(projectile, "hit");
+            return true;
         }
         // --- block hit --------------------------------------------------------
         if (solid.solidAt(point.x(), point.y(), point.z())) {

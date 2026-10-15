@@ -4844,6 +4844,86 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         channel.writeAndFlush(out);
     }
 
+    /**
+     * The ender crystal's spawn (Slice 62 — Spawn Object 200 + the slot-8
+     * Int): the crystal rides the wire only for END-dimension observers
+     * whose chunk window holds the body (the same coordinates exist in
+     * every world — the mob spawn's own gate shape).
+     */
+    void sendCrystalSpawn(net.zaminmc.torch.server.endcrystal.EnderCrystal crystal) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY
+                || chunkTracker == null) {
+            return;
+        }
+        if (dimensionOfSession() != 1) {
+            return; // the crystals live only in the End
+        }
+        net.zaminmc.torch.block.BlockPosition cell =
+                new net.zaminmc.torch.block.BlockPosition(
+                        (int) Math.floor(crystal.x()), (int) Math.floor(crystal.y()),
+                        (int) Math.floor(crystal.z()));
+        if (!chunkTracker.hasChunk(cell.chunkPosition().packed())) {
+            return; // outside this observer's loaded window
+        }
+        ByteBuf out = Unpooled.buffer(32);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_SPAWN_ENTITY);
+        ByteBufOps.writeVarInt(out, crystal.entityId());
+        out.writeByte(Protocol18.OBJECT_ENDER_CRYSTAL);
+        out.writeInt((int) Math.floor(crystal.x() * 32.0));
+        out.writeInt((int) Math.floor(crystal.y() * 32.0));
+        out.writeInt((int) Math.floor(crystal.z() * 32.0));
+        out.writeByte(0); // pitch
+        out.writeByte((byte) (crystal.yaw() * 256.0f / 360.0f)); // the body yaw
+        out.writeInt(0); // objectData
+        out.writeShort(0); // velocity x
+        out.writeShort(0); // velocity y
+        out.writeShort(0); // velocity z
+        channel.writeAndFlush(out);
+        sendCrystalMetadata(channel, crystal);
+    }
+
+    /**
+     * The crystal's tracked data (registerSyncedData's own slot 8 — the
+     * damage clock Int, 5 at birth).
+     */
+    private void sendCrystalMetadata(Channel channel,
+                                     net.zaminmc.torch.server.endcrystal.EnderCrystal crystal) {
+        ByteBuf meta = Unpooled.buffer(16);
+        ByteBufOps.writeVarInt(meta, Protocol18.S2C_ENTITY_METADATA);
+        ByteBufOps.writeVarInt(meta, crystal.entityId());
+        meta.writeByte((Protocol18.METADATA_TYPE_INT << 5) | 8);
+        meta.writeInt(crystal.health());
+        meta.writeByte(Protocol18.METADATA_TERMINATOR);
+        channel.writeAndFlush(meta);
+    }
+
+    /** The crystal's Destroy Entities (the pop). Any thread. */
+    void sendCrystalRemoved(int crystalEntityId) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(12);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_DESTROY_ENTITIES);
+        ByteBufOps.writeVarInt(out, 1);
+        ByteBufOps.writeVarInt(out, crystalEntityId);
+        channel.writeAndFlush(out);
+    }
+
+    /**
+     * The wound's own re-send (takeDamage line 73's zero — the synced
+     * slot-8 Int rides the dirty broadcast before the destroy).
+     */
+    void sendCrystalHealth(net.zaminmc.torch.server.endcrystal.EnderCrystal crystal) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY
+                || dimensionOfSession() != 1) {
+            return;
+        }
+        sendCrystalMetadata(channel, crystal);
+    }
+
     /** One Entity Equipment (0x04) update for a stand's changed slot. Any thread. */
     void sendStandEquipment(net.zaminmc.torch.server.armorstand.ArmorStand stand, int slot) {
         Channel channel = adapter.channelOf(this);
