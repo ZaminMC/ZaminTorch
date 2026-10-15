@@ -596,6 +596,15 @@ public final class BlockLightTable {
                 }
             }
         }
+        // The melon family (Slice 41 — the melon block is an opaque full
+        // cube like the pumpkin; the stems are walk-through plants).
+        merged.put(Identifier.parse("minecraft:melon_block"), new LightData(0, 15));
+        for (String family : MelonBlocks.STEMS.keySet()) {
+            for (int stage = 0; stage <= 7; stage++) {
+                merged.put(MelonBlocks.stemStage(family, stage).identifier(),
+                        new LightData(0, 0));
+            }
+        }
         // The huge-mushroom pair (Slice 40 — the full opaque cubes: filter
         // 15 like the wood cubes' own rows).
         for (String family : MushroomBlocks.MUSHROOMS.keySet()) {

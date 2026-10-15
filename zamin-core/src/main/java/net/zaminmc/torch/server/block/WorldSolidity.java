@@ -295,7 +295,9 @@ public final class WorldSolidity {
         String value = id.value();
         return value.startsWith("wheat_stage")
                 || value.startsWith("carrots_stage")
-                || value.startsWith("potatoes_stage");
+                || value.startsWith("potatoes_stage")
+                || value.startsWith("pumpkin_stem_stage")
+                || value.startsWith("melon_stem_stage");
     }
 
     /** @return the age digit (0..7) of a crop identifier, -1 when none. */
@@ -312,6 +314,13 @@ public final class WorldSolidity {
         }
         if (value.startsWith("potatoes_stage")) {
             return value.charAt("potatoes_stage".length()) - '0';
+        }
+        // The stem families (Slice 41 — StemBlock's AGE band 0..7)
+        if (value.startsWith("pumpkin_stem_stage")) {
+            return value.charAt("pumpkin_stem_stage".length()) - '0';
+        }
+        if (value.startsWith("melon_stem_stage")) {
+            return value.charAt("melon_stem_stage".length()) - '0';
         }
         return -1;
     }
@@ -330,6 +339,12 @@ public final class WorldSolidity {
         }
         if (value.startsWith("potatoes_stage")) {
             return "potatoes";
+        }
+        if (value.startsWith("pumpkin_stem_stage")) {
+            return "pumpkin_stem";
+        }
+        if (value.startsWith("melon_stem_stage")) {
+            return "melon_stem";
         }
         return null;
     }

@@ -5820,3 +5820,47 @@ Ledgered: the open panel's vertical 3/16 shape and the closed panel's
 floor/ceiling thickness ride the collision-shape slice (the flat-solid
 stand-in ships — every state blocks a body, the reference's own
 isPassable pathfinding quirk stays out of the physics model).
+
+## Slice 41 — the melon family: the melon block 103 + the two stems
+
+The reference port of `MelonBlock.java` + `StemBlock.java` over the
+reference's registrations (the melon block 103 Material.PUMPKIN
+`setStrength(1.0F)` WOOD_SOUNDS, the pumpkin stem 104 and the melon stem
+105 `setStrength(0.0F)`).
+
+- The state model (`server/block/MelonBlocks`): the stems' eight AGE
+  stages each over the engine's crop naming convention
+  (`<family>_stage0..7`, the wheat/carrots/potatoes precedent) with the
+  AGE as the wire nibble whole; the melon block rides its own plain
+  constant. The stems have NO items (CreativeModeTab null — the pick
+  yields the seeds, the planting rides the seeds' use arm).
+- The growth (RandomTickSystem's crop walk extended): the stems join the
+  stage walk (light >= 9, the hydrated 1/3 vs 1/6 pace) with the FRUIT
+  ARM at AGE 7 (StemBlock.tick lines 60-84 1:1 — the already-fruiting
+  gate, the random horizontal pick, the farmland/dirt/grass floor gate,
+  the air check).
+- The planting (`useFarmingOnTick`): the pumpkin/melon seeds join the
+  wheat seeds' farmland arm (WheatSeedsItem's own block field — the
+  seed names its stem).
+- The bone-meal: the stems grow through the same crop gate (stage < 7,
+  the +2..+5 walk).
+- The drops (DropService): the melon block's slice walk
+  (getDropCount's min(9, 3 + nextInt(5) + nextInt(1 + fortune))), the
+  stems' seed roll (three independent nextInt(15) <= age rolls — the
+  young stem's 1/15 band, the grown stem's ~half). The melon SLICE item
+  joins the registry (a pre-existing gap: the constant existed but never
+  registered).
+- The behavior rows (the melon 1.0 wood / the stems 0.0 plant), the
+  light rows (the opaque cube / the walk-through plants), the solidity
+  (the stems join the flora walk), and the wire rows (103 + the stems'
+  stage nibbles).
+- Tests: `MelonBlocksTest` (4 — the AGE band + the tables, the two drop
+  walks' bands, the fruit arm over a pure world with the
+  already-fruiting gate, the crop-stage resolve) + the item-registry
+  repair. Batches: block + interaction + crafting green, the protocol
+  integrity + chunk serializer green, `--max-workers=1`.
+
+Ledgered: the stems' FACING property (the attached-fruit render face)
+is the client's own render read (resolveVirtualProperties); the melon
+block's silk arm takes the default (the slice walk under silk — the
+reference has no silk override).

@@ -200,6 +200,36 @@ public final class DropService {
                     net.zaminmc.torch.server.block.MushroomBlocks.plantOf(family)).orElseThrow();
             return List.of(ItemStack.of(plant, count));
         }
+        // The melon block's slice walk (Slice 41 — MelonBlock lines 17-31:
+        // getDropCount's {@code min(9, 3 + nextInt(5) + nextInt(1 + fortune))}
+        // of the melon slice).
+        if (broken.identifier().value().equals("melon_block")) {
+            int count = Math.min(9, 3 + random.nextInt(5) + random.nextInt(1 + fortune));
+            ItemType slice = BuiltinItems.lookup(
+                    Identifier.parse("minecraft:melon")).orElseThrow();
+            return List.of(ItemStack.of(slice, count));
+        }
+        // The stems' seed roll (Slice 41 — StemBlock.dropItems lines 120-131:
+        // three independent {@code nextInt(15) <= age} rolls of the seeds).
+        String stemFamily = net.zaminmc.torch.server.block.MelonBlocks
+                .stemFamilyOf(broken.identifier());
+        if (stemFamily != null) {
+            int age = net.zaminmc.torch.server.block.WorldSolidity
+                    .cropStageOf(broken.identifier());
+            int count = 0;
+            for (int i = 0; i < 3; i++) {
+                if (random.nextInt(15) <= age) {
+                    count++;
+                }
+            }
+            if (count == 0) {
+                return List.of();
+            }
+            ItemType seeds = BuiltinItems.lookup(
+                    net.zaminmc.torch.server.block.MelonBlocks.seedsOf(stemFamily))
+                    .orElseThrow();
+            return List.of(ItemStack.of(seeds, count));
+        }
         // The silk arm: the block's own item (the reference's
         // getSilkTouchDrop — Item.byBlock with the state metadata), one
         // stack, no chance roll.
