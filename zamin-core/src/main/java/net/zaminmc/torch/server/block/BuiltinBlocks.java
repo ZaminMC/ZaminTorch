@@ -924,6 +924,11 @@ public final class BuiltinBlocks {
         for (EngineBlockType plant : DoublePlantBlocks.familyBlocks()) {
             builder = builder.register(plant);
         }
+        // The cake family (Slice 46 — CakeBlock 1:1): the seven BITES
+        // states (the bare bites-0 form is the placed block).
+        for (EngineBlockType slice : CakeBlocks.familyBlocks()) {
+            builder = builder.register(slice);
+        }
         return builder;
     }
 }

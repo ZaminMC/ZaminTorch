@@ -501,6 +501,17 @@ public final class BlockUpdateSystem implements WorldChangeListener {
             }
             return;
         }
+        // The cake's support rule (Slice 46 — CakeBlock.neighborChanged
+        // lines 88-91 + canSurvive lines 92-94: the block below must be
+        // SOLID; a departing support removes the cake with NO drop —
+        // getDropItem's own null, the slices come only from the eat arm).
+        if (CakeBlocks.isCake(identifier)) {
+            if (CakeBlocks.isSupported(world, position)) {
+                return; // supported
+            }
+            world.setBlock(position, world.airType());
+            return;
+        }
         if (identifier.equals(FIRE)) {
             tickFire(position, world.totalTicks());
             return;

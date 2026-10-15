@@ -128,7 +128,19 @@ public final class CraftingGrid {
     public void consumeOne() {
         for (int i = 0; i < cells.length; i++) {
             if (!cells[i].isEmpty()) {
-                cells[i] = cells[i].withCount(cells[i].count() - 1);
+                // The recipe remainder (Slice 46 — Item.getRecipeRemainder
+                // over Container.getRemainingItems): a consumed milk bucket
+                // leaves its empty bucket in the cell instead of vanishing
+                // (Item.java line 619's setRecipeRemainder — the cake's
+                // three buckets come back).
+                net.zaminmc.torch.item.ItemStack remainder =
+                        net.zaminmc.torch.server.crafting.CraftingRemainders
+                                .remainderOf(cells[i]);
+                if (remainder != null) {
+                    cells[i] = remainder;
+                } else {
+                    cells[i] = cells[i].withCount(cells[i].count() - 1);
+                }
             }
         }
     }

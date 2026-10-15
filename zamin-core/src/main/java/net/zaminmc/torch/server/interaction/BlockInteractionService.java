@@ -144,6 +144,19 @@ public final class BlockInteractionService {
         this.breakReport = java.util.Objects.requireNonNull(report, "report");
     }
 
+    /**
+     * A player-aware dig-start report (Slice 46 — CakeBlock.startMining
+     * lines 62-66: the left click's eat needs the acting player). Null
+     * until wired; fires right after the position listener, same context.
+     */
+    private volatile java.util.function.BiConsumer<PlayerSession, BlockPosition> miningStartReport;
+
+    /** Wires the player-aware dig-start report (the cake's eat arm). */
+    public void setMiningStartReport(
+            java.util.function.BiConsumer<PlayerSession, BlockPosition> report) {
+        this.miningStartReport = java.util.Objects.requireNonNull(report, "report");
+    }
+
     /** Wires the dig-start hook (the reference's startMining arm — the note
      *  block's play on the survival dig's start). */
     public void setMiningStartListener(java.util.function.Consumer<BlockPosition> listener) {
@@ -310,6 +323,10 @@ public final class BlockInteractionService {
         // block plays here; creative never reaches this path.
         if (miningStartListener != null) {
             miningStartListener.accept(target);
+        }
+        java.util.function.BiConsumer<PlayerSession, BlockPosition> startReport = miningStartReport;
+        if (startReport != null) {
+            startReport.accept(player, target);
         }
         MiningSession session = miningSessions.computeIfAbsent(player.uuid(),
                 id -> new MiningSession(player));

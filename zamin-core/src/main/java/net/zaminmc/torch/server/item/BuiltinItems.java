@@ -826,6 +826,12 @@ public final class BuiltinItems {
             Identifier.parse("minecraft:water_bucket"), "Water Bucket", 1);
     public static final EngineItemType LAVA_BUCKET = new EngineItemType(
             Identifier.parse("minecraft:lava_bucket"), "Lava Bucket", 1);
+    // The milk bucket (Slice 46 — Item.java's own row
+    // register(335, "milk_bucket", new MilkBucketItem()...): the cake's
+    // third material; the drink rides the food slice (the cake craft
+    // returns the empty bucket — Item.getRecipeRemainder's own consult).
+    public static final EngineItemType MILK_BUCKET = new EngineItemType(
+            Identifier.parse("minecraft:milk_bucket"), "Milk Bucket", 1);
 
     // Decoration flora + desert stone (the placeable block-item forms; the
     // flowers drop themselves, tall grass/dead bush are /give-reachable).
@@ -993,7 +999,7 @@ public final class BuiltinItems {
                 DIAMOND_BLOCK, EMERALD_BLOCK, BEACON,
                 BONE, STRING, GUNPOWDER, WOOL, MUTTON, COOKED_MUTTON, SLIME_BALL,
                 SKULL,
-                BUCKET, WATER_BUCKET, LAVA_BUCKET,
+                BUCKET, WATER_BUCKET, LAVA_BUCKET, MILK_BUCKET,
                 FLINT_AND_STEEL, GOLD_INGOT,
                 SUGAR_CANE, CACTUS, SUGAR, PAPER, BOOK,
                 TALL_GRASS, DEAD_BUSH, DANDELION, POPPY, RED_FLOWER, DOUBLE_PLANT, SANDSTONE,

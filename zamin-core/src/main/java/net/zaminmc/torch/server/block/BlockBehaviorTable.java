@@ -1313,6 +1313,16 @@ public final class BlockBehaviorTable {
                     new BlockBehavior(0.0, true, false, "plant", 0, drops));
         }
 
+        // The cake family (Slice 46 — CakeBlock's own row: no setStrength
+        // over Material.CAKE — the 0.0 default; getDropItem line 113 the
+        // null drop, getBaseDropCount line 108 the 0: the broken cake
+        // yields nothing, the slices come only from the click's eat arm).
+        for (net.zaminmc.torch.server.block.EngineBlockType slice
+                : CakeBlocks.familyBlocks()) {
+            behaviors.put(slice.identifier(),
+                    new BlockBehavior(0.0, true, false, "plant", 0, java.util.List.of()));
+        }
+
         // The ground-cover pair (Slice 42 — MyceliumBlock/LilyPadBlock's
         // own rows: the mycelium `setStrength(0.6F)` GRASS_SOUNDS dropping
         // its dirt — getDropItem's own consult; the lily pad

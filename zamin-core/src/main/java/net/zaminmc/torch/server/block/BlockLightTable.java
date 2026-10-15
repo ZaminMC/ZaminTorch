@@ -608,6 +608,11 @@ public final class BlockLightTable {
         for (EngineBlockType plant : DoublePlantBlocks.familyBlocks()) {
             merged.put(plant.identifier(), new LightData(0, 0));
         }
+        // The cake family (Slice 46 — BlockLayer.CUTOUT, the partial
+        // 7/16-height slab passes light).
+        for (EngineBlockType slice : CakeBlocks.familyBlocks()) {
+            merged.put(slice.identifier(), new LightData(0, 0));
+        }
         // The ground-cover pair (Slice 42 — the mycelium is an opaque
         // cube like the grass block; the lily pad is the 1/64 surface).
         merged.put(Identifier.parse("minecraft:mycelium"), new LightData(0, 15));
