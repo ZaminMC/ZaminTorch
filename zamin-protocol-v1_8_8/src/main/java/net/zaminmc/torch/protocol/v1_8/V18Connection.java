@@ -2714,6 +2714,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             case SNOW_GOLEM -> "SnowMan";
             case OCELOT -> "Ozelot";
             case IRON_GOLEM -> "VillagerGolem";
+            case WITHER -> "Wither";
             case HORSE -> "EntityHorse";
             case RABBIT -> "Rabbit";
             case VILLAGER -> "Villager";
@@ -3131,7 +3132,27 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | Protocol18.PASSIVE_AGE_METADATA_INDEX);
             out.writeByte(mob.isBaby() ? (byte) -1 : (byte) 0);
         }
-        if (mob.type() == net.zaminmc.torch.server.entity.MobType.HORSE) {
+        if (mob.type() == net.zaminmc.torch.server.entity.MobType.WITHER) {
+            // The wither's block (WitherEntity.registerSyncedData lines
+            // 71-77): the three heads' tracked quarry Ints at 17-19 and
+            // the invulnerability countdown Int at 20 — the client aims
+            // each head from its id and draws the blue shield from the
+            // countdown (Slice 59). The boss rides the hostile family —
+            // no passive age byte.
+            int[] heads = mob.witherHeadTargets();
+            out.writeByte((Protocol18.METADATA_TYPE_INT << 5)
+                    | Protocol18.WITHER_HEAD_0_METADATA_INDEX);
+            out.writeInt(heads.length > 0 ? heads[0] : 0);
+            out.writeByte((Protocol18.METADATA_TYPE_INT << 5)
+                    | Protocol18.WITHER_HEAD_1_METADATA_INDEX);
+            out.writeInt(heads.length > 1 ? heads[1] : 0);
+            out.writeByte((Protocol18.METADATA_TYPE_INT << 5)
+                    | Protocol18.WITHER_HEAD_2_METADATA_INDEX);
+            out.writeInt(heads.length > 2 ? heads[2] : 0);
+            out.writeByte((Protocol18.METADATA_TYPE_INT << 5)
+                    | Protocol18.WITHER_INVULN_METADATA_INDEX);
+            out.writeInt(mob.witherInvulnTicks());
+        } else if (mob.type() == net.zaminmc.torch.server.entity.MobType.HORSE) {
             writeHorseMetadata(out, mob);
         } else if (mob.type() == net.zaminmc.torch.server.entity.MobType.WITCH) {
             // The witch's drinking flag (the synced-data slot 21): the
@@ -3521,6 +3542,60 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | Protocol18.KIND_STATUS_METADATA_INDEX);
         out.writeByte(mob.blazeFireActive() ? 1 : 0);
         out.writeByte(Protocol18.METADATA_TERMINATOR);
+        channel.writeAndFlush(out);
+    }
+
+    /**
+     * Set Entity Metadata (0x1C) for the wither's four Ints (Slice 59 —
+     * WitherEntity.registerSyncedData lines 71-77): the three heads'
+     * tracked quarry ids at 17-19 and the invulnerability countdown at
+     * 20, republished when any flips (the blue window's per-tick
+     * countdown rides it). Any thread.
+     */
+    void sendWitherMetadata(MobEntity mob) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(28);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_ENTITY_METADATA);
+        ByteBufOps.writeVarInt(out, mob.entityId());
+        int[] heads = mob.witherHeadTargets();
+        out.writeByte((Protocol18.METADATA_TYPE_INT << 5)
+                | Protocol18.WITHER_HEAD_0_METADATA_INDEX);
+        out.writeInt(heads.length > 0 ? heads[0] : 0);
+        out.writeByte((Protocol18.METADATA_TYPE_INT << 5)
+                | Protocol18.WITHER_HEAD_1_METADATA_INDEX);
+        out.writeInt(heads.length > 1 ? heads[1] : 0);
+        out.writeByte((Protocol18.METADATA_TYPE_INT << 5)
+                | Protocol18.WITHER_HEAD_2_METADATA_INDEX);
+        out.writeInt(heads.length > 2 ? heads[2] : 0);
+        out.writeByte((Protocol18.METADATA_TYPE_INT << 5)
+                | Protocol18.WITHER_INVULN_METADATA_INDEX);
+        out.writeInt(mob.witherInvulnTicks());
+        out.writeByte(Protocol18.METADATA_TERMINATOR);
+        channel.writeAndFlush(out);
+    }
+
+    /**
+     * The Effect packet (0x28) for a GLOBAL world event (the reference's
+     * doGlobalEvent — ServerWorldEventListener line 81:
+     * PlayerManager.sendPacket to EVERY connected player, no distance and
+     * no dimension gate; the 1.8.8 client's WorldRenderer plays the
+     * wither's 1013 spawn sound from the global flag). Any thread.
+     */
+    void sendWorldGlobalEvent(net.zaminmc.torch.util.Position at, int eventId) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        var blockPos = at.toBlockPosition();
+        ByteBuf out = Unpooled.buffer(20);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_WORLD_EVENT);
+        out.writeInt(eventId);
+        ByteBufOps.writePackedBlockPosition(out, blockPos.x(), blockPos.y(), blockPos.z());
+        out.writeInt(0); // data
+        out.writeBoolean(true); // the global flag
         channel.writeAndFlush(out);
     }
 
@@ -4151,6 +4226,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             case LARGE_FIREBALL -> Protocol18.OBJECT_LARGE_FIREBALL;
             case POTION -> Protocol18.OBJECT_POTION;
             case ENDER_PEARL -> Protocol18.OBJECT_ENDER_PEARL;
+            case WITHER_SKULL -> Protocol18.OBJECT_WITHER_SKULL;
         };
         int throwerWireId = resolveThrowerWireId(current, projectile.throwerId());
         // The objectData field (TrackedEntity.createAddEntityPacket 1:1):
@@ -4168,6 +4244,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             case SMALL_FIREBALL, LARGE_FIREBALL -> throwerWireId;
             case SNOWBALL, EGG -> 0;
             case ENDER_PEARL -> throwerWireId > 0 ? throwerWireId : 0;
+            case WITHER_SKULL -> throwerWireId; // the shooter like the fireball family
         };
         ByteBuf out = Unpooled.buffer(48);
         ByteBufOps.writeVarInt(out, Protocol18.S2C_SPAWN_ENTITY);
@@ -4186,6 +4263,19 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             out.writeShort((int) Math.round(projectile.velocityZ() * 8000.0));
         }
         channel.writeAndFlush(out);
+        if (projectile.kind() == net.zaminmc.torch.server.entity.projectile.ProjectileEntity.Kind.WITHER_SKULL) {
+            // The skull's charged byte (WitherSkullEntity
+            // .registerSyncedData line 100: the synced slot 10 — the
+            // client draws the blue skull from it) rides Entity Metadata
+            // right after the spawn.
+            ByteBuf meta = Unpooled.buffer(10);
+            ByteBufOps.writeVarInt(meta, Protocol18.S2C_ENTITY_METADATA);
+            ByteBufOps.writeVarInt(meta, projectile.entityId());
+            meta.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | 10);
+            meta.writeByte(projectile.charged() ? 1 : 0);
+            meta.writeByte(Protocol18.METADATA_TERMINATOR);
+            channel.writeAndFlush(meta);
+        }
     }
 
     /**

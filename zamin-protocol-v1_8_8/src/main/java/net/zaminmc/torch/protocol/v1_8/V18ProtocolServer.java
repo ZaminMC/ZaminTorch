@@ -375,6 +375,46 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                 }
             }
 
+            /** The wither's four Ints (the slots 17-20, Slice 59). */
+            @Override
+            public void onWitherMetadataChanged(net.zaminmc.torch.server.entity.MobEntity mob) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendWitherMetadata(mob);
+                }
+            }
+
+            /** The wither's global 1013 spawn sound (Slice 59). */
+            @Override
+            public void onWitherBirth(net.zaminmc.torch.server.entity.MobEntity mob) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendWorldGlobalEvent(mob.position(), 1013);
+                }
+            }
+
+            /** The wither's 1012 chunk break sound (Slice 59). */
+            @Override
+            public void onWitherBlockBreakSound(net.zaminmc.torch.server.entity.MobEntity mob) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendWorldEvent(mob.position(), 1012);
+                }
+            }
+
+            /** The wither's 1014 skull launch sound (Slice 59). */
+            @Override
+            public void onWitherShootSound(net.zaminmc.torch.server.entity.MobEntity mob) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendWorldEvent(mob.position(), 1014);
+                }
+            }
+
+            /** A global world event (the doGlobalEvent family — every player). */
+            @Override
+            public void onWorldGlobalEventAt(net.zaminmc.torch.util.Position position, int eventId) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendWorldGlobalEvent(position, eventId);
+                }
+            }
+
             /** The zombie villager's pair (the slots 13/14 bytes, Slice 25a). */
             @Override
             public void onZombieStateChanged(net.zaminmc.torch.server.entity.MobEntity mob) {

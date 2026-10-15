@@ -37,7 +37,12 @@ public final class ProjectileEntity implements net.zaminmc.torch.entity.Projecti
          * teleports to the landing point with the 5.0 fall toll, and a
          * pearl-spawned endermite may ride (the 5% roll at the thrower's
          * pre-teleport feet). */
-        ENDER_PEARL(65, net.zaminmc.torch.entity.ProjectileKind.ENDER_PEARL);
+        ENDER_PEARL(65, net.zaminmc.torch.entity.ProjectileKind.ENDER_PEARL),
+        /** The wither's skull (Slice 59 — WitherSkullEntity, the object
+         * type 66): the accelerating flight with the charged blue's own
+         * 0.73 drag, the 8.0 hit with the wither curse, and the 1.0F
+         * detonation where it lands. */
+        WITHER_SKULL(66, net.zaminmc.torch.entity.ProjectileKind.WITHER_SKULL);
 
         /** Protocol 47's Spawn Object entity type id. */
         public final int objectType;
@@ -86,6 +91,12 @@ public final class ProjectileEntity implements net.zaminmc.torch.entity.Projecti
      * every non-potion kind.
      */
     private int potionDamage = -1;
+    /**
+     * The wither skull's charged flag (WitherSkullEntity's synced slot-10
+     * byte, Slice 59): the blue skull drag-steps at 0.73 instead of 0.95
+     * (getDrag's own override).
+     */
+    private boolean charged;
     /**
      * The fireball family's per-tick acceleration (the reference
      * ProjectileEntity fields, the 6-double ctor's normalized*0.1 vector).
@@ -254,6 +265,16 @@ public final class ProjectileEntity implements net.zaminmc.torch.entity.Projecti
 
     public double accelerationZ() {
         return accelerationZ;
+    }
+
+    /** The wither skull's charged flag (WitherSkullEntity.isCharged). */
+    public boolean charged() {
+        return charged;
+    }
+
+    /** WitherSkullEntity.setCharged: the blue skull's own drag and curse. */
+    public void setCharged(boolean charged) {
+        this.charged = charged;
     }
 
     /**

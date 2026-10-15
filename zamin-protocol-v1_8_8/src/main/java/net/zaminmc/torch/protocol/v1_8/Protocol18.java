@@ -215,6 +215,8 @@ final class Protocol18 {
     static final int OBJECT_POTION = 73;
     /** Thrown ender pearl (Spawn Object type 65 — the client's own). */
     static final int OBJECT_ENDER_PEARL = 65;
+    /** The wither's skull (Slice 59 — protocol 47's Spawn Object type 66). */
+    static final int OBJECT_WITHER_SKULL = 66;
     /** Leash knot (Spawn Object type 77 — TrackedEntity's own). */
     static final int OBJECT_LEASH_KNOT = 77;
     /** Item frame (Spawn Object type 71 — TrackedEntity lines 493-502). */
@@ -277,6 +279,16 @@ final class Protocol18 {
     static final int VILLAGER_PROFESSION_METADATA_INDEX = 16;
     /** The witch's drinking flag (WitchEntity's own synced-data slot 21). */
     static final int WITCH_DRINKING_METADATA_INDEX = 21;
+    /**
+     * The wither's head-target Ints (WitherEntity.registerSyncedData lines
+     * 71-77: the synced slots 17-19 — each head's tracked quarry id, 0
+     * when the head stands down).
+     */
+    static final int WITHER_HEAD_0_METADATA_INDEX = 17;
+    static final int WITHER_HEAD_1_METADATA_INDEX = 18;
+    static final int WITHER_HEAD_2_METADATA_INDEX = 19;
+    /** The wither's invulnerability countdown Int (the synced slot 20). */
+    static final int WITHER_INVULN_METADATA_INDEX = 20;
     /**
      * The skeleton's type byte (SkeletonEntity.registerSyncedData line 72:
      * the synced slot 13 — 0 the archer, 1 the wither variant).

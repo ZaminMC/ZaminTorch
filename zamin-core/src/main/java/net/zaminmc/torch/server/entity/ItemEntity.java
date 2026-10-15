@@ -61,6 +61,8 @@ public final class ItemEntity implements net.zaminmc.torch.entity.DroppedItem {
     private int age;
     private int pickupDelay;
     private boolean onGround;
+    /** The never-despawn flag (Slice 59 — ItemEntity.setNeverDespawn: the wither's nether star stays until collected). */
+    private boolean neverDespawn;
 
     public ItemEntity(int entityId, Position position, ItemStack stack, int pickupDelayTicks) {
         this.entityId = entityId;
@@ -105,7 +107,17 @@ public final class ItemEntity implements net.zaminmc.torch.entity.DroppedItem {
     }
 
     public boolean expired() {
-        return age >= DESPAWN_TICKS;
+        return !neverDespawn && age >= DESPAWN_TICKS;
+    }
+
+    /** ItemEntity.setNeverDespawn: the age clock stops expiring the body. */
+    public void setNeverDespawn() {
+        neverDespawn = true;
+    }
+
+    /** @return whether the body carries the never-despawn flag. */
+    public boolean neverDespawn() {
+        return neverDespawn;
     }
 
     /** The vanilla kill plane: an item below it is gone without a drop. */

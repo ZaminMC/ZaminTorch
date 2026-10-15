@@ -35,6 +35,8 @@ public final class ProjectileManager {
     static final double DRAG = 0.99;
     /** The fireball family's own drag (ProjectileEntity.getDrag line 198). */
     static final double FIREBALL_DRAG = 0.95;
+    /** The charged blue skull's own drag (WitherSkullEntity.getDrag line 29). */
+    static final double CHARGED_SKULL_DRAG = 0.73;
     /** The small fireball's hit damage (SmallFireballEntity.onHit line 32). */
     static final float FIREBALL_DAMAGE = 5.0f;
     /** A landed arrow despawns after a minute on the ground (historical 1200). */
@@ -136,6 +138,17 @@ public final class ProjectileManager {
          */
         boolean mobHit(MobEntity mob, float damage, double kbYaw, int shooterId);
 
+        /**
+         * The same hit with the projectile carried (Slice 59 — the wither's
+         * own gates read the source: the half-health shield is ARROW-only,
+         * and another wither's skull never lands). Default bridges to the
+         * legacy shape so existing sinks stay source-compatible.
+         */
+        default boolean mobHit(ProjectileEntity projectile, MobEntity mob,
+                               float damage, double kbYaw) {
+            return mobHit(mob, damage, kbYaw, projectile.throwerId());
+        }
+
         /** A player took a projectile hit: the PvP path (i-frames, velocity). */
         void playerHit(PlayerSession player, float damage, double kbYaw);
 
@@ -165,6 +178,26 @@ public final class ProjectileManager {
 
         /** The egg's chick roll succeeded: spawn a chicken here. */
         void chickenHatch(Position position);
+
+        /**
+         * The wither skull's kill heal (Slice 59 — WitherSkullEntity.onHit
+         * lines 58-64): the victim died to the 8.0 hit, the shooting
+         * wither heals 5.0.
+         */
+        default void skullKillHeal(int shooterId) {
+        }
+
+        /**
+         * The wither skull's curse on a living mob victim (onHit lines
+         * 69-80): WITHER II for 10 s on NORMAL, 40 s on HARD, nothing
+         * below — the sink resolves the difficulty band.
+         */
+        default void skullWitherCurse(MobEntity victim) {
+        }
+
+        /** The player arm of the skull's curse. */
+        default void skullWitherCurse(PlayerSession victim) {
+        }
     }
 
     /** Events the protocol adapter translates into wire updates. */
@@ -427,6 +460,35 @@ public final class ProjectileManager {
         return projectile;
     }
 
+    /**
+     * Launches the wither's skull (Slice 59 — shootSkullAt lines 383-400
+     * over WitherSkullEntity's shooter ctor): the raw delta from the
+     * head's own mount point to the target cell picks up the ctor's
+     * 0.4-sigma gaussian per axis, then normalizes into the 0.1
+     * acceleration. The charged flag rides the body (the blue skull's
+     * own 0.73 drag). Tick-thread context.
+     */
+    public ProjectileEntity launchWitherSkull(int throwerId, Position origin,
+                                              double directionX, double directionY,
+                                              double directionZ, boolean charged) {
+        if (!admitLaunch(ProjectileEntity.Kind.WITHER_SKULL, throwerId, origin)) {
+            return null; // the §27.7 gate swallowed the shot
+        }
+        ProjectileEntity projectile = new ProjectileEntity(nextEntityId++,
+                ProjectileEntity.Kind.WITHER_SKULL, throwerId, origin,
+                0.0, 0.0, 0.0);
+        projectile.setAccelerationFromDirection(
+                directionX + random.nextGaussian() * 0.4,
+                directionY + random.nextGaussian() * 0.4,
+                directionZ + random.nextGaussian() * 0.4);
+        projectile.setCharged(charged);
+        projectiles.add(projectile);
+        for (Listener listener : listeners) {
+            listener.onProjectileSpawned(projectile);
+        }
+        return projectile;
+    }
+
     /** One physics pass over every projectile. Tick-thread context. */
     public void tick() {
         // Backward index walk: removals mid-tick (shatter, hit, expiry) shift
@@ -449,8 +511,7 @@ public final class ProjectileManager {
             // rides its own constants: drag 0.95, no gravity, the per-tick
             // acceleration (the reference's ProjectileEntity.tick).
             projectile.tickFire();
-            double drag = projectile.kind() == ProjectileEntity.Kind.SMALL_FIREBALL
-                    ? FIREBALL_DRAG : DRAG;
+            double drag = dragOf(projectile);
             Position before = projectile.position();
             projectile.integrate(drag, gravityOf(projectile.kind()));
             if (projectile.position().y() < VOID_KILL_Y) {
@@ -478,13 +539,27 @@ public final class ProjectileManager {
         }
     }
 
-    private static double gravityOf(ProjectileEntity.Kind kind) {
+    /**
+     * The per-kind drag step (the reference's getDrag family): the
+     * ballistic kinds 0.99, the fireball family 0.95, and the wither's
+     * charged blue skull 0.73 (WitherSkullEntity's own override).
+     */
+    static double dragOf(ProjectileEntity projectile) {
+        if (projectile.kind() == ProjectileEntity.Kind.WITHER_SKULL) {
+            return projectile.charged() ? CHARGED_SKULL_DRAG : FIREBALL_DRAG;
+        }
+        return projectile.kind() == ProjectileEntity.Kind.SMALL_FIREBALL
+                ? FIREBALL_DRAG : DRAG;
+    }
+
+    static double gravityOf(ProjectileEntity.Kind kind) {
         if (kind == ProjectileEntity.Kind.ARROW || kind == ProjectileEntity.Kind.POTION) {
             // The potion's own gravity (PotionEntity.getGravity line 41-43:
             // 0.05, the arrow's weight, not the shard's 0.03).
             return ARROW_GRAVITY;
         }
         return kind == ProjectileEntity.Kind.SMALL_FIREBALL
+                || kind == ProjectileEntity.Kind.WITHER_SKULL
                 ? 0.0 : THROWABLE_GRAVITY;
     }
 
@@ -562,6 +637,14 @@ public final class ProjectileManager {
                 remove(projectile, "hit");
                 return true;
             }
+            if (projectile.kind() == ProjectileEntity.Kind.WITHER_SKULL) {
+                // WitherSkullEntity.onHit line 83: the skull detonates where
+                // it lands — the power-1 explosion (no fire, the skull's own
+                // onHit carries no flame arm) and the body leaves.
+                explosionSink.explode(point, 1.0f);
+                remove(projectile, "hit");
+                return true;
+            }
             if (projectile.kind() == ProjectileEntity.Kind.LARGE_FIREBALL) {
                 // FireballEntity.onHit: the explosion where the fireball
                 // lands (the fire flag's mobGriefing default — the fire
@@ -614,8 +697,13 @@ public final class ProjectileManager {
             // three for every snowball — the fire family's own bruise.
             damage = 3.0f;
         }
+        if (projectile.kind() == ProjectileEntity.Kind.WITHER_SKULL) {
+            // WitherSkullEntity.onHit line 58: the skull's own flat 8.0
+            // hit (DamageSource.mob(shooter)).
+            damage = 8.0f;
+        }
         double kbYaw = Math.atan2(-projectile.velocityX(), projectile.velocityZ());
-        boolean landed = combat.mobHit(mob, damage, kbYaw, projectile.throwerId());
+        boolean landed = combat.mobHit(projectile, mob, damage, kbYaw);
         if (projectile.kind() == ProjectileEntity.Kind.SMALL_FIREBALL && landed) {
             // SmallFireballEntity.onHit lines 32-38: the hit target takes the
             // five-second burn after the damage verdict (the fire-immune
@@ -642,6 +730,18 @@ public final class ProjectileManager {
                     (int) Math.floor(projectile.position().y()),
                     (int) Math.floor(projectile.position().z()));
         }
+        if (projectile.kind() == ProjectileEntity.Kind.WITHER_SKULL) {
+            // WitherSkullEntity.onHit lines 58-84: a kill heals the
+            // shooting wither 5.0; a living victim takes the curse
+            // (WITHER II by the difficulty band); the detonation lands
+            // at the struck body either way.
+            if (landed && mob.dead()) {
+                combat.skullKillHeal(projectile.throwerId());
+            } else if (landed) {
+                combat.skullWitherCurse(mob);
+            }
+            explosionSink.explode(mob.position(), 1.0f);
+        }
         if (projectile.kind() == ProjectileEntity.Kind.EGG && rollEggHatch()) {
             combat.chickenHatch(mob.position());
         }
@@ -662,11 +762,23 @@ public final class ProjectileManager {
             // FireballEntity.onHit: the flat 6.0 fireball hit.
             damage = 6.0f;
         }
+        if (projectile.kind() == ProjectileEntity.Kind.WITHER_SKULL) {
+            // WitherSkullEntity.onHit line 58: the flat 8.0 skull hit
+            // (no shooter → DamageSource.MAGIC's 5.0 below stands in for
+            // the engine's ownerless arm when the wither is gone).
+            damage = projectile.throwerId() > 0 ? 8.0f : 5.0f;
+        }
         double kbYaw = Math.atan2(-projectile.velocityX(), projectile.velocityZ());
         combat.playerHit(projectile, player, damage, kbYaw);
         if (projectile.kind() == ProjectileEntity.Kind.SMALL_FIREBALL) {
             // The five-second burn after the hit (the same onHit arm).
             combat.playerIgniteFromProjectile(player);
+        }
+        if (projectile.kind() == ProjectileEntity.Kind.WITHER_SKULL) {
+            // The curse and the detonation at the struck player (onHit
+            // lines 69-84 — the same difficulty band as the mob arm).
+            combat.skullWitherCurse(player);
+            explosionSink.explode(player.position(), 1.0f);
         }
         if (projectile.kind() == ProjectileEntity.Kind.LARGE_FIREBALL) {
             // The detonation at the struck player (the fireball's own
@@ -719,6 +831,7 @@ public final class ProjectileManager {
     private static int throwerImmunityTicksOf(ProjectileEntity projectile) {
         return projectile.kind() == ProjectileEntity.Kind.LARGE_FIREBALL
                 || projectile.kind() == ProjectileEntity.Kind.SMALL_FIREBALL
+                || projectile.kind() == ProjectileEntity.Kind.WITHER_SKULL
                 ? FIREBALL_THROWER_IMMUNITY_TICKS : THROWER_IMMUNITY_TICKS;
     }
 

@@ -6546,3 +6546,66 @@ The reference's `DoubleWoodenSlabBlock`/`WoodenSlabBlock`, 1:1.
 
 Ledgered: the seamless skin (the stone-slab 43 family's SEAMLESS bit)
 still rides the metadata-variants slice (no gameplay path sets it).
+
+## Slice 59 — the wither boss (WitherEntity + WitherSkullEntity, 1:1)
+
+The boss that closes the 1.8.8 hostile set: the three-head quarry model,
+the 220-tick blue window, the skull family, the sweep, and the drop.
+
+- **The body** (already riding Slice 59a's `MobType.WITHER`: 64, the
+  0.9x3.5/300-health fire-immune UNDEAD boss, `mob.wither.*`, the
+  daylight-burn exemption through `bossFamily`, the never-despawn).
+- **The mind** (`tickWitherMind`, dispatched before the goal layer like
+  the blaze): the flight shaping on the main head's quarry (the rise
+  gate `y < ty || !half && y < ty+5` — the WIP's inverted `half` fixed
+  to the reference's `!isAtHalfHealth`, the weakened body hugs lower),
+  the 0.6 dampened hover, the 0.5-capped drift beyond 9 squared, the
+  yaw follow.
+- **The blue window**: `witherSummoned` SETS the health to the third
+  (the WIP's `Math.max` fixed — the 22 ten-heals carry 100 back to the
+  300 cap exactly at the end), the countdown's end fires the birth
+  (the 7.0F explosion at the eye + the GLOBAL 1013 — every player,
+  every dimension, the reference's `doGlobalEvent` broadcast), the
+  per-tick slot-20 Int dirty.
+- **The three heads**: the main head reads the hunt (`nearestVisibleEntityId`),
+  the side heads run their own quarries — the 10-20 acquisition band,
+  the quarry-validity walk (gone/dead/beyond-30/unseen EYE-TO-EYE/creative),
+  the 40-60 volley, the 16-volley charged barrage on normal+ (the
+  plus/minus 10/5/10 box), and the reference's own 10-roll box
+  acquisition over the living non-undead (the rejected pick leaves the
+  list, the mob's own random).
+- **The skull family** (`Kind.WITHER_SKULL` object 66, the API kind):
+  `launchWitherSkull` rides the shooter ctor (the 0.4-sigma tilt into
+  the 0.1 acceleration) from the head's own mount point
+  (getHeadX/Y/Z — the center at +3.0, the flanks at plus/minus 1.3 at
+  +2.2), the charged blue's own 0.73 drag, the flat 8.0 hit, the kill's
+  5.0 heal to the shooting wither, the WITHER II curse (10 s normal,
+  40 s hard, amplifier 1), the 1.0F detonation (no fire), and the
+  no-deflect surface.
+- **The hurt gates** (the manager's full overload, the reference's
+  order): the DROWN refusal, another wither's skull never lands, the
+  window blocks everything but the void, the half-health ARROW-only
+  shield (the fireball family still lands — the source pair rides the
+  CombatSink's projectile-carrying overload), the UNDEAD melee family
+  never wounds (players exempt), and every passing wound arms the
+  20-tick sweep + the charged +3.
+- **The sweep**: the 3x3x4 around the feet under mobGriefing, every
+  non-air destructible block breaks (bedrock/end-portal/frame/command-
+  block/barrier excepted) with its no-tool drops under doTileDrops, the
+  1012 when at least one fell.
+- **The drop**: the one nether star (the item's only source) under the
+  never-despawn flag (`ItemEntity.setNeverDespawn`), the 50-XP band,
+  the killWither stat row.
+- **The 1:1 audit riding the slice**: `MobType.damageCategory` and the
+  potion system's undead consult gain the pigman + the wither (both
+  UNDEAD in 1.8.8 — ZombiePigmanEntity extends ZombieEntity, the
+  inheritance the earlier band missed); the boss refuses every potion
+  effect (the empty `addStatusEffect` override) through the new
+  `refusesEffects` consult.
+- **The wire**: the spawn's four Ints (17-19 the heads, 20 the
+  countdown), `sendWitherMetadata` on the dirty, the global Effect
+  flag for 1013, the skull's objectData (the shooter) + the charged
+  byte at index 10, `wireEntityNameOf("Wither")`.
+- Tests: `WitherBossTest` (7) + `WitherSkullTest` (4). The
+  entity/projectile batches green (272), the full suite green at the
+  commit, `--max-workers=1`.

@@ -57,6 +57,15 @@ public final class MobManager {
     /** Where mob loot goes (the engine's item-entity system). */
     public interface LootSink {
         void spawnLootDrop(Position position, ItemStack stack);
+
+        /**
+         * A drop that never despawns (Slice 59 — the wither's nether star,
+         * ItemEntity.setNeverDespawn): the default bridges to the ordinary
+         * drop so simple sinks keep working.
+         */
+        default void spawnPersistentLootDrop(Position position, ItemStack stack) {
+            spawnLootDrop(position, stack);
+        }
     }
 
     /** Events the protocol adapter translates into wire updates. */
@@ -105,6 +114,64 @@ public final class MobManager {
          * with it — AttackGoal lines 230-244).
          */
         default void onMobBlazeFireball(MobEntity mob) {
+        }
+
+        /**
+         * The wither's blue window burned out (Slice 59 — mobAiTick lines
+         * 214-219): the 7.0F birth explosion at the body's eye and the
+         * GLOBAL 1013 spawn sound (every connected player, every
+         * dimension — doGlobalEvent's own broadcast).
+         */
+        default void onWitherBirth(MobEntity mob) {
+        }
+
+        /**
+         * The wither loosed one skull from a head (Slice 59 —
+         * shootSkullAt lines 383-400): {@code head} the head index (1-3),
+         * the target cell, and the charged flag — the launch rides the
+         * engine's projectile system with the head's own mount point.
+         */
+        default void onWitherSkull(MobEntity mob, int head, double targetX,
+                                   double targetY, double targetZ, boolean charged) {
+        }
+
+        /**
+         * The wither's sweep cooldown expired (Slice 59 — mobAiTick lines
+         * 285-312): the engine walks the 3x3x4 around the feet under the
+         * mobGriefing rule, breaking every destructible non-air block and
+         * dropping its loot (breakBlock(pos, true)).
+         */
+        default void onWitherSweep(MobEntity mob) {
+        }
+
+        /**
+         * The wither's head-target Ints or the invuln countdown changed
+         * (Slice 59 — the synced slots 17-20): the wire republishes the
+         * four Ints.
+         */
+        default void onWitherMetadataChanged(MobEntity mob) {
+        }
+
+        /**
+         * The wither's sweep broke at least one block (Slice 59 — line
+         * 309's doEvent(null, 1012, ...)): the chunk break sound.
+         */
+        default void onWitherBlockBreakSound(MobEntity mob) {
+        }
+
+        /**
+         * The wither loosed a skull (Slice 59 — line 384's doEvent(null,
+         * 1014, ...)): the launch sound at the body.
+         */
+        default void onWitherShootSound(MobEntity mob) {
+        }
+
+        /**
+         * A world event that reaches EVERY connected player (the
+         * reference's doGlobalEvent — PlayerManager.sendPacket, no
+         * distance and no dimension gate).
+         */
+        default void onWorldGlobalEventAt(Position position, int eventId) {
         }
 
         /**
@@ -1080,6 +1147,46 @@ public final class MobManager {
                     listener.onMobBlazeFireChanged(mob);
                 }
             }
+            // The wither's own band (Slice 59 — WitherEntity.mobAiTick's
+            // event family): the blue window's birth, the loosed skulls,
+            // the sweep walk, the head Ints' dirty resend, and the two
+            // sounds. The sweep fires BEFORE the break-sound consume so
+            // the walk's own mark (a block fell) lands in the same tick.
+            if (mob.type() == MobType.WITHER) {
+                if (mob.consumeWitherBirth()) {
+                    for (Listener listener : listeners) {
+                        listener.onWitherBirth(mob);
+                    }
+                }
+                int witherSkullHead = mob.consumeWitherSkullHead();
+                if (witherSkullHead >= 0) {
+                    for (Listener listener : listeners) {
+                        listener.onWitherSkull(mob, witherSkullHead,
+                                mob.pendingWitherSkullX(), mob.pendingWitherSkullY(),
+                                mob.pendingWitherSkullZ(), mob.pendingWitherSkullCharged());
+                    }
+                }
+                if (mob.consumeWitherSweep()) {
+                    for (Listener listener : listeners) {
+                        listener.onWitherSweep(mob);
+                    }
+                }
+                if (mob.consumeWitherMetadataDirty()) {
+                    for (Listener listener : listeners) {
+                        listener.onWitherMetadataChanged(mob);
+                    }
+                }
+                if (mob.consumeWitherShootSound()) {
+                    for (Listener listener : listeners) {
+                        listener.onWitherShootSound(mob);
+                    }
+                }
+                if (mob.consumeWitherBlockBreakSound()) {
+                    for (Listener listener : listeners) {
+                        listener.onWitherBlockBreakSound(mob);
+                    }
+                }
+            }
             // The wolf's water-shake cycle (Slice 30d — WolfEntity.tick's
             // closing block + mobTick's start gate): the event-8 broadcast,
             // the cycle-start sound at the reference's own volume/pitch
@@ -1668,10 +1775,12 @@ public final class MobManager {
                 victim.position().z() - attacker.position().z()));
         // The endermite's exemption rides the inner walk (the cause alone
         // cannot tell the kin from a claw — EndermanEntity.takeDamage
-        // lines 286-288).
+        // lines 286-288); the attacker rides it too (Slice 59 — the
+        // wither's UNDEAD-melee gate reads the source's body).
         boolean landed = hurt(victim, amount, kbYaw,
                 net.zaminmc.torch.event.DamageCause.MELEE,
-                attacker.type() == MobType.ENDERMITE);
+                attacker.type() == MobType.ENDERMITE,
+                false, attacker);
         if (landed) {
             if (attacker.type() == MobType.IRON_GOLEM) {
                 // tryDamage line 204: the landed golem hit launches the
@@ -1934,6 +2043,20 @@ public final class MobManager {
      */
     boolean hurt(MobEntity mob, float amount, double attackerYaw,
                  net.zaminmc.torch.event.DamageCause cause, boolean endermiteAttacker) {
+        return hurt(mob, amount, attackerYaw, cause, endermiteAttacker,
+                false, null);
+    }
+
+    /**
+     * The full walk with the projectile identity pair (Slice 59): the
+     * wither's own gates read whether the source was an arrow (the
+     * half-health shield is arrow-only) and the attacker's body (a
+     * wither's skull never wounds another wither; the UNDEAD melee
+     * family never wounds the boss).
+     */
+    public boolean hurt(MobEntity mob, float amount, double attackerYaw,
+                 net.zaminmc.torch.event.DamageCause cause, boolean endermiteAttacker,
+                 boolean arrowSource, MobEntity attacker) {
         Objects.requireNonNull(mob, "mob");
         if (amount <= 0 || mob.dead()) {
             return false;
@@ -1974,6 +2097,36 @@ public final class MobManager {
             if (cause == net.zaminmc.torch.event.DamageCause.PROJECTILE) {
                 mob.setEndermanAttackedByPlayer(false);
             }
+        }
+        // The wither's own gates (Slice 59 — WitherEntity.takeDamage
+        // lines 408-444, the reference's order): the drown and the
+        // wither's own skull never land (line 413), the blue window
+        // blocks everything but the void (line 417), the half-health
+        // body shields arrows alone (lines 421-426 — the source must be
+        // an ArrowEntity; fireballs and snowballs still land), and the
+        // UNDEAD melee family never wounds the boss (lines 428-434 —
+        // players are exempt by the reference's own instanceof gate).
+        // A wound that passes them all arms the 20-tick sweep clock and
+        // speeds the blue barrage (lines 436-442) BEFORE the damage.
+        if (mob.type() == MobType.WITHER) {
+            if (cause == net.zaminmc.torch.event.DamageCause.DROWN) {
+                return false;
+            }
+            if (attacker != null && attacker.type() == MobType.WITHER) {
+                return false; // the skull of another wither never lands
+            }
+            if (mob.witherInvulnerable()
+                    && cause != net.zaminmc.torch.event.DamageCause.OUT_OF_WORLD) {
+                return false; // the blue window blocks all but the void
+            }
+            if (arrowSource
+                    && mob.health() <= mob.type().maxHealth / 2.0f) {
+                return false; // the half-health arrow shield
+            }
+            if (attacker != null && attacker.type().damageCategory() == 1) {
+                return false; // the UNDEAD melee family (smite's own set)
+            }
+            mob.armWitherSweep();
         }
         mob.hurt(amount);
         mob.knockbackFrom(attackerYaw);
@@ -2085,6 +2238,16 @@ public final class MobManager {
                 lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()),
                         ItemStack.of(BuiltinItems.SPIDER_EYE, 1));
             }
+            return;
+        }
+        if (mob.type() == MobType.WITHER) {
+            // WitherEntity.dropItems (lines 448-459): the one nether star
+            // (the item's only source) under the never-despawn flag — the
+            // star stays until collected. The 50-XP band and the
+            // kill-wither achievement walk (the grown 50/100/50 player
+            // scan) ride the death fan-out's own sites.
+            lootSink.spawnPersistentLootDrop(new Position(at.x(), at.y() + 0.5, at.z()),
+                    ItemStack.of(BuiltinItems.NETHER_STAR, 1));
             return;
         }
         if (mob.type() == MobType.BLAZE) {

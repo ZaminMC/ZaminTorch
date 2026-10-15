@@ -133,11 +133,13 @@ class SlabStairsAcceptanceTest {
         assertEquals(BuiltinBlocks.OAK_SLAB, world.getBlock(floor.offset(1, 1, 2)),
                 "the cursor's lower half makes the bottom slab");
 
-        // The double: a use against the family's own half fills the clicked
-        // cell with the parent material (the vanilla ItemBlock rule).
+        // The double: a use against the family's own half doubles into the
+        // family's OWN double form (Slice 58 — DoubleWoodenSlabBlock over
+        // 125, the oak carrying the wire's own double_wooden_slab name; the
+        // pre-58 planks-cube stand-in retired).
         useOn(builder, above, 1, 0);
-        assertEquals(BuiltinBlocks.OAK_PLANKS, world.getBlock(above),
-                "the double slab is the parent material");
+        assertEquals(BuiltinBlocks.DOUBLE_WOODEN_SLAB, world.getBlock(above),
+                "the double slab is the family's own 125 form");
         assertEquals(0, builder.inventory().held().count(), "every slab spent");
     }
 
