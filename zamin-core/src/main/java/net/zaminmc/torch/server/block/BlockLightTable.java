@@ -623,6 +623,12 @@ public final class BlockLightTable {
         for (EngineBlockType pot : FlowerPotBlocks.familyBlocks()) {
             merged.put(pot.identifier(), new LightData(0, 0));
         }
+        // The weighted pressure-plate pair (Slice 49a — the thin 1/16
+        // plate passes light, the flora rule's own band).
+        for (EngineBlockType plate : net.zaminmc.torch.server.redstone
+                .WeightedPlateBlocks.familyBlocks()) {
+            merged.put(plate.identifier(), new LightData(0, 0));
+        }
         // The ground-cover pair (Slice 42 — the mycelium is an opaque
         // cube like the grass block; the lily pad is the 1/64 surface).
         merged.put(Identifier.parse("minecraft:mycelium"), new LightData(0, 15));

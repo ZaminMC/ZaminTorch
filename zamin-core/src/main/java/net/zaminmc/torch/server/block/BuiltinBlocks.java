@@ -939,6 +939,12 @@ public final class BuiltinBlocks {
         for (EngineBlockType pot : FlowerPotBlocks.familyBlocks()) {
             builder = builder.register(pot);
         }
+        // The weighted pressure-plate pair (Slice 49a —
+        // WeightedPressurePlateBlock 1:1): the sixteen POWER states each.
+        for (EngineBlockType plate : net.zaminmc.torch.server.redstone
+                .WeightedPlateBlocks.familyBlocks()) {
+            builder = builder.register(plate);
+        }
         return builder;
     }
 }

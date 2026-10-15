@@ -257,6 +257,20 @@ public final class RedstoneSystem implements WorldChangeListener {
         this.plateProbe = probe;
     }
 
+    /**
+     * The weighted plates' counting probe (Slice 49a —
+     * WeightedPressurePlateBlock.calculateOutputSignal's
+     * getEntitiesOfType(Entity.class): EVERY entity in the 0.125-inset box
+     * counts — mobs, players and dropped items alike): position -> the
+     * entity count for the weighted signal walk.
+     */
+    private java.util.function.ToIntFunction<BlockPosition> plateCountProbe;
+
+    /** Wires the weighted plates' counting probe. */
+    public void setPlateCountProbe(java.util.function.ToIntFunction<BlockPosition> probe) {
+        this.plateCountProbe = probe;
+    }
+
     /** Wires the detector rail's minecart probe (Slice 38 — the engine's
      *  vehicle manager feeding the occupancy scan). */
     public void setCartProbe(java.util.function.Predicate<BlockPosition> probe) {
@@ -342,9 +356,21 @@ public final class RedstoneSystem implements WorldChangeListener {
             notifyButtonNeighbors(position, RedstoneBlocks.buttonFacing(oldType));
             return;
         }
-        if (RedstoneBlocks.isPlate(oldType)) {
+        if (RedstoneBlocks.isPlate(oldType)
+                || net.zaminmc.torch.server.redstone.WeightedPlateBlocks
+                        .isWeightedPlate(oldType.identifier())) {
             platePositions.remove(position);
-            if (RedstoneBlocks.platePowered(oldType)) {
+            if (net.zaminmc.torch.server.redstone.WeightedPlateBlocks
+                    .isWeightedPlate(oldType.identifier())
+                    && net.zaminmc.torch.server.redstone.WeightedPlateBlocks
+                            .powerOf(oldType.identifier()) > 0) {
+                // AbstractPressurePlateBlock.onRemoved (lines 145-150) over
+                // the weighted pair's POWER state.
+                updateNeighbors(position);
+                updateNeighbors(position.offset(0, -1, 0));
+                return;
+            }
+            if (RedstoneBlocks.isPlate(oldType) && RedstoneBlocks.platePowered(oldType)) {
                 // AbstractPressurePlateBlock.onRemoved (lines 145-150).
                 updateNeighbors(position);
                 updateNeighbors(position.offset(0, -1, 0));
@@ -615,6 +641,10 @@ public final class RedstoneSystem implements WorldChangeListener {
             // AbstractPressurePlateBlock lines 159-161: the plate's output.
             return RedstoneBlocks.platePowered(type) ? 15 : 0;
         }
+        if (net.zaminmc.torch.server.redstone.WeightedPlateBlocks.isWeightedPlate(type.identifier())) {
+            // The weighted pair's output (getOutputSignal: the POWER state).
+            return net.zaminmc.torch.server.redstone.WeightedPlateBlocks.powerOf(type.identifier());
+        }
         if (net.zaminmc.torch.server.block.RailBlocks.familyOf(type) != null
                 && net.zaminmc.torch.server.block.RailBlocks.familyOf(type).equals("detector_rail")) {
             // DetectorRailBlock.getSignal lines 75-78 (Slice 38): the
@@ -839,6 +869,17 @@ public final class RedstoneSystem implements WorldChangeListener {
             // pops the button.
             if (!buttonSupported(type, pos)) {
                 popBlock(pos, BuiltinItems.STONE_BUTTON);
+            }
+            return;
+        }
+        if (net.zaminmc.torch.server.redstone.WeightedPlateBlocks.isWeightedPlate(type.identifier())) {
+            // The weighted pair's floor rule (the same neighborChanged
+            // lines 92-97): the floor break pops the plate with its item.
+            if (!hasSupportBelow(pos)) {
+                popBlock(pos, net.zaminmc.torch.server.redstone.WeightedPlateBlocks
+                        .familyOf(type.identifier()) == 0
+                        ? BuiltinItems.LIGHT_WEIGHTED_PRESSURE_PLATE
+                        : BuiltinItems.HEAVY_WEIGHTED_PRESSURE_PLATE);
             }
             return;
         }
@@ -1330,9 +1371,21 @@ public final class RedstoneSystem implements WorldChangeListener {
             }
             return;
         }
-        if (RedstoneBlocks.isPlate(type)) {
+        if (RedstoneBlocks.isPlate(type)
+                || net.zaminmc.torch.server.redstone.WeightedPlateBlocks
+                        .isWeightedPlate(type.identifier())) {
             // The plate joins the scan set; the first scan re-checks it.
             platePositions.add(pos);
+            if (net.zaminmc.torch.server.redstone.WeightedPlateBlocks
+                    .isWeightedPlate(type.identifier())) {
+                if (net.zaminmc.torch.server.redstone.WeightedPlateBlocks
+                        .powerOf(type.identifier()) > 0) {
+                    updateNeighbors(pos);
+                    updateNeighbors(pos.offset(0, -1, 0));
+                    scheduleTick(pos, FAMILY_PLATE, PLATE_TICK_RATE, 0);
+                }
+                return;
+            }
             if (RedstoneBlocks.platePowered(type)) {
                 // A powered plate arriving (a creative placement): its
                 // neighbors hear it like the reference's updateNeighbors.
@@ -1370,13 +1423,26 @@ public final class RedstoneSystem implements WorldChangeListener {
         for (BlockPosition plate : List.copyOf(java.util.Arrays.asList(
                 platePositions.toArray(new BlockPosition[0])))) {
             BlockType type = world.getBlock(plate);
-            if (!RedstoneBlocks.isPlate(type) || RedstoneBlocks.platePowered(type)) {
+            boolean weighted = net.zaminmc.torch.server.redstone.WeightedPlateBlocks
+                    .isWeightedPlate(type.identifier());
+            boolean booleanPlate = RedstoneBlocks.isPlate(type);
+            if ((!booleanPlate && !weighted)
+                    || (booleanPlate && RedstoneBlocks.platePowered(type))
+                    || (weighted && net.zaminmc.torch.server.redstone.WeightedPlateBlocks
+                            .powerOf(type.identifier()) > 0)) {
                 continue;
             }
-            if (computePlateOutput(plate) > 0) {
+            int pressed = computePlateOutput(plate);
+            if (pressed > 0) {
                 // The press (updateOutputState lines 124-131): the swap, the
                 // two rings, the re-arm.
-                world.setBlock(plate, RedstoneBlocks.plateOf(true, RedstoneBlocks.plateWooden(type)));
+                if (weighted) {
+                    world.setBlock(plate, net.zaminmc.torch.server.redstone.WeightedPlateBlocks
+                            .withPower(net.zaminmc.torch.server.redstone.WeightedPlateBlocks
+                                    .familyOf(type.identifier()), pressed));
+                } else {
+                    world.setBlock(plate, RedstoneBlocks.plateOf(true, RedstoneBlocks.plateWooden(type)));
+                }
                 updateNeighbors(plate);
                 updateNeighbors(plate.offset(0, -1, 0));
                 scheduleTick(plate, FAMILY_PLATE, PLATE_TICK_RATE, 0);
@@ -1985,9 +2051,36 @@ public final class RedstoneSystem implements WorldChangeListener {
      * releases.
      */
     private void plateTick(BlockPosition pos, BlockType type) {
-        if (computePlateOutput(pos) > 0) {
+        int occupied = computePlateOutput(pos);
+        if (occupied > 0) {
+            // The weighted plate re-writes its POWER on the re-scan (the
+            // count may have changed while held — the reference's update
+            // every scheduled tick).
+            if (net.zaminmc.torch.server.redstone.WeightedPlateBlocks.isWeightedPlate(type.identifier())) {
+                int held = net.zaminmc.torch.server.redstone.WeightedPlateBlocks
+                        .powerOf(type.identifier());
+                if (held != occupied) {
+                    world.setBlock(pos, net.zaminmc.torch.server.redstone.WeightedPlateBlocks
+                            .withPower(net.zaminmc.torch.server.redstone.WeightedPlateBlocks
+                                    .familyOf(type.identifier()), occupied));
+                    updateNeighbors(pos);
+                    updateNeighbors(pos.offset(0, -1, 0));
+                }
+            }
             scheduleTick(pos, FAMILY_PLATE, PLATE_TICK_RATE, 0); // re-arm
-        } else if (RedstoneBlocks.platePowered(type)) {
+            return;
+        }
+        if (net.zaminmc.torch.server.redstone.WeightedPlateBlocks.isWeightedPlate(type.identifier())) {
+            if (net.zaminmc.torch.server.redstone.WeightedPlateBlocks.powerOf(type.identifier()) > 0) {
+                world.setBlock(pos, net.zaminmc.torch.server.redstone.WeightedPlateBlocks
+                        .withPower(net.zaminmc.torch.server.redstone.WeightedPlateBlocks
+                                .familyOf(type.identifier()), 0));
+                updateNeighbors(pos);
+                updateNeighbors(pos.offset(0, -1, 0));
+            }
+            return;
+        }
+        if (RedstoneBlocks.platePowered(type)) {
             world.setBlock(pos, RedstoneBlocks.plateOf(false, RedstoneBlocks.plateWooden(type)));
             updateNeighbors(pos);
             updateNeighbors(pos.offset(0, -1, 0));
@@ -2000,6 +2093,21 @@ public final class RedstoneSystem implements WorldChangeListener {
      * EVERYTHING for wood; spectator players never trigger).
      */
     private int computePlateOutput(BlockPosition pos) {
+        // The weighted pair's count walk (Slice 49a —
+        // WeightedPressurePlateBlock.calculateOutputSignal lines 25-36):
+        // ceil(min(weight, entities) / weight * 15) — the light plate reads
+        // the entity count itself, the heavy every ten.
+        if (net.zaminmc.torch.server.redstone.WeightedPlateBlocks.isWeightedPlate(
+                world.getBlock(pos).identifier())) {
+            java.util.function.ToIntFunction<BlockPosition> counter = plateCountProbe;
+            if (counter == null) {
+                return 0;
+            }
+            int family = net.zaminmc.torch.server.redstone.WeightedPlateBlocks
+                    .familyOf(world.getBlock(pos).identifier());
+            return net.zaminmc.torch.server.redstone.WeightedPlateBlocks
+                    .outputSignal(family, counter.applyAsInt(pos));
+        }
         java.util.function.BiPredicate<BlockPosition, Boolean> probe = plateProbe;
         if (probe == null) {
             return 0;

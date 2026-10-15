@@ -755,6 +755,18 @@ final class LegacyBlockIds {
         merged.put(Identifier.parse("minecraft:potted_fern"), 140);
         merged.put(Identifier.parse("minecraft:potted_acacia_sapling"), 140);
         merged.put(Identifier.parse("minecraft:potted_dark_oak_sapling"), 140);
+        // The weighted pressure-plate pair (Slice 49a — Block.java's own
+        // rows): the light 147 and the heavy 148 — the sixteen POWER states
+        // each, the POWER value in the nibble.
+        for (int family = 0; family <= 1; family++) {
+            int id = family == 0 ? 147 : 148;
+            String key = family == 0 ? "light_weighted_pressure_plate"
+                    : "heavy_weighted_pressure_plate";
+            merged.put(Identifier.parse("minecraft:" + key), id);
+            for (int power = 1; power <= 15; power++) {
+                merged.put(Identifier.parse("minecraft:" + key + "_power" + power), id);
+            }
+        }
         // The ground-cover pair (Slice 42 — Block.java's own rows): the
         // mycelium 110, the waterlily 111 — both single meta-0 states (the
         // snowy side and the boat pass-through are the client's own reads).
@@ -1547,6 +1559,16 @@ final class LegacyBlockIds {
                     "potted_acacia_sapling", "potted_dark_oak_sapling"};
             for (int content = 1; content <= potContents.length; content++) {
                 merged.put(Identifier.parse("minecraft:" + potContents[content - 1]), content);
+            }
+        }
+        // The weighted plates' metadata nibble (Slice 49a —
+        // WeightedPressurePlateBlock.getMetadataFromState: the POWER value
+        // whole; the unpowered form rides the 0 default).
+        for (int family = 0; family <= 1; family++) {
+            String key = family == 0 ? "light_weighted_pressure_plate"
+                    : "heavy_weighted_pressure_plate";
+            for (int power = 1; power <= 15; power++) {
+                merged.put(Identifier.parse("minecraft:" + key + "_power" + power), power);
             }
         }
         merged.put(Identifier.parse("minecraft:wool"), 0);

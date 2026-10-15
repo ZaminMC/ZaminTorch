@@ -6123,3 +6123,33 @@ daisy — the reference renders them through the TE's CONTENTS; the wire's
 LEGACY_DATA has no code for them) and the pot's per-content color tint
 ride the block-entity family; the pot's 3/8-height box rides the
 collision-shape slice; the FLOWERS_POTTED stat rides the stats slice.
+
+## Slice 49a — the weighted pressure-plate pair: the light 147 + the heavy 148
+
+The reference port of `WeightedPressurePlateBlock.java` (Material.IRON,
+setStrength(0.5F) WOOD_SOUNDS — the light (gold) over the weight 15, the
+heavy (iron) over the weight 150).
+
+- The state model (`server/redstone/WeightedPlateBlocks`): the
+  thirty-two states — sixteen POWER each, the POWER value whole in the
+  metadata nibble; the bare form is the POWER-0 state.
+- The count walk (calculateOutputSignal): ceil(min(weight, entities) /
+  weight * 15) — the light plate reads the entity count itself (capped
+  15), the heavy ceil(count * 15 / 150).
+- The RedstoneSystem's weighted branches: the scan's press writes the
+  POWER state; the scheduled re-check re-writes the changed count while
+  held (the reference's every-tick update); the output read carries the
+  POWER state; the floor-break pop drops the family item; the
+  onAdded/onRemoved joins carry the scan set.
+- The counting probe `setPlateCountProbe` (EngineServer): EVERY entity in
+  the 0.125-inset box — mobs, players and dropped items alike
+  (getEntitiesOfType(Entity.class)'s own read).
+- The LIGHT/HEAVY plate items (147/148), the behavior rows (0.5), the
+  light rows (the thin plate passes), and the wire rows (the sixteen
+  states each with the POWER nibble).
+- Tests: `WeightedPlateBlocksTest` (1) + `BlockRegistryTest` 739. The
+  full core suite green, the protocol module green, `--max-workers=1`.
+
+Ledgered: the trapped chest 146 is Slice 49b (the chest system's family
+extension + the viewer-count weak power); the strong-up-only emission
+rides the existing plate branch.
