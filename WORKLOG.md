@@ -5518,3 +5518,60 @@ neighbor-signal bus carries that is not itself a signal source.
 Ledgered: the ore's stepped-on arm (onSteppedOn -> interact) rides the
 entity-walk family the engine's plate scan does not expose yet; the
 interact arm's spark particles are the client's randomDisplayTick band.
+
+## Slice 34 — the complete door families: the six woods + the iron upgrade
+
+The reference port of `DoorBlock.java` + `DoorItem.java` over the whole
+door vocabulary — the oak pair's own shape extended to spruce 193, birch
+194, jungle 195, acacia 196, dark_oak 197, and the iron door 71 raised
+from its five closed states to the full state grid.
+
+- The state model (`server/block/WoodDoorFamily`): 8 lowers per family
+  (the facing band 0-3 with the open bit 4) + the FULL upper grid —
+  hinge x powered x open, wire metas 8-15 exactly the reference's own
+  encoding (half 8 | hinge 1 | powered 2), with the engine's open flag
+  riding bit 4, a bit the 1.8.8 client ignores on upper halves. The
+  POWERED and OPEN bits stay INDEPENDENT exactly like the reference
+  (use() writes OPEN only; the signal arm writes both) — the manual
+  close of a signal-held door persists as closed-POWERED, and a manual
+  open never sets POWERED. The oak's `upper_open` byte corrected from
+  the historical 9 (a right-hinge claim) to 12 — old worlds' doors were
+  manually opened, and 12 is the exact byte a vanilla client decodes
+  for that state.
+- The placement (`EngineServer.placeDoorOnTick`, 1:1): the UP face only,
+  a replaceable clicked cell takes the door in place, the y<255 cap, the
+  solid-top floor gate, both cells' headroom, the player's own yaw band
+  into the metadata (the shipped band was already byte-exact), and
+  DoorItem.place's own hinge rule — the clockwise vs counterclockwise
+  solid counts with the same-family adjacency preference. The pair
+  commits under `RedstoneSystem.runDoorPairPlacement` (the reference's
+  flag-2 writes: both halves stand before any neighbor hears anything).
+- The swing (`toggleDoorOnTick`): the open-only flip with the hinge and
+  POWERED bits preserved; clicking EITHER half swings the pair (the
+  upper redirects down); the iron door's material refusal (consumed,
+  never swung).
+- The signal arm (`RedstoneSystem.doorNeighborChanged`): hasNeighborSignal
+  over BOTH halves; on the edge (flag != POWERED) POWERED flips
+  unconditionally and OPEN only when it differs — a held-open door never
+  re-toggles on unrelated neighbor changes, and the iron door opens only
+  this way. The orphan arm pops a pairless lower with its item drop; the
+  support-loss arm kills the pair with exactly one drop.
+- The drops: every state's behavior row drops the family item (the
+  reference's lower-only getDropItem nets the same one item through the
+  engine's broken-cell model — the sibling cleanup removes the survivor
+  silently); the iron pair is pickaxe-gated (Material.IRON's own
+  setRequiresTool).
+- The five new items (Item.java lines 748-751's own rows: 427-431) + the
+  wire (LegacyBlockIds: the ids 64/71/193-197 + the metadata nibbles 0-15
+  per family) + the light rows (CUTOUT opacity 0) + the noteblock's
+  bass-guitar wood family (every door state of the six woods).
+- Tests: `WoodDoorFamilyTest` (5, live engine) + `BlockRegistryTest` 375
+  + `LegacyBlockIdsIntegrityTest` +1. Batches: the touched-area batch
+  green (redstone + block + interaction + noteblock, 80 tests), the
+  protocol integrity + chunk serializer green, `--max-workers=1`.
+
+Ledgered: the five new woods' crafting rows (6 planks -> 3 doors) ride
+the wood-variant plank family's own slice; the doEvent 1003/1006 pair
+rides the engine's fx sound bus; the thin 3/16 collision panel rides the
+collision-shape slice (the open pair is walk-through, the closed halves
+flat-solid).

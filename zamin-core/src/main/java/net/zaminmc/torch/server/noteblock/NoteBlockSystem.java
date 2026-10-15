@@ -185,13 +185,12 @@ public final class NoteBlockSystem implements WorldChangeListener {
             "stained_glass_pane_red", "stained_glass_pane_black");
 
     /** The WOOD-material set (instrument 4 — bass guitar): the planks/log
-     *  family, the containers, the fence, the wooden door and slab, the
-     *  signs, and the note block itself (Material.WOOD). */
+     *  family, the containers, the fence, the wooden slab, the signs, and
+     *  the note block itself (Material.WOOD — the six wooden door
+     *  families' every state ride the isWoodDoor test, not this set). */
     private static final Set<String> WOOD_MATERIAL = Set.of(
             "oak_planks", "oak_log", "crafting_table", "chest", "bookshelf",
             "oak_fence", "noteblock",
-            "oak_door", "oak_door_east", "oak_door_north", "oak_door_west",
-            "oak_door_upper", "oak_door_upper_open",
             "oak_slab", "oak_slab_top",
             "sign", "sign_east", "sign_north", "sign_west",
             "wall_sign", "wall_sign_east", "wall_sign_south", "wall_sign_west");
@@ -207,10 +206,25 @@ public final class NoteBlockSystem implements WorldChangeListener {
         if (GLASS_MATERIAL.contains(belowValue)) {
             return INSTRUMENT_HAT;
         }
-        if (WOOD_MATERIAL.contains(belowValue)) {
+        if (WOOD_MATERIAL.contains(belowValue) || isWoodDoor(belowValue)) {
             return INSTRUMENT_BASS_GUITAR;
         }
         return INSTRUMENT_HARP;
+    }
+
+    /** Whether the value is a wooden door state (the six wood families'
+     *  every state — DoorBlock's Material.WOOD; the iron door is IRON and
+     *  rides the stone set's rock family instead). */
+    private static boolean isWoodDoor(String value) {
+        if (value.startsWith("iron_door")) {
+            return false;
+        }
+        return value.equals("oak_door") || value.startsWith("oak_door_")
+                || value.equals("spruce_door") || value.startsWith("spruce_door_")
+                || value.equals("birch_door") || value.startsWith("birch_door_")
+                || value.equals("jungle_door") || value.startsWith("jungle_door_")
+                || value.equals("acacia_door") || value.startsWith("acacia_door_")
+                || value.equals("dark_oak_door") || value.startsWith("dark_oak_door_");
     }
 
     // ------------------------------------------------------------- the tile lifecycle
