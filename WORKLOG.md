@@ -6056,3 +6056,36 @@ visible crumb bites 6).
 Ledgered: the cake's per-bite 7/16-height collision box rides the
 collision-shape slice; the CAKE_SLICES_EATEN stat rides the stats slice;
 the milk bucket's drink rides the food slice.
+
+## Slice 47 — the wall family: the cobblestone wall 139's two VARIANT states
+
+The reference port of `WallBlock.java` (the NORMAL cobblestone form 0 and
+the MOSSY form 1, over the cobblestone's own strength — 2.0, the stone
+sounds, the pickaxe gate).
+
+- The state model (`server/block/WallBlocks`): the two states with the
+  VARIANT id whole in the metadata nibble; the UP/N/E/S/W connections are
+  VIRTUAL in the reference (resolveVirtualProperties — computed from the
+  neighbors, never stored): the wire never carries them, the client
+  renders its own connections exactly like the reference.
+- The family item: `minecraft:cobblestone_wall` (Item.java's own
+  VariantBlockItem over 139) with the VARIANT damage domain — out-of-band
+  damage clamps to the NORMAL form like the reference's Variant.byId.
+- The crafting pair (CraftingManager lines 89-90): six cobblestone -> six
+  walls, six mossy cobblestone -> six mossy (damage 1 in the result).
+- The behavior rows (2.0 ROCK pickaxe-gated tier 1, the family item drop
+  with the VARIANT damage), the light rows (the non-solid-render partial
+  column passes), and the wire rows (the two states at 139 with the mossy
+  nibble 1).
+- The audit repair: the MOSSY_COBBLESTONE item (48) — the pre-47 behavior
+  row dropped it without a registered item type; the survival break of a
+  mossy cobblestone threw the DropService's unregistered-item guard. The
+  wall's mossy recipe reads it as an ingredient too.
+- Tests: `WallBlocksTest` (1) + `BlockRegistryTest` 693 +
+  `CraftingRecipeTest` 196. The full core suite green, the protocol module
+  green, `--max-workers=1`.
+
+Ledgered: the wall's 1.5-block maxY collision and the per-connection
+0.25-0.75 shape ride the collision-shape slice (the flat-solid stand-in:
+the wall reads SOLID); the connection rendering is the client's own
+virtual read exactly like the reference.

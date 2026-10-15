@@ -832,6 +832,18 @@ public final class BuiltinItems {
     // returns the empty bucket — Item.getRecipeRemainder's own consult).
     public static final EngineItemType MILK_BUCKET = new EngineItemType(
             Identifier.parse("minecraft:milk_bucket"), "Milk Bucket", 1);
+    // The wall family item (Slice 47 — Item.java's own VariantBlockItem
+    // row over 139) whose damage field carries the WallBlock.Variant id
+    // (0 cobblestone, 1 mossy).
+    public static final EngineItemType COBBLESTONE_WALL = new EngineItemType(
+            Identifier.parse("minecraft:cobblestone_wall"), "Cobblestone Wall", 64);
+    // The mossy cobblestone item (Slice 47's audit repair — Item.java's
+    // own BlockItem over the wire 48): the pre-45 behavior row dropped it
+    // without a registered item type — the survival break threw the
+    // DropService's unregistered-item guard. The wall's mossy recipe reads
+    // it as an ingredient too.
+    public static final EngineItemType MOSSY_COBBLESTONE = new EngineItemType(
+            Identifier.parse("minecraft:mossy_cobblestone"), "Mossy Cobblestone", 64);
 
     // Decoration flora + desert stone (the placeable block-item forms; the
     // flowers drop themselves, tall grass/dead bush are /give-reachable).
@@ -999,7 +1011,7 @@ public final class BuiltinItems {
                 DIAMOND_BLOCK, EMERALD_BLOCK, BEACON,
                 BONE, STRING, GUNPOWDER, WOOL, MUTTON, COOKED_MUTTON, SLIME_BALL,
                 SKULL,
-                BUCKET, WATER_BUCKET, LAVA_BUCKET, MILK_BUCKET,
+                BUCKET, WATER_BUCKET, LAVA_BUCKET, MILK_BUCKET, COBBLESTONE_WALL, MOSSY_COBBLESTONE,
                 FLINT_AND_STEEL, GOLD_INGOT,
                 SUGAR_CANE, CACTUS, SUGAR, PAPER, BOOK,
                 TALL_GRASS, DEAD_BUSH, DANDELION, POPPY, RED_FLOWER, DOUBLE_PLANT, SANDSTONE,
