@@ -871,6 +871,13 @@ public final class BuiltinItems {
             Identifier.parse("minecraft:red_sandstone_stairs"), "Red Sandstone Stairs", 64);
     public static final EngineItemType STONE_SLAB2 = new EngineItemType(
             Identifier.parse("minecraft:stone_slab2"), "Red Sandstone Slab", 64);
+    // The anvil item (Slice 53 — Item.java's own AnvilItem row over 145,
+    // the VariantBlockItem whose damage field carries the AnvilBlock.DAMAGE
+    // id — the creative menu's own three stacks: intact, chipped, damaged;
+    // the block's meta band reads it back through getBlockMetadata's
+    // damage << 2).
+    public static final EngineItemType ANVIL_ITEM = new EngineItemType(
+            Identifier.parse("minecraft:anvil"), "Anvil", 64);
 
     // Decoration flora + desert stone (the placeable block-item forms; the
     // flowers drop themselves, tall grass/dead bush are /give-reachable).
@@ -1039,7 +1046,7 @@ public final class BuiltinItems {
                 BONE, STRING, GUNPOWDER, WOOL, MUTTON, COOKED_MUTTON, SLIME_BALL,
                 SKULL,
                 BUCKET, WATER_BUCKET, LAVA_BUCKET, MILK_BUCKET, COBBLESTONE_WALL, MOSSY_COBBLESTONE, FLOWER_POT, LIGHT_WEIGHTED_PRESSURE_PLATE, HEAVY_WEIGHTED_PRESSURE_PLATE, TRAPPED_CHEST,
-                RED_SANDSTONE, RED_SANDSTONE_STAIRS, STONE_SLAB2,
+                RED_SANDSTONE, RED_SANDSTONE_STAIRS, STONE_SLAB2, ANVIL_ITEM,
                 FLINT_AND_STEEL, GOLD_INGOT,
                 SUGAR_CANE, CACTUS, SUGAR, PAPER, BOOK,
                 TALL_GRASS, DEAD_BUSH, DANDELION, POPPY, RED_FLOWER, DOUBLE_PLANT, SANDSTONE,

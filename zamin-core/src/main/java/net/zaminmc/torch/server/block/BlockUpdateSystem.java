@@ -59,6 +59,12 @@ public final class BlockUpdateSystem implements WorldChangeListener {
     private static final Identifier FIRE = Identifier.parse("minecraft:fire");
     private static final Identifier NETHER_PORTAL = Identifier.parse("minecraft:nether_portal");
     private static final Identifier NETHER_PORTAL_Z = Identifier.parse("minecraft:nether_portal_z");
+
+    /** The anvil's fall band (Slice 53 — FallingBlock over Material.ANVIL): every state joins the gravity wake exactly like the sand family. */
+    private static boolean isFallFamily(Identifier id) {
+        return id.equals(SAND) || id.equals(RED_SAND) || id.equals(GRAVEL)
+                || net.zaminmc.torch.server.block.AnvilBlocks.isAnvil(id);
+    }
     private static final Identifier SUGAR_CANE = Identifier.parse("minecraft:sugar_cane");
     private static final Identifier CACTUS = Identifier.parse("minecraft:cactus");
 
@@ -313,8 +319,7 @@ public final class BlockUpdateSystem implements WorldChangeListener {
             return;
         }
         Identifier identifier = type.identifier();
-        if (!identifier.equals(SAND) && !identifier.equals(RED_SAND)
-                && !identifier.equals(GRAVEL)) {
+        if (!isFallFamily(identifier)) {
             return;
         }
         if (net.zaminmc.torch.server.entity.FallingBlockEntity.canFallThrough(
@@ -332,8 +337,7 @@ public final class BlockUpdateSystem implements WorldChangeListener {
             return;
         }
         Identifier identifier = type.identifier();
-        if (identifier.equals(SAND) || identifier.equals(RED_SAND)
-                || identifier.equals(GRAVEL)) {
+        if (isFallFamily(identifier)) {
             // The vanilla wake (FallingBlock.onAdded/onNeighborChanged): the
             // tryFall check schedules two ticks out — the block hovers for
             // two ticks after its support vanishes before it converts.

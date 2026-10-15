@@ -641,6 +641,67 @@ public final class EngineServer implements Server, EngineBridge {
                         FALLING_ID_BASE);
                 this.fallingEntities = falling;
                 falling.addListener(new FallingEventDispatch());
+                // The anvil's landing walk (Slice 53 — FallingBlockEntity.
+                // takeFallDamage 1:1): the hurt over the accumulated fall
+                // (ceil(distance - 1), every body in the 0.98 box takes
+                // min(floor(i * 2), 40) — the fallHurtAmount 2.0F/maxFallHurt
+                // 40 pair), then the progression roll (random.nextFloat() <
+                // 0.05F + i * 0.05 walks the DAMAGE field forward — past 2 the
+                // anvil breaks, the brokeAnvil path: nothing placed, nothing
+                // dropped), and the land sound on the successful placement
+                // (the reference's onTickFallingBlockEntity — world event
+                // 1022, the client's random.anvil_land).
+                falling.setAnvilLanding((entity, landing) -> {
+                    double distance = entity.fallDistance();
+                    int i = (int) Math.ceil(distance - 1.0F);
+                    int damage = net.zaminmc.torch.server.block.AnvilBlocks
+                            .damageOf(entity.blockType().identifier());
+                    if (i > 0) {
+                        // Every body in the 0.98 box at the landing cell:
+                        // mobs, players (the playing non-spectators). The
+                        // reference's box is 0.98 centered; the position is
+                        // the box bottom, so the band is the cell's own.
+                        double minX = landing.x() + 0.01, maxX = landing.x() + 1 - 0.01;
+                        double minY = landing.y(), maxY = landing.y() + 0.98;
+                        double minZ = landing.z() + 0.01, maxZ = landing.z() + 1 - 0.01;
+                        for (net.zaminmc.torch.server.entity.MobEntity mob : mobs.all()) {
+                            net.zaminmc.torch.util.Position at = mob.position();
+                            if (at.x() >= minX && at.x() <= maxX && at.y() >= minY
+                                    && at.y() <= maxY && at.z() >= minZ && at.z() <= maxZ) {
+                                mob.hurt(Math.min(i * 2, 40));
+                            }
+                        }
+                        for (PlayerSession body : players.all()) {
+                            if (body.state() != net.zaminmc.torch.entity.PlayerState.PLAYING
+                                    || body.gamemode() == GameMode.SPECTATOR) {
+                                continue; // canAvoidTraps
+                            }
+                            net.zaminmc.torch.util.Position at = body.position();
+                            if (at.x() >= minX && at.x() <= maxX && at.y() >= minY
+                                    && at.y() <= maxY && at.z() >= minZ && at.z() <= maxZ) {
+                                body.hurt(Math.min(i * 2, 40));
+                            }
+                        }
+                        // The progression roll (the reference's own band:
+                        // 0.05 + i * 0.05).
+                        if (gameplayRandom.nextFloat() < 0.05F + i * 0.05F) {
+                            damage = net.zaminmc.torch.server.block.AnvilBlocks
+                                    .progressedDamage(damage);
+                        }
+                    }
+                    if (damage < 0) {
+                        return java.util.Optional.empty(); // brokeAnvil
+                    }
+                    if (damage == net.zaminmc.torch.server.block.AnvilBlocks
+                            .damageOf(entity.blockType().identifier())) {
+                        return java.util.Optional.of(entity.blockType());
+                    }
+                    // The progressed state: the same facing, the walked DAMAGE.
+                    int facing = net.zaminmc.torch.server.block.AnvilBlocks
+                            .facingOf(entity.blockType().identifier());
+                    return java.util.Optional.of(blockRegistry.require(
+                            net.zaminmc.torch.server.block.AnvilBlocks.stateId(facing, damage)));
+                });
                 // Scheduled block updates (§466): neighbor notifications drive the
                 // gravity/torch/grass/fire rules. Registered as a world listener before
                 // the adapter, so engine-side rules observe every commit first.
@@ -6415,6 +6476,14 @@ public final class EngineServer implements Server, EngineBridge {
             placeBedOnTick(session, clicked, face, creativeHeld);
             return; // the two-half bed overrides the generic placement
         }
+        // The anvil (Slice 53 — the facing-and-damage placement overrides
+        // the generic arm).
+        if (heldId.equals("minecraft:anvil")
+                || creativeHeld.map(t -> net.zaminmc.torch.server.block.AnvilBlocks
+                        .isAnvil(t.identifier())).orElse(false)) {
+            placeAnvilOnTick(session, clicked, face, creativeHeld);
+            return;
+        }
         if (heldId.endsWith("_slab") || heldId.equals("stone_slab2")
                 || creativeHeld.map(t -> isSlabIdentifier(t.identifier().value())).orElse(false)) {
             placeSlabOnTick(session, clicked, face, creativeHeld, cursorY);
@@ -8289,6 +8358,49 @@ public final class EngineServer implements Server, EngineBridge {
      * follows the placer's look), OPEN and POWERED start clear, and the
      * floor must be solid ({@code getMaterial().isSolid()}). Tick-thread.
      */
+    /**
+     * The anvil's placement (Slice 53 — AnvilBlock.getPlacementState 1:1):
+     * the facing is the placer's own horizontal facing turned clockwise
+     * (entity.getHorizontalFacing().clockwiseY()), the DAMAGE the held
+     * stack's damage field (the reference's metadata >> 2 read over the
+     * AnvilItem's damage domain). Tick-thread context.
+     */
+    private void placeAnvilOnTick(PlayerSession session, BlockPosition clicked, int face,
+                                  java.util.Optional<BlockType> creativeHeld) {
+        String held = heldIdentifierOf(session, creativeHeld);
+        if (held == null || !held.equals("minecraft:anvil")) {
+            return;
+        }
+        BlockPosition target = offsetByFace(clicked, face);
+        if (target == null || world.getBlock(clicked).equals(world.airType())
+                || !world.getBlock(target).equals(world.airType())) {
+            return;
+        }
+        if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5
+                || intersectsPlayerBox(session.position(), target)) {
+            return;
+        }
+        if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE
+                && session.inventory().held().isEmpty()) {
+            return;
+        }
+        // The look band (0=S,1=W,2=N,3=E) turned clockwise: the anvil's
+        // FACING band is the placer's own horizontal facing clockwiseY.
+        double yaw = ((session.rotation().yaw() % 360.0) + 360.0 + 45.0) % 360.0;
+        int lookBand = (int) (yaw / 90.0) % 4;
+        int facing = (lookBand + 1) % 4; // clockwiseY: S->W, W->N, N->E, E->S
+        // The DAMAGE: the held stack's damage field (the AnvilItem's domain,
+        // the creative menu's own three stacks).
+        int damage = 0;
+        if (creativeHeld.isEmpty() && !session.inventory().held().isEmpty()) {
+            damage = net.zaminmc.torch.server.block.AnvilBlocks
+                    .placementDamageOf(session.inventory().held().damage());
+        }
+        world.setBlock(target, blockRegistry.require(
+                net.zaminmc.torch.server.block.AnvilBlocks.stateId(facing, damage)));
+        consumePlaced(session, creativeHeld);
+    }
+
     private void placeFenceGateOnTick(PlayerSession session, BlockPosition clicked, int face,
                                       java.util.Optional<BlockType> creativeHeld) {
         String held = heldIdentifierOf(session, creativeHeld);
@@ -10511,6 +10623,16 @@ public final class EngineServer implements Server, EngineBridge {
 
         @Override
         public void onFallingEnded(FallingBlockEntity entity, boolean becameBlock) {
+            // The anvil's land sound (Slice 53 — the reference's
+            // onTickFallingBlockEntity: world event 1022 at the landing
+            // cell, fired only on the successful placement — the client
+            // answers random.anvil_land).
+            if (becameBlock && net.zaminmc.torch.server.block.AnvilBlocks
+                    .isAnvil(entity.blockType().identifier())) {
+                fxManager.sound(new Position(
+                        entity.position().x(), entity.position().y(), entity.position().z()),
+                        "random.anvil_land", 1.0f, 1.0f);
+            }
             for (FallingBlockEntityManager.Listener listener : fallingListeners) {
                 listener.onFallingEnded(entity, becameBlock);
             }

@@ -81,11 +81,14 @@ public final class FallingBlockEntity implements net.zaminmc.torch.entity.Fallin
     private double velocityY;
     private boolean onGround;
     private int fallingTicks;
+    /** The fall's source Y (Slice 53): the box bottom's starting height — the accumulated displacement is exactly {@code startY - restingY} (the fall only descends). */
+    private final double startY;
 
     public FallingBlockEntity(int entityId, net.zaminmc.torch.block.BlockType blockType, Position center) {
         this.entityId = entityId;
         this.blockType = Objects.requireNonNull(blockType, "blockType");
         this.position = Objects.requireNonNull(center, "center");
+        this.startY = center.y();
     }
 
     /** The test seam: a fall already {@code initialFallingTicks} deep. */
@@ -95,6 +98,7 @@ public final class FallingBlockEntity implements net.zaminmc.torch.entity.Fallin
         this.blockType = Objects.requireNonNull(blockType, "blockType");
         this.position = Objects.requireNonNull(center, "center");
         this.fallingTicks = initialFallingTicks;
+        this.startY = center.y();
     }
 
     public int entityId() {
@@ -120,6 +124,20 @@ public final class FallingBlockEntity implements net.zaminmc.torch.entity.Fallin
     /** The vanilla {@code fallingTicks}: the tick count since the fall began. */
     public int fallingTicks() {
         return fallingTicks;
+    }
+
+    /** The fall's source height (Slice 53): the box bottom's starting Y. */
+    public double startY() {
+        return startY;
+    }
+
+    /**
+     * The accumulated fall distance at a resting bottom (Slice 53 — the
+     * vanilla {@code fallDistance} the takeFallDamage walk receives): the
+     * displacement from the source cell's bottom to the resting bottom.
+     */
+    public double fallDistance() {
+        return Math.max(0.0, startY - position.y());
     }
 
     /**
