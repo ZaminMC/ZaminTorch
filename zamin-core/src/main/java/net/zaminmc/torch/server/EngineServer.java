@@ -6154,6 +6154,27 @@ public final class EngineServer implements Server, EngineBridge {
             toggleFenceGateOnTick(session, clicked, current);
             return;
         }
+        if (net.zaminmc.torch.server.block.TrapdoorBlocks.isTrapdoor(current)) {
+            // The trapdoor's own use() (TrapdoorBlock lines 107-116): the
+            // wood flips OPEN (the doEvent 1003/1006 pair riding the fx
+            // bus), the iron's material refusal still consumes the use
+            // (the reference's return true).
+            if (!net.zaminmc.torch.server.block.TrapdoorBlocks.isIron(
+                    net.zaminmc.torch.server.block.TrapdoorBlocks.familyOf(current))) {
+                boolean opening = !net.zaminmc.torch.server.block.TrapdoorBlocks.isOpen(current);
+                world.setBlock(clicked, net.zaminmc.torch.server.block.TrapdoorBlocks
+                        .flipOpen(current));
+                fxManager.sound(new Position(clicked.x() + 0.5, clicked.y() + 0.5, clicked.z() + 0.5),
+                        opening ? "random.door_open" : "random.door_close", 0.8f, 1.0f);
+            }
+            return; // the swing consumed the right-click (either family)
+        }
+        if (net.zaminmc.torch.server.block.TrapdoorBlocks.isTrapdoorItem(heldId)
+                || creativeHeld.map(t -> net.zaminmc.torch.server.block.TrapdoorBlocks
+                        .isTrapdoorItem(t.identifier().value())).orElse(false)) {
+            placeTrapdoorOnTick(session, clicked, face, creativeHeld, cursorY);
+            return; // the wall-mount rule overrides the generic placement
+        }
         if (WoodDoorFamily.isDoorItem(heldId)
                 || creativeHeld.map(t -> WoodDoorFamily.isDoorItem(
                         t.identifier().value())).orElse(false)) {
@@ -7734,6 +7755,80 @@ public final class EngineServer implements Server, EngineBridge {
     /** The horizontal band's opposite (0<->2 south/north, 1<->3 west/east). */
     private static int oppositeBand(int band) {
         return (band + 2) & 3;
+    }
+
+    /**
+     * The trapdoor's placement (TrapdoorBlock.getPlacementState +
+     * canBePlaced lines 145-158, 1:1): only a HORIZONTAL clicked face
+     * mounts (the trapdoor hangs on the wall the use names), the facing is
+     * the clicked face's own direction (the panel sits against the wall),
+     * the half rides the cursor's upper band ({@code dy > 0.5F}), and the
+     * wall block must be a valid mount (canBePlacedOn: a solid cube, the
+     * glowstone, a slab, or a stairs). Tick-thread context.
+     */
+    private void placeTrapdoorOnTick(PlayerSession session, BlockPosition clicked, int face,
+                                      java.util.Optional<BlockType> creativeHeld, int cursorY) {
+        if (face < 2 || face > 5) {
+            return; // only a horizontal face mounts (the verticals refuse)
+        }
+        String held = heldIdentifierOf(session, creativeHeld);
+        String family = held != null && held.contains(":")
+                ? held.substring(held.indexOf(':') + 1) : held;
+        if (family == null
+                || !net.zaminmc.torch.server.block.TrapdoorBlocks.isTrapdoorItem(family)) {
+            return;
+        }
+        // The facing band (the reference's getFacing: the face direction
+        // over the 0-3 order N, S, W, E).
+        int facing = switch (face) {
+            case 2 -> 0; // north
+            case 3 -> 1; // south
+            case 4 -> 2; // west
+            default -> 3; // east
+        };
+        BlockPosition target = offsetByFace(clicked, face);
+        if (target == null || world.getBlock(clicked).equals(world.airType())
+                || !world.getBlock(target).equals(world.airType())) {
+            return;
+        }
+        if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5
+                || intersectsPlayerBox(session.position(), target)) {
+            return;
+        }
+        if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE
+                && session.inventory().held().isEmpty()) {
+            return;
+        }
+        // canBePlacedOn (line 188-190): the wall block — a solid cube, the
+        // glowstone, a slab, or a stairs family member.
+        if (!isTrapdoorMount(world.getBlock(clicked))) {
+            return;
+        }
+        boolean top = (cursorY & 0xFF) >= 8; // dy > 0.5F
+        world.setBlock(target, net.zaminmc.torch.server.block.TrapdoorBlocks
+                .state(family, facing, false, top));
+        consumePlaced(session, creativeHeld);
+    }
+
+    /** canBePlacedOn's own set (TrapdoorBlock lines 188-190): a solid
+     *  full cube (the engine's isSolid minus the known partial shapes —
+     *  the fences, the gates, the doors, the rails, the chest's 15/16
+     *  box), the glowstone, the slabs, and the stairs. */
+    private boolean isTrapdoorMount(BlockType block) {
+        if (block.identifier().equals(BuiltinBlocks.GLOWSTONE.identifier())) {
+            return true;
+        }
+        String value = block.identifier().value();
+        if (isSlabIdentifier(value) || isStairsIdentifier(value)) {
+            return true; // the slab and stairs families (instanceof rows)
+        }
+        return WorldSolidity.isSolid(block)
+                && !value.startsWith("minecraft:fence")
+                && !net.zaminmc.torch.server.block.FenceGateBlocks.isGateItem(value)
+                && !value.contains("_door") && !value.contains("trapdoor")
+                && !WorldSolidity.isRail(block.identifier())
+                && !net.zaminmc.torch.server.block.RailBlocks.isRailItem(value)
+                && !value.equals("chest") && !value.startsWith("chest_");
     }
 
     /**

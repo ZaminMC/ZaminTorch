@@ -882,6 +882,11 @@ public final class BuiltinBlocks {
         for (EngineBlockType rail : RailBlocks.familyBlocks()) {
             builder = builder.register(rail);
         }
+        // The trapdoor pair (Slice 39 — TrapdoorBlock 1:1): the wood 96 and
+        // iron 167 families' sixteen facing/open/half states each.
+        for (EngineBlockType trapdoor : TrapdoorBlocks.familyBlocks()) {
+            builder = builder.register(trapdoor);
+        }
         return builder;
     }
 }
