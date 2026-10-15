@@ -1341,6 +1341,52 @@ public final class BlockBehaviorTable {
                                     WallBlocks.variantOf(wall.identifier())))));
         }
 
+        // The red sandstone family (Slice 52 — 1.8's own four, the
+        // reference's own rows): the red sand rides the sand's own
+        // 0.5-shovel row (SandBlock's setStrength(0.5F) — no tool gate,
+        // the drop the sand item itself at the RED_SAND variant's damage
+        // 1); the three TYPE states and the four stairs carry the block's
+        // own 0.8 pickaxe row (RedSandstoneBlock's setStrength(0.8F) —
+        // Material.STONE; the stairs inherit the SMOOTH base's strength
+        // exactly like the reference's new StairsBlock(state)); the slab
+        // pair and the double carry the SingleRedSandstoneSlabBlock rows
+        // (setStrength(2.0F).setBlastResistance(10.0F)) with every form's
+        // drop the single-slab item (getDropItem's own consult — the
+        // double and the top alike yield the one slab, getDropItemMetadata
+        // the RED_SANDSTONE variant id 0).
+        behaviors.put(net.zaminmc.torch.server.block.RedSandstoneBlocks.RED_SAND,
+                new BlockBehavior(0.5, true, false, "dirt", 0,
+                        java.util.List.of(new BlockBehavior.Drop(
+                                Identifier.parse("minecraft:sand"), 1, 1))));
+        for (net.zaminmc.torch.server.block.EngineBlockType member
+                : net.zaminmc.torch.server.block.RedSandstoneBlocks.familyBlocks()) {
+            if (net.zaminmc.torch.server.block.RedSandstoneBlocks.isRedSand(member.identifier())) {
+                continue; // the red sand rides the sand row above
+            }
+            if (net.zaminmc.torch.server.block.RedSandstoneBlocks.isStairs(member.identifier())) {
+                behaviors.put(member.identifier(),
+                        new BlockBehavior(0.8, true, true, "rock", 1,
+                                java.util.List.of(new BlockBehavior.Drop(
+                                        Identifier.parse("minecraft:red_sandstone_stairs"), 1))));
+                continue;
+            }
+            behaviors.put(member.identifier(),
+                    new BlockBehavior(0.8, true, true, "rock", 1,
+                            java.util.List.of(new BlockBehavior.Drop(
+                                    net.zaminmc.torch.server.block.RedSandstoneBlocks.FAMILY_ITEM, 1,
+                                    net.zaminmc.torch.server.block.RedSandstoneBlocks.typeOf(
+                                            member.identifier())))));
+        }
+        for (Identifier slab : new Identifier[] {
+                Identifier.parse("minecraft:double_stone_slab2"),
+                Identifier.parse("minecraft:stone_slab2"),
+                Identifier.parse("minecraft:stone_slab2_top")}) {
+            behaviors.put(slab,
+                    new BlockBehavior(2.0, true, true, "rock", 1,
+                            java.util.List.of(new BlockBehavior.Drop(
+                                    Identifier.parse("minecraft:stone_slab2"), 1))));
+        }
+
         // The weighted pressure-plate pair (Slice 49a —
         // WeightedPressurePlateBlock's own rows: setStrength(0.5F)
         // WOOD_SOUNDS over Material.IRON; every state drops its family

@@ -477,6 +477,41 @@ public final class BuiltinRecipes {
                     { ing("minecraft:tripwire_hook", false, 0) }
             },
                     res("minecraft:trapped_chest", 1, 0)),
+            // The red sandstone family (Slice 52 — the reference's own five
+            // rows): the 2x2 masonry over the RED_SAND sand (BlockRecipes
+            // line 26), the SMOOTH fold (lines 35-39: 2x2 of the DEFAULT
+            // yields four SMOOTH), the CHISELED column (lines 49-53: two
+            // slabs stacked yield one chiseled), the slab row (CraftingManager
+            // line 158: three of any red sandstone yield six slabs) and the
+            // stairs (CraftingManager line 272: the 3-step shape over any
+            // red sandstone yields four stairs).
+            CraftingRecipe.shaped(new Ingredient[][] {
+                    { ing("minecraft:sand", true, 1), ing("minecraft:sand", true, 1) },
+                    { ing("minecraft:sand", true, 1), ing("minecraft:sand", true, 1) }
+            },
+                    res("minecraft:red_sandstone", 1, 0)),
+            CraftingRecipe.shaped(new Ingredient[][] {
+                    { ing("minecraft:red_sandstone", true, 0), ing("minecraft:red_sandstone", true, 0) },
+                    { ing("minecraft:red_sandstone", true, 0), ing("minecraft:red_sandstone", true, 0) }
+            },
+                    res("minecraft:red_sandstone", 4, 2)),
+            CraftingRecipe.shaped(new Ingredient[][] {
+                    { ing("minecraft:stone_slab2", true, 0) },
+                    { ing("minecraft:stone_slab2", true, 0) }
+            },
+                    res("minecraft:red_sandstone", 1, 1)),
+            CraftingRecipe.shaped(new Ingredient[][] {
+                    { ing("minecraft:red_sandstone", false, 0),
+                      ing("minecraft:red_sandstone", false, 0),
+                      ing("minecraft:red_sandstone", false, 0) }
+            },
+                    res("minecraft:stone_slab2", 6, 0)),
+            CraftingRecipe.shaped(new Ingredient[][] {
+                    { ing("minecraft:red_sandstone", false, 0), null, null },
+                    { ing("minecraft:red_sandstone", false, 0), ing("minecraft:red_sandstone", false, 0), null },
+                    { ing("minecraft:red_sandstone", false, 0), ing("minecraft:red_sandstone", false, 0), ing("minecraft:red_sandstone", false, 0) }
+            },
+                    res("minecraft:red_sandstone_stairs", 4, 0)),
             // The reed chain (community recipes.json): sugar is one cane
             // (the shapeless 1x1 folded to the shaped form), paper is a row
             // of three canes, a book wraps three papers around a leather.

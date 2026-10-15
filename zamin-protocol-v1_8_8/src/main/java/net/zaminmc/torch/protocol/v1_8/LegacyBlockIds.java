@@ -771,6 +771,24 @@ final class LegacyBlockIds {
                 merged.put(Identifier.parse("minecraft:" + key + "_power" + power), id);
             }
         }
+        // The red sandstone family (Slice 52 — 1.8's own four, Block.java
+        // lines 1379-1390): the red sand (the sand 12's RED_SAND variant,
+        // the id whole in the nibble), the three TYPE states over 179, the
+        // four facing states over 180 (the Bukkit band), the double 181 and
+        // the slab pair 182 (the HALF bit 8). The family item (Item.java's
+        // own VariantBlockItem over 179), the stairs (180) and the slab
+        // (182, the SlabItem) join them through the shared identifiers.
+        merged.put(Identifier.parse("minecraft:red_sand"), 12);
+        merged.put(Identifier.parse("minecraft:red_sandstone"), 179);
+        merged.put(Identifier.parse("minecraft:chiseled_red_sandstone"), 179);
+        merged.put(Identifier.parse("minecraft:smooth_red_sandstone"), 179);
+        merged.put(Identifier.parse("minecraft:red_sandstone_stairs"), 180);
+        for (String facing : new String[] {"east", "west", "south", "north"}) {
+            merged.put(Identifier.parse("minecraft:red_sandstone_stairs_" + facing), 180);
+        }
+        merged.put(Identifier.parse("minecraft:double_stone_slab2"), 181);
+        merged.put(Identifier.parse("minecraft:stone_slab2"), 182);
+        merged.put(Identifier.parse("minecraft:stone_slab2_top"), 182);
         // The ground-cover pair (Slice 42 — Block.java's own rows): the
         // mycelium 110, the waterlily 111 — both single meta-0 states (the
         // snowy side and the boat pass-through are the client's own reads).
@@ -1575,6 +1593,19 @@ final class LegacyBlockIds {
                 merged.put(Identifier.parse("minecraft:" + key + "_power" + power), power);
             }
         }
+        // The red sandstone family's metadata nibbles (Slice 52 — the
+        // reference's own bands): the red sand's variant id 1 (SandBlock.
+        // Variant.RED_SAND), the TYPE ids over 179 (RedSandstoneBlock.
+        // Type.byId's band: 1 chiseled, 2 smooth), the stairs' facing band
+        // over 180 (the Bukkit E=0 W=1 S=2 N=3, the bare east the 0
+        // default) and the slab's HALF bit 8 over 182.
+        merged.put(Identifier.parse("minecraft:red_sand"), 1);
+        merged.put(Identifier.parse("minecraft:chiseled_red_sandstone"), 1);
+        merged.put(Identifier.parse("minecraft:smooth_red_sandstone"), 2);
+        merged.put(Identifier.parse("minecraft:red_sandstone_stairs_west"), 1);
+        merged.put(Identifier.parse("minecraft:red_sandstone_stairs_south"), 2);
+        merged.put(Identifier.parse("minecraft:red_sandstone_stairs_north"), 3);
+        merged.put(Identifier.parse("minecraft:stone_slab2_top"), 8);
         merged.put(Identifier.parse("minecraft:wool"), 0);
         for (int color = 0; color < 16; color++) {
             if (color != 0) {

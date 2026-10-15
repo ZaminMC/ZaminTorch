@@ -89,6 +89,8 @@ public final class BlockSoundMap {
             Map.entry("minecraft:dirt", "dig.grass"),
             Map.entry("minecraft:sand", "dig.sand"),
             Map.entry("minecraft:gravel", "dig.gravel"),
+            // The red sand (Slice 52 — the SandBlock family's own feel).
+            Map.entry("minecraft:red_sand", "dig.sand"),
             Map.entry("minecraft:glass", "dig.glass"));
 
     /** The dig family sound name for a block identifier; stone is the default. */

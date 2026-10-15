@@ -238,7 +238,22 @@ public final class EngineStats {
         merges.put("farmland", "dirt");
         merges.put("double_stone_slab", "stone_slab");
         merges.put("double_wooden_slab", "wooden_slab");
-        merges.put("double_red_sandstone_slab", "red_sandstone_slab");
+        merges.put("double_stone_slab2", "stone_slab2");
+        // The red sand (Slice 52 — the SandBlock family's RED_SAND variant)
+        // counts on the sand row exactly like the reference's single sand
+        // block id. The TYPE states fold onto the block's base name (the
+        // vanilla per-block-id scheme: mining any of 179's states counts on
+        // stat.mineBlock.minecraft.red_sandstone), the stair facings onto
+        // the stairs' base, the top slab onto the single — the same fold
+        // the doubles take.
+        merges.put("red_sand", "sand");
+        merges.put("chiseled_red_sandstone", "red_sandstone");
+        merges.put("smooth_red_sandstone", "red_sandstone");
+        merges.put("red_sandstone_stairs_east", "red_sandstone_stairs");
+        merges.put("red_sandstone_stairs_west", "red_sandstone_stairs");
+        merges.put("red_sandstone_stairs_south", "red_sandstone_stairs");
+        merges.put("red_sandstone_stairs_north", "red_sandstone_stairs");
+        merges.put("stone_slab2_top", "stone_slab2");
         return merges;
     }
 

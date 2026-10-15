@@ -52,6 +52,7 @@ public final class BlockUpdateSystem implements WorldChangeListener {
             {0, 0, 0}, {1, 0, 0}, {-1, 0, 0}, {0, 1, 0}, {0, -1, 0}, {0, 0, 1}, {0, 0, -1}};
 
     private static final Identifier SAND = Identifier.parse("minecraft:sand");
+    private static final Identifier RED_SAND = Identifier.parse("minecraft:red_sand");
     private static final Identifier GRAVEL = Identifier.parse("minecraft:gravel");
     private static final Identifier TORCH = Identifier.parse("minecraft:torch");
     private static final Identifier GRASS = Identifier.parse("minecraft:grass_block");
@@ -312,7 +313,8 @@ public final class BlockUpdateSystem implements WorldChangeListener {
             return;
         }
         Identifier identifier = type.identifier();
-        if (!identifier.equals(SAND) && !identifier.equals(GRAVEL)) {
+        if (!identifier.equals(SAND) && !identifier.equals(RED_SAND)
+                && !identifier.equals(GRAVEL)) {
             return;
         }
         if (net.zaminmc.torch.server.entity.FallingBlockEntity.canFallThrough(
@@ -330,7 +332,8 @@ public final class BlockUpdateSystem implements WorldChangeListener {
             return;
         }
         Identifier identifier = type.identifier();
-        if (identifier.equals(SAND) || identifier.equals(GRAVEL)) {
+        if (identifier.equals(SAND) || identifier.equals(RED_SAND)
+                || identifier.equals(GRAVEL)) {
             // The vanilla wake (FallingBlock.onAdded/onNeighborChanged): the
             // tryFall check schedules two ticks out — the block hovers for
             // two ticks after its support vanishes before it converts.
@@ -599,6 +602,7 @@ public final class BlockUpdateSystem implements WorldChangeListener {
     private void tickCactusSupport(BlockPosition at) {
         BlockType below = world.getBlock(at.offset(0, -1, 0));
         boolean supported = below.identifier().equals(BuiltinBlocks.SAND.identifier())
+                || below.identifier().equals(BuiltinBlocks.RED_SAND.identifier())
                 || below.identifier().equals(CACTUS);
         boolean solidBeside = false;
         for (int[] dir : new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
