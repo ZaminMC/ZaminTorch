@@ -6281,3 +6281,38 @@ cocoa pod's per-age box and the sign/button/lever models keep their
 walk-through stand-ins (the reference's thin mounts, no body ever rests
 on them); the dragon egg and the anvil ride their unregistered blocks'
 own slices.
+
+## Slice 51 — the stats family (the records repair)
+
+The stats slice itself landed in `abafb26` (author-verified); this entry
+repairs the worklog/ledger gap that commit left behind.
+
+- **EngineStats** (`server/stat/EngineStats.java`): the vocabulary over
+  the reference's `stat/Stats.java` — the 48 general rows verbatim, the
+  item families (USED/MINED) over the dotted registry scheme with the
+  vanilla-name translation band (the planks/log/leaves folds, the
+  `wooden_door`, the `reeds` and `tallgrass`/`deadbush` spellings, the
+  crop/stem stages, the dye families' colored members) and the merge
+  table (the flowing fluids onto their stills, the lit/powered
+  literals, the doubles onto their singles), the entity kill pair over
+  the old capitalized `Entities` keys (PigZombie/Ozelot/MushroomCow/
+  EntityHorse/LavaSlime; the golem pair excluded — the spawn-egg-only
+  band).
+- **PlayerStats** (`server/stat/PlayerStats.java`): the per-session
+  counters (increment/set/get, the dirty take, the snapshot/load, the
+  since-death clock).
+- **The hooks**: the play/since-death tick clocks, the chest family's
+  opens, the crafting-table/furnace/beacon/hopper/dispenser/dropper/
+  brewing interactions, the cake bite, the pot planting, the noteblock
+  tune, the record insert, the enchant, the cauldron fill/drain, the
+  damage tenths (taken/dealt), the death, the kill credit through
+  `MobEntity`'s new `playerKiller` carrier (melee + arrow), the mined
+  blocks, the crafted items, the used items at the placement, the
+  broken tools, the drops, the leave.
+- **Persistence**: the ZPD v9 tail (the stats map) with the load
+  restore (`PlayerDataStore`/`PlayerSnapshot`).
+- **Protocol**: 0x37 Client Statistics + the Client Status 1
+  REQUEST_STATS arm through `engine.requestStatistics`
+  (`ClientLink`, `Protocol18`, `V18Connection`).
+- Tests: `StatsTest` (5). The touched-area batches green
+  (`--max-workers=1`).
