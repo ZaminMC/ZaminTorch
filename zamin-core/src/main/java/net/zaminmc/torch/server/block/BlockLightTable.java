@@ -547,6 +547,18 @@ public final class BlockLightTable {
     private static Map<Identifier, LightData> mergeLight() {
         Map<Identifier, LightData> merged = new java.util.HashMap<>(LIGHT);
         merged.putAll(REDSTONE_LIGHT);
+        // The wood-variant foundation (Slice 35): the planks and logs are
+        // opaque cubes (filter 15 like the shipped oak rows), the leaves
+        // diffuse light (the shipped oak row's own 1/1), the saplings pass
+        // whole.
+        for (int variant = 0; variant < WoodVariantBlocks.WOODS.size(); variant++) {
+            if (variant != 0) {
+                merged.put(WoodVariantBlocks.planksBlock(variant), new LightData(0, 15));
+                merged.put(WoodVariantBlocks.logBlock(variant), new LightData(0, 15));
+                merged.put(WoodVariantBlocks.leavesBlock(variant), new LightData(1, 1));
+            }
+            merged.put(WoodVariantBlocks.saplingBlock(variant), new LightData(0, 0));
+        }
         // The complete door families (Slice 34 — DoorBlock is a CUTOUT
         // renderer: isSolidRender false, opacity 0; every state passes
         // light whole like the shipped oak rows).

@@ -580,6 +580,32 @@ final class LegacyBlockIds {
                 merged.put(Identifier.parse("minecraft:" + wood + "_door" + suffix), doorIds[w]);
             }
         }
+        // The wood-variant foundation (Slice 35 — Block.java's own rows):
+        // planks 5, logs 17 + the Log2 pair 162, leaves 18 + the Leaves2
+        // pair 161, saplings 6 — every family member's block id, its
+        // metadata nibble (the & 3 band for the log/leaves domains), and
+        // the six family items.
+        String[] woodNames = {"oak", "spruce", "birch", "jungle", "acacia", "dark_oak"};
+        String[] families = {"planks", "log", "leaves", "sapling"};
+        for (int variant = 1; variant < woodNames.length; variant++) {
+            for (String family : families) {
+                int wireId = switch (family) {
+                    case "planks" -> 5;
+                    case "log" -> variant < 4 ? 17 : 162;
+                    case "leaves" -> variant < 4 ? 18 : 161;
+                    default -> 6;
+                };
+                Identifier block = Identifier.parse(
+                        "minecraft:" + woodNames[variant] + "_" + family);
+                merged.put(block, wireId);
+            }
+        }
+        merged.put(Identifier.parse("minecraft:planks"), 5);
+        merged.put(Identifier.parse("minecraft:log"), 17);
+        merged.put(Identifier.parse("minecraft:log2"), 162);
+        merged.put(Identifier.parse("minecraft:leaves"), 18);
+        merged.put(Identifier.parse("minecraft:leaves2"), 161);
+        merged.put(Identifier.parse("minecraft:sapling"), 6);
         for (int power = 0; power <= 15; power++) {
             merged.put(Identifier.parse("minecraft:redstone_wire" + (power == 0 ? "" : "_" + power)), 55);
         }
@@ -1063,6 +1089,21 @@ final class LegacyBlockIds {
             merged.put(Identifier.parse("minecraft:" + wood + "_door_upper_right_open"), 13);
             merged.put(Identifier.parse("minecraft:" + wood + "_door_upper_powered_open"), 14);
             merged.put(Identifier.parse("minecraft:" + wood + "_door_upper_right_powered_open"), 15);
+        }
+        // The wood-variant foundation's metadata nibbles (Slice 35 — the
+        // reference's own encodings: planks/saplings carry the bare variant,
+        // logs and leaves the & 3 band of their domain, the Log2/Leaves2
+        // pair re-basing acacia/dark_oak to 0/1).
+        {
+            String[] woodNames = {"oak", "spruce", "birch", "jungle", "acacia", "dark_oak"};
+            for (int variant = 1; variant < woodNames.length; variant++) {
+                for (String family : new String[] {"planks", "log", "leaves", "sapling"}) {
+                    int meta = (family.equals("log") || family.equals("leaves"))
+                            ? variant & 3 : variant;
+                    merged.put(Identifier.parse(
+                            "minecraft:" + woodNames[variant] + "_" + family), meta);
+                }
+            }
         }
         merged.put(Identifier.parse("minecraft:wool"), 0);
         for (int color = 0; color < 16; color++) {

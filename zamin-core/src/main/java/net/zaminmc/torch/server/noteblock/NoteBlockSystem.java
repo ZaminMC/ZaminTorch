@@ -191,6 +191,9 @@ public final class NoteBlockSystem implements WorldChangeListener {
     private static final Set<String> WOOD_MATERIAL = Set.of(
             "oak_planks", "oak_log", "crafting_table", "chest", "bookshelf",
             "oak_fence", "noteblock",
+            "spruce_planks", "birch_planks", "jungle_planks",
+            "acacia_planks", "dark_oak_planks",
+            "spruce_log", "birch_log", "jungle_log", "acacia_log", "dark_oak_log",
             "oak_slab", "oak_slab_top",
             "sign", "sign_east", "sign_north", "sign_west",
             "wall_sign", "wall_sign_east", "wall_sign_south", "wall_sign_west");

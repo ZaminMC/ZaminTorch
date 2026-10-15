@@ -29,6 +29,22 @@ public final class BuiltinItems {
             Identifier.parse("minecraft:oak_planks"), "Oak Planks", 64);
     public static final EngineItemType OAK_LOG = new EngineItemType(
             Identifier.parse("minecraft:oak_log"), "Oak Log", 64);
+    // The wood-variant family items (Slice 35 — Item.java's own BlockItem
+    // registrations: planks 5, log 17, log2 162, leaves 18, leaves2 161,
+    // sapling 6, each carrying the PlanksBlock.Variant domain in the
+    // stack's damage field — the dye families' own model).
+    public static final EngineItemType PLANKS = new EngineItemType(
+            Identifier.parse("minecraft:planks"), "Oak Planks", 64);
+    public static final EngineItemType LOG = new EngineItemType(
+            Identifier.parse("minecraft:log"), "Oak Log", 64);
+    public static final EngineItemType LOG2 = new EngineItemType(
+            Identifier.parse("minecraft:log2"), "Acacia Log", 64);
+    public static final EngineItemType LEAVES = new EngineItemType(
+            Identifier.parse("minecraft:leaves"), "Oak Leaves", 64);
+    public static final EngineItemType LEAVES2 = new EngineItemType(
+            Identifier.parse("minecraft:leaves2"), "Acacia Leaves", 64);
+    public static final EngineItemType SAPLING = new EngineItemType(
+            Identifier.parse("minecraft:sapling"), "Oak Sapling", 64);
 
     // Crafting results (community-data recipes): stick 280, crafting table 58,
     // torch 50 on the legacy wire.
@@ -817,6 +833,7 @@ public final class BuiltinItems {
         Map<Identifier, ItemType> map = new TreeMap<>();
         for (EngineItemType type : new EngineItemType[] {
                 DIRT, COBBLESTONE, OAK_PLANKS, OAK_LOG,
+                PLANKS, LOG, LOG2, LEAVES, LEAVES2, SAPLING,
                 STICK, CRAFTING_TABLE, NOTE_BLOCK, TORCH, FURNACE, CHEST,
                 COAL, DIAMOND, IRON_INGOT, STONE, SAND, GLASS, GRAVEL, FLINT, BEEF, COOKED_BEEF,
                 PORKCHOP, COOKED_PORKCHOP, RAW_CHICKEN, COOKED_CHICKEN,
