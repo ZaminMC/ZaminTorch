@@ -6699,3 +6699,53 @@ respawn); (4) the smaller entity gaps: the spawnable pair (experience
 bottle 75 + fireworks 76), the minecart variants (TNT 45/hopper 46/
 furnace 44/spawner 47/command-block 40), the fishing bobber (90), the
 giant (53).
+
+## Slice 62 — the ender crystal (the End pillar tops + the any-damage death)
+
+The body that heals the dragon and pops to anything.
+
+- **The system** (`EnderCrystalSystem` + `EnderCrystal`): the End-only
+  registry, the 2x2x2 box, the spin (`renderTicks`, born at
+  `nextInt(100000)`, never synced), the synced slot-8 damage clock (born
+  5 — `registerSyncedData(8, explosionCountdown)` 1:1), the tick's
+  feet-cell fire write (the not-fire gate: the generator's BEDROCK cap
+  eaten on the first tick — vanilla's own burning pillar tops), and the
+  death (any wound: the slot-8 zero broadcast, the removal, the 6.0F
+  destructive blast — the six-arg overload's createFire=false,
+  destructive=true).
+- **The blast ceiling**: 16*power+1 = 97 (the reference Explosion's
+  (d10²+d10)/2*8*f3+1 at density 1, f3 = power*2) — the engine's
+  detonateAt falloff carries it.
+- **The dimension-aware blast walk**: `detonateAtIn(world, service,
+  dimension, ...)` — the End's own ExplosionService (BlastWorld
+  parameterized), the wounds + the wire carrying the blast's own
+  dimension (closes the pre-62 cross-dimension wound/wire leak), the
+  adapter's observer gate on the new ExplosionEvent field.
+- **THE DRAIN-LOOP DIMENSION FIX riding the slice**: the pre-62 loop
+  stamped the nether's records dimension 1 (the End's own id) — every
+  fortress spawner's cell gate and tile replay read the OVERWORLD. The
+  drain now iterates {0, -1, 1} with the real ids.
+- **The generation arm**: `PendingEnderCrystal` (the populate record —
+  EndPillarFeature lines 47-49, the nextFloat()*360 yaw) + the drain
+  (the chest-minecart idempotence shape) + the ZEC store (the
+  destroyed-pillar marks — a popped pillar never re-spawns; the
+  crystals themselves rebuild from the deterministic decorate).
+- **The combat arms**: the melee dispatch (the armor stand's reach band,
+  the End-dimension gate) + the projectile `CrystalSink` (any
+  projectile crossing the box pops it — the arrow's pop; the consult
+  rides before the block arm).
+- **The wire**: Spawn Object 200 + the slot-8 TYPE_INT + the Destroy +
+  the wound's dirty re-send + the join snapshot + the End-arrival
+  re-send (onDimensionChanged's dimension-1 arm).
+- Tests: `EnderCrystalTest` (10) + the spawner/dimension/protocol
+  batches green; the full core suite green modulo the documented load
+  flakes (GameRule/SpawnEgg/Compute isolation-green), --max-workers=1.
+
+NEXT (in order): (1) the dragon fight (EnderDragonEntity 620 lines: the
+phase family, the multi-part body, the flight model, the crystal heal,
+the death — 500+12000 XP, the fountain, the egg) — likely two slices;
+(2) the exit fountain's End-to-overworld redirect (old 1 + new 1 → the
+overworld, the GameEvent-4 credits + the leavingTheEnd respawn); (3) the
+smaller entity gaps: the spawnable pair (experience bottle 75 +
+fireworks 76), the minecart variants (TNT 45/hopper 46/furnace 44/
+spawner 47/command-block 40), the fishing bobber (90), the giant (53).
