@@ -129,7 +129,8 @@ class BuildingBlocksAcceptanceTest {
         assertFalse(WorldSolidity.isSolid(BuiltinBlocks.LADDER_EAST), "every facing agrees");
         assertTrue(WorldSolidity.isLadder(BuiltinBlocks.LADDER_NORTH.identifier()),
                 "the ladder identity registers");
-        // Fences: the flat-solid model stands in for the 1.5-block collision.
+        // Fences: solid reads (the collision-shape table carries the 1.5
+        // post and its arms — the shape queries answer the geometry).
         assertTrue(WorldSolidity.isSolid(BuiltinBlocks.FENCE), "fences block bodies");
         // Closed doors block; open halves do not.
         assertTrue(WorldSolidity.isSolid(BuiltinBlocks.OAK_DOOR_LOWER_CLOSED_W),

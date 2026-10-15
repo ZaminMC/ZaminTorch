@@ -6180,3 +6180,104 @@ arms (setStrength(2.5F) WOOD_SOUNDS).
 
 Ledgered: the close's neighbor wake rides the container-close family's
 own arms; the TRAPPED_CHESTS_TRIGGERED stat rides the stats slice.
+
+## Slice 50 — the collision-shape table: every partial block's own boxes
+
+The reference port of the collision geometry — the ledger's most-deferred
+family (Slices 31/34/36/37/39/46/47/48 all rode their shapes here): the
+flat-solid stand-ins retire and the physics point queries answer the
+reference's exact boxes.
+
+- The new `server/block/CollisionShapes` (the table): a box-list model per
+  block type — fractions over the cell, `maxY` past the ceiling for the
+  1.5-tall families — with `contains` (the point-in-shape test) and `top`
+  (the support surface: the box the point's column hits). The connection
+  families resolve their neighbours through a `NeighborProbe` (the
+  world-facing callers' own block reads); the probe-less overloads answer
+  the isolated form.
+- `WorldSolidity.isSolidAt` / `supportY` now delegate to the table (the
+  Y-only legacy view keeps the cell's centre column, every shipped
+  expectation preserved); the broad `isSolid` gate (the material-style
+  read the placement/support/spawn systems consult) is untouched.
+- `EngineServer`'s three query providers — the MobWorldQuery (the
+  dimension-aware pair), the static shape pair behind ShapeGround
+  (items/falling blocks/projectiles) and the VehicleWorldQuery — pass the
+  XZ-aware overloads with their own dimension probe (the neighbour reads
+  at the offsets from the queried cell, bounds-guarded).
+
+The families (each 1:1 its reference row):
+
+- **The fences** (`FenceBlock.addCollisions`): the 0.375-0.625 post 1.5
+  tall, arm 1 the N/S band on a connection, arm 2 the W/E band (or the
+  isolated post). The connect rule keeps the reference's own material
+  split: every wood fence joins every wood, the nether brick fence
+  (Material.STONE) never joins the woods, any gate connects, a full cube
+  connects, the pumpkin never does (the Material.PUMPKIN quirk). The
+  audit repair: `WorldSolidity.isFence` matched the oak alone — the five
+  1.7 woods and the nether brick read as full-cube spawn ground.
+- **The wall** (`WallBlock`): the 0.25-0.75 post opening to the cell edge
+  on the connected sides, the straight N/S pair's 0.3125-0.6875 band, the
+  collision `maxY` 1.5; the mossy variant joins (one block in the
+  reference, both VARIANT states connect).
+- **The closed fence gates** (`FenceGateBlock.getCollisionShape`): the
+  3/8-thick panel across the facing axis (the south/north pair on Z, the
+  west/east pair on X), 1.5 tall; the open states carry no box (the
+  reference's null — the walk-through band stays).
+- **The trapdoor pair** (`TrapdoorBlock.updateShape`): the closed 3/16
+  floor panel, the closed ceiling panel, the open vertical panel against
+  the hinge wall per facing (the bare form north, the `_south/_west/
+  _east` suffixes the reference's own band).
+- **The doors** (`DoorBlock.updateShape` over the combined metadata): the
+  closed 3/16 panel against the hinge-side edge per facing band (the
+  reference's `byIdHorizontal(band).counterClockwiseY()` — band 0 EAST,
+  1 SOUTH, 2 WEST, 3 NORTH), the open panel swung against the wall by the
+  hinge bit. The facing/open bits live on the lower half, the hinge on
+  the upper — the pair resolves through the probe exactly like
+  `getCombinedMetadata`; the open halves keep their walk-through
+  material read but now carry the open panel box.
+- **The chest family** (`ChestBlock`/`EnderChestBlock`): the 1/16-inset
+  14/16 box, the double form's joined edge extending to the cell
+  boundary (the same-family pair rule: plain joins plain, trapped joins
+  trapped, the ender chest its own four states).
+- **The panes** (`PaneBlock.addCollisions`): the 7/16-9/16 cross — the
+  half arms on one-sided connections, the full bars on both-sided and
+  isolated forms (the reference's own else arms), the glass pair and the
+  iron bars interconnecting.
+- **The thin covers**: the carpet's 1/16 sheet, the snow layer's 2/16
+  cover, the lily pad's 1/64 film, the four pressure plates' 1/32 disc
+  (the stone/wood pair + the weighted pair) — the shape queries now see
+  them (a body rests on the surface) while the material-style `isSolid`
+  keeps them non-blocking for the placement/support gates, exactly the
+  reference's collision-box/material split.
+- **The partial furniture**: the flower pot's 3/8 box, the cake's
+  per-bite sliver (the bite shrinks the eaten side alone — `minX`
+  `(1 + bites * 2) / 16`, the height a flat 1/2), the cactus' 1/16
+  inset, the farmland's 15/16 field, the enchanting table's 3/4, the
+  daylight detector's 3/8, the end portal frame's 13/16 base + the eye's
+  5/16 centre post, the bed's 9/16 mattress.
+- **The columns**: the brewing stand's 1/8 base + 7/8 post pair, the
+  cauldron's 5/16 floor + four full-height 1/8 legs, the hopper's 5/8
+  funnel + the same legs (the facing never moves the box).
+- The slab/stair half rule ships unchanged (the bottom slab and the
+  facing stair states their lower half, the top slab the upper, the bare
+  stair forms the flat default).
+
+Tests: `CollisionShapeTest` +10 (the fence post/arms with the material
+split and the pumpkin exclusion, the wall's post/straight band/1.5, the
+gate's two axes and the open vanish, the trapdoor's three panels, the
+chest's box + the double's edge, the thin covers' heights, the furniture
+boxes, the columns, the pane cross/arms, the doors' panels per
+facing/hinge with the pair's combined read) — 19 total. The full core
+suite green in seven touched-area batches (block, entity, redstone/
+container, crafting/item/spawn, the direct package, the remaining
+subpackages, the protocol + api modules), `--max-workers=1`.
+
+Ledgered: the swept-box model (a body straddling the 1.5 bands from the
+cell above resolves through the one-cell point query — the legacy
+convention, the ground probe entering the shape's own cell) rides the
+physics-solver slice; the stairs' true two-box geometry (the ascending
+half) and the upside-down HALF bit ride the metadata-variants slice; the
+cocoa pod's per-age box and the sign/button/lever models keep their
+walk-through stand-ins (the reference's thin mounts, no body ever rests
+on them); the dragon egg and the anvil ride their unregistered blocks'
+own slices.
