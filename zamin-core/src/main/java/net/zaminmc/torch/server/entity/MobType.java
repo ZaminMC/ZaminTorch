@@ -361,7 +361,30 @@ public enum MobType {
      */
     WITHER(64, 0.9, 3.5, 300.0f, 0.6, true, Traits.NONE,
             List.of(), // the custom drop walk (WitherEntity.dropItems — the nether star)
-            "mob.wither.idle", "mob.wither.hurt", "mob.wither.death", 5.0f);
+            "mob.wither.idle", "mob.wither.hurt", "mob.wither.death", 5.0f),
+
+    /**
+     * The End's own boss (EnderDragonEntity): the 16x8 hull (noClip — the
+     * body flies through everything but its own sweep), 200 health, the
+     * fire immunity, and the SEVEN server-side parts (head/body/tail x3/
+     * wings — the wire's own id convention: the parts ride the eight-id
+     * block the spawn reserves, dragonId+1..+7 in the ctor order, the
+     * client re-aligning its locally-built parts by the same offset). The
+     * damage gates: only a PLAYER source or an EXPLOSION wounds the body
+     * (the plain overload refuses everything but thorns), the non-head
+     * parts quarter the amount plus one, and the head-front target reset
+     * follows every landed hit. The steering (no phases — 1.8.8): the
+     * targetX/Y/Z walk with the 50%-player/50%-point re-target, the
+     * velocity shaping, the wing flap, and the contact arms (the wing
+     * fling, the head's 10.0). The death (Slice 64): the 200-tick walk —
+     * the rise and the 20-degree spin, the 12000 XP in orb batches, the
+     * 1018, the bedrock fountain with the exit portal and the egg. Never
+     * despawns (checkDespawn empty); no natural spawn rows (the chunk-
+     * (0,0) decorate is the only source).
+     */
+    ENDER_DRAGON(63, 16.0, 8.0, 200.0f, 0.6, true, Traits.NONE,
+            List.of(), // the death XP ride the custom walk (12000 in orb batches)
+            "mob.enderdragon.growl", "mob.enderdragon.hit", "", 10.0f);
 
     /**
      * The AI trait set beyond the walk-chase-panic baseline.
@@ -433,7 +456,7 @@ public enum MobType {
 
     /** @return the boss kinds (never despawn far from players — checkDespawn's reset). */
     public boolean bossFamily() {
-        return this == WITHER;
+        return this == WITHER || this == ENDER_DRAGON;
     }
 
     /**
@@ -452,7 +475,7 @@ public enum MobType {
      */
     public boolean fireImmune() {
         return this == BLAZE || this == MAGMA_CUBE || this == GHAST
-                || this == ZOMBIE_PIGMAN || this == WITHER;
+                || this == ZOMBIE_PIGMAN || this == WITHER || this == ENDER_DRAGON;
     }
 
     /** @return whether the kind rides the slime's size/hop/split family. */

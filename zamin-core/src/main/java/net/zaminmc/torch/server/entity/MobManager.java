@@ -653,7 +653,16 @@ public final class MobManager {
                 return null;
             }
         }
-        MobEntity mob = new MobEntity(nextEntityId++, type, position, random, world);
+        MobEntity mob = new MobEntity(nextEntityId, type, position, random, world);
+        if (type == MobType.ENDER_DRAGON) {
+            // The wire's part-id convention (ClientPlayNetworkHandler lines
+            // 701-708): the client re-aligns its locally-built parts to
+            // the spawn packet's dragonId — the ids dragonId+1..+7 must be
+            // RESERVED so the next seven spawns never collide with them.
+            nextEntityId += 8;
+        } else {
+            nextEntityId++;
+        }
         mob.setBreedFinder(this::scanForMate);
         mob.setRemovalHook(() -> remove(mob, "api")); // the public despawn path
         var detacher = leashDetacher;
@@ -2134,6 +2143,14 @@ public final class MobManager {
             listener.onMobHurt(mob);
         }
         if (mob.health() <= 0) {
+            if (mob.type() == MobType.ENDER_DRAGON) {
+                // The dragon's death walk (Slice 64 — tickPostDeath lines
+                // 501-543): the 200-tick rise-and-spin with the XP batches
+                // and the portal — the standard death (loot, remove) never
+                // runs; the body stays until the walk's own end.
+                mob.beginDragonDeath();
+                return true;
+            }
             for (Listener listener : listeners) {
                 listener.onMobDied(mob);
             }
