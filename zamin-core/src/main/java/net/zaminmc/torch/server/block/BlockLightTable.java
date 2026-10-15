@@ -586,6 +586,16 @@ public final class BlockLightTable {
                 }
             }
         }
+        // The rail trio (Slice 38 — the walk-through track family, light
+        // passes like the plain rail's own rows).
+        for (String family : RailBlocks.RAILS.keySet()) {
+            for (int shape = 0; shape < 6; shape++) {
+                for (boolean powered : new boolean[] {false, true}) {
+                    merged.put(RailBlocks.state(family, shape, powered).identifier(),
+                            new LightData(0, 0));
+                }
+            }
+        }
         // The complete door families (Slice 34 — DoorBlock is a CUTOUT
         // renderer: isSolidRender false, opacity 0; every state passes
         // light whole like the shipped oak rows).

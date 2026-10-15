@@ -27,6 +27,18 @@ public class MinecartEntity extends VehicleEntity {
     public static final double RAIL_SPEED_CAP = 0.3;
     /** Off-rail drag (the historical ground friction). */
     public static final double OFF_RAIL_DRAG = 0.5;
+    // The powered-rail walk (Slice 38 — the reference's own numbers:
+    // MinecartEntity.moveAlongTrack line 477's 0.06 boost, getMaxSpeed's
+    // 0.4 on-rail cap, lines 428-437's brake — under 0.03 the full stop,
+    // over it the 0.5 halving).
+    /** The powered golden/activator rail's boost per tick. */
+    public static final double POWERED_RAIL_BOOST = 0.06;
+    /** The reference's on-rail getMaxSpeed cap. */
+    public static final double POWERED_RAIL_CAP = 0.4;
+    /** The unpowered golden rail's full-stop band. */
+    public static final double BRAKE_STOP_SPEED = 0.03;
+    /** The unpowered golden rail's halving brake. */
+    public static final double BRAKE_FACTOR = 0.5;
 
     /** The flat rail orientations (the engine's rail-axis band). */
     private static final int AXIS_Z = 0; // north-south rail: travel along Z
@@ -91,6 +103,28 @@ public class MinecartEntity extends VehicleEntity {
         }
         if (input.forward() != 0.0f) {
             speed = Math.min(speed + RAIL_ACCELERATION * Math.abs(input.forward()), RAIL_SPEED_CAP);
+        }
+        // The powered-rail walk (Slice 38 — MinecartEntity.moveAlongTrack
+        // lines 345-349, 477-494): the powered golden/activator rail adds
+        // the 0.06 boost along the travel (capped at the reference's own
+        // 0.4 getMaxSpeed); the unpowered golden rail is the BRAKE — under
+        // 0.03 the cart stops dead, over it the velocity halves.
+        int railPower = world.railPowerAt(
+                cellX + 0.5, cellY + 0.06, cellZ + 0.5);
+        if (railPower > 0) {
+            if (speed > 0.01) {
+                speed = Math.min(speed + POWERED_RAIL_BOOST, POWERED_RAIL_CAP);
+            } else {
+                // From rest on a powered rail: the shape's own kick
+                // (lines 481-494 — the east-west/north-south launch arms).
+                speed = Math.min(POWERED_RAIL_BOOST, POWERED_RAIL_CAP);
+            }
+        } else if (railPower < 0) {
+            if (speed < BRAKE_STOP_SPEED) {
+                speed = 0.0;
+            } else {
+                speed *= BRAKE_FACTOR;
+            }
         }
         // The kind's own drag (the reference's applySlowdown runs after the
         // move; our speed-carry model applies the same factor to the next

@@ -60,6 +60,16 @@ public abstract class VehicleEntity implements net.zaminmc.torch.entity.Vehicle 
         default int railAxisAt(double x, double y, double z) {
             return -1;
         }
+
+        /**
+         * @return the point's cell's powered-rail walk (Slice 38 —
+         * MinecartEntity.moveAlongTrack lines 345-349 + 477-494): 1 the
+         * powered golden/activator boost, -1 the unpowered brake, 0 plain
+         * track (the plain rail and the detector family never boost).
+         */
+        default int railPowerAt(double x, double y, double z) {
+            return 0;
+        }
     }
 
     /** The steering input the mounted passenger reports (Steer Vehicle 0x0C). */

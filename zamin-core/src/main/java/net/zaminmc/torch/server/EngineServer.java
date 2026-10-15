@@ -1007,6 +1007,24 @@ public final class EngineServer implements Server, EngineBridge {
                     }
                     return false;
                 });
+                // The detector rail's cart probe (Slice 38 —
+                // DetectorRailBlock.updateOutputState's getMinecarts over
+                // the rail's own cell: any minecart body inside the box).
+                redstoneSystem.setCartProbe(rail -> {
+                    for (var vehicle : vehicleManager.all()) {
+                        if (vehicle.kind() != net.zaminmc.torch.server.entity.vehicle.VehicleEntity.Kind.MINECART
+                                && vehicle.kind() != net.zaminmc.torch.server.entity.vehicle.VehicleEntity.Kind.CHEST_MINECART) {
+                            continue;
+                        }
+                        net.zaminmc.torch.util.Position at = vehicle.position();
+                        if (at.x() >= rail.x() && at.x() <= rail.x() + 1
+                                && at.y() >= rail.y() && at.y() <= rail.y() + 1
+                                && at.z() >= rail.z() && at.z() <= rail.z() + 1) {
+                            return true;
+                        }
+                    }
+                    return false;
+                });
                 // The comparator's analog source table (Slice 9d — the
                 // reference's isAnalogSignalSource family over the engine's
                 // containers): the chest and furnace fullness through their
@@ -6171,6 +6189,7 @@ public final class EngineServer implements Server, EngineBridge {
             return; // the ascending-facing rule overrides the generic placement
         }
         if (heldId.equals("minecraft:rail")
+                || net.zaminmc.torch.server.block.RailBlocks.isRailItem(heldId)
                 || creativeHeld.map(t -> WorldSolidity.isRail(t.identifier())).orElse(false)) {
             placeRailOnTick(session, clicked, face, creativeHeld);
             return; // the rail's look orientation overrides the generic placement
@@ -8191,7 +8210,10 @@ public final class EngineServer implements Server, EngineBridge {
     /**
      * The rail placement (the historical ItemRail): the flat orientation
      * follows the placer's look (north-south or east-west), the cell must
-     * be open with a solid floor beneath (the vanilla rail gate). Tick-thread.
+     * be open with a solid floor beneath (the vanilla rail gate —
+     * AbstractRailBlock.canBePlaced's World.hasSolidTop). The Slice 38
+     * trio families place their own state through the same walk.
+     * Tick-thread.
      */
     private void placeRailOnTick(PlayerSession session, BlockPosition clicked, int face,
                                  java.util.Optional<BlockType> creativeHeld) {
@@ -8215,8 +8237,16 @@ public final class EngineServer implements Server, EngineBridge {
         double yaw = ((session.rotation().yaw() % 360.0) + 360.0 + 45.0) % 360.0;
         int lookBand = (int) (yaw / 90.0) % 4; // 0=S,1=W,2=N,3=E
         // The look along an axis lays the track along it: S/N -> north-south.
-        world.setBlock(target, (lookBand == 0 || lookBand == 2)
-                ? BuiltinBlocks.RAIL : BuiltinBlocks.RAIL_EW);
+        boolean northSouth = lookBand == 0 || lookBand == 2;
+        String held = heldIdentifierOf(session, creativeHeld);
+        String railFamily = net.zaminmc.torch.server.block.RailBlocks.isRailItem(held)
+                ? (held.contains(":") ? held.substring(held.indexOf(':') + 1) : held) : null;
+        if (railFamily != null) {
+            world.setBlock(target, net.zaminmc.torch.server.block.RailBlocks
+                    .placementState(railFamily, !northSouth));
+        } else {
+            world.setBlock(target, northSouth ? BuiltinBlocks.RAIL : BuiltinBlocks.RAIL_EW);
+        }
         consumePlaced(session, creativeHeld);
     }
 
@@ -10144,7 +10174,32 @@ public final class EngineServer implements Server, EngineBridge {
             if (id.equals(BuiltinBlocks.RAIL_EW.identifier())) {
                 return 1; // the east-west rail: travel along X
             }
+            // The Slice 38 trio: the shape names the travel axis (the six
+            // straight shapes — north_south Z, east_west X, the east/west
+            // ascents X, the north/south ascents Z).
+            String value = id.value();
+            if (id.namespace().equals("minecraft")
+                    && (value.startsWith("golden_rail") || value.startsWith("detector_rail")
+                    || value.startsWith("activator_rail"))) {
+                int shape = net.zaminmc.torch.server.block.RailBlocks.shapeOf(
+                        world.getBlock(blockAt(x, y, z)));
+                return net.zaminmc.torch.server.block.RailBlocks.axisIsX(shape) ? 1 : 0;
+            }
             return -1;
+        }
+
+        @Override
+        public int railPowerAt(double x, double y, double z) {
+            if (y < net.zaminmc.torch.block.BlockPosition.MIN_Y
+                    || y > net.zaminmc.torch.block.BlockPosition.MAX_Y) {
+                return 0;
+            }
+            BlockType rail = world.getBlock(blockAt(x, y, z));
+            String family = net.zaminmc.torch.server.block.RailBlocks.familyOf(rail);
+            if (family == null || family.equals("detector_rail")) {
+                return 0; // the detector family emits, it never boosts
+            }
+            return net.zaminmc.torch.server.block.RailBlocks.isPowered(rail) ? 1 : -1;
         }
     }
 

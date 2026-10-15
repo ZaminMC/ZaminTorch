@@ -419,6 +419,15 @@ public final class BuiltinItems {
             Identifier.parse("minecraft:dark_oak_fence_gate"), "Dark Oak Fence Gate", 64);
     public static final EngineItemType ACACIA_FENCE_GATE = new EngineItemType(
             Identifier.parse("minecraft:acacia_fence_gate"), "Acacia Fence Gate", 64);
+    // The rail-trio items (Slice 38 — Item.java's own BlockItem rows
+    // 370-371/499: register(Blocks.POWERED_RAIL), register(Blocks.DETECTOR_RAIL),
+    // register(Blocks.ACTIVATOR_RAIL) — the items share the families' ids).
+    public static final EngineItemType GOLDEN_RAIL = new EngineItemType(
+            Identifier.parse("minecraft:golden_rail"), "Powered Rail", 64);
+    public static final EngineItemType DETECTOR_RAIL = new EngineItemType(
+            Identifier.parse("minecraft:detector_rail"), "Detector Rail", 64);
+    public static final EngineItemType ACTIVATOR_RAIL = new EngineItemType(
+            Identifier.parse("minecraft:activator_rail"), "Activator Rail", 64);
     // The bed item (community items.json: legacy 355) — places both halves.
     public static final EngineItemType BED = new EngineItemType(
             Identifier.parse("minecraft:bed"), "Bed", 1);
@@ -885,6 +894,7 @@ public final class BuiltinItems {
                 SPRUCE_FENCE, BIRCH_FENCE, JUNGLE_FENCE, DARK_OAK_FENCE, ACACIA_FENCE,
                 OAK_FENCE_GATE, SPRUCE_FENCE_GATE, BIRCH_FENCE_GATE, JUNGLE_FENCE_GATE,
                 DARK_OAK_FENCE_GATE, ACACIA_FENCE_GATE,
+                GOLDEN_RAIL, DETECTOR_RAIL, ACTIVATOR_RAIL,
                 WOODEN_SLAB,
                 STICK, CRAFTING_TABLE, NOTE_BLOCK, TORCH, FURNACE, CHEST,
                 COAL, DIAMOND, IRON_INGOT, STONE, SAND, GLASS, GRAVEL, FLINT, BEEF, COOKED_BEEF,

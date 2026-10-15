@@ -120,10 +120,20 @@ public final class WorldSolidity {
                 || id.equals(BuiltinBlocks.NETHER_PORTAL_Z.identifier());
     }
 
-    /** The rails (block 66): walk-through track, the minecart reads the axis. */
+    /** The rails (block 66 + the Slice 38 trio 27/28/157): walk-through
+     *  track, the minecart reads the axis. */
     public static boolean isRail(Identifier id) {
-        return id.namespace().equals("minecraft")
-                && (id.value().equals("rail") || id.value().startsWith("rail_"));
+        if (!id.namespace().equals("minecraft")) {
+            return false;
+        }
+        String value = id.value();
+        if (value.equals("rail") || value.startsWith("rail_")) {
+            return true;
+        }
+        // the trio families' twelve states each
+        return value.equals("golden_rail") || value.startsWith("golden_rail_")
+                || value.equals("detector_rail") || value.startsWith("detector_rail_")
+                || value.equals("activator_rail") || value.startsWith("activator_rail_");
     }
 
     /**
