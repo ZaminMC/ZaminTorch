@@ -118,6 +118,16 @@ public final class BuiltinBlocks {
     // The item exists (the /give route) but never joins a creative tab.
     public static final EngineBlockType BARRIER = new EngineBlockType(
             Identifier.parse("minecraft:barrier"), "Barrier");
+    // The double wooden slab family (Slice 58 — DoubleWoodenSlabBlock 1:1):
+    // the six planks variants over 125 (the variant id whole in the nibble;
+    // the oak carries the wire's own double_wooden_slab name). Breaking a
+    // double yields TWO single slabs (getBaseDropCount's isDouble ? 2 : 1).
+    public static final EngineBlockType DOUBLE_WOODEN_SLAB = WoodShapeBlocks.doubleSlabState(0);
+    public static final EngineBlockType DOUBLE_SPRUCE_SLAB = WoodShapeBlocks.doubleSlabState(1);
+    public static final EngineBlockType DOUBLE_BIRCH_SLAB = WoodShapeBlocks.doubleSlabState(2);
+    public static final EngineBlockType DOUBLE_JUNGLE_SLAB = WoodShapeBlocks.doubleSlabState(3);
+    public static final EngineBlockType DOUBLE_ACACIA_SLAB = WoodShapeBlocks.doubleSlabState(4);
+    public static final EngineBlockType DOUBLE_DARK_OAK_SLAB = WoodShapeBlocks.doubleSlabState(5);
 
     // The TNT block (legacy 46, Slice 9f): the ignition system's family.
     public static final EngineBlockType TNT = new EngineBlockType(
@@ -1028,6 +1038,10 @@ public final class BuiltinBlocks {
         builder = builder.register(DRAGON_EGG);
         // The barrier (Slice 56 — BarrierBlock 1:1): the single state.
         builder = builder.register(BARRIER);
+        // The double wooden slab family (Slice 58 — the six variants over 125).
+        for (int variant = 0; variant < WoodVariantBlocks.WOODS.size(); variant++) {
+            builder = builder.register(WoodShapeBlocks.doubleSlabState(variant));
+        }
         return builder;
     }
 }

@@ -8823,7 +8823,8 @@ public final class EngineServer implements Server, EngineBridge {
     private net.zaminmc.torch.block.BlockType[] slabFamilyOf(String value) {
         if (value.startsWith("oak_slab")) {
             return new net.zaminmc.torch.block.BlockType[]{
-                    BuiltinBlocks.OAK_SLAB, BuiltinBlocks.OAK_SLAB_TOP, BuiltinBlocks.OAK_PLANKS};
+                    BuiltinBlocks.OAK_SLAB, BuiltinBlocks.OAK_SLAB_TOP,
+                    BuiltinBlocks.DOUBLE_WOODEN_SLAB};
         }
         if (value.startsWith("stone_slab")) {
             return new net.zaminmc.torch.block.BlockType[]{
@@ -8849,15 +8850,15 @@ public final class EngineServer implements Server, EngineBridge {
         }
         // The wooden-slab families (Slice 36 — the reference's own id 126
         // carrying the variant nibble): each wood's pair doubles into its
-        // own planks (the reference's double_wooden_slab renders as the
-        // wood's full cube).
+        // OWN 125 double (Slice 58 — the proper DoubleWoodenSlabBlock
+        // form, no longer the planks stand-in).
         for (int variant = 1; variant < WoodVariantBlocks.WOODS.size(); variant++) {
             String wood = WoodVariantBlocks.WOODS.get(variant);
             if (value.startsWith(wood + "_slab")) {
                 return new net.zaminmc.torch.block.BlockType[]{
                         WoodShapeBlocks.slabStates(variant).get(0),
                         WoodShapeBlocks.slabStates(variant).get(1),
-                        blockRegistry.require(WoodVariantBlocks.planksBlock(variant))};
+                        WoodShapeBlocks.doubleSlabState(variant)};
             }
         }
         return null;
