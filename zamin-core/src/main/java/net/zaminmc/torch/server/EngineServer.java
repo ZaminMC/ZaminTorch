@@ -1839,8 +1839,14 @@ public final class EngineServer implements Server, EngineBridge {
                 // The cake's startMining eat (Slice 46 —
                 // CakeBlock.startMining lines 62-66: the left click eats a
                 // slice too, the same canEat(false) gate as the use arm).
-                blockInteraction.setMiningStartReport((session, at) ->
-                        eatCakeSlice(session, at));
+                blockInteraction.setMiningStartReport((session, at) -> {
+                    // The cake's startMining eat (Slice 46).
+                    eatCakeSlice(session, at);
+                    // The dragon egg's startMining teleport (Slice 55 —
+                    // DragonEggBlock.startMining lines 81-83: the punch
+                    // teleports the egg away before any dig accumulates).
+                    teleportDragonEgg(at);
+                });
                 // The dig-start hook (Slice 27a — the reference's
                 // block.startMining arm, ServerPlayerInteractionManager
                 // line 133): the note block plays on the survival start.
@@ -6381,6 +6387,12 @@ public final class EngineServer implements Server, EngineBridge {
         if (useCakeOnTick(session, clicked)) {
             return; // the cake's slice was eaten
         }
+        // The dragon egg's use (Slice 55 — DragonEggBlock.use lines 75-79:
+        // the right click teleports the egg away; the portal particles are
+        // the client's own rendering over the block change).
+        if (useDragonEggOnTick(clicked)) {
+            return; // the egg's teleport consumed the right-click
+        }
         if (useFlowerPotOnTick(session, clicked)) {
             return; // the pot's plant was potted
         }
@@ -7887,6 +7899,48 @@ public final class EngineServer implements Server, EngineBridge {
      * min(20, +2), saturation min(foodLevel, +0.1)); the BITES advance or
      * the removal at the seventh bite. Tick-thread context.
      */
+        /**
+     * The dragon egg's use arm (Slice 55 — DragonEggBlock.use): the
+     * right-click teleport. Tick-thread context.
+     */
+    private boolean useDragonEggOnTick(BlockPosition clicked) {
+        if (!net.zaminmc.torch.server.block.DragonEggBlocks.isDragonEgg(
+                world.getBlock(clicked).identifier())) {
+            return false;
+        }
+        return net.zaminmc.torch.server.block.DragonEggBlocks.tryTeleport(
+                dragonEggWorld(), gameplayRandom, clicked);
+    }
+
+    /** The dragon egg's punch arm (the startMining teleport). */
+    private void teleportDragonEgg(BlockPosition at) {
+        if (net.zaminmc.torch.server.block.DragonEggBlocks.isDragonEgg(
+                world.getBlock(at).identifier())) {
+            net.zaminmc.torch.server.block.DragonEggBlocks.tryTeleport(
+                    dragonEggWorld(), gameplayRandom, at);
+        }
+    }
+
+    /** The egg walk's world adapter. */
+    private net.zaminmc.torch.server.block.DragonEggBlocks.EggWorld dragonEggWorld() {
+        return new net.zaminmc.torch.server.block.DragonEggBlocks.EggWorld() {
+            @Override
+            public net.zaminmc.torch.block.BlockType getBlock(BlockPosition at) {
+                return world.getBlock(at);
+            }
+
+            @Override
+            public void setBlock(BlockPosition at, net.zaminmc.torch.block.BlockType type) {
+                world.setBlock(at, type);
+            }
+
+            @Override
+            public net.zaminmc.torch.block.BlockType air() {
+                return world.airType();
+            }
+        };
+    }
+
     private void eatCakeSlice(PlayerSession session, BlockPosition at) {
         BlockType cake = world.getBlock(at);
         if (!net.zaminmc.torch.server.block.CakeBlocks.isCake(cake.identifier())) {

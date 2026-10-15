@@ -65,6 +65,11 @@ public final class BlockUpdateSystem implements WorldChangeListener {
         return id.equals(SAND) || id.equals(RED_SAND) || id.equals(GRAVEL)
                 || net.zaminmc.torch.server.block.AnvilBlocks.isAnvil(id);
     }
+
+    /** The dragon egg's own fall band (Slice 55 — DragonEggBlock extends Block, not FallingBlock: its own tryFall over the same canFallThrough gate). */
+    private static boolean isDragonEgg(Identifier id) {
+        return net.zaminmc.torch.server.block.DragonEggBlocks.isDragonEgg(id);
+    }
     private static final Identifier SUGAR_CANE = Identifier.parse("minecraft:sugar_cane");
     private static final Identifier CACTUS = Identifier.parse("minecraft:cactus");
 
@@ -319,7 +324,7 @@ public final class BlockUpdateSystem implements WorldChangeListener {
             return;
         }
         Identifier identifier = type.identifier();
-        if (!isFallFamily(identifier)) {
+        if (!isFallFamily(identifier) && !isDragonEgg(identifier)) {
             return;
         }
         if (net.zaminmc.torch.server.entity.FallingBlockEntity.canFallThrough(
@@ -342,6 +347,14 @@ public final class BlockUpdateSystem implements WorldChangeListener {
             // tryFall check schedules two ticks out — the block hovers for
             // two ticks after its support vanishes before it converts.
             scheduleFallCheck(position, world.totalTicks() + FALL_CHECK_DELAY);
+            return;
+        }
+        if (isDragonEgg(identifier)) {
+            // The egg's own wake (Slice 55 — DragonEggBlock.getTickRate 5:
+            // the schedule sits five ticks out, the reference's own band —
+            // the egg hovers longer than the sand family).
+            scheduleFallCheck(position, world.totalTicks()
+                    + net.zaminmc.torch.server.block.DragonEggBlocks.FALL_CHECK_DELAY);
             return;
         }
         if (identifier.equals(TORCH)) {

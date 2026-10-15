@@ -305,6 +305,11 @@ public final class CollisionShapes {
         if (net.zaminmc.torch.server.block.EndPortalBlocks.isEndPortal(type.identifier())) {
             return List.of();
         }
+        // The dragon egg (Slice 55 — DragonEggBlock's own setShape): the
+        // 1/16-inset obelisk, full height.
+        if (net.zaminmc.torch.server.block.DragonEggBlocks.isDragonEgg(type.identifier())) {
+            return List.of(new Box(0.0625, 0, 0.0625, 0.9375, 1, 0.9375));
+        }
         // Everything else: the full cube when it blocks a body at all.
         return WorldSolidity.isSolid(type) ? List.of(FULL_CUBE) : List.of();
     }

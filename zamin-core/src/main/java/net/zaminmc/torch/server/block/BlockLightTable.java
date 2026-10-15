@@ -662,6 +662,11 @@ public final class BlockLightTable {
         // film passes light whole while glowing itself).
         merged.put(net.zaminmc.torch.server.block.EndPortalBlocks.END_PORTAL,
                 new LightData(15, 0));
+        // The dragon egg (Slice 55 — DragonEggBlock's own reads: the
+        // setLight(0.125F) emission (int)(0.125 * 15) = 1 with the CUTOUT
+        // render — isSolidRender false, the film passes whole).
+        merged.put(net.zaminmc.torch.server.block.DragonEggBlocks.DRAGON_EGG,
+                new LightData(1, 0));
         // The melon family (Slice 41 — the melon block is an opaque full
         // cube like the pumpkin; the stems are walk-through plants).
         merged.put(Identifier.parse("minecraft:melon_block"), new LightData(0, 15));

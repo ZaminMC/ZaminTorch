@@ -107,6 +107,11 @@ public final class BuiltinBlocks {
     // (the reference has no metadata band; the contact arm rides the End
     // dimension's own slice).
     public static final EngineBlockType END_PORTAL = EndPortalBlocks.endPortal();
+    // The dragon egg (Slice 55 — DragonEggBlock 1:1): the 1/16-inset
+    // obelisk (setStrength(3.0F) blast 15, the setLight(0.125F) emission
+    // 1), no item form, the own 5-tick fall schedule, and the click
+    // teleport.
+    public static final EngineBlockType DRAGON_EGG = DragonEggBlocks.dragonEgg();
 
     // The TNT block (legacy 46, Slice 9f): the ignition system's family.
     public static final EngineBlockType TNT = new EngineBlockType(
@@ -1013,6 +1018,8 @@ public final class BuiltinBlocks {
         }
         // The end portal (Slice 54 — EndPortalBlock 1:1): the single state.
         builder = builder.register(END_PORTAL);
+        // The dragon egg (Slice 55 — DragonEggBlock 1:1): the single state.
+        builder = builder.register(DRAGON_EGG);
         return builder;
     }
 }
