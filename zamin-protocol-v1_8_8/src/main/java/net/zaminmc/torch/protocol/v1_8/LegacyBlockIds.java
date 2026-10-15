@@ -192,6 +192,8 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:bucket"), 325),
             Map.entry(Identifier.parse("minecraft:water_bucket"), 326),
             Map.entry(Identifier.parse("minecraft:lava_bucket"), 327),
+            // The milk bucket (Slice 46 — Item.java's own row 335).
+            Map.entry(Identifier.parse("minecraft:milk_bucket"), 335),
             // items yielded by mining and crafting
             Map.entry(Identifier.parse("minecraft:coal"), 263),
             Map.entry(Identifier.parse("minecraft:diamond"), 264),
@@ -725,6 +727,12 @@ final class LegacyBlockIds {
             }
         }
         merged.put(Identifier.parse("minecraft:double_plant"), 175);
+        // The cake family (Slice 46 — Block.java's own row): the block 92 —
+        // the seven BITES states, the bare bites-0 form the plain name.
+        merged.put(Identifier.parse("minecraft:cake"), 92);
+        for (int bites = 1; bites <= 6; bites++) {
+            merged.put(Identifier.parse("minecraft:cake_bite" + bites), 92);
+        }
         // The ground-cover pair (Slice 42 — Block.java's own rows): the
         // mycelium 110, the waterlily 111 — both single meta-0 states (the
         // snowy side and the boat pass-through are the client's own reads).
@@ -1493,6 +1501,12 @@ final class LegacyBlockIds {
                 merged.put(Identifier.parse("minecraft:" + dpVariants[variant]), variant);
                 merged.put(Identifier.parse("minecraft:" + dpVariants[variant] + "_upper"), 10);
             }
+        }
+        // The cake's metadata nibble (Slice 46 —
+        // CakeBlock.getMetadataFromState: the BITES id whole; the bare
+        // bites-0 form rides the 0 default).
+        for (int bites = 1; bites <= 6; bites++) {
+            merged.put(Identifier.parse("minecraft:cake_bite" + bites), bites);
         }
         merged.put(Identifier.parse("minecraft:wool"), 0);
         for (int color = 0; color < 16; color++) {

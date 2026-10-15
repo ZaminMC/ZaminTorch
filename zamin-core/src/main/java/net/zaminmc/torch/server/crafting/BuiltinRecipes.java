@@ -441,6 +441,15 @@ public final class BuiltinRecipes {
                     { ing("minecraft:bone", false, 0) }
             },
                     res("minecraft:bone_meal", 3, 0)),
+            // The cake (Slice 46 — CraftingManager line 240's own row): three
+            // milk over sugar-wheat-sugar; the milk's three empty buckets
+            // stay in the grid (Item.getRecipeRemainder — the CraftingGrid's
+            // own remainder consult).
+            CraftingRecipe.shaped(new Ingredient[][] {
+                    { ing("minecraft:milk_bucket", false, 0), ing("minecraft:milk_bucket", false, 0), ing("minecraft:milk_bucket", false, 0) },
+                    { ing("minecraft:sugar", false, 0), ing("minecraft:wheat", false, 0), ing("minecraft:sugar", false, 0) }
+            },
+                    res("minecraft:cake", 1, 0)),
             // The reed chain (community recipes.json): sugar is one cane
             // (the shapeless 1x1 folded to the shaped form), paper is a row
             // of three canes, a book wraps three papers around a leather.

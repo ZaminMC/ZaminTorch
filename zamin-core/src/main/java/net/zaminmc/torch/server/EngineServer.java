@@ -1086,6 +1086,13 @@ public final class EngineServer implements Server, EngineBridge {
                         // the disc's table index + 1, 0 with no record).
                         return jukeboxes.analogSignal(position);
                     }
+                    if (net.zaminmc.torch.server.block.CakeBlocks.isCake(block.identifier())) {
+                        // The cake's bite read (CakeBlock.getAnalogSignal
+                        // lines 133-135): (7 - bites) * 2 — the whole cake's
+                        // 14 down to the last crumb's 2.
+                        return net.zaminmc.torch.server.block.CakeBlocks
+                                .analogSignal(block.identifier());
+                    }
                     return -1;
                 });
                 // The container-content wake (the reference's
@@ -1682,6 +1689,12 @@ public final class EngineServer implements Server, EngineBridge {
                                 || soilName.startsWith("stained_hardened_clay_")
                                 || soilName.equals("dirt");
                     }
+                    if (name.equals("cake")) {
+                        // CakeBlock.canBePlaced lines 96-98 + canSurvive
+                        // lines 92-94: the block below must be SOLID.
+                        return net.zaminmc.torch.server.block.WorldSolidity.isSolid(
+                                world.getBlock(target.offset(0, -1, 0)));
+                    }
                     return true;
                 });
                 // The double-plant pair arm (Slice 45 —
@@ -1692,6 +1705,11 @@ public final class EngineServer implements Server, EngineBridge {
                 // and fern variants.
                 blockInteraction.setBreakReport((session, at, previous, creative) ->
                         doublePlantBreakReport(session, at, previous, creative));
+                // The cake's startMining eat (Slice 46 —
+                // CakeBlock.startMining lines 62-66: the left click eats a
+                // slice too, the same canEat(false) gate as the use arm).
+                blockInteraction.setMiningStartReport((session, at) ->
+                        eatCakeSlice(session, at));
                 // The dig-start hook (Slice 27a — the reference's
                 // block.startMining arm, ServerPlayerInteractionManager
                 // line 133): the note block plays on the survival start.
@@ -6153,6 +6171,9 @@ public final class EngineServer implements Server, EngineBridge {
         if (useDoublePlantOnTick(session, clicked, face)) {
             return; // the double-plant pair placement was consumed
         }
+        if (useCakeOnTick(session, clicked)) {
+            return; // the cake's slice was eaten
+        }
         if (useFarmingOnTick(session, clicked, face)) {
             return; // the hoe/seed/bone-meal/cocoa use was consumed
         }
@@ -7571,6 +7592,51 @@ public final class EngineServer implements Server, EngineBridge {
      * meal jumps a growing crop forward 2-4 stages. Returns whether the use
      * was consumed. Tick-thread context.
      */
+    /**
+     * The cake's eat arm (Slice 46 — CakeBlock.use lines 57-60 +
+     * startMining lines 62-66 + the private eat lines 68-84): a right or
+     * left click on the cake eats one slice when the body is not full —
+     * canEat(false), the HungerManager.add(2, 0.1F) write, the BITES + 1
+     * state advance (or the remove at the seventh bite). Tick-thread
+     * context.
+     */
+    private boolean useCakeOnTick(PlayerSession session, BlockPosition clicked) {
+        if (!net.zaminmc.torch.server.block.CakeBlocks.isCake(
+                world.getBlock(clicked).identifier())) {
+            return false; // not a cake cell: the generic path's own
+        }
+        eatCakeSlice(session, clicked);
+        return true; // the cake's use consumed the click either way
+    }
+
+    /**
+     * The one-slice eat (CakeBlock.eat lines 68-84): the canEat(false)
+     * gate — a full body never bites; the nutrition write
+     * {@code add(2, 0.1F)} (HungerManager lines 449-458: foodLevel
+     * min(20, +2), saturation min(foodLevel, +0.1)); the BITES advance or
+     * the removal at the seventh bite. Tick-thread context.
+     */
+    private void eatCakeSlice(PlayerSession session, BlockPosition at) {
+        BlockType cake = world.getBlock(at);
+        if (!net.zaminmc.torch.server.block.CakeBlocks.isCake(cake.identifier())) {
+            return; // not a cake cell (a stale start report)
+        }
+        if (session.food() >= net.zaminmc.torch.server.player.PlayerSession.MAX_FOOD) {
+            return; // canEat(false): a full body never bites
+        }
+        int bites = net.zaminmc.torch.server.block.CakeBlocks.bitesOf(cake.identifier());
+        int newFood = Math.min(net.zaminmc.torch.server.player.PlayerSession.MAX_FOOD,
+                session.food() + 2);
+        float newSaturation = Math.min(newFood, session.saturation() + 0.1f);
+        session.setBody(session.health(), newFood, newSaturation);
+        if (bites < net.zaminmc.torch.server.block.CakeBlocks.MAX_BITES) {
+            world.setBlock(at, blockRegistry.require(
+                    net.zaminmc.torch.server.block.CakeBlocks.stateId(bites + 1)));
+        } else {
+            world.setBlock(at, world.airType());
+        }
+    }
+
     /**
      * The double-plant pair placement (Slice 45 — DoublePlantBlock 1:1 over
      * ItemColored's own BlockItem consult): the family item's damage names

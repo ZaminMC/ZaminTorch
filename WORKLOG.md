@@ -6019,3 +6019,40 @@ Ledgered: the bonemeal arms (the flowers' grow-the-item dup and the tall
 grass's conversion to the double) ride the bone-meal item-model slice; the
 per-variant canBeReplaced refinement rides the metadata-variants slice; the
 pair's XZ offset rendering rides the client's model band.
+
+## Slice 46 — the cake family: the block 92's seven BITES states
+
+The reference port of `CakeBlock.java` (Material.CAKE, no setStrength — the
+0.0 default; the seven BITES states, the whole cake bites 0, the last
+visible crumb bites 6).
+
+- The state model (`server/block/CakeBlocks`): the seven states with the
+  BITES id whole in the metadata nibble; the bare bites-0 form is the
+  plain `minecraft:cake` the existing CAKE item (354, stack 1) places.
+- The eat arms (CakeBlock.use + startMining + the private eat): a right or
+  left click eats one slice when the body is not full — canEat(false), the
+  add(2, 0.1F) nutrition write (foodLevel min(20, +2), saturation
+  min(foodLevel, +0.1)), the BITES advance or the removal at the seventh
+  bite. The left click rides the new player-aware
+  `setMiningStartReport` hook; the right click the `useCakeOnTick` arm.
+- The support pop (neighborChanged): the block below must be SOLID; a
+  departing support removes the cake with NO drop (getDropItem's null,
+  getBaseDropCount's 0).
+- The analog read ((7 - bites) * 2) joins the comparator's source chain;
+  the placement gate carries the SOLID-below rule.
+- The MILK_BUCKET item (335) + the cake's crafting row (three milk over
+  sugar-wheat-sugar) + the recipe remainder consult
+  (`CraftingRemainders` — Item.getRecipeRemainder's own model: the
+  consumed milk bucket leaves its empty bucket in the grid cell,
+  CraftingGrid.consumeOne's consult).
+- The behavior rows (0.0, no drops), the light rows (CUTOUT), and the wire
+  rows (the seven states at 92 with the BITES nibble, the milk bucket at
+  335).
+- Tests: `CakeBlocksTest` (2 — the seven states' band + the analog ladder
+  + the eat's own writes; the live support read + the recipe remainder) +
+  `BlockRegistryTest` 691 + `CraftingRecipeTest` 194. The full core suite
+  green, the protocol module green, `--max-workers=1`.
+
+Ledgered: the cake's per-bite 7/16-height collision box rides the
+collision-shape slice; the CAKE_SLICES_EATEN stat rides the stats slice;
+the milk bucket's drink rides the food slice.
