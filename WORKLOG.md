@@ -6651,3 +6651,51 @@ The build that births the boss: `SkullBlock`/`SkullItem`/`trySpawn` 1:1.
 - Tests: `SkullSummonTest` (5) + `BlockRegistryTest` (778). The
   protocol module green (the crafting integration suites recovered),
   the block/item/skull/wither batches green, `--max-workers=1`.
+
+## Slice 61 — the End dimension, part one (the island world + the crossing)
+
+The third EngineWorld, vanilla's DIM1.
+
+- **The generator** (`TheEndWorldGenerator`): TheEndChunkGenerator 1:1 —
+  the five-noise stack (16/16/8/10/16 octaves off one seed-shared
+  Random), the 2x2x33 heightmap at stride 1, the trilinear 0.25/0.125
+  fill, END_STONE above zero. The island envelope
+  `100 - sqrt(x²+z²)*8` clamped [-100,80] — the central island falls to
+  void by ~radius 100 — with the -3000 shelf above heightmap midpoint
+  and the -30 floor below sample 8. The surfaces pass stays as the
+  reference's own zero-write loop (the End carries no STONE).
+- **The decorate**: the 1-in-5 EndPillarFeature roll — the surface/base
+  ring gates, `nextInt(32)+6` height, `nextInt(4)+1` radius, the
+  obsidian cylinder `dx²+dz² <= r²+1`, the bedrock cap. The veins walk
+  (nothing places — no stone) skipped whole; the crystal + the dragon
+  rides their own slices.
+- **The world boot**: `worldName_end`, `DIM1/zamin-delta.bin`, the
+  `simulation:end` domain, `worldFor(1)`, and the five dimension-routing
+  sites unified through it.
+- **The crossing**: the end portal's INSTANT arm (EndPortalBlock
+  .onEntityCollision — no stand clock, the rider gate) → the End arrival
+  at the forced spawn (100, 50, 0) with the fixed 90-degree yaw and NO
+  portal-forcer walk (the reference's `dimension != 1` gate). The
+  obsidian platform is the ledgered adaptation (the reference tree
+  carries no platform code — the decompilation gap): a 5x5 floor +
+  air pocket written with every arrival.
+- **The death fix riding the slice**: every respawn now resets the
+  dimension to 0 (the reference's `respawn(player, 0, ...)` — dying in
+  the nether previously left the session's dimension field stuck at -1
+  while the wire already said overworld).
+- Tests: `TheEndWorldTest` (6). The generator batch green,
+  `--max-workers=1`.
+
+NEXT (in order): (1) the ender crystal entity (EnderCrystalEntity 1:1:
+object 200, the render-tick counter, the End-only fire under the body,
+the any-damage 6.0F explosion, the beam Int at synced slot 8) + the
+pillar-top crystal spawn arm in the decorate (EndPillarFeature lines
+49-51) + the attack dispatch; (2) the dragon fight (EnderDragonEntity
+620 lines: the phase family, the multi-part body, the flight model, the
+crystal heal, the death — 500+12000 XP, the fountain, the egg) — likely
+two slices; (3) the exit fountain's End-to-overworld redirect (old 1 +
+new 1 → the overworld, the GameEvent-4 credits + the leavingTheEnd
+respawn); (4) the smaller entity gaps: the spawnable pair (experience
+bottle 75 + fireworks 76), the minecart variants (TNT 45/hopper 46/
+furnace 44/spawner 47/command-block 40), the fishing bobber (90), the
+giant (53).

@@ -77,6 +77,7 @@ import net.zaminmc.torch.server.world.EngineWorld;
 import net.zaminmc.torch.server.world.DeltaWorldStorage;
 import net.zaminmc.torch.server.world.NormalWorldGenerator;
 import net.zaminmc.torch.server.world.NetherWorldGenerator;
+import net.zaminmc.torch.server.world.TheEndWorldGenerator;
 import net.zaminmc.torch.server.world.PortalForcer;
 import net.zaminmc.torch.server.world.PortalFrameBuilder;
 import net.zaminmc.torch.server.world.WorldGenerator;
@@ -242,6 +243,10 @@ public final class EngineServer implements Server, EngineBridge {
     private WorldStorage worldStorage;
     /** The nether dimension's delta persistence (DIM-1/zamin-delta.bin). */
     private WorldStorage netherStorage;
+    /** The End dimension (Slice 61): vanilla's DIM1 — the island world. */
+    private EngineWorld endWorld;
+    /** The End dimension's delta persistence (DIM1/zamin-delta.bin). */
+    private WorldStorage endStorage;
     /** The destination-side portal walks (the reference's per-ServerWorld PortalForcer). */
     private PortalForcer worldPortalForcer;
     private PortalForcer netherPortalForcer;
@@ -552,6 +557,30 @@ public final class EngineServer implements Server, EngineBridge {
                 // The public block-change observation covers the nether's
                 // commits too (the event carries the world's own name).
                 netherWorld.addChangeListener(new PublicBlockChangeBridge());
+                // The End dimension (Slice 61): the third EngineWorld —
+                // vanilla's DIM1. The reference's TheEndDimension: same
+                // world seed, its own chunk map, its own delta persistence
+                // directory, its own ownership domain ("simulation:end"),
+                // the fixed THE_END biome (wire id 9), and no PortalForcer
+                // (the reference's End arrival skips the placing walk —
+                // PlayerManager.changeDimension's dimension != 1 gate).
+                TheEndWorldGenerator endGenerator =
+                        new TheEndWorldGenerator(blockRegistry, worldSeed);
+                endWorld = new EngineWorld(config.worldName() + "_end",
+                        blockRegistry, endGenerator, owner);
+                net.zaminmc.torch.server.concurrent.RegionPartition endRegionPartition =
+                        new net.zaminmc.torch.server.concurrent.RegionPartition(
+                                config.worldName() + "_end", config.regionSizeChunks());
+                endWorld.attachRegionPartition(endRegionPartition);
+                endStorage = new DeltaWorldStorage(
+                        config.worldDataDir().resolve("DIM1/zamin-delta.bin"),
+                        identifier -> blockRegistry.require(identifier));
+                endStorage.load().ifPresent(endWorld::applyDeltas);
+                endWorld.attachDomain(net.zaminmc.torch.server.concurrent.OwnershipDomain
+                        .create("simulation:end"));
+                LOGGER.info(() -> "End dimension '"
+                        + endWorld.name() + "' ready (seed " + worldSeed + ")");
+                endWorld.addChangeListener(new PublicBlockChangeBridge());
                 // Light (§475/§476): derived world state, recomputed on every
                 // committed change and on chunk generation. Registered FIRST
                 // (before spawn pregeneration) so every generated chunk — boot
@@ -3611,11 +3640,28 @@ public final class EngineServer implements Server, EngineBridge {
     private void tickPortalStand(PlayerSession session) {
         // The body's OWN dimension decides the world read (the walk moves
         // bodies between worlds; the stand clock reads where the body lives).
-        EngineWorld bodyWorld = session.dimension() == -1 ? netherWorld : world;
+        EngineWorld bodyWorld = worldFor(session.dimension());
         BlockType at = bodyWorld.getBlock(new BlockPosition(
                 (int) Math.floor(session.position().x()),
                 (int) Math.floor(session.position().y()),
                 (int) Math.floor(session.position().z())));
+        // The end portal's INSTANT arm (Slice 61 — EndPortalBlock
+        // .onEntityCollision lines 65-71): no stand clock, no cooldown —
+        // the collision itself crosses the body (the rider/vehicle gate:
+        // a seated body never crosses).
+        if (at.identifier().value().equals("end_portal")
+                && session.ridingVehicleId() < 0 && session.ridingMobId() < 0) {
+            if (session.dimension() == 1) {
+                // The End's own end_portal cell (the exit fountain's — the
+                // reference's Entity.changeDimension lines 1703-1706: old 1
+                // + new 1 redirects to the overworld). The credits walk
+                // rides the dragon slice with the fountain that carries it;
+                // the redirect law stays ledgered here.
+                return;
+            }
+            enterEndOnTick(session);
+            return;
+        }
         boolean inPortal = at.identifier().equals(BuiltinBlocks.NETHER_PORTAL.identifier())
                 || at.identifier().equals(BuiltinBlocks.NETHER_PORTAL_Z.identifier());
         boolean creative = session.gamemode() == GameMode.CREATIVE;
@@ -4988,6 +5034,13 @@ public final class EngineServer implements Server, EngineBridge {
             }
             session.resetBody();
             session.cancelEating();
+            // The respawn's dimension reset (Slice 61 — the reference's
+            // PlayerManager.respawn(player, 0, ...): every death respawn
+            // lands in the OVERWORLD; a body that died in the nether or
+            // the End returns home).
+            if (session.dimension() != 0) {
+                session.setDimension(0);
+            }
             // The respawn destination: the bed spawn when the body slept,
             // otherwise the world spawn. The body moves here so the wire's
             // re-anchor reads the destination position.
@@ -7867,7 +7920,7 @@ public final class EngineServer implements Server, EngineBridge {
                                     net.zaminmc.torch.item.ItemStack held) {
         net.zaminmc.torch.server.entity.MobType kind =
                 net.zaminmc.torch.server.item.SpawnEggs.typeOf(held.damage());
-        EngineWorld useWorld = session.dimension() == -1 ? netherWorld : world;
+        EngineWorld useWorld = worldFor(session.dimension());
         net.zaminmc.torch.block.BlockType block = useWorld.getBlock(clicked);
         if (block.identifier().equals(BuiltinBlocks.MOB_SPAWNER.identifier())) {
             // The spawner arm (useOn lines 68-82): the re-type lands even
@@ -7914,7 +7967,7 @@ public final class EngineServer implements Server, EngineBridge {
         if (liquidCell == null) {
             return; // the clean miss: no body, no payment
         }
-        EngineWorld useWorld = session.dimension() == -1 ? netherWorld : world;
+        EngineWorld useWorld = worldFor(session.dimension());
         BlockType at = useWorld.getBlock(liquidCell);
         if (FluidBlocks.kindOf(at.identifier()) == null) {
             return; // the solid hit: the reference's startUsing only answers liquids
@@ -7945,7 +7998,7 @@ public final class EngineServer implements Server, EngineBridge {
      *         clean (the reference's miss)
      */
     private BlockPosition rayTraceBlocks(PlayerSession session, boolean allowLiquids) {
-        EngineWorld useWorld = session.dimension() == -1 ? netherWorld : world;
+        EngineWorld useWorld = worldFor(session.dimension());
         Position eye = new Position(session.position().x(),
                 session.position().y() + 1.62, session.position().z());
         double yaw = Math.toRadians(session.rotation().yaw());
@@ -13270,7 +13323,8 @@ public final class EngineServer implements Server, EngineBridge {
 
         /** The world the active dimension lives in (the nether's stand-in: the overworld when unbooted). */
         private EngineWorld activeWorld() {
-            return activeDimension == -1 && netherWorld != null ? netherWorld : world;
+            return activeDimension == -1 && netherWorld != null ? netherWorld
+                    : activeDimension == 1 && endWorld != null ? endWorld : world;
         }
 
         /** The dimension-aware solidity (the overworld helpers stay for the dimension-blind systems). */
@@ -14366,13 +14420,26 @@ public final class EngineServer implements Server, EngineBridge {
         });
     }
 
-    /** @return the world a session's dimension walks (0 the overworld, -1 the nether). */
+    /** @return the world a session's dimension walks (0 the overworld, -1 the
+     * nether, 1 the End — Slice 61). */
     public EngineWorld worldFor(int dimension) {
         if (dimension == -1) {
             return java.util.Objects.requireNonNull(netherWorld, "nether world");
         }
+        if (dimension == 1) {
+            return java.util.Objects.requireNonNull(endWorld, "end world");
+        }
         return world;
     }
+
+    /** The End's arrival cell (TheEndDimension.getForcedSpawnPoint line 74:
+     * the platform position, never a generator product). */
+    public static final int END_ARRIVAL_X = 100;
+    public static final int END_ARRIVAL_Y = 50;
+    public static final int END_ARRIVAL_Z = 0;
+    /** The End arrival's fixed yaw (PlayerManager.changeDimension line 481:
+     * the 90.0F in the End reposition arm). */
+    public static final float END_ARRIVAL_YAW = 90.0f;
 
     /**
      * The changeDimension walk (the reference's PlayerManager.changeDimension,
@@ -14395,6 +14462,70 @@ public final class EngineServer implements Server, EngineBridge {
         } else {
             ticker.submit(walk);
         }
+    }
+
+    /**
+     * The End entry walk (Slice 61 — the reference's PlayerManager
+     * .changeDimension Entity-overload lines 468-485, the End arm): the
+     * arrival at the dimension's FORCED spawn (TheEndDimension
+     * .getForcedSpawnPoint's 100/50/0), the fixed 90-degree yaw, NO
+     * portal-forcer walk (the reference's {@code dimension != 1} gate
+     * skips the placing phase for the End), and the wire's respawn
+     * sequence re-pointed at dimension 1.
+     *
+     * <p>The obsidian arrival platform: the reference tree carries no
+     * platform-creation code anywhere (the decompilation gap this slice
+     * ledgers) — vanilla arrivals land standing on a 5x5 obsidian
+     * platform. The engine adaptation writes the platform with the
+     * arrival (floor at y=49 — the body's feet at 50 — x 98..102,
+     * z -2..2, air carved 50..52), a standing law rather than a
+     * generation law so the platform follows every arrival like
+     * vanilla's does.</p>
+     *
+     * <p>Tick-thread context (the end portal's instant arm).</p>
+     */
+    private void enterEndOnTick(PlayerSession session) {
+        if (session.state() != PlayerState.PLAYING || session.dead()) {
+            return;
+        }
+        if (session.dimension() == 1) {
+            return; // already there
+        }
+        EngineWorld toWorld = worldFor(1);
+        // The arrival neighborhood loads BEFORE the platform writes read
+        // it (the nether walk's own bounded precedent — here the 3x3 chunk
+        // ring around the arrival cell).
+        int centerChunkX = END_ARRIVAL_X >> 4;
+        int centerChunkZ = END_ARRIVAL_Z >> 4;
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dz = -1; dz <= 1; dz++) {
+                toWorld.getOrGenerate(new net.zaminmc.torch.block.ChunkPosition(
+                        centerChunkX + dx, centerChunkZ + dz));
+            }
+        }
+        // The platform adaptation (the ledgered decompilation gap): the
+        // 5x5 obsidian floor + the air pocket above it.
+        BlockType obsidian = blockRegistry.require(
+                net.zaminmc.torch.util.Identifier.parse("minecraft:obsidian"));
+        for (int x = END_ARRIVAL_X - 2; x <= END_ARRIVAL_X + 2; x++) {
+            for (int z = END_ARRIVAL_Z - 2; z <= END_ARRIVAL_Z + 2; z++) {
+                toWorld.setBlock(new BlockPosition(x, END_ARRIVAL_Y - 1, z), obsidian);
+                for (int y = END_ARRIVAL_Y; y <= END_ARRIVAL_Y + 2; y++) {
+                    toWorld.setBlock(new BlockPosition(x, y, z), toWorld.airType());
+                }
+            }
+        }
+        // The arrival (the reference's setPositionAndAngles at the forced
+        // spawn, the 90-degree yaw; the fall debt clears — the crossing is
+        // not a fall).
+        Position arrival = new Position(END_ARRIVAL_X, END_ARRIVAL_Y, END_ARRIVAL_Z);
+        session.applyDimensionArrival(1, arrival, END_ARRIVAL_YAW,
+                session.rotation().pitch());
+        session.setGraceTicks(100);
+        session.consumeFallDistance();
+        publishDimensionChanged(session, arrival, 1);
+        LOGGER.info(() -> "Player " + session.name()
+                + " crossed to the End (arrival " + arrival + ")");
     }
 
     private void changeDimensionOnTick(PlayerSession session) {
