@@ -643,6 +643,40 @@ final class LegacyBlockIds {
                 }
             }
         }
+        // The trapdoor pair (Slice 39 — Block.java's own rows): the wood
+        // trapdoor 96, the iron trapdoor 167 — the horizontal facing over
+        // metadata 0-3 (getFacing: N=0 S=1 W=2 E=3) with the OPEN bit 4 and
+        // the TOP-half bit 8, the bare form sharing the family item's
+        // identifier (Item.java's own rows 434/503).
+        {
+            String[] trapdoorFamilies = {"trapdoor", "iron_trapdoor"};
+            int[] trapdoorIds = {96, 167};
+            String[] trapdoorFacings = {"", "_south", "_west", "_east"}; // north is bare
+            for (int f = 0; f < trapdoorFamilies.length; f++) {
+                for (int facing = 0; facing < 4; facing++) {
+                    for (int open = 0; open <= 1; open++) {
+                        for (int top = 0; top <= 1; top++) {
+                            int meta = facing | (open == 1 ? 4 : 0) | (top == 1 ? 8 : 0);
+                            if (meta == 0) {
+                                merged.put(Identifier.parse("minecraft:" + trapdoorFamilies[f]),
+                                        trapdoorIds[f]);
+                                continue;
+                            }
+                            StringBuilder name = new StringBuilder("minecraft:")
+                                    .append(trapdoorFamilies[f]);
+                            if (open == 1) {
+                                name.append("_open");
+                            }
+                            if (top == 1) {
+                                name.append("_top");
+                            }
+                            name.append(trapdoorFacings[facing]);
+                            merged.put(Identifier.parse(name.toString()), trapdoorIds[f]);
+                        }
+                    }
+                }
+            }
+        }
         // The wood-variant foundation (Slice 35 — Block.java's own rows):
         // planks 5, logs 17 + the Log2 pair 162, leaves 18 + the Leaves2
         // pair 161, saplings 6 — every family member's block id, its
@@ -1272,6 +1306,35 @@ final class LegacyBlockIds {
                         }
                         name.append(railShapes[shape]);
                         merged.put(Identifier.parse(name.toString()), meta);
+                    }
+                }
+            }
+        }
+        // The trapdoor pair's metadata nibble (Slice 39 —
+        // TrapdoorBlock.getMetadataFromState lines 206-218: the facing band
+        // N=0 S=1 W=2 E=3 | open 4 | top 8; the bare meta-0 form needs no
+        // row).
+        {
+            String[] trapdoorFamilies = {"trapdoor", "iron_trapdoor"};
+            String[] trapdoorFacings = {"", "_south", "_west", "_east"};
+            for (String family : trapdoorFamilies) {
+                for (int facing = 0; facing < 4; facing++) {
+                    for (int open = 0; open <= 1; open++) {
+                        for (int top = 0; top <= 1; top++) {
+                            int meta = facing | (open == 1 ? 4 : 0) | (top == 1 ? 8 : 0);
+                            if (meta == 0) {
+                                continue;
+                            }
+                            StringBuilder name = new StringBuilder("minecraft:").append(family);
+                            if (open == 1) {
+                                name.append("_open");
+                            }
+                            if (top == 1) {
+                                name.append("_top");
+                            }
+                            name.append(trapdoorFacings[facing]);
+                            merged.put(Identifier.parse(name.toString()), meta);
+                        }
                     }
                 }
             }

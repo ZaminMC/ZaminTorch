@@ -5773,3 +5773,50 @@ walk ships; the activator rail's cart-side arms (the TNT cart's prime,
 the hopper cart's halt) ride their own cart slices; the trio's
 curve-free SHAPE vocabulary is the reference's own (the plain rail's
 RailNode auto-shape walk is the plain rail's slice).
+
+## Slice 39 — the trapdoor pair: the wood 96 + the iron 167
+
+The reference port of `TrapdoorBlock.java` over both material rows (the
+wood `setStrength(3.0F)` WOOD_SOUNDS, the iron `setStrength(5.0F)`
+METAL_SOUNDS with Material.IRON's pickaxe gate).
+
+- The state model (`server/block/TrapdoorBlocks`): the horizontal facing
+  over metadata 0-3 (getFacing: N=0 S=1 W=2 E=3) with the OPEN bit 4 and
+  the TOP-half bit 8 — sixteen states per family, the bare closed bottom
+  north form sharing the family item's identifier (Item.java's rows
+  434/503). Both halves carry a collision panel in the reference (the
+  closed 3/16 floor/ceiling panel, the open vertical one) — the engine's
+  flat-solid stand-in keeps every state solid, the shipped door
+  convention (the thin panels ledgered to the collision-shape slice).
+- The placement (`EngineServer.placeTrapdoorOnTick`, 1:1): only a
+  HORIZONTAL clicked face mounts, the facing is the face's own direction
+  (the panel against the wall), the half rides the cursor's upper band
+  (`dy > 0.5F` — the slab's own cursor rule), and the wall must pass
+  canBePlacedOn (a solid full cube, the glowstone, a slab, or a stairs —
+  the engine's isSolid minus the known partial shapes).
+- The swing (`use()` lines 107-116): the wood flips OPEN with the doEvent
+  1003/1006 pair on the fx bus; the iron's material refusal still
+  consumes the use (the reference's `return true`).
+- The signal arm (`RedstoneSystem.trapdoorNeighborChanged`, 1:1): the
+  mount check first (the wall behind the FACING — a departed mount pops
+  the trapdoor with its item), then the signal edge flips OPEN for BOTH
+  families (the iron trapdoor's only opening path).
+- The crafting rows (CraftingManager lines 197-199): six planks over the
+  BARE family ingredient (any variant) -> 2 trapdoors, four iron ingots
+  -> 1 iron trapdoor.
+- The behavior rows (wood 3.0 / iron 5.0 pickaxe-gated), the light rows
+  (CUTOUT filter 15), the noteblock's bass-guitar wood family (the iron
+  rides the default harp like the iron door), and the wire rows (the
+  ids + every state's facing|open|top nibble).
+- Tests: `TrapdoorBlocksTest` (3, live engine — the wall-mount placement
+  with the cursor half and the vertical-face refusal, the wood swing +
+  the iron refusal, the signal edge over both families + the mount-depart
+  pop with its drop, the family tables + the crafts) +
+  `CraftingRecipeTest` 193. Batches: block + crafting + redstone +
+  noteblock green, the protocol integrity + chunk serializer green,
+  `--max-workers=1`.
+
+Ledgered: the open panel's vertical 3/16 shape and the closed panel's
+floor/ceiling thickness ride the collision-shape slice (the flat-solid
+stand-in ships — every state blocks a body, the reference's own
+isPassable pathfinding quirk stays out of the physics model).

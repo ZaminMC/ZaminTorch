@@ -865,6 +865,10 @@ public final class RedstoneSystem implements WorldChangeListener {
             railNeighborChanged(pos, type);
             return;
         }
+        if (net.zaminmc.torch.server.block.TrapdoorBlocks.isTrapdoor(type)) {
+            trapdoorNeighborChanged(pos, type);
+            return;
+        }
     }
 
     /**
@@ -1176,6 +1180,71 @@ public final class RedstoneSystem implements WorldChangeListener {
             case "activator_rail" -> BuiltinItems.ACTIVATOR_RAIL;
             default -> BuiltinItems.GOLDEN_RAIL;
         };
+    }
+
+    /**
+     * The trapdoor's signal arm (TrapdoorBlock.neighborChanged lines
+     * 119-136, 1:1): the mount check first (the wall behind the FACING —
+     * {@code pos.offset(FACING.getOpposite())} — a departed mount pops
+     * the trapdoor with its item), then the signal edge flips OPEN for
+     * BOTH families (the iron trapdoor's only opening path — the manual
+     * use refuses, the signal does not).
+     */
+    private void trapdoorNeighborChanged(BlockPosition pos, BlockType type) {
+        int facing = net.zaminmc.torch.server.block.TrapdoorBlocks.facingOf(type);
+        // The wall cell: the facing's opposite (the engine's band — the
+        // facing points away from the wall, so the wall sits opposite).
+        int[] away = switch (facing) {
+            case 0 -> new int[] {0, 0, 1};   // facing north: the wall south
+            case 1 -> new int[] {0, 0, -1};  // facing south: the wall north
+            case 2 -> new int[] {1, 0, 0};   // facing west: the wall east
+            default -> new int[] {-1, 0, 0}; // facing east: the wall west
+        };
+        BlockType mount = world.getBlock(pos.offset(away[0], away[1], away[2]));
+        if (!trapdoorMountHolds(mount)) {
+            popBlock(pos, net.zaminmc.torch.server.block.TrapdoorBlocks.isIron(
+                    net.zaminmc.torch.server.block.TrapdoorBlocks.familyOf(type))
+                    ? BuiltinItems.IRON_TRAPDOOR : BuiltinItems.TRAPDOOR);
+            return;
+        }
+        boolean flag = hasNeighborSignal(pos);
+        boolean open = net.zaminmc.torch.server.block.TrapdoorBlocks.isOpen(type);
+        if (flag != open) {
+            world.setBlock(pos, net.zaminmc.torch.server.block.TrapdoorBlocks
+                    .withOpen(type, flag));
+            java.util.function.BiConsumer<BlockPosition, Boolean> sound = doorSoundCallback;
+            if (sound != null) {
+                sound.accept(pos, flag); // the doEvent 1003/1006 pair
+            }
+        }
+    }
+
+    /** The mount read (canBePlacedOn over the wall cell). */
+    private boolean trapdoorMountHolds(BlockType mount) {
+        String value = mount.identifier().value();
+        if (mount.identifier().equals(BuiltinBlocks.GLOWSTONE.identifier())) {
+            return true;
+        }
+        if (net.zaminmc.torch.server.block.TrapdoorBlocks.isTrapdoor(mount)) {
+            return false; // the partial panel never holds another
+        }
+        if (value.endsWith("_slab") || value.endsWith("_slab_top")) {
+            return true;
+        }
+        if (net.zaminmc.torch.server.block.WoodShapeBlocks.isStairsState(value)
+                || net.zaminmc.torch.server.block.WoodShapeBlocks.isStairsItem(value)
+                || value.startsWith("oak_stairs") || value.startsWith("cobblestone_stairs")
+                || value.startsWith("sandstone_stairs")
+                || value.startsWith("nether_brick_stairs")) {
+            return true;
+        }
+        return WorldSolidity.isSolid(mount)
+                && !value.startsWith("minecraft:fence")
+                && !net.zaminmc.torch.server.block.FenceGateBlocks.isGateItem(value)
+                && !value.contains("_door")
+                && !WorldSolidity.isRail(mount.identifier())
+                && !net.zaminmc.torch.server.block.RailBlocks.isRailItem(value)
+                && !value.equals("chest") && !value.startsWith("chest_");
     }
 
     /** The door item of a family for the pop arm's drop. */

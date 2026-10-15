@@ -1240,6 +1240,25 @@ public final class BlockBehaviorTable {
             }
         }
 
+        // The trapdoor pair (Slice 39 — TrapdoorBlock's own rows: the wood
+        // `setStrength(3.0F)` WOOD_SOUNDS, the iron `setStrength(5.0F)`
+        // METAL_SOUNDS — Material.IRON's own setRequiresTool gates the iron
+        // pair to pickaxe-class drops): every state drops the family item.
+        for (String family : TrapdoorBlocks.TRAPDOORS.keySet()) {
+            boolean iron = TrapdoorBlocks.isIron(family);
+            BlockBehavior trapdoor = new BlockBehavior(iron ? 5.0 : 3.0,
+                    true, iron, iron ? "rock" : "wood", 0,
+                    List.of(new BlockBehavior.Drop(TrapdoorBlocks.trapdoorItem(family), 1)));
+            for (int facing = 0; facing < 4; facing++) {
+                for (boolean open : new boolean[] {false, true}) {
+                    for (boolean top : new boolean[] {false, true}) {
+                        behaviors.put(TrapdoorBlocks.state(family, facing, open, top)
+                                .identifier(), trapdoor);
+                    }
+                }
+            }
+        }
+
         // The complete door families (Slice 34 — DoorBlock's own
         // registrations: every wood door `setStrength(3.0F)` WOOD_SOUNDS,
         // the iron door `setStrength(5.0F)` Material.IRON — the material's

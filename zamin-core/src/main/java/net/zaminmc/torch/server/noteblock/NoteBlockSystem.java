@@ -211,10 +211,17 @@ public final class NoteBlockSystem implements WorldChangeListener {
             return INSTRUMENT_HAT;
         }
         if (WOOD_MATERIAL.contains(belowValue) || isWoodDoor(belowValue)
-                || isFenceGate(belowValue)) {
+                || isFenceGate(belowValue) || isWoodTrapdoor(belowValue)) {
             return INSTRUMENT_BASS_GUITAR;
         }
         return INSTRUMENT_HARP;
+    }
+
+    /** Whether the value is a wooden trapdoor state (Slice 39 — the wood
+     *  family's Material.WOOD; the iron trapdoor is IRON and rides the
+     *  default harp like the iron door). */
+    private static boolean isWoodTrapdoor(String value) {
+        return value.equals("trapdoor") || value.startsWith("trapdoor_");
     }
 
     /** Whether the value is a wooden door state (the six wood families'

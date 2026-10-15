@@ -270,6 +270,19 @@ public final class BuiltinRecipes {
                     { ing("minecraft:iron_ingot", false, 0), ing("minecraft:redstone", false, 0), ing("minecraft:iron_ingot", false, 0) }
             },
                     res("minecraft:detector_rail", 6, 0)),
+            // The trapdoor crafts (Slice 39 — CraftingManager lines 197-199):
+            // the wood over the BARE planks ingredient (any variant) -> 2,
+            // the iron over four ingots -> 1.
+            CraftingRecipe.shaped(new Ingredient[][] {
+                    { ing("minecraft:planks", false, 0), ing("minecraft:planks", false, 0), ing("minecraft:planks", false, 0) },
+                    { ing("minecraft:planks", false, 0), ing("minecraft:planks", false, 0), ing("minecraft:planks", false, 0) }
+            },
+                    res("minecraft:trapdoor", 2, 0)),
+            CraftingRecipe.shaped(new Ingredient[][] {
+                    { ing("minecraft:iron_ingot", false, 0), ing("minecraft:iron_ingot", false, 0) },
+                    { ing("minecraft:iron_ingot", false, 0), ing("minecraft:iron_ingot", false, 0) }
+            },
+                    res("minecraft:iron_trapdoor", 1, 0)),
             // The core planks crafts over the family item (the reference's
             // bare Blocks.PLANKS ingredient matches any variant — the
             // engine's family-item rows for the shipped oak rows' new twin).

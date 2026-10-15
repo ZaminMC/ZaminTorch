@@ -596,6 +596,19 @@ public final class BlockLightTable {
                 }
             }
         }
+        // The trapdoor pair (Slice 39 — TrapdoorBlock is a CUTOUT
+        // renderer: isSolidRender false, opacity 0; every state passes
+        // light whole like the door rows).
+        for (String family : TrapdoorBlocks.TRAPDOORS.keySet()) {
+            for (int facing = 0; facing < 4; facing++) {
+                for (boolean open : new boolean[] {false, true}) {
+                    for (boolean top : new boolean[] {false, true}) {
+                        merged.put(TrapdoorBlocks.state(family, facing, open, top)
+                                .identifier(), new LightData(0, 15));
+                    }
+                }
+            }
+        }
         // The complete door families (Slice 34 — DoorBlock is a CUTOUT
         // renderer: isSolidRender false, opacity 0; every state passes
         // light whole like the shipped oak rows).
