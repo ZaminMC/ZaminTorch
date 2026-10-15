@@ -6430,3 +6430,37 @@ repair, the name-tag cost) rides its own slice (53b); the vanilla
 1.8.8 registers NO anvil crafting row (none added); the damage-source
 typing (the anvil death message's own source string) rides the
 damage-source band slice.
+
+## Slice 54 — the end portal family (the block + the fill walk)
+
+The reference's `EndPortalBlock` + `EnderEyeItem.useOn`, 1:1.
+
+- **The block 119**: the unbreakable film (`setStrength(-1.0F)` —
+  never diggable, no drops, no pick item), the 1/16-tall walk-through
+  shape (`addCollisions`' empty override — the WorldSolidity blacklist
+  joins the nether portal's), the `setLight(1.0F)` emission 15 with
+  the CUTOUT film passing whole.
+- **The ender eye's frame arm**: an empty frame takes the eye (the
+  facing preserved through the flattened pair), the survival hand pays
+  the stack, and the sixteen SMOKE_NORMAL particles ride the
+  reference's own 5/16..11/16 offset band at the 0.8125 height — the
+  new `Smoke` fx event over the wire's PARTICLE_SMOKE_NORMAL.
+- **The frame-complete fill walk** (the reference's own geometry): the
+  clicked frame's FACING into the interior, the 3-row scan along the
+  clockwise perpendicular (k=-2..2 — the first and last eyed frames
+  exactly two apart), the far row at FACING × 4 over the same band,
+  the two side columns at the row's ends (each FACING × 1..3) — all
+  eyed frames or the walk gives up, then the 3×3 interior fills with
+  the portal block.
+- Tests: `EndPortalBlocksTest` (3 — the rows, the vanilla ring's
+  complete fill over the live world, the refused fill on a missing
+  far-row eye) + `BlockRegistryTest` 764. The touched-area batches
+  green, protocol + api green, `--max-workers=1`.
+
+Ledgered: the contact arm (`onEntityCollision` → `changeDimension(1)`
+— the teleport into the End) rides the End dimension's own slice (the
+engine has no third world yet); the frame's comparator signal (the
+analog 15 with the eye, `updateNeighborComparators`'s own wake) rides
+the comparator-source slice; the eye's throw arm (the stronghold
+divination entity + the `findNearestStructure` consult) rides its own
+slice (the ender-eye entity).
