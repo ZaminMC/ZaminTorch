@@ -6464,3 +6464,30 @@ analog 15 with the eye, `updateNeighborComparators`'s own wake) rides
 the comparator-source slice; the eye's throw arm (the stronghold
 divination entity + the `findNearestStructure` consult) rides its own
 slice (the ender-eye entity).
+
+## Slice 55 — the dragon egg (the obelisk + the teleport)
+
+The reference's `DragonEggBlock`, 1:1.
+
+- **The block 122**: `setStrength(3.0F)` blast 15 with the STONE sounds,
+  the `setLight(0.125F)` emission 1, the 1/16-inset obelisk box, the
+  CUTOUT film passing whole. No item form (`getPickItem` null — the
+  landing drop consult finds nothing, the egg never yields a stack).
+- **The own fall schedule**: `DragonEggBlock extends Block` (NOT
+  FallingBlock) — its own `tryFall` over the same `canFallThrough`
+  gate, with `getTickRate` 5 (the hover sits five ticks out, not the
+  sand family's two).
+- **The click teleport** (both arms — `use` and `startMining`): 1000
+  attempts at the reference's own ±16/±8/±16 offsets, the target an
+  AIR cell, the move with the source removal. The out-of-band targets
+  are the reference's own vanish arm (the set fails below the world,
+  the source removes anyway — the egg destroys itself teleporting
+  below y 0). The portal particles are the client's own rendering over
+  the block change.
+- Tests: `DragonEggBlocksTest` (3) + `BlockRegistryTest` 765. The
+  touched-area batches green, `--max-workers=1`.
+
+Ledgered: the egg's placement onto the exit portal (the End's
+dragon-death spawn) rides the End dimension's slice; the egg's drop on
+a torch/piston harvest never exists (no item form — the reference
+registers none).
