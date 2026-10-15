@@ -184,6 +184,56 @@ public final class MobManager {
         }
 
         /**
+         * The dragon's contact arms (Slice 63 — mobTick lines 264-268):
+         * the wing hulls' fling ({@code grown(4, 2, 4).moved(0, -2, 0)} —
+         * the {@code d/d4 * 4} radial push with the 0.2 lift) and the
+         * head hull's grown-1 damage (the flat 10.0) against every living
+         * body of the dragon's own dimension.
+         */
+        default void onDragonContact(MobEntity mob) {
+        }
+
+        /**
+         * The dragon's block sweep (destroyBlocks lines 417-456): the
+         * head and body hulls over the End world — everything but the
+         * immune five (barrier, obsidian, end stone, bedrock, command
+         * block) breaks under mobGriefing; an immune block met writes
+         * the restrictMovement verdict back through {@code
+         * dragonSetRestrictMovement}.
+         */
+        default void onDragonSweep(MobEntity mob) {
+        }
+
+        /**
+         * The linked crystal popped (tickEndCrystalInteraction lines
+         * 326-331): the head's 10.0 explosive wound already landed on the
+         * body through the part walk — the event carries the wire's hurt
+         * fan.
+         */
+        default void onDragonCrystalWound(MobEntity mob) {
+        }
+
+        /** The death walk's first tick (doGlobalEvent 1018). */
+        default void onDragonDeathSound(MobEntity mob) {
+        }
+
+        /**
+         * The death walk's XP batch (tickPostDeath lines 512-520/530-537):
+         * the orb burst of {@code amount} at the body — the 1000s between
+         * 151..195 and the 2000 at 200.
+         */
+        default void onDragonXpBatch(MobEntity mob, int amount) {
+        }
+
+        /**
+         * The death walk's end (createPortal + remove, lines 529-542):
+         * the bedrock fountain with the exit portal and the egg, then the
+         * body leaves.
+         */
+        default void onDragonPortal(MobEntity mob) {
+        }
+
+        /**
          * The silverfish's infest roll fired (InfestStoneGoal.start lines
          * 171-187): the engine writes the egg for the adjacent host block
          * and removes the body (the reference's animateSpawn + remove).
@@ -1193,6 +1243,45 @@ public final class MobManager {
                 if (mob.consumeWitherBlockBreakSound()) {
                     for (Listener listener : listeners) {
                         listener.onWitherBlockBreakSound(mob);
+                    }
+                }
+            }
+            // The ender dragon's own band (Slice 63 — the contact arms +
+            // the death walk's events): the wing fling + the head damage
+            // (the engine walks the dimension's bodies against the part
+            // hulls), the block sweep (the destroyBlocks walk over the
+            // End world), the crystal-pop wound, the 1018, the XP batches,
+            // and the portal-and-remove.
+            if (mob.type() == MobType.ENDER_DRAGON) {
+                if (mob.consumeDragonFlungPlayers()) {
+                    for (Listener listener : listeners) {
+                        listener.onDragonContact(mob);
+                    }
+                }
+                if (mob.consumeDragonSweptBlocks()) {
+                    for (Listener listener : listeners) {
+                        listener.onDragonSweep(mob);
+                    }
+                }
+                if (mob.consumeDragonCrystalWound()) {
+                    for (Listener listener : listeners) {
+                        listener.onDragonCrystalWound(mob);
+                    }
+                }
+                if (mob.consumeDragonDeathSound()) {
+                    for (Listener listener : listeners) {
+                        listener.onDragonDeathSound(mob);
+                    }
+                }
+                int dragonXp = mob.consumeDragonXpBatch();
+                if (dragonXp > 0) {
+                    for (Listener listener : listeners) {
+                        listener.onDragonXpBatch(mob, dragonXp);
+                    }
+                }
+                if (mob.consumeDragonPortal()) {
+                    for (Listener listener : listeners) {
+                        listener.onDragonPortal(mob);
                     }
                 }
             }

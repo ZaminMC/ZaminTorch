@@ -69,7 +69,9 @@ class MobDataStoreTest {
                 new java.util.Random(7), (position, stack) -> { }, 3000,
                 (x, z) -> 4);
         List<MobManager.MobSnapshot> saved = List.of(
-                new MobManager.MobSnapshot("ENDER_DRAGON", 0, 100, 0, 0f, 200f),
+                // A kind that will never exist (Slice 63 added the very
+                // real ENDER_DRAGON — the old fixture name).
+                new MobManager.MobSnapshot("NOT_A_REAL_KIND", 0, 100, 0, 0f, 200f),
                 new MobManager.MobSnapshot("COW", 2.0, 5.0, 3.0, 45f, 3.5f));
         assertTrue(manager.restoreAll(saved), "the known kind restored");
         assertEquals(1, manager.size());

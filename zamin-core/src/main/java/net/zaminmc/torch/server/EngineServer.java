@@ -304,6 +304,10 @@ public final class EngineServer implements Server, EngineBridge {
     private net.zaminmc.torch.server.endcrystal.EnderCrystalSystem enderCrystals;
     /** The ender crystals' ZEC persistence (the destroyed-pillar set). */
     private net.zaminmc.torch.server.endcrystal.EnderCrystalDataStore enderCrystalStore;
+    /** The dragon fight's ZDR persistence (the defeated mark). */
+    private net.zaminmc.torch.server.endcrystal.DragonDataStore dragonStore;
+    /** Whether the End's dragon was already defeated (the no-respawn mark). */
+    private volatile boolean dragonDefeated;
     /** The End world's own blast walk (the crystal's 6.0F death — dimension 1). */
     private ExplosionService endExplosionService;
     /** The note tiles' ZND persistence. */
@@ -1349,6 +1353,13 @@ public final class EngineServer implements Server, EngineBridge {
                 enderCrystalStore = new net.zaminmc.torch.server.endcrystal.EnderCrystalDataStore(
                         config.worldDataDir().resolve("DIM1/endercrystals.bin"));
                 enderCrystals.restoreDestroyedCells(enderCrystalStore.load());
+                // The dragon fight's defeated mark (Slice 63): the End's
+                // chunks regenerate deterministically — the chunk-(0,0)
+                // decorate would re-spawn the dragon every boot; the ZDR
+                // store keeps the kill.
+                dragonStore = new net.zaminmc.torch.server.endcrystal.DragonDataStore(
+                        config.worldDataDir().resolve("DIM1/dragon.bin"));
+                dragonDefeated = dragonStore.load();
                 // The End's own blast walk (the crystal's 6.0F death): the
                 // explosion service bound to the End world — the same ray
                 // fan, committing through the End's own listener path.
@@ -1587,6 +1598,34 @@ public final class EngineServer implements Server, EngineBridge {
                 // canonical one).
                 projectiles.setCrystalSink((x, y, z) -> enderCrystals != null
                         && enderCrystals.damageAt(x, y, z));
+                // The dragon part's wound (Slice 63 — EnderDragonPart
+                // .takeDamage → the part walk): the hull's holder takes the
+                // projectile's damage through the gates (the non-head /4+1,
+                // the player-or-explosive source — mob shooters' arrows
+                // glance off, the reference's own law).
+                projectiles.setDragonSink((x, y, z, damage, explosive, shooterId) -> {
+                    PlayerSession shooter = playerByEngineId(shooterId);
+                    for (MobEntity dragon : mobManager.all()) {
+                        if (dragon.type() != net.zaminmc.torch.server.entity.MobType.ENDER_DRAGON
+                                || dragon.dead() || dragon.dimension() != 1) {
+                            continue;
+                        }
+                        var part = dragon.dragonPartAt(x, y, z);
+                        if (part == null) {
+                            continue;
+                        }
+                        float wound = dragon.dragonDamagePart(part, damage,
+                                shooter != null, explosive);
+                        if (wound > 0.0f) {
+                            mobManager.hurt(dragon, wound,
+                                    Math.toDegrees(Math.atan2(-(x - dragon.position().x()),
+                                            z - dragon.position().z())),
+                                    net.zaminmc.torch.event.DamageCause.PROJECTILE);
+                        }
+                        return true; // the part ate the projectile either way
+                    }
+                    return false;
+                });
                 mobs.setPotionSystem(potionSystem); // the witch's drink arm (12i)
                 // The difficulty reads (Slice 19e): the peaceful sweep
                 // (MonsterEntity.tick) + the spawn gate (canSpawn).
@@ -3914,6 +3953,51 @@ public final class EngineServer implements Server, EngineBridge {
                         if (cHorizontal <= MELEE_REACH + 1.0 && cdy > -2.0 && cdy < 4.0) {
                             enderCrystals.damage(crystal);
                             attacker.addExhaustion(ATTACK_EXHAUSTION);
+                        }
+                        return;
+                    }
+                }
+                // The dragon's parts (Slice 63 — the wire's id convention:
+                // the client names the PART id, dragonId+1..+7; the part
+                // walk is the ONLY way the body takes damage — the plain
+                // mob id never answers a hit). takeDamage(EnderDragonPart,
+                // ...) lines 458-476: the non-head /4+1, the head-front
+                // target reset, and the PLAYER source (melee is always a
+                // player's hand here) damaging the body.
+                if (attacker.dimension() == 1) {
+                    for (MobEntity dragon : mobManager.all()) {
+                        if (dragon.type() != net.zaminmc.torch.server.entity.MobType.ENDER_DRAGON
+                                || dragon.dimension() != 1) {
+                            continue;
+                        }
+                        var part = dragon.dragonPartById(targetEntityId);
+                        if (part == null) {
+                            continue;
+                        }
+                        double pdx = part.x() - attacker.position().x();
+                        double pdy = part.y() + part.height / 2.0 - attacker.position().y();
+                        double pdz = part.z() - attacker.position().z();
+                        double pHorizontal = Math.sqrt(pdx * pdx + pdz * pdz);
+                        if (pHorizontal <= MELEE_REACH + part.width * 0.5
+                                && pdy > -2.0 && pdy < 4.0) {
+                            // PlayerEntity.attack lines 941-1044 over the
+                            // part: the sword's damage, the crit gate, then
+                            // the part walk.
+                            ItemStack held = attacker.inventory().held();
+                            float base = net.zaminmc.torch.server.item.Tools.attackDamageOf(
+                                    held.type());
+                            float wound = dragon.dragonDamagePart(part, base, true, false);
+                            if (wound > 0.0f) {
+                                mobManager.hurt(dragon, wound,
+                                        Math.toDegrees(Math.atan2(-pdx, pdz)),
+                                        net.zaminmc.torch.event.DamageCause.MELEE);
+                                attacker.addExhaustion(ATTACK_EXHAUSTION);
+                            } else {
+                                // The refused source still resets the
+                                // steering (the walk's own shape) — the
+                                // swing exhausts.
+                                attacker.addExhaustion(ATTACK_EXHAUSTION);
+                            }
                         }
                         return;
                     }
@@ -11737,8 +11821,43 @@ public final class EngineServer implements Server, EngineBridge {
                     }
                     chunk.pendingEnderCrystals().clear();
                 }
+                var pendingDragon = chunk.pendingEnderDragon();
+                if (pendingDragon != null) {
+                    // Slice 63 — the chunk-(0,0) dragon (EndIslandDecorator
+                    // lines 21-25): the (0, 128, 0) birth with the rolled
+                    // yaw, under the two guards — a live dragon already in
+                    // the End (this session's), and the ZDR defeated mark
+                    // (a killed dragon never returns; vanilla's entity
+                    // ledger keeps the kill, the deterministic regenerate
+                    // would not).
+                    chunk.clearPendingEnderDragon();
+                    if (!dragonDefeated && !dragonAliveInEnd()) {
+                        MobEntity dragon = mobManager.spawnAt(
+                                net.zaminmc.torch.server.entity.MobType.ENDER_DRAGON,
+                                new Position(0.0, 128.0, 0.0));
+                        if (dragon != null) {
+                            dragon.setDimension(1);
+                            dragon.setBodyYaw(pendingDragon.yaw());
+                        }
+                    }
+                }
             }
         }
+    }
+
+    /**
+     * Whether a dragon already lives in the End (the chunk-(0,0) drain's
+     * own guard — a re-publish or a second generate in one session never
+     * doubles the boss).
+     */
+    private boolean dragonAliveInEnd() {
+        for (MobEntity mob : mobManager.all()) {
+            if (mob.type() == net.zaminmc.torch.server.entity.MobType.ENDER_DRAGON
+                    && !mob.dead()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** @return whether any of the chest's 27 slots carries a stack. */
@@ -12918,6 +13037,270 @@ public final class EngineServer implements Server, EngineBridge {
             }
         }
 
+        // ------------------------------------------------------------------
+        // The ender dragon's engine arms (Slice 63 — the contact sweep, the
+        // block sweep, the death walk's events)
+        // ------------------------------------------------------------------
+
+        /**
+         * The contact arms (mobTick lines 264-268 + flingMobs/damageMobs
+         * lines 355-377): the wing hulls grown 4/2/4 moved -2y fling every
+         * living body of the dragon's dimension (the {@code d/d4 * 4}
+         * radial push with the 0.2 lift), the head hull grown 1 damages
+         * them (the flat 10.0 through the engine's own arms).
+         */
+        @Override
+        public void onDragonContact(net.zaminmc.torch.server.entity.MobEntity mob) {
+            var head = mob.dragonHead();
+            var body = mob.dragonParts()[1];
+            var rightWing = mob.dragonParts()[5];
+            var leftWing = mob.dragonParts()[6];
+            if (head == null) {
+                return;
+            }
+            int dimension = mob.dimension();
+            // flingMobs: the body-center radial (the reference's own
+            // minX+maxX/2 anchor), the d2²+d3²-scaled push.
+            double centerX = body.x();
+            double centerZ = body.z();
+            for (PlayerSession player : players.all()) {
+                if (player.state() != PlayerState.PLAYING || player.dead()
+                        || player.dimension() != dimension) {
+                    continue;
+                }
+                Position p = player.position();
+                if (wingHullContains(rightWing, p) || wingHullContains(leftWing, p)) {
+                    double dx = p.x() - centerX;
+                    double dz = p.z() - centerZ;
+                    double d4 = dx * dx + dz * dz;
+                    if (d4 > 0.0001) {
+                        publishKnockback(player, dx / d4 * 4.0, 0.2, dz / d4 * 4.0);
+                    }
+                }
+                if (partHullContains(head, p, 1.0)) {
+                    damageOnTick(player, 10.0f, "was slain by Ender Dragon",
+                            DamageKind.MELEE);
+                }
+            }
+            for (MobEntity other : mobManager.all()) {
+                if (other == mob || other.dead() || other.dimension() != dimension) {
+                    continue;
+                }
+                Position p = other.position();
+                if (wingHullContains(rightWing, p) || wingHullContains(leftWing, p)) {
+                    double dx = p.x() - centerX;
+                    double dz = p.z() - centerZ;
+                    double d4 = dx * dx + dz * dz;
+                    if (d4 > 0.0001) {
+                        other.addVelocity(dx / d4 * 4.0, 0.2, dz / d4 * 4.0);
+                    }
+                }
+                if (partHullContains(head, p, 1.0)) {
+                    mobManager.hurt(other, 10.0f, mob.rotation().yaw(),
+                            net.zaminmc.torch.event.DamageCause.MELEE);
+                }
+            }
+        }
+
+        /** The wing hull (grown 4/2/4, moved -2y — lines 265-266). */
+        private boolean wingHullContains(
+                net.zaminmc.torch.server.entity.MobEntity.DragonPart wing, Position p) {
+            return partHullContains(wing, p, 4.0, 2.0, 4.0, -2.0);
+        }
+
+        /** The plain part hull with the uniform grow. */
+        private boolean partHullContains(
+                net.zaminmc.torch.server.entity.MobEntity.DragonPart part, Position p,
+                double grow) {
+            return partHullContains(part, p, grow, grow, grow, 0.0);
+        }
+
+        /** The grown/moved hull containment (Box.grown + moved). */
+        private boolean partHullContains(
+                net.zaminmc.torch.server.entity.MobEntity.DragonPart part, Position p,
+                double growX, double growY, double growZ, double moveY) {
+            double half = part.width / 2.0;
+            return p.x() >= part.x() - half - growX && p.x() <= part.x() + half + growX
+                    && p.y() >= part.y() - growY + moveY
+                    && p.y() <= part.y() + part.height + growY + moveY
+                    && p.z() >= part.z() - half - growZ && p.z() <= part.z() + half + growZ;
+        }
+
+        /**
+         * The block sweep (destroyBlocks lines 417-456): the head and body
+         * hulls over the End world — everything but the immune five breaks
+         * under mobGriefing; an immune block met restricts the flight.
+         */
+        @Override
+        public void onDragonSweep(net.zaminmc.torch.server.entity.MobEntity mob) {
+            boolean restricted = false;
+            if (gameRules.getBoolean("mobGriefing")) {
+                restricted = dragonDestroyBlocks(mob.dragonHead())
+                        | dragonDestroyBlocks(mob.dragonParts()[1]);
+            } else {
+                // The no-grief world still reads the immune blocks (the
+                // reference's walk breaks nothing but the flag still lands).
+                restricted = dragonTouchesImmune(mob.dragonHead())
+                        | dragonTouchesImmune(mob.dragonParts()[1]);
+            }
+            mob.dragonSetRestrictMovement(restricted);
+        }
+
+        /** One hull's destruction walk (destroyBlocks' own shape). */
+        private boolean dragonDestroyBlocks(
+                net.zaminmc.torch.server.entity.MobEntity.DragonPart part) {
+            if (part == null) {
+                return false;
+            }
+            int minX = (int) Math.floor(part.x() - part.width / 2.0);
+            int minY = (int) Math.floor(part.y());
+            int minZ = (int) Math.floor(part.z() - part.width / 2.0);
+            int maxX = (int) Math.floor(part.x() + part.width / 2.0);
+            int maxY = (int) Math.floor(part.y() + part.height);
+            int maxZ = (int) Math.floor(part.z() + part.width / 2.0);
+            boolean immune = false;
+            for (int x = minX; x <= maxX; x++) {
+                for (int y = minY; y <= maxY; y++) {
+                    for (int z = minZ; z <= maxZ; z++) {
+                        BlockPosition at = new BlockPosition(x, y, z);
+                        var type = endWorld.getBlock(at);
+                        if (type.equals(endWorld.airType())) {
+                            continue;
+                        }
+                        if (dragonImmune(type)) {
+                            immune = true;
+                        } else {
+                            endWorld.setBlock(at, endWorld.airType());
+                        }
+                    }
+                }
+            }
+            return immune;
+        }
+
+        /** The no-grief immune probe (the flag without the break). */
+        private boolean dragonTouchesImmune(
+                net.zaminmc.torch.server.entity.MobEntity.DragonPart part) {
+            if (part == null) {
+                return false;
+            }
+            int minX = (int) Math.floor(part.x() - part.width / 2.0);
+            int minY = (int) Math.floor(part.y());
+            int minZ = (int) Math.floor(part.z() - part.width / 2.0);
+            int maxX = (int) Math.floor(part.x() + part.width / 2.0);
+            int maxY = (int) Math.floor(part.y() + part.height);
+            int maxZ = (int) Math.floor(part.z() + part.width / 2.0);
+            for (int x = minX; x <= maxX; x++) {
+                for (int y = minY; y <= maxY; y++) {
+                    for (int z = minZ; z <= maxZ; z++) {
+                        if (dragonImmune(endWorld.getBlock(new BlockPosition(x, y, z)))) {
+                            return true;
+                        }
+                    }
+                }
+            }
+            return false;
+        }
+
+        /** destroyBlocks' immune five (lines 433-437). */
+        private boolean dragonImmune(BlockType type) {
+            String id = type.identifier().toString();
+            return id.equals("minecraft:barrier")
+                    || id.equals("minecraft:obsidian")
+                    || id.equals("minecraft:end_stone")
+                    || id.equals("minecraft:bedrock")
+                    || id.equals("minecraft:command_block");
+        }
+
+        /** The crystal-pop wound's hurt fan (the wire's own listener). */
+        @Override
+        public void onDragonCrystalWound(net.zaminmc.torch.server.entity.MobEntity mob) {
+            for (MobManager.Listener listener : mobListeners) {
+                listener.onMobHurt(mob);
+            }
+        }
+
+        /** The death walk's first tick: the GLOBAL 1018. */
+        @Override
+        public void onDragonDeathSound(net.zaminmc.torch.server.entity.MobEntity mob) {
+            for (MobManager.Listener listener : mobListeners) {
+                listener.onWorldGlobalEventAt(mob.position(), 1018);
+            }
+        }
+
+        /** The XP batch (the orb burst at the body). */
+        @Override
+        public void onDragonXpBatch(net.zaminmc.torch.server.entity.MobEntity mob, int amount) {
+            if (experienceOrbs != null) {
+                experienceOrbs.spawnBurst(mob.position(), amount, Integer.MAX_VALUE);
+            }
+        }
+
+        /**
+         * The death walk's end (createPortal lines 548-585 + remove): the
+         * bedrock fountain with the exit portal floor and the egg, then
+         * the body leaves the world (the XP batch of the same tick lands
+         * first — the reference's own order).
+         */
+        @Override
+        public void onDragonPortal(net.zaminmc.torch.server.entity.MobEntity mob) {
+            int baseX = (int) Math.floor(mob.position().x());
+            int baseZ = (int) Math.floor(mob.position().z());
+            int baseY = 64; // the reference's own fixed anchor (line 540)
+            BlockType bedrock = blockRegistry.require(
+                    net.zaminmc.torch.util.Identifier.parse("minecraft:bedrock"));
+            BlockType air = endWorld.airType();
+            BlockType endPortal = blockRegistry.require(
+                    net.zaminmc.torch.util.Identifier.parse("minecraft:end_portal"));
+            BlockType torch = blockRegistry.require(
+                    net.zaminmc.torch.util.Identifier.parse("minecraft:torch"));
+            BlockType egg = blockRegistry.require(
+                    net.zaminmc.torch.util.Identifier.parse("minecraft:dragon_egg"));
+            for (int dy = -1; dy <= 32; dy++) {
+                for (int dx = -4; dx <= 4; dx++) {
+                    for (int dz = -4; dz <= 4; dz++) {
+                        int d2 = dx * dx + dz * dz;
+                        if (d2 > 12.25) {
+                            continue;
+                        }
+                        BlockPosition at = new BlockPosition(baseX + dx, baseY + dy, baseZ + dz);
+                        if (dy < 0) {
+                            if (d2 <= 6.25) {
+                                endWorld.setBlock(at, bedrock);
+                            }
+                        } else if (dy > 0) {
+                            endWorld.setBlock(at, air);
+                        } else if (d2 > 6.25) {
+                            endWorld.setBlock(at, bedrock);
+                        } else {
+                            endWorld.setBlock(at, endPortal);
+                        }
+                    }
+                }
+            }
+            // The center pillar (lines 575-584): bedrock y0..y3 with the
+            // four torches at y2 and the egg on top. (The reference's torch
+            // FACING states face INWARD; the engine's single-state torch
+            // carries the wall-mount metadata in a later slice — ledgered.)
+            BlockPosition center = new BlockPosition(baseX, baseY, baseZ);
+            endWorld.setBlock(center, bedrock);
+            endWorld.setBlock(center.offset(0, 1, 0), bedrock);
+            endWorld.setBlock(center.offset(0, 2, 0), bedrock);
+            endWorld.setBlock(center.offset(-1, 2, 0), torch);
+            endWorld.setBlock(center.offset(1, 2, 0), torch);
+            endWorld.setBlock(center.offset(0, 2, -1), torch);
+            endWorld.setBlock(center.offset(0, 2, 1), torch);
+            endWorld.setBlock(center.offset(0, 3, 0), bedrock);
+            endWorld.setBlock(center.offset(0, 4, 0), egg);
+            // The dragon never comes back (the defeated mark — the
+            // deterministic regenerate would re-spawn it every boot).
+            dragonDefeated = true;
+            if (dragonStore != null) {
+                dragonStore.save(true);
+            }
+            mobManager.remove(mob, "died");
+        }
+
         /**
          * The silverfish's wake-up scan (Slice 18c —
          * WakeUpFriendsGoal.tick lines 210-236): the reference's own
@@ -13857,6 +14240,71 @@ public final class EngineServer implements Server, EngineBridge {
             PlayerSession player = playerById(entityId);
             return player != null
                     && player.gamemode() == net.zaminmc.torch.GameMode.CREATIVE;
+        }
+
+        @Override
+        public int[] playerIds() {
+            // chooseTarget lines 380-388: the world's players — the
+            // engine's answer names every PLAYING body of the ACTIVE
+            // dimension (the dragon's own world; the ambient dimension
+            // tracks the dragon's walk).
+            java.util.List<Integer> ids = new java.util.ArrayList<>();
+            for (PlayerSession player : players.all()) {
+                if (player.state() == PlayerState.PLAYING && !player.dead()
+                        && player.dimension() == activeDimension) {
+                    ids.add(player.engineEntityId());
+                }
+            }
+            int[] out = new int[ids.size()];
+            for (int i = 0; i < out.length; i++) {
+                out[i] = ids.get(i);
+            }
+            return out;
+        }
+
+        @Override
+        public boolean enderCrystalAliveAt(double x, double y, double z) {
+            if (enderCrystals == null) {
+                return false;
+            }
+            // The link's liveness probe: a standing crystal within the
+            // half-block of the linked position (the engine's crystals are
+            // position-keyed; the reference's id-keyed link reads the same
+            // verdict through removed).
+            for (var crystal : enderCrystals.all()) {
+                if (Math.abs(crystal.x() - x) <= 0.5
+                        && Math.abs(crystal.y() - y) <= 0.5
+                        && Math.abs(crystal.z() - z) <= 0.5) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        @Override
+        public double[] nearestEnderCrystal(double x, double y, double z, double range) {
+            if (enderCrystals == null) {
+                return null;
+            }
+            // tickEndCrystalInteraction lines 337-352: the grown box's
+            // nearest walk.
+            double[] best = null;
+            double bestSquared = Double.MAX_VALUE;
+            for (var crystal : enderCrystals.all()) {
+                double dx = crystal.x() - x;
+                double dy = crystal.y() - y;
+                double dz = crystal.z() - z;
+                if (Math.abs(dx) > range || Math.abs(dy) > range
+                        || Math.abs(dz) > range) {
+                    continue;
+                }
+                double squared = dx * dx + dy * dy + dz * dz;
+                if (squared < bestSquared) {
+                    bestSquared = squared;
+                    best = new double[]{crystal.x(), crystal.y(), crystal.z()};
+                }
+            }
+            return best;
         }
 
         @Override
