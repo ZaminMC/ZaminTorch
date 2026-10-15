@@ -6377,3 +6377,56 @@ stats-completeness slice; the sandstone family's own missing recipe set
 (the 2x2 sand masonry, the smooth fold, the chiseled column, the
 stairs — the engine carries only the slab row today) rides the
 recipe-completeness slice.
+
+## Slice 53 — the anvil family (the block side)
+
+The reference's `AnvilBlock`/`FallingBlock`/`FallingBlockEntity`, 1:1 —
+the twelve states, the falling walk, and the landing damage.
+
+- **The twelve states over 145**: the FACING horizontal band (S=0 W=1
+  N=2 E=3) in the low pair, the DAMAGE << 2 in the high pair — the
+  flattened names `{anvil, anvil_chipped, anvil_damaged}` ×
+  `{"", _west, _north, _east}`. `setStrength(5.0F)` Material.ANVIL
+  with the pickaxe gate; the drop the family item with the DAMAGE
+  damage.
+- **The family item** (`minecraft:anvil`, stack 64 — the AnvilItem's
+  own domain): the damage field is the DAMAGE id, the creative menu's
+  intact/chipped/damaged three.
+- **The placement arm**: the facing is the placer's own horizontal
+  facing turned clockwise (`getHorizontalFacing().clockwiseY()`), the
+  DAMAGE the held stack's damage (the reference's `metadata >> 2`).
+- **The gravity join**: every state in the sand band (the two-tick
+  schedule — `FallingBlock`'s own `getTickRate` 2).
+- **The landing walk** (`takeFallDamage` 1:1): the fall-distance
+  accessor on the falling entity (the accumulated displacement —
+  exactly the vanilla `fallDistance` the walk receives), the manager's
+  anvil landing hook, the hurt (`ceil(distance - 1)` over the 0.98 box,
+  every mob and playing non-spectator takes `min(floor(i * 2), 40)`),
+  the progression roll (`0.05 + i * 0.05` walks the DAMAGE forward;
+  past 2 the brokeAnvil path — nothing placed, nothing dropped), the
+  progressed drop carrying the walked damage
+  (`getDropItemMetadata`'s own consult), and the land sound on the
+  successful placement (world event 1022 — `random.anvil_land`).
+- **The tables**: the CollisionShapes axis band (the W/E z-thin box,
+  the S/N x-thin box — `updateShape`'s own pair, the DAMAGE never moves
+  the box), the CUTOUT light rows (`setOpacity(0)`,
+  `isSolidRender` false), the `dig.anvil` band, the stats merges (every
+  state folds onto the anvil row — the vanilla per-block-id scheme).
+- **The audit repair riding the slice**: the Slice 52 commit had
+  silently dropped the weighted pressure-plates' light rows (a failed
+  multi-edit had partially applied before reporting failure) — the 49a
+  section restored, the redstone batch re-run green. The full-suite
+  verification protocol tightened: every slice now re-runs the
+  touched-area batches rather than trusting the incremental full run.
+- Tests: `AnvilBlocksTest` (4) + the `FallingBlockEntityTest` manager
+  pair (the progressed placement over the live world, the brokeAnvil
+  path) + `BlockRegistryTest` 763. Full core suite green (the five
+  touched-area batches + the full run), protocol + api green,
+  `--max-workers=1`.
+
+Ledgered: the AnvilMenu GUI (the repair + rename window — the two
+inputs, the level-cost ladder, the enchantment merge, the material
+repair, the name-tag cost) rides its own slice (53b); the vanilla
+1.8.8 registers NO anvil crafting row (none added); the damage-source
+typing (the anvil death message's own source string) rides the
+damage-source band slice.
