@@ -501,6 +501,31 @@ public final class BlockUpdateSystem implements WorldChangeListener {
             }
             return;
         }
+        // The flower-pot's support rule (Slice 48 —
+        // FlowerPotBlock.neighborChanged lines 122-128: the block below
+        // must have a SOLID TOP; a departing support pops the pot WITH its
+        // contents (dropItems the pot + onRemoved's plant item).
+        if (FlowerPotBlocks.isPot(identifier)) {
+            if (FlowerPotBlocks.isSupported(world, position)) {
+                return; // supported
+            }
+            int content = FlowerPotBlocks.contentOf(identifier);
+            world.setBlock(position, world.airType());
+            itemEntities.spawnDropAtBlock(
+                    new Position(position.x(), position.y(), position.z()),
+                    ItemStack.of(net.zaminmc.torch.server.item.BuiltinItems.FLOWER_POT, 1),
+                    ItemEntity.PICKUP_DELAY_DROP_TICKS);
+            net.zaminmc.torch.util.Identifier plant = FlowerPotBlocks.plantItemOf(content);
+            if (plant != null) {
+                net.zaminmc.torch.item.ItemStack plantDrop = new net.zaminmc.torch.item.ItemStack(
+                        net.zaminmc.torch.server.item.BuiltinItems.lookup(plant).orElseThrow(),
+                        1, FlowerPotBlocks.plantDamageOf(content));
+                itemEntities.spawnDropAtBlock(
+                        new Position(position.x(), position.y(), position.z()),
+                        plantDrop, ItemEntity.PICKUP_DELAY_DROP_TICKS);
+            }
+            return;
+        }
         // The cake's support rule (Slice 46 — CakeBlock.neighborChanged
         // lines 88-91 + canSurvive lines 92-94: the block below must be
         // SOLID; a departing support removes the cake with NO drop —

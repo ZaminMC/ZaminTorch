@@ -738,6 +738,23 @@ final class LegacyBlockIds {
         // virtual reads, never on the wire).
         merged.put(Identifier.parse("minecraft:cobblestone_wall"), 139);
         merged.put(Identifier.parse("minecraft:mossy_cobblestone_wall"), 139);
+        // The flower-pot family (Slice 48 — Block.java's own row): the pot
+        // 140 — the empty form + the thirteen potted contents over the
+        // LEGACY_DATA band; the pot item (Item.java's own row) joins them.
+        merged.put(Identifier.parse("minecraft:flower_pot"), 140);
+        merged.put(Identifier.parse("minecraft:potted_poppy"), 140);
+        merged.put(Identifier.parse("minecraft:potted_dandelion"), 140);
+        merged.put(Identifier.parse("minecraft:potted_oak_sapling"), 140);
+        merged.put(Identifier.parse("minecraft:potted_spruce_sapling"), 140);
+        merged.put(Identifier.parse("minecraft:potted_birch_sapling"), 140);
+        merged.put(Identifier.parse("minecraft:potted_jungle_sapling"), 140);
+        merged.put(Identifier.parse("minecraft:potted_red_mushroom"), 140);
+        merged.put(Identifier.parse("minecraft:potted_brown_mushroom"), 140);
+        merged.put(Identifier.parse("minecraft:potted_cactus"), 140);
+        merged.put(Identifier.parse("minecraft:potted_dead_bush"), 140);
+        merged.put(Identifier.parse("minecraft:potted_fern"), 140);
+        merged.put(Identifier.parse("minecraft:potted_acacia_sapling"), 140);
+        merged.put(Identifier.parse("minecraft:potted_dark_oak_sapling"), 140);
         // The ground-cover pair (Slice 42 — Block.java's own rows): the
         // mycelium 110, the waterlily 111 — both single meta-0 states (the
         // snowy side and the boat pass-through are the client's own reads).
@@ -1518,6 +1535,20 @@ final class LegacyBlockIds {
         // form's 0 rides the 0 default — the item's damage domain resolves
         // the mossy form through the fold's own (139, 1) row).
         merged.put(Identifier.parse("minecraft:mossy_cobblestone_wall"), 1);
+        // The flower-pot's metadata nibble (Slice 48 —
+        // FlowerPotBlock.getMetadataFromState: the LEGACY_DATA whole; the
+        // empty form's 0 rides the 0 default).
+        {
+            String[] potContents = {"potted_poppy", "potted_dandelion",
+                    "potted_oak_sapling", "potted_spruce_sapling",
+                    "potted_birch_sapling", "potted_jungle_sapling",
+                    "potted_red_mushroom", "potted_brown_mushroom",
+                    "potted_cactus", "potted_dead_bush", "potted_fern",
+                    "potted_acacia_sapling", "potted_dark_oak_sapling"};
+            for (int content = 1; content <= potContents.length; content++) {
+                merged.put(Identifier.parse("minecraft:" + potContents[content - 1]), content);
+            }
+        }
         merged.put(Identifier.parse("minecraft:wool"), 0);
         for (int color = 0; color < 16; color++) {
             if (color != 0) {

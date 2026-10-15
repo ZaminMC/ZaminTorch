@@ -934,6 +934,11 @@ public final class BuiltinBlocks {
         for (EngineBlockType wall : WallBlocks.familyBlocks()) {
             builder = builder.register(wall);
         }
+        // The flower-pot family (Slice 48 — FlowerPotBlock 1:1): the empty
+        // pot + the thirteen potted contents over the LEGACY_DATA band.
+        for (EngineBlockType pot : FlowerPotBlocks.familyBlocks()) {
+            builder = builder.register(pot);
+        }
         return builder;
     }
 }

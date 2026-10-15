@@ -1336,6 +1336,27 @@ public final class BlockBehaviorTable {
                                     WallBlocks.variantOf(wall.identifier())))));
         }
 
+        // The flower-pot family (Slice 48 — FlowerPotBlock's own row:
+        // setStrength(0.0F) DEFAULT_SOUNDS over Material.DECORATION; the
+        // survival break drops the pot AND the plant (getDropItem the pot,
+        // onRemoved the TE's plant item with its metadata — the saplings
+        // over the wood damage, the fern the tall grass's damage 2).
+        for (net.zaminmc.torch.server.block.EngineBlockType pot
+                : FlowerPotBlocks.familyBlocks()) {
+            int content = FlowerPotBlocks.contentOf(pot.identifier());
+            java.util.List<BlockBehavior.Drop> drops = new java.util.ArrayList<>(
+                    java.util.List.of(new BlockBehavior.Drop(
+                            FlowerPotBlocks.POT_ITEM, 1)));
+            Identifier plant = FlowerPotBlocks.plantItemOf(content);
+            if (plant != null) {
+                drops.add(new BlockBehavior.Drop(plant, 1,
+                        FlowerPotBlocks.plantDamageOf(content)));
+            }
+            behaviors.put(pot.identifier(),
+                    new BlockBehavior(0.0, true, false, "plant", 0,
+                            java.util.List.copyOf(drops)));
+        }
+
         // The ground-cover pair (Slice 42 — MyceliumBlock/LilyPadBlock's
         // own rows: the mycelium `setStrength(0.6F)` GRASS_SOUNDS dropping
         // its dirt — getDropItem's own consult; the lily pad

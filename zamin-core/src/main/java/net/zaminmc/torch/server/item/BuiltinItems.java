@@ -844,6 +844,10 @@ public final class BuiltinItems {
     // it as an ingredient too.
     public static final EngineItemType MOSSY_COBBLESTONE = new EngineItemType(
             Identifier.parse("minecraft:mossy_cobblestone"), "Mossy Cobblestone", 64);
+    // The flower pot item (Slice 48 — Item.java's own PlaceableItem row
+    // over 390, stack 64 like the reference's decorations tab).
+    public static final EngineItemType FLOWER_POT = new EngineItemType(
+            Identifier.parse("minecraft:flower_pot"), "Flower Pot", 64);
 
     // Decoration flora + desert stone (the placeable block-item forms; the
     // flowers drop themselves, tall grass/dead bush are /give-reachable).
@@ -1011,7 +1015,7 @@ public final class BuiltinItems {
                 DIAMOND_BLOCK, EMERALD_BLOCK, BEACON,
                 BONE, STRING, GUNPOWDER, WOOL, MUTTON, COOKED_MUTTON, SLIME_BALL,
                 SKULL,
-                BUCKET, WATER_BUCKET, LAVA_BUCKET, MILK_BUCKET, COBBLESTONE_WALL, MOSSY_COBBLESTONE,
+                BUCKET, WATER_BUCKET, LAVA_BUCKET, MILK_BUCKET, COBBLESTONE_WALL, MOSSY_COBBLESTONE, FLOWER_POT,
                 FLINT_AND_STEEL, GOLD_INGOT,
                 SUGAR_CANE, CACTUS, SUGAR, PAPER, BOOK,
                 TALL_GRASS, DEAD_BUSH, DANDELION, POPPY, RED_FLOWER, DOUBLE_PLANT, SANDSTONE,
