@@ -95,6 +95,8 @@ final class Protocol18 {
     static final byte BLOCK_ENTITY_TYPE_MOB_SPAWNER = 1;
     /** Update Block Entity's beacon action (createUpdatePacket: 3). */
     static final byte BLOCK_ENTITY_TYPE_BEACON = 3;
+    /** Update Block Entity action 4 — the skull (SkullBlockEntity line 55). */
+    static final byte BLOCK_ENTITY_TYPE_SKULL = 4;
     /** The spawner's legacy block id (the block event's type word). */
     static final int SPAWNER_LEGACY_BLOCK_ID = 52;
     /** The fired cycle's flame burst (MobSpawner.tick line 108: doEvent 2004). */

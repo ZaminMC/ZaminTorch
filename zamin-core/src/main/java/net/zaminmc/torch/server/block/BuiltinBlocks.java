@@ -229,6 +229,23 @@ public final class BuiltinBlocks {
             Identifier.parse("minecraft:netherrack"), "Netherrack");
     public static final EngineBlockType SOUL_SAND = new EngineBlockType(
             Identifier.parse("minecraft:soul_sand"), "Soul Sand");
+    // The skull family (Slice 60 — SkullBlock 1:1, block 144): the six
+    // facing states, the FACING nibble the reference's Direction ids (0
+    // down .. 5 east). The floor mount (FACING UP) carries the base
+    // minecraft:skull name; the TYPE (skeleton 0 .. dragon 5) and the
+    // floor rotation ride the tile, not the block.
+    public static final EngineBlockType SKULL = new EngineBlockType(
+            Identifier.parse("minecraft:skull"), "Skull", 1);
+    public static final EngineBlockType SKULL_DOWN = new EngineBlockType(
+            Identifier.parse("minecraft:skull_down"), "Skull", 0);
+    public static final EngineBlockType SKULL_NORTH = new EngineBlockType(
+            Identifier.parse("minecraft:skull_north"), "Skull", 2);
+    public static final EngineBlockType SKULL_SOUTH = new EngineBlockType(
+            Identifier.parse("minecraft:skull_south"), "Skull", 3);
+    public static final EngineBlockType SKULL_WEST = new EngineBlockType(
+            Identifier.parse("minecraft:skull_west"), "Skull", 4);
+    public static final EngineBlockType SKULL_EAST = new EngineBlockType(
+            Identifier.parse("minecraft:skull_east"), "Skull", 5);
     public static final EngineBlockType GLOWSTONE = new EngineBlockType(
             Identifier.parse("minecraft:glowstone"), "Glowstone");
     public static final EngineBlockType QUARTZ_ORE = new EngineBlockType(
@@ -758,6 +775,12 @@ public final class BuiltinBlocks {
                 .register(FIRE)
                 .register(NETHERRACK)
                 .register(SOUL_SAND)
+                .register(SKULL)
+                .register(SKULL_DOWN)
+                .register(SKULL_NORTH)
+                .register(SKULL_SOUTH)
+                .register(SKULL_WEST)
+                .register(SKULL_EAST)
                 .register(GLOWSTONE)
                 .register(QUARTZ_ORE)
                 .register(BROWN_MUSHROOM)

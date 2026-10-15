@@ -186,9 +186,12 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:redstone_lamp"), 123),
             Map.entry(Identifier.parse("minecraft:lit_redstone_lamp"), 124),
             Map.entry(Identifier.parse("minecraft:lit_redstone_ore"), 74),
-            // The wither skeleton's rare head (Slice 18d — community id 397;
-            // the damage field carries the variant, 1 = wither).
-            Map.entry(Identifier.parse("minecraft:skull"), 397),
+            // The skull family (Slice 60 — block 144, the six facing
+            // states; the FACING nibble the reference's Direction ids —
+            // the floor mount carries the base name at metadata 1). The
+            // ITEM form 397 lives in ITEM_OVERRIDES (the sign's own
+            // split — the damage field carries the variant, 1 = wither).
+            Map.entry(Identifier.parse("minecraft:skull"), 144),
             Map.entry(Identifier.parse("minecraft:mutton"), 423),
             Map.entry(Identifier.parse("minecraft:cooked_mutton"), 424),
             Map.entry(Identifier.parse("minecraft:bucket"), 325),
@@ -325,6 +328,11 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:sign_west"), 63),
             Map.entry(Identifier.parse("minecraft:sign_north"), 63),
             Map.entry(Identifier.parse("minecraft:sign_east"), 63),
+            Map.entry(Identifier.parse("minecraft:skull_down"), 144),
+            Map.entry(Identifier.parse("minecraft:skull_north"), 144),
+            Map.entry(Identifier.parse("minecraft:skull_south"), 144),
+            Map.entry(Identifier.parse("minecraft:skull_west"), 144),
+            Map.entry(Identifier.parse("minecraft:skull_east"), 144),
             // The wall signs (block 68): the metadata 2-5 facings.
             Map.entry(Identifier.parse("minecraft:wall_sign"), 68),
             Map.entry(Identifier.parse("minecraft:wall_sign_south"), 68),
@@ -1162,6 +1170,10 @@ final class LegacyBlockIds {
      */
     private static final Map<Identifier, Integer> ITEM_OVERRIDES = Map.ofEntries(
             Map.entry(Identifier.parse("minecraft:sign"), 323),
+            // The skull item (Slice 60 — community id 397; the block keeps
+            // 144 — the sign's own block/item split, the damage field
+            // carrying the head type).
+            Map.entry(Identifier.parse("minecraft:skull"), 397),
             Map.entry(Identifier.parse("minecraft:oak_door"), 324),
             Map.entry(Identifier.parse("minecraft:ladder"), 65),
             Map.entry(Identifier.parse("minecraft:bed"), 355),

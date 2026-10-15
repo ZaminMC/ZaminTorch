@@ -1184,6 +1184,40 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
      * the tile type byte, and the NBT compound — the reference's writeNbt
      * (Primary/Secondary/Levels + the position ints). Any thread.
      */
+    /**
+     * Update Block Entity (0x35, type 4) for one skull
+     * (SkullBlockEntity.createUpdatePacket lines 53-56): the position, the
+     * tile type byte, and the NBT compound — x/y/z + SkullType + Rot, the
+     * reference's writeNbt family (the player head's profile member is out
+     * of the engine's model). Any thread.
+     */
+    void sendSkullTile(net.zaminmc.torch.server.skull.SkullManager.SkullTile tile) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        writeSkullTile(channel, tile);
+    }
+
+    /** The tile packet's own writer (the static chunk-send path's form). */
+    private static void writeSkullTile(Channel channel,
+            net.zaminmc.torch.server.skull.SkullManager.SkullTile tile) {
+        net.zaminmc.torch.block.BlockPosition position = tile.position();
+        ByteBuf out = Unpooled.buffer(40);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_UPDATE_BLOCK_ENTITY);
+        ByteBufOps.writePackedBlockPosition(out, position.x(), position.y(), position.z());
+        out.writeByte(Protocol18.BLOCK_ENTITY_TYPE_SKULL);
+        out.writeByte(10);              // TAG_Compound (the root marker)
+        out.writeShort(0);              // the root name: empty
+        writeNbtInt(out, "x", position.x());
+        writeNbtInt(out, "y", position.y());
+        writeNbtInt(out, "z", position.z());
+        writeNbtByte(out, "SkullType", tile.type());
+        writeNbtByte(out, "Rot", tile.rotation());
+        out.writeByte(0);               // end of the root
+        channel.writeAndFlush(out);
+    }
+
     void sendBeaconTile(net.zaminmc.torch.block.BlockPosition position,
                         net.zaminmc.torch.server.beacon.BeaconBlockEntity beacon) {
         Channel channel = adapter.channelOf(this);
@@ -2610,6 +2644,13 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     }
 
     /** One named NBT Int (tag 3). */
+    /** The TAG_Byte row (the skull's SkullType/Rot pair). */
+    private static void writeNbtByte(ByteBuf out, String name, int value) {
+        out.writeByte(1);              // TAG_Byte
+        SlotNbt.writeShortString(out, name);
+        out.writeByte(value);
+    }
+
     private static void writeNbtInt(ByteBuf out, String name, int value) {
         out.writeByte(3);
         SlotNbt.writeShortString(out, name);
@@ -5084,6 +5125,16 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             if (dimension == 0 && engine.beacons() != null) {
                 for (var entry : engine.beacons().inChunk(chunk.position())) {
                     writeBeaconTile(channel, entry.getKey(), entry.getValue());
+                }
+            }
+            // The skull tile replay (Slice 60 — the same protocol 47 gap):
+            // every skull in the freshly sent column re-sends its Update
+            // Block Entity (the TYPE + the rotation the client's renderer
+            // reads — without it every placed skull renders as the default
+            // skeleton head).
+            if (engine.skulls() != null) {
+                for (var tile : engine.skulls().tilesIn(chunk.position().packed())) {
+                    writeSkullTile(channel, tile);
                 }
             }
         }

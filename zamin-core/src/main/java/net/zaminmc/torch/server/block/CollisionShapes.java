@@ -229,6 +229,26 @@ public final class CollisionShapes {
         if (value.equals("cake") || value.startsWith("cake_bite")) {
             return List.of(cakeBox(value));
         }
+        // The skull family (Slice 60 — SkullBlock.updateShape lines 70-87):
+        // the floor mount's 0.25-0.75 half-height box, the wall facings
+        // inset against their wall; the ceiling mount falls to the floor
+        // box (the reference's own missing DOWN case — the switch's
+        // default).
+        if (value.equals("skull") || value.equals("skull_down")) {
+            return List.of(new Box(0.25, 0, 0.25, 0.75, 0.5, 0.75));
+        }
+        if (value.equals("skull_north")) {
+            return List.of(new Box(0.25, 0.25, 0.5, 0.75, 0.75, 1.0));
+        }
+        if (value.equals("skull_south")) {
+            return List.of(new Box(0.25, 0.25, 0.0, 0.75, 0.75, 0.5));
+        }
+        if (value.equals("skull_west")) {
+            return List.of(new Box(0.5, 0.25, 0.25, 1.0, 0.75, 0.75));
+        }
+        if (value.equals("skull_east")) {
+            return List.of(new Box(0.0, 0.25, 0.25, 0.5, 0.75, 0.75));
+        }
         if (value.equals("cactus")) {
             return List.of(new Box(0.0625, 0, 0.0625, 0.9375, 1, 0.9375));
         }

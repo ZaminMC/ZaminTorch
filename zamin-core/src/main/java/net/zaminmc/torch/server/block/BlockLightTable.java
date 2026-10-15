@@ -154,6 +154,14 @@ public final class BlockLightTable {
             Map.entry(Identifier.parse("minecraft:wall_sign_south"), new LightData(0, 0)),
             Map.entry(Identifier.parse("minecraft:wall_sign_west"), new LightData(0, 0)),
             Map.entry(Identifier.parse("minecraft:wall_sign_east"), new LightData(0, 0)),
+            // The skull family (Slice 60 — the DECORATION material:
+            // non-cube, light passes whole).
+            Map.entry(Identifier.parse("minecraft:skull"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:skull_down"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:skull_north"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:skull_south"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:skull_west"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:skull_east"), new LightData(0, 0)),
             Map.entry(Identifier.parse("minecraft:ladder"), new LightData(0, 0)),
             Map.entry(Identifier.parse("minecraft:ladder_south"), new LightData(0, 0)),
             Map.entry(Identifier.parse("minecraft:ladder_west"), new LightData(0, 0)),
