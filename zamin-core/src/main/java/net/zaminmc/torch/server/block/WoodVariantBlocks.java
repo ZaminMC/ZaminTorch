@@ -151,6 +151,10 @@ public final class WoodVariantBlocks {
             return Optional.empty();
         }
         String value = item.value();
+        if (value.equals("wooden_slab")) {
+            return Optional.of(Identifier.parse(
+                    "minecraft:" + WOODS.get(clampVariant(damage)) + "_slab"));
+        }
         if (value.equals("planks") || value.equals("sapling")) {
             return Optional.of(value.equals("planks")
                     ? planksBlock(clampVariant(damage))

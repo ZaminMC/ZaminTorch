@@ -89,6 +89,8 @@ import net.zaminmc.torch.server.block.ExplosionService;
 import net.zaminmc.torch.server.block.FluidBlocks;
 import net.zaminmc.torch.server.block.FluidSystem;
 import net.zaminmc.torch.server.block.WoodDoorFamily;
+import net.zaminmc.torch.server.block.WoodShapeBlocks;
+import net.zaminmc.torch.server.block.WoodVariantBlocks;
 import net.zaminmc.torch.server.block.WorldSolidity;
 import net.zaminmc.torch.server.chat.ChatListener;
 import net.zaminmc.torch.server.chat.ChatService;
@@ -7934,7 +7936,9 @@ public final class EngineServer implements Server, EngineBridge {
 
     /** @return whether the identifier value belongs to the stairs family. */
     private static boolean isStairsIdentifier(String value) {
-        return value.startsWith("oak_stairs") || value.startsWith("cobblestone_stairs");
+        return WoodShapeBlocks.isStairsItem(value) || WoodShapeBlocks.isStairsState(value)
+                || value.startsWith("oak_stairs") || value.startsWith("cobblestone_stairs")
+                || value.startsWith("sandstone_stairs") || value.startsWith("nether_brick_stairs");
     }
 
     /**
@@ -7943,7 +7947,7 @@ public final class EngineServer implements Server, EngineBridge {
      * doubles are the parent materials (oak double slab = planks, the
      * stone-family doubles = their cubes).
      */
-    private static net.zaminmc.torch.block.BlockType[] slabFamilyOf(String value) {
+    private net.zaminmc.torch.block.BlockType[] slabFamilyOf(String value) {
         if (value.startsWith("oak_slab")) {
             return new net.zaminmc.torch.block.BlockType[]{
                     BuiltinBlocks.OAK_SLAB, BuiltinBlocks.OAK_SLAB_TOP, BuiltinBlocks.OAK_PLANKS};
@@ -7962,6 +7966,19 @@ public final class EngineServer implements Server, EngineBridge {
                     BuiltinBlocks.SANDSTONE_SLAB, BuiltinBlocks.SANDSTONE_SLAB_TOP,
                     BuiltinBlocks.SANDSTONE};
         }
+        // The wooden-slab families (Slice 36 — the reference's own id 126
+        // carrying the variant nibble): each wood's pair doubles into its
+        // own planks (the reference's double_wooden_slab renders as the
+        // wood's full cube).
+        for (int variant = 1; variant < WoodVariantBlocks.WOODS.size(); variant++) {
+            String wood = WoodVariantBlocks.WOODS.get(variant);
+            if (value.startsWith(wood + "_slab")) {
+                return new net.zaminmc.torch.block.BlockType[]{
+                        WoodShapeBlocks.slabStates(variant).get(0),
+                        WoodShapeBlocks.slabStates(variant).get(1),
+                        blockRegistry.require(WoodVariantBlocks.planksBlock(variant))};
+            }
+        }
         return null;
     }
 
@@ -7969,7 +7986,7 @@ public final class EngineServer implements Server, EngineBridge {
      * The stairs family of a stairs identifier: the four ascending states
      * in the look-band order {south, west, north, east} (the bed band).
      */
-    private static net.zaminmc.torch.block.BlockType[] stairsFamilyOf(String value) {
+    private net.zaminmc.torch.block.BlockType[] stairsFamilyOf(String value) {
         if (value.startsWith("oak_stairs")) {
             return new net.zaminmc.torch.block.BlockType[]{
                     BuiltinBlocks.OAK_STAIRS_SOUTH, BuiltinBlocks.OAK_STAIRS_WEST,
@@ -7979,6 +7996,21 @@ public final class EngineServer implements Server, EngineBridge {
             return new net.zaminmc.torch.block.BlockType[]{
                     BuiltinBlocks.COBBLESTONE_STAIRS_SOUTH, BuiltinBlocks.COBBLESTONE_STAIRS_WEST,
                     BuiltinBlocks.COBBLESTONE_STAIRS_NORTH, BuiltinBlocks.COBBLESTONE_STAIRS_EAST};
+        }
+        // The new stair families (Slice 36 — the eight over the foundation
+        // and the masonry set): the four facings resolve through the
+        // registry (the states' own registration).
+        if (WoodShapeBlocks.isStairsItem(value) || WoodShapeBlocks.isStairsState(value)) {
+            String bare = value.contains(":")
+                    ? value.substring(value.indexOf(':') + 1) : value;
+            String family = bare.substring(0, bare.indexOf("_stairs"));
+            net.zaminmc.torch.block.BlockType[] states = new net.zaminmc.torch.block.BlockType[4];
+            String[] facings = {"south", "west", "north", "east"};
+            for (int i = 0; i < 4; i++) {
+                states[i] = blockRegistry.require(Identifier.parse(
+                        "minecraft:" + family + "_stairs_" + facings[i]));
+            }
+            return states;
         }
         return null;
     }

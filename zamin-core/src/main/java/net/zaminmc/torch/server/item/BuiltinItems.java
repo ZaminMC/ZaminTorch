@@ -45,6 +45,37 @@ public final class BuiltinItems {
             Identifier.parse("minecraft:leaves2"), "Acacia Leaves", 64);
     public static final EngineItemType SAPLING = new EngineItemType(
             Identifier.parse("minecraft:sapling"), "Oak Sapling", 64);
+    // The building-shape items (Slice 36 — Item.java's own BlockItem rows:
+    // the stair items share their blocks' ids, the five new fences, and
+    // the wooden-slab family item over 126 with the variant damage).
+    public static final EngineItemType SPRUCE_STAIRS = new EngineItemType(
+            Identifier.parse("minecraft:spruce_stairs"), "Spruce Stairs", 64);
+    public static final EngineItemType BIRCH_STAIRS = new EngineItemType(
+            Identifier.parse("minecraft:birch_stairs"), "Birch Stairs", 64);
+    public static final EngineItemType JUNGLE_STAIRS = new EngineItemType(
+            Identifier.parse("minecraft:jungle_stairs"), "Jungle Stairs", 64);
+    public static final EngineItemType ACACIA_STAIRS = new EngineItemType(
+            Identifier.parse("minecraft:acacia_stairs"), "Acacia Stairs", 64);
+    public static final EngineItemType DARK_OAK_STAIRS = new EngineItemType(
+            Identifier.parse("minecraft:dark_oak_stairs"), "Dark Oak Stairs", 64);
+    public static final EngineItemType BRICK_STAIRS = new EngineItemType(
+            Identifier.parse("minecraft:brick_stairs"), "Brick Stairs", 64);
+    public static final EngineItemType STONE_BRICK_STAIRS = new EngineItemType(
+            Identifier.parse("minecraft:stone_brick_stairs"), "Stone Brick Stairs", 64);
+    public static final EngineItemType QUARTZ_STAIRS = new EngineItemType(
+            Identifier.parse("minecraft:quartz_stairs"), "Quartz Stairs", 64);
+    public static final EngineItemType SPRUCE_FENCE = new EngineItemType(
+            Identifier.parse("minecraft:spruce_fence"), "Spruce Fence", 64);
+    public static final EngineItemType BIRCH_FENCE = new EngineItemType(
+            Identifier.parse("minecraft:birch_fence"), "Birch Fence", 64);
+    public static final EngineItemType JUNGLE_FENCE = new EngineItemType(
+            Identifier.parse("minecraft:jungle_fence"), "Jungle Fence", 64);
+    public static final EngineItemType DARK_OAK_FENCE = new EngineItemType(
+            Identifier.parse("minecraft:dark_oak_fence"), "Dark Oak Fence", 64);
+    public static final EngineItemType ACACIA_FENCE = new EngineItemType(
+            Identifier.parse("minecraft:acacia_fence"), "Acacia Fence", 64);
+    public static final EngineItemType WOODEN_SLAB = new EngineItemType(
+            Identifier.parse("minecraft:wooden_slab"), "Oak Slab", 64);
 
     // Crafting results (community-data recipes): stick 280, crafting table 58,
     // torch 50 on the legacy wire.
@@ -834,6 +865,10 @@ public final class BuiltinItems {
         for (EngineItemType type : new EngineItemType[] {
                 DIRT, COBBLESTONE, OAK_PLANKS, OAK_LOG,
                 PLANKS, LOG, LOG2, LEAVES, LEAVES2, SAPLING,
+                SPRUCE_STAIRS, BIRCH_STAIRS, JUNGLE_STAIRS, ACACIA_STAIRS, DARK_OAK_STAIRS,
+                BRICK_STAIRS, STONE_BRICK_STAIRS, QUARTZ_STAIRS,
+                SPRUCE_FENCE, BIRCH_FENCE, JUNGLE_FENCE, DARK_OAK_FENCE, ACACIA_FENCE,
+                WOODEN_SLAB,
                 STICK, CRAFTING_TABLE, NOTE_BLOCK, TORCH, FURNACE, CHEST,
                 COAL, DIAMOND, IRON_INGOT, STONE, SAND, GLASS, GRAVEL, FLINT, BEEF, COOKED_BEEF,
                 PORKCHOP, COOKED_PORKCHOP, RAW_CHICKEN, COOKED_CHICKEN,

@@ -606,6 +606,37 @@ final class LegacyBlockIds {
         merged.put(Identifier.parse("minecraft:leaves"), 18);
         merged.put(Identifier.parse("minecraft:leaves2"), 161);
         merged.put(Identifier.parse("minecraft:sapling"), 6);
+        // The building-shape families (Slice 36 — Block.java's own rows):
+        // the eight stair families (the four facing states, the ascending
+        // band in the metadata nibble), the five new wood fences, the
+        // wooden-slab pairs over 126 (the variant nibble, the top's bit 8),
+        // and the stair/fence/wooden-slab items.
+        String[] stairFamilies = {"spruce", "birch", "jungle", "acacia",
+                "dark_oak", "brick", "stone_brick", "quartz"};
+        int[] stairIds = {134, 135, 136, 163, 164, 108, 109, 156};
+        String[] facingSuffixes = {"_east", "_west", "_south", "_north"};
+        for (int f = 0; f < stairFamilies.length; f++) {
+            for (int s = 0; s < facingSuffixes.length; s++) {
+                merged.put(Identifier.parse(
+                        "minecraft:" + stairFamilies[f] + "_stairs" + facingSuffixes[s]),
+                        stairIds[f]);
+            }
+            merged.put(Identifier.parse("minecraft:" + stairFamilies[f] + "_stairs"), stairIds[f]);
+        }
+        String[] fenceWoods = {"spruce", "birch", "jungle", "dark_oak", "acacia"};
+        int[] fenceIds = {188, 189, 190, 191, 192};
+        for (int f = 0; f < fenceWoods.length; f++) {
+            merged.put(Identifier.parse("minecraft:" + fenceWoods[f] + "_fence"), fenceIds[f]);
+        }
+        {
+            String[] slabWoods = {"spruce", "birch", "jungle", "acacia", "dark_oak"};
+            for (int variant = 1; variant < 6; variant++) {
+                String wood = slabWoods[variant - 1];
+                merged.put(Identifier.parse("minecraft:" + wood + "_slab"), 126);
+                merged.put(Identifier.parse("minecraft:" + wood + "_slab_top"), 126);
+            }
+        }
+        merged.put(Identifier.parse("minecraft:wooden_slab"), 126);
         for (int power = 0; power <= 15; power++) {
             merged.put(Identifier.parse("minecraft:redstone_wire" + (power == 0 ? "" : "_" + power)), 55);
         }
@@ -1103,6 +1134,26 @@ final class LegacyBlockIds {
                     merged.put(Identifier.parse(
                             "minecraft:" + woodNames[variant] + "_" + family), meta);
                 }
+            }
+        }
+        // The building-shape families' metadata nibbles (Slice 36): the
+        // stairs' ascending facing band 0-3 and the wooden slabs' variant
+        // nibble with the top's bit 8.
+        {
+            String[] stairFamilies = {"spruce", "birch", "jungle", "acacia",
+                    "dark_oak", "brick", "stone_brick", "quartz"};
+            String[] facingSuffixes = {"_east", "_west", "_south", "_north"};
+            for (String family : stairFamilies) {
+                for (int s = 0; s < facingSuffixes.length; s++) {
+                    merged.put(Identifier.parse(
+                            "minecraft:" + family + "_stairs" + facingSuffixes[s]), s);
+                }
+            }
+            String[] slabWoods = {"spruce", "birch", "jungle", "acacia", "dark_oak"};
+            for (int variant = 1; variant < 6; variant++) {
+                String wood = slabWoods[variant - 1];
+                merged.put(Identifier.parse("minecraft:" + wood + "_slab"), variant);
+                merged.put(Identifier.parse("minecraft:" + wood + "_slab_top"), variant | 8);
             }
         }
         merged.put(Identifier.parse("minecraft:wool"), 0);

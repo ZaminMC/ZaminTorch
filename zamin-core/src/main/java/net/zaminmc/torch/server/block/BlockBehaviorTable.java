@@ -1175,6 +1175,41 @@ public final class BlockBehaviorTable {
                     List.of(new BlockBehavior.Drop(WoodVariantBlocks.SAPLING_ITEM, 1, variant))));
         }
 
+        // The building-shape families (Slice 36 — the reference's own
+        // registrations: every wood stair `setStrength(2.0F)` WOOD, the
+        // brick stair 2.0 ROCK, the stone brick 1.5, the quartz 0.8, the
+        // fences 2.0 WOOD, the wooden slabs 2.0 WOOD): every state drops
+        // its family's own item (the stairs over the bare ids, the slabs
+        // over the family item with the variant damage).
+        for (String family : WoodShapeBlocks.STAIRS.keySet()) {
+            boolean wood = !family.equals("brick") && !family.equals("stone_brick")
+                    && !family.equals("quartz");
+            double strength = switch (family) {
+                case "brick" -> 2.0;
+                case "stone_brick" -> 1.5;
+                case "quartz" -> 0.8;
+                default -> 2.0;
+            };
+            Identifier item = Identifier.parse("minecraft:" + family + "_stairs");
+            BlockBehavior stairs = new BlockBehavior(strength, true, !wood,
+                    wood ? "wood" : "rock", 0, List.of(new BlockBehavior.Drop(item, 1)));
+            for (EngineBlockType state : WoodShapeBlocks.stairsStates(family)) {
+                behaviors.put(state.identifier(), stairs);
+            }
+        }
+        for (String wood : WoodShapeBlocks.FENCES.keySet()) {
+            behaviors.put(Identifier.parse("minecraft:" + wood + "_fence"),
+                    new BlockBehavior(2.0, true, false, "wood", 0, List.of(new BlockBehavior.Drop(
+                            Identifier.parse("minecraft:" + wood + "_fence"), 1))));
+        }
+        for (int variant = 1; variant < WoodVariantBlocks.WOODS.size(); variant++) {
+            BlockBehavior slab = new BlockBehavior(2.0, true, false, "wood", 0,
+                    List.of(new BlockBehavior.Drop(
+                            Identifier.parse("minecraft:wooden_slab"), 1, variant)));
+            behaviors.put(WoodShapeBlocks.slabStates(variant).get(0).identifier(), slab);
+            behaviors.put(WoodShapeBlocks.slabStates(variant).get(1).identifier(), slab);
+        }
+
         // The complete door families (Slice 34 — DoorBlock's own
         // registrations: every wood door `setStrength(3.0F)` WOOD_SOUNDS,
         // the iron door `setStrength(5.0F)` Material.IRON — the material's

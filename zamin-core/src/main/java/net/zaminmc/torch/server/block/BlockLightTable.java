@@ -559,6 +559,20 @@ public final class BlockLightTable {
             }
             merged.put(WoodVariantBlocks.saplingBlock(variant), new LightData(0, 0));
         }
+        // The building-shape families (Slice 36): the opaque partial cubes
+        // (the stairs, the slabs) filter 15 like their parents.
+        for (String family : WoodShapeBlocks.STAIRS.keySet()) {
+            for (EngineBlockType state : WoodShapeBlocks.stairsStates(family)) {
+                merged.put(state.identifier(), new LightData(0, 15));
+            }
+        }
+        for (String wood : WoodShapeBlocks.FENCES.keySet()) {
+            merged.put(Identifier.parse("minecraft:" + wood + "_fence"), new LightData(0, 15));
+        }
+        for (int variant = 1; variant < WoodVariantBlocks.WOODS.size(); variant++) {
+            merged.put(WoodShapeBlocks.slabStates(variant).get(0).identifier(), new LightData(0, 15));
+            merged.put(WoodShapeBlocks.slabStates(variant).get(1).identifier(), new LightData(0, 15));
+        }
         // The complete door families (Slice 34 — DoorBlock is a CUTOUT
         // renderer: isSolidRender false, opacity 0; every state passes
         // light whole like the shipped oak rows).

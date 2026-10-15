@@ -5621,3 +5621,37 @@ metadata-direction and tree-decay slices (the upright/fresh forms ship —
 the item damage domain carries the bare variant exactly like the
 reference's own recipes read); the sapling's tree growth rides the
 tree-growth slice; the oak's blocks keep their shipped plain-item drops.
+
+## Slice 36 — the building shapes: the stair families, the wood fences, the wooden slabs
+
+The eight new stair families (spruce 134, birch 135, jungle 136, acacia
+163, dark_oak 164, brick 108, stone_brick 109, quartz 156 — every one
+over its base material's own strength), the five new wood fences
+(188-192), and the wooden-slab pairs over the single-slab id 126 (the
+variant nibble, the top half's bit 8).
+
+- The state model (`server/block/WoodShapeBlocks`): the four facing
+  states per stair family over the engine's shipped band (east 0 / west
+  1 / south 2 / north 3), the fence blocks, the slab pairs.
+- The generalized placement: stairsFamilyOf/slabFamilyOf resolve ANY
+  family now (the shipped oak/cobblestone/sandstone/nether-brick stairs
+  included — they previously fell through to the generic placement
+  without their facing rule); the wooden_slab family item resolves its
+  variant through the damage consult.
+- The behavior rows (wood 2.0; the masonry stairs pickaxe-gated: brick
+  2.0, stone brick 1.5, quartz 0.8), the light rows (the opaque partial
+  cubes), the wire rows (the ids + the facing/variant nibbles + the
+  items), the noteblock's set already covered by the planks family.
+- The crafting rows (CraftingManager lines 251-270): the stair ladder
+  per family ("#  ", "## ", "###" over six exact-variant planks or the
+  plain masonry blocks -> 4 stairs), the slab bands (three planks ->
+  six slabs of the same variant), the fence crafts ("S#S", "S#S" over
+  two planks + four sticks -> three fences).
+- Tests: `WoodShapeBlocksTest` (2) + `BlockRegistryTest` 443 +
+  `CraftingRecipeTest` 181. Batches: the touched-area batch green (99),
+  the protocol integrity green, `--max-workers=1`.
+
+Ledgered: the stairs' upside-down HALF bit rides the metadata-variants
+slice; the double_wooden_slab 125 stays the parent-material stand-in;
+the fence gates (107/183-187) are their own slice; the fences'
+1.5-block collision rides the collision-shape slice.

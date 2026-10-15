@@ -106,6 +106,105 @@ public final class BuiltinRecipes {
                     { ing("minecraft:planks", true, 5), ing("minecraft:planks", true, 5) }
             },
                     res("minecraft:dark_oak_door", 3, 0)),
+            // The building-shape crafts (Slice 36 — CraftingManager's own
+            // rows): the stairs per family (the "#  ", "## ", "###" ladder
+            // over six of the material — the exact-variant planks for the
+            // woods, the plain blocks for the masonry set), the wood slabs
+            // (three planks -> six slabs of the same variant), and the
+            // fences ("S#S", "S#S" — two planks + four sticks -> three).
+            CraftingRecipe.shaped(new Ingredient[][] {
+                    { ing("minecraft:planks", true, 1), null, null },
+                    { ing("minecraft:planks", true, 1), ing("minecraft:planks", true, 1), null },
+                    { ing("minecraft:planks", true, 1), ing("minecraft:planks", true, 1), ing("minecraft:planks", true, 1) }
+            },
+                    res("minecraft:spruce_stairs", 4, 0)),
+            CraftingRecipe.shaped(new Ingredient[][] {
+                    { ing("minecraft:planks", true, 2), null, null },
+                    { ing("minecraft:planks", true, 2), ing("minecraft:planks", true, 2), null },
+                    { ing("minecraft:planks", true, 2), ing("minecraft:planks", true, 2), ing("minecraft:planks", true, 2) }
+            },
+                    res("minecraft:birch_stairs", 4, 0)),
+            CraftingRecipe.shaped(new Ingredient[][] {
+                    { ing("minecraft:planks", true, 3), null, null },
+                    { ing("minecraft:planks", true, 3), ing("minecraft:planks", true, 3), null },
+                    { ing("minecraft:planks", true, 3), ing("minecraft:planks", true, 3), ing("minecraft:planks", true, 3) }
+            },
+                    res("minecraft:jungle_stairs", 4, 0)),
+            CraftingRecipe.shaped(new Ingredient[][] {
+                    { ing("minecraft:planks", true, 4), null, null },
+                    { ing("minecraft:planks", true, 4), ing("minecraft:planks", true, 4), null },
+                    { ing("minecraft:planks", true, 4), ing("minecraft:planks", true, 4), ing("minecraft:planks", true, 4) }
+            },
+                    res("minecraft:acacia_stairs", 4, 0)),
+            CraftingRecipe.shaped(new Ingredient[][] {
+                    { ing("minecraft:planks", true, 5), null, null },
+                    { ing("minecraft:planks", true, 5), ing("minecraft:planks", true, 5), null },
+                    { ing("minecraft:planks", true, 5), ing("minecraft:planks", true, 5), ing("minecraft:planks", true, 5) }
+            },
+                    res("minecraft:dark_oak_stairs", 4, 0)),
+            CraftingRecipe.shaped(new Ingredient[][] {
+                    { ing("minecraft:brick_block", false, 0), null, null },
+                    { ing("minecraft:brick_block", false, 0), ing("minecraft:brick_block", false, 0), null },
+                    { ing("minecraft:brick_block", false, 0), ing("minecraft:brick_block", false, 0), ing("minecraft:brick_block", false, 0) }
+            },
+                    res("minecraft:brick_stairs", 4, 0)),
+            CraftingRecipe.shaped(new Ingredient[][] {
+                    { ing("minecraft:stone_bricks", false, 0), null, null },
+                    { ing("minecraft:stone_bricks", false, 0), ing("minecraft:stone_bricks", false, 0), null },
+                    { ing("minecraft:stone_bricks", false, 0), ing("minecraft:stone_bricks", false, 0), ing("minecraft:stone_bricks", false, 0) }
+            },
+                    res("minecraft:stone_brick_stairs", 4, 0)),
+            CraftingRecipe.shaped(new Ingredient[][] {
+                    { ing("minecraft:quartz_block", false, 0), null, null },
+                    { ing("minecraft:quartz_block", false, 0), ing("minecraft:quartz_block", false, 0), null },
+                    { ing("minecraft:quartz_block", false, 0), ing("minecraft:quartz_block", false, 0), ing("minecraft:quartz_block", false, 0) }
+            },
+                    res("minecraft:quartz_stairs", 4, 0)),
+            CraftingRecipe.shaped(new Ingredient[][] {
+                    { ing("minecraft:planks", true, 1), ing("minecraft:planks", true, 1), ing("minecraft:planks", true, 1) }
+            },
+                    res("minecraft:wooden_slab", 6, 1)),
+            CraftingRecipe.shaped(new Ingredient[][] {
+                    { ing("minecraft:planks", true, 2), ing("minecraft:planks", true, 2), ing("minecraft:planks", true, 2) }
+            },
+                    res("minecraft:wooden_slab", 6, 2)),
+            CraftingRecipe.shaped(new Ingredient[][] {
+                    { ing("minecraft:planks", true, 3), ing("minecraft:planks", true, 3), ing("minecraft:planks", true, 3) }
+            },
+                    res("minecraft:wooden_slab", 6, 3)),
+            CraftingRecipe.shaped(new Ingredient[][] {
+                    { ing("minecraft:planks", true, 4), ing("minecraft:planks", true, 4), ing("minecraft:planks", true, 4) }
+            },
+                    res("minecraft:wooden_slab", 6, 4)),
+            CraftingRecipe.shaped(new Ingredient[][] {
+                    { ing("minecraft:planks", true, 5), ing("minecraft:planks", true, 5), ing("minecraft:planks", true, 5) }
+            },
+                    res("minecraft:wooden_slab", 6, 5)),
+            CraftingRecipe.shaped(new Ingredient[][] {
+                    { ing("minecraft:stick", false, 0), ing("minecraft:planks", true, 1), ing("minecraft:stick", false, 0) },
+                    { ing("minecraft:stick", false, 0), ing("minecraft:planks", true, 1), ing("minecraft:stick", false, 0) }
+            },
+                    res("minecraft:spruce_fence", 3, 0)),
+            CraftingRecipe.shaped(new Ingredient[][] {
+                    { ing("minecraft:stick", false, 0), ing("minecraft:planks", true, 2), ing("minecraft:stick", false, 0) },
+                    { ing("minecraft:stick", false, 0), ing("minecraft:planks", true, 2), ing("minecraft:stick", false, 0) }
+            },
+                    res("minecraft:birch_fence", 3, 0)),
+            CraftingRecipe.shaped(new Ingredient[][] {
+                    { ing("minecraft:stick", false, 0), ing("minecraft:planks", true, 3), ing("minecraft:stick", false, 0) },
+                    { ing("minecraft:stick", false, 0), ing("minecraft:planks", true, 3), ing("minecraft:stick", false, 0) }
+            },
+                    res("minecraft:jungle_fence", 3, 0)),
+            CraftingRecipe.shaped(new Ingredient[][] {
+                    { ing("minecraft:stick", false, 0), ing("minecraft:planks", true, 4), ing("minecraft:stick", false, 0) },
+                    { ing("minecraft:stick", false, 0), ing("minecraft:planks", true, 4), ing("minecraft:stick", false, 0) }
+            },
+                    res("minecraft:acacia_fence", 3, 0)),
+            CraftingRecipe.shaped(new Ingredient[][] {
+                    { ing("minecraft:stick", false, 0), ing("minecraft:planks", true, 5), ing("minecraft:stick", false, 0) },
+                    { ing("minecraft:stick", false, 0), ing("minecraft:planks", true, 5), ing("minecraft:stick", false, 0) }
+            },
+                    res("minecraft:dark_oak_fence", 3, 0)),
             // The core planks crafts over the family item (the reference's
             // bare Blocks.PLANKS ingredient matches any variant — the
             // engine's family-item rows for the shipped oak rows' new twin).

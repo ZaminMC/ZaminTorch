@@ -859,6 +859,11 @@ public final class BuiltinBlocks {
         for (EngineBlockType family : WoodVariantBlocks.familyBlocks()) {
             builder = builder.register(family);
         }
+        // The building-shape families (Slice 36 — the eight new stair
+        // families, the five new wood fences, the wooden-slab pairs).
+        for (EngineBlockType shape : WoodShapeBlocks.familyBlocks()) {
+            builder = builder.register(shape);
+        }
         // The complete door families (Slice 34 — DoorBlock/DoorItem 1:1):
         // the five new woods' twelve states each, the oak hinge pair, and
         // the iron door's open + hinge states. The shipped oak/iron
