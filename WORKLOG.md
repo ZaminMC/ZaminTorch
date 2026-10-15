@@ -6749,3 +6749,46 @@ overworld, the GameEvent-4 credits + the leavingTheEnd respawn); (3) the
 smaller entity gaps: the spawnable pair (experience bottle 75 +
 fireworks 76), the minecart variants (TNT 45/hopper 46/furnace 44/
 spawner 47/command-block 40), the fishing bobber (90), the giant (53).
+
+## Slice 63 — the ender dragon (the seven-part body + the steering flight + the death walk)
+
+The End's own boss, 1:1.
+
+- **The parts**: head 3x3 / body 5x3 / tails 2x2 x3 / wings 4x2+4x3 —
+  server-side hulls placed from the 64-slot segment ring; the WIRE ID
+  CONVENTION dragonId+1..+7 (the spawn's eight-id block, the client's own
+  re-alignment).
+- **The flight**: the flap, the steering (the quarry's hover band / the
+  point's drift, the 100/22500 band, the clamp, the turn, the nose accel,
+  the dampen), the part placement (the segment curve, the f12 pitch, the
+  tail reaches), all 1:1. The noClip body skips the engine's whole
+  tickBody.
+- **The damage gates**: the non-head /4+1, the head-front reset, the
+  player-or-explosive source (mob arrows glance off). The melee part
+  routing + the projectile DragonSink.
+- **The crystal link**: the 1-in-10 nearest scan, the +1 heal cadence,
+  the pop's 10.0 explosive wound (the reference's own head hit).
+- **The contact arms + the sweep**: the wing fling (d/d4*4 + 0.2), the
+  head's 10.0, destroyBlocks' immune five with the restrictMovement
+  write-back.
+- **The death walk**: the 200-tick rise-and-spin, the 1018, the XP
+  batches (9x1000 + the 200th's own 1000 + the final 2000 = 12000), the
+  createPortal (the bedrock fountain + the exit portal + the four torches
+  + the egg), the ZDR defeated mark, the removal. The standard death
+  never runs.
+- **The spawn**: the chunk-(0,0) decorate record, the drain's
+  alive/defeated guards, the dimension-1 stamp.
+- Tests: `EnderDragonTest` (6). The dragon/wither/crystal/End/mob/
+  spawner/ranged batches green; the full core suite green modulo the
+  documented load flakes (Weather/GameRule/Compute isolation-green),
+  --max-workers=1.
+
+NEXT (in order): (1) the exit fountain's End-to-overworld redirect (old 1
++ new 1 → the overworld — Entity.changeDimension lines 1703-1706; the
+GameEvent-4 credits + the leavingTheEnd respawn) — the tickPortalStand's
+end_portal arm in dimension 1 currently returns early; (2) the smaller
+entity gaps: the spawnable pair (experience bottle 75 + fireworks 76),
+the minecart variants (TNT 45/hopper 46/furnace 44/spawner 47/
+command-block 40), the fishing bobber (90), the giant (53); (3) the
+sections 27/28 audit (the native API exposure + the plugin concurrency
+contract vs the current code).
