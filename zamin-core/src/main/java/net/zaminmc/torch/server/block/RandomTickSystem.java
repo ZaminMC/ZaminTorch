@@ -109,6 +109,18 @@ public final class RandomTickSystem {
             tickCaneGrowth(position);
             return;
         }
+        if (net.zaminmc.torch.server.block.CocoaBlocks.isCocoa(type)) {
+            // The cocoa's growth (Slice 43 — CocoaBlock.tick lines 44-50:
+            // the 1-in-5 AGE advance to 2; the support break rides the
+            // neighbor bus like every mounted family).
+            if (random.nextInt(5) == 0) {
+                int age = CocoaBlocks.ageOf(type);
+                if (age < 2) {
+                    world.setBlock(position, CocoaBlocks.withAge(type, age + 1));
+                }
+            }
+            return;
+        }
         if (WorldSolidity.isCactus(type.identifier())) {
             tickCactusGrowth(position);
             return;

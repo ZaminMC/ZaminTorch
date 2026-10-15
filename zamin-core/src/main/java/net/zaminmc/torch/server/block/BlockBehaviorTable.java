@@ -1263,6 +1263,19 @@ public final class BlockBehaviorTable {
             }
         }
 
+        // The cocoa family (Slice 43 — CocoaBlock's own row
+        // `setStrength(0.2F).setBlastResistance(5.0F)` WOOD_SOUNDS over
+        // Material.PLANT): the drop count rides the DropService's own walk
+        // (dropItems' 1-or-3 dye rolls over the AGE band).
+        for (net.zaminmc.torch.server.block.EngineBlockType pod
+                : CocoaBlocks.familyBlocks()) {
+            behaviors.put(pod.identifier(),
+                    new BlockBehavior(0.2, true, false, "plant", 0,
+                            List.of(new BlockBehavior.Drop(
+                                    Identifier.parse("minecraft:dye"), 1,
+                                    1.0, CocoaBlocks.BROWN_DYE_DAMAGE))));
+        }
+
         // The ground-cover pair (Slice 42 — MyceliumBlock/LilyPadBlock's
         // own rows: the mycelium `setStrength(0.6F)` GRASS_SOUNDS dropping
         // its dirt — getDropItem's own consult; the lily pad
