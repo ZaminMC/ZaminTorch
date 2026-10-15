@@ -1044,6 +1044,26 @@ public final class EngineServer implements Server, EngineBridge {
                     }
                     return count;
                 });
+                // The trapped chest's viewer count (Slice 49b —
+                // ChestBlock.getSignal lines 379-392: the sessions holding
+                // this chest's window open, clamped 0-15 on the wire).
+                redstoneSystem.setTrappedChestViewers(position -> {
+                    int viewers = 0;
+                    for (PlayerSession body : players.all()) {
+                        if (body.state() != net.zaminmc.torch.entity.PlayerState.PLAYING
+                                || body.openContainerKind() != PlayerSession.ContainerKind.CHEST
+                                || body.openContainerPosition() == null) {
+                            continue;
+                        }
+                        if (body.openContainerPosition().equals(position)
+                                && world.getBlock(position).identifier()
+                                        .equals(net.zaminmc.torch.server.block.BuiltinBlocks
+                                                .TRAPPED_CHEST.identifier())) {
+                            viewers++;
+                        }
+                    }
+                    return viewers;
+                });
                 // The detector rail's cart probe (Slice 38 —
                 // DetectorRailBlock.updateOutputState's getMinecarts over
                 // the rail's own cell: any minecart body inside the box).
@@ -6058,6 +6078,13 @@ public final class EngineServer implements Server, EngineBridge {
             openChestOnTick(session, clicked, onTableOpened);
             return;
         }
+        if (current.identifier().equals(net.zaminmc.torch.server.block.BuiltinBlocks.TRAPPED_CHEST.identifier())) {
+            // ChestBlock(1).use lines 326-341: the same container GUI opens
+            // (the viewer-count power rides the redstone system's probe).
+            openChestOnTick(session, clicked, onTableOpened);
+            redstoneSystem.updateNeighbors(clicked);
+            return;
+        }
         if (net.zaminmc.torch.server.chest.EnderChestBlocks.isFamily(current)) {
             // EnderChestBlock.use lines 73-92: the player's OWN inventory
             // opens (the block is the door, not the storage).
@@ -10007,6 +10034,12 @@ public final class EngineServer implements Server, EngineBridge {
         // The lid swings for every other observer (the historical Block
         // Action 1; the opener's client animates its own view).
         publishChestLid(position, session, true);
+        // Slice 49b: the trapped chest's viewer count changed — the
+        // neighbors re-evaluate (ChestBlockEntity's own onOpen notify).
+        if (world.getBlock(position).identifier()
+                .equals(net.zaminmc.torch.server.block.BuiltinBlocks.TRAPPED_CHEST.identifier())) {
+            redstoneSystem.updateNeighbors(position);
+        }
         // §27.7: the post-commit chest-open observation — the window is
         // assigned and the lid swings; handlers observe, they do not veto.
         eventBus.fire(new net.zaminmc.torch.event.block.ChestOpenEvent(

@@ -111,6 +111,9 @@ public final class BlockLightTable {
             // paying only the standard per-cell step.
             Map.entry(Identifier.parse("minecraft:glass"), new LightData(0, 0)),
             Map.entry(Identifier.parse("minecraft:chest"), new LightData(0, 0)),
+            // The trapped chest (Slice 49b — the same non-solid-render
+            // partial cube the chest carries).
+            Map.entry(Identifier.parse("minecraft:trapped_chest"), new LightData(0, 0)),
             // The ender chest family (Slice 29a — the reference's own
             // setLight(0.5F) registration, Block.java line 1282: emission
             // (int)(15 * 0.5) = 7, the chest's blue glow): the empty

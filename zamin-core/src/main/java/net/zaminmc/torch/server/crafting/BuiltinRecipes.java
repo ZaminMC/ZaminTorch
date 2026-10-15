@@ -470,6 +470,13 @@ public final class BuiltinRecipes {
                     { null, ing("minecraft:brick", false, 0), null }
             },
                     res("minecraft:flower_pot", 1, 0)),
+            // The trapped chest (Slice 49b — BlockRecipes.java line 21's
+            // own row): the chest over the tripwire hook.
+            CraftingRecipe.shaped(new Ingredient[][] {
+                    { ing("minecraft:chest", false, 0) },
+                    { ing("minecraft:tripwire_hook", false, 0) }
+            },
+                    res("minecraft:trapped_chest", 1, 0)),
             // The reed chain (community recipes.json): sugar is one cane
             // (the shapeless 1x1 folded to the shaped form), paper is a row
             // of three canes, a book wraps three papers around a leather.

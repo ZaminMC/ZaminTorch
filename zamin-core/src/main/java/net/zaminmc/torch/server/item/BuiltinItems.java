@@ -855,6 +855,10 @@ public final class BuiltinItems {
             Identifier.parse("minecraft:light_weighted_pressure_plate"), "Weighted Pressure Plate (Light)", 64);
     public static final EngineItemType HEAVY_WEIGHTED_PRESSURE_PLATE = new EngineItemType(
             Identifier.parse("minecraft:heavy_weighted_pressure_plate"), "Weighted Pressure Plate (Heavy)", 64);
+    // The trapped chest item (Slice 49b — Item.java's own BlockItem row
+    // over 146, stack 64 like the chest's own item).
+    public static final EngineItemType TRAPPED_CHEST = new EngineItemType(
+            Identifier.parse("minecraft:trapped_chest"), "Trapped Chest", 64);
 
     // Decoration flora + desert stone (the placeable block-item forms; the
     // flowers drop themselves, tall grass/dead bush are /give-reachable).
@@ -1022,7 +1026,7 @@ public final class BuiltinItems {
                 DIAMOND_BLOCK, EMERALD_BLOCK, BEACON,
                 BONE, STRING, GUNPOWDER, WOOL, MUTTON, COOKED_MUTTON, SLIME_BALL,
                 SKULL,
-                BUCKET, WATER_BUCKET, LAVA_BUCKET, MILK_BUCKET, COBBLESTONE_WALL, MOSSY_COBBLESTONE, FLOWER_POT, LIGHT_WEIGHTED_PRESSURE_PLATE, HEAVY_WEIGHTED_PRESSURE_PLATE,
+                BUCKET, WATER_BUCKET, LAVA_BUCKET, MILK_BUCKET, COBBLESTONE_WALL, MOSSY_COBBLESTONE, FLOWER_POT, LIGHT_WEIGHTED_PRESSURE_PLATE, HEAVY_WEIGHTED_PRESSURE_PLATE, TRAPPED_CHEST,
                 FLINT_AND_STEEL, GOLD_INGOT,
                 SUGAR_CANE, CACTUS, SUGAR, PAPER, BOOK,
                 TALL_GRASS, DEAD_BUSH, DANDELION, POPPY, RED_FLOWER, DOUBLE_PLANT, SANDSTONE,
