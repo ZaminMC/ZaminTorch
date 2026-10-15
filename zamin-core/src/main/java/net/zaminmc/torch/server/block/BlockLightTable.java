@@ -547,6 +547,23 @@ public final class BlockLightTable {
     private static Map<Identifier, LightData> mergeLight() {
         Map<Identifier, LightData> merged = new java.util.HashMap<>(LIGHT);
         merged.putAll(REDSTONE_LIGHT);
+        // The complete door families (Slice 34 — DoorBlock is a CUTOUT
+        // renderer: isSolidRender false, opacity 0; every state passes
+        // light whole like the shipped oak rows).
+        for (String family : WoodDoorFamily.FAMILIES) {
+            for (int meta = 0; meta < 4; meta++) {
+                merged.put(WoodDoorFamily.lower(family, meta, false).identifier(), new LightData(0, 15));
+                merged.put(WoodDoorFamily.lower(family, meta, true).identifier(), new LightData(0, 15));
+            }
+            for (boolean right : new boolean[] {false, true}) {
+                for (boolean open : new boolean[] {false, true}) {
+                    for (boolean powered : new boolean[] {false, true}) {
+                        merged.put(WoodDoorFamily.upper(family, right, open, powered)
+                                .identifier(), new LightData(0, 15));
+                    }
+                }
+            }
+        }
         return Map.copyOf(merged);
     }
 

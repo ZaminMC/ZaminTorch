@@ -88,6 +88,7 @@ import net.zaminmc.torch.server.block.BuiltinBlocks;
 import net.zaminmc.torch.server.block.ExplosionService;
 import net.zaminmc.torch.server.block.FluidBlocks;
 import net.zaminmc.torch.server.block.FluidSystem;
+import net.zaminmc.torch.server.block.WoodDoorFamily;
 import net.zaminmc.torch.server.block.WorldSolidity;
 import net.zaminmc.torch.server.chat.ChatListener;
 import net.zaminmc.torch.server.chat.ChatService;
@@ -961,6 +962,12 @@ public final class EngineServer implements Server, EngineBridge {
                 redstoneSystem = new net.zaminmc.torch.server.redstone.RedstoneSystem(
                         world, itemEntities);
                 world.addChangeListener(redstoneSystem);
+                // The door family's signal arm plays the same open/close
+                // pair the use arm does (DoorBlock.doEvent 1003/1006 — the
+                // reference's own tones at the swinging lower half).
+                redstoneSystem.setDoorSoundCallback((at, opening) -> fxManager.sound(
+                        new Position(at.x() + 0.5, at.y() + 0.5, at.z() + 0.5),
+                        opening ? "random.door_open" : "random.door_close", 0.8f, 1.0f));
                 // The plate's occupancy probe (the engine's bodies): any mob
                 // or playing body inside the 0.125-inset, 0.25-tall box, the
                 // wooden plates adding the item entities (the reference's
@@ -6101,14 +6108,22 @@ public final class EngineServer implements Server, EngineBridge {
             sleepOnTick(session, clicked);
             return; // the bed consumes the right-click (the historical sleep use)
         }
-        if (isDoorHalf(current) && !current.identifier().value().startsWith("oak_door_upper")) {
-            toggleDoorOnTick(clicked);
+        if (isDoorHalf(current)) {
+            // The reference's use() (DoorBlock lines 124-141): clicking
+            // EITHER half swings the pair (the upper redirects down to the
+            // lower); the iron door's material refuses the swing but still
+            // consumes the use (use returns true before the toggle).
+            BlockPosition lower = WoodDoorFamily.isUpper(current)
+                    ? clicked.offset(0, -1, 0) : clicked;
+            if (WoodDoorFamily.isDoor(world.getBlock(lower))) {
+                toggleDoorOnTick(lower);
+            }
             return; // the swing consumes the right-click (the historical door
                     // use: a door swings regardless of what the hand holds)
         }
-        if (heldId
-                .equals("minecraft:oak_door")
-                || creativeHeld.map(t -> t.identifier().value().equals("oak_door")).orElse(false)) {
+        if (WoodDoorFamily.isDoorItem(heldId)
+                || creativeHeld.map(t -> WoodDoorFamily.isDoorItem(
+                        t.identifier().value())).orElse(false)) {
             placeDoorOnTick(session, clicked, face, creativeHeld);
             return; // the two-half commit overrides the generic placement
         }
@@ -7545,17 +7560,21 @@ public final class EngineServer implements Server, EngineBridge {
      * Breaking one half removes the other (the two-block block dies as a
      * unit; one door item drops from the broken half's behavior table). The
      * break has already committed, so the survivor is whichever door half
-     * sits directly above or below the air.
-     * Tick-thread context.
+     * sits directly above or below the air — the pair must belong to the
+     * same family (DoorBlock.neighborChanged's own blockstate.getBlock()
+     * != this test). Tick-thread context.
      */
     private void doorSiblingCleanup(BlockPosition broken) {
-        if (!isDoorHalf(world.getBlock(broken.offset(0, -1, 0)))
-                && !isDoorHalf(world.getBlock(broken.offset(0, 1, 0)))) {
+        BlockType below = world.getBlock(broken.offset(0, -1, 0));
+        BlockType above = world.getBlock(broken.offset(0, 1, 0));
+        boolean belowDoor = isDoorHalf(below);
+        boolean aboveDoor = isDoorHalf(above);
+        if (!belowDoor && !aboveDoor) {
             return; // not a door cell: nothing to clean
         }
-        if (isDoorHalf(world.getBlock(broken.offset(0, 1, 0)))) {
+        if (aboveDoor && WoodDoorFamily.isUpper(above)) {
             world.setBlock(broken.offset(0, 1, 0), world.airType()); // lower broke
-        } else {
+        } else if (belowDoor && !WoodDoorFamily.isUpper(below)) {
             world.setBlock(broken.offset(0, -1, 0), world.airType()); // upper broke
         }
     }
@@ -7606,54 +7625,37 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /**
-     * The door swing: the right-click toggle flips the lower half's open bit
-     * and mirrors it on the upper (the two halves move together), with the
-     * historical open/close sounds. Tick-thread context.
+     * The door swing (DoorBlock.use lines 124-141): the lower's open bit
+     * flips, the upper mirrors the swing with its hinge and POWERED bits
+     * preserved (use() never writes POWERED — a signal-held door manually
+     * closed stays powered until the signal departs), and the historical
+     * open/close sound plays at the hinge. The iron door never reaches
+     * here (the use gate's material refusal). Tick-thread context.
      */
     private void toggleDoorOnTick(BlockPosition lower) {
         BlockType type = world.getBlock(lower);
-        String id = type.identifier().value();
-        boolean opening = !id.startsWith("oak_door_open");
+        String family = WoodDoorFamily.familyOf(type);
+        if (family == null || WoodDoorFamily.isIron(family)) {
+            return; // not a swinging door half
+        }
         BlockPosition upper = lower.offset(0, 1, 0);
         BlockType upperType = world.getBlock(upper);
-        String upperId = upperType.identifier().value();
-        if (!upperId.equals("oak_door_upper") && !upperId.equals("oak_door_upper_open")) {
+        if (!WoodDoorFamily.isDoor(upperType)
+                || !family.equals(WoodDoorFamily.familyOf(upperType))) {
             return; // a half door: refuse the swing rather than desync it
         }
-        String family = opening ? openingName(id) : closedName(id);
-        world.setBlock(lower, blockRegistry.require(
-                net.zaminmc.torch.util.Identifier.parse("minecraft:" + family)));
-        world.setBlock(upper, blockRegistry.require(net.zaminmc.torch.util.Identifier.parse(
-                "minecraft:" + (opening ? "oak_door_upper_open" : "oak_door_upper"))));
+        boolean opening = !WoodDoorFamily.isOpen(type);
+        boolean rightHinge = WoodDoorFamily.isRightHinge(upperType);
+        boolean powered = WoodDoorFamily.isPowered(upperType);
+        world.setBlock(lower, WoodDoorFamily.flipLower(type));
+        world.setBlock(upper, WoodDoorFamily.upper(family, rightHinge, opening, powered));
         fxManager.sound(new Position(lower.x() + 0.5, lower.y() + 0.5, lower.z() + 0.5),
                 opening ? "random.door_open" : "random.door_close", 0.8f, 1.0f);
     }
 
-    /** The closed-state id of an open lower half (the open bit drops). */
-    private static String closedName(String openId) {
-        return switch (openId) {
-            case "oak_door_open" -> "oak_door";
-            case "oak_door_open_north" -> "oak_door_north";
-            case "oak_door_open_east" -> "oak_door_east";
-            default -> "oak_door_south";
-        };
-    }
-
-    /** The open-state id of a closed lower half (the open bit sets). */
-    private static String openingName(String closedId) {
-        return switch (closedId) {
-            case "oak_door" -> "oak_door_open";
-            case "oak_door_north" -> "oak_door_open_north";
-            case "oak_door_east" -> "oak_door_open_east";
-            default -> "oak_door_open_south";
-        };
-    }
-
-    /** Whether the block type is an oak door half (either state). */
+    /** Whether the block type is any door half (either family, either half). */
     public static boolean isDoorHalf(net.zaminmc.torch.block.BlockType type) {
-        String id = type.identifier().value();
-        return type.identifier().namespace().equals("minecraft")
-                && (id.equals("oak_door") || id.startsWith("oak_door_"));
+        return WoodDoorFamily.isDoor(type);
     }
 
     /**
@@ -7780,17 +7782,38 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /**
-     * The door placement (the historical ItemDoor): both halves commit
-     * together against open headroom, the lower fronts its placer, and the
-     * survival path consumes one door item. Tick-thread context.
+     * The door placement (DoorItem.useOn lines 20-62, 1:1): the UP face
+     * only, a replaceable clicked cell takes the door in place, the cell
+     * and its headroom must both be free under the height cap with a solid
+     * top below, the facing is the player's own yaw band
+     * (Direction.byRotation — the metadata the client decodes), and the
+     * hinge side comes from the neighbor solids (DoorItem.place's own
+     * clockwise/counterclockwise count with the same-family adjacency
+     * preference). One item spends in survival. Tick-thread context.
      */
     private void placeDoorOnTick(PlayerSession session, BlockPosition clicked, int face,
                                  java.util.Optional<BlockType> creativeHeld) {
-        BlockPosition target = offsetByFace(clicked, face);
-        if (target == null || world.getBlock(clicked).equals(world.airType())
-                || !world.getBlock(target).equals(world.airType())
-                || !world.getBlock(target.offset(0, 1, 0)).equals(world.airType())) {
-            return; // the placement gates plus the upper half's headroom
+        if (face != 1) {
+            return; // DoorItem.useOn: only the UP face places
+        }
+        // A replaceable clicked cell (the tall-grass rule) takes the door
+        // itself; anything else offsets up.
+        BlockPosition target = WorldSolidity.isReplaceable(world.getBlock(clicked).identifier())
+                ? clicked : clicked.offset(0, 1, 0);
+        if (target.y() >= 255) {
+            return; // canBePlaced's own cap (pos.getY() < 255)
+        }
+        if (!world.getBlock(target).equals(world.airType())
+                && !WorldSolidity.isReplaceable(world.getBlock(target).identifier())) {
+            return;
+        }
+        BlockType above = world.getBlock(target.offset(0, 1, 0));
+        if (!above.equals(world.airType())
+                && !WorldSolidity.isReplaceable(above.identifier())) {
+            return; // the upper half's headroom
+        }
+        if (!WorldSolidity.isSolid(world.getBlock(target.offset(0, -1, 0)))) {
+            return; // World.hasSolidTop: no floor, no door
         }
         if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5
                 || intersectsPlayerBox(session.position(), target)) {
@@ -7800,21 +7823,103 @@ public final class EngineServer implements Server, EngineBridge {
                 && session.inventory().held().isEmpty()) {
             return;
         }
-        // Facing: the historical door order (W/N/E/S = 0..3), the door front
-        // opposite the placer's look — the sign's band, rotated one family.
+        String family = heldDoorFamily(session, creativeHeld);
+        if (family == null) {
+            return;
+        }
+        // Facing: the player's own look band (Direction.byRotation), the
+        // metadata the client decodes — the historical clockwise horizontal
+        // id (S/W/N/E = 0/1/2/3 of the facing turned one step clockwise,
+        // which the shipped band maps to the four closed states exactly).
         double yaw = ((session.rotation().yaw() % 360.0) + 360.0 + 45.0) % 360.0;
-        BlockType[] closed = {
-                BuiltinBlocks.OAK_DOOR_LOWER_CLOSED_N, // looking south
-                BuiltinBlocks.OAK_DOOR_LOWER_CLOSED_E, // looking west
-                BuiltinBlocks.OAK_DOOR_LOWER_CLOSED_S, // looking north
-                BuiltinBlocks.OAK_DOOR_LOWER_CLOSED_W};// looking east
-        BlockType lower = closed[(int) (yaw / 90.0) % 4];
-        world.setBlock(target, lower);
-        world.setBlock(target.offset(0, 1, 0), BuiltinBlocks.OAK_DOOR_UPPER);
+        int lookBand = (int) (yaw / 90.0) % 4; // 0=S,1=W,2=N,3=E of the look
+        int[] facingOffset = lookFacingOffset(lookBand);
+        // The hinge rule (DoorItem.place lines 44-54): the solid count on
+        // the clockwise side versus the counter-clockwise, with a
+        // same-family neighbor (or its headroom) preferring its side.
+        int[] clockwise = clockwiseOf(facingOffset);
+        int[] counter = counterClockwiseOf(facingOffset);
+        BlockPosition cw = target.offset(clockwise[0], 0, clockwise[2]);
+        BlockPosition ccw = target.offset(counter[0], 0, counter[2]);
+        int i = solidDoorNeighbor(ccw) + solidDoorNeighbor(ccw.offset(0, 1, 0));
+        int j = solidDoorNeighbor(cw) + solidDoorNeighbor(cw.offset(0, 1, 0));
+        boolean flag = sameFamilyDoorAt(family, ccw) || sameFamilyDoorAt(family, ccw.offset(0, 1, 0));
+        boolean flag1 = sameFamilyDoorAt(family, cw) || sameFamilyDoorAt(family, cw.offset(0, 1, 0));
+        boolean rightHinge = flag && !flag1 || j > i;
+        // DoorItem.place's flag-2 pair commit: both halves stand before any
+        // neighbor hears anything (the reference notifies the neighbors
+        // explicitly afterwards — a half-alone commit is never observable).
+        redstoneSystem.runDoorPairPlacement(() -> {
+            world.setBlock(target,
+                    WoodDoorFamily.lower(family, lowerMetaBand(lookBand), false));
+            world.setBlock(target.offset(0, 1, 0),
+                    WoodDoorFamily.upper(family, rightHinge, false, false));
+        });
         if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE) {
             session.inventory().consumeHeld(1);
             publishInventoryChanged(session);
         }
+    }
+
+    /** The door family of the held item ("oak".."dark_oak", "iron"). */
+    private static String heldDoorFamily(PlayerSession session,
+                                         java.util.Optional<BlockType> creativeHeld) {
+        String value = creativeHeld
+                .map(t -> t.identifier().value())
+                .orElseGet(() -> session.inventory().held().isEmpty()
+                        ? "" : session.inventory().held().type().identifier().value());
+        for (String family : WoodDoorFamily.FAMILIES) {
+            if (value.equals(family + "_door")) {
+                return family;
+            }
+        }
+        return null;
+    }
+
+    /** The look band's facing offset (S=+Z, W=-X, N=-Z, E=+X). */
+    private static int[] lookFacingOffset(int lookBand) {
+        return switch (lookBand) {
+            case 0 -> new int[] {0, 0, 1};   // south
+            case 1 -> new int[] {-1, 0, 0};  // west
+            case 2 -> new int[] {0, 0, -1};  // north
+            default -> new int[] {1, 0, 0};  // east
+        };
+    }
+
+    /** clockwiseY of a horizontal facing (N→E→S→W viewed from above). */
+    private static int[] clockwiseOf(int[] facing) {
+        return new int[] {-facing[2], 0, facing[0]};
+    }
+
+    /** counterClockwiseY of a horizontal facing. */
+    private static int[] counterClockwiseOf(int[] facing) {
+        return new int[] {facing[2], 0, -facing[0]};
+    }
+
+    /** Whether the cell holds a solid block (DoorItem.place's own isSolid). */
+    private int solidDoorNeighbor(BlockPosition at) {
+        return WorldSolidity.isSolid(world.getBlock(at)) ? 1 : 0;
+    }
+
+    /** Whether the cell holds a door half of the given family. */
+    private boolean sameFamilyDoorAt(String family, BlockPosition at) {
+        BlockType type = world.getBlock(at);
+        return WoodDoorFamily.isDoor(type) && family.equals(WoodDoorFamily.familyOf(type));
+    }
+
+    /**
+     * The lower's metadata band for a look direction (DoorItem.place →
+     * getMetadataFromState: the facing turned clockwise into its horizontal
+     * id — look S→1, W→2, N→3, E→0 — the exact bytes the shipped oak band
+     * carried and the 1.8.8 client decodes).
+     */
+    private static int lowerMetaBand(int lookBand) {
+        return switch (lookBand) {
+            case 0 -> 1; // looking south
+            case 1 -> 2; // looking west
+            case 2 -> 3; // looking north
+            default -> 0; // looking east
+        };
     }
 
     /** @return whether the identifier value belongs to the slab family. */

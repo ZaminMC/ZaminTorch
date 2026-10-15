@@ -110,4 +110,58 @@ class LegacyBlockIdsIntegrityTest {
                     row[0] + " must ride legacy " + row[1]);
         }
     }
+
+    /**
+     * The complete door families' wire rows (Slice 34 — DoorBlock.java's
+     * own registrations): the six wood doors 64/193/194/195/196/197 and the
+     * iron door 71, every state of every family, with the reference's exact
+     * metadata nibbles — the lower's facing band | open bit 4, the upper's
+     * half 8 | hinge 1 | powered 2 with the engine's open flag 4 (a bit the
+     * 1.8.8 client ignores on upper halves). The oak's manual-open upper is
+     * corrected from the historical 9 (a right-hinge claim) to 12.
+     */
+    @Test
+    void theDoorFamiliesCarryTheReferenceIdsAndMetadataNibbles() {
+        String[] woods = {"oak", "spruce", "birch", "jungle", "acacia", "dark_oak", "iron"};
+        int[] ids = {64, 193, 194, 195, 196, 197, 71};
+        String[][] lowerSuffixes = {
+                {""}, {"_north"}, {"_east"}, {"_south"},
+                {"_open"}, {"_open_north"}, {"_open_east"}, {"_open_south"}};
+        int[] lowerMetas = {0, 1, 2, 3, 4, 5, 6, 7};
+        String[][] upperSuffixes = {
+                {"_upper", "_upper"}, {"_upper_right", "_upper_right"},
+                {"_upper_powered", "_upper_powered"},
+                {"_upper_right_powered", "_upper_right_powered"},
+                {"_upper_open", "_upper_open"},
+                {"_upper_right_open", "_upper_right_open"},
+                {"_upper_powered_open", "_upper_powered_open"},
+                {"_upper_right_powered_open", "_upper_right_powered_open"}};
+        int[] upperMetas = {8, 9, 10, 11, 12, 13, 14, 15};
+        for (int w = 0; w < woods.length; w++) {
+            String wood = woods[w];
+            boolean iron = wood.equals("iron");
+            for (int s = 0; s < lowerSuffixes.length; s++) {
+                String suffix = lowerSuffixes[s][0];
+                if (iron && (suffix.isEmpty() || suffix.equals("_open"))) {
+                    suffix += "_west"; // the iron door's shipped meta-0 name
+                }
+                String identifier = "minecraft:" + wood + "_door" + suffix;
+                assertEquals(Optional.of(ids[w]), LegacyBlockIds.legacyId(
+                                net.zaminmc.torch.util.Identifier.parse(identifier)),
+                        identifier + " must ride legacy " + ids[w]);
+                assertEquals(lowerMetas[s], LegacyBlockIds.metadataOf(
+                                net.zaminmc.torch.util.Identifier.parse(identifier)),
+                        identifier + " must carry metadata " + lowerMetas[s]);
+            }
+            for (int u = 0; u < upperSuffixes.length; u++) {
+                String identifier = "minecraft:" + wood + "_door" + upperSuffixes[u][0];
+                assertEquals(Optional.of(ids[w]), LegacyBlockIds.legacyId(
+                                net.zaminmc.torch.util.Identifier.parse(identifier)),
+                        identifier + " must ride legacy " + ids[w]);
+                assertEquals(upperMetas[u], LegacyBlockIds.metadataOf(
+                                net.zaminmc.torch.util.Identifier.parse(identifier)),
+                        identifier + " must carry metadata " + upperMetas[u]);
+            }
+        }
+    }
 }

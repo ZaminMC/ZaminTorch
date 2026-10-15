@@ -1147,6 +1147,35 @@ public final class BlockBehaviorTable {
                 new BlockBehavior(1.25, true, true, "rock", 0,
                         List.of(new BlockBehavior.Drop(
                                 Identifier.parse("minecraft:hardened_clay"), 1))));
+
+        // The complete door families (Slice 34 — DoorBlock's own
+        // registrations: every wood door `setStrength(3.0F)` WOOD_SOUNDS,
+        // the iron door `setStrength(5.0F)` Material.IRON — the material's
+        // own setRequiresTool gates the iron pair to pickaxe-class drops).
+        // The reference's getDropItem returns the family item from EITHER
+        // half (UPPER → null, but the orphaned lower's neighborChanged
+        // dropItems covers the pair: the engine's broken-cell drop model
+        // nets the same one item per door — the sibling cleanup removes
+        // the survivor silently). The five new woods mirror oak's rows;
+        // the iron's new open/hinge states mirror its shipped five.
+        for (String family : WoodDoorFamily.FAMILIES) {
+            boolean iron = family.equals("iron");
+            BlockBehavior door = new BlockBehavior(iron ? 5.0 : 3.0,
+                    true, iron, iron ? "rock" : "wood", 0,
+                    List.of(new BlockBehavior.Drop(WoodDoorFamily.doorItem(family), 1)));
+            for (int meta = 0; meta < 4; meta++) {
+                behaviors.put(WoodDoorFamily.lower(family, meta, false).identifier(), door);
+                behaviors.put(WoodDoorFamily.lower(family, meta, true).identifier(), door);
+            }
+            for (boolean right : new boolean[] {false, true}) {
+                for (boolean open : new boolean[] {false, true}) {
+                    for (boolean powered : new boolean[] {false, true}) {
+                        behaviors.put(WoodDoorFamily.upper(family, right, open, powered)
+                                .identifier(), door);
+                    }
+                }
+            }
+        }
         return Map.copyOf(behaviors);
     }
 

@@ -554,6 +554,32 @@ final class LegacyBlockIds {
      */
     private static Map<Identifier, Integer> withRedstoneIds(Map<Identifier, Integer> base) {
         Map<Identifier, Integer> merged = new HashMap<>(base);
+        // The complete door families (Slice 34 — Block.java's own rows: the
+        // five new woods spruce 193, birch 194, jungle 195, acacia 196,
+        // dark_oak 197 over the oak pair's own state shape, every family's
+        // full hinge × powered × open upper grid, and the iron door's open
+        // band over 71).
+        int[] doorIds = {64, 193, 194, 195, 196, 197, 71};
+        String[] woods = {"oak", "spruce", "birch", "jungle", "acacia", "dark_oak", "iron"};
+        String[] lowerSuffixes = {"", "_north", "_east", "_south",
+                "_open", "_open_north", "_open_east", "_open_south"};
+        for (int w = 0; w < woods.length; w++) {
+            String wood = woods[w];
+            boolean iron = wood.equals("iron");
+            for (int s = 0; s < lowerSuffixes.length; s++) {
+                String suffix = lowerSuffixes[s];
+                if (iron && (suffix.isEmpty() || suffix.equals("_open"))) {
+                    suffix += "_west"; // the iron door's shipped band names meta 0 "west"
+                }
+                merged.put(Identifier.parse("minecraft:" + wood + "_door" + suffix), doorIds[w]);
+            }
+            String[] upperSuffixes = {"_upper", "_upper_right", "_upper_powered",
+                    "_upper_right_powered", "_upper_open", "_upper_right_open",
+                    "_upper_powered_open", "_upper_right_powered_open"};
+            for (String suffix : upperSuffixes) {
+                merged.put(Identifier.parse("minecraft:" + wood + "_door" + suffix), doorIds[w]);
+            }
+        }
         for (int power = 0; power <= 15; power++) {
             merged.put(Identifier.parse("minecraft:redstone_wire" + (power == 0 ? "" : "_" + power)), 55);
         }
@@ -910,7 +936,6 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:oak_door_open_east"), 6),
             Map.entry(Identifier.parse("minecraft:oak_door_open_south"), 7),
             Map.entry(Identifier.parse("minecraft:oak_door_upper"), 8),
-            Map.entry(Identifier.parse("minecraft:oak_door_upper_open"), 9),
             Map.entry(Identifier.parse("minecraft:ladder_south"), 3),
             Map.entry(Identifier.parse("minecraft:ladder_west"), 4),
             Map.entry(Identifier.parse("minecraft:ladder_east"), 5),
@@ -1008,6 +1033,37 @@ final class LegacyBlockIds {
      */
     private static Map<Identifier, Integer> withDyeFamilyMetadata(Map<Identifier, Integer> base) {
         Map<Identifier, Integer> merged = new HashMap<>(base);
+        // The complete door families' metadata nibbles (Slice 34 —
+        // DoorBlock.getMetadataFromState 1:1): the lower's facing band
+        // (clockwise horizontal id — the shipped oak rows above) with the
+        // open bit 4, the upper's half bit 8 | hinge 1 | powered 2 with the
+        // engine's open flag 4. The oak's manual-open upper is corrected
+        // from the historical 9 (a right-hinge claim) to 12 — the exact
+        // byte a vanilla client decodes for an unpowered open upper.
+        int[] doorIds = {64, 193, 194, 195, 196, 197, 71};
+        String[] woods = {"oak", "spruce", "birch", "jungle", "acacia", "dark_oak", "iron"};
+        for (int w = 0; w < woods.length; w++) {
+            String wood = woods[w];
+            boolean iron = wood.equals("iron");
+            // the lower band: meta 0 rides the id's own bare/west name
+            merged.put(Identifier.parse("minecraft:" + wood + "_door_north"), 1);
+            merged.put(Identifier.parse("minecraft:" + wood + "_door_east"), 2);
+            merged.put(Identifier.parse("minecraft:" + wood + "_door_south"), 3);
+            String openBare = wood + "_door_open" + (iron ? "_west" : "");
+            merged.put(Identifier.parse("minecraft:" + openBare), 4);
+            merged.put(Identifier.parse("minecraft:" + wood + "_door_open_north"), 5);
+            merged.put(Identifier.parse("minecraft:" + wood + "_door_open_east"), 6);
+            merged.put(Identifier.parse("minecraft:" + wood + "_door_open_south"), 7);
+            // the upper grid: 8 | right 1 | powered 2 | open 4
+            merged.put(Identifier.parse("minecraft:" + wood + "_door_upper"), 8);
+            merged.put(Identifier.parse("minecraft:" + wood + "_door_upper_right"), 9);
+            merged.put(Identifier.parse("minecraft:" + wood + "_door_upper_powered"), 10);
+            merged.put(Identifier.parse("minecraft:" + wood + "_door_upper_right_powered"), 11);
+            merged.put(Identifier.parse("minecraft:" + wood + "_door_upper_open"), 12);
+            merged.put(Identifier.parse("minecraft:" + wood + "_door_upper_right_open"), 13);
+            merged.put(Identifier.parse("minecraft:" + wood + "_door_upper_powered_open"), 14);
+            merged.put(Identifier.parse("minecraft:" + wood + "_door_upper_right_powered_open"), 15);
+        }
         merged.put(Identifier.parse("minecraft:wool"), 0);
         for (int color = 0; color < 16; color++) {
             if (color != 0) {

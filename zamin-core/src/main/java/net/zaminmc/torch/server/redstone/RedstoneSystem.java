@@ -118,6 +118,17 @@ public final class RedstoneSystem implements WorldChangeListener {
     private final EngineWorld world;
     private final ItemEntityManager itemEntities;
 
+    /** The door swing's sound callback (EngineServer's fx bus — the redstone
+     *  arm's open/close pairs play the same tones the use arm does). */
+    private volatile java.util.function.BiConsumer<BlockPosition, Boolean> doorSoundCallback;
+
+    /** The pair-placement suppression (DoorItem.place's own flag-2 writes:
+     * the two halves commit with NO neighbor dispatch — the reference
+     * notifies the neighbors explicitly AFTER the pair stands, so a
+     * half-alone commit is never observable as an orphan). While set, the
+     * door arm ignores the walk entirely. */
+    private boolean doorPairPlacing;
+
     /** The wire emission suppression during a wire's own computation (the reference's shouldSignal). */
     private boolean wireSignals = true;
 
@@ -793,7 +804,121 @@ public final class RedstoneSystem implements WorldChangeListener {
                 popBlock(pos, RedstoneBlocks.plateWooden(type)
                         ? BuiltinItems.WOODEN_PRESSURE_PLATE : BuiltinItems.STONE_PRESSURE_PLATE);
             }
+            return;
         }
+        if (net.zaminmc.torch.server.block.WoodDoorFamily.isDoor(type)) {
+            if (!doorPairPlacing) {
+                doorNeighborChanged(pos, type);
+            }
+            return;
+        }
+    }
+
+    /**
+     * Runs a door pair's two-half commit under the placement suppression
+     * (DoorItem.place's flag-2 writes — the pair stands before any
+     * neighbor hears anything, exactly the reference's own ordering).
+     */
+    public void runDoorPairPlacement(Runnable placement) {
+        doorPairPlacing = true;
+        try {
+            placement.run();
+        } finally {
+            doorPairPlacing = false;
+        }
+    }
+
+    /**
+     * The door family's neighborChanged (DoorBlock lines 156-198, 1:1): an
+     * upper whose lower vanished removes itself silently; a lower whose
+     * upper vanished, or whose solid top departed, pops with the family's
+     * item (the reference's dropItems on the flag arm); and a signal edge
+     * flips the POWERED bit on the upper with the OPEN bit on the lower —
+     * the iron door's only opening path.
+     */
+    private void doorNeighborChanged(BlockPosition pos, BlockType type) {
+        String family = net.zaminmc.torch.server.block.WoodDoorFamily.familyOf(type);
+        boolean upper = net.zaminmc.torch.server.block.WoodDoorFamily.isUpper(type);
+        if (upper) {
+            // The upper half hears it first: re-dispatch down to the lower,
+            // which owns the pair's state (the reference's own delegation).
+            BlockPosition below = pos.offset(0, -1, 0);
+            BlockType lowerType = world.getBlock(below);
+            if (!net.zaminmc.torch.server.block.WoodDoorFamily.isDoor(lowerType)
+                    || !family.equals(net.zaminmc.torch.server.block.WoodDoorFamily.familyOf(lowerType))) {
+                world.setBlock(pos, world.airType()); // the orphaned upper goes silently
+                return;
+            }
+            doorNeighborChanged(below, lowerType);
+            return;
+        }
+        BlockPosition above = pos.offset(0, 1, 0);
+        BlockType upperType = world.getBlock(above);
+        boolean upperIsFamily = net.zaminmc.torch.server.block.WoodDoorFamily.isDoor(upperType)
+                && family.equals(net.zaminmc.torch.server.block.WoodDoorFamily.familyOf(upperType));
+        boolean removed = false;
+        if (!upperIsFamily) {
+            popBlock(pos, doorItemOf(family)); // the lower's own dropItems arm
+            removed = true;
+        }
+        if (!WorldSolidity.isSolid(world.getBlock(pos.offset(0, -1, 0)))) {
+            // No solid top (World.hasSolidTop): the pair dies with one drop.
+            if (upperIsFamily) {
+                world.setBlock(above, world.airType());
+            }
+            if (!removed) {
+                popBlock(pos, doorItemOf(family));
+            } else {
+                world.setBlock(pos, world.airType());
+            }
+            return;
+        }
+        if (removed) {
+            return;
+        }
+        // The signal arm (DoorBlock.neighborChanged lines 187-197):
+        // hasNeighborSignal over BOTH halves; on an edge (flag != POWERED)
+        // the POWERED bit flips unconditionally and the OPEN bit only when
+        // it differs — the edge test is what keeps a held-open door from
+        // re-toggling on unrelated neighbor changes, and the iron door's
+        // only opening path.
+        boolean signal = hasNeighborSignal(pos) || hasNeighborSignal(above);
+        boolean powered = net.zaminmc.torch.server.block.WoodDoorFamily.isPowered(upperType);
+        if (signal != powered) {
+            boolean open = net.zaminmc.torch.server.block.WoodDoorFamily.isOpen(type);
+            boolean rightHinge = net.zaminmc.torch.server.block.WoodDoorFamily.isRightHinge(upperType);
+            // POWERED := flag; OPEN := flag when it differs (both bits
+            // converge to the signal on the edge — the reference's two
+            // writes in one arm).
+            world.setBlock(above, net.zaminmc.torch.server.block.WoodDoorFamily.upper(
+                    family, rightHinge, signal, signal));
+            if (signal != open) {
+                world.setBlock(pos, net.zaminmc.torch.server.block.WoodDoorFamily.flipLower(type));
+                java.util.function.BiConsumer<BlockPosition, Boolean> sound = doorSoundCallback;
+                if (sound != null) {
+                    sound.accept(pos, signal);
+                }
+            }
+        }
+    }
+
+    /** Registers the door swing's sound arm (the fx bus's open/close pair). */
+    public void setDoorSoundCallback(
+            java.util.function.BiConsumer<BlockPosition, Boolean> callback) {
+        this.doorSoundCallback = callback;
+    }
+
+    /** The door item of a family for the pop arm's drop. */
+    private static net.zaminmc.torch.item.ItemType doorItemOf(String family) {
+        return switch (family) {
+            case "spruce" -> BuiltinItems.SPRUCE_DOOR;
+            case "birch" -> BuiltinItems.BIRCH_DOOR;
+            case "jungle" -> BuiltinItems.JUNGLE_DOOR;
+            case "acacia" -> BuiltinItems.ACACIA_DOOR;
+            case "dark_oak" -> BuiltinItems.DARK_OAK_DOOR;
+            case "iron" -> BuiltinItems.IRON_DOOR;
+            default -> BuiltinItems.OAK_DOOR;
+        };
     }
 
     /** The per-family onAdded (the reference's onAdded overrides). */

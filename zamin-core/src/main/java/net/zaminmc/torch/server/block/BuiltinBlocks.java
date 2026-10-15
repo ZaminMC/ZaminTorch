@@ -215,8 +215,16 @@ public final class BuiltinBlocks {
             Identifier.parse("minecraft:oak_door_open_south"), "Oak Door", 7);
     public static final EngineBlockType OAK_DOOR_UPPER = new EngineBlockType(
             Identifier.parse("minecraft:oak_door_upper"), "Oak Door", 8);
+    // The open upper (the pre-family engine's own state): the reference's
+    // upper metadata is 8 | hinge 1 | powered 2, the engine's open flag
+    // bit 4 — a manually opened door is open and UNPOWERED (metadata 12,
+    // DoorBlock.use never writes POWERED). The historical byte claimed a
+    // right hinge (9); worlds saved by the pre-family engine load
+    // unchanged and render strictly closer to vanilla (the old doors were
+    // all left-hinged, and the redstone edge memory reads unpowered —
+    // exactly the manual-open state those doors were in).
     public static final EngineBlockType OAK_DOOR_UPPER_OPEN = new EngineBlockType(
-            Identifier.parse("minecraft:oak_door_upper_open"), "Oak Door", 9);
+            Identifier.parse("minecraft:oak_door_upper_open"), "Oak Door", 12);
 
     // The ladders (block 65, the facing in the metadata: N=2, S=3, W=4, E=5)
     // and the fence (block 85 — the engine's flat-solid model stands in for
@@ -844,6 +852,10 @@ public final class BuiltinBlocks {
         for (EngineBlockType family : DYE_FAMILY_BLOCKS) {
             builder = builder.register(family);
         }
-        return builder;
+        // The complete door families (Slice 34 — DoorBlock/DoorItem 1:1):
+        // the five new woods' twelve states each, the oak hinge pair, and
+        // the iron door's open + hinge states. The shipped oak/iron
+        // constants above keep their own registration rows.
+        return WoodDoorFamily.registerAll(builder);
     }
 }

@@ -205,6 +205,20 @@ public final class BuiltinItems {
     // block identifier "minecraft:oak_door" is the lower's closed state.
     public static final EngineItemType OAK_DOOR = new EngineItemType(
             Identifier.parse("minecraft:oak_door"), "Oak Door", 64);
+    // The wood-variant door items (Slice 34 — Item.java lines 748-751's own
+    // rows: spruce 427, birch 428, jungle 429, acacia 430, dark_oak 431):
+    // the placeable forms of the five new door families, DoorItem's own
+    // max stack 64.
+    public static final EngineItemType SPRUCE_DOOR = new EngineItemType(
+            Identifier.parse("minecraft:spruce_door"), "Spruce Door", 64);
+    public static final EngineItemType BIRCH_DOOR = new EngineItemType(
+            Identifier.parse("minecraft:birch_door"), "Birch Door", 64);
+    public static final EngineItemType JUNGLE_DOOR = new EngineItemType(
+            Identifier.parse("minecraft:jungle_door"), "Jungle Door", 64);
+    public static final EngineItemType ACACIA_DOOR = new EngineItemType(
+            Identifier.parse("minecraft:acacia_door"), "Acacia Door", 64);
+    public static final EngineItemType DARK_OAK_DOOR = new EngineItemType(
+            Identifier.parse("minecraft:dark_oak_door"), "Dark Oak Door", 64);
     public static final EngineItemType LADDER = new EngineItemType(
             Identifier.parse("minecraft:ladder"), "Ladder", 64);
 
@@ -817,7 +831,8 @@ public final class BuiltinItems {
                 WOODEN_HOE, STONE_HOE, IRON_HOE, DIAMOND_HOE, GOLDEN_HOE,
                 WHEAT_SEEDS, MELON_SEEDS, PUMPKIN_SEEDS, WHEAT, BREAD, BONE_MEAL, SIGN,
                 CARROT, POTATO, BAKED_POTATO, APPLE, GOLDEN_CARROT, GOLDEN_APPLE, HAY_BLOCK,
-                OAK_DOOR, LADDER, OAK_FENCE, BED,
+                OAK_DOOR, SPRUCE_DOOR, BIRCH_DOOR, JUNGLE_DOOR, ACACIA_DOOR, DARK_OAK_DOOR,
+                LADDER, OAK_FENCE, BED,
                 REDSTONE, REDSTONE_TORCH, REPEATER, COMPARATOR, PISTON, STICKY_PISTON, TNT,
                 LEVER, STONE_BUTTON, WOODEN_BUTTON,
                 STONE_PRESSURE_PLATE, WOODEN_PRESSURE_PLATE, HOPPER, TRIPWIRE_HOOK,

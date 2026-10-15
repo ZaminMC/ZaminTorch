@@ -218,11 +218,25 @@ public final class WorldSolidity {
                 && (id.value().equals("ladder") || id.value().startsWith("ladder_"));
     }
 
-    /** The open door halves: the swing opens the passage. */
+    /**
+     * The open door halves: the swing opens the passage (the reference's
+     * canWalkThrough reads the combined metadata's open bit — the lower's
+     * open band and every upper whose identifier ends in the open form:
+     * the manual pair {@code _upper_open}/{@code _upper_right_open} and
+     * the signal-held pair {@code _upper_powered_open}/...
+     * {@code _upper_right_powered_open}). The closed halves stay solid
+     * (the flat-solid model's thin-panel stand-in).
+     */
     public static boolean isOpenDoorHalf(Identifier id) {
-        return id.namespace().equals("minecraft")
-                && (id.value().startsWith("oak_door_open")
-                    || id.value().equals("oak_door_upper_open"));
+        if (!id.namespace().equals("minecraft")) {
+            return false;
+        }
+        String value = id.value();
+        if (value.contains("_trapdoor")) {
+            return false; // the trapdoor family is its own slice
+        }
+        return value.contains("_door_open")
+                || (value.contains("_door_upper") && value.endsWith("_open"));
     }
 
     /** The signs (standing 63, wall 68): the thin models, walk-through. */
