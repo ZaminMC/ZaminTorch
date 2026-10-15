@@ -596,6 +596,14 @@ public final class BlockLightTable {
                 }
             }
         }
+        // The huge-mushroom pair (Slice 40 — the full opaque cubes: filter
+        // 15 like the wood cubes' own rows).
+        for (String family : MushroomBlocks.MUSHROOMS.keySet()) {
+            for (MushroomBlocks.Variant variant : MushroomBlocks.VARIANTS) {
+                merged.put(MushroomBlocks.state(family, variant.id()).identifier(),
+                        new LightData(0, 15));
+            }
+        }
         // The trapdoor pair (Slice 39 — TrapdoorBlock is a CUTOUT
         // renderer: isSolidRender false, opacity 0; every state passes
         // light whole like the door rows).

@@ -677,6 +677,25 @@ final class LegacyBlockIds {
                 }
             }
         }
+        // The huge-mushroom pair (Slice 40 — Block.java's own rows): the
+        // brown 99, the red 100 — the fourteen VARIANT ids (0-10, 14, 15;
+        // the bare form carries the all_outside 14 default, the placement
+        // state the reference's own getPlacementState answers).
+        {
+            String[] mushroomFamilies = {"brown_mushroom_block", "red_mushroom_block"};
+            int[] mushroomIds = {99, 100};
+            String[][] mushroomVariants = {
+                    {"_all_inside", "0"}, {"_north_west", "1"}, {"_north", "2"},
+                    {"_north_east", "3"}, {"_west", "4"}, {"_center", "5"},
+                    {"_east", "6"}, {"_south_west", "7"}, {"_south", "8"},
+                    {"_south_east", "9"}, {"_stem", "10"}, {"", "14"}, {"_all_stem", "15"}};
+            for (int f = 0; f < mushroomFamilies.length; f++) {
+                for (String[] variant : mushroomVariants) {
+                    merged.put(Identifier.parse(
+                            "minecraft:" + mushroomFamilies[f] + variant[0]), mushroomIds[f]);
+                }
+            }
+        }
         // The wood-variant foundation (Slice 35 — Block.java's own rows):
         // planks 5, logs 17 + the Log2 pair 162, leaves 18 + the Leaves2
         // pair 161, saplings 6 — every family member's block id, its
@@ -1337,6 +1356,28 @@ final class LegacyBlockIds {
                         }
                     }
                 }
+            }
+        }
+        // The huge-mushroom pair's metadata nibble (Slice 40 —
+        // MushroomBlock.getMetadataFromState: the VARIANT id whole; the
+        // bare form carries the all_outside 14 — NOT the 0 default, the
+        // all_inside's explicit row owns 0).
+        {
+            String[] mushroomFamilies = {"brown_mushroom_block", "red_mushroom_block"};
+            String[][] mushroomVariants = {
+                    {"_all_inside", "0"}, {"_north_west", "1"}, {"_north", "2"},
+                    {"_north_east", "3"}, {"_west", "4"}, {"_center", "5"},
+                    {"_east", "6"}, {"_south_west", "7"}, {"_south", "8"},
+                    {"_south_east", "9"}, {"_stem", "10"}, {"", "14"}, {"_all_stem", "15"}};
+            for (String family : mushroomFamilies) {
+                for (String[] variant : mushroomVariants) {
+                    if (variant[0].isEmpty()) {
+                        continue; // the bare form's explicit row below
+                    }
+                    merged.put(Identifier.parse("minecraft:" + family + variant[0]),
+                            Integer.parseInt(variant[1]));
+                }
+                merged.put(Identifier.parse("minecraft:" + family), 14);
             }
         }
         merged.put(Identifier.parse("minecraft:wool"), 0);

@@ -211,7 +211,8 @@ public final class NoteBlockSystem implements WorldChangeListener {
             return INSTRUMENT_HAT;
         }
         if (WOOD_MATERIAL.contains(belowValue) || isWoodDoor(belowValue)
-                || isFenceGate(belowValue) || isWoodTrapdoor(belowValue)) {
+                || isFenceGate(belowValue) || isWoodTrapdoor(belowValue)
+                || isMushroomBlock(belowValue)) {
             return INSTRUMENT_BASS_GUITAR;
         }
         return INSTRUMENT_HARP;
@@ -222,6 +223,13 @@ public final class NoteBlockSystem implements WorldChangeListener {
      *  default harp like the iron door). */
     private static boolean isWoodTrapdoor(String value) {
         return value.equals("trapdoor") || value.startsWith("trapdoor_");
+    }
+
+    /** Whether the value is a huge-mushroom state (Slice 40 — both
+     *  families' Material.WOOD). */
+    private static boolean isMushroomBlock(String value) {
+        return value.equals("brown_mushroom_block") || value.startsWith("brown_mushroom_block_")
+                || value.equals("red_mushroom_block") || value.startsWith("red_mushroom_block_");
     }
 
     /** Whether the value is a wooden door state (the six wood families'

@@ -887,6 +887,12 @@ public final class BuiltinBlocks {
         for (EngineBlockType trapdoor : TrapdoorBlocks.familyBlocks()) {
             builder = builder.register(trapdoor);
         }
+        // The huge-mushroom pair (Slice 40 — MushroomBlock 1:1): the brown
+        // 99 and red 100 families' fourteen variant states each (the bare
+        // form carries the all_outside default).
+        for (EngineBlockType mushroom : MushroomBlocks.familyBlocks()) {
+            builder = builder.register(mushroom);
+        }
         return builder;
     }
 }

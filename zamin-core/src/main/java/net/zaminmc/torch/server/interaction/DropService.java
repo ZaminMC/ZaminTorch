@@ -179,6 +179,27 @@ public final class DropService {
             }
             return leafDrops;
         }
+        // The huge-mushroom family (Slice 40 — MushroomBlock.dropItems
+        // lines 27-50: silk takes the block itself (the full-cube default's
+        // own silk arm), the bare hand walks getBaseDropCount's
+        // max(0, nextInt(10) - 7) — 0 to 2 of the PLANT item
+        // (getDropItem's Item.byBlock(this.plant))).
+        if (net.zaminmc.torch.server.block.MushroomBlocks.isMushroomBlock(broken)) {
+            String family = net.zaminmc.torch.server.block.MushroomBlocks.familyOf(broken);
+            if (silkTouch) {
+                ItemType self = BuiltinItems.lookup(
+                        net.zaminmc.torch.server.block.MushroomBlocks.blockItem(family))
+                        .orElseThrow();
+                return List.of(ItemStack.of(self, 1));
+            }
+            int count = net.zaminmc.torch.server.block.MushroomBlocks.baseDropCount(random);
+            if (count == 0) {
+                return List.of();
+            }
+            ItemType plant = BuiltinItems.lookup(
+                    net.zaminmc.torch.server.block.MushroomBlocks.plantOf(family)).orElseThrow();
+            return List.of(ItemStack.of(plant, count));
+        }
         // The silk arm: the block's own item (the reference's
         // getSilkTouchDrop — Item.byBlock with the state metadata), one
         // stack, no chance roll.
