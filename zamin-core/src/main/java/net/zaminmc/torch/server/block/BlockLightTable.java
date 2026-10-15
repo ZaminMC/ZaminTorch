@@ -613,6 +613,11 @@ public final class BlockLightTable {
         for (EngineBlockType slice : CakeBlocks.familyBlocks()) {
             merged.put(slice.identifier(), new LightData(0, 0));
         }
+        // The wall family (Slice 47 — the non-solid-render partial column
+        // passes light).
+        for (EngineBlockType wall : WallBlocks.familyBlocks()) {
+            merged.put(wall.identifier(), new LightData(0, 0));
+        }
         // The ground-cover pair (Slice 42 — the mycelium is an opaque
         // cube like the grass block; the lily pad is the 1/64 surface).
         merged.put(Identifier.parse("minecraft:mycelium"), new LightData(0, 15));

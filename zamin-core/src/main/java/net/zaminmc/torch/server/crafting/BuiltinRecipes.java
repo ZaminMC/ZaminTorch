@@ -450,6 +450,19 @@ public final class BuiltinRecipes {
                     { ing("minecraft:sugar", false, 0), ing("minecraft:wheat", false, 0), ing("minecraft:sugar", false, 0) }
             },
                     res("minecraft:cake", 1, 0)),
+            // The wall rows (Slice 47 — CraftingManager lines 89-90's own
+            // pair): six cobblestone -> six walls, six mossy -> six mossy
+            // (the mossy form's damage 1 in the result).
+            CraftingRecipe.shaped(new Ingredient[][] {
+                    { ing("minecraft:cobblestone", false, 0), ing("minecraft:cobblestone", false, 0), ing("minecraft:cobblestone", false, 0) },
+                    { ing("minecraft:cobblestone", false, 0), ing("minecraft:cobblestone", false, 0), ing("minecraft:cobblestone", false, 0) }
+            },
+                    res("minecraft:cobblestone_wall", 6, 0)),
+            CraftingRecipe.shaped(new Ingredient[][] {
+                    { ing("minecraft:mossy_cobblestone", false, 0), ing("minecraft:mossy_cobblestone", false, 0), ing("minecraft:mossy_cobblestone", false, 0) },
+                    { ing("minecraft:mossy_cobblestone", false, 0), ing("minecraft:mossy_cobblestone", false, 0), ing("minecraft:mossy_cobblestone", false, 0) }
+            },
+                    res("minecraft:cobblestone_wall", 6, 1)),
             // The reed chain (community recipes.json): sugar is one cane
             // (the shapeless 1x1 folded to the shaped form), paper is a row
             // of three canes, a book wraps three papers around a leather.

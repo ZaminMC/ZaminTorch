@@ -1323,6 +1323,19 @@ public final class BlockBehaviorTable {
                     new BlockBehavior(0.0, true, false, "plant", 0, java.util.List.of()));
         }
 
+        // The wall family (Slice 47 — WallBlock's own rows: the
+        // cobblestone's strength carried through
+        // setStrength(block.miningTime) — 2.0 ROCK with the pickaxe gate;
+        // getDropItemMetadata the VARIANT damage).
+        for (net.zaminmc.torch.server.block.EngineBlockType wall
+                : WallBlocks.familyBlocks()) {
+            behaviors.put(wall.identifier(),
+                    new BlockBehavior(2.0, true, true, "rock", 1,
+                            java.util.List.of(new BlockBehavior.Drop(
+                                    WallBlocks.FAMILY_ITEM, 1,
+                                    WallBlocks.variantOf(wall.identifier())))));
+        }
+
         // The ground-cover pair (Slice 42 — MyceliumBlock/LilyPadBlock's
         // own rows: the mycelium `setStrength(0.6F)` GRASS_SOUNDS dropping
         // its dirt — getDropItem's own consult; the lily pad

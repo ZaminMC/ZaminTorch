@@ -929,6 +929,11 @@ public final class BuiltinBlocks {
         for (EngineBlockType slice : CakeBlocks.familyBlocks()) {
             builder = builder.register(slice);
         }
+        // The wall family (Slice 47 — WallBlock 1:1): the two VARIANT
+        // states (the connections are the client's own virtual reads).
+        for (EngineBlockType wall : WallBlocks.familyBlocks()) {
+            builder = builder.register(wall);
+        }
         return builder;
     }
 }

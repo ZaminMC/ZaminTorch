@@ -1656,6 +1656,9 @@ public final class EngineServer implements Server, EngineBridge {
                                 .or(() -> net.zaminmc.torch.server.block.DoublePlantBlocks
                                         .placementBlockOf(type.identifier(), damage)
                                         .flatMap(id -> blockRegistry.lookup(id)))
+                                .or(() -> net.zaminmc.torch.server.block.WallBlocks
+                                        .placementBlockOf(type.identifier(), damage)
+                                        .flatMap(id -> blockRegistry.lookup(id)))
                                 .or(() -> blockRegistry.lookup(type.identifier())),
                         this::publishInventoryChanged);
                 blockInteraction.setEventBus(eventBus); // §27.7: the public break/place gates

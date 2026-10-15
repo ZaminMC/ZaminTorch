@@ -733,6 +733,11 @@ final class LegacyBlockIds {
         for (int bites = 1; bites <= 6; bites++) {
             merged.put(Identifier.parse("minecraft:cake_bite" + bites), 92);
         }
+        // The wall family (Slice 47 — Block.java's own row): the wall 139 —
+        // the two VARIANT states (the connections are the client's own
+        // virtual reads, never on the wire).
+        merged.put(Identifier.parse("minecraft:cobblestone_wall"), 139);
+        merged.put(Identifier.parse("minecraft:mossy_cobblestone_wall"), 139);
         // The ground-cover pair (Slice 42 — Block.java's own rows): the
         // mycelium 110, the waterlily 111 — both single meta-0 states (the
         // snowy side and the boat pass-through are the client's own reads).
@@ -1508,6 +1513,11 @@ final class LegacyBlockIds {
         for (int bites = 1; bites <= 6; bites++) {
             merged.put(Identifier.parse("minecraft:cake_bite" + bites), bites);
         }
+        // The wall's metadata nibble (Slice 47 —
+        // WallBlock.getMetadataFromState: the VARIANT id whole; the NORMAL
+        // form's 0 rides the 0 default — the item's damage domain resolves
+        // the mossy form through the fold's own (139, 1) row).
+        merged.put(Identifier.parse("minecraft:mossy_cobblestone_wall"), 1);
         merged.put(Identifier.parse("minecraft:wool"), 0);
         for (int color = 0; color < 16; color++) {
             if (color != 0) {
