@@ -878,6 +878,11 @@ public final class BuiltinItems {
     // damage << 2).
     public static final EngineItemType ANVIL_ITEM = new EngineItemType(
             Identifier.parse("minecraft:anvil"), "Anvil", 64);
+    // The barrier item (Slice 56 — Item.java's own register(Blocks.BARRIER)
+    // over 166): the /give route; the reference keeps it off every creative
+    // tab.
+    public static final EngineItemType BARRIER_ITEM = new EngineItemType(
+            Identifier.parse("minecraft:barrier"), "Barrier", 64);
 
     // Decoration flora + desert stone (the placeable block-item forms; the
     // flowers drop themselves, tall grass/dead bush are /give-reachable).
@@ -1046,7 +1051,7 @@ public final class BuiltinItems {
                 BONE, STRING, GUNPOWDER, WOOL, MUTTON, COOKED_MUTTON, SLIME_BALL,
                 SKULL,
                 BUCKET, WATER_BUCKET, LAVA_BUCKET, MILK_BUCKET, COBBLESTONE_WALL, MOSSY_COBBLESTONE, FLOWER_POT, LIGHT_WEIGHTED_PRESSURE_PLATE, HEAVY_WEIGHTED_PRESSURE_PLATE, TRAPPED_CHEST,
-                RED_SANDSTONE, RED_SANDSTONE_STAIRS, STONE_SLAB2, ANVIL_ITEM,
+                RED_SANDSTONE, RED_SANDSTONE_STAIRS, STONE_SLAB2, ANVIL_ITEM, BARRIER_ITEM,
                 FLINT_AND_STEEL, GOLD_INGOT,
                 SUGAR_CANE, CACTUS, SUGAR, PAPER, BOOK,
                 TALL_GRASS, DEAD_BUSH, DANDELION, POPPY, RED_FLOWER, DOUBLE_PLANT, SANDSTONE,
