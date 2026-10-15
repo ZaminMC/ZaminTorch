@@ -19,8 +19,9 @@ import java.util.Map;
  * with the OPEN bit 4 and the POWERED bit 8 — sixteen states per family.
  * The IN_WALL virtual property (FenceGateBlock.resolveVirtualProperties —
  * the 1.0-height flush form between cobblestone walls) is a computed
- * render-time read in the reference; the engine's flat-solid stand-in
- * carries it as a ledgered collision-shape row.</p>
+ * render-time read in the reference and stays client-side; the
+ * collision-shape table carries the closed gate's own 1.5-tall 3/8 panel
+ * ({@code CollisionShapes}, 1:1) and no box at all when open.</p>
  */
 public final class FenceGateBlocks {
 

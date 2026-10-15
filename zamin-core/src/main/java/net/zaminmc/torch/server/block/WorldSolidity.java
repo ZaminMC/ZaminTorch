@@ -13,11 +13,12 @@ import java.util.Objects;
  * <p>Non-solid: air, torches (the thin wall model) and fluids — the
  * historical Material replaces-able set: entities fall through water and
  * lava, items sink through the pool, arrows do not stick in a stream. Solid:
- * everything else, with the collision-shape slice's refinement: the shape
- * queries ({@link #isSolidAt} / {@link #supportY}) carve the partial blocks
- * out of the full-cube rule — bottom slabs and stairs fill their cell's
- * lower half, top slabs the upper, and the oak fence stands 1.5 blocks tall
- * (the historical fence collision).</p>
+ * everything else. The shape queries ({@link #isSolidAt} / {@link #supportY})
+ * resolve through the {@link CollisionShapes} table (the collision-shape
+ * slice): every partial block's own collision boxes — the slabs' halves, the
+ * fences' 1.5-tall post with its connection arms, the wall's opening post,
+ * the closed gate's panel, the thin covers — carve the full-cube rule into
+ * the reference's exact geometry.</p>
  */
 public final class WorldSolidity {
 
@@ -138,64 +139,44 @@ public final class WorldSolidity {
 
     /**
      * The shape-aware point test (the collision-shape slice): whether the
-     * point at absolute {@code y} lies inside the collision shape of the
-     * block type in whose cell the point sits. Full cubes answer like
-     * {@link #isSolid}; the partial blocks answer by their half — a point in
-     * the upper half of a bottom slab's cell is open (a body can stand "in"
-     * the slab's cell, at its surface), a point in the lower half of a top
-     * slab's cell is open (an arrow flies beneath it). Stairs count as their
-     * bottom half; the fence fills its whole cell (its 1.5 height shows only
-     * in {@link #supportY}).
+     * point at absolute {@code (x, y, z)} lies inside the collision shape
+     * of the block type in whose cell the point sits — the
+     * {@link CollisionShapes} table's own answer (a body stands on the
+     * cake's half-height sliver, steps around the fence's post, walks
+     * beneath a top slab).
      */
-    public static boolean isSolidAt(BlockType type, double y) {
-        if (!isSolid(type)) {
-            return false;
-        }
-        return switch (shapeOf(type.identifier())) {
-            case FULL -> true;
-            case BOTTOM_HALF -> (y - Math.floor(y)) < 0.5;
-            case TOP_HALF -> (y - Math.floor(y)) >= 0.5;
-        };
+    public static boolean isSolidAt(BlockType type, double x, double y, double z,
+            CollisionShapes.NeighborProbe probe) {
+        return CollisionShapes.contains(type, x, y, z, probe);
     }
 
     /**
-     * The top surface of the collision shape in the cell containing absolute
-     * {@code y}: full blocks answer the cell's ceiling (floor + 1), slabs and
-     * stairs their half, the fence its historical 1.5 — the number a body's
-     * feet rest on when the point just below them is inside the shape.
-     * Non-solid cells answer {@link Double#NEGATIVE_INFINITY} (no support).
+     * The shape-aware point test without a neighbour probe: the isolated
+     * form (no fence, wall or pane connections, no door pairs, no chest
+     * doubles) — the Y-only legacy view keeps the cell's centre column.
+     */
+    public static boolean isSolidAt(BlockType type, double y) {
+        return CollisionShapes.contains(type, 0.5, y, 0.5, CollisionShapes.ISOLATED);
+    }
+
+    /**
+     * The top surface of the collision shape in the point's cell (the
+     * collision-shape slice): the box top the body rests on — full blocks
+     * the cell's ceiling, slabs their half, the fences' post its 1.5, the
+     * thin covers their own height. Non-solid cells answer
+     * {@link Double#NEGATIVE_INFINITY} (no support).
+     */
+    public static double supportY(BlockType type, double x, double y, double z,
+            CollisionShapes.NeighborProbe probe) {
+        return CollisionShapes.top(type, x, y, z, probe);
+    }
+
+    /**
+     * The shape's top surface without a neighbour probe: the isolated form
+     * on the cell's centre column (the Y-only legacy view).
      */
     public static double supportY(BlockType type, double y) {
-        if (!isSolid(type)) {
-            return Double.NEGATIVE_INFINITY;
-        }
-        return switch (shapeOf(type.identifier())) {
-            case FULL -> Math.floor(y) + (isFence(type.identifier()) ? 1.5 : 1.0);
-            case BOTTOM_HALF -> Math.floor(y) + 0.5;
-            case TOP_HALF -> Math.floor(y) + 1.0;
-        };
-    }
-
-    /** The collision shapes of the registry's partial blocks. */
-    private enum Shape {
-        FULL, BOTTOM_HALF, TOP_HALF
-    }
-
-    /** @return the shape a block identifier occupies of its cell. */
-    private static Shape shapeOf(Identifier id) {
-        if (!id.namespace().equals("minecraft")) {
-            return Shape.FULL;
-        }
-        String value = id.value();
-        if (value.endsWith("_slab_top")) {
-            return Shape.TOP_HALF;
-        }
-        if (value.endsWith("_slab") || value.endsWith("_stairs_east")
-                || value.endsWith("_stairs_west") || value.endsWith("_stairs_south")
-                || value.endsWith("_stairs_north")) {
-            return Shape.BOTTOM_HALF;
-        }
-        return Shape.FULL;
+        return CollisionShapes.top(type, 0.5, y, 0.5, CollisionShapes.ISOLATED);
     }
 
     /**
@@ -369,9 +350,22 @@ public final class WorldSolidity {
         return id.equals(BuiltinBlocks.CACTUS.identifier());
     }
 
-    /** The oak fence (85): solid, its collision stands 1.5 blocks tall. */
+    /**
+     * The fence families (85 + Slice 36's five woods 188-192 + the nether
+     * brick 113): solid, every post and arm standing 1.5 blocks tall —
+     * the spawn floor's own exclusion (a fence is never a full-cube
+     * ground, however solid it reads).
+     */
     public static boolean isFence(Identifier id) {
-        return id.equals(BuiltinBlocks.FENCE.identifier());
+        if (!id.namespace().equals("minecraft")) {
+            return false;
+        }
+        String value = id.value();
+        return value.equals("oak_fence")
+                || value.equals("spruce_fence") || value.equals("birch_fence")
+                || value.equals("jungle_fence") || value.equals("dark_oak_fence")
+                || value.equals("acacia_fence")
+                || value.equals("nether_brick_fence");
     }
 
     /** Either furnace half (61 unlit / 62 lit) — the container's two faces. */

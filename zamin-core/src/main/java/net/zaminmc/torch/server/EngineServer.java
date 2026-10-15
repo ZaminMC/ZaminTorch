@@ -84,6 +84,7 @@ import net.zaminmc.torch.server.world.FlatWorldGenerator;
 import net.zaminmc.torch.server.world.WorldStorage;
 import net.zaminmc.torch.server.world.WorldDeltaSnapshot;
 import net.zaminmc.torch.server.block.BlockRegistryBuilder;
+import net.zaminmc.torch.server.block.CollisionShapes;
 import net.zaminmc.torch.server.block.BuiltinBlocks;
 import net.zaminmc.torch.server.block.ExplosionService;
 import net.zaminmc.torch.server.block.FluidBlocks;
@@ -12528,7 +12529,8 @@ public final class EngineServer implements Server, EngineBridge {
                     || y > net.zaminmc.torch.block.BlockPosition.MAX_Y) {
                 return false;
             }
-            return WorldSolidity.isSolidAt(activeWorld().getBlock(blockAt(x, y, z)), y);
+            return WorldSolidity.isSolidAt(activeWorld().getBlock(blockAt(x, y, z)),
+                    x, y, z, dimensionProbe(x, y, z));
         }
 
         private double supportYInDimension(double x, double y, double z) {
@@ -12536,7 +12538,25 @@ public final class EngineServer implements Server, EngineBridge {
                     || y > net.zaminmc.torch.block.BlockPosition.MAX_Y) {
                 return Double.NEGATIVE_INFINITY;
             }
-            return WorldSolidity.supportY(activeWorld().getBlock(blockAt(x, y, z)), y);
+            return WorldSolidity.supportY(activeWorld().getBlock(blockAt(x, y, z)),
+                    x, y, z, dimensionProbe(x, y, z));
+        }
+
+        /**
+         * The neighbour probe the connection families resolve against (the
+         * collision-shape slice): the active dimension's own block reads at
+         * the offsets from the queried cell.
+         */
+        private CollisionShapes.NeighborProbe dimensionProbe(double x, double y, double z) {
+            net.zaminmc.torch.block.BlockPosition origin = blockAt(x, y, z);
+            return (dx, dy, dz) -> {
+                net.zaminmc.torch.block.BlockPosition at = origin.offset(dx, dy, dz);
+                if (at.y() < net.zaminmc.torch.block.BlockPosition.MIN_Y
+                        || at.y() > net.zaminmc.torch.block.BlockPosition.MAX_Y) {
+                    return null;
+                }
+                return activeWorld().getBlock(at);
+            };
         }
 
         private net.zaminmc.torch.block.BlockType blockInDimensionBoundsSafe(
@@ -14918,16 +14938,17 @@ public final class EngineServer implements Server, EngineBridge {
 
     /**
      * The shape-aware point test (the collision-shape slice): the same
-     * bounds guard, answered by the block's collision shape at {@code y}
-     * (a bottom slab's upper half is open, a top slab's lower half is open,
-     * the fence fills its cell).
+     * bounds guard, answered by the block's collision boxes at the point —
+     * the connection families resolving their neighbours through the
+     * overworld probe.
      */
     private boolean solidAtPoint(double x, double y, double z) {
         if (y < net.zaminmc.torch.block.BlockPosition.MIN_Y
                 || y > net.zaminmc.torch.block.BlockPosition.MAX_Y) {
             return false;
         }
-        return WorldSolidity.isSolidAt(world.getBlock(blockAt(x, y, z)), y);
+        return WorldSolidity.isSolidAt(world.getBlock(blockAt(x, y, z)),
+                x, y, z, overworldProbe(x, y, z));
     }
 
     /**
@@ -14939,7 +14960,25 @@ public final class EngineServer implements Server, EngineBridge {
                 || y > net.zaminmc.torch.block.BlockPosition.MAX_Y) {
             return Double.NEGATIVE_INFINITY;
         }
-        return WorldSolidity.supportY(world.getBlock(blockAt(x, y, z)), y);
+        return WorldSolidity.supportY(world.getBlock(blockAt(x, y, z)),
+                x, y, z, overworldProbe(x, y, z));
+    }
+
+    /**
+     * The neighbour probe the connection families resolve against (the
+     * collision-shape slice): the overworld's own block reads at the
+     * offsets from the queried cell.
+     */
+    private CollisionShapes.NeighborProbe overworldProbe(double x, double y, double z) {
+        net.zaminmc.torch.block.BlockPosition origin = blockAt(x, y, z);
+        return (dx, dy, dz) -> {
+            net.zaminmc.torch.block.BlockPosition at = origin.offset(dx, dy, dz);
+            if (at.y() < net.zaminmc.torch.block.BlockPosition.MIN_Y
+                    || at.y() > net.zaminmc.torch.block.BlockPosition.MAX_Y) {
+                return null;
+            }
+            return world.getBlock(at);
+        };
     }
 
     /**

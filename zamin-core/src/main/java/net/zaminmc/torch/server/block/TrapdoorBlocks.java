@@ -16,11 +16,10 @@ import java.util.Map;
  * <p>The state vocabulary is the reference's own
  * {@code getStateFromMetadata} band: the horizontal facing over metadata
  * 0-3 (getFacing: north 0, south 1, west 2, east 3) with the OPEN bit 4
- * and the TOP-half bit 8 — sixteen states per family. Both halves carry a
- * collision panel in the reference (the closed 3/16 floor/ceiling panel,
- * the open vertical one against the wall) — the engine's flat-solid
- * stand-in keeps every state solid, exactly the shipped door convention
- * (the thin panels ride the collision-shape slice).</p>
+ * and the TOP-half bit 8 — sixteen states per family. Both halves carry
+ * their own collision panel in the collision-shape table (the closed 3/16
+ * floor/ceiling panel, the open vertical one against the wall —
+ * {@code CollisionShapes.trapdoorBox}, 1:1).</p>
  */
 public final class TrapdoorBlocks {
 
