@@ -657,6 +657,11 @@ public final class BlockLightTable {
         for (EngineBlockType anvil : net.zaminmc.torch.server.block.AnvilBlocks.familyBlocks()) {
             merged.put(anvil.identifier(), new LightData(0, 0));
         }
+        // The end portal (Slice 54 — EndPortalBlock's own reads: the
+        // setLight(1.0F) emission 15 with the CUTOUT render — the portal
+        // film passes light whole while glowing itself).
+        merged.put(net.zaminmc.torch.server.block.EndPortalBlocks.END_PORTAL,
+                new LightData(15, 0));
         // The melon family (Slice 41 — the melon block is an opaque full
         // cube like the pumpkin; the stems are walk-through plants).
         merged.put(Identifier.parse("minecraft:melon_block"), new LightData(0, 15));

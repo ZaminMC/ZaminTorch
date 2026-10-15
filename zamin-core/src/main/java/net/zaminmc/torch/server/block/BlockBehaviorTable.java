@@ -1403,6 +1403,11 @@ public final class BlockBehaviorTable {
                                             anvil.identifier())))));
         }
 
+        // The end portal (Slice 54 — EndPortalBlock's own row:
+        // setStrength(-1.0F) — unbreakable, never diggable, no drops).
+        behaviors.put(net.zaminmc.torch.server.block.EndPortalBlocks.END_PORTAL,
+                new BlockBehavior(-1.0, false, false, "portal", 0, java.util.List.of()));
+
         // The weighted pressure-plate pair (Slice 49a —
         // WeightedPressurePlateBlock's own rows: setStrength(0.5F)
         // WOOD_SOUNDS over Material.IRON; every state drops its family

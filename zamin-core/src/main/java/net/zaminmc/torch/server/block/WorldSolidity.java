@@ -36,6 +36,7 @@ public final class WorldSolidity {
                 && !id.equals(BuiltinBlocks.FIRE.identifier())
                 && !id.equals(BuiltinBlocks.COBWEB.identifier())
                 && !isNetherPortal(id)
+                && !isEndPortal(id)
                 && !isSign(id)
                 && !isLadder(id)
                 && !isOpenDoorHalf(id)
@@ -48,6 +49,15 @@ public final class WorldSolidity {
                 && !isMovingPiston(id)
                 && !isTripwireFamily(id)
                 && !FluidBlocks.isFluid(id);
+    }
+
+    /**
+     * The end portal (Slice 54 — EndPortalBlock.addCollisions' empty
+     * override): the 1/16 film never blocks a body exactly like the
+     * nether portal (the contact arm rides the End dimension's slice).
+     */
+    public static boolean isEndPortal(Identifier id) {
+        return net.zaminmc.torch.server.block.EndPortalBlocks.isEndPortal(id);
     }
 
     /**

@@ -102,6 +102,11 @@ public final class BuiltinBlocks {
     public static final EngineBlockType ANVIL_DAMAGED_WEST = AnvilBlocks.state(1, 2);
     public static final EngineBlockType ANVIL_DAMAGED_NORTH = AnvilBlocks.state(2, 2);
     public static final EngineBlockType ANVIL_DAMAGED_EAST = AnvilBlocks.state(3, 2);
+    // The end portal (Slice 54 — EndPortalBlock 1:1): the 1/16 film, the
+    // unbreakable portal block (setStrength(-1.0F)) — the single state
+    // (the reference has no metadata band; the contact arm rides the End
+    // dimension's own slice).
+    public static final EngineBlockType END_PORTAL = EndPortalBlocks.endPortal();
 
     // The TNT block (legacy 46, Slice 9f): the ignition system's family.
     public static final EngineBlockType TNT = new EngineBlockType(
@@ -1006,6 +1011,8 @@ public final class BuiltinBlocks {
         for (EngineBlockType anvil : AnvilBlocks.familyBlocks()) {
             builder = builder.register(anvil);
         }
+        // The end portal (Slice 54 — EndPortalBlock 1:1): the single state.
+        builder = builder.register(END_PORTAL);
         return builder;
     }
 }

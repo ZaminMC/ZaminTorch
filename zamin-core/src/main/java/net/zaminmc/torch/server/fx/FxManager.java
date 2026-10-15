@@ -33,7 +33,7 @@ public final class FxManager {
     private static final Logger LOGGER = Logger.getLogger(FxManager.class.getName());
 
     /** One broadcast unit. The adapter translates each kind per its version. */
-    public sealed interface FxEvent permits Sound, BlockShatter, ItemShatter, Poof, PotionSplash {
+    public sealed interface FxEvent permits Sound, BlockShatter, ItemShatter, Poof, Smoke, PotionSplash {
     }
 
     /** A named sound at a position (historical 1.8 resource name). */
@@ -71,6 +71,15 @@ public final class FxManager {
 
     public record Poof(Position position) implements FxEvent {
         public Poof {
+            Objects.requireNonNull(position, "position");
+        }
+    }
+
+    /** The smoke burst (Slice 54 — the eye's insertion: SMOKE_NORMAL at
+     * the frame, one particle per the reference's own sixteen-particle
+     * band at the 5/16..11/16 offsets). */
+    public record Smoke(Position position) implements FxEvent {
+        public Smoke {
             Objects.requireNonNull(position, "position");
         }
     }
@@ -119,6 +128,11 @@ public final class FxManager {
 
     public void poof(Position position) {
         emit(new Poof(position));
+    }
+
+    /** The smoke puff at a position (SMOKE_NORMAL — the eye's insertion). */
+    public void smoke(Position position) {
+        emit(new Smoke(position));
     }
 
     private void emit(FxEvent event) {

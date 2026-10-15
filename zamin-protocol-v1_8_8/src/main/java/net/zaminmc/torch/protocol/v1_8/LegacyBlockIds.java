@@ -799,6 +799,10 @@ final class LegacyBlockIds {
                 merged.put(Identifier.parse("minecraft:" + damage + facing), 145);
             }
         }
+        // The end portal (Slice 54 — Block.java's own row 119): the single
+        // meta-0 state (no item form — getPickItem null, the portal is
+        // never held).
+        merged.put(Identifier.parse("minecraft:end_portal"), 119);
         // The ground-cover pair (Slice 42 — Block.java's own rows): the
         // mycelium 110, the waterlily 111 — both single meta-0 states (the
         // snowy side and the boat pass-through are the client's own reads).
