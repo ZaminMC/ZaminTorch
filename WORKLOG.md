@@ -6316,3 +6316,64 @@ repairs the worklog/ledger gap that commit left behind.
   (`ClientLink`, `Protocol18`, `V18Connection`).
 - Tests: `StatsTest` (5). The touched-area batches green
   (`--max-workers=1`).
+
+## Slice 52 — the red sandstone family (1.8's own four)
+
+The reference's `RedSandstoneBlock`/`RedSandstoneSlab`/`Block.java` rows
+1379-1390, 1:1 — the four blocks 1.8 itself added, plus the red sand
+variant they are built from.
+
+- **The red sand** (`minecraft:red_sand`, the sand 12's RED_SAND variant
+  with the id whole in the nibble): the gravity band joins it
+  (`BlockUpdateSystem` — `SandBlock` falls in both variants), the cactus's
+  soil consult accepts it (`BlockCactus`'s `Blocks.SAND` read covers both
+  variants in the reference), the behavior row is the sand's own 0.5
+  shovel row, the drop the sand item itself at damage 1 (one wire item,
+  the damage domain — there is no separate red sand item id in 1.8.8).
+- **The three TYPE states over 179** (`RedSandstoneBlock.Type.byId`'s
+  band): DEFAULT/CHISELED/SMOOTH — `setStrength(0.8F)` Material.STONE
+  with the pickaxe gate; the family item (the reference's
+  `VariantBlockItem`) carries the TYPE id in its damage field with the
+  out-of-band clamp.
+- **The four facing stairs over 180** (the Bukkit band E=0 W=1 S=2 N=3
+  over the SMOOTH base — the reference's `new StairsBlock(state)`): the
+  look-facing placement, the masonry-stairs light/shape rows.
+- **The slab pair over 182 + the double 181** (`SingleRedSandstoneSlab
+  Block`: the HALF bit 8, the RED_SANDSTONE variant id 0; `setStrength
+  (2.0F).setBlastResistance(10.0F)`): every form's drop the single-slab
+  item (the reference's `getDropItem` consult), the family merge into
+  the family's own 181 double (the SEAMLESS bit never settable by
+  gameplay — the plain form registers alone; the seamless skin rides
+  the metadata-variants slice).
+- **The crafting five** (the reference's own rows): the 2x2 masonry over
+  the RED_SAND sand (BlockRecipes line 26), the SMOOTH fold (2x2 of the
+  DEFAULT yields four SMOOTH), the CHISELED column (two slabs stacked),
+  the `###` row (three of any red sandstone yield six slabs) and the
+  3-step stairs (four from six).
+- **The stats merges** (`EngineStats`): the red sand onto the sand row,
+  the TYPE states onto the base name (the vanilla per-block-id scheme —
+  mining any of 179's states counts on
+  `stat.mineBlock.minecraft.red_sandstone`), the stair facings onto the
+  stairs' base, the top slab onto the single. The Slice 51 author's
+  anticipatory `double_red_sandstone_slab` row corrected to the actual
+  registry names (`double_stone_slab2` onto `stone_slab2`).
+- **The audit repairs riding the slice**: the 0x37 Client Statistics
+  conformance row (the Slice 51 commit declared the constant but left
+  the table row out — the "Unload Chunk class of bug" the conformance
+  guard exists for); the horse steering flake re-run green in
+  isolation (the documented flake family).
+- Tests: `RedSandstoneBlocksTest` (5) + the integrity rows (the family's
+  own wire table) + `BlockRegistryTest` 751 + `CraftingRecipeTest` 203.
+  Full core + protocol + api suites green, `--max-workers=1`.
+
+Ledgered: the double's SEAMLESS skin (the reference's `DoubleRedSand
+stoneSlabBlock` seamless bit — no gameplay path sets it; a placed pair
+of same-family slabs becomes the plain 181 form) rides the
+metadata-variants slice; the mesas (the red sand's source biome — the
+engine's biome set has no mesa) ride the world-generation family's own
+slice; the wider per-state stats folds for the pre-52 families (the
+oak stair facings still counting on their own state names) ride a
+stats-completeness slice; the sandstone family's own missing recipe set
+(the 2x2 sand masonry, the smooth fold, the chiseled column, the
+stairs — the engine carries only the slab row today) rides the
+recipe-completeness slice.
