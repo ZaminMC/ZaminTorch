@@ -132,6 +132,8 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:blaze_rod"), 369),
             Map.entry(Identifier.parse("minecraft:magma_cream"), 378),
             Map.entry(Identifier.parse("minecraft:glistering_melon"), 382),
+            Map.entry(Identifier.parse("minecraft:writable_book"), 386),
+            Map.entry(Identifier.parse("minecraft:nether_star"), 399),
             Map.entry(Identifier.parse("minecraft:rabbit_foot"), 414),
             // The spawn egg (Slice 20a — Item.java line 683's registration,
             // id 383): the damage field carries the entity id (SpawnEggs'
