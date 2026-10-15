@@ -406,6 +406,8 @@ public final class EngineServer implements Server, EngineBridge {
     private final java.util.Random gameplayRandom = new java.util.Random();
     /** The airborne projectiles; constructed at boot after the world exists. */
     private volatile ProjectileManager projectileManager;
+    /** The engine-side break walk's drop table (the wither's sweep). */
+    private volatile DropService witherSweepDrops;
     /** The vehicles (boats, minecarts); created at boot, tick-thread owned. */
     private volatile net.zaminmc.torch.server.entity.vehicle.VehicleManager vehicleManager;
 
@@ -1753,6 +1755,7 @@ public final class EngineServer implements Server, EngineBridge {
                         publishTimeChanged(); // smooth day cycle on every client
                     }
                 });
+                witherSweepDrops = new DropService(new java.util.Random()); // Slice 59: the engine-side break walk's own table
                 blockInteraction = new BlockInteractionService(world, ticker,
                         change -> world.republish(change.position()), // the resync path (§441)
                         session -> session.gamemode(), new DropService(new java.util.Random()), itemEntities,
@@ -11227,9 +11230,23 @@ public final class EngineServer implements Server, EngineBridge {
             if (body instanceof PlayerSession) {
                 return false; // the players are never undead (no totem/zombie arm)
             }
+            // The reference's UNDEAD MobType set (the smite family —
+            // getMobType's overrides): the zombie and its pigman child,
+            // the skeleton pair, and the wither (Slice 59's audit: the
+            // earlier consult missed the pigman and the boss).
             var type = ((MobEntity) body).type();
             return type == net.zaminmc.torch.server.entity.MobType.ZOMBIE
-                    || type == net.zaminmc.torch.server.entity.MobType.SKELETON;
+                    || type == net.zaminmc.torch.server.entity.MobType.ZOMBIE_PIGMAN
+                    || type == net.zaminmc.torch.server.entity.MobType.SKELETON
+                    || type == net.zaminmc.torch.server.entity.MobType.WITHER;
+        }
+
+        @Override
+        public boolean refusesEffects(Object body) {
+            // WitherEntity.addStatusEffect's empty override (Slice 59):
+            // the boss takes no effect from any source.
+            return body instanceof MobEntity mob
+                    && mob.type() == net.zaminmc.torch.server.entity.MobType.WITHER;
         }
 
         @Override
@@ -11896,6 +11913,74 @@ public final class EngineServer implements Server, EngineBridge {
         }
 
         @Override
+        public boolean mobHit(net.zaminmc.torch.server.entity.projectile.ProjectileEntity projectile,
+                              MobEntity mob, float damage, double kbYaw) {
+            // The wither's own gates (Slice 59 — takeDamage lines 408-438)
+            // read the source: the half-health shield is ARROW-only (the
+            // source must be an ArrowEntity — fireballs and snowballs
+            // still land), and a skull from another wither never lands.
+            boolean arrow = projectile.kind()
+                    == net.zaminmc.torch.server.entity.projectile.ProjectileEntity.Kind.ARROW;
+            MobEntity shooterMob = null;
+            if (projectile.throwerId() > 0) {
+                for (MobEntity candidate : mobManager.all()) {
+                    if (!candidate.dead()
+                            && candidate.entityId() == projectile.throwerId()) {
+                        shooterMob = candidate;
+                        break;
+                    }
+                }
+            }
+            // The enderman's dodge and the wither's gates share the walk:
+            // the dodge (the legacy path above) consults no source; the
+            // wither's gates run inside the manager's full overload with
+            // the source pair (arrow, shooter body).
+            if (mob.type() == net.zaminmc.torch.server.entity.MobType.WITHER) {
+                return mobManager.hurt(mob, damage, kbYaw,
+                        net.zaminmc.torch.event.DamageCause.PROJECTILE,
+                        false, arrow, shooterMob);
+            }
+            return mobHit(mob, damage, kbYaw, projectile.throwerId());
+        }
+
+        @Override
+        public void skullKillHeal(int shooterId) {
+            // WitherSkullEntity.onHit lines 58-64: the victim died — the
+            // shooting wither heals 5.0.
+            for (MobEntity candidate : mobManager.all()) {
+                if (!candidate.dead() && candidate.entityId() == shooterId) {
+                    candidate.heal(5.0f);
+                    return;
+                }
+            }
+        }
+
+        @Override
+        public void skullWitherCurse(MobEntity victim) {
+            // onHit lines 69-80: WITHER II — 10 s on NORMAL, 40 s on HARD,
+            // nothing below (the difficulty band the sink resolves).
+            int seconds = difficulty() == 2 ? 10 : difficulty() == 3 ? 40 : 0;
+            if (seconds > 0 && potionSystem != null) {
+                potionSystem.add(victim,
+                        new net.zaminmc.torch.server.potion.StatusEffectInstance(
+                                net.zaminmc.torch.server.potion.StatusEffects.WITHER,
+                                seconds * 20, 1));
+            }
+        }
+
+        @Override
+        public void skullWitherCurse(PlayerSession victim) {
+            // The player arm — the same band.
+            int seconds = difficulty() == 2 ? 10 : difficulty() == 3 ? 40 : 0;
+            if (seconds > 0 && potionSystem != null) {
+                potionSystem.add(victim,
+                        new net.zaminmc.torch.server.potion.StatusEffectInstance(
+                                net.zaminmc.torch.server.potion.StatusEffects.WITHER,
+                                seconds * 20, 1));
+            }
+        }
+
+        @Override
         public void mobIgniteFromProjectile(MobEntity mob) {
             // The burning arrow's hit (the reference's setOnFireFor(5)):
             // the mob carries no equipment, the plain 5-second burn.
@@ -12164,6 +12249,8 @@ public final class EngineServer implements Server, EngineBridge {
                     ? 10 // GuardianEntity's own xpDrop (line 52)
                     : mob.type() == net.zaminmc.torch.server.entity.MobType.BLAZE
                     ? 10 // BlazeEntity's own xpDrop (line 29)
+                    : mob.type() == net.zaminmc.torch.server.entity.MobType.WITHER
+                    ? 50 // WitherEntity's own xpDrop (the ctor line 67)
                     : ExperienceAwards.forMobKill(mob.type().hostile, gameplayRandom);
             experienceOrbs.spawnBurst(mob.position(), amount, 3);
         }
@@ -12360,12 +12447,162 @@ public final class EngineServer implements Server, EngineBridge {
                     (gameplayRandom.nextFloat() - gameplayRandom.nextFloat()) * 0.2f + 1.0f);
         }
 
+        // ------------------------------------------------------------------
+        // The wither's own band (Slice 59 — WitherEntity's event family)
+        // ------------------------------------------------------------------
+
+        /**
+         * The blue window's end (mobAiTick lines 214-219): the 7.0F birth
+         * explosion at the body's eye height (the reference's
+         * {@code world.explode(this, x, y + getEyeHeight(), z, 7.0F, false,
+         * mobGriefing)}) — wounds and knocks but never breaks blocks (the
+         * fire flag false) — and the GLOBAL 1013 spawn sound rides the
+         * forward below (every connected player, every dimension).
+         */
+        @Override
+        public void onWitherBirth(net.zaminmc.torch.server.entity.MobEntity mob) {
+            for (MobManager.Listener listener : mobListeners) {
+                listener.onWitherBirth(mob);
+            }
+            double eye = mob.eyeHeightForQuery();
+            detonateAt(mob.position().x(), mob.position().y() + eye, mob.position().z(),
+                    WITHER_BIRTH_POWER, WITHER_BIRTH_POWER * 2.0f, false);
+        }
+
+        /**
+         * A head loosed its skull (shootSkullAt lines 383-400): the head's
+         * own mount point (the center head at +3.0 above the feet, the
+         * side heads at the plus/minus 1.3 flank at +2.2 — the body's own
+         * yaw shapes the flank) aims the raw delta at the target cell; the
+         * ctor's gaussian tilt and the 0.1 acceleration ride the
+         * projectile system's launch.
+         */
+        @Override
+        public void onWitherSkull(net.zaminmc.torch.server.entity.MobEntity mob, int head,
+                                  double targetX, double targetY, double targetZ,
+                                  boolean charged) {
+            ProjectileManager liveProjectiles = projectileManager;
+            if (liveProjectiles == null) {
+                return; // the projectile system is not wired (the test rig)
+            }
+            // getHeadX/getHeadY/getHeadZ (lines 342-364).
+            double headX;
+            double headY;
+            double headZ;
+            if (head <= 1) {
+                // The reference's headIndex <= 0 reads the body's own x/z
+                // (the center head); the engine's head 1 is the center.
+                headX = mob.position().x();
+                headY = mob.position().y() + 3.0;
+                headZ = mob.position().z();
+            } else {
+                double angle = Math.toRadians(mob.bodyYawLive() + 180 * (head - 2));
+                headX = mob.position().x() + Math.cos(angle) * 1.3;
+                headY = mob.position().y() + 2.2;
+                headZ = mob.position().z() + Math.sin(angle) * 1.3;
+            }
+            liveProjectiles.launchWitherSkull(mob.entityId(),
+                    new Position(headX, headY, headZ),
+                    targetX - headX, targetY - headY, targetZ - headZ, charged);
+        }
+
+        /**
+         * The sweep (mobAiTick lines 285-312): the 3x3x4 around the feet —
+         * x/z plus/minus one, y from the feet up four — every non-air
+         * destructible block breaks with its drops ({@code breakBlock(pos,
+         * true)} — bedrock, the end portal and its frame, the command
+         * block, and the barrier excepted, canDestroy lines 320-326); the
+         * mobGriefing rule gates the whole walk (line 287) and the 1012
+         * break sound rides the mark when at least one fell.
+         */
+        @Override
+        public void onWitherSweep(net.zaminmc.torch.server.entity.MobEntity mob) {
+            if (!gameRules.getBoolean("mobGriefing")) {
+                return; // the no-grief world never breaks a block
+            }
+            int feetY = (int) Math.floor(mob.position().y());
+            int centerX = (int) Math.floor(mob.position().x());
+            int centerZ = (int) Math.floor(mob.position().z());
+            boolean anyFell = false;
+            for (int dx = -1; dx <= 1; dx++) {
+                for (int dz = -1; dz <= 1; dz++) {
+                    for (int dy = 0; dy <= 3; dy++) {
+                        BlockPosition at = new BlockPosition(
+                                centerX + dx, feetY + dy, centerZ + dz);
+                        var type = world.getBlock(at);
+                        if (type.equals(world.airType()) || !witherCanDestroy(type)) {
+                            continue;
+                        }
+                        world.setBlock(at, world.airType());
+                        anyFell = true;
+                        // breakBlock(pos, true): the block's own no-tool
+                        // drop walk under the doTileDrops rule.
+                        if (gameRules.getBoolean("doTileDrops")
+                                && witherSweepDrops != null) {
+                            for (net.zaminmc.torch.item.ItemStack drop
+                                    : witherSweepDrops.dropsFor(type, null)) {
+                                itemEntities.spawnDropAtBlock(new Position(
+                                        at.x() + 0.5, at.y() + 0.5, at.z() + 0.5),
+                                        drop, net.zaminmc.torch.server.entity.ItemEntity
+                                                .PICKUP_DELAY_DROP_TICKS);
+                            }
+                        }
+                    }
+                }
+            }
+            if (anyFell) {
+                mob.markWitherBlockBreakSound(); // line 308's flag
+            }
+        }
+
+        /** canDestroy (lines 320-326): the unbreakable band excepts five. */
+        private boolean witherCanDestroy(net.zaminmc.torch.block.BlockType type) {
+            String id = type.identifier().toString();
+            return !id.equals("minecraft:bedrock")
+                    && !id.equals("minecraft:end_portal")
+                    && !id.equals("minecraft:end_portal_frame")
+                    && !id.equals("minecraft:command_block")
+                    && !id.equals("minecraft:barrier");
+        }
+
+        /** The head Ints' dirty resend (the wire's own listener). */
+        @Override
+        public void onWitherMetadataChanged(net.zaminmc.torch.server.entity.MobEntity mob) {
+            for (MobManager.Listener listener : mobListeners) {
+                listener.onWitherMetadataChanged(mob);
+            }
+        }
+
+        /** The 1012 chunk break sound. */
+        @Override
+        public void onWitherBlockBreakSound(net.zaminmc.torch.server.entity.MobEntity mob) {
+            for (MobManager.Listener listener : mobListeners) {
+                listener.onWitherBlockBreakSound(mob);
+            }
+        }
+
+        /** The 1014 launch sound at the body. */
+        @Override
+        public void onWitherShootSound(net.zaminmc.torch.server.entity.MobEntity mob) {
+            for (MobManager.Listener listener : mobListeners) {
+                listener.onWitherShootSound(mob);
+            }
+        }
+
+        /** The global world events (the 1013's own broadcast family). */
+        @Override
+        public void onWorldGlobalEventAt(Position position, int eventId) {
+            for (MobManager.Listener listener : mobListeners) {
+                listener.onWorldGlobalEventAt(position, eventId);
+            }
+        }
+
         /**
          * The silverfish's wake-up scan (Slice 18c —
          * WakeUpFriendsGoal.tick lines 210-236): the reference's own
          * interleaved box walk (the vertical ±5 pair, the horizontal ±10
          * pair — the (0,0,0) center first) breaking every monster egg it
-         * finds; each break spawns the egg's silverfish, and the walk
+         * finds; each break spawns its egg's silverfish, and the walk
          * stops early on the reference's own 1-in-2 roll per egg.
          */
         @Override
@@ -13232,6 +13469,181 @@ public final class EngineServer implements Server, EngineBridge {
                 }
             };
         }
+
+        // --------------------------------------------------------------
+        // The wither's quarry family (Slice 59 — the three-head model's
+        // World.getEntity reads over the players and the mobs)
+        // --------------------------------------------------------------
+
+        /** The live player carrying the engine id, or null. */
+        private PlayerSession playerById(int entityId) {
+            for (PlayerSession player : players.all()) {
+                if (player.state() == PlayerState.PLAYING && !player.dead()
+                        && player.engineEntityId() == entityId) {
+                    return player;
+                }
+            }
+            return null;
+        }
+
+        /** The live mob carrying the engine id, or null. */
+        private MobEntity mobById(int entityId) {
+            for (MobEntity mob : mobManager.all()) {
+                if (!mob.dead() && mob.entityId() == entityId) {
+                    return mob;
+                }
+            }
+            return null;
+        }
+
+        @Override
+        public Integer entityById(int entityId) {
+            // World.getEntity over the shared id band: null when no live
+            // body carries the id (the callers treat null and dead alike).
+            if (playerById(entityId) != null || mobById(entityId) != null) {
+                return entityId;
+            }
+            return null;
+        }
+
+        @Override
+        public Position entityPositionById(int entityId) {
+            PlayerSession player = playerById(entityId);
+            if (player != null) {
+                return player.position();
+            }
+            MobEntity mob = mobById(entityId);
+            return mob == null ? null : mob.position();
+        }
+
+        @Override
+        public double eyeHeightOf(int entityId) {
+            PlayerSession player = playerById(entityId);
+            if (player != null) {
+                return 1.62; // PlayerEntity.getEyeHeight
+            }
+            MobEntity mob = mobById(entityId);
+            if (mob == null) {
+                return 0.0;
+            }
+            // The mob's own eye model (the body's kind law).
+            return mob.eyeHeightForQuery();
+        }
+
+        @Override
+        public boolean entityInvulnerablePlayer(int entityId) {
+            PlayerSession player = playerById(entityId);
+            return player != null
+                    && player.gamemode() == net.zaminmc.torch.GameMode.CREATIVE;
+        }
+
+        @Override
+        public int[] livingNonUndeadIdsIn(double x, double y, double z,
+                                          double halfX, double halfY, int excludeId) {
+            java.util.List<Integer> found = new java.util.ArrayList<>();
+            // The players (never undead; the dimension gates the scan).
+            for (PlayerSession player : players.all()) {
+                if (player.state() != PlayerState.PLAYING || player.dead()
+                        || player.dimension() != activeDimension
+                        || player.engineEntityId() == excludeId) {
+                    continue;
+                }
+                Position p = player.position();
+                if (Math.abs(p.x() - x) <= halfX && Math.abs(p.y() - y) <= halfY
+                        && Math.abs(p.z() - z) <= halfX) {
+                    found.add(player.engineEntityId());
+                }
+            }
+            // The mobs (the UNDEAD family leaves — the smite set: the
+            // zombie pair, the skeleton pair, the wither itself).
+            for (MobEntity mob : mobManager.all()) {
+                if (mob.dead() || mob.dimension() != activeDimension
+                        || mob.entityId() == excludeId
+                        || mob.type().damageCategory() == 1) {
+                    continue;
+                }
+                Position p = mob.position();
+                if (Math.abs(p.x() - x) <= halfX && Math.abs(p.y() - y) <= halfY
+                        && Math.abs(p.z() - z) <= halfX) {
+                    found.add(mob.entityId());
+                }
+            }
+            int[] ids = new int[found.size()];
+            for (int i = 0; i < ids.length; i++) {
+                ids[i] = found.get(i);
+            }
+            return ids;
+        }
+
+        @Override
+        public int nearestVisibleEntityId(Position target) {
+            // The main head's quarry: the nearest live body to the hunt's
+            // own resolved point (the players first — the hunt reads the
+            // players — then the mobs for the revenge family).
+            PlayerSession player = playerByIdNearestTo(target, 4.0);
+            if (player != null) {
+                return player.engineEntityId();
+            }
+            MobEntity mob = mobByIdNearestTo(target, 4.0);
+            return mob == null ? 0 : mob.entityId();
+        }
+
+        /** The nearest live player within {@code radius} of the point. */
+        private PlayerSession playerByIdNearestTo(Position at, double radius) {
+            PlayerSession best = null;
+            double bestDistance = radius * radius;
+            for (PlayerSession player : players.all()) {
+                if (player.state() != PlayerState.PLAYING || player.dead()
+                        || player.dimension() != activeDimension) {
+                    continue;
+                }
+                Position p = player.position();
+                double dx = p.x() - at.x();
+                double dy = p.y() - at.y();
+                double dz = p.z() - at.z();
+                double distance = dx * dx + dy * dy + dz * dz;
+                if (distance <= bestDistance) {
+                    bestDistance = distance;
+                    best = player;
+                }
+            }
+            return best;
+        }
+
+        /** The nearest live mob within {@code radius} of the point. */
+        private MobEntity mobByIdNearestTo(Position at, double radius) {
+            MobEntity best = null;
+            double bestDistance = radius * radius;
+            for (MobEntity mob : mobManager.all()) {
+                if (mob.dead() || mob.dimension() != activeDimension) {
+                    continue;
+                }
+                Position p = mob.position();
+                double dx = p.x() - at.x();
+                double dy = p.y() - at.y();
+                double dz = p.z() - at.z();
+                double distance = dx * dx + dy * dy + dz * dz;
+                if (distance <= bestDistance) {
+                    bestDistance = distance;
+                    best = mob;
+                }
+            }
+            return best;
+        }
+
+        @Override
+        public boolean difficultyAtLeastNormal() {
+            // The engine's own difficulty id (0 peaceful .. 3 hard).
+            return difficulty >= 2;
+        }
+
+        @Override
+        public boolean hasLineOfSight(double x1, double y1, double z1,
+                                      double x2, double y2, double z2) {
+            // Entity.canSee's eye-to-eye ray — the same half-block march
+            // the shooter's line rides.
+            return clearLine(new Position(x1, y1, z1), new Position(x2, y2, z2));
+        }
     }
 
     /** The world adapter the fluid system reads and commits through. */
@@ -13309,6 +13721,8 @@ public final class EngineServer implements Server, EngineBridge {
 
     /** Historical creeper power (the explosion radius in blocks). */
     static final float CREEPER_POWER = 3.0f;
+    /** The wither's birth explosion (WitherEntity.mobAiTick line 217: 7.0F). */
+    static final float WITHER_BIRTH_POWER = 7.0f;
     /** The blast's injury radius: double the power (the historical falloff span). */
     static final double BLAST_INJURY_RADIUS = CREEPER_POWER * 2.0;
     /** Point-blank explosion damage on easy difficulty (the historical ~24). */

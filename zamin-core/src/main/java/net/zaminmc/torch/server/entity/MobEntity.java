@@ -276,6 +276,86 @@ public final class MobEntity implements LivingEntity {
         default net.zaminmc.torch.util.Identifier blockIdAt(int x, int y, int z) {
             return null;
         }
+
+        // ----------------------------------------------------------
+        // The wither's quarry lookups (Slice 59 — the three-head model's
+        // World.getEntity family over the engine's shared id band)
+        // ----------------------------------------------------------
+
+        /**
+         * The quarry's existence read (WitherEntity.mobAiTick line 244's
+         * {@code this.world.getEntity(k)}): the id boxed when a live body
+         * carries it, null when none — the callers treat null and dead
+         * alike (the head clears either way).
+         */
+        default Integer entityById(int entityId) {
+            return null;
+        }
+
+        /**
+         * The quarry's live position by id (the heads' aim walk), or null
+         * when no live body carries the id.
+         */
+        default Position entityPositionById(int entityId) {
+            return null;
+        }
+
+        /**
+         * The body's eye height by id (the aim point and the sight ray's
+         * far end — {@code entity.getEyeHeight()}); 0.0 when unknown.
+         */
+        default double eyeHeightOf(int entityId) {
+            return 0.0;
+        }
+
+        /**
+         * Whether the body is a player under the invulnerable ability
+         * (creative — PlayerEntity.abilities.invulnerable): the heads
+         * never aim at one and the acquisition walk skips them
+         * (mobAiTick lines 247-248 and 263-266).
+         */
+        default boolean entityInvulnerablePlayer(int entityId) {
+            return false;
+        }
+
+        /**
+         * The living non-undead candidates in the box grown by
+         * {@code halfX/halfY/halfX} around the point (mobAiTick lines
+         * 255-257's getEntitiesOfType over the UNDEAD_FILTER — creative
+         * players stay in, the pick walk rejects them; the caller's own
+         * id rides out through {@code excludeId}, the {@code != this}
+         * check at line 262). Empty when the world carries none.
+         */
+        default int[] livingNonUndeadIdsIn(double x, double y, double z,
+                                           double halfX, double halfY, int excludeId) {
+            return new int[0];
+        }
+
+        /**
+         * The main head's quarry read (line 280's
+         * {@code getAttackTarget().getNetworkId()}): the engine id of the
+         * living body the hunt stands on at the target position, 0 when
+         * none resolves.
+         */
+        default int nearestVisibleEntityId(Position target) {
+            return 0;
+        }
+
+        /** The difficulty read (NORMAL or HARD — {@code getDifficulty()}). */
+        default boolean difficultyAtLeastNormal() {
+            return false;
+        }
+
+        /**
+         * The eye-to-eye sight ray (Entity.canSee): whether nothing solid
+         * blocks the segment between the two eye points. The default
+         * bridges to the shooter's line so stub worlds keep their open
+         * semantics.
+         */
+        default boolean hasLineOfSight(double x1, double y1, double z1,
+                                       double x2, double y2, double z2) {
+            return clearLine(new Position(x1, y1, z1), new Position(x2, y2, z2));
+        }
     }
 
     /**
@@ -2498,6 +2578,18 @@ public final class MobEntity implements LivingEntity {
      * explosion + the global 1013 spawn sound. The synced slot-20 Int.
      */
     private int witherInvulnTicks;
+    /**
+     * The boss's own monotonic tick counter (the reference's this.ticks —
+     * modeTicks resets with the goal cycles, the heads' cooldown bands
+     * must ride an unbroken clock).
+     */
+    private int witherTicks;
+    /**
+     * The main head's volley clock (ProjectileAttackGoal's
+     * ticksUntilNextAttack — the wither's own registration: speed 1.0,
+     * cooldown 40, range 20).
+     */
+    private int witherMainShotCooldown = -1;
     /** The three heads' quarry entity ids (the synced slots 17-19). */
     private final int[] witherHeadTargets = new int[3];
     /** The side heads' skull cooldowns (mobAiTick's skullCooldowns). */
@@ -2534,13 +2626,18 @@ public final class MobEntity implements LivingEntity {
      * flat 1.0 regen every 20 ticks.
      */
     private void tickWitherMind(Position target, boolean canHunt) {
+        witherTicks++; // the reference's own this.ticks (a fresh monotonic
+        // counter — modeTicks resets with the goals, the heads' cooldowns
+        // must not)
+
         // mobTick lines 107-135: the flight shaping runs on the main head's
-        // quarry — the dampened rise toward a target above (or below +5 at
-        // half health), the horizontal drift toward a target beyond 3
-        // blocks, the yaw following the motion.
+        // quarry — the dampened rise toward a target above (or within 5
+        // below it while ABOVE half health — the reference's `!isAtHalfHealth`
+        // gate: the weakened body hugs lower), the horizontal drift toward
+        // a target beyond 3 blocks, the yaw following the motion.
         if (target != null) {
             boolean half = health() <= type().maxHealth / 2.0f;
-            if (position.y() < target.y() || half && position.y() < target.y() + 5.0) {
+            if (position.y() < target.y() || !half && position.y() < target.y() + 5.0) {
                 if (velocityY < 0.0) {
                     velocityY = 0.0;
                 }
@@ -2566,7 +2663,7 @@ public final class MobEntity implements LivingEntity {
             if (--witherInvulnTicks <= 0) {
                 pendingWitherBirth = true;
             }
-            if (age % 10 == 0) {
+            if (witherTicks % 10 == 0) {
                 heal(10.0f);
             }
             witherMetadataDirty = true; // the slot-20 Int counts down
@@ -2575,17 +2672,50 @@ public final class MobEntity implements LivingEntity {
 
         // The main head reads the single target state (lines 279-283).
         setWitherHeadTarget(0, target != null && canHunt
-                ? nearestVisibleEntityId(target) : 0);
+                ? world.nearestVisibleEntityId(target) : 0);
+
+        // The main head's own volley (ProjectileAttackGoal lines 76-93 —
+        // the wither's registration: speed 1.0, cooldown 40, range 20):
+        // the 40-tick clock arms on the first sight, fires the head-0
+        // skull at the quarry (the 1-in-1000 blue rides the head-0 roll,
+        // doRangedAttack → shootSkullAt(0, target)) when the 3D distance
+        // to the quarry's feet sits inside 20 blocks and the sight holds,
+        // and a failed attempt re-arms 40 (the reference's own -1 dance).
+        int mainQuarry = witherHeadTargets[0];
+        if (mainQuarry > 0) {
+            if (witherMainShotCooldown < 0) {
+                witherMainShotCooldown = 40; // the first-sight arm (line 92)
+            }
+            if (--witherMainShotCooldown <= 0) {
+                Position quarry = world.entityPositionById(mainQuarry);
+                if (quarry == null) {
+                    witherMainShotCooldown = -1; // gone: re-arm on the next sight
+                } else {
+                    double mdx = quarry.x() - position.x();
+                    double mdy = quarry.y() - position.y();
+                    double mdz = quarry.z() - position.z();
+                    boolean inRange = mdx * mdx + mdy * mdy + mdz * mdz <= 400.0;
+                    if (inRange && !witherQuarryInvalid(mainQuarry)) {
+                        looseWitherSkullAtQuarry(0, mainQuarry);
+                        witherMainShotCooldown = 40;
+                    } else {
+                        witherMainShotCooldown = -1; // out of range or unseen
+                    }
+                }
+            }
+        } else {
+            witherMainShotCooldown = -1; // stop()'s reset (line 60)
+        }
 
         // mobAiTick lines 228-277: the side heads' own quarries.
         for (int i = 1; i < 3; i++) {
-            if (age >= witherSkullCooldowns[i - 1]) {
-                witherSkullCooldowns[i - 1] = age + 10 + random.nextInt(10);
+            if (witherTicks >= witherSkullCooldowns[i - 1]) {
+                witherSkullCooldowns[i - 1] = witherTicks + 10 + random.nextInt(10);
                 // The 16-volley blue barrage (lines 231-240) — normal and
                 // hard only: a charged skull at a random cell in the
                 // plus/minus 10 / plus/minus 5 / plus/minus 10 box.
                 if (witherChargedCooldowns[i - 1]++ > 15
-                        && difficultyAtLeastNormal()) {
+                        && world.difficultyAtLeastNormal()) {
                     double sx = position.x() + (random.nextDouble() * 20.0 - 10.0);
                     double sy = position.y() + (random.nextDouble() * 10.0 - 5.0);
                     double sz = position.z() + (random.nextDouble() * 20.0 - 10.0);
@@ -2594,25 +2724,37 @@ public final class MobEntity implements LivingEntity {
                 }
                 int quarryId = witherHeadTargets[i];
                 if (quarryId > 0) {
-                    // The quarry's validity walk (lines 243-253): dead,
-                    // beyond 30 blocks, out of sight, or a creative player
-                    // clears the head; a live quarry eats the 40-60-tick
-                    // volley and resets the blue counter.
+                    // The quarry's validity walk (lines 243-253): gone,
+                    // dead, beyond 30 blocks, out of sight, or a creative
+                    // player clears the head; a live quarry eats the
+                    // 40-60-tick volley and resets the blue counter.
                     Integer quarry = world.entityById(quarryId);
-                    if (quarry == null || witherQuarryInvalid(quarryId)) {
+                    if (quarry == null || witherQuarryInvalid(quarryId)
+                            || world.entityInvulnerablePlayer(quarryId)) {
                         setWitherHeadTarget(i, 0);
                     } else {
                         looseWitherSkullAtQuarry(i + 1, quarryId);
-                        witherSkullCooldowns[i - 1] = age + 40 + random.nextInt(20);
+                        witherSkullCooldowns[i - 1] = witherTicks + 40 + random.nextInt(20);
                         witherChargedCooldowns[i - 1] = 0;
                     }
                 } else {
-                    // The acquisition scan (lines 254-275): ten rolls at the
-                    // living non-undead in the grown 20x8x20 box.
-                    int found = world.nearestLivingNonUndeadId(
-                            position.x(), position.y(), position.z(), 20.0, 8.0);
-                    if (found > 0) {
-                        setWitherHeadTarget(i, found);
+                    // The acquisition walk (lines 254-275): the grown
+                    // 20x8x20 box's living non-undead candidates, ten
+                    // random rolls — a dead, unseen, or creative pick
+                    // leaves the list and the walk tries again; the first
+                    // live sighting claims the head.
+                    int[] candidates = world.livingNonUndeadIdsIn(
+                            position.x(), position.y(), position.z(), 20.0, 8.0, entityId);
+                    for (int roll = 0; roll < 10 && candidates.length > 0; roll++) {
+                        int pick = candidates[random.nextInt(candidates.length)];
+                        if (world.entityById(pick) == null
+                                || witherQuarryInvalid(pick)
+                                || world.entityInvulnerablePlayer(pick)) {
+                            candidates = removeFromCandidates(candidates, pick);
+                            continue;
+                        }
+                        setWitherHeadTarget(i, pick);
+                        break;
                     }
                 }
             }
@@ -2628,7 +2770,7 @@ public final class MobEntity implements LivingEntity {
         }
 
         // mobAiTick lines 314-316: the flat 1.0 regen every 20 ticks.
-        if (age % 20 == 0) {
+        if (witherTicks % 20 == 0) {
             heal(1.0f);
         }
     }
@@ -2645,7 +2787,7 @@ public final class MobEntity implements LivingEntity {
         if (quarry == null) {
             return;
         }
-        looseWitherSkull(head, quarry.x(), quarry.y() + eyeHeightOf(quarryId) * 0.5,
+        looseWitherSkull(head, quarry.x(), quarry.y() + world.eyeHeightOf(quarryId) * 0.5,
                 quarry.z(), head == 0 && random.nextFloat() < 0.001F);
     }
 
@@ -2666,8 +2808,9 @@ public final class MobEntity implements LivingEntity {
     }
 
     /**
-     * The quarry-validity walk (mobAiTick lines 243-253): dead, beyond
-     * 900 squared (30 blocks), out of sight, or a creative player.
+     * The quarry-validity walk (mobAiTick lines 243-253): gone, beyond
+     * 900 squared (30 blocks), or out of sight — the reference's canSee
+     * runs eye to eye (this body's eye to the quarry's eye).
      */
     private boolean witherQuarryInvalid(int quarryId) {
         Position quarry = world.entityPositionById(quarryId);
@@ -2678,8 +2821,21 @@ public final class MobEntity implements LivingEntity {
         double dy = quarry.y() - position.y();
         double dz = quarry.z() - position.z();
         return dx * dx + dy * dy + dz * dz > 900.0
-                || !world.hasLineOfSight(position.x(), position.y() + eyeHeight(),
-                        quarry.x(), quarry.y(), quarry.z());
+                || !world.hasLineOfSight(position.x(), position.y() + eyeHeight(), position.z(),
+                        quarry.x(), quarry.y() + world.eyeHeightOf(quarryId), quarry.z());
+    }
+
+    /** The acquisition walk's rejected pick leaves the candidate list
+     * (mobAiTick line 273's list.remove). */
+    private static int[] removeFromCandidates(int[] candidates, int rejected) {
+        int[] next = new int[candidates.length - 1];
+        int at = 0;
+        for (int candidate : candidates) {
+            if (candidate != rejected) {
+                next[at++] = candidate;
+            }
+        }
+        return next;
     }
 
     /** The head-target write (setTrackedEntityId — the synced 17-19 Ints). */
@@ -2690,10 +2846,12 @@ public final class MobEntity implements LivingEntity {
         }
     }
 
-    /** onSummoned (lines 328-331): the 220-tick window, the third-health start. */
+    /** onSummoned (lines 328-331): the 220-tick window, the third-health
+     * start (setHealth — the spawned-full body DROPS to 100, the window's
+     * 22 ten-heals carry it back to the 300 cap exactly at the end). */
     public void witherSummoned() {
         witherInvulnTicks = 220;
-        health = Math.max(health, type().maxHealth / 3.0f);
+        health = type().maxHealth / 3.0f;
         witherMetadataDirty = true;
     }
 
@@ -5105,6 +5263,15 @@ public final class MobEntity implements LivingEntity {
             tickBlazeMind(target, canHunt);
             return;
         }
+        // The wither boss's own mind (Slice 59 — WitherEntity.mobTick +
+        // mobAiTick): the flight shaping, the blue window, the three
+        // heads' quarries, the skull volleys, the sweep, the flat regen —
+        // the reference's goal set carries only Swim/ProjectileAttack/
+        // Wander/Look pairs whose observable law the mind folds in.
+        if (type == MobType.WITHER) {
+            tickWitherMind(target, canHunt);
+            return;
+        }
 
         // The goal layer (the community PathfinderGoal architecture): float
         // and panic claim the body first, the stroll cycle only when no hunt
@@ -6004,6 +6171,16 @@ public final class MobEntity implements LivingEntity {
             return 0.1;
         }
         return type.height * 0.85;
+    }
+
+    /**
+     * The eye height as the world query exposes it (Slice 59 — the
+     * wither's heads aim at {@code quarry.y + eyeHeight * 0.5} and the
+     * sight ray runs eye to eye; the engine's query resolves the quarry's
+     * own eye model through this surface).
+     */
+    public double eyeHeightForQuery() {
+        return eyeHeight();
     }
 
     private void tickBody() {

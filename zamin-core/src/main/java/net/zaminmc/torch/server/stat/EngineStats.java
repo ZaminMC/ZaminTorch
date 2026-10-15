@@ -358,6 +358,7 @@ public final class EngineStats {
         keys.put("GUARDIAN", "Guardian");
         keys.put("MOOSHROOM", "MushroomCow");
         keys.put("ENDERMITE", "Endermite");
+        keys.put("WITHER", "Wither");
         return keys;
     }
 

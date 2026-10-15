@@ -30,7 +30,10 @@ public enum ProjectileKind {
     SPLASH_POTION("minecraft:potion"),
 
     /** The thrown ender pearl (65). */
-    ENDER_PEARL("minecraft:ender_pearl");
+    ENDER_PEARL("minecraft:ender_pearl"),
+
+    /** The wither boss's skull (66): the charged blue variant rides the same kind. */
+    WITHER_SKULL("minecraft:wither_skull");
 
     private final Identifier identifier;
 

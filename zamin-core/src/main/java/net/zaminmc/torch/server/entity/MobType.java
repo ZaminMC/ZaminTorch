@@ -470,7 +470,12 @@ public enum MobType {
      */
     public int damageCategory() {
         return switch (this) {
-            case ZOMBIE, SKELETON -> 1; // reference MobType.UNDEAD
+            // reference MobType.UNDEAD — the smite family: the zombie and
+            // its pigman child (ZombiePigmanEntity extends ZombieEntity,
+            // the inherited override), the skeleton pair, and the wither
+            // (Slice 59's audit: the earlier band missed the pigman and
+            // the boss, both UNDEAD in the 1.8.8 source).
+            case ZOMBIE, ZOMBIE_PIGMAN, SKELETON, WITHER -> 1;
             case SPIDER, CAVE_SPIDER, ENDERMITE, SILVERFISH -> 2; // reference MobType.ARTHROPODS
             default -> 0;               // reference MobType.UNDEFINED
         };

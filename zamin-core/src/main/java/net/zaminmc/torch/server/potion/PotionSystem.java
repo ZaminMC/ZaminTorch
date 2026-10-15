@@ -67,6 +67,15 @@ public final class PotionSystem {
         /** The undead family (the smite-aware instant pair). */
         boolean undead(Object body);
 
+        /**
+         * The blanket effect refusal (Slice 59 — WitherEntity
+         * .addStatusEffect's empty override): the boss takes NO effect
+         * from any source, potion or skull.
+         */
+        default boolean refusesEffects(Object body) {
+            return false;
+        }
+
         /** Whether the body is a player session (the effect-store keying). */
         boolean isPlayer(Object body);
 
@@ -109,6 +118,9 @@ public final class PotionSystem {
      * keeps the longer), a fresh id installs.
      */
     public void add(Object body, StatusEffectInstance instance) {
+        if (bodies.refusesEffects(body)) {
+            return; // WitherEntity.addStatusEffect: the boss's empty override
+        }
         int id = instance.id();
         if ((id == StatusEffects.REGENERATION || id == StatusEffects.POISON)
                 && bodies.undead(body)) {
