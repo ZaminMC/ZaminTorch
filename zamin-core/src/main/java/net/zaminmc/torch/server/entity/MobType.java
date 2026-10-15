@@ -338,7 +338,30 @@ public enum MobType {
      */
     SNOW_GOLEM(97, 0.7, 1.9, 4.0f, 0.2, false, Traits.NONE,
             List.of(new ItemRoll(BuiltinItems.SNOWBALL, 0, 15)), // nextInt(16) = 0-15
-            "", "", ""); // GolemEntity's null family — the snow golem never overrides
+            "", "", ""), // GolemEntity's null family — the snow golem never overrides
+
+    /**
+     * The unkillable three-headed boss (WitherEntity): the 0.9x3.5
+     * body, 300 health, movement 0.6, the 40-block follow range — the
+     * fire-immune UNDEAD hull (Smite lands, the wither effect never
+     * sticks) with the 220-tick blue invulnerability window after the
+     * build (healing 10 every 10 ticks to the full 300, then the 7.0F
+     * birth explosion + the global spawn sound), the three independent
+     * heads (the main head's skull at the attack target every 40-60
+     * ticks, the two side heads picking their own non-undead quarries
+     * within the 20x8x20 box), the armored half (arrows glance off
+     * below half health), the block-breaking sweep (every 20 ticks
+     * under fire, the 3x3x4 around the feet — bedrock/end portal/
+     * frame/command block/barrier excepted), and the flat 1.0 regen
+     * every 20 ticks. The 0.001 main-head blue skull and the normal/
+     * hard 16-volley blue-charged barrage break through everything
+     * (the 0.8 blast-resistance cap). Drops the nether star (the only
+     * source — Slice 57's item, the wither's own drop arm) + 50 XP.
+     * No natural spawn rows (the soul-sand build is the only source).
+     */
+    WITHER(64, 0.9, 3.5, 300.0f, 0.6, true, Traits.NONE,
+            List.of(), // the custom drop walk (WitherEntity.dropItems — the nether star)
+            "mob.wither.idle", "mob.wither.hurt", "mob.wither.death", 5.0f);
 
     /**
      * The AI trait set beyond the walk-chase-panic baseline.
@@ -405,7 +428,12 @@ public enum MobType {
 
     /** @return whether the kind is undead (burns in daylight, the historical rule). */
     public boolean undead() {
-        return this == ZOMBIE || this == SKELETON;
+        return this == ZOMBIE || this == SKELETON || this == WITHER;
+    }
+
+    /** @return the boss kinds (never despawn far from players — checkDespawn's reset). */
+    public boolean bossFamily() {
+        return this == WITHER;
     }
 
     /**
@@ -423,7 +451,8 @@ public enum MobType {
      * zombie pigman joins with its own slice).
      */
     public boolean fireImmune() {
-        return this == BLAZE || this == MAGMA_CUBE || this == GHAST || this == ZOMBIE_PIGMAN;
+        return this == BLAZE || this == MAGMA_CUBE || this == GHAST
+                || this == ZOMBIE_PIGMAN || this == WITHER;
     }
 
     /** @return whether the kind rides the slime's size/hop/split family. */

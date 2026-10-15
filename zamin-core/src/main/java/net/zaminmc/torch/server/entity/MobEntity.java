@@ -2489,6 +2489,303 @@ public final class MobEntity implements LivingEntity {
     }
 
     // --------------------------------------------------------------
+    // The wither boss (Slice 59a — WitherEntity 1:1, the body)
+    // --------------------------------------------------------------
+
+    /**
+     * The 220-tick blue window (onSummoned's setInvulnerabilityTimer):
+     * heals 10 every 10 ticks toward the 300, then the 7.0F birth
+     * explosion + the global 1013 spawn sound. The synced slot-20 Int.
+     */
+    private int witherInvulnTicks;
+    /** The three heads' quarry entity ids (the synced slots 17-19). */
+    private final int[] witherHeadTargets = new int[3];
+    /** The side heads' skull cooldowns (mobAiTick's skullCooldowns). */
+    private final int[] witherSkullCooldowns = new int[2];
+    /** The side heads' charged-skull volley counters (the 16-volley blue). */
+    private final int[] witherChargedCooldowns = new int[2];
+    /** The block-breaking sweep's cooldown (takeDamage's 20-tick arm). */
+    private int witherBlockBreakCooldown;
+    /** Set when the invuln window ends; the manager consumes (the explosion + 1013). */
+    private boolean pendingWitherBirth;
+    /** The skulls loosed this tick; the manager consumes (head index, target cell, charged). */
+    private int pendingWitherSkullHead = -1;
+    private double pendingWitherSkullX;
+    private double pendingWitherSkullY;
+    private double pendingWitherSkullZ;
+    private boolean pendingWitherSkullCharged;
+    /** Set when the head-target Ints or the invuln Int changed; the wire consumes. */
+    private boolean witherMetadataDirty;
+    /** Set when the sweep broke at least one block; the manager consumes (the 1012 sound). */
+    private boolean pendingWitherBlockBreakSound;
+    /** Set when a skull launch fired; the manager consumes (the 1014 sound). */
+    private boolean pendingWitherShootSound;
+
+    /**
+     * The boss's own mind (WitherEntity.mobTick + mobAiTick 1:1): the
+     * flight shaping (the 0.6 dampened rise toward a target above, the
+     * 0.5-capped horizontal drift toward a target beyond 3 blocks), the
+     * 220-tick blue window (the 10-per-10 heal, the birth explosion at
+     * the end), the three heads' independent quarries (the main head
+     * reads the attack target, the side heads scan the 20x8x20 box for
+     * the living non-undead), the skull volleys (every 10-20 ticks the
+     * acquisition, every 40-60 the shot, the 16-volley blue barrage on
+     * normal+), the 20-tick block-breaking sweep under fire, and the
+     * flat 1.0 regen every 20 ticks.
+     */
+    private void tickWitherMind(Position target, boolean canHunt) {
+        // mobTick lines 107-135: the flight shaping runs on the main head's
+        // quarry — the dampened rise toward a target above (or below +5 at
+        // half health), the horizontal drift toward a target beyond 3
+        // blocks, the yaw following the motion.
+        if (target != null) {
+            boolean half = health() <= type().maxHealth / 2.0f;
+            if (position.y() < target.y() || half && position.y() < target.y() + 5.0) {
+                if (velocityY < 0.0) {
+                    velocityY = 0.0;
+                }
+                velocityY += (0.5 - velocityY) * 0.6;
+            }
+            double dx = target.x() - position.x();
+            double dz = target.z() - position.z();
+            double squared = dx * dx + dz * dz;
+            if (squared > 9.0) {
+                double dist = Math.sqrt(squared);
+                velocityX += (dx / dist * 0.5 - velocityX) * 0.6;
+                velocityZ += (dz / dist * 0.5 - velocityZ) * 0.6;
+            }
+        }
+        velocityY *= 0.6; // mobTick line 108 — the hover dampening
+        if (velocityX * velocityX + velocityZ * velocityZ > 0.05) {
+            yaw = angleTo(velocityX, velocityZ);
+        }
+
+        // mobAiTick lines 214-225: the blue window — the 10-per-10 heal and
+        // the birth explosion + the global 1013 at the end.
+        if (witherInvulnTicks > 0) {
+            if (--witherInvulnTicks <= 0) {
+                pendingWitherBirth = true;
+            }
+            if (age % 10 == 0) {
+                heal(10.0f);
+            }
+            witherMetadataDirty = true; // the slot-20 Int counts down
+            return; // the blue window runs no heads, no sweep, no regen
+        }
+
+        // The main head reads the single target state (lines 279-283).
+        setWitherHeadTarget(0, target != null && canHunt
+                ? nearestVisibleEntityId(target) : 0);
+
+        // mobAiTick lines 228-277: the side heads' own quarries.
+        for (int i = 1; i < 3; i++) {
+            if (age >= witherSkullCooldowns[i - 1]) {
+                witherSkullCooldowns[i - 1] = age + 10 + random.nextInt(10);
+                // The 16-volley blue barrage (lines 231-240) — normal and
+                // hard only: a charged skull at a random cell in the
+                // plus/minus 10 / plus/minus 5 / plus/minus 10 box.
+                if (witherChargedCooldowns[i - 1]++ > 15
+                        && difficultyAtLeastNormal()) {
+                    double sx = position.x() + (random.nextDouble() * 20.0 - 10.0);
+                    double sy = position.y() + (random.nextDouble() * 10.0 - 5.0);
+                    double sz = position.z() + (random.nextDouble() * 20.0 - 10.0);
+                    looseWitherSkull(i + 1, sx, sy, sz, true);
+                    witherChargedCooldowns[i - 1] = 0;
+                }
+                int quarryId = witherHeadTargets[i];
+                if (quarryId > 0) {
+                    // The quarry's validity walk (lines 243-253): dead,
+                    // beyond 30 blocks, out of sight, or a creative player
+                    // clears the head; a live quarry eats the 40-60-tick
+                    // volley and resets the blue counter.
+                    Integer quarry = world.entityById(quarryId);
+                    if (quarry == null || witherQuarryInvalid(quarryId)) {
+                        setWitherHeadTarget(i, 0);
+                    } else {
+                        looseWitherSkullAtQuarry(i + 1, quarryId);
+                        witherSkullCooldowns[i - 1] = age + 40 + random.nextInt(20);
+                        witherChargedCooldowns[i - 1] = 0;
+                    }
+                } else {
+                    // The acquisition scan (lines 254-275): ten rolls at the
+                    // living non-undead in the grown 20x8x20 box.
+                    int found = world.nearestLivingNonUndeadId(
+                            position.x(), position.y(), position.z(), 20.0, 8.0);
+                    if (found > 0) {
+                        setWitherHeadTarget(i, found);
+                    }
+                }
+            }
+        }
+
+        // mobAiTick lines 285-312: the block-breaking sweep — the cooldown
+        // armed by every wound, the 3x3x4 around the feet when it expires.
+        if (witherBlockBreakCooldown > 0) {
+            witherBlockBreakCooldown--;
+            if (witherBlockBreakCooldown == 0) {
+                pendingWitherSweep = true; // the manager walks the world blocks
+            }
+        }
+
+        // mobAiTick lines 314-316: the flat 1.0 regen every 20 ticks.
+        if (age % 20 == 0) {
+            heal(1.0f);
+        }
+    }
+
+    /** Set by the mind when the sweep's cooldown expires; the manager walks it. */
+    private boolean pendingWitherSweep;
+
+    /**
+     * Looses one skull at a quarry's mid-height (shootSkullAt lines
+     * 379-381): the head 0 shot rolls the 1-in-1000 blue.
+     */
+    private void looseWitherSkullAtQuarry(int head, int quarryId) {
+        Position quarry = world.entityPositionById(quarryId);
+        if (quarry == null) {
+            return;
+        }
+        looseWitherSkull(head, quarry.x(), quarry.y() + eyeHeightOf(quarryId) * 0.5,
+                quarry.z(), head == 0 && random.nextFloat() < 0.001F);
+    }
+
+    /**
+     * Looses one skull from a head at a cell (shootSkullAt lines
+     * 383-400): the head's own mount point (the center head at +3.0, the
+     * side heads at the plus/minus 1.3 flank at +2.2), the delta aim,
+     * and the launch riding the manager's own sink.
+     */
+    private void looseWitherSkull(int head, double tx, double ty, double tz,
+                                  boolean charged) {
+        pendingWitherSkullHead = head;
+        pendingWitherSkullX = tx;
+        pendingWitherSkullY = ty;
+        pendingWitherSkullZ = tz;
+        pendingWitherSkullCharged = charged;
+        pendingWitherShootSound = true; // doEvent 1014 at the body
+    }
+
+    /**
+     * The quarry-validity walk (mobAiTick lines 243-253): dead, beyond
+     * 900 squared (30 blocks), out of sight, or a creative player.
+     */
+    private boolean witherQuarryInvalid(int quarryId) {
+        Position quarry = world.entityPositionById(quarryId);
+        if (quarry == null) {
+            return true;
+        }
+        double dx = quarry.x() - position.x();
+        double dy = quarry.y() - position.y();
+        double dz = quarry.z() - position.z();
+        return dx * dx + dy * dy + dz * dz > 900.0
+                || !world.hasLineOfSight(position.x(), position.y() + eyeHeight(),
+                        quarry.x(), quarry.y(), quarry.z());
+    }
+
+    /** The head-target write (setTrackedEntityId — the synced 17-19 Ints). */
+    private void setWitherHeadTarget(int head, int entityId) {
+        if (witherHeadTargets[head] != entityId) {
+            witherHeadTargets[head] = entityId;
+            witherMetadataDirty = true;
+        }
+    }
+
+    /** onSummoned (lines 328-331): the 220-tick window, the third-health start. */
+    public void witherSummoned() {
+        witherInvulnTicks = 220;
+        health = Math.max(health, type().maxHealth / 3.0f);
+        witherMetadataDirty = true;
+    }
+
+    /** takeDamage lines 436-442: every wound arms the sweep's 20-tick clock. */
+    public void armWitherSweep() {
+        if (witherBlockBreakCooldown <= 0) {
+            witherBlockBreakCooldown = 20;
+        }
+        for (int i = 0; i < witherChargedCooldowns.length; i++) {
+            witherChargedCooldowns[i] += 3; // the wounded barrage speed-up
+        }
+    }
+
+    /** @return the blue-window state (the reference's slot-20 Int > 0). */
+    public boolean witherInvulnerable() {
+        return witherInvulnTicks > 0;
+    }
+
+    /** @return the invuln countdown (the synced slot-20 Int). */
+    public int witherInvulnTicks() {
+        return witherInvulnTicks;
+    }
+
+    /** @return the head-target ids (the synced slots 17-19). */
+    public int[] witherHeadTargets() {
+        return witherHeadTargets.clone();
+    }
+
+    /** @return the birth event (the explosion + the global 1013); consumed once. */
+    public boolean consumeWitherBirth() {
+        boolean pending = pendingWitherBirth;
+        pendingWitherBirth = false;
+        return pending;
+    }
+
+    /** @return the loosed skull's head index, -1 when none this tick. */
+    public int consumeWitherSkullHead() {
+        int head = pendingWitherSkullHead;
+        pendingWitherSkullHead = -1;
+        return head;
+    }
+
+    public double pendingWitherSkullX() {
+        return pendingWitherSkullX;
+    }
+
+    public double pendingWitherSkullY() {
+        return pendingWitherSkullY;
+    }
+
+    public double pendingWitherSkullZ() {
+        return pendingWitherSkullZ;
+    }
+
+    public boolean pendingWitherSkullCharged() {
+        return pendingWitherSkullCharged;
+    }
+
+    /** @return the metadata-dirty flag (the wire's 17-20 Int resend). */
+    public boolean consumeWitherMetadataDirty() {
+        boolean dirty = witherMetadataDirty;
+        witherMetadataDirty = false;
+        return dirty;
+    }
+
+    /** @return the sweep-expired flag; the manager walks the 3x3x4 and consumes. */
+    public boolean consumeWitherSweep() {
+        boolean pending = pendingWitherSweep;
+        pendingWitherSweep = false;
+        return pending;
+    }
+
+    /** @return the 1014 launch-sound flag; consumed once. */
+    public boolean consumeWitherShootSound() {
+        boolean pending = pendingWitherShootSound;
+        pendingWitherShootSound = false;
+        return pending;
+    }
+
+    /** @return the 1012 break-sound flag; consumed once. */
+    public boolean consumeWitherBlockBreakSound() {
+        boolean pending = pendingWitherBlockBreakSound;
+        pendingWitherBlockBreakSound = false;
+        return pending;
+    }
+
+    /** The manager's sweep arm marks the sound when a block fell. */
+    public void markWitherBlockBreakSound() {
+        pendingWitherBlockBreakSound = true;
+    }
+
+    // --------------------------------------------------------------
     // The silverfish (Slice 18c — SilverfishEntity's egg-hosting life)
     // --------------------------------------------------------------
 

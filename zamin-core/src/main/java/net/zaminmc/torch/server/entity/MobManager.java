@@ -938,8 +938,11 @@ public final class MobManager {
             // The wither skeleton never joins: it only exists in the nether,
             // where the reference's own hasSkyAccess gate reads false (the
             // engine's dimension-blind sweep's own wither arm, Slice 18d).
+            // The wither boss never joins either (WitherEntity carries no
+            // burnInDaylight arm at all — the boss walks the noon sun whole).
             if (mob.type().hostile && !mob.type().traits.neutralByDay() && !night) {
-                if (mob.type().undead() && !mob.skeletonWither()) {
+                if (mob.type().undead() && !mob.skeletonWither()
+                        && !mob.type().bossFamily()) {
                     boolean wasBurning = mob.burning();
                     mob.ignite(MobEntity.FIRE_TICKS);
                     if (!wasBurning) {
