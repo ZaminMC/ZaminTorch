@@ -81,4 +81,12 @@ public interface ClientLink {
      */
     default void spawnLightning(int entityId, double x, double y, double z) {
     }
+
+    /**
+     * Sends the client's statistics (Client Statistics 0x37 — the stat-key
+     * string / varint value pairs, the dirty set the request consumes).
+     * Safe from any thread; default no-op for engine-internal links.
+     */
+    default void sendStatistics(java.util.Map<String, Integer> stats) {
+    }
 }

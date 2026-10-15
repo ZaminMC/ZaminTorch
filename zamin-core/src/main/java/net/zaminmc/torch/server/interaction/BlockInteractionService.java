@@ -515,6 +515,11 @@ public final class BlockInteractionService {
         GameMode breakMode = gameMode.apply(player);
         if (breakMode == GameMode.SURVIVAL || breakMode == GameMode.ADVENTURE) {
             player.addExhaustion(0.025f);
+            // The mined-block stat (finishMiningBlock's own incrementStat —
+            // creative never counts, the reference's stat gate).
+            player.stats().increment(
+                    net.zaminmc.torch.server.stat.EngineStats.mineBlockOf(
+                            current.identifier()), 1);
         }
         publishDrops(target, current, held,
                 heldStack.isEmpty() ? false
@@ -819,6 +824,11 @@ public final class BlockInteractionService {
         }
         commit(target, heldBlock);
         player.inventory().consumeHeld(1); // atomic with the commit above (§431)
+        // The used-item stat (ItemStack.useOn's own row over the placed
+        // block item — the reference counts the use on the placement).
+        player.stats().increment(
+                net.zaminmc.torch.server.stat.EngineStats.useItemOf(
+                        heldStack.type().identifier()), 1);
         inventorySync.accept(player);
     }
 

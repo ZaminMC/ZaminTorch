@@ -35,7 +35,9 @@ import java.util.logging.Logger;
  * (head, chest, legs, feet) — the count-prefixed list is self-describing, so
  * older readers never see entries they cannot place. ZPD v6 appends the
  * experience total and v7 the bed spawn (absent-marker first), so
- * experience total (varlong) after the game mode; v5 files load with 0 XP.</p>
+ * experience total (varlong) after the game mode; v5 files load with 0 XP;
+ * v9 appends the statistics map (varint count of key(string) + value(varint)
+ * pairs) after the ender tail; v8 files load with empty stats.</p>
  *
  * <p>The same durability rules as the world store: writes are atomic (temp file
  * then atomic move), corrupt files load as absent and are preserved beside the
@@ -47,7 +49,7 @@ public final class PlayerDataStore {
     private static final int MAGIC_0 = 'Z';
     private static final int MAGIC_1 = 'P';
     private static final int MAGIC_2 = 'D';
-    private static final int FORMAT_VERSION = 8;
+    private static final int FORMAT_VERSION = 9;
 
     private final Path directory;
 
@@ -106,6 +108,13 @@ public final class PlayerDataStore {
                     writeVarInt(out, stack.count());
                     writeVarInt(out, stack.damage());
                     writeOptionalString(out, stack.displayName());
+                }
+                // ZPD v9: the statistics tail (the stats slice — the
+                // counter map over the EngineStats vocabulary).
+                writeVarInt(out, snapshot.stats().size());
+                for (java.util.Map.Entry<String, Integer> stat : snapshot.stats().entrySet()) {
+                    writeString(out, stat.getKey());
+                    writeVarInt(out, stat.getValue());
                 }
             }
             Files.move(temp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
@@ -180,8 +189,18 @@ public final class PlayerDataStore {
                     }
                 }
             }
+            // Version 9 appends the statistics map; older saves load empty.
+            java.util.Map<String, Integer> stats = new java.util.LinkedHashMap<>();
+            if (version >= 9) {
+                int statCount = readVarInt(in);
+                for (int i = 0; i < statCount; i++) {
+                    String key = readString(in);
+                    stats.put(key, readVarInt(in));
+                }
+            }
             return Optional.of(new PlayerSnapshot(uuid, name, position, rotation, heldSlot,
-                    stacks, health, food, saturation, gamemodeId, totalXp, bedSpawn, enderSlots));
+                    stacks, health, food, saturation, gamemodeId, totalXp, bedSpawn, enderSlots,
+                    stats));
         } catch (IOException | RuntimeException corrupt) {
             // A malformed value (bad identifier, out-of-range slot) is corruption
             // just as much as a broken header: quarantine, then treat as absent.

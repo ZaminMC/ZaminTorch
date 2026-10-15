@@ -60,6 +60,9 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
     private volatile int selectedTrade = -1;
     /** The anti-cheat violation ledger (reach/nuker/fastplace counters + rings). */
     private final Violations violations = new Violations();
+    /** The session's statistics (the stats slice — the tick-lane counters). */
+    private final net.zaminmc.torch.server.stat.PlayerStats stats =
+            new net.zaminmc.torch.server.stat.PlayerStats();
 
     /** The kinds of container windows a session can hold open. */
     public enum ContainerKind {
@@ -716,6 +719,16 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
     }
 
     /** @return the anti-cheat violation ledger (tick-thread confined). */
+    /**
+     * The session's statistics (the stats slice): the counter map over the
+     * {@link net.zaminmc.torch.server.stat.EngineStats} vocabulary. The
+     * increments ride the tick lane (the owner's own context); snapshots
+     * for the wire answer and the persistence walk come off the same lane.
+     */
+    public net.zaminmc.torch.server.stat.PlayerStats stats() {
+        return stats;
+    }
+
     public Violations violations() {
         return violations;
     }

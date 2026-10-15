@@ -56,6 +56,8 @@ final class Protocol18 {
      * GameEvent 0x2B and OpenInventoryMenu 0x2D) — the lightning bolt's
      * own spawn. The type byte's single member: the thunderbolt. */
     static final int S2C_SPAWN_GLOBAL_ENTITY = 0x2C;
+    /** Client Statistics (0x37, StatsS2CPacket — the stats slice). */
+    static final int S2C_CLIENT_STATISTICS = 0x37;
     static final int GLOBAL_ENTITY_THUNDERBOLT = 1;
     static final int S2C_PLAYER_ABILITIES = 0x39;
     static final int S2C_SET_SLOT = 0x2F;

@@ -528,8 +528,13 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         int action = ByteBufOps.readVarInt(packet);
         if (action == 0) {
             engine.performRespawn(player);
+        } else if (action == 1) {
+            // The statistics request (ServerPlayNetworkHandler's
+            // REQUEST_STATS arm): the session's dirty counters travel — the
+            // client keeps its own running copy and merges the update.
+            engine.requestStatistics(player);
         }
-        // 1 request stats / 2 open inventory achievement: no semantics yet.
+        // 2 open inventory achievement: the achievement family's own slice.
     }
 
     /**
@@ -1721,6 +1726,25 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeInt((int) Math.floor(x * 32.0));
         out.writeInt((int) Math.floor(y * 32.0));
         out.writeInt((int) Math.floor(z * 32.0));
+        channel.writeAndFlush(out);
+    }
+
+    @Override
+    public void sendStatistics(java.util.Map<String, Integer> stats) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        // Client Statistics (0x37, StatsS2CPacket): the varint count then
+        // the (stat-key string, varint value) pairs — the dirty set the
+        // client merges into its running copy.
+        ByteBuf out = Unpooled.buffer(64);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_CLIENT_STATISTICS);
+        ByteBufOps.writeVarInt(out, stats.size());
+        for (java.util.Map.Entry<String, Integer> stat : stats.entrySet()) {
+            ByteBufOps.writeString(out, stat.getKey());
+            ByteBufOps.writeVarInt(out, stat.getValue());
+        }
         channel.writeAndFlush(out);
     }
 
