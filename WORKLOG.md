@@ -5978,3 +5978,44 @@ bone-meal spread ride the bone-meal item-model slice; the sheep's grazing
 rides the sheep's own refinement; the fern TYPE 2 and the whole
 DOUBLE_PLANT 175 family are Slice 45; the flora's XZ offset rendering
 rides the client's model band.
+
+## Slice 45 — the double-plant family: the six two-cell plants 175
+
+The reference port of `DoublePlantBlock.java` (the sunflower 0, the lilac 1
+— the reference's own "syringa" key, the double tall grass 2, the large
+fern 3, the rose 4, the peony 5 — `setStrength(0.0F).setSounds(GRASS_SOUNDS)`
+over Material.REPLACEABLE_PLANT).
+
+- The state model (`server/block/DoublePlantBlocks`): the twelve states —
+  the six lowers carry the VARIANT id whole in the metadata nibble, the six
+  uppers carry 8 | the default NORTH horizontal (the reference's own write,
+  meta 10 — placement never sets FACING); the upper's variant is virtual in
+  the reference, flattened into the identifier here.
+- The family item: `minecraft:double_plant` (Item.java's own BlockItem row
+  over 175) with the VARIANT damage domain — out-of-band damage clamps to
+  the sunflower exactly like the reference's Variant.byId.
+- The support rules (BlockUpdateSystem): the UPPER pops to air with no drop
+  when the cell below stops being the family's lower; the LOWER pops BOTH
+  cells with the lower's own drop walk (the flowers the family item with
+  the VARIANT damage, the double grass the 1/8 seed roll, the large fern
+  nothing) when the soil departs or the upper is gone.
+- The placement arm `useDoublePlantOnTick`: the soil AND the headroom
+  (DoublePlantBlock.canBePlaced's own pair gate), the pair commit with
+  onPlaced's upper write, the creative no-consume.
+- The mode-aware break hook (`BlockInteractionService.setBreakReport` —
+  fired from both the creative and survival paths): the UPPER's break takes
+  its lower — creative silently (removeBlock's own write), survival with
+  the lower's walk and the shears arm's tall-grass item over the grass and
+  fern variants.
+- The behavior rows (0.0 plants), the light rows (CUTOUT 0), the
+  walk-through solidity rows, and the wire rows (the twelve states over 175
+  with the VARIANT/upper nibbles, the family item at 175).
+- Tests: `DoublePlantBlocksTest` (2 — the twelve states' band + the drop
+  walks + the tables; the live pair survival over the hand-set soils) +
+  `BlockRegistryTest` 684. The full core suite green, the protocol module
+  green, `--max-workers=1`.
+
+Ledgered: the bonemeal arms (the flowers' grow-the-item dup and the tall
+grass's conversion to the double) ride the bone-meal item-model slice; the
+per-variant canBeReplaced refinement rides the metadata-variants slice; the
+pair's XZ offset rendering rides the client's model band.

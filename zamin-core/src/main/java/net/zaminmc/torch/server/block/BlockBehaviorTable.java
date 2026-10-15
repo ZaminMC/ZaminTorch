@@ -1290,6 +1290,29 @@ public final class BlockBehaviorTable {
                                     FlowerBlocks.typeOf(flower)))));
         }
 
+        // The double-plant family (Slice 45 — DoublePlantBlock's own row
+        // `setStrength(0.0F)` GRASS_SOUNDS over Material.REPLACEABLE_PLANT):
+        // the lower flowers drop the family item with the VARIANT damage
+        // (getDropItemMetadata lines 97-101), the double grass rolls the
+        // 1/8 seed walk, the large fern and every upper drop nothing.
+        for (net.zaminmc.torch.server.block.EngineBlockType plant
+                : DoublePlantBlocks.familyBlocks()) {
+            java.util.List<BlockBehavior.Drop> drops = java.util.List.of();
+            if (!DoublePlantBlocks.isUpper(plant.identifier())) {
+                int variant = DoublePlantBlocks.variantOf(plant.identifier());
+                if (variant == 0 || variant == 1 || variant == 4 || variant == 5) {
+                    drops = java.util.List.of(new BlockBehavior.Drop(
+                            DoublePlantBlocks.FAMILY_ITEM, 1, variant));
+                } else if (variant == 2) {
+                    // The grass's 1/8 seed roll (getDropItem lines 86-89).
+                    drops = java.util.List.of(new BlockBehavior.Drop(
+                            Identifier.parse("minecraft:wheat_seeds"), 1, 0.125));
+                }
+            }
+            behaviors.put(plant.identifier(),
+                    new BlockBehavior(0.0, true, false, "plant", 0, drops));
+        }
+
         // The ground-cover pair (Slice 42 — MyceliumBlock/LilyPadBlock's
         // own rows: the mycelium `setStrength(0.6F)` GRASS_SOUNDS dropping
         // its dirt — getDropItem's own consult; the lily pad

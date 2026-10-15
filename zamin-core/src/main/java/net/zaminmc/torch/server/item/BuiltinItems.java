@@ -844,6 +844,11 @@ public final class BuiltinItems {
     // group's whole family on its own id 37.
     public static final EngineItemType RED_FLOWER = new EngineItemType(
             Identifier.parse("minecraft:red_flower"), "Poppy", 64);
+    // The double-plant family item (Slice 45 — Item.java's own BlockItem
+    // row: the double plant 175) whose damage field carries the
+    // DoublePlantBlock.Variant id (0 sunflower .. 5 peony).
+    public static final EngineItemType DOUBLE_PLANT = new EngineItemType(
+            Identifier.parse("minecraft:double_plant"), "Sunflower", 64);
     public static final EngineItemType SANDSTONE = new EngineItemType(
             Identifier.parse("minecraft:sandstone"), "Sandstone", 64);
 
@@ -991,7 +996,7 @@ public final class BuiltinItems {
                 BUCKET, WATER_BUCKET, LAVA_BUCKET,
                 FLINT_AND_STEEL, GOLD_INGOT,
                 SUGAR_CANE, CACTUS, SUGAR, PAPER, BOOK,
-                TALL_GRASS, DEAD_BUSH, DANDELION, POPPY, RED_FLOWER, SANDSTONE,
+                TALL_GRASS, DEAD_BUSH, DANDELION, POPPY, RED_FLOWER, DOUBLE_PLANT, SANDSTONE,
                 STAINED_GLASS, STAINED_GLASS_PANE, CARPET,
                 HARDENED_CLAY, STAINED_HARDENED_CLAY,
                 BROWN_MUSHROOM, RED_MUSHROOM, GLOWSTONE_DUST, QUARTZ, NETHERRACK, SOUL_SAND,

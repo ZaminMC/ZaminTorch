@@ -919,6 +919,11 @@ public final class BuiltinBlocks {
         for (EngineBlockType flower : FlowerBlocks.familyBlocks()) {
             builder = builder.register(flower);
         }
+        // The double-plant family (Slice 45 — DoublePlantBlock 1:1): the
+        // six variants' lower + upper states.
+        for (EngineBlockType plant : DoublePlantBlocks.familyBlocks()) {
+            builder = builder.register(plant);
+        }
         return builder;
     }
 }

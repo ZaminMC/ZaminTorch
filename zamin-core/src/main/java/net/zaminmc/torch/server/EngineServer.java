@@ -1646,6 +1646,9 @@ public final class EngineServer implements Server, EngineBridge {
                                 .or(() -> net.zaminmc.torch.server.block.FlowerBlocks
                                         .placementBlockOf(type.identifier(), damage)
                                         .flatMap(id -> blockRegistry.lookup(id)))
+                                .or(() -> net.zaminmc.torch.server.block.DoublePlantBlocks
+                                        .placementBlockOf(type.identifier(), damage)
+                                        .flatMap(id -> blockRegistry.lookup(id)))
                                 .or(() -> blockRegistry.lookup(type.identifier())),
                         this::publishInventoryChanged);
                 blockInteraction.setEventBus(eventBus); // §27.7: the public break/place gates
@@ -1681,6 +1684,14 @@ public final class EngineServer implements Server, EngineBridge {
                     }
                     return true;
                 });
+                // The double-plant pair arm (Slice 45 —
+                // DoublePlantBlock.beforeMinedByPlayer lines 124-153): the
+                // UPPER's break takes its lower with it — creative silently
+                // (removeBlock's own write), survival with the lower's drop
+                // walk and the shears arm's tall-grass item over the grass
+                // and fern variants.
+                blockInteraction.setBreakReport((session, at, previous, creative) ->
+                        doublePlantBreakReport(session, at, previous, creative));
                 // The dig-start hook (Slice 27a — the reference's
                 // block.startMining arm, ServerPlayerInteractionManager
                 // line 133): the note block plays on the survival start.
@@ -6139,6 +6150,9 @@ public final class EngineServer implements Server, EngineBridge {
         if (useReedOnTick(session, clicked, face, creativeHeld)) {
             return; // the reed/cactus placement override ran
         }
+        if (useDoublePlantOnTick(session, clicked, face)) {
+            return; // the double-plant pair placement was consumed
+        }
         if (useFarmingOnTick(session, clicked, face)) {
             return; // the hoe/seed/bone-meal/cocoa use was consumed
         }
@@ -7557,6 +7571,97 @@ public final class EngineServer implements Server, EngineBridge {
      * meal jumps a growing crop forward 2-4 stages. Returns whether the use
      * was consumed. Tick-thread context.
      */
+    /**
+     * The double-plant pair placement (Slice 45 — DoublePlantBlock 1:1 over
+     * ItemColored's own BlockItem consult): the family item's damage names
+     * the variant; the placement requires the soil (PlantBlock's
+     * grass/dirt/farmland band) AND the headroom (DoublePlantBlock.canBePlaced
+     * lines 75-78 — {@code super.canBePlaced && world.isAir(pos.up())}), and
+     * commits BOTH cells in one placement (onPlaced lines 121-123: the
+     * upper written over the lower with flag 2's own band). Tick-thread
+     * context; returns whether the use was consumed.
+     */
+    private boolean useDoublePlantOnTick(PlayerSession session, BlockPosition clicked, int face) {
+        net.zaminmc.torch.item.ItemStack heldStack = session.inventory().held();
+        if (heldStack.isEmpty() || !heldStack.type().identifier()
+                .equals(net.zaminmc.torch.server.item.BuiltinItems.DOUBLE_PLANT.identifier())) {
+            return false; // not the family item: the generic path's own
+        }
+        // The variant from the damage domain (Variant.byId's clamp to the
+        // sunflower on out-of-band damage).
+        int variant = heldStack.damage() < 0 || heldStack.damage() > 5 ? 0 : heldStack.damage();
+        BlockPosition target = offsetByFace(clicked, face);
+        if (target == null || !world.getBlock(target).equals(world.airType())) {
+            return false; // no open cell: the generic path's no-op
+        }
+        // The two-cell gate: the soil carries AND the headroom is open.
+        if (!net.zaminmc.torch.server.block.DoublePlantBlocks.isSupported(world, target)
+                || !net.zaminmc.torch.server.block.DoublePlantBlocks.hasHeadroom(world, target)) {
+            return false; // the pair refuses: the generic path's no-op
+        }
+        // The pair commit: the lower, then the upper over it (onPlaced's
+        // own write — the upper rides the lower's placement, flag 2).
+        world.setBlock(target, blockRegistry.require(
+                net.zaminmc.torch.server.block.DoublePlantBlocks.lowerId(variant)));
+        world.setBlock(target.offset(0, 1, 0), blockRegistry.require(
+                net.zaminmc.torch.server.block.DoublePlantBlocks.upperId(variant)));
+        if (session.gamemode() != GameMode.CREATIVE) {
+            session.inventory().consumeHeld(1);
+        }
+        fxManager.sound(new Position(target.x() + 0.5, target.y() + 0.5, target.z() + 0.5),
+                "dig.grass", 0.6f, 1.0f);
+        publishInventoryChanged(session);
+        return true;
+    }
+
+    /**
+     * The double-plant pair break (Slice 45 —
+     * DoublePlantBlock.beforeMinedByPlayer lines 124-153): the UPPER's
+     * break takes its lower with it — creative silently
+     * (removeBlock's own write, lines 151-152), survival through the
+     * lower's drop walk (breakBlock(below, true), lines 137-147) with the
+     * shears arm's tall-grass item over the grass and fern variants (the
+     * onMinedByPlayer walk, lines 155-166). Tick-thread context.
+     */
+    private void doublePlantBreakReport(PlayerSession session, BlockPosition at,
+            BlockType previous, boolean creative) {
+        if (!net.zaminmc.torch.server.block.DoublePlantBlocks.isDoublePlant(previous)
+                || !net.zaminmc.torch.server.block.DoublePlantBlocks.isUpper(previous.identifier())) {
+            return; // not an upper cell: the neighbor bus owns the rest
+        }
+        net.zaminmc.torch.block.BlockPosition belowCell = at.offset(0, -1, 0);
+        BlockType below = world.getBlock(belowCell);
+        if (!net.zaminmc.torch.server.block.DoublePlantBlocks.isDoublePlant(below)
+                || net.zaminmc.torch.server.block.DoublePlantBlocks.isUpper(below.identifier())) {
+            return; // the lower is already gone (a pair in flight): no-op
+        }
+        world.setBlock(belowCell, world.airType());
+        if (creative) {
+            return; // the creative remove is silent
+        }
+        // The survival walk: the shears arm first (onMinedByPlayer lines
+        // 155-166 — the tall-grass item with the TYPE damage over the
+        // grass and fern variants), the lower's own walk otherwise.
+        net.zaminmc.torch.item.ItemStack held = session.inventory().held();
+        boolean shears = !held.isEmpty() && held.type().identifier()
+                .equals(Identifier.parse("minecraft:shears"));
+        int variant = net.zaminmc.torch.server.block.DoublePlantBlocks.variantOf(below.identifier());
+        net.zaminmc.torch.item.ItemStack drop;
+        if (shears && (variant == 2 || variant == 3)) {
+            drop = new net.zaminmc.torch.item.ItemStack(
+                    net.zaminmc.torch.server.item.BuiltinItems.TALL_GRASS, 1,
+                    variant == 2 ? 1 : 2);
+        } else {
+            drop = net.zaminmc.torch.server.block.DoublePlantBlocks.lowerDrop(
+                    below, gameplayRandom);
+        }
+        if (drop != null) {
+            itemEntities.spawnDropAtBlock(
+                    new Position(belowCell.x(), belowCell.y(), belowCell.z()),
+                    drop, net.zaminmc.torch.server.entity.ItemEntity.PICKUP_DELAY_DROP_TICKS);
+        }
+    }
+
     private boolean useFarmingOnTick(PlayerSession session, BlockPosition clicked, int face) {
         net.zaminmc.torch.item.ItemStack heldStack = session.inventory().held();
         if (heldStack.isEmpty()) {
