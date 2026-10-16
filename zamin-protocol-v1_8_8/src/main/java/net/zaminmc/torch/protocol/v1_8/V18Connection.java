@@ -3682,6 +3682,26 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     }
 
     /**
+     * The held equipment's re-send (Slice 78b — the /summon Equipment row
+     * and the restore's held stack land after the spawn packet went out):
+     * one Entity Equipment (0x04) over the wire slot 0. Chunk-gated like
+     * every mob packet. Any thread.
+     */
+    void sendMobHeldEquipment(MobEntity mob) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY
+                || chunkTracker == null) {
+            return;
+        }
+        var blockPos = mob.position().toBlockPosition();
+        if (!chunkTracker.hasChunk(blockPos.chunkPosition().packed())) {
+            return;
+        }
+        writeEquipment(channel, mob.entityId(), Protocol18.EQUIPMENT_SLOT_HELD,
+                mob.heldEquipment());
+    }
+
+    /**
      * Set Entity Metadata (0x1C) for the witch's index-21 byte: the
      * drinking flag flip (the client raises the drinking pose and the held
      * potion). Any thread.

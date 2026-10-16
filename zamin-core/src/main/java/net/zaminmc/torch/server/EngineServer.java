@@ -14015,6 +14015,17 @@ public final class EngineServer implements Server, EngineBridge {
             }
         }
 
+        /**
+         * The equipment changed after the spawn (Slice 78b — the /summon
+         * Equipment row + the restore's held stack).
+         */
+        @Override
+        public void onMobEquipmentChanged(MobEntity mob) {
+            for (MobManager.Listener listener : mobListeners) {
+                listener.onMobEquipmentChanged(mob);
+            }
+        }
+
         @Override
         public void onMobAttackedPlayer(MobEntity mob, PlayerSession target, float damage) {
             for (MobManager.Listener listener : mobListeners) {
@@ -17544,8 +17555,13 @@ public final class EngineServer implements Server, EngineBridge {
     /**
      * The summon NBT rows' landing (Slice 75 — the reference's
      * Entity.readNbt arms the engine's mob model carries): the name pair,
-     * the health, the pin family, the persistence mark. Every row lands
-     * on any kind — the reference's own readNbt shape.
+     * the health, the pin family, the persistence mark, plus Slice 78b's
+     * Equipment row (the held stack — the reference's slot 0; the armor
+     * slots parse but land nowhere, the engine's no-armor envelope) and
+     * the Attributes rows (generic.movementSpeed + generic.attackDamage —
+     * the engine's movement/melee consults; the other names parse but
+     * land nowhere, the engine's per-type attribute envelope). Every row
+     * lands on any kind — the reference's own readNbt shape.
      */
     private void applySummonNbt(MobEntity mob,
             java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> nbt) {
@@ -17573,6 +17589,97 @@ public final class EngineServer implements Server, EngineBridge {
         if (invulnerable != null && invulnerable.asDouble() != 0.0) {
             mob.setInvulnerable(true);
         }
+        // The Equipment row (MobEntity.readCustomNbt lines 301-307: the
+        // five-slot list — [0] the held item, [1..4] the armor family).
+        // The engine's model carries the held slot alone; the armor slots
+        // parse (the list walk reads them) but land nowhere.
+        net.zaminmc.torch.server.nbt.Snbt.Tag equipment = nbt.get("Equipment");
+        if (equipment != null && equipment.asList() != null
+                && !equipment.asList().isEmpty()) {
+            net.zaminmc.torch.item.ItemStack held =
+                    parseItemNbt(equipment.asList().get(0));
+            if (held != null) {
+                mob.setHeldEquipment(held);
+                mobManager.equipmentChanged(mob);
+            }
+        }
+        // The Attributes row (LivingEntity.readCustomNbt lines 419-421:
+        // the {Name, Base} list over the attribute registry — the engine
+        // honors generic.movementSpeed (the walk consult) and
+        // generic.attackDamage (the melee consult); the other names parse
+        // but land nowhere).
+        net.zaminmc.torch.server.nbt.Snbt.Tag attributes = nbt.get("Attributes");
+        if (attributes != null && attributes.asList() != null) {
+            for (net.zaminmc.torch.server.nbt.Snbt.Tag row : attributes.asList()) {
+                java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> compound =
+                        row.asCompound();
+                if (compound == null) {
+                    continue;
+                }
+                net.zaminmc.torch.server.nbt.Snbt.Tag rowName = compound.get("Name");
+                net.zaminmc.torch.server.nbt.Snbt.Tag rowBase = compound.get("Base");
+                if (rowName == null || rowName.asString() == null || rowBase == null) {
+                    continue;
+                }
+                double base = rowBase.asDouble();
+                if (base <= 0.0) {
+                    continue;
+                }
+                if ("generic.movementSpeed".equals(rowName.asString())) {
+                    mob.setMovementSpeedOverride(base);
+                } else if ("generic.attackDamage".equals(rowName.asString())) {
+                    mob.setAttackDamageOverride((float) base);
+                }
+            }
+        }
+    }
+
+    /**
+     * The ItemStack NBT rows (ItemStack.readNbt lines 210-237): the id
+     * (the engine's identifier form — {@code "minecraft:iron_sword"} or
+     * the bare name, the /give surface; the reference's numeric id form
+     * rides the version adapter's own table), the Count byte (default 1),
+     * the Damage short (default 0).
+     */
+    private net.zaminmc.torch.item.ItemStack parseItemNbt(
+            net.zaminmc.torch.server.nbt.Snbt.Tag compound) {
+        java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> rows =
+                compound.asCompound();
+        if (rows == null) {
+            return null;
+        }
+        net.zaminmc.torch.server.nbt.Snbt.Tag id = rows.get("id");
+        if (id == null) {
+            return null;
+        }
+        String rawId = id.asString();
+        net.zaminmc.torch.item.ItemType type = null;
+        if (rawId != null) {
+            String withNamespace = rawId.contains(":") ? rawId : "minecraft:" + rawId;
+            type = net.zaminmc.torch.server.item.BuiltinItems.lookup(
+                    net.zaminmc.torch.util.Identifier.parse(withNamespace)).orElse(null);
+        } else {
+            // The bare numeric form: the id row is a number, not a string
+            // — the engine has no core-side legacy id table; the row lands
+            // nowhere (the version adapter's own surface, ledgered).
+            return null;
+        }
+        if (type == null) {
+            return null;
+        }
+        int count = 1;
+        net.zaminmc.torch.server.nbt.Snbt.Tag countTag = rows.get("Count");
+        if (countTag != null && countTag.asDouble() >= 1.0) {
+            count = (int) Math.min(type.maxStackSize(), countTag.asDouble());
+        }
+        net.zaminmc.torch.item.ItemStack stack =
+                net.zaminmc.torch.item.ItemStack.of(type, count);
+        net.zaminmc.torch.server.nbt.Snbt.Tag damage = rows.get("Damage");
+        if (damage != null && damage.asDouble() > 0.0) {
+            stack = stack.withDamage((int) Math.min(
+                    net.zaminmc.torch.item.ItemStack.MAX_DAMAGE, damage.asDouble()));
+        }
+        return stack;
     }
 
     /**
