@@ -2489,6 +2489,22 @@ public final class EngineServer implements Server, EngineBridge {
                 ticker.attachDomainPool(domainWorkerPool);
                 crossOwnerRouter = new net.zaminmc.torch.server.concurrent.CrossOwnerRouter();
                 ticker.attachCrossOwnerRouter(crossOwnerRouter, simulationDomain);
+                // The discovery wave (Slice 79 — §28.5's DISCOVERED → LOADED
+                // stages): every jar in the data dir's plugins/ registers
+                // through the host over the live lanes. Per-jar isolated —
+                // a broken jar never kills the boot.
+                try {
+                    int discovered = net.zaminmc.torch.server.plugin.PluginDiscovery
+                            .discoverAndRegister(pluginHost,
+                                    java.nio.file.Path.of(config.dataDir(), "plugins"));
+                    if (discovered > 0) {
+                        LOGGER.info(() -> "Discovered " + discovered + " plugin(s) in "
+                                + java.nio.file.Path.of(config.dataDir(), "plugins"));
+                    }
+                } catch (RuntimeException discoveryFailure) {
+                    LOGGER.log(java.util.logging.Level.SEVERE,
+                            "The plugin discovery wave failed — the boot continues", discoveryFailure);
+                }
                 worldReady.countDown();
                 simulationDomain.enter();
                 netherDomain.enter(); // the second dimension rides the same loop

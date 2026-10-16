@@ -7678,3 +7678,48 @@ sections 27/28 audit's remaining rows.
 NEXT (in order): (1) the plugin discovery/classloading wave (§28.5's
 DISCOVERED → LOADED states); (2) the sections 27/28 audit's remaining
 rows; (3) the next vanilla wave per the ledger.
+
+## Slice 79 — the plugin discovery/classloading wave (§28.5's DISCOVERED → LOADED stages)
+
+- **The discovery (`server/plugin/PluginDiscovery`)**: every `*.jar` in
+  `<dataDir>/plugins/` carries a `torch-plugin.properties` at its root
+  (id/version/authors/entry) — the engine's own descriptor shape
+  (zero-dependency, the stdlib Properties parse; Bukkit's plugin.yml
+  shape rides the compatibility adapter, not the native surface). One
+  jar's walk: FOUND (the file on disk — the DISCOVERED stage) → the
+  descriptor read + validated → the classes load through the jar's OWN
+  URLClassLoader → the entry class (a public no-arg PluginBody)
+  instantiated (the LOADED stage) → the host's register drives the
+  enable walk.
+- **The per-jar isolation (§28.5's failure transitions)**: a broken
+  jar, a missing/broken descriptor, a duplicate id, or a throwing
+  constructor skips THAT jar with a loud log — the boot never dies. The
+  failed walk's own loader closes (no leak on the skip path).
+- **THE CLASSLOADER'S OWN LAW (§28.5)**: the loader's close attaches to
+  UNLOAD — the last lifecycle state, after the disable sweep — through
+  the new engine-side `PluginManager.registerWithLoader(descriptor,
+  body, closeVerb)` (the programmatic `register` delegates with null).
+  The unload walk runs the verbs (each isolated) before the state flip.
+  Enable/disable cycles keep the classes loaded; the reload reuses the
+  body; only the unload releases them. The best-effort law (leaked
+  references outlive the close) is documented, not claimed away.
+- **The boot wiring**: the scan runs on the boot thread after the lanes
+  are up (the compute/IO views exist before any enable callback), a
+  deterministic jar order (the name sort), and the SEVERE-but-continue
+  envelope around the whole wave.
+- **The test's own compile harness**: `PluginDiscoveryTest` builds a
+  REAL jar at test time — the JDK's own JavaCompiler compiles the demo
+  DemoPlugin source (the classpath built from PluginBody's code source
+  location), the JarOutputStream writes the descriptor + the class
+  files, and the enable's observable is a marker file the loaded class
+  itself writes (loader-transparent).
+- Tests: `PluginDiscoveryTest` (6 — the scan's load + the descriptor
+  rows, the broken/empty jar skip, the duplicate skip + the unload verb
+  at UNLOAD + the freed id, the live-engine boot scan with the loaded
+  class's own enable reading its descriptor through the handle, the
+  garbage-jar boot survival). The plugin family (PluginHostTest 9 + the
+  live-engine acceptance 2) + the full protocol suite green.
+
+NEXT (in order): (1) the sections 27/28 audit's remaining rows; (2)
+the next vanilla wave per the ledger; (3) the periodic full-suite
+verification (the milestone convention).
