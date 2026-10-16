@@ -7127,3 +7127,26 @@ concurrency contract vs the current code).
 - Summon-only in 1.8.8 (no natural spawn, no spawn egg); the engine's
   /summon surface rides its own slice (ledgered).
 - Tests: `GiantMobTest` (2). The mob batches green (8).
+
+## The sections 27/28 audit (the native API exposure + the plugin concurrency contract)
+
+- **The doc**: docs/SECTIONS_27_28_AUDIT.md — the evidence-based pass
+  over both sections against the Slice 67 tree.
+- **§27**: the capability ledger is current (the Slice 66/67 rows
+  landed with their slices; the hopper cart's cargo view closed this
+  pass); the handle pattern + the threading contracts + the §27.7 hooks
+  hold. The honest gaps: the variant carts' internal state (the furnace
+  fuel, the TNT fuse, the spawner type/delay, the command string) has
+  no read surface yet (the kind identity + the cargo are the current
+  surface — the VariantState read view is the next wave); the fishing
+  loot override; the packet interception.
+- **§28**: the ENGINE-side contract is implemented + adversarially
+  tested — ten of the twelve §28.8 cases carry direct tests (the
+  reciprocal/self-wait/noisy-owner/I-O-pressure/shutdown five in
+  AdversarialContractTest; the wrong-owner/stale/migration trio in the
+  ownership suites; the reentrancy/exception pair in EventBusUnitTest;
+  the cross-owner transactions in RegionBoundaryTest). The PLUGIN-side
+  halves (the lifecycle state machine, the resource scopes, the
+  quotas) are the honest blocker — the engine has no plugin host yet
+  (the §27.1 order: the native API matures first); cases 6 + the
+  plugin-half of 9 are BLOCKED on it.
