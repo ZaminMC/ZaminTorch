@@ -6890,3 +6890,37 @@ NEXT (in order): (1) the minecart variants (TNT 45/hopper 46/furnace 44/
 spawner 47/command-block 40); (2) the fishing bobber (90) + the giant
 (53); (3) the sections 27/28 audit (the native API exposure + the plugin
 concurrency contract vs the current code).
+
+## Slice 66 part one — the minecart variants (the TNT cart + the furnace cart)
+
+The variant family opens, 1:1.
+
+- **The Kind family**: the API VehicleKind rows + the engine Kind for the
+  five variants (the wire rides the minecart type index the Spawn
+  Object's objectData already carries: 2 furnace, 3 TNT, 4 spawner,
+  5 hopper, 6 command block).
+- **The TNT cart** (TntMinecartEntity): the 80-tick fuse (the powered
+  activator rail primes through the manager's tick consult; a re-prime
+  never restarts the clock), the burn-down + the detonation at zero
+  (4.0 + rand * 1.5 * min(sqrt(speed^2), 5.0) through the engine's
+  detonateAt with the 8*power+1 wound + mobGriefing), and the impact arm
+  (the fast halt detonates — the engine's track-end halt is the
+  collidingHorizontally surface).
+- **The furnace cart** (FurnaceMinecartEntity): the 3600-tick coal feed
+  + the push aim away from the player, the burn-down + the empty-tank
+  zeroing, the push walk (normalize + the anti-reverse gate + the 0.2
+  cap), and the fueled acceleration.
+- The spawn verbs (the §27.7 gate on each) + the restore arms + the
+  place arms + the items (343/407) + the LegacyBlockIds rows.
+- Tests: `MinecartVariantsTest` (3). The full vehicle batch green. The
+  core-suite run's two failures (PlayerApi/Thorns) were the mid-edit
+  compile race — both isolation-green on the completed tree (the
+  documented flake class).
+
+NEXT (Slice 66 part two): the TNT death arms + the arrow priming + the
+fuse's event-10 wire; the furnace interact + the lit byte + the
+cart-vs-cart push; the hopper cart (the 5-slot window + the pickup +
+the drain + the activator disable); the spawner cart; the command-block
+cart; the remaining items (408/422) + the persistence payload for the
+variant states. Then: the fishing bobber (90) + the giant (53); the
+sections 27/28 audit.
