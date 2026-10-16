@@ -1710,6 +1710,13 @@ public final class EngineServer implements Server, EngineBridge {
                 VehicleManager vehicles = new VehicleManager(
                         new VehicleWorldQuery(),
                         vehicle -> {
+                            // The detonation's own death (Slice 66 — explode
+                            // line 129's remove()): the annihilated body
+                            // drops nothing at all.
+                            if (vehicle instanceof net.zaminmc.torch.server.entity.vehicle.TntMinecartEntity tnt
+                                    && tnt.annihilated()) {
+                                return;
+                            }
                             // doEntityDrops (Slice 24a — MinecartEntity's
                             // own dropItems gate): the cart item and the
                             // chest extras both skip when the rule is off;
@@ -1742,6 +1749,16 @@ public final class EngineServer implements Server, EngineBridge {
                                         new Position(vehicle.position().x(), vehicle.position().y() + 0.3,
                                                 vehicle.position().z()),
                                         ItemStack.of(BuiltinItems.CHEST, 1),
+                                        ItemEntity.PICKUP_DELAY_DROP_TICKS);
+                            }
+                            // The TNT variant's own extra (Slice 66 —
+                            // TntMinecartEntity.dropItems lines 101-105: the
+                            // TNT block item rides the plain-break chain).
+                            if (vehicle instanceof net.zaminmc.torch.server.entity.vehicle.TntMinecartEntity) {
+                                itemEntities.spawnDropAtBlock(
+                                        new Position(vehicle.position().x(), vehicle.position().y() + 0.3,
+                                                vehicle.position().z()),
+                                        ItemStack.of(BuiltinItems.TNT, 1),
                                         ItemEntity.PICKUP_DELAY_DROP_TICKS);
                             }
                         },
@@ -9826,6 +9843,23 @@ public final class EngineServer implements Server, EngineBridge {
                     openChestMinecartInventoryOnTick(player, cart);
                     return;
                 }
+                // The furnace minecart's interact (Slice 66 —
+                // FurnaceMinecartEntity.interact lines 106-117): a coal in
+                // hand feeds 3600 ticks (the survival consume, the creative
+                // spare), and the push vector always re-aims away from the
+                // player — the cart never takes a seat.
+                if (vehicle instanceof net.zaminmc.torch.server.entity.vehicle.FurnaceMinecartEntity furnaceCart) {
+                    boolean fed = false;
+                    if (player.inventory().held().type().equals(BuiltinItems.COAL)) {
+                        fed = true;
+                        if (player.gamemode() != GameMode.CREATIVE) {
+                            player.inventory().consumeHeld(1);
+                            publishInventoryChanged(player);
+                        }
+                    }
+                    furnaceCart.feedAndAim(player.position().x(), player.position().z(), fed);
+                    return;
+                }
                 vehicleManager.mount(vehicle, player.engineEntityId());
                 return;
             }
@@ -11402,6 +11436,22 @@ public final class EngineServer implements Server, EngineBridge {
                 net.zaminmc.torch.server.entity.vehicle.VehicleEntity cart,
                 int windowId) {
         }
+
+        /**
+         * The TNT cart's fuse armed (Slice 66 — the prime's own wire: the
+         * Entity Status 10 + the game.tnt.primed sound).
+         */
+        default void onVehiclePrimed(
+                net.zaminmc.torch.server.entity.vehicle.TntMinecartEntity cart) {
+        }
+
+        /**
+         * A vehicle's tracked state flipped (Slice 66 — the furnace cart's
+         * lit byte at the synced slot 16).
+         */
+        default void onVehicleStateChanged(
+                net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle) {
+        }
     }
 
     private final java.util.List<VehicleListener> vehicleListeners =
@@ -11477,6 +11527,27 @@ public final class EngineServer implements Server, EngineBridge {
         public void onVehicleBroken(net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle) {
             for (VehicleListener listener : vehicleListeners) {
                 listener.onVehicleBroken(vehicle);
+            }
+        }
+
+        /** The TNT cart's prime (Slice 66 — the sound + the status 10). */
+        @Override
+        public void onVehiclePrimed(
+                net.zaminmc.torch.server.entity.vehicle.TntMinecartEntity cart) {
+            // prime lines 148-152: the game.tnt.primed sound at volume 1.0
+            // (the world's every listener).
+            fxManager.sound(cart.position(), "game.tnt.primed", 1.0f, 1.0f);
+            for (VehicleListener listener : vehicleListeners) {
+                listener.onVehiclePrimed(cart);
+            }
+        }
+
+        /** The tracked-state flip (Slice 66 — the furnace's lit byte). */
+        @Override
+        public void onVehicleStateChanged(
+                net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle) {
+            for (VehicleListener listener : vehicleListeners) {
+                listener.onVehicleStateChanged(vehicle);
             }
         }
     }

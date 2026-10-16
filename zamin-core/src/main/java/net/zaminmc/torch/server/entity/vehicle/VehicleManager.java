@@ -36,6 +36,22 @@ public final class VehicleManager {
 
         /** A vehicle broke: Destroy + the item drop at its position. */
         void onVehicleBroken(VehicleEntity vehicle);
+
+        /**
+         * The TNT cart's fuse armed (Slice 66 — prime lines 141-153:
+         * the doEntityEvent 10 the client's fuse visual rides + the
+         * game.tnt.primed sound).
+         */
+        default void onVehiclePrimed(TntMinecartEntity cart) {
+        }
+
+        /**
+         * A vehicle's tracked state flipped (Slice 66 — the furnace cart's
+         * lit byte at the synced slot 16: the client swaps the furnace
+         * texture). Default no-op so older listeners stay source-compatible.
+         */
+        default void onVehicleStateChanged(VehicleEntity vehicle) {
+        }
     }
 
     /** The break drop sink (the engine's item-entity spawner). */
@@ -299,6 +315,10 @@ public final class VehicleManager {
                 continue;
             }
             long before = fixedPoint(vehicle.position());
+            // The state flips (Slice 66): the TNT cart's prime and the
+            // furnace cart's lit byte — the wire's own tracked data.
+            boolean wasPrimed = vehicle instanceof TntMinecartEntity tnt && tnt.primed();
+            boolean wasLit = vehicle instanceof FurnaceMinecartEntity furnace && furnace.lit();
             // The TNT cart's activator-rail consult (Slice 66 — the
             // reference's moveAlongTrack fires onActivatorRail per rail
             // cell): the powered cell primes the fuse.
@@ -309,6 +329,16 @@ public final class VehicleManager {
                         vehicle.position().z()) > 0);
             }
             vehicle.tick(world);
+            if (!wasPrimed && vehicle instanceof TntMinecartEntity tnt && tnt.primed()) {
+                for (Listener listener : listeners) {
+                    listener.onVehiclePrimed(tnt);
+                }
+            }
+            if (wasLit != (vehicle instanceof FurnaceMinecartEntity furnace && furnace.lit())) {
+                for (Listener listener : listeners) {
+                    listener.onVehicleStateChanged(vehicle);
+                }
+            }
             if (fixedPoint(vehicle.position()) != before) {
                 for (Listener listener : listeners) {
                     listener.onVehicleMoved(vehicle);
