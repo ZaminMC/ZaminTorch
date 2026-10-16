@@ -75,6 +75,16 @@ public abstract class VehicleEntity implements net.zaminmc.torch.entity.Vehicle 
         }
 
         /**
+         * @return whether the block containing this point is LAVA (Slice
+         * 77 — the reference's isInLava over the vehicle family: the
+         * 4.0-per-window wound + the fire). Default false so stub queries
+         * keep their semantics.
+         */
+        default boolean inLava(double x, double y, double z) {
+            return false;
+        }
+
+        /**
          * @return the flat rail orientation of the point's cell:
          * 0 = north-south (Z travel), 1 = east-west (X travel), -1 = not rail.
          */

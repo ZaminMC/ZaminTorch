@@ -12418,6 +12418,17 @@ public final class EngineServer implements Server, EngineBridge {
         }
 
         @Override
+        public boolean inLava(double x, double y, double z) {
+            if (y < net.zaminmc.torch.block.BlockPosition.MIN_Y
+                    || y > net.zaminmc.torch.block.BlockPosition.MAX_Y) {
+                return false;
+            }
+            return net.zaminmc.torch.server.block.FluidBlocks.kindOf(
+                    world.getBlock(blockAt(x, y, z)).identifier())
+                    == net.zaminmc.torch.server.block.FluidBlocks.Kind.LAVA;
+        }
+
+        @Override
         public int railAxisAt(double x, double y, double z) {
             if (y < net.zaminmc.torch.block.BlockPosition.MIN_Y
                     || y > net.zaminmc.torch.block.BlockPosition.MAX_Y) {
@@ -12526,6 +12537,23 @@ public final class EngineServer implements Server, EngineBridge {
         @Override
         public MobEntity mobAt(Position point) {
             return mobManager.mobAt(point);
+        }
+
+        @Override
+        public net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicleAt(Position point) {
+            // Slice 77 — the reference's entity scan over the minecart
+            // family: the box containment (the cart hull's own shape).
+            net.zaminmc.torch.server.entity.vehicle.VehicleManager manager =
+                    vehicleManager;
+            if (manager == null) {
+                return null;
+            }
+            for (net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle : manager.all()) {
+                if (vehicle.contains(point.x(), point.y(), point.z())) {
+                    return vehicle;
+                }
+            }
+            return null;
         }
 
         @Override
@@ -13633,6 +13661,35 @@ public final class EngineServer implements Server, EngineBridge {
             mobManager.spawnAt(MobType.CHICKEN, position);
             fxManager.sound(position, "mob.chicken.say", 0.5f, 1.0f);
             LOGGER.fine(() -> "An egg hatched a chick at " + position);
+        }
+
+        @Override
+        public boolean vehicleHit(ProjectileEntity projectile,
+                net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle,
+                float damage, double kbYaw) {
+            // Slice 77 — the reference's entity scan over the minecart
+            // family: the projectile's damage lands through the vehicle
+            // hurt path (the source the generic hit family — MELEE in the
+            // engine's three-kind surface) and the knockback impulse rides
+            // the travel direction (the reference's hurt-marker velocity).
+            net.zaminmc.torch.server.entity.vehicle.VehicleManager manager =
+                    vehicleManager;
+            if (manager == null) {
+                return false;
+            }
+            double vx = projectile.velocityX();
+            double vz = projectile.velocityZ();
+            double length = Math.sqrt(vx * vx + vz * vz);
+            boolean landed = !vehicle.dead();
+            manager.hurt(vehicle, damage,
+                    net.zaminmc.torch.server.entity.vehicle.VehicleEntity.DamageSource.MELEE);
+            if (length > 0.001 && !vehicle.dead()) {
+                vehicle.setVelocity(
+                        vehicle.velocityX() + vx / length * 0.3,
+                        vehicle.velocityY(),
+                        vehicle.velocityZ() + vz / length * 0.3);
+            }
+            return landed;
         }
     }
 

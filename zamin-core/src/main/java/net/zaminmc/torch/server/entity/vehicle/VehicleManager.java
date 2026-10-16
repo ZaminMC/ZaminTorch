@@ -525,6 +525,17 @@ public final class VehicleManager {
                 continue;
             }
             long before = fixedPoint(vehicle.position());
+            // The lava walk (Slice 77 — the reference's isInLava arm over
+            // Entity.tick: takeLavaDamage's flat 4.0 with the FIRE source —
+            // the wound cadence rides the body's own i-frame rhythm, and a
+            // dying TNT cart reads the FIRE source through the death law
+            // (the fire-death detonation). The lava also halves the fall
+            // (the reference's fallDistance *= 0.5 rides the physics walk).
+            if (vehicle.health() > 0.0f && world.inLava(
+                    vehicle.position().x(), vehicle.position().y() + 0.4,
+                    vehicle.position().z())) {
+                hurt(vehicle, 4.0f, VehicleEntity.DamageSource.FIRE);
+            }
             // The state flips (Slice 66): the TNT cart's prime and the
             // furnace cart's lit byte — the wire's own tracked data.
             boolean wasPrimed = vehicle instanceof TntMinecartEntity tnt && tnt.primed();

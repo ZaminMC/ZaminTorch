@@ -105,7 +105,12 @@ public class TntMinecartEntity extends MinecartEntity
 
     /** The fuse's detonation roll (explode lines 121-130, 1:1). */
     private void explode() {
-        double d0 = Math.sqrt(velocityX() * velocityX() + velocityZ() * velocityZ());
+        explodeWith(velocityX() * velocityX() + velocityZ() * velocityZ());
+    }
+
+    /** The detonation roll over the GIVEN speed squared (explode's own shape). */
+    private void explodeWith(double speedSquared) {
+        double d0 = Math.sqrt(speedSquared);
         if (d0 > BLAST_SPEED_CLAMP) {
             d0 = BLAST_SPEED_CLAMP;
         }
@@ -118,6 +123,18 @@ public class TntMinecartEntity extends MinecartEntity
         explode();
         this.annihilated = true;
         this.hurt(health()); // the break walk drops nothing (the cart is gone)
+    }
+
+    /**
+     * The BURNING ARROW's detonation (Slice 77 — takeDamage lines 63-73:
+     * {@code explode(entity.velocityX^2 + entity.velocityZ^2)} over the
+     * ARROW's own speed, the arm running BEFORE the damage walk): the cart
+     * annihilates on the spot — no drops, no damage walk.
+     */
+    public void detonateByArrow(double arrowSpeedSquared) {
+        explodeWith(arrowSpeedSquared);
+        this.annihilated = true;
+        this.hurt(health()); // the body leaves with no drops
     }
 
     /**

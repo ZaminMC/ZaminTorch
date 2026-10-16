@@ -7516,3 +7516,37 @@ fire/lava walk, the projectile-hits-vehicle family, the burning-arrow
 detonation, the mob equipment/attribute NBT rows); (2) the plugin
 discovery/classloading wave when the native API surface settles; (3) the
 periodic full-suite verification (the milestone convention).
+
+## Slice 77 — the vehicle damage family's world arms
+
+- **The projectile's entity scan over the minecarts**: `HitResolver.vehicleAt`
+  (the box containment over the cart hull) + the hit walk's vehicle arm —
+  an arrow flying through a cart's hull now LANDS there (the pre-77 engine:
+  arrows passed straight through carts). The damage rides the speed-scaled
+  roll through `CombatSink.vehicleHit` (the engine: vehicleManager.hurt with
+  MELEE + the travel-direction knockback impulse).
+- **The burning-arrow detonation** (TntMinecartEntity.takeDamage lines
+  63-73): a BURNING arrow hit detonates the TNT cart ON THE SPOT — the arm
+  runs before the damage walk, the ARROW's own speed-squared feeding the
+  power roll (the explodeWith refactor shares the fuse arm's roll). The
+  cart annihilates with no drops.
+- **The lava walk** (Entity.tick's isInLava arm): the WorldQuery gains the
+  inLava consult (the FluidBlocks LAVA kind at the cart's mid-band); the
+  tick lands the flat 4.0 FIRE-source wound per i-frame window. A
+  lava-killed TNT cart reads the FIRE source through Slice 74's death law:
+  the fire death DROPS the TNT block AND detonates (the reference's own
+  gates — only the EXPLOSIVE death withholds the drop) — the live test's
+  chain stone is the detonation's observable.
+- **Two test-expectation corrections the failures taught**: the arrow's
+  speed-3 damage roll is 6.0 (the engine's established ceil(speed*2)
+  formula); the fire-death TNT cart drops its block (my first draft
+  asserted the explosive skip on the fire arm — the reference's gate is
+  !isExplosive() ALONE). The dry control also had to move beyond the lava's
+  spread radius (the slow batch run let the fluid reach it).
+- Tests: `VehicleWorldDamageTest` (3). The vehicle+projectile batches 75
+  green; the protocol suite green (1m49s).
+
+NEXT (in order): (1) the next vanilla wave per the ledger (the vehicle
+on-fire flags byte + the fire-BLOCK walk, the mob equipment/attribute NBT
+rows); (2) the periodic full-suite verification (the milestone
+convention); (3) the plugin discovery/classloading wave.
