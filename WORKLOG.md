@@ -7242,3 +7242,37 @@ the lifecycle state machine, the resource scopes, the quotas); (3) the
 ledgered vanilla gaps (the MC|AdvCdm block arm, the
 areCommandBlocksEnabled config gate, the vehicle damage-source surface,
 the /summon NBT arm).
+
+## Slice 70 — the packet construction surface (the protocol row's last leg)
+
+- **The audit correction first**: the §27 audit's "protocol stays
+  internal" note was STALE — the interception surface has been public
+  since Slices 15c (outbound observe/cancel/re-payload) + 23g (the
+  inbound observe-or-drop mirror) at `Server.protocolHooks()`, and the
+  capability ledger's protocol row was current. The genuinely missing
+  leg was §27.3's packet CONSTRUCTION — no way for a plugin to compose
+  and send a frame.
+- **The verb** (`ProtocolHooks.send(Player, packetId, payload)`): one
+  composed PLAY-state frame — the active version's varint id + the
+  payload bytes — written through the SAME Netty pipeline as engine
+  traffic, so the outbound interception walk sees composed frames like
+  any engine frame (observe/cancel/re-payload apply to them too).
+- **The wiring** (the boundary held): the engine's ClientLink contract
+  ("the engine never sees packets") stays intact — the registry carries
+  an adapter-installed `FrameSender` (set at V18ProtocolServer
+  construction), the adapter resolves the named player's live
+  PLAY-state connection and `V18Connection.sendComposedFrame` builds
+  the frame (varint id + payload through `channel.writeAndFlush` — the
+  hook handler then the length encoder, the pipeline's own order).
+- **The contract**: any thread, non-blocking; the payload copied; the
+  sender owns the frame's validity (the engine does not validate
+  plugin-composed frames — the raw surface's law, documented); a
+  non-PLAY recipient or the headless engine drops the frame (the
+  documented result, fine-logged); negative ids and null args refused
+  loudly.
+- Tests: `PacketSendApiTest` (3, over the real wire: the composed chat
+  frame reaches the client, the interception walk cancels it before the
+  wire, the contract refusals) + the existing hook suites green. The
+  ledger row updated; the audit's §27 gap list now carries all three
+  gaps closed (the variant read view, the fishing hooks, the
+  construction leg).

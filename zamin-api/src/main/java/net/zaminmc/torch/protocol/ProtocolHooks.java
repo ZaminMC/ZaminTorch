@@ -60,4 +60,33 @@ public interface ProtocolHooks {
      * point-in-time snapshot; safe to consume anywhere.
      */
     List<InboundPacketListener> inboundListeners();
+
+    /**
+     * Sends one composed PLAY-state frame to a player (§27.3's packet
+     * construction): the active protocol version's varint packet id plus
+     * the payload bytes, framed and flushed through the same pipeline as
+     * the engine's own traffic.
+     *
+     * <p><b>Interception:</b> composed frames walk the same
+     * {@link PacketListener} walk as engine frames — a listener may
+     * observe, cancel, or re-payload them like any other outbound frame.
+     * Inbound listeners never see them (nothing arrives from the
+     * client).</p>
+     *
+     * <p><b>Correctness:</b> the sender owns the frame's validity — the
+     * id must exist in the active version's PLAY table and the payload
+     * must match the client's expectation for it (a malformed frame risks
+     * the client's own disconnect — the raw surface's law; the engine
+     * does not validate plugin-composed frames).</p>
+     *
+     * <p><b>Threading:</b> safe from any thread (the wire write itself is
+     * non-blocking); never blocks. A recipient whose connection is not
+     * in the PLAY state (or has no wire — the headless engine) drops the
+     * frame silently: the operation's documented result, not an error.</p>
+     *
+     * @param recipient the player to send to
+     * @param packetId the id in the ACTIVE version's PLAY-state table
+     * @param payload the frame's bytes after the id (copied; never null)
+     */
+    void send(net.zaminmc.torch.entity.Player recipient, int packetId, byte[] payload);
 }

@@ -29,6 +29,24 @@ public final class PacketHookRegistry implements net.zaminmc.torch.protocol.Prot
     private final CopyOnWriteArrayList<net.zaminmc.torch.protocol.InboundPacketListener>
             inboundListeners = new CopyOnWriteArrayList<>();
 
+    /**
+     * The adapter-installed frame sender (§27.3's packet construction):
+     * resolves a player's PLAY-state connection and writes the composed
+     * frame through the shared pipeline (the interception walk included).
+     * Installed by the protocol adapter at bind; null in the headless
+     * engine (the send's documented drop).
+     */
+    public interface FrameSender {
+        /**
+         * @param playerName the recipient's name (the engine's identity)
+         * @return whether a live PLAY-state connection carried the frame
+         */
+        boolean send(String playerName, int packetId, byte[] payload);
+    }
+
+    /** The adapter's composed-frame sender (volatile — bind-time install). */
+    private volatile FrameSender frameSender;
+
     @Override
     public boolean addListener(PacketListener listener) {
         Objects.requireNonNull(listener, "listener");
@@ -63,6 +81,38 @@ public final class PacketHookRegistry implements net.zaminmc.torch.protocol.Prot
     @Override
     public List<net.zaminmc.torch.protocol.InboundPacketListener> inboundListeners() {
         return List.copyOf(inboundListeners);
+    }
+
+    /**
+     * The adapter's composed-frame sender — installed at bind, before any
+     * session can compose a frame; replacing an earlier sender re-binds
+     * (the rebind case: a test harness swapping adapters).
+     */
+    public void setFrameSender(FrameSender sender) {
+        this.frameSender = sender;
+    }
+
+    /**
+     * The composed send (§27.3's packet construction): resolves the
+     * recipient through the adapter's sender; the payload is copied (the
+     * caller's array is never retained). A headless engine (no adapter)
+     * drops the frame — the documented result, logged at fine for
+     * diagnosability.
+     */
+    @Override
+    public void send(net.zaminmc.torch.entity.Player recipient, int packetId, byte[] payload) {
+        Objects.requireNonNull(recipient, "recipient");
+        Objects.requireNonNull(payload, "payload");
+        if (packetId < 0) {
+            throw new IllegalArgumentException("packetId must be >= 0: " + packetId);
+        }
+        FrameSender sender = frameSender;
+        if (sender == null) {
+            LOGGER.fine(() -> "Composed frame to " + recipient.name()
+                    + " dropped (no protocol adapter installed)");
+            return;
+        }
+        sender.send(recipient.name(), packetId, payload.clone());
     }
 
     /**

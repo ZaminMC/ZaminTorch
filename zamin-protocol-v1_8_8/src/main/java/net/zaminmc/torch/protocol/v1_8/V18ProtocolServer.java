@@ -54,6 +54,33 @@ public final class V18ProtocolServer implements ProtocolAdapter {
     V18ProtocolServer(EngineServer engine, long keepAliveIntervalMs) {
         this.engine = engine;
         this.keepAliveIntervalMs = keepAliveIntervalMs;
+        // §27.3's packet construction: the composed-frame sender installed
+        // at construction — the registry's send() resolves a player's
+        // PLAY-state connection through here and writes through the shared
+        // pipeline (the interception walk sees composed frames like any
+        // engine frame).
+        ((net.zaminmc.torch.server.net.PacketHookRegistry) engine.protocolHooks())
+                .setFrameSender(this::sendComposedFrameTo);
+    }
+
+    /**
+     * One composed frame from the §27.3 construction surface: finds the
+     * named player's live PLAY-state connection and writes the frame
+     * through it. Any thread (the channel write is non-blocking).
+     *
+     * @return whether a live connection carried the frame
+     */
+    private boolean sendComposedFrameTo(String playerName, int packetId, byte[] payload) {
+        for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+            if (connection.inPlayState()) {
+                net.zaminmc.torch.server.player.PlayerSession session =
+                        connection.currentSession();
+                if (session != null && session.name().equals(playerName)) {
+                    return connection.sendComposedFrame(packetId, payload);
+                }
+            }
+        }
+        return false;
     }
 
     /** The engine this adapter bridges into (connection callbacks use it). */

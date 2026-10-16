@@ -40,13 +40,20 @@ the test that proves it, or the honest blocker.
   `VariantStateApiAcceptanceTest`. The variant write verbs (the fuel
   feed, the prime, the type/delay rows, the command rows) stay
   engine-side for the ownership-gated write wave.
-- **The fishing system exposes the engine facade** (`Server.fishing()`)
+- ~~**The fishing system exposes the engine facade** (`Server.fishing()`)
   — the cast/retrieve verbs and the bobber reads — but no loot-table
-  override and no catch intercept (the §27.7 drop events observe the
-  catches).
-- **The protocol section stays internal** (§27.3's packet
-  construction/inspection row is AUDITED as the engine's adapter; a
-  public packet-interception surface is its own wave).
+  override and no catch intercept.~~ **CLOSED, Slice 69:** the
+  `LootSource` override (per-band, null falls through to the vanilla
+  roll) + the ordered `CatchInterceptor` chain (observe/replace/cancel —
+  a cancel answers the bare 0) landed with `FishingOverrideTest` (7).
+- ~~**The protocol section stays internal**~~ **CORRECTED, Slice 70's
+  pass:** the audit note was stale — the interception surface has been
+  public since Slices 15c (outbound) + 23g (inbound) at
+  `Server.protocolHooks()`, and the ledger row was current. The row's
+  genuinely missing leg was **packet construction**, closed in Slice 70:
+  `ProtocolHooks.send(Player, packetId, payload)` composes a PLAY-state
+  frame through the same pipeline and the same interception walk as
+  engine traffic (`PacketSendApiTest`).
 
 ## §28 — the plugin concurrency contract
 
