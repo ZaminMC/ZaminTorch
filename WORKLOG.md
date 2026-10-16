@@ -7166,3 +7166,43 @@ concurrency contract vs the current code).
 - Tests: GiantMobTest (3 — the row, the live spawn, the /summon Giant
   through the chat path with the ~-coordinates + the engine-name
   fallback).
+
+## Slice 68 — the VariantState read view (the §27.3 next wave the audit named)
+
+- **The API** (`zamin-api` `entity.VariantState`): the variant carts'
+  own state surfaced through the `Vehicle` handle — four nested views,
+  one per kind: `Furnace` (fuelTicks/lit/pushX/pushZ), `Tnt`
+  (fuseTicks, -1-unprimed/primed), `Spawner` (spawnType as the public
+  Identifier + delayTicks + the five vanilla law constants verbatim —
+  200/800, 4, 6, 16, 4), `Command`
+  (command/successCount/trackOutput/lastOutput).
+  `Vehicle.variantState()` answers empty for the boat/plain/chest carts
+  (the chest's container rides cargo()).
+- **The pattern** (§27.5, the engine object IS the handle): each engine
+  cart class implements its own view directly — no wrapper hierarchy,
+  no second game state; the bridge methods are one-name translations
+  (fuel() → fuelTicks(), type() → spawnType()) beside the
+  already-matching signatures (lit/pushX/pushZ, fuseTicks/primed,
+  command/successCount/trackOutput/lastOutput).
+- **The contract** (§27.6): live reads on the simulation context (the
+  documented owner path `World.execute`), documented on every method;
+  scalar reads compose a consistent view inside one owner tick.
+- Tests: `VariantStateApiAcceptanceTest` (5 — the four views' reads
+  through the public handle alone — §27.10's no-internal-classes rule —
+  + the plain kinds' empty answer beside the chest cart's cargo). The
+  vehicle batch green (8 classes); the ledger row updated
+  (NATIVE_API_CAPABILITIES.md — the "no handle read yet" omission
+  closed).
+
+Also this cycle: the HEAD compile defect repaired — the Slice 67
+part-two GIANT row missed `V18Connection.wireEntityNameOf`'s switch
+(the reference's Entities.java line 258 "Giant", 53); the protocol
+module did not compile at HEAD (caught by the fresh-environment build,
+masked on CI by an up-to-date compile cache).
+
+NEXT (in order): (1) the fishing loot override + catch intercept
+(§27.7's named gap); (2) the packet interception surface (§27.3's
+protocol row); (3) the plugin host wave (§28.5/28.6 — the lifecycle
+state machine, the resource scopes, the quotas); (4) the ledgered
+vanilla gaps (the MC|AdvCdm block arm, the areCommandBlocksEnabled
+config gate, the vehicle damage-source surface, the /summon NBT arm).

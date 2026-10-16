@@ -35,7 +35,8 @@ import java.util.Random;
  * (the same envelope the block spawner rides — the single-type model,
  * the SpawnPotentials weighted list ledgered with the block family).</p>
  */
-public class SpawnerMinecartEntity extends MinecartEntity {
+public class SpawnerMinecartEntity extends MinecartEntity
+        implements net.zaminmc.torch.entity.VariantState.Spawner {
 
     // The reference's own constants (MobSpawner lines 16-29).
     /** The initial delay (line 16: 20). */
@@ -110,6 +111,52 @@ public class SpawnerMinecartEntity extends MinecartEntity {
     /** The delay's write arm (the readNbt Delay row's landing). */
     public void setDelay(int delay) {
         this.delay = delay;
+    }
+
+    /**
+     * The public variant view (§27.3 — the spawner cart's own state):
+     * the engine object IS the handle (§27.5). Simulation context.
+     */
+    @Override
+    public java.util.Optional<net.zaminmc.torch.entity.VariantState> variantState() {
+        return java.util.Optional.of(this);
+    }
+
+    // ----------------------------------------------------------
+    // The VariantState.Spawner view (§27.3 — the API's own reads).
+    // ----------------------------------------------------------
+
+    @Override
+    public net.zaminmc.torch.util.Identifier spawnType() {
+        return type().identifier();
+    }
+
+    @Override public int delayTicks() {
+        return delay();
+    }
+
+    @Override public int minSpawnDelay() {
+        return MIN_SPAWN_DELAY;
+    }
+
+    @Override public int maxSpawnDelay() {
+        return MAX_SPAWN_DELAY;
+    }
+
+    @Override public int spawnCount() {
+        return SPAWN_COUNT;
+    }
+
+    @Override public int maxNearbyEntities() {
+        return MAX_NEARBY_ENTITIES;
+    }
+
+    @Override public int requiredPlayerRange() {
+        return REQUIRED_PLAYER_RANGE;
+    }
+
+    @Override public int spawnRange() {
+        return SPAWN_RANGE;
     }
 
     /** @return the flame bursts fired since the last consume (per spawn). */
