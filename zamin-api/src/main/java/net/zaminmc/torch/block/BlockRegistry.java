@@ -14,6 +14,16 @@ public interface BlockRegistry {
     /** @return the registered block type, or empty if unknown. */
     Optional<BlockType> lookup(Identifier identifier);
 
+    /**
+     * @param key the canonical form ({@code "minecraft:stone"}) or the
+     *            short form ({@code "stone"} — the minecraft namespace)
+     * @return the registered block type, or empty if unknown (the item
+     *         registry's own short-form shape)
+     */
+    default Optional<BlockType> byKey(String key) {
+        return lookup(Identifier.parse(key.contains(":") ? key : "minecraft:" + key));
+    }
+
     /** @return the registered block type, or throws if unknown (programming error). */
     default BlockType require(Identifier identifier) {
         return lookup(identifier).orElseThrow(
