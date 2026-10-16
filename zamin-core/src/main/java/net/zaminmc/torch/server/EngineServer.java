@@ -1810,7 +1810,59 @@ public final class EngineServer implements Server, EngineBridge {
                 vehicleStore = new net.zaminmc.torch.server.entity.vehicle.VehicleDataStore(
                         config.worldDataDir().resolve("vehicles.bin"));
                 vehicles.restoreAll(vehicleStore.load(),
-                        () -> hopperSystem::hopperCartTransfer);
+                        () -> hopperSystem::hopperCartTransfer,
+                        () -> new net.zaminmc.torch.server.entity.vehicle.SpawnerMinecartEntity.SpawnHost() {
+                            /** The 16-block player gate (isNearPlayer's own). */
+                            @Override public boolean playerNearby(double x, double y, double z) {
+                                for (PlayerSession player : players.all()) {
+                                    if (player.state() != net.zaminmc.torch.entity.PlayerState.PLAYING) {
+                                        continue;
+                                    }
+                                    double dx = player.position().x() - x;
+                                    double dy = player.position().y() - y;
+                                    double dz = player.position().z() - z;
+                                    if (dx * dx + dy * dy + dz * dz <= 16.0 * 16.0) {
+                                        return true;
+                                    }
+                                }
+                                return false;
+                            }
+
+                            /** The nearby cap's same-kind count. */
+                            @Override public int nearbyOfKind(
+                                    net.zaminmc.torch.server.entity.MobType type,
+                                    int cellX, int cellY, int cellZ) {
+                                int nearby = 0;
+                                for (var mob : mobManager.all()) {
+                                    if (mob.type() != type) {
+                                        continue;
+                                    }
+                                    net.zaminmc.torch.util.Position at = mob.position();
+                                    if (Math.abs(at.x() - (cellX + 0.5))
+                                            <= net.zaminmc.torch.server.entity.vehicle.SpawnerMinecartEntity.SPAWN_RANGE
+                                            && Math.abs(at.y() - (cellY + 0.5))
+                                            <= net.zaminmc.torch.server.entity.vehicle.SpawnerMinecartEntity.SPAWN_RANGE
+                                            && Math.abs(at.z() - (cellZ + 0.5))
+                                            <= net.zaminmc.torch.server.entity.vehicle.SpawnerMinecartEntity.SPAWN_RANGE) {
+                                        nearby++;
+                                    }
+                                }
+                                return nearby;
+                            }
+
+                            /** The unobstructed spawn (the engine's cell gate). */
+                            @Override public boolean spawnAt(
+                                    net.zaminmc.torch.server.entity.MobType type,
+                                    double x, double y, double z) {
+                                if (!net.zaminmc.torch.server.spawner.SpawnerManager
+                                        .canSpawnAt(world, type, x, y, z)) {
+                                    return false;
+                                }
+                                var spawned = mobManager.spawnAt(type,
+                                        new net.zaminmc.torch.util.Position(x, y, z));
+                                return spawned != null;
+                            }
+                        });
                 // The public §27.3 entity-family views: the five engine
                 // populations captured as stable point-in-time copies (the
                 // managers' all() contract) behind the World interface.
@@ -11653,6 +11705,25 @@ public final class EngineServer implements Server, EngineBridge {
         default void onVehicleStateChanged(
                 net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle) {
         }
+
+        /**
+         * The spawner cart's cycle fired a spawn (Slice 66 — MobSpawner
+         * line 108's doEvent(2004, blockpos, 0) at the cart's cell: the
+         * flame burst the client draws).
+         */
+        default void onSpawnerCartFlames(
+                net.zaminmc.torch.server.entity.vehicle.SpawnerMinecartEntity cart,
+                double x, double y, double z) {
+        }
+
+        /**
+         * The spawner cart's delay re-rolled (Slice 66 — delay line 187's
+         * broacastEvent(1) over the cart's doEntityEvent: the Entity
+         * Status 1 spin reset).
+         */
+        default void onSpawnerCartSpinReset(
+                net.zaminmc.torch.server.entity.vehicle.SpawnerMinecartEntity cart) {
+        }
     }
 
     private final java.util.List<VehicleListener> vehicleListeners =
@@ -11749,6 +11820,25 @@ public final class EngineServer implements Server, EngineBridge {
                 net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle) {
             for (VehicleListener listener : vehicleListeners) {
                 listener.onVehicleStateChanged(vehicle);
+            }
+        }
+
+        /** The spawner cart's per-spawn flame burst (Slice 66). */
+        @Override
+        public void onSpawnerCartFlames(
+                net.zaminmc.torch.server.entity.vehicle.SpawnerMinecartEntity cart,
+                double x, double y, double z) {
+            for (VehicleListener listener : vehicleListeners) {
+                listener.onSpawnerCartFlames(cart, x, y, z);
+            }
+        }
+
+        /** The spawner cart's delay reroll (Slice 66 — the Entity Status 1). */
+        @Override
+        public void onSpawnerCartSpinReset(
+                net.zaminmc.torch.server.entity.vehicle.SpawnerMinecartEntity cart) {
+            for (VehicleListener listener : vehicleListeners) {
+                listener.onSpawnerCartSpinReset(cart);
             }
         }
     }

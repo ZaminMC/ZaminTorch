@@ -4637,6 +4637,30 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     }
 
     /**
+     * The spawner cart's delay re-rolled (Slice 66 — delay line 187's
+     * broacastEvent(1) over SpawnerMinecartEntity's doEntityEvent
+     * override): the Entity Status 1 the client's spin reset rides.
+     * Chunk-gated like every vehicle packet. Any thread.
+     */
+    void sendSpawnerCartSpinReset(
+            net.zaminmc.torch.server.entity.vehicle.SpawnerMinecartEntity cart) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY
+                || chunkTracker == null) {
+            return;
+        }
+        var blockPos = cart.position().toBlockPosition();
+        if (!chunkTracker.hasChunk(blockPos.chunkPosition().packed())) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(12);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_ENTITY_STATUS);
+        ByteBufOps.writeVarInt(out, cart.entityId());
+        out.writeByte(1); // doEntityEvent(this, (byte) 1) — the spin reset
+        channel.writeAndFlush(out);
+    }
+
+    /**
      * A vehicle's tracked state metadata (Slice 66 — the furnace cart's
      * lit byte at the synced slot 16; the other kinds carry nothing and
      * the send is a no-op). Any thread.
