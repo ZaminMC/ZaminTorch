@@ -7450,3 +7450,40 @@ NEXT (in order): (1) the /summon NBT arm; (2) the plugin host's
 live-engine acceptance; (3) the next vanilla wave per the ledger (the
 vehicle fire/lava walk, the projectile-hits-vehicle family, the
 burning-arrow detonation).
+
+## Slice 75 — the /summon NBT arm + the SNBT parser
+
+- **The SNBT parser** (`server/nbt/Snbt`): the reference's SnbtParser language
+  over a recursive-descent reader — the suffix families (1.5d/1.5f/1b/1l/1s),
+  the bare int/double, the true/false bytes, the all-int PRIMITIVE_PATTERN
+  array split, the quoted strings with escapes, the out-of-range
+  fall-to-string, the tolerated trailing commas, and the syntax errors' own
+  messages. The Tag model carries the typed readers the summon arm consults.
+- **The mob rows** (the reference's Entity NBT fields the engine's model
+  carries): customName + customNameVisible (the wire's mob-spawn metadata
+  slots 2/3 — omitted when unnamed), noAi (the tickMind pin — the body stands
+  exactly still, physics/burning/wounds continue), invulnerable (the hurt
+  refusal), and the customName-derived persistence (the reference's
+  checkDespawn gate: a named body never despawns).
+- **The summon arm**: args[4..] joined and parsed as one compound; a parse
+  failure answers the tagError line without spawning; the rows land on any
+  kind (CustomName/CustomNameVisible/Health/NoAI/PersistenceRequired/
+  Invulnerable — every other row parses but lands nowhere, the engine's
+  no-item-NBT envelope).
+- **The persistence (the ZMD v3 block)**: the presence byte + the rows after
+  the v2 extras; v2/v1 files load unchanged. The MobNbtExtras snapshot
+  carries the RAW persistence mark (the leashed/tamed/named derivations
+  never silently pin a body whose own rows are not persisted).
+- **A TEST BUG THE DIAGNOSTIC CAUGHT**: the restart test's boot() generated a
+  random world name per call — the second boot read a fresh world directory
+  and restored nothing. The fixed name (both boots read the same world)
+  proves the rows survive the restart.
+- Tests: `SnbtTest` (6) + `SummonNbtTest` (4 — the rows land, the tagError
+  refusal, the restart survival, the named-body persistence). The entity
+  batch 321 green; the protocol suite green (1m51s, zero failures).
+
+NEXT (in order): (1) the plugin host's live-engine acceptance (a plugin
+through the real EngineServer's plugins() with real event-bus/scope
+integration); (2) the next vanilla wave per the ledger (the vehicle
+fire/lava walk, the projectile-hits-vehicle family, the burning-arrow
+detonation, the mob equipment/attribute NBT rows).

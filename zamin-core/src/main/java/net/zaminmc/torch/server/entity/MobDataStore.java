@@ -39,7 +39,10 @@ public final class MobDataStore {
     private static final int MAGIC_0 = 'Z';
     private static final int MAGIC_1 = 'M';
     private static final int MAGIC_2 = 'D';
-    private static final int FORMAT_VERSION = 2;
+    private static final int FORMAT_VERSION = 3;
+
+    /** The v2 store's own version (Slice 25c's shape — the load keeps reading it). */
+    private static final int FORMAT_VERSION_2 = 2;
     /** The v2 state block's bits (Slice 25c): one per kind's own family. */
     private static final int FLAG_ZOMBIE_VILLAGER = 0x01;
     private static final int FLAG_VILLAGER_TRADE = 0x02;
@@ -82,6 +85,7 @@ public final class MobDataStore {
                     out.writeFloat(mob.yaw());
                     out.writeFloat(mob.health());
                     writeExtras(out, mob.extras());
+                    writeNbtExtras(out, mob.nbt());
                 }
             }
             Files.move(temp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
@@ -104,7 +108,7 @@ public final class MobDataStore {
                 throw new IOException("Not a ZMD file");
             }
             int version = in.readByte();
-            if (version != FORMAT_VERSION && version != 1) {
+            if (version != FORMAT_VERSION && version != FORMAT_VERSION_2 && version != 1) {
                 throw new IOException("Unsupported ZMD version: " + version);
             }
             int count = readVarInt(in);
@@ -121,7 +125,9 @@ public final class MobDataStore {
                 float health = in.readFloat();
                 MobManager.MobStateExtras extras = version == 1
                         ? null : readExtras(in);
-                loaded.add(new MobManager.MobSnapshot(type, x, y, z, yaw, health, extras));
+                MobManager.MobNbtExtras nbt = version >= FORMAT_VERSION
+                        ? readNbtExtras(in) : null;
+                loaded.add(new MobManager.MobSnapshot(type, x, y, z, yaw, health, extras, nbt));
             }
             return loaded;
         } catch (IOException | RuntimeException corrupt) {
@@ -202,6 +208,65 @@ public final class MobDataStore {
         if ((flags & FLAG_DYE_COLOR) != 0) {
             out.writeByte(extras.dyeColor());
         }
+    }
+
+    // ------------------------------------------------------------------
+    // The v3 NBT block (Slice 75 — the /summon rows): one presence byte,
+    // then the named rows. The v2 files carry no block (the load's own
+    // version gate reads none).
+    // ------------------------------------------------------------------
+
+    private static final int NBT_FLAG_CUSTOM_NAME = 0x01;
+    private static final int NBT_FLAG_CUSTOM_NAME_VISIBLE = 0x02;
+    private static final int NBT_FLAG_NO_AI = 0x04;
+    private static final int NBT_FLAG_INVULNERABLE = 0x08;
+    private static final int NBT_FLAG_PERSISTENT = 0x10;
+
+    /** Writes the v3 NBT block (a zero byte answers the null shape). */
+    private static void writeNbtExtras(DataOutputStream out, MobManager.MobNbtExtras nbt)
+            throws IOException {
+        if (nbt == null) {
+            out.writeByte(0);
+            return;
+        }
+        int flags = 0;
+        if (nbt.customName() != null) {
+            flags |= NBT_FLAG_CUSTOM_NAME;
+        }
+        if (nbt.customNameVisible()) {
+            flags |= NBT_FLAG_CUSTOM_NAME_VISIBLE;
+        }
+        if (nbt.noAi()) {
+            flags |= NBT_FLAG_NO_AI;
+        }
+        if (nbt.invulnerable()) {
+            flags |= NBT_FLAG_INVULNERABLE;
+        }
+        if (nbt.persistent()) {
+            flags |= NBT_FLAG_PERSISTENT;
+        }
+        out.writeByte(flags);
+        if ((flags & NBT_FLAG_CUSTOM_NAME) != 0) {
+            writeString(out, nbt.customName());
+        }
+    }
+
+    /** Reads the v3 NBT block back (null for the zero-byte shape). */
+    private static MobManager.MobNbtExtras readNbtExtras(DataInputStream in)
+            throws IOException {
+        int flags = in.readUnsignedByte();
+        if (flags == 0) {
+            return null;
+        }
+        String customName = null;
+        if ((flags & NBT_FLAG_CUSTOM_NAME) != 0) {
+            customName = readString(in);
+        }
+        return new MobManager.MobNbtExtras(customName,
+                (flags & NBT_FLAG_CUSTOM_NAME_VISIBLE) != 0,
+                (flags & NBT_FLAG_NO_AI) != 0,
+                (flags & NBT_FLAG_INVULNERABLE) != 0,
+                (flags & NBT_FLAG_PERSISTENT) != 0);
     }
 
     /** Reads the v2 state block back (null for the bare zero-flags shape). */
