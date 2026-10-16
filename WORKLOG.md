@@ -7025,3 +7025,50 @@ every 4 ticks, the synced slots 23/24, the Update Entity NBT 0x49 decode,
 the item 422); (2) the fishing bobber (90) + the giant (53); (3) the
 sections 27/28 audit (the native API exposure + the plugin concurrency
 contract vs the code).
+
+## Slice 66 part five — the command-block minecart (the variant family closes)
+
+The variant family's fifth and last member, 1:1.
+
+- **The cart** (CommandBlockMinecartEntity): the CommandExecutor's own
+  state (the empty command, the success count, the track flag, the last
+  output) with the powered-rail run's own age gate — the reference's
+  `ticks - lastExecuted >= 4` with both clocks at 0 (a fresh cart cannot
+  run until it has lived 4 ticks).
+- **The run surface** (EngineServer.runCommandCart): the CommandService
+  dispatch with the executor's own sender — op level 2 (canUseCommand),
+  the name "@", the feedback landing in the last output through the
+  timestamped recordOutput walk. The reference's
+  areCommandBlocksEnabled gate rides the config surface the engine does
+  not carry yet (ledgered).
+- **The wire**: the synced slots 23 (command) / 24 (last output JSON) as
+  METADATA_TYPE_STRING — on spawn (the state-metadata fan rides
+  onVehicleSpawned) and on every change (the manager diffs the two
+  strings around the tick); the Spawn Object objectData 6.
+- **THE 1.8.8 DISCOVERY**: the edit rides the MC|AdvCdm CUSTOM PAYLOAD
+  (ServerPlayNetworkHandler lines 1016-1057) — NOT the 1.9+ Update
+  Entity NBT 0x49. The minecart arm: type byte 1, the entity id, the
+  command string, the track flag; the untracked cart clears its output;
+  the advMode.setCommand.success ACK through the new
+  ChatService.sendSystem.
+- **The item 422** (register's own setCreativeModeTab(null) — the
+  engine's registry-based creative menu cannot hide it, ledgered) + the
+  BuiltinItems + LegacyBlockIds rows + the rail place arm.
+- **The persistence**: the ZVD v2 variant payload's executor rows
+  (Command/SuccessCount/TrackOutput/LastOutput).
+- Tests: `CommandBlockMinecartTest` (5 — the type index + state, the
+  powered-rail cadence with the fresh-cart age gate, the untracked
+  output drop, the persistence roundtrip, the live-engine run through
+  the real CommandService). The vehicle + persistence + chat batches
+  green (35); the protocol + api suites green.
+
+With this, Slice 66's variant family is COMPLETE: the TNT cart, the
+furnace cart, the hopper cart, the spawner cart, and the command cart,
+all 1:1 with their reference ports.
+
+NEXT (in order): (1) the smaller entity gaps — the fishing bobber (90)
++ the giant (53); (2) the sections 27/28 audit (the native API exposure
++ the plugin concurrency contract vs the current code); (3) the
+remaining ledgered gaps (the block command block's MC|AdvCdm arm, the
+areCommandBlocksEnabled config gate, the vehicle damage-source surface
+for the furnace cart's explosive-death drop skip).

@@ -448,6 +448,27 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                     int secondary = packet.readInt();
                     engine.beaconSelect(player, primary, secondary);
                 }
+                // MC|AdvCdm (Slice 66 — ServerPlayNetworkHandler lines
+                // 1016-1057): the command-block family's edit write. The
+                // minecart arm: type byte 1, the entity id, the command
+                // string (the rest of the readable buffer), the track
+                // flag — gated on the op-2 creative player (the engine's
+                // ungated areCommandBlocksEnabled ledgered with the config
+                // slice).
+                if ("MC|AdvCdm".equals(pluginChannel) && packet.readableBytes() >= 7) {
+                    int type = packet.readUnsignedByte();
+                    if (type == 1) {
+                        int entityId = packet.readInt();
+                        String command = ByteBufOps.readString(packet, 256);
+                        boolean trackOutput = packet.readBoolean();
+                        engine.updateCommandBlockMinecart(player, entityId,
+                                command, trackOutput);
+                        engine.chatService().sendSystem(player,
+                                "Command set: " + command);
+                    }
+                    // the block arm (type 0): the block command block's
+                    // own slice — not yet implemented, ledgered.
+                }
                 // other channels: rest of the frame skipped by the reader
                 // index (frames are length-delimited, so this is exact).
             }
@@ -4662,10 +4683,15 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
 
     /**
      * A vehicle's tracked state metadata (Slice 66 — the furnace cart's
-     * lit byte at the synced slot 16; the other kinds carry nothing and
-     * the send is a no-op). Any thread.
+     * lit byte at the synced slot 16; the command cart's command/last
+     * output strings at the synced slots 23-24; the other kinds carry
+     * nothing and the send is a no-op). Any thread.
      */
     void sendVehicleStateMetadata(net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle) {
+        if (vehicle instanceof net.zaminmc.torch.server.entity.vehicle.CommandBlockMinecartEntity commandCart) {
+            sendCommandCartMetadata(commandCart);
+            return;
+        }
         if (!(vehicle instanceof net.zaminmc.torch.server.entity.vehicle.FurnaceMinecartEntity furnace)) {
             return;
         }
@@ -4685,6 +4711,41 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         meta.writeByte(furnace.lit() ? 1 : 0);
         meta.writeByte(Protocol18.METADATA_TERMINATOR);
         channel.writeAndFlush(meta);
+    }
+
+    /**
+     * The command cart's synced strings (Slice 66 —
+     * CommandBlockMinecartEntity.registerSyncedData lines 64-68: the
+     * command at slot 23, the last output's JSON at 24 — both plain
+     * strings on the 1.8.8 wire; the client's edit GUI reads them).
+     * Chunk-gated like every vehicle packet. Any thread.
+     */
+    void sendCommandCartMetadata(
+            net.zaminmc.torch.server.entity.vehicle.CommandBlockMinecartEntity cart) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY
+                || chunkTracker == null) {
+            return;
+        }
+        var blockPos = cart.position().toBlockPosition();
+        if (!chunkTracker.hasChunk(blockPos.chunkPosition().packed())) {
+            return;
+        }
+        ByteBuf meta = Unpooled.buffer(64);
+        ByteBufOps.writeVarInt(meta, Protocol18.S2C_ENTITY_METADATA);
+        ByteBufOps.writeVarInt(meta, cart.entityId());
+        meta.writeByte((Protocol18.METADATA_TYPE_STRING << 5) | 23); // slot 23
+        ByteBufOps.writeString(meta, cart.command());
+        meta.writeByte((Protocol18.METADATA_TYPE_STRING << 5) | 24); // slot 24
+        ByteBufOps.writeString(meta,
+                cart.lastOutput() == null ? "" : "{\"text\":\"" + escapeJson(cart.lastOutput()) + "\"}");
+        meta.writeByte(Protocol18.METADATA_TERMINATOR);
+        channel.writeAndFlush(meta);
+    }
+
+    /** The minimal JSON string escape (the last output's text component). */
+    private static String escapeJson(String value) {
+        return value.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 
     /**

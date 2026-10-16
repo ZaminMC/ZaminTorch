@@ -468,6 +468,7 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:furnace_minecart"), 343),
             Map.entry(Identifier.parse("minecraft:tnt_minecart"), 407),
             Map.entry(Identifier.parse("minecraft:hopper_minecart"), 408),
+            Map.entry(Identifier.parse("minecraft:command_block_minecart"), 422),
             Map.entry(Identifier.parse("minecraft:written_book"), 387),
             Map.entry(Identifier.parse("minecraft:pumpkin_pie"), 400),
             Map.entry(Identifier.parse("minecraft:name_tag"), 421),
