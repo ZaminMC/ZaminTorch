@@ -1,5 +1,6 @@
 package net.zaminmc.torch.server.block;
 
+import net.zaminmc.torch.block.BlockType;
 import net.zaminmc.torch.util.Identifier;
 
 import java.util.List;
@@ -246,6 +247,15 @@ public final class BuiltinBlocks {
             Identifier.parse("minecraft:skull_west"), "Skull", 4);
     public static final EngineBlockType SKULL_EAST = new EngineBlockType(
             Identifier.parse("minecraft:skull_east"), "Skull", 5);
+    // The command-block family (Slice 72 — CommandBlock 1:1, block 137,
+    // Block.java line 1299's setUnbreakable + 6000000 blast): the two
+    // TRIGGERED states over the shared id — the plain block (meta 0) and
+    // the triggered one (meta 1, the reference's TRIGGERED bit — the
+    // rising redstone edge's own mark, cleared on the falling edge).
+    public static final EngineBlockType COMMAND_BLOCK = new EngineBlockType(
+            Identifier.parse("minecraft:command_block"), "Command Block", 0);
+    public static final EngineBlockType COMMAND_BLOCK_TRIGGERED = new EngineBlockType(
+            Identifier.parse("minecraft:command_block_triggered"), "Command Block", 1);
     public static final EngineBlockType GLOWSTONE = new EngineBlockType(
             Identifier.parse("minecraft:glowstone"), "Glowstone");
     public static final EngineBlockType QUARTZ_ORE = new EngineBlockType(
@@ -776,6 +786,8 @@ public final class BuiltinBlocks {
                 .register(NETHERRACK)
                 .register(SOUL_SAND)
                 .register(SKULL)
+                .register(COMMAND_BLOCK)
+                .register(COMMAND_BLOCK_TRIGGERED)
                 .register(SKULL_DOWN)
                 .register(SKULL_NORTH)
                 .register(SKULL_SOUTH)
@@ -1066,5 +1078,18 @@ public final class BuiltinBlocks {
             builder = builder.register(WoodShapeBlocks.doubleSlabState(variant));
         }
         return builder;
+    }
+
+    /**
+     * @return whether the type is a command-block state (either TRIGGERED
+     *         bit — Slice 72's family membership, the redstone walk's gate).
+     */
+    public static boolean isCommandBlock(BlockType type) {
+        if (type == null) {
+            return false;
+        }
+        String value = type.identifier().value();
+        return value.equals("command_block")
+                || value.equals("command_block_triggered");
     }
 }

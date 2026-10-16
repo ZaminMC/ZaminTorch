@@ -171,6 +171,9 @@ public final class RedstoneSystem implements WorldChangeListener {
     /** The detector-rail family (Slice 38 — the 20-tick cart re-check). */
     static final int FAMILY_DETECTOR_RAIL = 9;
 
+    /** The command-block family (Slice 72 — CommandBlock.tick rate 1). */
+    static final int FAMILY_COMMAND_BLOCK = 10;
+
     /** The lamp's revert delay (RedstoneLampBlock.getTickRate: 4 ticks). */
     static final int LAMP_TICK_RATE = 4;
 
@@ -447,6 +450,15 @@ public final class RedstoneSystem implements WorldChangeListener {
 
     /** The dispenser system's scheduled-tick callback (the dispense). */
     private java.util.function.Consumer<BlockPosition> dispenserTicker;
+
+    /** The command-block family's run surface (Slice 72 — the engine's wiring). */
+    private java.util.function.Consumer<BlockPosition> commandTicker;
+
+    /** Wires the command-block run (CommandBlock.tick's executor walk). */
+    public void setCommandTicker(java.util.function.Consumer<BlockPosition> ticker) {
+        this.commandTicker = ticker;
+    }
+
 
     /** Wires the dispenser family's scheduled dispense (Slice 11a). */
     public void setDispenserTicker(java.util.function.Consumer<BlockPosition> ticker) {
@@ -877,6 +889,23 @@ public final class RedstoneSystem implements WorldChangeListener {
                 }
             } else if (hasNeighborSignal(pos)) {
                 world.setBlock(pos, BuiltinBlocks.LIT_REDSTONE_LAMP);
+            }
+            return;
+        }
+        if (net.zaminmc.torch.server.block.BuiltinBlocks.isCommandBlock(type)) {
+            // CommandBlock.neighborChanged (lines 33-44, 1:1): the rising
+            // edge flips TRIGGERED and schedules the block's own tick
+            // (rate 1) — the executor runs on the scheduled tick, not the
+            // edge; the falling edge clears the bit (the next pulse
+            // re-runs).
+            boolean triggered =
+                    type.equals(BuiltinBlocks.COMMAND_BLOCK_TRIGGERED);
+            boolean signal = hasNeighborSignal(pos);
+            if (signal && !triggered) {
+                world.setBlock(pos, BuiltinBlocks.COMMAND_BLOCK_TRIGGERED);
+                scheduleTick(pos, FAMILY_COMMAND_BLOCK, 1, 0);
+            } else if (!signal && triggered) {
+                world.setBlock(pos, BuiltinBlocks.COMMAND_BLOCK);
             }
             return;
         }
@@ -1558,6 +1587,14 @@ public final class RedstoneSystem implements WorldChangeListener {
                 if (RedstoneBlocks.lampLit(type) && !hasNeighborSignal(entry.position())) {
                     world.setBlock(entry.position(), BuiltinBlocks.REDSTONE_LAMP);
                 }
+            } else if (net.zaminmc.torch.server.block.BuiltinBlocks.isCommandBlock(type)) {
+                // CommandBlock.tick (lines 47-53): the executor's run + the
+                // comparator wake (updateNeighborComparators — the success
+                // count is the block's analog signal).
+                if (commandTicker != null) {
+                    commandTicker.accept(entry.position());
+                }
+                wakeComparators(entry.position());
             } else if (TripwireBlocks.isTripwire(type)) {
                 if (tripwireTicker != null) {
                     tripwireTicker.accept(entry.position());
@@ -2288,6 +2325,9 @@ public final class RedstoneSystem implements WorldChangeListener {
         }
         if (RedstoneBlocks.isLamp(type)) {
             return FAMILY_LAMP;
+        }
+        if (net.zaminmc.torch.server.block.BuiltinBlocks.isCommandBlock(type)) {
+            return FAMILY_COMMAND_BLOCK;
         }
         if (RedstoneBlocks.isButton(type)) {
             return FAMILY_BUTTON;

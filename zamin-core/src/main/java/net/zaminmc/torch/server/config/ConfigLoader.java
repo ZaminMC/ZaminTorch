@@ -48,7 +48,8 @@ public final class ConfigLoader {
                 boolOf(properties, "pvp", true),
                 levelType(properties),
                 boolOf(properties, "white-list", false),
-                regionSize(properties));
+                regionSize(properties),
+                boolOf(properties, "enable-command-block", false));
     }
 
     /** The bind address: empty means the wildcard (the vanilla convention). */

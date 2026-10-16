@@ -450,24 +450,41 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 }
                 // MC|AdvCdm (Slice 66 — ServerPlayNetworkHandler lines
                 // 1016-1057): the command-block family's edit write. The
-                // minecart arm: type byte 1, the entity id, the command
-                // string (the rest of the readable buffer), the track
-                // flag — gated on the op-2 creative player (the engine's
-                // ungated areCommandBlocksEnabled ledgered with the config
-                // slice).
+                // reference's gate order: areCommandBlocksEnabled first
+                // (advMode.notEnabled), then the op-2 creative player
+                // (advMode.notAllowed), then the payload walk — the
+                // minecart arm (type byte 1) and the block arm (type
+                // byte 0, Slice 72).
                 if ("MC|AdvCdm".equals(pluginChannel) && packet.readableBytes() >= 7) {
-                    int type = packet.readUnsignedByte();
-                    if (type == 1) {
-                        int entityId = packet.readInt();
-                        String command = ByteBufOps.readString(packet, 256);
-                        boolean trackOutput = packet.readBoolean();
-                        engine.updateCommandBlockMinecart(player, entityId,
-                                command, trackOutput);
+                    if (!engine.areCommandBlocksEnabled()) {
                         engine.chatService().sendSystem(player,
-                                "Command set: " + command);
+                                "Command blocks are not enabled on this server");
+                    } else if (player.opLevel() >= 2 && player.gamemode() == GameMode.CREATIVE) {
+                        int type = packet.readUnsignedByte();
+                        if (type == 1) {
+                            int entityId = packet.readInt();
+                            String command = ByteBufOps.readString(packet, 256);
+                            boolean trackOutput = packet.readBoolean();
+                            engine.updateCommandBlockMinecart(player, entityId,
+                                    command, trackOutput);
+                            engine.chatService().sendSystem(player,
+                                    "Command set: " + command);
+                        } else if (type == 0 && packet.readableBytes() >= 13) {
+                            int x = packet.readInt();
+                            int y = packet.readInt();
+                            int z = packet.readInt();
+                            String command = ByteBufOps.readString(packet, 256);
+                            boolean trackOutput = packet.readBoolean();
+                            engine.updateCommandBlock(player,
+                                    new net.zaminmc.torch.block.BlockPosition(x, y, z),
+                                    command, trackOutput);
+                            engine.chatService().sendSystem(player,
+                                    "Command set: " + command);
+                        }
+                    } else {
+                        engine.chatService().sendSystem(player,
+                                "You must be an opped player in creative mode to use command blocks");
                     }
-                    // the block arm (type 0): the block command block's
-                    // own slice — not yet implemented, ledgered.
                 }
                 // other channels: rest of the frame skipped by the reader
                 // index (frames are length-delimited, so this is exact).

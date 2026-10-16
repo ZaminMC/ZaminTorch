@@ -926,6 +926,14 @@ public final class BlockBehaviorTable {
                     new BlockBehavior(0.0, true, false, null, 0, List.of())),
 
             Map.entry(Identifier.parse("minecraft:bedrock"),
+                    BlockBehavior.unbreakable()),
+
+            // The command-block family (Slice 72 — Block.java line 1299:
+            // setUnbreakable + setResistance(6000000)): creative-only
+            // break, no drops (getBaseDropCount line 93's empty override).
+            Map.entry(Identifier.parse("minecraft:command_block"),
+                    BlockBehavior.unbreakable()),
+            Map.entry(Identifier.parse("minecraft:command_block_triggered"),
                     BlockBehavior.unbreakable())));
 
         // The redstone family's variants (Slice 9a): every power level of
