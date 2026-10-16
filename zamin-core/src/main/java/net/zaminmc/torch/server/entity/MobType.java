@@ -526,6 +526,62 @@ public enum MobType {
         return null;
     }
 
+    /**
+     * The vanilla 1.8.8 Entities.java registration names (the /summon
+     * surface): "Zombie", "PigZombie", "LavaSlime", the Giant's own
+     * "Giant" — the wire's own spellings, case-insensitive.
+     */
+    public String vanillaName() {
+        return switch (this) {
+            case CREEPER -> "Creeper";
+            case SKELETON -> "Skeleton";
+            case SPIDER -> "Spider";
+            case GIANT -> "Giant";
+            case ZOMBIE -> "Zombie";
+            case SLIME -> "Slime";
+            case GHAST -> "Ghast";
+            case ZOMBIE_PIGMAN -> "PigZombie";
+            case ENDERMAN -> "Enderman";
+            case CAVE_SPIDER -> "CaveSpider";
+            case SILVERFISH -> "Silverfish";
+            case BLAZE -> "Blaze";
+            case MAGMA_CUBE -> "LavaSlime";
+            case BAT -> "Bat";
+            case WITCH -> "Witch";
+            case ENDERMITE -> "Endermite";
+            case GUARDIAN -> "Guardian";
+            case PIG -> "Pig";
+            case SHEEP -> "Sheep";
+            case COW -> "Cow";
+            case CHICKEN -> "Chicken";
+            case SQUID -> "Squid";
+            case WOLF -> "Wolf";
+            case OCELOT -> "Ozelot";
+            case HORSE -> "EntityHorse";
+            case RABBIT -> "Rabbit";
+            case VILLAGER -> "Villager";
+            case MOOSHROOM -> "MushroomCow";
+            case SNOW_GOLEM -> "SnowMan";
+            case IRON_GOLEM -> "VillagerGolem";
+            case ENDER_DRAGON -> "EnderDragon";
+            case WITHER -> "WitherBoss";
+            default -> name();
+        };
+    }
+
+    /**
+     * @return the kind by its vanilla 1.8.8 name ("Zombie", "PigZombie",
+     * "Giant" — case-insensitive), or null.
+     */
+    public static MobType byVanillaName(String name) {
+        for (MobType type : values()) {
+            if (type.vanillaName().equalsIgnoreCase(name)) {
+                return type;
+            }
+        }
+        return null;
+    }
+
     /** @return the canonical identifier of the mob kind ({@code minecraft:pig}). */
     public Identifier identifier() {
         return Identifier.parse("minecraft:" + name().toLowerCase(java.util.Locale.ROOT));

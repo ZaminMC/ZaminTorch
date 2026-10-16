@@ -69,6 +69,48 @@ class GiantMobTest {
         }
     }
 
+    @Test
+    void theVanillaSummonCommandSpawnsTheGiant() throws Exception {
+        // SummonCommand 1:1 (Slice 67): the vanilla name "Giant", the
+        // op-2 gate, the ~-relative coordinates, the vanilla feedback.
+        EngineServer server = boot();
+        try {
+            var link = new net.zaminmc.torch.server.net.ClientLink() {
+                @Override public boolean isActive() {
+                    return true;
+                }
+
+                @Override public void kick(String reason) {
+                }
+            };
+            var accepted = (net.zaminmc.torch.server.net.EngineBridge.Accepted)
+                    server.joinRequest(link, "summoner",
+                            UUID.nameUUIDFromBytes("summoner".getBytes()));
+            net.zaminmc.torch.server.player.PlayerSession session = accepted.session();
+            server.ticker().submit(session::markPlaying);
+            await(() -> session.state() == net.zaminmc.torch.entity.PlayerState.PLAYING,
+                    "the session promoted to PLAYING");
+            // Op the sender (the op-2 gate).
+            server.ticker().submit(() -> session.setOpLevel(2));
+            var at = session.position();
+            server.chatService().submitChat(session, "/summon Giant ~ ~ ~");
+            await(() -> server.mobs().all().stream()
+                            .anyMatch(mob -> mob.type() == MobType.GIANT),
+                    "the giant summoned at the sender's feet");
+            MobEntity giant = server.mobs().all().stream()
+                    .filter(mob -> mob.type() == MobType.GIANT).findFirst().orElseThrow();
+            assertEquals((int) Math.floor(at.x()), (int) Math.floor(giant.position().x()),
+                    "the ~ coordinate kept the sender's x");
+            // The engine-kind name also resolves (the byName fallback).
+            server.chatService().submitChat(session, "/summon giant");
+            await(() -> server.mobs().all().stream()
+                            .filter(mob -> mob.type() == MobType.GIANT).count() >= 2,
+                    "the engine-kind name resolved too");
+        } finally {
+            server.shutdown(null);
+        }
+    }
+
     private EngineServer boot() throws Exception {
         EngineConfig config = new EngineConfig("127.0.0.1", 0,
                 "giant" + Math.abs(UUID.randomUUID().hashCode() % 100000),
