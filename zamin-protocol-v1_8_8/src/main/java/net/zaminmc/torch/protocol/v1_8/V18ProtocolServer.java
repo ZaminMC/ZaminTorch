@@ -1348,6 +1348,19 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                     }
                 }
             }
+
+            /** The hopper minecart's hopper menu opened (Slice 66): the opener's unicast. */
+            @Override
+            public void onHopperMinecartWindowOpened(
+                    net.zaminmc.torch.server.player.PlayerSession opener,
+                    net.zaminmc.torch.server.entity.vehicle.HopperMinecartEntity cart,
+                    int windowId) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    if (connection.currentSession() == opener) {
+                        connection.sendHopperMinecartWindow(channelOf(connection), opener, windowId);
+                    }
+                }
+            }
         });
         LOGGER.info(() -> "1.8.8 protocol listening on " + server.engineConfig().host() + ":" + server.engineConfig().port());
     }

@@ -989,6 +989,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                     case ENDER_CHEST -> sendEnderChestWindow(channel, player, windowId);
                     case BEACON -> sendBeaconWindow(channel, player, windowId);
                     case CHEST_MINECART -> sendChestMinecartWindow(channel, player, windowId);
+                    case HOPPER_MINECART -> sendHopperMinecartWindow(channel, player, windowId);
                     case DISPENSER -> sendDispenserWindow(channel, player, windowId);
                     case HOPPER -> sendHopperWindow(channel, player, windowId);
                     case BREWING_STAND -> sendBrewingWindow(channel, player, windowId);
@@ -1272,6 +1273,27 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeString(out, Protocol18.CHEST_WINDOW_TYPE);
         ByteBufOps.writeString(out, Protocol18.MINECART_CHEST_WINDOW_TITLE);
         out.writeByte(27); // the GUI's own slots: the chest menu over the cart
+        channel.writeAndFlush(out);
+        sendContainerWindowItems(channel, windowId, player);
+    }
+
+    /**
+     * Open Window (0x2D) for the hopper minecart (Slice 66 — the reference's
+     * HopperMinecartEntity.getMenuType "minecraft:hopper" line 162 + the
+     * entity's own display name, entity.MinecartHopper.name): the hopper GUI
+     * over the cart's own 5 slots, followed by the authoritative 41-slot
+     * contents. Called on the tick thread by the engine's open dispatch.
+     */
+    void sendHopperMinecartWindow(Channel channel, PlayerSession player, int windowId) {
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(48);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_OPEN_WINDOW);
+        out.writeByte(windowId);
+        ByteBufOps.writeString(out, Protocol18.HOPPER_WINDOW_TYPE);
+        ByteBufOps.writeString(out, Protocol18.MINECART_HOPPER_WINDOW_TITLE);
+        out.writeByte(5); // the GUI's own slots: the hopper menu over the cart
         channel.writeAndFlush(out);
         sendContainerWindowItems(channel, windowId, player);
     }
@@ -2115,6 +2137,14 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             var cart = engineVehicleChest(player.containerMountId());
             if (cart != null) {
                 sendChestWindowItems(channel, windowId, cart, player);
+            }
+            return;
+        }
+        if (player.openContainerKind()
+                == net.zaminmc.torch.server.player.PlayerSession.ContainerKind.HOPPER_MINECART) {
+            var cart = engineVehicleHopper(player.containerMountId());
+            if (cart != null) {
+                sendHopperWindowItems(channel, windowId, cart, player);
             }
             return;
         }
@@ -4645,6 +4675,19 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         var vehicle = engine.vehicles().byId(vehicleId);
         return vehicle instanceof net.zaminmc.torch.server.entity.vehicle.ChestMinecartEntity cart
                 ? cart.chest() : null;
+    }
+
+    /**
+     * The open hopper-minecart window's container (Slice 66): the same
+     * gone-cart contract as the chest cart's lookup.
+     */
+    private net.zaminmc.torch.server.hopper.HopperBlockEntity engineVehicleHopper(int vehicleId) {
+        if (vehicleId < 0 || engine.vehicles() == null) {
+            return null;
+        }
+        var vehicle = engine.vehicles().byId(vehicleId);
+        return vehicle instanceof net.zaminmc.torch.server.entity.vehicle.HopperMinecartEntity cart
+                ? cart.hopper() : null;
     }
 
     /**

@@ -6924,3 +6924,67 @@ the drain + the activator disable); the spawner cart; the command-block
 cart; the remaining items (408/422) + the persistence payload for the
 variant states. Then: the fishing bobber (90) + the giant (53); the
 sections 27/28 audit.
+
+## Slice 66 part three — the hopper minecart (the 5-slot rolling pickup)
+
+The variant family's third member, 1:1.
+
+- **The cart** (HopperMinecartEntity): the embedded HopperBlockEntity (the
+  hopper's own five slots + click semantics, the chest cart's composition
+  pattern), the wire's minecart type index 5, and the transfer walk with
+  the reference's own NEVER-REASSIGNED `f_0016592` quirk ported verbatim —
+  the "last position" stays BlockPos.ORIGIN forever, so away from the
+  world-origin cell the cooldown zeroes every tick and the cart attempts
+  EVERY tick (the armed 4-tick cooldown only ever holds at cell (0,0,0);
+  a successful pull or a FULL item suck arms it).
+- **The transfer arms** (HopperSystem.hopperCartTransfer — transferItems
+  lines 119-130 through pullItem/pickUpItem): the container-above pull
+  first (the mouth at y+0.5, the lookup cell floor(y+1.5), one item per
+  attempt through the shared container adapter — the chest, hopper,
+  furnace with the bucket-only fuel gate, dispenser family, brewing
+  stand, or a chest cart parked above); with no container above, the
+  item-entity suck from the 1-box centered on the mouth-plus-one (a full
+  consume removes the body and arms the cooldown, a partial keeps the
+  remainder); the fallback — the FIRST item entity in the cart's own
+  shape grown 0.25 horizontally pushes its whole stack and NEVER arms
+  the cooldown (the reference's own return false — the every-tick suck
+  the cart is known for).
+- **The activator disable** (onActivatorRail lines 63-68): a POWERED
+  activator rail DISABLES the cart, an unpowered one re-enables it (the
+  inverse sense of the TNT cart's prime) — the manager's tick consults
+  the rail power like the TNT cart's; no wire metadata in 1.8.8.
+- **The window**: ContainerKind.HOPPER_MINECART + the interact's
+  openChestMenu over the cart's five slots (never the seat) + the
+  clickHopperMinecartWindowOnTick routing (the hopper menu's own
+  semantics, the reference's isValid 8-block gate) + the wire (Open
+  Window "minecraft:hopper" with the entity's own display name "Minecart
+  with Hopper" — ServerPlayerEntity.openChestMenu's getDisplayName — and
+  the 41-slot Window Items through the new engineVehicleHopper lookup).
+- **The drops**: the MINECART item + the contents spill + the HOPPER
+  block item (never the hopper-minecart item), under doEntityDrops; the
+  furnace cart's own missing death drop LANDED too (the FURNACE block
+  item — the reference's non-explosive gate ledgered against the
+  damage-source surface the vehicle death path does not yet carry).
+- **The persistence**: the ZVD store's version 2 — the hopper cart's
+  5-slot cargo block (the length names the kind's count) + the variant
+  extras (the disable flag + the TransferCooldown row); v1 files load
+  with the defaults; the restore re-wires the transfer host through the
+  engine's hopper system.
+- **THE PART-ONE REPAIR**: FURNACE_MINECART and TNT_MINECART were
+  declared but never registered in BuiltinItems' registration list —
+  their lookups answered empty (the creative claim path could not
+  resolve the held stack). All three variant items (343/407/408) now
+  register; the LegacyBlockIds row 408 lands with them.
+- Tests: `HopperMinecartTest` (7 — the type index, the quirk + the
+  origin-cell contrast, the activator, the live-engine pull from a chest
+  above, the interact + the shift-click routing, the persistence
+  roundtrip). The vehicle + hopper batches green (34 tests, zero
+  failures).
+
+NEXT (in order): (1) the spawner cart (index 4 — the spawner walk over
+the cart's own position, the Entity Status broadcasts, the persistence
+payload; no item form — Item.java never registers one); (2) the
+command-block cart (index 6 — the run-on-rail every 4 ticks, the synced
+slots 23/24, the Update Entity NBT 0x49 decode, the item 422); (3) the
+fishing bobber (90) + the giant (53); (4) the sections 27/28 audit (the
+native API exposure + the plugin concurrency contract vs the code).

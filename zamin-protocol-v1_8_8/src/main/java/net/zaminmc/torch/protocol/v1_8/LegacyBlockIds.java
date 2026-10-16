@@ -462,9 +462,12 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:fireworks"), 401),
             Map.entry(Identifier.parse("minecraft:firework_charge"), 402),
             // The minecart variant items (Slice 66 — Item.java lines 627 +
-            // 711: the furnace cart 343, the TNT cart 407).
+            // 711-712: the furnace cart 343, the TNT cart 407, the hopper
+            // cart 408; the spawner cart has no item form — Item.java never
+            // registers one — and the command cart's 422 rides its slice).
             Map.entry(Identifier.parse("minecraft:furnace_minecart"), 343),
             Map.entry(Identifier.parse("minecraft:tnt_minecart"), 407),
+            Map.entry(Identifier.parse("minecraft:hopper_minecart"), 408),
             Map.entry(Identifier.parse("minecraft:written_book"), 387),
             Map.entry(Identifier.parse("minecraft:pumpkin_pie"), 400),
             Map.entry(Identifier.parse("minecraft:name_tag"), 421),

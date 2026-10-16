@@ -178,6 +178,126 @@ public final class HopperSystem implements WorldChangeListener {
         return new LinkedHashMap<>(hoppers);
     }
 
+    // ------------------------------------------------------------------
+    // The hopper minecart's transfer (Slice 66 —
+    // HopperMinecartEntity.transferItems lines 119-130 over
+    // HopperBlockEntity.pullItem/pickUpItem)
+    // ------------------------------------------------------------------
+
+    /**
+     * The rolling hopper's one transfer attempt, 1:1: the mouth sits at
+     * the cart's center height ({@code getY = y + 0.5}), so the
+     * container-above lookup lands at the cell holding {@code y + 1.5}.
+     *
+     * <p>The arms, in the reference's own order: (1) a container above
+     * (through the same container adapter the block hopper reads — the
+     * chest, the hopper, the furnace, the dispenser family, the brewing
+     * stand, or a chest cart parked there) gives up one item per attempt;
+     * a fit arms the 4-tick cooldown. (2) With no container above, the
+     * item entities inside the 1-box centered on the mouth-plus-one — a
+     * FULL suck (the whole stack landing) arms the cooldown too; a
+     * partial suck keeps trying the next item in the box. (3) The
+     * fallback: the first item entity inside the cart's own shape grown
+     * 0.25 horizontally — its whole stack pushes in, and the arm NEVER
+     * arms the cooldown (the reference's own {@code return false}, the
+     * every-tick suck the cart is known for).</p>
+     *
+     * @return whether the cooldown-arming arm succeeded.
+     */
+    public boolean hopperCartTransfer(
+            net.zaminmc.torch.server.entity.vehicle.HopperMinecartEntity cart) {
+        double mouthY = cart.position().y() + 0.5; // the reference's getY()
+        // getInventoryAbove (line 442): getInventoryAt(x, getY + 1.0, z).
+        BlockPosition above = new BlockPosition(
+                (int) Math.floor(cart.position().x()),
+                (int) Math.floor(mouthY + 1.0),
+                (int) Math.floor(cart.position().z()));
+        List<ContainerSlot> slots = containerSlotsAt(above, 0 /* the container's DOWN face */);
+        if (!slots.isEmpty()) {
+            if (!isEmptyInventory(slots)) {
+                for (ContainerSlot source : slots) {
+                    if (!source.canPullFromBelow()) {
+                        continue; // the furnace's bucket-only fuel gate
+                    }
+                    ItemStack moving = source.get();
+                    if (moving.isEmpty()) {
+                        continue;
+                    }
+                    // ONE item per attempt (pullItems lines 333-347:
+                    // removeItem(slot, 1) with the whole-stack copy held
+                    // back for the restore).
+                    ItemStack held = moving;
+                    ItemStack one = ItemStack.of(moving.type(), 1);
+                    if (moving.count() > 1) {
+                        source.set(moving.withCount(moving.count() - 1));
+                    } else {
+                        source.set(ItemStack.EMPTY);
+                    }
+                    ItemStack remainder = insertIntoHopper(cart.hopper(), one);
+                    if (remainder.isEmpty()) {
+                        return true;
+                    }
+                    source.set(held); // nothing fit: the original returns
+                }
+            }
+            // An empty (or unpullable) container above: pullItem answers
+            // false — the walk falls through to the own-shape arm, the
+            // box-above suck is NOT consulted (1:1).
+        } else {
+            // No container above: the item-entity suck from the box
+            // centered on the mouth-plus-one (getItem(world, x, getY +
+            // 1.0, z) — the 1-box, one half block out).
+            for (ItemEntity item : itemEntities.all()) {
+                Position at = item.position();
+                if (Math.abs(at.x() - cart.position().x()) <= 0.5
+                        && Math.abs(at.z() - cart.position().z()) <= 0.5
+                        && Math.abs(at.y() - (mouthY + 1.0)) <= 0.5
+                        && pickUpInto(item, cart.hopper())) {
+                    return true; // a full suck arms the cooldown
+                }
+            }
+        }
+        // The fallback (transferItems lines 124-128): the FIRST item
+        // entity inside the cart's shape grown 0.25 horizontally (the
+        // 0.98-wide hull ± 0.49 + 0.25 = ± 0.74, the 0.7-high y band,
+        // the item's own ± 0.125 box intersecting) pushes its whole
+        // stack — and the arm never arms the cooldown.
+        double centerX = cart.position().x();
+        double centerY = cart.position().y();
+        double centerZ = cart.position().z();
+        for (ItemEntity item : itemEntities.all()) {
+            Position at = item.position();
+            if (Math.abs(at.x() - centerX) <= 0.74 + 0.125
+                    && Math.abs(at.z() - centerZ) <= 0.74 + 0.125
+                    && at.y() + 0.25 >= centerY && at.y() <= centerY + 0.7) {
+                pickUpInto(item, cart.hopper());
+                break; // list.get(0): one item, no loop
+            }
+        }
+        return false;
+    }
+
+    /**
+     * The pickup (pickUpItem lines 349-365): the whole stack pushes in;
+     * a full consume removes the body and answers true, a partial keeps
+     * the remainder in the world.
+     */
+    private boolean pickUpInto(ItemEntity item, HopperBlockEntity into) {
+        ItemStack stack = item.stack();
+        if (stack.isEmpty()) {
+            return false;
+        }
+        ItemStack remainder = insertIntoHopper(into, stack);
+        if (remainder.isEmpty()) {
+            itemEntities.remove(item, "hopper-cart-suck");
+            return true;
+        }
+        if (remainder.count() != stack.count()) {
+            item.setStack(remainder); // a partial suck keeps the rest
+        }
+        return false;
+    }
+
     /** Restores persisted state after boot. */
     public void restoreAll(Map<BlockPosition, HopperBlockEntity> restored) {
         hoppers.putAll(restored);

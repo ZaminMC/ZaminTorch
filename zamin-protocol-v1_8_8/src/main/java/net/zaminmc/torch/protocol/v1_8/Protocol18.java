@@ -516,6 +516,12 @@ final class Protocol18 {
     /** The hopper window (the reference's HopperMenu): 5 + 27 + 9 = 41 slots. */
     static final String HOPPER_WINDOW_TYPE = "minecraft:hopper";
     static final String HOPPER_WINDOW_TITLE = "{\"text\":\"Hopper\"}";
+    /**
+     * The hopper minecart's own title (Slice 66 — ServerPlayerEntity.
+     * openChestMenu's inventory.getDisplayName: the cart entity's own
+     * name, entity.MinecartHopper.name = "Minecart with Hopper").
+     */
+    static final String MINECART_HOPPER_WINDOW_TITLE = "{\"text\":\"Minecart with Hopper\"}";
     static final int HOPPER_WINDOW_SLOTS = 41;
     static final int HOPPER_WIRE_SLOT_LAST = 4;
     static final int HOPPER_WIRE_SLOT_MAIN_FIRST = 5;
