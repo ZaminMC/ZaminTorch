@@ -42,7 +42,13 @@ public final class ProjectileEntity implements net.zaminmc.torch.entity.Projecti
          * type 66): the accelerating flight with the charged blue's own
          * 0.73 drag, the 8.0 hit with the wither curse, and the 1.0F
          * detonation where it lands. */
-        WITHER_SKULL(66, net.zaminmc.torch.entity.ProjectileKind.WITHER_SKULL);
+        WITHER_SKULL(66, net.zaminmc.torch.entity.ProjectileKind.WITHER_SKULL),
+        /** The bottle o' enchanting (Slice 65 — ExperienceBottleEntity,
+         * the object type 75): the lobbed flight (the -20-degree start
+         * pitch offset, the 0.7 power, the 0.07 gravity) that bursts into
+         * experience orbs on any impact — no damage, ever (the reference's
+         * onCollision only splashes the 2002 event and the orbs). */
+        EXPERIENCE_BOTTLE(75, net.zaminmc.torch.entity.ProjectileKind.EXPERIENCE_BOTTLE);
 
         /** Protocol 47's Spawn Object entity type id. */
         public final int objectType;

@@ -935,12 +935,16 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             SlotNbt.skip(packet);
         }
         // The 1.8 C08 cursor bytes (the hit offset within the clicked face,
-        // 16ths — the slab half's placement signal).
-        int cursorY = 0;
+        // 16ths — the slab half's placement signal, the firework's launch
+        // point (Slice 65: the per-axis fractions the useOn faceX/faceZ
+        // consume)).
+        float cursorX = 0.0f;
+        float cursorY = 0.0f;
+        float cursorZ = 0.0f;
         if (packet.isReadable(3)) {
-            packet.readByte();
-            cursorY = packet.readByte();
-            packet.readByte();
+            cursorX = packet.readByte() / 16.0f;
+            cursorY = packet.readByte() / 16.0f;
+            cursorZ = packet.readByte() / 16.0f;
         }
         // The -1 sentinel position (and face 255 against a block) mean "use the
         // held item" rather than "place on a block": the eating path.
@@ -975,7 +979,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         }
         final var held = creativeHeld;
         try {
-            engine.useItemOnBlock(player, target, face, held, cursorY, windowId -> {
+            engine.useItemOnBlock(player, target, face, held, cursorX, cursorY, cursorZ, windowId -> {
                 // The engine recorded the container kind before dispatching the
                 // callback; the adapter picks the matching Open Window flavor.
                 Channel channel = adapter.channelOf(this);
@@ -3736,6 +3740,102 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     }
 
     /**
+     * The firework rocket's launch (Slice 65 — FireworksEntity's tracker
+     * registration, EntityMap lines 90-91: (64, 10, syncVelocity)): the
+     * Spawn Object 76 bare, the synced slot-8 item stack (the payload the
+     * client's own burst reads), and the spawn velocity (the near-zero
+     * drift + the 0.05 lift). Chunk-gated like every spawn. Any thread.
+     */
+    void sendFireworksLaunched(net.zaminmc.torch.server.fireworks.FireworksEntity rocket) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY
+                || chunkTracker == null) {
+            return;
+        }
+        var blockPos = rocket.position().toBlockPosition();
+        if (!chunkTracker.hasChunk(blockPos.chunkPosition().packed())) {
+            return; // outside this observer's loaded window
+        }
+        ByteBuf out = Unpooled.buffer(40);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_SPAWN_ENTITY);
+        ByteBufOps.writeVarInt(out, rocket.entityId());
+        out.writeByte(Protocol18.OBJECT_FIREWORKS);
+        out.writeInt((int) Math.floor(rocket.position().x() * 32.0));
+        out.writeInt((int) Math.floor(rocket.position().y() * 32.0));
+        out.writeInt((int) Math.floor(rocket.position().z() * 32.0));
+        out.writeByte(0); // pitch: the client re-aims from velocity
+        out.writeByte(0); // yaw
+        out.writeInt(0); // objectData: bare
+        channel.writeAndFlush(out);
+        // The synced slot-8 item (registerSyncedData line 55: the payload
+        // stack the client's burst reads — METADATA_TYPE_SLOT 5).
+        ByteBuf meta = Unpooled.buffer(24);
+        ByteBufOps.writeVarInt(meta, Protocol18.S2C_ENTITY_METADATA);
+        ByteBufOps.writeVarInt(meta, rocket.entityId());
+        meta.writeByte((Protocol18.METADATA_TYPE_SLOT << 5) | 8);
+        writeSlot(meta, rocket.payload());
+        meta.writeByte(Protocol18.METADATA_TERMINATOR);
+        channel.writeAndFlush(meta);
+        // The tracker's syncVelocity arm: the launch velocity rides the
+        // spawn (the client integrates its own copy between the syncs).
+        ByteBuf velocity = Unpooled.buffer(16);
+        ByteBufOps.writeVarInt(velocity, Protocol18.S2C_ENTITY_VELOCITY);
+        ByteBufOps.writeVarInt(velocity, rocket.entityId());
+        velocity.writeShort((int) Math.round(rocket.velocityX() * 8000.0));
+        velocity.writeShort((int) Math.round(rocket.velocityY() * 8000.0));
+        velocity.writeShort((int) Math.round(rocket.velocityZ() * 8000.0));
+        channel.writeAndFlush(velocity);
+    }
+
+    /**
+     * The rocket's velocity re-sync (the tracker's 10-tick interval with
+     * syncVelocity — the 1.15/0.04 flight law keeps changing it). Any
+     * thread.
+     */
+    void sendFireworksVelocity(net.zaminmc.torch.server.fireworks.FireworksEntity rocket) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY
+                || chunkTracker == null) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(16);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_ENTITY_VELOCITY);
+        ByteBufOps.writeVarInt(out, rocket.entityId());
+        out.writeShort((int) Math.round(rocket.velocityX() * 8000.0));
+        out.writeShort((int) Math.round(rocket.velocityY() * 8000.0));
+        out.writeShort((int) Math.round(rocket.velocityZ() * 8000.0));
+        channel.writeAndFlush(out);
+    }
+
+    /**
+     * The rocket's burst (Slice 65 — FireworksEntity.tick line 125:
+     * {@code doEntityEvent(this, (byte) 17)}): the Entity Status byte the
+     * client renders the explosion from (reading the synced slot-8 item's
+     * Fireworks compound). Any thread.
+     */
+    void sendFireworksBurst(net.zaminmc.torch.server.fireworks.FireworksEntity rocket) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY
+                || chunkTracker == null) {
+            return;
+        }
+        var blockPos = rocket.position().toBlockPosition();
+        if (!chunkTracker.hasChunk(blockPos.chunkPosition().packed())) {
+            return; // outside this observer's loaded window
+        }
+        ByteBuf out = Unpooled.buffer(12);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_ENTITY_STATUS);
+        ByteBufOps.writeVarInt(out, rocket.entityId());
+        out.writeByte(net.zaminmc.torch.server.fireworks.FireworksEntity.EVENT_BURST);
+        channel.writeAndFlush(out);
+    }
+
+    /** Removes a burst rocket from this observer (the Destroy Entities). */
+    void sendFireworksRemoved(int entityId) {
+        sendDestroyEntities(entityId);
+    }
+
+    /**
      * Set Entity Metadata (0x1C) for the enderman's whole block (Slice
      * 19d): the carried block's Short at 16 and the screaming byte at
      * 18 — both republished on either flip. Any thread.
@@ -4275,6 +4375,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             case POTION -> Protocol18.OBJECT_POTION;
             case ENDER_PEARL -> Protocol18.OBJECT_ENDER_PEARL;
             case WITHER_SKULL -> Protocol18.OBJECT_WITHER_SKULL;
+            case EXPERIENCE_BOTTLE -> Protocol18.OBJECT_EXPERIENCE_BOTTLE;
         };
         int throwerWireId = resolveThrowerWireId(current, projectile.throwerId());
         // The objectData field (TrackedEntity.createAddEntityPacket 1:1):
@@ -4293,6 +4394,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             case SNOWBALL, EGG -> 0;
             case ENDER_PEARL -> throwerWireId > 0 ? throwerWireId : 0;
             case WITHER_SKULL -> throwerWireId; // the shooter like the fireball family
+            case EXPERIENCE_BOTTLE -> 0; // bare like the shard family
         };
         ByteBuf out = Unpooled.buffer(48);
         ByteBufOps.writeVarInt(out, Protocol18.S2C_SPAWN_ENTITY);

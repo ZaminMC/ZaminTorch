@@ -314,6 +314,8 @@ public final class EngineServer implements Server, EngineBridge {
     private net.zaminmc.torch.server.armorstand.ArmorStandDataStore armorStandStore;
     /** The ender crystals (Slice 62 — the End pillar tops). */
     private net.zaminmc.torch.server.endcrystal.EnderCrystalSystem enderCrystals;
+    /** The firework rockets (Slice 65 — the right-click launch + the burst). */
+    private net.zaminmc.torch.server.fireworks.FireworksSystem fireworks;
     /** The ender crystals' ZEC persistence (the destroyed-pillar set). */
     private net.zaminmc.torch.server.endcrystal.EnderCrystalDataStore enderCrystalStore;
     /** The dragon fight's ZDR persistence (the defeated mark). */
@@ -424,6 +426,8 @@ public final class EngineServer implements Server, EngineBridge {
     /** Armor stands get the band above the decorations. */
     private static final int ARMOR_STAND_ID_BASE = DECORATION_ID_BASE + 1_000_000;
     private static final int ENDER_CRYSTAL_ID_BASE = ARMOR_STAND_ID_BASE + 1_000_000;
+    /** Firework rockets get the band above the ender crystals (Slice 65). */
+    private static final int FIREWORKS_ID_BASE = ENDER_CRYSTAL_ID_BASE + 1_000_000;
 
     /** The shared shape-aware physics query (items, falling blocks, projectiles). */
     private final ShapeGround shapeGround = new ShapeGround();
@@ -1366,6 +1370,11 @@ public final class EngineServer implements Server, EngineBridge {
                 enderCrystalStore = new net.zaminmc.torch.server.endcrystal.EnderCrystalDataStore(
                         config.worldDataDir().resolve("DIM1/endercrystals.bin"));
                 enderCrystals.restoreDestroyedCells(enderCrystalStore.load());
+                // The firework rockets (Slice 65): the launch's near-zero
+                // drift, the 10..22-tick fuse, the burst event 17 — the
+                // entity family the fireworks item's own useOn arm births.
+                fireworks = new net.zaminmc.torch.server.fireworks.FireworksSystem(
+                        new FireworksSurface(), gameplayRandom, FIREWORKS_ID_BASE);
                 // The dragon fight's defeated mark (Slice 63): the End's
                 // chunks regenerate deterministically — the chunk-(0,0)
                 // decorate would re-spawn the dragon every boot; the ZDR
@@ -1638,6 +1647,22 @@ public final class EngineServer implements Server, EngineBridge {
                         return true; // the part ate the projectile either way
                     }
                     return false;
+                });
+                // The bottle o' enchanting's burst (Slice 65 —
+                // ExperienceBottleEntity.onCollision lines 28-43): the
+                // 2002 splash event at the impact plus the experience
+                // burst — 3 + rand(5) + rand(5) points through the
+                // roundSize ladder. No damage ever lands.
+                projectiles.setXpBottleSink((x, y, z) -> {
+                    for (ProjectileListener listener : projectileListeners) {
+                        listener.onWorldEventAt(new Position(x, y, z),
+                                WORLD_EVENT_BOTTLE_SPLASH);
+                    }
+                    if (experienceOrbs != null) {
+                        int points = 3 + gameplayRandom.nextInt(5)
+                                + gameplayRandom.nextInt(5);
+                        experienceOrbs.spawnSplitBurst(new Position(x, y, z), points);
+                    }
                 });
                 mobs.setPotionSystem(potionSystem); // the witch's drink arm (12i)
                 // The difficulty reads (Slice 19e): the peaceful sweep
@@ -3862,6 +3887,10 @@ public final class EngineServer implements Server, EngineBridge {
     // bypass-armor exemption).
     private static final float ENDER_PEARL_ENDERMITE_CHANCE = 0.05f;
     private static final float ENDER_PEARL_FALL_DAMAGE = 5.0f;
+    // The bottle o' enchanting's splash event (Slice 65 —
+    // ExperienceBottleEntity.onCollision line 30: doEvent(2002, pos, 0)
+    // — the splash-particle Effect with the value 0).
+    private static final int WORLD_EVENT_BOTTLE_SPLASH = 2002;
 
     /**
      * A player attacked an entity (Use Entity 0x02, mouse=1): validates reach,
@@ -4890,6 +4919,14 @@ public final class EngineServer implements Server, EngineBridge {
                 throwEnderPearl(session);
                 return;
             }
+            // The bottle o' enchanting (Slice 65 —
+            // ExperienceBottleItem.startUsing lines 12-24): the stack-64
+            // throwable that throws on the press, lobbed (the -20-degree
+            // start-pitch offset) and bursting into experience orbs.
+            if (held.type().equals(BuiltinItems.EXPERIENCE_BOTTLE)) {
+                throwExperienceBottle(session);
+                return;
+            }
             // Potions (Slice 11b — PotionItem.startUsing lines 109-126): the
             // splash throws on the press; the drinkable starts its own
             // 32-tick clock (no hunger gate — the reference's own rule).
@@ -5119,6 +5156,48 @@ public final class EngineServer implements Server, EngineBridge {
             }
         }
         launchProjectile(session, ProjectileEntity.Kind.ENDER_PEARL, SHARD_SPEED);
+        fxManager.sound(mouthPosition(session), "random.bow", 0.5f,
+                0.4f / (fxRandom.nextFloat() * 0.4f + 0.8f));
+        publishInventoryChanged(session);
+    }
+
+    /**
+     * The bottle o' enchanting's throw (Slice 65 —
+     * ExperienceBottleItem.startUsing lines 12-24 + the
+     * ExperienceBottleEntity ctor over ThrownEntity lines 58-67): one unit
+     * leaves the hand, the launch builds the reference's own f=0.4
+     * direction — the horizontal pair over the plain pitch's cosine, the
+     * vertical over {@code pitch + (-20)} — and the dispense walk
+     * (normalize, gaussian 0.0075, scale by the power 0.7) carries it
+     * (launchVector is that walk verbatim). The whoosh rides the same
+     * volume/pitch recipe as the shard family. Tick-thread context.
+     */
+    private void throwExperienceBottle(PlayerSession session) {
+        boolean creative = session.gamemode() == GameMode.CREATIVE;
+        if (!creative) {
+            if (session.inventory().held().type().equals(BuiltinItems.EXPERIENCE_BOTTLE)) {
+                session.inventory().consumeHeld(1);
+            } else {
+                return; // the hand changed between press and tick
+            }
+        }
+        if (projectileManager != null) {
+            Position eye = mouthPosition(session);
+            double yawRadians = Math.toRadians(session.rotation().yaw());
+            Position spawn = new Position(
+                    eye.x() - Math.cos(yawRadians) * 0.16,
+                    eye.y() - 0.1f,
+                    eye.z() - Math.sin(yawRadians) * 0.16);
+            double pitchRadians = Math.toRadians(session.rotation().pitch());
+            double dx = -Math.sin(yawRadians) * Math.cos(pitchRadians);
+            double dz = Math.cos(yawRadians) * Math.cos(pitchRadians);
+            // getStartPitchOffset's -20: the bottle lobs (the vertical
+            // term alone carries the offset — the reference's own ctor).
+            double dy = -Math.sin(pitchRadians - Math.toRadians(20.0));
+            projectileManager.launchVector(ProjectileEntity.Kind.EXPERIENCE_BOTTLE,
+                    session.engineEntityId(), spawn, dx, dy, dz, 0.7, 1.0);
+            LOGGER.fine(() -> session.name() + " threw a bottle o' enchanting");
+        }
         fxManager.sound(mouthPosition(session), "random.bow", 0.5f,
                 0.4f / (fxRandom.nextFloat() * 0.4f + 0.8f));
         publishInventoryChanged(session);
@@ -6585,16 +6664,32 @@ public final class EngineServer implements Server, EngineBridge {
                                java.util.Optional<net.zaminmc.torch.block.BlockType> creativeHeld,
                                int cursorY,
                                java.util.function.IntConsumer onTableOpened) {
+        useItemOnBlock(session, clicked, face, creativeHeld, 0.0f, cursorY / 16.0f, 0.0f,
+                onTableOpened);
+    }
+
+    /**
+     * The cursor-fraction overload (Slice 65 — the 1.8 C08's own three
+     * cursor bytes): the hit point within the clicked face as the
+     * 0..1 per-axis fractions the reference's useOn faceX/faceY/faceZ
+     * consume (the firework's launch point, the placement family's
+     * signals). Safe from any thread.
+     */
+    public void useItemOnBlock(PlayerSession session, net.zaminmc.torch.block.BlockPosition clicked, int face,
+                               java.util.Optional<net.zaminmc.torch.block.BlockType> creativeHeld,
+                               float cursorX, float cursorY, float cursorZ,
+                               java.util.function.IntConsumer onTableOpened) {
         Objects.requireNonNull(session, "session");
         Objects.requireNonNull(clicked, "clicked");
         Objects.requireNonNull(creativeHeld, "creativeHeld");
         Objects.requireNonNull(onTableOpened, "onTableOpened");
-        ticker.submit(() -> useItemOnBlockOnTick(session, clicked, face, creativeHeld, cursorY, onTableOpened));
+        ticker.submit(() -> useItemOnBlockOnTick(session, clicked, face, creativeHeld,
+                cursorX, cursorY, cursorZ, onTableOpened));
     }
 
     private void useItemOnBlockOnTick(PlayerSession session, net.zaminmc.torch.block.BlockPosition clicked,
                                       int face, java.util.Optional<net.zaminmc.torch.block.BlockType> creativeHeld,
-                                      int cursorY,
+                                      float cursorX, float cursorY, float cursorZ,
                                       java.util.function.IntConsumer onTableOpened) {
         net.zaminmc.torch.block.BlockType current = world.getBlock(clicked);
         if (current.identifier().equals(
@@ -6752,6 +6847,28 @@ public final class EngineServer implements Server, EngineBridge {
                         .equals(BuiltinBlocks.FENCE.identifier())) {
             leadSystem.useLeadOnFence(session, clicked);
             return; // the fence consumed the use (the reference's own true)
+        }
+        // The firework rocket (Slice 65 — FireworksItem.useOn lines 28-38):
+        // a right-click on ANY block face launches the rocket AT the
+        // clicked face's own point (pos + the cursor fractions), one unit
+        // leaves the hand, and the use consumed — no placement proposal
+        // follows. (The item has no startUsing: a right-click in the air
+        // does nothing — the in-air path never sees it.)
+        net.zaminmc.torch.item.ItemStack fireworksHeld = session.inventory().held();
+        if (!fireworksHeld.isEmpty()
+                && fireworksHeld.type().equals(BuiltinItems.FIREWORKS)) {
+            if (fireworks != null) {
+                fireworks.launch(new Position(
+                        clicked.x() + cursorX, clicked.y() + cursorY,
+                        clicked.z() + cursorZ),
+                        net.zaminmc.torch.item.ItemStack.of(
+                                BuiltinItems.FIREWORKS, 1));
+                if (session.gamemode() != GameMode.CREATIVE) {
+                    session.inventory().consumeHeld(1);
+                }
+                publishInventoryChanged(session);
+            }
+            return; // the launch consumed the use
         }
         if (cycleRepeaterDelayOnTick(clicked)) {
             return; // the repeater's use consumed the right-click (the delay cycle)
@@ -8798,7 +8915,7 @@ public final class EngineServer implements Server, EngineBridge {
      * glowstone, a slab, or a stairs). Tick-thread context.
      */
     private void placeTrapdoorOnTick(PlayerSession session, BlockPosition clicked, int face,
-                                      java.util.Optional<BlockType> creativeHeld, int cursorY) {
+                                      java.util.Optional<BlockType> creativeHeld, float cursorY) {
         if (face < 2 || face > 5) {
             return; // only a horizontal face mounts (the verticals refuse)
         }
@@ -8835,7 +8952,7 @@ public final class EngineServer implements Server, EngineBridge {
         if (!isTrapdoorMount(world.getBlock(clicked))) {
             return;
         }
-        boolean top = (cursorY & 0xFF) >= 8; // dy > 0.5F
+        boolean top = cursorY >= 0.5f; // dy > 0.5F (the cursor fraction, Slice 65's unified form)
         world.setBlock(target, net.zaminmc.torch.server.block.TrapdoorBlocks
                 .state(family, facing, false, top));
         consumePlaced(session, creativeHeld);
@@ -9323,7 +9440,7 @@ public final class EngineServer implements Server, EngineBridge {
      * Tick-thread context.
      */
     private void placeSlabOnTick(PlayerSession session, BlockPosition clicked, int face,
-                                 java.util.Optional<BlockType> creativeHeld, int cursorY) {
+                                 java.util.Optional<BlockType> creativeHeld, float cursorY) {
         String held = heldIdentifierOf(session, creativeHeld);
         net.zaminmc.torch.block.BlockType[] family = held == null ? null : slabFamilyOf(held);
         if (family == null) {
@@ -9359,7 +9476,7 @@ public final class EngineServer implements Server, EngineBridge {
         }
         // Glowstone's BlockStep convention: DOWN face hangs the top half,
         // UP lays the bottom, the sides split on the cursor's upper half.
-        boolean top = face == 0 || (face != 1 && (cursorY & 0xFF) >= 8);
+        boolean top = face == 0 || (face != 1 && cursorY >= 0.5f);
         world.setBlock(target, top ? family[1] : family[0]);
         consumePlaced(session, creativeHeld);
     }
@@ -11167,6 +11284,14 @@ public final class EngineServer implements Server, EngineBridge {
          */
         default void onProjectileDeflected(ProjectileEntity projectile) {
         }
+
+        /**
+         * The reference's own world event from a projectile's impact
+         * (Slice 65 — the bottle o' enchanting's doEvent(2002, pos, 0):
+         * the splash-particle Effect packet, the color value 0).
+         */
+        default void onWorldEventAt(Position position, int eventId) {
+        }
     }
 
     private final java.util.List<ProjectileListener> projectileListeners =
@@ -11214,7 +11339,6 @@ public final class EngineServer implements Server, EngineBridge {
             }
         }
     }
-
     /** Observers of the vehicle system (the protocol adapter's wire sync). */
     public interface VehicleListener {
         void onVehicleSpawned(net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle);
@@ -12002,6 +12126,23 @@ public final class EngineServer implements Server, EngineBridge {
         if (enderCrystals != null) {
             enderCrystals.tick(); // the crystals' spin + the feet fire (Slice 62)
         }
+        if (fireworks != null) {
+            fireworks.tick(); // the rockets' flight clock + the burst (Slice 65)
+        }
+    }
+
+    /**
+     * The fireworks' engine surface (Slice 65): the age-0 launch sound —
+     * the world-scope 3.0-volume whoosh every listener hears.
+     */
+    private final class FireworksSurface
+            implements net.zaminmc.torch.server.fireworks.FireworksSystem.Surface {
+        @Override
+        public void launchSound(Position at) {
+            fxManager.sound(at, "fireworks.launch",
+                    net.zaminmc.torch.server.fireworks.FireworksEntity.LAUNCH_VOLUME,
+                    net.zaminmc.torch.server.fireworks.FireworksEntity.LAUNCH_PITCH);
+        }
     }
 
     /**
@@ -12373,6 +12514,11 @@ public final class EngineServer implements Server, EngineBridge {
     /** The ender-crystal system (§27.3's surface — the End pillar tops). */
     public net.zaminmc.torch.server.endcrystal.EnderCrystalSystem enderCrystals() {
         return enderCrystals;
+    }
+
+    /** The firework-rocket system (§27.3's surface — the launch + the burst). */
+    public net.zaminmc.torch.server.fireworks.FireworksSystem fireworks() {
+        return fireworks;
     }
 
     /**

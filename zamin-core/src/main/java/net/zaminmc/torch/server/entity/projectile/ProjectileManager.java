@@ -57,6 +57,10 @@ public final class ProjectileManager {
     static final double VOID_KILL_Y = -64.0;
     /** The egg's chick roll: one chance in eight (the historical omelet). */
     static final int EGG_HATCH_CHANCE = 8;
+    /** The bottle o' enchanting's own gravity (ExperienceBottleEntity
+     * .getGravity line 24: 0.07F — heavier than the shard's 0.03 and the
+     * potion's 0.05, the lobbed arc's own weight). */
+    static final double XP_BOTTLE_GRAVITY = 0.07;
 
     /** The world solidity query (immutable snapshot reads; tick thread). */
     public interface SolidQuery {
@@ -259,6 +263,19 @@ public final class ProjectileManager {
                               boolean explosive, int shooterId);
     }
 
+    /**
+     * The bottle o' enchanting's burst arm (Slice 65 —
+     * ExperienceBottleEntity.onCollision lines 28-43): the 2002 splash
+     * event at the impact plus the experience burst — {@code 3 + rand(5)
+     * + rand(5)} points split through the orb family's own roundSize
+     * table. No damage ever lands: the reference's onCollision calls no
+     * takeDamage, so the burst IS the whole hit law.
+     */
+    public interface XpBottleSink {
+        /** The splash event + the orb burst at the impact point. */
+        void burst(double x, double y, double z);
+    }
+
     private final SolidQuery solid;
     private final HitResolver hits;
     private final CombatSink combat;
@@ -279,6 +296,8 @@ public final class ProjectileManager {
     private CrystalSink crystalSink = (x, y, z) -> false;
     /** The dragon part's wound arm (Slice 63); optional until wired. */
     private DragonSink dragonSink = (x, y, z, damage, explosive, shooterId) -> false;
+    /** The bottle o' enchanting's burst arm (Slice 65); optional until wired. */
+    private XpBottleSink xpBottleSink = (x, y, z) -> { };
 
     /** Wires the fireball's fire-placement arm. */
     public void setFireSink(FireSink sink) {
@@ -308,6 +327,11 @@ public final class ProjectileManager {
     /** Wires the dragon part's wound arm (Slice 63). */
     public void setDragonSink(DragonSink sink) {
         this.dragonSink = Objects.requireNonNull(sink, "sink");
+    }
+
+    /** Wires the bottle o' enchanting's burst arm (Slice 65). */
+    public void setXpBottleSink(XpBottleSink sink) {
+        this.xpBottleSink = Objects.requireNonNull(sink, "sink");
     }
 
     public ProjectileManager(SolidQuery solid, HitResolver hits, CombatSink combat,
@@ -608,6 +632,11 @@ public final class ProjectileManager {
             // 0.05, the arrow's weight, not the shard's 0.03).
             return ARROW_GRAVITY;
         }
+        if (kind == ProjectileEntity.Kind.EXPERIENCE_BOTTLE) {
+            // The bottle's own weight (ExperienceBottleEntity.getGravity
+            // line 24: 0.07F).
+            return XP_BOTTLE_GRAVITY;
+        }
         return kind == ProjectileEntity.Kind.SMALL_FIREBALL
                 || kind == ProjectileEntity.Kind.WITHER_SKULL
                 ? 0.0 : THROWABLE_GRAVITY;
@@ -620,6 +649,28 @@ public final class ProjectileManager {
      * the fireball's fire placement walks back to the last air cell.
      */
     private boolean resolveCollisions(ProjectileEntity projectile, Position from, Position point) {
+        // --- the bottle o' enchanting (Slice 65) ------------------------------
+        // ExperienceBottleEntity.onCollision: the burst IS the whole hit law
+        // — no damage, no knockback, no crystal pop, no dragon wound (the
+        // reference's onCollision never calls takeDamage). The burst lands
+        // on ANY collision: a body, a block. The thrower-immunity window
+        // still applies (the reference's ThrownEntity collision scan).
+        if (projectile.kind() == ProjectileEntity.Kind.EXPERIENCE_BOTTLE) {
+            MobEntity burstMob = hits.mobAt(point);
+            PlayerSession burstPlayer = hits.playerAt(point);
+            boolean burstOnMob = burstMob != null && !burstMob.dead()
+                    && !(burstMob.entityId() == projectile.throwerId()
+                         && projectile.age() <= THROWER_IMMUNITY_TICKS);
+            boolean burstOnPlayer = burstPlayer != null && !burstPlayer.dead()
+                    && !(burstPlayer.engineEntityId() == projectile.throwerId()
+                         && projectile.age() <= THROWER_IMMUNITY_TICKS);
+            if (burstOnMob || burstOnPlayer || solid.solid(point.x(), point.y(), point.z())) {
+                xpBottleSink.burst(point.x(), point.y(), point.z());
+                remove(projectile, "hit");
+                return true;
+            }
+            return false;
+        }
         // --- entity hit -------------------------------------------------------
         MobEntity mob = hits.mobAt(point);
         if (mob != null && !mob.dead()

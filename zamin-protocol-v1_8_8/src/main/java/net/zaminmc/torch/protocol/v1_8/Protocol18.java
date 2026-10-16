@@ -221,6 +221,12 @@ final class Protocol18 {
     static final int OBJECT_WITHER_SKULL = 66;
     /** Leash knot (Spawn Object type 77 — TrackedEntity's own). */
     static final int OBJECT_LEASH_KNOT = 77;
+    /** The bottle o' enchanting (Slice 65 — community entities.json
+     * "ThrownEXPBottle", the Spawn Object type 75). */
+    static final int OBJECT_EXPERIENCE_BOTTLE = 75;
+    /** The firework rocket (Slice 65 — community entities.json
+     * "FireworksRocketEntity", the Spawn Object type 76). */
+    static final int OBJECT_FIREWORKS = 76;
     /** Item frame (Spawn Object type 71 — TrackedEntity lines 493-502). */
     static final int OBJECT_ITEM_FRAME = 71;
     /** Armor stand (Spawn Object type 78 — TrackedEntity line 491). */
