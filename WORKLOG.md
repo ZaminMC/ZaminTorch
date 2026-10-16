@@ -6792,3 +6792,60 @@ the minecart variants (TNT 45/hopper 46/furnace 44/spawner 47/
 command-block 40), the fishing bobber (90), the giant (53); (3) the
 sections 27/28 audit (the native API exposure + the plugin concurrency
 contract vs the current code).
+
+## Slice 64 — the exit fountain's walk (the End-to-overworld exit)
+
+The End's own goodbye, 1:1.
+
+- **The credits arm** (ServerPlayerEntity.changeDimension lines 444-457,
+  the dimension==1&&dimension==1 arm): `leaveEndOnTick` — the
+  `leavingTheEnd` session state (the reference's own removed-from-the-
+  world marker), the GameEvent-4 win screen through the link's
+  `playGameState` (the elder-guardian precedent's carrier). The
+  LEAVE_THE_END achievement rides the achievement family's own slice
+  (no achievement rows in the stat store yet); the non-player arm
+  (Entity.changeDimension's old-1+new-1 overworld-spawn-surface
+  redirect) rides the mob portal-collision simulation (mobs do not yet
+  collide with portal cells).
+- **The alive respawn** (handleClientStatus lines 740-744):
+  `performRespawn`'s credits arm FIRST — `endCreditsRespawnOnTick`
+  (PlayerManager.respawn(player, 0, true) + PlayerEntity.copyFrom's
+  comesFromTheEnd=true carry): the overworld landing at the bed/world
+  spawn with the WHOLE body kept — health, food, saturation, XP,
+  inventory — no reset, no drop. The death arm's own walk untouched
+  (the flag gate rides ahead of the dead gate, the reference's own
+  if/else-if order).
+- **The removed body**: `movementProposal` answers nothing while the
+  credits play (handlePlayerMove line 198's gate); `tickPlayerBodies`
+  skips the whole simulation (no food economy, no breath, no portal
+  arms, no stats clock — the reference's removed entity does not
+  tick).
+- **The removeEntity wire**: `SurvivalListener.onEndCredits` — the
+  adapter untracks the mover from every other observer (the Destroy
+  Entity the reference's entity map sends).
+- **THE CROSS-DIMENSION VISIBILITY GATE** (a real gap the End made
+  visible: the End arrival cell x=100 sits inside the overworld
+  spawn's view range — the nether's 8:1 coordinates had kept the leak
+  below the raw-distance radar): `broadcastMovement` + `trackPlayer`
+  gate on the mover's vs the observer's dimension; a body in another
+  dimension (or removed for the credits) is invisible — the
+  reference's per-world entity map.
+- **THE END-DOMAIN BOOT BUG** the new engine-level test exposed: the
+  boot loop entered simulationDomain + netherDomain but the End's
+  `simulation:end` domain was created inline and NEVER entered — every
+  tick-lane End write (enterEndOnTick's arrival platform, the
+  crystal's feet-cell fire, the dragon's exit fountain) threw
+  OwnershipViolationException on a real booted server; the
+  unit-harness slices never noticed. The domain is now a field,
+  entered alongside the nether's, exited in the finally.
+- Tests: `EnderExitAcceptanceTest` (2) — the full walk (the credits
+  armed, the single GameEvent 4, the movement ignored, the alive
+  respawn: dimension 0, the world spawn, health/food/saturation/XP
+  all carried) + the death respawn's regression. The related batches
+  green (survival/End/dragon/crystal/portal/dimension).
+
+NEXT (in order): (1) the smaller entity gaps: the spawnable pair
+(experience bottle 75 + fireworks 76), the minecart variants (TNT 45/
+hopper 46/furnace 44/spawner 47/command-block 40), the fishing bobber
+(90), the giant (53); (2) the sections 27/28 audit (the native API
+exposure + the plugin concurrency contract vs the current code).
