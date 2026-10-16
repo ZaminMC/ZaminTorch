@@ -7206,3 +7206,39 @@ protocol row); (3) the plugin host wave (§28.5/28.6 — the lifecycle
 state machine, the resource scopes, the quotas); (4) the ledgered
 vanilla gaps (the MC|AdvCdm block arm, the areCommandBlocksEnabled
 config gate, the vehicle damage-source surface, the /summon NBT arm).
+
+## Slice 69 — the fishing loot override + the catch intercept (§27.7's named gap)
+
+- **The loot override** (`FishingSystem.LootSource` + `setLootSource`):
+  the replaceable strategy over the three reference bands —
+  `LootCategory` JUNK/TREASURE/FISH (the getResult lines 487-506 walk's
+  own bands), the rod's luck/lure levels passed as the same inputs the
+  vanilla roll sees. Answering null falls through PER BAND to the
+  vanilla weighted table (the override composes with the reference's
+  law instead of replacing the whole walk); setLootSource(null)
+  restores the vanilla roll.
+- **The catch intercept** (`FishingSystem.CatchInterceptor` +
+  `addCatchInterceptor`/`removeCatchInterceptor` + the `CatchContext`
+  view): runs on the tick lane between the loot roll and the drop, in
+  registration order — each interceptor sees the incoming stack (an
+  earlier interceptor's replacement included) and answers the outgoing
+  one. Pass-through, replace, or cancel (EMPTY/null). A cancellation
+  means the catch never happened: no item drop, no XP, and the retrieve
+  answers the bare 0 (the rod's wear gate is the reference's own
+  `result > 0`).
+- **The roll refactor**: `getResult` returns a `LootRoll` (the stack +
+  its band + the enchant levels) — the vanilla probabilities unchanged
+  (the same float walk, the same clamp, the same tables verbatim).
+- Tests: `FishingOverrideTest` (7 — the band answers, the per-band
+  fall-through over 60 rolls with the vanilla-item whitelist, the
+  replacement, the cancel (bare 0 + no XP), the chain order/composition,
+  the override+intercept composition, the removal restore). The fishing
+  batch green (14 tests over the two classes); the ledger row updated
+  (the "no public loot-table override" omission closed).
+
+NEXT (in order): (1) the packet interception surface (§27.3's protocol
+row — the audit's last §27 gap); (2) the plugin host wave (§28.5/28.6 —
+the lifecycle state machine, the resource scopes, the quotas); (3) the
+ledgered vanilla gaps (the MC|AdvCdm block arm, the
+areCommandBlocksEnabled config gate, the vehicle damage-source surface,
+the /summon NBT arm).

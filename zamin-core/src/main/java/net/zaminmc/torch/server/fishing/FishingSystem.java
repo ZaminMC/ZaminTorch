@@ -121,6 +121,69 @@ public final class FishingSystem {
         void sound(Position at, String key, float volume, float pitch);
     }
 
+    /**
+     * The loot band the roll landed in (the reference's three — the
+     * junk/treasure/fish walk of getResult lines 487-506).
+     */
+    public enum LootCategory {
+        /** The 0.1-band (the junk eleven). */
+        JUNK,
+        /** The 0.05-band (the treasure six). */
+        TREASURE,
+        /** The fish remainder (the 60/25/2/13 four). */
+        FISH
+    }
+
+    /**
+     * The loot override (§27.7's replaceable strategy): replaces the
+     * caught stack per band. Answering {@code null} falls through to
+     * the vanilla weighted roll for that band — the override composes
+     * with the reference's own law instead of silently replacing the
+     * whole walk. Runs on the tick lane inside the retrieve; the luck
+     * and lure levels are the held rod's own reads (the same inputs the
+     * vanilla roll sees).
+     */
+    public interface LootSource {
+        /**
+         * @param category the band the roll landed in
+         * @return the caught stack, or {@code null} to use the vanilla
+         *         weighted roll for the band
+         */
+        net.zaminmc.torch.item.ItemStack roll(LootCategory category, int luck, int lure,
+                                              Random random);
+    }
+
+    /**
+     * The catch's own context (the interceptor's view — the roll's
+     * outcome plus the angler's state).
+     */
+    public record CatchContext(int anglerId, Position bobberAt, LootCategory category,
+                               int luckLevel, int lureLevel,
+                               net.zaminmc.torch.item.ItemStack caught) {
+    }
+
+    /**
+     * The catch intercept (§27.7's observe + cancel/replace hook): runs
+     * on the tick lane between the loot roll and the drop, in
+     * registration order — each interceptor sees the incoming stack
+     * (an earlier interceptor's replacement included) and answers the
+     * outgoing one.
+     *
+     * <ul>
+     *   <li>return the incoming stack (or an equal one) — pass through;
+     *   <li>return another stack — replace (the drop and the XP ride
+     *       the replacement; the XP amount is the vanilla roll);
+     *   <li>return {@link net.zaminmc.torch.item.ItemStack#EMPTY} (or
+     *       {@code null}) — cancel the catch: no item, no XP, and the
+     *       retrieve answers 0 (the bare case — the rod does not wear,
+     *       the reference's own {@code result > 0} wear gate).
+     * </ul>
+     */
+    public interface CatchInterceptor {
+        /** @return the outgoing stack, or EMPTY/null to cancel the catch. */
+        net.zaminmc.torch.item.ItemStack onCatch(CatchContext context);
+    }
+
     /** Events the protocol adapter translates into wire updates. */
     public interface Listener {
         /** The bobber spawned: Spawn Object 90 (objectData = the angler). */
@@ -262,10 +325,14 @@ public final class FishingSystem {
     private final List<Listener> listeners = new ArrayList<>();
     /** One bobber per angler (the reference's player.fishingBobber field). */
     private final java.util.Map<Integer, Bobber> byAngler = new java.util.LinkedHashMap<>();
+    /** The §27.7 catch interceptors (registration order). */
+    private final List<CatchInterceptor> interceptors = new ArrayList<>();
     private int nextEntityId;
     /** The enchant reads (overridden by the engine's held-rod wiring). */
     private java.util.function.IntUnaryOperator luckRead = throwerId -> 0;
     private java.util.function.IntUnaryOperator lureRead = throwerId -> 0;
+    /** The §27.7 loot override (null = the vanilla roll). */
+    private LootSource lootSource;
 
     public FishingSystem(WorldQuery world, HookResolver hooks, CatchSink catches,
                          Random random, int firstEntityId) {
@@ -295,6 +362,31 @@ public final class FishingSystem {
                                 java.util.function.IntUnaryOperator lureRead) {
         this.luckRead = Objects.requireNonNull(luckRead, "luckRead");
         this.lureRead = Objects.requireNonNull(lureRead, "lureRead");
+    }
+
+    /**
+     * The loot override (§27.7 — the replaceable strategy): answering
+     * null falls through per band. Tick-lane registration (before or
+     * between ticks; an unregister mid-tick is honored on the next
+     * retrieve).
+     *
+     * @param source the override, or null to restore the vanilla roll
+     */
+    public void setLootSource(LootSource source) {
+        this.lootSource = source;
+    }
+
+    /**
+     * The catch intercept (§27.7): registration order; an interceptor
+     * may pass through, replace, or cancel the catch (EMPTY).
+     */
+    public void addCatchInterceptor(CatchInterceptor interceptor) {
+        interceptors.add(Objects.requireNonNull(interceptor, "interceptor"));
+    }
+
+    /** @return whether the interceptor was registered. */
+    public boolean removeCatchInterceptor(CatchInterceptor interceptor) {
+        return interceptors.remove(interceptor);
     }
 
     /**
@@ -377,12 +469,36 @@ public final class FishingSystem {
                     dy * 0.1 + Math.sqrt(distance) * 0.08, dz * 0.1);
             result = 3;
         } else if (bobber.selfHitTimer > 0) {
-            net.zaminmc.torch.item.ItemStack caught = getResult(throwerId);
-            catches.dropCatch(bobber.position(), caught,
-                    anglerAt.x(), anglerAt.y(), anglerAt.z());
-            catches.dropXp(new Position(anglerAt.x(), anglerAt.y() + 0.5, anglerAt.z()),
-                    random.nextInt(6) + 1);
-            result = 1;
+            // The §27.7 wave: the roll carries its band, the interceptors
+            // observe/replace/cancel before the drop.
+            LootRoll loot = getResult(throwerId);
+            net.zaminmc.torch.item.ItemStack caught = loot.stack();
+            boolean cancelled = false;
+            if (!interceptors.isEmpty()) {
+                for (CatchInterceptor interceptor : interceptors) {
+                    CatchContext context = new CatchContext(throwerId,
+                            bobber.position(), loot.category(), loot.luck(), loot.lure(),
+                            caught);
+                    net.zaminmc.torch.item.ItemStack next = interceptor.onCatch(context);
+                    if (next == null || next.isEmpty()) {
+                        cancelled = true;
+                        break;
+                    }
+                    caught = next;
+                }
+            }
+            if (cancelled) {
+                // The catch never happened: no drop, no XP, and the
+                // retrieve answers the bare 0 (the rod's own wear gate
+                // is the reference's result > 0).
+                result = 0;
+            } else {
+                catches.dropCatch(bobber.position(), caught,
+                        anglerAt.x(), anglerAt.y(), anglerAt.z());
+                catches.dropXp(new Position(anglerAt.x(), anglerAt.y() + 0.5, anglerAt.z()),
+                        random.nextInt(6) + 1);
+                result = 1;
+            }
         }
         if (bobber.inGround) {
             result = 2;
@@ -391,8 +507,13 @@ public final class FishingSystem {
         return result;
     }
 
-    /** The loot roll (getResult lines 477-510, 1:1). */
-    private net.zaminmc.torch.item.ItemStack getResult(int throwerId) {
+    /** One loot roll's outcome (the stack + the band it landed in). */
+    private record LootRoll(net.zaminmc.torch.item.ItemStack stack, LootCategory category,
+                            int luck, int lure) {
+    }
+
+    /** The loot roll (getResult lines 477-510, 1:1 — the §27.7 source rides the band picks). */
+    private LootRoll getResult(int throwerId) {
         int luck = luckRead.applyAsInt(throwerId);
         int lure = lureRead.applyAsInt(throwerId);
         float roll = random.nextFloat();
@@ -401,13 +522,29 @@ public final class FishingSystem {
         junkChance = Math.max(0.0F, Math.min(1.0F, junkChance));
         treasureChance = Math.max(0.0F, Math.min(1.0F, treasureChance));
         if (roll < junkChance) {
-            return pickWeighted(JUNK_LOOT);
+            return new LootRoll(pickLoot(LootCategory.JUNK, JUNK_LOOT, luck, lure),
+                    LootCategory.JUNK, luck, lure);
         }
         roll -= junkChance;
         if (roll < treasureChance) {
-            return pickWeighted(TREASURE_LOOT);
+            return new LootRoll(pickLoot(LootCategory.TREASURE, TREASURE_LOOT, luck, lure),
+                    LootCategory.TREASURE, luck, lure);
         }
-        return pickWeighted(FISH_LOOT);
+        return new LootRoll(pickLoot(LootCategory.FISH, FISH_LOOT, luck, lure),
+                LootCategory.FISH, luck, lure);
+    }
+
+    /** One band's pick: the override first (null = fall through), the vanilla table otherwise. */
+    private net.zaminmc.torch.item.ItemStack pickLoot(LootCategory category,
+                                                      List<LootRow> table, int luck, int lure) {
+        if (lootSource != null) {
+            net.zaminmc.torch.item.ItemStack override =
+                    lootSource.roll(category, luck, lure, random);
+            if (override != null) {
+                return override;
+            }
+        }
+        return pickWeighted(table);
     }
 
     /** WeightedPicker.pick's own walk (the weight-proportional roll). */
