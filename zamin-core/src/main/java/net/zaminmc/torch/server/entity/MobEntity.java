@@ -6811,6 +6811,11 @@ public final class MobEntity implements LivingEntity {
         if (type.slimeFamily()) {
             return 0.625 * bodyHeight();
         }
+        if (type == MobType.GIANT) {
+            // GiantEntity.getEyeHeight line 18: the flat 10.440001F — not
+            // the generic 0.85 share (9.18) the default would give.
+            return 10.440001;
+        }
         if (type == MobType.GUARDIAN) {
             // GuardianEntity.getEyeHeight line 234: the mid-body eye —
             // height * 0.5 (the elder's own hull scales it).
