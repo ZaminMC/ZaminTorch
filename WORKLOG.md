@@ -6849,3 +6849,44 @@ NEXT (in order): (1) the smaller entity gaps: the spawnable pair
 hopper 46/furnace 44/spawner 47/command-block 40), the fishing bobber
 (90), the giant (53); (2) the sections 27/28 audit (the native API
 exposure + the plugin concurrency contract vs the current code).
+
+## Slice 65 — the spawnable pair (the bottle o' enchanting + the firework rocket)
+
+The last two spawnable entities, 1:1.
+
+- **The bottle** (ExperienceBottleEntity): the Kind 75 + the API row, the
+  0.07 gravity, the lobbed launch (the ctor's own direction with the
+  -20-degree start-pitch offset on the vertical term alone, the dispense
+  walk at power 0.7), and the burst arm — the 2002 splash event + the
+  3+rand(5)+rand(5) points through the roundSize ladder, NO damage ever
+  (the reference's onCollision calls no takeDamage — a struck body never
+  loses a heart, a pillar crystal never pops).
+- **The roundSize ladder** (ExperienceOrbEntity.roundSize lines 210-227)
+  now lives in ExperienceOrbManager: the 2477..1 tiers + spawnSplitBurst
+  (the reference's own while-remaining walk).
+- **The rocket** (FireworksEntity): the FireworksSystem + entity — the
+  launch at the clicked face's own point, the near-zero drift + the 0.05
+  lift, the fuse 10 + rand(6) + rand(7) (the plain i=1 band — the Flight
+  NBT rides the item-NBT slice), the 1.15x/0.04 flight law, the age-0
+  launch sound at volume 3.0, the burst (the Entity Status 17 + the
+  removal).
+- **THE CURSOR UNIFICATION riding the slice**: the 1.8 C08's own three
+  cursor bytes now flow (the adapter decodes all three as the 0..1
+  fractions, the engine's new 8-arg overload carries them, the slab +
+  trapdoor half reads unified onto the >= 0.5f comparison).
+- **The wire**: the rocket's Spawn Object 76 + the slot-8 SLOT item + the
+  spawn velocity (EntityMap's (64, 10, syncVelocity) tracker), the
+  10-tick velocity re-syncs, the burst's Entity Status 17, the Destroy;
+  the bottle's Spawn Object 75 bare with the shard family's teleport
+  movement.
+- Ledgered: the fireworks' flight-duration + explosion-shape NBT (the
+  item-NBT slice), the firework crafting family, the dispensed firework,
+  the used-item stat rows.
+- Tests: `FireworksAndBottleTest` (5) + `ExperienceOrbManagerTest` (+2).
+  The projectile/orb/placement/exit/survival batches green; protocol +
+  api suites green.
+
+NEXT (in order): (1) the minecart variants (TNT 45/hopper 46/furnace 44/
+spawner 47/command-block 40); (2) the fishing bobber (90) + the giant
+(53); (3) the sections 27/28 audit (the native API exposure + the plugin
+concurrency contract vs the current code).
