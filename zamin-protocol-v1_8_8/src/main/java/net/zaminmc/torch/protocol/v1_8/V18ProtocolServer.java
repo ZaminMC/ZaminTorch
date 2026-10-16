@@ -784,6 +784,23 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                 }
             });
         }
+        // The command-block tile re-publish (Slice 72 — the edit/run rows'
+        // 0x35 action 2 fan); the chunk-send replay rides the chunk packet's
+        // own tile walk (writeCommandTile's static form).
+        if (server.commandBlocks() != null) {
+            server.commandBlocks().addListener(
+                    new net.zaminmc.torch.server.commandblock.CommandBlockManager.Listener() {
+                        @Override
+                        public void onCommandTileChanged(
+                                net.zaminmc.torch.block.BlockPosition position,
+                                net.zaminmc.torch.server.commandblock.CommandBlockManager.CommandState tile) {
+                            for (V18Connection connection
+                                    : connections.keySet().toArray(new V18Connection[0])) {
+                                connection.sendCommandTile(position, tile);
+                            }
+                        }
+                    });
+        }
         // The beacon GUI's per-tick view (Slice 29b): the three properties'
         // moves + the payment resync, diffed per connection.
         server.addBeaconViewListener((viewer, beacon) -> {

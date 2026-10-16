@@ -1242,6 +1242,43 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         writeSkullTile(channel, tile);
     }
 
+    /**
+     * One command tile's re-publish (Slice 72 — CommandBlockBlockEntity
+     * .createUpdatePacket line 75: BlockEntityUpdateS2CPacket action 2
+     * over the writeNbt rows — Command/SuccessCount/TrackOutput/
+     * LastOutput, the LastOutput an empty string when none).
+     */
+    void sendCommandTile(net.zaminmc.torch.block.BlockPosition position,
+                         net.zaminmc.torch.server.commandblock.CommandBlockManager.CommandState tile) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        writeCommandTile(channel, position, tile);
+    }
+
+    /** The tile packet's own writer (the static chunk-send path's form). */
+    private static void writeCommandTile(Channel channel,
+            net.zaminmc.torch.block.BlockPosition position,
+            net.zaminmc.torch.server.commandblock.CommandBlockManager.CommandState tile) {
+        ByteBuf out = Unpooled.buffer(96);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_UPDATE_BLOCK_ENTITY);
+        ByteBufOps.writePackedBlockPosition(out, position.x(), position.y(), position.z());
+        out.writeByte(Protocol18.BLOCK_ENTITY_TYPE_COMMAND_BLOCK);
+        out.writeByte(10);              // TAG_Compound (the root marker)
+        out.writeShort(0);              // the root name: empty
+        writeNbtInt(out, "x", position.x());
+        writeNbtInt(out, "y", position.y());
+        writeNbtInt(out, "z", position.z());
+        writeNbtString(out, "Command", tile.command());
+        writeNbtInt(out, "SuccessCount", tile.successCount());
+        writeNbtByte(out, "TrackOutput", tile.trackOutput() ? 1 : 0);
+        writeNbtString(out, "LastOutput",
+                tile.lastOutput() == null ? "" : tile.lastOutput());
+        out.writeByte(0);               // end of the root
+        channel.writeAndFlush(out);
+    }
+
     /** The tile packet's own writer (the static chunk-send path's form). */
     private static void writeSkullTile(Channel channel,
             net.zaminmc.torch.server.skull.SkullManager.SkullTile tile) {
@@ -5599,6 +5636,17 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             if (engine.skulls() != null) {
                 for (var tile : engine.skulls().tilesIn(chunk.position().packed())) {
                     writeSkullTile(channel, tile);
+                }
+            }
+            // The command tile replay (Slice 73 — the same protocol 47 gap):
+            // every command block in the freshly sent column re-sends its
+            // Update Block Entity action 2 (CommandBlockBlockEntity
+            // .createUpdatePacket line 75's own rows — the reference's
+            // PlayerChunkMap sending the BE's packet with the chunk; the
+            // client's own edit GUI reads the live rows from it).
+            if (engine.commandBlocks() != null) {
+                for (var entry : engine.commandBlocks().inChunk(chunk.position())) {
+                    writeCommandTile(channel, entry.getKey(), entry.getValue());
                 }
             }
         }

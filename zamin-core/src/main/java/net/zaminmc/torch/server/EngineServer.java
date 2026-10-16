@@ -447,6 +447,9 @@ public final class EngineServer implements Server, EngineBridge {
 
     /** The command-block tiles (Slice 72 — the executors + the redstone run). */
     private volatile net.zaminmc.torch.server.commandblock.CommandBlockManager commandBlocks;
+
+    /** The command-block tile persistence (Slice 72 — the ZCB envelope). */
+    private net.zaminmc.torch.server.commandblock.CommandBlockDataStore commandBlockStore;
     /** The vehicles (boats, minecarts); created at boot, tick-thread owned. */
     private volatile net.zaminmc.torch.server.entity.vehicle.VehicleManager vehicleManager;
     /** The fishing bobbers (Slice 67); created at boot, tick-thread owned. */
@@ -1516,6 +1519,12 @@ public final class EngineServer implements Server, EngineBridge {
                 // executor's own sender shape over the CommandService).
                 commandBlocks = new net.zaminmc.torch.server.commandblock.CommandBlockManager(
                         this::runCommandBlockExecutor);
+                commandBlockStore = new net.zaminmc.torch.server.commandblock.CommandBlockDataStore(
+                        config.worldDataDir().resolve("command_blocks.bin"));
+                commandBlocks.restoreAll(commandBlockStore.load());
+                commandBlocks.setTrackDefault(
+                        () -> gameRules.getBoolean("sendCommandFeedback"));
+                world.addChangeListener(commandBlocks); // the placement creates the tile
                 redstoneSystem.setCommandTicker(this::runCommandBlockAt);
                 // The brewing stands (Slice 11e): the per-tick brew walk;
                 // the state creation rides the open path + the hopper
@@ -2105,6 +2114,9 @@ public final class EngineServer implements Server, EngineBridge {
                     furnaceManager.tick(world, itemEntities);
                     chestManager.tick(world);
                     signManager.tick(world);
+                    if (commandBlocks != null) {
+                        commandBlocks.tick(world); // Slice 72: the orphan sweep
+                    }
                     if (spawnerManager != null) {
                         spawnerManager.tick(); // Slice 12g: the spawner walk
                     }
@@ -17465,6 +17477,9 @@ public final class EngineServer implements Server, EngineBridge {
                 }
                 if (signStore != null && signManager != null) {
                     signStore.save(signManager.snapshot());
+                }
+                if (commandBlockStore != null && commandBlocks != null) {
+                    commandBlockStore.save(commandBlocks.snapshot());
                 }
                 if (weatherStore != null && weather != null) {
                     weatherStore.save(weather.snapshot());

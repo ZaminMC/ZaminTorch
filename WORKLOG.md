@@ -7359,3 +7359,48 @@ creating the tile with the sendCommandFeedback default) + the tile sync
 (0x35 action 2 + the chunk replay) + the ZVD persistence rows; (2) the
 vehicle damage-source surface (the furnace cart's explosive-death drop
 skip); (3) the /summon NBT arm.
+
+## Slice 73 — the command-block placement arm + the tile sync + the persistence
+
+- **The placement arm (the ledgered follow-up)**: `BuiltinItems.COMMAND_BLOCK`
+  (the item 137 — Item.java line 1299's own ItemBlock registration, /give
+  only) resolves through the generic block-item resolver (the identifier
+  match) and the placement creates the tile through the manager's new
+  `WorldChangeListener` arm — onPlaced lines 86-88's law: the
+  sendCommandFeedback gamerule is the track-output default, READ AT THE
+  PLACEMENT (the flipped gamerule's next placement carries the false
+  default — the boot-time constant would have been wrong).
+- **THE TRIGGERED-FLIP LAW (the regression the Slice 72 redstone test
+  caught)**: the first cut used the single-type `onBlockRemoved` arm — but
+  `setBlock` fires it with the OLD type on every state change, so every
+  TRIGGERED flip deleted the tile and its command (the scheduled tick then
+  found no executor — the Slice 72 test went red). The correct port surface
+  is the PAIRED arm `onBlockReplaced`: the removal fires only when the block
+  TRULY leaves (old was a command block, new is not); the TRIGGERED flip
+  (was && is) is a no-op exactly like the reference's own block entity
+  surviving its property flips. The interface's Slice 14a comment predicted
+  this exact need.
+- **The tile sync**: the `Listener` publish on the edit + the run (the rows
+  changed → the 0x35 action 2 fan through the adapter, the same shape as the
+  skull/beacon tiles) + the chunk-send replay (`inChunk` walks the freshly
+  sent column's command tiles beside the sign/spawner/beacon/skull replays —
+  CommandBlockBlockEntity.createUpdatePacket line 75's own rows: Command/
+  SuccessCount/TrackOutput/LastOutput, the LastOutput an empty string when
+  none).
+- **The persistence (the ZCB envelope)**: `CommandBlockDataStore` — the four
+  rows per tile, the atomic temp-file swap, the corrupt-file-preserving load
+  (the sign store's own envelope), the boot restore, the shutdown save.
+- **The orphan sweep**: the per-tick walk discards a restored row whose
+  block left between saves (the restore-then-sweep path — the same safety
+  as the sign/skull stores).
+- Tests: `CommandBlockBlockTest` grew 4→9 (the placement default walk over
+  the flipped gamerule + the TRIGGERED-flip no-recreate; the break sweep +
+  the removal fire; the edit/run publish + the inChunk walk; the
+  persistence round trip + the corrupt read; the orphan sweep). The
+  commandblock batch 9 green; the redstone+item batches 31 green; the
+  registry tests green; the protocol suite green (one horse load flake,
+  green in isolation — the documented one).
+
+NEXT (in order): (1) the vehicle damage-source surface (the furnace cart's
+explosive-death drop skip); (2) the /summon NBT arm; (3) the plugin host's
+live-engine acceptance; (4) the next vanilla wave per the ledger.
