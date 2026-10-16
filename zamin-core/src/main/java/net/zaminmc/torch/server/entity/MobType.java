@@ -98,6 +98,18 @@ public enum MobType {
             List.of(),
             "", "mob.cat.hitt", "mob.cat.hitt", 3.0f),
 
+    /**
+     * The giant (Slice 67 — GiantEntity, Entities.java line 258's "Giant"
+     * 53): the 6x zombie — the 3.6x10.8 hull (setSize(width*6, height*6)
+     * over the zombie's own 0.6x1.8), the 100 health, the 0.5 walk, the
+     * 50.0 hit (initAttributes' own bases). Summon-only in 1.8.8 — no
+     * natural spawn, no spawn egg — with the BASE monster sounds
+     * (LivingEntity's game.neutral.hurt/die, no idle).
+     */
+    GIANT(53, 3.6, 10.8, 100.0f, 0.5, true, Traits.NONE,
+            List.of(),
+            "", "game.neutral.hurt", "game.neutral.die", 50.0f),
+
     /** Hostile melee: chases the nearest player in range and attacks. */
     ZOMBIE(54, 0.6, 1.8, 20.0f, 0.04, true, Traits.NONE,
             List.of(new ItemRoll(BuiltinItems.ROTTEN_FLESH, 0, 2)),

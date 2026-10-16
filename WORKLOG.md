@@ -7116,3 +7116,14 @@ NEXT (in order): (1) the giant (53) — the last of the smaller entity
 gaps; (2) the rod's live-engine acceptance (the use path over the wire);
 (3) the sections 27/28 audit (the native API exposure + the plugin
 concurrency contract vs the current code).
+
+## Slice 67 part two — the giant (the last small entity gap)
+
+- **The row** (MobType.GIANT): Entities.java line 258's "Giant" 53 — the
+  6x zombie (3.6x10.8), 100 health, 0.5 walk, 50.0 hit, the flat
+  10.440001 eye (getEyeHeight line 18), the BASE monster sounds
+  (game.neutral.hurt/die, no idle), NO daylight burn (a plain
+  MonsterEntity, not a ZombieEntity), no loot.
+- Summon-only in 1.8.8 (no natural spawn, no spawn egg); the engine's
+  /summon surface rides its own slice (ledgered).
+- Tests: `GiantMobTest` (2). The mob batches green (8).
