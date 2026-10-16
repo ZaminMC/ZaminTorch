@@ -3311,6 +3311,16 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeByte(mobLivingFlagsOf(mob));
         out.writeByte((Protocol18.METADATA_TYPE_FLOAT << 5) | Protocol18.LIVING_HEALTH_METADATA_INDEX);
         out.writeFloat(mob.health());
+        // The custom-name pair (Slice 75 — EntityLiving.registerSyncedData's
+        // own slots): the STRING at 2 (an absent name keeps the client's
+        // own empty default — the omitted slot) and the always-render BYTE
+        // at 3.
+        if (mob.customName() != null) {
+            out.writeByte((Protocol18.METADATA_TYPE_STRING << 5) | 2);
+            ByteBufOps.writeString(out, mob.customName());
+            out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | 3);
+            out.writeByte(mob.customNameVisible() ? 1 : 0);
+        }
         if (!mob.type().hostile) {
             out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | Protocol18.PASSIVE_AGE_METADATA_INDEX);
             out.writeByte(mob.isBaby() ? (byte) -1 : (byte) 0);

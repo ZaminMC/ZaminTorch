@@ -608,7 +608,10 @@ public final class MobEntity implements LivingEntity {
 
     /** The despawn's persistence flag (the leashed family and the tamed tameables never leave). */
     public boolean persistent() {
-        return persistent || leashed || (isTameableKind() && wolfTamed());
+        // The reference's checkDespawn gate: a CUSTOM-NAMED body never
+        // despawns either (Slice 75 — the /summon NBT arm's own law).
+        return persistent || leashed || customName != null
+                || (isTameableKind() && wolfTamed());
     }
 
     /**
@@ -639,6 +642,65 @@ public final class MobEntity implements LivingEntity {
     /** Marks the body persistent (named/bred mobs ride their own slices). */
     public void setPersistent(boolean persistent) {
         this.persistent = persistent;
+    }
+
+    /**
+     * The RAW persistence mark (Slice 75 — the reference's
+     * PersistenceRequired row): the store's own read, without the
+     * leashed/tamed/named derivations (those derive live after the load —
+     * a saved raw false never silently pins a body whose leash is not
+     * itself persisted).
+     */
+    boolean rawPersistent() {
+        return persistent;
+    }
+
+    // The /summon NBT rows (Slice 75 — the reference's Entity NBT fields
+    // the engine's mob model carries): the custom name pair (the wire's
+    // synced slots 2/3), the NoAI pin, and the invulnerability flag.
+    private String customName;
+    private boolean customNameVisible;
+    private boolean noAi;
+    private boolean invulnerable;
+
+    /** @return the custom name, or null when the body carries none. */
+    public String customName() {
+        return customName;
+    }
+
+    /** Sets the custom name (a null/empty argument clears it — readNbt's own shape). */
+    public void setCustomName(String name) {
+        this.customName = name == null || name.isEmpty() ? null : name;
+    }
+
+    /** @return whether the custom name renders without a hover (CustomNameVisible). */
+    public boolean customNameVisible() {
+        return customNameVisible;
+    }
+
+    /** Sets the name's always-render flag (CustomNameVisible). */
+    public void setCustomNameVisible(boolean visible) {
+        this.customNameVisible = visible;
+    }
+
+    /** @return whether the AI walk is pinned (NoAI — the body stands still). */
+    public boolean noAi() {
+        return noAi;
+    }
+
+    /** Pins or frees the AI walk (NoAI). */
+    public void setNoAi(boolean noAi) {
+        this.noAi = noAi;
+    }
+
+    /** @return whether the body refuses every wound (Invulnerable). */
+    public boolean invulnerable() {
+        return invulnerable;
+    }
+
+    /** Sets the invulnerability flag (Invulnerable). */
+    public void setInvulnerable(boolean invulnerable) {
+        this.invulnerable = invulnerable;
     }
 
     // ---- the public LivingEntity handle (§27.5: the engine object IS the
@@ -1171,7 +1233,14 @@ public final class MobEntity implements LivingEntity {
             return fixedPoint() != before || beforeYaw != yaw || beforeHeadYaw != headYaw;
         }
 
-        tickMind(night);
+        // The NoAI pin (Slice 75 — the reference's aiDisabled gate over
+        // the ai section): a pinned body stands still — no goals, no
+        // targeting, no posture flips. The physics, the burning, the
+        // despawn window, and the wounds all continue (the vanilla shape:
+        // the pin gates the MIND alone).
+        if (!noAi) {
+            tickMind(night);
+        }
         tickBody();
         // The enderman's environmental arms (EndermanEntity.mobAiTick lines
         // 144-166): the water damage cadence and the daylight teleport.

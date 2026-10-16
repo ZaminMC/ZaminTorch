@@ -1652,11 +1652,29 @@ public final class MobManager {
      * death animation.
      */
     public record MobSnapshot(String type, double x, double y, double z, float yaw,
-                              float health, MobStateExtras extras) {
+                              float health, MobStateExtras extras, MobNbtExtras nbt) {
         /** The v1-compatible shape (no extras — every v1 record loads this way). */
         public MobSnapshot(String type, double x, double y, double z, float yaw, float health) {
-            this(type, x, y, z, yaw, health, null);
+            this(type, x, y, z, yaw, health, null, null);
         }
+
+        /** The pre-v3 shape (no NBT rows — every v2 record loads this way). */
+        public MobSnapshot(String type, double x, double y, double z, float yaw,
+                float health, MobStateExtras extras) {
+            this(type, x, y, z, yaw, health, extras, null);
+        }
+    }
+
+    /**
+     * The /summon NBT rows the engine's mob model carries (Slice 75 — the
+     * reference's Entity NBT fields): the custom name pair, the NoAI pin,
+     * the invulnerability flag, and the raw persistence mark (the name's
+     * own despawn immunity derives live in persistent()). A null record —
+     * the pre-v3 shape — is a body with none of the rows.
+     */
+    public record MobNbtExtras(
+            String customName, boolean customNameVisible,
+            boolean noAi, boolean invulnerable, boolean persistent) {
     }
 
     /**
@@ -1721,6 +1739,16 @@ public final class MobManager {
             MobStateExtras extras = snapshot.extras();
             if (extras != null) {
                 restoreStateExtras(mob, extras);
+            }
+            MobNbtExtras nbt = snapshot.nbt();
+            if (nbt != null) {
+                // The /summon NBT rows' restore (Slice 75 — the reference's
+                // Entity.readNbt arms): every row lands on any kind.
+                mob.setCustomName(nbt.customName());
+                mob.setCustomNameVisible(nbt.customNameVisible());
+                mob.setNoAi(nbt.noAi());
+                mob.setInvulnerable(nbt.invulnerable());
+                mob.setPersistent(nbt.persistent());
             }
             any = true;
         }
@@ -1791,9 +1819,20 @@ public final class MobManager {
             }
             Position position = mob.position();
             saved.add(new MobSnapshot(mob.type().name(), position.x(), position.y(),
-                    position.z(), mob.yaw(), mob.health(), stateExtrasOf(mob)));
+                    position.z(), mob.yaw(), mob.health(), stateExtrasOf(mob),
+                    nbtExtrasOf(mob)));
         }
         return saved;
+    }
+
+    /** The /summon NBT rows' snapshot (Slice 75): null when none are set. */
+    private static MobNbtExtras nbtExtrasOf(MobEntity mob) {
+        if (mob.customName() == null && !mob.customNameVisible() && !mob.noAi()
+                && !mob.invulnerable() && !mob.rawPersistent()) {
+            return null;
+        }
+        return new MobNbtExtras(mob.customName(), mob.customNameVisible(),
+                mob.noAi(), mob.invulnerable(), mob.rawPersistent());
     }
 
     /**
@@ -2157,6 +2196,14 @@ public final class MobManager {
                  boolean arrowSource, MobEntity attacker) {
         Objects.requireNonNull(mob, "mob");
         if (amount <= 0 || mob.dead()) {
+            return false;
+        }
+        // The Invulnerable pin (Slice 75 — Entity.isInvulnerable's own
+        // gate over every damage entry): the body refuses every wound.
+        // The reference's creative-melee and void exemptions ride the
+        // engine's melee-path attacker context (ledgered — the hurt walk
+        // does not carry the attacker's gamemode).
+        if (mob.invulnerable()) {
             return false;
         }
         var bus = eventBus;

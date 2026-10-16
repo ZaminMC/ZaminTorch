@@ -17369,9 +17369,70 @@ public final class EngineServer implements Server, EngineBridge {
         if (type == null) {
             return "Unable to summon object";
         }
+        // The NBT arm (Slice 75 — lines 65-74: the joined text parses as
+        // one compound; a parse failure answers the tagError line, the
+        // parse itself never fails the summon). The engine's mob model
+        // carries the reference's Entity rows it reads: CustomName/
+        // CustomNameVisible, Health, NoAI, PersistenceRequired, and
+        // Invulnerable — every other row parses but lands nowhere (the
+        // engine's no-item-NBT envelope, ledgered).
+        java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> nbt = null;
+        if (args.length >= 5) {
+            StringBuilder joined = new StringBuilder();
+            for (int i = 4; i < args.length; i++) {
+                if (i > 4) {
+                    joined.append(' ');
+                }
+                joined.append(args[i]);
+            }
+            try {
+                nbt = net.zaminmc.torch.server.nbt.Snbt.parseCompound(joined.toString());
+            } catch (IllegalArgumentException tagError) {
+                return "Error parsing tag: " + tagError.getMessage();
+            }
+        }
         MobEntity spawned = mobManager.spawnAt(type, new Position(x, y, z));
-        return spawned != null
-                ? "Object successfully summoned" : "Unable to summon object";
+        if (spawned == null) {
+            return "Unable to summon object";
+        }
+        if (nbt != null) {
+            applySummonNbt(spawned, nbt);
+        }
+        return "Object successfully summoned";
+    }
+
+    /**
+     * The summon NBT rows' landing (Slice 75 — the reference's
+     * Entity.readNbt arms the engine's mob model carries): the name pair,
+     * the health, the pin family, the persistence mark. Every row lands
+     * on any kind — the reference's own readNbt shape.
+     */
+    private void applySummonNbt(MobEntity mob,
+            java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> nbt) {
+        net.zaminmc.torch.server.nbt.Snbt.Tag name = nbt.get("CustomName");
+        if (name != null && name.asString() != null) {
+            mob.setCustomName(name.asString());
+        }
+        net.zaminmc.torch.server.nbt.Snbt.Tag nameVisible = nbt.get("CustomNameVisible");
+        if (nameVisible != null && nameVisible.asDouble() != 0.0) {
+            mob.setCustomNameVisible(true);
+        }
+        net.zaminmc.torch.server.nbt.Snbt.Tag health = nbt.get("Health");
+        if (health != null && health.asDouble() > 0.0) {
+            mob.setHealthCarried((float) health.asDouble());
+        }
+        net.zaminmc.torch.server.nbt.Snbt.Tag noAi = nbt.get("NoAI");
+        if (noAi != null && noAi.asDouble() != 0.0) {
+            mob.setNoAi(true);
+        }
+        net.zaminmc.torch.server.nbt.Snbt.Tag persistence = nbt.get("PersistenceRequired");
+        if (persistence != null && persistence.asDouble() != 0.0) {
+            mob.setPersistent(true);
+        }
+        net.zaminmc.torch.server.nbt.Snbt.Tag invulnerable = nbt.get("Invulnerable");
+        if (invulnerable != null && invulnerable.asDouble() != 0.0) {
+            mob.setInvulnerable(true);
+        }
     }
 
     /**
