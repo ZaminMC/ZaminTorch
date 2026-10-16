@@ -94,6 +94,13 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
          */
         CHEST_MINECART,
         /**
+         * The hopper minecart's hopper menu (Slice 66 — the reference's
+         * HopperMinecartEntity.interact lines 54-60: openChestMenu over
+         * the cart): 5 GUI slots, the slot state lives on the vehicle at
+         * containerMountId's cart id.
+         */
+        HOPPER_MINECART,
+        /**
          * The hopper (the reference's HopperMenu — the 5-slot GUI over the
          * block entity at containerPosition; the same ownership as the
          * chest).
@@ -700,6 +707,12 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
     /** Opens the chest minecart's chest menu (the cart's engine id rides along). */
     public void openChestMinecartWindow(int windowId, int cartEngineId) {
         openContainerWindow(windowId, ContainerKind.CHEST_MINECART, null);
+        this.containerMountId = cartEngineId;
+    }
+
+    /** Opens the hopper minecart's hopper menu (the cart's engine id rides along). */
+    public void openHopperMinecartWindow(int windowId, int cartEngineId) {
+        openContainerWindow(windowId, ContainerKind.HOPPER_MINECART, null);
         this.containerMountId = cartEngineId;
     }
 

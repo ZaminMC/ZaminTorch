@@ -1761,6 +1761,42 @@ public final class EngineServer implements Server, EngineBridge {
                                         ItemStack.of(BuiltinItems.TNT, 1),
                                         ItemEntity.PICKUP_DELAY_DROP_TICKS);
                             }
+                            // The furnace variant's own extra (Slice 66 —
+                            // FurnaceMinecartEntity.dropItems lines 63-68: the
+                            // FURNACE block item rides the plain-break chain
+                            // under doEntityDrops; the reference's own
+                            // non-explosive-death gate rides the damage-source
+                            // surface the engine's vehicle death path does
+                            // not yet carry — ledgered).
+                            if (vehicle instanceof net.zaminmc.torch.server.entity.vehicle.FurnaceMinecartEntity) {
+                                itemEntities.spawnDropAtBlock(
+                                        new Position(vehicle.position().x(), vehicle.position().y() + 0.3,
+                                                vehicle.position().z()),
+                                        ItemStack.of(BuiltinItems.FURNACE, 1),
+                                        ItemEntity.PICKUP_DELAY_DROP_TICKS);
+                            }
+                            // The hopper variant's own extras (Slice 66 —
+                            // HopperMinecartEntity.dropItems lines 132-138:
+                            // the InventoryMinecart contents spill, then the
+                            // HOPPER block item — never the hopper-minecart
+                            // item).
+                            if (vehicle instanceof net.zaminmc.torch.server.entity.vehicle.HopperMinecartEntity hopperCart) {
+                                for (ItemStack stack : hopperCart.hopper().snapshotSlots()) {
+                                    if (stack == null || stack.isEmpty()) {
+                                        continue;
+                                    }
+                                    itemEntities.spawnDropAtBlock(
+                                            new Position(vehicle.position().x(),
+                                                    vehicle.position().y() + 0.3,
+                                                    vehicle.position().z()),
+                                            stack, ItemEntity.PICKUP_DELAY_DROP_TICKS);
+                                }
+                                itemEntities.spawnDropAtBlock(
+                                        new Position(vehicle.position().x(), vehicle.position().y() + 0.3,
+                                                vehicle.position().z()),
+                                        ItemStack.of(BuiltinItems.HOPPER, 1),
+                                        ItemEntity.PICKUP_DELAY_DROP_TICKS);
+                            }
                         },
                         new java.util.Random(),
                         VEHICLE_ID_BASE);
@@ -1773,7 +1809,8 @@ public final class EngineServer implements Server, EngineBridge {
                 // the chests, and the furnaces.
                 vehicleStore = new net.zaminmc.torch.server.entity.vehicle.VehicleDataStore(
                         config.worldDataDir().resolve("vehicles.bin"));
-                vehicles.restoreAll(vehicleStore.load());
+                vehicles.restoreAll(vehicleStore.load(),
+                        () -> hopperSystem::hopperCartTransfer);
                 // The public §27.3 entity-family views: the five engine
                 // populations captured as stable point-in-time copies (the
                 // managers' all() contract) behind the World interface.
@@ -5451,6 +5488,7 @@ public final class EngineServer implements Server, EngineBridge {
                     case FURNACE -> clickFurnaceWindowOnTick(session, wireSlot, button, mode);
                     case CHEST -> clickChestWindowOnTick(session, wireSlot, button, mode);
                     case CHEST_MINECART -> clickChestMinecartWindowOnTick(session, wireSlot, button, mode);
+                    case HOPPER_MINECART -> clickHopperMinecartWindowOnTick(session, wireSlot, button, mode);
                     case HOPPER -> clickHopperWindowOnTick(session, wireSlot, button, mode);
                     case ENDER_CHEST -> clickEnderChestWindowOnTick(session, wireSlot, button, mode);
                     case BEACON -> clickBeaconWindowOnTick(session, wireSlot, button, mode);
@@ -7232,6 +7270,14 @@ public final class EngineServer implements Server, EngineBridge {
             // The TNT minecart's place arm (Slice 66 — MinecartItem over
             // the TNT variant).
             spawnVehicleUseOnTick(session, clicked, face, creativeHeld, false, false, false, true);
+            return;
+        }
+        if (heldId.equals("minecraft:hopper_minecart")
+                || creativeHeld.map(t -> t.identifier().value().equals("hopper_minecart")).orElse(false)) {
+            // The hopper minecart's place arm (Slice 66 — MinecartItem
+            // over the hopper variant).
+            spawnVehicleUseOnTick(session, clicked, face, creativeHeld, false, false, false, false,
+                    true);
             return;
         }
         if (heldId.equals("minecraft:pumpkin") || heldId.equals("minecraft:lit_pumpkin")
@@ -9599,6 +9645,14 @@ public final class EngineServer implements Server, EngineBridge {
     private void spawnVehicleUseOnTick(PlayerSession session, BlockPosition clicked, int face,
                                        java.util.Optional<BlockType> creativeHeld, boolean boat,
                                        boolean chestCart, boolean furnaceCart, boolean tntCart) {
+        spawnVehicleUseOnTick(session, clicked, face, creativeHeld, boat, chestCart,
+                furnaceCart, tntCart, false);
+    }
+
+    private void spawnVehicleUseOnTick(PlayerSession session, BlockPosition clicked, int face,
+                                       java.util.Optional<BlockType> creativeHeld, boolean boat,
+                                       boolean chestCart, boolean furnaceCart, boolean tntCart,
+                                       boolean hopperCart) {
         BlockPosition target = offsetByFace(clicked, face);
         if (target == null) {
             return;
@@ -9666,6 +9720,15 @@ public final class EngineServer implements Server, EngineBridge {
                 tnt.setBlastSink((x, y, z, power) -> detonateAt(
                         x, y, z, power, 8.0f * power + 1.0f,
                         gameRules.getBoolean("mobGriefing")));
+            }
+        } else if (hopperCart) {
+            // The transfer host (Slice 66): the engine's hopper system —
+            // the reference's HopperBlockEntity statics over the cart's
+            // own mouth.
+            if (hopperSystem == null
+                    || vehicleManager.spawnHopperMinecart(
+                            spawnAt, hopperSystem::hopperCartTransfer) == null) {
+                return; // the §27.7 gate withheld the cart — the item stays
             }
         } else {
             if (vehicleManager.spawnMinecart(spawnAt) == null) {
@@ -9841,6 +9904,14 @@ public final class EngineServer implements Server, EngineBridge {
                 // seat; Slice 21a).
                 if (vehicle instanceof net.zaminmc.torch.server.entity.vehicle.ChestMinecartEntity cart) {
                     openChestMinecartInventoryOnTick(player, cart);
+                    return;
+                }
+                // The hopper minecart's interact (Slice 66 —
+                // HopperMinecartEntity.interact lines 54-60):
+                // openChestMenu over the cart's five slots — never the
+                // seat.
+                if (vehicle instanceof net.zaminmc.torch.server.entity.vehicle.HopperMinecartEntity hopperCart) {
+                    openHopperMinecartInventoryOnTick(player, hopperCart);
                     return;
                 }
                 // The furnace minecart's interact (Slice 66 —
@@ -10714,6 +10785,125 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /**
+     * The hopper minecart's window open (Slice 66 — the reference's
+     * HopperMinecartEntity.interact lines 54-60 + getMenuType
+     * "minecraft:hopper"): the hopper GUI over the cart's own five
+     * slots. Tick-thread context.
+     */
+    private void openHopperMinecartInventoryOnTick(
+            PlayerSession session,
+            net.zaminmc.torch.server.entity.vehicle.HopperMinecartEntity cart) {
+        closeOpenContainerOnTick(session);
+        dropGridToWorld(session, session.crafting()); // the vanilla close: the 2x2 grid drops
+        int windowId = nextContainerWindowId;
+        nextContainerWindowId = nextContainerWindowId >= LAST_CONTAINER_WINDOW_ID
+                ? FIRST_CONTAINER_WINDOW_ID : nextContainerWindowId + 1;
+        session.openHopperMinecartWindow(windowId, cart.entityId());
+        for (VehicleListener listener : vehicleListeners) {
+            listener.onHopperMinecartWindowOpened(session, cart, windowId);
+        }
+    }
+
+    /**
+     * The hopper minecart window's clicks (Slice 66): the same hopper-menu
+     * semantics over the cart's own five slots (the reference's HopperMenu
+     * over the cart — no slot filters, the shared cursor walk). The
+     * validity gate is the reference's own isValid: a gone cart or a
+     * player beyond 8 blocks refuses the click. Tick-thread context.
+     */
+    private boolean clickHopperMinecartWindowOnTick(PlayerSession session, int wireSlot,
+                                                    int button, int mode) {
+        var inventory = session.inventory();
+        var cart = session.containerMountId() >= 0 && vehicleManager != null
+                ? vehicleManager.byId(session.containerMountId()) : null;
+        if (!(cart instanceof net.zaminmc.torch.server.entity.vehicle.HopperMinecartEntity hopperCart)) {
+            return false; // stale window (cart gone): rejected, resync restores
+        }
+        // The reference's isValid reach gate (InventoryMinecartEntity lines
+        // 83-85): removed carts already failed the lookup above.
+        double dx = cart.position().x() - session.position().x();
+        double dy = cart.position().y() - session.position().y();
+        double dz = cart.position().z() - session.position().z();
+        if (dx * dx + dy * dy + dz * dz > 64.0) {
+            return false; // the cart rolled away: the click refuses
+        }
+        var hopper = hopperCart.hopper();
+        switch (mode) {
+            case 0 -> {
+                if (wireSlot >= 0 && wireSlot <= HOPPER_WIRE_SLOT_LAST) {
+                    hopper.clickSlot(wireSlot, button, inventory);
+                    return true;
+                }
+                int engineSlot = hopperEngineSlotOf(wireSlot);
+                if (engineSlot >= 0) {
+                    inventory.clickSlot(engineSlot, button);
+                    return true;
+                }
+                return false;
+            }
+            case 1 -> {
+                if (wireSlot >= 0 && wireSlot <= HOPPER_WIRE_SLOT_LAST) {
+                    hopper.quickMoveToInventory(wireSlot, inventory);
+                    return true;
+                }
+                int engineSlot = hopperEngineSlotOf(wireSlot);
+                if (engineSlot >= 0) {
+                    // Any stack moves in: the hopper has no slot filters
+                    // (the reference's plain InventorySlots). Remainder
+                    // returns.
+                    net.zaminmc.torch.item.ItemStack peek = inventory.snapshot().get(engineSlot);
+                    if (peek.isEmpty()) {
+                        return false; // empty slot shift-click: nothing moves
+                    }
+                    net.zaminmc.torch.item.ItemStack moving = inventory.dropFromSlot(engineSlot, true);
+                    net.zaminmc.torch.item.ItemStack remainder = hopper.quickMoveIn(moving);
+                    if (!remainder.isEmpty()) {
+                        inventory.pickUp(remainder); // cart full: put the rest back
+                    }
+                    return true;
+                }
+                return false;
+            }
+            case 2 -> {
+                // Number keys exchange main inventory and hotbar only; the
+                // cart's slots are rejected per packet (the resync restores).
+                int engineSlot = hopperEngineSlotOf(wireSlot);
+                if (engineSlot >= net.zaminmc.torch.server.player.PlayerInventory.HOTBAR_SLOTS
+                        && button >= 0 && button < 9) {
+                    inventory.swapWithHotbar(engineSlot, button);
+                    return true;
+                }
+                return false;
+            }
+            case 3 -> {
+                return false; // middle-click clone: rejected in survival
+            }
+            case 4 -> {
+                if (wireSlot >= 0 && wireSlot <= HOPPER_WIRE_SLOT_LAST) {
+                    net.zaminmc.torch.item.ItemStack dropped = hopper.dropFromSlot(wireSlot, button != 0);
+                    if (!dropped.isEmpty()) {
+                        throwFromPlayer(session, dropped);
+                    }
+                    return true;
+                }
+                int engineSlot = hopperEngineSlotOf(wireSlot);
+                if (engineSlot >= 0) {
+                    net.zaminmc.torch.item.ItemStack dropped =
+                            inventory.dropFromSlot(engineSlot, button != 0);
+                    if (!dropped.isEmpty()) {
+                        throwFromPlayer(session, dropped);
+                    }
+                    return true;
+                }
+                return false;
+            }
+            default -> {
+                return false; // drag painting (5) / unknown mode: rejected
+            }
+        }
+    }
+
+    /**
      * The horse window's clicks: slot 0 is the saddle, slot 1 the armor row
      * (one-item kind-gated swaps, the vanilla rule); a chested mount rides
      * the 15-slot chest grid on 2-16 (the shared cursor semantics); the
@@ -11434,6 +11624,17 @@ public final class EngineServer implements Server, EngineBridge {
          */
         default void onChestMinecartWindowOpened(PlayerSession opener,
                 net.zaminmc.torch.server.entity.vehicle.VehicleEntity cart,
+                int windowId) {
+        }
+
+        /**
+         * The hopper minecart's hopper menu opened (Slice 66 —
+         * HopperMinecartEntity.interact lines 54-60: openChestMenu over
+         * the cart's five slots, never the seat): the adapter unicasts
+         * Open Window + the window items to the opener.
+         */
+        default void onHopperMinecartWindowOpened(PlayerSession opener,
+                net.zaminmc.torch.server.entity.vehicle.HopperMinecartEntity cart,
                 int windowId) {
         }
 

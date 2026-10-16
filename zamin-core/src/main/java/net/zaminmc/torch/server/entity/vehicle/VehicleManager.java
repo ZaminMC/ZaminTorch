@@ -196,6 +196,19 @@ public final class VehicleManager {
     }
 
     /**
+     * The hopper minecart (Slice 66 — the 5-slot rolling pickup): the
+     * transfer host is the engine's hopper system (the reference's
+     * HopperBlockEntity statics over the cart's mouth).
+     */
+    public VehicleEntity spawnHopperMinecart(Position at,
+            HopperMinecartEntity.TransferHost host) {
+        if (!fireSpawnGate(VehicleEntity.Kind.HOPPER_MINECART.apiKind, at)) {
+            return null;
+        }
+        return spawn(new HopperMinecartEntity(nextEntityId++, at, random, host));
+    }
+
+    /**
      * The §27.7 pre-commit gate over every spawn family member: the
      * boat/minecart item placements and the structure-seeded chest
      * carts. A null bus (the unwired window) admits everything.
@@ -220,13 +233,22 @@ public final class VehicleManager {
 
     /**
      * The persistable view of one live vehicle (Slice 25g's ZVD payload):
-     * kind, position, facing, remaining health, and the chest minecart's
-     * 27-slot cargo (null for the other kinds). Broken bodies are not
-     * captured.
+     * kind, position, facing, remaining health, and the container cart's
+     * cargo (27 slots for the chest variant, 5 for the hopper variant,
+     * null for the other kinds) plus the variant's own state (the
+     * hopper's disable flag + transfer cooldown — Slice 66's variant
+     * payload). Broken bodies are not captured.
      */
     public record VehicleSnapshot(String kind, double x, double y, double z, float yaw,
                                   float health,
-                                  net.zaminmc.torch.item.ItemStack[] cargo) {
+                                  net.zaminmc.torch.item.ItemStack[] cargo,
+                                  boolean hopperEnabled, int hopperCooldown) {
+
+        /** The pre-Slice-66 shape (the chest cart's own). */
+        public VehicleSnapshot(String kind, double x, double y, double z, float yaw,
+                               float health, net.zaminmc.torch.item.ItemStack[] cargo) {
+            this(kind, x, y, z, yaw, health, cargo, true, -1);
+        }
     }
 
     /** @return the persistable snapshot of every live vehicle. Tick-thread context. */
@@ -240,9 +262,15 @@ public final class VehicleManager {
             net.zaminmc.torch.item.ItemStack[] cargo = null;
             if (vehicle instanceof ChestMinecartEntity cart) {
                 cargo = cart.chest().snapshotSlots();
+            } else if (vehicle instanceof HopperMinecartEntity hopperCart) {
+                cargo = hopperCart.hopper().snapshotSlots();
             }
             saved.add(new VehicleSnapshot(vehicle.kind().name(), at.x(), at.y(), at.z(),
-                    vehicle.rotation().yaw(), vehicle.health(), cargo));
+                    vehicle.rotation().yaw(), vehicle.health(), cargo,
+                    !(vehicle instanceof HopperMinecartEntity hopperCart)
+                            || hopperCart.enabled(),
+                    vehicle instanceof HopperMinecartEntity hopperCart
+                            ? hopperCart.transferCooldown() : -1));
         }
         return saved;
     }
@@ -251,9 +279,17 @@ public final class VehicleManager {
      * Restores the saved population (Slice 25g — the whole vehicle family's
      * pre-25g gap closes: the carts never carried a store). Unknown kinds
      * drop with a warning; the spawn gate rides the spawn verbs like every
-     * arrival. Returns whether any vehicle was restored.
+     * arrival. Returns whether any vehicle was restored. The hopper cart's
+     * transfer host arrives as a supplier (the engine's hopper system —
+     * Slice 66's variant payload carries the disable flag + cooldown).
      */
     public boolean restoreAll(List<VehicleSnapshot> saved) {
+        return restoreAll(saved, null);
+    }
+
+    /** The full restore (the hopper cart's transfer host armed when given). */
+    public boolean restoreAll(List<VehicleSnapshot> saved,
+            java.util.function.Supplier<HopperMinecartEntity.TransferHost> hopperHost) {
         Objects.requireNonNull(saved, "saved");
         boolean any = false;
         for (VehicleSnapshot snapshot : saved) {
@@ -271,19 +307,41 @@ public final class VehicleManager {
                 case CHEST_MINECART -> restored = spawnChestMinecart(at);
                 case FURNACE_MINECART -> restored = spawnFurnaceMinecart(at);
                 case TNT_MINECART -> restored = spawnTntMinecart(at);
+                case HOPPER_MINECART -> {
+                    if (hopperHost == null) {
+                        continue; // no host wired: the cart cannot suck
+                    }
+                    VehicleEntity cart = spawnHopperMinecart(at, hopperHost.get());
+                    if (cart instanceof HopperMinecartEntity hopperCart) {
+                        hopperCart.setEnabled(snapshot.hopperEnabled());
+                        hopperCart.setTransferCooldown(snapshot.hopperCooldown());
+                    }
+                    restored = cart;
+                }
                 default -> {
                     continue;
                 }
             }
             if (restored != null) {
                 restored.setHealthCarried(snapshot.health());
-                if (snapshot.cargo() != null && restored instanceof ChestMinecartEntity cart) {
-                    for (int slot = 0; slot < snapshot.cargo().length
-                            && slot < net.zaminmc.torch.server.chest.ChestBlockEntity.SLOT_COUNT;
-                            slot++) {
-                        net.zaminmc.torch.item.ItemStack stack = snapshot.cargo()[slot];
-                        if (stack != null && !stack.isEmpty()) {
-                            cart.chest().setSlot(slot, stack);
+                if (snapshot.cargo() != null) {
+                    if (restored instanceof ChestMinecartEntity cart) {
+                        for (int slot = 0; slot < snapshot.cargo().length
+                                && slot < net.zaminmc.torch.server.chest.ChestBlockEntity.SLOT_COUNT;
+                                slot++) {
+                            net.zaminmc.torch.item.ItemStack stack = snapshot.cargo()[slot];
+                            if (stack != null && !stack.isEmpty()) {
+                                cart.chest().setSlot(slot, stack);
+                            }
+                        }
+                    } else if (restored instanceof HopperMinecartEntity hopperCart) {
+                        for (int slot = 0; slot < snapshot.cargo().length
+                                && slot < net.zaminmc.torch.server.hopper.HopperBlockEntity.SLOT_COUNT;
+                                slot++) {
+                            net.zaminmc.torch.item.ItemStack stack = snapshot.cargo()[slot];
+                            if (stack != null && !stack.isEmpty()) {
+                                hopperCart.hopper().setItem(slot, stack);
+                            }
                         }
                     }
                 }
@@ -324,6 +382,16 @@ public final class VehicleManager {
             // cell): the powered cell primes the fuse.
             if (vehicle instanceof TntMinecartEntity tntCart) {
                 tntCart.onActivatorRail(world.railPowerAt(
+                        vehicle.position().x(),
+                        vehicle.position().y() + 0.4,
+                        vehicle.position().z()) > 0);
+            }
+            // The hopper cart's own consult (Slice 66 —
+            // HopperMinecartEntity.onActivatorRail lines 63-68): a POWERED
+            // activator rail disables the transfer walk, an unpowered one
+            // re-enables it (the inverse sense of the TNT prime).
+            if (vehicle instanceof HopperMinecartEntity hopperCart) {
+                hopperCart.onActivatorRail(world.railPowerAt(
                         vehicle.position().x(),
                         vehicle.position().y() + 0.4,
                         vehicle.position().z()) > 0);

@@ -43,7 +43,15 @@ public final class VehicleDataStore {
     private static final int MAGIC_0 = 'Z';
     private static final int MAGIC_1 = 'V';
     private static final int MAGIC_2 = 'D';
-    private static final int FORMAT_VERSION = 1;
+    /**
+     * Version 2 (Slice 66): the variant payload — the hopper cart's
+     * 5-slot cargo rides the same cargo block (its length names the
+     * kind's own slot count) plus the variant extras (the disable flag
+     * + transfer cooldown). Version 1 files load with the defaults
+     * (enabled, cooldown -1).
+     */
+    private static final int FORMAT_VERSION = 2;
+    private static final int FORMAT_VERSION_1 = 1;
 
     private final Path file;
 
@@ -80,6 +88,13 @@ public final class VehicleDataStore {
                             writeStack(out, stack);
                         }
                     }
+                    if (vehicle.kind().equals(VehicleEntity.Kind.HOPPER_MINECART.name())) {
+                        // The variant extras (the reference's own NBT rows:
+                        // writeCustomNbt's TransferCooldown + the enable
+                        // flag's own bit).
+                        out.writeByte(vehicle.hopperEnabled() ? 1 : 0);
+                        out.writeInt(vehicle.hopperCooldown());
+                    }
                 }
             }
             Files.move(temp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
@@ -105,7 +120,7 @@ public final class VehicleDataStore {
                 throw new IOException("Not a ZVD file");
             }
             int version = in.readByte();
-            if (version != FORMAT_VERSION) {
+            if (version != FORMAT_VERSION && version != FORMAT_VERSION_1) {
                 throw new IOException("Unsupported ZVD version: " + version);
             }
             int count = readVarInt(in);
@@ -126,8 +141,21 @@ public final class VehicleDataStore {
                     for (int slot = 0; slot < cargo.length; slot++) {
                         cargo[slot] = readStack(in);
                     }
+                } else if (kind.equals(VehicleEntity.Kind.HOPPER_MINECART.name())) {
+                    cargo = new ItemStack[net.zaminmc.torch.server.hopper.HopperBlockEntity.SLOT_COUNT];
+                    for (int slot = 0; slot < cargo.length; slot++) {
+                        cargo[slot] = readStack(in);
+                    }
                 }
-                loaded.add(new VehicleManager.VehicleSnapshot(kind, x, y, z, yaw, health, cargo));
+                boolean hopperEnabled = true;
+                int hopperCooldown = -1;
+                if (version >= FORMAT_VERSION
+                        && kind.equals(VehicleEntity.Kind.HOPPER_MINECART.name())) {
+                    hopperEnabled = in.readUnsignedByte() != 0;
+                    hopperCooldown = in.readInt();
+                }
+                loaded.add(new VehicleManager.VehicleSnapshot(
+                        kind, x, y, z, yaw, health, cargo, hopperEnabled, hopperCooldown));
             }
             return loaded;
         } catch (IOException | RuntimeException corrupt) {
