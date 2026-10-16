@@ -44,13 +44,13 @@ public final class VehicleDataStore {
     private static final int MAGIC_1 = 'V';
     private static final int MAGIC_2 = 'D';
     /**
-     * Version 2 (Slice 66): the variant payload — the hopper cart's
-     * 5-slot cargo rides the same cargo block (its length names the
-     * kind's own slot count) plus the variant extras (the disable flag
-     * + transfer cooldown; the spawner cart's EntityId/Delay rows).
-     * Version 1 files load with the defaults (enabled, cooldown -1).
+     * Version 3 (Slice 78): the burn clock's own row — the reference's
+     * {@code Fire} short (Entity.java lines 1115/1176), the raw signed
+     * timer every kind carries (negative = the grace band). Version 2
+     * and 1 files load with the fresh-body default (-1).
      */
-    private static final int FORMAT_VERSION = 2;
+    private static final int FORMAT_VERSION = 3;
+    private static final int FORMAT_VERSION_2 = 2;
     private static final int FORMAT_VERSION_1 = 1;
 
     private final Path file;
@@ -114,6 +114,11 @@ public final class VehicleDataStore {
                         writeString(out, vehicle.commandLastOutput() == null
                                 ? "" : vehicle.commandLastOutput());
                     }
+                    // The burn clock's own row (Slice 78 — Entity.java line
+                    // 1115's {@code Fire} short, every kind: the raw signed
+                    // timer — a burning cart keeps its burn, a grace-band
+                    // cart keeps its grace, across the restart).
+                    out.writeShort(vehicle.fire());
                 }
             }
             Files.move(temp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
@@ -139,7 +144,8 @@ public final class VehicleDataStore {
                 throw new IOException("Not a ZVD file");
             }
             int version = in.readByte();
-            if (version != FORMAT_VERSION && version != FORMAT_VERSION_1) {
+            if (version != FORMAT_VERSION && version != FORMAT_VERSION_2
+                    && version != FORMAT_VERSION_1) {
                 throw new IOException("Unsupported ZVD version: " + version);
             }
             int count = readVarInt(in);
@@ -174,7 +180,10 @@ public final class VehicleDataStore {
                 int commandSuccessCount = 0;
                 boolean commandTrackOutput = true;
                 String commandLastOutput = null;
-                if (version >= FORMAT_VERSION) {
+                // The fresh-body default (the reference's absent Fire row
+                // reads back as the -fireResistance grace).
+                int fire = -VehicleEntity.FIRE_SAFE_TICKS;
+                if (version >= FORMAT_VERSION_2) {
                     if (kind.equals(VehicleEntity.Kind.HOPPER_MINECART.name())) {
                         hopperEnabled = in.readUnsignedByte() != 0;
                         hopperCooldown = in.readInt();
@@ -196,10 +205,15 @@ public final class VehicleDataStore {
                         }
                     }
                 }
+                if (version >= FORMAT_VERSION) {
+                    // Slice 78's own row: the raw signed burn clock.
+                    fire = in.readShort();
+                }
                 loaded.add(new VehicleManager.VehicleSnapshot(
                         kind, x, y, z, yaw, health, cargo, hopperEnabled, hopperCooldown,
                         spawnerType, spawnerDelay,
-                        command, commandSuccessCount, commandTrackOutput, commandLastOutput));
+                        command, commandSuccessCount, commandTrackOutput, commandLastOutput,
+                        fire));
             }
             return loaded;
         } catch (IOException | RuntimeException corrupt) {

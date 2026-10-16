@@ -4829,61 +4829,43 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     /**
      * A vehicle's tracked state metadata (Slice 66 — the furnace cart's
      * lit byte at the synced slot 16; the command cart's command/last
-     * output strings at the synced slots 23-24; the other kinds carry
-     * nothing and the send is a no-op). Any thread.
+     * output strings at the synced slots 23-24) plus the flags byte every
+     * kind carries (Slice 78 — Entity.java line 347's {@code setFlag(0,
+     * onFireTimer > 0)}: the on-fire bit at the synced slot 0, the burn's
+     * own wire face; a flip rides the state-change listener exactly like
+     * the furnace's lit byte). Any thread.
      */
     void sendVehicleStateMetadata(net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle) {
-        if (vehicle instanceof net.zaminmc.torch.server.entity.vehicle.CommandBlockMinecartEntity commandCart) {
-            sendCommandCartMetadata(commandCart);
-            return;
-        }
-        if (!(vehicle instanceof net.zaminmc.torch.server.entity.vehicle.FurnaceMinecartEntity furnace)) {
-            return;
-        }
         Channel channel = adapter.channelOf(this);
         if (channel == null || !channel.isActive() || state != WireState.PLAY
                 || chunkTracker == null) {
             return;
         }
-        var blockPos = furnace.position().toBlockPosition();
-        if (!chunkTracker.hasChunk(blockPos.chunkPosition().packed())) {
-            return;
-        }
-        ByteBuf meta = Unpooled.buffer(12);
-        ByteBufOps.writeVarInt(meta, Protocol18.S2C_ENTITY_METADATA);
-        ByteBufOps.writeVarInt(meta, furnace.entityId());
-        meta.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | 16); // slot 16
-        meta.writeByte(furnace.lit() ? 1 : 0);
-        meta.writeByte(Protocol18.METADATA_TERMINATOR);
-        channel.writeAndFlush(meta);
-    }
-
-    /**
-     * The command cart's synced strings (Slice 66 —
-     * CommandBlockMinecartEntity.registerSyncedData lines 64-68: the
-     * command at slot 23, the last output's JSON at 24 — both plain
-     * strings on the 1.8.8 wire; the client's edit GUI reads them).
-     * Chunk-gated like every vehicle packet. Any thread.
-     */
-    void sendCommandCartMetadata(
-            net.zaminmc.torch.server.entity.vehicle.CommandBlockMinecartEntity cart) {
-        Channel channel = adapter.channelOf(this);
-        if (channel == null || !channel.isActive() || state != WireState.PLAY
-                || chunkTracker == null) {
-            return;
-        }
-        var blockPos = cart.position().toBlockPosition();
+        var blockPos = vehicle.position().toBlockPosition();
         if (!chunkTracker.hasChunk(blockPos.chunkPosition().packed())) {
             return;
         }
         ByteBuf meta = Unpooled.buffer(64);
         ByteBufOps.writeVarInt(meta, Protocol18.S2C_ENTITY_METADATA);
-        ByteBufOps.writeVarInt(meta, cart.entityId());
-        meta.writeByte((Protocol18.METADATA_TYPE_STRING << 5) | 23); // slot 23
-        ByteBufOps.writeString(meta, cart.command());
-        meta.writeByte((Protocol18.METADATA_TYPE_STRING << 5) | 24); // slot 24
-        ByteBufOps.writeString(meta,
-                cart.lastOutput() == null ? "" : "{\"text\":\"" + escapeJson(cart.lastOutput()) + "\"}");
+        ByteBufOps.writeVarInt(meta, vehicle.entityId());
+        // The flags byte at slot 0 (every kind): bit 0x01 = on fire.
+        meta.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | 0);
+        meta.writeByte(vehicle.onFire() ? 0x01 : 0x00);
+        if (vehicle instanceof net.zaminmc.torch.server.entity.vehicle.FurnaceMinecartEntity furnace) {
+            // registerSyncedData slot 16 — the client swaps the furnace
+            // texture from it.
+            meta.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | 16);
+            meta.writeByte(furnace.lit() ? 1 : 0);
+        }
+        if (vehicle instanceof net.zaminmc.torch.server.entity.vehicle.CommandBlockMinecartEntity cart) {
+            // CommandBlockMinecartEntity.registerSyncedData lines 64-68:
+            // the command at slot 23, the last output's JSON at 24.
+            meta.writeByte((Protocol18.METADATA_TYPE_STRING << 5) | 23);
+            ByteBufOps.writeString(meta, cart.command());
+            meta.writeByte((Protocol18.METADATA_TYPE_STRING << 5) | 24);
+            ByteBufOps.writeString(meta,
+                    cart.lastOutput() == null ? "" : "{\"text\":\"" + escapeJson(cart.lastOutput()) + "\"}");
+        }
         meta.writeByte(Protocol18.METADATA_TERMINATOR);
         channel.writeAndFlush(meta);
     }

@@ -1099,6 +1099,42 @@ final class TestClient18 implements AutoCloseable {
         return new int[]{entityId, itemId, count, damage};
     }
 
+    /**
+     * Reads Entity Metadata packets until the named entity's slot-0 flags
+     * byte carries the wanted value (Slice 78 — the on-fire bit 0x01's
+     * wire face; other byte entries skip, the search loops across packets
+     * until the deadline). Returns {entityId, flags}.
+     */
+    int[] readFlagsMetadataOf(int entityId, int wantedFlags, long timeoutMs) throws IOException {
+        long deadline = System.currentTimeMillis() + timeoutMs;
+        while (System.currentTimeMillis() < deadline) {
+            byte[] payload = readPacketOfType(Protocol18.S2C_ENTITY_METADATA,
+                    Math.max(1, deadline - System.currentTimeMillis()));
+            ByteBuf buffer = Unpooled.wrappedBuffer(payload);
+            ByteBufOps.readVarInt(buffer); // packet id
+            int id = ByteBufOps.readVarInt(buffer);
+            while (buffer.isReadable()) {
+                int header = buffer.readUnsignedByte();
+                if (header == 0x7F) {
+                    break; // terminator
+                }
+                int type = header >> 5;
+                int slot = header & 0x1F;
+                if (type == Protocol18.METADATA_TYPE_BYTE) {
+                    int flags = buffer.readUnsignedByte();
+                    if (id == entityId && slot == 0 && flags == wantedFlags) {
+                        return new int[]{id, flags};
+                    }
+                } else {
+                    throw new IOException("Unexpected metadata type " + type
+                            + " at slot " + slot);
+                }
+            }
+        }
+        throw new IOException("No flags byte " + wantedFlags + " for entity " + entityId
+                + " before the deadline");
+    }
+
     /** Sends Close Window (0x0D) for the player inventory window. */
     void sendCloseWindow() throws IOException {
         sendCloseWindow(Protocol18.INVENTORY_WINDOW_ID);
