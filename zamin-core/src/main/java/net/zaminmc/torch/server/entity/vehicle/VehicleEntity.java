@@ -28,7 +28,17 @@ public abstract class VehicleEntity implements net.zaminmc.torch.entity.Vehicle 
         BOAT(net.zaminmc.torch.entity.VehicleKind.BOAT),
         MINECART(net.zaminmc.torch.entity.VehicleKind.MINECART),
         /** The chest minecart (Slice 21a — the 27-slot rolling container). */
-        CHEST_MINECART(net.zaminmc.torch.entity.VehicleKind.CHEST_MINECART);
+        CHEST_MINECART(net.zaminmc.torch.entity.VehicleKind.CHEST_MINECART),
+        /** The furnace minecart (Slice 66 — the coal-fed pusher). */
+        FURNACE_MINECART(net.zaminmc.torch.entity.VehicleKind.FURNACE_MINECART),
+        /** The TNT minecart (Slice 66 — the 80-tick fuse). */
+        TNT_MINECART(net.zaminmc.torch.entity.VehicleKind.TNT_MINECART),
+        /** The hopper minecart (Slice 66 — the 5-slot rolling pickup). */
+        HOPPER_MINECART(net.zaminmc.torch.entity.VehicleKind.HOPPER_MINECART),
+        /** The spawner minecart (Slice 66 — the rolling spawner). */
+        SPAWNER_MINECART(net.zaminmc.torch.entity.VehicleKind.SPAWNER_MINECART),
+        /** The command-block minecart (Slice 66 — the rolling executor). */
+        COMMAND_BLOCK_MINECART(net.zaminmc.torch.entity.VehicleKind.COMMAND_BLOCK_MINECART);
 
         /** The public API's kind (§27.3 — the stable surface). */
         public final net.zaminmc.torch.entity.VehicleKind apiKind;

@@ -7203,6 +7203,20 @@ public final class EngineServer implements Server, EngineBridge {
             spawnVehicleUseOnTick(session, clicked, face, creativeHeld, false, true);
             return;
         }
+        if (heldId.equals("minecraft:furnace_minecart")
+                || creativeHeld.map(t -> t.identifier().value().equals("furnace_minecart")).orElse(false)) {
+            // The furnace minecart's place arm (Slice 66 — MinecartItem
+            // over the furnace variant).
+            spawnVehicleUseOnTick(session, clicked, face, creativeHeld, false, false, true, false);
+            return;
+        }
+        if (heldId.equals("minecraft:tnt_minecart")
+                || creativeHeld.map(t -> t.identifier().value().equals("tnt_minecart")).orElse(false)) {
+            // The TNT minecart's place arm (Slice 66 — MinecartItem over
+            // the TNT variant).
+            spawnVehicleUseOnTick(session, clicked, face, creativeHeld, false, false, false, true);
+            return;
+        }
         if (heldId.equals("minecraft:pumpkin") || heldId.equals("minecraft:lit_pumpkin")
                 || creativeHeld.map(t -> t.identifier().value().equals("pumpkin")
                         || t.identifier().value().equals("lit_pumpkin")).orElse(false)) {
@@ -9562,6 +9576,12 @@ public final class EngineServer implements Server, EngineBridge {
     private void spawnVehicleUseOnTick(PlayerSession session, BlockPosition clicked, int face,
                                        java.util.Optional<BlockType> creativeHeld, boolean boat,
                                        boolean chestCart) {
+        spawnVehicleUseOnTick(session, clicked, face, creativeHeld, boat, chestCart, false, false);
+    }
+
+    private void spawnVehicleUseOnTick(PlayerSession session, BlockPosition clicked, int face,
+                                       java.util.Optional<BlockType> creativeHeld, boolean boat,
+                                       boolean chestCart, boolean furnaceCart, boolean tntCart) {
         BlockPosition target = offsetByFace(clicked, face);
         if (target == null) {
             return;
@@ -9611,6 +9631,24 @@ public final class EngineServer implements Server, EngineBridge {
         } else if (chestCart) {
             if (vehicleManager.spawnChestMinecart(spawnAt) == null) {
                 return; // the §27.7 gate withheld the cart — the item stays
+            }
+        } else if (furnaceCart) {
+            if (vehicleManager.spawnFurnaceMinecart(spawnAt) == null) {
+                return; // the §27.7 gate withheld the cart — the item stays
+            }
+        } else if (tntCart) {
+            var tntCartEntity = vehicleManager.spawnTntMinecart(spawnAt);
+            if (tntCartEntity == null) {
+                return; // the §27.7 gate withheld the cart — the item stays
+            }
+            // The detonation sink (the engine's blast walk with fire —
+            // the reference's world.explode(this, x, y, z, power, true)):
+            // the 8*power+1 center wound the fireball family rides, the
+            // destructive flag under mobGriefing.
+            if (tntCartEntity instanceof net.zaminmc.torch.server.entity.vehicle.TntMinecartEntity tnt) {
+                tnt.setBlastSink((x, y, z, power) -> detonateAt(
+                        x, y, z, power, 8.0f * power + 1.0f,
+                        gameRules.getBoolean("mobGriefing")));
             }
         } else {
             if (vehicleManager.spawnMinecart(spawnAt) == null) {

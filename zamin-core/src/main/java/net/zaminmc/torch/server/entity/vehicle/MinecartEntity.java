@@ -237,7 +237,8 @@ public class MinecartEntity extends VehicleEntity {
         return world.railAxisAt(x + 0.5, y + 0.06, z + 0.5);
     }
 
-    private int railAxisAt(WorldQuery world, Position at) {
+    /** The rail axis under a point (protected for the variants' own walks). */
+    protected int railAxisAt(WorldQuery world, Position at) {
         return world.railAxisAt(at.x(), at.y() + 0.4, at.z());
     }
 }
