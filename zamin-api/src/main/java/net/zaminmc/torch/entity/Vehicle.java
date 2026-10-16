@@ -55,6 +55,18 @@ public interface Vehicle extends Entity {
         return java.util.Optional.empty();
     }
 
+    /**
+     * The variant-specific state view of a special minecart (the
+     * furnace's fuel and push, the TNT's fuse, the spawner's type and
+     * delay, the command cart's executor rows); empty for the boat, the
+     * plain minecart, and the chest cart (the chest's container rides
+     * {@link #cargo()}). Simulation context (§27.6 — the documented
+     * owner path is {@code World.execute(runnable)}).
+     */
+    default java.util.Optional<VariantState> variantState() {
+        return java.util.Optional.empty();
+    }
+
     /** A container vehicle's cargo (the rolling chest grid). */
     interface Cargo {
 

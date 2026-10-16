@@ -26,7 +26,8 @@ import java.util.Random;
  * fueled furnace cart shoves every cart it touches) rides the
  * cart-collision model's own slice, ledgered.</p>
  */
-public class FurnaceMinecartEntity extends MinecartEntity {
+public class FurnaceMinecartEntity extends MinecartEntity
+        implements net.zaminmc.torch.entity.VariantState.Furnace {
 
     /** The coal feed (interact line 102: fuel += 3600). */
     public static final int COAL_FUEL_TICKS = 3600;
@@ -65,6 +66,25 @@ public class FurnaceMinecartEntity extends MinecartEntity {
     /** The push vector (the rolling direction). */
     public double pushZ() {
         return pushZ;
+    }
+
+    /**
+     * The public variant view (§27.3 — the furnace cart's own state):
+     * the engine object IS the handle (§27.5). Simulation context.
+     */
+    @Override
+    public java.util.Optional<net.zaminmc.torch.entity.VariantState> variantState() {
+        return java.util.Optional.of(this);
+    }
+
+    // ----------------------------------------------------------
+    // The VariantState.Furnace view (§27.3 — the API's own reads).
+    // The lit/pushX/pushZ signatures already carry the view's reads;
+    // only the fuel's name bridges.
+    // ----------------------------------------------------------
+
+    @Override public int fuelTicks() {
+        return fuel();
     }
 
     /**

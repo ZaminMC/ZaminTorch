@@ -28,7 +28,8 @@ import java.util.Random;
  * (takeDamage lines 63-73 — the arrow-hit arm rides the vehicle hurt
  * path's own slice, ledgered).</p>
  */
-public class TntMinecartEntity extends MinecartEntity {
+public class TntMinecartEntity extends MinecartEntity
+        implements net.zaminmc.torch.entity.VariantState.Tnt {
 
     /** The prime's fuse (prime line 151: 80 ticks). */
     public static final int FUSE_TICKS = 80;
@@ -81,6 +82,16 @@ public class TntMinecartEntity extends MinecartEntity {
     /** @return whether the cart is primed (isPrimed: fuse > -1). */
     public boolean primed() {
         return fuseTicks > -1;
+    }
+
+    /**
+     * The public variant view (§27.3 — the TNT cart's own state): the
+     * engine object IS the handle (§27.5). Simulation context. The
+     * fuse/primed reads already carry the view's signatures.
+     */
+    @Override
+    public java.util.Optional<net.zaminmc.torch.entity.VariantState> variantState() {
+        return java.util.Optional.of(this);
     }
 
     /**

@@ -29,7 +29,8 @@ import java.util.Random;
  * reads them (the open itself is client-side for creative players; the
  * edits ride the Update Entity NBT 0x49 packet back).</p>
  */
-public class CommandBlockMinecartEntity extends MinecartEntity {
+public class CommandBlockMinecartEntity extends MinecartEntity
+        implements net.zaminmc.torch.entity.VariantState.Command {
 
     /** The re-run floor (onActivatorRail line 100: 4 ticks). */
     public static final int REEXECUTE_COOLDOWN = 4;
@@ -69,7 +70,7 @@ public class CommandBlockMinecartEntity extends MinecartEntity {
         return 6;
     }
 
-    /** The stored command (getCommand) — no leading slash. */
+    /** The command string (empty when never set). */
     public String command() {
         return command;
     }
@@ -100,9 +101,20 @@ public class CommandBlockMinecartEntity extends MinecartEntity {
         this.trackOutput = trackOutput;
     }
 
-    /** The last output line, or null (getLastOutput). */
+    /** The last recorded output (the last-output row's text), null when none. */
     public String lastOutput() {
         return lastOutput;
+    }
+
+    /**
+     * The public variant view (§27.3 — the command cart's own state):
+     * the engine object IS the handle (§27.5). Simulation context. The
+     * command/successCount/trackOutput/lastOutput reads already carry
+     * the view's signatures.
+     */
+    @Override
+    public java.util.Optional<net.zaminmc.torch.entity.VariantState> variantState() {
+        return java.util.Optional.of(this);
     }
 
     /** The last output's write arm (setLastOutput). */

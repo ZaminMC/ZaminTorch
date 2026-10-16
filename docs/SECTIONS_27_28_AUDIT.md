@@ -33,13 +33,13 @@ the test that proves it, or the honest blocker.
 
 ### The honest gaps (recorded, not hidden)
 
-- **The variant carts' internal state has no read surface.** The
-  furnace's fuel/push, the TNT cart's fuse, the spawner cart's
-  type/delay, the command cart's command/output are engine-side fields
-  with no `Vehicle` handle accessors. The kind identity (`vehicleKind`)
-  and the container cargo (`cargo()` — the chest's 27 and the hopper's
-  five) ARE the current surface. A `VariantState` read view is the next
-  §27.3 wave (the write verbs ride the ownership contract).
+- ~~**The variant carts' internal state has no read surface.**~~
+  **CLOSED, Slice 68:** `Vehicle.variantState()` → `VariantState`
+  (Furnace/Tnt/Spawner/Command views) — the engine object IS the
+  handle; the read view carries
+  `VariantStateApiAcceptanceTest`. The variant write verbs (the fuel
+  feed, the prime, the type/delay rows, the command rows) stay
+  engine-side for the ownership-gated write wave.
 - **The fishing system exposes the engine facade** (`Server.fishing()`)
   — the cast/retrieve verbs and the bobber reads — but no loot-table
   override and no catch intercept (the §27.7 drop events observe the
