@@ -7487,3 +7487,32 @@ through the real EngineServer's plugins() with real event-bus/scope
 integration); (2) the next vanilla wave per the ledger (the vehicle
 fire/lava walk, the projectile-hits-vehicle family, the burning-arrow
 detonation, the mob equipment/attribute NBT rows).
+
+## Slice 76 — the plugin host's live-engine acceptance + the shutdown's disable walk
+
+- **The acceptance proof (the §28 wiring)**: `PluginLiveEngineAcceptanceTest` —
+  a plugin through the REAL EngineServer's `plugins()`: the registration
+  subscribes to PlayerJoinEvent through the PUBLIC `server.events()` bus and
+  OWNS the subscription through the scope (the sweep unsubscribes); the
+  quota'd compute (21→42) and blocking-IO tasks run over the engine's REAL
+  lanes and land their results; a REAL join (joinRequest + markPlaying) fires
+  the handler with the player's name; the disable walk sweeps the owned
+  resources in registration order, refuses the post-disable submissions (the
+  admissions gate), and the swept subscription never fires again.
+- **THE SHUTDOWN'S DISABLE WALK (a real gap the acceptance surfaced)**: the
+  engine's shutdown had no plugin arm at all — a plugin left ENABLED at stop
+  kept its scope open past the lanes' death. The new 3b arm in
+  EngineServer.shutdown: every enabled plugin sealed and swept BEFORE the
+  simulation stops (the owned subscriptions leave, the close verbs run, no
+  admission races the shutdown); a disable failure is isolated per plugin;
+  unload stays explicit (the handle remains queryable after the stop).
+- Tests: the acceptance (2) + PluginHostTest (9) green; the
+  entity+commandblock batches 330 green (every test boots and shuts down the
+  real server — the new walk's no-plugin path proves itself across the whole
+  suite); the protocol suite green (1m49s).
+
+NEXT (in order): (1) the next vanilla wave per the ledger (the vehicle
+fire/lava walk, the projectile-hits-vehicle family, the burning-arrow
+detonation, the mob equipment/attribute NBT rows); (2) the plugin
+discovery/classloading wave when the native API surface settles; (3) the
+periodic full-suite verification (the milestone convention).

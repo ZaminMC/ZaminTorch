@@ -2589,6 +2589,22 @@ public final class EngineServer implements Server, EngineBridge {
             }
         }
 
+        // 3b. the plugins' disable walk (§28.5's stop arm — Slice 76): every
+        // enabled plugin's seal-then-sweep BEFORE the lanes go down, so
+        // each scope closes cleanly on the stop (the owned subscriptions
+        // leave, the close verbs run) and no admission races the shutdown.
+        net.zaminmc.torch.server.plugin.PluginManager host = pluginHost;
+        if (host != null) {
+            for (net.zaminmc.torch.plugin.PluginHandle plugin : host.plugins()) {
+                try {
+                    host.disable(plugin);
+                } catch (RuntimeException e) {
+                    LOGGER.warning("Plugin disable during shutdown failed for "
+                            + plugin.descriptor().id() + ": " + e);
+                }
+            }
+        }
+
         // 4. stop simulation
         if (ticker != null) {
             if (computeSubsystem != null) {
