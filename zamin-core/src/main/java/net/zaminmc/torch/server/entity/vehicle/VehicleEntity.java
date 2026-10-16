@@ -85,6 +85,26 @@ public abstract class VehicleEntity implements net.zaminmc.torch.entity.Vehicle 
         }
 
         /**
+         * @return whether the point's cell is a fire source (Slice 78 —
+         * the reference's {@code containsFireSource} family, World.java
+         * lines 1475-1494: the FIRE block, the flowing lava, the still
+         * lava). Default false so stub queries keep their semantics.
+         */
+        default boolean inFireSource(double x, double y, double z) {
+            return false;
+        }
+
+        /**
+         * @return whether the body at the point is in water or rain
+         * (Slice 78 — the reference's {@code isInWaterOrRain}, the fire
+         * family's extinguish consult). Default false so stub queries
+         * keep their semantics.
+         */
+        default boolean inWaterOrRain(double x, double y, double z) {
+            return false;
+        }
+
+        /**
          * @return the flat rail orientation of the point's cell:
          * 0 = north-south (Z travel), 1 = east-west (X travel), -1 = not rail.
          */
@@ -128,6 +148,21 @@ public abstract class VehicleEntity implements net.zaminmc.torch.entity.Vehicle 
     private double deathSpeedSquared;
     /** The query of the current tick (set by the manager's tick loop). */
     protected WorldQuery query;
+
+    /**
+     * The grace ticks before ignition (the reference's {@code fireResistance}
+     * — Entity.java line 159's {@code safeOnFireTime = 1}: one tick inside
+     * a fire source before the burn arms).
+     */
+    public static final int FIRE_SAFE_TICKS = 1;
+
+    /**
+     * The burn clock (the reference's {@code onFireTimer}, Entity.java
+     * line 108): negative = the pre-ignition grace band, positive = ticks
+     * of burning left, zero never rests here (the ignite arm re-arms it
+     * the moment it reads zero).
+     */
+    private int onFireTimer = -FIRE_SAFE_TICKS;
 
     protected VehicleEntity(int entityId, Kind kind, Position position, Random random) {
         this.entityId = entityId;
@@ -263,6 +298,104 @@ public abstract class VehicleEntity implements net.zaminmc.torch.entity.Vehicle 
     /** @return the speed squared at the fatal hit (the TNT cart's gate). */
     public double deathSpeedSquared() {
         return deathSpeedSquared;
+    }
+
+    // -------------------------------------------------------------
+    // The fire family (Slice 78 — Entity.java's own fire law over the
+    // non-living body: the burn clock, the grace counter, the wire's
+    // flags byte).
+    // -------------------------------------------------------------
+
+    /** @return ticks of burning left (0 = not burning; the wire's flag 0). */
+    public boolean onFire() {
+        return onFireTimer > 0;
+    }
+
+    /** @return the raw burn clock (negative = the grace band; the ZVD row). */
+    public int onFireTimer() {
+        return onFireTimer;
+    }
+
+    /**
+     * Arms the burn to at least {@code seconds} seconds (Entity.java
+     * lines 365-371 — the max arm: a longer burn never shortens; the
+     * protection consult is the living-family's own, the vehicle carries
+     * no armor).
+     */
+    public void setOnFireFor(int seconds) {
+        int ticks = seconds * 20;
+        if (onFireTimer < ticks) {
+            onFireTimer = ticks;
+        }
+    }
+
+    /**
+     * The burn clock's own tick (Entity.java lines 320-335, the onUpdate
+     * fire arm): a burning body takes its 1.0 ON_FIRE wound every full
+     * second ({@code onFireTimer % 20 == 0}) and the clock ticks down.
+     * The wound itself lands through the manager's hurt (the wire's hurt
+     * flash); the clock runs regardless of the i-frame's verdict, exactly
+     * like the reference's attempted damage.
+     *
+     * @return whether this tick's ON_FIRE wound is due.
+     */
+    public boolean tickOnFire() {
+        if (onFireTimer > 0) {
+            boolean woundDue = onFireTimer % 20 == 0;
+            onFireTimer--;
+            return woundDue;
+        }
+        return false;
+    }
+
+    /**
+     * The fire-source contact's grace walk (Entity.java lines 636-643,
+     * the move() fire arm): a dry body inside a fire source counts the
+     * grace up; the tick it crosses zero is the 8-second ignition.
+     *
+     * @param wet the body's water-or-rain consult (a wet body never
+     *            counts the grace — the reference's {@code !flag2} gate)
+     * @return whether this contact newly ignited the body.
+     */
+    public boolean contactFire(boolean wet) {
+        if (wet) {
+            return false;
+        }
+        onFireTimer++;
+        if (onFireTimer == 0) {
+            setOnFireFor(8);
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * The out-of-fire grace reset (Entity.java lines 644-646: {@code else
+     * if (onFireTimer <= 0) onFireTimer = -safeOnFireTime}) — a dry body
+     * away from fire sources re-arms its one-tick grace.
+     */
+    public void clearFireGrace() {
+        if (onFireTimer <= 0) {
+            onFireTimer = -FIRE_SAFE_TICKS;
+        }
+    }
+
+    /**
+     * The wet extinguish (Entity.java lines 648-651): a burning body in
+     * water or rain drops the burn and re-arms the grace (the reference
+     * also plays its random.fizz — the manager's listener carries it).
+     */
+    public void extinguish() {
+        onFireTimer = -FIRE_SAFE_TICKS;
+    }
+
+    /**
+     * The restore's own row (Entity.java line 1176, {@code Fire} short:
+     * the raw signed clock — the grace band survives the restart exactly
+     * as the reference reads it back).
+     */
+    public void restoreFireTimer(int restored) {
+        this.onFireTimer = restored;
     }
 
     /**

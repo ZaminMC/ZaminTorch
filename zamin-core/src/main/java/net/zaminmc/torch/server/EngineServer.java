@@ -12158,9 +12158,18 @@ public final class EngineServer implements Server, EngineBridge {
 
         /**
          * A vehicle's tracked state flipped (Slice 66 — the furnace cart's
-         * lit byte at the synced slot 16).
+         * lit byte at the synced slot 16; Slice 78 — the flags byte's
+         * on-fire bit at slot 0).
          */
         default void onVehicleStateChanged(
+                net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle) {
+        }
+
+        /**
+         * A burning vehicle hit water or rain (Slice 78 — the reference's
+         * random.fizz arm over the wet extinguish).
+         */
+        default void onVehicleFizz(
                 net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle) {
         }
 
@@ -12290,6 +12299,20 @@ public final class EngineServer implements Server, EngineBridge {
                 net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle) {
             for (VehicleListener listener : vehicleListeners) {
                 listener.onVehicleStateChanged(vehicle);
+            }
+        }
+
+        /**
+         * The wet extinguish (Slice 78 — Entity.java lines 648-651: the
+         * random.fizz at volume 0.7F, pitch 1.6F±0.2 — the sound's own
+         * arm beside the flags flip).
+         */
+        @Override
+        public void onVehicleFizz(net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle) {
+            fxManager.sound(vehicle.position(), "random.fizz", 0.7f,
+                    1.6f + (fxRandom.nextFloat() - fxRandom.nextFloat()) * 0.4f);
+            for (VehicleListener listener : vehicleListeners) {
+                listener.onVehicleFizz(vehicle);
             }
         }
 
@@ -12426,6 +12449,50 @@ public final class EngineServer implements Server, EngineBridge {
             return net.zaminmc.torch.server.block.FluidBlocks.kindOf(
                     world.getBlock(blockAt(x, y, z)).identifier())
                     == net.zaminmc.torch.server.block.FluidBlocks.Kind.LAVA;
+        }
+
+        /**
+         * The fire-source consult (Slice 78 — World.java lines 1475-1494's
+         * {@code containsFireSource} family over the body's point: the FIRE
+         * block, the flowing lava, the still lava — every cell the
+         * reference's own fire walk counts).
+         */
+        @Override
+        public boolean inFireSource(double x, double y, double z) {
+            if (y < net.zaminmc.torch.block.BlockPosition.MIN_Y
+                    || y > net.zaminmc.torch.block.BlockPosition.MAX_Y) {
+                return false;
+            }
+            Identifier id = world.getBlock(blockAt(x, y, z)).identifier();
+            return net.zaminmc.torch.server.block.WorldSolidity.isFire(id)
+                    || net.zaminmc.torch.server.block.FluidBlocks.kindOf(id)
+                    == net.zaminmc.torch.server.block.FluidBlocks.Kind.LAVA;
+        }
+
+        /**
+         * The water-or-rain consult (Slice 78 — the reference's
+         * {@code isInWaterOrRain}, the fire family's extinguish gate): a
+         * water cell at the body, or the rain flag up with the point above
+         * its column's surface (the mob query's own isRainingAt shape,
+         * Slice 30d).
+         */
+        @Override
+        public boolean inWaterOrRain(double x, double y, double z) {
+            if (y < net.zaminmc.torch.block.BlockPosition.MIN_Y
+                    || y > net.zaminmc.torch.block.BlockPosition.MAX_Y) {
+                return false;
+            }
+            if (net.zaminmc.torch.server.block.FluidBlocks.kindOf(
+                    world.getBlock(blockAt(x, y, z)).identifier())
+                    == net.zaminmc.torch.server.block.FluidBlocks.Kind.WATER) {
+                return true;
+            }
+            net.zaminmc.torch.server.weather.WeatherSystem weatherNow = weather;
+            if (weatherNow == null || !weatherNow.raining()) {
+                return false;
+            }
+            int height = surfaceY((int) Math.floor(x), (int) Math.floor(z)) + 1;
+            return y >= height;
         }
 
         @Override

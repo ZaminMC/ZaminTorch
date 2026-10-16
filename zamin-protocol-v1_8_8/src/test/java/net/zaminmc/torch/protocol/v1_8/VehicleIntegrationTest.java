@@ -222,4 +222,46 @@ class VehicleIntegrationTest extends ProtocolTestBase {
             assertEquals(63, items[1], "the chest menu's 63-slot layout");
         }
     }
+
+    /**
+     * The burn's own wire face (Slice 78 — Entity.java line 347's
+     * setFlag(0, onFireTimer > 0)): a minecart standing in a fire block
+     * ignites after the one-tick grace, and the ignite flip's Entity
+     * Metadata carries the flags byte 0x01 at the slot 0.
+     */
+    @Test
+    void theBurningCartPublishesItsFlagsByteOverTheWire() throws Exception {
+        try (TestClient18 client = new TestClient18("127.0.0.1", adapter.boundPort())) {
+            client.sendHandshake(47, 2);
+            client.sendLoginStart("FireCartWatcher");
+            client.readLoginSuccess();
+            client.readUntilPositionAndLook();
+
+            var anchor = server.playerRegistry().byName("FireCartWatcher").orElseThrow().position();
+            int bx = (int) Math.floor(anchor.x()) + 2;
+            int bz = (int) Math.floor(anchor.z());
+            int by = (int) Math.floor(anchor.y()) - 1; // the ground level
+            // A fire block on a guaranteed stone base (the engine's fire
+            // burns itself out when floating), the cart standing inside
+            // the flame cell (the body's mid-band consult).
+            server.ticker().submit(() -> {
+                server.world().setBlock(
+                        new net.zaminmc.torch.block.BlockPosition(bx, by, bz),
+                        net.zaminmc.torch.server.block.BuiltinBlocks.STONE);
+                server.world().setBlock(
+                        new net.zaminmc.torch.block.BlockPosition(bx, by + 1, bz),
+                        net.zaminmc.torch.server.block.BuiltinBlocks.FIRE);
+                server.vehicles().spawnMinecart(
+                        new net.zaminmc.torch.util.Position(bx + 0.5, by + 1.0, bz + 0.5));
+            });
+
+            // The spawn (the plain minecart's object type), then the
+            // ignite flip's flags byte (the spawn-time metadata carries
+            // the 0x00 entry first; the search loops past it).
+            int[] spawn = client.readSpawnObjectOfType(10, 20_000);
+            int cartId = spawn[0];
+            int[] flags = client.readFlagsMetadataOf(cartId, 0x01, 20_000);
+            assertEquals(cartId, flags[0], "the flags byte names the burning cart");
+        }
+    }
 }

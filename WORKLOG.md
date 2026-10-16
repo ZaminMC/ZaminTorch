@@ -7580,3 +7580,57 @@ NEXT (in order): (1) the next vanilla wave per the ledger (the vehicle
 on-fire flags byte + the fire-BLOCK walk, the mob equipment/attribute NBT
 rows); (2) the plugin discovery/classloading wave; (3) the sections 27/28
 audit's remaining rows.
+
+## Slice 78a — the vehicle on-fire family (the burn clock + the fire-source contact walk + the flags byte + the Fire persistence row)
+
+- **The burn clock (Entity.java lines 320-335, onUpdate's fire arm)**:
+  `VehicleEntity.onFireTimer` — the reference's signed counter (negative =
+  the pre-ignition grace band, positive = ticks of burning left), with
+  `FIRE_SAFE_TICKS = 1` (the reference's fireResistance). `tickOnFire()`
+  ports the onUpdate arm: the 1.0 ON_FIRE wound at `% 20 == 0` (one per
+  full second of burning) + the tick-down regardless of the i-frame's
+  verdict (the reference's attempted-damage shape). `setOnFireFor`'s max
+  arm (lines 365-371 — a longer burn never shortens; no protection consult,
+  the vehicle carries no armor).
+- **The fire-source contact walk (lines 635-651, move()'s fire arm)**: the
+  manager lands it AFTER the motion (move()'s own order) at the body's
+  mid-band — `WorldQuery.inFireSource` (containsFireSource's family: the
+  FIRE block + the lava cells, World.java lines 1475-1494): the 1.0
+  IN_FIRE wound per i-frame window + `contactFire(wet)`'s grace walk (the
+  counter ++ toward zero; the zero crossing arms the 8-second burn), the
+  out-of-fire `-safeOnFireTime` re-arm, and the wet extinguish (the fizz
+  listener + `extinguish()` — the reference's own order: the sound plays
+  first, then the grace re-arms).
+- **THE LAVA WALK'S OWN GAP CLOSED (Slice 77's follow-up)**:
+  takeLavaDamage's second arm (lines 358-363) — `setOnFireFor(15)`. A
+  lava-soaked cart now burns 15 seconds beside its 4.0-per-window wound
+  (the pre-78 engine wounded without igniting).
+- **The flags byte (line 347's setFlag(0, onFireTimer > 0))**: the wire's
+  slot-0 0x01 bit — `sendVehicleStateMetadata` now composes the flags
+  byte (every kind) + the furnace lit byte + the command strings into ONE
+  Entity Metadata frame; the spawn-time carry (a restored burning cart)
+  + the flip re-send through the existing onVehicleStateChanged channel.
+  The old sendCommandCartMetadata folded in (the same packet shape).
+- **The persistence (the ZVD v3 block)**: the `Fire` short (lines
+  1115/1176) — the raw signed clock every kind carries; v2/v1 files load
+  with the fresh-body -1 grace. The VehicleSnapshot record grew the fire
+  row (the old telescoping constructors keep their defaults).
+- **THE FLOATING-FIRE TEST LESSON**: the first wire draft placed the fire
+  block at the player's ground level and never ignited — the engine's
+  fire burns itself out when floating (no support below, no flammable
+  neighbor: tickFire's own law), and the terrain two blocks east is not
+  guaranteed at the anchor's level. The stone base under the flame is the
+  test's own fix (the diagnostic run caught it: the cart fell past the
+  flame cell with the timer still at -1).
+- Tests: `VehicleFireTest` (8 — the burn clock's cadence + bottoming, the
+  max arm, the fire-block ignition with the flags-flip publish + the
+  steady standing-in-fire state, the dry control, the wet no-grace +
+  extinguish with the fizz + the flip, the lava's 15-second arm, the
+  store round trip, the v2 back-compat) +
+  `VehicleIntegrationTest.theBurningCartPublishesItsFlagsByteOverTheWire`
+  (the real-wire 0x01 flags byte — TestClient18's readFlagsMetadataOf).
+  The vehicle batch green; the full protocol suite green.
+
+NEXT (in order): (1) Slice 78b — the mob equipment/attribute NBT rows
+(the ZMD v4 block); (2) the plugin discovery/classloading wave; (3) the
+sections 27/28 audit's remaining rows.

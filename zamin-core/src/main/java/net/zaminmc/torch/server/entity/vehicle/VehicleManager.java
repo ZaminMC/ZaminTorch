@@ -63,6 +63,14 @@ public final class VehicleManager {
         }
 
         /**
+         * The wet extinguish's own arm (Slice 78 — Entity.java lines
+         * 648-651: the random.fizz at 0.7F / 1.6F±0.2 the adapter plays).
+         * Default no-op so older listeners stay source-compatible.
+         */
+        default void onVehicleFizz(VehicleEntity vehicle) {
+        }
+
+        /**
          * The spawner cart's delay re-rolled (Slice 66 — delay line 187's
          * broacastEvent(1) over the cart's own doEntityEvent: the Entity
          * Status 1 spin reset).
@@ -309,12 +317,14 @@ public final class VehicleManager {
                                   boolean hopperEnabled, int hopperCooldown,
                                   String spawnerType, int spawnerDelay,
                                   String command, int commandSuccessCount,
-                                  boolean commandTrackOutput, String commandLastOutput) {
+                                  boolean commandTrackOutput, String commandLastOutput,
+                                  int fire) {
 
         /** The pre-Slice-66 shape (the chest cart's own). */
         public VehicleSnapshot(String kind, double x, double y, double z, float yaw,
                                float health, net.zaminmc.torch.item.ItemStack[] cargo) {
-            this(kind, x, y, z, yaw, health, cargo, true, -1, null, -1, null, 0, true, null);
+            this(kind, x, y, z, yaw, health, cargo, true, -1, null, -1, null, 0, true, null,
+                    -VehicleEntity.FIRE_SAFE_TICKS);
         }
 
         /** The part-three shape (the hopper cart's own). */
@@ -322,7 +332,7 @@ public final class VehicleManager {
                                float health, net.zaminmc.torch.item.ItemStack[] cargo,
                                boolean hopperEnabled, int hopperCooldown) {
             this(kind, x, y, z, yaw, health, cargo, hopperEnabled, hopperCooldown, null, -1,
-                    null, 0, true, null);
+                    null, 0, true, null, -VehicleEntity.FIRE_SAFE_TICKS);
         }
 
         /** The part-four shape (the spawner cart's own). */
@@ -331,7 +341,23 @@ public final class VehicleManager {
                                boolean hopperEnabled, int hopperCooldown,
                                String spawnerType, int spawnerDelay) {
             this(kind, x, y, z, yaw, health, cargo, hopperEnabled, hopperCooldown,
-                    spawnerType, spawnerDelay, null, 0, true, null);
+                    spawnerType, spawnerDelay, null, 0, true, null,
+                    -VehicleEntity.FIRE_SAFE_TICKS);
+        }
+
+        /**
+         * The pre-Slice-78 full shape (the command cart's own): the fire
+         * clock loads its fresh-body default.
+         */
+        public VehicleSnapshot(String kind, double x, double y, double z, float yaw,
+                               float health, net.zaminmc.torch.item.ItemStack[] cargo,
+                               boolean hopperEnabled, int hopperCooldown,
+                               String spawnerType, int spawnerDelay,
+                               String command, int commandSuccessCount,
+                               boolean commandTrackOutput, String commandLastOutput) {
+            this(kind, x, y, z, yaw, health, cargo, hopperEnabled, hopperCooldown,
+                    spawnerType, spawnerDelay, command, commandSuccessCount,
+                    commandTrackOutput, commandLastOutput, -VehicleEntity.FIRE_SAFE_TICKS);
         }
     }
 
@@ -366,7 +392,8 @@ public final class VehicleManager {
                     !(vehicle instanceof CommandBlockMinecartEntity commandCart)
                             || commandCart.trackOutput(),
                     vehicle instanceof CommandBlockMinecartEntity commandCart
-                            ? commandCart.lastOutput() : null));
+                            ? commandCart.lastOutput() : null,
+                    vehicle.onFireTimer()));
         }
         return saved;
     }
@@ -476,6 +503,10 @@ public final class VehicleManager {
             }
             if (restored != null) {
                 restored.setHealthCarried(snapshot.health());
+                // The burn clock's own row (Entity.java line 1176's Fire
+                // short: the raw signed value — a burning cart keeps its
+                // burn across the restart).
+                restored.restoreFireTimer(snapshot.fire());
                 if (snapshot.cargo() != null) {
                     if (restored instanceof ChestMinecartEntity cart) {
                         for (int slot = 0; slot < snapshot.cargo().length
@@ -525,16 +556,28 @@ public final class VehicleManager {
                 continue;
             }
             long before = fixedPoint(vehicle.position());
+            // The burn clock's own arm (Slice 78 — Entity.java lines
+            // 320-335, the onUpdate fire arm): the 1.0 ON_FIRE wound every
+            // full second of burning (the % 20 == 0 cadence), the clock
+            // ticking down regardless of the i-frame's verdict — exactly
+            // the reference's attempted-damage shape).
+            boolean wasOnFire = vehicle.onFire();
+            if (vehicle.health() > 0.0f && vehicle.tickOnFire()) {
+                hurt(vehicle, 1.0f, VehicleEntity.DamageSource.FIRE);
+            }
             // The lava walk (Slice 77 — the reference's isInLava arm over
             // Entity.tick: takeLavaDamage's flat 4.0 with the FIRE source —
             // the wound cadence rides the body's own i-frame rhythm, and a
             // dying TNT cart reads the FIRE source through the death law
             // (the fire-death detonation). The lava also halves the fall
             // (the reference's fallDistance *= 0.5 rides the physics walk).
+            // Slice 78 closes the walk's own gap: takeLavaDamage's second
+            // arm — setOnFireFor(15), the 15-second lava burn.
             if (vehicle.health() > 0.0f && world.inLava(
                     vehicle.position().x(), vehicle.position().y() + 0.4,
                     vehicle.position().z())) {
                 hurt(vehicle, 4.0f, VehicleEntity.DamageSource.FIRE);
+                vehicle.setOnFireFor(15);
             }
             // The state flips (Slice 66): the TNT cart's prime and the
             // furnace cart's lit byte — the wire's own tracked data.
@@ -574,6 +617,46 @@ public final class VehicleManager {
                         vehicle.position().z()) > 0);
             }
             vehicle.tick(world);
+            // The fire-source contact walk (Slice 78 — Entity.java lines
+            // 635-651, the move() fire arm): the body inside a fire-source
+            // cell (the fire block, the lava cells — containsFireSource's
+            // own family) takes its 1.0 IN_FIRE wound per i-frame window
+            // and counts the grace up to the 8-second ignition; a dry body
+            // away from the sources re-arms its one-tick grace; a wet body
+            // drops the burn entirely (the fizz listener's own arm).
+            if (vehicle.health() > 0.0f) {
+                boolean wet = world.inWaterOrRain(
+                        vehicle.position().x(), vehicle.position().y() + 0.4,
+                        vehicle.position().z());
+                if (world.inFireSource(
+                        vehicle.position().x(), vehicle.position().y() + 0.4,
+                        vehicle.position().z())) {
+                    // takeFireDamage(1) — the IN_FIRE wound (the engine's
+                    // one-wound-per-window body model shares the window
+                    // with the burn clock's own ON_FIRE arm, the lava walk
+                    // ahead of it).
+                    hurt(vehicle, 1.0f, VehicleEntity.DamageSource.FIRE);
+                    vehicle.contactFire(wet);
+                } else {
+                    vehicle.clearFireGrace();
+                }
+                if (wet && vehicle.onFire()) {
+                    // The reference's own order: the fizz plays, then the
+                    // grace re-arms (Entity.java lines 648-651).
+                    for (Listener listener : listeners) {
+                        listener.onVehicleFizz(vehicle);
+                    }
+                    vehicle.extinguish();
+                }
+            }
+            // The flags-byte flip (Entity.java line 347's setFlag(0,
+            // onFireTimer > 0) — the wire's dirty-entry send rides the
+            // state-change listener exactly like the furnace's lit byte).
+            if (vehicle.onFire() != wasOnFire) {
+                for (Listener listener : listeners) {
+                    listener.onVehicleStateChanged(vehicle);
+                }
+            }
             if (!wasPrimed && vehicle instanceof TntMinecartEntity tnt && tnt.primed()) {
                 for (Listener listener : listeners) {
                     listener.onVehiclePrimed(tnt);
