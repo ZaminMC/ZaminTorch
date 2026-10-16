@@ -95,6 +95,20 @@ public final class VehicleManager {
     private final List<Listener> listeners = new ArrayList<>();
     private final int firstEntityId;
     private int nextEntityId;
+    /**
+     * The TNT carts' blast sink factory (Slice 74): every spawned cart
+     * arms the engine's detonation walk — the item-use path, the restore,
+     * the test spawns. The default answers nothing until the engine wires
+     * the real walk.
+     */
+    private java.util.function.Supplier<TntMinecartEntity.BlastSink> blastSinkFactory =
+            () -> (x, y, z, power) -> { };
+
+    /** Wires the blast sink factory (the engine's detonation walk). */
+    public void setBlastSinkFactory(
+            java.util.function.Supplier<TntMinecartEntity.BlastSink> factory) {
+        this.blastSinkFactory = java.util.Objects.requireNonNull(factory, "factory");
+    }
 
     public VehicleManager(VehicleEntity.WorldQuery world, DropSink drops,
                           Random random, int firstEntityId) {
@@ -209,7 +223,13 @@ public final class VehicleManager {
         if (!fireSpawnGate(VehicleEntity.Kind.TNT_MINECART.apiKind, at)) {
             return null;
         }
-        return spawn(new TntMinecartEntity(nextEntityId++, at, random));
+        TntMinecartEntity cart = new TntMinecartEntity(nextEntityId++, at, random);
+        // The blast sink's factory arming (Slice 74 — the pre-74 gap: only
+        // the item-use spawn path wired the sink, so a RESTORED cart's
+        // fuse detonation and its death detonation burst nothing after a
+        // restart). Every spawn arms the same engine detonation walk.
+        cart.setBlastSink(blastSinkFactory.get());
+        return spawn(cart);
     }
 
     /**
@@ -647,8 +667,19 @@ public final class VehicleManager {
 
     /** One attack hit: the i-frame rhythm the body model shares. */
     public void hurt(VehicleEntity vehicle, float amount) {
+        hurt(vehicle, amount, VehicleEntity.DamageSource.MELEE);
+    }
+
+    /**
+     * One hit with its source (Slice 74 — the reference's
+     * {@code damage(DamageSource, float)} signature): the source lands on
+     * the body and the death law reads it (the furnace cart's furnace
+     * block and the TNT cart's TNT block both skip an explosive death;
+     * the TNT cart's fire/explosive/fast death detonates).
+     */
+    public void hurt(VehicleEntity vehicle, float amount, VehicleEntity.DamageSource source) {
         float before = vehicle.health();
-        vehicle.hurt(amount);
+        vehicle.hurt(amount, source);
         if (vehicle.health() != before) {
             for (Listener listener : listeners) {
                 listener.onVehicleHurt(vehicle);

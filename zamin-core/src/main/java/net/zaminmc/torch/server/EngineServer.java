@@ -1773,24 +1773,41 @@ public final class EngineServer implements Server, EngineBridge {
                                         ItemStack.of(BuiltinItems.CHEST, 1),
                                         ItemEntity.PICKUP_DELAY_DROP_TICKS);
                             }
-                            // The TNT variant's own extra (Slice 66 —
-                            // TntMinecartEntity.dropItems lines 101-105: the
-                            // TNT block item rides the plain-break chain).
-                            if (vehicle instanceof net.zaminmc.torch.server.entity.vehicle.TntMinecartEntity) {
-                                itemEntities.spawnDropAtBlock(
-                                        new Position(vehicle.position().x(), vehicle.position().y() + 0.3,
-                                                vehicle.position().z()),
-                                        ItemStack.of(BuiltinItems.TNT, 1),
-                                        ItemEntity.PICKUP_DELAY_DROP_TICKS);
+                            // The TNT variant's own extra (Slice 66 +
+                            // Slice 74 — TntMinecartEntity.dropItems lines
+                            // 101-112): the TNT block item rides the
+                            // plain-break chain, SKIPPED when the death
+                            // source was explosive (dropItems line 102's
+                            // !isExplosive() gate — the blast ate the
+                            // block); a fire/explosive/fast death then
+                            // DETONATES (lines 105-107's explode roll over
+                            // the frozen death speed — the chain reaction:
+                            // one TNT cart's blast arms its neighbors').
+                            if (vehicle instanceof net.zaminmc.torch.server.entity.vehicle.TntMinecartEntity tntCart) {
+                                boolean explosiveDeath = vehicle.lastDamageSource()
+                                        == net.zaminmc.torch.server.entity.vehicle.VehicleEntity.DamageSource.EXPLOSIVE;
+                                if (!explosiveDeath) {
+                                    itemEntities.spawnDropAtBlock(
+                                            new Position(vehicle.position().x(), vehicle.position().y() + 0.3,
+                                                    vehicle.position().z()),
+                                            ItemStack.of(BuiltinItems.TNT, 1),
+                                            ItemEntity.PICKUP_DELAY_DROP_TICKS);
+                                }
+                                // The death detonation (the method's own
+                                // three-gate refusal — fire/explosive/fast).
+                                tntCart.detonateAtDeath();
                             }
-                            // The furnace variant's own extra (Slice 66 —
-                            // FurnaceMinecartEntity.dropItems lines 63-68: the
-                            // FURNACE block item rides the plain-break chain
-                            // under doEntityDrops; the reference's own
-                            // non-explosive-death gate rides the damage-source
-                            // surface the engine's vehicle death path does
-                            // not yet carry — ledgered).
-                            if (vehicle instanceof net.zaminmc.torch.server.entity.vehicle.FurnaceMinecartEntity) {
+                            // The furnace variant's own extra (Slice 66 +
+                            // Slice 74 — FurnaceMinecartEntity.dropItems
+                            // lines 63-68): the FURNACE block item rides
+                            // the plain-break chain under doEntityDrops,
+                            // SKIPPED when the death source was explosive
+                            // (dropItems line 66's !isExplosive() gate — an
+                            // exploded furnace cart drops only the cart
+                            // item, the blast ate the furnace).
+                            if (vehicle instanceof net.zaminmc.torch.server.entity.vehicle.FurnaceMinecartEntity
+                                    && vehicle.lastDamageSource()
+                                            != net.zaminmc.torch.server.entity.vehicle.VehicleEntity.DamageSource.EXPLOSIVE) {
                                 itemEntities.spawnDropAtBlock(
                                         new Position(vehicle.position().x(), vehicle.position().y() + 0.3,
                                                 vehicle.position().z()),
@@ -1824,6 +1841,17 @@ public final class EngineServer implements Server, EngineBridge {
                         VEHICLE_ID_BASE);
                 this.vehicleManager = vehicles;
                 vehicles.setEventBus(eventBus); // §27.7: the public vehicle spawn gate
+                // The TNT carts' blast sink factory (Slice 74): EVERY
+                // spawned cart — the item-use path, the restore, the test
+                // spawns — arms the engine's detonation walk (the 8*power+1
+                // center wound the fireball family rides, mobGriefing's
+                // destructive gate). The pre-74 shape wired only the
+                // item-use spawn, so a restored cart burst nothing.
+                vehicles.setBlastSinkFactory(() ->
+                        (net.zaminmc.torch.server.entity.vehicle.TntMinecartEntity.BlastSink)
+                                (x, y, z, power) -> detonateAt(
+                                        x, y, z, power, 8.0f * power + 1.0f,
+                                        gameRules.getBoolean("mobGriefing")));
                 vehicles.addListener(new VehicleEventDispatch());
                 // Vehicle persistence (Slice 25g — the ZVD store): the
                 // whole family's pre-25g gap closes — the carts (and the
@@ -9976,19 +10004,11 @@ public final class EngineServer implements Server, EngineBridge {
                 return; // the §27.7 gate withheld the cart — the item stays
             }
         } else if (tntCart) {
-            var tntCartEntity = vehicleManager.spawnTntMinecart(spawnAt);
-            if (tntCartEntity == null) {
+            if (vehicleManager.spawnTntMinecart(spawnAt) == null) {
                 return; // the §27.7 gate withheld the cart — the item stays
             }
-            // The detonation sink (the engine's blast walk with fire —
-            // the reference's world.explode(this, x, y, z, power, true)):
-            // the 8*power+1 center wound the fireball family rides, the
-            // destructive flag under mobGriefing.
-            if (tntCartEntity instanceof net.zaminmc.torch.server.entity.vehicle.TntMinecartEntity tnt) {
-                tnt.setBlastSink((x, y, z, power) -> detonateAt(
-                        x, y, z, power, 8.0f * power + 1.0f,
-                        gameRules.getBoolean("mobGriefing")));
-            }
+            // The blast sink rides the manager's factory arming (Slice 74):
+            // every spawned cart carries the engine's detonation walk.
         } else if (hopperCart) {
             // The transfer host (Slice 66): the engine's hopper system —
             // the reference's HopperBlockEntity statics over the cart's
@@ -15883,6 +15903,44 @@ public final class EngineServer implements Server, EngineBridge {
             mobManager.hurt(mob, damage,
                     Math.toDegrees(Math.atan2(-dx, dz)), // knockback away from the blast
                     net.zaminmc.torch.event.DamageCause.EXPLOSION);
+        }
+
+        // Vehicle wounds (Slice 74 — the reference's damageEntities walk
+        // over the entity family: the minecarts take the blast with the
+        // EXPLOSIVE source, the same distance falloff as the players and
+        // the mobs). The dying furnace cart skips its furnace block and
+        // the dying TNT cart detonates (the chain reaction) — both laws
+        // read the source on the break sweep. The survivors take the
+        // knockback impulse (the reference's velocity += delta * scale
+        // over the body's own momentum walk). The engine's vehicle family
+        // rides the overworld — the other dimensions' blasts never reach
+        // it.
+        if (dimension == 0 && vehicleManager != null) {
+            for (net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle
+                    : vehicleManager.all()) {
+                Position p = vehicle.position();
+                double dx = p.x() - cx;
+                double dy = (p.y() + 0.35) - cy; // the cart hull's mid-band
+                double dz = p.z() - cz;
+                double dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+                if (dist > injuryRadius) {
+                    continue;
+                }
+                float damage = (float) ((1 - dist / injuryRadius) * maxDamage);
+                if (damage <= 0) {
+                    continue;
+                }
+                vehicleManager.hurt(vehicle, damage,
+                        net.zaminmc.torch.server.entity.vehicle.VehicleEntity.DamageSource.EXPLOSIVE);
+                if (dist < 0.001) {
+                    continue; // the point-blank blast has no direction
+                }
+                double scale = (1 - dist / injuryRadius) * 1.6;
+                vehicle.setVelocity(
+                        vehicle.velocityX() + dx / dist * scale,
+                        vehicle.velocityY(),
+                        vehicle.velocityZ() + dz / dist * scale);
+            }
         }
 
         // The wire: one Explosion packet per observer, motion included —

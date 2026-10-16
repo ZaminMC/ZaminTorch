@@ -120,6 +120,33 @@ public class TntMinecartEntity extends MinecartEntity
         this.hurt(health()); // the break walk drops nothing (the cart is gone)
     }
 
+    /**
+     * The DEATH detonation (Slice 74 — dropItems lines 79-84 over explode
+     * lines 121-130): a fire or explosive death, or a death while moving
+     * (speed squared >= 0.01), bursts at the FROZEN death speed — the
+     * reference reads the live velocity inside damage(); the engine's drop
+     * walk runs on the next tick's break sweep, so the fatal hit's
+     * snapshot carries the law. The body is already gone (the drop walk
+     * runs after the removal); no annihilated mark — the plain cart item
+     * already dropped through the base walk. The three-gate refusal is
+     * the method's own (the reference's dropItems wraps the explode call
+     * in exactly this gate).
+     */
+    public void detonateAtDeath() {
+        boolean fire = lastDamageSource() == net.zaminmc.torch.server.entity.vehicle.VehicleEntity.DamageSource.FIRE
+                || lastDamageSource() == net.zaminmc.torch.server.entity.vehicle.VehicleEntity.DamageSource.EXPLOSIVE
+                || deathSpeedSquared() >= IMPACT_SPEED_SQUARED;
+        if (!fire) {
+            return;
+        }
+        double d0 = Math.sqrt(deathSpeedSquared());
+        if (d0 > BLAST_SPEED_CLAMP) {
+            d0 = BLAST_SPEED_CLAMP;
+        }
+        float power = (float) (BLAST_BASE + random().nextDouble() * BLAST_SPEED_SCALE * d0);
+        blastSink.detonate(position().x(), position().y(), position().z(), power);
+    }
+
     /** @return whether the detonation killed this body (the drop skip). */
     public boolean annihilated() {
         return annihilated;

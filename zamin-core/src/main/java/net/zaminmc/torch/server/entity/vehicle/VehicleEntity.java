@@ -23,6 +23,17 @@ public abstract class VehicleEntity implements net.zaminmc.torch.entity.Vehicle 
     public static final double VOID_KILL_Y = -64.0;
     public static final float MAX_HEALTH = 4.0f;
 
+    /**
+     * The damage source kinds the vehicle death law consults (Slice 74 —
+     * the reference's {@code DamageSource.isExplosive()/isFire()} over the
+     * minecart family's dropItems arms: a furnace cart's furnace block and
+     * a TNT cart's TNT block both skip an explosive death; a TNT cart's
+     * fire/explosive/fast death detonates).
+     */
+    public enum DamageSource {
+        MELEE, EXPLOSIVE, FIRE
+    }
+
     /** The vehicle kinds (the wire's object types live in the adapter). */
     public enum Kind {
         BOAT(net.zaminmc.torch.entity.VehicleKind.BOAT),
@@ -101,6 +112,10 @@ public abstract class VehicleEntity implements net.zaminmc.torch.entity.Vehicle 
     private SteerInput steer = SteerInput.NEUTRAL;
     private boolean onGround;
     private int hurtCooldown;
+    /** The source of the last landed hit (Slice 74 — the death law's gate). */
+    private DamageSource lastDamageSource = DamageSource.MELEE;
+    /** The speed squared at the fatal hit (frozen for the next-tick drop walk). */
+    private double deathSpeedSquared;
     /** The query of the current tick (set by the manager's tick loop). */
     protected WorldQuery query;
 
@@ -202,11 +217,42 @@ public abstract class VehicleEntity implements net.zaminmc.torch.entity.Vehicle 
 
     /** One hit lands one damage per i-frame window; zero health is the break. */
     public void hurt(float amount) {
+        hurt(amount, DamageSource.MELEE);
+    }
+
+    /**
+     * One hit lands one damage per i-frame window; zero health is the break.
+     * The source rides along (Slice 74 — the reference's
+     * {@code damage(DamageSource, float)} signature: the death law consults
+     * the source — FurnaceMinecart's {@code !isExplosive()} furnace-block
+     * gate, TntMinecart's {@code isFire() || isExplosive()} detonation
+     * gate).
+     */
+    public void hurt(float amount, DamageSource source) {
         if (hurtCooldown > 0 || dead()) {
             return;
         }
         hurtCooldown = 10; // the hurt-i-frame rhythm
         health -= amount;
+        this.lastDamageSource = java.util.Objects.requireNonNull(source, "source");
+        if (health <= 0.0f) {
+            // The death facts freeze at the fatal hit: the reference's
+            // dropItems reads the live velocity inside damage(); the
+            // engine's drop walk runs on the NEXT tick's break sweep —
+            // the snapshot keeps the law (a halted cart must not answer
+            // the TNT death-detonation's >= 0.01 gate with a fresh zero).
+            this.deathSpeedSquared = velocityX * velocityX + velocityZ * velocityZ;
+        }
+    }
+
+    /** @return the source of the last landed hit (MELEE before any hit). */
+    public DamageSource lastDamageSource() {
+        return lastDamageSource;
+    }
+
+    /** @return the speed squared at the fatal hit (the TNT cart's gate). */
+    public double deathSpeedSquared() {
+        return deathSpeedSquared;
     }
 
     /**
