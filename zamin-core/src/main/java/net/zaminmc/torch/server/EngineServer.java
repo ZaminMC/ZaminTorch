@@ -15838,6 +15838,13 @@ public final class EngineServer implements Server, EngineBridge {
         commands.register(new CommandService.Command("spawnmob",
                 "Spawn mobs near you: /spawnmob <pig|cow|chicken|zombie|creeper|skeleton|sheep|spider|horse|villager> [count]",
                 playerCommand(this::spawnMobCommand)));
+        // The vanilla summon (Slice 67 — SummonCommand 1:1, the op-2
+        // surface): the 1.8.8 entity names, the ~-relative coordinates,
+        // the LightningBolt special, the chunk-loaded gate. The NBT arm
+        // rides the engine's no-item-NBT envelope (ledgered).
+        commands.register(new CommandService.Command("summon",
+                "Summon an entity: /summon <name> [x y z]",
+                2, playerCommand(this::summonCommand)));
         // The Paper operator set.
         commands.register(new CommandService.Command("gamemode",
                 "Change a game mode: /gamemode <survival|creative|adventure|spectator> [player]",
@@ -17137,6 +17144,70 @@ public final class EngineServer implements Server, EngineBridge {
         sender.inventory().renameHeld(name);
         publishInventoryChanged(sender);
         return name.isEmpty() ? "Name cleared" : "Renamed to " + name;
+    }
+
+    /**
+     * The vanilla summon (Slice 67 — SummonCommand.run lines 37-92, the
+     * engine's envelope): the entity name (the 1.8.8 registration names,
+     * case-insensitive — "Zombie", "PigZombie", "Giant" — plus the engine
+     * kind names), the optional ~-relative coordinates from the sender's
+     * feet, the LightningBolt special (the engine's strike verb with the
+     * difficulty fire gate), the chunk-loaded refusal, and the vanilla
+     * feedback strings. Runs on the tick thread through chat dispatch.
+     */
+    private String summonCommand(PlayerSession sender, String[] args) {
+        if (args.length < 1) {
+            return "Usage: /summon <entity> [x y z]";
+        }
+        String name = args[0];
+        double x = sender.position().x();
+        double y = sender.position().y();
+        double z = sender.position().z();
+        if (args.length >= 4) {
+            try {
+                x = parseRelativeCoordinate(x, args[1]);
+                y = parseRelativeCoordinate(y, args[2]);
+                z = parseRelativeCoordinate(z, args[3]);
+            } catch (NumberFormatException bad) {
+                return "Invalid coordinate";
+            }
+        }
+        var position = new net.zaminmc.torch.block.BlockPosition(
+                (int) Math.floor(x), (int) Math.floor(y), (int) Math.floor(z));
+        if (!world.isChunkLoadedAt(position)) {
+            return "The target position is not loaded";
+        }
+        // The LightningBolt special (lines 60-63: addGlobalEntity).
+        if ("LightningBolt".equals(name)) {
+            lightning.strike((int) Math.floor(x), y, (int) Math.floor(z),
+                    true);
+            return "Object successfully summoned";
+        }
+        MobType type = MobType.byVanillaName(name);
+        if (type == null) {
+            type = MobType.byName(name);
+        }
+        if (type == null) {
+            return "Unable to summon object";
+        }
+        MobEntity spawned = mobManager.spawnAt(type, new Position(x, y, z));
+        return spawned != null
+                ? "Object successfully summoned" : "Unable to summon object";
+    }
+
+    /**
+     * The vanilla coordinate parse (CommandBase.parseCoordinate): the
+     * bare {@code ~} keeps the source value, {@code ~n} offsets it, a
+     * plain number replaces it.
+     */
+    private static double parseRelativeCoordinate(double source, String token) {
+        if (token.startsWith("~")) {
+            if (token.length() == 1) {
+                return source;
+            }
+            return source + Double.parseDouble(token.substring(1));
+        }
+        return Double.parseDouble(token);
     }
 
     private String spawnMobCommand(PlayerSession sender, String[] args) {

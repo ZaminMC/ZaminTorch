@@ -7150,3 +7150,19 @@ concurrency contract vs the current code).
   quotas) are the honest blocker — the engine has no plugin host yet
   (the §27.1 order: the native API matures first); cases 6 + the
   plugin-half of 9 are BLOCKED on it.
+
+## Slice 67 part three — the vanilla /summon command
+
+- **The command** (SummonCommand.run 1:1, the engine's envelope): op
+  level 2, the vanilla 1.8.8 entity names case-insensitive
+  (MobType.byVanillaName — "Zombie", "PigZombie", "LavaSlime", "Giant",
+  "WitherBoss", "EntityHorse", "Ozelot", "MushroomCow", "SnowMan",
+  "VillagerGolem", "EnderDragon"... — the wire's own spellings, with the
+  engine kind names as the fallback), the ~-relative coordinate parse
+  (CommandBase.parseCoordinate: bare ~ keeps, ~n offsets, plain
+  replaces), the LightningBolt special (the engine's strike verb), the
+  chunk-loaded refusal, and the vanilla feedback strings. The NBT arm
+  rides the engine's no-item-NBT envelope (ledgered).
+- Tests: GiantMobTest (3 — the row, the live spawn, the /summon Giant
+  through the chat path with the ~-coordinates + the engine-name
+  fallback).
