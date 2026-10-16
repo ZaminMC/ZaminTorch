@@ -682,6 +682,12 @@ public final class BlockLightTable {
         // The barrier (Slice 56 — the translucent invisible solid:
         // isTranslucent true, Material.BARRIER never blocks light).
         merged.put(Identifier.parse("minecraft:barrier"), new LightData(0, 0));
+        // The command block family (Slice 72 — Block.java line 1299's own
+        // registration carries no setLight: the default opaque block, no
+        // emission, the full filter).
+        merged.put(Identifier.parse("minecraft:command_block"), new LightData(0, 15));
+        merged.put(Identifier.parse("minecraft:command_block_triggered"),
+                new LightData(0, 15));
         // The melon family (Slice 41 — the melon block is an opaque full
         // cube like the pumpkin; the stems are walk-through plants).
         merged.put(Identifier.parse("minecraft:melon_block"), new LightData(0, 15));

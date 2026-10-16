@@ -7550,3 +7550,33 @@ NEXT (in order): (1) the next vanilla wave per the ledger (the vehicle
 on-fire flags byte + the fire-BLOCK walk, the mob equipment/attribute NBT
 rows); (2) the periodic full-suite verification (the milestone
 convention); (3) the plugin discovery/classloading wave.
+
+## The full-suite verification (the session's closing pass) + the light fix
+
+- **The light fix the chunk run caught**: `BlockDataApiTest.
+  theBreakTimingHelperMatchesTheHistoricalTable` walked every registered
+  block's light entry and found the command-block family (Slice 72's
+  blocks) carried NO BlockLightTable row — the affected batches of Slice
+  72/73 never read the light table, so the gap survived three slices. The
+  reference's own registration (Block.java line 1299: no setLight call) —
+  the default opaque block: emission 0, filter 15. Both
+  command_block/command_block_triggered now carry the rows.
+- **The full-suite pass (the milestone convention, chunked)**: the box
+  crawled under the marathon session — the full suite cannot finish inside
+  one timeout window, so the pass ran per family with per-class salvage
+  (gradle wipes the results directory on every invocation — the salvage
+  script copies each class's XML aside before the next run): the entity
+  family 321 green (the vehicle + projectile batches inside), the world
+  family 94 green, the 72 top-level server classes 285 green, the
+  subpackage families (explosion/tnt/commandblock/plugin/nbt/redstone/
+  item/skull) 64 green, the api suite 19 green, the protocol suite green
+  (the final run 1m49s, zero failures) — ~764 core + 19 api + 71 protocol.
+- **Two load flakes, both green in isolation** (the documented class):
+  SpawnEggTest.theUnknownIdNeverSpawnsOrPays and LifecycleEventAcceptance
+  Test.anUncancelledDeathScattersEverything — full-engine boots with
+  timing-sensitive assertions on a saturated CPU. Re-verified green.
+
+NEXT (in order): (1) the next vanilla wave per the ledger (the vehicle
+on-fire flags byte + the fire-BLOCK walk, the mob equipment/attribute NBT
+rows); (2) the plugin discovery/classloading wave; (3) the sections 27/28
+audit's remaining rows.
