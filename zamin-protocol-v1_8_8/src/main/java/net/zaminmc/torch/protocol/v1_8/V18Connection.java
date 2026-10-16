@@ -1837,6 +1837,12 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         if (channel == null || !channel.isActive() || state != WireState.PLAY || other == session) {
             return;
         }
+        // Slice 64 — the cross-dimension gate (the reference's per-world
+        // entity map): a body in another dimension is invisible, and the
+        // credits body is removed from the world entirely.
+        if (dimensionOfSession() != other.dimension() || other.leavingTheEnd()) {
+            return;
+        }
         if (!visibleRemotePlayers.add(other.uuid())) {
             return; // already tracked
         }

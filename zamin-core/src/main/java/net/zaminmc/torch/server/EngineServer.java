@@ -217,6 +217,18 @@ public final class EngineServer implements Server, EngineBridge {
      * covers both worlds until the region activation splits them.
      */
     private volatile net.zaminmc.torch.server.concurrent.OwnershipDomain netherDomain;
+    /**
+     * The End dimension's ownership domain ("simulation:end", Slice 61):
+     * the third EngineWorld's mutations assert through it. The boot binds
+     * it alongside the simulation + nether domains — the loop's
+     * single-writer walk covers all three worlds until the region
+     * activation splits them. (Slice 64: the End world was created with
+     * this domain but the loop never entered it — every tick-lane End
+     * write (the arrival platform, the crystal fire, the exit fountain)
+     * threw OwnershipViolationException on a real booted server; the
+     * unit-harness slices never noticed.)
+     */
+    private volatile net.zaminmc.torch.server.concurrent.OwnershipDomain endDomain;
     /** The Phase 2 scheduler: the tick's deferred-work substrate. */
     private volatile net.zaminmc.torch.server.concurrent.SimulationScheduler simulationScheduler;
     /** The Phase 3 compute lane: bounded workers over immutable snapshots. */
@@ -587,8 +599,9 @@ public final class EngineServer implements Server, EngineBridge {
                         config.worldDataDir().resolve("DIM1/zamin-delta.bin"),
                         identifier -> blockRegistry.require(identifier));
                 endStorage.load().ifPresent(endWorld::applyDeltas);
-                endWorld.attachDomain(net.zaminmc.torch.server.concurrent.OwnershipDomain
-                        .create("simulation:end"));
+                endDomain = net.zaminmc.torch.server.concurrent.OwnershipDomain
+                        .create("simulation:end");
+                endWorld.attachDomain(endDomain);
                 LOGGER.info(() -> "End dimension '"
                         + endWorld.name() + "' ready (seed " + worldSeed + ")");
                 endWorld.addChangeListener(new PublicBlockChangeBridge());
@@ -2130,9 +2143,11 @@ public final class EngineServer implements Server, EngineBridge {
                 worldReady.countDown();
                 simulationDomain.enter();
                 netherDomain.enter(); // the second dimension rides the same loop
+                endDomain.enter(); // the third dimension rides it too (Slice 64)
                 try {
                     ticker.runLoop(); // blocks until stop
                 } finally {
+                    endDomain.exit();
                     netherDomain.exit();
                     simulationDomain.exit();
                 }
@@ -3219,6 +3234,17 @@ public final class EngineServer implements Server, EngineBridge {
          */
         default void onPostureChanged(PlayerSession player) {
         }
+
+        /**
+         * The exit fountain's arm (Slice 64 — the reference's
+         * ServerPlayerEntity.changeDimension lines 446-449: the LEAVE_THE_END
+         * walk removes the body from the End world before the GameEvent-4
+         * credits): the adapter makes the mover invisible to every other
+         * observer (the removeEntity wire) — the body stays "removed from
+         * the world" until the client's respawn confirmation.
+         */
+        default void onEndCredits(PlayerSession player) {
+        }
     }
 
     /** Registers an internal survival observer (e.g. the protocol adapter's sync). */
@@ -3241,6 +3267,12 @@ public final class EngineServer implements Server, EngineBridge {
     private void publishPostureChanged(PlayerSession player) {
         for (SurvivalListener listener : survivalListeners) {
             listener.onPostureChanged(player);
+        }
+    }
+
+    private void publishEndCredits(PlayerSession player) {
+        for (SurvivalListener listener : survivalListeners) {
+            listener.onEndCredits(player);
         }
     }
 
@@ -3279,6 +3311,13 @@ public final class EngineServer implements Server, EngineBridge {
     private void tickPlayerBodies() {
         for (PlayerSession session : players.all()) {
             if (session.state() != PlayerState.PLAYING || session.dead()) {
+                continue;
+            }
+            // The credits body is removed from the world (Slice 64 — the
+            // reference's removeEntity before the GameEvent-4 walk): no
+            // simulation at all until the client's respawn confirmation —
+            // no food economy, no breath, no portal arms, no stats clock.
+            if (session.leavingTheEnd()) {
                 continue;
             }
             session.tickHurtInvulnerability();
@@ -3722,9 +3761,10 @@ public final class EngineServer implements Server, EngineBridge {
             if (session.dimension() == 1) {
                 // The End's own end_portal cell (the exit fountain's — the
                 // reference's Entity.changeDimension lines 1703-1706: old 1
-                // + new 1 redirects to the overworld). The credits walk
-                // rides the dragon slice with the fountain that carries it;
-                // the redirect law stays ledgered here.
+                // + new 1 redirects to the overworld; the player overload
+                // plays the credits first — ServerPlayerEntity
+                // .changeDimension lines 446-449).
+                leaveEndOnTick(session);
                 return;
             }
             enterEndOnTick(session);
@@ -3811,6 +3851,11 @@ public final class EngineServer implements Server, EngineBridge {
     private static final int ELDER_AURA_AMPLIFIER = 2;
     private static final int ELDER_AURA_REFRESH_BELOW = 1200;
     private static final int GAME_STATE_ELDER_GUARDIAN_CURSE = 10;
+    // The End exit's win screen (Slice 64 — GameEventS2CPacket(4, 0.0F),
+    // ServerPlayerEntity.changeDimension line 449): the credits the client
+    // plays while the body waits removed-from-the-world for the respawn
+    // confirmation.
+    private static final int GAME_STATE_END_CREDITS = 4;
     // The ender pearl's family (Slice 17c): the 5% endermite passenger
     // (EnderPearlEntity.onCollision line 53) and the flat 5.0 fall toll
     // (line 65 — the enchantment walk only, the vanilla FALL source's own
@@ -5162,6 +5207,14 @@ public final class EngineServer implements Server, EngineBridge {
     public void performRespawn(PlayerSession session) {
         Objects.requireNonNull(session, "session");
         ticker.submit(() -> {
+            // The credits' own arm FIRST (Slice 64 — the reference's
+            // handleClientStatus lines 740-744: {@code if (leavingTheEnd)
+            // respawn(player, 0, true)} — the alive respawn that keeps the
+            // whole body; the death gate below never sees it).
+            if (session.leavingTheEnd()) {
+                endCreditsRespawnOnTick(session);
+                return;
+            }
             if (!session.dead()) {
                 return; // respawn requests only answer deaths
             }
@@ -5188,6 +5241,40 @@ public final class EngineServer implements Server, EngineBridge {
             publishRespawned(session, destination);
             LOGGER.info(() -> "Player respawned: " + session.name());
         });
+    }
+
+    /**
+     * The credits' respawn (Slice 64 — the reference's handleClientStatus
+     * line 742: {@code respawn(player, 0, true)} — PlayerManager.respawn's
+     * alive arm with PlayerEntity.copyFrom's {@code comesFromTheEnd=true}
+     * carry, lines 640-652): the body lands in the OVERWORLD at its bed or
+     * the world spawn with the WHOLE body kept — health, food, saturation,
+     * the XP bar, the inventory — no reset, no drop. Tick-thread context
+     * (performRespawn's submit).
+     */
+    private void endCreditsRespawnOnTick(PlayerSession session) {
+        session.clearLeavingTheEnd();
+        session.cancelEating();
+        // Every credits respawn lands in the overworld (the reference's
+        // respawn(player, 0, ...) — dimension 0 unconditionally).
+        if (session.dimension() != 0) {
+            session.setDimension(0);
+        }
+        // The destination walk (PlayerManager.respawn's getSpawnPoint +
+        // loadSpawnPoint): the bed spawn when the body slept, otherwise the
+        // world spawn — the same destination law as the death respawn.
+        Position destination = session.bedSpawn() != null
+                ? session.bedSpawn() : world.spawnPosition();
+        session.applyMovement(destination, session.rotation(), false);
+        // The fall debt clears (a dimension walk is not a fall) and the
+        // grace window rides the re-anchor like every respawn.
+        session.consumeFallDistance();
+        session.setGraceTicks(100);
+        publishInventoryChanged(session); // the carried inventory re-syncs
+        publishBodyChanged(session);      // the kept health/food re-syncs
+        publishRespawned(session, destination);
+        LOGGER.info(() -> "Player " + session.name()
+                + " left the End (respawned at " + destination + ")");
     }
 
     /**
@@ -15151,6 +15238,44 @@ public final class EngineServer implements Server, EngineBridge {
                 + " crossed to the End (arrival " + arrival + ")");
     }
 
+    /**
+     * The End exit walk (Slice 64 — the reference's ServerPlayerEntity
+     * .changeDimension lines 444-457, the {@code dimension == 1 &&
+     * this.dimension == 1} arm): the exit fountain's cell removes the body
+     * from the End world, arms the credits state, and sends the GameEvent-4
+     * win screen. The actual overworld landing waits for the client's
+     * respawn confirmation ({@link #performRespawn} — the reference's
+     * handleClientStatus {@code leavingTheEnd} arm, the alive respawn).
+     *
+     * <p>The achievement (LEAVE_THE_END — {@code incrementStat(
+     * Achievements.LEAVE_THE_END)}) rides the achievement family's own
+     * slice; the engine's stat store has no achievement rows yet. The
+     * non-player entity arm (Entity.changeDimension's old-1+new-1 redirect
+     * to the overworld spawn surface) needs the mob portal-collision
+     * simulation first — mobs do not yet collide with portal cells;
+     * ledgered.</p>
+     *
+     * <p>Tick-thread context (the portal stand's instant arm).</p>
+     */
+    private void leaveEndOnTick(PlayerSession session) {
+        if (session.state() != PlayerState.PLAYING || session.dead()) {
+            return;
+        }
+        // The removed-from-the-world guard: the reference's removeEntity
+        // stops the collision from re-firing; the engine's session keeps
+        // ticking, so the flag itself is the guard.
+        if (session.leavingTheEnd()) {
+            return;
+        }
+        // The reference's order (lines 446-449): the stat, the world
+        // removal, the flag, the win screen.
+        session.markLeavingTheEnd();
+        publishEndCredits(session); // the removeEntity wire (the observers)
+        session.link().playGameState(GAME_STATE_END_CREDITS, 0.0f);
+        LOGGER.info(() -> "Player " + session.name()
+                + " left the End (the credits walk began)");
+    }
+
     private void changeDimensionOnTick(PlayerSession session) {
         if (session.state() != PlayerState.PLAYING || session.dead()) {
             return;
@@ -16536,6 +16661,12 @@ public final class EngineServer implements Server, EngineBridge {
 
     @Override
     public void movementProposal(PlayerSession session, Position position, Rotation rotation, boolean onGround) {
+        // The credits gate (Slice 64 — the reference's handlePlayerMove
+        // line 198: {@code !this.player.leavingTheEnd} — the removed body
+        // answers no movement while the win screen plays).
+        if (session.leavingTheEnd()) {
+            return;
+        }
         // The riding body is the vehicle's: the client sends no position
         // while mounted, so any stray proposal is discarded (the seat owns
         // the coordinates — the historical server-authoritative vehicle).

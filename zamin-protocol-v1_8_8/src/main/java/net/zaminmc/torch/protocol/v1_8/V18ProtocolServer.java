@@ -1032,6 +1032,22 @@ public final class V18ProtocolServer implements ProtocolAdapter {
             }
 
             @Override
+            public void onEndCredits(net.zaminmc.torch.server.player.PlayerSession player) {
+                // Slice 64 — the exit fountain's removeEntity wire: the
+                // credits body leaves the End world (the reference's
+                // ServerPlayerEntity.changeDimension line 447), so every
+                // OTHER observer's tracked copy of the mover must go (the
+                // Destroy Entity the reference's entity map sends). The
+                // mover's own connection stays — it is watching the win
+                // screen (the engine already sent the GameEvent 4).
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    if (connection.currentSession() != player) {
+                        connection.untrackPlayer(player.uuid());
+                    }
+                }
+            }
+
+            @Override
             public void onKnockback(net.zaminmc.torch.server.player.PlayerSession player,
                                     double vx, double vy, double vz) {
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
@@ -1403,6 +1419,15 @@ public final class V18ProtocolServer implements ProtocolAdapter {
         for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
             PlayerSession observer = connection.currentSession();
             if (observer == null || observer == mover) {
+                continue;
+            }
+            // Slice 64 — the cross-dimension gate: the End's arrival cell
+            // (x 100) sits inside the overworld spawn's view range, so raw
+            // coordinates alone would leak players across dimensions. A
+            // body in another dimension (or removed from the world for the
+            // credits) is invisible — the reference's per-world entity map.
+            if (observer.dimension() != mover.dimension() || mover.leavingTheEnd()) {
+                connection.untrackPlayer(mover.uuid());
                 continue;
             }
             var observerChunk = observer.position().toBlockPosition().chunkPosition();
