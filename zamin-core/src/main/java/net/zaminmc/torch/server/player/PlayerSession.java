@@ -142,6 +142,12 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
     private int peacefulTick; // the peaceful regen family's own clock (19e)
     private float fallDistance;
     private volatile boolean dead;
+    // The End exit's own state (Slice 64 — ServerPlayerEntity.leavingTheEnd
+    // line 128): true from the exit fountain's GameEvent-4 credits until the
+    // client's respawn confirmation. While set the body is "removed from
+    // the world" — no body simulation, no movement proposals, invisible to
+    // dimension peers — but the connection and the session stay alive.
+    private volatile boolean leavingTheEnd;
     // The /reply target: the name of the last player who /tell'd this one.
     // A name (not a uuid) because the reply may outlive a relogin window.
     private volatile String lastMessagedBy;
@@ -803,6 +809,21 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
 
     public boolean dead() {
         return dead;
+    }
+
+    /** The End exit's credits state (ServerPlayerEntity.leavingTheEnd). */
+    public boolean leavingTheEnd() {
+        return leavingTheEnd;
+    }
+
+    /** The exit fountain's arm: the body left the world for the credits. */
+    public void markLeavingTheEnd() {
+        this.leavingTheEnd = true;
+    }
+
+    /** The credits' respawn confirmation clears the flag (the alive respawn). */
+    public void clearLeavingTheEnd() {
+        this.leavingTheEnd = false;
     }
 
     public boolean eating() {
