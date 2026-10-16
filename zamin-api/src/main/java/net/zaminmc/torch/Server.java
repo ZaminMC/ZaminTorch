@@ -76,6 +76,16 @@ public interface Server {
     EventBus events();
 
     /**
+     * The plugin host (architecture §28.5/§28.6): the plugin lifecycle
+     * state machine, the per-plugin resource scopes, and the managed
+     * task quotas. Programmatic registration now (the discovery and
+     * classloading wave follows §27.1's order); the lifecycle verbs run
+     * on the control context (boot or console) and must not be called
+     * from inside a lifecycle callback.
+     */
+    net.zaminmc.torch.plugin.PluginHost plugins();
+
+    /**
      * The public task scheduler (§27.3): the time dimension over the
      * owner-context execution. Submissions are safe from any thread;
      * every body runs on the simulation owner's context.

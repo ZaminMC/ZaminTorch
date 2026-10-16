@@ -74,17 +74,39 @@ the test that proves it, or the honest blocker.
 | 28.8 case 12 shutdown | `AdversarialContractTest.theFullStackShutsDownWithWorkInFlightAndQueued` (total, idempotent, no dependency-cycle wait) |
 | 28.9 observability | the scheduler's §17 telemetry floor (queue depth, execution time, the admission counters) |
 
-### The plugin-side halves: the honest blocker
+### The plugin-side halves: the core LANDED (Slice 71), the discovery wave remains
 
-- **28.5 the plugin lifecycle state machine (DISCOVERED → LOADED →
-  ENABLING → ENABLED → DISABLING → DISABLED → UNLOADED) with
-  resource-scope cleanup: NOT STARTED.** The engine has no plugin host —
-  no discovery, no classloading, no per-plugin resource ledger. The
-  §27.1 order places the plugin host after the native API matures; the
-  adversarial case 6 (disable during execution) is BLOCKED on it.
-- **28.6 plugin-created concurrency quotas: NOT STARTED** (same
-  dependency — the plugin host owns the quota surface; the engine's
-  bounded lanes it would ride exist and are tested).
+- **28.5 the plugin lifecycle state machine: LANDED (Slice 71).**
+  `Server.plugins()` → the `PluginHost` (`server/plugin/PluginManager`):
+  the full DISCOVERED → LOADED → ENABLING → ENABLED → DISABLING →
+  DISABLED → UNLOADED machine with the documented failure transitions
+  (a throwing onEnable rolls the scope back and lands DISABLED; a
+  throwing onDisable still lands DISABLED — the sweep is total), the
+  per-plugin `ResourceScope` (own/sweep with each close verb isolated),
+  and the disable walk's own law: the admissions gate closes the moment
+  the walk begins (§28.8 case 6 — direct test:
+  `PluginHostTest.theDisableWalkRefusesAdmissionsTheMomentItBegins` +
+  `theLateAsyncResultNeverReachesTheDisabledPlugin` — the late async
+  result never reaches the disabled plugin, the drop observable).
+  **Programmatic registration only** — the filesystem discovery,
+  classloading, and classloader-unloading wave remains (§27.1's order,
+  recorded below).
+- **28.6 the managed task quotas: LANDED (Slice 71).** Every plugin's
+  `PluginTasks` surface rides the engine's own bounded lanes (the
+  compute pool + the blocking-I/O lane) with a per-plugin in-flight
+  quota in front — a refusal is an operation result (the empty answer +
+  the refused counter), one plugin's flood never blocks its neighbors
+  (`theTaskQuotaRefusesTheFloodButNotTheNeighbor`), and the
+  late-result drops are counted (§28.9).
+- **28.5/28.6's remaining honest gaps:** no filesystem discovery, no
+  classloading, no per-plugin classloader unloading semantics yet
+  (programmatic bodies only — the wave follows §27.1's order); the
+  engine's event-bus/packet-hook/scheduler surfaces still register
+  through their own verbs (the scope OWNS the handles after
+  registration — the registration-time scope binding is the later
+  ergonomics wave); reload runs on the control context under one
+  lifecycle lock (documented reentrancy rejection —
+  `theReentrancyGuardRejectsLifecycleCallsFromCallbacks`).
 - **28.7 the legacy main-thread compatibility strategy: NOT
   INVESTIGATED** — the Bukkit/Spigot/Paper adapter does not exist yet
   (the engineering table's own row); the native API deliberately does
