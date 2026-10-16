@@ -163,6 +163,22 @@ public final class VehicleManager {
         return spawn(new ChestMinecartEntity(nextEntityId++, at, random));
     }
 
+    /** The furnace minecart (Slice 66 — the coal-fed pusher). */
+    public VehicleEntity spawnFurnaceMinecart(Position at) {
+        if (!fireSpawnGate(VehicleEntity.Kind.FURNACE_MINECART.apiKind, at)) {
+            return null;
+        }
+        return spawn(new FurnaceMinecartEntity(nextEntityId++, at, random));
+    }
+
+    /** The TNT minecart (Slice 66 — the 80-tick fuse). */
+    public VehicleEntity spawnTntMinecart(Position at) {
+        if (!fireSpawnGate(VehicleEntity.Kind.TNT_MINECART.apiKind, at)) {
+            return null;
+        }
+        return spawn(new TntMinecartEntity(nextEntityId++, at, random));
+    }
+
     /**
      * The §27.7 pre-commit gate over every spawn family member: the
      * boat/minecart item placements and the structure-seeded chest
@@ -237,6 +253,8 @@ public final class VehicleManager {
                 case BOAT -> restored = spawnBoat(at);
                 case MINECART -> restored = spawnMinecart(at);
                 case CHEST_MINECART -> restored = spawnChestMinecart(at);
+                case FURNACE_MINECART -> restored = spawnFurnaceMinecart(at);
+                case TNT_MINECART -> restored = spawnTntMinecart(at);
                 default -> {
                     continue;
                 }
@@ -281,6 +299,15 @@ public final class VehicleManager {
                 continue;
             }
             long before = fixedPoint(vehicle.position());
+            // The TNT cart's activator-rail consult (Slice 66 — the
+            // reference's moveAlongTrack fires onActivatorRail per rail
+            // cell): the powered cell primes the fuse.
+            if (vehicle instanceof TntMinecartEntity tntCart) {
+                tntCart.onActivatorRail(world.railPowerAt(
+                        vehicle.position().x(),
+                        vehicle.position().y() + 0.4,
+                        vehicle.position().z()) > 0);
+            }
             vehicle.tick(world);
             if (fixedPoint(vehicle.position()) != before) {
                 for (Listener listener : listeners) {

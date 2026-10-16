@@ -489,6 +489,14 @@ public final class BuiltinItems {
     // this item — the cart spills a minecart + a chest block instead.
     public static final EngineItemType CHEST_MINECART = new EngineItemType(
             Identifier.parse("minecraft:chest_minecart"), "Minecart with Chest", 1);
+    // The furnace minecart item (Item.java line 627: register(343) —
+    // Slice 66): the coal-fed pusher's place form.
+    public static final EngineItemType FURNACE_MINECART = new EngineItemType(
+            Identifier.parse("minecraft:furnace_minecart"), "Minecart with Furnace", 1);
+    // The TNT minecart item (Item.java line 711: register(407) —
+    // Slice 66): the 80-tick fuse cart's place form.
+    public static final EngineItemType TNT_MINECART = new EngineItemType(
+            Identifier.parse("minecraft:tnt_minecart"), "Minecart with TNT", 1);
 
     // The mount slice (community items.json: saddle 329, iron/gold/diamond
     // horse armor 417/418/419, lead 420, carrot on a stick 398, emerald 388).
