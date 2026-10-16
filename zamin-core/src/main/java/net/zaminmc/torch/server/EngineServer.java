@@ -2432,6 +2432,10 @@ public final class EngineServer implements Server, EngineBridge {
                 ticker.attachIoLane(blockingIoLane, simulationDomain);
                 blockingIoView = new net.zaminmc.torch.server.concurrent.BlockingIoView(
                         blockingIoLane, simulationDomain);
+                // The §28.5/§28.6 plugin host over the engine's own lanes
+                // (the lifecycle machine + the scopes + the quotas).
+                pluginHost = new net.zaminmc.torch.server.plugin.PluginManager(
+                        computeView, blockingIoView);
                 domainWorkerPool = new net.zaminmc.torch.server.concurrent.DomainWorkerPool();
                 ticker.attachDomainPool(domainWorkerPool);
                 crossOwnerRouter = new net.zaminmc.torch.server.concurrent.CrossOwnerRouter();
@@ -2673,6 +2677,9 @@ public final class EngineServer implements Server, EngineBridge {
     private volatile net.zaminmc.torch.concurrent.AsyncCompute computeView;
     private volatile net.zaminmc.torch.concurrent.BlockingIo blockingIoView;
 
+    /** The §28.5/§28.6 plugin host (wired at boot over the engine's lanes). */
+    private volatile net.zaminmc.torch.server.plugin.PluginManager pluginHost;
+
     /** The public scheduler view (built on first use; the ticker exists from boot). */
     @Override
     public net.zaminmc.torch.scheduler.Scheduler scheduler() {
@@ -2702,6 +2709,16 @@ public final class EngineServer implements Server, EngineBridge {
     @Override
     public net.zaminmc.torch.protocol.ProtocolHooks protocolHooks() {
         return packetHooks;
+    }
+
+    /** The plugin host (§28.5/§28.6) — wired at boot over the engine's lanes. */
+    @Override
+    public net.zaminmc.torch.plugin.PluginHost plugins() {
+        net.zaminmc.torch.server.plugin.PluginManager host = pluginHost;
+        if (host == null) {
+            throw new IllegalStateException("the plugin host is unavailable before the server boots");
+        }
+        return host;
     }
 
     /** The public recipe registry (§27.3) — the pure any-thread read over the frozen set. */

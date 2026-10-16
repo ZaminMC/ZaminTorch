@@ -7276,3 +7276,44 @@ the /summon NBT arm).
   ledger row updated; the audit's §27 gap list now carries all three
   gaps closed (the variant read view, the fishing hooks, the
   construction leg).
+
+## Slice 71 — the plugin host core (§28.5/§28.6's engine side lands)
+
+- **The API** (`zamin-api` `net.zaminmc.torch.plugin`): `PluginState`
+  (the §28.5 machine verbatim — DISCOVERED → LOADED → ENABLING →
+  ENABLED → DISABLING → DISABLED → UNLOADED, the failure transitions
+  documented on the states), `PluginDescriptor` (the immutable
+  identity), `PluginBody` (the enable lambda + the ordered-cleanup
+  opt-in), `ResourceScope` (the owned-resource ledger: own/own(EventSubscription)/
+  own(Task)/own(Computation), ownedCount, generation, close), `PluginTasks`
+  (§28.6's quota'd compute/IO lanes — the empty answer IS the refusal),
+  `PluginHandle`, `PluginHost` — mounted at `Server.plugins()`.
+- **The engine core** (`server/plugin/PluginManager`): the lifecycle
+  walks under one control lock (reentrant lifecycle calls from callbacks
+  rejected loudly — §28.4's law), the seal→onDisable→sweep disable walk
+  (admissions close at DISABLING — the §28.8 case-6 law: disable
+  prevents new work the moment it begins, not when it ends), the
+  isolated sweep (one throwing close verb never shields the rest), the
+  fresh-scope reload (a fresh generation — no duplicates by
+  construction), and the quota'd Tasks over the engine's own
+  AsyncCompute/BlockingIo lanes with the late-callback generation gate
+  (a running computation still completes — the engine's law — but its
+  result never reaches the disabled plugin; the drop is counted, §28.9).
+- Tests: `PluginHostTest` (9 — the happy walk, the enable-failure
+  rollback, the isolated sweep, the DISABLING admissions gate, the
+  late-result drop + its counter, the reload no-duplicates + fresh
+  generation, the duplicate-id refusal + the freed id, the quota
+  flood-vs-neighbor over a gated async facade, the reentrancy
+  rejections). The plugin + concurrent + event batches green.
+- **The §28 audit updated**: the 28.5/28.6 "NOT STARTED" rows now read
+  LANDED with the remaining honest gaps recorded (no filesystem
+  discovery/classloading yet — §27.1's order; the registration-time
+  scope binding is the later ergonomics wave). §28.8 case 6 is no
+  longer BLOCKED.
+
+NEXT (in order): (1) the ledgered vanilla gaps (the MC|AdvCdm block
+arm, the areCommandBlocksEnabled config gate, the vehicle
+damage-source surface, the /summon NBT arm); (2) the plugin host's
+live-engine acceptance (a plugin through the real EngineServer's
+plugins() with real event-bus/scope integration); (3) the discovery/
+classloading wave when the native API surface settles.
