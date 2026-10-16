@@ -1,6 +1,7 @@
 package net.zaminmc.torch.server.commandblock;
 
 import net.zaminmc.torch.block.BlockPosition;
+import net.zaminmc.torch.block.BlockType;
 import net.zaminmc.torch.block.ChunkPosition;
 import net.zaminmc.torch.server.world.EngineWorld;
 
@@ -26,7 +27,8 @@ import java.util.Objects;
  * becomes the block's analog signal ({@code getAnalogSignal}), and the
  * falling edge clears the bit (the next pulse re-runs).</p>
  */
-public final class CommandBlockManager {
+public final class CommandBlockManager
+        implements net.zaminmc.torch.server.world.WorldChangeListener {
 
     /** One executor's state (CommandExecutor's own rows, 1:1). */
     public static final class CommandState {
@@ -88,11 +90,36 @@ public final class CommandBlockManager {
         int run(CommandState executor, String command);
     }
 
+    /** Events the protocol adapter translates into the 0x35 tile packet. */
+    public interface Listener {
+
+        /** A command tile landed (or its rows changed): the tile re-publishes. */
+        default void onCommandTileChanged(BlockPosition position, CommandState tile) {
+        }
+
+        /** A command tile left (the break). */
+        default void onCommandTileRemoved(BlockPosition position) {
+        }
+    }
+
     private final Map<BlockPosition, CommandState> blocks = new LinkedHashMap<>();
+    private final List<Listener> listeners = new ArrayList<>();
     private final CommandHost host;
+    /** The track-output default (the sendCommandFeedback gamerule — onPlaced lines 86-88). */
+    private java.util.function.BooleanSupplier trackDefault = () -> true;
 
     public CommandBlockManager(CommandHost host) {
         this.host = Objects.requireNonNull(host, "host");
+    }
+
+    /** The adapter's tile subscription (the 0x35 translation). */
+    public void addListener(Listener listener) {
+        listeners.add(Objects.requireNonNull(listener, "listener"));
+    }
+
+    /** Wires the placement's track default (the sendCommandFeedback gamerule). */
+    public void setTrackDefault(java.util.function.BooleanSupplier trackDefault) {
+        this.trackDefault = Objects.requireNonNull(trackDefault, "trackDefault");
     }
 
     /** @return the live executor at the position, or null when none is placed. */
@@ -110,6 +137,17 @@ public final class CommandBlockManager {
         return executor;
     }
 
+    /** One restored row (the ZVD persistence's landing — the boot restore). */
+    public static CommandState restoredState(String command, int successCount,
+                                              boolean trackOutput, String lastOutput) {
+        CommandState state = new CommandState();
+        state.command = command == null ? "" : command;
+        state.successCount = successCount;
+        state.trackOutput = trackOutput;
+        state.lastOutput = lastOutput;
+        return state;
+    }
+
     /** The break's cleanup (no drop — the reference's own empty override). */
     public void remove(BlockPosition position) {
         blocks.remove(position);
@@ -123,6 +161,14 @@ public final class CommandBlockManager {
         }
         executor.setCommand(command);
         executor.setTrackOutput(trackOutput);
+        publish(position, executor);
+    }
+
+    /** The re-publish (the rows changed: the tile's 0x35 answer). */
+    private void publish(BlockPosition position, CommandState executor) {
+        for (Listener listener : listeners) {
+            listener.onCommandTileChanged(position, executor);
+        }
     }
 
     /** The redstone run (CommandBlock.tick): the executor's own walk. */
@@ -137,6 +183,7 @@ public final class CommandBlockManager {
         }
         int successes = host.run(executor, command);
         executor.setSuccessCount(successes);
+        publish(position, executor); // the count feeds the comparator + the GUI
         return successes;
     }
 
@@ -175,5 +222,43 @@ public final class CommandBlockManager {
         blocks.keySet().removeIf(position ->
                 !net.zaminmc.torch.server.block.BuiltinBlocks.isCommandBlock(
                         world.getBlock(position)));
+    }
+
+    // ------------------------------------------------------------------
+    // The world-change listener (the placement creates the tile — the
+    // dispenser pattern; the break sweeps it).
+    //
+    // The PAIRED arm is the correct port surface: the TRIGGERED flip is
+    // a same-block state change in the reference (one block, one
+    // property), and the block entity survives its own property flips —
+    // the removal arm must fire only when the block TRULY leaves, which
+    // only the old/new pair can decide.
+    // ------------------------------------------------------------------
+
+    @Override
+    public void onBlockChanged(EngineWorld world, BlockPosition position, BlockType newType) {
+        // The paired arm below carries the whole law (the TRIGGERED flip
+        // needs the old type); the single-type arm answers nothing.
+    }
+
+    @Override
+    public void onBlockReplaced(EngineWorld world, BlockPosition position,
+                                 BlockType oldType, BlockType newType) {
+        boolean wasCommand = net.zaminmc.torch.server.block.BuiltinBlocks.isCommandBlock(oldType);
+        boolean isCommand = net.zaminmc.torch.server.block.BuiltinBlocks.isCommandBlock(newType);
+        if (wasCommand && !isCommand) {
+            // The block left: the tile follows (the reference's own
+            // removal — the empty drop override rides the drop service).
+            remove(position);
+            for (Listener listener : listeners) {
+                listener.onCommandTileRemoved(position);
+            }
+        } else if (!wasCommand && isCommand && !blocks.containsKey(position)) {
+            // onPlaced lines 86-88: the sendCommandFeedback gamerule is
+            // the track-output default.
+            createAt(position, trackDefault.getAsBoolean());
+        }
+        // wasCommand && isCommand: the TRIGGERED flip — the tile
+        // survives exactly like the reference's own block entity.
     }
 }

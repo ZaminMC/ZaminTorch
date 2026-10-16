@@ -188,4 +188,191 @@ class CommandBlockBlockTest {
             on.shutdown(() -> { });
         }
     }
+
+    // ------------------------------------------------------------------
+    // Slice 73 — the placement arm + the persistence + the tile sync.
+    // ------------------------------------------------------------------
+
+    @Test
+    void thePlacementArmCreatesTheTileWithTheGameruleDefault() throws Exception {
+        EngineServer server = boot(true);
+        try {
+            BlockPosition first = new BlockPosition(30, 40, 30);
+            BlockPosition second = new BlockPosition(32, 40, 30);
+            AtomicReference<CommandBlockManager.CommandState> firstTile = new AtomicReference<>();
+            AtomicReference<CommandBlockManager.CommandState> secondTile = new AtomicReference<>();
+            // onPlaced lines 86-88: the sendCommandFeedback gamerule is the
+            // track-output default — TRUE at the vanilla boot.
+            server.ticker().submit(() -> {
+                server.world().setBlock(first.offset(0, -1, 0), BuiltinBlocks.STONE);
+                server.world().setBlock(first, BuiltinBlocks.COMMAND_BLOCK);
+            });
+            await(() -> server.commandBlocks() != null
+                            && server.commandBlocks().at(first) != null,
+                    "the placement created the tile");
+            server.ticker().submit(() -> firstTile.set(server.commandBlocks().at(first)));
+            await(() -> firstTile.get() != null, "the tile read");
+            assertTrue(firstTile.get().trackOutput(),
+                    "the gamerule's true is the placement default");
+            assertEquals("", firstTile.get().command(), "a fresh tile carries no command");
+
+            // The flip: sendCommandFeedback false — the NEXT placement
+            // carries the false default (CommandBlock.onPlaced reads the
+            // gamerule at the placement, not a boot-time constant).
+            server.ticker().submit(() ->
+                    server.gameRules().set("sendCommandFeedback", "false"));
+            server.ticker().submit(() -> {
+                server.world().setBlock(second.offset(0, -1, 0), BuiltinBlocks.STONE);
+                server.world().setBlock(second, BuiltinBlocks.COMMAND_BLOCK);
+            });
+            await(() -> server.commandBlocks().at(second) != null,
+                    "the second placement created its tile");
+            server.ticker().submit(() -> secondTile.set(server.commandBlocks().at(second)));
+            await(() -> secondTile.get() != null, "the second tile read");
+            assertFalse(secondTile.get().trackOutput(),
+                    "the flipped gamerule's false is the placement default");
+
+            // The TRIGGERED flip is NOT a re-placement: the command block's
+            // own redstone state change never recreates the tile (the
+            // containsKey gate — the reference's block entity survives its
+            // own TRIGGERED bit).
+            server.ticker().submit(() -> firstTile.get().recordOutput("an old output"));
+            server.ticker().submit(() -> server.world().setBlock(first,
+                    BuiltinBlocks.COMMAND_BLOCK_TRIGGERED));
+            await(() -> BuiltinBlocks.COMMAND_BLOCK_TRIGGERED.equals(
+                            server.world().getBlock(first)),
+                    "the TRIGGERED flip landed");
+            server.ticker().submit(() -> {
+                CommandBlockManager.CommandState after = server.commandBlocks().at(first);
+                // the SAME executor object: no recreate happened
+                assertTrue(after == firstTile.get(),
+                        "the TRIGGERED flip never recreated the tile");
+            });
+            server.ticker().submit(() -> server.world().setBlock(first,
+                    BuiltinBlocks.COMMAND_BLOCK));
+            await(() -> BuiltinBlocks.COMMAND_BLOCK.equals(server.world().getBlock(first)),
+                    "the falling flip landed");
+        } finally {
+            server.shutdown(() -> { });
+        }
+    }
+
+    @Test
+    void theBreakSweepsTheTileAndFiresTheRemoval() throws Exception {
+        EngineServer server = boot(true);
+        try {
+            BlockPosition at = new BlockPosition(40, 40, 40);
+            AtomicInteger removals = new AtomicInteger();
+            server.ticker().submit(() -> {
+                if (server.commandBlocks() != null) {
+                    server.commandBlocks().addListener(
+                            new CommandBlockManager.Listener() {
+                                @Override
+                                public void onCommandTileRemoved(BlockPosition position) {
+                                    if (position.equals(at)) {
+                                        removals.incrementAndGet();
+                                    }
+                                }
+                            });
+                }
+                server.world().setBlock(at, BuiltinBlocks.COMMAND_BLOCK);
+            });
+            await(() -> server.commandBlocks() != null
+                            && server.commandBlocks().at(at) != null,
+                    "the placement created the tile");
+            // The break (the reference's own empty drop override rides the
+            // drop service): the block leaves, the tile follows.
+            server.ticker().submit(() -> server.world().setBlock(at, server.world().airType()));
+            await(() -> server.commandBlocks().at(at) == null,
+                    "the break swept the tile");
+            assertEquals(1, removals.get(), "the removal listener fired once");
+        } finally {
+            server.shutdown(() -> { });
+        }
+    }
+
+    @Test
+    void theEditAndTheRunPublishTheTileRows() throws Exception {
+        AtomicInteger publishes = new AtomicInteger();
+        AtomicReference<String> lastCommand = new AtomicReference<>();
+        CommandBlockManager manager = new CommandBlockManager((executor, command) -> {
+            executor.recordOutput("out: " + command);
+            return 1;
+        });
+        manager.addListener(new CommandBlockManager.Listener() {
+            @Override
+            public void onCommandTileChanged(BlockPosition position,
+                    CommandBlockManager.CommandState tile) {
+                publishes.incrementAndGet();
+                lastCommand.set(tile.command());
+            }
+        });
+        BlockPosition at = new BlockPosition(10, 40, 10);
+        manager.createAt(at, true);
+        assertEquals(0, publishes.get(), "the placement itself publishes nothing");
+        manager.edit(at, "say once", true);
+        assertEquals(1, publishes.get(), "the edit published the rows");
+        assertEquals("say once", lastCommand.get(), "the publish carried the command");
+        manager.run(at);
+        assertEquals(2, publishes.get(), "the run published the fresh count");
+        // The inChunk walk (the chunk-send replay's own source).
+        assertEquals(1, manager.inChunk(at.chunkPosition()).size(),
+                "the tile found in its chunk");
+            assertTrue(manager.inChunk(new BlockPosition(
+                            at.x() + 32, at.y(), at.z()).chunkPosition()).isEmpty(),
+                    "a foreign chunk answers empty");
+    }
+
+    @Test
+    void thePersistenceRoundTripCarriesTheFourRows() throws Exception {
+        Path file = dataDir.resolve("command_blocks.bin");
+        CommandBlockDataStore store = new CommandBlockDataStore(file);
+        // A missing file reads empty (the boot's fresh world).
+        assertTrue(store.load().isEmpty(), "a missing file reads empty");
+        java.util.Map<BlockPosition, CommandBlockManager.CommandState> rows =
+                new java.util.LinkedHashMap<>();
+        rows.put(new BlockPosition(1, 2, 3),
+                CommandBlockManager.restoredState("say one", 7, true, "an output line"));
+        rows.put(new BlockPosition(-4, 5, 6),
+                CommandBlockManager.restoredState("say two", 0, false, null));
+        store.save(rows);
+        java.util.Map<BlockPosition, CommandBlockManager.CommandState> loaded = store.load();
+        assertEquals(2, loaded.size(), "both rows survived the round trip");
+        CommandBlockManager.CommandState first = loaded.get(new BlockPosition(1, 2, 3));
+        assertEquals("say one", first.command(), "the command row");
+        assertEquals(7, first.successCount(), "the count row");
+        assertTrue(first.trackOutput(), "the track row");
+        assertEquals("an output line", first.lastOutput(), "the output row");
+        CommandBlockManager.CommandState second = loaded.get(new BlockPosition(-4, 5, 6));
+        assertFalse(second.trackOutput(), "the second track row");
+        assertNull(second.lastOutput(), "the null output row stays null");
+        // A corrupt file reads empty and is preserved beside the path.
+        java.nio.file.Files.write(file, new byte[] {1, 2, 3, 4, 5});
+        assertTrue(store.load().isEmpty(), "the corrupt file reads empty");
+        assertTrue(java.nio.file.Files.exists(
+                        file.resolveSibling(file.getFileName() + ".corrupt")),
+                "the corrupt file preserved for manual recovery");
+    }
+
+    @Test
+    void theOrphanSweepDiscardsTheStaleRestoredRow() throws Exception {
+        // The restore path's own safety: a row whose block left between
+        // saves (the world's own delta store won the race) is discarded on
+        // the first tick — the same sweep as the sign store.
+        EngineServer server = boot(true);
+        try {
+            BlockPosition stale = new BlockPosition(50, 40, 50);
+            server.ticker().submit(() -> {
+                if (server.commandBlocks() != null) {
+                    server.commandBlocks().restoreAll(java.util.Map.of(stale,
+                            CommandBlockManager.restoredState("say stale", 1, true, null)));
+                }
+            });
+            await(() -> server.commandBlocks() != null
+                            && server.commandBlocks().at(stale) == null,
+                    "the orphan sweep discarded the stale row");
+        } finally {
+            server.shutdown(() -> { });
+        }
+    }
 }
