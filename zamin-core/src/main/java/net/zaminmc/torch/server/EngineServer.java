@@ -428,6 +428,8 @@ public final class EngineServer implements Server, EngineBridge {
     private static final int ENDER_CRYSTAL_ID_BASE = ARMOR_STAND_ID_BASE + 1_000_000;
     /** Firework rockets get the band above the ender crystals (Slice 65). */
     private static final int FIREWORKS_ID_BASE = ENDER_CRYSTAL_ID_BASE + 1_000_000;
+    /** The fishing bobbers' own id band (Slice 67). */
+    private static final int FISHING_ID_BASE = FIREWORKS_ID_BASE + 1_000_000;
 
     /** The shared shape-aware physics query (items, falling blocks, projectiles). */
     private final ShapeGround shapeGround = new ShapeGround();
@@ -444,6 +446,8 @@ public final class EngineServer implements Server, EngineBridge {
     private volatile net.zaminmc.torch.server.skull.SkullManager skulls;
     /** The vehicles (boats, minecarts); created at boot, tick-thread owned. */
     private volatile net.zaminmc.torch.server.entity.vehicle.VehicleManager vehicleManager;
+    /** The fishing bobbers (Slice 67); created at boot, tick-thread owned. */
+    private volatile net.zaminmc.torch.server.fishing.FishingSystem fishing;
 
     /** The FX pitch/jitter source (cosmetic rolls only, never gameplay rules). */
     private final java.util.Random fxRandom = new java.util.Random();
@@ -1864,6 +1868,165 @@ public final class EngineServer implements Server, EngineBridge {
                             }
                         },
                         this::commandCartHost);
+                // The fishing (Slice 67 — FishingBobberEntity +
+                // FishingRodItem): the cast/float/bite-window/retrieve walk
+                // over the engine's own surfaces.
+                net.zaminmc.torch.server.fishing.FishingSystem fishingSystem =
+                        new net.zaminmc.torch.server.fishing.FishingSystem(
+                                new net.zaminmc.torch.server.fishing.FishingSystem.WorldQuery() {
+                                    /** The raytrace stand-in: the first solid sample along the segment. */
+                                    @Override public Position blockHit(Position from, Position to) {
+                                        double dx = to.x() - from.x();
+                                        double dy = to.y() - from.y();
+                                        double dz = to.z() - from.z();
+                                        int steps = Math.max(1,
+                                                (int) Math.ceil(Math.max(Math.abs(dx),
+                                                        Math.max(Math.abs(dy), Math.abs(dz))) / 0.05));
+                                        for (int i = 1; i <= steps; i++) {
+                                            double t = (double) i / steps;
+                                            double px = from.x() + dx * t;
+                                            double py = from.y() + dy * t;
+                                            double pz = from.z() + dz * t;
+                                            if (solidAt(px, py, pz)) {
+                                                return new Position(px, py, pz);
+                                            }
+                                        }
+                                        return null;
+                                    }
+
+                                    /** The 5-band water fraction (containsLiquid's own walk). */
+                                    @Override public double waterFraction(
+                                            double minX, double minY, double minZ,
+                                            double maxX, double maxY, double maxZ) {
+                                        double fraction = 0.0;
+                                        for (int band = 0; band < 5; band++) {
+                                            double y = minY + (maxY - minY) * band / 5.0
+                                                    + 1.0E-7;
+                                            var kind = net.zaminmc.torch.server.block.FluidBlocks
+                                                    .kindOf(world.getBlock(blockAt(
+                                                            (minX + maxX) / 2.0, y,
+                                                            (minZ + maxZ) / 2.0)).identifier());
+                                            if (kind == net.zaminmc.torch.server.block.FluidBlocks.Kind.WATER) {
+                                                fraction += 0.2;
+                                            }
+                                        }
+                                        return fraction;
+                                    }
+
+                                    /** The sky read: any solid block above closes the sky. */
+                                    @Override public boolean hasSkyAccess(int x, int y, int z) {
+                                        for (int above = y + 1;
+                                                above <= net.zaminmc.torch.block.BlockPosition.MAX_Y;
+                                                above++) {
+                                            if (WorldSolidity.isSolid(world.getBlock(
+                                                    new BlockPosition(x, above, z)))) {
+                                                return false;
+                                            }
+                                        }
+                                        return true;
+                                    }
+
+                                    @Override public boolean raining() {
+                                        return weather != null && weather.raining();
+                                    }
+                                },
+                                new net.zaminmc.torch.server.fishing.FishingSystem.HookResolver() {
+                                    /** The segment clip stand-in: the first body along the samples. */
+                                    @Override public Object hookAlong(Position from, Position to,
+                                            int throwerId, int airTicks) {
+                                        double dx = to.x() - from.x();
+                                        double dy = to.y() - from.y();
+                                        double dz = to.z() - from.z();
+                                        int steps = Math.max(1,
+                                                (int) Math.ceil(Math.max(Math.abs(dx),
+                                                        Math.max(Math.abs(dy), Math.abs(dz))) / 0.1));
+                                        for (int i = 1; i <= steps; i++) {
+                                            double t = (double) i / steps;
+                                            Position at = new Position(from.x() + dx * t,
+                                                    from.y() + dy * t, from.z() + dz * t);
+                                            MobEntity mob = mobManager.mobAt(at);
+                                            if (mob != null && !mob.dead()) {
+                                                return mob;
+                                            }
+                                            PlayerSession player = playerBodyAt(at);
+                                            if (player != null) {
+                                                if (player.engineEntityId() == throwerId
+                                                        && airTicks < 5) {
+                                                    continue; // the angler's own body: 5-tick gate
+                                                }
+                                                return player;
+                                            }
+                                        }
+                                        return null;
+                                    }
+
+                                    @Override public boolean hookedAlive(Object hooked) {
+                                        if (hooked instanceof MobEntity mob) {
+                                            return !mob.dead();
+                                        }
+                                        return hooked instanceof PlayerSession player
+                                                && player.state() == PlayerState.PLAYING
+                                                && !player.dead();
+                                    }
+
+                                    @Override public Position hookedAnchor(Object hooked) {
+                                        if (hooked instanceof MobEntity mob) {
+                                            return new Position(mob.position().x(),
+                                                    mob.position().y() + mob.type().height * 0.8,
+                                                    mob.position().z());
+                                        }
+                                        if (hooked instanceof PlayerSession player) {
+                                            return new Position(player.position().x(),
+                                                    player.position().y() + 1.8 * 0.8,
+                                                    player.position().z());
+                                        }
+                                        return null;
+                                    }
+
+                                    /** The retrieve's pull (the 0.1 + sqrt(d)*0.08 law). */
+                                    @Override public void pullToward(Object hooked,
+                                            double dx, double dy, double dz) {
+                                        if (hooked instanceof MobEntity mob) {
+                                            mob.addVelocity(dx, dy, dz);
+                                        }
+                                        // The player's client-authoritative body: the
+                                        // pull rides the knockback surface's own slice
+                                        // (ledgered — the engine's movement protocol
+                                        // has no server-side player velocity write).
+                                    }
+                                },
+                                new net.zaminmc.torch.server.fishing.FishingSystem.CatchSink() {
+                                    /** The catch flies toward the angler (the 0.1 + sqrt law). */
+                                    @Override public void dropCatch(Position at,
+                                            net.zaminmc.torch.item.ItemStack stack,
+                                            double anglerX, double anglerY, double anglerZ) {
+                                        ItemEntity caught = itemEntities.spawnThrown(at, stack);
+                                        if (caught == null) {
+                                            return; // the §27.7 gate withheld the catch
+                                        }
+                                        double dx = anglerX - at.x();
+                                        double dy = anglerY - at.y();
+                                        double dz = anglerZ - at.z();
+                                        double distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+                                        caught.setVelocity(dx * 0.1,
+                                                dy * 0.1 + Math.sqrt(distance) * 0.08, dz * 0.1);
+                                    }
+
+                                    @Override public void dropXp(Position at, int amount) {
+                                        experienceOrbs.spawnOrb(at, amount);
+                                    }
+
+                                    @Override public void sound(Position at, String key,
+                                            float volume, float pitch) {
+                                        fxManager.sound(at, key, volume, pitch);
+                                    }
+                                },
+                                new java.util.Random(), FISHING_ID_BASE);
+                this.fishing = fishingSystem;
+                // The held-rod enchant reads (getResult's own tables).
+                fishingSystem.setEnchantReads(
+                        throwerId -> heldRodLevel(throwerId, Enchantments.LUCK_OF_THE_SEA.id),
+                        throwerId -> heldRodLevel(throwerId, Enchantments.LURE.id));
                 // The public §27.3 entity-family views: the five engine
                 // populations captured as stable point-in-time copies (the
                 // managers' all() contract) behind the World interface.
@@ -1929,6 +2092,7 @@ public final class EngineServer implements Server, EngineBridge {
                     vehicles.tick();          // the boats and minecarts
                     tickVehicleRiders(vehicles);
                     tickMobRiders();          // the horse/pig seats
+                    tickFishing();            // the bobbers' float + bite window (Slice 67)
                     furnaceManager.tick(world, itemEntities);
                     chestManager.tick(world);
                     signManager.tick(world);
@@ -5051,6 +5215,12 @@ public final class EngineServer implements Server, EngineBridge {
             // to the block-use path.
             if (held.type().equals(BuiltinItems.SPAWN_EGG)) {
                 useSpawnEggInAir(session);
+                return;
+            }
+            // The fishing rod (Slice 67 — FishingRodItem.startUsing):
+            // a live bobber retrieves, an empty hand casts.
+            if (held.type().equals(BuiltinItems.FISHING_ROD)) {
+                useFishingRod(session);
                 return;
             }
             // Food: the eat timer.
@@ -11865,7 +12035,19 @@ public final class EngineServer implements Server, EngineBridge {
         vehicleListeners.add(listener);
     }
 
+    /** Registers a fishing bobber observer (the protocol adapter). */
+    public void addFishingListener(net.zaminmc.torch.server.fishing.FishingSystem.Listener listener) {
+        if (fishing != null) {
+            fishing.addListener(listener);
+        }
+    }
+
     /** @return the vehicle system (diagnostics and tests). */
+    /** @return the fishing system (diagnostics and tests). */
+    public net.zaminmc.torch.server.fishing.FishingSystem fishing() {
+        return fishing;
+    }
+
     public net.zaminmc.torch.server.entity.vehicle.VehicleManager vehicles() {
         return vehicleManager;
     }
@@ -12021,6 +12203,26 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /**
+     * The fishing walk (Slice 67): the held-rod gate consult (the angler
+     * gone, the rod un-held, or the leash broken ends the cast) then the
+     * bobbers' own tick (the flight, the float, the catchable cycle).
+     * Tick-thread context.
+     */
+    private void tickFishing() {
+        if (fishing == null) {
+            return;
+        }
+        for (PlayerSession angler : players.all()) {
+            boolean heldRod = !angler.inventory().held().isEmpty()
+                    && angler.inventory().held().type().equals(BuiltinItems.FISHING_ROD);
+            fishing.noteAnglerState(angler.engineEntityId(),
+                    angler.state() == PlayerState.PLAYING && !angler.dead(),
+                    heldRod, angler.position());
+        }
+        fishing.tick();
+    }
+
+    /**
      * The mob-mount riders: the body rides the seat (the mount's position
      * plus the saddle height — the camera sits on the mount's back, the
      * vanilla seat anchor). The wire listener re-anchors each client.
@@ -12104,6 +12306,65 @@ public final class EngineServer implements Server, EngineBridge {
      * Resolves what a projectile is inside of: the same boxes the melee
      * checks use (mob type width/height; the 0.6 × 1.8 player box). Tick-thread.
      */
+    /** The player body at a point (the projectile hull's own 0.3x1.8 band). */
+    private PlayerSession playerBodyAt(Position point) {
+        for (PlayerSession player : players.all()) {
+            if (player.state() != PlayerState.PLAYING || player.dead()) {
+                continue;
+            }
+            Position p = player.position();
+            double dx = point.x() - p.x();
+            double dy = point.y() - p.y();
+            double dz = point.z() - p.z();
+            if (Math.abs(dx) <= 0.3 && Math.abs(dz) <= 0.3 && dy >= -0.2 && dy <= 1.8) {
+                return player;
+            }
+        }
+        return null;
+    }
+
+    /** The angler's held-rod enchant level (the fishing tables' own reads). */
+    private int heldRodLevel(int throwerId, int enchantId) {
+        PlayerSession angler = sessionByEngineId(throwerId);
+        if (angler == null) {
+            return 0;
+        }
+        ItemStack held = angler.inventory().held();
+        if (held.isEmpty() || !held.type().equals(BuiltinItems.FISHING_ROD)) {
+            return 0;
+        }
+        return EnchantmentHelper.level(held, enchantId);
+    }
+
+    /**
+     * The fishing rod's use (Slice 67 — FishingRodItem.startUsing lines
+     * 16-31): a live bobber retrieves (the wear = the result code); an
+     * empty hand casts (the random.bow sound at 0.5 volume, the shaped
+     * pitch). Tick-thread context.
+     */
+    private void useFishingRod(PlayerSession session) {
+        if (fishing == null) {
+            return;
+        }
+        var live = fishing.bobberOf(session.engineEntityId());
+        if (live != null) {
+            int result = fishing.retrieve(session.engineEntityId(), session.position());
+            if (session.gamemode() != GameMode.CREATIVE && result > 0) {
+                // takeDamageAndBreak(i): the wear = the result (1 fish,
+                // 2 grounded, 3 hooked; a bare retrieve wears nothing).
+                if (session.inventory().damageHeld(result, gameplayRandom)) {
+                    publishInventoryChanged(session);
+                }
+            }
+            return;
+        }
+        // The cast sound (line 25): 0.5 volume, the 0.4/(rand*0.4+0.8) pitch.
+        fxManager.sound(mouthPosition(session), "random.bow", 0.5f,
+                0.4f / (fxRandom.nextFloat() * 0.4f + 0.8f));
+        fishing.cast(session.engineEntityId(), mouthPosition(session),
+                session.rotation().yaw(), session.rotation().pitch());
+    }
+
     private final class ProjectileHitResolver implements ProjectileManager.HitResolver {
         @Override
         public MobEntity mobAt(Position point) {

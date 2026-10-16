@@ -1075,6 +1075,15 @@ public final class BuiltinItems {
                 // resolve the held stack; the hopper 408 and the command
                 // cart's 422 ride along).
                 FURNACE_MINECART, TNT_MINECART, HOPPER_MINECART, COMMAND_BLOCK_MINECART,
+                // The trade-stock + firework family's missing registrations
+                // (the Slice 21g/65 repair the fishing slice exposed): the
+                // fishing rod 346, clock 347, cake 354, cookie 357, melon
+                // 360, ender eye 381, experience bottle 384, written book
+                // 387, pumpkin pie 400, the firework pair 401/402, and the
+                // name tag 421 — all declared but never in the list, so
+                // their lookups answered empty.
+                FISHING_ROD, CLOCK, CAKE, COOKIE, ENDER_EYE, EXPERIENCE_BOTTLE,
+                WRITTEN_BOOK, PUMPKIN_PIE, FIREWORKS, FIREWORK_CHARGE, NAME_TAG,
                 SADDLE, IRON_HORSE_ARMOR, GOLDEN_HORSE_ARMOR, DIAMOND_HORSE_ARMOR,
                 OBSIDIAN, OAK_SAPLING,
                 ENDER_CHEST,

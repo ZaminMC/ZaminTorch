@@ -4682,6 +4682,61 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     }
 
     /**
+     * The bobber spawned (Slice 67 — TrackedEntity line 428:
+     * AddEntityS2CPacket(entity, 90, thrower.getNetworkId()) — the
+     * objectData names the ANGLER so the client draws the fishing line;
+     * a nonzero objectData arms the velocity triple, exactly like the
+     * minecart variants'). Chunk-gated. Any thread.
+     */
+    void sendBobberSpawned(net.zaminmc.torch.server.fishing.FishingSystem.Bobber bobber) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY
+                || chunkTracker == null) {
+            return;
+        }
+        var blockPos = bobber.position().toBlockPosition();
+        if (!chunkTracker.hasChunk(blockPos.chunkPosition().packed())) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(40);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_SPAWN_ENTITY);
+        ByteBufOps.writeVarInt(out, bobber.entityId());
+        out.writeByte(Protocol18.OBJECT_FISHING_BOBBER);
+        out.writeInt((int) Math.floor(bobber.position().x() * 32.0));
+        out.writeInt((int) Math.floor(bobber.position().y() * 32.0));
+        out.writeInt((int) Math.floor(bobber.position().z() * 32.0));
+        out.writeByte(0); // pitch
+        out.writeByte(0); // yaw
+        out.writeInt(bobber.throwerId()); // the angler's id (the line's anchor)
+        // The cast's velocity triple (AddEntityS2CPacket's data > 0 shape).
+        out.writeShort((int) (clampWireVelocity(bobber.velocityX()) * 8000.0));
+        out.writeShort((int) (clampWireVelocity(bobber.velocityY()) * 8000.0));
+        out.writeShort((int) (clampWireVelocity(bobber.velocityZ()) * 8000.0));
+        channel.writeAndFlush(out);
+    }
+
+    /**
+     * The bobber moved (Slice 67 — the per-tick Entity Teleport, the
+     * shard family's own movement). Chunk-gated. Any thread.
+     */
+    void sendBobberMoved(net.zaminmc.torch.server.fishing.FishingSystem.Bobber bobber) {
+        sendEntityTeleport(bobber.entityId(), bobber.position(), true);
+    }
+
+    /** The bobber left (Slice 67 — Destroy). Any thread. */
+    void sendBobberRemoved(net.zaminmc.torch.server.fishing.FishingSystem.Bobber bobber) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(8);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_DESTROY_ENTITIES);
+        ByteBufOps.writeVarInt(out, 1);
+        ByteBufOps.writeVarInt(out, bobber.entityId());
+        channel.writeAndFlush(out);
+    }
+
+    /**
      * A vehicle's tracked state metadata (Slice 66 — the furnace cart's
      * lit byte at the synced slot 16; the command cart's command/last
      * output strings at the synced slots 23-24; the other kinds carry

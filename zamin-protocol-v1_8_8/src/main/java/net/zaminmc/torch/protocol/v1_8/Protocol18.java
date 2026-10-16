@@ -242,6 +242,8 @@ final class Protocol18 {
     /** The vehicles (community entities.json object types). */
     static final int OBJECT_BOAT = 1;
     static final int OBJECT_MINECART = 10;
+    /** The fishing bobber (Slice 67 — TrackedEntity line 428's type 90). */
+    static final int OBJECT_FISHING_BOBBER = 90;
 
     // Entity metadata (protocol 47, community-verified type map): value types
     // 0=byte 1=short 2=int 3=float 4=string 5=slot 6=position 7=rotation.

@@ -1383,6 +1383,32 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                 }
             }
         });
+        // The fishing bobbers (Slice 67): the spawn/move/remove wire.
+        server.addFishingListener(new net.zaminmc.torch.server.fishing.FishingSystem.Listener() {
+            @Override
+            public void onBobberSpawned(
+                    net.zaminmc.torch.server.fishing.FishingSystem.Bobber bobber) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendBobberSpawned(bobber);
+                }
+            }
+
+            @Override
+            public void onBobberMoved(
+                    net.zaminmc.torch.server.fishing.FishingSystem.Bobber bobber) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendBobberMoved(bobber);
+                }
+            }
+
+            @Override
+            public void onBobberRemoved(
+                    net.zaminmc.torch.server.fishing.FishingSystem.Bobber bobber) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendBobberRemoved(bobber);
+                }
+            }
+        });
         LOGGER.info(() -> "1.8.8 protocol listening on " + server.engineConfig().host() + ":" + server.engineConfig().port());
     }
 

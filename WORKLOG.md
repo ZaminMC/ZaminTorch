@@ -7072,3 +7072,47 @@ NEXT (in order): (1) the smaller entity gaps — the fishing bobber (90)
 remaining ledgered gaps (the block command block's MC|AdvCdm arm, the
 areCommandBlocksEnabled config gate, the vehicle damage-source surface
 for the furnace cart's explosive-death drop skip).
+
+## Slice 67 — the fishing system (the bobber + the rod)
+
+The fishing rod's whole law, 1:1.
+
+- **The system** (server/fishing/FishingSystem): the cast (the eye
+  origin pulled back 0.16, the 0.4-power lob scaled 1.5 with the
+  gaussian scatter), the flight (the raytrace grounding + the 1200-tick
+  stuck clock, the entity clip's zero-damage hook with the angler's own
+  5-tick gate, the 0.92 drag, and the water law — the 5-band fraction's
+  buoyancy vy += 0.04*(d10*2-1), THE GRAVITY BEING THE d10=0 CASE), the
+  catchable cycle (the l modifier's rain/no-sky rolls, the 100..900-minus-
+  Lure*100 arming, the 20-80 fish approach, the splash opening THE BITE
+  WINDOW of 10-30 ticks), and the retrieve (the hooked drag at 0.1 +
+  sqrt(d)*0.08, the bite-window loot + the 1-6 XP, the grounded two, the
+  bare zero — the rod wears BY THE RESULT CODE).
+- **The loot law** (getResult): junk 0.1 - luck*0.025 - lure*0.01,
+  treasure 0.05 + luck*0.01 - lure*0.01, the fish otherwise — the three
+  weighted tables verbatim (the junk eleven with the 0.9-damaged boots +
+  rod, the treasure six, the fish 60/25/2/13).
+- **The use arm** (useItem's FISHING_ROD branch): retrieve-or-cast with
+  the reference's random.bow cast sound; the per-tick held-rod gate (the
+  rod un-held or the 32-block leash ends the cast); the enchant reads
+  through the held rod (Lure cuts the arming, Luck shifts the tables).
+- **The wire**: Spawn Object 90 with objectData = THE ANGLER'S id
+  (TrackedEntity line 428 — the client draws the line) + the velocity
+  triple, the per-tick Entity Teleport, the Destroy — through the new
+  FishingSystem.Listener (chunk-gated).
+- **THE SLICE-21G/65 REPAIR**: eleven items were declared but never
+  registered in BuiltinItems (FISHING_ROD, CLOCK, CAKE, COOKIE,
+  ENDER_EYE, EXPERIENCE_BOTTLE, WRITTEN_BOOK, PUMPKIN_PIE, FIREWORKS,
+  FIREWORK_CHARGE, NAME_TAG) — their lookups answered empty; all now
+  register (the fishing loot's class-init crashed on the missing
+  fishing_rod and exposed the whole family).
+- Tests: `FishingSystemTest` (7 — the launch conventions, the cycle +
+  the bite window + the catch + the XP, the bare zero, the hooked drag +
+  the grounded two, the angler gates, the 4000-roll loot distribution,
+  the Lure cut). The fishing + items batches green (16); the fireworks/
+  trade batches green.
+
+NEXT (in order): (1) the giant (53) — the last of the smaller entity
+gaps; (2) the rod's live-engine acceptance (the use path over the wire);
+(3) the sections 27/28 audit (the native API exposure + the plugin
+concurrency contract vs the current code).
