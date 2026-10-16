@@ -84,6 +84,50 @@ public class HopperMinecartEntity extends MinecartEntity {
         return hopper;
     }
 
+    /**
+     * The public cargo view (§27.3's vehicle family — the hopper cart's
+     * five rolling slots, the chest cart's 27-slot pattern over the
+     * engine's own hopper): the write verb runs on the world's
+     * authoritative context like every container write.
+     */
+    @Override
+    public java.util.Optional<Cargo> cargo() {
+        return java.util.Optional.of(new CargoView());
+    }
+
+    /** The live cargo view over the cart's own hopper. */
+    private final class CargoView implements Cargo {
+
+        @Override public int slotCount() {
+            return HopperBlockEntity.SLOT_COUNT;
+        }
+
+        @Override public net.zaminmc.torch.item.ItemStack[] slots() {
+            net.zaminmc.torch.item.ItemStack[] snapshot = hopper.snapshotSlots();
+            net.zaminmc.torch.item.ItemStack[] copy =
+                    new net.zaminmc.torch.item.ItemStack[snapshot.length];
+            for (int i = 0; i < snapshot.length; i++) {
+                copy[i] = snapshot[i] == null
+                        ? net.zaminmc.torch.item.ItemStack.EMPTY : snapshot[i];
+            }
+            return copy;
+        }
+
+        @Override public net.zaminmc.torch.item.ItemStack slot(int index) {
+            if (index < 0 || index >= HopperBlockEntity.SLOT_COUNT) {
+                return net.zaminmc.torch.item.ItemStack.EMPTY;
+            }
+            return slots()[index];
+        }
+
+        @Override public void setSlot(int index, net.zaminmc.torch.item.ItemStack stack) {
+            if (index < 0 || index >= HopperBlockEntity.SLOT_COUNT || stack == null) {
+                return;
+            }
+            hopper.setItem(index, stack);
+        }
+    }
+
     /** @return whether the cart sucks (the activator rail's disable flag). */
     public boolean enabled() {
         return enabled;
