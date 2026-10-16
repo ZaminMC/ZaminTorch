@@ -35,7 +35,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class PluginHostTest {
 
     /** A headless compute facade answering over the caller's thread. */
-    private static class DirectCompute
+    static class DirectCompute
             implements net.zaminmc.torch.concurrent.AsyncCompute {
 
         @Override
@@ -89,7 +89,7 @@ class PluginHostTest {
     }
 
     /** A headless blocking-IO facade answering over the caller's thread. */
-    private static final class DirectIo implements net.zaminmc.torch.concurrent.BlockingIo {
+    static final class DirectIo implements net.zaminmc.torch.concurrent.BlockingIo {
 
         @Override
         public <R> Task<R> submit(String operation, java.util.concurrent.Callable<R> work,

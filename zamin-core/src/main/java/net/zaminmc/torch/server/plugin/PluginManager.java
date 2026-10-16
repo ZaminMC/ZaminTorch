@@ -77,6 +77,18 @@ public final class PluginManager implements PluginHost {
 
     @Override
     public PluginHandle register(PluginDescriptor descriptor, PluginBody body) {
+        return registerWithLoader(descriptor, body, null);
+    }
+
+    /**
+     * The registration the discovery wave rides (Slice 79): the loader's
+     * own close verb attaches to the plugin's UNLOAD — the last lifecycle
+     * state, after the disable sweep (§28.5's classloading law: the
+     * loader stays open across enable/disable cycles, the reload reuses
+     * the classes, and only the unload releases them).
+     */
+    public PluginHandle registerWithLoader(PluginDescriptor descriptor, PluginBody body,
+            Runnable closeLoader) {
         Objects.requireNonNull(descriptor, "descriptor");
         Objects.requireNonNull(body, "body");
         Plugin plugin;
@@ -90,6 +102,9 @@ public final class PluginManager implements PluginHost {
                         + descriptor.id());
             }
             plugin = new Plugin(descriptor, body);
+            if (closeLoader != null) {
+                plugin.unloadVerbs.add(closeLoader);
+            }
             byId.put(descriptor.id(), plugin);
         }
         enableWalk(plugin);
@@ -149,6 +164,18 @@ public final class PluginManager implements PluginHost {
                 disableWalk(own);
             }
             if (own.state() == PluginState.DISABLED) {
+                // The unload's own verbs (Slice 79 — the discovery's loader
+                // close): each isolated, a throwing verb never shields the
+                // rest, and the classloader's best-effort law is the
+                // documented one (§28.5).
+                for (Runnable unloadVerb : own.unloadVerbs) {
+                    try {
+                        unloadVerb.run();
+                    } catch (RuntimeException | Error error) {
+                        LOGGER.log(Level.SEVERE, "A plugin's unload verb threw — "
+                                + "the unload continues", error);
+                    }
+                }
                 own.state.set(PluginState.UNLOADED);
                 byId.remove(own.descriptor().id());
             }
@@ -225,6 +252,7 @@ public final class PluginManager implements PluginHost {
         final PluginDescriptor descriptor;
         final PluginBody body;
         final Tasks tasks = new Tasks();
+        final List<Runnable> unloadVerbs = new ArrayList<>();
         final AtomicReference<PluginState> state = new AtomicReference<>(PluginState.DISCOVERED);
         volatile Scope scope;
 
