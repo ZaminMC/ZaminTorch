@@ -7723,3 +7723,25 @@ rows; (3) the next vanilla wave per the ledger.
 NEXT (in order): (1) the sections 27/28 audit's remaining rows; (2)
 the next vanilla wave per the ledger; (3) the periodic full-suite
 verification (the milestone convention).
+
+## Slice 79b — the block registry's public row (the §27/28 audit's first closed gap)
+
+- **The `byKey(String)` short form** (the public `BlockRegistry`): the
+  canonical form ("minecraft:stone") or the short form ("stone" — the
+  minecraft namespace), the item registry's own VERIFIED shape.
+- **The acceptance test** (`RegistryApiAcceptanceTest.
+  theBlockRegistryCarriesTheFrozenEnumeration`): the frozen
+  enumeration's floor over the PUBLIC surface (the engine's own
+  register chain — 1079 at this slice, the BlockRegistryTest's 780 is
+  its own unit registry's subset), the stone lookups through both
+  forms + the miss arms, the dataOf behavior read, and the off-lane
+  (foreign thread) enumeration + lookup.
+- The ledger row (AUDITED → IMPLEMENTED): the named omissions ("lookup
+  by id, the behavior tables") closed — the lookup form family
+  completed with byKey, the behavior tables' read proven through the
+  public dataOf.
+
+NEXT (in order): (1) the remaining sections 27/28 audit rows (the
+cross-owner request surface — the AUDITED row with the router internal
+today); (2) the next vanilla wave per the ledger; (3) the periodic
+full-suite verification (the milestone convention).

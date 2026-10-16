@@ -139,4 +139,59 @@ class RegistryApiAcceptanceTest {
             engine.shutdown(null);
         }
     }
+
+    @Test
+    void theBlockRegistryCarriesTheFrozenEnumeration() throws Exception {
+        EngineServer engine = boot();
+        Server server = engine; // the public surface under test
+        try {
+            var blocks = server.blocks();
+            // The frozen set's own floor: the engine's registry carries
+            // every registered family — at least the 780 the
+            // BlockRegistryTest's own unit registry counts (the public
+            // engine registry carries more: the redstone/hopper/piston/
+            // beacon/brewing/cauldron families ride their own registers).
+            assertTrue(blocks.all().size() >= 780, "the frozen block set: "
+                    + blocks.all().size());
+
+            // The known rows: the stone by the canonical id, the short
+            // form (the minecraft namespace), and the miss.
+            var stone = blocks.lookup(
+                    Identifier.parse("minecraft:stone")).orElseThrow(
+                    () -> new AssertionError("stone by id"));
+            assertEquals("Stone", stone.displayName());
+            assertTrue(blocks.byKey("stone").isPresent(),
+                    "the short form resolves (the item registry's own shape)");
+            assertEquals(stone, blocks.byKey("stone").orElseThrow(),
+                    "the short form answers the same type");
+            assertTrue(blocks.lookup(Identifier.parse("minecraft:not_a_block")).isEmpty(),
+                    "the unknown id answers empty");
+            assertTrue(blocks.byKey("not_a_block").isEmpty(),
+                    "the short form's miss answers empty");
+
+            // The behavior table rides the same surface (Slice 14b's
+            // dataOf): the stone's hardness row reads through the public
+            // BlockData.
+            var stoneData = blocks.dataOf(stone);
+            assertTrue(stoneData.hardness() > 0.0,
+                    "the stone's own hardness row (the default shape)");
+
+            // The off-lane read (§27.6): the frozen set answers from a
+            // foreign thread.
+            AtomicReference<Integer> foreignCount = new AtomicReference<>();
+            AtomicReference<Boolean> foreignLookup = new AtomicReference<>();
+            Thread foreign = new Thread(() -> {
+                foreignCount.set(blocks.all().size());
+                foreignLookup.set(blocks.byKey("stone").isPresent());
+            });
+            foreign.start();
+            foreign.join();
+            assertEquals(blocks.all().size(), foreignCount.get(),
+                    "the foreign thread reads the same frozen set");
+            assertEquals(Boolean.TRUE, foreignLookup.get(),
+                    "the foreign thread's lookup answers");
+        } finally {
+            engine.shutdown(null);
+        }
+    }
 }
