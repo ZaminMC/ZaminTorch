@@ -1862,7 +1862,8 @@ public final class EngineServer implements Server, EngineBridge {
                                         new net.zaminmc.torch.util.Position(x, y, z));
                                 return spawned != null;
                             }
-                        });
+                        },
+                        this::commandCartHost);
                 // The public §27.3 entity-family views: the five engine
                 // populations captured as stable point-in-time copies (the
                 // managers' all() contract) behind the World interface.
@@ -7332,6 +7333,13 @@ public final class EngineServer implements Server, EngineBridge {
                     true);
             return;
         }
+        if (heldId.equals("minecraft:command_block_minecart")
+                || creativeHeld.map(t -> t.identifier().value().equals("command_block_minecart")).orElse(false)) {
+            // The command-block minecart's place arm (Slice 66 —
+            // MinecartItem over the command variant).
+            spawnCommandBlockCartOnTick(session, clicked, face, creativeHeld);
+            return;
+        }
         if (heldId.equals("minecraft:pumpkin") || heldId.equals("minecraft:lit_pumpkin")
                 || creativeHeld.map(t -> t.identifier().value().equals("pumpkin")
                         || t.identifier().value().equals("lit_pumpkin")).orElse(false)) {
@@ -9790,6 +9798,119 @@ public final class EngineServer implements Server, EngineBridge {
         consumePlaced(session, creativeHeld);
     }
 
+    /**
+     * The command cart's run surface (Slice 66 — CommandExecutor.run
+     * lines 79-100 over the engine's CommandService): the dispatch with
+     * the executor's own sender — op level 2 (canUseCommand line 105),
+     * the name "@", the feedback landing in the cart's last output. The
+     * reference's areCommandBlocksEnabled gate rides the config surface
+     * the engine does not carry yet (ledgered with the config slice).
+     */
+    private net.zaminmc.torch.server.entity.vehicle.CommandBlockMinecartEntity.CommandHost
+            commandCartHost() {
+        return this::runCommandCart;
+    }
+
+    /**
+     * One command-cart execution (public — the engine's own tests and
+     * the future summon paths): the CommandService dispatch with the
+     * executor's own sender (op level 2, the name "@", the feedback
+     * landing in the cart's last output).
+     */
+    public int runCommandCart(
+            net.zaminmc.torch.server.entity.vehicle.CommandBlockMinecartEntity cart,
+            String command) {
+        if (command == null || command.isBlank()) {
+            return 0;
+        }
+        String line = command.startsWith("/") ? command : "/" + command;
+        String name = line.substring(1).split("\\s+")[0];
+        // The engine's own command table (the deferred field read — the
+        // host runs post-boot).
+        var service = commands();
+        boolean known = service.lookup(name) != null;
+        service.dispatch(new net.zaminmc.torch.server.chat.CommandSender() {
+            @Override public String name() {
+                return "@"; // CommandExecutor's own default
+            }
+
+            @Override public void sendMessage(String message) {
+                cart.recordOutput(message);
+            }
+
+            @Override public int opLevel() {
+                return 2; // canUseCommand: permissionLevel <= 2
+            }
+
+            @Override public PlayerSession player() {
+                return null;
+            }
+        }, line);
+        return known ? 1 : 0;
+    }
+
+    /**
+     * The command-block minecart's place arm (Slice 66 — MinecartItem
+     * over the command variant): the same rail gate as the family, the
+     * command host wired at spawn.
+     */
+    private void spawnCommandBlockCartOnTick(PlayerSession session, BlockPosition clicked,
+                                             int face,
+                                             java.util.Optional<BlockType> creativeHeld) {
+        BlockPosition target = offsetByFace(clicked, face);
+        if (target == null) {
+            return;
+        }
+        if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5) {
+            return;
+        }
+        if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE
+                && session.inventory().held().isEmpty()) {
+            return;
+        }
+        if (vehicleManager == null) {
+            return;
+        }
+        BlockPosition railCell = WorldSolidity.isRail(world.getBlock(target).identifier())
+                ? target
+                : WorldSolidity.isRail(world.getBlock(clicked).identifier()) ? clicked : null;
+        if (railCell == null) {
+            return; // minecarts only spawn on rails (the vanilla gate)
+        }
+        Position spawnAt = new Position(railCell.x() + 0.5, railCell.y() + 0.06, railCell.z() + 0.5);
+        if (vehicleManager.spawnCommandBlockMinecart(spawnAt, commandCartHost()) == null) {
+            return; // the §27.7 gate withheld the cart — the item stays
+        }
+        consumePlaced(session, creativeHeld);
+    }
+
+    /**
+     * The command-block minecart's edit (Slice 66 — the MC|AdvCdm
+     * custom payload's minecart arm, ServerPlayNetworkHandler lines
+     * 1036-1051): the op-2 creative player writes the command and the
+     * track flag; an untracked cart clears its last output. The edit
+     * feed ACKs with the reference's advMode.setCommand.success. Safe
+     * from any thread; the write runs on the tick lane.
+     */
+    public void updateCommandBlockMinecart(PlayerSession player, int entityId,
+                                           String command, boolean trackOutput) {
+        Objects.requireNonNull(player, "player");
+        ticker.submit(() -> {
+            if (player.state() != PlayerState.PLAYING || vehicleManager == null) {
+                return;
+            }
+            var vehicle = vehicleManager.byId(entityId);
+            if (!(vehicle instanceof net.zaminmc.torch.server.entity.vehicle.CommandBlockMinecartEntity cart)) {
+                return;
+            }
+            cart.setCommand(command);
+            cart.setTrackOutput(trackOutput);
+            if (!trackOutput) {
+                cart.setLastOutput(null);
+            }
+        });
+    }
+
     /** The held identifier: the creative claim first, else the real stack. */
     private String heldIdentifierOf(PlayerSession session, java.util.Optional<BlockType> creativeHeld) {
         if (creativeHeld.isPresent()) {
@@ -9964,6 +10085,16 @@ public final class EngineServer implements Server, EngineBridge {
                 // seat.
                 if (vehicle instanceof net.zaminmc.torch.server.entity.vehicle.HopperMinecartEntity hopperCart) {
                     openHopperMinecartInventoryOnTick(player, hopperCart);
+                    return;
+                }
+                // The command cart's interact (Slice 66 —
+                // CommandBlockMinecartEntity.interact lines 107-110 over
+                // CommandExecutor.openScreen lines 160-174): the creative
+                // GUI opens client-side (the server sends nothing — the
+                // synced slots 23/24 already carry the data); the
+                // non-creative click answers false. Either way the cart
+                // never takes a seat.
+                if (vehicle instanceof net.zaminmc.torch.server.entity.vehicle.CommandBlockMinecartEntity) {
                     return;
                 }
                 // The furnace minecart's interact (Slice 66 —

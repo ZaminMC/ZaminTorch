@@ -501,6 +501,10 @@ public final class BuiltinItems {
     // Slice 66): the 5-slot rolling pickup's place form.
     public static final EngineItemType HOPPER_MINECART = new EngineItemType(
             Identifier.parse("minecraft:hopper_minecart"), "Minecart with Hopper", 1);
+    // The command-block minecart item (Item.java line 720: register(422)
+    // — Slice 66): the rolling executor's place form.
+    public static final EngineItemType COMMAND_BLOCK_MINECART = new EngineItemType(
+            Identifier.parse("minecraft:command_block_minecart"), "Minecart with Command Block", 1);
 
     // The mount slice (community items.json: saddle 329, iron/gold/diamond
     // horse armor 417/418/419, lead 420, carrot on a stick 398, emerald 388).
@@ -1068,8 +1072,9 @@ public final class BuiltinItems {
                 // registrations from part one: the furnace 343 and TNT 407
                 // rows were declared but never registered, so their lookups
                 // answered empty and the creative claim path could not
-                // resolve the held stack; the hopper 408 rides along).
-                FURNACE_MINECART, TNT_MINECART, HOPPER_MINECART,
+                // resolve the held stack; the hopper 408 and the command
+                // cart's 422 ride along).
+                FURNACE_MINECART, TNT_MINECART, HOPPER_MINECART, COMMAND_BLOCK_MINECART,
                 SADDLE, IRON_HORSE_ARMOR, GOLDEN_HORSE_ARMOR, DIAMOND_HORSE_ARMOR,
                 OBSIDIAN, OAK_SAPLING,
                 ENDER_CHEST,

@@ -57,6 +57,14 @@ public final class ChatService {
         this.eventBus = eventBus;
     }
 
+    /**
+     * Delivers a system line to one player (the advMode ACKs and the
+     * family's own feedback). Any thread; the publisher's own contract.
+     */
+    public void sendSystem(PlayerSession recipient, String content) {
+        deliverSystem(recipient, content);
+    }
+
     private void handleOnTick(PlayerSession sender, String raw) {
         String message = sanitize(raw);
         if (message.isEmpty()) {

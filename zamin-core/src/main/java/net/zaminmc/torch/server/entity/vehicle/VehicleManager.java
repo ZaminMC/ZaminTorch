@@ -239,6 +239,20 @@ public final class VehicleManager {
     }
 
     /**
+     * The command-block minecart (Slice 66 — the rolling executor): the
+     * command host is the engine's command service with the executor's
+     * own sender shape (op level 2, the name "@", the output landing in
+     * the cart's last output).
+     */
+    public VehicleEntity spawnCommandBlockMinecart(Position at,
+            CommandBlockMinecartEntity.CommandHost host) {
+        if (!fireSpawnGate(VehicleEntity.Kind.COMMAND_BLOCK_MINECART.apiKind, at)) {
+            return null;
+        }
+        return spawn(new CommandBlockMinecartEntity(nextEntityId++, at, random, host));
+    }
+
+    /**
      * The §27.7 pre-commit gate over every spawn family member: the
      * boat/minecart item placements and the structure-seeded chest
      * carts. A null bus (the unwired window) admits everything.
@@ -273,19 +287,31 @@ public final class VehicleManager {
                                   float health,
                                   net.zaminmc.torch.item.ItemStack[] cargo,
                                   boolean hopperEnabled, int hopperCooldown,
-                                  String spawnerType, int spawnerDelay) {
+                                  String spawnerType, int spawnerDelay,
+                                  String command, int commandSuccessCount,
+                                  boolean commandTrackOutput, String commandLastOutput) {
 
         /** The pre-Slice-66 shape (the chest cart's own). */
         public VehicleSnapshot(String kind, double x, double y, double z, float yaw,
                                float health, net.zaminmc.torch.item.ItemStack[] cargo) {
-            this(kind, x, y, z, yaw, health, cargo, true, -1, null, -1);
+            this(kind, x, y, z, yaw, health, cargo, true, -1, null, -1, null, 0, true, null);
         }
 
         /** The part-three shape (the hopper cart's own). */
         public VehicleSnapshot(String kind, double x, double y, double z, float yaw,
                                float health, net.zaminmc.torch.item.ItemStack[] cargo,
                                boolean hopperEnabled, int hopperCooldown) {
-            this(kind, x, y, z, yaw, health, cargo, hopperEnabled, hopperCooldown, null, -1);
+            this(kind, x, y, z, yaw, health, cargo, hopperEnabled, hopperCooldown, null, -1,
+                    null, 0, true, null);
+        }
+
+        /** The part-four shape (the spawner cart's own). */
+        public VehicleSnapshot(String kind, double x, double y, double z, float yaw,
+                               float health, net.zaminmc.torch.item.ItemStack[] cargo,
+                               boolean hopperEnabled, int hopperCooldown,
+                               String spawnerType, int spawnerDelay) {
+            this(kind, x, y, z, yaw, health, cargo, hopperEnabled, hopperCooldown,
+                    spawnerType, spawnerDelay, null, 0, true, null);
         }
     }
 
@@ -312,7 +338,15 @@ public final class VehicleManager {
                     vehicle instanceof SpawnerMinecartEntity spawnerCart
                             ? spawnerCart.type().name() : null,
                     vehicle instanceof SpawnerMinecartEntity spawnerCart
-                            ? spawnerCart.delay() : -1));
+                            ? spawnerCart.delay() : -1,
+                    vehicle instanceof CommandBlockMinecartEntity commandCart
+                            ? commandCart.command() : null,
+                    vehicle instanceof CommandBlockMinecartEntity commandCart
+                            ? commandCart.successCount() : 0,
+                    !(vehicle instanceof CommandBlockMinecartEntity commandCart)
+                            || commandCart.trackOutput(),
+                    vehicle instanceof CommandBlockMinecartEntity commandCart
+                            ? commandCart.lastOutput() : null));
         }
         return saved;
     }
@@ -334,10 +368,17 @@ public final class VehicleManager {
         return restoreAll(saved, hopperHost, null);
     }
 
-    /** The full restore (both variant hosts armed when given). */
     public boolean restoreAll(List<VehicleSnapshot> saved,
             java.util.function.Supplier<HopperMinecartEntity.TransferHost> hopperHost,
             java.util.function.Supplier<SpawnerMinecartEntity.SpawnHost> spawnerHost) {
+        return restoreAll(saved, hopperHost, spawnerHost, null);
+    }
+
+    /** The full restore (every variant host armed when given). */
+    public boolean restoreAll(List<VehicleSnapshot> saved,
+            java.util.function.Supplier<HopperMinecartEntity.TransferHost> hopperHost,
+            java.util.function.Supplier<SpawnerMinecartEntity.SpawnHost> spawnerHost,
+            java.util.function.Supplier<CommandBlockMinecartEntity.CommandHost> commandHost) {
         Objects.requireNonNull(saved, "saved");
         boolean any = false;
         for (VehicleSnapshot snapshot : saved) {
@@ -386,6 +427,25 @@ public final class VehicleManager {
                         }
                         if (snapshot.spawnerDelay() >= 0) {
                             spawnerCart.setDelay(snapshot.spawnerDelay());
+                        }
+                    }
+                    restored = cart;
+                }
+                case COMMAND_BLOCK_MINECART -> {
+                    if (commandHost == null) {
+                        continue; // no host wired: the cart cannot run
+                    }
+                    VehicleEntity cart = spawnCommandBlockMinecart(at, commandHost.get());
+                    if (cart instanceof CommandBlockMinecartEntity commandCart) {
+                        // readNbt's rows (executor.readNbt lines 53-74):
+                        // Command, SuccessCount, TrackOutput, LastOutput.
+                        if (snapshot.command() != null) {
+                            commandCart.setCommand(snapshot.command());
+                        }
+                        commandCart.setSuccessCount(snapshot.commandSuccessCount());
+                        commandCart.setTrackOutput(snapshot.commandTrackOutput());
+                        if (snapshot.commandLastOutput() != null) {
+                            commandCart.setLastOutput(snapshot.commandLastOutput());
                         }
                     }
                     restored = cart;
@@ -468,6 +528,20 @@ public final class VehicleManager {
                         vehicle.position().y() + 0.4,
                         vehicle.position().z()) > 0);
             }
+            // The command cart's own consult (Slice 66 —
+            // CommandBlockMinecartEntity.onActivatorRail lines 99-104): a
+            // powered activator rail fires the command, at most once every
+            // 4 ticks.
+            String commandBefore = vehicle instanceof CommandBlockMinecartEntity commandCart
+                    ? commandCart.command() : null;
+            String outputBefore = vehicle instanceof CommandBlockMinecartEntity commandCart
+                    ? commandCart.lastOutput() : null;
+            if (vehicle instanceof CommandBlockMinecartEntity commandCart) {
+                commandCart.onActivatorRail(world.railPowerAt(
+                        vehicle.position().x(),
+                        vehicle.position().y() + 0.4,
+                        vehicle.position().z()) > 0);
+            }
             vehicle.tick(world);
             if (!wasPrimed && vehicle instanceof TntMinecartEntity tnt && tnt.primed()) {
                 for (Listener listener : listeners) {
@@ -495,6 +569,20 @@ public final class VehicleManager {
                 if (spawnerCart.consumeSpinResets() > 0) {
                     for (Listener listener : listeners) {
                         listener.onSpawnerCartSpinReset(spawnerCart);
+                    }
+                }
+            }
+            // The command cart's synced strings (Slice 66 — the slots 23
+            // and 24): a changed command or last output re-sends the
+            // metadata (the client's edit GUI reads them).
+            if (vehicle instanceof CommandBlockMinecartEntity commandCart) {
+                boolean commandChanged = !java.util.Objects.equals(commandBefore,
+                        commandCart.command());
+                boolean outputChanged = !java.util.Objects.equals(outputBefore,
+                        commandCart.lastOutput());
+                if (commandChanged || outputChanged) {
+                    for (Listener listener : listeners) {
+                        listener.onVehicleStateChanged(vehicle);
                     }
                 }
             }

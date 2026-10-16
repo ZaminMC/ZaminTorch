@@ -102,6 +102,17 @@ public final class VehicleDataStore {
                         writeString(out, vehicle.spawnerType() == null
                                 ? "" : vehicle.spawnerType());
                         writeVarInt(out, vehicle.spawnerDelay());
+                    } else if (vehicle.kind().equals(
+                            VehicleEntity.Kind.COMMAND_BLOCK_MINECART.name())) {
+                        // The command executor's own rows
+                        // (CommandExecutor.writeNbt lines 37-51): Command,
+                        // SuccessCount, TrackOutput, LastOutput.
+                        writeString(out, vehicle.command() == null
+                                ? "" : vehicle.command());
+                        writeVarInt(out, vehicle.commandSuccessCount());
+                        out.writeByte(vehicle.commandTrackOutput() ? 1 : 0);
+                        writeString(out, vehicle.commandLastOutput() == null
+                                ? "" : vehicle.commandLastOutput());
                     }
                 }
             }
@@ -159,6 +170,10 @@ public final class VehicleDataStore {
                 int hopperCooldown = -1;
                 String spawnerType = null;
                 int spawnerDelay = -1;
+                String command = null;
+                int commandSuccessCount = 0;
+                boolean commandTrackOutput = true;
+                String commandLastOutput = null;
                 if (version >= FORMAT_VERSION) {
                     if (kind.equals(VehicleEntity.Kind.HOPPER_MINECART.name())) {
                         hopperEnabled = in.readUnsignedByte() != 0;
@@ -170,11 +185,21 @@ public final class VehicleDataStore {
                             spawnerType = null;
                         }
                         spawnerDelay = readVarInt(in);
+                    } else if (kind.equals(
+                            VehicleEntity.Kind.COMMAND_BLOCK_MINECART.name())) {
+                        command = readString(in);
+                        commandSuccessCount = readVarInt(in);
+                        commandTrackOutput = in.readUnsignedByte() != 0;
+                        commandLastOutput = readString(in);
+                        if (commandLastOutput.isEmpty()) {
+                            commandLastOutput = null;
+                        }
                     }
                 }
                 loaded.add(new VehicleManager.VehicleSnapshot(
                         kind, x, y, z, yaw, health, cargo, hopperEnabled, hopperCooldown,
-                        spawnerType, spawnerDelay));
+                        spawnerType, spawnerDelay,
+                        command, commandSuccessCount, commandTrackOutput, commandLastOutput));
             }
             return loaded;
         } catch (IOException | RuntimeException corrupt) {
