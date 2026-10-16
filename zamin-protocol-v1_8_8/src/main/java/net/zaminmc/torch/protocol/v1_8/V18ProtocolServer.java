@@ -1213,7 +1213,49 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                     connection.sendProjectileVelocity(projectile);
                 }
             }
+
+            /** The bottle's splash event (Slice 65 — the 2002 Effect). */
+            @Override
+            public void onWorldEventAt(net.zaminmc.torch.util.Position position, int eventId) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendWorldEvent(position, eventId);
+                }
+            }
         });
+        // Firework rockets (Slice 65 — FireworksEntity's own tracker shape:
+        // the Spawn Object 76 + the slot-8 item, the 10-tick velocity
+        // re-syncs, the burst's Entity Status 17, the Destroy).
+        if (engine.fireworks() != null) {
+            engine.fireworks().addListener(new net.zaminmc.torch.server.fireworks.FireworksSystem.Listener() {
+                @Override
+                public void onFireworksLaunched(net.zaminmc.torch.server.fireworks.FireworksEntity rocket) {
+                    for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                        connection.sendFireworksLaunched(rocket);
+                    }
+                }
+
+                @Override
+                public void onFireworksVelocity(net.zaminmc.torch.server.fireworks.FireworksEntity rocket) {
+                    for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                        connection.sendFireworksVelocity(rocket);
+                    }
+                }
+
+                @Override
+                public void onFireworksBurst(net.zaminmc.torch.server.fireworks.FireworksEntity rocket) {
+                    for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                        connection.sendFireworksBurst(rocket);
+                    }
+                }
+
+                @Override
+                public void onFireworksRemoved(net.zaminmc.torch.server.fireworks.FireworksEntity rocket) {
+                    for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                        connection.sendFireworksRemoved(rocket.entityId());
+                    }
+                }
+            });
+        }
         // Vehicle sync: spawn (Spawn Object), per-tick movement (Entity
         // Teleport + the rider's seat re-anchor), mount/dismount (Attach
         // Entity + the riding flags), hurt (Entity Status) and break.

@@ -457,6 +457,10 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:melon"), 360),
             Map.entry(Identifier.parse("minecraft:ender_eye"), 381),
             Map.entry(Identifier.parse("minecraft:experience_bottle"), 384),
+            // The firework family (Slice 65 — Item.java lines 705-706:
+            // the rocket 401, the star 402).
+            Map.entry(Identifier.parse("minecraft:fireworks"), 401),
+            Map.entry(Identifier.parse("minecraft:firework_charge"), 402),
             Map.entry(Identifier.parse("minecraft:written_book"), 387),
             Map.entry(Identifier.parse("minecraft:pumpkin_pie"), 400),
             Map.entry(Identifier.parse("minecraft:name_tag"), 421),

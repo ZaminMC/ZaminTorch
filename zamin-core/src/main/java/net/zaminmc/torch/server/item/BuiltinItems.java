@@ -595,6 +595,16 @@ public final class BuiltinItems {
             Identifier.parse("minecraft:ender_eye"), "Eye of Ender", 64);
     public static final EngineItemType EXPERIENCE_BOTTLE = new EngineItemType(
             Identifier.parse("minecraft:experience_bottle"), "Bottle o' Enchanting", 64);
+    /** The firework rocket (Slice 65 — Item.java line 705: register(401,
+     * "fireworks")): the use-on-block launcher whose burst reads the
+     * synced item stack. */
+    public static final EngineItemType FIREWORKS = new EngineItemType(
+            Identifier.parse("minecraft:fireworks"), "Firework Rocket", 64);
+    /** The firework star (Slice 65 — Item.java line 706: register(402,
+     * "fireworks_charge")): the crafting ingredient whose explosion
+     * compound rides the item-NBT slice. */
+    public static final EngineItemType FIREWORK_CHARGE = new EngineItemType(
+            Identifier.parse("minecraft:firework_charge"), "Firework Star", 64);
     public static final EngineItemType WRITTEN_BOOK = new EngineItemType(
             Identifier.parse("minecraft:written_book"), "Written Book", 16);
     public static final EngineItemType PUMPKIN_PIE = new EngineItemType(

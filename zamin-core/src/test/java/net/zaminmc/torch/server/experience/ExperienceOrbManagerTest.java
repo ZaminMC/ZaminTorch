@@ -167,4 +167,56 @@ class ExperienceOrbManagerTest {
         assertEquals("despawned", reasons.get(reasons.size() - 1));
         assertTrue(orb.amount() > 0);
     }
+
+    @Test
+    void theRoundSizeLadderPinsTheReferenceTiers() {
+        // ExperienceOrbEntity.roundSize lines 210-227: the biggest tier a
+        // value still fits. The tiers are the historical orb sizes.
+        assertEquals(2477, ExperienceOrbManager.roundSize(3000));
+        assertEquals(2477, ExperienceOrbManager.roundSize(2477));
+        assertEquals(1237, ExperienceOrbManager.roundSize(2476));
+        assertEquals(617, ExperienceOrbManager.roundSize(1236));
+        assertEquals(307, ExperienceOrbManager.roundSize(616));
+        assertEquals(149, ExperienceOrbManager.roundSize(306));
+        assertEquals(73, ExperienceOrbManager.roundSize(148));
+        assertEquals(37, ExperienceOrbManager.roundSize(72));
+        assertEquals(17, ExperienceOrbManager.roundSize(36));
+        assertEquals(7, ExperienceOrbManager.roundSize(16));
+        assertEquals(7, ExperienceOrbManager.roundSize(7));
+        assertEquals(3, ExperienceOrbManager.roundSize(6));
+        assertEquals(3, ExperienceOrbManager.roundSize(3));
+        assertEquals(1, ExperienceOrbManager.roundSize(2));
+        assertEquals(1, ExperienceOrbManager.roundSize(1));
+    }
+
+    @Test
+    void theSplitBurstWalksTheLadderExactly() {
+        // The reference's burst walk (the bottle o' enchanting's
+        // onCollision lines 35-41): while points remain, the biggest tier
+        // leaves as one orb — 9 = 7+1+1, 1000 = 617+307+73+3, 13 = 7+3+3.
+        ExperienceOrbManager manager = new ExperienceOrbManager(
+                new FlatGround(), new Random(52), 900);
+        List<ExperienceOrbEntity> small = manager.spawnSplitBurst(
+                new Position(0.5, 64.4, 0.5), 9);
+        assertEquals(3, small.size());
+        assertEquals(7, small.get(0).amount());
+        assertEquals(1, small.get(1).amount());
+        assertEquals(1, small.get(2).amount());
+        assertEquals(3, manager.size(), "the orbs live in the registry");
+
+        List<ExperienceOrbEntity> big = manager.spawnSplitBurst(
+                new Position(0.5, 64.4, 0.5), 1000);
+        assertEquals(4, big.size());
+        assertEquals(617, big.get(0).amount());
+        assertEquals(307, big.get(1).amount());
+        assertEquals(73, big.get(2).amount());
+        assertEquals(3, big.get(3).amount());
+
+        List<ExperienceOrbEntity> bottleBand = manager.spawnSplitBurst(
+                new Position(0.5, 64.4, 0.5), 13);
+        assertEquals(3, bottleBand.size());
+        assertEquals(7, bottleBand.get(0).amount());
+        assertEquals(3, bottleBand.get(1).amount());
+        assertEquals(3, bottleBand.get(2).amount());
+    }
 }

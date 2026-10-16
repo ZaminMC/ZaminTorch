@@ -33,7 +33,11 @@ public enum ProjectileKind {
     ENDER_PEARL("minecraft:ender_pearl"),
 
     /** The wither boss's skull (66): the charged blue variant rides the same kind. */
-    WITHER_SKULL("minecraft:wither_skull");
+    WITHER_SKULL("minecraft:wither_skull"),
+
+    /** The thrown bottle o' enchanting (75): bursts into experience orbs
+     * where it lands — no damage, ever. */
+    EXPERIENCE_BOTTLE("minecraft:experience_bottle");
 
     private final Identifier identifier;
 

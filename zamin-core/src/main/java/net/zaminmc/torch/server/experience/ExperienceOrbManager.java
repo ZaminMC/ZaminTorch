@@ -90,6 +90,63 @@ public final class ExperienceOrbManager {
         return spawnBurst(position, amount, 1).get(0);
     }
 
+    /**
+     * The reference's own burst walk (Slice 65 — the bottle o' enchanting's
+     * onCollision lines 35-41, ExperienceOrbEntity.roundSize): the total
+     * splits through the roundSize ladder — each orb takes the biggest
+     * tier the remainder still fits, until nothing is left. The historical
+     * tier table: 2477, 1237, 617, 307, 149, 73, 37, 17, 7, 3, 1.
+     */
+    public List<ExperienceOrbEntity> spawnSplitBurst(Position position, int total) {
+        List<ExperienceOrbEntity> spawned = new ArrayList<>();
+        int remaining = total;
+        while (remaining > 0) {
+            int share = roundSize(remaining);
+            remaining -= share;
+            ExperienceOrbEntity orb = new ExperienceOrbEntity(nextEntityId++,
+                    new Position(position.x(), position.y() + 0.2, position.z()), share,
+                    ExperienceOrbEntity.PICKUP_DELAY_TICKS);
+            orb.setVelocity((random.nextDouble() - 0.5) * 0.2, 0.2,
+                    (random.nextDouble() - 0.5) * 0.2);
+            orbs.add(orb);
+            spawned.add(orb);
+            for (Listener listener : listeners) {
+                listener.onOrbSpawned(orb);
+            }
+        }
+        return spawned;
+    }
+
+    /**
+     * The reference's orb tier ladder (ExperienceOrbEntity.roundSize lines
+     * 210-227): the biggest tier a value still fits. The tiers are the
+     * historical XP-orb sizes — the client renders each tier with its own
+     * texture, and every burst in vanilla (kills, ores, the bottle, the
+     * dragon's batches) walks this ladder.
+     */
+    public static int roundSize(int size) {
+        if (size >= 2477) {
+            return 2477;
+        } else if (size >= 1237) {
+            return 1237;
+        } else if (size >= 617) {
+            return 617;
+        } else if (size >= 307) {
+            return 307;
+        } else if (size >= 149) {
+            return 149;
+        } else if (size >= 73) {
+            return 73;
+        } else if (size >= 37) {
+            return 37;
+        } else if (size >= 17) {
+            return 17;
+        } else if (size >= 7) {
+            return 7;
+        }
+        return size >= 3 ? 3 : 1;
+    }
+
     /** @return an unmodifiable view of live orbs (diagnostics/tests). */
     public List<ExperienceOrbEntity> all() {
         return List.copyOf(orbs);
