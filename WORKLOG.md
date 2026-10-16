@@ -7404,3 +7404,49 @@ skip); (3) the /summon NBT arm.
 NEXT (in order): (1) the vehicle damage-source surface (the furnace cart's
 explosive-death drop skip); (2) the /summon NBT arm; (3) the plugin host's
 live-engine acceptance; (4) the next vanilla wave per the ledger.
+
+## Slice 74 — the vehicle damage-source surface + the explosion's vehicle wounds
+
+- **The source surface (the ledgered follow-up)**: `VehicleEntity.DamageSource`
+  (MELEE/EXPLOSIVE/FIRE — the reference's isExplosive/isFire consults) rides
+  `hurt(amount, source)`; the OLD 2-arg shape delegates to MELEE. THE DEATH
+  FACTS FREEZE: the reference's dropItems reads the live velocity inside
+  damage(); the engine's drop walk runs on the NEXT tick's break sweep —
+  `lastDamageSource` + `deathSpeedSquared` freeze at the fatal hit so a cart
+  halted between the hit and the sweep still answers the >= 0.01 gate with
+  its death-time speed.
+- **The death law (the variant carts' dropItems gates)**: the furnace cart's
+  FURNACE block and the TNT cart's TNT block both SKIP an explosive death
+  (dropItems' own !isExplosive() gates — an exploded cart drops only the cart
+  item); the TNT cart's fire/explosive/fast death DETONATES —
+  `detonateAtDeath()` with the three-gate refusal INSIDE the method (the
+  reference's dropItems wraps the explode call in exactly this gate), the
+  power 4.0 + rand * 1.5 * min(sqrt(frozen speed), 5). The hopper/chest
+  carts' drops stay ungated (the reference's own shape).
+- **The explosion's vehicle wound walk**: `detonateAtIn` now walks the carts
+  after the players and the mobs — the same distance falloff
+  (1 - dist/(power*2)) * maxDamage with the EXPLOSIVE source, the knockback
+  impulse (velocity += delta * 1.6-scaled), the overworld gate. A blast
+  beside carts now kills them (the pre-74 engine: a minecart next to a TNT
+  blast took NOTHING).
+- **The chain reaction**: one TNT cart's blast kills its neighbor with the
+  EXPLOSIVE source — the neighbor's break sweep drops no TNT block and
+  detonates on the spot (the live test's stone block beside the cart is the
+  observable).
+- **THE BLAST SINK FACTORY (a pre-74 gap the slice closed)**: only the
+  item-use spawn path wired the TNT cart's blast sink — a RESTORED cart
+  burst nothing after a restart (its fuse detonation and its death
+  detonation both hit the no-op default). `VehicleManager."
+  "setBlastSinkFactory` arms EVERY spawn (the item-use path, the restore,
+  the test spawns) with the engine's detonation walk.
+- Tests: `VehicleDamageSourceTest` (4 — the source lands + the death-facts
+  freeze through the i-frame burn-down; the death detonation's gate + power
+  bands including the exactly-4.0 rest power; the live-engine blast killing
+  both near carts with the source + both block-skip laws + the chain's
+  destroyed stone + the far control surviving; the melee contrast dropping
+  the furnace block). The vehicle + explosion batches 46 green.
+
+NEXT (in order): (1) the /summon NBT arm; (2) the plugin host's
+live-engine acceptance; (3) the next vanilla wave per the ledger (the
+vehicle fire/lava walk, the projectile-hits-vehicle family, the
+burning-arrow detonation).
