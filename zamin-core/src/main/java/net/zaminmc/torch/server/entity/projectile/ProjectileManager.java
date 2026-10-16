@@ -83,6 +83,16 @@ public final class ProjectileManager {
 
         /** The player whose bounding box contains the point, or null. */
         PlayerSession playerAt(Position point);
+
+        /**
+         * The vehicle whose box contains the point, or null (Slice 77 —
+         * the reference's entity scan over the minecart family: the
+         * arrow's onEntityHit lands on the cart's hull). Default null so
+         * stub resolvers keep their semantics.
+         */
+        default net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicleAt(Position point) {
+            return null;
+        }
     }
 
     /**
@@ -182,6 +192,18 @@ public final class ProjectileManager {
 
         /** The egg's chick roll succeeded: spawn a chicken here. */
         void chickenHatch(Position position);
+
+        /**
+         * A vehicle took a projectile hit (Slice 77 — the reference's
+         * entity scan over the minecart family): the damage with the
+         * knockback impulse along the projectile's travel. @return the
+         * landed verdict (the arrow stops either way).
+         */
+        default boolean vehicleHit(ProjectileEntity projectile,
+                net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle,
+                float damage, double kbYaw) {
+            return false;
+        }
 
         /**
          * The wither skull's kill heal (Slice 59 — WitherSkullEntity.onHit
@@ -708,6 +730,18 @@ public final class ProjectileManager {
                 return true;
             }
         }
+        // --- vehicle hit (Slice 77) --------------------------------------------
+        // The reference's entity scan includes the minecarts: the arrow's
+        // onEntityHit lands on the cart's hull (the box containment). No
+        // thrower immunity — the reference's scan exempts the THROWER
+        // alone, never the vehicle it rides.
+        net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle =
+                hits.vehicleAt(point);
+        if (vehicle != null && !vehicle.dead()) {
+            hitVehicle(projectile, vehicle);
+            remove(projectile, "hit");
+            return true;
+        }
         // --- crystal hit (Slice 62) -------------------------------------------
         // EnderCrystalEntity.takeDamage lines 67-83: any damage source pops
         // the crystal — the arrow's pop is the canonical one. The consult
@@ -793,6 +827,28 @@ public final class ProjectileManager {
             return true;
         }
         return false;
+    }
+
+    /**
+     * The vehicle hit (Slice 77 — the reference's entity scan over the
+     * minecart family): a BURNING arrow detonates a TNT cart on the spot
+     * (TntMinecartEntity.takeDamage lines 63-73 — the arm runs BEFORE the
+     * damage, the ARROW's own speed squared feeding the power roll), and
+     * every other hit lands the projectile's damage with the knockback
+     * impulse along the travel.
+     */
+    private void hitVehicle(ProjectileEntity projectile,
+            net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle) {
+        if (projectile.burning() && vehicle
+                instanceof net.zaminmc.torch.server.entity.vehicle.TntMinecartEntity tnt) {
+            double arrowSpeedSquared = projectile.velocityX() * projectile.velocityX()
+                    + projectile.velocityZ() * projectile.velocityZ();
+            tnt.detonateByArrow(arrowSpeedSquared);
+            return; // the cart is annihilated — no damage walk follows
+        }
+        float damage = damageOf(projectile);
+        double kbYaw = Math.atan2(-projectile.velocityX(), projectile.velocityZ());
+        combat.vehicleHit(projectile, vehicle, damage, kbYaw);
     }
 
     private void hitMob(ProjectileEntity projectile, MobEntity mob) {
