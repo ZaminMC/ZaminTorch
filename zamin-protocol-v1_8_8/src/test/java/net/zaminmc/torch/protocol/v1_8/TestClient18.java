@@ -30,6 +30,11 @@ final class TestClient18 implements AutoCloseable {
         this.out = new DataOutputStream(socket.getOutputStream());
     }
 
+    /** Sets the read timeout (the silent-wire assertions' own grace window). */
+    void setReadTimeout(int millis) throws IOException {
+        socket.setSoTimeout(millis);
+    }
+
     // ---- framing ------------------------------------------------------------
 
     private void writeVarInt(DataOutputStream out, int value) throws IOException {

@@ -1999,6 +1999,31 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         return session;
     }
 
+    /** Whether the connection reached the PLAY state (the composed-send gate). */
+    boolean inPlayState() {
+        return state == WireState.PLAY;
+    }
+
+    /**
+     * One composed frame from the §27.3 construction surface: the varint
+     * id + the payload, written through the shared pipeline — the
+     * outbound interception walk sees it like any engine frame, then the
+     * length encoder frames it. Any thread; never blocks.
+     *
+     * @return whether the write happened (the channel live and in PLAY)
+     */
+    boolean sendComposedFrame(int packetId, byte[] payload) {
+        Channel wire = adapter.channelOf(this);
+        if (wire == null || !wire.isActive() || state != WireState.PLAY) {
+            return false;
+        }
+        ByteBuf out = Unpooled.buffer(payload.length + 8);
+        ByteBufOps.writeVarInt(out, packetId);
+        out.writeBytes(payload);
+        wire.writeAndFlush(out);
+        return true;
+    }
+
     // ------------------------------------------------------------------ outgoing sync
 
     /**
