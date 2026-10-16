@@ -34,6 +34,13 @@ import java.util.Objects;
  *                        activation changes nothing until configured; the
  *                        boundary protocols and their tests carry the
  *                        multi-region semantics.
+ * @param enableCommandBlocks the {@code enable-command-block} property
+ *                        (DedicatedServer line 378: {@code getBoolean(
+ *                        "enable-command-block", false)}): the MC|AdvCdm
+ *                        edit gate — command-block edits answer
+ *                        {@code advMode.notEnabled} while off (the
+ *                        execution itself is ungated, the reference's own
+ *                        shape — a block that exists runs).
  */
 public record EngineConfig(
         String host,
@@ -48,7 +55,8 @@ public record EngineConfig(
         boolean pvp,
         String levelType,
         boolean whiteList,
-        int regionSizeChunks
+        int regionSizeChunks,
+        boolean enableCommandBlocks
 ) {
 
     /**
@@ -62,7 +70,8 @@ public record EngineConfig(
     public EngineConfig(String host, int port, String worldName, String motd,
                         int maxPlayers, int viewDistance, int tickRateHz, String dataDir) {
         this(host, port, worldName, motd, maxPlayers, viewDistance, tickRateHz,
-                dataDir, GameMode.SURVIVAL, true, "flat", false, WHOLE_WORLD_REGION_SIZE);
+                dataDir, GameMode.SURVIVAL, true, "flat", false, WHOLE_WORLD_REGION_SIZE,
+                false);
     }
 
     /** Compatibility constructor for callers that set only the mode. */
@@ -70,7 +79,19 @@ public record EngineConfig(
                         int maxPlayers, int viewDistance, int tickRateHz, String dataDir,
                         GameMode gamemode) {
         this(host, port, worldName, motd, maxPlayers, viewDistance, tickRateHz,
-                dataDir, gamemode, true, "flat", false, WHOLE_WORLD_REGION_SIZE);
+                dataDir, gamemode, true, "flat", false, WHOLE_WORLD_REGION_SIZE, false);
+    }
+
+    /**
+     * Compatibility constructor for the pre-Slice-72 shape (the command
+     * block gate defaults OFF, the vanilla dedicated default).
+     */
+    public EngineConfig(String host, int port, String worldName, String motd,
+                        int maxPlayers, int viewDistance, int tickRateHz, String dataDir,
+                        GameMode gamemode, boolean pvp, String levelType, boolean whiteList,
+                        int regionSizeChunks) {
+        this(host, port, worldName, motd, maxPlayers, viewDistance, tickRateHz,
+                dataDir, gamemode, pvp, levelType, whiteList, regionSizeChunks, false);
     }
 
     public EngineConfig {
@@ -107,7 +128,7 @@ public record EngineConfig(
     public static EngineConfig defaults() {
         return new EngineConfig("0.0.0.0", 25565, "world",
                 "A ZaminTorch Server", 20, 4, 20, ".", GameMode.SURVIVAL, true,
-                "normal", false, WHOLE_WORLD_REGION_SIZE);
+                "normal", false, WHOLE_WORLD_REGION_SIZE, false);
     }
 
     /** The world folder (the historical {@code world/} of the Paper layout). */

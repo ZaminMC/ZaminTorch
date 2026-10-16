@@ -444,6 +444,9 @@ public final class EngineServer implements Server, EngineBridge {
     private volatile DropService witherSweepDrops;
     /** The skull store (Slice 60 — the tiles + the wither's summon walk). */
     private volatile net.zaminmc.torch.server.skull.SkullManager skulls;
+
+    /** The command-block tiles (Slice 72 — the executors + the redstone run). */
+    private volatile net.zaminmc.torch.server.commandblock.CommandBlockManager commandBlocks;
     /** The vehicles (boats, minecarts); created at boot, tick-thread owned. */
     private volatile net.zaminmc.torch.server.entity.vehicle.VehicleManager vehicleManager;
     /** The fishing bobbers (Slice 67); created at boot, tick-thread owned. */
@@ -1508,6 +1511,12 @@ public final class EngineServer implements Server, EngineBridge {
                 redstoneSystem.addNeighborListener(dispenserSystem::neighborHeard);
                 redstoneSystem.setDispenserTicker(dispenserSystem::scheduledTick);
                 hopperSystem.setDispenserLookup(dispenserSystem::getOrCreate);
+                // The command-block family (Slice 72 — CommandBlock 1:1):
+                // the tile store + the redstone run's dispatch (the
+                // executor's own sender shape over the CommandService).
+                commandBlocks = new net.zaminmc.torch.server.commandblock.CommandBlockManager(
+                        this::runCommandBlockExecutor);
+                redstoneSystem.setCommandTicker(this::runCommandBlockAt);
                 // The brewing stands (Slice 11e): the per-tick brew walk;
                 // the state creation rides the open path + the hopper
                 // lookups (the placement never writes slots).
@@ -10096,6 +10105,89 @@ public final class EngineServer implements Server, EngineBridge {
                 cart.setLastOutput(null);
             }
         });
+    }
+
+    /**
+     * The areCommandBlocksEnabled gate (Slice 72 — DedicatedServer line
+     * 378's {@code getBoolean("enable-command-block", false)} over the
+     * engine's config): the MC|AdvCdm edit gate — the execution itself
+     * is ungated (the reference's own shape: a block that exists runs).
+     */
+    public boolean areCommandBlocksEnabled() {
+        return config.enableCommandBlocks();
+    }
+
+    /**
+     * The command-block block's edit (Slice 72 — the MC|AdvCdm custom
+     * payload's block arm, ServerPlayNetworkHandler lines 1027-1035):
+     * the position's executor takes the command and the track flag; an
+     * untracked executor clears its last output (CommandExecutor's own
+     * setCommand walk). Safe from any thread; the write runs on the tick
+     * lane.
+     */
+    public void updateCommandBlock(PlayerSession player, BlockPosition position,
+                                   String command, boolean trackOutput) {
+        Objects.requireNonNull(player, "player");
+        Objects.requireNonNull(position, "position");
+        ticker.submit(() -> {
+            if (player.state() != PlayerState.PLAYING || commandBlocks == null) {
+                return;
+            }
+            if (!net.zaminmc.torch.server.block.BuiltinBlocks.isCommandBlock(
+                    world.getBlock(position))) {
+                return; // the reference's silent skip (no tile at the position)
+            }
+            commandBlocks.edit(position, command, trackOutput);
+        });
+    }
+
+    /**
+     * One block executor's run (CommandExecutor.run over the engine's
+     * CommandService — the same sender shape the cart rides): op level
+     * 2, the name "@", the feedback landing in the executor's last
+     * output through the recordOutput walk.
+     */
+    private int runCommandBlockExecutor(
+            net.zaminmc.torch.server.commandblock.CommandBlockManager.CommandState executor,
+            String command) {
+        if (command == null || command.isBlank()) {
+            return 0;
+        }
+        String line = command.startsWith("/") ? command : "/" + command;
+        String name = line.substring(1).split("\\s+")[0];
+        var service = commands();
+        boolean known = service.lookup(name) != null;
+        service.dispatch(new net.zaminmc.torch.server.chat.CommandSender() {
+            @Override public String name() {
+                return "@"; // CommandExecutor's own default
+            }
+
+            @Override public void sendMessage(String message) {
+                executor.recordOutput(message);
+            }
+
+            @Override public int opLevel() {
+                return 2; // canUseCommand: permissionLevel <= 2
+            }
+
+            @Override public PlayerSession player() {
+                return null;
+            }
+        }, line);
+        return known ? 1 : 0;
+    }
+
+    /** The command-block tiles (Slice 72 — the test and protocol surfaces). */
+    public net.zaminmc.torch.server.commandblock.CommandBlockManager commandBlocks() {
+        return commandBlocks;
+    }
+
+    /** The redstone tick's dispatch (CommandBlock.tick — the run + the success count). */
+    private void runCommandBlockAt(BlockPosition position) {
+        net.zaminmc.torch.server.commandblock.CommandBlockManager blocks = commandBlocks;
+        if (blocks != null) {
+            blocks.run(position);
+        }
     }
 
     /** The held identifier: the creative claim first, else the real stack. */

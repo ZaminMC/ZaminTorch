@@ -333,6 +333,10 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:skull_south"), 144),
             Map.entry(Identifier.parse("minecraft:skull_west"), 144),
             Map.entry(Identifier.parse("minecraft:skull_east"), 144),
+            // The command-block family (Slice 72 — Block.java line 1299's
+            // register(137, "command_block")): the two TRIGGERED states.
+            Map.entry(Identifier.parse("minecraft:command_block"), 137),
+            Map.entry(Identifier.parse("minecraft:command_block_triggered"), 137),
             // The wall signs (block 68): the metadata 2-5 facings.
             Map.entry(Identifier.parse("minecraft:wall_sign"), 68),
             Map.entry(Identifier.parse("minecraft:wall_sign_south"), 68),

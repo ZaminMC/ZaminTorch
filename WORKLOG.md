@@ -7317,3 +7317,45 @@ damage-source surface, the /summon NBT arm); (2) the plugin host's
 live-engine acceptance (a plugin through the real EngineServer's
 plugins() with real event-bus/scope integration); (3) the discovery/
 classloading wave when the native API surface settles.
+
+## Slice 72 — the command-block block family + the areCommandBlocksEnabled gate
+
+- **The gate (the audit's ledgered config gap closes)**: EngineConfig
+  gains `enableCommandBlocks` (DedicatedServer line 378's
+  `getBoolean("enable-command-block", false)` — the vanilla dedicated
+  default OFF), ConfigLoader maps the property, and the MC|AdvCdm walk
+  is rebuilt 1:1 with the reference's gate order: notEnabled → the
+  op-2-creative check → the payload walk → notAllowed. The gate now
+  covers BOTH arms (the cart arm was ungated since Slice 66 — the
+  ledgered gap). The execution itself stays ungated (the reference's
+  own shape: a block that exists runs).
+- **The block family (block 137, Block.java line 1299's registration)**:
+  COMMAND_BLOCK + COMMAND_BLOCK_TRIGGERED (the TRIGGERED bit, meta 0/1)
+  over the unbreakable/6M-blast behavior rows; the tile store
+  (`commandblock/CommandBlockManager`) carries the executor's four rows
+  (Command/SuccessCount/TrackOutput/LastOutput) in the sign/skull
+  block-entity shape; the edit (MC|AdvCdm type 0 — position → the
+  executor, setCommand resets the count, the untracked executor clears
+  its output); the redstone edge walk in RedstoneSystem
+  (neighborChanged: the rising edge flips TRIGGERED + schedules the
+  rate-1 tick, the falling edge clears — the run lands on the SCHEDULED
+  tick, not the edge; the tick runs the executor + wakes the
+  comparators — the success count is the analog signal).
+- **The engine verbs**: `areCommandBlocksEnabled()`,
+  `updateCommandBlock` (the type-0 landing on the tick lane with the
+  no-tile silent skip), `runCommandBlockExecutor` (the CommandService
+  dispatch with the executor's own sender — op 2, "@", recordOutput),
+  `commandBlocks()`.
+- Tests: `CommandBlockBlockTest` (4 — the config default/property flip;
+  the executor rows walk through the recording host; the live-engine
+  redstone edge walk through the real CommandService (the lever toggle
+  → TRIGGERED → the scheduled run → the success count; the falling
+  edge clears); the gate's answers) + `BlockRegistryTest` (780 = 778 +
+  the two TRIGGERED states). The vehicle/commandblock/redstone/config
+  batches green; the LegacyBlockIds integrity green.
+
+NEXT (in order): (1) the placement arm (the item 137's place path
+creating the tile with the sendCommandFeedback default) + the tile sync
+(0x35 action 2 + the chunk replay) + the ZVD persistence rows; (2) the
+vehicle damage-source surface (the furnace cart's explosive-death drop
+skip); (3) the /summon NBT arm.
