@@ -52,6 +52,23 @@ public final class VehicleManager {
          */
         default void onVehicleStateChanged(VehicleEntity vehicle) {
         }
+
+        /**
+         * The spawner cart's cycle fired a spawn (Slice 66 — MobSpawner
+         * line 108's doEvent(2004, blockpos, 0) at the cart's cell: the
+         * flame burst the client draws).
+         */
+        default void onSpawnerCartFlames(SpawnerMinecartEntity cart,
+                double x, double y, double z) {
+        }
+
+        /**
+         * The spawner cart's delay re-rolled (Slice 66 — delay line 187's
+         * broacastEvent(1) over the cart's own doEntityEvent: the Entity
+         * Status 1 spin reset).
+         */
+        default void onSpawnerCartSpinReset(SpawnerMinecartEntity cart) {
+        }
     }
 
     /** The break drop sink (the engine's item-entity spawner). */
@@ -209,6 +226,19 @@ public final class VehicleManager {
     }
 
     /**
+     * The spawner minecart (Slice 66 — the rolling spawner): the spawn
+     * host is the engine's spawner surfaces (the player gate, the nearby
+     * count, the unobstructed spawn).
+     */
+    public VehicleEntity spawnSpawnerMinecart(Position at,
+            SpawnerMinecartEntity.SpawnHost host) {
+        if (!fireSpawnGate(VehicleEntity.Kind.SPAWNER_MINECART.apiKind, at)) {
+            return null;
+        }
+        return spawn(new SpawnerMinecartEntity(nextEntityId++, at, random, host));
+    }
+
+    /**
      * The §27.7 pre-commit gate over every spawn family member: the
      * boat/minecart item placements and the structure-seeded chest
      * carts. A null bus (the unwired window) admits everything.
@@ -242,12 +272,20 @@ public final class VehicleManager {
     public record VehicleSnapshot(String kind, double x, double y, double z, float yaw,
                                   float health,
                                   net.zaminmc.torch.item.ItemStack[] cargo,
-                                  boolean hopperEnabled, int hopperCooldown) {
+                                  boolean hopperEnabled, int hopperCooldown,
+                                  String spawnerType, int spawnerDelay) {
 
         /** The pre-Slice-66 shape (the chest cart's own). */
         public VehicleSnapshot(String kind, double x, double y, double z, float yaw,
                                float health, net.zaminmc.torch.item.ItemStack[] cargo) {
-            this(kind, x, y, z, yaw, health, cargo, true, -1);
+            this(kind, x, y, z, yaw, health, cargo, true, -1, null, -1);
+        }
+
+        /** The part-three shape (the hopper cart's own). */
+        public VehicleSnapshot(String kind, double x, double y, double z, float yaw,
+                               float health, net.zaminmc.torch.item.ItemStack[] cargo,
+                               boolean hopperEnabled, int hopperCooldown) {
+            this(kind, x, y, z, yaw, health, cargo, hopperEnabled, hopperCooldown, null, -1);
         }
     }
 
@@ -270,7 +308,11 @@ public final class VehicleManager {
                     !(vehicle instanceof HopperMinecartEntity hopperCart)
                             || hopperCart.enabled(),
                     vehicle instanceof HopperMinecartEntity hopperCart
-                            ? hopperCart.transferCooldown() : -1));
+                            ? hopperCart.transferCooldown() : -1,
+                    vehicle instanceof SpawnerMinecartEntity spawnerCart
+                            ? spawnerCart.type().name() : null,
+                    vehicle instanceof SpawnerMinecartEntity spawnerCart
+                            ? spawnerCart.delay() : -1));
         }
         return saved;
     }
@@ -287,9 +329,15 @@ public final class VehicleManager {
         return restoreAll(saved, null);
     }
 
-    /** The full restore (the hopper cart's transfer host armed when given). */
     public boolean restoreAll(List<VehicleSnapshot> saved,
             java.util.function.Supplier<HopperMinecartEntity.TransferHost> hopperHost) {
+        return restoreAll(saved, hopperHost, null);
+    }
+
+    /** The full restore (both variant hosts armed when given). */
+    public boolean restoreAll(List<VehicleSnapshot> saved,
+            java.util.function.Supplier<HopperMinecartEntity.TransferHost> hopperHost,
+            java.util.function.Supplier<SpawnerMinecartEntity.SpawnHost> spawnerHost) {
         Objects.requireNonNull(saved, "saved");
         boolean any = false;
         for (VehicleSnapshot snapshot : saved) {
@@ -315,6 +363,30 @@ public final class VehicleManager {
                     if (cart instanceof HopperMinecartEntity hopperCart) {
                         hopperCart.setEnabled(snapshot.hopperEnabled());
                         hopperCart.setTransferCooldown(snapshot.hopperCooldown());
+                    }
+                    restored = cart;
+                }
+                case SPAWNER_MINECART -> {
+                    if (spawnerHost == null) {
+                        continue; // no host wired: the cart cannot spawn
+                    }
+                    VehicleEntity cart = spawnSpawnerMinecart(at, spawnerHost.get());
+                    if (cart instanceof SpawnerMinecartEntity spawnerCart) {
+                        // The NBT rows' landing (readNbt's EntityId/Delay):
+                        // a null type keeps the reference's own "Pig"
+                        // field default.
+                        if (snapshot.spawnerType() != null) {
+                            try {
+                                spawnerCart.setType(net.zaminmc.torch.server.entity.MobType
+                                        .valueOf(snapshot.spawnerType()));
+                            } catch (IllegalArgumentException unknownType) {
+                                // a saved kind the engine no longer knows:
+                                // the field default holds
+                            }
+                        }
+                        if (snapshot.spawnerDelay() >= 0) {
+                            spawnerCart.setDelay(snapshot.spawnerDelay());
+                        }
                     }
                     restored = cart;
                 }
@@ -405,6 +477,25 @@ public final class VehicleManager {
             if (wasLit != (vehicle instanceof FurnaceMinecartEntity furnace && furnace.lit())) {
                 for (Listener listener : listeners) {
                     listener.onVehicleStateChanged(vehicle);
+                }
+            }
+            // The spawner cart's two broadcasts (Slice 66): the per-spawn
+            // flame burst (the 2004 world event at the cart's cell) and
+            // the delay reroll's spin reset (the Entity Status 1).
+            if (vehicle instanceof SpawnerMinecartEntity spawnerCart) {
+                int flames = spawnerCart.consumeFlameBursts();
+                if (flames > 0) {
+                    for (Listener listener : listeners) {
+                        listener.onSpawnerCartFlames(spawnerCart,
+                                Math.floor(spawnerCart.position().x()),
+                                Math.floor(spawnerCart.position().y()),
+                                Math.floor(spawnerCart.position().z()));
+                    }
+                }
+                if (spawnerCart.consumeSpinResets() > 0) {
+                    for (Listener listener : listeners) {
+                        listener.onSpawnerCartSpinReset(spawnerCart);
+                    }
                 }
             }
             if (fixedPoint(vehicle.position()) != before) {

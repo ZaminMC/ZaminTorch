@@ -47,8 +47,8 @@ public final class VehicleDataStore {
      * Version 2 (Slice 66): the variant payload — the hopper cart's
      * 5-slot cargo rides the same cargo block (its length names the
      * kind's own slot count) plus the variant extras (the disable flag
-     * + transfer cooldown). Version 1 files load with the defaults
-     * (enabled, cooldown -1).
+     * + transfer cooldown; the spawner cart's EntityId/Delay rows).
+     * Version 1 files load with the defaults (enabled, cooldown -1).
      */
     private static final int FORMAT_VERSION = 2;
     private static final int FORMAT_VERSION_1 = 1;
@@ -94,6 +94,14 @@ public final class VehicleDataStore {
                         // flag's own bit).
                         out.writeByte(vehicle.hopperEnabled() ? 1 : 0);
                         out.writeInt(vehicle.hopperCooldown());
+                    } else if (vehicle.kind().equals(
+                            VehicleEntity.Kind.SPAWNER_MINECART.name())) {
+                        // The spawner's own rows (MobSpawner.writeNbt's
+                        // EntityId/Delay — a null type writes the empty
+                        // string, the reference's absent-row shape).
+                        writeString(out, vehicle.spawnerType() == null
+                                ? "" : vehicle.spawnerType());
+                        writeVarInt(out, vehicle.spawnerDelay());
                     }
                 }
             }
@@ -149,13 +157,24 @@ public final class VehicleDataStore {
                 }
                 boolean hopperEnabled = true;
                 int hopperCooldown = -1;
-                if (version >= FORMAT_VERSION
-                        && kind.equals(VehicleEntity.Kind.HOPPER_MINECART.name())) {
-                    hopperEnabled = in.readUnsignedByte() != 0;
-                    hopperCooldown = in.readInt();
+                String spawnerType = null;
+                int spawnerDelay = -1;
+                if (version >= FORMAT_VERSION) {
+                    if (kind.equals(VehicleEntity.Kind.HOPPER_MINECART.name())) {
+                        hopperEnabled = in.readUnsignedByte() != 0;
+                        hopperCooldown = in.readInt();
+                    } else if (kind.equals(
+                            VehicleEntity.Kind.SPAWNER_MINECART.name())) {
+                        spawnerType = readString(in);
+                        if (spawnerType.isEmpty()) {
+                            spawnerType = null;
+                        }
+                        spawnerDelay = readVarInt(in);
+                    }
                 }
                 loaded.add(new VehicleManager.VehicleSnapshot(
-                        kind, x, y, z, yaw, health, cargo, hopperEnabled, hopperCooldown));
+                        kind, x, y, z, yaw, health, cargo, hopperEnabled, hopperCooldown,
+                        spawnerType, spawnerDelay));
             }
             return loaded;
         } catch (IOException | RuntimeException corrupt) {

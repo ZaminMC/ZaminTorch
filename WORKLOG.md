@@ -6988,3 +6988,40 @@ command-block cart (index 6 — the run-on-rail every 4 ticks, the synced
 slots 23/24, the Update Entity NBT 0x49 decode, the item 422); (3) the
 fishing bobber (90) + the giant (53); (4) the sections 27/28 audit (the
 native API exposure + the plugin concurrency contract vs the code).
+
+## Slice 66 part four — the spawner minecart (the rolling spawner)
+
+The variant family's fourth member, 1:1.
+
+- **The cart** (SpawnerMinecartEntity): the anonymous MobSpawner's walk at
+  the cart's own floored cell, with the reference's own "Pig" FIELD
+  DEFAULT (MobSpawner line 19 — a summoned cart with no NBT IS a pig
+  spawner, ledgered), the 20-tick initial delay, the 200..800 reroll,
+  the four-attempt cycle, the 6-mob nearby cap that aborts the WHOLE
+  cycle, and the position rolls (nextDouble()-nextDouble() per axis,
+  nextInt(3)-1 for y).
+- **The broadcasts**: the 2004 flame burst PER SPAWNED MOB (the reference
+  fires doEvent inside the loop — the block spawner's engine port fires
+  once per cycle; the cart keeps the reference's shape) through the new
+  onSpawnerCartFlames listener (the Effect packet at the cart's cell),
+  and the delay reroll's broacastEvent(1) over the cart's own
+  doEntityEvent (the Entity Status 1, chunk-gated — sendSpawnerCartSpinReset).
+- **The host surface** (SpawnHost): the 16-block player gate, the
+  same-kind nearby count, and the unobstructed spawn (the SpawnerManager's
+  canSpawnAt walk, now public static — shared between the block family
+  and the cart).
+- **The persistence**: the ZVD v2 variant payload's EntityId/Delay rows
+  (MobSpawner.writeNbt's own keys); the SpawnPotentials weighted list
+  rides the block family's single-type envelope (ledgered). NO item form
+  (Item.java never registers one — the cart is summon/NBT-only).
+- Tests: `SpawnerMinecartTest` (6 — the type index + the Pig default, the
+  cycle + the per-spawn bursts + the reroll band + the spin reset, the
+  nearby-cap abort, the no-player freeze, the persistence roundtrip, the
+  live-engine pig spawn beside the rolling cart). The vehicle + spawner
+  batches green.
+
+NEXT (in order): (1) the command-block cart (index 6 — the run-on-rail
+every 4 ticks, the synced slots 23/24, the Update Entity NBT 0x49 decode,
+the item 422); (2) the fishing bobber (90) + the giant (53); (3) the
+sections 27/28 audit (the native API exposure + the plugin concurrency
+contract vs the code).

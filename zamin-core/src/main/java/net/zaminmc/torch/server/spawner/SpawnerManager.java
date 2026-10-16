@@ -337,7 +337,8 @@ public final class SpawnerManager {
     }
 
     /** The unobstructed gate: the body cell + the head cell clear. */
-    private boolean canSpawnAt(EngineWorld world, MobType type, double x, double y, double z) {
+    /** The unobstructed gate (public static — the spawner minecart's host shares it). */
+    public static boolean canSpawnAt(EngineWorld world, MobType type, double x, double y, double z) {
         if (world == null) {
             return true; // the harness shape: no chunk grid to consult
         }

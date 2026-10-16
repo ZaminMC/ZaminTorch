@@ -1361,6 +1361,27 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                     }
                 }
             }
+
+            /** The spawner cart's per-spawn flame burst (Slice 66): the Effect 2004 at the cell. */
+            @Override
+            public void onSpawnerCartFlames(
+                    net.zaminmc.torch.server.entity.vehicle.SpawnerMinecartEntity cart,
+                    double x, double y, double z) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendSpawnerFlames(
+                            new net.zaminmc.torch.block.BlockPosition(
+                                    (int) Math.floor(x), (int) Math.floor(y), (int) Math.floor(z)));
+                }
+            }
+
+            /** The spawner cart's delay reroll (Slice 66): the Entity Status 1. */
+            @Override
+            public void onSpawnerCartSpinReset(
+                    net.zaminmc.torch.server.entity.vehicle.SpawnerMinecartEntity cart) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendSpawnerCartSpinReset(cart);
+                }
+            }
         });
         LOGGER.info(() -> "1.8.8 protocol listening on " + server.engineConfig().host() + ":" + server.engineConfig().port());
     }
