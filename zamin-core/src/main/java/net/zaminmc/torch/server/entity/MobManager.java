@@ -88,6 +88,14 @@ public final class MobManager {
         }
 
         /**
+         * The mob's equipment changed after the spawn (Slice 78b — the
+         * /summon Equipment row + the restore's held stack: the Entity
+         * Equipment re-send to every observer).
+         */
+        default void onMobEquipmentChanged(MobEntity mob) {
+        }
+
+        /**
          * The ocelot's posture bits changed (the shared flags byte at
          * index 0: the tempt's sneak 0x02, the flee's sprint 0x10).
          */
@@ -545,6 +553,19 @@ public final class MobManager {
 
     public void addListener(Listener listener) {
         listeners.add(Objects.requireNonNull(listener, "listener"));
+    }
+
+    /**
+     * The equipment-change publication (Slice 78b — the /summon Equipment
+     * row and the restore's held stack land AFTER the spawn packet went
+     * out): every listener re-sends the Entity Equipment. Tick-thread
+     * context.
+     */
+    public void equipmentChanged(MobEntity mob) {
+        Objects.requireNonNull(mob, "mob");
+        for (Listener listener : listeners) {
+            listener.onMobEquipmentChanged(mob);
+        }
     }
 
     /** Wires the potion system (the witch's drink lands its effects through it). */
@@ -1671,10 +1692,23 @@ public final class MobManager {
      * the invulnerability flag, and the raw persistence mark (the name's
      * own despawn immunity derives live in persistent()). A null record —
      * the pre-v3 shape — is a body with none of the rows.
+     *
+     * <p>Slice 78b grows the family: the Equipment row's held stack (the
+     * reference's slot 0; the armor slots parse but land nowhere — the
+     * engine's no-armor envelope) and the Attributes rows' overrides
+     * (generic.movementSpeed + generic.attackDamage; NaN = no override).</p>
      */
     public record MobNbtExtras(
             String customName, boolean customNameVisible,
-            boolean noAi, boolean invulnerable, boolean persistent) {
+            boolean noAi, boolean invulnerable, boolean persistent,
+            ItemStack heldEquipment, double movementSpeed, double attackDamage) {
+
+        /** The Slice 75 shape (no equipment, no attribute rows). */
+        public MobNbtExtras(String customName, boolean customNameVisible,
+                boolean noAi, boolean invulnerable, boolean persistent) {
+            this(customName, customNameVisible, noAi, invulnerable, persistent,
+                    null, Double.NaN, Double.NaN);
+        }
     }
 
     /**
@@ -1749,6 +1783,20 @@ public final class MobManager {
                 mob.setNoAi(nbt.noAi());
                 mob.setInvulnerable(nbt.invulnerable());
                 mob.setPersistent(nbt.persistent());
+                // Slice 78b's rows: the Equipment row's held stack (the
+                // wire re-publishes through the equipment arm — the spawn
+                // packet went out before the rows landed) + the Attributes
+                // rows' overrides.
+                if (nbt.heldEquipment() != null) {
+                    mob.setHeldEquipment(nbt.heldEquipment());
+                    equipmentChanged(mob);
+                }
+                if (!Double.isNaN(nbt.movementSpeed())) {
+                    mob.setMovementSpeedOverride(nbt.movementSpeed());
+                }
+                if (!Double.isNaN(nbt.attackDamage())) {
+                    mob.setAttackDamageOverride((float) nbt.attackDamage());
+                }
             }
             any = true;
         }
@@ -1828,11 +1876,16 @@ public final class MobManager {
     /** The /summon NBT rows' snapshot (Slice 75): null when none are set. */
     private static MobNbtExtras nbtExtrasOf(MobEntity mob) {
         if (mob.customName() == null && !mob.customNameVisible() && !mob.noAi()
-                && !mob.invulnerable() && !mob.rawPersistent()) {
+                && !mob.invulnerable() && !mob.rawPersistent()
+                && mob.heldEquipment() == null && !mob.hasMovementSpeedOverride()
+                && !mob.hasAttackDamageOverride()) {
             return null;
         }
         return new MobNbtExtras(mob.customName(), mob.customNameVisible(),
-                mob.noAi(), mob.invulnerable(), mob.rawPersistent());
+                mob.noAi(), mob.invulnerable(), mob.rawPersistent(),
+                mob.heldEquipment(),
+                mob.hasMovementSpeedOverride() ? mob.walkSpeed() : Double.NaN,
+                mob.hasAttackDamageOverride() ? mob.attackDamage() : Double.NaN);
     }
 
     /**

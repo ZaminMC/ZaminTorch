@@ -7634,3 +7634,47 @@ audit's remaining rows.
 NEXT (in order): (1) Slice 78b — the mob equipment/attribute NBT rows
 (the ZMD v4 block); (2) the plugin discovery/classloading wave; (3) the
 sections 27/28 audit's remaining rows.
+
+## Slice 78b — the /summon Equipment + Attributes rows (the ZMD v4 block)
+
+- **The Equipment row (MobEntity.readCustomNbt lines 301-307)**: the
+  five-slot list — the engine's model carries the held slot alone
+  (`setHeldEquipment`); the armor slots parse but land nowhere (the
+  no-armor envelope). The item parse (`parseItemNbt`) reads the
+  engine's identifier form ("minecraft:iron_sword" or the bare name —
+  the /give surface), the Count byte (default 1, clamped at the stack
+  size), the Damage short (clamped at MAX_DAMAGE).
+- **The Attributes row (LivingEntity.readCustomNbt lines 419-421)**:
+  the {Name, Base} list over the attribute registry — the engine honors
+  `generic.movementSpeed` and `generic.attackDamage`, the two attributes
+  its consults read; the other names parse but land nowhere (the
+  per-type envelope). A non-positive Base is refused (the attribute
+  keeps its base).
+- **THE WALK-SPEED CONSULT REFACTOR**: every movement arm read
+  `type.walkSpeed` directly (eight sites — the launch, the two
+  navigation consults, the walk/panic/chase/goal arms); all eight now
+  read the new `walkSpeed()` (the override over the kind's base — the
+  reference's getEntityAttribute consult shape). `attackDamage()` grows
+  the override consult FIRST (the override replaces the whole variant
+  ladder — the reference's attribute base semantics).
+- **The equipment's wire re-publish**: the summon row and the restore's
+  held stack land AFTER the spawn packet went out — the new
+  `MobManager.Listener.onMobEquipmentChanged` (the EngineServer bridge
+  arm + the protocol adapter's) re-sends the Entity Equipment 0x04
+  (`V18Connection.sendMobHeldEquipment`, chunk-gated). The restore
+  fires it too.
+- **The persistence (the ZMD v4 block)**: the MobNbtExtras record's new
+  rows (heldEquipment + the two NaN-marked overrides); the store's
+  high flag bits 0x20/0x40/0x80 (the stack row — identifier + count +
+  damage — + the two doubles); v3/v2/v1 files load unchanged (the low
+  flags' own shape).
+- Tests: `SummonEquipmentTest` (4 — the Equipment row landing the held
+  stack + the publication counter + the armor envelope, the Attributes
+  rows driving both consults + the unknown-name envelope, the
+  non-positive base refused, the restart survival through the v4
+  block). The SummonNbtTest + the nbt batch + the FULL entity family
+  (the walkSpeed refactor's own proof) + the full protocol suite green.
+
+NEXT (in order): (1) the plugin discovery/classloading wave (§28.5's
+DISCOVERED → LOADED states); (2) the sections 27/28 audit's remaining
+rows; (3) the next vanilla wave per the ledger.

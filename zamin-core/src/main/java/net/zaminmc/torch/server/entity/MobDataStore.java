@@ -39,10 +39,12 @@ public final class MobDataStore {
     private static final int MAGIC_0 = 'Z';
     private static final int MAGIC_1 = 'M';
     private static final int MAGIC_2 = 'D';
-    private static final int FORMAT_VERSION = 3;
+    private static final int FORMAT_VERSION = 4;
 
     /** The v2 store's own version (Slice 25c's shape — the load keeps reading it). */
     private static final int FORMAT_VERSION_2 = 2;
+    /** The Slice 75 shape (the name/NoAI/invulnerable/persistent rows, no equipment, no attributes). */
+    private static final int FORMAT_VERSION_3 = 3;
     /** The v2 state block's bits (Slice 25c): one per kind's own family. */
     private static final int FLAG_ZOMBIE_VILLAGER = 0x01;
     private static final int FLAG_VILLAGER_TRADE = 0x02;
@@ -108,7 +110,8 @@ public final class MobDataStore {
                 throw new IOException("Not a ZMD file");
             }
             int version = in.readByte();
-            if (version != FORMAT_VERSION && version != FORMAT_VERSION_2 && version != 1) {
+            if (version != FORMAT_VERSION && version != FORMAT_VERSION_3
+                    && version != FORMAT_VERSION_2 && version != 1) {
                 throw new IOException("Unsupported ZMD version: " + version);
             }
             int count = readVarInt(in);
@@ -125,8 +128,8 @@ public final class MobDataStore {
                 float health = in.readFloat();
                 MobManager.MobStateExtras extras = version == 1
                         ? null : readExtras(in);
-                MobManager.MobNbtExtras nbt = version >= FORMAT_VERSION
-                        ? readNbtExtras(in) : null;
+                MobManager.MobNbtExtras nbt = version >= FORMAT_VERSION_3
+                        ? readNbtExtras(in, version) : null;
                 loaded.add(new MobManager.MobSnapshot(type, x, y, z, yaw, health, extras, nbt));
             }
             return loaded;
@@ -221,8 +224,12 @@ public final class MobDataStore {
     private static final int NBT_FLAG_NO_AI = 0x04;
     private static final int NBT_FLAG_INVULNERABLE = 0x08;
     private static final int NBT_FLAG_PERSISTENT = 0x10;
+    /** Slice 78b's rows: the Equipment row's held stack + the Attributes overrides. */
+    private static final int NBT_FLAG_EQUIPMENT = 0x20;
+    private static final int NBT_FLAG_MOVEMENT_SPEED = 0x40;
+    private static final int NBT_FLAG_ATTACK_DAMAGE = 0x80;
 
-    /** Writes the v3 NBT block (a zero byte answers the null shape). */
+    /** Writes the v3/v4 NBT block (a zero byte answers the null shape). */
     private static void writeNbtExtras(DataOutputStream out, MobManager.MobNbtExtras nbt)
             throws IOException {
         if (nbt == null) {
@@ -245,14 +252,40 @@ public final class MobDataStore {
         if (nbt.persistent()) {
             flags |= NBT_FLAG_PERSISTENT;
         }
+        if (nbt.heldEquipment() != null && !nbt.heldEquipment().isEmpty()) {
+            flags |= NBT_FLAG_EQUIPMENT;
+        }
+        if (!Double.isNaN(nbt.movementSpeed())) {
+            flags |= NBT_FLAG_MOVEMENT_SPEED;
+        }
+        if (!Double.isNaN(nbt.attackDamage())) {
+            flags |= NBT_FLAG_ATTACK_DAMAGE;
+        }
         out.writeByte(flags);
         if ((flags & NBT_FLAG_CUSTOM_NAME) != 0) {
             writeString(out, nbt.customName());
         }
+        if ((flags & NBT_FLAG_EQUIPMENT) != 0) {
+            // The stack row (the engine's own envelope: the identifier +
+            // the count + the damage — no item NBT payload).
+            writeString(out, nbt.heldEquipment().type().identifier().toString());
+            out.writeByte(nbt.heldEquipment().count());
+            out.writeShort(nbt.heldEquipment().damage());
+        }
+        if ((flags & NBT_FLAG_MOVEMENT_SPEED) != 0) {
+            out.writeDouble(nbt.movementSpeed());
+        }
+        if ((flags & NBT_FLAG_ATTACK_DAMAGE) != 0) {
+            out.writeDouble(nbt.attackDamage());
+        }
     }
 
-    /** Reads the v3 NBT block back (null for the zero-byte shape). */
-    private static MobManager.MobNbtExtras readNbtExtras(DataInputStream in)
+    /**
+     * Reads the NBT block back (null for the bare zero-flags shape); the
+     * v4 rows (the equipment stack + the attribute overrides) ride the
+     * same flags byte's high bits — a v3 file's low flags load unchanged.
+     */
+    private static MobManager.MobNbtExtras readNbtExtras(DataInputStream in, int version)
             throws IOException {
         int flags = in.readUnsignedByte();
         if (flags == 0) {
@@ -262,11 +295,34 @@ public final class MobDataStore {
         if ((flags & NBT_FLAG_CUSTOM_NAME) != 0) {
             customName = readString(in);
         }
+        if (version < FORMAT_VERSION) {
+            return new MobManager.MobNbtExtras(customName,
+                    (flags & NBT_FLAG_CUSTOM_NAME_VISIBLE) != 0,
+                    (flags & NBT_FLAG_NO_AI) != 0,
+                    (flags & NBT_FLAG_INVULNERABLE) != 0,
+                    (flags & NBT_FLAG_PERSISTENT) != 0);
+        }
+        net.zaminmc.torch.item.ItemStack held = null;
+        if ((flags & NBT_FLAG_EQUIPMENT) != 0) {
+            String identifier = readString(in);
+            int count = in.readUnsignedByte();
+            int damage = in.readUnsignedShort();
+            held = net.zaminmc.torch.server.item.BuiltinItems.lookup(
+                            net.zaminmc.torch.util.Identifier.parse(identifier))
+                    .map(type -> net.zaminmc.torch.item.ItemStack.of(type, count)
+                            .withDamage(damage))
+                    .orElse(null);
+        }
+        double movementSpeed = (flags & NBT_FLAG_MOVEMENT_SPEED) != 0
+                ? in.readDouble() : Double.NaN;
+        double attackDamage = (flags & NBT_FLAG_ATTACK_DAMAGE) != 0
+                ? in.readDouble() : Double.NaN;
         return new MobManager.MobNbtExtras(customName,
                 (flags & NBT_FLAG_CUSTOM_NAME_VISIBLE) != 0,
                 (flags & NBT_FLAG_NO_AI) != 0,
                 (flags & NBT_FLAG_INVULNERABLE) != 0,
-                (flags & NBT_FLAG_PERSISTENT) != 0);
+                (flags & NBT_FLAG_PERSISTENT) != 0,
+                held, movementSpeed, attackDamage);
     }
 
     /** Reads the v2 state block back (null for the bare zero-flags shape). */

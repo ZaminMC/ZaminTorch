@@ -368,6 +368,18 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                 }
             }
 
+            /**
+             * The equipment changed after the spawn (Slice 78b — the
+             * /summon Equipment row + the restore's held stack): the
+             * Entity Equipment re-send.
+             */
+            @Override
+            public void onMobEquipmentChanged(net.zaminmc.torch.server.entity.MobEntity mob) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendMobHeldEquipment(mob);
+                }
+            }
+
             /** The ocelot's creep/flee postures (the shared flags byte). */
             @Override
             public void onMobPostureChanged(net.zaminmc.torch.server.entity.MobEntity mob) {

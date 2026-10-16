@@ -1989,6 +1989,13 @@ public final class MobEntity implements LivingEntity {
      * getDamageAmount line 215).
      */
     public float attackDamage() {
+        if (hasAttackDamageOverride()) {
+            // The Attributes row's own base (Slice 78b — the reference's
+            // readNbt lands the row's Base on the attribute: every
+            // consult — the melee arms, the wire rows — reads the
+            // override over the kind's registered base).
+            return (float) attackDamageOverride;
+        }
         if (type == MobType.RABBIT) {
             // tryDamage lines 255-262: the killer's 8.0 wound with the
             // mob.attack sound; the plain rabbit's 3.0 never arms (no
@@ -3789,6 +3796,57 @@ public final class MobEntity implements LivingEntity {
     private ItemStack heldEquipment;
 
     /**
+     * The {@code generic.movementSpeed} attribute override (Slice 78b —
+     * the reference's Attributes NBT row over the kind's own base);
+     * {@link Double#NaN} = no override (the kind's walkSpeed answers).
+     */
+    private double movementSpeedOverride = Double.NaN;
+
+    /**
+     * The {@code generic.attackDamage} attribute override (Slice 78b —
+     * the same row family); NaN = no override.
+     */
+    private double attackDamageOverride = Double.NaN;
+
+    /**
+     * The movement-speed override's landing (EntityAttributes.readNbt's
+     * own shape: the row's Base replaces the attribute's base — a
+     * non-positive value is refused, the attribute keeps its base).
+     */
+    public void setMovementSpeedOverride(double speed) {
+        if (speed > 0.0) {
+            this.movementSpeedOverride = speed;
+        }
+    }
+
+    /** @return whether the Attributes row overrode the movement speed. */
+    public boolean hasMovementSpeedOverride() {
+        return !Double.isNaN(movementSpeedOverride);
+    }
+
+    /**
+     * The walk-speed consult (Slice 78b): every movement arm reads this
+     * — the Attributes row's override over the kind's own base (the
+     * reference's getEntityAttribute(MOVEMENT_SPEED).getAttributeValue()
+     * consult shape).
+     */
+    public double walkSpeed() {
+        return hasMovementSpeedOverride() ? movementSpeedOverride : type.walkSpeed;
+    }
+
+    /** The attack-damage override's landing (the same refuse-non-positive gate). */
+    public void setAttackDamageOverride(float damage) {
+        if (damage > 0.0f) {
+            this.attackDamageOverride = damage;
+        }
+    }
+
+    /** @return whether the Attributes row overrode the attack damage. */
+    public boolean hasAttackDamageOverride() {
+        return !Double.isNaN(attackDamageOverride);
+    }
+
+    /**
      * The player's recent-hit window (LivingEntity's own playerHitTimer,
      * lines 92/254/679: 100 ticks from the player's last wound — the
      * dropRareItem gate and the XP gate read it).
@@ -4532,8 +4590,8 @@ public final class MobEntity implements LivingEntity {
     private void launchRabbitHop(RabbitAction action, double targetDy) {
         double radians = Math.toRadians(yaw);
         double launchSpeed = 1.5 * action.speed;
-        velocityX += -Math.sin(radians) * type.walkSpeed * launchSpeed;
-        velocityZ += Math.cos(radians) * type.walkSpeed * launchSpeed;
+        velocityX += -Math.sin(radians) * walkSpeed() * launchSpeed;
+        velocityZ += Math.cos(radians) * walkSpeed() * launchSpeed;
         velocityY = !Double.isNaN(targetDy) && targetDy > 0.5
                 ? 0.5 : action.jumpStrength;
     }
@@ -5272,7 +5330,7 @@ public final class MobEntity implements LivingEntity {
      * target the mob's own path walk consumes.
      */
     public void navigateToward(double x, double y, double z) {
-        navigation.moveTo(x, y, z, type.walkSpeed);
+        navigation.moveTo(x, y, z, walkSpeed());
     }
 
     /**
@@ -6153,7 +6211,7 @@ public final class MobEntity implements LivingEntity {
      */
     private void repath(Position target) {
         repathCooldown = 20 + random.nextInt(10);
-        navigation.moveTo(target.x(), target.y(), target.z(), type.walkSpeed);
+        navigation.moveTo(target.x(), target.y(), target.z(), walkSpeed());
     }
 
     private void clearPath() {
@@ -7015,11 +7073,11 @@ public final class MobEntity implements LivingEntity {
         // Horizontal: knockback velocity decays; walking integrates directly.
         double walk = 0.0;
         if (mode == Mode.WANDER) {
-            walk = type.walkSpeed;
+            walk = walkSpeed();
         } else if (mode == Mode.PANIC) {
-            walk = type.walkSpeed * PANIC_SPEED_MULTIPLIER;
+            walk = walkSpeed() * PANIC_SPEED_MULTIPLIER;
         } else if (mode == Mode.CHASE) {
-            walk = type.walkSpeed * (type.traits.ranged() ? 1.0 : 1.1);
+            walk = walkSpeed() * (type.traits.ranged() ? 1.0 : 1.1);
         }
         if (witchDrink > 0) {
             walk = 0.0; // the drinking speed penalty (WitchEntity's -0.25 on the 0.25 base → 0)
@@ -7027,7 +7085,7 @@ public final class MobEntity implements LivingEntity {
         if (!Double.isNaN(goalWalkSpeed)) {
             // The awareness goals' own speed (TemptGoal/FleeEntityGoal's
             // parameter over the movement attribute) overrides the band.
-            walk = type.walkSpeed * goalWalkSpeed;
+            walk = walkSpeed() * goalWalkSpeed;
         }
         if (type == MobType.RABBIT) {
             // The rabbit's hop cycle owns the movement (the zeroed-input
