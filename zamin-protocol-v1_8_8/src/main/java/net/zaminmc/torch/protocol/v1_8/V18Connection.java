@@ -2806,6 +2806,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             case WITCH -> "Witch";
             case ENDERMITE -> "Endermite";
             case GUARDIAN -> "Guardian";
+            case GIANT -> "Giant";
             case PIG -> "Pig";
             case SHEEP -> "Sheep";
             case COW -> "Cow";
