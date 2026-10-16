@@ -50,6 +50,13 @@ public class TntMinecartEntity extends MinecartEntity {
 
     private int fuseTicks = -1;
     private BlastSink blastSink = (x, y, z, power) -> { };
+    /**
+     * The detonation's own death mark (explode line 129's {@code remove()}):
+     * the annihilated body never drops — the reference's remove path runs
+     * no dropItems. A plain break (the sword) keeps the ordinary cart
+     * drops (the cart item + the TNT block).
+     */
+    private boolean annihilated;
 
     public TntMinecartEntity(int entityId, Position position, Random random) {
         super(entityId, Kind.TNT_MINECART, position, random);
@@ -95,10 +102,16 @@ public class TntMinecartEntity extends MinecartEntity {
         blastSink.detonate(position().x(), position().y(), position().z(), power);
     }
 
-    /** The detonation + the death (the explode's own remove). */
+    /** The detonation + the death (the explode's own remove — no drops). */
     public void detonateAndDie() {
         explode();
-        this.hurt(health()); // the break walk drops nothing extra (the cart is gone)
+        this.annihilated = true;
+        this.hurt(health()); // the break walk drops nothing (the cart is gone)
+    }
+
+    /** @return whether the detonation killed this body (the drop skip). */
+    public boolean annihilated() {
+        return annihilated;
     }
 
     /**

@@ -4585,6 +4585,55 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     }
 
     /**
+     * The TNT cart's fuse armed (Slice 66 — TntMinecartEntity.prime lines
+     * 148-152: the doEntityEvent 10 the client's fuse-flash visual rides).
+     * Chunk-gated like every vehicle packet. Any thread.
+     */
+    void sendVehiclePrimed(net.zaminmc.torch.server.entity.vehicle.TntMinecartEntity cart) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY
+                || chunkTracker == null) {
+            return;
+        }
+        var blockPos = cart.position().toBlockPosition();
+        if (!chunkTracker.hasChunk(blockPos.chunkPosition().packed())) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(12);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_ENTITY_STATUS);
+        ByteBufOps.writeVarInt(out, cart.entityId());
+        out.writeByte(10); // doEntityEvent(this, (byte) 10) — the prime
+        channel.writeAndFlush(out);
+    }
+
+    /**
+     * A vehicle's tracked state metadata (Slice 66 — the furnace cart's
+     * lit byte at the synced slot 16; the other kinds carry nothing and
+     * the send is a no-op). Any thread.
+     */
+    void sendVehicleStateMetadata(net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle) {
+        if (!(vehicle instanceof net.zaminmc.torch.server.entity.vehicle.FurnaceMinecartEntity furnace)) {
+            return;
+        }
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY
+                || chunkTracker == null) {
+            return;
+        }
+        var blockPos = furnace.position().toBlockPosition();
+        if (!chunkTracker.hasChunk(blockPos.chunkPosition().packed())) {
+            return;
+        }
+        ByteBuf meta = Unpooled.buffer(12);
+        ByteBufOps.writeVarInt(meta, Protocol18.S2C_ENTITY_METADATA);
+        ByteBufOps.writeVarInt(meta, furnace.entityId());
+        meta.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | 16); // slot 16
+        meta.writeByte(furnace.lit() ? 1 : 0);
+        meta.writeByte(Protocol18.METADATA_TERMINATOR);
+        channel.writeAndFlush(meta);
+    }
+
+    /**
      * The open chest-minecart window's container (Slice 21a): the session's
      * mount id names the cart; a gone cart (broken while open) answers null
      * and the resync skips — the engine's own close walk drops the window.

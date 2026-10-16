@@ -1264,6 +1264,10 @@ public final class V18ProtocolServer implements ProtocolAdapter {
             public void onVehicleSpawned(net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle) {
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
                     connection.sendVehicleSpawn(vehicle);
+                    // Slice 66: the furnace cart's lit byte rides the spawn
+                    // (registerSyncedData slot 16 — the client swaps the
+                    // furnace texture from it).
+                    connection.sendVehicleStateMetadata(vehicle);
                 }
             }
 
@@ -1312,6 +1316,24 @@ public final class V18ProtocolServer implements ProtocolAdapter {
             public void onVehicleBroken(net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle) {
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
                     connection.sendVehicleRemoved(vehicle);
+                }
+            }
+
+            /** The TNT cart's fuse armed (Slice 66 — the Entity Status 10). */
+            @Override
+            public void onVehiclePrimed(
+                    net.zaminmc.torch.server.entity.vehicle.TntMinecartEntity cart) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendVehiclePrimed(cart);
+                }
+            }
+
+            /** The tracked-state flip (Slice 66 — the lit byte re-send). */
+            @Override
+            public void onVehicleStateChanged(
+                    net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendVehicleStateMetadata(vehicle);
                 }
             }
 
