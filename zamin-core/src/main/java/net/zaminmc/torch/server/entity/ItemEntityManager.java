@@ -51,6 +51,16 @@ public final class ItemEntityManager {
 
         void onItemCollected(ItemEntity entity, PlayerSession collector, int collectedCount);
 
+        /**
+         * A MOB's pickup (Slice 92 — MobEntity.updateInventory's
+         * sendPickup + item.remove()): the Collect packet's collector is
+         * the mob's own engine id (the mobs ride the engine id space on
+         * the wire, unlike the observer-local player ids).
+         */
+        default void onItemCollectedByMob(ItemEntity entity,
+                net.zaminmc.torch.server.entity.MobEntity collector) {
+        }
+
         void onItemStackChanged(ItemEntity entity);
 
         void onItemRemoved(ItemEntity entity, String reason);
@@ -315,6 +325,23 @@ public final class ItemEntityManager {
     }
 
     /** Removes a specific entity (e.g. chunk unload policy later); publishes removal. */
+    /**
+     * A mob's pickup (Slice 92 — the reference's sendPickup(item, 1) +
+     * item.remove() pair): removes the entity and fires the
+     * mob-collector arm (the wire's Collect + Destroy pair — the same
+     * pair the player pickup sends). Tick-thread context.
+     */
+    public boolean collectByMob(ItemEntity entity,
+            net.zaminmc.torch.server.entity.MobEntity collector) {
+        if (entities.remove(entity)) {
+            for (Listener listener : listeners) {
+                listener.onItemCollectedByMob(entity, collector);
+            }
+            return true;
+        }
+        return false;
+    }
+
     public void remove(ItemEntity entity, String reason) {
         if (entities.remove(entity)) {
             for (Listener listener : listeners) {
