@@ -121,7 +121,7 @@ public final class ItemDataStore {
                     // arm writes the null marker.
                     writeNullableString(out, item.stack().blockEntityTag() == null
                             ? null
-                            : net.zaminmc.torch.server.nbt.NbtOps.write(
+                            : net.zaminmc.torch.server.nbt.NbtOps.writeParseable(
                                     net.zaminmc.torch.server.nbt.NbtOps.fromBoxed(
                                             item.stack().blockEntityTag())));
                     writeVarInt(out, item.age());
