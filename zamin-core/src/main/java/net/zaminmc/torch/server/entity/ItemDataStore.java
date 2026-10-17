@@ -41,7 +41,7 @@ public final class ItemDataStore {
     private static final int MAGIC_0 = 'Z';
     private static final int MAGIC_1 = 'I';
     private static final int MAGIC_2 = 'D';
-    private static final int FORMAT_VERSION = 6;
+    private static final int FORMAT_VERSION = 7;
     /** The pre-Wave-G shape (Slice 93): the stack rows stop after the enchant pairs. */
     private static final int FORMAT_VERSION_1 = 1;
     /** The pre-H2 shape (Slice 94): the stack rows stop after the Lore list. */
@@ -52,6 +52,8 @@ public final class ItemDataStore {
     private static final int FORMAT_VERSION_4 = 4;
     /** The pre-J1 shape (Wave I): the stack rows stop after the display.color row. */
     private static final int FORMAT_VERSION_5 = 5;
+    /** The pre-K2 shape (Wave J): the stack rows stop after the attribute-modifiers row. */
+    private static final int FORMAT_VERSION_6 = 6;
 
     private static final int FLAG_NEVER_DESPAWN = 0x01;
     private static final int FLAG_THROWER = 0x02;
@@ -165,6 +167,12 @@ public final class ItemDataStore {
                     writeNullableString(out, item.stack().attributeModifiers() == null
                             ? null
                             : attributeModifiersRow(item.stack().attributeModifiers()));
+                    // The v7 tail (Wave K — the player head's SkullOwner):
+                    // ONE parseable-SNBT string row, the profile's compound
+                    // form. An absent arm writes the null marker.
+                    writeNullableString(out, item.stack().skullOwner() == null
+                            ? null
+                            : skullOwnerRow(item.stack().skullOwner()));
                     writeVarInt(out, item.age());
                     writeVarInt(out, item.pickupDelay());
                     int flags = 0;
@@ -208,7 +216,8 @@ public final class ItemDataStore {
                 throw new IOException("Not a ZID file");
             }
             int version = in.readByte();
-            if (version != FORMAT_VERSION && version != FORMAT_VERSION_5
+            if (version != FORMAT_VERSION && version != FORMAT_VERSION_6
+                    && version != FORMAT_VERSION_5
                     && version != FORMAT_VERSION_4
                     && version != FORMAT_VERSION_3
                     && version != FORMAT_VERSION_2
@@ -286,8 +295,13 @@ public final class ItemDataStore {
                     displayColorRow = in.readInt();
                 }
                 // The v6 tail (Wave J): the attribute modifiers' SNBT row —
-                // absent in a v5 file.
-                String attributeModifiersRow = version >= FORMAT_VERSION
+                // absent in a v5 file (the row names its OWN version — the
+                // v7 bump's audit).
+                String attributeModifiersRow = version >= FORMAT_VERSION_6
+                        ? readNullableString(in) : null;
+                // The v7 tail (Wave K): the SkullOwner SNBT row — absent
+                // in a v6 file.
+                String skullOwnerRow = version >= FORMAT_VERSION
                         ? readNullableString(in) : null;
                 // An unresolvable item id (a newer save on an older build)
                 // still consumes its rows: the body simply never joins the
@@ -345,6 +359,19 @@ public final class ItemDataStore {
                             stack = stack.withAttributeModifiers(
                                     net.zaminmc.torch.server.nbt.ItemNbt
                                             .readAttributeModifiers(parsed));
+                        }
+                    }
+                    if (skullOwnerRow != null) {
+                        java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> parsed =
+                                net.zaminmc.torch.server.nbt.Snbt.parseCompound(
+                                        skullOwnerRow);
+                        java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> owner =
+                                net.zaminmc.torch.server.nbt.NbtOps.getCompound(parsed,
+                                        "SkullOwner");
+                        net.zaminmc.torch.item.SkullProfile profile =
+                                net.zaminmc.torch.server.nbt.TileNbt.readProfile(owner);
+                        if (profile != null) {
+                            stack = stack.withSkullOwner(profile);
                         }
                     }
                 }
@@ -421,6 +448,18 @@ public final class ItemDataStore {
             elements.add(net.zaminmc.torch.server.nbt.Snbt.Tag.ofCompound(element));
         }
         net.zaminmc.torch.server.nbt.NbtOps.putList(tag, "AttributeModifiers", elements);
+        return net.zaminmc.torch.server.nbt.NbtOps.writeParseable(tag);
+    }
+
+    /**
+     * The SkullOwner SNBT row (Wave K — the v7 tail's own form): the
+     * profile's compound wrapped in the one-row compound the parser
+     * reads back ({@code {SkullOwner:{Name:..,Id:..,Properties:{..}}}}).
+     */
+    private static String skullOwnerRow(net.zaminmc.torch.item.SkullProfile profile) {
+        java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> tag =
+                new java.util.LinkedHashMap<>();
+        net.zaminmc.torch.server.nbt.TileNbt.writeProfile(tag, "SkullOwner", profile);
         return net.zaminmc.torch.server.nbt.NbtOps.writeParseable(tag);
     }
 

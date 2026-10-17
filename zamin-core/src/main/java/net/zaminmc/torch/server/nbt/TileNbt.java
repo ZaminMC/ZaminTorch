@@ -566,7 +566,7 @@ public final class TileNbt {
      * {@code {Value, Signature?}} rows. An empty-both compound answers
      * null (the reference's own gate).
      */
-    static net.zaminmc.torch.item.SkullProfile readProfile(
+    public static net.zaminmc.torch.item.SkullProfile readProfile(
             Map<String, Snbt.Tag> rows) {
         String name = NbtOps.contains(rows, "Name", Snbt.Tag.Type.STRING)
                 ? NbtOps.getString(rows, "Name") : null;
@@ -620,7 +620,7 @@ public final class TileNbt {
      * {@code {Value, Signature?}} rows (the Signature row only when
      * present).
      */
-    static void writeProfile(Map<String, Snbt.Tag> rows, String key,
+    public static void writeProfile(Map<String, Snbt.Tag> rows, String key,
             net.zaminmc.torch.item.SkullProfile profile) {
         Map<String, Snbt.Tag> owner = new java.util.LinkedHashMap<>();
         if (profile.name() != null && !profile.name().isEmpty()) {

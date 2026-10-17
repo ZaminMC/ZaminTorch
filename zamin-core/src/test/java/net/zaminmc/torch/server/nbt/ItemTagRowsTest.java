@@ -251,4 +251,53 @@ class ItemTagRowsTest {
         assertFalse(NbtOps.containsNumeric(
                 NbtOps.getCompound(NbtOps.getCompound(bare, "tag"), "display"), "color"));
     }
+    @Test
+    void theSkullOwnerRidesTheTagInBothForms() {
+        // Wave K — the player head's placement consult row: the STRING
+        // form (a name-only profile) and the COMPOUND form (the full
+        // profile) both land; the engine writes the compound form back.
+        var head = BuiltinItems.lookup(
+                net.zaminmc.torch.util.Identifier.parse("minecraft:skull")).orElseThrow();
+        java.util.UUID notchId = java.util.UUID.fromString(
+                "b50ad385-829d-4e11-a963-e6321040d9e1");
+        // The string form parses to the name-only profile.
+        Map<String, Snbt.Tag> rows = new LinkedHashMap<>();
+        NbtOps.putString(rows, "id", "minecraft:skull");
+        Map<String, Snbt.Tag> tag = new LinkedHashMap<>();
+        NbtOps.putString(tag, "SkullOwner", "Notch");
+        NbtOps.putCompound(rows, "tag", tag);
+        ItemStack named = ItemNbt.read(rows);
+        assertNotNull(named.skullOwner());
+        assertEquals("Notch", named.skullOwner().name());
+        assertNull(named.skullOwner().id());
+        // The compound form parses the whole profile.
+        Map<String, Snbt.Tag> full = new LinkedHashMap<>();
+        NbtOps.putString(full, "id", "minecraft:skull");
+        Map<String, Snbt.Tag> fullTag = new LinkedHashMap<>();
+        Map<String, Snbt.Tag> owner = new LinkedHashMap<>();
+        NbtOps.putString(owner, "Name", "Notch");
+        NbtOps.putString(owner, "Id", notchId.toString());
+        Map<String, Snbt.Tag> properties = new LinkedHashMap<>();
+        NbtOps.putList(properties, "textures", List.of(
+                Snbt.Tag.ofCompound(new java.util.LinkedHashMap<>(
+                        Map.of("Value", Snbt.Tag.ofString("skin=="))))));
+        NbtOps.putCompound(owner, "Properties", properties);
+        NbtOps.putCompound(fullTag, "SkullOwner", owner);
+        NbtOps.putCompound(full, "tag", fullTag);
+        ItemStack profiled = ItemNbt.read(full);
+        assertNotNull(profiled.skullOwner());
+        assertEquals(notchId, profiled.skullOwner().id());
+        assertEquals(1, profiled.skullOwner().properties().get("textures").size());
+        // The write round-trips the compound form (both forms write the
+        // same compound — the ledgered merge-identity corner).
+        Map<String, Snbt.Tag> out = new LinkedHashMap<>();
+        ItemNbt.write(profiled, out);
+        Map<String, Snbt.Tag> outTag = NbtOps.getCompound(out, "tag");
+        assertEquals("Notch", NbtOps.getString(
+                NbtOps.getCompound(outTag, "SkullOwner"), "Name"));
+        ItemStack reloaded = ItemNbt.read(out);
+        assertEquals(profiled.skullOwner(), reloaded.skullOwner());
+        // The two forms of the same head never merge with a bare stack.
+        assertFalse(ItemStack.mergeable(named, ItemStack.of(head, 1)));
+    }
 }

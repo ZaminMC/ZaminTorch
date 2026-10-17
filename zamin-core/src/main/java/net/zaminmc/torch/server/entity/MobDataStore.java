@@ -39,7 +39,7 @@ public final class MobDataStore {
     private static final int MAGIC_0 = 'Z';
     private static final int MAGIC_1 = 'M';
     private static final int MAGIC_2 = 'D';
-    private static final int FORMAT_VERSION = 11;
+    private static final int FORMAT_VERSION = 12;
 
     /** The v7 store's own version (Slice 94's Wave G tail — the load keeps reading it). */
     private static final int FORMAT_VERSION_7 = 7;
@@ -49,6 +49,8 @@ public final class MobDataStore {
     private static final int FORMAT_VERSION_9 = 9;
     /** The pre-J1 shape (Wave I): the stack rows stop after the display.color row. */
     private static final int FORMAT_VERSION_10 = 10;
+    /** The pre-K2 shape (Wave J): the stack rows stop after the attribute-modifiers row. */
+    private static final int FORMAT_VERSION_11 = 11;
 
     /** The v6 store's own version (Slice 92's held-stack tail — the load keeps reading it). */
     private static final int FORMAT_VERSION_6 = 6;
@@ -132,7 +134,8 @@ public final class MobDataStore {
                 throw new IOException("Not a ZMD file");
             }
             int version = in.readByte();
-            if (version != FORMAT_VERSION && version != FORMAT_VERSION_10
+            if (version != FORMAT_VERSION && version != FORMAT_VERSION_11
+                    && version != FORMAT_VERSION_10
                     && version != FORMAT_VERSION_9
                     && version != FORMAT_VERSION_8
                     && version != FORMAT_VERSION_7
@@ -322,6 +325,18 @@ public final class MobDataStore {
     }
 
     /**
+     * The SkullOwner SNBT row (Wave K — the v12 tail's own form): the
+     * profile's compound wrapped in the one-row compound the parser
+     * reads back (the ZID v7 row's own shape, the store's local copy).
+     */
+    private static String skullOwnerRow(net.zaminmc.torch.item.SkullProfile profile) {
+        java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> tag =
+                new java.util.LinkedHashMap<>();
+        net.zaminmc.torch.server.nbt.TileNbt.writeProfile(tag, "SkullOwner", profile);
+        return net.zaminmc.torch.server.nbt.NbtOps.writeParseable(tag);
+    }
+
+    /**
      * The v6 tameable/horse tail (Slice 92): a null marker byte, else the
      * present byte + the owner pair + the flags.
      */
@@ -489,6 +504,11 @@ public final class MobDataStore {
             writeNullableString(out, nbt.heldEquipment().attributeModifiers() == null
                     ? null
                     : attributeModifiersRow(nbt.heldEquipment().attributeModifiers()));
+            // The v12 tail (Wave K — the player head's SkullOwner): ONE
+            // parseable-SNBT string row, the profile's compound form.
+            writeNullableString(out, nbt.heldEquipment().skullOwner() == null
+                    ? null
+                    : skullOwnerRow(nbt.heldEquipment().skullOwner()));
         }
         if ((flags & NBT_FLAG_MOVEMENT_SPEED) != 0) {
             out.writeDouble(nbt.movementSpeed());
@@ -611,9 +631,9 @@ public final class MobDataStore {
                         held = held.withDisplayColor(in.readInt());
                     }
                     // The v11 tail (Wave J — the attribute modifiers):
-                    // absent in a v10 file, gated on the CURRENT version
-                    // (the next bump renames it — this file's own law).
-                    String attributeModifiersRow = version >= FORMAT_VERSION
+                    // absent in a v10 file — the row names its OWN version
+                    // (the v12 bump's audit).
+                    String attributeModifiersRow = version >= FORMAT_VERSION_11
                             ? readNullableString(in) : null;
                     if (attributeModifiersRow != null) {
                         java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> parsed =
@@ -625,6 +645,23 @@ public final class MobDataStore {
                             held = held.withAttributeModifiers(
                                     net.zaminmc.torch.server.nbt.ItemNbt
                                             .readAttributeModifiers(parsed));
+                        }
+                    }
+                    // The v12 tail (Wave K — the SkullOwner row): absent in
+                    // a v11 file.
+                    String skullOwnerRow = version >= FORMAT_VERSION
+                            ? readNullableString(in) : null;
+                    if (skullOwnerRow != null) {
+                        java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> parsed =
+                                net.zaminmc.torch.server.nbt.Snbt.parseCompound(
+                                        skullOwnerRow);
+                        java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> owner =
+                                net.zaminmc.torch.server.nbt.NbtOps.getCompound(parsed,
+                                        "SkullOwner");
+                        net.zaminmc.torch.item.SkullProfile profile =
+                                net.zaminmc.torch.server.nbt.TileNbt.readProfile(owner);
+                        if (profile != null) {
+                            held = held.withSkullOwner(profile);
                         }
                     }
                 }

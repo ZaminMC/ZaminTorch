@@ -51,7 +51,8 @@ final class SlotNbt {
                 || (stack.canDestroy() != null && !stack.canDestroy().isEmpty())
                 || (stack.canPlaceOn() != null && !stack.canPlaceOn().isEmpty())
                 || stack.displayColor() != null
-                || stack.attributeModifiers() != null; // present-even-empty (Wave J's wipe)
+                || stack.attributeModifiers() != null // present-even-empty (Wave J's wipe)
+                || stack.skullOwner() != null; // the player head's placement row (Wave K)
     }
 
     /**
@@ -201,6 +202,47 @@ final class SlotNbt {
                 out.writeLong(modifier.uuid().getLeastSignificantBits());
                 out.writeByte(TAG_END);     // end of the element compound
             }
+        }
+        // The player head's SkullOwner (Wave K — the placement consult's
+        // own row, the compound form): Name/Id/Properties rows, the same
+        // walk the skull tile's Owner compound rides.
+        if (stack.skullOwner() != null) {
+            var profile = stack.skullOwner();
+            out.writeByte(TAG_COMPOUND);
+            writeShortString(out, "SkullOwner");
+            if (profile.name() != null && !profile.name().isEmpty()) {
+                out.writeByte(TAG_STRING);
+                writeShortString(out, "Name");
+                writeShortString(out, profile.name());
+            }
+            if (profile.id() != null) {
+                out.writeByte(TAG_STRING);
+                writeShortString(out, "Id");
+                writeShortString(out, profile.id().toString());
+            }
+            if (profile.properties() != null && !profile.properties().isEmpty()) {
+                out.writeByte(TAG_COMPOUND);
+                writeShortString(out, "Properties");
+                for (var keyRow : profile.properties().entrySet()) {
+                    out.writeByte(TAG_LIST);
+                    writeShortString(out, keyRow.getKey());
+                    out.writeByte(TAG_COMPOUND);
+                    out.writeInt(keyRow.getValue().size());
+                    for (var property : keyRow.getValue()) {
+                        out.writeByte(TAG_STRING);
+                        writeShortString(out, "Value");
+                        writeShortString(out, property.value());
+                        if (property.signature() != null) {
+                            out.writeByte(TAG_STRING);
+                            writeShortString(out, "Signature");
+                            writeShortString(out, property.signature());
+                        }
+                        out.writeByte(TAG_END);
+                    }
+                }
+                out.writeByte(TAG_END);
+            }
+            out.writeByte(TAG_END);
         }
         out.writeByte(TAG_END);        // end of root
     }

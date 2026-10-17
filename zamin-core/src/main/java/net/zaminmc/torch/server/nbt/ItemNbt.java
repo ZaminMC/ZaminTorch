@@ -78,7 +78,8 @@ public final class ItemNbt {
         boolean hasAttributeModifiers = stack.attributeModifiers() != null;
         if (hasName || hasLore || hasEnch || unbreakable || repairCost > 0 || hideFlags > 0
                 || hasBlockEntityTag || hasCanDestroy || hasCanPlaceOn
-                || stack.displayColor() != null || hasAttributeModifiers) {
+                || stack.displayColor() != null || hasAttributeModifiers
+                || stack.skullOwner() != null) {
             Map<String, Snbt.Tag> tag = new java.util.LinkedHashMap<>();
             if (hasName || hasLore || stack.displayColor() != null) {
                 Map<String, Snbt.Tag> display = new java.util.LinkedHashMap<>();
@@ -150,6 +151,12 @@ public final class ItemNbt {
             if (hasAttributeModifiers) {
                 NbtOps.putList(tag, "AttributeModifiers",
                         modifierRows(stack.attributeModifiers()));
+            }
+            // The player head's SkullOwner (Wave K — the placement
+            // consult's own row): the COMPOUND form (the reference never
+            // writes the row; the engine round-trips what it parsed).
+            if (stack.skullOwner() != null) {
+                TileNbt.writeProfile(tag, "SkullOwner", stack.skullOwner());
             }
             NbtOps.putCompound(rows, "tag", tag);
         }
@@ -321,6 +328,22 @@ public final class ItemNbt {
         if (NbtOps.contains(tag, "AttributeModifiers", Snbt.Tag.Type.LIST)) {
             stack = stack.withAttributeModifiers(
                     readAttributeModifiers(tag));
+        }
+        // The player head's SkullOwner row (Wave K — SkullItem.use lines
+        // 70-77): the COMPOUND form (readProfile's shape) first, else the
+        // STRING form (a non-empty name births a name-only profile — the
+        // reference's own two-branch consult).
+        Map<String, Snbt.Tag> skullOwnerRows = NbtOps.getCompound(tag, "SkullOwner");
+        if (!skullOwnerRows.isEmpty()) {
+            net.zaminmc.torch.item.SkullProfile owner = TileNbt.readProfile(skullOwnerRows);
+            if (owner != null) {
+                stack = stack.withSkullOwner(owner);
+            }
+        } else if (NbtOps.contains(tag, "SkullOwner", Snbt.Tag.Type.STRING)
+                && !NbtOps.getString(tag, "SkullOwner").isEmpty()) {
+            stack = stack.withSkullOwner(
+                    net.zaminmc.torch.item.SkullProfile.ofName(
+                            NbtOps.getString(tag, "SkullOwner")));
         }
         return stack;
     }

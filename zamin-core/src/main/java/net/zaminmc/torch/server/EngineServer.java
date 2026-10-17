@@ -3323,8 +3323,18 @@ public final class EngineServer implements Server, EngineBridge {
             rotation = (int) Math.floor(
                     session.rotation().yaw() * 16.0f / 360.0f + 0.5f) & 15;
         }
+        // The player head's profile (Wave K — SkullItem.use lines 68-79):
+        // a damage-3 stack consults its SkullOwner row (the compound or
+        // the string form — both landed on the model at the /give read);
+        // a tagless head places the plain Steve head (gameprofile null).
+        // The setProfile(null) arm keeps the type 3 — the reference's own
+        // branch — and the non-3 types never carry a profile.
+        net.zaminmc.torch.item.SkullProfile profile = null;
+        if (type == 3 && !creativeHeld.isPresent() && !held.isEmpty()) {
+            profile = held.skullOwner();
+        }
         // The tile write + the summon consult (lines 60-81).
-        skullStore.place(target, type, rotation);
+        skullStore.place(target, type, rotation, profile);
         if (type == 1) {
             skullStore.trySummonWither(target);
         }

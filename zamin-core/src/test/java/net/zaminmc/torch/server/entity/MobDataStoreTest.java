@@ -9,6 +9,7 @@ import java.nio.file.Path;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -248,5 +249,28 @@ class MobDataStoreTest {
         assertEquals(3, villager.villagerCareerLevel());
         assertEquals(12, villager.villagerRiches());
         assertTrue(villager.isBaby(), "the negative Age restores the childhood");
+    }
+    @Test
+    void theHeldStacksSkullOwnerSurvivesTheStore() throws Exception {
+        // Wave K — the ZMD v12 tail: the held player head's profile as
+        // ONE parseable-SNBT string row.
+        MobManager manager = new MobManager(new StubWorld(), new java.util.Random(15),
+                (position, stack) -> { }, 1_100_000, (x, z) -> 4);
+        MobEntity zombie = manager.spawnAt(
+                MobType.ZOMBIE, new Position(0.5, 4.0, 0.5));
+        zombie.setHeldEquipment(new net.zaminmc.torch.item.ItemStack(
+                        net.zaminmc.torch.server.item.BuiltinItems.SKULL, 1, 3)
+                .withSkullOwner(net.zaminmc.torch.item.SkullProfile.ofName("jeb_")));
+
+        MobDataStore store = new MobDataStore(tempDir.resolve("wavek.zmd"));
+        store.save(manager.snapshot());
+
+        List<MobManager.MobSnapshot> loaded = store.load();
+        assertEquals(1, loaded.size());
+        net.zaminmc.torch.item.ItemStack held = loaded.get(0).nbt().heldEquipment();
+        assertTrue(held != null && held.skullOwner() != null,
+                "the arm rode the v12 tail");
+        assertEquals("jeb_", held.skullOwner().name());
+        assertNull(held.skullOwner().id());
     }
 }
