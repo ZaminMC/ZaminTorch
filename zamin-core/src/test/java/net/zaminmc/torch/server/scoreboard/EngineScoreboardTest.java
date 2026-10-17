@@ -193,9 +193,13 @@ class EngineScoreboardTest {
         assertEquals(2, EngineScoreboard.displaySlot("belowName"));
         assertEquals(3 + 12, EngineScoreboard.displaySlot("sidebar.team.red"));
         assertEquals(-1, EngineScoreboard.displaySlot("sidebar.team.notacolor"));
-        // The criterion families register exactly like the reference.
-        assertEquals(38, ScoreboardCriterion.BY_NAME.size(),
-                "6 named + 16 teamkill + 16 killedByTeam");
+        // The criterion families register exactly like the reference — the
+        // 38 base rows plus the stat-criteria band (Slice 90's Stats.init
+        // walk: the general band, the 34 achievements, the entity kill pair,
+        // the item/block families), one criterion per stat key.
+        assertEquals(38 + net.zaminmc.torch.server.stat.StatCriteria.allKeys().size(),
+                ScoreboardCriterion.BY_NAME.size(),
+                "38 base (6 named + 16 teamkill + 16 killedByTeam) + the stat band");
         assertEquals("teamkill.red", ScoreboardCriterion.TEAM_KILL_BY_COLOR[12].name());
         assertEquals("killedByTeam.white", ScoreboardCriterion.KILLED_BY_TEAM_BY_COLOR[15].name());
         assertTrue(ScoreboardCriterion.HEALTH.isReadOnly());
