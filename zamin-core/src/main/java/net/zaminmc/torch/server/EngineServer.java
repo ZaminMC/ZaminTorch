@@ -16470,6 +16470,9 @@ public final class EngineServer implements Server, EngineBridge {
         commands.register(new CommandService.Command("setblock",
                 "Place a block: /setblock <x y z> <block> [meta] [destroy|keep|replace] [dataTag]",
                 2, this::setblockCommand));
+        commands.register(new CommandService.Command("fill",
+                "Fill a box: /fill <x1 y1 z1> <x2 y2 z2> <block> [meta] [mode] [filterBlock] [filterMeta]",
+                2, this::fillCommand));
         commands.register(new CommandService.Command("time",
                 "Query or set the day: /time query | /time set <day|noon|night|midnight|ticks>",
                 this::timeCommand));
@@ -17450,6 +17453,107 @@ public final class EngineServer implements Server, EngineBridge {
         final var ftype = type;
         ticker.submit(() -> world.setBlock(position, ftype));
         return "Block placed";
+    }
+
+    /**
+     * /fill (FillCommand 1:1, op-2): the two-corner box with the min/max
+     * normalization, the 32768 volume cap, the height bounds, the five
+     * modes (the shell-only outline; the hollow airs the interior; keep
+     * skips non-air; replace with the optional block(+meta) filter; the
+     * plain default) in the reference's own zyx loop order, and the count
+     * feedback. Destroy's drops and the dataTag arm ride the break/readNbt
+     * surfaces (ledgered, /setblock's own note).
+     */
+    private String fillCommand(CommandSender sender, String[] args) {
+        if (args.length < 7) {
+            return "Usage: /fill <x1 y1 z1> <x2 y2 z2> <block> [meta] [mode] [filterBlock] [filterMeta]";
+        }
+        PlayerSession self = sender.player();
+        double sx = self != null ? self.position().x() : 0.0;
+        double sy = self != null ? self.position().y() : 0.0;
+        double sz = self != null ? self.position().z() : 0.0;
+        int x1 = (int) Math.floor(parseRelativeCoordinate(sx, args[0]));
+        int y1 = (int) Math.floor(parseRelativeCoordinate(sy, args[1]));
+        int z1 = (int) Math.floor(parseRelativeCoordinate(sz, args[2]));
+        int x2 = (int) Math.floor(parseRelativeCoordinate(sx, args[3]));
+        int y2 = (int) Math.floor(parseRelativeCoordinate(sy, args[4]));
+        int z2 = (int) Math.floor(parseRelativeCoordinate(sz, args[5]));
+        int minX = Math.min(x1, x2);
+        int minY = Math.min(y1, y2);
+        int minZ = Math.min(z1, z2);
+        int maxX = Math.max(x1, x2);
+        int maxY = Math.max(y1, y2);
+        int maxZ = Math.max(z1, z2);
+        int volume = (maxX - minX + 1) * (maxY - minY + 1) * (maxZ - minZ + 1);
+        if (volume > 32768) {
+            return "Cannot fill more than 32768 blocks (got " + volume + ")";
+        }
+        if (minY < 0 || maxY > 255) {
+            return "Cannot fill blocks outside of the world";
+        }
+        String rawName = args[6].contains(":") ? args[6] : "minecraft:" + args[6];
+        var type = blockRegistry.byKey(rawName).orElse(null);
+        if (type == null) {
+            return "There is no such block with name " + args[6];
+        }
+        int meta = 0;
+        if (args.length >= 8) {
+            meta = net.zaminmc.torch.server.command.CommandParse.parseInt(args[7]);
+            if (meta < 0 || meta > 15) {
+                return "Metadata must be 0..15";
+            }
+            if (meta != 0 && meta != ((net.zaminmc.torch.server.block.EngineBlockType) type).legacyMetadata()) {
+                return "That metadata does not name one of this block's variants (the engine names variants directly)";
+            }
+        }
+        String mode = args.length >= 9 ? args[8] : "replace";
+        var filterType = (net.zaminmc.torch.block.BlockType) null;
+        if (args.length > 9 && "replace".equals(mode)) {
+            String filterName = args[9].contains(":") ? args[9] : "minecraft:" + args[9];
+            filterType = blockRegistry.byKey(filterName).orElse(null);
+            if (filterType == null) {
+                return "There is no such block with name " + args[9];
+            }
+        }
+
+        final var ftype = type;
+        final String fmode = mode;
+        final var ffilter = filterType;
+        final int[] placed = new int[1];
+        // The chat drain runs on the tick thread — the world's own mutation
+        // context — so the fill runs inline and answers the real count.
+        for (int zz = minZ; zz <= maxZ; zz++) {
+            for (int yy = minY; yy <= maxY; yy++) {
+                for (int xx = minX; xx <= maxX; xx++) {
+                    var at = new net.zaminmc.torch.block.BlockPosition(xx, yy, zz);
+                    var current = world.getBlock(at);
+                    boolean currentAir = current.identifier().value().equals("air");
+                    boolean onShell = xx == minX || xx == maxX || yy == minY || yy == maxY || zz == minZ || zz == maxZ;
+                    if ("outline".equals(fmode) || "hollow".equals(fmode)) {
+                        if (!onShell) {
+                            if ("hollow".equals(fmode)) {
+                                world.setBlock(at, net.zaminmc.torch.server.block.BuiltinBlocks.AIR);
+                            }
+                            continue;
+                        }
+                    } else if ("keep".equals(fmode)) {
+                        if (!currentAir) {
+                            continue;
+                        }
+                    } else if ("replace".equals(fmode) && ffilter != null) {
+                        if (!current.identifier().equals(ffilter.identifier())) {
+                            continue;
+                        }
+                    }
+                    // destroy's drops ride the break slice (ledgered); the
+                    // set is the same arm for replace/destroy/plain.
+                    if (world.setBlock(at, ftype)) {
+                        placed[0]++;
+                    }
+                }
+            }
+        }
+        return "Filled " + placed[0] + " blocks";
     }
 
     /**

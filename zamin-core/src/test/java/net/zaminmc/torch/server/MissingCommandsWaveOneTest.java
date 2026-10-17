@@ -347,6 +347,40 @@ class MissingCommandsWaveOneTest {
                 new net.zaminmc.torch.block.BlockPosition(x, y + 2, z)).identifier().value());
     }
 
+    @Test
+    void theFillArm() throws Exception {
+        int x = (int) Math.floor(alice.position().x());
+        int y = (int) Math.floor(alice.position().y());
+        int z = (int) Math.floor(alice.position().z());
+        // A 3x3x3 box in open air above the sender: solid glass first.
+        dispatch("/fill ~-1 ~1 ~-1 ~1 ~3 ~1 glass");
+        await(() -> server.world().getBlock(
+                        new net.zaminmc.torch.block.BlockPosition(x, y + 2, z)).identifier().value().equals("glass"),
+                "the solid fill landed");
+        // The center was glass (solid).
+        assertEquals("glass", server.world().getBlock(
+                new net.zaminmc.torch.block.BlockPosition(x, y + 2, z)).identifier().value());
+
+        // The same box hollowed: the shell becomes stone, the interior airs.
+        dispatch("/fill ~-1 ~1 ~-1 ~1 ~3 ~1 stone 0 hollow");
+        await(() -> server.world().getBlock(
+                        new net.zaminmc.torch.block.BlockPosition(x, y + 1, z)).identifier().value().equals("stone"),
+                "the hollow shell landed");
+        assertEquals("stone", server.world().getBlock(
+                new net.zaminmc.torch.block.BlockPosition(x + 1, y + 2, z + 1)).identifier().value(),
+                "a shell corner");
+        assertEquals("air", server.world().getBlock(
+                new net.zaminmc.torch.block.BlockPosition(x, y + 2, z)).identifier().value(),
+                "the hollowed interior");
+
+        // The volume cap.
+        dispatch("/fill ~-20 ~1 ~-20 ~20 ~40 ~20 stone");
+        Thread.sleep(300);
+        // The too-many refusal fired nothing new — the shell is still stone.
+        assertEquals("stone", server.world().getBlock(
+                new net.zaminmc.torch.block.BlockPosition(x, y + 1, z)).identifier().value());
+    }
+
     private net.zaminmc.torch.server.chat.CommandSender aliceSender() {
         return new net.zaminmc.torch.server.chat.CommandSender() {
             @Override public String name() {
