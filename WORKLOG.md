@@ -8239,3 +8239,83 @@ persistence; (6) the periodic release cadence.
 NEXT: wave two — /effect + /enchant + /achievement; then /particle +
 /playsound; then /execute (+detect); then /setblock /fill /clone; then
 /blockdata /entitydata /replaceitem /stats /trigger /debug.
+
+## Slice 88 wave six — /execute + /spreadplayers + /stats (the command-stats engine) + /replaceitem
+
+- **THE COMMAND-SOURCE SURFACE** (CommandSender's new defaults — the
+  reference's getCommandSourcePos/getCommandSourceWorld/asEntity 1:1):
+  sourcePos/sourceDimension/asSourceEntity carry the player/console
+  shapes; the execute proxy overrides all three. The ~-parse sites
+  (playsound/particle/setblock/fill/clone/worldborder + spawnpoint's
+  coord arm, which the reference parses against the SOURCE, not the
+  target) re-anchor through it. TargetSelector.sourceViewOf reads the
+  same surface; CommandService.dispatchCounted (CommandRegistry.run's
+  j count) answers /execute's failed-run detection — the engine's
+  string-feedback convention counts a completed run as one success
+  (ledgered against the reference's throwing run).
+- **/EXECUTE** (ExecuteCommand 1:1, op-2): the any-kind entity ladder,
+  the ~-coords against the ENTITY's body with the ±30000000 bounds
+  (CommandParse.parseCoordinate), the detect arm (the second triple
+  against the first, the block + the -1..15 meta with -1 any, the
+  named-variant state match, the mismatch refusal), and the nested run
+  over the proxied source — name/entity/dimension/pos swapped, the
+  feedback routed to the original sender, the permission inherited, the
+  results routed to the ENTITY's holder. The reference's own quirk
+  preserved: the j<1 allInvocationsFailed throw lands inside its own
+  catch arm — the failed line always shows, allInvocationsFailed never
+  does.
+- **/SPREADPLAYERS** (SpreadPlayersCommand 1:1, op-2): the centered x/z
+  parse (a bare integer +0.5), the spread/maxRange bounds (maxRange >=
+  spread+1), the respect-teams boolean (CommandParse.parseBoolean), the
+  selector-or-name entity list, the reference's own relaxation ported
+  whole (the Pile class — 10000 iterations, the too-close pushes, the
+  clamps, the fire/liquid re-rolls over FluidBlocks.isFluid + fire, the
+  random reset, the empty-column 257 landing Y), the floor+0.5 landing
+  with the team pile sharing (getTeamCount over the board's
+  getTeamOfMember), the count + average-distance feedback, and the
+  impossible-space failure line. MobEntity.teleport (Entity.teleport's
+  plain position set) carries the mob arm.
+- **THE COMMAND-STATS ENGINE** (EngineCommandResults — the reference's
+  CommandResults ported whole): the five types by their reference
+  names, the per-type (source, objective) bindings, the hasScore-gated
+  set on add (an existing score only), the parseEntityName ladder (a
+  player answers its name, a mob its name key — the engine's mobs
+  carry no public uuid, ledgered; an unmatched selector refuses; a
+  plain string answers itself). The holders: PlayerSession + MobEntity
+  (the reference's Entity field), the command-block tile's CommandState,
+  the sign rows (with the break cleanup). The reporting:
+  CommandSender.addResult (the console's empty arm — MinecraftServer's
+  own override), the chat player sender, the execute proxy (the
+  ENTITY's holder), the command-block executor sender; the
+  dispatch-level AFFECTED_ENTITIES/SUCCESS_COUNT on every path; and the
+  per-command sites (setblock/fill/clone AFFECTED_BLOCKS 0-upfront +
+  the count, give/clear/enchant AFFECTED_ITEMS, the time query's
+  QUERY_RESULT).
+- **/STATS** (StatsCommand 1:1, op-2): the usage ladder, the entity arm
+  (the any-kind ladder — the holder on the player or the mob) and the
+  block arm (a command-block tile or a sign), the set pair with the
+  empty-string refusal, the clear arm, the unknown-type refusal.
+- **/REPLACEITEM** (ReplaceItemCommand 1:1, op-2): the reference's
+  SLOTS_BY_ID table verbatim, the entity arm (the player's weapon = the
+  held cell, the armor family through the engine's kind-gated setArmor
+  (the reference's raw array write — ledgered), the 0-35 hotbar +
+  inventory, the 27 enderchest cells; the mob's weapon; the
+  villager/horse families and the mob armor answer the failed refusal —
+  the engine models those inventories nowhere, ledgered), the block arm
+  (the container families by the BLOCK's identity with the lazy
+  getOrCreate standing in for the reference's placement-created tile,
+  the silent out-of-range skip, the no-container refusal), the literal
+  air's clear form, the 1..64 count bounds, the metadata, and the
+  AFFECTED_ITEMS stat pair.
+- Tests: MissingCommandsWaveOneTest (20 — the execute player/mob arms,
+  the spread pair/impossible/team arms, the stats success/zero/count/
+  clear arms, the replaceitem entity/block arms); the selector,
+  scoreboard, command-block, sign, console, chest/furnace/hopper/
+  dispenser/brewing families green.
+
+NEXT (in order): (1) the NBT command arms — /blockdata + /entitydata +
+/testfor's dataTag + /summon's NBT form (the Snbt read/write surface);
+(2) /achievement + the achievement system (parent chains, toasts);
+(3) /testforblock + /testforblocks; (4) the /debug profiler ledger; (5)
+the stats' tile/entity NBT persistence; (6) the §27 window-family
+re-sync rows + the border's worldborder.json persistence.
