@@ -4908,8 +4908,8 @@ public final class EngineServer implements Server, EngineBridge {
                             // part: the sword's damage, the crit gate, then
                             // the part walk.
                             ItemStack held = attacker.inventory().held();
-                            float base = net.zaminmc.torch.server.item.Tools.attackDamageOf(
-                                    held.type());
+                            float base = net.zaminmc.torch.server.item.Tools.heldDamageOf(
+                                    held);
                             float wound = dragon.dragonDamagePart(part, base, true, false);
                             if (wound > 0.0f) {
                                 mobManager.hurt(dragon, wound,
@@ -4963,7 +4963,7 @@ public final class EngineServer implements Server, EngineBridge {
                 return; // out of reach: the server-side refusal
             }
             ItemStack held = attacker.inventory().held();
-            float base = net.zaminmc.torch.server.item.Tools.attackDamageOf(held.type());
+            float base = net.zaminmc.torch.server.item.Tools.heldDamageOf(held);
             // The vanilla crit gate (the reference's flag, lines 959-965):
             // falling with accumulated fall distance, airborne, not climbing,
             // not in water, not blind, unmounted, on a living target. The
@@ -5167,7 +5167,7 @@ public final class EngineServer implements Server, EngineBridge {
                 return; // out of reach: the server-side refusal
             }
             ItemStack held = attacker.inventory().held();
-            float base = net.zaminmc.torch.server.item.Tools.attackDamageOf(held.type());
+            float base = net.zaminmc.torch.server.item.Tools.heldDamageOf(held);
             // The vanilla crit gate (the reference's flag): falling, airborne,
             // not climbing, not in water, not blind, unmounted — the same
             // arms as the mob path; the target here is a living player.

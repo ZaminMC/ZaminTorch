@@ -2596,7 +2596,11 @@ public final class MobManager {
         ItemStack drop = held;
         if (!always && held.type().maxDurability() > 0 && !held.unbreakable()) {
             // isDamageable: the durability shave — the dropped tool never
-            // lands pristine (the reference's own cut).
+            // lands pristine (the reference's own cut). The shave rides
+            // withDamage alone: the pre-G1 5-arg reconstruction stripped
+            // every tag arm the stack carried (the Wave G strip-bug
+            // pattern, caught in Wave J's audit — a named lore-carrying
+            // locked sword now drops WITH its whole tag).
             int max = held.type().maxDurability();
             int bound = Math.max(max - 25, 1);
             int k = max - random.nextInt(random.nextInt(bound) + 1);
@@ -2606,8 +2610,7 @@ public final class MobManager {
             if (k < 1) {
                 k = 1;
             }
-            drop = new ItemStack(held.type(), held.count(), k,
-                    held.displayName(), held.enchantments());
+            drop = held.withDamage(k);
         }
         Position at = mob.position();
         lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()), drop);
@@ -3049,10 +3052,15 @@ public final class MobManager {
             if (newSword && !oldSword) {
                 better = true;
             } else if (newSword && oldSword) {
+                // Wave J's fold consult (the reference's own compare reads
+                // the sword tier's field; the engine upgrades both sides
+                // to the held stack's folded damage — a tagged sword
+                // out-ranks an untagged one, the tagless fall-back keeps
+                // the tier's own ordering).
                 float newDamage = net.zaminmc.torch.server.item.Tools
-                        .attackDamageOf(stack.type());
+                        .heldDamageOf(stack);
                 float oldDamage = net.zaminmc.torch.server.item.Tools
-                        .attackDamageOf(held.type());
+                        .heldDamageOf(held);
                 if (newDamage != oldDamage) {
                     better = newDamage > oldDamage;
                 } else {

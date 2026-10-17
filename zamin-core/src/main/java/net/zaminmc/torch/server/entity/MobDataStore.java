@@ -39,7 +39,7 @@ public final class MobDataStore {
     private static final int MAGIC_0 = 'Z';
     private static final int MAGIC_1 = 'M';
     private static final int MAGIC_2 = 'D';
-    private static final int FORMAT_VERSION = 10;
+    private static final int FORMAT_VERSION = 11;
 
     /** The v7 store's own version (Slice 94's Wave G tail — the load keeps reading it). */
     private static final int FORMAT_VERSION_7 = 7;
@@ -47,6 +47,8 @@ public final class MobDataStore {
     private static final int FORMAT_VERSION_8 = 8;
     /** The pre-color shape (Slice 96): the stack rows stop after the CanPlaceOn list. */
     private static final int FORMAT_VERSION_9 = 9;
+    /** The pre-J1 shape (Wave I): the stack rows stop after the display.color row. */
+    private static final int FORMAT_VERSION_10 = 10;
 
     /** The v6 store's own version (Slice 92's held-stack tail — the load keeps reading it). */
     private static final int FORMAT_VERSION_6 = 6;
@@ -130,7 +132,8 @@ public final class MobDataStore {
                 throw new IOException("Not a ZMD file");
             }
             int version = in.readByte();
-            if (version != FORMAT_VERSION && version != FORMAT_VERSION_9
+            if (version != FORMAT_VERSION && version != FORMAT_VERSION_10
+                    && version != FORMAT_VERSION_9
                     && version != FORMAT_VERSION_8
                     && version != FORMAT_VERSION_7
                     && version != FORMAT_VERSION_6
@@ -285,6 +288,37 @@ public final class MobDataStore {
             return null;
         }
         return readString(in);
+    }
+
+    /**
+     * The attribute modifiers' SNBT row (Wave J — the v11 tail's own form):
+     * the ItemNbt write shape wrapped in the one-row compound the parser
+     * reads back ({@code {AttributeModifiers:[..]}}), the whole list as
+     * ONE string row — the BlockEntityTag tail's own pattern (the store's
+     * own local copy, the writeString family's own convention).
+     */
+    private static String attributeModifiersRow(
+            java.util.List<net.zaminmc.torch.item.AttributeModifier> modifiers) {
+        java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> tag =
+                new java.util.LinkedHashMap<>();
+        java.util.List<net.zaminmc.torch.server.nbt.Snbt.Tag> elements =
+                new java.util.ArrayList<>(modifiers.size());
+        for (net.zaminmc.torch.item.AttributeModifier modifier : modifiers) {
+            java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> element =
+                    new java.util.LinkedHashMap<>();
+            net.zaminmc.torch.server.nbt.NbtOps.putString(element,
+                    "AttributeName", modifier.attributeName());
+            net.zaminmc.torch.server.nbt.NbtOps.putString(element, "Name", modifier.name());
+            net.zaminmc.torch.server.nbt.NbtOps.putDouble(element, "Amount", modifier.amount());
+            net.zaminmc.torch.server.nbt.NbtOps.putInt(element, "Operation", modifier.operation());
+            net.zaminmc.torch.server.nbt.NbtOps.putLong(element, "UUIDMost",
+                    modifier.uuid().getMostSignificantBits());
+            net.zaminmc.torch.server.nbt.NbtOps.putLong(element, "UUIDLeast",
+                    modifier.uuid().getLeastSignificantBits());
+            elements.add(net.zaminmc.torch.server.nbt.Snbt.Tag.ofCompound(element));
+        }
+        net.zaminmc.torch.server.nbt.NbtOps.putList(tag, "AttributeModifiers", elements);
+        return net.zaminmc.torch.server.nbt.NbtOps.writeParseable(tag);
     }
 
     /**
@@ -448,6 +482,13 @@ public final class MobDataStore {
             if (nbt.heldEquipment().displayColor() != null) {
                 out.writeInt(nbt.heldEquipment().displayColor());
             }
+            // The v11 tail (Wave J — the attribute modifiers): the whole
+            // list as ONE parseable-SNBT string row (the BlockEntityTag
+            // tail's own pattern — the wrapped compound the parser reads
+            // back). An absent arm writes the null marker.
+            writeNullableString(out, nbt.heldEquipment().attributeModifiers() == null
+                    ? null
+                    : attributeModifiersRow(nbt.heldEquipment().attributeModifiers()));
         }
         if ((flags & NBT_FLAG_MOVEMENT_SPEED) != 0) {
             out.writeDouble(nbt.movementSpeed());
@@ -562,9 +603,29 @@ public final class MobDataStore {
                         }
                         held = held.withCanPlaceOn(keys);
                     }
-                    // The v10 tail (the leather tint): absent in a v9 file.
-                    if (version >= FORMAT_VERSION && in.readBoolean()) {
+                    // The v10 tail (the leather tint): absent in a v9 file
+                    // — the row names its OWN version (the v11 bump's
+                    // audit: the old >= FORMAT_VERSION gate would skip a
+                    // v10 file's color row and misparse the file).
+                    if (version >= FORMAT_VERSION_10 && in.readBoolean()) {
                         held = held.withDisplayColor(in.readInt());
+                    }
+                    // The v11 tail (Wave J — the attribute modifiers):
+                    // absent in a v10 file, gated on the CURRENT version
+                    // (the next bump renames it — this file's own law).
+                    String attributeModifiersRow = version >= FORMAT_VERSION
+                            ? readNullableString(in) : null;
+                    if (attributeModifiersRow != null) {
+                        java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> parsed =
+                                net.zaminmc.torch.server.nbt.Snbt.parseCompound(
+                                        attributeModifiersRow);
+                        if (net.zaminmc.torch.server.nbt.NbtOps.contains(parsed,
+                                "AttributeModifiers",
+                                net.zaminmc.torch.server.nbt.Snbt.Tag.Type.LIST)) {
+                            held = held.withAttributeModifiers(
+                                    net.zaminmc.torch.server.nbt.ItemNbt
+                                            .readAttributeModifiers(parsed));
+                        }
                     }
                 }
             }

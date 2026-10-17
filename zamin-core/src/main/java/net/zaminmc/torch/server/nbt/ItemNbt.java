@@ -24,10 +24,14 @@ import java.util.Map;
  * <b>Wave H2</b> lands the raw compound — {@code tag.BlockEntityTag}
  * (BlockItem lines 76-97): carried VERBATIM on the model's arm in its
  * boxed form, never interpreted at the item layer — the placement
- * consult merges it into the freshly-placed tile's rows. The remaining
- * arms — CanDestroy/CanPlace, the attribute modifiers, display.color —
- * parse into nothing and are never written (the engine's standing
- * envelope, ledgered).</p>
+ * consult merges it into the freshly-placed tile's rows. <b>Wave I</b>
+ * lands the adventure gates — CanDestroy/CanPlace. <b>Wave J</b> lands
+ * the last arm — {@code tag.AttributeModifiers} (the reference's
+ * getAttributeModifiers lines 646-670): a TAG_LIST of TAG_COMPOUND, each
+ * element EntityAttributes.fromNbt's own shape, the zero-uuid rows
+ * skipped on read, an explicitly-present-but-emptied list stripping the
+ * item's default modifiers (the attribute-wipe — never the defaults'
+ * fall-back).
  */
 public final class ItemNbt {
 
@@ -68,9 +72,13 @@ public final class ItemNbt {
                 && !stack.blockEntityTag().isEmpty();
         boolean hasCanDestroy = stack.canDestroy() != null && !stack.canDestroy().isEmpty();
         boolean hasCanPlaceOn = stack.canPlaceOn() != null && !stack.canPlaceOn().isEmpty();
+        // The modifiers arm keeps its PRESENCE alone as the gate (Wave J):
+        // an explicitly empty list is the tag's own form (the wipe) and
+        // must ride the compound like any other row.
+        boolean hasAttributeModifiers = stack.attributeModifiers() != null;
         if (hasName || hasLore || hasEnch || unbreakable || repairCost > 0 || hideFlags > 0
                 || hasBlockEntityTag || hasCanDestroy || hasCanPlaceOn
-                || stack.displayColor() != null) {
+                || stack.displayColor() != null || hasAttributeModifiers) {
             Map<String, Snbt.Tag> tag = new java.util.LinkedHashMap<>();
             if (hasName || hasLore || stack.displayColor() != null) {
                 Map<String, Snbt.Tag> display = new java.util.LinkedHashMap<>();
@@ -133,6 +141,15 @@ public final class ItemNbt {
                     keys.add(Snbt.Tag.ofString(key));
                 }
                 NbtOps.putList(tag, "CanPlaceOn", keys);
+            }
+            // The attribute modifiers (Wave J — the reference's
+            // getAttributeModifiers read family): a TAG_LIST of
+            // TAG_COMPOUND, written whenever the model carries the arm —
+            // an explicitly empty list included (the wipe rides the
+            // compound as the empty list).
+            if (hasAttributeModifiers) {
+                NbtOps.putList(tag, "AttributeModifiers",
+                        modifierRows(stack.attributeModifiers()));
             }
             NbtOps.putCompound(rows, "tag", tag);
         }
@@ -296,6 +313,90 @@ public final class ItemNbt {
                 stack = stack.withCanPlaceOn(keys);
             }
         }
+        // The attribute modifiers (Wave J — the reference's own gate:
+        // contains("AttributeModifiers", 9) decides PRESENCE, the walk
+        // then builds the list — possibly empty — and never falls back
+        // to the item's defaults when the row exists: an all-skipped or
+        // explicitly empty list is the attribute-wipe).
+        if (NbtOps.contains(tag, "AttributeModifiers", Snbt.Tag.Type.LIST)) {
+            stack = stack.withAttributeModifiers(
+                    readAttributeModifiers(tag));
+        }
         return stack;
+    }
+
+    /**
+     * The AttributeModifiers list's element walk (Wave J — the reference's
+     * getAttributeModifiers lines 646-670): each element parsed through
+     * the fromNbt shape ({@link #parseModifier}), the invalid rows and
+     * the zero-uuid rows skipped. The caller has already established the
+     * row's PRESENCE — an emptied answer is the wipe, not an absence.
+     */
+    public static java.util.List<net.zaminmc.torch.item.AttributeModifier> readAttributeModifiers(
+            Map<String, Snbt.Tag> tag) {
+        java.util.List<net.zaminmc.torch.item.AttributeModifier> parsed = new java.util.ArrayList<>();
+        for (Snbt.Tag row : NbtOps.getList(tag, "AttributeModifiers", Snbt.Tag.Type.COMPOUND)) {
+            Map<String, Snbt.Tag> compound = row != null ? row.asCompound() : null;
+            if (compound == null) {
+                continue;
+            }
+            net.zaminmc.torch.item.AttributeModifier modifier = parseModifier(compound);
+            if (modifier == null) {
+                continue; // the reference's fromNbt catch: an invalid row skips
+            }
+            // The keep-gate (lines 655-659): BOTH uuid arms non-zero —
+            // either arm's zero drops the row.
+            if (modifier.uuid().getLeastSignificantBits() == 0L
+                    || modifier.uuid().getMostSignificantBits() == 0L) {
+                continue;
+            }
+            parsed.add(modifier);
+        }
+        return parsed;
+    }
+
+    /**
+     * The element's own fromNbt (the reference's EntityAttributes.fromNbt
+     * lines 95-106): the uuid from the two longs, the name/amount/operation
+     * rows, an invalid shape answering null — the reference's catch into
+     * a skipped element. The multimap's key (AttributeName) rides the
+     * compound, read by the caller's walk.
+     */
+    public static net.zaminmc.torch.item.AttributeModifier parseModifier(
+            Map<String, Snbt.Tag> compound) {
+        String attributeName = NbtOps.getString(compound, "AttributeName");
+        String name = NbtOps.getString(compound, "Name");
+        double amount = NbtOps.getDouble(compound, "Amount");
+        int operation = NbtOps.getInt(compound, "Operation");
+        java.util.UUID uuid = new java.util.UUID(
+                NbtOps.getLong(compound, "UUIDMost"),
+                NbtOps.getLong(compound, "UUIDLeast"));
+        try {
+            return new net.zaminmc.torch.item.AttributeModifier(
+                    attributeName, name, amount, operation, uuid);
+        } catch (IllegalArgumentException invalid) {
+            return null; // the reference's own catch-and-skip
+        }
+    }
+
+    /**
+     * The AttributeModifiers list's write form (Wave J): each element the
+     * reference's toNbt shape plus the AttributeName key the item-tag
+     * form carries — the whole list re-readable by the walk above.
+     */
+    private static java.util.List<Snbt.Tag> modifierRows(
+            java.util.List<net.zaminmc.torch.item.AttributeModifier> modifiers) {
+        java.util.List<Snbt.Tag> rows = new java.util.ArrayList<>(modifiers.size());
+        for (net.zaminmc.torch.item.AttributeModifier modifier : modifiers) {
+            Map<String, Snbt.Tag> element = new java.util.LinkedHashMap<>();
+            NbtOps.putString(element, "AttributeName", modifier.attributeName());
+            NbtOps.putString(element, "Name", modifier.name());
+            NbtOps.putDouble(element, "Amount", modifier.amount());
+            NbtOps.putInt(element, "Operation", modifier.operation());
+            NbtOps.putLong(element, "UUIDMost", modifier.uuid().getMostSignificantBits());
+            NbtOps.putLong(element, "UUIDLeast", modifier.uuid().getLeastSignificantBits());
+            rows.add(Snbt.Tag.ofCompound(element));
+        }
+        return rows;
     }
 }

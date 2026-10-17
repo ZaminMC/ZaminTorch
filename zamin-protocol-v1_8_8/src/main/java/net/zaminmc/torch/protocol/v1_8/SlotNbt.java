@@ -50,7 +50,8 @@ final class SlotNbt {
                 || (stack.blockEntityTag() != null && !stack.blockEntityTag().isEmpty())
                 || (stack.canDestroy() != null && !stack.canDestroy().isEmpty())
                 || (stack.canPlaceOn() != null && !stack.canPlaceOn().isEmpty())
-                || stack.displayColor() != null;
+                || stack.displayColor() != null
+                || stack.attributeModifiers() != null; // present-even-empty (Wave J's wipe)
     }
 
     /**
@@ -165,6 +166,40 @@ final class SlotNbt {
             out.writeInt(stack.canPlaceOn().size());
             for (String key : stack.canPlaceOn()) {
                 writeShortString(out, key);
+            }
+        }
+        // The attribute modifiers (Wave J — the reference's
+        // getAttributeModifiers family): a TAG_LIST of TAG_COMPOUND, each
+        // element carrying AttributeName/Name/Amount/Operation/UUIDMost/
+        // UUIDLeast. PRESENCE gates the row — an explicitly empty list
+        // (the wipe, or an all-skipped read) rides as the type-0 empty
+        // list, exactly vanilla's own empty-list wire form.
+        if (stack.attributeModifiers() != null) {
+            var modifiers = stack.attributeModifiers();
+            out.writeByte(TAG_LIST);
+            writeShortString(out, "AttributeModifiers");
+            out.writeByte(modifiers.isEmpty() ? TAG_END : TAG_COMPOUND);
+            out.writeInt(modifiers.size());
+            for (var modifier : modifiers) {
+                out.writeByte(TAG_STRING); // AttributeName
+                writeShortString(out, "AttributeName");
+                writeShortString(out, modifier.attributeName());
+                out.writeByte(TAG_STRING); // Name
+                writeShortString(out, "Name");
+                writeShortString(out, modifier.name());
+                out.writeByte(TAG_DOUBLE);  // Amount
+                writeShortString(out, "Amount");
+                out.writeDouble(modifier.amount());
+                out.writeByte(TAG_INT);     // Operation
+                writeShortString(out, "Operation");
+                out.writeInt(modifier.operation());
+                out.writeByte(TAG_LONG);    // UUIDMost
+                writeShortString(out, "UUIDMost");
+                out.writeLong(modifier.uuid().getMostSignificantBits());
+                out.writeByte(TAG_LONG);    // UUIDLeast
+                writeShortString(out, "UUIDLeast");
+                out.writeLong(modifier.uuid().getLeastSignificantBits());
+                out.writeByte(TAG_END);     // end of the element compound
             }
         }
         out.writeByte(TAG_END);        // end of root

@@ -75,6 +75,17 @@ import java.util.Objects;
  *                    contains(...,3) INT row); null = absent (the reference's
  *                    getColor default 10511680 is the render model's own —
  *                    the engine stores the row alone)
+ * @param attributeModifiers the tag's AttributeModifiers list (Wave J — the
+ *                    reference's getAttributeModifiers lines 646-670, a
+ *                    TAG_LIST of TAG_COMPOUND): null = absent (the item's
+ *                    own defaults answer), a NON-NULL list — even an empty
+ *                    one — is the tag's own form (an empty list strips the
+ *                    item's default modifiers, the attribute-wipe: the
+ *                    reference builds the empty multimap whenever the tag
+ *                    carries the row, never falling back to the defaults).
+ *                    Immutable; every element is a valid row (the read walk
+ *                    skips invalid elements and zero-uuid rows before the
+ *                    model ever sees them)
  */
 public record ItemStack(ItemType type, int count, int damage, String displayName,
                         Map<Integer, Integer> enchantments,
@@ -82,7 +93,8 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
                         List<String> lore,
                         Map<String, Object> blockEntityTag,
                         List<String> canDestroy, List<String> canPlaceOn,
-                        Integer displayColor) {
+                        Integer displayColor,
+                        List<AttributeModifier> attributeModifiers) {
 
     /** The wire's i16 damage/metadata ceiling (the historical field width). */
     public static final int MAX_DAMAGE = 0x7FFF;
@@ -108,7 +120,7 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
             if (count != 0 || damage != 0 || displayName != null || enchantments != null
                     || unbreakable || repairCost != 0 || hideFlags != 0 || lore != null
                     || blockEntityTag != null || canDestroy != null || canPlaceOn != null
-                    || displayColor != null) {
+                    || displayColor != null || attributeModifiers != null) {
                 throw new IllegalArgumentException("A stack without a type must be empty (count "
                         + count + ", damage " + damage + ")");
             }
@@ -147,6 +159,7 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
             canDestroy = sanitizeBlockKeyList(canDestroy);
             canPlaceOn = sanitizeBlockKeyList(canPlaceOn);
             displayColor = displayColor == null ? null : displayColor;
+            attributeModifiers = sanitizeAttributeModifiers(attributeModifiers);
         }
     }
 
@@ -181,6 +194,18 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
                      List<String> canDestroy, List<String> canPlaceOn) {
         this(type, count, damage, displayName, enchantments, unbreakable,
                 repairCost, hideFlags, lore, blockEntityTag, canDestroy, canPlaceOn, null);
+    }
+
+    /** The pre-J1 thirteen-arg shape (the compatibility constructor). */
+    public ItemStack(ItemType type, int count, int damage, String displayName,
+                     Map<Integer, Integer> enchantments, boolean unbreakable,
+                     int repairCost, int hideFlags, List<String> lore,
+                     Map<String, Object> blockEntityTag,
+                     List<String> canDestroy, List<String> canPlaceOn,
+                     Integer displayColor) {
+        this(type, count, damage, displayName, enchantments, unbreakable,
+                repairCost, hideFlags, lore, blockEntityTag, canDestroy, canPlaceOn,
+                displayColor, null);
     }
 
     /** A fresh stack with no damage and no custom name. */
@@ -221,7 +246,7 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         }
         return new ItemStack(type, newCount, damage, displayName, enchantments,
                 unbreakable, repairCost, hideFlags, lore, blockEntityTag, canDestroy, canPlaceOn,
-                displayColor);
+                displayColor, attributeModifiers);
     }
 
     /**
@@ -237,7 +262,7 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         }
         return new ItemStack(type, count, newDamage, displayName, enchantments,
                 unbreakable, repairCost, hideFlags, lore, blockEntityTag, canDestroy, canPlaceOn,
-                displayColor);
+                displayColor, attributeModifiers);
     }
 
     /** @return the same stack carrying {@code newName} (null clears the name). */
@@ -247,7 +272,7 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         }
         return new ItemStack(type, count, damage, newName, enchantments,
                 unbreakable, repairCost, hideFlags, lore, blockEntityTag, canDestroy, canPlaceOn,
-                displayColor);
+                displayColor, attributeModifiers);
     }
 
     /**
@@ -260,7 +285,7 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         }
         return new ItemStack(type, count, damage, displayName, newEnchantments,
                 unbreakable, repairCost, hideFlags, lore, blockEntityTag, canDestroy, canPlaceOn,
-                displayColor);
+                displayColor, attributeModifiers);
     }
 
     // ---------------------------------------------------------------
@@ -274,7 +299,7 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         }
         return new ItemStack(type, count, damage, displayName, enchantments,
                 flag, repairCost, hideFlags, lore, blockEntityTag,
-                canDestroy, canPlaceOn, displayColor);
+                canDestroy, canPlaceOn, displayColor, attributeModifiers);
     }
 
     /** @return the same stack carrying the anvil's RepairCost (0 clears). */
@@ -284,7 +309,7 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         }
         return new ItemStack(type, count, damage, displayName, enchantments,
                 unbreakable, Math.max(0, cost), hideFlags, lore, blockEntityTag,
-                canDestroy, canPlaceOn, displayColor);
+                canDestroy, canPlaceOn, displayColor, attributeModifiers);
     }
 
     /** @return the same stack carrying the tooltip's HideFlags mask (0 clears). */
@@ -294,7 +319,7 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         }
         return new ItemStack(type, count, damage, displayName, enchantments,
                 unbreakable, repairCost, Math.max(0, flags), lore, blockEntityTag,
-                canDestroy, canPlaceOn, displayColor);
+                canDestroy, canPlaceOn, displayColor, attributeModifiers);
     }
 
     /** @return the same stack carrying the display.Lore lines (null clears). */
@@ -304,7 +329,7 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         }
         return new ItemStack(type, count, damage, displayName, enchantments,
                 unbreakable, repairCost, hideFlags, lines, blockEntityTag,
-                canDestroy, canPlaceOn, displayColor);
+                canDestroy, canPlaceOn, displayColor, attributeModifiers);
     }
 
     /**
@@ -317,7 +342,8 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
             return this;
         }
         return new ItemStack(type, count, damage, displayName, enchantments,
-                unbreakable, repairCost, hideFlags, lore, rows, canDestroy, canPlaceOn, displayColor);
+                unbreakable, repairCost, hideFlags, lore, rows, canDestroy, canPlaceOn,
+                displayColor, attributeModifiers);
     }
 
     /**
@@ -330,7 +356,7 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         }
         return new ItemStack(type, count, damage, displayName, enchantments,
                 unbreakable, repairCost, hideFlags, lore, blockEntityTag,
-                keys, canPlaceOn, displayColor);
+                keys, canPlaceOn, displayColor, attributeModifiers);
     }
 
     /**
@@ -343,7 +369,7 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         }
         return new ItemStack(type, count, damage, displayName, enchantments,
                 unbreakable, repairCost, hideFlags, lore, blockEntityTag,
-                canDestroy, keys, displayColor);
+                canDestroy, keys, displayColor, attributeModifiers);
     }
 
     /**
@@ -356,7 +382,24 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         }
         return new ItemStack(type, count, damage, displayName, enchantments,
                 unbreakable, repairCost, hideFlags, lore, blockEntityTag,
-                canDestroy, canPlaceOn, color);
+                canDestroy, canPlaceOn, color, attributeModifiers);
+    }
+
+    /**
+     * @return the same stack carrying the tag's AttributeModifiers list
+     *         (Wave J): null clears to absent (the item's own defaults
+     *         answer again), a non-null list — empty included — is the
+     *         tag's own form (the attribute-wipe: an explicitly empty
+     *         list strips the item's default modifiers, exactly the
+     *         reference's present-row branch over the defaults).
+     */
+    public ItemStack withAttributeModifiers(List<AttributeModifier> modifiers) {
+        if (isEmpty()) {
+            return this;
+        }
+        return new ItemStack(type, count, damage, displayName, enchantments,
+                unbreakable, repairCost, hideFlags, lore, blockEntityTag,
+                canDestroy, canPlaceOn, displayColor, modifiers);
     }
 
     /**
@@ -434,7 +477,7 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         int taken = Math.min(Math.min(amount, count), type.maxStackSize());
         return new ItemStack(type, taken, damage, displayName, enchantments,
                 unbreakable, repairCost, hideFlags, lore, blockEntityTag, canDestroy, canPlaceOn,
-                displayColor);
+                displayColor, attributeModifiers);
     }
 
     /**
@@ -463,7 +506,8 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
                 && blockEntityTagEqual(a.blockEntityTag, b.blockEntityTag)
                 && Objects.equals(a.canDestroy, b.canDestroy)
                 && Objects.equals(a.canPlaceOn, b.canPlaceOn)
-                && Objects.equals(a.displayColor, b.displayColor);
+                && Objects.equals(a.displayColor, b.displayColor)
+                && Objects.equals(a.attributeModifiers, b.attributeModifiers);
     }
 
     /**
@@ -588,6 +632,24 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
             cleaned.add(normalized);
         }
         return cleaned.isEmpty() ? null : List.copyOf(cleaned);
+    }
+
+    /**
+     * The attribute modifiers' own sanitize (Wave J): null parses to
+     * absent, but a NON-NULL list keeps its presence — even an empty
+     * one (the attribute-wipe: the tag carried the row, so the item's
+     * default modifiers never answer — the reference's own branch,
+     * never the every-other-arm empty-to-null convention). The elements
+     * validate themselves (the AttributeModifier record's own
+     * constructor — the reference's Validate pair); the answer is an
+     * immutable copy in the given order (the NbtList is ordered).
+     */
+    private static List<AttributeModifier> sanitizeAttributeModifiers(
+            List<AttributeModifier> input) {
+        if (input == null) {
+            return null;
+        }
+        return List.copyOf(input);
     }
 
     /** One boxed NBT value's validation + deep immutable copy (recursive). */
