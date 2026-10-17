@@ -1302,6 +1302,7 @@ public final class EngineServer implements Server, EngineBridge {
                 // like the redstone system does (the reference's flag-1 walk).
                 pistonSystem = new net.zaminmc.torch.server.piston.PistonSystem(
                         world, redstoneSystem, itemEntities, fxManager, gameplayRandom);
+                pistonSystem.setEventBus(eventBus); // §27.7: the public piston-move gate
                 world.addChangeListener(pistonSystem);
                 // The TNT (Slice 9f): the ignition system (the redstone arm,
                 // the flint-and-steel use, the blast chain-reaction) + the
@@ -1463,6 +1464,7 @@ public final class EngineServer implements Server, EngineBridge {
                 // Fluids (§472 pattern): the scheduled pour/dry/contact system,
                 // waking on every committed change like the neighbor rules do.
                 fluidSystem = new FluidSystem(new FluidWorld(), new FluidSink(itemEntities));
+                fluidSystem.setEventBus(eventBus); // §27.7: the public fluid-flow gate
                 world.addChangeListener(fluidSystem);
                 // Explosions: the ray-fan destructor (the creeper's demolition).
                 explosionService = new ExplosionService(new BlastWorld(world), new java.util.Random());
@@ -15811,6 +15813,11 @@ public final class EngineServer implements Server, EngineBridge {
         @Override
         public long totalTicks() {
             return world.totalTicks();
+        }
+
+        @Override
+        public String name() {
+            return world.name();
         }
     }
 

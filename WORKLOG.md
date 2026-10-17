@@ -7799,3 +7799,53 @@ full-suite verification (the milestone convention).
 NEXT (in order): (1) the remaining §27/28 audit rows (the pistons/
 fluids observe hooks — the interaction-events wave); (2) the next
 vanilla wave per the ledger; (3) the periodic full-suite verification.
+
+## Slice 81 — the piston + fluid observe hooks (§27.7's interaction-events wave) + THE FLUID FLOW FIX
+
+- **THE ENGINE BUG THE WAVE FOUND (the slice's own headline)**:
+  `FluidSystem.handleTarget`'s air gate compared an `Identifier`
+  against a `BlockType` — `existing.equals(world.airType())` — ALWAYS
+  false (the types never equal), so every AIR cell read as solid
+  ground and **water/lava NEVER flowed into air on the live engine**
+  (the source sat still; no test ever asserted a live spread, so the
+  §472 family shipped broken). The one-line fix:
+  `existing.equals(world.airType().identifier())`. Found by the
+  acceptance harness itself — the flow events never fired, the debug
+  walk showed the gate returning "blocked" for air.
+- **The public `PistonMoveEvent`** (§27.7's pre-commit gate): fires
+  inside the movement's boundary scope after the block-event re-check
+  gates, BEFORE any world write — cancelling prevents the whole
+  movement (the piston keeps its state, nothing moves or breaks, no
+  sound; the vanilla arming's base-state flip is documented — a
+  cancelled retract leaves the HEAD in place, the observable). The
+  payload carries the resolver's own prospective lists (a fresh pure
+  resolution — the push chain + the break list on extend, the pull
+  chain on a sticky retract) + the facing (the public `Direction`),
+  extending/sticky flags, and the world name.
+- **The public `FluidFlowEvent`** (§27.7's pre-commit gate): fires per
+  prospective landing cell right before the flow commits — cancelling
+  behaves as blocked ground (the fluid never enters; the walk's own
+  rules continue around it — a cancelled down-pour lets the source
+  spread sideways, exactly as solid ground below would). The payload:
+  the from/to cells, the fluid identifier, and the landing level (8
+  for the falling column, the decayed level sideways). The contact
+  reactions stay the post-commit BlockChangedEvent's own domain.
+- **The wiring**: `PistonSystem.setEventBus` (the gate at both arms of
+  `doBlockEventBody`) + `FluidSystem.setEventBus` (the gate in
+  `handleTarget`, which grew the `from` cell parameter); the
+  EngineServer boot wires both beside the other §27.7 gates;
+  `FluidSystem.World` grew `name()` (the FluidWorld adapter answers
+  the overworld's own name).
+- Tests: `PistonFluidEventAcceptanceTest` (5 — the cancelled extend
+  leaving the piston retracted + the stone unmoved + the after-cycle,
+  the extend observation carrying the resolver lists + the facing +
+  the flags, the cancelled retract keeping the head + the pulled
+  block, the cancelled down-pour behaving as blocked ground with the
+  sideways spread, the flow observation carrying the fluid + its
+  level 8 down-pour). The piston family + the precipitation suite
+  green (the fluid fix's own neighbors).
+
+NEXT (in order): (1) the full-suite verification pass over the fluid
+fix (the §472 family's live flows now actually run — the wider world
+family must re-verify); (2) the next vanilla wave per the ledger; (3)
+the remaining §27 audit omissions.
