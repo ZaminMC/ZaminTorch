@@ -26,14 +26,20 @@ import java.util.UUID;
  * (the reference's own readNbt/writeNbt), Silent (the write's
  * silent-only gate).</p>
  *
- * <p><b>The engine's standing envelopes</b> (each row written with the
- * reference's own default, read into the engine's model where the model
- * carries the state — FallDistance 0.0f, Air 300s, PortalCooldown 0,
- * HurtByTimestamp 0, CanPickUpLoot false, the DropChances 0.085 quintet:
- * the engine models none of these mechanics, the rows round-trip only):
- * ledgered. The AbsorptionAmount row LANDED into the model (Slice 92 —
- * the absorption hearts eat first in the hurt walk, the ABSORPTION
- * effect's ±4 band rides the potion system's absorb hook).</p>
+ * <p><b>The base-default rows LANDED</b> (Slice 92 — each into its own
+ * behavioral model): the absorption hearts (the hurt walk's eat-first
+ * step, the ABSORPTION effect's ±4 band through the potion system's
+ * absorb hook), the fall accumulator (checkFallDamage's accumulate /
+ * spend / water-zero walk, takeFallDamage's ceil(distance - 3 - jump
+ * boost) wound with the empty-override kinds), the breath store (the
+ * eye-level drain, the -20 drown rhythm, the water-breathers, the
+ * WATER_BREATHING shield), the portal cooldown (the decrement), the
+ * hurt timestamp (the age stamp the hurt walk writes).</p>
+ *
+ * <p><b>The engine's standing envelopes</b> (the reference's own
+ * defaults, no model behind them yet): CanPickUpLoot false, the
+ * DropChances 0.085 quintet — the pickup walk and the equipment-chance
+ * death walk are the next wave's own landings.</p>
  *
  * <p><b>The living rows</b>: HealF (the any-numeric read gate) else the
  * Health row (the reference's own quirk — a FLOAT or SHORT row applies,
@@ -68,15 +74,15 @@ public final class EntityNbt {
         NbtOps.putList(nbt, "Motion",
                 NbtOps.doubleList(mob.velocityX(), mob.velocityY(), mob.velocityZ()));
         NbtOps.putList(nbt, "Rotation", NbtOps.floatList(mob.yaw(), mob.pitch()));
-        // The engine's standing envelopes (see the class doc): the
-        // reference's own defaults where the engine models no state.
-        NbtOps.putFloat(nbt, "FallDistance", 0.0f);
+        // Slice 92 — the base-default rows into the engine's own models:
+        // the fall accumulator, the breath store, the portal cooldown.
+        NbtOps.putFloat(nbt, "FallDistance", mob.fallDistance());
         NbtOps.putShort(nbt, "Fire", (short) mob.fireTicks());
-        NbtOps.putShort(nbt, "Air", (short) 300);
+        NbtOps.putShort(nbt, "Air", (short) mob.air());
         NbtOps.putBoolean(nbt, "OnGround", mob.onGround());
         NbtOps.putInt(nbt, "Dimension", mob.dimension());
         NbtOps.putBoolean(nbt, "Invulnerable", mob.invulnerable());
-        NbtOps.putInt(nbt, "PortalCooldown", 0);
+        NbtOps.putInt(nbt, "PortalCooldown", mob.portalCooldown());
         UUID uuid = mob.getUuid();
         NbtOps.putLong(nbt, "UUIDMost", uuid.getMostSignificantBits());
         NbtOps.putLong(nbt, "UUIDLeast", uuid.getLeastSignificantBits());
@@ -125,9 +131,12 @@ public final class EntityNbt {
         float yaw = NbtOps.listFloat(rotation, 0);
         float pitch = NbtOps.listFloat(rotation, 1);
         mob.setRotation(yaw, pitch);
-        // The engine's standing envelopes (see the class doc): FallDistance,
-        // Air, PortalCooldown read into no model.
+        // Slice 92 — the base-default rows into the models (the
+        // reference's own ungated reads).
+        mob.setFallDistance(NbtOps.getFloat(nbt, "FallDistance"));
         mob.setFireTicks(NbtOps.getShort(nbt, "Fire"));
+        mob.setAir(NbtOps.getShort(nbt, "Air"));
+        mob.setPortalCooldown(NbtOps.getInt(nbt, "PortalCooldown"));
         mob.setOnGround(NbtOps.getBoolean(nbt, "OnGround"));
         mob.setDimension(NbtOps.getInt(nbt, "Dimension"));
         mob.setInvulnerable(NbtOps.getBoolean(nbt, "Invulnerable"));
@@ -163,7 +172,7 @@ public final class EntityNbt {
         NbtOps.putFloat(nbt, "HealF", mob.health());
         NbtOps.putShort(nbt, "Health", (short) Math.ceil(mob.health()));
         NbtOps.putShort(nbt, "HurtTime", (short) mob.hurtTime());
-        NbtOps.putInt(nbt, "HurtByTimestamp", 0);
+        NbtOps.putInt(nbt, "HurtByTimestamp", mob.hurtByTimestamp());
         NbtOps.putShort(nbt, "DeathTime", (short) mob.deathTime());
         NbtOps.putFloat(nbt, "AbsorptionAmount", mob.absorption());
         List<Snbt.Tag> attributes = new ArrayList<>();
@@ -500,7 +509,7 @@ public final class EntityNbt {
         }
         mob.setHurtTime(NbtOps.getShort(nbt, "HurtTime"));
         mob.setDeathTime(NbtOps.getShort(nbt, "DeathTime"));
-        // HurtByTimestamp: the engine's standing envelope (no model).
+        mob.setHurtByTimestamp(NbtOps.getInt(nbt, "HurtByTimestamp"));
         // MobEntity.readCustomNbt.
         mob.setPersistent(NbtOps.getBoolean(nbt, "PersistenceRequired"));
         List<Snbt.Tag> equipment = NbtOps.getList(nbt, "Equipment", Snbt.Tag.Type.COMPOUND);

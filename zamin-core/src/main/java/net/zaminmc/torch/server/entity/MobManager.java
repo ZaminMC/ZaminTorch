@@ -741,6 +741,11 @@ public final class MobManager {
             mob.setLeashDetacher(drop -> detacher.accept(mob, drop)); // the public unleash path
         }
         mob.setGoalAdmission(goalAdmission); // §27.6: mind mutations admit onto the owner lane
+        // Slice 92 — the body's own effect consults (the breath clock's
+        // WATER_BREATHING shield, the fall walk's JUMP_BOOST term): the
+        // live store read through the potion system, the amplifier + 1
+        // term shape the reference's own walks read.
+        mob.setEffectAmplifierQuery(effectId -> effectAmplifierPlusOne(mob, effectId));
         if (type == MobType.SKELETON) {
             // SkeletonEntity.initialize's else arm (line 224 →
             // addRandomEquipment line 211): every archer spawns with the
@@ -2768,6 +2773,19 @@ public final class MobManager {
     private boolean witchHasEffect(MobEntity mob, int effectId) {
         net.zaminmc.torch.server.potion.PotionSystem potions = potionSystem;
         return potions != null && potions.hasEffect(mob, effectId);
+    }
+
+    /**
+     * The body's live amplifier read (Slice 92 — the reference's own term
+     * shape): {@code amplifier + 1} when the store carries the effect, 0
+     * when absent (or before the potion system wires).
+     */
+    private int effectAmplifierPlusOne(MobEntity mob, int effectId) {
+        net.zaminmc.torch.server.potion.PotionSystem potions = potionSystem;
+        net.zaminmc.torch.server.potion.StatusEffectInstance effect =
+                potions != null ? potions.get(mob, effectId) : null;
+        return effect != null && effect.duration() > 0
+                ? effect.amplifier() + 1 : 0;
     }
 
     /**
