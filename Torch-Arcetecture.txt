@@ -1177,7 +1177,23 @@ names its commit.
 
 ## Wave A — the §27 window family (IN PROGRESS)
 
-- [ ] A1 — the open-window re-sync to a viewer. Today a plugin's
+- [~] A1 — the open-window re-sync to viewer (Slice 91, 5451c86/aafe5ac):
+      the three per-tick view fans + the serial diffs landed; the hopper
+      and dispenser arms VERIFIED over the real wire; the two chest arms
+      open (the order-dependent fixture + one diagnostic pass on the
+      plugin write's re-sync). Found and fixed along the way: the
+      void-fall chunk-gate crash (a mob below y=0 — the reference's own
+      -64 kill window — bounds-crashed every toBlockPosition gate; now
+      chunkKeyOf reads the column from x/z alone) and the test suite's
+      missing keep-alive override.
+- [x] A2 — the window family's public surface (Slice 91, aafe5ac):
+      entity.WindowKind + Player.openWindow() -> Player.OpenWindow
+      (kind/windowId/position/mountId), the live view over the session's
+      own state; OpenWindowApiAcceptanceTest 2 green.
+- [ ] A3 — the ledger + worklog rows updated (the vanilla ledger's
+      container rows' "rides the window family's wave" notes retired;
+      the API capability ledger's window-family row added).
+- [ ] A1-legacy note (from the original draft) — the open-window re-sync's
       `setSlot` on a chest/hopper/dispenser with an open viewer lands
       in the world silently: the open viewer's client still shows the
       old contents (the ledger rows' own "rides the window family's
@@ -1192,12 +1208,6 @@ names its commit.
       cart-mounted chest windows resolved by the mount's position).
       The furnace/brewing/beacon stay on their per-tick view fans
       (already covered — verify, do not duplicate).
-- [ ] A2 — the window family's public surface. The open-window state
-      is engine-side only today (`PlayerSession.openContainerWindowId`
-      and friends; the audit's named blocker). Expose the read on the
-      public `Player` surface: the open window's kind (the public
-      vocabulary), its position-keyed and mount-keyed identity, its
-      wire window id — the §27.10 ledger row lands with it.
 - [ ] A3 — the ledger + worklog rows updated (the vanilla ledger's
       container rows' "rides the window family's wave" notes retired;
       the API capability ledger's window-family row added).
