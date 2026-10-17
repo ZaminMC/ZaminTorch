@@ -949,6 +949,51 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
         return leftover;
     }
 
+    // --- titles + chat (Slice 90 — Slice 87's wire over the §27 surface) ------
+
+    @Override
+    public void sendTitle(String titleText, String subtitleText,
+                          int fadeInTicks, int stayTicks, int fadeOutTicks) {
+        // The reference's own client expectation: Times first (0x45 arm 2),
+        // then the title (arm 0), then the subtitle (arm 1) — blank texts
+        // skip their own arm, all-zero counts skip the Times arm.
+        if (fadeInTicks > 0 || stayTicks > 0 || fadeOutTicks > 0) {
+            link.titleTimes(fadeInTicks, stayTicks, fadeOutTicks);
+        }
+        if (titleText != null && !titleText.isEmpty()) {
+            link.titleTitle(plainComponentJson(titleText));
+        }
+        if (subtitleText != null && !subtitleText.isEmpty()) {
+            link.titleSubtitle(plainComponentJson(subtitleText));
+        }
+    }
+
+    @Override
+    public void clearTitle() {
+        link.titleClear();
+    }
+
+    @Override
+    public void sendChatLine(String message) {
+        link.sendChatComponent(plainComponentJson(message), 0);
+    }
+
+    @Override
+    public void sendSystemLine(String message) {
+        link.sendChatComponent(plainComponentJson(message), 1);
+    }
+
+    @Override
+    public void sendChatComponent(String json) {
+        link.sendChatComponent(json, 0);
+    }
+
+    /** A plain text as the serialized component ({"text": ...}). */
+    private static String plainComponentJson(String text) {
+        return net.zaminmc.torch.server.text.TextJson.toJson(
+                new net.zaminmc.torch.server.text.LiteralText(text == null ? "" : text));
+    }
+
     // --- the slot-level inventory view (the container/inventory wave) ------
 
     // PlayerSession.inventory() (the engine accessor) doubles as the public
