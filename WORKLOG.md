@@ -8393,3 +8393,74 @@ persistence; (5) the older ledgered gaps (the MC|AdvCdm arm type 0, the
 areCommandBlocksEnabled gate, the vehicle damage-source surface, the
 variant carts' VariantState read view, the public Player-surface
 title/chat exposure).
+
+## Slice 90 — the achievement system + the profiler + the stats persistence (the WORKLOG NEXT ledger's own three)
+
+- **p1 — THE ACHIEVEMENT SYSTEM (Achievements + AchievementStat +
+  ServerPlayerStats + AchievementCommand 1:1)**: EngineAchievements —
+  the 34-row table in the reference's declaration order (the give-all
+  walk's own guarantee: every parent strictly before the children that
+  gate on it), the parent chains, the challenge and local flags, the
+  page bounds, ancestorsOf/dependentsOf (the take walk's own
+  dependency tree). PlayerStats grew the reference's semantics —
+  hasAchievement/hasParentAchievement, the increment's parent gate,
+  the per-session Listener (ServerPlayerStats.set + incrementStat's
+  halves), markAllDirty + takeAchievements (the login's
+  sendAchievements). StatCriteria — the Stats.init walk over the
+  engine's own registries (the general band, the 34 achievements, the
+  entity kill pair, the mined family over the block registry through
+  the merge fold, the used family, the broken family over
+  maxDurability, the crafted family over the recipe results union the
+  smelting outputs), each registering its criterion into
+  ScoreboardCriterion.BY_NAME (forStat — INTEGER-rendered, not
+  read-only). The statListenerFor ride in EngineServer: every write
+  follows the stat's criterion objectives (the score follows the
+  value), an achievement transition broadcasts the yellow
+  chat.type.achievement/.taken line (the bracketed getNameForChat form,
+  GREEN / challenges DARK_PURPLE, the SHOW_ACHIEVEMENT hover) as a Chat
+  0x02 component to every online player and flushes the dirty set
+  through the Client Statistics 0x37 — the toast's server-side
+  trigger. /achievement (op-2): the give parent-walk root-first, the
+  take's dependents walk (the list1/list2/flag2 shape), the '*' forms
+  over the whole table (declaration order for give, reversed for
+  take), the already-have/don't-have/unknown refusals, the plain walk
+  for general stats, the third-argument player resolution. The Client
+  Status 0x16 action 2 (OPEN_INVENTORY_ACHIEVEMENT) through the new
+  engine.openInventoryAchievement. The joinCompleted login sync
+  (markAllDirty + sendAchievements). Tests: AchievementCommandTest
+  (10) green + the scoreboard size row updated for the band (74
+  affected green).
+- **p2 — THE PROFILER (Profiler + DebugCommand 1:1)**: EngineProfiler
+  whole — the section stack with the nano-time table, the delayed
+  start/reset, the 100ms warn, the results walk (the self row at
+  index 0, the direct children's parent/total shares, the unspecified
+  remainder, the *999/1000 decay, the Result ordering). The engine's
+  tick walk instrumented at the vanilla section boundaries (root + jobs
+  over the drains, swap(levels) + the world's data name + tick over
+  the systems fan, the tail's connection/players/tickables swaps —
+  ledgered as standing empty, the engine's equivalents live in the
+  ticker's submitted-task drain). /debug start/stop real (op-3): the
+  delayed activation, the span anchors, the notStarted refusal, the
+  report build while the table still collects —
+  debug/profile-results-<timestamp>.txt with the witty comment's own
+  nanoTime selection, the ticks-per-second line, the BEGIN/END PROFILE
+  DUMP and the [NN] spacing rows. DebugProfilerTest (4) green.
+- **p3 — THE STATS PERSISTENCE WIRING (the three envelopes)**: the ZCB
+  v2 tail (the executor's CommandStats pairs after the four rows,
+  v1 files load with empty bindings), the ZMD v5 tail (MobSnapshot's
+  ninth field, commandStatsOf/restoreCommandStats, FORMAT_VERSION_4
+  split for the v3/v4 boundary), the ZPD v10 tail (PlayerSnapshot's
+  sixteenth field, snapshotOf/restorePlayer through the same compound
+  form) — all three riding EngineCommandResults.writeNbt/readNbt.
+  CommandStatsPersistenceTest (1) green: the /stats-set bindings on a
+  player, a named zombie, and a command-block tile survive the
+  shutdown + reboot (the VehicleWorldDamage flake green in isolation,
+  the 2-core box's own known cadence).
+
+NEXT (in order): (1) the §27 window-family re-sync rows + the border's
+worldborder.json persistence; (2) the older ledgered gaps (the MC|AdvCdm
+arm type 0, the areCommandBlocksEnabled gate, the vehicle damage-source
+surface, the variant carts' VariantState read view, the public
+Player-surface title/chat exposure); (3) the sign tiles' command-stats
+persistence (the reference's SignBlockEntity carries none — the engine's
+own sign store wave); (4) then the next vanilla wave per the ledger.
