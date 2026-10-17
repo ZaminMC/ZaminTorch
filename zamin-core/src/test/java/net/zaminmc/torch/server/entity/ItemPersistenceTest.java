@@ -14,6 +14,8 @@ import java.util.Map;
 import java.util.Random;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -137,6 +139,74 @@ class ItemPersistenceTest {
         out.write(0);   // flags
         out.close();
         assertEquals(List.of(), store.load());
+    }
+
+    @Test
+    void theWaveGArmsSurviveTheStore(@TempDir Path dir) throws Exception {
+        // The ZID v2 tail (Slice 94): the four Wave G arms ride the stack
+        // rows — the flagged repaired lore-carrying sword round-trips the
+        // whole body.
+        ItemEntityManager manager = new ItemEntityManager(GROUND, new Random(1), 1);
+        manager.spawnDropAtBlock(new Position(2, 4, 2),
+                ItemStack.of(BuiltinItems.DIAMOND_SWORD, 1)
+                        .withUnbreakable(true)
+                        .withRepairCost(9)
+                        .withHideFlags(6)
+                        .withLore(List.of("Forged in the deep", "Never dulls")),
+                0);
+
+        ItemDataStore store = new ItemDataStore(dir.resolve("items.bin"));
+        store.save(manager.snapshot());
+        ItemEntityManager restored = new ItemEntityManager(GROUND, new Random(1), 100);
+        restored.restoreAll(store.load());
+
+        assertEquals(1, restored.size());
+        ItemStack sword = restored.all().get(0).stack();
+        assertTrue(sword.unbreakable(), "the flag survived");
+        assertEquals(9, sword.repairCost());
+        assertEquals(6, sword.hideFlags());
+        assertEquals(List.of("Forged in the deep", "Never dulls"), sword.lore());
+    }
+
+    @Test
+    void theV1FileLoadsItsStackWithTheWaveGDefaults(@TempDir Path dir) throws Exception {
+        // The version-aware read: a hand-written v1 file (the pre-Wave-G
+        // shape — the stack rows stop after the enchant pairs) still
+        // loads, the new arms carrying their defaults.
+        ItemDataStore store = new ItemDataStore(dir.resolve("items.bin"));
+        java.io.DataOutputStream out = new java.io.DataOutputStream(
+                new java.io.BufferedOutputStream(java.nio.file.Files.newOutputStream(
+                        dir.resolve("items.bin"))));
+        out.writeByte('Z');
+        out.writeByte('I');
+        out.writeByte('D');
+        out.writeByte(1); // the v1 shape
+        out.write(1); // one body (a single-byte varint)
+        out.writeDouble(1.0);
+        out.writeDouble(6.0);
+        out.writeDouble(1.0);
+        out.writeDouble(0.0);
+        out.writeDouble(0.0);
+        out.writeDouble(0.0);
+        byte[] id = "minecraft:diamond_sword".getBytes();
+        out.write(id.length);
+        out.write(id);
+        out.write(1);  // count
+        out.write(0);  // damage
+        out.writeBoolean(false); // no display name
+        out.write(0);  // no enchant pairs
+        out.write(42); // age
+        out.write(0);  // pickup delay
+        out.write(0);  // flags
+        out.close();
+
+        List<ItemEntityManager.ItemRecord> loaded = store.load();
+        assertEquals(1, loaded.size());
+        ItemStack sword = loaded.get(0).stack();
+        assertFalse(sword.unbreakable(), "a v1 stack carries the default flag");
+        assertEquals(0, sword.repairCost());
+        assertEquals(0, sword.hideFlags());
+        assertNull(sword.lore());
     }
 
     @Test

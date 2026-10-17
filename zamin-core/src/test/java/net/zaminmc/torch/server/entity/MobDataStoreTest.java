@@ -82,6 +82,63 @@ class MobDataStoreTest {
     }
 
     @Test
+    void theHeldStacksWaveGArmsSurviveTheStore() throws Exception {
+        // The ZMD v7 tail (Slice 94): the held stack's Wave G rows — the
+        // Unbreakable byte, the RepairCost varint, the HideFlags varint,
+        // the Lore list — ride the equipment block through the file.
+        MobManager manager = new MobManager(new StubWorld(), new java.util.Random(7),
+                (position, stack) -> { }, 1_100_000, (x, z) -> 4);
+        MobEntity zombie = manager.spawnAt(
+                MobType.ZOMBIE, new Position(0.5, 4.0, 0.5));
+        zombie.setHeldEquipment(net.zaminmc.torch.item.ItemStack.of(
+                        net.zaminmc.torch.server.item.BuiltinItems.IRON_SWORD, 1)
+                .withUnbreakable(true)
+                .withRepairCost(5)
+                .withHideFlags(2)
+                .withLore(List.of("Rusted but eternal")));
+
+        MobDataStore store = new MobDataStore(tempDir.resolve("waveg.zmd"));
+        store.save(manager.snapshot());
+
+        List<MobManager.MobSnapshot> loaded = store.load();
+        assertEquals(1, loaded.size());
+        net.zaminmc.torch.item.ItemStack held = loaded.get(0).nbt().heldEquipment();
+        assertTrue(held != null && !held.isEmpty());
+        assertTrue(held.unbreakable(), "the flag survived");
+        assertEquals(5, held.repairCost());
+        assertEquals(2, held.hideFlags());
+        assertEquals(List.of("Rusted but eternal"), held.lore());
+
+        // And the restored body carries them onto the engine.
+        MobManager restored = new MobManager(new StubWorld(), new java.util.Random(8),
+                (position, stack) -> { }, 1_200_000, (x, z) -> 4);
+        restored.restoreAll(loaded);
+        net.zaminmc.torch.item.ItemStack again = restored.all().get(0).heldEquipment();
+        assertTrue(again.unbreakable());
+        assertEquals(5, again.repairCost());
+        assertEquals(2, again.hideFlags());
+        assertEquals(List.of("Rusted but eternal"), again.lore());
+    }
+
+    /** A flat world: solid below y=4, the surface at 4, no players near. */
+    private static final class StubWorld implements MobEntity.WorldQuery {
+        @Override
+        public boolean isSolid(double x, double y, double z) {
+            return y < 4.0;
+        }
+
+        @Override
+        public double supportY(double x, double y, double z) {
+            return 4.0;
+        }
+
+        @Override
+        public Position nearestPlayer(double x, double y, double z, double range) {
+            return null;
+        }
+    }
+
+    @Test
     void theStateBlockRoundTripsThroughTheV2File() {
         Path file = tempDir.resolve("worlds/w/mobs.bin");
         MobDataStore store = new MobDataStore(file);

@@ -12,6 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -19,8 +20,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * landing): {@code tag.display.Name} (the hover string) and
  * {@code tag.ench} (the {id, lvl} short pairs — the reference's
  * addEnchantment shape) round-trip through the engine's ItemStack model;
- * the model-less arms (RepairCost, Unbreakable, HideFlags, ...) parse
- * into nothing and are never written.
+ * Slice 94's Wave G lands the four model-less arms (Unbreakable,
+ * RepairCost, HideFlags, display.Lore) onto the same model — the
+ * still-model-less arms (CanDestroy/CanPlace, BlockEntityTag, the
+ * attribute modifiers) parse into nothing and are never written.
  */
 class ItemTagRowsTest {
 
@@ -69,8 +72,8 @@ class ItemTagRowsTest {
     @Test
     void theTagReadLandsTheModelArms() {
         // The read (readNbt lines 150-155): display.Name + the ench list
-        // land on the model; the model-less arms (Unbreakable,
-        // RepairCost, HideFlags) parse into nothing.
+        // land on the model; the Wave G arms (Slice 94) land too —
+        // Unbreakable over getBoolean, RepairCost over its int row.
         Map<String, Snbt.Tag> rows = new java.util.LinkedHashMap<>();
         NbtOps.putString(rows, "id", "minecraft:iron_pickaxe");
         NbtOps.putByte(rows, "Count", (byte) 1);
@@ -84,7 +87,7 @@ class ItemTagRowsTest {
                 Snbt.Tag.ofCompound(tagRow(32, 4)), // efficiency
                 Snbt.Tag.ofCompound(tagRow(70, 1))); // unbreaking
         NbtOps.putList(tag, "ench", ench);
-        NbtOps.putBoolean(tag, "Unbreakable", true); // the model-less arm
+        NbtOps.putBoolean(tag, "Unbreakable", true);
         NbtOps.putInt(tag, "RepairCost", 3);
         NbtOps.putCompound(rows, "tag", tag);
 
@@ -94,6 +97,92 @@ class ItemTagRowsTest {
         assertEquals(4, loaded.enchantmentLevel(32));
         assertEquals(1, loaded.enchantmentLevel(70));
         assertEquals(12, loaded.damage());
+        assertTrue(loaded.unbreakable(), "the Unbreakable row lands on the model");
+        assertEquals(3, loaded.repairCost(), "the RepairCost row lands on the model");
+        assertEquals(0, loaded.hideFlags(), "an absent HideFlags keeps the default");
+        assertNull(loaded.lore(), "an absent Lore keeps the default");
+    }
+
+    @Test
+    void theWaveGArmsRoundTrip() {
+        // Slice 94's Wave G: the four arms ride the tag compound in the
+        // reference's own shapes — the Unbreakable byte (isDamageable line
+        // 163), the RepairCost int (lines 634-643), the HideFlags mask
+        // (lines 442-443), the display.Lore string list (lines 474-480).
+        ItemStack saved = ItemStack.of(BuiltinItems.DIAMOND_SWORD, 1)
+                .withUnbreakable(true)
+                .withRepairCost(7)
+                .withHideFlags(6)
+                .withLore(List.of("Forged in the deep", "Never dulls"));
+
+        Map<String, Snbt.Tag> rows = new java.util.LinkedHashMap<>();
+        ItemNbt.write(saved, rows);
+        Map<String, Snbt.Tag> tag = NbtOps.getCompound(rows, "tag");
+        assertFalse(tag.isEmpty());
+        assertTrue(NbtOps.getBoolean(tag, "Unbreakable"));
+        assertEquals(7, NbtOps.getInt(tag, "RepairCost"));
+        assertEquals(6, NbtOps.getInt(tag, "HideFlags"));
+        Map<String, Snbt.Tag> display = NbtOps.getCompound(tag, "display");
+        List<Snbt.Tag> lore = NbtOps.getList(display, "Lore", Snbt.Tag.Type.STRING);
+        assertEquals(2, lore.size());
+        assertEquals("Forged in the deep", lore.get(0).asString());
+        assertEquals("Never dulls", lore.get(1).asString());
+
+        ItemStack loaded = ItemNbt.read(rows);
+        assertTrue(loaded.unbreakable());
+        assertEquals(7, loaded.repairCost());
+        assertEquals(6, loaded.hideFlags());
+        assertEquals(List.of("Forged in the deep", "Never dulls"), loaded.lore());
+        assertEquals(saved, loaded, "the whole stack equals itself through the rows");
+    }
+
+    @Test
+    void theAbsentWaveGRowsKeepTheDefaultsAndAreNeverWritten() {
+        // The absent-means-default convention: a stack carrying none of
+        // the Wave G arms writes none of their rows (the plain Slice 92
+        // shape) and loads with the model's defaults.
+        Map<Integer, Integer> ench = new LinkedHashMap<>();
+        ench.put(16, 2);
+        ItemStack saved = ItemStack.of(BuiltinItems.IRON_SWORD, 1)
+                .withName("Plain Steel")
+                .withEnchantments(ench);
+        Map<String, Snbt.Tag> rows = new java.util.LinkedHashMap<>();
+        ItemNbt.write(saved, rows);
+        Map<String, Snbt.Tag> tag = NbtOps.getCompound(rows, "tag");
+        assertFalse(NbtOps.contains(tag, "Unbreakable", Snbt.Tag.Type.BYTE));
+        assertFalse(NbtOps.containsNumeric(tag, "RepairCost"));
+        assertFalse(NbtOps.containsNumeric(tag, "HideFlags"));
+        assertTrue(NbtOps.getList(NbtOps.getCompound(tag, "display"),
+                "Lore", Snbt.Tag.Type.STRING).isEmpty());
+
+        ItemStack loaded = ItemNbt.read(rows);
+        assertFalse(loaded.unbreakable());
+        assertEquals(0, loaded.repairCost());
+        assertEquals(0, loaded.hideFlags());
+        assertNull(loaded.lore());
+    }
+
+    @Test
+    void theFlaggedStackCarriesItsDamageRowPastTheMax() {
+        // The constructor's Unbreakable exemption (readNbt lines 143-145:
+        // only the negative clamps — a flagged stack's Damage row rides
+        // past the durability, never wears, never counts as damaged).
+        ItemStack flagged = ItemStack.of(BuiltinItems.WOODEN_PICKAXE)
+                .withUnbreakable(true)
+                .withDamage(500); // the pickaxe's own max is 59
+        assertEquals(500, flagged.damage());
+
+        // The same row on an unflagged stack stays the engine's own bound.
+        assertThrows(IllegalArgumentException.class,
+                () -> ItemStack.of(BuiltinItems.WOODEN_PICKAXE).withDamage(500));
+
+        // The rows keep the exemption through a save/load: the flagged
+        // sword's out-of-band damage row round-trips.
+        Map<String, Snbt.Tag> rows = new java.util.LinkedHashMap<>();
+        ItemNbt.write(flagged, rows);
+        ItemStack loaded = ItemNbt.read(rows);
+        assertEquals(500, loaded.damage());
+        assertTrue(loaded.unbreakable());
     }
 
     @Test

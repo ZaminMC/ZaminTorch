@@ -315,7 +315,8 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
             return EMPTY;
         }
         int taken = Math.min(Math.min(amount, count), type.maxStackSize());
-        return new ItemStack(type, taken, damage, displayName, enchantments);
+        return new ItemStack(type, taken, damage, displayName, enchantments,
+                unbreakable, repairCost, hideFlags, lore);
     }
 
     /**
@@ -329,10 +330,18 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         if (a == null || b == null || a.isEmpty() || b.isEmpty()) {
             return false;
         }
+        // The Wave G arms ride the equality (the reference's
+        // areItemStacksEqual compares the whole tag compound — a flagged
+        // stack never merges into an unflagged one, a lore-carrying stack
+        // never merges into a bare one).
         return a.type.equals(b.type)
                 && a.damage == b.damage
                 && Objects.equals(a.displayName, b.displayName)
-                && Objects.equals(a.enchantments, b.enchantments);
+                && Objects.equals(a.enchantments, b.enchantments)
+                && a.unbreakable == b.unbreakable
+                && a.repairCost == b.repairCost
+                && a.hideFlags == b.hideFlags
+                && Objects.equals(a.lore, b.lore);
     }
 
     /**
