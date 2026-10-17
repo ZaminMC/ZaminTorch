@@ -442,6 +442,16 @@ public final class MobEntity implements LivingEntity {
     private float health;
     /** The absorption hearts (LivingEntity.absorption, line 126). */
     private float absorption;
+    /** The breath store (Entity's syncedData 1 — 300 ticks of air). */
+    private int air = 300;
+    /** The fall accumulator (Entity.fallDistance, line 91). */
+    private float fallDistance;
+    /** The portal re-entry cooldown (Entity.portalCooldown, line 128). */
+    private int portalCooldown;
+    /** The last wound's age stamp (LivingEntity.lastAttackedTime, line 118). */
+    private int hurtByTimestamp;
+    /** The body's own age in ticks (Entity.ticks — the stamp's clock). */
+    private int age;
     private boolean onGround;
     /** The body's command-stat bindings (the reference's Entity field). */
     private final net.zaminmc.torch.server.command.EngineCommandResults commandResults =
@@ -1069,6 +1079,51 @@ public final class MobEntity implements LivingEntity {
         absorption = Math.max(0.0f, value);
     }
 
+    /**
+     * The breath store (Entity lines 1538-1543 — syncedData 1's model):
+     * 300 full, drained underwater to -20 where the drown wound resets
+     * it to 0 (LivingEntity.baseTick lines 210-233).
+     */
+    public int air() {
+        return air;
+    }
+
+    public void setAir(int air) {
+        this.air = air;
+    }
+
+    /** The fall accumulator (Entity.fallDistance — checkFallDamage's store). */
+    public float fallDistance() {
+        return fallDistance;
+    }
+
+    public void setFallDistance(float fallDistance) {
+        this.fallDistance = fallDistance;
+    }
+
+    /** The portal re-entry cooldown (Entity.baseTick lines 311-313 decrements). */
+    public int portalCooldown() {
+        return portalCooldown;
+    }
+
+    public void setPortalCooldown(int portalCooldown) {
+        this.portalCooldown = portalCooldown;
+    }
+
+    /** The last wound's age stamp (HurtByTimestamp's model — setAttacker's own clock write). */
+    public int hurtByTimestamp() {
+        return hurtByTimestamp;
+    }
+
+    public void setHurtByTimestamp(int hurtByTimestamp) {
+        this.hurtByTimestamp = hurtByTimestamp;
+    }
+
+    /** The body's own age in ticks (Entity.ticks). */
+    public int age() {
+        return age;
+    }
+
     public boolean onGround() {
         return onGround;
     }
@@ -1259,8 +1314,11 @@ public final class MobEntity implements LivingEntity {
         }
         // The hurt flash rides takeDamage's own walk (damagedTimer = 10,
         // LivingEntity.takeDamage) — it fires even for a fully absorbed
-        // hit; the absorption below gates the HEALTH term alone.
+        // hit; the absorption below gates the HEALTH term alone. The age
+        // stamp rides the same walk (setAttacker's lastAttackedTime =
+        // ticks — the reference's own HurtByTimestamp clock).
         hurtFlash = HURT_FLASH_TICKS;
+        hurtByTimestamp = age;
         // applyDamage (LivingEntity lines 913-921): the absorption eats
         // first — a fully absorbed hit lands no health change (the
         // {@code if (damage != 0.0F)} guard skips the whole health walk);
@@ -1321,6 +1379,9 @@ public final class MobEntity implements LivingEntity {
         long before = fixedPoint();
         float beforeYaw = yaw;
         float beforeHeadYaw = headYaw;
+        // The body's own clock (Entity.ticks — the reference's age; the
+        // HurtByTimestamp stamp reads it, the reference's own shape).
+        age++;
 
         if (type == MobType.WOLF) {
             tickWolfClock();
@@ -1368,6 +1429,42 @@ public final class MobEntity implements LivingEntity {
             } else if (++fireDamageTimer >= 20) {
                 fireDamageTimer = 0;
                 hurt(FIRE_DAMAGE_PER_SECOND);
+            }
+        }
+        // The breath clock (Slice 92 — LivingEntity.baseTick lines
+        // 210-233, the reference's own shape): the EYE in water drains
+        // the store one tick at a time; the water-breathers skip
+        // (WaterMobEntity.canBreatheUnderwater — the squid and the
+        // guardian family); the WATER_BREATHING effect shields (the
+        // wired amplifier query); at -20 the reset to 0 and the 2.0
+        // drown wound; out of the water the store refills to 300. The
+        // walk runs for the alive body whatever else owns the tick —
+        // the NoAI pin gates the mind and the movement alone.
+        if (!dead) {
+            boolean submerged = world.inFluid(
+                    position.x(), position.y() + eyeHeight(), position.z());
+            boolean breathes = type == MobType.SQUID || type == MobType.GUARDIAN;
+            boolean shielded = effectAmplifierPlusOne(
+                    net.zaminmc.torch.server.potion.StatusEffects.WATER_BREATHING) > 0;
+            if (submerged && !breathes && !shielded) {
+                // updateBreathUnderwater (lines 330-333): the mob's own
+                // respiration term is equipment-borne (the helmet) — the
+                // engine's no-mob-armor envelope carries none, the
+                // decrement is straight.
+                air--;
+                if (air == -20) {
+                    air = 0;
+                    hurt(2.0f); // DROWN — the reference's own 2.0F
+                }
+            } else {
+                air = 300;
+            }
+            // The portal re-entry cooldown (Entity.baseTick lines 311-313):
+            // a positive store ticks down; the engine's mobs carry no
+            // portal walk of their own (the world's portal envelope), the
+            // row round-trips for the NBT surface.
+            if (portalCooldown > 0) {
+                portalCooldown--;
             }
         }
         if (sheared && regrowTimer > 0) {
@@ -1840,6 +1937,29 @@ public final class MobEntity implements LivingEntity {
     private boolean witchHasEffect(int effectId) {
         java.util.function.IntPredicate query = witchEffectQuery;
         return query != null && query.test(effectId);
+    }
+
+    /**
+     * The generic effect-amplifier query (Slice 92 — the body's own walks
+     * that consult the live potion store): the breath clock's
+     * WATER_BREATHING shield and the fall walk's JUMP_BOOST term. Wired
+     * by the manager at spawn for EVERY body; null (or a null effect)
+     * means the body carries nothing.
+     */
+    private java.util.function.IntUnaryOperator effectAmplifierQuery;
+
+    /** Wires the effect-amplifier query (the manager at spawn). */
+    public void setEffectAmplifierQuery(java.util.function.IntUnaryOperator query) {
+        this.effectAmplifierQuery = query;
+    }
+
+    /**
+     * @return the effect's {@code amplifier + 1} (the reference's own
+     * term shape — a level-I effect answers 1), or 0 when absent.
+     */
+    private int effectAmplifierPlusOne(int effectId) {
+        java.util.function.IntUnaryOperator query = effectAmplifierQuery;
+        return query != null ? query.applyAsInt(effectId) : 0;
     }
 
     // ---- the slime (SlimeEntity 1:1 — Slice 12k) -----------------------
@@ -7507,6 +7627,7 @@ public final class MobEntity implements LivingEntity {
             }
         }
 
+        boolean wasOnGround = onGround;
         if (velocityY <= 0 && world.isSolidAt(newX, newY - GROUND_EPSILON, newZ)) {
             newY = world.supportY(newX, newY - GROUND_EPSILON, newZ);
             velocityY = 0.0;
@@ -7515,7 +7636,78 @@ public final class MobEntity implements LivingEntity {
             onGround = false;
         }
 
+        // checkFallDamage (Slice 92 — Entity lines 719-731, the reference's
+        // own shape over the ACTUAL moved delta): the water zeroes the
+        // store (checkWaterCollisions line 771 — the engine's fluid model
+        // folds the lava's own *0.5 halving into the zero, the shared
+        // fluid envelope); a still-falling body accumulates {@code -dy};
+        // the landing spends the store through takeFallDamage and zeroes
+        // it. The store's own NBT row (FallDistance) round-trips the
+        // mid-air value.
+        if (inFluid) {
+            fallDistance = 0.0f;
+        }
+        if (onGround) {
+            if (!wasOnGround && fallDistance > 0.0f) {
+                takeFallDamage(fallDistance, 1.0f);
+                fallDistance = 0.0f;
+            }
+        } else {
+            double dy = newY - position.y();
+            if (dy < 0.0) {
+                fallDistance = (float) (fallDistance - dy);
+            }
+        }
+
         position = new Position(newX, newY, newZ);
+    }
+
+    /**
+     * The fall wound (Slice 92 — LivingEntity.takeFallDamage lines
+     * 823-837): the jump-boost term ({@code amplifier + 1} — a level-II
+     * jump spares two blocks), the {@code ceil((distance - 3 - boost) *
+     * multiplier)} wound, the land sound's own slice. The empty overrides
+     * — the kinds that never take the landing (GolemEntity 12-14 the
+     * iron/snow pair, FlyingMobEntity 14-16 the ghast, MagmaCubeEntity
+     * 107-109, BatEntity 150-152, BlazeEntity 131-133, ChickenEntity
+     * 84-86, OcelotEntity 95-97, WitherEntity 472-474, HorseBaseEntity
+     * 355-362 the sound alone — no super call) — stand first. The
+     * creeper's own arm (CreeperEntity lines 56-62) rides after the
+     * wound: the fall primes the fuse at {@code distance * 1.5}, capped
+     * at {@code fuseTime - 5}.
+     */
+    public void takeFallDamage(float distance, float damageMultiplier) {
+        if (type == MobType.IRON_GOLEM || type == MobType.SNOW_GOLEM
+                || type == MobType.GHAST || type == MobType.MAGMA_CUBE
+                || type == MobType.BAT || type == MobType.BLAZE
+                || type == MobType.CHICKEN || type == MobType.OCELOT
+                || type == MobType.WITHER || type == MobType.HORSE) {
+            return; // the empty overrides
+        }
+        float boost = effectAmplifierPlusOne(
+                net.zaminmc.torch.server.potion.StatusEffects.JUMP_BOOST);
+        int wound = (int) Math.ceil((distance - 3.0f - boost) * damageMultiplier);
+        if (wound > 0) {
+            hurt(wound);
+            if (type == MobType.CREEPER && mode == Mode.FUSE) {
+                // The creeper's fuse arm (CreeperEntity lines 56-62): the
+                // fall primes the LIVE swell — the counter jumps by
+                // {@code distance * 1.5}, capped at {@code fuseTime - 5}
+                // (just under the trigger). The reference's not-swelling
+                // preload (a decaying counter outside the swell) has no
+                // home in the engine's swell model (the abort resets the
+                // counter) — the swell-model envelope, ledgered.
+                int fuse = modeTicks + (int) (distance * 1.5f);
+                int cap = creeperFuseTime - 5;
+                if (fuse > cap) {
+                    fuse = cap;
+                }
+                if (fuse < 0) {
+                    fuse = 0;
+                }
+                modeTicks = fuse;
+            }
+        }
     }
 
     private float randomDirection() {
