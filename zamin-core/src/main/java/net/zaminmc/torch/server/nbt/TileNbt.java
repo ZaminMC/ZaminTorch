@@ -255,7 +255,14 @@ public final class TileNbt {
                 var skull = seams.skulls().tileAt(pos);
                 if (skull != null) {
                     NbtOps.putByte(rows, "SkullType", (byte) skull.type());
-                    NbtOps.putByte(rows, "Rotation", (byte) skull.rotation());
+                    // The reference's own key is "Rot" (writeNbt line 25 —
+                    // the engine's old "Rotation" spelling never existed
+                    // in vanilla; the rename keeps vanilla world files and
+                    // /blockdata rows 1:1).
+                    NbtOps.putByte(rows, "Rot", (byte) skull.rotation());
+                    if (skull.profile() != null) {
+                        writeProfile(rows, "Owner", skull.profile());
+                    }
                 }
             }
             // Music (the note lives in the block state), EnderChest,
@@ -383,9 +390,26 @@ public final class TileNbt {
                 }
             }
             case "Skull" -> {
-                seams.skulls().place(pos,
-                        NbtOps.getByte(rows, "SkullType"),
-                        NbtOps.getByte(rows, "Rotation"));
+                int skullType = NbtOps.getByte(rows, "SkullType");
+                // The reference's own key is "Rot" (readNbt line 35).
+                int rotation = NbtOps.getByte(rows, "Rot");
+                net.zaminmc.torch.item.SkullProfile profile = null;
+                if (skullType == 3) {
+                    // The player head's profile (readNbt lines 37-46): the
+                    // Owner compound first, else the LEGACY ExtraType
+                    // string (a non-empty name births a name-only profile
+                    // — the pre-1.7 form the reference still honors).
+                    Map<String, Snbt.Tag> owner = NbtOps.getCompound(rows, "Owner");
+                    if (!owner.isEmpty()) {
+                        profile = readProfile(owner);
+                    } else {
+                        String extraType = NbtOps.getString(rows, "ExtraType");
+                        if (!extraType.isEmpty()) {
+                            profile = net.zaminmc.torch.item.SkullProfile.ofName(extraType);
+                        }
+                    }
+                }
+                seams.skulls().place(pos, skullType, rotation, profile);
             }
             default -> { }
         }
@@ -528,5 +552,101 @@ public final class TileNbt {
             return true;
         }
         return false;
+    }
+    // ------------------------------------------------------------------
+    // The GameProfile rows (Wave K — NbtUtils.readProfile/writeProfile
+    // lines 9-77, the skull's Owner compound and the item-tag SkullOwner
+    // compound's own shape).
+    // ------------------------------------------------------------------
+
+    /**
+     * The reference's readProfile: the Name/Id STRING rows (the uuid
+     * parsed tolerantly — a garbage string is a null id, never an
+     * exception), the Properties compound's per-key lists of
+     * {@code {Value, Signature?}} rows. An empty-both compound answers
+     * null (the reference's own gate).
+     */
+    static net.zaminmc.torch.item.SkullProfile readProfile(
+            Map<String, Snbt.Tag> rows) {
+        String name = NbtOps.contains(rows, "Name", Snbt.Tag.Type.STRING)
+                ? NbtOps.getString(rows, "Name") : null;
+        String rawId = NbtOps.contains(rows, "Id", Snbt.Tag.Type.STRING)
+                ? NbtOps.getString(rows, "Id") : null;
+        java.util.UUID id = null;
+        if (rawId != null && !rawId.isEmpty()) {
+            try {
+                id = java.util.UUID.fromString(rawId);
+            } catch (IllegalArgumentException garbage) {
+                id = null; // the reference's own try/catch
+            }
+        }
+        boolean hasName = name != null && !name.isEmpty();
+        if (!hasName && id == null) {
+            return null; // an empty-both compound reads null (line 20-22)
+        }
+        Map<String, java.util.List<net.zaminmc.torch.item.SkullProfile.Property>>
+                properties = new java.util.LinkedHashMap<>();
+        Map<String, Snbt.Tag> propertyRows = NbtOps.getCompound(rows, "Properties");
+        for (Map.Entry<String, Snbt.Tag> key : propertyRows.entrySet()) {
+            java.util.List<net.zaminmc.torch.item.SkullProfile.Property> parsed =
+                    new java.util.ArrayList<>();
+            for (Snbt.Tag element : NbtOps.getList(propertyRows, key.getKey(),
+                    Snbt.Tag.Type.COMPOUND)) {
+                Map<String, Snbt.Tag> row = element != null ? element.asCompound() : null;
+                if (row == null) {
+                    continue;
+                }
+                String value = NbtOps.getString(row, "Value");
+                if (value.isEmpty()) {
+                    continue; // a Value-less property row never joins
+                }
+                String signature = NbtOps.contains(row, "Signature", Snbt.Tag.Type.STRING)
+                        ? NbtOps.getString(row, "Signature") : null;
+                parsed.add(new net.zaminmc.torch.item.SkullProfile.Property(
+                        value, signature == null || signature.isEmpty() ? null : signature));
+            }
+            if (!parsed.isEmpty()) {
+                properties.put(key.getKey(), parsed);
+            }
+        }
+        return new net.zaminmc.torch.item.SkullProfile(
+                hasName ? name : null, id, properties.isEmpty() ? null : properties);
+    }
+
+    /**
+     * The reference's writeProfile: the Name row only when non-empty, the
+     * Id row only when non-null (the toString form), the Properties
+     * compound only when properties exist — each key a list of
+     * {@code {Value, Signature?}} rows (the Signature row only when
+     * present).
+     */
+    static void writeProfile(Map<String, Snbt.Tag> rows, String key,
+            net.zaminmc.torch.item.SkullProfile profile) {
+        Map<String, Snbt.Tag> owner = new java.util.LinkedHashMap<>();
+        if (profile.name() != null && !profile.name().isEmpty()) {
+            NbtOps.putString(owner, "Name", profile.name());
+        }
+        if (profile.id() != null) {
+            NbtOps.putString(owner, "Id", profile.id().toString());
+        }
+        if (profile.properties() != null && !profile.properties().isEmpty()) {
+            Map<String, Snbt.Tag> propertyRows = new java.util.LinkedHashMap<>();
+            for (Map.Entry<String, java.util.List<net.zaminmc.torch.item.SkullProfile.Property>>
+                    keyRow : profile.properties().entrySet()) {
+                java.util.List<Snbt.Tag> list = new java.util.ArrayList<>();
+                for (net.zaminmc.torch.item.SkullProfile.Property property
+                        : keyRow.getValue()) {
+                    Map<String, Snbt.Tag> row = new java.util.LinkedHashMap<>();
+                    NbtOps.putString(row, "Value", property.value());
+                    if (property.signature() != null) {
+                        NbtOps.putString(row, "Signature", property.signature());
+                    }
+                    list.add(Snbt.Tag.ofCompound(row));
+                }
+                NbtOps.putList(propertyRows, keyRow.getKey(), list);
+            }
+            NbtOps.putCompound(owner, "Properties", propertyRows);
+        }
+        NbtOps.putCompound(rows, key, owner);
     }
 }

@@ -28,9 +28,17 @@ public final class SkullManager {
 
     /**
      * One skull's tile (SkullBlockEntity's own fields): the type byte and
-     * the rotation byte the wire's 0x35 packet carries.
+     * the rotation byte the wire's 0x35 packet carries, plus the
+     * player-head's profile (Wave K — the Owner member, null unless the
+     * type is 3 and a profile was given).
      */
-    public record SkullTile(BlockPosition position, int type, int rotation) {
+    public record SkullTile(BlockPosition position, int type, int rotation,
+                            net.zaminmc.torch.item.SkullProfile profile) {
+
+        /** The pre-K three-field shape (the compatibility constructor). */
+        public SkullTile(BlockPosition position, int type, int rotation) {
+            this(position, type, rotation, null);
+        }
     }
 
     /** The engine's consults at the summon walk. */
@@ -99,12 +107,19 @@ public final class SkullManager {
 
     /**
      * The placement's tile write (SkullItem.useOn lines 55-81): the type
-     * from the stack's damage (the player-head profile is out of the
-     * engine's model — a damage-3 stack places the plain Steve head),
-     * the floor rotation from the placer's yaw when the mount is UP.
+     * from the stack's damage (the player-head profile rides the damage-3
+     * consult — Wave K), the floor rotation from the placer's yaw when
+     * the mount is UP. The no-profile overload keeps the plain Steve head
+     * (the reference's gameprofile = null).
      */
     public void place(BlockPosition position, int type, int rotation) {
-        SkullTile tile = new SkullTile(position, type & 0xFF, rotation & 0xFF);
+        place(position, type, rotation, null);
+    }
+
+    /** The placement's tile write with the player-head's profile (the damage-3 arm). */
+    public void place(BlockPosition position, int type, int rotation,
+            net.zaminmc.torch.item.SkullProfile profile) {
+        SkullTile tile = new SkullTile(position, type & 0xFF, rotation & 0xFF, profile);
         tiles.put(position, tile);
         for (Listener listener : listeners) {
             listener.onSkullTileChanged(position, tile);
