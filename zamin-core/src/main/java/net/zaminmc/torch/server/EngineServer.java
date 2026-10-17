@@ -1760,6 +1760,10 @@ public final class EngineServer implements Server, EngineBridge {
                     }
                 });
                 mobs.setPotionSystem(potionSystem); // the witch's drink arm (12i)
+                // Slice 92 — the loot-pickup scan's own world: the item
+                // entities for the grown-box walk, the mobGriefing gate.
+                mobs.setItemEntitiesForPickup(itemEntities);
+                mobs.setMobGriefingRead(() -> gameRules.getBoolean("mobGriefing"));
                 // The difficulty reads (Slice 19e): the peaceful sweep
                 // (MonsterEntity.tick) + the spawn gate (canSpawn).
                 mobs.setDifficultyRead(() -> difficulty);
@@ -14633,6 +14637,15 @@ public final class EngineServer implements Server, EngineBridge {
                     : mob.type() == net.zaminmc.torch.server.entity.MobType.WITHER
                     ? 50 // WitherEntity's own xpDrop (the ctor line 67)
                     : ExperienceAwards.forMobKill(mob.type().hostile, gameplayRandom);
+            // The equipment bonus (MobEntity.getXpDrop lines 160-175): an
+            // xp-carrying body adds 1 + nextInt(3) per equipped slot whose
+            // chance sits at or under 1.0 (a picked-up hand at 2.0 pays
+            // nothing extra — the reference's own gate). The engine models
+            // the one held slot.
+            if (amount > 0 && mob.heldEquipment() != null
+                    && mob.inventoryDropChance(0) <= 1.0F) {
+                amount += 1 + gameplayRandom.nextInt(3);
+            }
             experienceOrbs.spawnBurst(mob.position(), amount, 3);
         }
 

@@ -36,10 +36,12 @@ import java.util.UUID;
  * WATER_BREATHING shield), the portal cooldown (the decrement), the
  * hurt timestamp (the age stamp the hurt walk writes).</p>
  *
- * <p><b>The engine's standing envelopes</b> (the reference's own
- * defaults, no model behind them yet): CanPickUpLoot false, the
- * DropChances 0.085 quintet — the pickup walk and the equipment-chance
- * death walk are the next wave's own landings.</p>
+ * <p><b>The loot rows LANDED</b> (Slice 92 p3): CanPickUpLoot (the
+ * spawn roll's flag, the villager's always-true, the BYTE-gated read)
+ * and the DropChances quintet (the death walk's own gate — a picked-up
+ * slot carries the 2.0 always-drop marker) into the engine's model. The
+ * item-entity thrower field (the GIVE_DIAMOND arm's own gate) stays the
+ * engine's standing envelope.</p>
  *
  * <p><b>The living rows</b>: HealF (the any-numeric read gate) else the
  * Health row (the reference's own quirk — a FLOAT or SHORT row applies,
@@ -202,7 +204,7 @@ public final class EntityNbt {
             NbtOps.putList(nbt, "ActiveEffects", activeEffects);
         }
         // MobEntity.writeCustomNbt.
-        NbtOps.putBoolean(nbt, "CanPickUpLoot", false);
+        NbtOps.putBoolean(nbt, "CanPickUpLoot", mob.canPickUpLoot());
         NbtOps.putBoolean(nbt, "PersistenceRequired", mob.rawPersistent());
         List<Snbt.Tag> equipment = new ArrayList<>();
         // [0] the held slot; [1..4] the armor family — the engine's
@@ -214,8 +216,9 @@ public final class EntityNbt {
                     ItemNbt.slotRows(slot, null)));
         }
         NbtOps.putList(nbt, "Equipment", equipment);
+        float[] chances = mob.inventoryDropChances();
         NbtOps.putList(nbt, "DropChances",
-                NbtOps.floatList(0.085f, 0.085f, 0.085f, 0.085f, 0.085f));
+                NbtOps.floatList(chances[0], chances[1], chances[2], chances[3], chances[4]));
         NbtOps.putBoolean(nbt, "Leashed", mob.isLeashed());
         if (mob.isLeashed()) {
             Map<String, Snbt.Tag> leash = new java.util.LinkedHashMap<>();
@@ -510,7 +513,18 @@ public final class EntityNbt {
         mob.setHurtTime(NbtOps.getShort(nbt, "HurtTime"));
         mob.setDeathTime(NbtOps.getShort(nbt, "DeathTime"));
         mob.setHurtByTimestamp(NbtOps.getInt(nbt, "HurtByTimestamp"));
-        // MobEntity.readCustomNbt.
+        // MobEntity.readCustomNbt — the pickup flag's own BYTE gate
+        // (contains("CanPickUpLoot", 1)): an absent row keeps the spawn
+        // roll's verdict.
+        if (NbtOps.contains(nbt, "CanPickUpLoot", Snbt.Tag.Type.BYTE)) {
+            mob.setCanPickUpLoot(NbtOps.getBoolean(nbt, "CanPickUpLoot"));
+        }
+        if (mob.type() == net.zaminmc.torch.server.entity.MobType.VILLAGER) {
+            // VillagerEntity.readAdditional line 464: the belt-and-suspenders
+            // force-true AFTER the row read — a false row never disarms the
+            // villager (the constructor's own arm stands).
+            mob.setCanPickUpLoot(true);
+        }
         mob.setPersistent(NbtOps.getBoolean(nbt, "PersistenceRequired"));
         List<Snbt.Tag> equipment = NbtOps.getList(nbt, "Equipment", Snbt.Tag.Type.COMPOUND);
         if (!equipment.isEmpty()) {
@@ -530,7 +544,16 @@ public final class EntityNbt {
                 }
             }
         }
-        // DropChances: the engine's standing envelope (no model).
+        // DropChances (contains("DropChances", 9) + getList(key, 5)):
+        // the per-slot assignment bounded by the row's own list size.
+        List<Snbt.Tag> dropChances = NbtOps.getList(nbt, "DropChances", Snbt.Tag.Type.FLOAT);
+        if (!dropChances.isEmpty()) {
+            float[] read = new float[dropChances.size()];
+            for (int i = 0; i < dropChances.size(); i++) {
+                read[i] = (float) dropChances.get(i).asDouble();
+            }
+            mob.setInventoryDropChances(read);
+        }
         mob.applyLeashRows(NbtOps.getBoolean(nbt, "Leashed"), nbt);
         mob.setNoAi(NbtOps.getBoolean(nbt, "NoAI"));
         readTypeCustomNbt(mob, nbt);

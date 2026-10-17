@@ -49,7 +49,6 @@ public final class MobManager {
      * The equipment drop chance (MobEntity's own initEquipmentDropChances
      * line 83: the flat 0.085F every slot carries).
      */
-    private static final float EQUIPMENT_DROP_CHANCE = 0.085f;
 
     /** The rare-drop roll's base (LivingEntity.die line 766: 0.025F). */
     private static final float RARE_DROP_BASE = 0.025f;
@@ -494,6 +493,12 @@ public final class MobManager {
     private final java.util.function.BiFunction<Integer, Integer, Integer> surfaceY;
     /** The potion system (the witch's drink application); null until wired. */
     private volatile net.zaminmc.torch.server.potion.PotionSystem potionSystem;
+    /** The item-entity world for the loot-pickup scan (Slice 92 — the engine wires). */
+    private volatile ItemEntityManager itemEntities;
+    /** The mobGriefing rule read (the pickup walk's own gate). */
+    private volatile java.util.function.BooleanSupplier mobGriefingRead;
+    /** The last tick's time-of-day (the local difficulty's own time term). */
+    private volatile long lastTimeOfDay;
     /** The owner-lane admission for goal registrations (§27.6); null until wired. */
     private volatile java.util.function.Consumer<Runnable> goalAdmission;
     /** The difficulty read (0 peaceful .. 3 hard); null until wired. */
@@ -569,6 +574,16 @@ public final class MobManager {
     }
 
     /** Wires the potion system (the witch's drink lands its effects through it). */
+    /** Wires the item-entity world for the loot-pickup scan (Slice 92). */
+    public void setItemEntitiesForPickup(ItemEntityManager items) {
+        this.itemEntities = items;
+    }
+
+    /** Wires the mobGriefing rule read (the pickup walk's gate). */
+    public void setMobGriefingRead(java.util.function.BooleanSupplier read) {
+        this.mobGriefingRead = read;
+    }
+
     public void setPotionSystem(net.zaminmc.torch.server.potion.PotionSystem potionSystem) {
         this.potionSystem = potionSystem;
     }
@@ -752,6 +767,19 @@ public final class MobManager {
             // bow in hand — the nether's wither conversion replaces it
             // with the stone sword at its own roll below.
             mob.setHeldEquipment(ItemStack.of(BuiltinItems.BOW, 1));
+        }
+        if (type == MobType.SKELETON || type == MobType.ZOMBIE
+                || type == MobType.ZOMBIE_PIGMAN) {
+            // The initialize rolls (SkeletonEntity line 228, ZombieEntity
+            // line 399 — the pigman inherits the zombie's own walk):
+            // setCanPickupLoot(nextFloat() < 0.55F * the local difficulty
+            // multiplier).
+            mob.setCanPickUpLoot(random.nextFloat() < 0.55F * localDifficultyMultiplier());
+        }
+        if (type == MobType.VILLAGER) {
+            // VillagerEntity's own constructor arm (line 322): the
+            // villager ALWAYS picks up (the food-in-hand walk).
+            mob.setCanPickUpLoot(true);
         }
         if (type == MobType.WITCH) {
             // The drink ladder's hasStatusEffect gates (mobTick lines
@@ -1035,6 +1063,7 @@ public final class MobManager {
      */
     public void tick(Iterable<PlayerSession> players, long timeOfDay) {
         boolean night = isNight(timeOfDay);
+        this.lastTimeOfDay = timeOfDay; // the local difficulty's own time term
 
         // The peaceful sweep (Slice 19e — MonsterEntity.tick lines 33-38):
         // a hostile body on a peaceful world leaves the very next tick —
@@ -1068,6 +1097,7 @@ public final class MobManager {
                     listener.onMobRemoved(mob, "died");
                 }
                 dropLoot(mob); // the loot lands after the body leaves the wire
+                dropEquipment(mob); // the equipment walk rides beside the loot
                 if (mob.type() == MobType.SLIME && mob.slimeSize() > 1) {
                     pendingSlimeSplits.add(mob); // the death split (12k)
                 }
@@ -1166,6 +1196,11 @@ public final class MobManager {
             // bodies' physics, scans, and pathing read the nether's blocks).
             world.setActiveDimension(mob.dimension());
             boolean moved = mob.tick(night);
+            // The loot-pickup scan (Slice 92 — MobEntity.mobTick lines
+            // 339-347, riding AFTER the mob's own tick like the
+            // reference's ai-section order): a pickup-armed, non-pinned,
+            // living body scans the item entities in its grown box.
+            tickLootPickup(mob);
             if (wasPriming != mob.fuseActive()) {
                 for (Listener listener : listeners) {
                     listener.onMobFuseChanged(mob, mob.fuseActive());
@@ -2446,6 +2481,52 @@ public final class MobManager {
         return true;
     }
 
+    /**
+     * The equipment drop (Slice 92 — MobEntity.dropEquipment lines
+     * 569-589, the engine's slot-0 model: the armor family carries no
+     * stacks, the no-mob-armor envelope): the held hand drops when the
+     * player-kill window is open (or the slot carries the always-drop
+     * marker — the 2.0 a pickup writes) and the chance roll clears,
+     * widened by the killer's looting ({@code nextFloat() - looting *
+     * 0.01F < chance}); a damageable tool rides the reference's own
+     * durability shave ({@code max(maxDamage - 25, 1)} bound, the
+     * {@code maxDamage - nextInt(nextInt(j) + 1)} cut, clamped 1..j).
+     */
+    private void dropEquipment(MobEntity mob) {
+        if (!mobLootEnabled()) {
+            return;
+        }
+        ItemStack held = mob.heldEquipment();
+        if (held == null) {
+            return;
+        }
+        float chance = mob.inventoryDropChance(0);
+        boolean always = chance > 1.0F;
+        int looting = mob.lootingLevel();
+        if (!(mob.playerHitRecently() || always)
+                || !(random.nextFloat() - looting * 0.01F < chance)) {
+            return;
+        }
+        ItemStack drop = held;
+        if (!always && held.type().maxDurability() > 0) {
+            // isDamageable: the durability shave — the dropped tool never
+            // lands pristine (the reference's own cut).
+            int max = held.type().maxDurability();
+            int bound = Math.max(max - 25, 1);
+            int k = max - random.nextInt(random.nextInt(bound) + 1);
+            if (k > bound) {
+                k = bound;
+            }
+            if (k < 1) {
+                k = 1;
+            }
+            drop = new ItemStack(held.type(), held.count(), k,
+                    held.displayName(), held.enchantments());
+        }
+        Position at = mob.position();
+        lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()), drop);
+    }
+
     /** Rolls the kind's loot table into the world at the body. */
     private void dropLoot(MobEntity mob) {
         // doMobLoot (Slice 24a — LivingEntity.die lines 82-92: the whole
@@ -2549,15 +2630,9 @@ public final class MobManager {
                 lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()),
                         ItemStack.of(BuiltinItems.BONE, 1));
             }
-            // MobEntity.dropEquipment (lines 569-589): the held item drops
-            // on a player kill at the 0.085 chance, widened by the looting
-            // (`nextFloat() - looting * 0.01F < 0.085F` — the reference's
-            // own shape over the one modeled slot).
-            ItemStack held = mob.heldEquipment();
-            if (held != null && mob.playerHitRecently()
-                    && random.nextFloat() - looting * 0.01F < EQUIPMENT_DROP_CHANCE) {
-                lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()), held);
-            }
+            // The held-item drop rides the general dropEquipment walk
+            // (Slice 92 — the inline 0.085 arm retired into the model's
+            // own chance quintet).
             // LivingEntity.die lines 766-768 + SkeletonEntity.dropRareItem
             // (lines 201-206): the wither variant's rare head — the
             // 0.025 + looting * 0.01 roll on the player-kill window.
@@ -2769,6 +2844,35 @@ public final class MobManager {
         }
     }
 
+    /**
+     * The regional difficulty's own multiplier (Slice 92 —
+     * LocalDifficulty.calculate + getMultiplier, 1:1 with the
+     * inhabited-time and moon-phase terms ZEROED: the engine models
+     * neither — the fresh-chunk, new-moon read, ledgered): the peaceful
+     * reads 0 outright; the rest walk the time-of-day term
+     * ({@code clamp((timeOfDay - 72000) / 1440000, 0, 1) * 0.25}, the
+     * easy band's own 0.5 shave on the bonus) over the difficulty's own
+     * weight, then the {@code (regional - 2) / 2} clamp into 0..1.
+     */
+    private float localDifficultyMultiplier() {
+        java.util.function.IntSupplier difficultyAt = difficultyRead;
+        int difficulty = difficultyAt != null ? difficultyAt.getAsInt() : 1;
+        if (difficulty <= 0) {
+            return 0.0F;
+        }
+        float timeTerm = Math.max(0.0F, Math.min(1.0F,
+                (lastTimeOfDay - 72000.0F) / 1440000.0F)) * 0.25F;
+        float bonus = 0.0F; // the inhabited + moon terms: zeroed (ledgered)
+        if (difficulty == 1) {
+            bonus *= 0.5F;
+        }
+        float regional = difficulty * (0.75F + timeTerm + bonus);
+        if (regional < 2.0F) {
+            return 0.0F;
+        }
+        return Math.min((regional - 2.0F) / 2.0F, 1.0F);
+    }
+
     /** The witch's live effect-store read (the drink ladder's gates). */
     private boolean witchHasEffect(MobEntity mob, int effectId) {
         net.zaminmc.torch.server.potion.PotionSystem potions = potionSystem;
@@ -2786,6 +2890,142 @@ public final class MobManager {
                 potions != null ? potions.get(mob, effectId) : null;
         return effect != null && effect.duration() > 0
                 ? effect.amplifier() + 1 : 0;
+    }
+
+    // ------------------------------------------------ the loot pickup (Slice 92)
+
+    /**
+     * The loot-pickup scan (MobEntity.mobTick lines 339-347): a
+     * pickup-armed body — the mobGriefing rule on, not dead, not NoAI
+     * (the scan rides the ai section the reference's isLocallyControlled
+     * gate owns — a pinned body never picks up) — walks the item
+     * entities whose boxes meet its own grown by 1.0 horizontal, 0.0
+     * vertical.
+     */
+    private void tickLootPickup(MobEntity mob) {
+        ItemEntityManager items = itemEntities;
+        if (items == null || !mob.canPickUpLoot() || mob.dead() || mob.noAi()) {
+            return;
+        }
+        java.util.function.BooleanSupplier griefing = mobGriefingRead;
+        if (griefing != null && !griefing.getAsBoolean()) {
+            return;
+        }
+        double mx = mob.position().x();
+        double mz = mob.position().z();
+        double halfWidth = mob.type().width / 2 + 1.0; // grown(1.0, 0.0, 1.0)
+        double minY = mob.position().y();
+        double maxY = mob.position().y() + mob.type().height;
+        for (ItemEntity item : items.all().toArray(new ItemEntity[0])) {
+            if (!item.pickupAllowed()) { // !hasPickUpDelay
+                continue;
+            }
+            Position at = item.position();
+            if (at.x() < mx - halfWidth || at.x() > mx + halfWidth
+                    || at.z() < mz - halfWidth || at.z() > mz + halfWidth
+                    || at.y() + ItemEntity.HALF_HEIGHT < minY
+                    || at.y() - ItemEntity.HALF_HEIGHT > maxY) {
+                continue;
+            }
+            updateInventory(mob, item, items);
+        }
+    }
+
+    /**
+     * The equip walk (MobEntity.updateInventory lines 349-403, the
+     * engine's slot-0 model — the armor family parses to its own slots
+     * and lands nowhere, the no-mob-armor envelope): the better-item
+     * comparison — a sword over a non-sword, the sword family by attack
+     * damage (ties by the stack damage), the bow pair by the nbt alone —
+     * then the old hand's 0.1-widened chance drop, the equip, the
+     * always-drop marker (2.0), the persistence pin, and the collect.
+     */
+    private void updateInventory(MobEntity mob, ItemEntity item, ItemEntityManager items) {
+        ItemStack stack = item.stack();
+        if (stack == null || equipmentSlotOf(stack) > 0) {
+            return; // the armor family: the engine's no-mob-armor envelope
+        }
+        ItemStack held = mob.heldEquipment();
+        boolean better;
+        if (held == null) {
+            better = true;
+        } else {
+            var newSpec = net.zaminmc.torch.server.item.Tools
+                    .specOf(stack.type()).orElse(null);
+            var oldSpec = net.zaminmc.torch.server.item.Tools
+                    .specOf(held.type()).orElse(null);
+            boolean newSword = newSpec != null && newSpec.toolClass()
+                    == net.zaminmc.torch.server.item.ToolClass.SWORD;
+            boolean oldSword = oldSpec != null && oldSpec.toolClass()
+                    == net.zaminmc.torch.server.item.ToolClass.SWORD;
+            boolean newBow = stack.type().identifier().value().equals("bow");
+            boolean oldBow = held.type().identifier().value().equals("bow");
+            if (newSword && !oldSword) {
+                better = true;
+            } else if (newSword && oldSword) {
+                float newDamage = net.zaminmc.torch.server.item.Tools
+                        .attackDamageOf(stack.type());
+                float oldDamage = net.zaminmc.torch.server.item.Tools
+                        .attackDamageOf(held.type());
+                if (newDamage != oldDamage) {
+                    better = newDamage > oldDamage;
+                } else {
+                    better = stack.damage() > held.damage()
+                            || hasTagRows(stack) && !hasTagRows(held);
+                }
+            } else if (newBow && oldBow) {
+                better = hasTagRows(stack) && !hasTagRows(held);
+            } else {
+                better = false;
+            }
+        }
+        if (better) { // canHoldItem: the reference's own default true
+            if (held != null && random.nextFloat() - 0.1F
+                    < mob.inventoryDropChance(0)) {
+                Position at = mob.position();
+                lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()), held);
+            }
+            // The GIVE_DIAMOND arm (updateInventory lines 393-399) keys on
+            // the item's thrower — the engine's ItemEntity carries no
+            // thrower field (the envelope, ledgered).
+            mob.setHeldEquipment(stack);
+            mob.setInventoryDropChance(0, 2.0F);
+            mob.setPersistent(true);
+            items.collectByMob(item, mob);
+            equipmentChanged(mob); // the Entity Equipment publish
+        }
+    }
+
+    /**
+     * The engine's stack "nbt" read (the bow pair's own tie-breaker —
+     * the reference's {@code hasNbt()}}): a custom name or an
+     * enchantment pair rides the stack's own rows.
+     */
+    private static boolean hasTagRows(ItemStack stack) {
+        return (stack.displayName() != null && !stack.displayName().isEmpty())
+                || (stack.enchantments() != null && !stack.enchantments().isEmpty());
+    }
+
+    /**
+     * The equipment-slot mapping (MobEntity.getEquipmentSlot lines
+     * 625-647): the pumpkin and the skull to the head (4), the armor
+     * family by its own slot, everything else to the hand (0).
+     */
+    private static int equipmentSlotOf(ItemStack stack) {
+        String id = stack.type().identifier().value();
+        if (id.equals("pumpkin") || id.equals("skull")) {
+            return 4;
+        }
+        var armor = net.zaminmc.torch.server.item.Armor.specOf(stack.type());
+        if (armor.isPresent()) {
+            return switch (armor.get().slot()) {
+                case HEAD -> 4;
+                case CHEST -> 3;
+                case LEGS -> 2;
+                case FEET -> 1;
+            };
+        }
+        return 0;
     }
 
     /**

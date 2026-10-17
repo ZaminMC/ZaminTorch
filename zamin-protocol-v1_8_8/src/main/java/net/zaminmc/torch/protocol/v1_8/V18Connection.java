@@ -3622,6 +3622,30 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         channel.writeAndFlush(destroy);
     }
 
+
+    /**
+     * A MOB's collect (Slice 92 — the pickup walk's sendPickup): the same
+     * Collect + Destroy pair with the MOB's own engine id as the collector
+     * (the mobs ride the engine id space, no per-observer mapping).
+     */
+    void sendItemCollectedByMob(int itemEntityId, int collectorEntityId) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(8);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_COLLECT_ITEM);
+        ByteBufOps.writeVarInt(out, itemEntityId);
+        ByteBufOps.writeVarInt(out, collectorEntityId);
+        channel.writeAndFlush(out);
+
+        ByteBuf destroy = Unpooled.buffer(8);
+        ByteBufOps.writeVarInt(destroy, Protocol18.S2C_DESTROY_ENTITIES);
+        ByteBufOps.writeVarInt(destroy, 1);
+        ByteBufOps.writeVarInt(destroy, itemEntityId);
+        channel.writeAndFlush(destroy);
+    }
+
     /** Removes an item entity from this observer. Any thread. */
     void sendItemRemoved(int itemEntityId) {
         sendDestroyEntities(itemEntityId);

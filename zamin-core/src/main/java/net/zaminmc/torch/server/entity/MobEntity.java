@@ -474,6 +474,15 @@ public final class MobEntity implements LivingEntity {
     private int deathTicks;
     /** The killer's Looting level (the reference reads it at death from the killer entity). */
     private int lootingLevel;
+    /** The loot-pickup flag (MobEntity.n — the initialize roll, the villager's always-true). */
+    private boolean canPickUpLoot;
+    /**
+     * The five equipment slots' drop chances (MobEntity
+     * .inventoryDropChances, line 64 + the constructor's 0.085 fill): the
+     * death walk's own gate — a picked-up slot carries the reference's
+     * own 2.0 (an always-drop marker above the 1.0 ceiling).
+     */
+    private final float[] inventoryDropChances = {0.085f, 0.085f, 0.085f, 0.085f, 0.085f};
 
     // Steering: the wall-slide detour (a blocked walker slides along the wall
     // for a few ticks instead of grinding into it).
@@ -1144,6 +1153,41 @@ public final class MobEntity implements LivingEntity {
     /** Sets the killer's Looting level before the killing hurt lands. */
     public void setLootingLevel(int lootingLevel) {
         this.lootingLevel = Math.max(0, lootingLevel);
+    }
+
+    /**
+     * The loot-pickup flag (MobEntity.n / setCanPickupLoot): armed at the
+     * spawn roll (the skeleton's and the zombie's 0.55 * the local
+     * difficulty multiplier), always true for the villager, read back
+     * from the BYTE-gated NBT row.
+     */
+    public boolean canPickUpLoot() {
+        return canPickUpLoot;
+    }
+
+    public void setCanPickUpLoot(boolean canPickUpLoot) {
+        this.canPickUpLoot = canPickUpLoot;
+    }
+
+    /** One slot's drop chance (the death walk's gate, the pickup walk's 2.0 marker). */
+    public float inventoryDropChance(int slot) {
+        return inventoryDropChances[Math.max(0, Math.min(inventoryDropChances.length - 1, slot))];
+    }
+
+    public void setInventoryDropChance(int slot, float value) {
+        inventoryDropChances[Math.max(0, Math.min(inventoryDropChances.length - 1, slot))] = value;
+    }
+
+    /** The five slots' chances (the NBT row's own read). */
+    public float[] inventoryDropChances() {
+        return inventoryDropChances.clone();
+    }
+
+    public void setInventoryDropChances(float[] values) {
+        for (int i = 0; i < inventoryDropChances.length
+                && values != null && i < values.length; i++) {
+            inventoryDropChances[i] = values[i];
+        }
     }
 
     /**

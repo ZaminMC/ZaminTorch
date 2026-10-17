@@ -198,6 +198,14 @@ public final class V18ProtocolServer implements ProtocolAdapter {
             }
 
             @Override
+            public void onItemCollectedByMob(net.zaminmc.torch.server.entity.ItemEntity entity,
+                    net.zaminmc.torch.server.entity.MobEntity collector) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendItemCollectedByMob(entity.entityId(), collector.entityId());
+                }
+            }
+
+            @Override
             public void onItemStackChanged(net.zaminmc.torch.server.entity.ItemEntity entity) {
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
                     connection.sendItemStackUpdate(entity);
