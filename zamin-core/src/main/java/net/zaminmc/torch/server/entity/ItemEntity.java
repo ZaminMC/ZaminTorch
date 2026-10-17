@@ -50,6 +50,35 @@ public final class ItemEntity implements net.zaminmc.torch.entity.DroppedItem {
         default double supportY(double x, double y, double z) {
             return isSolid(x, y, z) ? Math.floor(y) + 1.0 : Double.NEGATIVE_INFINITY;
         }
+
+        /**
+         * The item's own half-width (the historical EntityItem box is
+         * 0.25 wide — the box-footprint physics constant).
+         */
+        double HALF_WIDTH = 0.125;
+
+        /**
+         * The box-footprint landing test (the vanilla-shape slice): the
+         * item's 0.25-wide bottom face — the four corners + the center —
+         * against the collision shapes, so an item whose CENTER has
+         * drifted past a cell edge still rests on the shape under its
+         * overlapping edge (vanilla's EntityItem collides as a box, not
+         * a point — the hopper's funnel, the slab's rim, the fence's
+         * post all catch the edge of the box). The default folds to the
+         * center-point test (the pre-box behavior) for stub grounds.
+         */
+        default boolean isSolidAtBox(double centerX, double bottomY, double centerZ) {
+            return isSolidAt(centerX, bottomY, centerZ);
+        }
+
+        /**
+         * The box-footprint support: the HIGHEST shape top any bottom
+         * face sample touches — the surface the resting bottom snaps
+         * onto. The default folds to the center-point support.
+         */
+        default double supportYAtBox(double centerX, double bottomY, double centerZ) {
+            return supportY(centerX, bottomY, centerZ);
+        }
     }
 
     private final int entityId;
@@ -172,13 +201,14 @@ public final class ItemEntity implements net.zaminmc.torch.entity.DroppedItem {
         double newX = position.x() + velocityX;
         double newZ = position.z() + velocityZ;
 
-        if (velocityY <= 0 && ground.isSolidAt(newX, newY - HALF_HEIGHT - GROUND_EPSILON, newZ)) {
+        if (velocityY <= 0 && ground.isSolidAtBox(newX, newY - HALF_HEIGHT - GROUND_EPSILON, newZ)) {
             // Snap the item's bottom onto the surface it landed on (the
-            // slab half or the full cube's ceiling).
-            newY = ground.supportY(newX, newY - HALF_HEIGHT - GROUND_EPSILON, newZ) + HALF_HEIGHT;
+            // slab half or the full cube's ceiling) — the box footprint's
+            // own support (the highest shape top the bottom face touches).
+            newY = ground.supportYAtBox(newX, newY - HALF_HEIGHT - GROUND_EPSILON, newZ) + HALF_HEIGHT;
             velocityY = 0.0;
             onGround = true;
-        } else if (velocityY > 0 && ground.isSolidAt(newX, newY + HALF_HEIGHT + GROUND_EPSILON, newZ)) {
+        } else if (velocityY > 0 && ground.isSolidAtBox(newX, newY + HALF_HEIGHT + GROUND_EPSILON, newZ)) {
             velocityY = 0.0; // bumped a ceiling; do not pass through
             newY = position.y();
             onGround = false;

@@ -18411,6 +18411,38 @@ public final class EngineServer implements Server, EngineBridge {
         public double supportY(double x, double y, double z) {
             return supportYAt(x, y, z);
         }
+
+        /**
+         * The item box's bottom-face footprint (the vanilla-shape slice):
+         * the four corners + the center, each against the shape-aware
+         * point test — an item whose center left the cell still rests on
+         * the shape under its overlapping edge.
+         */
+        @Override
+        public boolean isSolidAtBox(double centerX, double bottomY, double centerZ) {
+            double w = ItemEntity.Ground.HALF_WIDTH;
+            return solidAtPoint(centerX, bottomY, centerZ)
+                    || solidAtPoint(centerX - w, bottomY, centerZ - w)
+                    || solidAtPoint(centerX - w, bottomY, centerZ + w)
+                    || solidAtPoint(centerX + w, bottomY, centerZ - w)
+                    || solidAtPoint(centerX + w, bottomY, centerZ + w);
+        }
+
+        /**
+         * The box footprint's support: the HIGHEST shape top any bottom
+         * face sample touches (the surface the resting bottom snaps onto —
+         * the funnel's 5/8, the leg's full height, the slab's half).
+         */
+        @Override
+        public double supportYAtBox(double centerX, double bottomY, double centerZ) {
+            double w = ItemEntity.Ground.HALF_WIDTH;
+            double best = supportYAt(centerX, bottomY, centerZ);
+            best = Math.max(best, supportYAt(centerX - w, bottomY, centerZ - w));
+            best = Math.max(best, supportYAt(centerX - w, bottomY, centerZ + w));
+            best = Math.max(best, supportYAt(centerX + w, bottomY, centerZ - w));
+            best = Math.max(best, supportYAt(centerX + w, bottomY, centerZ + w));
+            return best;
+        }
     }
 
     /** Bounds-safe fluid lookup: nothing outside the world column is fluid. */
