@@ -3260,12 +3260,15 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         writeNbtInt(out, "y", position.y());
         writeNbtInt(out, "z", position.z());
         writeNbtShort(out, "Delay", tile.delay());
-        writeNbtShort(out, "MinSpawnDelay", 200);
-        writeNbtShort(out, "MaxSpawnDelay", 800);
-        writeNbtShort(out, "SpawnCount", 4);
-        writeNbtShort(out, "MaxNearbyEntities", 6);
-        writeNbtShort(out, "RequiredPlayerRange", 16);
-        writeNbtShort(out, "SpawnRange", 4);
+        // The cadence rows (writeNbt lines 231-236) — the spawner's OWN
+        // values (Slice 91 Wave C: the block-event-1 spin reset reads the
+        // client's minSpawnDelay from these rows).
+        writeNbtShort(out, "MinSpawnDelay", tile.minSpawnDelay());
+        writeNbtShort(out, "MaxSpawnDelay", tile.maxSpawnDelay());
+        writeNbtShort(out, "SpawnCount", tile.spawnCount());
+        writeNbtShort(out, "MaxNearbyEntities", tile.maxNearbyEntities());
+        writeNbtShort(out, "RequiredPlayerRange", tile.requiredPlayerRange());
+        writeNbtShort(out, "SpawnRange", tile.spawnRange());
         writeNbtString(out, "EntityId", name);
         // SpawnData (writeNbt line 240): the next entry's properties — the
         // client's display entity reads the "id" member.

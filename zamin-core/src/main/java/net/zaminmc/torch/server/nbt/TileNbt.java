@@ -44,8 +44,11 @@ import java.util.Map;
  * reference's own registration — the state rows land in no model):
  * EnderChest (the contents live on the player), the containers'
  * CustomName/Lock rows (no lock model), the spawner's cadence rows
- * (MinSpawnDelay/MaxSpawnDelay/SpawnCount/MaxNearbyEntities/
- * RequiredPlayerRange/SpawnRange — the engine's fixed cadence), the
+ * LANDED into the model (Slice 91 Wave C — the six rows steer each
+ * spawner's own walk: the paired read gates carry the reference's own
+ * zeroing quirk, and the per-spawner delay band, spawn count, nearby
+ * cap, player range, and spawn range ride the MobSpawnerBlockEntity),
+ * the
  * comparator's OutputSignal (no stored-output model), the daylight
  * detector (the inverted block state is the whole model), the
  * enchanting table and the end portal (no state rows in the reference
@@ -206,10 +209,19 @@ public final class TileNbt {
             }
             case "MobSpawner" -> {
                 var spawner = seams.spawners().getOrCreate(dimension, pos);
+                // writeNbt lines 228-237: the whole projection rides the
+                // non-empty type gate (an untyped spawner writes NOTHING).
                 if (spawner.type() != null) {
                     NbtOps.putString(rows, "EntityId", spawner.type().vanillaName());
+                    NbtOps.putShort(rows, "Delay", (short) spawner.delay());
+                    NbtOps.putShort(rows, "MinSpawnDelay", (short) spawner.minSpawnDelay());
+                    NbtOps.putShort(rows, "MaxSpawnDelay", (short) spawner.maxSpawnDelay());
+                    NbtOps.putShort(rows, "SpawnCount", (short) spawner.spawnCount());
+                    NbtOps.putShort(rows, "MaxNearbyEntities", (short) spawner.maxNearbyEntities());
+                    NbtOps.putShort(rows, "RequiredPlayerRange",
+                            (short) spawner.requiredPlayerRange());
+                    NbtOps.putShort(rows, "SpawnRange", (short) spawner.spawnRange());
                 }
-                NbtOps.putShort(rows, "Delay", (short) spawner.delay());
             }
             case "Control" -> {
                 var state = seams.commandBlocks().at(pos);
@@ -320,6 +332,23 @@ public final class TileNbt {
                     }
                 }
                 spawner.setDelay(NbtOps.getShort(rows, "Delay"));
+                // readNbt lines 197-213 — the PAIRED gates (the reference's
+                // own shape): MinSpawnDelay present reads ALL THREE rows
+                // (an absent partner reads its short 0 — the reference's
+                // own zeroing quirk, kept 1:1), MaxNearbyEntities present
+                // reads the range pair, SpawnRange reads alone.
+                if (NbtOps.containsNumeric(rows, "MinSpawnDelay")) {
+                    spawner.setMinSpawnDelay(NbtOps.getShort(rows, "MinSpawnDelay"));
+                    spawner.setMaxSpawnDelay(NbtOps.getShort(rows, "MaxSpawnDelay"));
+                    spawner.setSpawnCount(NbtOps.getShort(rows, "SpawnCount"));
+                }
+                if (NbtOps.containsNumeric(rows, "MaxNearbyEntities")) {
+                    spawner.setMaxNearbyEntities(NbtOps.getShort(rows, "MaxNearbyEntities"));
+                    spawner.setRequiredPlayerRange(NbtOps.getShort(rows, "RequiredPlayerRange"));
+                }
+                if (NbtOps.containsNumeric(rows, "SpawnRange")) {
+                    spawner.setSpawnRange(NbtOps.getShort(rows, "SpawnRange"));
+                }
             }
             case "Control" -> {
                 var state = seams.commandBlocks().at(pos);
