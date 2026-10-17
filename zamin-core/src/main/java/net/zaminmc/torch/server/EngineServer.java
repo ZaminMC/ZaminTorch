@@ -254,8 +254,16 @@ public final class EngineServer implements Server, EngineBridge {
     private ChatService chatService;
     /** The tab-list family (Slice 84 — the PlayerInfo walks: join/quit/gamemode/ping). */
     private net.zaminmc.torch.server.player.TabListService tabList;
-    /** The scoreboard system (Slice 85 — objectives/scores/teams + the broadcast walks). */
-    private net.zaminmc.torch.server.scoreboard.EngineScoreboard scoreboard;
+    /**
+     * The scoreboard system (Slice 85 — the §9 ownership table's own row:
+     * engine-owned global state, tick-lane mutations). Eagerly constructed:
+     * the command surface registers against it before start() wires the
+     * tick body, and commands only dispatch post-start.
+     */
+    private final net.zaminmc.torch.server.scoreboard.EngineScoreboard scoreboard =
+            new net.zaminmc.torch.server.scoreboard.EngineScoreboard(players);
+    /** The scoreboard's persistence (world/scoreboard.json — Slice 85). */
+    private net.zaminmc.torch.server.scoreboard.ScoreboardDataStore scoreboardStore;
     private final CraftingService crafting = CraftingService.builtin();
     private WorldStorage worldStorage;
     /** The nether dimension's delta persistence (DIM-1/zamin-delta.bin). */
@@ -529,6 +537,11 @@ public final class EngineServer implements Server, EngineBridge {
                 // at the server root (Paper layout); whitelist enforcement reads
                 // the server.properties flag until /whitelist on|off overrides.
                 opStore = OpStore.load(java.nio.file.Path.of(config.dataDir(), "ops.json"));
+                // The scoreboard's own persistence (Slice 85 — the reference's
+                // scoreboard.dat role): restore before the first join can sync it.
+                scoreboardStore = new net.zaminmc.torch.server.scoreboard.ScoreboardDataStore(
+                        java.nio.file.Path.of(config.dataDir(), "scoreboard.json"), scoreboard);
+                scoreboardStore.load();
                 banStore = BanStore.load(java.nio.file.Path.of(config.dataDir(), "banned-players.json"));
                 ipBanStore = IpBanStore.load(java.nio.file.Path.of(config.dataDir(), "banned-ips.json"));
                 whitelistStore = WhitelistStore.load(java.nio.file.Path.of(config.dataDir(), "whitelist.json"));
@@ -2471,9 +2484,6 @@ public final class EngineServer implements Server, EngineBridge {
                 chatService.setEventBus(eventBus); // §27.7: the public chat gate
                 // The tab-list walks (Slice 84 — PlayerManager's own family).
                 tabList = new net.zaminmc.torch.server.player.TabListService();
-                // The scoreboard (Slice 85 — the §9 ownership table's own row:
-                // engine-owned global state, tick-lane mutations).
-                scoreboard = new net.zaminmc.torch.server.scoreboard.EngineScoreboard(players);
                 // The permanent architecture's Phase 1-3 wiring completes
                 // BEFORE the readiness latch: the simulation domain (Phase
                 // 1 — every EngineWorld mutation asserts through it), the
@@ -16352,6 +16362,11 @@ public final class EngineServer implements Server, EngineBridge {
         commands.register(new CommandService.Command("gamerule",
                 "Query or set a game rule: /gamerule <rule> [true|false|value]",
                 2, this::gameruleCommand));
+        // The vanilla scoreboard command (Slice 85 — ScoreboardCommand 1:1,
+        // op-2): objectives/players/teams + the wildcard walk.
+        commands.register(new CommandService.Command("scoreboard",
+                "Scoreboard control: /scoreboard <objectives|players|teams> ...",
+                2, new net.zaminmc.torch.server.scoreboard.ScoreboardCommand(scoreboard)::run));
         commands.register(new CommandService.Command("time",
                 "Query or set the day: /time query | /time set <day|noon|night|midnight|ticks>",
                 this::timeCommand));
@@ -18014,6 +18029,11 @@ public final class EngineServer implements Server, EngineBridge {
                 }
                 if (noteStore != null && noteBlocks != null) {
                     noteStore.save(noteBlocks.snapshotTiles());
+                }
+                // The scoreboard (Slice 85): the reference saves scoreboard.dat
+                // with the world; the engine's own shutdown + /save walk.
+                if (scoreboardStore != null) {
+                    scoreboardStore.save();
                 }
                 if (jukeboxStore != null && jukeboxes != null) {
                     jukeboxStore.save(jukeboxes.snapshotRecords());

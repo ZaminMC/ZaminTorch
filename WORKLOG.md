@@ -8079,3 +8079,35 @@ header/footer (0x47); (4) the missing-commands batch (/effect /particle
   wound, the team create/update/join + the JOINER's mid-session sync
   through the join collector). The full protocol suite + the core pvp/
   lifecycle/player families green.
+
+## Slice 85b — the /scoreboard command + the persistence
+
+- **THE COMMAND** (`server/scoreboard/ScoreboardCommand`, ScoreboardCommand
+  1:1, op-2): the objectives family (list / add with the display name /
+  remove / setdisplay over all 19 slot names), the players family (list /
+  set / add / remove / reset both shapes / enable with the trigger gate /
+  test with the * bounds / operation with all nine operators incl. the
+  >< swap), the teams family (list both shapes / add / remove / empty /
+  join with the sender-self arm / leave / option), and the reference's own
+  `*` wildcard walk (re-run per score owner, the multi-wildcard refusal).
+  The option color arm does the reference's own decoration walk (the
+  prefix becomes the color's chat code, the suffix the reset). THE BUGS
+  the tests caught: the option gate + switch compared the lowercased name
+  against mixed-case literals (the visibility options silently fell
+  through to the usage gate — the reference's equalsIgnoreCase flattened).
+- **THE PERSISTENCE** (`ScoreboardDataStore`, world/scoreboard.json — the
+  reference's scoreboard.dat role): objectives (name/criterion/display/
+  render), teams (every field + the members), the display slots, and every
+  score cell; saved on the shutdown + /save walk, restored at boot before
+  the first join can sync it. The dependency-free JSON walk (the OpStore
+  convention); a corrupt file degrades to a fresh board.
+- **THE QUIRK PRESERVED**: the 1.8 command splitter has NO quote handling
+  (Brigadier is 1.13+) — a quoted display name keeps its quote marks,
+  exactly like the reference's parseText LiteralText walk (tested).
+- Tests: `ScoreboardCommandTest` (4 — the objectives family end-to-end
+  incl. the quote quirk + the unknown-criterion gate, the players family
+  with the read-only gate + the operation set incl. the swap + the trigger
+  enable + the test bounds, the teams family with the color decoration +
+  the visibility options + join/leave/empty, the persistence round trip
+  through shutdown + reload incl. the display slot + the team color +
+  the member index). The command/player families green.
