@@ -239,8 +239,10 @@ public final class EntityNbt {
      * horse's OwnerUUID (the engine's tamer is a name, not a uuid),
      * EatingHaystack/ChestedHorse/HasReproduced/Bred (the engine models
      * none as persistent state), the wolf's OwnerUUID (same as the
-     * horse's), the creeper's powered/ExplosionRadius/ignited (no charged
-     * model; the fuse is the transient prime), the skeleton's
+     * horse's), the creeper's powered/ExplosionRadius/ignited LANDED into the
+     * model (Slice 91 Wave C p2 — the charged flag doubles the blast, the
+     * permanent ignite never cools, the Fuse/ExplosionRadius rows steer
+     * the swell and the blast), the skeleton's
      * SkeletonType (one kind), the ocelot's CatType (no variant state).</p>
      */
     private static void writeTypeCustomNbt(MobEntity mob, Map<String, Snbt.Tag> nbt) {
@@ -310,9 +312,15 @@ public final class EntityNbt {
                 NbtOps.putBoolean(nbt, "CanBreakDoors", false);
             }
             case CREEPER -> {
-                NbtOps.putBoolean(nbt, "powered", false);
-                NbtOps.putByte(nbt, "ExplosionRadius", (byte) 3);
-                NbtOps.putBoolean(nbt, "ignited", mob.fuseActive());
+                // writeCustomNbt lines 73-82: powered only when charged
+                // (the syncedData-17 gate), Fuse + ExplosionRadius always,
+                // ignited the flag's own value.
+                if (mob.creeperCharged()) {
+                    NbtOps.putBoolean(nbt, "powered", true);
+                }
+                NbtOps.putShort(nbt, "Fuse", (short) mob.creeperFuseTime());
+                NbtOps.putByte(nbt, "ExplosionRadius", (byte) mob.creeperExplosionRadius());
+                NbtOps.putBoolean(nbt, "ignited", mob.creeperIgnited());
             }
             case SKELETON -> NbtOps.putByte(nbt, "SkeletonType", (byte) 0);
             default -> { }
@@ -379,9 +387,25 @@ public final class EntityNbt {
                 }
                 // CanBreakDoors: the engine models no door-breaking (ledgered).
             }
-            // CREEPER (powered/ExplosionRadius/ignited), SKELETON
-            // (SkeletonType), OCELOT (CatType): the engine's standing
-            // envelopes (no model, ledgered) — the rows read into nothing.
+            case CREEPER -> {
+                // readCustomNbt lines 85-98: powered reads the boolean
+                // (absent = false), Fuse + ExplosionRadius ride the
+                // contains(key,99) numeric gates, ignited only SETS (the
+                // reference's own one-way arm — a false row never un-primes).
+                mob.setCreeperCharged(NbtOps.getBoolean(nbt, "powered"));
+                if (NbtOps.containsNumeric(nbt, "Fuse")) {
+                    mob.setCreeperFuseTime(NbtOps.getShort(nbt, "Fuse"));
+                }
+                if (NbtOps.containsNumeric(nbt, "ExplosionRadius")) {
+                    mob.setCreeperExplosionRadius(NbtOps.getByte(nbt, "ExplosionRadius"));
+                }
+                if (NbtOps.getBoolean(nbt, "ignited")) {
+                    mob.setCreeperIgnited(true);
+                }
+            }
+            // SKELETON (SkeletonType), OCELOT (CatType): the engine's
+            // standing envelopes (no model, ledgered) — the rows read into
+            // nothing.
             default -> { }
         }
     }

@@ -454,4 +454,64 @@ class EntityNbtTest {
         assertTrue(zombie.zombieConverting(), "a -1 row does not cancel (the reference's own gate)");
         assertEquals(120, zombie.zombieConversionTicks());
     }
+    /**
+     * Slice 91 Wave C p2 — the creeper's own rows (CreeperEntity
+     * writeCustomNbt/readCustomNbt lines 73-98): powered only written when
+     * charged, Fuse + ExplosionRadius always, ignited the flag; the read's
+     * numeric contains-gates and the one-way ignite arm (a false row never
+     * un-primes).
+     */
+    @Test
+    void theCreeperRowsRoundTrip() {
+        PotionSystem potions = potions();
+        MobEntity creeper = new MobEntity(21, MobType.CREEPER,
+                new Position(0.5, 64.0, 0.5), new Random(3), new StubWorld());
+        creeper.setCreeperCharged(true);
+        creeper.setCreeperFuseTime(10);
+        creeper.setCreeperExplosionRadius(5);
+        creeper.setCreeperIgnited(true);
+        Map<String, Snbt.Tag> written = new java.util.LinkedHashMap<>();
+        EntityNbt.writeNbtWithoutId(creeper, written, potions);
+        assertTrue(NbtOps.getBoolean(written, "powered"), "the charged flag writes");
+        assertEquals(10, NbtOps.getShort(written, "Fuse"));
+        assertEquals(5, NbtOps.getByte(written, "ExplosionRadius"));
+        assertTrue(NbtOps.getBoolean(written, "ignited"));
+
+        MobEntity loaded = new MobEntity(22, MobType.CREEPER,
+                new Position(0.5, 64.0, 0.5), new Random(3), new StubWorld());
+        EntityNbt.readNbt(loaded, written, potions, null);
+        assertTrue(loaded.creeperCharged(), "the charge round-trips");
+        assertEquals(10, loaded.creeperFuseTime());
+        assertEquals(5, loaded.creeperExplosionRadius());
+        assertTrue(loaded.creeperIgnited());
+
+        // The unpowered write: no powered row at all (the syncedData-17
+        // gate - only TRUE writes), and a fresh body reads it as false.
+        MobEntity plain = new MobEntity(23, MobType.CREEPER,
+                new Position(0.5, 64.0, 0.5), new Random(3), new StubWorld());
+        Map<String, Snbt.Tag> plainRows = new java.util.LinkedHashMap<>();
+        EntityNbt.writeNbtWithoutId(plain, plainRows, potions);
+        assertFalse(plainRows.containsKey("powered"), "an uncharged body writes no powered row");
+        assertEquals(30, NbtOps.getShort(plainRows, "Fuse"), "the default Fuse row");
+        assertEquals(3, NbtOps.getByte(plainRows, "ExplosionRadius"), "the default radius row");
+
+        // The numeric gates: an absent Fuse/ExplosionRadius keeps the
+        // fields' own values (the contains(key,99) walk).
+        MobEntity partial = new MobEntity(24, MobType.CREEPER,
+                new Position(0.5, 64.0, 0.5), new Random(3), new StubWorld());
+        partial.setCreeperFuseTime(20);
+        partial.setCreeperExplosionRadius(6);
+        EntityNbt.readNbt(partial, Snbt.parseCompound("{powered:1b}"), potions, null);
+        assertTrue(partial.creeperCharged());
+        assertEquals(20, partial.creeperFuseTime(), "an absent Fuse row keeps the field");
+        assertEquals(6, partial.creeperExplosionRadius(), "an absent radius row keeps the field");
+
+        // The one-way ignite: a false row never un-primes (the reference's
+        // own if (getBoolean) arm).
+        MobEntity primed = new MobEntity(25, MobType.CREEPER,
+                new Position(0.5, 64.0, 0.5), new Random(3), new StubWorld());
+        primed.setCreeperIgnited(true);
+        EntityNbt.readNbt(primed, Snbt.parseCompound("{ignited:0b}"), potions, null);
+        assertTrue(primed.creeperIgnited(), "a false ignited row never un-primes");
+    }
 }

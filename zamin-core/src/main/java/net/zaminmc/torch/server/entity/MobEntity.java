@@ -479,6 +479,16 @@ public final class MobEntity implements LivingEntity {
     // Primed creeper: the mind arms, the manager detonates and removes.
     private boolean pendingExplosion;
 
+    // The creeper's own rows (CreeperEntity lines 26-28 + syncedData 17/18,
+    // Slice 91 Wave C p2): the charged flag (powered — the lightning
+    // strike's, doubling the blast), the permanent ignite (the flint/NBT
+    // flag — the swell never cools), the swell's own duration (Fuse), and
+    // the blast's own radius (ExplosionRadius).
+    private boolean creeperCharged;
+    private boolean creeperIgnited;
+    private int creeperFuseTime = CREEPER_FUSE_TICKS;
+    private int creeperExplosionRadius = 3;
+
     // The fire clock: armed by fire contact (and the dawn sun for the
     // undead), deals the historical 1 damage per second while burning.
     private int fireTicks;
@@ -1119,6 +1129,42 @@ public final class MobEntity implements LivingEntity {
     }
 
     /** @return whether the body is in the primed state (the fuse burning). */
+    /** The creeper's charged flag (syncedData 17 — powered; the blast doubles). */
+    public boolean creeperCharged() {
+        return creeperCharged;
+    }
+
+    public void setCreeperCharged(boolean charged) {
+        this.creeperCharged = charged;
+    }
+
+    /** The creeper's permanent ignite (syncedData 18 — the swell never cools). */
+    public boolean creeperIgnited() {
+        return creeperIgnited;
+    }
+
+    public void setCreeperIgnited(boolean ignited) {
+        this.creeperIgnited = ignited;
+    }
+
+    /** The swell's own duration (the Fuse row, default 30). */
+    public int creeperFuseTime() {
+        return creeperFuseTime;
+    }
+
+    public void setCreeperFuseTime(int fuseTime) {
+        this.creeperFuseTime = fuseTime;
+    }
+
+    /** The blast's own radius (the ExplosionRadius row, default 3). */
+    public int creeperExplosionRadius() {
+        return creeperExplosionRadius;
+    }
+
+    public void setCreeperExplosionRadius(int radius) {
+        this.creeperExplosionRadius = radius;
+    }
+
     public boolean fuseActive() {
         return mode == Mode.FUSE;
     }
@@ -6284,6 +6330,19 @@ public final class MobEntity implements LivingEntity {
             return;
         }
 
+        // The ignited creeper's own swell (CreeperEntity.tick lines
+        // 103-122: the flag forces the fuse direction 1 every tick BEFORE
+        // the goals run — an ignited body detonates at the Fuse row's
+        // duration with nobody in sight, and the swell outranks every
+        // goal the stroll layer would claim).
+        if (type.traits.explodes() && creeperIgnited) {
+            mode = Mode.FUSE;
+            if (modeTicks >= creeperFuseTime) {
+                pendingExplosion = true;
+            }
+            return; // priming creepers stand still (the historical swell)
+        }
+
         // The goal layer (the community PathfinderGoal architecture): float
         // and panic claim the body first, the stroll cycle only when no hunt
         // is on. What remains below is the combat mind.
@@ -7047,13 +7106,17 @@ public final class MobEntity implements LivingEntity {
         yaw = angleTo(target.x() - position.x(), target.z() - position.z());
         headYaw = yaw;
         if (mode == Mode.FUSE) {
-            if (horizontal > CREEPER_ABORT_RANGE || Math.abs(dy) > CREEPER_ABORT_RANGE) {
+            // CreeperEntity.tick lines 105-107: the ignited flag forces the
+            // fuse direction 1 every tick — an ignited swell NEVER cools,
+            // target or no target (the goal-primed swell cools on abort).
+            if (!creeperIgnited
+                    && (horizontal > CREEPER_ABORT_RANGE || Math.abs(dy) > CREEPER_ABORT_RANGE)) {
                 mode = Mode.IDLE; // the target slipped away: the fuse dies out
                 modeTicks = 0;
                 clearPath();
                 return;
             }
-            if (modeTicks >= CREEPER_FUSE_TICKS) {
+            if (modeTicks >= creeperFuseTime) {
                 pendingExplosion = true;
             }
             return; // priming creepers stand still (the historical swell)

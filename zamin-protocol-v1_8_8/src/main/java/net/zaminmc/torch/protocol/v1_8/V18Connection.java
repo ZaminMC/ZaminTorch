@@ -3965,7 +3965,13 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 (long) Math.floor(mob.position().z() * 32.0)});
     }
 
-    /** Writes the kind-status metadata entry (creeper swell, sheep coat). */
+    /**
+     * Writes the kind-status metadata entry (creeper swell, sheep coat) —
+     * and the creeper's own CHARGED byte beside it (CreeperEntity.
+     * registerSyncedData line 68: syncedData 17, 1 when powered — the
+     * client's charge layer draws the blue aura from this row; the
+     * reference's spawn view publishes it beside the fuse direction).
+     */
     private static void writeKindStatusMetadata(ByteBuf out, MobEntity mob) {
         Byte kind = kindStatusByteOf(mob);
         if (kind == null) {
@@ -3973,6 +3979,11 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         }
         out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | Protocol18.KIND_STATUS_METADATA_INDEX);
         out.writeByte(kind);
+        if (mob.type() == net.zaminmc.torch.server.entity.MobType.CREEPER
+                && mob.creeperCharged()) {
+            out.writeByte((Protocol18.METADATA_TYPE_BYTE << 5) | 17);
+            out.writeByte(1); // powered (Slice 91 Wave C p2)
+        }
     }
 
     /**
