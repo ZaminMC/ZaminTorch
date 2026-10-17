@@ -8684,3 +8684,21 @@ AbsorptionAmount/CanPickUpLoot/DropChances), the horse's/wolf's
 OwnerUUID + the horse's EatingHaystack/ChestedHorse/HasReproduced/Bred,
 the item-tag compound's remaining arms, the flight families' NoAI
 interaction, the lazy-tile stand-in, the player-write model.
+
+## Slice 91 Wave C (tail) — the skeleton's SkeletonType + the ocelot's CatType (b745b65)
+
+- **p4 — THE PER-KIND STRAGGLERS**: both models already lived on
+  MobEntity (skeletonWither — the wither hull/fire immunity/melee;
+  catVariant — the coat, already on the wire's index-18 byte); only the
+  NBT rows stood as envelopes. SkeletonType rides the reference's
+  contains(key,99) gate (an absent row keeps the variant);
+  CatType rides the reference's own UNGATED read (an absent row reads
+  its int 0 and the coat resets to wild — captured in the test).
+  EntityNbtTest 13, MobManagerTest 8, OcelotEntityTest 5.
+
+NOTE (the environment's own constraint): the full-suite background run
+does not survive this box's process reaping (the wrapper scripts and
+setsid launches die with the tool window — full-suite-89/90/91.log all
+truncate at the same task). The session's verification is the per-batch
+runs: every wave's own batch + the adjacent regression batches, all
+green (the counts ride each commit's message).
