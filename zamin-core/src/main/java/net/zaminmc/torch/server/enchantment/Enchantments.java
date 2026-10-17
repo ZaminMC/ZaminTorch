@@ -470,6 +470,44 @@ public final class Enchantments {
         return BY_ID.get(id);
     }
 
+    /** The reference's Enchantment.byKey: the 1.8.8 key forms, exact match. */
+    public static Entry byKey(String key) {
+        for (Entry entry : ALL_LIST) {
+            if (entry.key.equals(key)) {
+                return entry;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * The 1.8.8 display names (the reference's enchantment.protection family,
+     * the en_US translations — the /enchant feedback's text).
+     */
+    private static final String[] DISPLAY_NAMES = new String[64];
+
+    static {
+        String[][] rows = {
+                {"0", "Protection"}, {"1", "Fire Protection"}, {"2", "Feather Falling"},
+                {"3", "Blast Protection"}, {"4", "Projectile Protection"}, {"5", "Respiration"},
+                {"6", "Aqua Affinity"}, {"7", "Thorns"}, {"8", "Depth Strider"},
+                {"16", "Sharpness"}, {"17", "Smite"}, {"18", "Bane of Arthropods"},
+                {"19", "Knockback"}, {"20", "Fire Aspect"}, {"21", "Looting"},
+                {"32", "Efficiency"}, {"33", "Silk Touch"}, {"34", "Unbreaking"},
+                {"35", "Fortune"}, {"48", "Power"}, {"49", "Punch"}, {"50", "Flame"},
+                {"51", "Infinity"},
+        };
+        for (String[] row : rows) {
+            DISPLAY_NAMES[Integer.parseInt(row[0])] = row[1];
+        }
+    }
+
+    /** The display name for the feedback lines; the key's own form when unknown. */
+    public static String displayName(int id) {
+        return id >= 0 && id < DISPLAY_NAMES.length && DISPLAY_NAMES[id] != null
+                ? DISPLAY_NAMES[id] : "enchantment." + id;
+    }
+
     /** @return every registered enchantment in id order (the reference's ALL). */
     public static java.util.List<Entry> all() {
         return java.util.List.copyOf(ALL_LIST);
