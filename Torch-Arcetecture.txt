@@ -1541,6 +1541,39 @@ set (no item overrides it) — the port keeps the constant-false seam.
       breaks, the named list breaks; survival untouched) + the store
       suites re-verified (ItemPersistence 7, MobDataStore 7).
 
+## Wave J — the attribute modifiers (tag.AttributeModifiers)
+
+The evidence (ItemStack.java 646-670 + LivingEntity 393/401 + the four
+engine damage sites): getAttributeModifiers reads the TAG list
+(contains(...,9) + getList(...,10)), each element
+EntityAttributes.fromNbt's shape (AttributeName string, Name string,
+Amount double, Operation int 0..2, UUIDMost/UUIDLeast longs), skipping
+modifiers whose uuid's least-significant bits are zero; a stack without
+the list falls to the item's own default modifiers. The equipment
+apply/remove pairs the modifiers with the attribute instance
+(LivingEntity 393/401); the tooltip's ATTACK_DAMAGE uuid special adds
+the enchant damage (display-only — the client's own render). The
+engine's damage consult is Tools.attackDamageOf(type) — the item-type
+table (the reference's ItemTool defaults baked in) — at FOUR sites:
+the three player melee walks (EngineServer 4911 the dragon part, 4966
+the mob melee, 5170 the player melee) and MobManager's 3053
+equipment-better comparison.
+
+- [ ] J1 — the model + the rows: the api record AttributeModifier
+      (attributeName/name/amount/operation/uuid), the arm on ItemStack,
+      the ItemNbt rows (the fromNbt shape, the LSB-zero skip on read),
+      the SlotNbt wire (TAG_LIST of TAG_COMPOUND), the ZID v6/ZMD v11
+      tails (ONE parseable-SNBT string row — the whole list as one row,
+      the BlockEntityTag tail's own pattern);
+- [ ] J2 — the apply surface: Tools.heldDamageOf(stack) — the
+      attackDamage-named modifiers folded over the bare-hand base 1.0
+      (op 0 add, op 1 add amount*base, op 2 multiply total), falling to
+      the type table when the stack carries no list; the four sites
+      switched;
+- [ ] J3 — the tests (the fold's operations, the LSB-zero skip, the
+      fall-back, the /give dataTag feeding a damage-boosted stack
+      through a live melee) + the ledger/worklog rows.
+
 ## Standing (demand-named, not scheduled)
 
 - The shared container-open event (the chest family row's "if demand
@@ -1548,9 +1581,8 @@ set (no item overrides it) — the port keeps the constant-false seam.
 - The §28.7 Bukkit/Spigot/Paper compatibility adapter (§27.1's order:
   after the 1.8.8 implementation is polished into a playable,
   maintainable server).
-- The attribute modifiers (tag.AttributeModifiers) — the item-tag
-  envelope's only remain after Waves H2/I + the color tail (67102d2:
-  display.color LANDED — the leather tint, the ZID v5/ZMD v10 tails).
+- (the attribute modifiers moved to Wave J above; the color tail
+  LANDED at 67102d2 — the item-tag envelope is now EMPTY beyond Wave J)
 - The skull's Owner profile + the EnderChest contents-on-player angle
   (the no-BE tile families' remains).
 - The mob_spawner ITEM (BuiltinItems carries no spawner item yet — the
