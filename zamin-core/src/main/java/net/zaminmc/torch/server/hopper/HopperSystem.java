@@ -163,6 +163,10 @@ public final class HopperSystem implements WorldChangeListener {
             return existing;
         }
         HopperBlockEntity created = new HopperBlockEntity();
+        // The comparator wake (the reference's markDirty ->
+        // updateNeighborComparators — the same wiring every container
+        // family carries; Slice 91 p5 closes the hopper's dead listener).
+        created.setContentsListener(() -> redstone.wakeComparators(position));
         hoppers.put(position, created);
         return created;
     }
@@ -327,6 +331,11 @@ public final class HopperSystem implements WorldChangeListener {
 
     /** Restores persisted state after boot. */
     public void restoreAll(Map<BlockPosition, HopperBlockEntity> restored) {
+        // The restored entities wire the comparator wake too — the same
+        // lazily-wired contract as the manager's own creations (the
+        // restored BE answers the first mutation with the neighbor wake).
+        restored.forEach((position, entity) -> entity.setContentsListener(
+                () -> redstone.wakeComparators(position)));
         hoppers.putAll(restored);
     }
 
