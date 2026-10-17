@@ -16467,6 +16467,9 @@ public final class EngineServer implements Server, EngineBridge {
         commands.register(new CommandService.Command("debug",
                 "Toggle the profiler: /debug <start|stop>",
                 3, this::debugCommand));
+        commands.register(new CommandService.Command("setblock",
+                "Place a block: /setblock <x y z> <block> [meta] [destroy|keep|replace] [dataTag]",
+                2, this::setblockCommand));
         commands.register(new CommandService.Command("time",
                 "Query or set the day: /time query | /time set <day|noon|night|midnight|ticks>",
                 this::timeCommand));
@@ -17393,6 +17396,60 @@ public final class EngineServer implements Server, EngineBridge {
             return "Stopped debugging. After 10 seconds, traced 0 tick events";
         }
         return "Usage: /debug <start|stop>";
+    }
+
+    /**
+     * /setblock (SetBlockCommand 1:1, op-2): the ~-relative block pos, the
+     * registry name (the engine names variants directly — the 1.8.8
+     * name+meta family table is the block-variant slice), the metadata
+     * bounds, the keep gate (the cell must be air), the height bounds, and
+     * the set on the world's own mutation context. Destroy's old-block
+     * drops ride the break slice (ledgered); the tile dataTag arm rides
+     * the tile readNbt surface (ledgered).
+     */
+    private String setblockCommand(CommandSender sender, String[] args) {
+        if (args.length < 4) {
+            return "Usage: /setblock <x y z> <block> [meta] [destroy|keep|replace] [dataTag]";
+        }
+        PlayerSession self = sender.player();
+        double sx = self != null ? self.position().x() : 0.0;
+        double sy = self != null ? self.position().y() : 0.0;
+        double sz = self != null ? self.position().z() : 0.0;
+        int x = (int) Math.floor(parseRelativeCoordinate(sx, args[0]));
+        int y = (int) Math.floor(parseRelativeCoordinate(sy, args[1]));
+        int z = (int) Math.floor(parseRelativeCoordinate(sz, args[2]));
+        if (y < 0 || y > 255) {
+            return "Cannot place blocks outside of the world";
+        }
+        String rawName = args[3].contains(":") ? args[3] : "minecraft:" + args[3];
+        var type = blockRegistry.byKey(rawName).orElse(null);
+        if (type == null) {
+            return "There is no such block with name " + args[3];
+        }
+        int meta = 0;
+        if (args.length >= 5) {
+            meta = net.zaminmc.torch.server.command.CommandParse.parseInt(args[4]);
+            if (meta < 0 || meta > 15) {
+                return "Metadata must be 0..15";
+            }
+            if (meta != 0 && meta != ((net.zaminmc.torch.server.block.EngineBlockType) type).legacyMetadata()) {
+                return "That metadata does not name one of this block's variants"
+                        + " (the engine names variants directly)";
+            }
+        }
+        var position = new net.zaminmc.torch.block.BlockPosition(x, y, z);
+        var existing = world.getBlock(position);
+        boolean air = existing.identifier().value().equals("air");
+        if (args.length >= 6) {
+            if ("keep".equals(args[5]) && !air) {
+                return "The block is already there";
+            }
+            // destroy: the old block's drops ride the break slice (ledgered);
+            // replace is the default arm.
+        }
+        final var ftype = type;
+        ticker.submit(() -> world.setBlock(position, ftype));
+        return "Block placed";
     }
 
     /**
