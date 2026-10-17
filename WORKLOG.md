@@ -8702,3 +8702,54 @@ setsid launches die with the tool window — full-suite-89/90/91.log all
 truncate at the same task). The session's verification is the per-batch
 runs: every wave's own batch + the adjacent regression batches, all
 green (the counts ride each commit's message).
+
+## Slice 93 — Wave D: the living family's lava walk + the item thrower
+
+- **D1 (156a890) — THE GIVE_DIAMOND ARM**: the C3 tail's first standing
+  envelope retired. The ItemEntity carries the reference's two private
+  strings (thrower/owner); the Q-key drop alone stamps the thrower
+  (dropItem's thrownByPlayer arm — the container spills and death drops
+  ride the two-arg form, stamping nothing); the pickup walk consults the
+  owner-window gate (owner == null || 6000-age <= 200 || owner.equals);
+  the onItemPickupEffects callback fires on EVERY successful add (the
+  partial pickup included — addItem-returned-true); the achievement
+  family (GET_LOG log/log2, KILL_COW leather, GET_DIAMOND, GET_BLAZE_ROD,
+  GIVE_DIAMOND-through-the-registry-lookup with the self-pickup exempt)
+  and random.pop (0.2F, the ((r-r)*0.7+1)*2 pitch) land in the server's
+  dispatch. THE DUPLICATION FIX THE LANDING EXPOSED: the window-click
+  outside arm dropped the cursor's stack AND refilled the inventory
+  (returnCursor) — one copy leaves the body now (takeCursor). The tests
+  taught the parent-chain gate (PlayerStats.increment's own vanilla
+  condition — the chains earned root-first like the /achievement give
+  walk). ItemThrowerPickupTest 6; the adjacent sweep 10 classes green.
+- **D2 (f40f8b6) — THE LIVING FAMILY'S LAVA WALK**: the C3 tail's second
+  standing envelope retired. The mob arm (4.0 LAVA-source wound at the
+  10-tick i-frame cadence + the 15-second max-arm ignite, fire-immune
+  kinds exempt, FIRE_RESISTANCE gating the wound through the per-mob
+  amplifier query), the burn clock's own resistance gate (the ON_FIRE
+  residual never wounds a resistant body — LivingEntity 645-647's isFire
+  consult), the player arm (tickLavaBody, "tried to swim in lava", the
+  LAVA protection kind, 0.3 exhaustion), and THE SHARED FLUID MODEL'S
+  SPLIT in three consults: the fall store (lava *0.5 halving vs water
+  full zero, the reference's tick-then-move order), the burn douse (the
+  lava keeps the burn), the blaze's drown (isInWaterOrRain alone — the
+  pre-split engine drowned a blaze in its own element). The debugging
+  taught: the SwimGoal rides both fluids in the reference too (the
+  settled body bobs — the halving's window is the submerged descent),
+  tickLanding consumes a grounded body's store (the halving's window is
+  the not-grounded descent), and nested ticker submits drain inside the
+  SAME task phase (the delayed read rides the public scheduler's
+  runLater). LavaWalkTest 8; the adjacent sweep 12 classes green.
+- **D3 — the ledger rows**: the NBT-surface row's standing-envelope list
+  rewritten (the C3/C3-tail landings named with their commits; the
+  remaining envelopes: the no-engine-block-entity tile families, the
+  item-entity NBT surface, the model-less item-tag arms), the two Wave D
+  rows appended (the evidence, the tests, the standing notes — the lava
+  motion drag, the flight families' skip, the wound-shadowing race), the
+  §29 ledger checked off, this WORKLOG entry.
+
+NEXT (in order): the §29 standing list — the shared container-open
+event (demand-named), the §28.7 Bukkit adapter (after the 1.8.8
+implementation is polished); the next vanilla wave from the ledger's
+own remaining envelopes (the item-entity NBT surface, the tile families
+with no engine block entity, the lava motion drag).
