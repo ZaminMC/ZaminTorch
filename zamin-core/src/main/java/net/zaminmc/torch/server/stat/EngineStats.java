@@ -370,4 +370,13 @@ public final class EngineStats {
     public static String entityKeyOf(String mobTypeName) {
         return ENTITY_KEYS.get(mobTypeName);
     }
+
+    /**
+     * The entity key band itself (the reference's spawn-egg keys, the old
+     * capitalized names) — the kill-pair criteria walk and the
+     * {@code /achievement} resolution consult it.
+     */
+    public static java.util.Collection<String> entityKeyBand() {
+        return java.util.Collections.unmodifiableCollection(ENTITY_KEYS.values());
+    }
 }

@@ -98,4 +98,21 @@ public final class ScoreboardCriterion {
         }
         return family;
     }
+
+    /**
+     * The stat-criteria band (StatCriterion 1:1): the reference's Stat
+     * constructor registers one criterion per stat key into BY_NAME —
+     * {@code /scoreboard objectives add <name> stat.walkOneCm} resolves
+     * against it, and the stat increments ride the criterion's objectives
+     * (ServerPlayerEntity.incrementStat's own walk). Not read-only (the
+     * reference's GenericCriterion default), INTEGER-rendered, named by
+     * the stat's own key.
+     */
+    public static ScoreboardCriterion forStat(String key) {
+        ScoreboardCriterion existing = BY_NAME.get(key);
+        if (existing != null) {
+            return existing;
+        }
+        return new ScoreboardCriterion(key, false, RenderType.INTEGER);
+    }
 }

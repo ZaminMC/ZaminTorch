@@ -594,8 +594,12 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             // REQUEST_STATS arm): the session's dirty counters travel — the
             // client keeps its own running copy and merges the update.
             engine.requestStatistics(player);
+        } else if (action == 2) {
+            // The open-inventory achievement (ServerPlayNetworkHandler's
+            // OPEN_INVENTORY_ACHIEVEMENT arm): the session's own increment,
+            // the ride and the toast path following.
+            engine.openInventoryAchievement(player);
         }
-        // 2 open inventory achievement: the achievement family's own slice.
     }
 
     /**

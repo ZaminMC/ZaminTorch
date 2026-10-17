@@ -99,6 +99,7 @@ import net.zaminmc.torch.server.chat.ChatService;
 import net.zaminmc.torch.server.chat.CommandService;
 import net.zaminmc.torch.server.block.BlockRegistryBuilder.FrozenBlockRegistry;
 import net.zaminmc.torch.server.interaction.BlockInteractionService;
+import net.zaminmc.torch.server.stat.EngineAchievements;
 import net.zaminmc.torch.server.world.WorldChangeListener;
 
 import java.util.Collection;
@@ -531,6 +532,11 @@ public final class EngineServer implements Server, EngineBridge {
                             FluidBlocks.registerAll(
                                     BuiltinBlocks.registerAll(new BlockRegistryBuilder())))))))))))).freeze();
         }
+
+        // The stat-criteria walk (Slice 90 — the reference's Stats.init):
+        // one criterion per stat key in the vocabulary, registered into
+        // ScoreboardCriterion.BY_NAME before any join can consult it.
+        net.zaminmc.torch.server.stat.StatCriteria.registerAll(crafting, blockRegistry);
 
         state.set(ServerState.STARTING);
         CountDownLatch worldReady = new CountDownLatch(1);
@@ -5898,6 +5904,102 @@ public final class EngineServer implements Server, EngineBridge {
                 return;
             }
             session.link().sendStatistics(session.stats().takeDirty());
+        });
+    }
+
+    /**
+     * The per-session stat observation (the reference's ServerPlayerStats.set
+     * + ServerPlayerEntity.incrementStat/clearStat halves): every write rides
+     * the stat's criterion objectives (the score follows the value), and an
+     * achievement's transition (0 to earned, earned to 0) broadcasts the
+     * yellow achievement line to every online player (chat.type.achievement
+     * / .taken — PlayerManager.sendSystemMessage's own form) and flushes the
+     * dirty set through the Client Statistics 0x37 packet — the client pops
+     * the toast on receiving an achievement it did not have.
+     */
+    private net.zaminmc.torch.server.stat.PlayerStats.Listener statListenerFor(PlayerSession session) {
+        return (statKey, oldValue, newValue) -> {
+            // incrementStat/clearStat's scoreboard ride (lines 700-726): the
+            // criterion's objectives' scores for this player follow the value.
+            net.zaminmc.torch.server.scoreboard.ScoreboardCriterion criterion =
+                    net.zaminmc.torch.server.scoreboard.ScoreboardCriterion.BY_NAME.get(statKey);
+            if (criterion != null) {
+                for (net.zaminmc.torch.server.scoreboard.ScoreboardObjective objective :
+                        scoreboard.getObjectives(criterion)) {
+                    scoreboard.getScore(session.name(), objective).set(newValue);
+                }
+            }
+            // ServerPlayerStats.set's own halves: the announce on the
+            // achievement transitions only (shouldAnnouncePlayerAchievements
+            // is the reference's own constant true).
+            EngineAchievements.Achievement achievement = EngineAchievements.byKey(statKey);
+            if (achievement == null) {
+                return;
+            }
+            if (oldValue == 0 && newValue > 0) {
+                broadcastAchievement(session, achievement, false);
+            } else if (oldValue > 0 && newValue == 0) {
+                broadcastAchievement(session, achievement, true);
+            } else {
+                return;
+            }
+            // incrementStat's own tail: the flush when the table is dirty —
+            // the toast's server-side trigger.
+            session.link().sendStatistics(session.stats().takeDirty());
+        };
+    }
+
+    /**
+     * The achievement broadcast (PlayerManager.sendSystemMessage over
+     * chat.type.achievement / .taken): the player's display name and the
+     * stat's getNameForChat form — the decorated name in brackets, GREEN
+     * (challenges DARK_PURPLE) over the SHOW_ACHIEVEMENT hover — as a
+     * component on the Chat 0x02 wire, every online player receiving it.
+     */
+    private void broadcastAchievement(PlayerSession session,
+                                      EngineAchievements.Achievement achievement, boolean taken) {
+        net.zaminmc.torch.server.text.Text name =
+                new net.zaminmc.torch.server.text.TranslatableText(achievement.nameKey());
+        // Stat.getDecoratedName + AchievementStat's own override: GRAY for
+        // the base, GREEN for the achievements, DARK_PURPLE for the
+        // challenges, the hover carrying the stat key.
+        name.getStyle().setColor(achievement.challenge()
+                ? net.zaminmc.torch.server.text.Formatting.DARK_PURPLE
+                : net.zaminmc.torch.server.text.Formatting.GREEN);
+        name.getStyle().setHoverEvent(new net.zaminmc.torch.server.text.HoverEvent(
+                net.zaminmc.torch.server.text.HoverEvent.Action.SHOW_ACHIEVEMENT,
+                new net.zaminmc.torch.server.text.LiteralText(achievement.key())));
+        // Stat.getNameForChat: "[" + the decorated name + "]" carrying the
+        // name's own style.
+        net.zaminmc.torch.server.text.LiteralText nameForChat =
+                new net.zaminmc.torch.server.text.LiteralText("[");
+        nameForChat.append(name);
+        nameForChat.append(new net.zaminmc.torch.server.text.LiteralText("]"));
+        nameForChat.setStyle(name.getStyle());
+        net.zaminmc.torch.server.text.TranslatableText line =
+                new net.zaminmc.torch.server.text.TranslatableText(
+                        taken ? "chat.type.achievement.taken" : "chat.type.achievement",
+                        new net.zaminmc.torch.server.text.LiteralText(session.name()),
+                        nameForChat);
+        String json = net.zaminmc.torch.server.text.TextJson.toJson(line);
+        for (PlayerSession online : players.all()) {
+            online.link().sendChatComponent(json, 0);
+        }
+    }
+
+    /**
+     * The open-inventory achievement arm (Client Status 0x16 action 2 —
+     * ServerPlayNetworkHandler's OPEN_INVENTORY_ACHIEVEMENT row): the
+     * session's own increment, the standard ride and toast path following.
+     * Safe from any thread.
+     */
+    public void openInventoryAchievement(PlayerSession session) {
+        Objects.requireNonNull(session, "session");
+        ticker.submit(() -> {
+            if (session.state() != PlayerState.PLAYING) {
+                return;
+            }
+            session.stats().increment(EngineAchievements.OPEN_INVENTORY.key(), 1);
         });
     }
 
@@ -16497,6 +16599,9 @@ public final class EngineServer implements Server, EngineBridge {
         commands.register(new CommandService.Command("debug",
                 "Toggle the profiler: /debug <start|stop>",
                 3, this::debugCommand));
+        commands.register(new CommandService.Command("achievement",
+                "Give or take an achievement/stat: /achievement <give|take> <achievement|stat|*> [player]",
+                2, this::achievementCommand));
         commands.register(new CommandService.Command("setblock",
                 "Place a block: /setblock <x y z> <block> [meta] [destroy|keep|replace] [dataTag]",
                 2, this::setblockCommand));
@@ -17497,6 +17602,117 @@ public final class EngineServer implements Server, EngineBridge {
             return "Stopped debugging. After 10 seconds, traced 0 tick events";
         }
         return "Usage: /debug <start|stop>";
+    }
+
+    /**
+     * /achievement (AchievementCommand 1:1, op-2): the give/take walks over
+     * the achievement table — give hands the unearned parent chain out first
+     * (root-first, then the row), take clears the row and every earned
+     * achievement whose parent chain passes through it (the reference's
+     * list2 walk), the '*' forms riding the whole table in declaration order
+     * (give) and reversed (take). Non-achievement stats take the plain
+     * increment/clear. The already-have/don't-have refusals, the unknown-key
+     * refusal, and the third-argument player resolution (the sender's own
+     * player when absent).
+     */
+    private String achievementCommand(CommandSender sender, String[] args) {
+        if (args.length < 2) {
+            return "Usage: /achievement <give|take> <stat|*> [player]";
+        }
+        String statKey = args[1];
+        boolean knownStat = net.zaminmc.torch.server.stat.StatCriteria.isStatKey(statKey);
+        if (!knownStat && !"*".equals(statKey)) {
+            return "Unknown achievement '" + statKey + "'";
+        }
+        PlayerSession target;
+        if (args.length >= 3) {
+            try {
+                target = net.zaminmc.torch.server.command.CommandParse
+                        .parsePlayer(players, sender, args[2]);
+            } catch (RuntimeException parseError) {
+                return parseError.getMessage();
+            }
+            if (target == null) {
+                return "Player not found";
+            }
+        } else {
+            target = sender.player();
+            if (target == null) {
+                return "You must specify a player when using the console";
+            }
+        }
+        boolean give = args[0].equalsIgnoreCase("give");
+        boolean take = args[0].equalsIgnoreCase("take");
+        if (!give && !take) {
+            return "Usage: /achievement <give|take> <stat|*> [player]";
+        }
+        net.zaminmc.torch.server.stat.PlayerStats stats = target.stats();
+        EngineAchievements.Achievement achievement = EngineAchievements.byKey(statKey);
+        // The '*' forms: the whole achievement table, declaration order for
+        // give (every parent strictly before its children), reversed for take.
+        if (achievement == null && "*".equals(statKey)) {
+            if (give) {
+                for (EngineAchievements.Achievement row : EngineAchievements.ALL) {
+                    stats.increment(row.key(), 1);
+                }
+                return "Given all achievements to " + target.name();
+            }
+            for (int i = EngineAchievements.ALL.size() - 1; i >= 0; i--) {
+                stats.set(EngineAchievements.ALL.get(i).key(), 0);
+            }
+            return "Taken all achievements from " + target.name();
+        }
+        if (achievement != null) {
+            if (give) {
+                if (stats.hasAchievement(achievement.key())) {
+                    return target.name() + " has already earned the achievement "
+                            + chatNameOf(achievement);
+                }
+                // The unearned parent chain, handed out root-first (the
+                // reference's walk up then Lists.reverse).
+                java.util.List<EngineAchievements.Achievement> missing =
+                        new java.util.ArrayList<>();
+                for (EngineAchievements.Achievement walk = achievement;
+                        walk.parent() != null
+                                && !stats.hasAchievement(walk.parent().key());
+                        walk = walk.parent()) {
+                    missing.add(walk.parent());
+                }
+                for (int i = missing.size() - 1; i >= 0; i--) {
+                    stats.increment(missing.get(i).key(), 1);
+                }
+            } else {
+                if (!stats.hasAchievement(achievement.key())) {
+                    return target.name() + " doesn't have the achievement "
+                            + chatNameOf(achievement);
+                }
+                // The take walk: every earned achievement whose parent chain
+                // passes through the taken row clears with it (the reference's
+                // list1/list2/flag2 walk).
+                for (EngineAchievements.Achievement dependent :
+                        EngineAchievements.dependentsOf(achievement)) {
+                    if (stats.hasAchievement(dependent.key())) {
+                        stats.set(dependent.key(), 0);
+                    }
+                }
+            }
+        }
+        if (give) {
+            stats.increment(statKey, 1);
+            return "Given the achievement " + chatNameOf(statKey) + " to " + target.name();
+        }
+        stats.set(statKey, 0);
+        return "Taken the achievement " + chatNameOf(statKey) + " from " + target.name();
+    }
+
+    /** The bracketed stat-name form (Stat.getNameForChat's plain view for the feedback lines). */
+    private static String chatNameOf(EngineAchievements.Achievement achievement) {
+        return "[" + achievement.nameKey() + "]";
+    }
+
+    /** The bracketed stat-key form for the general-stat feedback lines. */
+    private static String chatNameOf(String statKey) {
+        return "[" + statKey + "]";
     }
 
     /**
@@ -20267,6 +20483,11 @@ public final class EngineServer implements Server, EngineBridge {
             // The API's give() re-syncs the wire exactly like the engine's own
             // pickup paths (§27.5: the handle resolves to live behavior).
             session.setInventorySyncHook(this::publishInventoryChanged);
+            // The stat observation (Slice 90 — the reference's ServerPlayerStats
+            // + ServerPlayerEntity.incrementStat halves): the scoreboard ride on
+            // every write, the achievement transition broadcast, and the 0x37
+            // flush that pops the toast on the client.
+            session.stats().attachListener(statListenerFor(session));
             // The engine-global identity (the projectile thrower band) rides in
             // from here; the wire-local ids remain the adapter's business.
             session.assignEngineEntityId(nextPlayerEntityId++);
@@ -20478,6 +20699,12 @@ public final class EngineServer implements Server, EngineBridge {
     @Override
     public void joinCompleted(PlayerSession session) {
         session.markPlaying();
+        // The login stats sync (PlayerManager.onPlayerConnect line 133):
+        // markAllDirty then sendAchievements — the had achievements travel
+        // (value 1, each leaving the dirty set), the general band stays dirty
+        // for the client's first statistics request.
+        session.stats().markAllDirty();
+        session.link().sendStatistics(session.stats().takeAchievements());
         // The join learns the sky state (PlayerManager's own join pair:
         // GameEventS2CPacket(7, rain) + (8, thunder) — the live gradients,
         // never the boolean).
