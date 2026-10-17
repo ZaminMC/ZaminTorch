@@ -19,10 +19,35 @@ public final class PlayerStats {
     private final Map<String, Integer> counters = new HashMap<>();
     private final Map<String, Integer> dirty = new LinkedHashMap<>();
     private int ticksSinceDeath;
+    private Listener listener;
 
-    /** PlayerStats.increment 1:1 — adds {@code amount} to the stat's counter. */
+    /**
+     * The stat-change observation (the engine's seam for the reference's
+     * ServerPlayerStats.set + ServerPlayerEntity.incrementStat halves): the
+     * server attaches one per session — it carries the scoreboard ride (every
+     * stat's criterion objectives follow the value) and the achievement
+     * transition broadcast + the 0x37 flush (the toast path).
+     */
+    public interface Listener {
+
+        /** Called after every write (the old value for the transition checks). */
+        void onStatSet(String stat, int oldValue, int newValue);
+    }
+
+    /** Attaches the change observation (at most one; the session's own). */
+    public void attachListener(Listener listener) {
+        this.listener = listener;
+    }
+
+    /** PlayerStats.increment 1:1 — the achievement parent gate rides. */
     public void increment(String stat, int amount) {
         if (stat == null || amount == 0) {
+            return;
+        }
+        // PlayerStats.increment's own condition: an achievement only counts
+        // when its parent chain is satisfied — the /achievement give walk
+        // hands the parents out first so the row itself passes.
+        if (EngineAchievements.isAchievementKey(stat) && !hasParentAchievement(stat)) {
             return;
         }
         set(stat, get(stat) + amount);
@@ -30,8 +55,25 @@ public final class PlayerStats {
 
     /** PlayerStats.set 1:1 — writes the value and marks the stat dirty. */
     public void set(String stat, int value) {
+        int oldValue = get(stat);
         counters.put(stat, value);
         dirty.put(stat, value);
+        if (listener != null) {
+            listener.onStatSet(stat, oldValue, value);
+        }
+    }
+
+    /** PlayerStats.hasAchievement 1:1 — the counter is past zero. */
+    public boolean hasAchievement(String stat) {
+        return EngineAchievements.isAchievementKey(stat) && get(stat) > 0;
+    }
+
+    /** PlayerStats.hasParentAchievement 1:1 — no parent, or the parent earned. */
+    public boolean hasParentAchievement(String stat) {
+        EngineAchievements.Achievement achievement = EngineAchievements.byKey(stat);
+        return achievement == null
+                || achievement.parent() == null
+                || hasAchievement(achievement.parent().key());
     }
 
     /** PlayerStats.get 1:1 — the counter's value, 0 when never written. */
@@ -78,5 +120,32 @@ public final class PlayerStats {
     /** Restores a snapshot (the persistence load — no dirty marking). */
     public void load(Map<String, Integer> values) {
         counters.putAll(values);
+    }
+
+    /**
+     * ServerPlayerStats.markAllDirty 1:1 — every counter joins the dirty
+     * set (the login walk: the whole table answers the client's first
+     * statistics request).
+     */
+    public void markAllDirty() {
+        dirty.putAll(counters);
+    }
+
+    /**
+     * ServerPlayerStats.sendAchievements 1:1 — the login sync: the had
+     * achievements only (value 1), each removed from the dirty set as it
+     * travels — the general band stays dirty for the client's first
+     * statistics request.
+     */
+    public Map<String, Integer> takeAchievements() {
+        Map<String, Integer> out = new LinkedHashMap<>();
+        for (EngineAchievements.Achievement achievement : EngineAchievements.ALL) {
+            String key = achievement.key();
+            if (get(key) > 0) {
+                out.put(key, get(key));
+                dirty.remove(key);
+            }
+        }
+        return out;
     }
 }

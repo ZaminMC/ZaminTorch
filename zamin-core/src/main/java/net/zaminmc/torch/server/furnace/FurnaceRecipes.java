@@ -4,6 +4,8 @@ import net.zaminmc.torch.util.Identifier;
 import net.zaminmc.torch.item.ItemType;
 import net.zaminmc.torch.server.item.BuiltinItems;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -139,6 +141,15 @@ public final class FurnaceRecipes {
     /** @return the experience points one taken output item pays. */
     public static double takeExperienceOf(ItemType output) {
         return TAKE_EXPERIENCE.getOrDefault(output.identifier(), 0.0);
+    }
+
+    /**
+     * The smelting outputs themselves (Stats.initItemsCraftedStats' own
+     * union member — the crafted-family stat keys walk them): every
+     * output row the table carries, once each.
+     */
+    public static Collection<SmeltResult> smeltingResults() {
+        return List.copyOf(SMELTING.values());
     }
 
     /**
