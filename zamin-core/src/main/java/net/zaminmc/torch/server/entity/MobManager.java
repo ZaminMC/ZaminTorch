@@ -2594,7 +2594,7 @@ public final class MobManager {
             return;
         }
         ItemStack drop = held;
-        if (!always && held.type().maxDurability() > 0) {
+        if (!always && held.type().maxDurability() > 0 && !held.unbreakable()) {
             // isDamageable: the durability shave — the dropped tool never
             // lands pristine (the reference's own cut).
             int max = held.type().maxDurability();

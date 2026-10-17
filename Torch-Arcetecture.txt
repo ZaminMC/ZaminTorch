@@ -1393,6 +1393,24 @@ engine folds both fluids into one branch (the *0.8 buoyancy clamp).
       HorseMount, MobCombat, BaseDefaultsModel, FireAcceptance,
       BlazeEntity).
 
+## Wave G — the model-less item-tag arms (RepairCost/Unbreakable/HideFlags/Lore)
+
+The evidence (ItemStack.java lines 163/442-443/474-475/526/634-635): the
+tag compound's remaining arms — Unbreakable (the byte that gates the
+whole durability family through isDamageable), RepairCost (the anvil's
+int), HideFlags (the tooltip's int), display.Lore (the tooltip's string
+list) — each round-trips the save and reaches the client through the
+slot's NBT. The engine parses them into nothing today (the model-less
+envelope).
+
+- [ ] G1 — the ItemStack model arms (unbreakable/repairCost/hideFlags/
+      lore with the sanitize rules and withX builders, the 5-arg
+      compatibility constructor) + the Unbreakable behavior gate over
+      every wear site + the ItemNbt rows + the SlotNbt wire arms + the
+      ZID/ZMD stack tails;
+- [ ] G2 — the tests (the model round trip, the Unbreakable wear gate,
+      the wire payload, the persistence tails) + the ledger/worklog rows.
+
 ## Standing (demand-named, not scheduled)
 
 - The shared container-open event (the chest family row's "if demand

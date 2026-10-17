@@ -1,5 +1,6 @@
 package net.zaminmc.torch.item;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
@@ -46,9 +47,18 @@ import java.util.Objects;
  *                    longer than {@link #MAX_NAME_LENGTH}, control characters stripped
  * @param enchantments the optional enchantment map (null = none): legacy 1.8
  *                    enchantment id to level, both positive shorts, insertion order kept
+ * @param unbreakable the tag's Unbreakable byte (Slice 93/G1 — isDamageable's own
+ *                    gate, ItemStack.java line 163): a true flag holds the durability
+ *                    at whatever it carries
+ * @param repairCost  the tag's RepairCost int (the anvil's own row; 0 = absent)
+ * @param hideFlags   the tag's HideFlags int (the tooltip's own mask; 0 = absent)
+ * @param lore        the tag's display.Lore string list (the tooltip lines;
+ *                    null = absent, immutable, every line non-blank)
  */
 public record ItemStack(ItemType type, int count, int damage, String displayName,
-                        Map<Integer, Integer> enchantments) {
+                        Map<Integer, Integer> enchantments,
+                        boolean unbreakable, int repairCost, int hideFlags,
+                        List<String> lore) {
 
     /** The wire's i16 damage/metadata ceiling (the historical field width). */
     public static final int MAX_DAMAGE = 0x7FFF;
@@ -66,9 +76,13 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
     /** The wire's short-bound level/id ceiling (the historical NBT width). */
     public static final int MAX_ENCHANTMENT_LEVEL = 0x7FFF;
 
+    /** The lore list's line ceiling (the tooltip's own practical bound). */
+    public static final int MAX_LORE_LINES = 16;
+
     public ItemStack {
         if (type == null) {
-            if (count != 0 || damage != 0 || displayName != null || enchantments != null) {
+            if (count != 0 || damage != 0 || displayName != null || enchantments != null
+                    || unbreakable || repairCost != 0 || hideFlags != 0 || lore != null) {
                 throw new IllegalArgumentException("A stack without a type must be empty (count "
                         + count + ", damage " + damage + ")");
             }
@@ -91,7 +105,20 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
             }
             displayName = sanitizeName(displayName);
             enchantments = sanitizeEnchantments(enchantments);
+            if (repairCost < 0) {
+                repairCost = 0;
+            }
+            if (hideFlags < 0) {
+                hideFlags = 0;
+            }
+            lore = sanitizeLore(lore);
         }
+    }
+
+    /** The pre-G1 five-arg shape (the compatibility constructor over the new arms' defaults). */
+    public ItemStack(ItemType type, int count, int damage, String displayName,
+                     Map<Integer, Integer> enchantments) {
+        this(type, count, damage, displayName, enchantments, false, 0, 0, null);
     }
 
     /** A fresh stack with no damage and no custom name. */
@@ -130,7 +157,8 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         if (newCount <= 0) {
             return isEmpty() ? this : EMPTY;
         }
-        return new ItemStack(type, newCount, damage, displayName, enchantments);
+        return new ItemStack(type, newCount, damage, displayName, enchantments,
+                unbreakable, repairCost, hideFlags, lore);
     }
 
     /**
@@ -144,7 +172,8 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         if (isEmpty()) {
             return this;
         }
-        return new ItemStack(type, count, newDamage, displayName, enchantments);
+        return new ItemStack(type, count, newDamage, displayName, enchantments,
+                unbreakable, repairCost, hideFlags, lore);
     }
 
     /** @return the same stack carrying {@code newName} (null clears the name). */
@@ -152,7 +181,8 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         if (isEmpty()) {
             return this;
         }
-        return new ItemStack(type, count, damage, newName, enchantments);
+        return new ItemStack(type, count, damage, newName, enchantments,
+                unbreakable, repairCost, hideFlags, lore);
     }
 
     /**
@@ -163,7 +193,48 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         if (isEmpty()) {
             return this;
         }
-        return new ItemStack(type, count, damage, displayName, newEnchantments);
+        return new ItemStack(type, count, damage, displayName, newEnchantments,
+                unbreakable, repairCost, hideFlags, lore);
+    }
+
+    // ---------------------------------------------------------------
+    // The G1 arms' builders (the tag compound's remaining rows).
+    // ---------------------------------------------------------------
+
+    /** @return the same stack with the Unbreakable flag (the durability gate). */
+    public ItemStack withUnbreakable(boolean flag) {
+        if (isEmpty()) {
+            return this;
+        }
+        return new ItemStack(type, count, damage, displayName, enchantments,
+                flag, repairCost, hideFlags, lore);
+    }
+
+    /** @return the same stack carrying the anvil's RepairCost (0 clears). */
+    public ItemStack withRepairCost(int cost) {
+        if (isEmpty()) {
+            return this;
+        }
+        return new ItemStack(type, count, damage, displayName, enchantments,
+                unbreakable, Math.max(0, cost), hideFlags, lore);
+    }
+
+    /** @return the same stack carrying the tooltip's HideFlags mask (0 clears). */
+    public ItemStack withHideFlags(int flags) {
+        if (isEmpty()) {
+            return this;
+        }
+        return new ItemStack(type, count, damage, displayName, enchantments,
+                unbreakable, repairCost, Math.max(0, flags), lore);
+    }
+
+    /** @return the same stack carrying the display.Lore lines (null clears). */
+    public ItemStack withLore(List<String> lines) {
+        if (isEmpty()) {
+            return this;
+        }
+        return new ItemStack(type, count, damage, displayName, enchantments,
+                unbreakable, repairCost, hideFlags, lines);
     }
 
     /**
@@ -284,5 +355,26 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         return trimmed.length() > MAX_NAME_LENGTH
                 ? trimmed.substring(0, MAX_NAME_LENGTH)
                 : trimmed;
+    }
+
+    /**
+     * The lore list's own sanitize (Slice 93/G1 — the display compound's
+     * string list): null or empty parses to absent, every line rides the
+     * name's own control-strip and bound, blank lines drop, the list
+     * caps at {@code MAX_LORE_LINES} (the tooltip's own practical
+     * ceiling), the answer immutable.
+     */
+    private static List<String> sanitizeLore(List<String> input) {
+        if (input == null || input.isEmpty()) {
+            return null;
+        }
+        java.util.List<String> cleaned = new java.util.ArrayList<>(input.size());
+        for (String line : input) {
+            String sanitized = sanitizeName(line);
+            if (sanitized != null && cleaned.size() < MAX_LORE_LINES) {
+                cleaned.add(sanitized);
+            }
+        }
+        return cleaned.isEmpty() ? null : List.copyOf(cleaned);
     }
 }

@@ -383,7 +383,11 @@ public final class PlayerInventory implements net.zaminmc.torch.entity.Player.In
             throw new IllegalArgumentException("Damage amount must be positive: " + amount);
         }
         ItemStack current = slots[heldSlot];
-        if (current.isEmpty() || current.type().maxDurability() <= 0) {
+        // The Unbreakable gate (Slice 93/G1 — ItemStack.java line 163's
+        // isDamageable: the flag holds the durability at whatever it
+        // carries, every wear site skips).
+        if (current.isEmpty() || current.type().maxDurability() <= 0
+                || current.unbreakable()) {
             return false;
         }
         int landing = random == null ? amount
@@ -500,7 +504,8 @@ public final class PlayerInventory implements net.zaminmc.torch.entity.Player.In
         boolean changed = false;
         for (int i = 0; i < ARMOR_SLOTS; i++) {
             ItemStack piece = armor[i];
-            if (piece.isEmpty() || piece.type().maxDurability() <= 0) {
+            if (piece.isEmpty() || piece.type().maxDurability() <= 0
+                    || piece.unbreakable()) { // the G1 gate over the armor family
                 continue;
             }
             int landing = random == null ? amount
@@ -534,7 +539,8 @@ public final class PlayerInventory implements net.zaminmc.torch.entity.Player.In
             return false;
         }
         ItemStack piece = armor[slot];
-        if (piece.isEmpty() || piece.type().maxDurability() <= 0) {
+        if (piece.isEmpty() || piece.type().maxDurability() <= 0
+                || piece.unbreakable()) { // the G1 gate over the thorns visit
             return false;
         }
         int landing = random == null ? amount
