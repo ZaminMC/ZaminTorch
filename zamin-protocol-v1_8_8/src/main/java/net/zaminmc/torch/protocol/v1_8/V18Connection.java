@@ -2214,6 +2214,21 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         channel.writeAndFlush(out);
     }
 
+    @Override
+    public void sendChatComponent(String json, int position) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        // Chat (0x02) carrying the serialized component (PacketByteBuf
+        // .writeText's own form) at the given position byte.
+        ByteBuf out = Unpooled.buffer(32 + json.length());
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_CHAT);
+        ByteBufOps.writeString(out, json);
+        out.writeByte(position);
+        channel.writeAndFlush(out);
+    }
+
     /** The protocol 47 varlong (7 bits per byte, high bit = continuation). */
     private static void writeVarLong(ByteBuf out, long value) {
         while (true) {

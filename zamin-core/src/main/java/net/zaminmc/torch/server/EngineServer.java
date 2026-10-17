@@ -16424,6 +16424,14 @@ public final class EngineServer implements Server, EngineBridge {
         commands.register(new CommandService.Command("worldborder",
                 "World border control: /worldborder <set|add|center|damage|warning|get> ...",
                 2, this::worldBorderCommand));
+        // The titles wave (Slice 87 — TitleCommand/TellRawCommand 1:1, op-2):
+        // /title over the 0x45 verbs, /tellraw over the raw-JSON chat line.
+        commands.register(new CommandService.Command("title",
+                "Send a title: /title <player> <title|subtitle|times|clear|reset> ...",
+                2, new net.zaminmc.torch.server.command.TitleCommand(players)::run));
+        commands.register(new CommandService.Command("tellraw",
+                "Send a raw JSON message: /tellraw <player> <raw json message>",
+                2, new net.zaminmc.torch.server.command.TellRawCommand(players)::run));
         commands.register(new CommandService.Command("time",
                 "Query or set the day: /time query | /time set <day|noon|night|midnight|ticks>",
                 this::timeCommand));

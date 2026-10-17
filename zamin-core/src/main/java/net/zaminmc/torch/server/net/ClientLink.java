@@ -281,4 +281,14 @@ public interface ClientLink {
      */
     default void tabListHeaderFooter(String headerJson, String footerJson) {
     }
+
+    /**
+     * A raw-JSON chat line (Chat 0x02): the serialized component at the
+     * given position (1 = system) — the reference's sendMessage(Component).
+     * The plain-string system lines keep their own path; this verb carries
+     * the component's full shape (hover/click events intact). Safe from any
+     * thread; default no-op for engine-internal links.
+     */
+    default void sendChatComponent(String json, int position) {
+    }
 }
