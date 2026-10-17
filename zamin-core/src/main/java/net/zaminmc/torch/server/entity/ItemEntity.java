@@ -201,6 +201,25 @@ public final class ItemEntity implements net.zaminmc.torch.entity.DroppedItem {
         double newX = position.x() + velocityX;
         double newZ = position.z() + velocityZ;
 
+        // The horizontal clip (the vanilla-shape slice's follow-up): the
+        // box's LEADING FACE against the collision shapes, per axis — a
+        // blocked axis zeroes its velocity (the vanilla moveEntity
+        // response: no horizontal bounce), the free axis keeps sliding.
+        if (velocityX != 0.0) {
+            double leadX = newX + Math.signum(velocityX) * Ground.HALF_WIDTH;
+            if (leadingFaceBlockedX(ground, leadX, newY, newZ)) {
+                newX = position.x();
+                velocityX = 0.0;
+            }
+        }
+        if (velocityZ != 0.0) {
+            double leadZ = newZ + Math.signum(velocityZ) * Ground.HALF_WIDTH;
+            if (leadingFaceBlockedZ(ground, newX, newY, leadZ)) {
+                newZ = position.z();
+                velocityZ = 0.0;
+            }
+        }
+
         if (velocityY <= 0 && ground.isSolidAtBox(newX, newY - HALF_HEIGHT - GROUND_EPSILON, newZ)) {
             // Snap the item's bottom onto the surface it landed on (the
             // slab half or the full cube's ceiling) — the box footprint's
@@ -224,6 +243,43 @@ public final class ItemEntity implements net.zaminmc.torch.entity.DroppedItem {
         return (Math.round(position.x() * 32.0) << 42)
                 | (Math.round(position.y() * 32.0) << 21)
                 | Math.round(position.z() * 32.0);
+    }
+
+    /**
+     * The X-leading-face test: the box's face at {@code leadX} swept over
+     * the box's z-width and y-height (three z samples x three y samples —
+     * the bottom sits a hair above the resting surface so the ground the
+     * item slides on never blocks its own slide).
+     */
+    private static boolean leadingFaceBlockedX(Ground ground, double leadX,
+                                               double centerY, double centerZ) {
+        double w = Ground.HALF_WIDTH;
+        double bottom = centerY - HALF_HEIGHT + GROUND_EPSILON;
+        double top = centerY + HALF_HEIGHT - GROUND_EPSILON;
+        for (double y : new double[]{bottom, centerY, top}) {
+            if (ground.isSolidAt(leadX, y, centerZ - w)
+                    || ground.isSolidAt(leadX, y, centerZ)
+                    || ground.isSolidAt(leadX, y, centerZ + w)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** The Z-leading-face test: the face at {@code leadZ} over the x-width. */
+    private static boolean leadingFaceBlockedZ(Ground ground, double centerX,
+                                               double centerY, double leadZ) {
+        double w = Ground.HALF_WIDTH;
+        double bottom = centerY - HALF_HEIGHT + GROUND_EPSILON;
+        double top = centerY + HALF_HEIGHT - GROUND_EPSILON;
+        for (double y : new double[]{bottom, centerY, top}) {
+            if (ground.isSolidAt(centerX - w, y, leadZ)
+                    || ground.isSolidAt(centerX, y, leadZ)
+                    || ground.isSolidAt(centerX + w, y, leadZ)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     // ------------------------------------------------------------------
