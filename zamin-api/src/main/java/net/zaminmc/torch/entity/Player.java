@@ -108,6 +108,41 @@ public interface Player {
      */
     ItemStack give(ItemStack stack);
 
+    // --- titles + chat (Slice 90 — Slice 87's title/chat wire over the §27 surface) ---
+
+    /**
+     * Shows a title pair for the given tick counts (the reference's own
+     * wire order: Times, then the title, then the subtitle —
+     * TitlesS2CPacket 0x45). Blank texts skip their own arm; zero counts
+     * skip the Times arm. Safe from any thread (the link's own contract).
+     */
+    void sendTitle(String titleText, String subtitleText,
+                   int fadeInTicks, int stayTicks, int fadeOutTicks);
+
+    /**
+     * Clears the showing title (the CLEAR arm — a blank pair with the
+     * fade-in skipped). Safe from any thread.
+     */
+    void clearTitle();
+
+    /**
+     * A plain chat line at the client's chat box (Chat 0x02, position 0 —
+     * the reference's sendMessage). Safe from any thread.
+     */
+    void sendChatLine(String message);
+
+    /**
+     * A system line (Chat 0x02, position 1 — no chat-log echo, the
+     * reference's sendSystemMessage). Safe from any thread.
+     */
+    void sendSystemLine(String message);
+
+    /**
+     * A raw chat component (Chat 0x02 carrying the serialized component at
+     * position 0 — hover/click events intact). Safe from any thread.
+     */
+    void sendChatComponent(String json);
+
     // --- slot-level inventory (the container/inventory wave) ---------------
 
     /**
