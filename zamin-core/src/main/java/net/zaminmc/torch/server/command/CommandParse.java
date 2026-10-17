@@ -90,4 +90,49 @@ public final class CommandParse {
             throw new IllegalArgumentException("'" + s + "' is not a valid number");
         }
     }
+
+    /**
+     * The reference's parseInt(s, min, max): the strict parse plus the
+     * at-least/at-most bounds refusals (AbstractCommand's own walk).
+     */
+    public static int parseInt(String s, int min, int max) {
+        int i = parseInt(s);
+        if (i < min) {
+            throw new IllegalArgumentException("Value must be at least " + min);
+        }
+        if (i > max) {
+            throw new IllegalArgumentException("Value must be at most " + max);
+        }
+        return i;
+    }
+
+    /** The reference's parseDouble(s): the "'%s' is not a valid number" refusal. */
+    public static double parseDouble(String s) {
+        try {
+            return Double.parseDouble(s);
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("'" + s + "' is not a valid number");
+        }
+    }
+
+    /**
+     * The reference's parseCoordinate(c, s, false): the ~-relative form
+     * with the ±30000000 world bounds (execute's own parse walk — a bare
+     * {@code ~} answers the source coordinate, {@code ~n} offsets it, a
+     * plain number stands alone).
+     */
+    public static double parseCoordinate(double c, String s) {
+        boolean tilde = s.startsWith("~");
+        double d = tilde ? c : 0.0;
+        if (!tilde || s.length() > 1) {
+            d += parseDouble(tilde ? s.substring(1) : s);
+        }
+        if (d < -30000000.0) {
+            throw new IllegalArgumentException("Value must be at least -30000000");
+        }
+        if (d > 30000000.0) {
+            throw new IllegalArgumentException("Value must be at most 30000000");
+        }
+        return d;
+    }
 }
