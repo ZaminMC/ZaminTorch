@@ -8946,3 +8946,15 @@ reference set.
 NEXT per the standing rows: the attribute modifiers + display.color
 (the item-tag envelope's remains); the skull's Owner profile; the
 EnderChest contents-on-player angle.
+
+### The color tail (67102d2)
+
+display.color — the leather tint, ArmorItem.getColor's own row (a
+contains(...,3) INT under the display compound; the 10511680 default is
+the render model's own). The thirteenth ItemStack component, the rows,
+the wire, the ZID v5/ZMD v10 tails (the color read at the TOP level —
+an unresolvable id still consumes it, the restructure the compile
+caught). ItemTagRowsTest 9. THE VERSION-GATE DISCIPLINE again: the
+MobDataStore v9 lists' reads now name their own version (the v10 bump's
+audit — the unconditional read inside the v7 block would have misparsed
+v7/v8 files; the same pattern as the tame-gate repair).

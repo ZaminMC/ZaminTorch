@@ -1548,9 +1548,9 @@ set (no item overrides it) — the port keeps the constant-false seam.
 - The §28.7 Bukkit/Spigot/Paper compatibility adapter (§27.1's order:
   after the 1.8.8 implementation is polished into a playable,
   maintainable server).
-- The remaining model-less item-tag arms (the attribute modifiers,
-  display.color) — the envelope after Waves H2/I (CanDestroy/CanPlace
-  LANDED as Wave I).
+- The attribute modifiers (tag.AttributeModifiers) — the item-tag
+  envelope's only remain after Waves H2/I + the color tail (67102d2:
+  display.color LANDED — the leather tint, the ZID v5/ZMD v10 tails).
 - The skull's Owner profile + the EnderChest contents-on-player angle
   (the no-BE tile families' remains).
 - The mob_spawner ITEM (BuiltinItems carries no spawner item yet — the
