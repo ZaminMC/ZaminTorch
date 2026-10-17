@@ -18,9 +18,12 @@ import java.util.logging.Logger;
 /**
  * The command-block tile persistence (Slice 72 — the sign store's own
  * envelope): the executor's four rows per tile (the reference's
- * writeNbt Command/SuccessCount/TrackOutput/LastOutput), the atomic
- * temp-file swap, the corrupt-file-preserving load (a corrupt or
- * missing file reads as empty, the established store behavior).
+ * writeNbt Command/SuccessCount/TrackOutput/LastOutput) plus the v2
+ * CommandStats tail (Slice 90 — the reference's CommandResultStats
+ * writeNbt compound: the bound types' <Name>Name/<Name>Objective pairs,
+ * absent in v1 files), the atomic temp-file swap, the
+ * corrupt-file-preserving load (a corrupt or missing file reads as
+ * empty, the established store behavior).
  */
 public final class CommandBlockDataStore {
 
@@ -28,7 +31,7 @@ public final class CommandBlockDataStore {
     private static final int MAGIC_0 = 'Z';
     private static final int MAGIC_1 = 'C';
     private static final int MAGIC_2 = 'B';
-    private static final int FORMAT_VERSION = 1;
+    private static final int FORMAT_VERSION = 2;
 
     private final Path file;
 
@@ -63,6 +66,10 @@ public final class CommandBlockDataStore {
                     out.writeBoolean(executor.trackOutput());
                     writeString(out, executor.lastOutput() == null
                             ? "" : executor.lastOutput());
+                    // The v2 CommandStats tail (Slice 90 — CommandBlockBlockEntity's
+                    // writeNbt carrying the executor's CommandResultStats): the bound
+                    // pairs flattened from the CommandStats compound.
+                    writeCommandStats(out, executor.commandResults());
                 }
             }
             Files.move(temp, file, StandardCopyOption.REPLACE_EXISTING,
@@ -84,8 +91,12 @@ public final class CommandBlockDataStore {
         try (DataInputStream in = new DataInputStream(new BufferedInputStream(
                 Files.newInputStream(file)))) {
             if (in.readByte() != MAGIC_0 || in.readByte() != MAGIC_1
-                    || in.readByte() != MAGIC_2 || in.readByte() != FORMAT_VERSION) {
+                    || in.readByte() != MAGIC_2) {
                 throw new IllegalArgumentException("bad header");
+            }
+            int version = in.readUnsignedByte();
+            if (version != 1 && version != 2) {
+                throw new IllegalArgumentException("bad version: " + version);
             }
             int count = readVarInt(in);
             Map<BlockPosition, CommandBlockManager.CommandState> loaded = new LinkedHashMap<>();
@@ -97,9 +108,13 @@ public final class CommandBlockDataStore {
                 int successCount = in.readInt();
                 boolean trackOutput = in.readBoolean();
                 String lastOutput = readString(in);
-                loaded.put(new BlockPosition(x, y, z),
-                        CommandBlockManager.restoredState(command, successCount,
-                                trackOutput, lastOutput.isEmpty() ? null : lastOutput));
+                CommandBlockManager.CommandState state = CommandBlockManager.restoredState(
+                        command, successCount, trackOutput,
+                        lastOutput.isEmpty() ? null : lastOutput);
+                if (version >= 2) {
+                    readCommandStats(in, state.commandResults());
+                }
+                loaded.put(new BlockPosition(x, y, z), state);
             }
             return loaded;
         } catch (Exception cause) {
@@ -107,6 +122,47 @@ public final class CommandBlockDataStore {
                     + cause.getMessage());
             preserveCorrupt();
             return new LinkedHashMap<>();
+        }
+    }
+
+    /**
+     * The CommandStats tail's write (the reference's compound flattened):
+     * the pair count then the key/value strings — every bound type's
+     * <Name>Name/<Name>Objective pair.
+     */
+    private static void writeCommandStats(DataOutputStream out,
+            net.zaminmc.torch.server.command.EngineCommandResults results)
+            throws java.io.IOException {
+        java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> envelope = new LinkedHashMap<>();
+        results.writeNbt(envelope);
+        java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> stats =
+                net.zaminmc.torch.server.nbt.NbtOps.getCompound(envelope, "CommandStats");
+        writeVarInt(out, stats.size());
+        for (Map.Entry<String, net.zaminmc.torch.server.nbt.Snbt.Tag> pair : stats.entrySet()) {
+            writeString(out, pair.getKey());
+            writeString(out, net.zaminmc.torch.server.nbt.NbtOps.getString(stats, pair.getKey()));
+        }
+    }
+
+    /** The CommandStats tail's read: the pairs back into the compound, the
+     * same readNbt walk /stats set rides. */
+    private static void readCommandStats(DataInputStream in,
+            net.zaminmc.torch.server.command.EngineCommandResults results)
+            throws java.io.IOException {
+        int pairs = readVarInt(in);
+        if (pairs < 0 || pairs > 64) {
+            throw new IllegalArgumentException("command-stats pair count out of range: " + pairs);
+        }
+        java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> envelope = new LinkedHashMap<>();
+        java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> stats = new LinkedHashMap<>();
+        for (int i = 0; i < pairs; i++) {
+            String key = readString(in);
+            String value = readString(in);
+            net.zaminmc.torch.server.nbt.NbtOps.putString(stats, key, value);
+        }
+        if (!stats.isEmpty()) {
+            net.zaminmc.torch.server.nbt.NbtOps.putCompound(envelope, "CommandStats", stats);
+            results.readNbt(envelope);
         }
     }
 
