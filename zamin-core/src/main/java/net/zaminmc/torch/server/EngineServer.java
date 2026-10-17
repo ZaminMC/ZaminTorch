@@ -347,6 +347,8 @@ public final class EngineServer implements Server, EngineBridge {
     private ExplosionService endExplosionService;
     /** The note tiles' ZND persistence. */
     private net.zaminmc.torch.server.noteblock.NoteDataStore noteStore;
+    /** The comparator's stored outputs' ZCD persistence (Wave H1). */
+    private net.zaminmc.torch.server.redstone.ComparatorDataStore comparatorStore;
     /** The hopper subsystem (Slice 10b): the 8-tick transfer cadence. */
     private net.zaminmc.torch.server.hopper.HopperSystem hopperSystem;
     /** The dispenser subsystem (Slice 11a): the 4-tick reaction + the behaviors. */
@@ -1195,6 +1197,15 @@ public final class EngineServer implements Server, EngineBridge {
                 redstoneSystem = new net.zaminmc.torch.server.redstone.RedstoneSystem(
                         world, itemEntities);
                 world.addChangeListener(redstoneSystem);
+                // The comparator's stored outputs' ZCD persistence (Wave
+                // H1 — the ComparatorBlockEntity's OutputSignal row): the
+                // restore lands BEFORE any update so a loaded comparator
+                // answers its stored strength straight away (the
+                // reference's loaded BE carries the value into
+                // getWeakPower; the first update re-arms it).
+                comparatorStore = new net.zaminmc.torch.server.redstone.ComparatorDataStore(
+                        config.worldDataDir().resolve("comparators.bin"));
+                redstoneSystem.restoreComparatorOutputs(comparatorStore.load());
                 // The door family's signal arm plays the same open/close
                 // pair the use arm does (DoorBlock.doEvent 1003/1006 — the
                 // reference's own tones at the swinging lower half).
@@ -21032,6 +21043,11 @@ public final class EngineServer implements Server, EngineBridge {
                 }
                 if (noteStore != null && noteBlocks != null) {
                     noteStore.save(noteBlocks.snapshotTiles());
+                }
+                // The comparator's stored outputs (Wave H1 — the
+                // ComparatorBlockEntity's OutputSignal rows).
+                if (comparatorStore != null && redstoneSystem != null) {
+                    comparatorStore.save(redstoneSystem.comparatorSnapshot());
                 }
                 // The scoreboard (Slice 85): the reference saves scoreboard.dat
                 // with the world; the engine's own shutdown + /save walk.

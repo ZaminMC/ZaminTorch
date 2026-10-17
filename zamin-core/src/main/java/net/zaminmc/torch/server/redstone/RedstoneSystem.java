@@ -207,6 +207,26 @@ public final class RedstoneSystem implements WorldChangeListener {
     private final Map<BlockPosition, Integer> comparatorOutputs = new HashMap<>();
 
     /**
+     * The stored-output map's persistable copy (Wave H1 — the
+     * ComparatorBlockEntity's writeNbt walk): every live comparator's
+     * row, including the zeros (the reference's BE persists alongside
+     * the block whatever its value).
+     */
+    public Map<BlockPosition, Integer> comparatorSnapshot() {
+        return new HashMap<>(comparatorOutputs);
+    }
+
+    /**
+     * The boot restore (Wave H1 — readNbt): the saved rows land on the
+     * map so a loaded comparator answers its stored strength BEFORE the
+     * first update re-arms it (the reference's loaded BE carries the
+     * value straight into getWeakPower). Runs on the tick lane.
+     */
+    public void restoreComparatorOutputs(Map<BlockPosition, Integer> rows) {
+        comparatorOutputs.putAll(rows);
+    }
+
+    /**
      * The analog source reader (Slice 9d): position -> 0..15 when the block
      * is an analog source (the container fullness arms), -1 when it is not
      * (the reference's {@code isAnalogSignalSource()} gate).

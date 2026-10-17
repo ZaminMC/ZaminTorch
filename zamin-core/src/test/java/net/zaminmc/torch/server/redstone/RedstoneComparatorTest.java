@@ -265,6 +265,53 @@ class RedstoneComparatorTest {
         }
     }
 
+    @Test
+    void theStoredOutputSurvivesTheRestart() throws Exception {
+        // Wave H1 — the ComparatorBlockEntity's OutputSignal row: a placed
+        // comparator's live output rides the ZCD store through the
+        // restart; the rebooted engine answers the stored strength BEFORE
+        // the first update re-arms it (the reference's loaded BE carries
+        // the value straight into getWeakPower).
+        EngineConfig config = new EngineConfig("127.0.0.1", 0,
+                "rcd" + Math.abs(UUID.randomUUID().hashCode() % 100000),
+                "it", 20, 2, 20, dataDir.toString());
+        int x = 10, z = 10, y = 40;
+        BlockPosition comparator = new BlockPosition(x + 1, y, z);
+        EngineServer first = new EngineServer(config);
+        first.start();
+        try {
+            first.ticker().submit(() -> {
+                first.world().setBlock(new BlockPosition(x, y, z), BuiltinBlocks.CHEST);
+                // The comparator's bed.
+                first.world().setBlock(new BlockPosition(x + 1, y - 1, z),
+                        BuiltinBlocks.STONE);
+                first.world().setBlock(comparator,
+                        RedstoneBlocks.comparatorOf(RedstoneBlocks.FACING_WEST, false, false));
+            });
+            await(() -> RedstoneBlocks.isComparator(typeAt(first, x + 1, y, z)),
+                    "the comparator placed");
+            // Thirteen full stacks: the reference's fullness 7.
+            fill(first, x, y, z, 13, 64);
+            await(() -> first.redstone().comparatorSnapshot()
+                            .getOrDefault(comparator, 0) == 7,
+                    "the stored output armed at 7");
+            first.saveAllNow();
+        } finally {
+            first.shutdown(() -> { });
+        }
+
+        EngineServer second = new EngineServer(config);
+        second.start();
+        try {
+            assertEquals(7, second.redstone().comparatorSnapshot()
+                            .getOrDefault(comparator, -1),
+                    "the stored output survived the restart — the comparator answers 7"
+                            + " before any update re-arms it");
+        } finally {
+            second.shutdown(() -> { });
+        }
+    }
+
     // ------------------------------------------------------------------
     // Harness
     // ------------------------------------------------------------------
