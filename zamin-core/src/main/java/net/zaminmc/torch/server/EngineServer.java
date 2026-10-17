@@ -700,7 +700,9 @@ public final class EngineServer implements Server, EngineBridge {
                 // Sign block entities: world text state, ZSD persistence.
                 signManager = new SignManager();
                 signStore = new SignDataStore(config.worldDataDir().resolve("signs.bin"));
-                signManager.restoreAll(signStore.load());
+                net.zaminmc.torch.server.sign.SignDataStore.Loaded signLoaded = signStore.load();
+                signManager.restoreAll(signLoaded.signs());
+                signManager.restoreStats(signLoaded.stats());
                 // Living mobs: simulation-owned population, loot flows into items.
                 MobManager mobs = new MobManager(
                         new MobWorldQuery(),
@@ -20722,7 +20724,7 @@ public final class EngineServer implements Server, EngineBridge {
                     beaconStore.save(beaconSystem.snapshot());
                 }
                 if (signStore != null && signManager != null) {
-                    signStore.save(signManager.snapshot());
+                    signStore.save(signManager.snapshot(), signManager.statsSnapshot());
                 }
                 if (commandBlockStore != null && commandBlocks != null) {
                     commandBlockStore.save(commandBlocks.snapshot());

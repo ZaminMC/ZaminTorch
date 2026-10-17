@@ -16,9 +16,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * The command-stat bindings' persistence (Slice 90 p3 — the reference's
  * Entity.writeNbt line 1128 + CommandBlockBlockEntity's executor rows):
- * the /stats-set bindings survive the restart through all three envelopes —
- * the ZCB tail (the command-block tile), the ZMD v5 tail (the mob), and
- * the ZPD v10 tail (the player).
+ * the /stats-set bindings survive the restart through all four envelopes —
+ * the ZCB tail (the command-block tile), the ZMD v5 tail (the mob), the
+ * ZPD v10 tail (the player), and the ZSD v2 tail (the sign — Slice 91
+ * Wave B, the engine's own convention: the reference's SignBlockEntity
+ * carries none).
  */
 class CommandStatsPersistenceTest {
 
@@ -110,6 +112,23 @@ class CommandStatsPersistenceTest {
         await(() -> first.commandBlocks().at(new BlockPosition(bx, by, bz)).commandResults()
                         .sourceOf(net.zaminmc.torch.server.command.EngineCommandResults.Type.QUERY_RESULT) != null,
                 "the tile's binding landed");
+        // A sign's binding (the ZSD v2 tail): the block through the command
+        // walk, the text through the manager's own set (the wire edit path's
+        // effect), the binding through /stats block — the sign tile family.
+        first.chatService().submitChat(alice, "/setblock ~5 ~ ~ sign");
+        int sx = (int) Math.floor(alice.position().x()) + 5;
+        int sz = (int) Math.floor(alice.position().z());
+        BlockPosition signPos = new BlockPosition(sx, by, sz);
+        await(() -> "sign".equals(first.world().getBlock(signPos).identifier().value()),
+                "the sign block landed");
+        first.ticker().submit(() -> first.signs().set(signPos,
+                new String[]{"Stats", "live here", "", ""}));
+        await(() -> first.signs().peek(signPos) != null, "the sign text landed");
+        first.chatService().submitChat(alice,
+                "/stats block " + sx + " " + by + " " + sz + " set SuccessCount Alice signs");
+        await(() -> first.signs().statsAt(signPos).sourceOf(
+                        EngineCommandResults.Type.SUCCESS_COUNT) != null,
+                "the sign's binding landed");
         // The scoreboard objectives the bindings feed.
         first.chatService().submitChat(alice, "/scoreboard objectives add counter dummy");
         first.chatService().submitChat(alice, "/scoreboard objectives add blocks dummy");
@@ -146,6 +165,14 @@ class CommandStatsPersistenceTest {
                     .sourceOf(EngineCommandResults.Type.QUERY_RESULT), "the tile's source");
             assertEquals("query", tile.commandResults()
                     .objectiveOf(EngineCommandResults.Type.QUERY_RESULT), "the tile's objective");
+            // The sign's binding (the ZSD v2 tail) — the text AND the stats
+            // rode the same file.
+            assertNotNull(second.signs().peek(signPos), "the sign text returned");
+            assertEquals("Stats", second.signs().peek(signPos)[0], "the sign's first line");
+            assertEquals("Alice", second.signs().statsAt(signPos)
+                    .sourceOf(EngineCommandResults.Type.SUCCESS_COUNT), "the sign's source");
+            assertEquals("signs", second.signs().statsAt(signPos)
+                    .objectiveOf(EngineCommandResults.Type.SUCCESS_COUNT), "the sign's objective");
             // The bound feed fires: a command through the player feeds the
             // objective's score (the /stats contract).
             second.chatService().submitChat(again, "/time set day");
@@ -159,5 +186,38 @@ class CommandStatsPersistenceTest {
         } finally {
             second.shutdown(null);
         }
+    }
+
+    @Test
+    void aVersionOneSignFileLoadsBindingsEmpty() throws Exception {
+        // The ZSD v1 shape (pre-Wave-B): magic + version 1 + the entries
+        // with NO CommandStats tail. The version-aware load accepts it —
+        // the texts read back, the bindings load empty (the v2 tail's own
+        // default, the ZCB v1 precedent).
+        java.nio.file.Path file = dataDir.resolve(
+                "v1-signs-" + Math.abs(UUID.randomUUID().hashCode() % 100000) + ".bin");
+        try (java.io.DataOutputStream out = new java.io.DataOutputStream(
+                new java.io.BufferedOutputStream(java.nio.file.Files.newOutputStream(file)))) {
+            out.writeByte('Z');
+            out.writeByte('S');
+            out.writeByte('D');
+            out.writeByte(1);
+            out.writeByte(1); // one sign
+            out.writeInt(1);
+            out.writeInt(2);
+            out.writeInt(3);
+            String[] lines = {"one", "two", "three", "four"};
+            for (String line : lines) {
+                byte[] bytes = line.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+                out.writeByte(bytes.length); // single-byte varint (short lines)
+                out.write(bytes);
+            }
+        }
+        net.zaminmc.torch.server.sign.SignDataStore.Loaded loaded =
+                new net.zaminmc.torch.server.sign.SignDataStore(file).load();
+        assertEquals(1, loaded.signs().size(), "the v1 texts read back");
+        assertEquals("one", loaded.signs().get(new BlockPosition(1, 2, 3))[0]);
+        assertEquals("four", loaded.signs().get(new BlockPosition(1, 2, 3))[3]);
+        assertTrue(loaded.stats().isEmpty(), "a v1 file carries no tails — the bindings load empty");
     }
 }

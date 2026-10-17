@@ -55,9 +55,23 @@ public final class SignManager {
         return new LinkedHashMap<>(signs);
     }
 
+    /** @return a defensive copy of the stat bindings (the save's tail map). */
+    public Map<BlockPosition, net.zaminmc.torch.server.command.EngineCommandResults> statsSnapshot() {
+        return new LinkedHashMap<>(statsHolders);
+    }
+
     /** Restores persisted state after boot (world deltas already applied). */
     public void restoreAll(Map<BlockPosition, String[]> restored) {
         signs.putAll(restored);
+    }
+
+    /** Restores the persisted command-stat bindings after boot (the ZSD v2 tail). */
+    public void restoreStats(
+            Map<BlockPosition, net.zaminmc.torch.server.command.EngineCommandResults> restored) {
+        // Only a sign's own bindings ride back — a stale entry whose sign
+        // vanished between the save and the load dies on the next tick
+        // sweep like every other orphaned tile state.
+        statsHolders.putAll(restored);
     }
 
     /** @return every sign text within one chunk column (the chunk-send replay). */
