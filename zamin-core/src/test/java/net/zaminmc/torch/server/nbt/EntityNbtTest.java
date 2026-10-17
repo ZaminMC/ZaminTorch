@@ -514,4 +514,53 @@ class EntityNbtTest {
         EntityNbt.readNbt(primed, Snbt.parseCompound("{ignited:0b}"), potions, null);
         assertTrue(primed.creeperIgnited(), "a false ignited row never un-primes");
     }
+    /**
+     * Slice 91 Wave C p4 — the skeleton's SkeletonType and the ocelot's
+     * CatType rows (the reference's own gates): the skeleton's numeric
+     * contains-gate (an absent row keeps the variant), the ocelot's
+     * UNGATED read (an absent row reads its int 0 — the coat resets to
+     * wild, the reference's own shape).
+     */
+    @Test
+    void theSkeletonAndOcelotTypeRowsRoundTrip() {
+        PotionSystem potions = potions();
+        // The wither variant: written as 1, read back onto a fresh body.
+        MobEntity wither = new MobEntity(31, MobType.SKELETON,
+                new Position(0.5, 64.0, 0.5), new Random(3), new StubWorld());
+        wither.setSkeletonWither(true);
+        Map<String, Snbt.Tag> written = new java.util.LinkedHashMap<>();
+        EntityNbt.writeNbtWithoutId(wither, written, potions);
+        assertEquals(1, NbtOps.getByte(written, "SkeletonType"));
+        MobEntity loadedWither = new MobEntity(32, MobType.SKELETON,
+                new Position(0.5, 64.0, 0.5), new Random(3), new StubWorld());
+        EntityNbt.readNbt(loadedWither, written, potions, null);
+        assertTrue(loadedWither.skeletonWither(), "the wither variant round-trips");
+        // The plain skeleton: 0.
+        MobEntity plain = new MobEntity(33, MobType.SKELETON,
+                new Position(0.5, 64.0, 0.5), new Random(3), new StubWorld());
+        Map<String, Snbt.Tag> plainRows = new java.util.LinkedHashMap<>();
+        EntityNbt.writeNbtWithoutId(plain, plainRows, potions);
+        assertEquals(0, NbtOps.getByte(plainRows, "SkeletonType"));
+        // The contains gate: a compound without the row keeps the variant.
+        MobEntity keeps = new MobEntity(34, MobType.SKELETON,
+                new Position(0.5, 64.0, 0.5), new Random(3), new StubWorld());
+        keeps.setSkeletonWither(true);
+        EntityNbt.readNbt(keeps, Snbt.parseCompound("{}"), potions, null);
+        assertTrue(keeps.skeletonWither(), "an absent SkeletonType row keeps the variant");
+        // The ocelot's coat: written as the variant, read UNGATED (an
+        // absent row resets to 0 — OcelotEntity.readCustomNbt line 107).
+        MobEntity cat = new MobEntity(35, MobType.OCELOT,
+                new Position(0.5, 64.0, 0.5), new Random(3), new StubWorld());
+        cat.setCatVariant(3);
+        Map<String, Snbt.Tag> catRows = new java.util.LinkedHashMap<>();
+        EntityNbt.writeNbtWithoutId(cat, catRows, potions);
+        assertEquals(3, NbtOps.getInt(catRows, "CatType"));
+        MobEntity loadedCat = new MobEntity(36, MobType.OCELOT,
+                new Position(0.5, 64.0, 0.5), new Random(3), new StubWorld());
+        EntityNbt.readNbt(loadedCat, catRows, potions, null);
+        assertEquals(3, loadedCat.catVariant(), "the coat round-trips");
+        EntityNbt.readNbt(loadedCat, Snbt.parseCompound("{}"), potions, null);
+        assertEquals(0, loadedCat.catVariant(),
+                "an absent CatType row resets the coat (the reference's ungated read)");
+    }
 }

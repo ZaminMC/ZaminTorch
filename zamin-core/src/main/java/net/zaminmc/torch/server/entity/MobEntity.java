@@ -2179,6 +2179,15 @@ public final class MobEntity implements LivingEntity {
     }
 
     /**
+     * The coat's own write (the CatType row's read arm — OcelotEntity.
+     * readCustomNbt line 107 has NO contains gate: an absent row reads
+     * its int 0 and the coat resets to wild, the reference's own shape).
+     */
+    public void setCatVariant(int variant) {
+        this.catVariant = variant;
+    }
+
+    /**
      * The ocelot's tame (interactMob lines 163-172): the flag, the owner, the
      * coat roll ({@code 1 + nextInt(3)}), and the sitting start — NO health
      * flip (the cat keeps its 10 ceiling; the wolf's 20 is its own).

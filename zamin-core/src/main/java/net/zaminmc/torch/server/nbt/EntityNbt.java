@@ -243,7 +243,9 @@ public final class EntityNbt {
      * model (Slice 91 Wave C p2 — the charged flag doubles the blast, the
      * permanent ignite never cools, the Fuse/ExplosionRadius rows steer
      * the swell and the blast), the skeleton's
-     * SkeletonType (one kind), the ocelot's CatType (no variant state).</p>
+     * SkeletonType and the ocelot's CatType LANDED too (Slice 91 Wave C
+     * p4 — the wither-variant byte and the coat row over the engine's own
+     * fields).</p>
      */
     private static void writeTypeCustomNbt(MobEntity mob, Map<String, Snbt.Tag> nbt) {
         switch (mob.type()) {
@@ -322,7 +324,9 @@ public final class EntityNbt {
                 NbtOps.putByte(nbt, "ExplosionRadius", (byte) mob.creeperExplosionRadius());
                 NbtOps.putBoolean(nbt, "ignited", mob.creeperIgnited());
             }
-            case SKELETON -> NbtOps.putByte(nbt, "SkeletonType", (byte) 0);
+            case SKELETON -> NbtOps.putByte(nbt, "SkeletonType",
+                    (byte) (mob.skeletonWither() ? 1 : 0));
+            case OCELOT -> NbtOps.putInt(nbt, "CatType", mob.catVariant());
             default -> { }
         }
     }
@@ -403,9 +407,15 @@ public final class EntityNbt {
                     mob.setCreeperIgnited(true);
                 }
             }
-            // SKELETON (SkeletonType), OCELOT (CatType): the engine's
-            // standing envelopes (no model, ledgered) — the rows read into
-            // nothing.
+            case SKELETON -> {
+                // readCustomNbt lines 288-295: the numeric contains gate —
+                // an absent row keeps the variant; 1 arms the wither hull
+                // (the melee mind, the fire immunity, the taller body).
+                if (NbtOps.containsNumeric(nbt, "SkeletonType")) {
+                    mob.setSkeletonWither(NbtOps.getByte(nbt, "SkeletonType") != 0);
+                }
+            }
+            case OCELOT -> mob.setCatVariant(NbtOps.getInt(nbt, "CatType"));
             default -> { }
         }
     }
