@@ -9005,3 +9005,29 @@ EnderChest contents-on-player angle (the no-BE tile families' remains);
 (2) the shared container-open event (demand-named); (3) survey the
 ledger for the next vanilla wave (the §28.7 adapter stands after the
 1.8.8 polish).
+
+
+### Slice 98 — Wave K COMPLETE: the skull's Owner profile
+
+- 7d90dc5 (K1): the api record SkullProfile + SkullTile's fourth arm +
+  TileNbt's rows (THE ROT RENAME — the reference's own key is Rot, the
+  engine's "Rotation" never existed in vanilla) + the wire's Owner
+  compound.
+- 22d8709 (K2): the FIFTEENTH ItemStack component (the SkullOwner item
+  row, the two-branch consult), the SlotNbt wire, the ZID v7/ZMD v12
+  tails (the v6/v11 gates renamed at the bump), the placement consult
+  (the damage-3 arm).
+- Evidence: TileNbtTest 8, ItemTagRowsTest 10, ItemPersistenceTest 9,
+  MobDataStoreTest 9, SlotNbtTest 11, WitherSkullTest 4,
+  SkullSummonTest 5.
+- The ledgered corners: the string/compound SkullOwner merge identity
+  (vanilla's raw-tag compare never merges them; the engine's parsed
+  model does) and the online texture fill (the session-service seam —
+  an offline-mode vanilla server's own behavior).
+
+NEXT per the standing rows: (1) the EnderChest angle's VERIFY + retire
+(the ender slots ride the player's dat — PlayerNbt's rows already
+model them; the tile carries no contents in the reference); (2) the
+shared container-open event (demand-named); (3) the next vanilla wave
+per the compatibility ledger (the §28.7 adapter stands after the 1.8.8
+polish).
