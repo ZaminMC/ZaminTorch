@@ -52,8 +52,17 @@ public final class StatusEffectInstance {
         return ambient;
     }
 
+    public void setAmbient(boolean ambient) {
+        this.ambient = ambient;
+    }
+
     public boolean hasParticles() {
         return particles;
+    }
+
+    /** /effect's hideParticles arm (the reference's showParticles ctor flag). */
+    public void setParticles(boolean particles) {
+        this.particles = particles;
     }
 
     /**

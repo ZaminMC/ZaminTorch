@@ -179,6 +179,38 @@ class MissingCommandsWaveOneTest {
         assertEquals(5.5, spawn.z(), 1e-9);
     }
 
+    @Test
+    void theEffectArms() throws Exception {
+        // By name: the add lands on the target through the potion system.
+        dispatch("/effect Alice speed 60 1 true");
+        await(() -> server.potions().hasEffect(alice, net.zaminmc.torch.server.potion.StatusEffects.SPEED),
+                "the speed effect landed");
+        net.zaminmc.torch.server.potion.StatusEffectInstance instance =
+                server.potions().get(alice, net.zaminmc.torch.server.potion.StatusEffects.SPEED);
+        // 60 seconds * 20 minus the ticks that passed before the read.
+        assertTrue(instance.duration() >= 1190 && instance.duration() <= 1200,
+                "the seconds*20 rule: " + instance.duration());
+        assertEquals(1, instance.amplifier());
+        assertFalse(instance.hasParticles(), "hideParticles");
+
+        // The zero-seconds remove arm.
+        dispatch("/effect Alice speed 0");
+        await(() -> !server.potions().hasEffect(alice, net.zaminmc.torch.server.potion.StatusEffects.SPEED),
+                "the remove arm");
+
+        // The instant-duration rule: no seconds arg -> duration 1 — the
+        // effect applies once and is consumed (observable through the
+        // outcome: instant damage wounds the target).
+        dispatch("/effect Alice instant_damage");
+        await(() -> alice.health() < 20.0f, "the instant effect applied");
+        assertTrue(alice.health() >= 6.0f && alice.health() <= 18.0f,
+                "one instant application: " + alice.health());
+
+        // The clear arm.
+        dispatch("/effect Alice clear");
+        await(() -> server.potions().allOf(alice).isEmpty(), "the clear arm");
+    }
+
     private net.zaminmc.torch.server.chat.CommandSender aliceSender() {
         return new net.zaminmc.torch.server.chat.CommandSender() {
             @Override public String name() {
