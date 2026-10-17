@@ -1344,6 +1344,32 @@ model) and carries no thrower field at all. Order:
 - [x] D3 — the ledger + worklog rows (the envelope notes retired, the
       new rows' evidence and tests).
 
+## Wave E — the item bodies' persistence (the ledger's own next envelope)
+
+The evidence (ItemEntity lines 220-259): the item body's writeCustomNbt
+carries Health/Age/PickupDelay/Thrower/Owner/Item — the whole body
+round-trips the reference's save. The engine's item bodies carry no
+persistence at all (a restart erases every drop on the ground — the
+ledger's standing envelope). The store rides the engine's own Z-family
+binary formats (the ZMD shape), the stack tail copying the ZMD v6 rows
+(the display name + the enchant pairs).
+
+- [x] E1 — LANDED: the manager's snapshot/restore surface + the ZID v1
+      store (the position/velocity triple, the stack with its tag arms
+      copying the ZMD v6 tail, the age/pickupDelay pair, the
+      never-despawn bit, the thrower/owner strings) + the boot restore
+      and saveAllNow wiring + THE JOIN REPLAY the landing exposed (a
+      body dropped while nobody watched never reached the next joiner —
+      the newcomer's world snapshot now spawns the pre-existing items
+      like every other family);
+- [x] E2 — LANDED: ItemPersistenceTest 4 (the whole-body round trip
+      with the named enchanted sword + the pinned star past the wall +
+      the plain count, the corrupt quarantine, the unresolvable-stack
+      skip, the live-engine restart dance) + the regression sweep green
+      (PersistenceAcceptance, ItemEntityManager, ItemThrowerPickup,
+      LavaWalk, FurnaceRestart + the FULL protocol suite 40 + the api
+      suite 4).
+
 ## Standing (demand-named, not scheduled)
 
 - The shared container-open event (the chest family row's "if demand

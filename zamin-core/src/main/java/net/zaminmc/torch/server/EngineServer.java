@@ -28,6 +28,7 @@ import net.zaminmc.torch.server.entity.FallingBlockEntity;
 import net.zaminmc.torch.server.entity.ItemEntity;
 import net.zaminmc.torch.server.entity.ItemEntityManager;
 import net.zaminmc.torch.server.entity.MobDataStore;
+import net.zaminmc.torch.server.entity.ItemDataStore;
 import net.zaminmc.torch.server.entity.MobEntity;
 import net.zaminmc.torch.server.entity.MobManager;
 import net.zaminmc.torch.server.entity.MobType;
@@ -372,6 +373,9 @@ public final class EngineServer implements Server, EngineBridge {
     private ExperienceOrbManager experienceOrbs;
     private net.zaminmc.torch.server.world.light.LightEngine lightEngine;
     private MobDataStore mobStore;
+
+    /** The item bodies' own store (Slice 93/E1 — the ZID format, the drops survive the restart). */
+    private ItemDataStore itemStore;
     /** The vehicles' persistence store (Slice 25g — the ZVD format). */
     private net.zaminmc.torch.server.entity.vehicle.VehicleDataStore vehicleStore;
     /** The operator registry (ops.json); loaded at boot, rewritten on /op and /deop. */
@@ -771,6 +775,15 @@ public final class EngineServer implements Server, EngineBridge {
                     // Fresh world: nothing to restore — the pregenerated
                     // spawn chunks' pending animals drain on the first tick.
                 }
+                // The item bodies' restore (Slice 93/E1 — the reference's
+                // own item save): the persisted drops rejoin the world with
+                // their whole state (the stack's tag arms, the age clock,
+                // the pickup delay, the never-despawn pin, the thrower's
+                // stamp). The restore bypasses the §27.7 spawn gate — the
+                // persisted bodies are already-committed state, exactly
+                // like the mob store's restoreAll.
+                itemStore = new ItemDataStore(config.worldDataDir().resolve("items.bin"));
+                itemEntities.restoreAll(itemStore.load());
                 // Mob spawners (Slice 12g): the structure-placed spawner
                 // blocks' state + the spawn walk — dimension-aware since
                 // 18e (the cell gate + the cleanup read the spawner's own
@@ -21067,6 +21080,9 @@ public final class EngineServer implements Server, EngineBridge {
                 }
                 if (mobStore != null && mobManager != null) {
                     mobStore.save(mobManager.snapshot());
+                }
+                if (itemStore != null && itemEntities != null) {
+                    itemStore.save(itemEntities.snapshot());
                 }
                 if (vehicleStore != null && vehicleManager != null) {
                     vehicleStore.save(vehicleManager.snapshot());
