@@ -268,6 +268,9 @@ public final class EngineServer implements Server, EngineBridge {
             new net.zaminmc.torch.server.border.EngineWorldBorder(players);
     /** The scoreboard's persistence (world/scoreboard.json — Slice 85). */
     private net.zaminmc.torch.server.scoreboard.ScoreboardDataStore scoreboardStore;
+
+    /** The world border's persistence (Slice 90 — the level.dat border rows as worldborder.json). */
+    private volatile net.zaminmc.torch.server.border.WorldBorderDataStore borderStore;
     private final CraftingService crafting = CraftingService.builtin();
     private WorldStorage worldStorage;
     /** The nether dimension's delta persistence (DIM-1/zamin-delta.bin). */
@@ -554,6 +557,11 @@ public final class EngineServer implements Server, EngineBridge {
                 scoreboardStore = new net.zaminmc.torch.server.scoreboard.ScoreboardDataStore(
                         java.nio.file.Path.of(config.dataDir(), "scoreboard.json"), scoreboard);
                 scoreboardStore.load();
+                // The world border's persistence (Slice 90): restore before the
+                // first join can carry it (the reference's level.dat border rows).
+                borderStore = new net.zaminmc.torch.server.border.WorldBorderDataStore(
+                        java.nio.file.Path.of(config.dataDir(), "worldborder.json"), worldBorder);
+                borderStore.load();
                 banStore = BanStore.load(java.nio.file.Path.of(config.dataDir(), "banned-players.json"));
                 ipBanStore = IpBanStore.load(java.nio.file.Path.of(config.dataDir(), "banned-ips.json"));
                 whitelistStore = WhitelistStore.load(java.nio.file.Path.of(config.dataDir(), "whitelist.json"));
@@ -20526,6 +20534,9 @@ public final class EngineServer implements Server, EngineBridge {
                 // with the world; the engine's own shutdown + /save walk.
                 if (scoreboardStore != null) {
                     scoreboardStore.save();
+                }
+                if (borderStore != null) {
+                    borderStore.save();
                 }
                 if (jukeboxStore != null && jukeboxes != null) {
                     jukeboxStore.save(jukeboxes.snapshotRecords());
