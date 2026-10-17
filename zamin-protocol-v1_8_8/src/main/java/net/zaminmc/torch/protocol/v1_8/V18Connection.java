@@ -120,6 +120,18 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         this.engine = engine;
     }
 
+    /**
+     * The chunk-visibility key for an entity position: the chunk column from
+     * x/z alone (floor division) — a body below y=0 (the reference's own
+     * Entity.tick void window, the -64 kill plane of {@code voidTick}) never
+     * bounds-crashes the lookup, and the y coordinate never changes which
+     * 16x256x16 column a position belongs to.
+     */
+    static long chunkKeyOf(net.zaminmc.torch.util.Position at) {
+        return net.zaminmc.torch.block.ChunkPosition.ofBlock(
+                (int) Math.floor(at.x()), (int) Math.floor(at.z())).packed();
+    }
+
     // ------------------------------------------------------------------ pipeline
 
     @Override
@@ -260,8 +272,9 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 chunkTracker = new ChunkTracker(engine, channel);
                 // Center the initial view on the session's actual position: the
                 // world spawn for fresh players, the saved spot for returning ones.
-                chunkTracker.sendInitial(accepted.session().position()
-                        .toBlockPosition().chunkPosition());
+                chunkTracker.sendInitial(ChunkPosition.ofBlock(
+                        (int) Math.floor(accepted.session().position().x()),
+                        (int) Math.floor(accepted.session().position().z())));
                 // The tab-list walk (the reference's PlayerManager.add — the
                 // ADD broadcast + the joiner's full-list flush) sits between
                 // the pre-position packets and the teleport, exactly where
@@ -1778,7 +1791,11 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             return;
         }
         engine.movementProposal(player, position, rotation, onGround);
-        ChunkPosition newChunk = position.toBlockPosition().chunkPosition();
+        // The chunk column from x/z alone: a body below y=0 (the reference's
+        // own voidTick window — the -64 kill plane) never bounds-crashes
+        // the center update; y never changes chunk membership.
+        ChunkPosition newChunk = net.zaminmc.torch.block.ChunkPosition.ofBlock(
+                (int) Math.floor(position.x()), (int) Math.floor(position.z()));
         if (chunkTracker != null) {
             chunkTracker.updateCenter(newChunk);
         }
@@ -3412,8 +3429,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 || chunkTracker == null) {
             return;
         }
-        var blockPos = orb.position().toBlockPosition();
-        if (!chunkTracker.hasChunk(blockPos.chunkPosition().packed())) {
+        if (!chunkTracker.hasChunk(chunkKeyOf(orb.position()))) {
             return; // observer cannot see that chunk yet
         }
         ByteBuf out = Unpooled.buffer(24);
@@ -3489,8 +3505,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 || chunkTracker == null) {
             return;
         }
-        var blockPos = entity.position().toBlockPosition();
-        if (!chunkTracker.hasChunk(blockPos.chunkPosition().packed())) {
+        if (!chunkTracker.hasChunk(chunkKeyOf(entity.position()))) {
             return; // observer cannot see that chunk yet
         }
         Integer legacy = LegacyBlockIds.legacyItemId(entity.stack().type().identifier()).orElse(null);
@@ -3690,8 +3705,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 || chunkTracker == null) {
             return;
         }
-        var blockPos = entity.position().toBlockPosition();
-        if (!chunkTracker.hasChunk(blockPos.chunkPosition().packed())) {
+        if (!chunkTracker.hasChunk(chunkKeyOf(entity.position()))) {
             return; // observer cannot see that chunk yet
         }
         Integer legacy = LegacyBlockIds.legacyId(entity.blockType().identifier()).orElse(null);
@@ -3760,8 +3774,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         if (dimensionOfSession() != mob.dimension()) {
             return;
         }
-        var blockPos = mob.position().toBlockPosition();
-        if (!chunkTracker.hasChunk(blockPos.chunkPosition().packed())) {
+        if (!chunkTracker.hasChunk(chunkKeyOf(mob.position()))) {
             return; // observer cannot see that chunk yet
         }
         ByteBuf out = Unpooled.buffer(40);
@@ -4170,8 +4183,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 || chunkTracker == null) {
             return;
         }
-        var blockPos = mob.position().toBlockPosition();
-        if (!chunkTracker.hasChunk(blockPos.chunkPosition().packed())) {
+        if (!chunkTracker.hasChunk(chunkKeyOf(mob.position()))) {
             return;
         }
         writeEquipment(channel, mob.entityId(), Protocol18.EQUIPMENT_SLOT_HELD,
