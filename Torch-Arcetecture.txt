@@ -1370,6 +1370,29 @@ binary formats (the ZMD shape), the stack tail copying the ZMD v6 rows
       LavaWalk, FurnaceRestart + the FULL protocol suite 40 + the api
       suite 4).
 
+## Wave F — the lava motion drag (LivingEntity.travel's lava arm, lines 1202-1214)
+
+The evidence: the reference's lava branch — `move(vx, vy, vz)` then
+`vx *= 0.5; vy *= 0.5; vz *= 0.5; vy -= 0.02` — the harder drag triple
+plus the weak gravity (the steady sink -0.04, the same terminal the
+engine's clamped water model reaches, but the TRANSIENT differs: a
+plunging body decelerates geometrically over ~5 ticks, not instantly),
+and the horizontal crawl (the *0.5 damping vs the water's 0.8). The
+engine folds both fluids into one branch (the *0.8 buoyancy clamp).
+
+- [x] F1 — LANDED: the mob walk's lava split (the vertical
+      {@code v = v * 0.5 - 0.02} in the travel branch, the horizontal
+      *0.5 on the damping line alone — the first cut dragged twice, the
+      test caught it) + the MOUNT walk's own split (the ridden body
+      rides the same travel arm — its douse too);
+- [x] F2 — LANDED: LavaMotionDragTest 4 (the plunge keeps its speed the
+      first submerged tick with the water-clamp contrast, the
+      swim-vs-drag equilibrium near zero, the *0.5 horizontal crawl
+      with the 0.8 contrast, the fire-immune pigman riding the same
+      drag) + the regression sweep green (LavaWalk, MobManager,
+      HorseMount, MobCombat, BaseDefaultsModel, FireAcceptance,
+      BlazeEntity).
+
 ## Standing (demand-named, not scheduled)
 
 - The shared container-open event (the chest family row's "if demand

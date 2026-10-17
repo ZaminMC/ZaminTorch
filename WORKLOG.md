@@ -8786,3 +8786,29 @@ block entity (EnderChest/daylight detector/enchanting table/end portal/
 flower pot/banner/piston moving state/comparator OutputSignal/skull
 Owner profile), the lava motion drag (the *0.5 liquid drag vs the
 shared *0.8 buoyancy), the model-less item-tag arms.
+
+## Slice 93 — Wave F: the lava motion drag
+
+- **F1 — THE TRAVEL BRANCH'S SPLIT**: LivingEntity.travel's lava arm
+  (lines 1202-1214) over the mob walk — the vertical v = v*0.5 - 0.02
+  (the geometric transient: a plunging body keeps most of its speed the
+  first submerged tick, decelerating over ~5 ticks — not the water
+  clamp's instant -0.04), the horizontal *0.5 crawl on the damping
+  line, and the MOUNT walk's own split (the ridden body rides the same
+  arm, its douse consult split too). THE DOUBLE-DRAG BUG THE TEST
+  CAUGHT: the first cut applied the horizontal *0.5 in BOTH the travel
+  branch and the damping line (0.125 per tick) — the damping line
+  carries it alone now.
+- **F2 — the tests + the rows**: LavaMotionDragTest 4 (the plunge's
+  first-tick window with the water contrast, the swim-vs-drag
+  equilibrium near zero, the crawl, the immune pigman), the regression
+  sweep green (7 classes), the ledger row + the §29 check-offs + this
+  entry. Ledgered: the climb-out assist (the pool-exit behavior), the
+  one-tick drag phase.
+
+NEXT (in order): the §29 standing list (the shared container-open
+event, demand-named; the §28.7 Bukkit adapter, after the polish) and
+the ledger's remaining envelopes — the tile families with no engine
+block entity (EnderChest/daylight detector/enchanting table/end portal/
+flower pot/banner/piston moving state/comparator OutputSignal/skull
+Owner profile), the model-less item-tag arms.

@@ -6443,7 +6443,8 @@ public final class MobEntity implements LivingEntity {
         }
 
         boolean inFluid = world.inFluid(position.x(), position.y() + 0.2, position.z());
-        if (inFluid && fireTicks > 0) {
+        boolean inLava = world.inLava(position.x(), position.y() + 0.2, position.z());
+        if (inFluid && !inLava && fireTicks > 0) {
             extinguish();
         }
 
@@ -6459,7 +6460,11 @@ public final class MobEntity implements LivingEntity {
             jumpCooldown = RIDE_JUMP_COOLDOWN;
             onGround = false;
         }
-        if (inFluid) {
+        if (inLava) {
+            // The mount rides the same travel lava arm (Slice 93/F1 — the
+            // ridden body's own drag triple + the weak gravity).
+            velocityY = velocityY * 0.5 - 0.02;
+        } else if (inFluid) {
             velocityY = Math.max(velocityY - GRAVITY_PER_TICK, -0.05) * 0.8;
         } else if (onGround) {
             velocityY = 0.0;
@@ -6470,7 +6475,7 @@ public final class MobEntity implements LivingEntity {
         double radians = Math.toRadians(yaw);
         double moveX = velocityX - Math.sin(radians) * walk;
         double moveZ = velocityZ + Math.cos(radians) * walk;
-        double damping = inFluid ? 0.8 : (onGround ? 0.6 : 0.98);
+        double damping = inLava ? 0.5 : inFluid ? 0.8 : (onGround ? 0.6 : 0.98);
         velocityX *= damping;
         velocityZ *= damping;
 
@@ -7734,7 +7739,19 @@ public final class MobEntity implements LivingEntity {
             decayVelocity();
             return;
         }
-        if (inFluid) {
+        if (inLava) {
+            // LivingEntity.travel's lava arm (lines 1202-1214): the
+            // harder drag + the weak gravity on the VERTICAL —
+            // {@code v = v * 0.5 - 0.02} (the steady sink -0.04, the same
+            // terminal the clamped water model reaches, but the TRANSIENT
+            // differs: a plunging body decelerates geometrically over ~5
+            // ticks, not instantly — Slice 93/F1's split of the shared
+            // fluid branch; the engine applies the drag before its move, a
+            // one-tick phase against the reference's move-then-drag
+            // order, ledgered). The HORIZONTAL drag rides the damping
+            // line below (the same *0.5, applied once — not both).
+            velocityY = velocityY * 0.5 - 0.02;
+        } else if (inFluid) {
             velocityY = Math.max(velocityY - GRAVITY_PER_TICK, -0.05) * 0.8;
         } else if (onGround && velocityY <= 0.0) {
             // A grounded body at rest carries no vertical speed — but a
@@ -7807,7 +7824,10 @@ public final class MobEntity implements LivingEntity {
             }
         }
 
-        double damping = inFluid ? 0.8 : (onGround ? 0.6 : 0.98);
+        // The damping's lava arm (Slice 93/F1 — the reference's *0.5
+        // horizontal drag vs the water's 0.8: a body crawling through
+        // lava loses half its horizontal motion every tick).
+        double damping = inLava ? 0.5 : inFluid ? 0.8 : (onGround ? 0.6 : 0.98);
         velocityX *= damping;
         velocityZ *= damping;
 
