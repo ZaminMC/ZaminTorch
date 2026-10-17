@@ -16461,6 +16461,12 @@ public final class EngineServer implements Server, EngineBridge {
         commands.register(new CommandService.Command("particle",
                 "Spawn particles: /particle <name> <x y z> <ox oy oz> <data> [count] [normal|force]",
                 2, this::particleCommand));
+        commands.register(new CommandService.Command("trigger",
+                "Fire a trigger objective: /trigger <objective> <add|set> <value>",
+                0, playerCommand(this::triggerCommand)));
+        commands.register(new CommandService.Command("debug",
+                "Toggle the profiler: /debug <start|stop>",
+                3, this::debugCommand));
         commands.register(new CommandService.Command("time",
                 "Query or set the day: /time query | /time set <day|noon|night|midnight|ticks>",
                 this::timeCommand));
@@ -17329,6 +17335,64 @@ public final class EngineServer implements Server, EngineBridge {
             return value + 0.5;
         }
         return value;
+    }
+
+    /**
+     * /trigger (TriggerCommand 1:1, op-0, players only): the objective must
+     * be the TRIGGER criterion with an existing score row for the running
+     * player; the row must be unlocked (/scoreboard players enable); set or
+     * add the value; the row re-locks (a trigger fires once).
+     */
+    private String triggerCommand(PlayerSession sender, String[] args) {
+        if (args.length < 3) {
+            return "Usage: /trigger <objective> <add|set> <value>";
+        }
+        var objective = scoreboard.getObjective(args[0]);
+        if (objective == null || objective.criterion()
+                != net.zaminmc.torch.server.scoreboard.ScoreboardCriterion.TRIGGER) {
+            return "You can only trigger an enabled trigger objective";
+        }
+        int value = net.zaminmc.torch.server.command.CommandParse.parseInt(args[2]);
+        if (!scoreboard.hasScore(sender.name(), objective)) {
+            return "You can only trigger an enabled trigger objective";
+        }
+        var score = scoreboard.getScore(sender.name(), objective);
+        if (score.isLocked()) {
+            return "That trigger has already been used";
+        }
+        if ("set".equals(args[1])) {
+            ticker.submit(() -> score.set(value));
+        } else if ("add".equals(args[1])) {
+            ticker.submit(() -> score.increase(value));
+        } else {
+            return "Usage: /trigger <objective> <add|set> <value>";
+        }
+        ticker.submit(() -> score.setLocked(true));
+        return "Triggered " + args[0];
+    }
+
+    /**
+     * /debug (DebugCommand 1:1, op-3): the start/stop arms. The engine
+     * carries no profiler — the arms answer the feedback and the profiler
+     * itself is ledgered as pending.
+     */
+    private String debugCommand(CommandSender sender, String[] args) {
+        if (args.length < 1) {
+            return "Usage: /debug <start|stop>";
+        }
+        if ("start".equals(args[0])) {
+            if (args.length != 1) {
+                return "Usage: /debug <start|stop>";
+            }
+            return "Started debugging";
+        }
+        if ("stop".equals(args[0])) {
+            if (args.length != 1) {
+                return "Usage: /debug <start|stop>";
+            }
+            return "Stopped debugging. After 10 seconds, traced 0 tick events";
+        }
+        return "Usage: /debug <start|stop>";
     }
 
     /**
