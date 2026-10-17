@@ -8212,3 +8212,30 @@ exposure (§27.3 — the verbs are ClientLink-internal this slice); (3) the
 real-wire title integration test over the protocol module; (4) the §27
 window-family re-sync rows; (5) the border's worldborder.json
 persistence; (6) the periodic release cadence.
+
+## Slice 88 — the missing-commands batch, wave one (/kill any-kind + /testfor + /toggledownfall + /spawnpoint + /setworldspawn)
+
+- **/KILL** (KillCommand 1:1): the no-arg self arm, the any-kind ladder
+  (selector → player-name → uuid), the player death walk (the reference's
+  discard resolves through the death screen) vs the mob's no-drops removal
+  (discard bypasses the loot walk).
+- **/TESTFOR** (TestForCommand 1:1): the same ladder + "Found %s". The
+  dataTag arm is NOT implemented (needs the reference's writeNbtWithoutId
+  surface — the engine's persistence is store-shaped); ledgered.
+- **/TOGGLEDOWNFALL** (ToggleDownfallCommand 1:1): the rain-flag flip. The
+  engine's setWeather carries the /weather default duration (no timer read
+  surface; the reference leaves the clocks untouched); ledgered.
+- **/SPAWNPOINT** (SpawnPointCommand 1:1): parsePlayer-or-self, the
+  ~-relative coords or the target's own block, the ZPD v7 bed-spawn stamp
+  (the respawn walk already consults it).
+- **/SETWORLDSPAWN** (SetWorldSpawnCommand 1:1): coords-or-source (the
+  console's source is the world spawn), the spawn.json persistence, and
+  the Spawn Position 0x05 broadcast through the new
+  ClientLink.updateSpawnPosition verb.
+- The CommandParse.parseEntity ladder (selector, by-name, uuid,
+  not-found) + the weather() accessor.
+- Tests: MissingCommandsWaveOneTest (5).
+
+NEXT: wave two — /effect + /enchant + /achievement; then /particle +
+/playsound; then /execute (+detect); then /setblock /fill /clone; then
+/blockdata /entitydata /replaceitem /stats /trigger /debug.

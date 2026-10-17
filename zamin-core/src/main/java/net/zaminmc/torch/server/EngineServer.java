@@ -16432,6 +16432,22 @@ public final class EngineServer implements Server, EngineBridge {
         commands.register(new CommandService.Command("tellraw",
                 "Send a raw JSON message: /tellraw <player> <raw json message>",
                 2, new net.zaminmc.torch.server.command.TellRawCommand(players)::run));
+        // The missing-commands batch, wave one (Slice 88 — KillCommand's
+        // any-kind arm, TestForCommand, ToggleDownfallCommand,
+        // SpawnPointCommand over the ZPD bed spawn, SetWorldSpawnCommand
+        // with the 0x05 broadcast).
+        commands.register(new CommandService.Command("testfor",
+                "Test for an entity: /testfor <player|entity>",
+                2, this::testforCommand));
+        commands.register(new CommandService.Command("toggledownfall",
+                "Toggle rain: /toggledownfall",
+                2, this::toggledownfallCommand));
+        commands.register(new CommandService.Command("spawnpoint",
+                "Set a spawn point: /spawnpoint [player] [x y z]",
+                2, this::spawnpointCommand));
+        commands.register(new CommandService.Command("setworldspawn",
+                "Set the world spawn: /setworldspawn [x y z]",
+                2, this::setworldspawnCommand));
         commands.register(new CommandService.Command("time",
                 "Query or set the day: /time query | /time set <day|noon|night|midnight|ticks>",
                 this::timeCommand));
@@ -16887,16 +16903,140 @@ public final class EngineServer implements Server, EngineBridge {
 
     /** /kill [player]: the void-equivalent death (pierces protection, historical rule). */
     private String killCommand(CommandSender sender, String[] args) {
-        PlayerSession target = resolveTarget(sender, args);
-        if (target == null) {
-            return "Usage: /kill [player]";
-        }
-        ticker.submit(() -> {
-            if (target.state() == PlayerState.PLAYING && !target.dead()) {
-                dieOnTick(target);
+        // KillCommand 1:1: no args = the sender's own body; an arg is the
+        // any-kind entity ladder (selector → name → uuid). A player walks
+        // the full death walk (the reference's discard on a player resolves
+        // through the death screen); a mob is removed without drops (the
+        // reference's discard bypasses the loot walk).
+        if (args.length == 0) {
+            PlayerSession self = sender.player();
+            if (self == null) {
+                return "Usage: /kill [player|entity]";
             }
-        });
+            ticker.submit(() -> {
+                if (self.state() == PlayerState.PLAYING && !self.dead()) {
+                    dieOnTick(self);
+                }
+            });
+            return "Killed " + self.name();
+        }
+        net.zaminmc.torch.server.command.TargetSelector.Candidate target = net.zaminmc.torch.server.command.CommandParse
+                .parseEntity(players, sender, args[0]);
+        if (target.player()) {
+            PlayerSession session = (PlayerSession) target.handle();
+            ticker.submit(() -> {
+                if (session.state() == PlayerState.PLAYING && !session.dead()) {
+                    dieOnTick(session);
+                }
+            });
+        } else {
+            MobEntity mob = (MobEntity) target.handle();
+            ticker.submit(() -> mobManager.remove(mob, "kill command"));
+        }
         return "Killed " + target.name();
+    }
+
+    /**
+     * /testfor (TestForCommand 1:1, op-2): the any-kind ladder then the
+     * success line. The dataTag arm rides the per-entity NBT write surface
+     * (not yet — the engine's entity persistence is store-shaped, not the
+     * reference's writeNbtWithoutId walk); ledgered.
+     */
+    private String testforCommand(CommandSender sender, String[] args) {
+        if (args.length < 1) {
+            return "Usage: /testfor <player> [dataTag]";
+        }
+        if (args.length >= 2) {
+            return "The dataTag arm is not implemented yet (ledgered)";
+        }
+        net.zaminmc.torch.server.command.TargetSelector.Candidate found = net.zaminmc.torch.server.command.CommandParse
+                .parseEntity(players, sender, args[0]);
+        return "Found " + found.name();
+    }
+
+    /**
+     * /toggledownfall (ToggleDownfallCommand 1:1, op-2): flips the rain
+     * flag on the overworld's data (the reference's worlds[0]
+     * .setRaining(!isRaining())). The engine's setWeather carries the
+     * /weather default duration (WeatherSystem exposes no timer read —
+     * the reference leaves the clocks untouched; ledgered).
+     */
+    private String toggledownfallCommand(CommandSender sender, String[] args) {
+        boolean rainingNow = weather.raining();
+        weather.setWeather(!rainingNow, weather.thundering(),
+                net.zaminmc.torch.server.weather.WeatherSystem.defaultDurationTicks());
+        return "Toggled downfall";
+    }
+
+    /**
+     * /spawnpoint (SpawnPointCommand 1:1, op-2): the target (args or the
+     * sender), the position (three coords or the target's own block), and
+     * the bed-spawn stamp (ZPD v7 persists it; the respawn walk consults it).
+     */
+    private String spawnpointCommand(CommandSender sender, String[] args) {
+        if (args.length > 1 && args.length < 4) {
+            return "Usage: /spawnpoint [player] [x y z]";
+        }
+        PlayerSession target = args.length > 0
+                ? net.zaminmc.torch.server.command.CommandParse.parsePlayer(players, sender, args[0])
+                : sender.player();
+        if (target == null) {
+            return "Usage: /spawnpoint [player] [x y z]";
+        }
+        Position at = target.position();
+        double x = Math.floor(at.x());
+        double y = Math.floor(at.y());
+        double z = Math.floor(at.z());
+        if (args.length > 3) {
+            x = parseRelativeCoordinate(x, args[1]);
+            y = parseRelativeCoordinate(y, args[2]);
+            z = parseRelativeCoordinate(z, args[3]);
+        }
+        Position point = new Position(x + 0.5, y, z + 0.5);
+        ticker.submit(() -> target.setBedSpawn(point));
+        return String.format(java.util.Locale.ROOT,
+                "%s's spawn point set to %d, %d, %d", target.name(),
+                (int) Math.floor(x), (int) Math.floor(y), (int) Math.floor(z));
+    }
+
+    /**
+     * /setworldspawn (SetWorldSpawnCommand 1:1, op-2): the world spawn
+     * (three coords or the source's own block — the console's source is the
+     * origin), the persistence, and the Spawn Position 0x05 broadcast to
+     * every live session (the reference's PlayerManager.sendPacket).
+     */
+    private String setworldspawnCommand(CommandSender sender, String[] args) {
+        double x;
+        double y;
+        double z;
+        if (args.length == 0) {
+            PlayerSession self = sender.player();
+            Position at = self != null ? self.position() : world.spawnPosition();
+            x = Math.floor(at.x());
+            y = Math.floor(at.y());
+            z = Math.floor(at.z());
+        } else {
+            if (args.length != 3) {
+                return "Usage: /setworldspawn [x y z]";
+            }
+            Position at = world.spawnPosition();
+            x = parseRelativeCoordinate(Math.floor(at.x()), args[0]);
+            y = parseRelativeCoordinate(Math.floor(at.y()), args[1]);
+            z = parseRelativeCoordinate(Math.floor(at.z()), args[2]);
+        }
+        Position point = new Position(x + 0.5, y, z + 0.5);
+        world.setSpawnPosition(point);
+        saveSpawnAnchor(point);
+        LOGGER.info(() -> "World spawn moved to " + point + " by " + sender.name());
+        for (PlayerSession session : players.all()) {
+            if (session.state() == PlayerState.PLAYING) {
+                session.link().updateSpawnPosition(
+                        (int) Math.floor(x), (int) Math.floor(y), (int) Math.floor(z));
+            }
+        }
+        return String.format(java.util.Locale.ROOT,
+                "Set the world spawn to %d, %d, %d",
+                (int) Math.floor(x), (int) Math.floor(y), (int) Math.floor(z));
     }
 
     /** /heal [player]: full hearts, full hunger, the historical saturation reset. */

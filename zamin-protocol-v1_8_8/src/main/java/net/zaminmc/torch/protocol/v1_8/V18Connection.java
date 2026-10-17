@@ -2230,6 +2230,20 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         channel.writeAndFlush(out);
     }
 
+    @Override
+    public void updateSpawnPosition(int x, int y, int z) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        // Spawn Position (0x05): the packed block position (the join burst's
+        // own writer shape).
+        ByteBuf out = Unpooled.buffer(16);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_SPAWN_POSITION);
+        ByteBufOps.writePackedBlockPosition(out, x, y, z);
+        channel.writeAndFlush(out);
+    }
+
     /** The protocol 47 varlong (7 bits per byte, high bit = continuation). */
     private static void writeVarLong(ByteBuf out, long value) {
         while (true) {
