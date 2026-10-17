@@ -271,13 +271,13 @@ public final class EntityNbt {
             case HORSE -> {
                 NbtOps.putBoolean(nbt, "EatingHaystack", mob.eating());
                 NbtOps.putBoolean(nbt, "ChestedHorse", false);
-                NbtOps.putBoolean(nbt, "HasReproduced", false);
-                NbtOps.putBoolean(nbt, "Bred", false);
+                NbtOps.putBoolean(nbt, "HasReproduced", mob.horseHasReproduced());
+                NbtOps.putBoolean(nbt, "Bred", mob.horseBred());
                 NbtOps.putInt(nbt, "Type", mob.horseSubtype());
                 NbtOps.putInt(nbt, "Variant", mob.variant());
                 NbtOps.putInt(nbt, "Temper", mob.temper());
                 NbtOps.putBoolean(nbt, "Tame", mob.tamed());
-                NbtOps.putString(nbt, "OwnerUUID", "");
+                NbtOps.putString(nbt, "OwnerUUID", mob.ownerUuid());
                 // The armor/saddle as the reference's own ITEM rows: the
                 // engine's armorType int and saddled flag through the item
                 // forms (iron/gold/diamond_horse_armor, the saddle).
@@ -304,8 +304,11 @@ public final class EntityNbt {
             }
             case VILLAGER -> NbtOps.putInt(nbt, "Profession", mob.profession());
             case WOLF -> {
-                NbtOps.putBoolean(nbt, "Tame", mob.wolfTamed());
-                NbtOps.putString(nbt, "OwnerUUID", "");
+                // The reference's wolf write (WolfEntity 122-126 +
+                // TameableEntity 30-38): OwnerUUID + Sitting + Angry +
+                // CollarColor — NO Tame row (the tamed state derives from
+                // the owner row at load: a non-empty OwnerUUID tames).
+                NbtOps.putString(nbt, "OwnerUUID", mob.ownerUuid());
                 NbtOps.putBoolean(nbt, "Sitting", mob.wolfSitting());
                 NbtOps.putBoolean(nbt, "Angry", mob.wolfAngry());
                 NbtOps.putByte(nbt, "CollarColor", (byte) mob.wolfCollarColor());
@@ -340,7 +343,13 @@ public final class EntityNbt {
             }
             case SKELETON -> NbtOps.putByte(nbt, "SkeletonType",
                     (byte) (mob.skeletonWither() ? 1 : 0));
-            case OCELOT -> NbtOps.putInt(nbt, "CatType", mob.catVariant());
+            case OCELOT -> {
+                // The reference's ocelot (OcelotEntity + TameableEntity
+                // 30-38): the owner pair + the sitting flag + the coat.
+                NbtOps.putString(nbt, "OwnerUUID", mob.ownerUuid());
+                NbtOps.putBoolean(nbt, "Sitting", mob.wolfSitting());
+                NbtOps.putInt(nbt, "CatType", mob.catVariant());
+            }
             default -> { }
         }
     }
@@ -367,6 +376,22 @@ public final class EntityNbt {
                     mob.setHorseTemper(NbtOps.getInt(nbt, "Temper"));
                 }
                 mob.setTamedFlag(NbtOps.getBoolean(nbt, "Tame"));
+                // The breeding rows (HorseBaseEntity.readCustomNbt lines
+                // 1133-1137): the graze flash re-arms when the row says
+                // so; ChestedHorse parses to nowhere (the engine's
+                // no-donkey/mule envelope — no chested kinds exist);
+                // the bred pair lands on the markers (the breeding-gate
+                // consults are the engine's no-horse-breeding envelope).
+                if (NbtOps.getBoolean(nbt, "EatingHaystack")) {
+                    mob.flashEating();
+                }
+                mob.setHorseBred(NbtOps.getBoolean(nbt, "Bred"));
+                mob.setHorseHasReproduced(NbtOps.getBoolean(nbt, "HasReproduced"));
+                // The owner walk (lines 1142-1153): the STRING-gated
+                // OwnerUUID row (else the legacy Owner name), a non-empty
+                // read lands the owner — the horse does NOT auto-tame
+                // (the Tame row carries that).
+                readOwnerRows(mob, nbt);
                 mob.setSaddled(NbtOps.contains(nbt, "SaddleItem", Snbt.Tag.Type.COMPOUND));
                 net.zaminmc.torch.item.ItemStack armor =
                         ItemNbt.read(NbtOps.getCompound(nbt, "ArmorItem"));
@@ -382,7 +407,20 @@ public final class EntityNbt {
             }
             case VILLAGER -> mob.setVillagerProfession(NbtOps.getInt(nbt, "Profession"));
             case WOLF -> {
-                mob.setTamedFlag(NbtOps.getBoolean(nbt, "Tame"));
+                // The TameableEntity read (lines 43-58): a non-empty owner
+                // row TAMES the body — the reference's own load gate; the
+                // engine's Tame parse rides beside it (the engine's own
+                // belt: a tamed-owner-less edge the reference cannot make).
+                readOwnerRows(mob, nbt);
+                if (!mob.ownerUuid().isEmpty() || !mob.ownerName().isEmpty()) {
+                    mob.setTamedFlag(true);
+                }
+                // The engine's own belt (a Tame row the reference's wolf
+                // never writes): a PRESENT row applies — an absent row
+                // never clobbers the owner walk's own verdict.
+                if (NbtOps.contains(nbt, "Tame", Snbt.Tag.Type.BYTE)) {
+                    mob.setTamedFlag(NbtOps.getBoolean(nbt, "Tame"));
+                }
                 mob.setWolfSitting(NbtOps.getBoolean(nbt, "Sitting"));
                 mob.setWolfAngry(NbtOps.getBoolean(nbt, "Angry"));
                 mob.setWolfCollarColor(NbtOps.getByte(nbt, "CollarColor"));
@@ -429,9 +467,53 @@ public final class EntityNbt {
                     mob.setSkeletonWither(NbtOps.getByte(nbt, "SkeletonType") != 0);
                 }
             }
-            case OCELOT -> mob.setCatVariant(NbtOps.getInt(nbt, "CatType"));
+            case OCELOT -> {
+                // The reference's ocelot (TameableEntity 43-58 + the
+                // ungated CatType): the owner walk tames, the coat resets
+                // on an absent row.
+                readOwnerRows(mob, nbt);
+                if (!mob.ownerUuid().isEmpty() || !mob.ownerName().isEmpty()) {
+                    mob.setTamedFlag(true);
+                }
+                mob.setWolfSitting(NbtOps.getBoolean(nbt, "Sitting"));
+                mob.setCatVariant(NbtOps.getInt(nbt, "CatType"));
+            }
             default -> { }
         }
+    }
+
+    /**
+     * The tameable family's owner walk (TameableEntity.readCustomNbt lines
+     * 44-56 / HorseBaseEntity lines 1142-1153): the STRING-gated
+     * OwnerUUID row, else the legacy Owner NAME row (the pre-1.8 shape —
+     * the engine reads it straight, the UserConverter's own conversion
+     * arm); a non-empty read lands the uuid on the model and the legacy
+     * name on the name slot.
+     */
+    private static void readOwnerRows(MobEntity mob, Map<String, Snbt.Tag> nbt) {
+        String owner;
+        if (NbtOps.contains(nbt, "OwnerUUID", Snbt.Tag.Type.STRING)) {
+            owner = NbtOps.getString(nbt, "OwnerUUID");
+        } else {
+            owner = NbtOps.getString(nbt, "Owner");
+        }
+        if (owner != null && !owner.isEmpty()) {
+            // The reference stores the one string in the owner slot; the
+            // engine splits: a uuid-shaped string lands the uuid slot, any
+            // other lands the name (the legacy row's own shape).
+            if (owner.length() == 36 && owner.charAt(8) == '-'
+                    && owner.charAt(13) == '-' && owner.charAt(18) == '-'
+                    && owner.charAt(23) == '-') {
+                mob.setOwnerUuid(owner);
+            } else {
+                mob.setCustomOwnerName(owner);
+            }
+        }
+    }
+
+    /** The test bridge over the per-type read (the row-level unit rows). */
+    static void readTypeCustomNbtForTest(MobEntity mob, Map<String, Snbt.Tag> nbt) {
+        readTypeCustomNbt(mob, nbt);
     }
 
     private static Snbt.Tag attributeRows(String name, double base) {

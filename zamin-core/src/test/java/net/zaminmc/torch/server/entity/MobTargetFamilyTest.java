@@ -82,7 +82,7 @@ class MobTargetFamilyTest {
         assertTrue(wolf.wolfAngry(), "a wild wolf on a target goes angry");
 
         // The tamed wolf hunts no sheep (UntamedActiveTargetGoal).
-        wolf.tameWolf("Owner");
+        wolf.tameWolf("Owner", "");
         wolf.setMobAttackTarget(null);
         found = null;
         for (int i = 0; i < 400 && found == null; i++) {
@@ -176,7 +176,7 @@ class MobTargetFamilyTest {
 
         // A TAMED wolf never goes angry on a target (WolfEntity's own
         // gate: only the untamed flip).
-        wolf.tameWolf("Owner");
+        wolf.tameWolf("Owner", "");
         wolf.setMobAttackTarget(sheep);
         assertFalse(wolf.wolfAngry());
         assertSame(sheep, wolf.mobAttackTarget());
@@ -223,9 +223,9 @@ class MobTargetFamilyTest {
         MobEntity stranger = spawn(world, 862, MobType.WOLF, new Position(4.5, 8.0, 0.5), 59L);
         MobEntity sheep = spawn(world, 863, MobType.SHEEP, new Position(6.5, 8.0, 0.5), 60L);
 
-        standing.tameWolf("Owner");
-        sitting.tameWolf("Owner");
-        stranger.tameWolf("Elsewhere");
+        standing.tameWolf("Owner", "");
+        sitting.tameWolf("Owner", "");
+        stranger.tameWolf("Elsewhere", "");
 
         // The join helper's own law, expressed at the state level: the
         // standing wolf of the owner takes the target; the sitting one

@@ -104,9 +104,13 @@ class TileNbtTest {
         });
     }
 
+    /** The placement counter (the collision-free band — a random pair could land two reads on one chest). */
+    private int placeCounter;
+
     private BlockPosition place(String blockName) throws Exception {
+        int cell = placeCounter++;
         BlockPosition pos = new BlockPosition(
-                8 + (int) (Math.random() * 8), 40, 8 + (int) (Math.random() * 8));
+                8 + (cell % 8), 40, 8 + ((cell / 8) % 8));
         tick(() -> server.world().setBlock(pos,
                 server.world().blockRegistry().byKey("minecraft:" + blockName).orElseThrow()));
         await(() -> server.world().getBlock(pos).identifier().value().equals(blockName),

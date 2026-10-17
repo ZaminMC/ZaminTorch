@@ -578,6 +578,19 @@ public final class MobEntity implements LivingEntity {
     private int armorType = HORSE_ARMOR_NONE;
     private int temper;
     private String ownerName = "";
+    /**
+     * The owner's uuid string (the reference's OwnerUUID row — the
+     * syncedData 21/17 string IS the uuid at tame time; the engine's
+     * name model rides beside it, the gates consult the uuid first).
+     */
+    private String ownerUuid = "";
+    /**
+     * The horse's breeding markers (HorseBaseEntity.bred/hasBred, lines
+     * 85-86): the rows round-trip; the breeding-gate consults are the
+     * engine's no-horse-breeding envelope.
+     */
+    private boolean horseBred;
+    private boolean horseHasReproduced;
     private int riderId = -1;
     private float steerSideways;
     private float steerForward;
@@ -2194,9 +2207,13 @@ public final class MobEntity implements LivingEntity {
         }
     }
 
-    /** The tamed mark (readNbt's Tame row): the wolf's own bit or the horse flag bit. */
+    /**
+     * The tamed mark (readNbt's Tame row / the owner walk's own load gate):
+     * the tameable family's shared wolf-flags bit (the wolf AND the ocelot)
+     * or the horse flag bit.
+     */
     public void setTamedFlag(boolean tamed) {
-        if (type == MobType.WOLF) {
+        if (type == MobType.WOLF || type == MobType.OCELOT) {
             if (tamed) {
                 wolfFlags |= WOLF_FLAG_TAMED;
             } else {
@@ -2345,10 +2362,13 @@ public final class MobEntity implements LivingEntity {
      * recompute — 20 over the wild 8), the attack-damage recompute (4.0),
      * and the sitting start.
      */
-    public void tameWolf(String owner) {
+    public void tameWolf(String owner, String ownerUuid) {
         wolfFlags |= WOLF_FLAG_TAMED;
         if (owner != null && !owner.isEmpty()) {
             ownerName = owner;
+        }
+        if (ownerUuid != null && !ownerUuid.isEmpty()) {
+            this.ownerUuid = ownerUuid;
         }
         wolfAttackDamage = 4.0f;
         this.health = 20.0f; // setHealth(20) under setTamed's raised ceiling
@@ -2387,10 +2407,13 @@ public final class MobEntity implements LivingEntity {
      * coat roll ({@code 1 + nextInt(3)}), and the sitting start — NO health
      * flip (the cat keeps its 10 ceiling; the wolf's 20 is its own).
      */
-    public void tameOcelot(String owner, int variant) {
+    public void tameOcelot(String owner, String ownerUuid, int variant) {
         wolfFlags |= WOLF_FLAG_TAMED;
         if (owner != null && !owner.isEmpty()) {
             ownerName = owner;
+        }
+        if (ownerUuid != null && !ownerUuid.isEmpty()) {
+            this.ownerUuid = ownerUuid;
         }
         catVariant = variant;
         wolfFlags |= WOLF_FLAG_SITTING; // sitGoal.setEnabledWithOwner(true)
@@ -5496,6 +5519,61 @@ public final class MobEntity implements LivingEntity {
         return ownerName;
     }
 
+    /**
+     * @return the tamer's uuid string (the reference's OwnerUUID row —
+     * "" until tamed; the reference's own owner slot carries THIS).
+     */
+    public String ownerUuid() {
+        return ownerUuid;
+    }
+
+    public void setOwnerUuid(String ownerUuid) {
+        this.ownerUuid = ownerUuid == null ? "" : ownerUuid;
+    }
+
+    /**
+     * The legacy owner NAME row's landing (the pre-1.8 {@code Owner}
+     * string — the reference's UserConverter arm feeds the same slot):
+     * the name-keyed gates keep working across the old row.
+     */
+    public void setCustomOwnerName(String ownerName) {
+        this.ownerName = ownerName == null ? "" : ownerName;
+    }
+
+    /**
+     * The owner consult (the reference's TameableEntity.isOwner /
+     * getOwner: {@code UUID.fromString(owner) == entity.getUuid()}): the
+     * uuid arm first — the row's own string — with the engine's name arm
+     * as the legacy fallback (the pre-uuid model, the name-keyed gates).
+     */
+    public boolean isOwner(net.zaminmc.torch.server.player.PlayerSession player) {
+        if (player == null) {
+            return false;
+        }
+        if (!ownerUuid.isEmpty()) {
+            return ownerUuid.equals(player.uuid().toString());
+        }
+        return !ownerName.isEmpty() && ownerName.equals(player.name());
+    }
+
+    /** The horse's Bred row (the bred marker — the breeding-gate envelope). */
+    public boolean horseBred() {
+        return horseBred;
+    }
+
+    public void setHorseBred(boolean horseBred) {
+        this.horseBred = horseBred;
+    }
+
+    /** The horse's HasReproduced row (the hasBred marker). */
+    public boolean horseHasReproduced() {
+        return horseHasReproduced;
+    }
+
+    public void setHorseHasReproduced(boolean horseHasReproduced) {
+        this.horseHasReproduced = horseHasReproduced;
+    }
+
     /** @return whether the pig carries a saddle (the pig's own index-16 byte). */
     public boolean pigSaddled() {
         return pigSaddled;
@@ -5524,13 +5602,15 @@ public final class MobEntity implements LivingEntity {
      * directly. The result tells the manager whether to seat, tame-and-seat,
      * or seat-and-buck.
      */
-    public MountAttempt attemptMount() {
+    public MountAttempt attemptMount(String ownerName, String ownerUuid) {
         if (type == MobType.PIG || tamed()) {
             return MountAttempt.MOUNTED;
         }
         temper = Math.min(100, temper + TEMPER_PER_ATTEMPT);
         if (random.nextInt(100) < temper) {
-            tame("");
+            // bondWithPlayer (lines 1020-1024): the taming rider's own
+            // uuid rides the owner slot.
+            tame(ownerName, ownerUuid);
             return MountAttempt.TAMED;
         }
         // The buck: seated, rearing, thrown shortly (the vanilla feel).
@@ -5540,10 +5620,13 @@ public final class MobEntity implements LivingEntity {
     }
 
     /** Flips the tame bit and records the tamer (the hearts moment). */
-    public void tame(String owner) {
+    public void tame(String owner, String ownerUuid) {
         horseFlags |= HORSE_FLAG_TAMED;
         if (owner != null && !owner.isEmpty()) {
             ownerName = owner;
+        }
+        if (ownerUuid != null && !ownerUuid.isEmpty()) {
+            this.ownerUuid = ownerUuid;
         }
     }
 

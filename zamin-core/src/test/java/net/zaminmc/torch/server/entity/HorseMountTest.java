@@ -64,7 +64,7 @@ class HorseMountTest {
         }
         assertEquals(100, wild.temper(), "temper caps at 100");
         // The first mount attempt at full temper always tames (nextInt(100) < 100).
-        MobEntity.MountAttempt attempt = wild.attemptMount();
+        MobEntity.MountAttempt attempt = wild.attemptMount("", "");
         assertEquals(MobEntity.MountAttempt.TAMED, attempt, "full temper tames on the first try");
         assertTrue(wild.tamed(), "the tame bit flipped");
     }
@@ -72,7 +72,7 @@ class HorseMountTest {
     @Test
     void untamedMountAttemptRearsAndArmsTheBuck() {
         MobEntity wild = horse(1);
-        MobEntity.MountAttempt attempt = wild.attemptMount();
+        MobEntity.MountAttempt attempt = wild.attemptMount("", "");
         // Seed 1, temper 5: nextInt(100) < 5 is nearly impossible; assert the
         // attempt either tamed (lucky roll) or armed the buck — and that the
         // bucked path always rears and keeps the horse untamed.
@@ -86,7 +86,7 @@ class HorseMountTest {
     void buckedSeatThrowsTheRiderAfterTheClock() {
         MobEntity wild = horse(3);
         // Force the buck path deterministically: low temper, force the roll.
-        MobEntity.MountAttempt attempt = wild.attemptMount();
+        MobEntity.MountAttempt attempt = wild.attemptMount("", "");
         if (attempt != MobEntity.MountAttempt.BUCKED) {
             return; // this seed tamed on the first try; the throw test needs a buck
         }
@@ -107,7 +107,7 @@ class HorseMountTest {
     @Test
     void unsaddledHorseAnswersNoReins() {
         MobEntity mount = horse(9);
-        mount.tame("rider");
+        mount.tame("rider", "");
         mount.setRider(100);
         // Forward input with no saddle: the body must not drive.
         mount.steer(0.0f, 1.0f, false);
@@ -124,7 +124,7 @@ class HorseMountTest {
     @Test
     void saddledHorseDrivesForwardAndTurns() {
         MobEntity mount = horse(13);
-        mount.tame("rider");
+        mount.tame("rider", "");
         mount.applySaddle();
         mount.setRider(100);
         mount.steer(0.0f, 1.0f, false);
@@ -148,7 +148,7 @@ class HorseMountTest {
     @Test
     void riddenHorseJumpsOffTheGround() {
         MobEntity mount = horse(21);
-        mount.tame("rider");
+        mount.tame("rider", "");
         mount.applySaddle();
         mount.setRider(100);
         // Settle the body first (the jump needs the ground under the feet).
@@ -208,7 +208,7 @@ class HorseMountTest {
         mount.applyArmor(MobEntity.HORSE_ARMOR_DIAMOND);
         assertEquals(MobEntity.HORSE_ARMOR_DIAMOND, mount.armorType(),
                 "the armor row rides index 22");
-        mount.tame("Steve");
+        mount.tame("Steve", "");
         assertEquals("Steve", mount.ownerName(), "the owner string rides index 21");
     }
 
