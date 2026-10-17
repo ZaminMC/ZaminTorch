@@ -474,6 +474,78 @@ class MissingCommandsWaveOneTest {
                 "the anchor was the zombie, not Alice");
     }
 
+    @Test
+    void theSpreadPlayersArm() throws Exception {
+        int cx = (int) Math.floor(alice.position().x());
+        int cz = (int) Math.floor(alice.position().z());
+        // Two players spread apart in a generous box: both land inside the
+        // range bounds and (allowing the floor+0.5 landing shift) at least
+        // the spread distance apart.
+        dispatch("/spreadplayers ~ ~ 5 20 false Alice Bob");
+        await(() -> {
+            double ax = alice.position().x();
+            double az = alice.position().z();
+            double bx = bob.position().x();
+            double bz = bob.position().z();
+            return Math.abs(ax - cx) <= 20.0 && Math.abs(az - cz) <= 20.0
+                    && Math.abs(bx - cx) <= 20.0 && Math.abs(bz - cz) <= 20.0
+                    && Math.hypot(ax - bx, az - bz) >= 3.5;
+        }, "both players spread inside the box, at least 5 apart");
+
+        // The parse floor: the maxRange must be at least spread + 1 — the
+        // refusal leaves the pair where the first spread put them.
+        double ax0 = alice.position().x();
+        double az0 = alice.position().z();
+        dispatch("/spreadplayers ~ ~ 10 3 false Alice Bob");
+        Thread.sleep(300);
+        assertEquals(ax0, alice.position().x(), 0.01, "the bad range refused");
+        assertEquals(az0, alice.position().z(), 0.01, "the bad range refused");
+    }
+
+    @Test
+    void theSpreadPlayersImpossibleArm() throws Exception {
+        // Ten mobs + the pair: twelve piles needing 10 blocks of clearance
+        // in a 22x22 box cannot separate — the 10000-iteration failure
+        // line, nobody teleports.
+        Position at = alice.position();
+        server.ticker().submit(() -> {
+            for (int i = 0; i < 10; i++) {
+                server.mobs().spawnAt(MobType.ZOMBIE, new Position(at.x() + i, at.y(), at.z()));
+            }
+        });
+        await(() -> server.mobs().all().size() >= 10, "the mobs spawned");
+        double ax0 = alice.position().x();
+        double az0 = alice.position().z();
+        dispatch("/spreadplayers ~ ~ 10 11 false @e");
+        Thread.sleep(600);
+        assertEquals(ax0, alice.position().x(), 0.01, "the impossible spread left Alice in place");
+        assertEquals(az0, alice.position().z(), 0.01, "the impossible spread left Alice in place");
+    }
+
+    @Test
+    void theSpreadPlayersTeamsArm() throws Exception {
+        int cx = (int) Math.floor(alice.position().x());
+        int cz = (int) Math.floor(alice.position().z());
+        // One team: respectTeams shares the pile — both land together.
+        server.ticker().submit(() -> {
+            server.scoreboard().addTeam("spreadteam");
+            server.scoreboard().addMemberToTeam("Alice", "spreadteam");
+            server.scoreboard().addMemberToTeam("Bob", "spreadteam");
+        });
+        await(() -> server.scoreboard().getTeamOfMember("Alice") != null
+                        && server.scoreboard().getTeamOfMember("Bob") != null,
+                "the team registered");
+        dispatch("/spreadplayers ~ ~ 5 20 true Alice Bob");
+        await(() -> {
+            double ax = alice.position().x();
+            double az = alice.position().z();
+            double bx = bob.position().x();
+            double bz = bob.position().z();
+            return Math.hypot(ax - bx, az - bz) < 1.0
+                    && Math.abs(ax - cx) <= 20.0 && Math.abs(az - cz) <= 20.0;
+        }, "the teamed pair landed together on one pile");
+    }
+
     private net.zaminmc.torch.server.chat.CommandSender aliceSender() {
         return new net.zaminmc.torch.server.chat.CommandSender() {
             @Override public String name() {

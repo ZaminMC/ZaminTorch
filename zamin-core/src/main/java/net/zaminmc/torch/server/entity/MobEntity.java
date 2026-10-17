@@ -900,6 +900,16 @@ public final class MobEntity implements LivingEntity {
         return position;
     }
 
+    /**
+     * The plain body teleport (the reference's Entity.teleport position
+     * set — spreadplayers' landing): the position moves outright, no
+     * landing checks (the enderman's own {@link #teleportTo} walk is the
+     * checked form). The command layer runs this on the tick context.
+     */
+    public void teleport(Position to) {
+        this.position = Objects.requireNonNull(to, "to");
+    }
+
     public float yaw() {
         return yaw;
     }
