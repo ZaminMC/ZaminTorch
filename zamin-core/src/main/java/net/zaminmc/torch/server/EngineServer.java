@@ -695,6 +695,31 @@ public final class EngineServer implements Server, EngineBridge {
                 this.mobManager = mobs;
                 mobs.addListener(new MobEventDispatch());
                 mobs.setEventBus(eventBus); // §27.7: the public spawn gate
+                // The command target selector's universe (TargetSelector 1:1):
+                // the live players + the living mobs, keyed by the reference's
+                // own dimension ids (-1 the nether, 0 the overworld, 1 the End).
+                // The score component's live-board consult rides the same board.
+                net.zaminmc.torch.server.command.TargetSelector.install(
+                        dimension -> {
+                            java.util.List<net.zaminmc.torch.server.command.TargetSelector.Candidate> candidates =
+                                    new java.util.ArrayList<>();
+                            for (PlayerSession session : players.all()) {
+                                if (session.dimension() == dimension
+                                        && session.state() == net.zaminmc.torch.entity.PlayerState.PLAYING) {
+                                    candidates.add(
+                                            net.zaminmc.torch.server.command.TargetSelector.Candidate.candidateOf(session));
+                                }
+                            }
+                            for (net.zaminmc.torch.server.entity.MobEntity mob : mobs.all()) {
+                                if (mob.dimension() == dimension) {
+                                    candidates.add(
+                                            net.zaminmc.torch.server.command.TargetSelector.Candidate.candidateOf(mob));
+                                }
+                            }
+                            return candidates;
+                        },
+                        () -> scoreboard);
+                net.zaminmc.torch.server.text.ScoreText.installBoard(() -> scoreboard);
                 // §27.6's admission protocol for the mind: goal registrations
                 // (the public goals() surface) land on the world's owner lane,
                 // between ticks, from any thread.
