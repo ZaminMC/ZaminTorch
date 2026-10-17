@@ -44,6 +44,15 @@ public interface EngineBridge {
     void joinTabList(PlayerSession session);
 
     /**
+     * Mid-join hook (the reference's PlayerManager.updateScoreboard walk,
+     * lines 168-185): the adapter has sent the tab-list flush; the engine
+     * now sends the joiner every team (create packets with the members) and
+     * every distinct displayed objective's start-display walk (the objective
+     * create + the slot pointers + every score).
+     */
+    void joinScoreboard(PlayerSession session);
+
+    /**
      * A movement proposal (position, look, or combined). Validated server-side;
      * applied on the simulation context.
      */

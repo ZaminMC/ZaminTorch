@@ -378,26 +378,105 @@ final class TestClient18 implements AutoCloseable {
      * otherwise be discarded by the skip.
      */
     java.util.List<TabEntry> readUntilPositionCollectingTabAdds() throws IOException {
-        java.util.List<TabEntry> adds = new java.util.ArrayList<>();
-        long deadline = System.currentTimeMillis() + 20_000;
-        while (System.currentTimeMillis() < deadline) {
-            byte[] payload = readPacket();
-            ByteBuf buffer = Unpooled.wrappedBuffer(payload);
-            int id = ByteBufOps.readVarInt(buffer);
-            if (id == Protocol18.S2C_PLAYER_POSITION_AND_LOOK) {
-                lastX = buffer.readDouble();
-                lastY = buffer.readDouble();
-                lastZ = buffer.readDouble();
-                return adds;
-            }
-            if (id == Protocol18.S2C_PLAYER_INFO) {
-                ParsedPlayerInfo parsed = parsePlayerInfo(buffer);
-                if (parsed.action() == Protocol18.PLAYER_INFO_ADD_PLAYER) {
-                    adds.addAll(parsed.entries());
+        JoinCollector collector = new JoinCollector();
+        collector.readUntilPosition();
+        return collector.tabAdds;
+    }
+
+    /** Everything the join burst carries before the position packet. */
+    final class JoinCollector {
+        final java.util.List<TabEntry> tabAdds = new java.util.ArrayList<>();
+        final java.util.List<ObjectiveWire> objectives = new java.util.ArrayList<>();
+        final java.util.List<ScoreWire> scores = new java.util.ArrayList<>();
+        final java.util.List<DisplayWire> displays = new java.util.ArrayList<>();
+        final java.util.List<TeamWire> teams = new java.util.ArrayList<>();
+
+        void readUntilPosition() throws IOException {
+            long deadline = System.currentTimeMillis() + 20_000;
+            while (System.currentTimeMillis() < deadline) {
+                byte[] payload = readPacket();
+                ByteBuf buffer = Unpooled.wrappedBuffer(payload);
+                int id = ByteBufOps.readVarInt(buffer);
+                switch (id) {
+                    case Protocol18.S2C_PLAYER_POSITION_AND_LOOK -> {
+                        lastX = buffer.readDouble();
+                        lastY = buffer.readDouble();
+                        lastZ = buffer.readDouble();
+                        return;
+                    }
+                    case Protocol18.S2C_PLAYER_INFO -> {
+                        ParsedPlayerInfo parsed = parsePlayerInfo(buffer);
+                        if (parsed.action() == Protocol18.PLAYER_INFO_ADD_PLAYER) {
+                            tabAdds.addAll(parsed.entries());
+                        }
+                    }
+                    case Protocol18.S2C_SCOREBOARD_OBJECTIVE -> objectives.add(
+                            parseObjectiveWire(buffer));
+                    case Protocol18.S2C_UPDATE_SCORE -> scores.add(parseScoreWire(buffer));
+                    case Protocol18.S2C_DISPLAY_SCOREBOARD -> displays.add(
+                            parseDisplayWire(buffer));
+                    case Protocol18.S2C_TEAMS -> teams.add(parseTeamWire(buffer));
+                    default -> {
+                        // the rest of the join burst: skipped
+                    }
                 }
             }
+            throw new IOException("Timed out waiting for position packet");
         }
-        throw new IOException("Timed out waiting for position packet");
+
+        private ObjectiveWire parseObjectiveWire(ByteBuf buffer) throws IOException {
+            String name = ByteBufOps.readString(buffer, 16);
+            int action = buffer.readByte();
+            String displayName = null;
+            String renderType = null;
+            if (action == 0 || action == 2) {
+                displayName = ByteBufOps.readString(buffer, 32);
+                renderType = ByteBufOps.readString(buffer, 16);
+            }
+            return new ObjectiveWire(name, action, displayName, renderType);
+        }
+
+        private ScoreWire parseScoreWire(ByteBuf buffer) throws IOException {
+            String owner = ByteBufOps.readString(buffer, 40);
+            int mode = ByteBufOps.readVarInt(buffer);
+            String objective = ByteBufOps.readString(buffer, 16);
+            int value = mode == 0 ? ByteBufOps.readVarInt(buffer) : 0;
+            return new ScoreWire(owner, mode, objective, value);
+        }
+
+        private DisplayWire parseDisplayWire(ByteBuf buffer) throws IOException {
+            int slot = buffer.readByte();
+            String objective = ByteBufOps.readString(buffer, 16);
+            return new DisplayWire(slot, objective);
+        }
+
+        private TeamWire parseTeamWire(ByteBuf buffer) throws IOException {
+            String name = ByteBufOps.readString(buffer, 16);
+            int action = buffer.readByte();
+            String displayName = null;
+            String prefix = null;
+            String suffix = null;
+            int flags = 0;
+            String visibility = null;
+            int color = 0;
+            if (action == 0 || action == 2) {
+                displayName = ByteBufOps.readString(buffer, 32);
+                prefix = ByteBufOps.readString(buffer, 16);
+                suffix = ByteBufOps.readString(buffer, 16);
+                flags = buffer.readByte();
+                visibility = ByteBufOps.readString(buffer, 32);
+                color = buffer.readByte();
+            }
+            java.util.List<String> members = new java.util.ArrayList<>();
+            if (action == 0 || action == 3 || action == 4) {
+                int count = ByteBufOps.readVarInt(buffer);
+                for (int i = 0; i < count; i++) {
+                    members.add(ByteBufOps.readString(buffer, 40));
+                }
+            }
+            return new TeamWire(name, action, displayName, prefix, suffix, flags,
+                    visibility, color, members);
+        }
     }
 
     /** Collects every ADD entry until the named player appears (deadline-bounded). */
@@ -414,6 +493,102 @@ final class TestClient18 implements AutoCloseable {
             }
         }
         throw new IOException("Timed out waiting for the tab entry of " + playerName);
+    }
+
+    // ---- scoreboard wire (0x3B-0x3E) -----------------------------------------
+
+    /** One parsed Scoreboard Objective packet. */
+    record ObjectiveWire(String name, int action, String displayName, String renderType) {
+    }
+
+    /** One parsed Update Score packet. */
+    record ScoreWire(String owner, int mode, String objective, int value) {
+    }
+
+    /** One parsed Display Scoreboard packet. */
+    record DisplayWire(int slot, String objective) {
+    }
+
+    /** One parsed Teams packet. */
+    record TeamWire(String name, int action, String displayName, String prefix, String suffix,
+                    int flags, String visibility, int color, java.util.List<String> members) {
+    }
+
+    /** Reads packets until the next Scoreboard Objective (0x3B). */
+    ObjectiveWire readScoreboardObjective(long timeoutMs) throws IOException {
+        byte[] payload = readPacketOfType(Protocol18.S2C_SCOREBOARD_OBJECTIVE, timeoutMs);
+        ByteBuf buffer = Unpooled.wrappedBuffer(payload);
+        ByteBufOps.readVarInt(buffer); // id
+        String name = ByteBufOps.readString(buffer, 16);
+        int action = buffer.readByte();
+        String displayName = null;
+        String renderType = null;
+        if (action == 0 || action == 2) {
+            displayName = ByteBufOps.readString(buffer, 32);
+            renderType = ByteBufOps.readString(buffer, 16);
+        }
+        return new ObjectiveWire(name, action, displayName, renderType);
+    }
+
+    /** Reads packets until the next Update Score (0x3C). */
+    ScoreWire readUpdateScore(long timeoutMs) throws IOException {
+        byte[] payload = readPacketOfType(Protocol18.S2C_UPDATE_SCORE, timeoutMs);
+        ByteBuf buffer = Unpooled.wrappedBuffer(payload);
+        ByteBufOps.readVarInt(buffer); // id
+        String owner = ByteBufOps.readString(buffer, 40);
+        int mode = ByteBufOps.readVarInt(buffer);
+        String objective = ByteBufOps.readString(buffer, 16);
+        int value = mode == 0 ? ByteBufOps.readVarInt(buffer) : 0;
+        return new ScoreWire(owner, mode, objective, value);
+    }
+
+    /** Reads packets until the next Display Scoreboard (0x3D). */
+    DisplayWire readDisplayScoreboard(long timeoutMs) throws IOException {
+        byte[] payload = readPacketOfType(Protocol18.S2C_DISPLAY_SCOREBOARD, timeoutMs);
+        ByteBuf buffer = Unpooled.wrappedBuffer(payload);
+        ByteBufOps.readVarInt(buffer); // id
+        int slot = buffer.readByte();
+        String objective = ByteBufOps.readString(buffer, 16);
+        return new DisplayWire(slot, objective);
+    }
+
+    /** Reads packets until the next Teams packet (0x3E) with any of the actions. */
+    TeamWire readTeamPacket(long timeoutMs) throws IOException {
+        long deadline = System.currentTimeMillis() + timeoutMs;
+        while (System.currentTimeMillis() < deadline) {
+            byte[] payload = readPacket();
+            ByteBuf buffer = Unpooled.wrappedBuffer(payload);
+            int id = ByteBufOps.readVarInt(buffer);
+            if (id != Protocol18.S2C_TEAMS) {
+                continue;
+            }
+            String name = ByteBufOps.readString(buffer, 16);
+            int action = buffer.readByte();
+            String displayName = null;
+            String prefix = null;
+            String suffix = null;
+            int flags = 0;
+            String visibility = null;
+            int color = 0;
+            if (action == 0 || action == 2) {
+                displayName = ByteBufOps.readString(buffer, 32);
+                prefix = ByteBufOps.readString(buffer, 16);
+                suffix = ByteBufOps.readString(buffer, 16);
+                flags = buffer.readByte();
+                visibility = ByteBufOps.readString(buffer, 32);
+                color = buffer.readByte();
+            }
+            java.util.List<String> members = new java.util.ArrayList<>();
+            if (action == 0 || action == 3 || action == 4) {
+                int count = ByteBufOps.readVarInt(buffer);
+                for (int i = 0; i < count; i++) {
+                    members.add(ByteBufOps.readString(buffer, 40));
+                }
+            }
+            return new TeamWire(name, action, displayName, prefix, suffix, flags,
+                    visibility, color, members);
+        }
+        throw new IOException("Timed out waiting for a teams packet");
     }
 
     void sendDigging(int status, int x, int y, int z, int face) throws IOException {

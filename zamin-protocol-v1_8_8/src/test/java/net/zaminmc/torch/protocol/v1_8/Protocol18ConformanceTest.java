@@ -106,6 +106,13 @@ class Protocol18ConformanceTest {
         // Player Info 0x38 (Slice 84 — the tab-list family): the protocol-47
         // id of PlayerInfoS2CPacket (0x39 is Player Abilities, 0x3A Tab-Complete).
         m.put("S2C_PLAYER_INFO", 0x38);
+        // The scoreboard wire family (Slice 85): Scoreboard Objective 0x3B,
+        // Update Score 0x3C, Display Scoreboard 0x3D, Teams 0x3E (0x3F is
+        // Plugin Message — the family's own right-hand neighbor).
+        m.put("S2C_SCOREBOARD_OBJECTIVE", 0x3B);
+        m.put("S2C_UPDATE_SCORE", 0x3C);
+        m.put("S2C_DISPLAY_SCOREBOARD", 0x3D);
+        m.put("S2C_TEAMS", 0x3E);
         m.put("S2C_DISCONNECT", 0x40);
         m.put("S2C_COMBAT_EVENT", 0x42);
         // Not play-state packets, same constant class: the login state's

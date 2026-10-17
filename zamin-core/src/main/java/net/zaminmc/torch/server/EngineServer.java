@@ -254,6 +254,8 @@ public final class EngineServer implements Server, EngineBridge {
     private ChatService chatService;
     /** The tab-list family (Slice 84 — the PlayerInfo walks: join/quit/gamemode/ping). */
     private net.zaminmc.torch.server.player.TabListService tabList;
+    /** The scoreboard system (Slice 85 — objectives/scores/teams + the broadcast walks). */
+    private net.zaminmc.torch.server.scoreboard.EngineScoreboard scoreboard;
     private final CraftingService crafting = CraftingService.builtin();
     private WorldStorage worldStorage;
     /** The nether dimension's delta persistence (DIM-1/zamin-delta.bin). */
@@ -2469,6 +2471,9 @@ public final class EngineServer implements Server, EngineBridge {
                 chatService.setEventBus(eventBus); // §27.7: the public chat gate
                 // The tab-list walks (Slice 84 — PlayerManager's own family).
                 tabList = new net.zaminmc.torch.server.player.TabListService();
+                // The scoreboard (Slice 85 — the §9 ownership table's own row:
+                // engine-owned global state, tick-lane mutations).
+                scoreboard = new net.zaminmc.torch.server.scoreboard.EngineScoreboard(players);
                 // The permanent architecture's Phase 1-3 wiring completes
                 // BEFORE the readiness latch: the simulation domain (Phase
                 // 1 — every EngineWorld mutation asserts through it), the
@@ -3199,6 +3204,15 @@ public final class EngineServer implements Server, EngineBridge {
         return chatService;
     }
 
+    /**
+     * The scoreboard (Slice 85): objectives, scores, teams, display slots.
+     * Engine-owned global state — mutations ride the tick lane (the command
+     * walk and the gameplay drivers); reads are best-effort from any thread.
+     */
+    public net.zaminmc.torch.server.scoreboard.EngineScoreboard scoreboard() {
+        return scoreboard;
+    }
+
     /** The simulation-owned item entity manager (present once the world is up). */
     public ItemEntityManager itemEntities() {
         return itemEntities;
@@ -3821,6 +3835,23 @@ public final class EngineServer implements Server, EngineBridge {
             // count times the rate — plus the jump charges (0.2, 0.8
             // sprinting). Climbing charges nothing (the historical arm).
             tickMovementExhaustion(session);
+            // The scoreboard's health driver (ServerPlayerEntity.tick lines
+            // 313-317: when the body's health moves, every health objective's
+            // score re-computes — the ceil average over the single body; the
+            // absorption term rides the absorption-hearts model, not yet
+            // ported).
+            if (scoreboard != null) {
+                float health = session.health();
+                if (health != session.scoreboardHealthMark()) {
+                    session.setScoreboardHealthMark(health);
+                    for (net.zaminmc.torch.server.scoreboard.ScoreboardObjective objective
+                            : scoreboard.getObjectives(
+                                    net.zaminmc.torch.server.scoreboard.ScoreboardCriterion.HEALTH)) {
+                        scoreboard.getScore(session.name(), objective)
+                                .set((int) Math.ceil(health));
+                    }
+                }
+            }
         }
     }
 
@@ -4876,6 +4907,12 @@ public final class EngineServer implements Server, EngineBridge {
                                             applyArmor(attacker, amount),
                                             DamageKind.MELEE),
                                     "was slain by " + wearer.name(), DamageKind.MELEE);
+                            // The thorns kill walk (the reference's die ->
+                            // takeKillScore pair): the wearer earns the kill
+                            // when the retaliation lands the death.
+                            if (attacker.dead()) {
+                                takeKillScore(wearer, attacker);
+                            }
                         }
 
                         @Override
@@ -4884,6 +4921,7 @@ public final class EngineServer implements Server, EngineBridge {
                         }
                     });
             if (victim.health() <= 0) {
+                takeKillScore(attacker, victim);
                 dieOnTick(victim, "was slain by " + attacker.name());
             } else {
                 publishBodyChanged(victim);
@@ -4891,6 +4929,61 @@ public final class EngineServer implements Server, EngineBridge {
             LOGGER.fine(() -> attacker.name() + " hit " + victim.name()
                     + " for " + applied + " (health " + victim.health() + ")");
         });
+    }
+
+    /**
+     * The scoreboard's kill walk (PlayerEntity.takeKillScore lines 553-572
+     * over a player victim): the killer's totalKillCount always, the
+     * playerKillCount beside it, and the team family — the victim's
+     * killedByTeam.&lt;killer color&gt; when the killer rides a colored team,
+     * the killer's teamkill.&lt;victim color&gt; when the victim does.
+     * Tick-thread context; called at every player-kills-player site before
+     * the death walk.
+     */
+    private void takeKillScore(PlayerSession killer, PlayerSession victim) {
+        net.zaminmc.torch.server.scoreboard.EngineScoreboard board = scoreboard;
+        if (board == null) {
+            return;
+        }
+        java.util.List<net.zaminmc.torch.server.scoreboard.ScoreboardObjective> collection =
+                new java.util.ArrayList<>(board.getObjectives(
+                        net.zaminmc.torch.server.scoreboard.ScoreboardCriterion.TOTAL_KILL_COUNT));
+        collection.addAll(board.getObjectives(
+                net.zaminmc.torch.server.scoreboard.ScoreboardCriterion.PLAYER_KILL_COUNT));
+        collection.addAll(handleTeamKill(board, killer, victim));
+        for (net.zaminmc.torch.server.scoreboard.ScoreboardObjective objective : collection) {
+            board.getScore(killer.name(), objective).increment();
+        }
+    }
+
+    /** The team-kill family (PlayerEntity.handleTeamKill lines 575-596 1:1). */
+    private java.util.Collection<net.zaminmc.torch.server.scoreboard.ScoreboardObjective>
+    handleTeamKill(net.zaminmc.torch.server.scoreboard.EngineScoreboard board,
+                   PlayerSession killer, PlayerSession victim) {
+        net.zaminmc.torch.server.scoreboard.ScoreboardTeam killerTeam =
+                board.getTeamOfMember(killer.name());
+        if (killerTeam != null) {
+            int i = killerTeam.colorId();
+            if (i >= 0 && i < net.zaminmc.torch.server.scoreboard.ScoreboardCriterion
+                    .KILLED_BY_TEAM_BY_COLOR.length) {
+                for (net.zaminmc.torch.server.scoreboard.ScoreboardObjective objective
+                        : board.getObjectives(net.zaminmc.torch.server.scoreboard.ScoreboardCriterion
+                                .KILLED_BY_TEAM_BY_COLOR[i])) {
+                    board.getScore(victim.name(), objective).increment();
+                }
+            }
+        }
+        net.zaminmc.torch.server.scoreboard.ScoreboardTeam victimTeam =
+                board.getTeamOfMember(victim.name());
+        if (victimTeam != null) {
+            int j = victimTeam.colorId();
+            if (j >= 0 && j < net.zaminmc.torch.server.scoreboard.ScoreboardCriterion
+                    .TEAM_KILL_BY_COLOR.length) {
+                return board.getObjectives(net.zaminmc.torch.server.scoreboard.ScoreboardCriterion
+                        .TEAM_KILL_BY_COLOR[j]);
+            }
+        }
+        return java.util.List.of();
     }
 
     private void publishPlayerHurt(PlayerSession victim) {
@@ -5192,6 +5285,16 @@ public final class EngineServer implements Server, EngineBridge {
         }
         publishBodyChanged(session);
         publishDied(session);
+        // The scoreboard's death-count driver (ServerPlayerEntity.onDeath
+        // lines 385-388: after the drops, the victim's own deathCount score
+        // increments).
+        if (scoreboard != null) {
+            for (net.zaminmc.torch.server.scoreboard.ScoreboardObjective objective
+                    : scoreboard.getObjectives(
+                            net.zaminmc.torch.server.scoreboard.ScoreboardCriterion.DEATH_COUNT)) {
+                scoreboard.getScore(session.name(), objective).increment();
+            }
+        }
         // showDeathMessages (Slice 24a — PlayerEntity.onDeath line 659:
         // the broadcast skips when the rule is off; the null-suppress —
         // a plugin's silent death — composes with it).
@@ -13916,6 +14019,9 @@ public final class EngineServer implements Server, EngineBridge {
                                                     applyArmor(candidate, amount),
                                                     DamageKind.MELEE),
                                             "was slain by " + wearer.name(), DamageKind.MELEE);
+                                    if (candidate.dead()) {
+                                        takeKillScore(wearer, candidate);
+                                    }
                                     return;
                                 }
                             }
@@ -13961,6 +14067,16 @@ public final class EngineServer implements Server, EngineBridge {
                     }
                 });
         if (victim.health() <= 0) {
+            // The projectile kill walk: the shooter resolved by engine id —
+            // a player shooter drives the kill score before the death walk.
+            if (shooterId > 0) {
+                for (PlayerSession candidate : players.all()) {
+                    if (candidate.engineEntityId() == shooterId) {
+                        takeKillScore(candidate, victim);
+                        break;
+                    }
+                }
+            }
             dieOnTick(victim, "was pummeled by " + throwerName(shooterId));
         } else {
             publishBodyChanged(victim);
@@ -18249,6 +18365,17 @@ public final class EngineServer implements Server, EngineBridge {
         net.zaminmc.torch.server.player.TabListService walks = tabList;
         if (walks != null) {
             walks.joinAnnounce(players, session);
+        }
+    }
+
+    @Override
+    public void joinScoreboard(PlayerSession session) {
+        // The reference's updateScoreboard walk (PlayerManager lines
+        // 168-185): every team's create packet, then every DISTINCT
+        // displayed objective's start-display walk.
+        net.zaminmc.torch.server.scoreboard.EngineScoreboard board = scoreboard;
+        if (board != null) {
+            board.syncTo(session);
         }
     }
 

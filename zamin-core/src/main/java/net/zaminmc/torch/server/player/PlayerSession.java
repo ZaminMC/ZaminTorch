@@ -441,6 +441,24 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
         ping = (ping * 3 + roundTripMs) / 4;
     }
 
+    /**
+     * The scoreboard's health driver mark (ServerPlayerEntity.tick lines
+     * 313-317): the last health the health-objective walk computed against
+     * (0.0 initially, so the first tick always publishes — the reference's
+     * own completeHealth field).
+     */
+    private float scoreboardHealthMark;
+
+    /** @return the last health the scoreboard's health walk published (0 = never). */
+    public float scoreboardHealthMark() {
+        return scoreboardHealthMark;
+    }
+
+    /** The health walk's own write (the tick lane only). */
+    public void setScoreboardHealthMark(float health) {
+        this.scoreboardHealthMark = health;
+    }
+
     public net.zaminmc.torch.GameMode gamemode() {
         return gamemode;
     }

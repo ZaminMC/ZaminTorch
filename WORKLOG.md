@@ -8031,3 +8031,51 @@ header/footer (0x47); (4) the missing-commands batch (/effect /particle
 /playsound /enchant /spawnpoint /setworldspawn /achievement /testfor
 /setblock /entitydata /replaceitem /stats /trigger /spreadplayers /fill
 /clone); (5) the §27 window-family re-sync rows.
+
+## Slice 85 — the scoreboard engine (the model + the wire family + the join sync + the drivers)
+
+- **THE GAP**: the reference's biggest missing subsystem — Scoreboard/
+  ServerScoreboard/Team + the four wire packets + the gameplay drivers —
+  is now ported 1:1 (the /scoreboard command and the persistence ride the
+  follow-up slice 85b).
+- **THE MODEL** (`server/scoreboard/`): `ScoreboardCriterion` (the 38-entry
+  named table: the 6 named criteria + 16 teamkill. + 16 killedByTeam.
+  colors; health is read-only + HEARTS render), `ScoreboardObjective` (the
+  display name defaults to the name; both setters fire the update
+  broadcast), `ScoreboardScore` (the forceUpdate first publish at 0, the
+  read-only gate on increase/increment — set() bypasses it exactly like
+  the reference's health driver, the COMPARATOR: value ASCENDING + ties by
+  REVERSE name — the packet emission order, NOT the client's sidebar
+  sort), `ScoreboardTeam` (the friendly-fire pair, the visibility pair,
+  prefix/suffix, the color id, the packed flags byte; every setter fires
+  action-2 updates — setColor does NOT, the reference's own quiet setter),
+  `EngineScoreboard` (the merged Scoreboard+ServerScoreboard: displayed-
+  objectives tracking, the start/stop display walks, the slot swap walk
+  with the reference's count-after-null branch — a displaced objective
+  that still shows elsewhere re-points the slot, one that shows nowhere
+  stops displaying; the 19 display slots with sidebar.team.<color> names).
+- **THE WIRE**: ClientLink's four verbs (scoreboardObjective/
+  scoreboardScore/scoreboardDisplay/scoreboardTeam + the two payload
+  records) + V18Connection's writers (0x3B name/byte-action/[display+
+  render], 0x3C owner/varint-mode/objective/[value], 0x3D byte-slot/name,
+  0x3E the full team payload + the varint-counted members) + the
+  conformance table's four rows + `EngineBridge.joinScoreboard` (the
+  adapter's second mid-burst hook — the sync rides BEFORE the teleport
+  exactly like the reference's updateScoreboard at join step 8).
+- **THE DRIVERS**: the health criterion (the body tick's health-move mark —
+  ceil(health), the absorption term ledgered: the engine tracks the
+  effect but not the hearts), the death count (dieOnTick's post-drops
+  walk), the kill walk (takeKillScore 1:1: totalKillCount + playerKillCount
+  + the team family — the victim's killedByTeam.<killer color> + the
+  killer's teamkill.<victim color>) wired at the melee, projectile, and
+  both thorns kill sites.
+- Tests: `EngineScoreboardTest` (7 — the undisplayed-objective silence +
+  the start walk, the forceUpdate zero publish + the read-only gate + the
+  ceil law, the slot swap + stop display + the remove walk's no-cleared-
+  pointer shape, the slot-name mapping + the 38-criteria table, the team
+  model + join/leave/re-join, the join sync dedup, the comparator law) +
+  `ScoreboardIntegrationTest` (3 over the real wire: the display walk +
+  score updates, the health criterion's hearts + the ceil re-publish on a
+  wound, the team create/update/join + the JOINER's mid-session sync
+  through the join collector). The full protocol suite + the core pvp/
+  lifecycle/player families green.
