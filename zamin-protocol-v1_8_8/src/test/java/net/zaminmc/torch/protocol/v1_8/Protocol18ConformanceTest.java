@@ -116,6 +116,12 @@ class Protocol18ConformanceTest {
         // World Border 0x44 (Slice 86): after Camera 0x43, before Title 0x45
         // (the reference's WorldBorderS2CPacket registration slot).
         m.put("S2C_WORLD_BORDER", 0x44);
+        // Title 0x45 (Slice 87 — the titles wave): TitlesS2CPacket's own
+        // slot (0x46 is Collect Item between them).
+        m.put("S2C_TITLE", 0x45);
+        // Player List Header/Footer 0x47 (Slice 87): TabListS2CPacket's slot
+        // after Collect Item 0x46.
+        m.put("S2C_PLAYER_LIST_HEADER_FOOTER", 0x47);
         m.put("S2C_DISCONNECT", 0x40);
         m.put("S2C_COMBAT_EVENT", 0x42);
         // Not play-state packets, same constant class: the login state's
