@@ -320,6 +320,33 @@ class MissingCommandsWaveOneTest {
                 "the locked refusal kept the value");
     }
 
+    @Test
+    void theSetblockArm() throws Exception {
+        int x = (int) Math.floor(alice.position().x());
+        int y = (int) Math.floor(alice.position().y());
+        int z = (int) Math.floor(alice.position().z());
+        // The plain place at an offset from the sender (two up: open air).
+        dispatch("/setblock ~ ~2 ~ stone");
+        await(() -> server.world().getBlock(
+                        new net.zaminmc.torch.block.BlockPosition(x, y + 2, z)).identifier().value().equals("stone"),
+                "the stone landed");
+        assertEquals("stone", server.world().getBlock(
+                        new net.zaminmc.torch.block.BlockPosition(x, y + 2, z)).identifier().value());
+
+        // The keep gate refuses on an occupied cell.
+        dispatch("/setblock ~ ~2 ~ cobblestone keep");
+        Thread.sleep(300);
+        assertEquals("stone", server.world().getBlock(
+                new net.zaminmc.torch.block.BlockPosition(x, y + 2, z)).identifier().value(),
+                "the keep gate kept the stone");
+
+        // The height bounds.
+        dispatch("/setblock ~ 300 ~ stone");
+        Thread.sleep(300);
+        assertEquals("stone", server.world().getBlock(
+                new net.zaminmc.torch.block.BlockPosition(x, y + 2, z)).identifier().value());
+    }
+
     private net.zaminmc.torch.server.chat.CommandSender aliceSender() {
         return new net.zaminmc.torch.server.chat.CommandSender() {
             @Override public String name() {
