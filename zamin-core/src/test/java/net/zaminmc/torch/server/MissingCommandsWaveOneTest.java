@@ -381,6 +381,29 @@ class MissingCommandsWaveOneTest {
                 new net.zaminmc.torch.block.BlockPosition(x, y + 1, z)).identifier().value());
     }
 
+    @Test
+    void theCloneArm() throws Exception {
+        int x = (int) Math.floor(alice.position().x());
+        int y = (int) Math.floor(alice.position().y());
+        int z = (int) Math.floor(alice.position().z());
+        // Build a 2x1x2 stone platform above the sender, then clone it away.
+        dispatch("/fill ~1 ~4 ~1 ~2 ~4 ~2 stone");
+        await(() -> server.world().getBlock(
+                        new net.zaminmc.torch.block.BlockPosition(x + 1, y + 4, z + 1)).identifier().value().equals("stone"),
+                "the platform built");
+        // Clone it to the other side (no overlap).
+        dispatch("/clone ~1 ~4 ~1 ~2 ~4 ~2 ~-3 ~4 ~-3");
+        await(() -> server.world().getBlock(
+                        new net.zaminmc.torch.block.BlockPosition(x - 3, y + 4, z - 3)).identifier().value().equals("stone"),
+                "the clone landed");
+        assertEquals("stone", server.world().getBlock(
+                new net.zaminmc.torch.block.BlockPosition(x - 2, y + 4, z - 2)).identifier().value(),
+                "the far corner");
+        // The source survived (a plain clone copies).
+        assertEquals("stone", server.world().getBlock(
+                new net.zaminmc.torch.block.BlockPosition(x + 1, y + 4, z + 1)).identifier().value());
+    }
+
     private net.zaminmc.torch.server.chat.CommandSender aliceSender() {
         return new net.zaminmc.torch.server.chat.CommandSender() {
             @Override public String name() {
