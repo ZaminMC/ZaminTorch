@@ -1436,6 +1436,45 @@ envelope — now retired).
       steel lights and stays whole); the sweep: the full protocol suite
       104 green + the container/persistence/mob batches.
 
+## Wave H — the comparator's OutputSignal persistence + the BlockEntityTag placement arm
+
+The evidence (ComparatorBlockEntity.java — the whole file, nine lines:
+writeNbt puts OutputSignal, readNbt reads it, nothing else): the
+engine already carries the model — RedstoneSystem's comparatorOutputs
+map (line 207, created with the block at 1420, removed with it at 419,
+consulted by the weak-power walk at 655 and the update walks at
+1933/1963) — the PERSISTENCE alone is missing (a restart re-arms the
+output on the first update; until then the comparator answers 0). The
+store analog: NoteDataStore (ZND) — the Z-family binary shape over a
+per-position value map, the saveAllNow/boot wiring.
+
+The second evidence (BlockItem.java lines 76-94): the placement's
+BlockEntityTag consult — the stack's tag compound's BlockEntityTag row
+merges over the freshly-placed block entity's written rows (x/y/z
+forced back after the merge), the requireOpForPlacingWithNbt op-gate
+(the command-block family alone answers true), the no-change refusal
+(the merged rows equal the written rows: no re-read, still a successful
+placement).
+
+- [ ] H1 — the comparator's OutputSignal store: the Z-family binary
+      shape (the ZCD magic over RedstoneSystem's comparatorOutputs
+      snapshot — the per-position varint outputs, the version byte) +
+      the snapshot/restore surface on RedstoneSystem + the saveAllNow/
+      boot wiring (the ZND pattern);
+- [ ] H2 — the BlockEntityTag placement arm: the ItemStack model's
+      raw-compound arm (the model-less envelope's remains — a raw
+      Map<String,Snbt.Tag> carried verbatim), ItemNbt's read/write of
+      the row, the placement consult at the engine's placement walk
+      over the TilePlacementListener-created tile (the merge walk + the
+      forced x/y/z + the no-change skip + the op gate over the
+      command-block family's tiles);
+- [ ] H3 — the tests (the comparator's restart round trip — a placed
+      comparator with a live output answers its stored strength BEFORE
+      the first update after the reboot; the /give'd stack's
+      BlockEntityTag applying on place over the chest/spawner families
+      with the op-gate refusal on the command block) + the
+      ledger/worklog rows.
+
 ## Standing (demand-named, not scheduled)
 
 - The shared container-open event (the chest family row's "if demand
