@@ -1,5 +1,6 @@
 package net.zaminmc.torch.item;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -54,11 +55,22 @@ import java.util.Objects;
  * @param hideFlags   the tag's HideFlags int (the tooltip's own mask; 0 = absent)
  * @param lore        the tag's display.Lore string list (the tooltip lines;
  *                    null = absent, immutable, every line non-blank)
+ * @param blockEntityTag the tag's BlockEntityTag compound (Wave H2 — BlockItem's
+ *                    setTileNbt row, carried VERBATIM): the raw NBT subtree in
+ *                    its boxed form — one {@code Map<String, Object>} whose values
+ *                    are {@code Byte}/{@code Short}/{@code Integer}/{@code Long}/
+ *                    {@code Float}/{@code Double}/{@code String}/{@code int[]}/
+ *                    {@code List<Object>} (homogeneous, ordered) / {@code Map<String, Object>}
+ *                    (nested, insertion-ordered). Null = absent. Deeply immutable;
+ *                    the reference's NbtCompound.equals semantics (unordered keys,
+ *                    ordered lists) are exactly {@code Map}/{@code List} equals over
+ *                    the boxed tree — the merge identity never needs a custom walk
  */
 public record ItemStack(ItemType type, int count, int damage, String displayName,
                         Map<Integer, Integer> enchantments,
                         boolean unbreakable, int repairCost, int hideFlags,
-                        List<String> lore) {
+                        List<String> lore,
+                        Map<String, Object> blockEntityTag) {
 
     /** The wire's i16 damage/metadata ceiling (the historical field width). */
     public static final int MAX_DAMAGE = 0x7FFF;
@@ -82,7 +94,8 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
     public ItemStack {
         if (type == null) {
             if (count != 0 || damage != 0 || displayName != null || enchantments != null
-                    || unbreakable || repairCost != 0 || hideFlags != 0 || lore != null) {
+                    || unbreakable || repairCost != 0 || hideFlags != 0 || lore != null
+                    || blockEntityTag != null) {
                 throw new IllegalArgumentException("A stack without a type must be empty (count "
                         + count + ", damage " + damage + ")");
             }
@@ -117,13 +130,22 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
                 hideFlags = 0;
             }
             lore = sanitizeLore(lore);
+            blockEntityTag = sanitizeBlockEntityTag(blockEntityTag);
         }
     }
 
     /** The pre-G1 five-arg shape (the compatibility constructor over the new arms' defaults). */
     public ItemStack(ItemType type, int count, int damage, String displayName,
                      Map<Integer, Integer> enchantments) {
-        this(type, count, damage, displayName, enchantments, false, 0, 0, null);
+        this(type, count, damage, displayName, enchantments, false, 0, 0, null, null);
+    }
+
+    /** The pre-H2 nine-arg shape (the compatibility constructor over the new arm's default). */
+    public ItemStack(ItemType type, int count, int damage, String displayName,
+                     Map<Integer, Integer> enchantments, boolean unbreakable,
+                     int repairCost, int hideFlags, List<String> lore) {
+        this(type, count, damage, displayName, enchantments, unbreakable,
+                repairCost, hideFlags, lore, null);
     }
 
     /** A fresh stack with no damage and no custom name. */
@@ -163,7 +185,7 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
             return isEmpty() ? this : EMPTY;
         }
         return new ItemStack(type, newCount, damage, displayName, enchantments,
-                unbreakable, repairCost, hideFlags, lore);
+                unbreakable, repairCost, hideFlags, lore, blockEntityTag);
     }
 
     /**
@@ -178,7 +200,7 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
             return this;
         }
         return new ItemStack(type, count, newDamage, displayName, enchantments,
-                unbreakable, repairCost, hideFlags, lore);
+                unbreakable, repairCost, hideFlags, lore, blockEntityTag);
     }
 
     /** @return the same stack carrying {@code newName} (null clears the name). */
@@ -187,7 +209,7 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
             return this;
         }
         return new ItemStack(type, count, damage, newName, enchantments,
-                unbreakable, repairCost, hideFlags, lore);
+                unbreakable, repairCost, hideFlags, lore, blockEntityTag);
     }
 
     /**
@@ -199,7 +221,7 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
             return this;
         }
         return new ItemStack(type, count, damage, displayName, newEnchantments,
-                unbreakable, repairCost, hideFlags, lore);
+                unbreakable, repairCost, hideFlags, lore, blockEntityTag);
     }
 
     // ---------------------------------------------------------------
@@ -212,7 +234,7 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
             return this;
         }
         return new ItemStack(type, count, damage, displayName, enchantments,
-                flag, repairCost, hideFlags, lore);
+                flag, repairCost, hideFlags, lore, blockEntityTag);
     }
 
     /** @return the same stack carrying the anvil's RepairCost (0 clears). */
@@ -221,7 +243,7 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
             return this;
         }
         return new ItemStack(type, count, damage, displayName, enchantments,
-                unbreakable, Math.max(0, cost), hideFlags, lore);
+                unbreakable, Math.max(0, cost), hideFlags, lore, blockEntityTag);
     }
 
     /** @return the same stack carrying the tooltip's HideFlags mask (0 clears). */
@@ -230,7 +252,7 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
             return this;
         }
         return new ItemStack(type, count, damage, displayName, enchantments,
-                unbreakable, repairCost, Math.max(0, flags), lore);
+                unbreakable, repairCost, Math.max(0, flags), lore, blockEntityTag);
     }
 
     /** @return the same stack carrying the display.Lore lines (null clears). */
@@ -239,7 +261,20 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
             return this;
         }
         return new ItemStack(type, count, damage, displayName, enchantments,
-                unbreakable, repairCost, hideFlags, lines);
+                unbreakable, repairCost, hideFlags, lines, blockEntityTag);
+    }
+
+    /**
+     * @return the same stack carrying the tag's BlockEntityTag compound in its
+     *         boxed form (Wave H2 — BlockItem.setTileNbt's row, merged into the
+     *         freshly-placed tile's rows at placement; null or empty clears).
+     */
+    public ItemStack withBlockEntityTag(Map<String, Object> rows) {
+        if (isEmpty()) {
+            return this;
+        }
+        return new ItemStack(type, count, damage, displayName, enchantments,
+                unbreakable, repairCost, hideFlags, lore, rows);
     }
 
     /**
@@ -316,7 +351,7 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         }
         int taken = Math.min(Math.min(amount, count), type.maxStackSize());
         return new ItemStack(type, taken, damage, displayName, enchantments,
-                unbreakable, repairCost, hideFlags, lore);
+                unbreakable, repairCost, hideFlags, lore, blockEntityTag);
     }
 
     /**
@@ -341,7 +376,39 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
                 && a.unbreakable == b.unbreakable
                 && a.repairCost == b.repairCost
                 && a.hideFlags == b.hideFlags
-                && Objects.equals(a.lore, b.lore);
+                && Objects.equals(a.lore, b.lore)
+                && blockEntityTagEqual(a.blockEntityTag, b.blockEntityTag);
+    }
+
+    /**
+     * The BlockEntityTag arm's own equality: the reference's whole-tag
+     * compare is unordered keys + ordered lists + deep values — exactly
+     * {@code Map}/{@code List} equals over the boxed tree, except Java's
+     * array identity: {@code int[]} needs {@code Arrays.equals} for the
+     * NBT INT_ARRAY's value equality.
+     */
+    private static boolean blockEntityTagEqual(Map<String, Object> a, Map<String, Object> b) {
+        if (a == null || b == null) {
+            return a == b;
+        }
+        if (a.size() != b.size()) {
+            return false;
+        }
+        for (Map.Entry<String, Object> row : a.entrySet()) {
+            Object other = b.get(row.getKey());
+            if (other == null) {
+                return false; // a missing key (null values never exist in a sanitized tree)
+            }
+            Object value = row.getValue();
+            if (value instanceof int[] array) {
+                if (!(other instanceof int[] otherArray) || !Arrays.equals(array, otherArray)) {
+                    return false;
+                }
+            } else if (!Objects.equals(value, other)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**
@@ -390,5 +457,58 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
             }
         }
         return cleaned.isEmpty() ? null : List.copyOf(cleaned);
+    }
+
+    /**
+     * The BlockEntityTag compound's own sanitize (Wave H2 — the reference's
+     * whole tag carried verbatim, never interpreted at the model layer):
+     * null or empty parses to absent, the walk validates every value
+     * against the NBT element families in their boxed form
+     * (Byte/Short/Integer/Long/Float/Double/String/int[]/List/Map — nulls
+     * and any other type refused), and the answer is a DEEP immutable
+     * copy: unmodifiable maps in insertion order, immutable lists, cloned
+     * arrays. The reference's NbtCompound keeps any key (empty included) —
+     * so does the sanitizer; the SNBT/NBT round trip preserves them.
+     */
+    private static Map<String, Object> sanitizeBlockEntityTag(Map<String, Object> input) {
+        if (input == null || input.isEmpty()) {
+            return null;
+        }
+        return (Map<String, Object>) sanitizeBoxedValue(input, "BlockEntityTag");
+    }
+
+    /** One boxed NBT value's validation + deep immutable copy (recursive). */
+    private static Object sanitizeBoxedValue(Object value, String where) {
+        if (value == null) {
+            throw new IllegalArgumentException("BlockEntityTag carries a null value at " + where);
+        }
+        if (value instanceof Byte || value instanceof Short || value instanceof Integer
+                || value instanceof Long || value instanceof Float || value instanceof Double
+                || value instanceof String) {
+            return value;
+        }
+        if (value instanceof int[] array) {
+            return array.clone();
+        }
+        if (value instanceof List<?> list) {
+            java.util.List<Object> copied = new java.util.ArrayList<>(list.size());
+            for (Object element : list) {
+                copied.add(sanitizeBoxedValue(element, where + "[list]"));
+            }
+            return List.copyOf(copied);
+        }
+        if (value instanceof Map<?, ?> map) {
+            java.util.LinkedHashMap<String, Object> copied = new java.util.LinkedHashMap<>();
+            for (Map.Entry<?, ?> row : map.entrySet()) {
+                Object key = row.getKey();
+                if (!(key instanceof String keyString)) {
+                    throw new IllegalArgumentException("BlockEntityTag carries a non-string key at " + where);
+                }
+                copied.put(keyString, sanitizeBoxedValue(row.getValue(), where + "." + keyString));
+            }
+            return java.util.Collections.unmodifiableMap(copied);
+        }
+        throw new IllegalArgumentException("BlockEntityTag carries an unsupported value type "
+                + value.getClass().getName() + " at " + where);
     }
 }

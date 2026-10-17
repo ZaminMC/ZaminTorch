@@ -21,9 +21,13 @@ import java.util.Map;
  * line 163), {@code tag.RepairCost} (the anvil's int, lines 634-643),
  * {@code tag.HideFlags} (the tooltip's mask, lines 442-443), and
  * {@code tag.display.Lore} (the tooltip's string list, lines 474-475).
- * The remaining arms — CanDestroy/CanPlace, BlockEntityTag, the
- * attribute modifiers, display.color — parse into nothing and are never
- * written (the engine's standing envelope, ledgered).</p>
+ * <b>Wave H2</b> lands the raw compound — {@code tag.BlockEntityTag}
+ * (BlockItem lines 76-97): carried VERBATIM on the model's arm in its
+ * boxed form, never interpreted at the item layer — the placement
+ * consult merges it into the freshly-placed tile's rows. The remaining
+ * arms — CanDestroy/CanPlace, the attribute modifiers, display.color —
+ * parse into nothing and are never written (the engine's standing
+ * envelope, ledgered).</p>
  */
 public final class ItemNbt {
 
@@ -60,7 +64,10 @@ public final class ItemNbt {
         boolean unbreakable = stack.unbreakable();
         int repairCost = stack.repairCost();
         int hideFlags = stack.hideFlags();
-        if (hasName || hasLore || hasEnch || unbreakable || repairCost > 0 || hideFlags > 0) {
+        boolean hasBlockEntityTag = stack.blockEntityTag() != null
+                && !stack.blockEntityTag().isEmpty();
+        if (hasName || hasLore || hasEnch || unbreakable || repairCost > 0 || hideFlags > 0
+                || hasBlockEntityTag) {
             Map<String, Snbt.Tag> tag = new java.util.LinkedHashMap<>();
             if (hasName || hasLore) {
                 Map<String, Snbt.Tag> display = new java.util.LinkedHashMap<>();
@@ -94,6 +101,13 @@ public final class ItemNbt {
             }
             if (hideFlags > 0) {
                 NbtOps.putInt(tag, "HideFlags", hideFlags);
+            }
+            // The raw compound (Wave H2 — BlockItem's setTileNbt reads the
+            // row with contains("BlockEntityTag", 10): the whole subtree
+            // written verbatim, every family of the tree's own.
+            if (hasBlockEntityTag) {
+                NbtOps.putCompound(tag, "BlockEntityTag",
+                        NbtOps.fromBoxed(stack.blockEntityTag()));
             }
             NbtOps.putCompound(rows, "tag", tag);
         }
@@ -193,6 +207,14 @@ public final class ItemNbt {
             int hideFlags = NbtOps.getInt(tag, "HideFlags");
             if (hideFlags > 0) {
                 stack = stack.withHideFlags(hideFlags);
+            }
+            // The raw compound (Wave H2 — the reference's
+            // contains("BlockEntityTag", 10) gate: getCompound answers
+            // empty for a missing OR non-compound row, so a non-compound
+            // BlockEntityTag never lands on the model).
+            Map<String, Snbt.Tag> blockEntityTag = NbtOps.getCompound(tag, "BlockEntityTag");
+            if (!blockEntityTag.isEmpty()) {
+                stack = stack.withBlockEntityTag(NbtOps.toBoxed(blockEntityTag));
             }
         }
         if (damage > 0) {
