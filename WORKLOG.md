@@ -8464,3 +8464,36 @@ surface, the variant carts' VariantState read view, the public
 Player-surface title/chat exposure); (3) the sign tiles' command-stats
 persistence (the reference's SignBlockEntity carries none — the engine's
 own sign store wave); (4) then the next vanilla wave per the ledger.
+
+## Slice 90 closing — the stale-ledger retirement + the action bar (p4-p6)
+
+- **p4 — WORLDBORDER.JSON (c56b5f9)**: WorldBorderDataStore — the
+  reference's level.dat border rows (the center pair, the live size, the
+  lerp target + the REMAINING lerp time with the resume arm, the safe
+  zone, the per-block damage, the warning pair), wired at boot + the
+  /save and shutdown walk. WorldBorderPersistenceTest 2 green (the
+  stationary family round-trip + the pending 5s shrink's resume).
+- **p5 — THE PLAYER TITLE/CHAT SURFACE (f9fcab3)**: Player.sendTitle /
+  clearTitle / sendChatLine / sendSystemLine / sendChatComponent over
+  Slice 87's wire (the reference's Times-then-Title-then-Subtitle arm
+  order; the plain texts through TextJson's bare-string quirk).
+  PlayerTitleChatApiTest 3 green.
+- **p6 — THE ACTION BAR (c2b37d3)**: Player.sendActionBar (Chat 0x02 @
+  position 2).
+- **THE STALE-LEDGER RETIREMENT**: verified live in the tree (the Slice
+  89 NEXT ledger's "older gaps" rows were stale) — the MC|AdvCdm type-0
+  block arm + the areCommandBlocksEnabled gate (V18Connection's payload
+  walk), the vehicle damage-source surface (VehicleEntity.DamageSource,
+  Slice 74 — the furnace cart's furnace block skips an explosive death),
+  and the variant carts' VariantState read view (Slice 68 —
+  VariantStateApiAcceptanceTest).
+
+NEXT (in order): (1) the §27 window family — the open-window re-sync to
+a viewer (the container rows' own "rides the window family's wave" notes:
+a plugin's setSlot on a chest/hopper with an open viewer must re-sync the
+viewer's Window Items, the engine's own diff paths generalized) + the
+window family's public surface (the audit's named blocker wave); (2) the
+sign tiles' command-stats persistence (the reference carries none — the
+engine's own convention decision); (3) the next vanilla wave per the
+ledger's pending rows (survey VANILLA_1_8_8_COMPATIBILITY.md's open
+envelopes first).
