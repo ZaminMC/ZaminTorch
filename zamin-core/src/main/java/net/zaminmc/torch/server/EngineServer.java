@@ -653,6 +653,7 @@ public final class EngineServer implements Server, EngineBridge {
                 itemEntities.addListener(new ItemEventDispatch());
                 // Furnace block entities: world-state simulation, ZFD persistence.
                 furnaceManager = new FurnaceManager();
+                furnaceManager.setEventBus(eventBus); // §27.7: the burn + smelt gates
                 furnaceStore = new FurnaceDataStore(config.worldDataDir().resolve("furnaces.bin"));
                 furnaceManager.restoreAll(furnaceStore.load());
                 // Chest block entities: world-state containers, ZCD persistence.
@@ -1412,6 +1413,7 @@ public final class EngineServer implements Server, EngineBridge {
                 // under the boundary scope.
                 hopperSystem = new net.zaminmc.torch.server.hopper.HopperSystem(
                         world, redstoneSystem, itemEntities, chestManager, furnaceManager);
+                hopperSystem.setEventBus(eventBus); // §27.7: the transfer gate
                 world.addChangeListener(hopperSystem); // the placement creates the BE state
                 redstoneSystem.addNeighborListener(hopperSystem::neighborHeard);
                 // The hopper contents' own ZHD persistence (the chest store's

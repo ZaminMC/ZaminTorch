@@ -50,6 +50,22 @@ public final class FurnaceBlockEntity {
      */
     private Runnable contentsListener;
 
+    /**
+     * The public §27.7 gates (the burn + smelt observe hooks — Slice 82):
+     * consulted at the ignite decision and the smelt completion, before
+     * any slot mutation. A null gate (the unwired window) admits
+     * everything. Wired by the manager; runs on the tick thread.
+     */
+    public interface Gates {
+        /** @return whether the ignition stands (the fuel is consumed). */
+        boolean allowIgnite(ItemStack fuel, int burnTicks);
+
+        /** @return whether the smelt commits (the input is consumed). */
+        boolean allowSmelt(ItemStack input, ItemStack result);
+    }
+
+    private Gates gates;
+
     public FurnaceBlockEntity() {
         java.util.Arrays.fill(slots, ItemStack.EMPTY);
     }
@@ -57,6 +73,11 @@ public final class FurnaceBlockEntity {
     /** Wires the contents-changed wake (the manager's per-position fan-out). */
     public void setContentsListener(Runnable listener) {
         this.contentsListener = listener;
+    }
+
+    /** Wires the public §27.7 gates (the manager's burn + smelt observe hooks). */
+    public void setGates(Gates gates) {
+        this.gates = gates;
     }
 
     /** The slot-mutation bump: the serial + the comparator wake. */
@@ -119,7 +140,7 @@ public final class FurnaceBlockEntity {
         if (!burning() && canSmelt()) {
             // Ignite: consume one fuel unit, start its burn cycle (historical).
             int burn = fuelBurnValue();
-            if (burn > 0) {
+            if (burn > 0 && (gates == null || gates.allowIgnite(slots[SLOT_FUEL], burn))) {
                 burnTimeRemaining = burn;
                 burnTimeTotal = burn;
                 consumeOne(SLOT_FUEL);
@@ -131,8 +152,10 @@ public final class FurnaceBlockEntity {
             propsSerial++;
             if (cookTime >= FurnaceRecipes.COOK_TICKS) {
                 cookTime = 0;
-                smeltOne();
-                bump();
+                if (gates == null || gates.allowSmelt(slots[SLOT_INPUT], smeltResultOf(slots[SLOT_INPUT]))) {
+                    smeltOne();
+                    bump();
+                }
             }
         } else if (cookTime != 0) {
             // Not cooking: the historical reset (progress never persists).
@@ -167,6 +190,15 @@ public final class FurnaceBlockEntity {
     private int fuelBurnValue() {
         ItemStack fuel = slots[SLOT_FUEL];
         return fuel.isEmpty() ? 0 : FurnaceRecipes.burnTicksOf(fuel.type());
+    }
+
+    /** The would-be output of one smelt (the gate's payload — a pure read). */
+    private ItemStack smeltResultOf(ItemStack in) {
+        FurnaceRecipes.SmeltResult result =
+                FurnaceRecipes.resultOf(in.type(), in.damage()).orElseThrow();
+        ItemType outType = net.zaminmc.torch.server.item.BuiltinItems.lookup(result.output())
+                .orElseThrow();
+        return new ItemStack(outType, result.count(), result.damage());
     }
 
     private void consumeOne(int slot) {

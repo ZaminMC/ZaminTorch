@@ -113,6 +113,33 @@ public final class HopperSystem implements WorldChangeListener {
     /** The cart arm's own pick (getInventoryAt line 470: a random one from the box). */
     private final Random random = new Random();
 
+    /** The public §27.7 transfer gate (the observe/cancel hook; null = unwired). */
+    private volatile net.zaminmc.torch.server.event.EngineEventBus eventBus;
+
+    /** Wires the public §27.7 transfer gate (the observe/cancel hook). */
+    public void setEventBus(net.zaminmc.torch.server.event.EngineEventBus eventBus) {
+        this.eventBus = Objects.requireNonNull(eventBus, "eventBus");
+    }
+
+    /**
+     * The §27.7 pre-commit gate: fires the public HopperTransferEvent per
+     * prospective item move, before any slot mutation. A null bus (the
+     * unwired window) admits everything. Cancelled means THIS item stays —
+     * the walk's own rules continue around it.
+     */
+    private boolean fireTransferGate(net.zaminmc.torch.event.block.HopperTransferEvent.Direction direction,
+                                     BlockPosition hopperPos, BlockPosition counterpart,
+                                     ItemStack item) {
+        var bus = eventBus;
+        if (bus == null) {
+            return true;
+        }
+        var event = new net.zaminmc.torch.event.block.HopperTransferEvent(
+                world.name(), hopperPos, direction, counterpart, item);
+        bus.fire(event);
+        return !event.cancelled();
+    }
+
     public HopperSystem(EngineWorld world, RedstoneSystem redstone,
                         ItemEntityManager itemEntities, ChestManager chests,
                         FurnaceManager furnaces) {
@@ -364,7 +391,7 @@ public final class HopperSystem implements WorldChangeListener {
                                        BlockPosition target) {
         boolean moved = false;
         if (!hopper.isEmpty()) {
-            moved = pushItem(hopper, facing, target);
+            moved = pushItem(pos, hopper, facing, target);
         }
         if (!hopper.isFull()) {
             moved = pullItem(pos, hopper) || moved;
@@ -390,7 +417,8 @@ public final class HopperSystem implements WorldChangeListener {
      * receiving-hopper arm resets its cooldown (the reference's
      * canTransferNextTick inside the slot push).
      */
-    private boolean pushItem(HopperBlockEntity hopper, int facing, BlockPosition target) {
+    private boolean pushItem(BlockPosition hopperPos, HopperBlockEntity hopper, int facing,
+                             BlockPosition target) {
         int targetFace = opposite(facing); // the face of the TARGET receiving the item
         List<ContainerSlot> slots = containerSlotsAt(target, targetFace);
         if (slots.isEmpty()) {
@@ -408,6 +436,11 @@ public final class HopperSystem implements WorldChangeListener {
             // with the whole-stack copy held back for the restore).
             ItemStack held = moving;
             ItemStack one = ItemStack.of(moving.type(), 1);
+            if (!fireTransferGate(
+                    net.zaminmc.torch.event.block.HopperTransferEvent.Direction.PUSH,
+                    hopperPos, target, one)) {
+                continue; // the §27.7 gate kept this item — the next slot's own event
+            }
             if (moving.count() > 1) {
                 hopper.setItem(slot, moving.withCount(moving.count() - 1));
             } else {
@@ -448,6 +481,11 @@ public final class HopperSystem implements WorldChangeListener {
                 // for the restore).
                 ItemStack held = moving;
                 ItemStack one = ItemStack.of(moving.type(), 1);
+                if (!fireTransferGate(
+                        net.zaminmc.torch.event.block.HopperTransferEvent.Direction.PULL,
+                        pos, above, one)) {
+                    continue; // the §27.7 gate kept this item — the next slot's own event
+                }
                 if (moving.count() > 1) {
                     source.set(moving.withCount(moving.count() - 1));
                 } else {
@@ -472,6 +510,13 @@ public final class HopperSystem implements WorldChangeListener {
                 ItemStack stack = item.stack();
                 if (stack.isEmpty()) {
                     continue;
+                }
+                if (!fireTransferGate(
+                        net.zaminmc.torch.event.block.HopperTransferEvent.Direction.SUCK,
+                        pos, new BlockPosition((int) Math.floor(at.x()),
+                                (int) Math.floor(at.y()), (int) Math.floor(at.z())),
+                        stack)) {
+                    continue; // the §27.7 gate kept the entity — it stays on the ground
                 }
                 ItemStack remainder = insertIntoHopper(hopper, stack);
                 if (remainder.isEmpty()) {

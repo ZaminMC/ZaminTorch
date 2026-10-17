@@ -7871,3 +7871,50 @@ NEXT (in order): (1) the next vanilla wave per the ledger; (2) the
 remaining §27 audit omissions (the furnace burn/cook observe hooks,
 the hopper transfer hooks — the interaction-events wave's named rows);
 (3) the periodic release cadence.
+
+## Slice 82 — the furnace + hopper observe hooks (§27.7's interaction-events wave, the ledger's named rows)
+
+- **The public `FurnaceBurnEvent`** (the ignite gate): fires at the
+  ignite decision — cold furnace, smeltable input waiting, one fuel
+  unit about to be consumed. Cancel keeps the fuel AND the furnace
+  cold (the next tick re-attempts; nothing is lost). The payload: the
+  fuel stack + the burn value in ticks.
+- **The public `FurnaceSmeltEvent`** (the cook gate): fires at the
+  200-tick term — one input about to be consumed, the result about to
+  land. Cancel keeps both; the cycle's progress is already spent (the
+  reference's own reset happens before the commit — a cancelled smelt
+  restarts the cook cycle, exactly like a cycle whose result stopped
+  fitting). The payload: the input stack + the would-be result stack.
+- **The public `HopperTransferEvent`** (the transfer gate): fires per
+  prospective item move inside the transfer's boundary scope —
+  PUSH (one item toward the faced container), PULL (one from the
+  container above), SUCK (the item entities in the collection box) —
+  with the counterpart position + the one-item payload. Cancel keeps
+  THIS item; the walk's own rules continue (the next slot's item gets
+  its own event; a fully-cancelled cycle arms no cooldown).
+- **The wiring**: `FurnaceBlockEntity` grew the `Gates` consult points
+  (the ignite + the smelt completion, both before any slot mutation)
+  wired by the manager's adapter (the world name captured at the tick
+  entry — the gates run on the same tick thread); `HopperSystem` fires
+  its own gate (it holds the world) at the three arms, each BEFORE the
+  slot/entity mutation.
+- **THE KNOWN GAP THE SUCK TEST FOUND (ledgered, not fixed here)**:
+  the item-entity physics falls THROUGH the hopper's funnel shape —
+  items collide with full cubes only, so an item spawned above a
+  hopper passes through the collection band (the in-band suck still
+  lands its first cadence; vanilla rests the item in the funnel at
+  y+0.625). A physics-shape wave of its own (the §3 collision family).
+- Tests: `FurnaceHopperEventAcceptanceTest` (5 — the cancelled ignite
+  keeping fuel + input + cold with the after-unsubscribe arm, the
+  smelt observation carrying input/result + the cancelled twin holding
+  everything, the push observation with the item/counterpart/world +
+  the cancel keeping the stack, the pull observation, the suck cancel
+  + the fresh-item uncancelled suck). The furnace/hopper/chest/
+  container families + LitFurnace + BrewingStand + the piston/fluid
+  gates + RegionBoundaryTest green.
+
+NEXT (in order): (1) the item-entity shape-collision wave (the fall-
+through gap the suck test found — items must rest in the hopper's
+funnel, on slabs, on stairs — the §3 collision family's own slice);
+(2) the next vanilla wave per the ledger; (3) the remaining §27
+omissions.
