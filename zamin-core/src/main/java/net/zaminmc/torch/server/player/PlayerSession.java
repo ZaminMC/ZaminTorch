@@ -492,6 +492,11 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
      * @return true when a drowning damage tick is due (2 per second
      * after the air ran out, the historical EntityPlayer rhythm).
      */
+    /** The breath store (the Air row's own model — syncedData 1's engine shape). */
+    public int airTicks() {
+        return airTicks;
+    }
+
     public boolean advanceBreath(boolean underwater, int respirationLevel,
                                  java.util.Random random) {
         if (!underwater) {
