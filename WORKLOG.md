@@ -8875,3 +8875,52 @@ no-change skip) + H3's tests; then the ledger's remaining envelopes
 (the other no-BE tile families: EnderChest contents on the player, the
 skull's Owner profile; the item-tag envelope's last arms:
 CanDestroy/CanPlace, the attribute modifiers, display.color).
+
+## Slice 95 — Wave H2/H3: the BlockEntityTag placement arm (COMPLETE)
+
+The evidence (BlockItem.java lines 70-100 + the 1.8.8 quirks): the
+stack's tag compound carries a BlockEntityTag row merged into the
+freshly-placed tile's written rows (x/y/z forced back after the merge),
+the requireOpForPlacingWithNbt gate (THREE families override true:
+Sign/Control/MobSpawner — the planning note's "command-block family
+alone" was shorthand, the reference wins), and the no-change refusal is
+DEAD CODE in 1.8.8 (the pristine copy precedes the write, lines 83-84 —
+x/y/z always land, the read always runs; fixed in 1.9+ by copying after).
+
+- ce2b3a1 (p1): the model arm — the tenth ItemStack component, the raw
+  compound as a boxed tree (Map<String,Object>; the api module cannot
+  see Snbt.Tag, and the boxed tree's Map/List equals IS the reference's
+  NbtCompound.equals — unordered keys, ordered lists), the deep
+  immutable sanitizer, mergeable's int[] VALUE-equality walk, the
+  NbtOps toBoxed/fromBoxed adapters, ItemNbt's row (the type-10 gate).
+- 8085565 (p2): the wire (SlotNbt's generic walk — long/float/double/
+  int-array added, the empty list's type-0, lists-of-lists) + the ZID
+  v3/ZMD v8 tails + THE VERSION-GATE REPAIR (Slice 94's 6->7 bump had
+  left the v6 tameable/horse tail on the bare FORMAT_VERSION — a v6
+  file would misparse into quarantine; it now names FORMAT_VERSION_6).
+- 8a07cf7 (p3): the consult — TileNbt.applyPlacementTag 1:1, wired at
+  both commit sites (the creative arm consults the authoritative held
+  stack; the survival arm consults between the commit and the consume,
+  the reference's own order) through the PlacementTagConsult seam.
+- 9b7f0aa (p4): the /give dataTag arm (ItemNbt.readTagInto shared by
+  the row read and the give walk; the usage string's mangled "etadata"
+  fragment repaired).
+- 684ee5b (H3): BlockEntityTagPlacementTest 8 green — the chest
+  Items/Lock/CustomName through the consult, the spawner cadence for an
+  op vs the non-op refusal, the command-block op-gate (the placement
+  stays committed through a refusal), the 1.8.8 dead-refusal quirk, the
+  flagship /give -> stack -> placement -> locked-chest loop.
+- 5dd1c99 (p5): THE TAILS' REPAIR — NbtOps.write emits the reference's
+  toString list form (index-colon 0:{..}), UNREADABLE by the parser;
+  the tails' first cut quarantined their own saves (ItemPersistenceTest
+  caught it live: zero bodies loaded). NbtOps.writeParseable added (the
+  parseable form: lists [a,b], quoted strings; the empty-list -> empty
+  int-array corner is the 1.8.8 grammar's own ambiguity, ledgered).
+
+Sweeps: BlockEntityTagPlacementTest 8, SlotNbtTest 11, ItemPersistence
+7, MobDataStore 7, ItemTagRows 8, TileNbt 8, NbtOps 7 — all green.
+
+NEXT: the standing rows (the remaining model-less arms: CanDestroy/
+CanPlace, the attribute modifiers, display.color; the skull's Owner
+profile; the mob_spawner item registration); then the next vanilla
+wave per the compatibility ledger.

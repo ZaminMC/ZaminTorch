@@ -1467,19 +1467,42 @@ placement).
       stored strength straight into getWeakPower), the saveAllNow arm,
       RedstoneComparatorTest 7 (the chest-fed comparator's live 7 rides
       the store through the reboot, answered before any update);
-- [ ] H2 — the BlockEntityTag placement arm: the ItemStack model's
-      raw-compound arm (the model-less envelope's remains — a raw
-      Map<String,Snbt.Tag> carried verbatim), ItemNbt's read/write of
-      the row, the placement consult at the engine's placement walk
-      over the TilePlacementListener-created tile (the merge walk + the
-      forced x/y/z + the no-change skip + the op gate over the
-      command-block family's tiles);
-- [ ] H3 — the tests (the comparator's restart round trip — a placed
-      comparator with a live output answers its stored strength BEFORE
-      the first update after the reboot; the /give'd stack's
-      BlockEntityTag applying on place over the chest/spawner families
-      with the op-gate refusal on the command block) + the
-      ledger/worklog rows.
+- [x] H2 — the BlockEntityTag placement arm LANDED (Slice 95, commits
+      ce2b3a1 + 8085565 + 8a07cf7 + 9b7f0aa): the ItemStack model's
+      raw-compound arm — a boxed tree (Map<String,Object> over the NBT
+      element families) carried VERBATIM, deeply immutable, whose
+      Map/List equals IS the reference's NbtCompound.equals (the api
+      module cannot see the core tag type; NbtOps' toBoxed/fromBoxed
+      adapt at every row boundary); ItemNbt's tag.BlockEntityTag row
+      (the contains(...,10) type gate); the SlotNbt wire walk (every
+      family, the empty list's type-0 element convention,
+      lists-of-lists); the ZID v3 / ZMD v8 tails (ONE SNBT string row —
+      NbtOps.writeParseable, the PARSEABLE form: NbtOps.write keeps the
+      reference's toString list shape for the /blockdata replies, which
+      the parser cannot read — the tail's first cut quarantined its own
+      saves, ItemPersistenceTest caught it live); the placement consult
+      TileNbt.applyPlacementTag (BlockItem.setTileNbt 1:1) at both
+      commit sites through the service's PlacementTagConsult seam; the
+      requireOp families are THREE (Sign/Control/MobSpawner — the
+      reference's own overrides, not the planning note's one);
+- [x] H3 — the tests + the ledger rows LANDED (commits 684ee5b +
+      5dd1c99): BlockEntityTagPlacementTest 8 green over the live
+      engine (the chest family's Items/Lock/CustomName through the
+      consult; the spawner cadence merge for an op vs the non-op
+      refusal keeping the fresh cadence — the engine has no mob_spawner
+      item yet, the direct call walks the same merge the reference's
+      STATIC setTileNbt would; the command-block op-gate refusal for a
+      non-op with the placement staying committed; THE 1.8.8 QUIRK
+      captured — the no-change refusal is dead code, a no-op merge
+      still re-reads and answers true; the flagship loop /give with a
+      dataTag -> the named stack -> the placement -> the locked chest;
+      the malformed dataTag answering the command's tag error),
+      SlotNbtTest 11, ItemPersistenceTest 7 (the ZID arm through the
+      restart), the adjacent sweep 30 green. THE VERSION-GATE REPAIR
+      the v8 bump's audit caught is ledgered in the p2 commit: Slice
+      94's 6->7 bump had left the v6 tameable/horse tail riding the
+      bare FORMAT_VERSION (a v6 file would misparse into the
+      quarantine path); it now names FORMAT_VERSION_6.
 
 ## Standing (demand-named, not scheduled)
 
@@ -1488,3 +1511,11 @@ placement).
 - The §28.7 Bukkit/Spigot/Paper compatibility adapter (§27.1's order:
   after the 1.8.8 implementation is polished into a playable,
   maintainable server).
+- The remaining model-less item-tag arms (CanDestroy/CanPlace, the
+  attribute modifiers, display.color) — the envelope after Wave H2's
+  raw compound.
+- The skull's Owner profile + the EnderChest contents-on-player angle
+  (the no-BE tile families' remains).
+- The mob_spawner ITEM (BuiltinItems carries no spawner item yet — the
+  H3 spawner test walked the consult directly; the item's registration
+  is its own small slice with the creative-menu arm).
