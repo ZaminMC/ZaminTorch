@@ -230,4 +230,55 @@ public interface ClientLink {
                                  double sizeLerpTarget, long lerpTimeMs, int maxSize,
                                  int warningBlocks, int warningTime) {
     }
+
+    /**
+     * Title (0x45) TITLE (the reference's Type ordinal 0): the title's
+     * serialized component (the JSON text string — PacketByteBuf.writeText's
+     * own form). Safe from any thread; default no-op for engine-internal
+     * links.
+     */
+    default void titleTitle(String jsonText) {
+    }
+
+    /**
+     * Title (0x45) SUBTITLE (the reference's Type ordinal 1): the subtitle's
+     * serialized component. Safe from any thread; default no-op for
+     * engine-internal links.
+     */
+    default void titleSubtitle(String jsonText) {
+    }
+
+    /**
+     * Title (0x45) TIMES (the reference's Type ordinal 2): the three i32s —
+     * fadeIn, stay, fadeOut. Safe from any thread; default no-op for
+     * engine-internal links.
+     */
+    default void titleTimes(int fadeIn, int duration, int fadeOut) {
+    }
+
+    /**
+     * Title (0x45) CLEAR (the reference's Type ordinal 3): the client hides
+     * the current title. Safe from any thread; default no-op for
+     * engine-internal links.
+     */
+    default void titleClear() {
+    }
+
+    /**
+     * Title (0x45) RESET (the reference's Type ordinal 4): clear + reset the
+     * times to the client's defaults. Safe from any thread; default no-op
+     * for engine-internal links.
+     */
+    default void titleReset() {
+    }
+
+    /**
+     * Player List Header/Footer (0x47): the header's then the footer's
+     * serialized component. The vanilla 1.8.8 server never sends this packet
+     * (the reference tree wires only the client handler) — the verb exists
+     * for the native API surface. Safe from any thread; default no-op for
+     * engine-internal links.
+     */
+    default void tabListHeaderFooter(String headerJson, String footerJson) {
+    }
 }

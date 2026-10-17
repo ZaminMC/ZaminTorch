@@ -2146,6 +2146,74 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         channel.writeAndFlush(out);
     }
 
+    // ------------------------------------------------------------------ titles + tab-list header/footer
+
+    @Override
+    public void titleTitle(String jsonText) {
+        writeTitlePacket(Protocol18.TITLE_TYPE_TITLE, buffer -> {
+            ByteBufOps.writeString(buffer, jsonText);
+        });
+    }
+
+    @Override
+    public void titleSubtitle(String jsonText) {
+        writeTitlePacket(Protocol18.TITLE_TYPE_SUBTITLE, buffer -> {
+            ByteBufOps.writeString(buffer, jsonText);
+        });
+    }
+
+    @Override
+    public void titleTimes(int fadeIn, int duration, int fadeOut) {
+        writeTitlePacket(Protocol18.TITLE_TYPE_TIMES, buffer -> {
+            buffer.writeInt(fadeIn);
+            buffer.writeInt(duration);
+            buffer.writeInt(fadeOut);
+        });
+    }
+
+    @Override
+    public void titleClear() {
+        writeTitlePacket(Protocol18.TITLE_TYPE_CLEAR, buffer -> {
+        });
+    }
+
+    @Override
+    public void titleReset() {
+        writeTitlePacket(Protocol18.TITLE_TYPE_RESET, buffer -> {
+        });
+    }
+
+    @Override
+    public void tabListHeaderFooter(String headerJson, String footerJson) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        // Player List Header/Footer (0x47, TabListS2CPacket's write walk):
+        // the header's then the footer's serialized component.
+        ByteBuf out = Unpooled.buffer(48 + headerJson.length() + footerJson.length());
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_PLAYER_LIST_HEADER_FOOTER);
+        ByteBufOps.writeString(out, headerJson);
+        ByteBufOps.writeString(out, footerJson);
+        channel.writeAndFlush(out);
+    }
+
+    /** One Title packet (0x45): the varint enum ordinal + the per-type fields. */
+    private void writeTitlePacket(int type, BorderFieldWriter fields) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        // TitlesS2CPacket's own write walk: writeEnum = the varint ordinal,
+        // then the text (TITLE/SUBTITLE) or the three i32s (TIMES); the
+        // CLEAR/RESET arms carry nothing.
+        ByteBuf out = Unpooled.buffer(40);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_TITLE);
+        ByteBufOps.writeVarInt(out, type);
+        fields.write(out);
+        channel.writeAndFlush(out);
+    }
+
     /** The protocol 47 varlong (7 bits per byte, high bit = continuation). */
     private static void writeVarLong(ByteBuf out, long value) {
         while (true) {

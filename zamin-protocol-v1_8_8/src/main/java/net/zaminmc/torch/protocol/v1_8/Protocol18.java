@@ -176,6 +176,26 @@ final class Protocol18 {
     static final int WORLD_BORDER_SET_WARNING_TIME = 4;
     static final int WORLD_BORDER_SET_WARNING_BLOCKS = 5;
 
+    /**
+     * Title (0x45, protocol 47 — TitlesS2CPacket, the write walk lines
+     * 50-61): varint enum ordinal, then for TITLE/SUBTITLE the JSON text
+     * string, for TIMES the three i32s; CLEAR/RESET carry nothing.
+     */
+    static final int S2C_TITLE = 0x45;
+    static final int TITLE_TYPE_TITLE = 0;
+    static final int TITLE_TYPE_SUBTITLE = 1;
+    static final int TITLE_TYPE_TIMES = 2;
+    static final int TITLE_TYPE_CLEAR = 3;
+    static final int TITLE_TYPE_RESET = 4;
+
+    /**
+     * Player List Header/Footer (0x47, protocol 47 — TabListS2CPacket): the
+     * header JSON text then the footer JSON text. The vanilla 1.8.8 server
+     * never sends it (the reference tree only carries the client handler);
+     * the engine exposes the wire through the native API surface.
+     */
+    static final int S2C_PLAYER_LIST_HEADER_FOOTER = 0x47;
+
     // Serverbound play packet ids (protocol 47) — cross-checked against the
     // community protocol.json (PrismarineJS/minecraft-data) mapping. The
     // "Player" ground packet lives at 0x03 ("flying"); 0x0F is the client's
