@@ -16413,10 +16413,14 @@ public final class EngineServer implements Server, EngineBridge {
      */
     private void explodeOnTick(MobEntity creeper) {
         Position center = creeper.position();
-        // mobGriefing (Slice 24a — CreeperEntity.explode line 208): the
-        // destructive flag rides the rule; a no-grief world's blast
-        // wounds and knocks but never breaks blocks.
-        detonateAt(center.x(), center.y() + 0.5, center.z(), CREEPER_POWER, BLAST_MAX_DAMAGE,
+        // The blast's own law (CreeperEntity.explode lines 206-213): the
+        // ExplosionRadius row steers the base, the charged flag doubles it
+        // (isCharged ? 2.0F : 1.0F — the lightning-charged body), and
+        // mobGriefing (Slice 24a) rides the destructive flag; a no-grief
+        // world's blast wounds and knocks but never breaks blocks.
+        float power = creeper.creeperExplosionRadius()
+                * (creeper.creeperCharged() ? 2.0f : 1.0f);
+        detonateAt(center.x(), center.y() + 0.5, center.z(), power, BLAST_MAX_DAMAGE,
                 gameRules.getBoolean("mobGriefing"));
     }
 
