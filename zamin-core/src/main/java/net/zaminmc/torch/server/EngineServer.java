@@ -17025,19 +17025,49 @@ public final class EngineServer implements Server, EngineBridge {
 
     /**
      * /testfor (TestForCommand 1:1, op-2): the any-kind ladder then the
-     * success line. The dataTag arm rides the per-entity NBT write surface
-     * (not yet — the engine's entity persistence is store-shaped, not the
-     * reference's writeNbtWithoutId walk); ledgered.
+     * success line; the dataTag arm (Slice 89) matches the parsed compound
+     * as a SUBSET (NbtUtils.matches with the list recursion) against the
+     * body's EntityNbt-written rows — the reference's own
+     * writeNbtWithoutId walk. A player target matches against the empty
+     * compound (the engine's no-player-write envelope, ledgered).
      */
     private String testforCommand(CommandSender sender, String[] args) {
         if (args.length < 1) {
             return "Usage: /testfor <player> [dataTag]";
         }
-        if (args.length >= 2) {
-            return "The dataTag arm is not implemented yet (ledgered)";
-        }
         net.zaminmc.torch.server.command.TargetSelector.Candidate found = net.zaminmc.torch.server.command.CommandParse
                 .parseEntity(players, sender, args[0]);
+        // The dataTag arm (TestForCommand lines 29-44): the parsed compound
+        // matched as a SUBSET against the body's written rows. A player's
+        // write surface has no engine model — the empty compound stands in
+        // (ledgered: only a {} pattern matches a player).
+        if (args.length >= 2) {
+            StringBuilder joined = new StringBuilder();
+            for (int i = 1; i < args.length; i++) {
+                if (i > 1) {
+                    joined.append(' ');
+                }
+                joined.append(args[i]);
+            }
+            java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> pattern;
+            try {
+                pattern = net.zaminmc.torch.server.nbt.Snbt.parseCompound(joined.toString());
+            } catch (IllegalArgumentException tagError) {
+                return "Error parsing tag: " + tagError.getMessage();
+            }
+            java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> written =
+                    new java.util.LinkedHashMap<>();
+            if (!found.player()) {
+                net.zaminmc.torch.server.nbt.EntityNbt.writeNbtWithoutId(
+                        (net.zaminmc.torch.server.entity.MobEntity) found.handle(),
+                        written, potionSystem);
+            }
+            if (!net.zaminmc.torch.server.nbt.NbtOps.matches(
+                    net.zaminmc.torch.server.nbt.Snbt.Tag.ofCompound(pattern),
+                    net.zaminmc.torch.server.nbt.Snbt.Tag.ofCompound(written), true)) {
+                return "Found no " + found.name();
+            }
+        }
         return "Found " + found.name();
     }
 
@@ -18399,6 +18429,26 @@ public final class EngineServer implements Server, EngineBridge {
         if (!useWorld.isChunkLoadedAt(pos)) {
             return "Cannot test for blocks outside of the loaded world";
         }
+        // The dataTag arm's own parse (the reference's lines 58-69: only
+        // when the EXPECTED block carries a tile family).
+        boolean dataTag = false;
+        java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> pattern = null;
+        if (args.length >= 6 && net.zaminmc.torch.server.nbt.TileNbt.idOf(
+                expected.identifier().value()) != null) {
+            StringBuilder joined = new StringBuilder();
+            for (int i = 5; i < args.length; i++) {
+                if (i > 5) {
+                    joined.append(' ');
+                }
+                joined.append(args[i]);
+            }
+            try {
+                pattern = net.zaminmc.torch.server.nbt.Snbt.parseCompound(joined.toString());
+                dataTag = true;
+            } catch (IllegalArgumentException tagError) {
+                return "Error parsing tag: " + tagError.getMessage();
+            }
+        }
         var actual = useWorld.getBlock(pos);
         if (!actual.identifier().equals(expected.identifier())) {
             return "The block at " + x + ", " + y + ", " + z + " is "
@@ -18410,6 +18460,20 @@ public final class EngineServer implements Server, EngineBridge {
             if (actualMeta != meta) {
                 return "The block at " + x + ", " + y + ", " + z + " has metadata "
                         + actualMeta + " (expected " + meta + ")";
+            }
+        }
+        if (dataTag) {
+            // The tile's rows matched as a SUBSET (the reference's lines
+            // 86-97). The engine's lazy getOrCreate stands in for the
+            // reference's placement-created tile (the failed.tileEntity
+            // refusal has no engine form — ledgered).
+            java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> written =
+                    new java.util.LinkedHashMap<>();
+            tileNbt.writeTile(useWorld, sender.sourceDimension(), pos, written);
+            if (!net.zaminmc.torch.server.nbt.NbtOps.matches(
+                    net.zaminmc.torch.server.nbt.Snbt.Tag.ofCompound(pattern),
+                    net.zaminmc.torch.server.nbt.Snbt.Tag.ofCompound(written), true)) {
+                return "The block at " + x + ", " + y + ", " + z + " did not match the NBT";
             }
         }
         sender.addResult(net.zaminmc.torch.server.command.EngineCommandResults.Type.AFFECTED_BLOCKS, 1);
@@ -19893,13 +19957,12 @@ public final class EngineServer implements Server, EngineBridge {
         if (type == null) {
             return "Unable to summon object";
         }
-        // The NBT arm (Slice 75 — lines 65-74: the joined text parses as
-        // one compound; a parse failure answers the tagError line, the
-        // parse itself never fails the summon). The engine's mob model
-        // carries the reference's Entity rows it reads: CustomName/
-        // CustomNameVisible, Health, NoAI, PersistenceRequired, and
-        // Invulnerable — every other row parses but lands nowhere (the
-        // engine's no-item-NBT envelope, ledgered).
+        // The NBT arm (Slice 89 — the reference's lines 63-74): the joined
+        // text parses as one compound; a parse failure answers the tagError
+        // line, the parse itself never fails the summon. The whole entity
+        // then reads its rows through EntityNbt.readNbt (the base rows,
+        // the custom rows, the per-type rows — the reference's own
+        // Entity.readNbt walk).
         java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> nbt = null;
         if (args.length >= 5) {
             StringBuilder joined = new StringBuilder();
@@ -19920,139 +19983,17 @@ public final class EngineServer implements Server, EngineBridge {
             return "Unable to summon object";
         }
         if (nbt != null) {
-            applySummonNbt(spawned, nbt);
+            // The reference's own order (SummonCommand lines 76-92): the
+            // whole entity reads its NBT (Entity.readNbt — the base rows,
+            // the custom rows, the per-type rows), THEN the command's own
+            // coordinates override the Pos rows (setPositionAndAngles at
+            // line 89 — the NBT's Rotation/Motion and everything else
+            // stick).
+            net.zaminmc.torch.server.nbt.EntityNbt.readNbt(spawned, nbt, potionSystem,
+                    () -> mobManager.equipmentChanged(spawned));
+            spawned.teleport(new Position(x, y, z));
         }
         return "Object successfully summoned";
-    }
-
-    /**
-     * The summon NBT rows' landing (Slice 75 — the reference's
-     * Entity.readNbt arms the engine's mob model carries): the name pair,
-     * the health, the pin family, the persistence mark, plus Slice 78b's
-     * Equipment row (the held stack — the reference's slot 0; the armor
-     * slots parse but land nowhere, the engine's no-armor envelope) and
-     * the Attributes rows (generic.movementSpeed + generic.attackDamage —
-     * the engine's movement/melee consults; the other names parse but
-     * land nowhere, the engine's per-type attribute envelope). Every row
-     * lands on any kind — the reference's own readNbt shape.
-     */
-    private void applySummonNbt(MobEntity mob,
-            java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> nbt) {
-        net.zaminmc.torch.server.nbt.Snbt.Tag name = nbt.get("CustomName");
-        if (name != null && name.asString() != null) {
-            mob.setCustomName(name.asString());
-        }
-        net.zaminmc.torch.server.nbt.Snbt.Tag nameVisible = nbt.get("CustomNameVisible");
-        if (nameVisible != null && nameVisible.asDouble() != 0.0) {
-            mob.setCustomNameVisible(true);
-        }
-        net.zaminmc.torch.server.nbt.Snbt.Tag health = nbt.get("Health");
-        if (health != null && health.asDouble() > 0.0) {
-            mob.setHealthCarried((float) health.asDouble());
-        }
-        net.zaminmc.torch.server.nbt.Snbt.Tag noAi = nbt.get("NoAI");
-        if (noAi != null && noAi.asDouble() != 0.0) {
-            mob.setNoAi(true);
-        }
-        net.zaminmc.torch.server.nbt.Snbt.Tag persistence = nbt.get("PersistenceRequired");
-        if (persistence != null && persistence.asDouble() != 0.0) {
-            mob.setPersistent(true);
-        }
-        net.zaminmc.torch.server.nbt.Snbt.Tag invulnerable = nbt.get("Invulnerable");
-        if (invulnerable != null && invulnerable.asDouble() != 0.0) {
-            mob.setInvulnerable(true);
-        }
-        // The Equipment row (MobEntity.readCustomNbt lines 301-307: the
-        // five-slot list — [0] the held item, [1..4] the armor family).
-        // The engine's model carries the held slot alone; the armor slots
-        // parse (the list walk reads them) but land nowhere.
-        net.zaminmc.torch.server.nbt.Snbt.Tag equipment = nbt.get("Equipment");
-        if (equipment != null && equipment.asList() != null
-                && !equipment.asList().isEmpty()) {
-            net.zaminmc.torch.item.ItemStack held =
-                    parseItemNbt(equipment.asList().get(0));
-            if (held != null) {
-                mob.setHeldEquipment(held);
-                mobManager.equipmentChanged(mob);
-            }
-        }
-        // The Attributes row (LivingEntity.readCustomNbt lines 419-421:
-        // the {Name, Base} list over the attribute registry — the engine
-        // honors generic.movementSpeed (the walk consult) and
-        // generic.attackDamage (the melee consult); the other names parse
-        // but land nowhere).
-        net.zaminmc.torch.server.nbt.Snbt.Tag attributes = nbt.get("Attributes");
-        if (attributes != null && attributes.asList() != null) {
-            for (net.zaminmc.torch.server.nbt.Snbt.Tag row : attributes.asList()) {
-                java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> compound =
-                        row.asCompound();
-                if (compound == null) {
-                    continue;
-                }
-                net.zaminmc.torch.server.nbt.Snbt.Tag rowName = compound.get("Name");
-                net.zaminmc.torch.server.nbt.Snbt.Tag rowBase = compound.get("Base");
-                if (rowName == null || rowName.asString() == null || rowBase == null) {
-                    continue;
-                }
-                double base = rowBase.asDouble();
-                if (base <= 0.0) {
-                    continue;
-                }
-                if ("generic.movementSpeed".equals(rowName.asString())) {
-                    mob.setMovementSpeedOverride(base);
-                } else if ("generic.attackDamage".equals(rowName.asString())) {
-                    mob.setAttackDamageOverride((float) base);
-                }
-            }
-        }
-    }
-
-    /**
-     * The ItemStack NBT rows (ItemStack.readNbt lines 210-237): the id
-     * (the engine's identifier form — {@code "minecraft:iron_sword"} or
-     * the bare name, the /give surface; the reference's numeric id form
-     * rides the version adapter's own table), the Count byte (default 1),
-     * the Damage short (default 0).
-     */
-    private net.zaminmc.torch.item.ItemStack parseItemNbt(
-            net.zaminmc.torch.server.nbt.Snbt.Tag compound) {
-        java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> rows =
-                compound.asCompound();
-        if (rows == null) {
-            return null;
-        }
-        net.zaminmc.torch.server.nbt.Snbt.Tag id = rows.get("id");
-        if (id == null) {
-            return null;
-        }
-        String rawId = id.asString();
-        net.zaminmc.torch.item.ItemType type = null;
-        if (rawId != null) {
-            String withNamespace = rawId.contains(":") ? rawId : "minecraft:" + rawId;
-            type = net.zaminmc.torch.server.item.BuiltinItems.lookup(
-                    net.zaminmc.torch.util.Identifier.parse(withNamespace)).orElse(null);
-        } else {
-            // The bare numeric form: the id row is a number, not a string
-            // — the engine has no core-side legacy id table; the row lands
-            // nowhere (the version adapter's own surface, ledgered).
-            return null;
-        }
-        if (type == null) {
-            return null;
-        }
-        int count = 1;
-        net.zaminmc.torch.server.nbt.Snbt.Tag countTag = rows.get("Count");
-        if (countTag != null && countTag.asDouble() >= 1.0) {
-            count = (int) Math.min(type.maxStackSize(), countTag.asDouble());
-        }
-        net.zaminmc.torch.item.ItemStack stack =
-                net.zaminmc.torch.item.ItemStack.of(type, count);
-        net.zaminmc.torch.server.nbt.Snbt.Tag damage = rows.get("Damage");
-        if (damage != null && damage.asDouble() > 0.0) {
-            stack = stack.withDamage((int) Math.min(
-                    net.zaminmc.torch.item.ItemStack.MAX_DAMAGE, damage.asDouble()));
-        }
-        return stack;
     }
 
     /**
