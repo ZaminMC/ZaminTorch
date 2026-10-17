@@ -21,6 +21,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * dispenser write all bump the container's slotsSerial, and the per-tick
  * view fan re-syncs only on a real change (the furnace's own diff path
  * generalized to the families that had none).
+ *
+ * <p>Every test is self-contained on its own ground column (the flat
+ * world's grass at y=4) with its own player: any execution order, any
+ * subset, one class-shared world. The columns sit inside the spawn chunk
+ * (x/z within 0..15).</p>
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class WindowResyncIntegrationTest extends ProtocolTestBase {
@@ -36,16 +41,33 @@ class WindowResyncIntegrationTest extends ProtocolTestBase {
     private static final int DIRT = 3;
     private static final int CHEST = 54;
 
-    private static final BlockPosition CHEST_AT = new BlockPosition(2, 5, 2);
-    private static final BlockPosition HOPPER_AT = new BlockPosition(2, 6, 2);
+    // per-test columns (all inside the spawn chunk, one column per test — no shared fixture).
+    // The client-placed chests must sit inside the survival placement reach of
+    // the spawn point (0.5, 5, 0.5): the eye-to-block-center squared distance
+    // against 4.5^2 — column 2 (x^2+z^2=8) and column (3,1) (=10) pass; the
+    // farther columns are engine-setBlock only (the open path carries no gate).
+    private static final BlockPosition GROUND_A = new BlockPosition(2, 4, 2);
+    private static final BlockPosition CHEST_A = new BlockPosition(2, 5, 2);
+    private static final BlockPosition GROUND_B = new BlockPosition(3, 4, 1);
+    private static final BlockPosition CHEST_B = new BlockPosition(3, 5, 1);
+    private static final BlockPosition HOPPER_B = new BlockPosition(3, 6, 1);
+    private static final BlockPosition HOPPER_C = new BlockPosition(10, 6, 2);
+    private static final BlockPosition DISPENSER_D = new BlockPosition(14, 6, 2);
 
     private PlayerSession awaitPlayer(String name) throws InterruptedException {
         awaitCondition(() -> server.playerRegistry().byName(name).isPresent(), "player joined");
         return server.playerRegistry().byName(name).orElseThrow();
     }
 
-    /** Joins, places a chest through the held item (the proven placement flow), opens it, returns the window id. */
-    private int joinPlaceAndOpenChest(TestClient18 client, String name) throws Exception {
+    /**
+     * Joins, places a chest through the held item (the proven placement
+     * flow) at the column's own ground, opens it, reads the open's
+     * authoritative Window Items, and returns the window id. The chest at
+     * {@code chestAt} lands on the ground block's top face — the flat
+     * world's grass row at y=4 means the chest stands at y=5.
+     */
+    private int joinPlaceAndOpenChest(TestClient18 client, String name,
+                                      BlockPosition ground, BlockPosition chestAt) throws Exception {
         client.sendHandshake(47, 2);
         client.sendLoginStart(name);
         client.readLoginSuccess();
@@ -53,15 +75,15 @@ class WindowResyncIntegrationTest extends ProtocolTestBase {
         awaitPlayer(name);
         client.readWindowItems(10_000); // join sync: all empty
 
-        // stock a chest, then place it: top face at (2,4,2) -> lands at (2,5,2)
+        // stock a chest, then place it: the ground's top face -> the chest above it
         client.sendChat("/give chest 1");
         client.readWindowSlotTable(10_000); // the give's sync
-        client.sendBlockPlacement(2, 4, 2, 1, CHEST);
+        client.sendBlockPlacement(ground.x(), ground.y(), ground.z(), 1, CHEST);
         client.readBlockChange(10_000); // the placement's publish
         client.readWindowSlotTable(10_000); // the held chest was consumed
 
         // right-click opens the chest GUI
-        client.sendBlockPlacement(2, 5, 2, 1, -1);
+        client.sendBlockPlacement(chestAt.x(), chestAt.y(), chestAt.z(), 1, -1);
         Object[] open = client.readOpenWindow(10_000);
         assertEquals("minecraft:chest", open[1]);
         assertEquals(27, open[2], "the GUI's own slots: 3 rows of 9");
@@ -73,14 +95,13 @@ class WindowResyncIntegrationTest extends ProtocolTestBase {
     @Test
     void aPluginsSetSlotOnAnOpenViewedChestResyncsTheViewer() throws Exception {
         try (TestClient18 client = new TestClient18("127.0.0.1", adapter.boundPort())) {
-            int windowId = joinPlaceAndOpenChest(client, "Resyncer");
-            client.readWindowSlotTable(10_000, windowId); // the open's authoritative contents
+            int windowId = joinPlaceAndOpenChest(client, "Resyncer", GROUND_A, CHEST_A);
 
             // the plugin's write path (§27.6): the public container view on
             // the world's owner context — the engine object behind the handle
             server.world().execute(() -> {
                 Optional<net.zaminmc.torch.container.Containers.Chest> chest =
-                        server.world().containers().chestAt(CHEST_AT);
+                        server.world().containers().chestAt(CHEST_A);
                 assertTrue(chest.isPresent(), "the open-viewed chest answers the lookup");
                 chest.orElseThrow().setSlot(4, ItemStack.of(BuiltinItems.DIAMOND, 7));
             });
@@ -92,8 +113,8 @@ class WindowResyncIntegrationTest extends ProtocolTestBase {
             assertEquals(-1, window[5][0], "the neighboring chest slot stays empty");
 
             // the world state matches what the viewer sees
-            awaitCondition(() -> server.chests().peek(CHEST_AT) != null, "chest state materialized");
-            assertEquals(7, server.chests().peek(CHEST_AT).snapshotSlots()[4].count(),
+            awaitCondition(() -> server.chests().peek(CHEST_A) != null, "chest state materialized");
+            assertEquals(7, server.chests().peek(CHEST_A).snapshotSlots()[4].count(),
                     "the diamond is inside the chest");
 
             // close: the chest KEEPS its contents (world state)
@@ -105,43 +126,41 @@ class WindowResyncIntegrationTest extends ProtocolTestBase {
     @Test
     void theHoppersOwnTransferIntoAnOpenViewedChestResyncsTheViewer() throws Exception {
         try (TestClient18 client = new TestClient18("127.0.0.1", adapter.boundPort())) {
-            // reopen the same chest (the diamond from the previous test waits inside)
-            client.sendHandshake(47, 2);
-            client.sendLoginStart("Feeder");
-            client.readLoginSuccess();
-            client.readUntilPositionAndLook();
-            awaitPlayer("Feeder");
-            client.readWindowItems(10_000); // join sync: all empty
+            // self-contained: this test's own chest at its own column
+            int windowId = joinPlaceAndOpenChest(client, "Feeder", GROUND_B, CHEST_B);
 
-            client.sendBlockPlacement(2, 5, 2, 1, -1);
-            Object[] open = client.readOpenWindow(10_000);
-            int windowId = (Integer) open[0];
-            int[][] opened = client.readWindowSlotTable(10_000, windowId);
-            assertEquals(DIAMOND, opened[4][0], "the diamond from the earlier test waits inside");
+            // a diamond at slot 4 through the plugin's write path (the proven
+            // arm) — the hopper's transfer must then land in the FIRST EMPTY
+            // slot (the vanilla pushItem walk), not on top of it
+            server.world().execute(() -> server.world().containers().chestAt(CHEST_B)
+                    .orElseThrow().setSlot(4, ItemStack.of(BuiltinItems.DIAMOND, 1)));
+            int[][] seeded = client.readWindowSlotTable(10_000, windowId);
+            assertEquals(DIAMOND, seeded[4][0], "the plugin's seed landed at slot 4");
+            assertEquals(1, seeded[4][1]);
 
             // a down-facing hopper directly above the chest: its facing cell
             // IS the chest, so its push lands in the open-viewed container
             // (placed through the engine's own dispatch, the owner context)
             server.world().execute(() -> server.world().setBlock(
-                    HOPPER_AT, net.zaminmc.torch.server.hopper.HopperBlocks.hopperOf(0, true)));
+                    HOPPER_B, net.zaminmc.torch.server.hopper.HopperBlocks.hopperOf(0, true)));
 
             // one dirt in the hopper through the public view (the plugin path);
             // the hopper's own 8-tick cadence then pushes it into the chest —
             // a DIFFERENT writer than the plugin, the same serial walk
             server.world().execute(() -> {
-                server.hopper().getOrCreate(HOPPER_AT)
+                server.hopper().getOrCreate(HOPPER_B)
                         .setItem(0, ItemStack.of(BuiltinItems.DIRT, 1));
             });
 
             // the transfer lands in the world first, then the fan re-syncs
             awaitCondition(() -> {
-                var chest = server.chests().peek(CHEST_AT);
+                var chest = server.chests().peek(CHEST_B);
                 return chest != null && chest.snapshotSlots()[0].count() == 1;
             }, "the hopper pushed its dirt into the chest");
             int[][] window = client.readWindowSlotTable(10_000, windowId);
             assertEquals(DIRT, window[0][0], "the hopper's transfer re-synced the chest window");
             assertEquals(1, window[0][1]);
-            // one item per transfer (pushItem's removeItem(i, 1))
+            // one item per transfer (pushItem's removeItem(i, 1)), the first empty slot
             assertEquals(DIAMOND, window[4][0], "the diamond still waits at slot 4");
 
             client.sendCloseWindow(windowId);
@@ -159,10 +178,11 @@ class WindowResyncIntegrationTest extends ProtocolTestBase {
             awaitPlayer("Hopperer");
             client.readWindowItems(10_000); // join sync: all empty
 
-            // the hopper fixture stands above the chest from the earlier tests
+            // this test's own hopper at its own column — facing down into
+            // open air (nothing to push into: no cross-test coupling)
             server.world().execute(() -> server.world().setBlock(
-                    HOPPER_AT, net.zaminmc.torch.server.hopper.HopperBlocks.hopperOf(0, true)));
-            client.sendBlockPlacement(2, 6, 2, 1, -1);
+                    HOPPER_C, net.zaminmc.torch.server.hopper.HopperBlocks.hopperOf(0, true)));
+            client.sendBlockPlacement(HOPPER_C.x(), HOPPER_C.y(), HOPPER_C.z(), 1, -1);
             Object[] open = client.readOpenWindow(10_000);
             int windowId = (Integer) open[0];
             assertEquals("minecraft:hopper", open[1]);
@@ -173,7 +193,7 @@ class WindowResyncIntegrationTest extends ProtocolTestBase {
             // the plugin's write path over the public hopper view
             server.world().execute(() -> {
                 Optional<net.zaminmc.torch.container.Containers.Hopper> hopper =
-                        server.world().containers().hopperAt(HOPPER_AT);
+                        server.world().containers().hopperAt(HOPPER_C);
                 assertTrue(hopper.isPresent(), "the open-viewed hopper answers the lookup");
                 hopper.orElseThrow().setSlot(2, ItemStack.of(BuiltinItems.DIRT, 3));
             });
@@ -198,10 +218,10 @@ class WindowResyncIntegrationTest extends ProtocolTestBase {
             awaitPlayer("Dispenserer");
             client.readWindowItems(10_000); // join sync: all empty
 
-            // a dispenser at the column: the fixture replaces the hopper
+            // this test's own dispenser at its own column
             server.world().execute(() -> server.world().setBlock(
-                    HOPPER_AT, net.zaminmc.torch.server.dispenser.DispenserBlocks.dispenserOf(1, false)));
-            client.sendBlockPlacement(2, 6, 2, 1, -1);
+                    DISPENSER_D, net.zaminmc.torch.server.dispenser.DispenserBlocks.dispenserOf(1, false)));
+            client.sendBlockPlacement(DISPENSER_D.x(), DISPENSER_D.y(), DISPENSER_D.z(), 1, -1);
             Object[] open = client.readOpenWindow(10_000);
             int windowId = (Integer) open[0];
             assertEquals("minecraft:dispenser", open[1]);
@@ -213,7 +233,7 @@ class WindowResyncIntegrationTest extends ProtocolTestBase {
             // view yet — the honest gap this test documents): the open path
             // materialized the block entity, so the write rides the same BE
             server.world().execute(() -> {
-                var dispenser = server.dispensers().peek(HOPPER_AT);
+                var dispenser = server.dispensers().peek(DISPENSER_D);
                 assertTrue(dispenser != null, "the open-viewed dispenser answers the lookup");
                 dispenser.setItem(3, ItemStack.of(BuiltinItems.DIRT, 5));
             });
