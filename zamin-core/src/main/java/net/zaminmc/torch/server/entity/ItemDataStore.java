@@ -41,7 +41,7 @@ public final class ItemDataStore {
     private static final int MAGIC_0 = 'Z';
     private static final int MAGIC_1 = 'I';
     private static final int MAGIC_2 = 'D';
-    private static final int FORMAT_VERSION = 5;
+    private static final int FORMAT_VERSION = 6;
     /** The pre-Wave-G shape (Slice 93): the stack rows stop after the enchant pairs. */
     private static final int FORMAT_VERSION_1 = 1;
     /** The pre-H2 shape (Slice 94): the stack rows stop after the Lore list. */
@@ -50,6 +50,8 @@ public final class ItemDataStore {
     private static final int FORMAT_VERSION_3 = 3;
     /** The pre-color shape (Slice 96): the stack rows stop after the CanPlaceOn list. */
     private static final int FORMAT_VERSION_4 = 4;
+    /** The pre-J1 shape (Wave I): the stack rows stop after the display.color row. */
+    private static final int FORMAT_VERSION_5 = 5;
 
     private static final int FLAG_NEVER_DESPAWN = 0x01;
     private static final int FLAG_THROWER = 0x02;
@@ -149,6 +151,20 @@ public final class ItemDataStore {
                     if (item.stack().displayColor() != null) {
                         out.writeInt(item.stack().displayColor());
                     }
+                    // The v6 tail (Wave J — the attribute modifiers): the
+                    // whole list as ONE parseable-SNBT string row (the
+                    // BlockEntityTag tail's own pattern — a compound
+                    // wrapping the list, so the parser reads it back):
+                    // {AttributeModifiers:[{AttributeName:..,Name:..,
+                    // Amount:..d,Operation:..,UUIDMost:..L,UUIDLeast:..L}]}.
+                    // An absent arm writes the null marker. The wipe state
+                    // (an explicitly empty list) survives as the all-skipped
+                    // form it arrived in — a literal empty list cannot ride
+                    // the 1.8.8 grammar ([] re-parses as the empty int
+                    // array, the ledgered corner).
+                    writeNullableString(out, item.stack().attributeModifiers() == null
+                            ? null
+                            : attributeModifiersRow(item.stack().attributeModifiers()));
                     writeVarInt(out, item.age());
                     writeVarInt(out, item.pickupDelay());
                     int flags = 0;
@@ -192,7 +208,8 @@ public final class ItemDataStore {
                 throw new IOException("Not a ZID file");
             }
             int version = in.readByte();
-            if (version != FORMAT_VERSION && version != FORMAT_VERSION_4
+            if (version != FORMAT_VERSION && version != FORMAT_VERSION_5
+                    && version != FORMAT_VERSION_4
                     && version != FORMAT_VERSION_3
                     && version != FORMAT_VERSION_2
                     && version != FORMAT_VERSION_1) {
@@ -265,9 +282,13 @@ public final class ItemDataStore {
                 }
                 // The v5 tail (the leather tint): a nullable int row, read
                 // at the top level (an unresolvable id still consumes it).
-                if (version >= FORMAT_VERSION && in.readBoolean()) {
+                if (version >= FORMAT_VERSION_5 && in.readBoolean()) {
                     displayColorRow = in.readInt();
                 }
+                // The v6 tail (Wave J): the attribute modifiers' SNBT row —
+                // absent in a v5 file.
+                String attributeModifiersRow = version >= FORMAT_VERSION
+                        ? readNullableString(in) : null;
                 // An unresolvable item id (a newer save on an older build)
                 // still consumes its rows: the body simply never joins the
                 // world (the restore skips the empty stack).
@@ -314,6 +335,18 @@ public final class ItemDataStore {
                     if (displayColorRow != null) {
                         stack = stack.withDisplayColor(displayColorRow);
                     }
+                    if (attributeModifiersRow != null) {
+                        java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> parsed =
+                                net.zaminmc.torch.server.nbt.Snbt.parseCompound(
+                                        attributeModifiersRow);
+                        if (net.zaminmc.torch.server.nbt.NbtOps.contains(parsed,
+                                "AttributeModifiers",
+                                net.zaminmc.torch.server.nbt.Snbt.Tag.Type.LIST)) {
+                            stack = stack.withAttributeModifiers(
+                                    net.zaminmc.torch.server.nbt.ItemNbt
+                                            .readAttributeModifiers(parsed));
+                        }
+                    }
                 }
                 int age = readVarInt(in);
                 int pickupDelay = readVarInt(in);
@@ -359,6 +392,36 @@ public final class ItemDataStore {
 
     private static String readNullableString(DataInputStream in) throws IOException {
         return in.readBoolean() ? readString(in) : null;
+    }
+
+    /**
+     * The attribute modifiers' SNBT row (Wave J — the v6 tail's own form):
+     * the ItemNbt write shape wrapped in the one-row compound the parser
+     * reads back ({@code {AttributeModifiers:[..]}}), the whole list as
+     * ONE string row — the BlockEntityTag tail's own pattern.
+     */
+    private static String attributeModifiersRow(
+            java.util.List<net.zaminmc.torch.item.AttributeModifier> modifiers) {
+        java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> tag =
+                new java.util.LinkedHashMap<>();
+        java.util.List<net.zaminmc.torch.server.nbt.Snbt.Tag> elements =
+                new java.util.ArrayList<>(modifiers.size());
+        for (net.zaminmc.torch.item.AttributeModifier modifier : modifiers) {
+            java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> element =
+                    new java.util.LinkedHashMap<>();
+            net.zaminmc.torch.server.nbt.NbtOps.putString(element,
+                    "AttributeName", modifier.attributeName());
+            net.zaminmc.torch.server.nbt.NbtOps.putString(element, "Name", modifier.name());
+            net.zaminmc.torch.server.nbt.NbtOps.putDouble(element, "Amount", modifier.amount());
+            net.zaminmc.torch.server.nbt.NbtOps.putInt(element, "Operation", modifier.operation());
+            net.zaminmc.torch.server.nbt.NbtOps.putLong(element, "UUIDMost",
+                    modifier.uuid().getMostSignificantBits());
+            net.zaminmc.torch.server.nbt.NbtOps.putLong(element, "UUIDLeast",
+                    modifier.uuid().getLeastSignificantBits());
+            elements.add(net.zaminmc.torch.server.nbt.Snbt.Tag.ofCompound(element));
+        }
+        net.zaminmc.torch.server.nbt.NbtOps.putList(tag, "AttributeModifiers", elements);
+        return net.zaminmc.torch.server.nbt.NbtOps.writeParseable(tag);
     }
 
     private static void writeString(DataOutputStream out, String value) throws IOException {

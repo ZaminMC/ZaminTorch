@@ -78,4 +78,58 @@ public final class Tools {
             case HOE -> 1.0f; // the historical ItemHoe: no dig acceleration
         };
     }
+
+    /**
+     * The held stack's melee damage (Wave J — the reference's whole walk):
+     * the attackDamage-named modifiers of {@code tag.AttributeModifiers}
+     * folded over the bare-hand base 1.0 (EntityPlayer's own registered
+     * base — {@code register(ATTACK_DAMAGE).setBase(1.0)}), exactly
+     * ModifiableEntityAttributeInstance.computeValue's order:
+     * operation 0 adds to the base, then d1 = d0 snapshots, operation 1
+     * adds {@code amount * d0} (the POST-op-0 base — the reference's own
+     * subtle order), operation 2 multiplies {@code d1 *= 1 + amount}, the
+     * RangedEntityAttribute's own clamp 0..2048 closes the walk. A stack
+     * WITHOUT the list falls to the item's own defaults — the type table
+     * above (the engine's ledgered approximation of the default weapon
+     * modifiers). A stack WITH a present-but-empty list folds to the bare
+     * fist (the attribute-wipe: the reference never falls back to the
+     * defaults when the tag carries the row).
+     *
+     * <p>The three player melee walks and the mob equipment-better compare
+     * consult this fold; the crit multiply and the enchant family ride the
+     * walk's own steps after it, exactly the reference's attack order.</p>
+     */
+    public static float heldDamageOf(net.zaminmc.torch.item.ItemStack stack) {
+        if (stack == null || stack.isEmpty()) {
+            return 1.0f; // the bare fist
+        }
+        var modifiers = stack.attributeModifiers();
+        if (modifiers == null) {
+            return attackDamageOf(stack.type()); // the tagless fall-back: the item's own defaults
+        }
+        // computeValue's fold, verbatim (ModifiableEntityAttributeInstance
+        // lines 137-155): d0 over the op-0 adds, d1 snapshots, the op-1
+        // adds scale d0, the op-2 multiplies close, the range clamps.
+        double d0 = 1.0;
+        for (var modifier : modifiers) {
+            if (modifier.operation() == 0 && modifier.isAttackDamage()) {
+                d0 += modifier.amount();
+            }
+        }
+        double d1 = d0;
+        for (var modifier : modifiers) {
+            if (modifier.operation() == 1 && modifier.isAttackDamage()) {
+                d1 += d0 * modifier.amount();
+            }
+        }
+        for (var modifier : modifiers) {
+            if (modifier.operation() == 2 && modifier.isAttackDamage()) {
+                d1 *= 1.0 + modifier.amount();
+            }
+        }
+        // The attackDamage attribute's own range (EntityAttributes line 16:
+        // RangedEntityAttribute "generic.attackDamage", 2.0 default, 0.0
+        // minimum, 2048.0 maximum — the clamp is the attribute's own law).
+        return (float) Math.max(0.0, Math.min(2048.0, d1));
+    }
 }
