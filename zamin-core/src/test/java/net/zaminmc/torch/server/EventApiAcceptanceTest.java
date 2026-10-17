@@ -85,8 +85,8 @@ class EventApiAcceptanceTest {
         server = boot();
         assertNotNull(server.events(), "the public bus must exist");
         assertNotNull(server.worlds(), "the world collection must exist");
-        assertEquals(2, server.worlds().size(),
-                "both dimensions are public: the overworld and the nether");
+        assertEquals(3, server.worlds().size(),
+                "all three dimensions are public: the overworld, the nether, and the End");
         server.shutdown(null);
     }
 
