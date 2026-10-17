@@ -6293,15 +6293,30 @@ public final class EngineServer implements Server, EngineBridge {
             // The drop stat (PlayerEntity.dropItem's own incrementStat).
             session.stats().increment(
                     net.zaminmc.torch.server.stat.EngineStats.DROPS, 1);
-            throwFromPlayer(session, dropped);
+            ItemEntity thrown = throwFromPlayer(session, dropped);
+            // The thrower stamp (Slice 93/D1 — dropItem's own
+            // thrownByPlayer arm lines 620-622: the Q-key drop alone
+            // carries {@code setThrower(this.getName())} — the container
+            // spills, the death drops, the bottle returns ride the
+            // two-arg form and stamp nothing, exactly the reference's
+            // own call-shape split).
+            if (thrown != null) {
+                thrown.setThrower(session.name());
+            }
             publishInventoryChanged(session);
         });
     }
 
-    /** Historical throw: look direction, ~0.3 speed, small upward bias. */
-    private void throwFromPlayer(PlayerSession session, net.zaminmc.torch.item.ItemStack dropped) {
+    /**
+     * Historical throw: look direction, ~0.3 speed, small upward bias.
+     *
+     * @return the spawned entity (null when the §27.7 gate withheld the
+     *         drop or no manager is wired), so the caller can stamp the
+     *         reference's own per-drop fields (the thrower).
+     */
+    private ItemEntity throwFromPlayer(PlayerSession session, net.zaminmc.torch.item.ItemStack dropped) {
         if (dropped == null || dropped.isEmpty()) {
-            return; // nothing to throw: the inventory took it all (pickUp's empty leftover)
+            return null; // nothing to throw: the inventory took it all (pickUp's empty leftover)
         }
         double yaw = Math.toRadians(session.rotation().yaw());
         double pitch = Math.toRadians(session.rotation().pitch());
@@ -6311,14 +6326,18 @@ public final class EngineServer implements Server, EngineBridge {
         double speed = 0.3;
         var itemEntitiesManager = itemEntities;
         if (itemEntitiesManager == null) {
-            return;
+            return null;
         }
         var eye = session.position();
         ItemEntity entity = itemEntitiesManager.spawnThrown(
                 new net.zaminmc.torch.util.Position(
                         eye.x() + dx * 0.4, eye.y() + 1.62 + dy * 0.4, eye.z() + dz * 0.4),
                 dropped);
+        if (entity == null) {
+            return null; // the §27.7 gate withheld the throw
+        }
         entity.setVelocity(dx * speed, dy * speed + 0.1, dz * speed);
+        return entity;
     }
 
     /**
@@ -6342,11 +6361,15 @@ public final class EngineServer implements Server, EngineBridge {
         boolean accepted = false;
         try {
             if (wireSlot == -999) {
-                // Clicking outside the window throws the carried stack.
+                // Clicking outside the window throws the carried stack
+                // (ServerPlayNetworkHandler's own arm: the cursor's stack
+                // drops, the cursor empties — ONE copy leaves the hand, the
+                // reference's takeCursor shape. The pre-Slice-93 pair here
+                // — throw the stack THEN returnCursor() — duplicated it:
+                // the world copy AND the inventory refill both carried the
+                // same units).
                 if (!inventory.cursor().isEmpty()) {
-                    net.zaminmc.torch.item.ItemStack carried = inventory.cursor();
-                    throwFromPlayer(session, carried);
-                    inventory.returnCursor();
+                    throwFromPlayer(session, inventory.takeCursor());
                     accepted = true;
                 }
             } else if (windowId == WIRE_WINDOW_PLAYER) {
@@ -12610,6 +12633,65 @@ public final class EngineServer implements Server, EngineBridge {
                 listener.onItemCollected(entity, collector, collectedCount);
             }
             publishInventoryChanged(collector); // pickup changed the inventory (§433 sync)
+        }
+
+        /**
+         * The pickup's own effects (Slice 93/D1 — onPlayerCollision lines
+         * 269-300's tail): the achievement family and the pop sound ride
+         * every successful add. The item-keyed arms read the stack's own
+         * identifier (the reference's Item identity): the log/log2 pair
+         * (GET_LOG — Item.byBlock over both wood families), the leather
+         * (KILL_COW), the diamond (GET_DIAMOND), the blaze rod
+         * (GET_BLAZE_ROD). The GIVE_DIAMOND arm (lines 289-294): a
+         * diamond whose body carries a thrower stamps THAT player — the
+         * world's own name lookup, the self-pickup and the offline
+         * thrower exempt. The sound (lines 296-298): random.pop at the
+         * collector's position, 0.2F, the
+         * {@code ((r - r) * 0.7F + 1.0F) * 2.0F} pitch — the engine's
+         * items carry no Silent row (the no-item-NBT envelope), the
+         * isSilent gate is structurally true.
+         */
+        @Override
+        public void onItemPickupEffects(ItemEntity entity, PlayerSession collector, int collectedCount) {
+            for (ItemEntityManager.Listener listener : itemListeners) {
+                listener.onItemPickupEffects(entity, collector, collectedCount);
+            }
+            String item = entity.stack().type().identifier().value();
+            switch (item) {
+                case "log", "log2" ->
+                    collector.stats().increment(EngineAchievements.GET_LOG.key(), 1);
+                case "leather" ->
+                    collector.stats().increment(EngineAchievements.KILL_COW.key(), 1);
+                case "diamond" -> {
+                    collector.stats().increment(EngineAchievements.GET_DIAMOND.key(), 1);
+                    // The GIVE_DIAMOND arm: the thrower's own stamp (a
+                    // different live player — the reference's
+                    // world.getPlayer(thrower) lookup).
+                    String throwerName = entity.thrower();
+                    if (throwerName != null) {
+                        players.byName(throwerName).ifPresent(thrower -> {
+                            if (thrower != collector
+                                    && thrower.state() == PlayerState.PLAYING) {
+                                thrower.stats().increment(
+                                        EngineAchievements.GIVE_DIAMOND.key(), 1);
+                            }
+                        });
+                    }
+                }
+                case "blaze_rod" ->
+                    collector.stats().increment(EngineAchievements.GET_BLAZE_ROD.key(), 1);
+                default -> {
+                }
+            }
+            // random.pop (the reference plays it at the body's position —
+            // the playSound(Entity source, ...) overload carries the
+            // collector's own coordinates; every listener hears it).
+            Position at = collector.position();
+            if (fxManager != null) {
+                float pitchDelta = gameplayRandom.nextFloat() - gameplayRandom.nextFloat();
+                fxManager.sound(new Position(at.x(), at.y(), at.z()), "random.pop",
+                        0.2F, (pitchDelta * 0.7F + 1.0F) * 2.0F);
+            }
         }
 
         @Override

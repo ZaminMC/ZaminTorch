@@ -92,6 +92,25 @@ public final class ItemEntity implements net.zaminmc.torch.entity.DroppedItem {
     private boolean onGround;
     /** The never-despawn flag (Slice 59 — ItemEntity.setNeverDespawn: the wither's nether star stays until collected). */
     private boolean neverDespawn;
+    /**
+     * The throwing player's name (Slice 93/D1 — ItemEntity lines 24-25: the
+     * private string the drop site stamps through
+     * {@code PlayerEntity.dropItem(item, false, true)}'s
+     * {@code setThrower(this.getName())}); the pickup walk's GIVE_DIAMOND
+     * arm reads it — a diamond picked up with a thrower stamps THAT player
+     * (a different live one) with the achievement. Null on every non-player
+     * drop (the block loot, the mob deaths, the container spills).
+     */
+    private String thrower;
+    /**
+     * The pickup-window owner (ItemEntity's own second string): the pickup
+     * gate answers true when the store is null, when the body is within
+     * 200 ticks of despawning ({@code 6000 - age <= 200}), or when the
+     * collector IS the owner. The server never stamps it (the reference's
+     * own shape — the row round-trips the NBT alone); the gate stays
+     * permissive for every engine drop.
+     */
+    private String owner;
 
     public ItemEntity(int entityId, Position position, ItemStack stack, int pickupDelayTicks) {
         this.entityId = entityId;
@@ -313,5 +332,45 @@ public final class ItemEntity implements net.zaminmc.torch.entity.DroppedItem {
     @Override
     public int pickupDelayTicks() {
         return pickupDelay;
+    }
+
+    // ------------------------------------------------------------------
+    // The thrower/owner family (Slice 93/D1 — ItemEntity lines 24-25 +
+    // 262-267 + 344-358): the two private strings, their accessors, and
+    // the pickup walk's owner-window gate.
+    // ------------------------------------------------------------------
+
+    /** ItemEntity.getThrower: the dropping player's name, null when the drop is not a player's throw. */
+    public String thrower() {
+        return thrower;
+    }
+
+    /** ItemEntity.setThrower: the drop site's stamp (the player's own name). */
+    public void setThrower(String thrower) {
+        this.thrower = thrower;
+    }
+
+    /** ItemEntity.getOwner: the pickup-window owner, null when unset (every engine drop). */
+    public String owner() {
+        return owner;
+    }
+
+    /** ItemEntity.setOwner: the pickup-window owner's stamp. */
+    public void setOwner(String owner) {
+        this.owner = owner;
+    }
+
+    /**
+     * The owner-window pickup gate (ItemEntity.onPlayerCollision lines
+     * 266-267): {@code this.owner == null || 6000 - this.age <= 200 ||
+     * this.owner.equals(player.getName())} — an unowned body answers true
+     * for everyone, an owned body answers true only for its owner until
+     * the last 200 ticks before despawn open it to everyone. The delay
+     * gate itself ({@code pickUpDelay == 0}) stays the caller's own walk.
+     */
+    public boolean pickupAllowedFor(String collectorName) {
+        return owner == null
+                || DESPAWN_TICKS - age <= 200
+                || owner.equals(collectorName);
     }
 }
