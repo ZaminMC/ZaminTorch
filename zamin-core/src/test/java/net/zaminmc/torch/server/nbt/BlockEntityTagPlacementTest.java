@@ -292,42 +292,52 @@ class BlockEntityTagPlacementTest {
 
     @Test
     void theSpawnerCadenceAppliesForAnOpAndRefusesANonOp() throws Exception {
-        // The reference's setTileNbt is STATIC — the consult keys off the
-        // BLOCK family at the position, never the held item's identity
-        // (the engine has no mob_spawner item yet; the direct call walks
-        // the same merge the placement site would).
+        // The mob spawner's own item (Slice 95's registration — the
+        // reference's Item.getItemFromBlock, id 52): the placement path
+        // carries the stack's tag into the consult; the refusal half
+        // walks the consult directly (the reference's setTileNbt is
+        // static — the cleanest op-gate probe).
         layGround();
-        BlockPosition target = targetAt();
-        tick(() -> server.world().setBlock(target, BuiltinBlocks.MOB_SPAWNER));
-        await(() -> server.world().getBlock(target).identifier().value().equals("mob_spawner"),
-                "the spawner block placed");
-        var chestItem = net.zaminmc.torch.server.item.BuiltinItems.lookup(
-                net.zaminmc.torch.util.Identifier.parse("minecraft:chest")).orElseThrow();
+        var spawnerItem = net.zaminmc.torch.server.item.BuiltinItems.lookup(
+                net.zaminmc.torch.util.Identifier.parse("minecraft:mob_spawner")).orElseThrow();
         Map<String, Object> cadence = new LinkedHashMap<>();
         cadence.put("EntityId", "Zombie");
         cadence.put("MinSpawnDelay", (short) 100);
         cadence.put("MaxSpawnDelay", (short) 200);
         cadence.put("SpawnCount", (short) 4);
-        ItemStack stack = ItemStack.of(chestItem, 1).withBlockEntityTag(cadence);
 
-        // The non-op consult first (Bob's level): the refusal skips the
-        // merge, the spawner keeps the fresh cadence.
+        // The non-op placement first (Bob's): the block still places, the
+        // rows never apply (the refusal skips the merge only).
+        hold(bob, ItemStack.of(spawnerItem, 1).withBlockEntityTag(cadence));
+        AtomicInteger tables = new AtomicInteger();
+        server.useItemOnBlock(bob, groundAt(), 1, Optional.empty(), id -> tables.incrementAndGet());
+        BlockPosition target = targetAt();
+        await(() -> server.world().getBlock(target).identifier().value().equals("mob_spawner"),
+                "the non-op's spawner placed");
+        var spawner = server.spawners().getOrCreate(0, target);
+        int refusedMin = spawner.minSpawnDelay();
+        assertTrue(refusedMin != 100,
+                "the refused spawner kept its own cadence: " + refusedMin);
+
+        // The direct consult on Bob's level for the same probe's return
+        // value (the placement path cannot observe the refusal itself).
         AtomicBoolean refused = new AtomicBoolean();
         tick(() -> refused.set(!server.tileNbt().applyPlacementTag(
-                server.world(), 0, target, stack, 0)));
+                server.world(), 0, target,
+                ItemStack.of(spawnerItem, 1).withBlockEntityTag(cadence), 0)));
         await(refused::get, "the non-op consult refused");
-        var spawner = server.spawners().getOrCreate(0, target);
-        assertTrue(spawner.minSpawnDelay() != 100,
-                "the refused spawner kept its own cadence: " + spawner.minSpawnDelay());
 
-        // The op consult: the cadence rows land.
-        AtomicBoolean applied = new AtomicBoolean();
-        tick(() -> applied.set(server.tileNbt().applyPlacementTag(
-                server.world(), 0, target, stack, 2)));
-        await(applied::get, "the op consult applied");
-        assertEquals(100, spawner.minSpawnDelay());
-        assertEquals(200, spawner.maxSpawnDelay());
-        assertEquals(4, spawner.spawnCount());
+        // Alice's placement: the cadence rows land.
+        hold(alice, ItemStack.of(spawnerItem, 1).withBlockEntityTag(cadence));
+        server.useItemOnBlock(alice, new BlockPosition(2, 4, -2), 1, Optional.empty(),
+                id -> tables.incrementAndGet());
+        BlockPosition second = new BlockPosition(2, 5, -2);
+        await(() -> server.world().getBlock(second).identifier().value().equals("mob_spawner"),
+                "the op's spawner placed");
+        var appliedSpawner = server.spawners().getOrCreate(0, second);
+        assertEquals(100, appliedSpawner.minSpawnDelay());
+        assertEquals(200, appliedSpawner.maxSpawnDelay());
+        assertEquals(4, appliedSpawner.spawnCount());
     }
 
     @Test
