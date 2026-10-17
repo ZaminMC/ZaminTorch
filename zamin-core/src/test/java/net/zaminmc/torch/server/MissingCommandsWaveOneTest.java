@@ -36,6 +36,8 @@ class MissingCommandsWaveOneTest {
     PlayerSession bob;
     final CopyOnWriteArrayList<String> bobWire = new CopyOnWriteArrayList<>();
     final CopyOnWriteArrayList<String> bobSounds = new CopyOnWriteArrayList<>();
+    final CopyOnWriteArrayList<String> aliceParticles = new CopyOnWriteArrayList<>();
+    final CopyOnWriteArrayList<String> bobParticles = new CopyOnWriteArrayList<>();
 
     @BeforeEach
     void boot() throws Exception {
@@ -45,8 +47,8 @@ class MissingCommandsWaveOneTest {
                 net.zaminmc.torch.GameMode.SURVIVAL);
         server = new EngineServer(config);
         server.start();
-        alice = join("Alice", new RecordingLink());
-        bob = join("Bob", new RecordingLink(bobWire, bobSounds));
+        alice = join("Alice", new RecordingLink(aliceParticles));
+        bob = join("Bob", new RecordingLink(bobWire, bobSounds, bobParticles));
         await(() -> alice.state() == net.zaminmc.torch.entity.PlayerState.PLAYING
                         && bob.state() == net.zaminmc.torch.entity.PlayerState.PLAYING,
                 "both playing");
@@ -62,14 +64,17 @@ class MissingCommandsWaveOneTest {
     private static final class RecordingLink implements net.zaminmc.torch.server.net.ClientLink {
         final CopyOnWriteArrayList<String> wire;
         final CopyOnWriteArrayList<String> sounds;
+        final CopyOnWriteArrayList<String> particles;
 
-        RecordingLink() {
-            this(new CopyOnWriteArrayList<>(), new CopyOnWriteArrayList<>());
+        RecordingLink(CopyOnWriteArrayList<String> particles) {
+            this(new CopyOnWriteArrayList<>(), new CopyOnWriteArrayList<>(), particles);
         }
 
-        RecordingLink(CopyOnWriteArrayList<String> wire, CopyOnWriteArrayList<String> sounds) {
+        RecordingLink(CopyOnWriteArrayList<String> wire, CopyOnWriteArrayList<String> sounds,
+                      CopyOnWriteArrayList<String> particles) {
             this.wire = wire;
             this.sounds = sounds;
+            this.particles = particles;
         }
 
         @Override
@@ -89,6 +94,13 @@ class MissingCommandsWaveOneTest {
         @Override
         public void playSound(String name, double x, double y, double z, float volume, float pitch) {
             sounds.add(name + "|" + volume + "|" + pitch);
+        }
+
+        @Override
+        public void worldParticles(int particleId, boolean longDistance, double x, double y, double z,
+                                   float offsetX, float offsetY, float offsetZ,
+                                   float particleData, int count, int[] params) {
+            particles.add(particleId + "|" + count + "|" + longDistance);
         }
     }
 
@@ -260,6 +272,27 @@ class MissingCommandsWaveOneTest {
         dispatch("/playsound mob.zombie.say Bob 500 40 500 1.0 1.0 0.5");
         await(() -> bobSounds.size() >= 2, "the fold-back landed");
         assertEquals("mob.zombie.say|0.5|1.0", bobSounds.get(1));
+    }
+
+    @Test
+    void theParticleArm() throws Exception {
+        // The broadcast reaches every in-range player (Alice and Bob stand
+        // together): both links carry the note packet.
+        dispatch("/particle note ~ ~ ~ 0 0 0 1 10");
+        await(() -> !aliceParticles.isEmpty() && !bobParticles.isEmpty(),
+                "both wires carry the particles");
+        assertEquals("23|10|false", aliceParticles.get(0));
+        assertEquals("23|10|false", bobParticles.get(0));
+
+        // The parameterized family: iconcrack's id/meta split.
+        dispatch("/particle iconcrack_278_0 ~ ~ ~ 0.1 0.1 0.1 1 5 force");
+        await(() -> aliceParticles.size() >= 2, "the crack family landed");
+        assertEquals("36|5|true", aliceParticles.get(1));
+
+        // The unknown-name refusal.
+        dispatch("/particle notAParticle ~ ~ ~ 0 0 0 1 1");
+        Thread.sleep(300);
+        assertEquals(2, aliceParticles.size(), "the refusal fired no packet");
     }
 
     private net.zaminmc.torch.server.chat.CommandSender aliceSender() {
