@@ -8497,3 +8497,68 @@ sign tiles' command-stats persistence (the reference carries none — the
 engine's own convention decision); (3) the next vanilla wave per the
 ledger's pending rows (survey VANILLA_1_8_8_COMPATIBILITY.md's open
 envelopes first).
+
+## Slice 91 — the §27 window family's re-sync wave + the public open-window surface (p1-p3, the chest arms open)
+
+- **p1 — THE OPEN-WINDOW RE-SYNC (the furnace's own diff path generalized)**:
+  EngineServer grew the three per-tick view fans over the furnace idiom —
+  tickChestViewers (the world chest, the session's private ender grid, the
+  chest minecart's own chest resolved by the mount id), tickHopperViewers
+  (the world hopper, the hopper minecart's hopper by the mount id),
+  tickDispenserViewers (the dispenser/dropper) — fired in the tick walk
+  after the enchanting fan. V18ProtocolServer subscribes the three;
+  V18Connection carries the per-window serial diffs
+  (chestSlotsSynced/hopperSlotsSynced/dispenserSlotsSynced, captured at
+  open by the beacon idiom) and re-syncs the open viewer's Window Items
+  only when the container's slotsSerial moved: a plugin's setSlot through
+  the public container views, the hopper system's own transfer, any
+  engine-side write — all bump the same serial. HopperBlockEntity grew its
+  own slotsSerial (the chest's pattern — the BE had none). The
+  furnace/brewing/beacon stay on their per-tick view fans (already covered,
+  verified not duplicated).
+- **p2 — THE PUBLIC OPEN-WINDOW SURFACE (the audit's named blocker)**: the
+  api's entity.WindowKind (the fourteen kinds), Player.openWindow() ->
+  Player.OpenWindow (kind/windowId/position/mountId — the live view over
+  the session's own window state, the engine object IS the handle §27.5);
+  PlayerSession.openWindow() + the ContainerKind->WindowKind mapping.
+  OpenWindowApiAcceptanceTest 2 green (the quadruple walk through the
+  position-keyed/private/mount-keyed families + the close + the live-view
+  identity + the off-lane best-effort read).
+- **p3 — THE VOID-FALL CHUNK-GATE CRASH (found by the test's fourth join)**:
+  a mob mid-fall below y=0 — the reference's OWN Entity.tick void window
+  (Entity.java line 342: y < -64.0 -> voidTick — the -64 kill plane,
+  verified against the reference source; the engine's VOID_KILL_Y is the
+  correct 1:1 value) — crashed every chunk-visibility gate that built a
+  BlockPosition from the entity position: sendMobSpawn (the login
+  continuation's playerEnteredPlay — the y=-1 IllegalArgumentException
+  closing the channel, the client EOF at the read boundaries), the login's
+  sendInitial, the movement updateCenter, and the orb/item/falling/
+  mob-equipment spawn gates. The fix: chunkKeyOf(Position) — the chunk
+  column from x/z alone (floor division); y never changes which 16x256x16
+  column a position belongs to, and a body in the void window never
+  bounds-crashes the lookup. The remaining toBlockPosition sites are
+  packet-payload writes whose positions are engine-validated — the
+  follow-up audit rides the next wave.
+
+TEST STATUS (WindowResyncIntegrationTest 4-2): the hopper arm GREEN (a
+plugin's setSlot through the public hopper view re-syncs the open viewer's
+Window Items over the real wire), the dispenser arm GREEN (an engine-side
+write re-syncs — the dispenser has no public container view yet, the
+honest gap the row documents). The two chest arms REMAIN: (a) Feeder's
+fixture is order-dependent (its chest is placed by a test that runs later
+in JUnit's order — the self-containment fix next); (b) Resyncer's plugin
+write never re-syncs — the open, the open's items, the capture, the fan,
+and the adapter wiring are all verified present in the tree (the hopper
+arm proves the whole path works), so the next pass is one diagnostic run
+on the chest arm: assert the BE serial after the write, then the fan's
+read. Also open: the earlier full-suite runs died silently twice (the
+daemon vanishing mid-test-task — the y=-1 crash killed the login
+continuations; with p3 landed the suite should hold — re-run to verify).
+
+NEXT (in order): (1) the two chest arms of WindowResyncIntegrationTest
+(the self-containment fix + the one diagnostic pass); (2) the full-suite
+re-run (854 + the new tests) to verify p3 holds across every login; (3)
+the A3 ledger rows (the vanilla ledger's container rows' "rides the window
+family's wave" notes retired + the API capability ledger's window-family
+row); (4) Wave B — the sign tiles' command-stats persistence; (5) Wave C
+per the Torch-Arcetecture.txt §29 ledger.
