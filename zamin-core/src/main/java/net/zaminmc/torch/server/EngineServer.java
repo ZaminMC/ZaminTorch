@@ -12173,6 +12173,43 @@ public final class EngineServer implements Server, EngineBridge {
      * later leaves them inside (the historical container behavior).
      * Tick-thread context.
      */
+    /**
+     * The reference's open-walk lock gate (Slice 91 Wave C p3 —
+     * ServerPlayerEntity.openChestMenu lines 573-582 +
+     * PlayerEntity.canUnlockInventory lines 1688-1696): a locked container
+     * without the named key answers the action-bar chat (the translatable
+     * container.isLocked component over the display name) + the
+     * random.door_close sound at the player and NEVER opens; the key is the
+     * held item's own custom hover name; spectators pass every lock.
+     * Tick-thread context.
+     */
+    private boolean containerLockedAgainst(PlayerSession player, String lockKey,
+            String customName, String familyTitle) {
+        if (lockKey == null || lockKey.isEmpty()) {
+            return false; // InventoryLock.NONE: every hand opens
+        }
+        if (player.gamemode() == GameMode.SPECTATOR) {
+            return false; // the spectator bypass (line 573's own arm)
+        }
+        net.zaminmc.torch.item.ItemStack held = player.inventory().held();
+        if (held != null && !held.isEmpty()
+                && held.displayName() != null && held.displayName().equals(lockKey)) {
+            return false; // the named key opens (the hover-name match)
+        }
+        // The lock-out: the action-bar chat (the reference's position-2
+        // translatable over the display name — the custom name when set,
+        // the family's own title otherwise) + the door-close sound.
+        String shown = customName != null && !customName.isEmpty() ? customName : familyTitle;
+        player.link().sendChatComponent(
+                net.zaminmc.torch.server.text.TextJson.toJson(
+                        new net.zaminmc.torch.server.text.TranslatableText(
+                                "container.isLocked",
+                                new net.zaminmc.torch.server.text.LiteralText(shown))),
+                2);
+        fxManager.sound(player.position(), "random.door_close", 1.0f, 1.0f);
+        return true;
+    }
+
     private void openFurnaceOnTick(PlayerSession session, net.zaminmc.torch.block.BlockPosition position,
                                    java.util.function.IntConsumer onTableOpened) {
         closeOpenContainerOnTick(session);
@@ -12182,6 +12219,9 @@ public final class EngineServer implements Server, EngineBridge {
                 net.zaminmc.torch.server.stat.EngineStats.FURNACE_INTERACTIONS, 1);
 
         FurnaceBlockEntity furnace = furnaceManager.getOrCreate(position);
+        if (containerLockedAgainst(session, furnace.lockKey(), furnace.customName(), "Furnace")) {
+            return; // the reference's lock-out: no window
+        }
         int windowId = nextContainerWindowId;
         nextContainerWindowId = nextContainerWindowId >= LAST_CONTAINER_WINDOW_ID
                 ? FIRST_CONTAINER_WINDOW_ID : nextContainerWindowId + 1;
@@ -12202,7 +12242,10 @@ public final class EngineServer implements Server, EngineBridge {
         closeOpenContainerOnTick(session);
         dropGridToWorld(session, session.crafting()); // the vanilla close: the 2x2 grid drops
 
-        chestManager.getOrCreate(position);
+        var chest = chestManager.getOrCreate(position);
+        if (containerLockedAgainst(session, chest.lockKey(), chest.customName(), "Chest")) {
+            return; // the reference's lock-out: no window
+        }
         int windowId = nextContainerWindowId;
         nextContainerWindowId = nextContainerWindowId >= LAST_CONTAINER_WINDOW_ID
                 ? FIRST_CONTAINER_WINDOW_ID : nextContainerWindowId + 1;
@@ -12301,7 +12344,10 @@ public final class EngineServer implements Server, EngineBridge {
         session.stats().increment(
                 net.zaminmc.torch.server.stat.EngineStats.HOPPERS_INSPECTED, 1);
 
-        hopperSystem.getOrCreate(position);
+        var hopper = hopperSystem.getOrCreate(position);
+        if (containerLockedAgainst(session, hopper.lockKey(), hopper.customName(), "Hopper")) {
+            return; // the reference's lock-out: no window
+        }
         int windowId = nextContainerWindowId;
         nextContainerWindowId = nextContainerWindowId >= LAST_CONTAINER_WINDOW_ID
                 ? FIRST_CONTAINER_WINDOW_ID : nextContainerWindowId + 1;
@@ -12333,7 +12379,11 @@ public final class EngineServer implements Server, EngineBridge {
             session.stats().increment(
                     net.zaminmc.torch.server.stat.EngineStats.DROPPERS_INSPECTED, 1);
         }
-        dispenserSystem.getOrCreate(position);
+        var dispenser = dispenserSystem.getOrCreate(position);
+        if (containerLockedAgainst(session, dispenser.lockKey(), dispenser.customName(),
+                "Dispenser")) {
+            return; // the reference's lock-out: no window
+        }
         int windowId = nextContainerWindowId;
         nextContainerWindowId = nextContainerWindowId >= LAST_CONTAINER_WINDOW_ID
                 ? FIRST_CONTAINER_WINDOW_ID : nextContainerWindowId + 1;
@@ -12354,7 +12404,10 @@ public final class EngineServer implements Server, EngineBridge {
         session.stats().increment(
                 net.zaminmc.torch.server.stat.EngineStats.BREWING_STAND_INTERACTIONS, 1);
 
-        brewingStands.getOrCreate(position);
+        var brewing = brewingStands.getOrCreate(position);
+        if (containerLockedAgainst(session, brewing.lockKey(), brewing.customName(), "Brewing")) {
+            return; // the reference's lock-out: no window
+        }
         int windowId = nextContainerWindowId;
         nextContainerWindowId = nextContainerWindowId >= LAST_CONTAINER_WINDOW_ID
                 ? FIRST_CONTAINER_WINDOW_ID : nextContainerWindowId + 1;

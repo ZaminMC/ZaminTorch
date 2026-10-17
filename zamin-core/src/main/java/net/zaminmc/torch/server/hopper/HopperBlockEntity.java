@@ -247,4 +247,29 @@ public final class HopperBlockEntity {
             throw new IllegalArgumentException("Hopper slot out of range: " + slot);
         }
     }
+
+    // The container's own rows (Slice 91 Wave C p3 — the reference's
+    // InventoryBlockEntity + the per-family Nameable): the lock key
+    // (InventoryLock — "" = none; the named-key gate on the open path)
+    // and the custom name (CustomName — the window title override).
+    private String lockKey = "";
+    private String customName;
+
+    /** The lock key ("" = none — InventoryLock.NONE's own shape). */
+    public String lockKey() {
+        return lockKey;
+    }
+
+    public void setLockKey(String lockKey) {
+        this.lockKey = lockKey == null ? "" : lockKey;
+    }
+
+    /** The custom name (null = none — the window title falls to the family's own). */
+    public String customName() {
+        return customName;
+    }
+
+    public void setCustomName(String customName) {
+        this.customName = (customName == null || customName.isEmpty()) ? null : customName;
+    }
 }

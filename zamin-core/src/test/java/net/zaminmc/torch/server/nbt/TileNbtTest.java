@@ -17,6 +17,7 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -414,5 +415,44 @@ class TileNbtTest {
                 "the OTHER pair keeps its default (no MaxNearbyEntities row)");
         assertEquals(16, quirked.requiredPlayerRange());
         assertEquals(4, quirked.spawnRange());
+    }
+    /**
+     * Slice 91 Wave C p3 — the containers' CustomName/Lock rows: the write
+     * gates (CustomName only when set, Lock ALWAYS — the reference's lock
+     * object never null), the read gates (the string-typed contains checks),
+     * and the round-trip onto a fresh chest.
+     */
+    @Test
+    void theContainerNameLockRowsRoundTrip() throws Exception {
+        BlockPosition pos = place("chest");
+        tick(() -> {
+            var chest = server.chests().getOrCreate(pos);
+            chest.setCustomName("My Vault");
+            chest.setLockKey("Secret");
+        });
+        Map<String, Snbt.Tag> rows = writeAt(pos);
+        assertEquals("My Vault", NbtOps.getString(rows, "CustomName"));
+        assertEquals("Secret", NbtOps.getString(rows, "Lock"));
+
+        BlockPosition fresh = place("chest");
+        readAt(fresh, rows);
+        var loaded = server.chests().getOrCreate(fresh);
+        assertEquals("My Vault", loaded.customName());
+        assertEquals("Secret", loaded.lockKey());
+
+        // An UNLOCKED chest still writes the Lock row (InventoryLock.NONE's
+        // own empty key) and never a CustomName one.
+        BlockPosition plain = place("chest");
+        Map<String, Snbt.Tag> plainRows = writeAt(plain);
+        assertFalse(plainRows.containsKey("CustomName"), "no custom name row when unset");
+        assertEquals("", NbtOps.getString(plainRows, "Lock"), "the NONE lock writes its empty key");
+
+        // The read gates: a Lock-only compound keeps the name unset, and an
+        // absent Lock keeps the field's own value.
+        BlockPosition lockOnly = place("chest");
+        readAt(lockOnly, Snbt.parseCompound("{Lock:\"Open\"}"));
+        var lockLoaded = server.chests().getOrCreate(lockOnly);
+        assertEquals("Open", lockLoaded.lockKey());
+        assertEquals(null, lockLoaded.customName(), "no CustomName row: the name stays unset");
     }
 }

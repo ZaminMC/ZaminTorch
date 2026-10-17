@@ -158,7 +158,11 @@ public final class TileNbt {
         NbtOps.putInt(rows, "y", pos.y());
         NbtOps.putInt(rows, "z", pos.z());
         switch (id) {
-            case "Chest" -> writeItems(rows, seams.chests().getOrCreate(pos).snapshotSlots());
+            case "Chest" -> {
+                var chest = seams.chests().getOrCreate(pos);
+                writeItems(rows, chest.snapshotSlots());
+                writeNameLockRows(rows, chest.customName(), chest.lockKey());
+            }
             case "Furnace" -> {
                 var furnace = seams.furnaces().getOrCreate(pos);
                 NbtOps.putShort(rows, "BurnTime", (short) furnace.burnTimeRemaining());
@@ -166,6 +170,7 @@ public final class TileNbt {
                 NbtOps.putShort(rows, "CookTimeTotal", (short) furnace.burnTimeTotal());
                 writeItems(rows, new ItemStack[]{
                         furnace.input(), furnace.fuel(), furnace.output()});
+                writeNameLockRows(rows, furnace.customName(), furnace.lockKey());
             }
             case "Hopper" -> {
                 var hopper = seams.hoppers().getOrCreate(pos);
@@ -175,6 +180,7 @@ public final class TileNbt {
                 }
                 writeItems(rows, slots);
                 NbtOps.putInt(rows, "TransferCooldown", hopper.cooldown());
+                writeNameLockRows(rows, hopper.customName(), hopper.lockKey());
             }
             case "Trap", "Dropper" -> {
                 var dispenser = seams.dispensers().getOrCreate(pos);
@@ -183,6 +189,7 @@ public final class TileNbt {
                     slots[i] = dispenser.getItem(i);
                 }
                 writeItems(rows, slots);
+                writeNameLockRows(rows, dispenser.customName(), dispenser.lockKey());
             }
             case "Cauldron" -> {
                 var brewing = seams.brewing().getOrCreate(pos);
@@ -192,6 +199,7 @@ public final class TileNbt {
                 }
                 writeItems(rows, slots);
                 NbtOps.putShort(rows, "BrewTime", (short) brewing.timer());
+                writeNameLockRows(rows, brewing.customName(), brewing.lockKey());
             }
             case "Beacon" -> {
                 var beacon = seams.beacons().getOrCreate(pos);
@@ -276,6 +284,7 @@ public final class TileNbt {
                 var chest = seams.chests().getOrCreate(pos);
                 readItems(rows, (slot, stack) ->
                         chest.setSlot(slot, stack == null ? ItemStack.EMPTY : stack), 27);
+                readNameLockRows(rows, chest::setCustomName, chest::setLockKey);
             }
             case "Furnace" -> {
                 var furnace = seams.furnaces().getOrCreate(pos);
@@ -285,17 +294,20 @@ public final class TileNbt {
                         NbtOps.getShort(rows, "BurnTime"),
                         furnace.burnTimeTotal(),
                         NbtOps.getShort(rows, "CookTime"));
+                readNameLockRows(rows, furnace::setCustomName, furnace::setLockKey);
             }
             case "Hopper" -> {
                 var hopper = seams.hoppers().getOrCreate(pos);
                 readItems(rows, (slot, stack) ->
                         hopper.setItem(slot, stack), 5);
                 hopper.setCooldown(NbtOps.getInt(rows, "TransferCooldown"));
+                readNameLockRows(rows, hopper::setCustomName, hopper::setLockKey);
             }
             case "Trap", "Dropper" -> {
                 var dispenser = seams.dispensers().getOrCreate(pos);
                 readItems(rows, (slot, stack) ->
                         dispenser.setItem(slot, stack), 9);
+                readNameLockRows(rows, dispenser::setCustomName, dispenser::setLockKey);
             }
             case "Cauldron" -> {
                 var brewing = seams.brewing().getOrCreate(pos);
@@ -303,6 +315,7 @@ public final class TileNbt {
                         brewing.setItem(slot, stack), 4);
                 brewing.restoreState(brewing.snapshotSlots(),
                         NbtOps.getShort(rows, "BrewTime"));
+                readNameLockRows(rows, brewing::setCustomName, brewing::setLockKey);
             }
             case "Beacon" -> {
                 var beacon = seams.beacons().getOrCreate(pos);
@@ -410,6 +423,38 @@ public final class TileNbt {
                 continue; // the reference's size-limited walk skips the rest
             }
             writer.set(slot, ItemNbt.read(compound));
+        }
+    }
+
+    /**
+     * The containers' shared rows (Slice 91 Wave C p3 — the reference's
+     * per-family Nameable write: CustomName only when set, lines 141-143's
+     * own gate; and the InventoryBlockEntity base's Lock write, which
+     * ALWAYS lands — the lock object is never null, so even the NONE lock
+     * writes its empty key row, InventoryLock.writeNbt's own shape).
+     */
+    private static void writeNameLockRows(Map<String, Snbt.Tag> rows, String customName,
+            String lockKey) {
+        if (customName != null && !customName.isEmpty()) {
+            NbtOps.putString(rows, "CustomName", customName);
+        }
+        NbtOps.putString(rows, "Lock", lockKey == null ? "" : lockKey);
+    }
+
+    /**
+     * The containers' shared read (the per-family contains("CustomName", 8)
+     * gate + the base's InventoryLock.fromNbt — the string-typed Lock row;
+     * an absent row keeps the field's own value, a present one lands even
+     * when empty).
+     */
+    private static void readNameLockRows(Map<String, Snbt.Tag> rows,
+            java.util.function.Consumer<String> nameSetter,
+            java.util.function.Consumer<String> lockSetter) {
+        if (NbtOps.contains(rows, "CustomName", Snbt.Tag.Type.STRING)) {
+            nameSetter.accept(NbtOps.getString(rows, "CustomName"));
+        }
+        if (NbtOps.contains(rows, "Lock", Snbt.Tag.Type.STRING)) {
+            lockSetter.accept(NbtOps.getString(rows, "Lock"));
         }
     }
 }
