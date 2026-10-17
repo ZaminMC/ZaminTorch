@@ -366,11 +366,24 @@ public final class MobDataStore {
             writeString(out, nbt.customName());
         }
         if ((flags & NBT_FLAG_EQUIPMENT) != 0) {
-            // The stack row (the engine's own envelope: the identifier +
-            // the count + the damage — no item NBT payload).
             writeString(out, nbt.heldEquipment().type().identifier().toString());
             out.writeByte(nbt.heldEquipment().count());
             out.writeShort(nbt.heldEquipment().damage());
+            // The v6 tail (Slice 92 — the ItemNbt tag arms' own model):
+            // the display name + the enchant pairs (the nullable-string
+            // pair + the count-prefixed short pairs).
+            String heldName = nbt.heldEquipment().displayName();
+            writeNullableString(out, heldName == null || heldName.isEmpty() ? null : heldName);
+            var heldEnch = nbt.heldEquipment().enchantments();
+            if (heldEnch == null || heldEnch.isEmpty()) {
+                writeVarInt(out, 0);
+            } else {
+                writeVarInt(out, heldEnch.size());
+                for (var pair : heldEnch.entrySet()) {
+                    out.writeShort(pair.getKey());
+                    out.writeShort(pair.getValue());
+                }
+            }
         }
         if ((flags & NBT_FLAG_MOVEMENT_SPEED) != 0) {
             out.writeDouble(nbt.movementSpeed());
@@ -412,6 +425,26 @@ public final class MobDataStore {
                     .map(type -> net.zaminmc.torch.item.ItemStack.of(type, count)
                             .withDamage(damage))
                     .orElse(null);
+            // The v6 tail (Slice 92): the display name + the enchant
+            // pairs land on the model.
+            if (held != null && version >= FORMAT_VERSION) {
+                String heldName = readNullableString(in);
+                if (heldName != null) {
+                    held = held.withName(heldName);
+                }
+                int enchCount = readVarInt(in);
+                if (enchCount > 0) {
+                    java.util.Map<Integer, Integer> pairs = new java.util.LinkedHashMap<>();
+                    for (int i = 0; i < enchCount; i++) {
+                        int id = in.readUnsignedShort();
+                        int lvl = in.readUnsignedShort();
+                        if (lvl >= 1) {
+                            pairs.put(id, lvl);
+                        }
+                    }
+                    held = held.withEnchantments(pairs);
+                }
+            }
         }
         double movementSpeed = (flags & NBT_FLAG_MOVEMENT_SPEED) != 0
                 ? in.readDouble() : Double.NaN;

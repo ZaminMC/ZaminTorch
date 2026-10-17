@@ -13,10 +13,13 @@ import java.util.Map;
  * model): the id STRING (the engine's identifier form, bare or
  * namespaced), the Count byte, the Damage short.
  *
- * <p><b>The engine's no-item-tag envelope</b> (the long-ledgered row): the
- * reference's {@code tag} compound (enchantments, display names, ...) has
- * no landing in the engine's item model — the row parses on read and is
- * simply never written. Ledgered.</p>
+ * <p><b>The tag compound</b> (Slice 92 — the model's own arms, the
+ * reference's shapes): {@code tag.display.Name} (the hover string) and
+ * {@code tag.ench} (the {id, lvl} short pairs) round-trip through the
+ * engine's ItemStack model. The model-less arms — RepairCost,
+ * Unbreakable, CanDestroy/CanPlace, HideFlags, BlockEntityTag, the
+ * attribute modifiers, Lore — parse into nothing and are never written
+ * (the engine's standing envelope, ledgered).</p>
  */
 public final class ItemNbt {
 
@@ -38,6 +41,31 @@ public final class ItemNbt {
         NbtOps.putString(rows, "id", type.identifier().toString());
         NbtOps.putByte(rows, "Count", (byte) stack.count());
         NbtOps.putShort(rows, "Damage", (short) stack.damage());
+        // The tag compound (Slice 92 — writeNbt line 126-128: the whole
+        // tag rides when the stack carries one): the engine's model arms
+        // in the reference's own shapes — display.Name the hover string,
+        // ench the {id, lvl} pairs (addEnchantment lines 590-603).
+        boolean hasDisplay = stack.displayName() != null;
+        boolean hasEnch = stack.enchantments() != null && !stack.enchantments().isEmpty();
+        if (hasDisplay || hasEnch) {
+            Map<String, Snbt.Tag> tag = new java.util.LinkedHashMap<>();
+            if (hasDisplay) {
+                Map<String, Snbt.Tag> display = new java.util.LinkedHashMap<>();
+                NbtOps.putString(display, "Name", stack.displayName());
+                NbtOps.putCompound(tag, "display", display);
+            }
+            if (hasEnch) {
+                java.util.List<Snbt.Tag> ench = new java.util.ArrayList<>();
+                for (Map.Entry<Integer, Integer> pair : stack.enchantments().entrySet()) {
+                    Map<String, Snbt.Tag> row = new java.util.LinkedHashMap<>();
+                    NbtOps.putShort(row, "id", (short) pair.getKey().intValue());
+                    NbtOps.putShort(row, "lvl", (short) pair.getValue().intValue());
+                    ench.add(Snbt.Tag.ofCompound(row));
+                }
+                NbtOps.putList(tag, "ench", ench);
+            }
+            NbtOps.putCompound(rows, "tag", tag);
+        }
     }
 
     /**
@@ -69,6 +97,37 @@ public final class ItemNbt {
         int damage = NbtOps.getShort(rows, "Damage");
         if (damage > 0) {
             stack = stack.withDamage(Math.min(ItemStack.MAX_DAMAGE, damage));
+        }
+        // The tag compound (Slice 92 — readNbt lines 150-155): the
+        // display.Name row lands the hover string (getHoverName lines
+        // 371-377), the ench list lands the pairs (getEnchantments line
+        // 363); the model-less arms parse into nothing — the engine's
+        // standing envelope.
+        Map<String, Snbt.Tag> tag = NbtOps.getCompound(rows, "tag");
+        if (!tag.isEmpty()) {
+            Map<String, Snbt.Tag> display = NbtOps.getCompound(tag, "display");
+            String name = NbtOps.getString(display, "Name");
+            if (name != null && !name.isEmpty()) {
+                stack = stack.withName(name);
+            }
+            java.util.List<Snbt.Tag> ench = NbtOps.getList(tag, "ench", Snbt.Tag.Type.COMPOUND);
+            if (!ench.isEmpty()) {
+                Map<Integer, Integer> pairs = new java.util.LinkedHashMap<>();
+                for (Snbt.Tag row : ench) {
+                    Map<String, Snbt.Tag> compound = row != null ? row.asCompound() : null;
+                    if (compound == null) {
+                        continue;
+                    }
+                    int id = NbtOps.getShort(compound, "id");
+                    int lvl = NbtOps.getShort(compound, "lvl");
+                    if (id >= 0 && lvl >= 1) {
+                        pairs.put(id, lvl);
+                    }
+                }
+                if (!pairs.isEmpty()) {
+                    stack = stack.withEnchantments(pairs);
+                }
+            }
         }
         return stack;
     }
