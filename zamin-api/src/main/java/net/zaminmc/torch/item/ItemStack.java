@@ -71,13 +71,18 @@ import java.util.Objects;
  *                    identifier (bare names gain the minecraft: prefix)
  * @param canPlaceOn  the tag's CanPlaceOn string list (the adventure place
  *                    gate, the same shape); null = absent, immutable
+ * @param displayColor the tag's display.color int (the leather tint, a
+ *                    contains(...,3) INT row); null = absent (the reference's
+ *                    getColor default 10511680 is the render model's own —
+ *                    the engine stores the row alone)
  */
 public record ItemStack(ItemType type, int count, int damage, String displayName,
                         Map<Integer, Integer> enchantments,
                         boolean unbreakable, int repairCost, int hideFlags,
                         List<String> lore,
                         Map<String, Object> blockEntityTag,
-                        List<String> canDestroy, List<String> canPlaceOn) {
+                        List<String> canDestroy, List<String> canPlaceOn,
+                        Integer displayColor) {
 
     /** The wire's i16 damage/metadata ceiling (the historical field width). */
     public static final int MAX_DAMAGE = 0x7FFF;
@@ -102,7 +107,8 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         if (type == null) {
             if (count != 0 || damage != 0 || displayName != null || enchantments != null
                     || unbreakable || repairCost != 0 || hideFlags != 0 || lore != null
-                    || blockEntityTag != null || canDestroy != null || canPlaceOn != null) {
+                    || blockEntityTag != null || canDestroy != null || canPlaceOn != null
+                    || displayColor != null) {
                 throw new IllegalArgumentException("A stack without a type must be empty (count "
                         + count + ", damage " + damage + ")");
             }
@@ -140,6 +146,7 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
             blockEntityTag = sanitizeBlockEntityTag(blockEntityTag);
             canDestroy = sanitizeBlockKeyList(canDestroy);
             canPlaceOn = sanitizeBlockKeyList(canPlaceOn);
+            displayColor = displayColor == null ? null : displayColor;
         }
     }
 
@@ -163,7 +170,17 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
                      int repairCost, int hideFlags, List<String> lore,
                      Map<String, Object> blockEntityTag) {
         this(type, count, damage, displayName, enchantments, unbreakable,
-                repairCost, hideFlags, lore, blockEntityTag, null, null);
+                repairCost, hideFlags, lore, blockEntityTag, null, null, null);
+    }
+
+    /** The pre-color twelve-arg shape (the compatibility constructor). */
+    public ItemStack(ItemType type, int count, int damage, String displayName,
+                     Map<Integer, Integer> enchantments, boolean unbreakable,
+                     int repairCost, int hideFlags, List<String> lore,
+                     Map<String, Object> blockEntityTag,
+                     List<String> canDestroy, List<String> canPlaceOn) {
+        this(type, count, damage, displayName, enchantments, unbreakable,
+                repairCost, hideFlags, lore, blockEntityTag, canDestroy, canPlaceOn, null);
     }
 
     /** A fresh stack with no damage and no custom name. */
@@ -203,7 +220,8 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
             return isEmpty() ? this : EMPTY;
         }
         return new ItemStack(type, newCount, damage, displayName, enchantments,
-                unbreakable, repairCost, hideFlags, lore, blockEntityTag, canDestroy, canPlaceOn);
+                unbreakable, repairCost, hideFlags, lore, blockEntityTag, canDestroy, canPlaceOn,
+                displayColor);
     }
 
     /**
@@ -218,7 +236,8 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
             return this;
         }
         return new ItemStack(type, count, newDamage, displayName, enchantments,
-                unbreakable, repairCost, hideFlags, lore, blockEntityTag, canDestroy, canPlaceOn);
+                unbreakable, repairCost, hideFlags, lore, blockEntityTag, canDestroy, canPlaceOn,
+                displayColor);
     }
 
     /** @return the same stack carrying {@code newName} (null clears the name). */
@@ -227,7 +246,8 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
             return this;
         }
         return new ItemStack(type, count, damage, newName, enchantments,
-                unbreakable, repairCost, hideFlags, lore, blockEntityTag, canDestroy, canPlaceOn);
+                unbreakable, repairCost, hideFlags, lore, blockEntityTag, canDestroy, canPlaceOn,
+                displayColor);
     }
 
     /**
@@ -239,7 +259,8 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
             return this;
         }
         return new ItemStack(type, count, damage, displayName, newEnchantments,
-                unbreakable, repairCost, hideFlags, lore, blockEntityTag, canDestroy, canPlaceOn);
+                unbreakable, repairCost, hideFlags, lore, blockEntityTag, canDestroy, canPlaceOn,
+                displayColor);
     }
 
     // ---------------------------------------------------------------
@@ -253,7 +274,7 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         }
         return new ItemStack(type, count, damage, displayName, enchantments,
                 flag, repairCost, hideFlags, lore, blockEntityTag,
-                canDestroy, canPlaceOn);
+                canDestroy, canPlaceOn, displayColor);
     }
 
     /** @return the same stack carrying the anvil's RepairCost (0 clears). */
@@ -263,7 +284,7 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         }
         return new ItemStack(type, count, damage, displayName, enchantments,
                 unbreakable, Math.max(0, cost), hideFlags, lore, blockEntityTag,
-                canDestroy, canPlaceOn);
+                canDestroy, canPlaceOn, displayColor);
     }
 
     /** @return the same stack carrying the tooltip's HideFlags mask (0 clears). */
@@ -273,7 +294,7 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         }
         return new ItemStack(type, count, damage, displayName, enchantments,
                 unbreakable, repairCost, Math.max(0, flags), lore, blockEntityTag,
-                canDestroy, canPlaceOn);
+                canDestroy, canPlaceOn, displayColor);
     }
 
     /** @return the same stack carrying the display.Lore lines (null clears). */
@@ -283,7 +304,7 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         }
         return new ItemStack(type, count, damage, displayName, enchantments,
                 unbreakable, repairCost, hideFlags, lines, blockEntityTag,
-                canDestroy, canPlaceOn);
+                canDestroy, canPlaceOn, displayColor);
     }
 
     /**
@@ -296,7 +317,7 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
             return this;
         }
         return new ItemStack(type, count, damage, displayName, enchantments,
-                unbreakable, repairCost, hideFlags, lore, rows, canDestroy, canPlaceOn);
+                unbreakable, repairCost, hideFlags, lore, rows, canDestroy, canPlaceOn, displayColor);
     }
 
     /**
@@ -309,7 +330,7 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         }
         return new ItemStack(type, count, damage, displayName, enchantments,
                 unbreakable, repairCost, hideFlags, lore, blockEntityTag,
-                keys, canPlaceOn);
+                keys, canPlaceOn, displayColor);
     }
 
     /**
@@ -322,7 +343,20 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         }
         return new ItemStack(type, count, damage, displayName, enchantments,
                 unbreakable, repairCost, hideFlags, lore, blockEntityTag,
-                canDestroy, keys);
+                canDestroy, keys, displayColor);
+    }
+
+    /**
+     * @return the same stack carrying the tag's display.color int (the
+     *         leather tint, a contains(...,3) INT row; null clears).
+     */
+    public ItemStack withDisplayColor(Integer color) {
+        if (isEmpty()) {
+            return this;
+        }
+        return new ItemStack(type, count, damage, displayName, enchantments,
+                unbreakable, repairCost, hideFlags, lore, blockEntityTag,
+                canDestroy, canPlaceOn, color);
     }
 
     /**
@@ -399,7 +433,8 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         }
         int taken = Math.min(Math.min(amount, count), type.maxStackSize());
         return new ItemStack(type, taken, damage, displayName, enchantments,
-                unbreakable, repairCost, hideFlags, lore, blockEntityTag, canDestroy, canPlaceOn);
+                unbreakable, repairCost, hideFlags, lore, blockEntityTag, canDestroy, canPlaceOn,
+                displayColor);
     }
 
     /**
@@ -427,7 +462,8 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
                 && Objects.equals(a.lore, b.lore)
                 && blockEntityTagEqual(a.blockEntityTag, b.blockEntityTag)
                 && Objects.equals(a.canDestroy, b.canDestroy)
-                && Objects.equals(a.canPlaceOn, b.canPlaceOn);
+                && Objects.equals(a.canPlaceOn, b.canPlaceOn)
+                && Objects.equals(a.displayColor, b.displayColor);
     }
 
     /**

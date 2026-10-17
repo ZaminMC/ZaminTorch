@@ -41,13 +41,15 @@ public final class ItemDataStore {
     private static final int MAGIC_0 = 'Z';
     private static final int MAGIC_1 = 'I';
     private static final int MAGIC_2 = 'D';
-    private static final int FORMAT_VERSION = 4;
+    private static final int FORMAT_VERSION = 5;
     /** The pre-Wave-G shape (Slice 93): the stack rows stop after the enchant pairs. */
     private static final int FORMAT_VERSION_1 = 1;
     /** The pre-H2 shape (Slice 94): the stack rows stop after the Lore list. */
     private static final int FORMAT_VERSION_2 = 2;
     /** The pre-I1 shape (Slice 95): the stack rows stop after the BlockEntityTag row. */
     private static final int FORMAT_VERSION_3 = 3;
+    /** The pre-color shape (Slice 96): the stack rows stop after the CanPlaceOn list. */
+    private static final int FORMAT_VERSION_4 = 4;
 
     private static final int FLAG_NEVER_DESPAWN = 0x01;
     private static final int FLAG_THROWER = 0x02;
@@ -142,6 +144,11 @@ public final class ItemDataStore {
                             writeString(out, key);
                         }
                     }
+                    // The v5 tail (the leather tint): a nullable int row.
+                    out.writeBoolean(item.stack().displayColor() != null);
+                    if (item.stack().displayColor() != null) {
+                        out.writeInt(item.stack().displayColor());
+                    }
                     writeVarInt(out, item.age());
                     writeVarInt(out, item.pickupDelay());
                     int flags = 0;
@@ -185,7 +192,8 @@ public final class ItemDataStore {
                 throw new IOException("Not a ZID file");
             }
             int version = in.readByte();
-            if (version != FORMAT_VERSION && version != FORMAT_VERSION_3
+            if (version != FORMAT_VERSION && version != FORMAT_VERSION_4
+                    && version != FORMAT_VERSION_3
                     && version != FORMAT_VERSION_2
                     && version != FORMAT_VERSION_1) {
                 throw new IOException("Unsupported ZID version: " + version);
@@ -237,7 +245,9 @@ public final class ItemDataStore {
                 // The v4 tail (Wave I): the two lists — absent in a v3 file.
                 java.util.List<String> canDestroyRows = null;
                 java.util.List<String> canPlaceOnRows = null;
-                if (version >= FORMAT_VERSION) {
+                Integer displayColorRow = null;
+                if (version >= FORMAT_VERSION_4) {
+                    // (the v5 color row follows below)
                     int destroyCount = readVarInt(in);
                     if (destroyCount > 0) {
                         canDestroyRows = new java.util.ArrayList<>(destroyCount);
@@ -252,6 +262,11 @@ public final class ItemDataStore {
                             canPlaceOnRows.add(readString(in));
                         }
                     }
+                }
+                // The v5 tail (the leather tint): a nullable int row, read
+                // at the top level (an unresolvable id still consumes it).
+                if (version >= FORMAT_VERSION && in.readBoolean()) {
+                    displayColorRow = in.readInt();
                 }
                 // An unresolvable item id (a newer save on an older build)
                 // still consumes its rows: the body simply never joins the
@@ -295,6 +310,9 @@ public final class ItemDataStore {
                     }
                     if (canPlaceOnRows != null && !canPlaceOnRows.isEmpty()) {
                         stack = stack.withCanPlaceOn(canPlaceOnRows);
+                    }
+                    if (displayColorRow != null) {
+                        stack = stack.withDisplayColor(displayColorRow);
                     }
                 }
                 int age = readVarInt(in);

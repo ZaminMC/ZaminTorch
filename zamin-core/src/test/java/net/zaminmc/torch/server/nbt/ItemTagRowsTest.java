@@ -223,4 +223,32 @@ class ItemTagRowsTest {
         NbtOps.putShort(row, "lvl", (short) lvl);
         return row;
     }
+
+    @Test
+    void theDisplayColorRoundTripsTheLeatherTint() {
+        // The leather tint (ArmorItem.getColor's own row): display.color
+        // an INT inside the display compound, the contains(...,3) gate on
+        // read (a non-int row never lands), the wire + the tails riding.
+        var leather = BuiltinItems.lookup(
+                net.zaminmc.torch.util.Identifier.parse("minecraft:leather_helmet")).orElseThrow();
+        ItemStack dyed = ItemStack.of(leather, 1).withDisplayColor(0x4C7F99);
+        Map<String, Snbt.Tag> rows = new LinkedHashMap<>();
+        ItemNbt.write(dyed, rows);
+        // The row lands inside the display compound.
+        Map<String, Snbt.Tag> tag = NbtOps.getCompound(rows, "tag");
+        Map<String, Snbt.Tag> display = NbtOps.getCompound(tag, "display");
+        assertTrue(NbtOps.containsNumeric(display, "color"));
+        assertEquals(0x4C7F99, NbtOps.getInt(display, "color"));
+        // The read lands it back; a non-int color row never lands.
+        ItemStack read = ItemNbt.read(rows);
+        assertEquals(Integer.valueOf(0x4C7F99), read.displayColor());
+        NbtOps.putString(display, "color", "not an int");
+        read = ItemNbt.read(rows);
+        assertNull(read.displayColor(), "a string-typed color row never lands");
+        // A stack without the color writes no row and reads none.
+        Map<String, Snbt.Tag> bare = new LinkedHashMap<>();
+        ItemNbt.write(ItemStack.of(leather, 1), bare);
+        assertFalse(NbtOps.containsNumeric(
+                NbtOps.getCompound(NbtOps.getCompound(bare, "tag"), "display"), "color"));
+    }
 }
