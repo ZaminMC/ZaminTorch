@@ -41,7 +41,9 @@ public final class ItemDataStore {
     private static final int MAGIC_0 = 'Z';
     private static final int MAGIC_1 = 'I';
     private static final int MAGIC_2 = 'D';
-    private static final int FORMAT_VERSION = 1;
+    private static final int FORMAT_VERSION = 2;
+    /** The pre-Wave-G shape (Slice 93): the stack rows stop after the enchant pairs. */
+    private static final int FORMAT_VERSION_1 = 1;
 
     private static final int FLAG_NEVER_DESPAWN = 0x01;
     private static final int FLAG_THROWER = 0x02;
@@ -94,6 +96,23 @@ public final class ItemDataStore {
                             out.writeShort(pair.getValue());
                         }
                     }
+                    // The v2 tail (Slice 94 — the Wave G arms on the stack
+                    // model): the Unbreakable byte, the RepairCost varint,
+                    // the HideFlags varint, then the Lore list (the count
+                    // + the strings). Each row rides its model default
+                    // when the stack carries nothing.
+                    out.writeBoolean(item.stack().unbreakable());
+                    writeVarInt(out, item.stack().repairCost());
+                    writeVarInt(out, item.stack().hideFlags());
+                    var lore = item.stack().lore();
+                    if (lore == null || lore.isEmpty()) {
+                        writeVarInt(out, 0);
+                    } else {
+                        writeVarInt(out, lore.size());
+                        for (String line : lore) {
+                            writeString(out, line);
+                        }
+                    }
                     writeVarInt(out, item.age());
                     writeVarInt(out, item.pickupDelay());
                     int flags = 0;
@@ -137,7 +156,7 @@ public final class ItemDataStore {
                 throw new IOException("Not a ZID file");
             }
             int version = in.readByte();
-            if (version != FORMAT_VERSION) {
+            if (version != FORMAT_VERSION && version != FORMAT_VERSION_1) {
                 throw new IOException("Unsupported ZID version: " + version);
             }
             int count = readVarInt(in);
@@ -165,6 +184,21 @@ public final class ItemDataStore {
                         pairs.put(id, lvl);
                     }
                 }
+                // The v2 tail (Slice 94): the Wave G rows — absent in a v1
+                // file, the model's defaults then.
+                boolean unbreakable = version >= FORMAT_VERSION && in.readBoolean();
+                int repairCost = version >= FORMAT_VERSION ? readVarInt(in) : 0;
+                int hideFlags = version >= FORMAT_VERSION ? readVarInt(in) : 0;
+                java.util.List<String> loreLines = null;
+                if (version >= FORMAT_VERSION) {
+                    int loreCount = readVarInt(in);
+                    if (loreCount > 0) {
+                        loreLines = new java.util.ArrayList<>(loreCount);
+                        for (int l = 0; l < loreCount; l++) {
+                            loreLines.add(readString(in));
+                        }
+                    }
+                }
                 // An unresolvable item id (a newer save on an older build)
                 // still consumes its rows: the body simply never joins the
                 // world (the restore skips the empty stack).
@@ -181,6 +215,18 @@ public final class ItemDataStore {
                     }
                     if (!pairs.isEmpty()) {
                         stack = stack.withEnchantments(pairs);
+                    }
+                    if (unbreakable) {
+                        stack = stack.withUnbreakable(true);
+                    }
+                    if (repairCost > 0) {
+                        stack = stack.withRepairCost(repairCost);
+                    }
+                    if (hideFlags > 0) {
+                        stack = stack.withHideFlags(hideFlags);
+                    }
+                    if (loreLines != null && !loreLines.isEmpty()) {
+                        stack = stack.withLore(loreLines);
                     }
                 }
                 int age = readVarInt(in);

@@ -99,7 +99,12 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
                 throw new IllegalArgumentException("Stack damage/metadata out of i16 range: " + damage);
             }
             int maxDurability = type.maxDurability();
-            if (maxDurability > 0 && damage > maxDurability) {
+            // The Unbreakable exemption (Slice 94/G1 — the reference's
+            // readNbt lines 143-145: only the negative clamps; a flagged
+            // stack carries its damage row freely past the max, never
+            // wears, never counts as damaged — isDamaged line 171's own
+            // isDamageable consult).
+            if (maxDurability > 0 && damage > maxDurability && !unbreakable) {
                 throw new IllegalArgumentException("Stack damage " + damage
                         + " exceeds max durability " + maxDurability + " of " + type.identifier());
             }
