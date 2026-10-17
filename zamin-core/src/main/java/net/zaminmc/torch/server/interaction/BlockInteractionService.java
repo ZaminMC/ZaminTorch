@@ -296,6 +296,14 @@ public final class BlockInteractionService {
             LOGGER.fine(() -> "Rejected break (out of reach) by " + player.name());
             return;
         }
+        // The adventure mine gate (Wave I — a restricted placer's held
+        // stack must carry the block in its CanDestroy list; creative
+        // passes through mayModifyWorld untouched).
+        if (!canMineBlock(player, heldOf(player), current)) {
+            LOGGER.fine(() -> "Rejected break (adventure CanDestroy) by " + player.name());
+            resync(position);
+            return;
+        }
         // The nuker guard runs creative too (the higher creative budget).
         long nowNanos = System.nanoTime();
         if (!player.violations().recordBreak(nowNanos, BREAK_WINDOW_NANOS, CREATIVE_BREAK_BUDGET)
@@ -339,6 +347,13 @@ public final class BlockInteractionService {
             return; // air or unbreakable: no dig (bedrock never opens one)
         }
         if (!InteractionRules.withinSurvivalReach(player.position(), target)) {
+            return;
+        }
+        // The adventure mine gate (Wave I — ServerPlayerInteractionManager
+        // 112-133: a restricted placer's held stack must carry the block
+        // in its CanDestroy list; a refusal never opens the dig session).
+        if (!canMineBlock(player, heldOf(player), world.getBlock(target))) {
+            LOGGER.fine(() -> "Rejected mining start (adventure CanDestroy) by " + player.name());
             return;
         }
         // The reference's startMining arm (ServerPlayerInteractionManager
@@ -389,6 +404,13 @@ public final class BlockInteractionService {
             resync(target);
             LOGGER.fine(() -> "Rejected mining finish (no session/wrong target/out of reach) by "
                     + player.name());
+            return;
+        }
+        // The adventure mine gate's second arm (Wave I — the reference's
+        // tryHarvestBlock 195-211: the same consult at the harvest).
+        if (!canMineBlock(player, heldOf(player), current)) {
+            resync(target);
+            LOGGER.fine(() -> "Rejected mining finish (adventure CanDestroy) by " + player.name());
             return;
         }
         BlockBehavior behavior = BlockBehaviorTable.of(current.identifier()).orElse(null);
@@ -721,6 +743,62 @@ public final class BlockInteractionService {
         return !bus.fire(new BlockBreakEvent(player, world, position, block)).cancelled();
     }
 
+    // ------------------------------------------------------------------
+    // The adventure gates (Wave I — the reference's mayBuild consults)
+    // ------------------------------------------------------------------
+
+    /**
+     * The derived mayBuild (the reference's PlayerAbilities.canModifyWorld —
+     * false in adventure and spectator, exactly the way PlayerNbt's
+     * abilities compound derives it). The gates below consult it before
+     * the held stack's CanPlaceOn/CanDestroy lists.
+     */
+    private static boolean mayModifyWorld(PlayerSession player) {
+        GameMode mode = player.gamemode();
+        return mode != GameMode.ADVENTURE && mode != GameMode.SPECTATOR;
+    }
+
+    /**
+     * The place gate's consult (PlayerEntity.canUseItemOn 1:1): the
+     * CanPlaceOn list must name the CLICKED block — pos.offset(face's
+     * opposite) in the reference is the block the face belongs to; the
+     * engine's walk already holds it as {@code clicked}. The
+     * canUseOnBlockInAdventureMode seam is constant-false across the
+     * whole reference set — no item overrides it.
+     */
+    private static boolean canUseItemOn(PlayerSession player, ItemStack held, BlockType clicked) {
+        if (mayModifyWorld(player)) {
+            return true;
+        }
+        if (held == null || held.isEmpty()) {
+            return false;
+        }
+        return held.canPlaceOn() != null
+                && held.canPlaceOn().contains(clicked.identifier().toString());
+    }
+
+    /**
+     * The mine gate's consult (ServerPlayerInteractionManager 112-133 and
+     * 195-211): the CanDestroy list must name the mined block.
+     */
+    private static boolean canMineBlock(PlayerSession player, ItemStack held, BlockType mined) {
+        if (mayModifyWorld(player)) {
+            return true;
+        }
+        if (held == null || held.isEmpty()) {
+            return false;
+        }
+        return held.canDestroy() != null
+                && held.canDestroy().contains(mined.identifier().toString());
+    }
+
+    /** The held stack (the authoritative inventory's own slot, any mode). */
+    private static ItemStack heldOf(PlayerSession player) {
+        ItemStack held = player.inventory().held();
+        return held == null ? ItemStack.EMPTY : held;
+    }
+
+
     /**
      * The public place gate: fires {@link BlockPlaceEvent} before the world
      * mutation and the survival consumption, and reports whether the engine
@@ -841,6 +919,16 @@ public final class BlockInteractionService {
             resync(target);
             return;
         }
+        // The adventure place gate (Wave I — BlockItem.useOn line 39 ->
+        // PlayerEntity.canUseItemOn 1:1): a restricted placer's held stack
+        // must carry the CLICKED block in its CanPlaceOn list; a refusal
+        // drops the prediction (the reference returns false before
+        // canPlace, nothing places, nothing consumes).
+        if (!canUseItemOn(player, heldStack, world.getBlock(clicked))) {
+            LOGGER.fine(() -> "Rejected placement (adventure CanPlaceOn) by " + player.name());
+            resync(target);
+            return;
+        }
         // The fastplace guard (the NCP shape): the rolling 10-tick budget;
         // over budget the placement refuses and the cell re-syncs (the
         // client's prediction drops).
@@ -886,9 +974,17 @@ public final class BlockInteractionService {
      */
     public void placeFromUseOnTick(PlayerSession player, BlockPosition clicked, int face,
                                    java.util.Optional<BlockType> creativeHeld) {
+        if (player.gamemode() == GameMode.SPECTATOR) {
+            return; // spectators never use items (the engine's own guard)
+        }
         if (creativeHeld.isPresent()) {
             placeOnTick(player, clicked, face, creativeHeld.get());
-        } else if (gameMode.apply(player) == GameMode.SURVIVAL) {
+        } else if (gameMode.apply(player) == GameMode.SURVIVAL
+                || gameMode.apply(player) == GameMode.ADVENTURE) {
+            // Adventure rides the survival path (Wave I — the reference's
+            // adventure players place through the same useOn walk, the
+            // canUseItemOn gate inside carrying the CanPlaceOn consult;
+            // a passing placement consumes the stack like any other).
             survivalPlaceOnTick(player, clicked, face);
         }
         // creative with an unmapped/empty held item: a no-op use
