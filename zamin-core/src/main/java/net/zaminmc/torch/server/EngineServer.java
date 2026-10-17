@@ -2286,6 +2286,9 @@ public final class EngineServer implements Server, EngineBridge {
                     tickBrewingViewers();
                     tickBeaconViewers();
                     tickEnchantingViewers();
+                    tickChestViewers();
+                    tickHopperViewers();
+                    tickDispenserViewers();
                     tickPlayerBodies();
                     // The portal caches' eviction walk (the reference's
                     // PortalForcer.tick per world).
@@ -3701,6 +3704,161 @@ public final class EngineServer implements Server, EngineBridge {
             }
             for (FurnaceViewListener listener : furnaceViewListeners) {
                 listener.onFurnaceViewTick(session, position, furnace);
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // The §27 window family's re-sync wave (the chest/hopper/dispenser
+    // families generalized over the furnace's own diff-path idiom): a
+    // plugin's setSlot, the hopper system's transfers, and the world
+    // side's own writes all bump the container's slotsSerial; the
+    // per-tick view fan hands the open viewer's connection the serial,
+    // and the connection re-syncs the Window Items only when the serial
+    // moved. The furnace/brewing/beacon families ride their own
+    // per-tick fans above; this wave covers the families that had none.
+    // ------------------------------------------------------------------
+
+    /**
+     * A per-tick chest-family window view (the §27 window family): the
+     * resolved 27-slot container behind whatever chest-layout window the
+     * viewer holds open — the world chest, the session's private ender
+     * chest grid, or the chest minecart's own chest (resolved by the
+     * mount id, so the cart's CURRENT body carries).
+     */
+    public interface ChestViewListener {
+        void onChestViewTick(PlayerSession viewer,
+                              net.zaminmc.torch.server.chest.ChestBlockEntity chest);
+    }
+
+    private final java.util.List<ChestViewListener> chestViewListeners =
+            new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    /** Registers an internal chest-family view observer (the protocol adapter's sync). */
+    public void addChestViewListener(ChestViewListener listener) {
+        chestViewListeners.add(listener);
+    }
+
+    /**
+     * Fans per-tick chest-family views out to the open viewer(s). The
+     * ender chest reads the session's own grid (the block at the window's
+     * position is the door, not the storage); the chest minecart resolves
+     * by the mount id (the cart's chest is standalone — its writes ride
+     * the same serial). Tick-thread context.
+     */
+    private void tickChestViewers() {
+        if (chestViewListeners.isEmpty()) {
+            return;
+        }
+        for (PlayerSession session : players.all()) {
+            net.zaminmc.torch.server.chest.ChestBlockEntity chest = null;
+            switch (session.openContainerKind()) {
+                case CHEST -> {
+                    var position = session.openContainerPosition();
+                    chest = position == null ? null : chestManager.peek(position);
+                }
+                case ENDER_CHEST -> chest = session.enderChest();
+                case CHEST_MINECART -> {
+                    var vehicle = vehicleManager == null
+                            ? null : vehicleManager.byId(session.containerMountId());
+                    chest = vehicle instanceof net.zaminmc.torch.server.entity.vehicle.ChestMinecartEntity cart
+                            ? cart.chest() : null;
+                }
+                default -> {
+                    continue;
+                }
+            }
+            if (chest == null) {
+                continue;
+            }
+            for (ChestViewListener listener : chestViewListeners) {
+                listener.onChestViewTick(session, chest);
+            }
+        }
+    }
+
+    /**
+     * A per-tick hopper-family window view (the §27 window family): the
+     * resolved 5-slot container behind the open hopper window — the world
+     * hopper or the hopper minecart's own hopper (by the mount id).
+     */
+    public interface HopperViewListener {
+        void onHopperViewTick(PlayerSession viewer,
+                               net.zaminmc.torch.server.hopper.HopperBlockEntity hopper);
+    }
+
+    private final java.util.List<HopperViewListener> hopperViewListeners =
+            new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    /** Registers an internal hopper-family view observer (the protocol adapter's sync). */
+    public void addHopperViewListener(HopperViewListener listener) {
+        hopperViewListeners.add(listener);
+    }
+
+    /** Fans per-tick hopper-family views out to the open viewer(s). Tick-thread context. */
+    private void tickHopperViewers() {
+        if (hopperViewListeners.isEmpty()) {
+            return;
+        }
+        for (PlayerSession session : players.all()) {
+            net.zaminmc.torch.server.hopper.HopperBlockEntity hopper = null;
+            switch (session.openContainerKind()) {
+                case HOPPER -> {
+                    var position = session.openContainerPosition();
+                    hopper = position == null ? null : hopperSystem.peek(position);
+                }
+                case HOPPER_MINECART -> {
+                    var vehicle = vehicleManager == null
+                            ? null : vehicleManager.byId(session.containerMountId());
+                    hopper = vehicle instanceof net.zaminmc.torch.server.entity.vehicle.HopperMinecartEntity cart
+                            ? cart.hopper() : null;
+                }
+                default -> {
+                    continue;
+                }
+            }
+            if (hopper == null) {
+                continue;
+            }
+            for (HopperViewListener listener : hopperViewListeners) {
+                listener.onHopperViewTick(session, hopper);
+            }
+        }
+    }
+
+    /**
+     * A per-tick dispenser-family window view (the §27 window family): the
+     * resolved 9-slot container behind the open dispenser/dropper window.
+     */
+    public interface DispenserViewListener {
+        void onDispenserViewTick(PlayerSession viewer,
+                                  net.zaminmc.torch.server.dispenser.DispenserBlockEntity dispenser);
+    }
+
+    private final java.util.List<DispenserViewListener> dispenserViewListeners =
+            new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    /** Registers an internal dispenser-family view observer (the protocol adapter's sync). */
+    public void addDispenserViewListener(DispenserViewListener listener) {
+        dispenserViewListeners.add(listener);
+    }
+
+    /** Fans per-tick dispenser-family views out to the open viewer(s). Tick-thread context. */
+    private void tickDispenserViewers() {
+        if (dispenserViewListeners.isEmpty()) {
+            return;
+        }
+        for (PlayerSession session : players.all()) {
+            if (session.openContainerKind() != PlayerSession.ContainerKind.DISPENSER) {
+                continue;
+            }
+            var position = session.openContainerPosition();
+            var dispenser = position == null ? null : dispenserSystem.peek(position);
+            if (dispenser == null) {
+                continue;
+            }
+            for (DispenserViewListener listener : dispenserViewListeners) {
+                listener.onDispenserViewTick(session, dispenser);
             }
         }
     }

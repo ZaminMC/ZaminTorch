@@ -32,6 +32,8 @@ public final class HopperBlockEntity {
 
     private final ItemStack[] slots = new ItemStack[SLOT_COUNT];
     private int transferCooldown = -1;
+    /** The mutation counter (wire sync dedup — the chest's own pattern). */
+    private int slotsSerial;
 
     /** The contents-changed wake (the comparator re-evaluation fan-out). */
     private Runnable contentsListener;
@@ -45,11 +47,17 @@ public final class HopperBlockEntity {
         this.contentsListener = listener;
     }
 
-    /** The mutation bump: the comparator wake (the markDirty port). */
+    /** The mutation bump: the serial + the comparator wake (the markDirty port). */
     private void bump() {
+        slotsSerial++;
         if (contentsListener != null) {
             contentsListener.run();
         }
+    }
+
+    /** @return how many times the slot array mutated (wire sync dedup). */
+    public int slotsSerial() {
+        return slotsSerial;
     }
 
     /** The cooldown bookkeeping (HopperBlockEntity.tick lines 166-174). */

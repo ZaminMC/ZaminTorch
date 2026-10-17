@@ -4,6 +4,7 @@ import net.zaminmc.torch.block.BlockPosition;
 import net.zaminmc.torch.entity.Player;
 
 import net.zaminmc.torch.entity.PlayerState;
+import net.zaminmc.torch.entity.WindowKind;
 import net.zaminmc.torch.util.Position;
 import net.zaminmc.torch.util.Rotation;
 import net.zaminmc.torch.World;
@@ -808,6 +809,59 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
         this.containerPosition = null;
         this.containerMountId = -1;
         this.selectedTrade = -1;
+    }
+
+    // --- §27 window family's public surface (the live open-window view) --------
+    // The engine session IS the handle (§27.5): the view reads the session's
+    // own window state through the same accessors the engine uses; the
+    // fields publish best-effort for the adapter's cross-thread syncs (the
+    // body-state contract).
+
+    @Override
+    public OpenWindow openWindow() {
+        return liveOpenWindow;
+    }
+
+    private final OpenWindow liveOpenWindow = new OpenWindow() {
+        @Override
+        public WindowKind kind() {
+            return publicKindOf(containerKind);
+        }
+
+        @Override
+        public int windowId() {
+            return containerWindowId;
+        }
+
+        @Override
+        public java.util.Optional<net.zaminmc.torch.block.BlockPosition> position() {
+            return java.util.Optional.ofNullable(containerPosition);
+        }
+
+        @Override
+        public int mountId() {
+            return containerMountId;
+        }
+    };
+
+    /** The engine kind -> the public vocabulary (the §27 window family's read surface). */
+    private static WindowKind publicKindOf(ContainerKind kind) {
+        return switch (kind) {
+            case NONE -> WindowKind.NONE;
+            case CRAFTING_TABLE -> WindowKind.CRAFTING_TABLE;
+            case FURNACE -> WindowKind.FURNACE;
+            case CHEST -> WindowKind.CHEST;
+            case DISPENSER -> WindowKind.DISPENSER;
+            case BREWING_STAND -> WindowKind.BREWING_STAND;
+            case HORSE -> WindowKind.HORSE;
+            case CHEST_MINECART -> WindowKind.CHEST_MINECART;
+            case HOPPER_MINECART -> WindowKind.HOPPER_MINECART;
+            case HOPPER -> WindowKind.HOPPER;
+            case ENDER_CHEST -> WindowKind.ENDER_CHEST;
+            case BEACON -> WindowKind.BEACON;
+            case VILLAGER -> WindowKind.VILLAGER;
+            case ENCHANTING_TABLE -> WindowKind.ENCHANTING_TABLE;
+        };
     }
 
     public PlayerState state() {
