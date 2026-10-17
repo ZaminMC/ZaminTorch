@@ -354,4 +354,65 @@ class TileNbtTest {
         tick(() -> resolved.set(server.tileNbt().writeTile(server.world(), 0, stone, rows)));
         assertTrue(!resolved.get(), "stone carries no tile");
     }
+    /**
+     * Slice 91 Wave C — the spawner's six cadence rows: the typed
+     * projection writes them (MobSpawner.writeNbt lines 231-236), the read
+     * lands them back, and the PAIRED gates carry the reference's own
+     * zeroing quirk (readNbt lines 197-205: MinSpawnDelay present reads
+     * ALL THREE rows - an absent partner lands as its short 0).
+     */
+    @Test
+    void theSpawnerCadenceRowsRoundTrip() throws Exception {
+        BlockPosition pos = place("mob_spawner");
+        tick(() -> {
+            var spawner = server.spawners().getOrCreate(0, pos);
+            spawner.setType(MobType.ZOMBIE);
+            spawner.setMinSpawnDelay(5);
+            spawner.setMaxSpawnDelay(6);
+            spawner.setSpawnCount(1);
+            spawner.setMaxNearbyEntities(2);
+            spawner.setRequiredPlayerRange(32);
+            spawner.setSpawnRange(2);
+        });
+        Map<String, Snbt.Tag> rows = writeAt(pos);
+        assertEquals("MobSpawner", NbtOps.getString(rows, "id"));
+        assertEquals(5, NbtOps.getShort(rows, "MinSpawnDelay"));
+        assertEquals(6, NbtOps.getShort(rows, "MaxSpawnDelay"));
+        assertEquals(1, NbtOps.getShort(rows, "SpawnCount"));
+        assertEquals(2, NbtOps.getShort(rows, "MaxNearbyEntities"));
+        assertEquals(32, NbtOps.getShort(rows, "RequiredPlayerRange"));
+        assertEquals(2, NbtOps.getShort(rows, "SpawnRange"));
+        // The full round-trip onto a fresh spawner.
+        BlockPosition fresh = place("mob_spawner");
+        readAt(fresh, rows);
+        var loaded = server.spawners().getOrCreate(0, fresh);
+        assertEquals(5, loaded.minSpawnDelay());
+        assertEquals(6, loaded.maxSpawnDelay());
+        assertEquals(1, loaded.spawnCount());
+        assertEquals(2, loaded.maxNearbyEntities());
+        assertEquals(32, loaded.requiredPlayerRange());
+        assertEquals(2, loaded.spawnRange());
+        // The PAIRED-GATE QUIRK: a compound carrying MinSpawnDelay alone
+        // (the other rows removed - the /blockdata partial-write shape)
+        // reads ALL THREE - the absent partners land as their short 0,
+        // while the OTHER pair (no MaxNearbyEntities row) keeps its
+        // defaults.
+        Map<String, Snbt.Tag> partial = new java.util.LinkedHashMap<>(rows);
+        partial.remove("MaxSpawnDelay");
+        partial.remove("SpawnCount");
+        partial.remove("MaxNearbyEntities");
+        partial.remove("RequiredPlayerRange");
+        partial.remove("SpawnRange");
+        BlockPosition quirkPos = place("mob_spawner");
+        readAt(quirkPos, partial);
+        var quirked = server.spawners().getOrCreate(0, quirkPos);
+        assertEquals(5, quirked.minSpawnDelay(), "the present row lands");
+        assertEquals(0, quirked.maxSpawnDelay(),
+                "the absent partner reads its short 0 - the reference's own quirk");
+        assertEquals(0, quirked.spawnCount(), "the third partner too");
+        assertEquals(6, quirked.maxNearbyEntities(),
+                "the OTHER pair keeps its default (no MaxNearbyEntities row)");
+        assertEquals(16, quirked.requiredPlayerRange());
+        assertEquals(4, quirked.spawnRange());
+    }
 }

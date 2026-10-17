@@ -200,4 +200,124 @@ class SpawnerManagerTest {
         assertTrue(events.contains("rerolled:-1"),
                 "the reroll broadcasts the spin reset (was " + events + ")");
     }
+    /**
+     * Slice 91 Wave C — the cadence rows into the model: a fresh spawner
+     * carries the reference's own field defaults (MobSpawner lines 21-29).
+     */
+    @Test
+    void theFreshSpawnerCarriesTheReferenceDefaults() {
+        SpawnerManager spawners = new SpawnerManager(new Random(1L),
+                new TestPlayers(), mobs(), dimension -> null);
+        SpawnerManager.MobSpawnerBlockEntity spawner = spawners.getOrCreate(0,
+                new net.zaminmc.torch.block.BlockPosition(0, 64, 0));
+        assertEquals(200, spawner.minSpawnDelay(), "minSpawnDelay 200");
+        assertEquals(800, spawner.maxSpawnDelay(), "maxSpawnDelay 800");
+        assertEquals(4, spawner.spawnCount(), "spawnCount 4");
+        assertEquals(6, spawner.maxNearbyEntities(), "maxNearbyEntities 6");
+        assertEquals(16, spawner.requiredPlayerRange(), "requiredPlayerRange 16");
+        assertEquals(4, spawner.spawnRange(), "spawnRange 4");
+    }
+
+    /**
+     * The RequiredPlayerRange row steers the spawner's OWN player gate: a
+     * player 30 blocks out leaves a default spawner dormant (the existing
+     * 16-block law) but wakes one whose row reads 32.
+     */
+    @Test
+    void theRequiredPlayerRangeRowSteersTheGate() {
+        TestPlayers players = new TestPlayers();
+        players.positions.add(new Position(30.5, 64.0, 0.5));
+        SpawnerManager spawners = new SpawnerManager(new Random(11L), players,
+                mobs(), dimension -> null);
+        net.zaminmc.torch.block.BlockPosition pos =
+                new net.zaminmc.torch.block.BlockPosition(0, 64, 0);
+        SpawnerManager.MobSpawnerBlockEntity spawner = spawners.getOrCreate(0, pos);
+        spawner.setType(MobType.ZOMBIE);
+        spawners.tick();
+        assertEquals(20, spawner.delay(),
+                "the default 16-block gate leaves the 30-block player dormant");
+        spawner.setRequiredPlayerRange(32);
+        spawner.setDelay(0);
+        spawners.tick();
+        assertTrue(spawner.delay() > 0,
+                "the 32-block row reads the far player: the cycle ran and re-armed");
+    }
+
+    /** The MinSpawnDelay/MaxSpawnDelay rows steer the re-arm's OWN band. */
+    @Test
+    void theDelayBandRollsTheSpawnersOwnRange() {
+        TestPlayers players = new TestPlayers();
+        players.positions.add(new Position(0.5, 64.0, 0.5));
+        SpawnerManager spawners = new SpawnerManager(new Random(5L), players,
+                mobs(), dimension -> null);
+        net.zaminmc.torch.block.BlockPosition pos =
+                new net.zaminmc.torch.block.BlockPosition(0, 64, 0);
+        SpawnerManager.MobSpawnerBlockEntity spawner = spawners.getOrCreate(0, pos);
+        spawner.setType(MobType.ZOMBIE);
+        spawner.setMinSpawnDelay(5);
+        spawner.setMaxSpawnDelay(6);
+        spawner.setDelay(0);
+        spawners.tick(); // the cycle fires, the band re-arms
+        assertTrue(spawner.delay() == 5 || spawner.delay() == 6,
+                "the re-arm rolls the spawner's OWN 5..6 band (was "
+                        + spawner.delay() + ")");
+    }
+
+    /** The SpawnCount + MaxNearbyEntities rows: one spawn, then the cap. */
+    @Test
+    void theSpawnCountAndNearbyCapRideTheRows() {
+        TestPlayers players = new TestPlayers();
+        players.positions.add(new Position(0.5, 64.0, 0.5));
+        net.zaminmc.torch.server.entity.MobManager manager = mobs();
+        SpawnerManager spawners = new SpawnerManager(new Random(13L), players,
+                manager, dimension -> null);
+        net.zaminmc.torch.block.BlockPosition pos =
+                new net.zaminmc.torch.block.BlockPosition(0, 64, 0);
+        SpawnerManager.MobSpawnerBlockEntity spawner = spawners.getOrCreate(0, pos);
+        spawner.setType(MobType.ZOMBIE);
+        spawner.setSpawnCount(1);
+        spawner.setMaxNearbyEntities(1);
+        spawner.setMinSpawnDelay(1);
+        spawner.setMaxSpawnDelay(1);
+        spawner.setDelay(0);
+        spawners.tick(); // one attempt, one spawn, the re-arm at 1
+        assertEquals(1, manager.all().stream()
+                        .filter(m -> m.type() == MobType.ZOMBIE).count(),
+                "SpawnCount 1 spawns exactly one");
+        // The next cycle: the nearby cap (1) aborts before any attempt.
+        spawner.setDelay(0);
+        spawners.tick();
+        assertEquals(1, manager.all().stream()
+                        .filter(m -> m.type() == MobType.ZOMBIE).count(),
+                "the MaxNearbyEntities 1 cap aborts the next cycle");
+    }
+
+    /**
+     * The nearby count's OWN geometry (tick lines 73-77): the
+     * [pos, pos+1] box grown by the range, intersected with each mob's
+     * bounding box. Six zombies at range + 0.4 off the center sit OUTSIDE
+     * the old center-band stand-in (|4.4| > 4) but INSIDE the reference's
+     * grown box (the zombie's 0.6-wide box reaches 4.6 < 5) — the cap
+     * aborts, no new spawn.
+     */
+    @Test
+    void theNearbyCountReadsTheGrownBoxGeometry() {
+        TestPlayers players = new TestPlayers();
+        players.positions.add(new Position(0.5, 64.0, 0.5));
+        net.zaminmc.torch.server.entity.MobManager manager = mobs();
+        SpawnerManager spawners = new SpawnerManager(new Random(17L), players,
+                manager, dimension -> null);
+        net.zaminmc.torch.block.BlockPosition pos =
+                new net.zaminmc.torch.block.BlockPosition(0, 64, 0);
+        SpawnerManager.MobSpawnerBlockEntity spawner = spawners.getOrCreate(0, pos);
+        spawner.setType(MobType.ZOMBIE);
+        for (int i = 0; i < 6; i++) {
+            manager.spawnAt(MobType.ZOMBIE, new Position(4.9, 64.0, 0.5 + i * 0.5));
+        }
+        spawner.setDelay(0);
+        spawners.tick();
+        assertEquals(6, manager.all().stream()
+                        .filter(m -> m.type() == MobType.ZOMBIE).count(),
+                "the grown box counts the far-edge zombies - the cap aborts, no new spawn");
+    }
 }

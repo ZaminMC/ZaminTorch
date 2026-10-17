@@ -57,17 +57,28 @@ public final class SpawnerManager {
      * the Update Block Entity (0x35) payload the chunk-send path reads
      * from any thread.
      */
-    public record SpawnerTile(int dimension, BlockPosition position, MobType type, int delay) {
+    /** The immutable wire tile (the chunk-send + the per-spawner sync). */
+    public record SpawnerTile(int dimension, BlockPosition position, MobType type, int delay,
+                              int minSpawnDelay, int maxSpawnDelay, int spawnCount,
+                              int maxNearbyEntities, int requiredPlayerRange, int spawnRange) {
     }
 
     /**
      * The per-position spawner state (the reference's own fields): the
-     * spawned kind + the delay countdown.
+     * spawned kind + the delay countdown + the six cadence rows
+     * (MobSpawner lines 16-29 — the NBT-settable spawn law, Slice 91
+     * Wave C: read into the model, steering the walk per spawner).
      */
     public static final class MobSpawnerBlockEntity {
         private MobType type;
         private int delay = 20; // the reference's initial 20
         private int dimension;
+        private int minSpawnDelay = 200;
+        private int maxSpawnDelay = 800;
+        private int spawnCount = 4;
+        private int maxNearbyEntities = 6;
+        private int requiredPlayerRange = 16;
+        private int spawnRange = 4;
 
         public MobType type() {
             return type;
@@ -93,6 +104,56 @@ public final class SpawnerManager {
 
         public void setDelay(int delay) {
             this.delay = delay;
+        }
+
+        /** The cadence rows (MobSpawner.readNbt lines 197-213 — the NBT row
+         * names, the six fields steering this spawner's own walk). */
+        public int minSpawnDelay() {
+            return minSpawnDelay;
+        }
+
+        public void setMinSpawnDelay(int minSpawnDelay) {
+            this.minSpawnDelay = minSpawnDelay;
+        }
+
+        public int maxSpawnDelay() {
+            return maxSpawnDelay;
+        }
+
+        public void setMaxSpawnDelay(int maxSpawnDelay) {
+            this.maxSpawnDelay = maxSpawnDelay;
+        }
+
+        public int spawnCount() {
+            return spawnCount;
+        }
+
+        public void setSpawnCount(int spawnCount) {
+            this.spawnCount = spawnCount;
+        }
+
+        public int maxNearbyEntities() {
+            return maxNearbyEntities;
+        }
+
+        public void setMaxNearbyEntities(int maxNearbyEntities) {
+            this.maxNearbyEntities = maxNearbyEntities;
+        }
+
+        public int requiredPlayerRange() {
+            return requiredPlayerRange;
+        }
+
+        public void setRequiredPlayerRange(int requiredPlayerRange) {
+            this.requiredPlayerRange = requiredPlayerRange;
+        }
+
+        public int spawnRange() {
+            return spawnRange;
+        }
+
+        public void setSpawnRange(int spawnRange) {
+            this.spawnRange = spawnRange;
         }
     }
 
@@ -132,14 +193,6 @@ public final class SpawnerManager {
     private final MobManager mobs;
     /** The dimension-aware world read (the cell gate + the cleanup). */
     private final java.util.function.IntFunction<EngineWorld> worldResolver;
-
-    /** The reference's own constants (lines 21-29). */
-    private static final int MIN_SPAWN_DELAY = 200;
-    private static final int MAX_SPAWN_DELAY = 800;
-    private static final int SPAWN_COUNT = 4;
-    private static final int MAX_NEARBY_ENTITIES = 6;
-    private static final int REQUIRED_PLAYER_RANGE = 16;
-    private static final int SPAWN_RANGE = 4;
 
     /**
      * @param worldResolver the dimension → world read (0 the overworld,
@@ -209,7 +262,10 @@ public final class SpawnerManager {
             MobSpawnerBlockEntity spawner = entry.getValue();
             if (spawner.type() != null) {
                 rebuilt.add(new SpawnerTile(spawner.dimension(), entry.getKey(),
-                        spawner.type(), spawner.delay()));
+                        spawner.type(), spawner.delay(),
+                        spawner.minSpawnDelay(), spawner.maxSpawnDelay(), spawner.spawnCount(),
+                        spawner.maxNearbyEntities(), spawner.requiredPlayerRange(),
+                        spawner.spawnRange()));
             }
         }
         wireTiles = List.copyOf(rebuilt);
@@ -238,7 +294,7 @@ public final class SpawnerManager {
             if (spawner.type() == null) {
                 continue;
             }
-            if (!isNearPlayer(pos)) {
+            if (!isNearPlayer(pos, spawner.requiredPlayerRange())) {
                 continue;
             }
             if (spawner.delay() == -1) {
@@ -250,29 +306,29 @@ public final class SpawnerManager {
             }
             boolean anySpawned = false;
             EngineWorld world = worldResolver.apply(spawner.dimension());
-            for (int i = 0; i < SPAWN_COUNT; i++) {
+            for (int i = 0; i < spawner.spawnCount(); i++) {
                 // The nearby cap (lines 77-85): the same-kind count inside
-                // the spawn-range-grown box.
+                // the spawn-range-grown box — the reference's OWN geometry
+                // (the [pos, pos+1] box grown by the range per axis,
+                // intersected with each mob's bounding box).
                 int nearby = 0;
                 for (MobEntity mob : mobs.all()) {
-                    if (mob.type() == spawner.type()) {
-                        Position at = mob.position();
-                        if (Math.abs(at.x() - (pos.x() + 0.5)) <= SPAWN_RANGE
-                                && Math.abs(at.y() - (pos.y() + 0.5)) <= SPAWN_RANGE
-                                && Math.abs(at.z() - (pos.z() + 0.5)) <= SPAWN_RANGE) {
-                            nearby++;
-                        }
+                    if (mob.type() == spawner.type()
+                            && intersectsGrownBox(mob, pos, spawner.spawnRange())) {
+                        nearby++;
                     }
                 }
-                if (nearby >= MAX_NEARBY_ENTITIES) {
+                if (nearby >= spawner.maxNearbyEntities()) {
                     delay(spawner, pos);
                     break;
                 }
                 // The position roll (lines 87-89): the reference's own
                 // distribution shapes.
-                double x = pos.x() + (random.nextDouble() - random.nextDouble()) * SPAWN_RANGE + 0.5;
+                double x = pos.x() + (random.nextDouble() - random.nextDouble())
+                        * spawner.spawnRange() + 0.5;
                 double y = pos.y() + random.nextInt(3) - 1;
-                double z = pos.z() + (random.nextDouble() - random.nextDouble()) * SPAWN_RANGE + 0.5;
+                double z = pos.z() + (random.nextDouble() - random.nextDouble())
+                        * spawner.spawnRange() + 0.5;
                 // The spawn gate (canSpawn + isUnobstructed lines 90-92):
                 // the engine's stand-in — the body cell + the head cell
                 // must be non-solid.
@@ -322,22 +378,41 @@ public final class SpawnerManager {
         }
     }
 
-    /** The player gate (isNearPlayer lines 45-48). */
-    private boolean isNearPlayer(BlockPosition pos) {
+    /** The player gate (isNearPlayer lines 45-48 — the spawner's OWN range row). */
+    private boolean isNearPlayer(BlockPosition pos, int requiredPlayerRange) {
         for (Position player : players.positions()) {
             double dx = player.x() - (pos.x() + 0.5);
             double dy = player.y() - (pos.y() + 0.5);
             double dz = player.z() - (pos.z() + 0.5);
             if (dx * dx + dy * dy + dz * dz
-                    <= (double) REQUIRED_PLAYER_RANGE * REQUIRED_PLAYER_RANGE) {
+                    <= (double) requiredPlayerRange * requiredPlayerRange) {
                 return true;
             }
         }
         return false;
     }
 
-    /** The unobstructed gate: the body cell + the head cell clear. */
-    /** The unobstructed gate (public static — the spawner minecart's host shares it). */
+    /**
+     * The reference's nearby-count geometry (tick lines 73-77): the
+     * {@code new Box(pos, pos+1).grown(range, range, range)} box intersected
+     * with the mob's own bounding box — the mob spans
+     * {@code [m - width/2, m + width/2]} on x/z and {@code [m, m + height]} on
+     * y, the query box spans {@code [pos - range, pos + 1 + range]} per axis;
+     * the strict-intersection walk is the grown box's own (a mob at the
+     * box's far edge still counts — the engine's old center-band stand-in
+     * missed it).
+     */
+    private static boolean intersectsGrownBox(MobEntity mob, BlockPosition pos, int range) {
+        double halfWidth = mob.type().width * 0.5;
+        double height = mob.type().height;
+        Position at = mob.position();
+        return at.x() + halfWidth > pos.x() - range && at.x() - halfWidth < pos.x() + 1 + range
+                && at.y() + height > pos.y() - range && at.y() < pos.y() + 1 + range
+                && at.z() + halfWidth > pos.z() - range && at.z() - halfWidth < pos.z() + 1 + range;
+    }
+
+    /** The unobstructed gate (public static — the spawner minecart's host shares it):
+     * the body cell + the head cell clear. */
     public static boolean canSpawnAt(EngineWorld world, MobType type, double x, double y, double z) {
         if (world == null) {
             return true; // the harness shape: no chunk grid to consult
@@ -357,15 +432,16 @@ public final class SpawnerManager {
     }
 
     /**
-     * The delay re-roll (delay lines 156-169): the 200..800 band, the
-     * event-1 broadcast (the spin reset), and the wire snapshot's refresh.
+     * The delay re-roll (delay lines 156-169): the spawner's OWN band
+     * (the NBT-settable pair), the event-1 broadcast (the spin reset),
+     * and the wire snapshot's refresh.
      */
     private void delay(MobSpawnerBlockEntity spawner, BlockPosition pos) {
-        if (MAX_SPAWN_DELAY <= MIN_SPAWN_DELAY) {
-            spawner.setDelay(MIN_SPAWN_DELAY);
+        if (spawner.maxSpawnDelay() <= spawner.minSpawnDelay()) {
+            spawner.setDelay(spawner.minSpawnDelay());
         } else {
-            spawner.setDelay(MIN_SPAWN_DELAY
-                    + random.nextInt(MAX_SPAWN_DELAY - MIN_SPAWN_DELAY));
+            spawner.setDelay(spawner.minSpawnDelay()
+                    + random.nextInt(spawner.maxSpawnDelay() - spawner.minSpawnDelay()));
         }
         // broadcastEvent(1) → addBlockEvent(pos, MOB_SPAWNER, 1, 0).
         for (Listener listener : listeners) {
