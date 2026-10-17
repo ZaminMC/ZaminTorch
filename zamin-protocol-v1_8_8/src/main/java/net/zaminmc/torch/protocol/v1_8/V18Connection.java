@@ -1130,7 +1130,11 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeVarInt(out, Protocol18.S2C_OPEN_WINDOW);
         out.writeByte(windowId);
         ByteBufOps.writeString(out, Protocol18.FURNACE_WINDOW_TYPE);
-        ByteBufOps.writeString(out, Protocol18.FURNACE_WINDOW_TITLE);
+        var furnacePos = player.openContainerPosition();
+        var namedFurnace = furnacePos == null ? null : engine.furnaces().peek(furnacePos);
+        ByteBufOps.writeString(out, windowTitle(
+                namedFurnace == null ? null : namedFurnace.customName(),
+                Protocol18.FURNACE_WINDOW_TITLE));
         out.writeByte(3); // the GUI's own slots: input, fuel, output
         channel.writeAndFlush(out);
         sendContainerWindowItems(channel, windowId, player);
@@ -1148,7 +1152,11 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeVarInt(out, Protocol18.S2C_OPEN_WINDOW);
         out.writeByte(windowId);
         ByteBufOps.writeString(out, Protocol18.CHEST_WINDOW_TYPE);
-        ByteBufOps.writeString(out, Protocol18.CHEST_WINDOW_TITLE);
+        var openPos = player.openContainerPosition();
+        var namedChest = openPos == null ? null : engine.chests().peek(openPos);
+        ByteBufOps.writeString(out, windowTitle(
+                namedChest == null ? null : namedChest.customName(),
+                Protocol18.CHEST_WINDOW_TITLE));
         out.writeByte(27); // the GUI's own slots: 3 rows of 9
         channel.writeAndFlush(out);
         sendContainerWindowItems(channel, windowId, player);
@@ -1461,8 +1469,8 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeByte(windowId);
         ByteBufOps.writeString(out, dropper
                 ? Protocol18.DROPPER_WINDOW_TYPE : Protocol18.DISPENSER_WINDOW_TYPE);
-        ByteBufOps.writeString(out, dropper
-                ? Protocol18.DROPPER_WINDOW_TITLE : Protocol18.DISPENSER_WINDOW_TITLE);
+        ByteBufOps.writeString(out, windowTitle(container.customName(),
+                dropper ? Protocol18.DROPPER_WINDOW_TITLE : Protocol18.DISPENSER_WINDOW_TITLE));
         out.writeByte(9); // the GUI's own slots: 3 rows of 3
         channel.writeAndFlush(out);
         sendContainerWindowItems(channel, windowId, player);
@@ -1488,7 +1496,8 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeVarInt(out, Protocol18.S2C_OPEN_WINDOW);
         out.writeByte(windowId);
         ByteBufOps.writeString(out, Protocol18.HOPPER_WINDOW_TYPE);
-        ByteBufOps.writeString(out, Protocol18.HOPPER_WINDOW_TITLE);
+        ByteBufOps.writeString(out, windowTitle(hopper.customName(),
+                Protocol18.HOPPER_WINDOW_TITLE));
         out.writeByte(5); // the GUI's own slots: the hopper's five
         channel.writeAndFlush(out);
         sendContainerWindowItems(channel, windowId, player);
@@ -1517,7 +1526,8 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeVarInt(out, Protocol18.S2C_OPEN_WINDOW);
         out.writeByte(windowId);
         ByteBufOps.writeString(out, Protocol18.BREWING_WINDOW_TYPE);
-        ByteBufOps.writeString(out, Protocol18.BREWING_WINDOW_TITLE);
+        ByteBufOps.writeString(out, windowTitle(stand.customName(),
+                Protocol18.BREWING_WINDOW_TITLE));
         out.writeByte(4); // the GUI's own slots: three bottles + the ingredient
         channel.writeAndFlush(out);
         sendContainerWindowItems(channel, windowId, player);
@@ -3963,6 +3973,20 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 (long) Math.floor(mob.position().x() * 32.0),
                 (long) Math.floor(mob.position().y() * 32.0),
                 (long) Math.floor(mob.position().z() * 32.0)});
+    }
+
+
+    /**
+     * The window's title row (Slice 91 Wave C p3 — the reference's
+     * InventoryBlockEntity.getDisplayName: a custom name answers a
+     * LiteralText of itself, over the family's own default title).
+     */
+    private static String windowTitle(String customName, String familyTitle) {
+        if (customName == null || customName.isEmpty()) {
+            return familyTitle;
+        }
+        return net.zaminmc.torch.server.text.TextJson.toJson(
+                new net.zaminmc.torch.server.text.LiteralText(customName));
     }
 
     /**
