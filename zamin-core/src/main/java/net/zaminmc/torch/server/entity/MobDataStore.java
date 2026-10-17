@@ -39,7 +39,10 @@ public final class MobDataStore {
     private static final int MAGIC_0 = 'Z';
     private static final int MAGIC_1 = 'M';
     private static final int MAGIC_2 = 'D';
-    private static final int FORMAT_VERSION = 7;
+    private static final int FORMAT_VERSION = 8;
+
+    /** The v7 store's own version (Slice 94's Wave G tail — the load keeps reading it). */
+    private static final int FORMAT_VERSION_7 = 7;
 
     /** The v6 store's own version (Slice 92's held-stack tail — the load keeps reading it). */
     private static final int FORMAT_VERSION_6 = 6;
@@ -123,7 +126,8 @@ public final class MobDataStore {
                 throw new IOException("Not a ZMD file");
             }
             int version = in.readByte();
-            if (version != FORMAT_VERSION && version != FORMAT_VERSION_6
+            if (version != FORMAT_VERSION && version != FORMAT_VERSION_7
+                    && version != FORMAT_VERSION_6
                     && version != FORMAT_VERSION_4
                     && version != FORMAT_VERSION_3 && version != FORMAT_VERSION_2
                     && version != 1) {
@@ -150,8 +154,13 @@ public final class MobDataStore {
                 // CommandResults in the save).
                 java.util.Map<String, String> commandStats = version >= 5
                         ? readCommandStatsPairs(in) : null;
-                // The v6 tameable/horse tail (Slice 92).
-                MobManager.MobTameExtras tame = version >= FORMAT_VERSION
+                // The v6 tameable/horse tail (Slice 92). The gate names its
+                // own version: Slice 94's 6->7 bump left it riding the bare
+                // FORMAT_VERSION constant (silently >= 7 — a v6 file's tame
+                // rows would never be consumed and the stream would
+                // misparse into the quarantine path); the v8 bump's audit
+                // caught it.
+                MobManager.MobTameExtras tame = version >= FORMAT_VERSION_6
                         ? readTameExtras(in) : null;
                 loaded.add(new MobManager.MobSnapshot(type, x, y, z, yaw, health,
                         extras, nbt, commandStats, tame));
@@ -403,6 +412,15 @@ public final class MobDataStore {
                     writeString(out, line);
                 }
             }
+            // The v8 tail (Slice 95 — the BlockEntityTag raw compound, the
+            // Wave H2 arm): the whole subtree as ONE SNBT string row
+            // (NbtOps.write over the adapted boxes). Absent arm writes the
+            // null marker.
+            writeNullableString(out, nbt.heldEquipment().blockEntityTag() == null
+                    ? null
+                    : net.zaminmc.torch.server.nbt.NbtOps.write(
+                            net.zaminmc.torch.server.nbt.NbtOps.fromBoxed(
+                                    nbt.heldEquipment().blockEntityTag())));
         }
         if ((flags & NBT_FLAG_MOVEMENT_SPEED) != 0) {
             out.writeDouble(nbt.movementSpeed());
@@ -465,7 +483,7 @@ public final class MobDataStore {
                 }
                 // The v7 tail (Slice 94 — the Wave G rows): absent in a v6
                 // file, the model's defaults then.
-                if (version >= FORMAT_VERSION) {
+                if (version >= FORMAT_VERSION_7) {
                     if (in.readBoolean()) {
                         held = held.withUnbreakable(true);
                     }
@@ -484,6 +502,19 @@ public final class MobDataStore {
                             lines.add(readString(in));
                         }
                         held = held.withLore(lines);
+                    }
+                    // The v8 tail (Slice 95 — the BlockEntityTag raw compound,
+                    // the Wave H2 arm): the whole subtree as ONE SNBT string
+                    // row. Absent arm writes the null marker.
+                    String blockEntityTagRow = version >= FORMAT_VERSION
+                            ? readNullableString(in) : null;
+                    if (blockEntityTagRow != null) {
+                        java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> parsed =
+                                net.zaminmc.torch.server.nbt.Snbt.parseCompound(blockEntityTagRow);
+                        if (!parsed.isEmpty()) {
+                            held = held.withBlockEntityTag(
+                                    net.zaminmc.torch.server.nbt.NbtOps.toBoxed(parsed));
+                        }
                     }
                 }
             }
