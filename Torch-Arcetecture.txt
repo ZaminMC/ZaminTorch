@@ -1164,3 +1164,67 @@ Do not declare the plugin concurrency architecture complete until:
 - known limitations are stated honestly, including the fact that arbitrary plugin code is not sandboxed.
 
 **Final plugin rule: complete meaningful engine access through the native API is mandatory. Ownership, concurrency, lifecycle, and consistency contracts govern how each capability is used; they must never be used as a reason to omit it. Rejecting an invalid operation is not the same as withholding its capability. Compatibility limitations stay within compatibility adapters. Implicit mutation authority, hidden blocking, undefined callback ordering, and unowned asynchronous work are not acceptable.**
+
+---
+
+# 29. IMPLEMENTATION TODO LIST — THE LIVE LEDGER
+
+The working todo list. Follow it top-down; every completed item is
+checked off IN THIS FILE with its landing commit; every new discovered
+item is appended under its wave. This section follows the same honesty
+rules as the rest of the file: no invented success, every check-off
+names its commit.
+
+## Wave A — the §27 window family (IN PROGRESS)
+
+- [ ] A1 — the open-window re-sync to a viewer. Today a plugin's
+      `setSlot` on a chest/hopper/dispenser with an open viewer lands
+      in the world silently: the open viewer's client still shows the
+      old contents (the ledger rows' own "rides the window family's
+      wave" notes). Generalize the engine's existing diff paths: a
+      contents-changed publication per container family fires the
+      re-sync of every open viewer through the same
+      `sendContainerWindowItems` dispatch the adapter already owns.
+      Cover: the world chest, the world hopper (its dead
+      contentsListener is unwired today — wire it through the hopper
+      system like the other managers), the dispenser, and the hopper
+      system's own transfer writes (push into an open-viewed chest,
+      cart-mounted chest windows resolved by the mount's position).
+      The furnace/brewing/beacon stay on their per-tick view fans
+      (already covered — verify, do not duplicate).
+- [ ] A2 — the window family's public surface. The open-window state
+      is engine-side only today (`PlayerSession.openContainerWindowId`
+      and friends; the audit's named blocker). Expose the read on the
+      public `Player` surface: the open window's kind (the public
+      vocabulary), its position-keyed and mount-keyed identity, its
+      wire window id — the §27.10 ledger row lands with it.
+- [ ] A3 — the ledger + worklog rows updated (the vanilla ledger's
+      container rows' "rides the window family's wave" notes retired;
+      the API capability ledger's window-family row added).
+
+## Wave B — the sign tiles' command-stats persistence
+
+- [ ] B1 — the engine's own convention decision (the reference's
+      SignBlockEntity carries none): the SignManager's in-memory
+      `statsHolders` (the `/stats set` arm) persist through the sign
+      data store the same way the ZCB v2 / ZMD v5 / ZPD v10 tails ride
+      `EngineCommandResults.writeNbt/readNbt` — version-aware, older
+      files load with empty bindings.
+
+## Wave C — the next vanilla wave per the ledger
+
+- [ ] C1 — survey `VANILLA_1_8_8_COMPATIBILITY.md`'s standing envelopes
+      (the Slice 89 NBT-surface row: the base defaults, the per-type
+      no-model rows, the containers' CustomName/Lock, the spawner
+      cadence, the no-tile families, the item-tag compound, the flight
+      families before the NoAI gate, the lazy-tile stand-in, the
+      player-empty-compound, the reference's own quirks) and land the
+      next dependency-correct wave.
+
+## Standing (demand-named, not scheduled)
+
+- The shared container-open event (the chest family row's "if demand
+  names it" note).
+- The §28.7 Bukkit/Spigot/Paper compatibility adapter (§27.1's order:
+  after the 1.8.8 implementation is polished into a playable,
+  maintainable server).
