@@ -1175,42 +1175,46 @@ item is appended under its wave. This section follows the same honesty
 rules as the rest of the file: no invented success, every check-off
 names its commit.
 
-## Wave A — the §27 window family (IN PROGRESS)
+## Wave A — the §27 window family (COMPLETE)
 
-- [~] A1 — the open-window re-sync to viewer (Slice 91, 5451c86/aafe5ac):
-      the three per-tick view fans + the serial diffs landed; the hopper
-      and dispenser arms VERIFIED over the real wire; the two chest arms
-      open (the order-dependent fixture + one diagnostic pass on the
-      plugin write's re-sync). Found and fixed along the way: the
-      void-fall chunk-gate crash (a mob below y=0 — the reference's own
-      -64 kill window — bounds-crashed every toBlockPosition gate; now
-      chunkKeyOf reads the column from x/z alone) and the test suite's
-      missing keep-alive override.
+- [x] A1 — the open-window re-sync to viewer (Slice 91, 5451c86/aafe5ac,
+      863d8a2): the three per-tick view fans + the serial diffs landed;
+      ALL FOUR arms VERIFIED over the real wire (863d8a2 — the plugin's
+      setSlot chest + hopper arms, the hopper system's own transfer into
+      an open-viewed chest, the engine-side dispenser write). The two
+      chest arms' closing fix: the duplicate post-open read removed (one
+      Window Items per Open Window — the fan re-sends only on a serial
+      move) and the self-contained per-test columns. Found and fixed
+      along the way: the void-fall chunk-gate crash (a mob below y=0 —
+      the reference's own -64 kill window — bounds-crashed every
+      toBlockPosition gate; now chunkKeyOf reads the column from x/z
+      alone), the test suite's missing keep-alive override, and THE
+      REACH DISCOVERY — the client-placed chest at column 6 sat outside
+      the survival placement reach (InteractionRules' eye-to-center 4.5
+      walk); the engine's rejection resync() publishes the
+      authoritative AIR, the wire trace's own legacy=0 tell.
 - [x] A2 — the window family's public surface (Slice 91, aafe5ac):
       entity.WindowKind + Player.openWindow() -> Player.OpenWindow
       (kind/windowId/position/mountId), the live view over the session's
       own state; OpenWindowApiAcceptanceTest 2 green.
-- [ ] A3 — the ledger + worklog rows updated (the vanilla ledger's
-      container rows' "rides the window family's wave" notes retired;
-      the API capability ledger's window-family row added).
-- [ ] A1-legacy note (from the original draft) — the open-window re-sync's
-      `setSlot` on a chest/hopper/dispenser with an open viewer lands
-      in the world silently: the open viewer's client still shows the
-      old contents (the ledger rows' own "rides the window family's
-      wave" notes). Generalize the engine's existing diff paths: a
-      contents-changed publication per container family fires the
-      re-sync of every open viewer through the same
-      `sendContainerWindowItems` dispatch the adapter already owns.
-      Cover: the world chest, the world hopper (its dead
-      contentsListener is unwired today — wire it through the hopper
-      system like the other managers), the dispenser, and the hopper
-      system's own transfer writes (push into an open-viewed chest,
-      cart-mounted chest windows resolved by the mount's position).
-      The furnace/brewing/beacon stay on their per-tick view fans
-      (already covered — verify, do not duplicate).
-- [ ] A3 — the ledger + worklog rows updated (the vanilla ledger's
-      container rows' "rides the window family's wave" notes retired;
-      the API capability ledger's window-family row added).
+- [x] A1-legacy — the original draft's generalization, delivered by the
+      p1 fans + p5 wiring (970a42a): the per-tick view fans cover the
+      world chest, the world hopper, the dispenser, the hopper system's
+      own transfer writes (the push into an open-viewed chest VERIFIED
+      over the real wire), and the cart-mounted windows (resolved by the
+      mount id). The hopper's dead contentsListener — the draft's one
+      open sub-item — wired through the hopper system (getOrCreate +
+      restoreAll): the comparator wake on every hopper mutation, the
+      same markDirty -> updateNeighborComparators port every other
+      container family carries; theHopperContentChangeWakesTheComparator
+      green (the 5-slot fullness ladder). The furnace/brewing/beacon
+      stay on their own fans (verified, not duplicated).
+- [x] A3 — the ledger + worklog rows updated (970a42a's docs tail):
+      the API capability ledger's three container rows' "rides the
+      window family's wave" notes retired (replaced by the landed-fact
+      rows naming WindowResyncIntegrationTest), the window-family row
+      added (Player.openWindow -> Player.OpenWindow, the live view +
+      the re-sync story), the WORKLOG Slice 91 closing entry.
 
 ## Wave B — the sign tiles' command-stats persistence
 

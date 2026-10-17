@@ -8562,3 +8562,60 @@ the A3 ledger rows (the vanilla ledger's container rows' "rides the window
 family's wave" notes retired + the API capability ledger's window-family
 row); (4) Wave B — the sign tiles' command-stats persistence; (5) Wave C
 per the Torch-Arcetecture.txt §29 ledger.
+
+## Slice 91 closing — the chest arms + the hopper's dead listener + the ledger rows (p4-p6)
+
+- **p4 — THE TWO CHEST ARMS GREEN (863d8a2)**: the WIRE_TRACE diagnosis
+  found the real break — the chest was never placed. The client-placed
+  chest at column x=6 sat OUTSIDE the survival placement reach:
+  InteractionRules.withinSurvivalReach measures the eye to the target
+  block's center against 4.5^2, the spawn is (0.5,5,0.5), and column 6
+  at z=2 is x^2+z^2=40 against the ~19 budget — the engine rejected the
+  placement and resync() published the authoritative AIR (the wire
+  trace's own legacy=0 tell at (6,5,2), the BlockInteractionService
+  comment's own walk). The duplicate post-open read removed too (one
+  Window Items per Open Window — the fan re-sends only on a serial
+  move). The fixtures are now fully self-contained: every test owns its
+  column inside the spawn chunk with its own player — any execution
+  order, any subset, one class-shared world. The transfer test's own
+  chest carries a diamond at slot 4 seeded through the proven
+  plugin-write arm, so the hopper's transfer asserts the vanilla
+  pushItem walk (the FIRST EMPTY slot) on a live fixture.
+  WindowResyncIntegrationTest 4-4 over the real wire: the plugin's
+  setSlot re-sync (chest + hopper), the hopper system's own transfer
+  into the open-viewed chest, and the engine-side dispenser write.
+- **p5 — THE HOPPER'S DEAD CONTENTS-LISTENER WIRED (970a42a)**: the
+  A1-legacy note's one open sub-item. HopperSystem.getOrCreate created
+  the block entity without ever wiring the comparator wake — a hopper
+  whose contents changed (a transfer in or out, a plugin's setSlot)
+  never re-armed the comparators reading it, while the chest, furnace,
+  brewing stand, and dispenser family all carried the wiring. getOrCreate
+  now wires () -> redstone.wakeComparators(position) at creation (the
+  DispenserSystem line-667 shape) and restoreAll wires the restored
+  entities too (the lazily-wired restore contract).
+  theHopperContentChangeWakesTheComparator green — the chest-wake
+  test's own shape over the 5-slot hopper (the empty silence, one full
+  stack's fullness 3 = floor(14*1/5)+1, the emptied 0). Batch
+  re-verified: RedstoneComparatorTest 6, HopperSystemTest 8,
+  HopperWindowAcceptanceTest 2, FurnaceHopperEventAcceptanceTest 5,
+  WindowResyncIntegrationTest 4.
+- **p6 — THE LEDGER ROWS (this commit)**: the API capability ledger's
+  three container rows (hoppers/chests/furnaces) — the "rides the window
+  family's wave" notes retired, replaced by the landed-fact rows naming
+  WindowResyncIntegrationTest; the hopper row names the p5 wiring; the
+  window-family row added beside the Player rows (Player.openWindow() ->
+  Player.OpenWindow, the live view + the re-sync story +
+  OpenWindowApiAcceptanceTest); the Torch-Arcetecture.txt §29 Wave A
+  checked off COMPLETE (A1/A2/A1-legacy/A3, each with its landing
+  commit).
+
+WAVE A COMPLETE. NEXT (in order): (1) Wave B — the sign tiles'
+command-stats persistence (the engine's own convention decision: the
+SignManager's in-memory statsHolders persist through the sign data
+store the way the ZCB v2 / ZMD v5 / ZPD v10 tails ride
+EngineCommandResults.writeNbt/readNbt — version-aware, older files
+load with empty bindings); (2) Wave C — survey
+VANILLA_1_8_8_COMPATIBILITY.md's standing envelopes and land the next
+dependency-correct vanilla wave; (3) the standing demand-named items
+(the shared container-open event, the §28.7 Bukkit adapter — after the
+1.8.8 implementation is polished).
