@@ -145,6 +145,101 @@ class ItemBoxPhysicsAcceptanceTest {
         }
     }
 
+
+    @Test
+    void theThrownItemStopsAgainstTheWall() throws Exception {
+        EngineServer server = boot();
+        try {
+            // A three-tall stone wall at x=5, the item thrown east at it
+            // from two and a half blocks out.
+            server.ticker().submit(() -> {
+                for (int y = 5; y <= 7; y++) {
+                    server.world().setBlock(new BlockPosition(5, y, 2),
+                            net.zaminmc.torch.server.block.BuiltinBlocks.STONE);
+                }
+            });
+            await(() -> server.world().getBlock(new BlockPosition(5, 5, 2))
+                            .equals(net.zaminmc.torch.server.block.BuiltinBlocks.STONE),
+                    "the wall placed");
+
+            AtomicReference<net.zaminmc.torch.server.entity.ItemEntity> thrown =
+                    new AtomicReference<>();
+            server.ticker().submit(() -> {
+                var item = server.itemEntities().spawnThrown(
+                        new Position(2.5, 6.0, 2.5),
+                        net.zaminmc.torch.item.ItemStack.of(BuiltinItems.EMERALD, 1));
+                if (item != null) {
+                    item.setVelocity(0.4, 0.0, 0.0);
+                    thrown.set(item);
+                }
+            });
+            await(() -> thrown.get() != null, "the item thrown");
+
+            // The wall's face at x=5: the box's leading edge stops there —
+            // the CENTER never passes 5 - 0.125 (the pre-clip engine let
+            // the drift pass straight through the wall).
+            AtomicReference<Double> finalX = new AtomicReference<>();
+            await(() -> {
+                var item = thrown.get();
+                if (item.onGround() && item.position().x() <= 5.0 - 0.125 + 0.001) {
+                    finalX.set(item.position().x());
+                    return true;
+                }
+                return false;
+            }, "the item came to rest against the wall's face");
+            assertTrue(finalX.get() >= 4.5,
+                    "the slide reached the wall (x=" + finalX.get() + ")");
+        } finally {
+            server.shutdown(() -> { });
+        }
+    }
+
+    @Test
+    void theBlockedAxisSlidesAlongTheWall() throws Exception {
+        EngineServer server = boot();
+        try {
+            server.ticker().submit(() -> {
+                for (int y = 5; y <= 7; y++) {
+                    server.world().setBlock(new BlockPosition(5, y, 2),
+                            net.zaminmc.torch.server.block.BuiltinBlocks.STONE);
+                }
+            });
+            await(() -> server.world().getBlock(new BlockPosition(5, 5, 2))
+                            .equals(net.zaminmc.torch.server.block.BuiltinBlocks.STONE),
+                    "the wall placed");
+
+            // The diagonal throw: east into the wall, south free — the X
+            // axis clips, the Z axis keeps sliding.
+            AtomicReference<net.zaminmc.torch.server.entity.ItemEntity> thrown =
+                    new AtomicReference<>();
+            server.ticker().submit(() -> {
+                var item = server.itemEntities().spawnThrown(
+                        new Position(2.5, 6.0, 2.5),
+                        net.zaminmc.torch.item.ItemStack.of(BuiltinItems.DIAMOND, 1));
+                if (item != null) {
+                    item.setVelocity(0.4, 0.0, 0.3);
+                    thrown.set(item);
+                }
+            });
+            await(() -> thrown.get() != null, "the item thrown");
+
+            await(() -> {
+                var item = thrown.get();
+                return item.onGround();
+            }, "the item came to rest");
+
+            var item = thrown.get();
+            assertTrue(item.position().x() <= 5.0 - 0.125 + 0.001,
+                    "the X axis clipped at the wall: " + item.position().x());
+            assertTrue(item.position().x() >= 4.5,
+                    "the slide reached the wall: " + item.position().x());
+            assertTrue(item.position().z() > 3.0,
+                    "the Z axis slid along the wall: " + item.position().z());
+        } finally {
+            server.shutdown(() -> { });
+        }
+    }
+
     // ------------------------------------------------------------------
     // Harness
     // ------------------------------------------------------------------

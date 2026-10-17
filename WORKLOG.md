@@ -7950,3 +7950,25 @@ omissions.
 NEXT (in order): (1) the next vanilla wave per the ledger; (2) the
 horizontal item collision (the drift passes through walls — the box
 footprint's own follow-up); (3) the remaining §27 omissions.
+
+## Slice 83b — the item horizontal clip (the vanilla-shape slice's follow-up)
+
+- **THE FIX**: the item's drift passed through walls — no horizontal
+  collision at all. The box's LEADING FACE now tests against the
+  collision shapes per axis (three z-samples x three y-samples on the
+  X face, mirrored for Z; the bottom sample sits a hair above the
+  resting surface so the ground an item slides on never blocks its own
+  slide): a blocked axis zeroes its velocity (the vanilla moveEntity
+  response — no horizontal bounce) while the free axis keeps sliding.
+- Tests: `ItemBoxPhysicsAcceptanceTest` grew the wall pair — the thrown
+  item stops against the wall's face (the CENTER never passes
+  wall - 0.125; the pre-clip engine passed straight through) + the
+  diagonal throw's slide (the X axis clips, the Z axis keeps moving).
+  The full regression sweep green: the entity/item/hopper/furnace
+  families, the mining/drop paths, the C-E/F-M/N-S/T-Z top-level
+  batches, the world/block/spawn/player/crafting/concurrent/redstone/
+  tnt families, the a-z subpackages, and the FULL protocol suite.
+
+NEXT (in order): (1) the next vanilla wave per the ledger; (2) the
+remaining §27 omissions (the window-family re-sync rows); (3) the
+periodic release cadence.
