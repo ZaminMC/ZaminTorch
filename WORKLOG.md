@@ -7849,3 +7849,25 @@ NEXT (in order): (1) the full-suite verification pass over the fluid
 fix (the §472 family's live flows now actually run — the wider world
 family must re-verify); (2) the next vanilla wave per the ledger; (3)
 the remaining §27 audit omissions.
+
+## The post-fluid-fix full-suite verification pass (Slice 81's closing gate)
+
+- **The scope**: the air-gate fix changed live behavior (water/lava now
+  actually flow) — every family re-verified. The environment's process
+  reaper kills long background runs, so the suite ran as short
+  foreground batches: the 39 subpackage families (weather, block,
+  world, piston, entity, concurrent, redstone, tnt, furnace, hopper,
+  chest, container, crafting, fishing, explosion, nbt, plugin, spawn,
+  player, noteblock, daylight, endcrystal, skull, ops, brewing,
+  spawner, dispenser, stat, event, armorstand, experience, potion,
+  jukebox, leash, decoration, item, enchantment, commandblock) + the
+  top-level classes in A-E/F-M/N-S/T-Z batches + the api module + the
+  FULL protocol suite.
+- **The result**: ALL GREEN — zero failures across every batch. The
+  fluid fix broke nothing; the two new gates observe beside their
+  systems silently when no handler subscribes.
+
+NEXT (in order): (1) the next vanilla wave per the ledger; (2) the
+remaining §27 audit omissions (the furnace burn/cook observe hooks,
+the hopper transfer hooks — the interaction-events wave's named rows);
+(3) the periodic release cadence.
