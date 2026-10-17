@@ -223,6 +223,167 @@ public final class EntityNbt {
         if (mob.noAi()) {
             NbtOps.putBoolean(nbt, "NoAI", true);
         }
+        writeTypeCustomNbt(mob, nbt);
+    }
+
+    /**
+     * The per-type custom rows (Slice 89 p3 — the reference's per-type
+     * writeCustomNbt/readCustomNbt over the engine's own state): the
+     * sheep's Sheared/Color pair, the pig's Saddle, the horse's
+     * Type/Variant/Temper/Tame/ArmorItem/SaddleItem family, the villager's
+     * Profession, the wolf's Tame/Sitting/Angry/CollarColor family, the
+     * zombie's IsVillager/IsBaby/ConversionTime triple.
+     *
+     * <p><b>The engine's standing envelopes</b> (written with the
+     * reference's own defaults, read into no model — ledgered): the
+     * horse's OwnerUUID (the engine's tamer is a name, not a uuid),
+     * EatingHaystack/ChestedHorse/HasReproduced/Bred (the engine models
+     * none as persistent state), the wolf's OwnerUUID (same as the
+     * horse's), the creeper's powered/ExplosionRadius/ignited (no charged
+     * model; the fuse is the transient prime), the skeleton's
+     * SkeletonType (one kind), the ocelot's CatType (no variant state).</p>
+     */
+    private static void writeTypeCustomNbt(MobEntity mob, Map<String, Snbt.Tag> nbt) {
+        switch (mob.type()) {
+            case SHEEP -> {
+                NbtOps.putBoolean(nbt, "Sheared", mob.sheared());
+                NbtOps.putByte(nbt, "Color", (byte) mob.sheepFleeceColor());
+            }
+            case PIG -> NbtOps.putBoolean(nbt, "Saddle", mob.pigSaddled());
+            case HORSE -> {
+                NbtOps.putBoolean(nbt, "EatingHaystack", mob.eating());
+                NbtOps.putBoolean(nbt, "ChestedHorse", false);
+                NbtOps.putBoolean(nbt, "HasReproduced", false);
+                NbtOps.putBoolean(nbt, "Bred", false);
+                NbtOps.putInt(nbt, "Type", mob.horseSubtype());
+                NbtOps.putInt(nbt, "Variant", mob.variant());
+                NbtOps.putInt(nbt, "Temper", mob.temper());
+                NbtOps.putBoolean(nbt, "Tame", mob.tamed());
+                NbtOps.putString(nbt, "OwnerUUID", "");
+                // The armor/saddle as the reference's own ITEM rows: the
+                // engine's armorType int and saddled flag through the item
+                // forms (iron/gold/diamond_horse_armor, the saddle).
+                if (mob.armorType() > 0) {
+                    Map<String, Snbt.Tag> armor = new java.util.LinkedHashMap<>();
+                    ItemNbt.write(net.zaminmc.torch.item.ItemStack.of(
+                            net.zaminmc.torch.server.item.BuiltinItems.lookup(
+                                    net.zaminmc.torch.util.Identifier.parse(
+                                            switch (mob.armorType()) {
+                                                case 1 -> "minecraft:iron_horse_armor";
+                                                case 2 -> "minecraft:golden_horse_armor";
+                                                default -> "minecraft:diamond_horse_armor";
+                                            })).orElseThrow(), 1), armor);
+                    NbtOps.putCompound(nbt, "ArmorItem", armor);
+                }
+                if (mob.saddled()) {
+                    Map<String, Snbt.Tag> saddle = new java.util.LinkedHashMap<>();
+                    ItemNbt.write(net.zaminmc.torch.item.ItemStack.of(
+                            net.zaminmc.torch.server.item.BuiltinItems.lookup(
+                                    net.zaminmc.torch.util.Identifier.parse("minecraft:saddle"))
+                                    .orElseThrow(), 1), saddle);
+                    NbtOps.putCompound(nbt, "SaddleItem", saddle);
+                }
+            }
+            case VILLAGER -> NbtOps.putInt(nbt, "Profession", mob.profession());
+            case WOLF -> {
+                NbtOps.putBoolean(nbt, "Tame", mob.wolfTamed());
+                NbtOps.putString(nbt, "OwnerUUID", "");
+                NbtOps.putBoolean(nbt, "Sitting", mob.wolfSitting());
+                NbtOps.putBoolean(nbt, "Angry", mob.wolfAngry());
+                NbtOps.putByte(nbt, "CollarColor", (byte) mob.wolfCollarColor());
+            }
+            case ZOMBIE -> {
+                // The reference's own gates: only a villager skin or a
+                // baby writes its row; the conversion time only when
+                // converting.
+                if (mob.zombieVillager()) {
+                    NbtOps.putBoolean(nbt, "IsVillager", true);
+                }
+                if (mob.isBaby()) {
+                    NbtOps.putBoolean(nbt, "IsBaby", true);
+                }
+                if (mob.zombieConverting()) {
+                    NbtOps.putInt(nbt, "ConversionTime", mob.zombieConversionTicks());
+                } else {
+                    NbtOps.putInt(nbt, "ConversionTime", -1);
+                }
+                NbtOps.putBoolean(nbt, "CanBreakDoors", false);
+            }
+            case CREEPER -> {
+                NbtOps.putBoolean(nbt, "powered", false);
+                NbtOps.putByte(nbt, "ExplosionRadius", (byte) 3);
+                NbtOps.putBoolean(nbt, "ignited", mob.fuseActive());
+            }
+            case SKELETON -> NbtOps.putByte(nbt, "SkeletonType", (byte) 0);
+            default -> { }
+        }
+    }
+
+    /** The per-type read (the mirror of {@link #writeTypeCustomNbt}). */
+    private static void readTypeCustomNbt(MobEntity mob, Map<String, Snbt.Tag> nbt) {
+        switch (mob.type()) {
+            case SHEEP -> {
+                mob.setSheared(NbtOps.getBoolean(nbt, "Sheared"));
+                mob.setSheepFleeceColor(NbtOps.getByte(nbt, "Color"));
+            }
+            case PIG -> mob.setSaddled(NbtOps.getBoolean(nbt, "Saddle"));
+            case HORSE -> {
+                // The reference's own gates: each row reads only when
+                // present-and-typed (the ungated setters keep the
+                // engine's state where the row is absent).
+                if (NbtOps.contains(nbt, "Type", Snbt.Tag.Type.INT)) {
+                    mob.setHorseSubtype(NbtOps.getInt(nbt, "Type"));
+                }
+                if (NbtOps.contains(nbt, "Variant", Snbt.Tag.Type.INT)) {
+                    mob.setHorseVariant(NbtOps.getInt(nbt, "Variant"));
+                }
+                if (NbtOps.contains(nbt, "Temper", Snbt.Tag.Type.INT)) {
+                    mob.setHorseTemper(NbtOps.getInt(nbt, "Temper"));
+                }
+                mob.setTamedFlag(NbtOps.getBoolean(nbt, "Tame"));
+                mob.setSaddled(NbtOps.contains(nbt, "SaddleItem", Snbt.Tag.Type.COMPOUND));
+                net.zaminmc.torch.item.ItemStack armor =
+                        ItemNbt.read(NbtOps.getCompound(nbt, "ArmorItem"));
+                if (armor != null) {
+                    String id = armor.type().identifier().value();
+                    mob.applyArmor(switch (id) {
+                        case "iron_horse_armor" -> 1;
+                        case "golden_horse_armor" -> 2;
+                        case "diamond_horse_armor" -> 3;
+                        default -> 0;
+                    });
+                }
+            }
+            case VILLAGER -> mob.setVillagerProfession(NbtOps.getInt(nbt, "Profession"));
+            case WOLF -> {
+                mob.setTamedFlag(NbtOps.getBoolean(nbt, "Tame"));
+                mob.setWolfSitting(NbtOps.getBoolean(nbt, "Sitting"));
+                mob.setWolfAngry(NbtOps.getBoolean(nbt, "Angry"));
+                mob.setWolfCollarColor(NbtOps.getByte(nbt, "CollarColor"));
+            }
+            case ZOMBIE -> {
+                // The reference's own gates: only a TRUE row sets.
+                if (NbtOps.getBoolean(nbt, "IsBaby")) {
+                    mob.setBreedingAge(-24000);
+                }
+                if (NbtOps.getBoolean(nbt, "IsVillager")) {
+                    mob.setZombieVillager(true);
+                }
+                // The numeric gate + the reference's own > -1 filter: only
+                // a positive-or-zero time arms — a -1 row (the write's own
+                // "not converting" marker) is ignored, the countdown keeps
+                // whatever it held.
+                if (NbtOps.containsNumeric(nbt, "ConversionTime")
+                        && NbtOps.getInt(nbt, "ConversionTime") > -1) {
+                    mob.setZombieConversionTime(NbtOps.getInt(nbt, "ConversionTime"));
+                }
+                // CanBreakDoors: the engine models no door-breaking (ledgered).
+            }
+            // CREEPER (powered/ExplosionRadius/ignited), SKELETON
+            // (SkeletonType), OCELOT (CatType): the engine's standing
+            // envelopes (no model, ledgered) — the rows read into nothing.
+            default -> { }
+        }
     }
 
     private static Snbt.Tag attributeRows(String name, double base) {
@@ -323,5 +484,6 @@ public final class EntityNbt {
         // DropChances: the engine's standing envelope (no model).
         mob.applyLeashRows(NbtOps.getBoolean(nbt, "Leashed"), nbt);
         mob.setNoAi(NbtOps.getBoolean(nbt, "NoAI"));
+        readTypeCustomNbt(mob, nbt);
     }
 }

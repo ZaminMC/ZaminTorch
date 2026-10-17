@@ -1930,6 +1930,64 @@ public final class MobEntity implements LivingEntity {
         wolfCollarColor = (byte) (dyeMetadata & 0xF);
     }
 
+    // ---- the per-type readNbt arms (Slice 89 p3 — the reference's
+    // per-type readCustomNbt setters over the engine's own state) ---------
+
+    /** The sheep's sheared mark (readNbt's Sheared row). */
+    public void setSheared(boolean sheared) {
+        if (type == MobType.SHEEP) {
+            this.sheared = sheared;
+        }
+    }
+
+    /** The saddle mark (readNbt's Saddle/Tame-family rows): the pig's own byte or the horse flag bit. */
+    public void setSaddled(boolean saddled) {
+        if (type == MobType.PIG) {
+            this.pigSaddled = saddled;
+        } else if (type == MobType.HORSE) {
+            if (saddled) {
+                horseFlags |= HORSE_FLAG_SADDLED;
+            } else {
+                horseFlags &= ~HORSE_FLAG_SADDLED;
+            }
+        }
+    }
+
+    /** The tamed mark (readNbt's Tame row): the wolf's own bit or the horse flag bit. */
+    public void setTamedFlag(boolean tamed) {
+        if (type == MobType.WOLF) {
+            if (tamed) {
+                wolfFlags |= WOLF_FLAG_TAMED;
+            } else {
+                wolfFlags &= ~WOLF_FLAG_TAMED;
+            }
+        } else if (type == MobType.HORSE) {
+            if (tamed) {
+                horseFlags |= HORSE_FLAG_TAMED;
+            } else {
+                horseFlags &= ~HORSE_FLAG_TAMED;
+            }
+        }
+    }
+
+    /** The wolf's sitting posture (readNbt's Sitting row). */
+    public void setWolfSitting(boolean sitting) {
+        if (type == MobType.WOLF) {
+            if (sitting) {
+                wolfFlags |= WOLF_FLAG_SITTING;
+            } else {
+                wolfFlags &= ~WOLF_FLAG_SITTING;
+            }
+        }
+    }
+
+    /** The horse's taming temper (readNbt's Temper row). */
+    public void setHorseTemper(int temper) {
+        if (type == MobType.HORSE) {
+            this.temper = temper;
+        }
+    }
+
     /**
      * @return the fleece color's DyeColor id (the index-16 low nibble, the
      *         wool stack's own damage — SheepEntity.getColor().getId()).
@@ -5780,13 +5838,14 @@ public final class MobEntity implements LivingEntity {
     }
 
     /**
-     * setConversionTime (line 482): arms the cure's countdown. The
+     * setConversionTime (line 482): arms the cure's countdown (a negative
+     * time cancels — readNbt's own {@code -1} row, Slice 89). The
      * Weakness removal, the Strength pair, and the entity-event 16 all
      * ride the manager's own cure walk (the reference fires them around
      * this very call).
      */
     public void setZombieConversionTime(int time) {
-        this.ticksUntilConversion = Math.max(0, time);
+        this.ticksUntilConversion = Math.max(-1, time);
     }
 
     /**
