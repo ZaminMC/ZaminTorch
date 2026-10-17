@@ -7918,3 +7918,35 @@ through gap the suck test found — items must rest in the hopper's
 funnel, on slabs, on stairs — the §3 collision family's own slice);
 (2) the next vanilla wave per the ledger; (3) the remaining §27
 omissions.
+
+## Slice 83 — the item box-footprint physics (the vanilla-shape slice: the fall-through gap the suck gate found)
+
+- **THE FIX**: the item entity's landing test was a CENTER-POINT test —
+  a dropped item's historical scatter drifts its center past the cell
+  edge while it falls, the point missed the hopper's funnel entirely,
+  and the item fell through to the ground (vanilla's EntityItem
+  collides as a 0.25-wide BOX; the box's overlapping edge catches the
+  funnel's rim). `ItemEntity.Ground` grew the box-footprint forms —
+  `isSolidAtBox` + `supportYAtBox` (the bottom face's four corners +
+  the center against the collision shapes, the support the HIGHEST
+  touched shape top) — and the landing + ceiling arms read them; the
+  engine's `ShapeGround` implements the five-point sampling.
+- **THE VANILLA LAW THE DEBUG WALKED THROUGH**: an unpowered "disabled"
+  hopper RE-ENABLES on the next neighbor change (the reference's own
+  updateEnabled — the disabled pair exists only while powered); the
+  rest test holds the disabled state with a lever ON above the hopper
+  (the honest way to keep a hopper from sucking).
+- **THE SUCK'S OWN HOME**: with the box footprint, a dropped item comes
+  to rest ON the funnel's 5/8 surface INSIDE the collection band
+  (y+0.625+0.125 — the vanilla rest), exactly where the suck finds it:
+  the sibling test proves the collection (the whole stack lands on the
+  first cadence).
+- Tests: `ItemBoxPhysicsAcceptanceTest` (2 — the deterministic
+  center-drop rest on the funnel's surface inside the band + the
+  one-second hold, the resting stack's collection into the hopper).
+  The item-entity family, the hopper family, the furnace/hopper event
+  gates, the mining/drop paths, the piston + weather families green.
+
+NEXT (in order): (1) the next vanilla wave per the ledger; (2) the
+horizontal item collision (the drift passes through walls — the box
+footprint's own follow-up); (3) the remaining §27 omissions.
