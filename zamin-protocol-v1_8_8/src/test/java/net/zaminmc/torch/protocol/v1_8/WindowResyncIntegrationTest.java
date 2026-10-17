@@ -25,6 +25,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class WindowResyncIntegrationTest extends ProtocolTestBase {
 
+    /** The scripted client never answers keep-alives; the multi-read flows must not be kicked. */
+    @Override
+    protected long keepAliveIntervalMs() {
+        return 120_000;
+    }
+
     // legacy ids used by the assertions (community data)
     private static final int DIAMOND = 264;
     private static final int DIRT = 3;
