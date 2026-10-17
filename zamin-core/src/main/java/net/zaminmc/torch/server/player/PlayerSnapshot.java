@@ -37,8 +37,18 @@ public record PlayerSnapshot(UUID uuid, String name, Position position, Rotation
                              float health, int food, float saturation,
                              int gamemodeId, long totalXp, Position bedSpawn,
                              List<SlotStack> enderSlots,
-                             Map<String, Integer> stats) {
+                             Map<String, Integer> stats,
+                             Map<String, String> commandStats) {
 
+    /** The pre-command-stats shape (ZPD v1-v9 readers and engine callers without one). */
+    public PlayerSnapshot(UUID uuid, String name, Position position, Rotation rotation,
+                          int heldSlot, List<SlotStack> slots,
+                          float health, int food, float saturation,
+                          int gamemodeId, long totalXp, Position bedSpawn,
+                          List<SlotStack> enderSlots, Map<String, Integer> stats) {
+        this(uuid, name, position, rotation, heldSlot, slots, health, food, saturation,
+                gamemodeId, totalXp, bedSpawn, enderSlots, stats, Map.of());
+    }
     /** The pre-stats shape (ZPD v1-v8 readers and engine callers without one). */
     public PlayerSnapshot(UUID uuid, String name, Position position, Rotation rotation,
                           int heldSlot, List<SlotStack> slots,

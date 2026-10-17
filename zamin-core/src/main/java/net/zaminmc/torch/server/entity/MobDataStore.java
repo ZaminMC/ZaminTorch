@@ -39,7 +39,10 @@ public final class MobDataStore {
     private static final int MAGIC_0 = 'Z';
     private static final int MAGIC_1 = 'M';
     private static final int MAGIC_2 = 'D';
-    private static final int FORMAT_VERSION = 4;
+    private static final int FORMAT_VERSION = 5;
+
+    /** The v4 store's own version (Slice 78b's shape — the load keeps reading it). */
+    private static final int FORMAT_VERSION_4 = 4;
 
     /** The v2 store's own version (Slice 25c's shape — the load keeps reading it). */
     private static final int FORMAT_VERSION_2 = 2;
@@ -88,6 +91,9 @@ public final class MobDataStore {
                     out.writeFloat(mob.health());
                     writeExtras(out, mob.extras());
                     writeNbtExtras(out, mob.nbt());
+                    // The v5 command-stat tail (Slice 90): the bound pairs
+                    // after the NBT rows.
+                    writeCommandStatsPairs(out, mob.commandStats());
                 }
             }
             Files.move(temp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
@@ -110,8 +116,9 @@ public final class MobDataStore {
                 throw new IOException("Not a ZMD file");
             }
             int version = in.readByte();
-            if (version != FORMAT_VERSION && version != FORMAT_VERSION_3
-                    && version != FORMAT_VERSION_2 && version != 1) {
+            if (version != FORMAT_VERSION && version != FORMAT_VERSION_4
+                    && version != FORMAT_VERSION_3 && version != FORMAT_VERSION_2
+                    && version != 1) {
                 throw new IOException("Unsupported ZMD version: " + version);
             }
             int count = readVarInt(in);
@@ -130,7 +137,13 @@ public final class MobDataStore {
                         ? null : readExtras(in);
                 MobManager.MobNbtExtras nbt = version >= FORMAT_VERSION_3
                         ? readNbtExtras(in, version) : null;
-                loaded.add(new MobManager.MobSnapshot(type, x, y, z, yaw, health, extras, nbt));
+                // The v5 command-stat tail (Slice 90 — the reference's
+                // Entity.writeNbt line 1128: every entity carries its
+                // CommandResults in the save).
+                java.util.Map<String, String> commandStats = version >= FORMAT_VERSION
+                        ? readCommandStatsPairs(in) : null;
+                loaded.add(new MobManager.MobSnapshot(type, x, y, z, yaw, health,
+                        extras, nbt, commandStats));
             }
             return loaded;
         } catch (IOException | RuntimeException corrupt) {
@@ -229,6 +242,36 @@ public final class MobDataStore {
     private static final int NBT_FLAG_MOVEMENT_SPEED = 0x40;
     private static final int NBT_FLAG_ATTACK_DAMAGE = 0x80;
 
+    /** Writes the command-stat pairs (the v5 tail): the pair count then the key/value strings. */
+    private static void writeCommandStatsPairs(DataOutputStream out,
+            java.util.Map<String, String> commandStats) throws IOException {
+        int count = commandStats == null ? 0 : commandStats.size();
+        writeVarInt(out, count);
+        if (commandStats != null) {
+            for (java.util.Map.Entry<String, String> pair : commandStats.entrySet()) {
+                writeString(out, pair.getKey());
+                writeString(out, pair.getValue());
+            }
+        }
+    }
+
+    /** Reads the command-stat pairs back (null when the count is zero). */
+    private static java.util.Map<String, String> readCommandStatsPairs(DataInputStream in)
+            throws IOException {
+        int pairs = readVarInt(in);
+        if (pairs < 0 || pairs > 64) {
+            throw new IOException("Implausible command-stat pair count: " + pairs);
+        }
+        if (pairs == 0) {
+            return null;
+        }
+        java.util.Map<String, String> commandStats = new java.util.LinkedHashMap<>();
+        for (int i = 0; i < pairs; i++) {
+            commandStats.put(readString(in), readString(in));
+        }
+        return commandStats;
+    }
+
     /** Writes the v3/v4 NBT block (a zero byte answers the null shape). */
     private static void writeNbtExtras(DataOutputStream out, MobManager.MobNbtExtras nbt)
             throws IOException {
@@ -295,7 +338,7 @@ public final class MobDataStore {
         if ((flags & NBT_FLAG_CUSTOM_NAME) != 0) {
             customName = readString(in);
         }
-        if (version < FORMAT_VERSION) {
+        if (version < FORMAT_VERSION_4) {
             return new MobManager.MobNbtExtras(customName,
                     (flags & NBT_FLAG_CUSTOM_NAME_VISIBLE) != 0,
                     (flags & NBT_FLAG_NO_AI) != 0,

@@ -1673,16 +1673,23 @@ public final class MobManager {
      * death animation.
      */
     public record MobSnapshot(String type, double x, double y, double z, float yaw,
-                              float health, MobStateExtras extras, MobNbtExtras nbt) {
+                              float health, MobStateExtras extras, MobNbtExtras nbt,
+                              java.util.Map<String, String> commandStats) {
         /** The v1-compatible shape (no extras — every v1 record loads this way). */
         public MobSnapshot(String type, double x, double y, double z, float yaw, float health) {
-            this(type, x, y, z, yaw, health, null, null);
+            this(type, x, y, z, yaw, health, null, null, null);
         }
 
         /** The pre-v3 shape (no NBT rows — every v2 record loads this way). */
         public MobSnapshot(String type, double x, double y, double z, float yaw,
                 float health, MobStateExtras extras) {
-            this(type, x, y, z, yaw, health, extras, null);
+            this(type, x, y, z, yaw, health, extras, null, null);
+        }
+
+        /** The pre-v5 shape (no command-stat pairs — every v3/v4 record loads this way). */
+        public MobSnapshot(String type, double x, double y, double z, float yaw,
+                float health, MobStateExtras extras, MobNbtExtras nbt) {
+            this(type, x, y, z, yaw, health, extras, nbt, null);
         }
     }
 
@@ -1798,6 +1805,10 @@ public final class MobManager {
                     mob.setAttackDamageOverride((float) nbt.attackDamage());
                 }
             }
+            // The v5 command-stat bindings (Slice 90 — the reference's
+            // Entity.readNbt line 1195: every entity reads its CommandResults
+            // back).
+            restoreCommandStats(mob, snapshot.commandStats());
             any = true;
         }
         return any;
@@ -1868,9 +1879,50 @@ public final class MobManager {
             Position position = mob.position();
             saved.add(new MobSnapshot(mob.type().name(), position.x(), position.y(),
                     position.z(), mob.yaw(), mob.health(), stateExtrasOf(mob),
-                    nbtExtrasOf(mob)));
+                    nbtExtrasOf(mob), commandStatsOf(mob)));
         }
         return saved;
+    }
+
+    /**
+     * The mob's command-stat bindings' snapshot (Slice 90 — the reference's
+     * Entity.writeNbt line 1128: every entity carries its CommandResults in
+     * the save): the flattened <Name>Name/<Name>Objective pairs, null when
+     * nothing is bound.
+     */
+    static java.util.Map<String, String> commandStatsOf(MobEntity mob) {
+        java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> envelope =
+                new java.util.LinkedHashMap<>();
+        mob.commandResults().writeNbt(envelope);
+        java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> stats =
+                net.zaminmc.torch.server.nbt.NbtOps.getCompound(envelope, "CommandStats");
+        if (stats.isEmpty()) {
+            return null;
+        }
+        java.util.Map<String, String> pairs = new java.util.LinkedHashMap<>();
+        for (java.util.Map.Entry<String, net.zaminmc.torch.server.nbt.Snbt.Tag> pair : stats.entrySet()) {
+            pairs.put(pair.getKey(), net.zaminmc.torch.server.nbt.NbtOps.getString(stats, pair.getKey()));
+        }
+        return pairs;
+    }
+
+    /**
+     * The bindings' restore (the same readNbt walk /stats set rides):
+     * the pairs back into the CommandStats compound.
+     */
+    static void restoreCommandStats(MobEntity mob, java.util.Map<String, String> pairs) {
+        if (pairs == null || pairs.isEmpty()) {
+            return;
+        }
+        java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> envelope =
+                new java.util.LinkedHashMap<>();
+        java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> stats =
+                new java.util.LinkedHashMap<>();
+        for (java.util.Map.Entry<String, String> pair : pairs.entrySet()) {
+            net.zaminmc.torch.server.nbt.NbtOps.putString(stats, pair.getKey(), pair.getValue());
+        }
+        net.zaminmc.torch.server.nbt.NbtOps.putCompound(envelope, "CommandStats", stats);
+        mob.commandResults().readNbt(envelope);
     }
 
     /** The /summon NBT rows' snapshot (Slice 75): null when none are set. */
