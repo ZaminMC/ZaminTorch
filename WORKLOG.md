@@ -8812,3 +8812,42 @@ the ledger's remaining envelopes — the tile families with no engine
 block entity (EnderChest/daylight detector/enchanting table/end portal/
 flower pot/banner/piston moving state/comparator OutputSignal/skull
 Owner profile), the model-less item-tag arms.
+
+## Slice 94 — Wave G: the model-less item-tag arms
+
+- **G1 — the four arms' full ride** (0dc74e6 + cc6ca5d): the ItemStack
+  record's unbreakable/repairCost/hideFlags/lore components (null-absent
+  and zero-absent, the immutable lore with MAX_LORE_LINES 16, the 5-arg
+  compatibility constructor), the Unbreakable gate at the reference's
+  isDamageable shape over the five wear sites (damageHeld/wearArmor/
+  wearArmorStack, MobManager's drop-equipment shave, DispenserSystem's
+  wearOne — every other engine wear routes through damageHeld), the
+  constructor's past-the-max damage exemption (readNbt 143-145 clamps
+  only the negative; the read's Damage row now applies AFTER the tag
+  arms so the flag lands first), the ItemNbt rows (each written only
+  when carried, each read into the model), the SlotNbt wire (display
+  .Lore a TAG_LIST of TAG_STRING, the scalars byte/int/int), the ZID v2
+  and ZMD v7 tails (version-aware: v1/v6 files load with defaults).
+- **G2 — the tests + THE SPLIT/MERGE FIX** (c7dedb1): the pickup test
+  exposed that split built the taken stack over the 5-arg constructor —
+  every pickup, container move and drop STRIPPED the arms (a flagged
+  pickaxe lost its flag the moment it entered an inventory). split
+  threads the four arms now, and mergeable rides the reference's
+  areItemStacksEqual (the whole tag compared — a flagged stack never
+  merges into an unflagged one, a lore-carrying stack never into a bare
+  one). The batches: ItemTagRowsTest 8, PlayerInventoryTest 21,
+  SlotNbtTest 10 (byte-exact), ItemPersistenceTest 6 (incl. the
+  hand-written v1 file), MobDataStoreTest 7, FireAcceptanceTest 6 (the
+  live flagged flint — three fires, zero wear), DispenserSystemTest 11
+  (the flagged steel lights and stays whole); the sweep: the full
+  protocol suite 104 green + UnbreakingAcceptance 8, ItemEntityManager
+  11, LootPickupModel 11, PlayerDataPersistence 5, MobManager 8,
+  CommandStatsPersistence 2, the container family 26.
+
+NEXT (in order): the §29 standing list (the shared container-open
+event, demand-named; the §28.7 Bukkit adapter, after the polish) and
+the ledger's remaining envelopes — the tile families with no engine
+block entity (EnderChest/daylight detector/enchanting table/end portal/
+flower pot/banner/piston moving state/comparator OutputSignal/skull
+Owner profile), the item-tag envelope's remains (CanDestroy/CanPlace,
+BlockEntityTag, the attribute modifiers, display.color).

@@ -1400,16 +1400,41 @@ tag compound's remaining arms — Unbreakable (the byte that gates the
 whole durability family through isDamageable), RepairCost (the anvil's
 int), HideFlags (the tooltip's int), display.Lore (the tooltip's string
 list) — each round-trips the save and reaches the client through the
-slot's NBT. The engine parses them into nothing today (the model-less
-envelope).
+slot's NBT. The engine parsed them into nothing (the model-less
+envelope — now retired).
 
-- [ ] G1 — the ItemStack model arms (unbreakable/repairCost/hideFlags/
+- [x] G1 — the ItemStack model arms (unbreakable/repairCost/hideFlags/
       lore with the sanitize rules and withX builders, the 5-arg
       compatibility constructor) + the Unbreakable behavior gate over
       every wear site + the ItemNbt rows + the SlotNbt wire arms + the
-      ZID/ZMD stack tails;
-- [ ] G2 — the tests (the model round trip, the Unbreakable wear gate,
-      the wire payload, the persistence tails) + the ledger/worklog rows.
+      ZID/ZMD stack tails; DONE — Slice 94 (commits 0dc74e6 + cc6ca5d):
+      the four components on the record (null-absent/zero-absent,
+      immutable lore, MAX_LORE_LINES 16), the gate at the five sites
+      (damageHeld/wearArmor/wearArmorStack, MobManager's drop-shave,
+      DispenserSystem's wearOne — the engine's every other wear routes
+      through damageHeld), the constructor's past-the-max damage
+      exemption (readNbt 143-145 clamps only the negative — the read's
+      Damage row applies AFTER the tag arms so the flag lands first),
+      the ItemNbt rows (write-only-when-carried, read-into-model), the
+      SlotNbt wire (display.Lore a TAG_LIST of TAG_STRING, the scalars
+      byte/int/int), ZID v2 + ZMD v7 (version-aware: v1/v6 files load
+      with defaults), AND the split/merge fix G2 exposed (split built
+      over the 5-arg constructor — pickups/container moves/drops
+      stripped the arms; mergeable now rides areItemStacksEqual's whole-
+      tag compare).
+- [x] G2 — the tests (the model round trip, the Unbreakable wear gate,
+      the wire payload, the persistence tails) + the ledger/worklog
+      rows; DONE — Slice 94 (commit c7dedb1): ItemTagRowsTest 8 (the
+      four-arm round trip, the absent-defaults contrast, the past-the-
+      max exemption through the rows), PlayerInventoryTest 21 (the gate
+      at every site + the unflagged control), SlotNbtTest 10 (byte-
+      exact Lore list + the three scalars + the full-house skip),
+      ItemPersistenceTest 6 (ZID v2 round trip + the hand-written v1
+      file), MobDataStoreTest 7 (the v7 held-stack tail onto the
+      restored body), FireAcceptanceTest 6 (the live flagged flint —
+      three fires, zero wear), DispenserSystemTest 11 (the flagged
+      steel lights and stays whole); the sweep: the full protocol suite
+      104 green + the container/persistence/mob batches.
 
 ## Standing (demand-named, not scheduled)
 
