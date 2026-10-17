@@ -1602,6 +1602,17 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                 newcomer.sendFallingSpawn(entity);
             }
         }
+        // The item bodies already on the ground (Slice 93/E1 — the
+        // persisted restore's among them): the newcomer's world snapshot
+        // spawns them like every other pre-existing family (the
+        // pre-E1 gap: a body dropped while nobody watched never reached
+        // the next joiner).
+        var itemEntities = engine.itemEntities();
+        if (itemEntities != null) {
+            for (net.zaminmc.torch.server.entity.ItemEntity item : itemEntities.all()) {
+                newcomer.sendItemSpawn(item);
+            }
+        }
         // Vehicles mid-ride when someone joins: the bodies spawn for the
         // newcomer (a mount broadcast rides the Attach packet like always).
         var vehicles = engine.vehicles();

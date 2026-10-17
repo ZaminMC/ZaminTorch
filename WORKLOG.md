@@ -8753,3 +8753,36 @@ event (demand-named), the §28.7 Bukkit adapter (after the 1.8.8
 implementation is polished); the next vanilla wave from the ledger's
 own remaining envelopes (the item-entity NBT surface, the tile families
 with no engine block entity, the lava motion drag).
+
+## Slice 93 — Wave E: the item bodies' persistence
+
+- **E1 — THE ZID v1 STORE + THE JOIN REPLAY**: the item bodies survive
+  the restart (the ledger's standing envelope — a restart used to erase
+  every drop on the ground). The manager's snapshot/restore surface
+  (ItemRecord over the reference's writeCustomNbt row set — Health
+  excepted, the engine's item body carries no health model); the ZID v1
+  store with the ZMD durability rules (atomic, quarantine, loud) and the
+  ZMD v6 held-stack tail's own shape for the stack rows (the id/count/
+  damage varints + the nullable display name + the {id, lvl} pairs with
+  the lvl>=1 gate); the boot restore bypassing the §27.7 spawn gate (the
+  persisted bodies are already-committed state, like the mob store's
+  restoreAll); the saveAllNow arm. THE JOIN-REPLAY GAP THE LANDING
+  EXPOSED: a body dropped while nobody watched (or restored at boot)
+  never reached the next joiner — the newcomer's world snapshot now
+  spawns the pre-existing items like every other family (the send's own
+  chunk-tracker gate applies).
+- **E2 — the tests + the rows**: ItemPersistenceTest 4 (the whole-body
+  round trip — the named enchanted sword with its thrower/motion/age/
+  delay, the pinned star past the wall, the plain count; the corrupt
+  quarantine; the unresolvable-stack skip; the live-engine restart
+  dance), the regression sweep green (5 core classes + the FULL protocol
+  suite 40 + the api suite 4), the ledger row + the §29 check-offs +
+  this entry.
+
+NEXT (in order): the §29 standing list (the shared container-open
+event, demand-named; the §28.7 Bukkit adapter, after the polish) and
+the ledger's remaining envelopes — the tile families with no engine
+block entity (EnderChest/daylight detector/enchanting table/end portal/
+flower pot/banner/piston moving state/comparator OutputSignal/skull
+Owner profile), the lava motion drag (the *0.5 liquid drag vs the
+shared *0.8 buoyancy), the model-less item-tag arms.

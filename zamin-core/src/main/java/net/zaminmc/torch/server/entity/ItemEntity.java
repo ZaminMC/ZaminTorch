@@ -168,6 +168,19 @@ public final class ItemEntity implements net.zaminmc.torch.entity.DroppedItem {
         return neverDespawn;
     }
 
+    /**
+     * The persisted restore's own setters (Slice 93/E1 — the reference's
+     * readCustomNbt rows landing on the model): the age clock, the pickup
+     * delay, and the thrower/owner strings ride the store's round trip.
+     */
+    public void setAge(int age) {
+        this.age = age;
+    }
+
+    public void setPickupDelayTicks(int pickupDelay) {
+        this.pickupDelay = pickupDelay;
+    }
+
     /** The vanilla kill plane: an item below it is gone without a drop. */
     public static final double VOID_KILL_Y = -64.0;
 

@@ -378,4 +378,70 @@ public final class ItemEntityManager {
             }
         }
     }
+
+    // ------------------------------------------------------------------
+    // The persistence surface (Slice 93/E1 — the reference's own
+    // writeCustomNbt/readCustomNbt rows over the engine's Z-family store:
+    // the item bodies survive the restart).
+    // ------------------------------------------------------------------
+
+    /** One persisted body: the whole state the store round-trips. */
+    public record ItemRecord(
+            Position position,
+            double velocityX, double velocityY, double velocityZ,
+            ItemStack stack,
+            int age,
+            int pickupDelay,
+            boolean neverDespawn,
+            String thrower,
+            String owner) {
+    }
+
+    /** The live population's records (the tick-lane save snapshot). */
+    public List<ItemRecord> snapshot() {
+        List<ItemRecord> records = new ArrayList<>(entities.size());
+        for (ItemEntity entity : entities) {
+            records.add(new ItemRecord(
+                    entity.position(),
+                    entity.velocityX(), entity.velocityY(), entity.velocityZ(),
+                    entity.stack(),
+                    entity.age(),
+                    entity.pickupDelayTicks(),
+                    entity.neverDespawn(),
+                    entity.thrower(),
+                    entity.owner()));
+        }
+        return records;
+    }
+
+    /**
+     * The boot restore: the persisted bodies rejoin the world with their
+     * whole state — the position and motion, the stack with its tag arms,
+     * the age clock and the pickup delay, the never-despawn pin, the
+     * thrower/owner strings. The restore bypasses the §27.7 spawn gate
+     * (the persisted bodies are already-committed state, exactly like the
+     * mob store's restoreAll) and publishes each body's spawn so the
+     * observers see them. Tick-lane context.
+     */
+    public void restoreAll(List<ItemRecord> records) {
+        for (ItemRecord record : records) {
+            if (record.stack().isEmpty()) {
+                continue; // a resolvable-stack miss never joins the world
+            }
+            ItemEntity entity = new ItemEntity(nextEntityId++,
+                    record.position(), record.stack(), record.pickupDelay());
+            entity.setVelocity(record.velocityX(), record.velocityY(),
+                    record.velocityZ());
+            entity.setAge(record.age());
+            if (record.neverDespawn()) {
+                entity.setNeverDespawn();
+            }
+            entity.setThrower(record.thrower());
+            entity.setOwner(record.owner());
+            entities.add(entity);
+            for (Listener listener : listeners) {
+                listener.onItemSpawned(entity);
+            }
+        }
+    }
 }
