@@ -83,7 +83,7 @@ public final class Snbt {
             return new Tag(Type.LIST, v);
         }
 
-        static Tag ofCompound(Map<String, Tag> v) {
+        public static Tag ofCompound(Map<String, Tag> v) {
             return new Tag(Type.COMPOUND, v);
         }
 

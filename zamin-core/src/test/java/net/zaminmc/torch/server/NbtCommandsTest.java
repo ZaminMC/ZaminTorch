@@ -90,6 +90,20 @@ class NbtCommandsTest {
         server.chatService().submitChat(alice, line);
     }
 
+    /** Runs the body on the tick lane and waits it out. */
+    private void tick(Runnable body) throws Exception {
+        java.util.concurrent.atomic.AtomicBoolean done =
+                new java.util.concurrent.atomic.AtomicBoolean();
+        server.ticker().submit(() -> {
+            try {
+                body.run();
+            } finally {
+                done.set(true);
+            }
+        });
+        await(done::get, "the tick task ran");
+    }
+
     private void await(java.util.function.BooleanSupplier condition, String description)
             throws InterruptedException {
         long deadline = System.currentTimeMillis() + 30_000;
@@ -183,4 +197,65 @@ class NbtCommandsTest {
         assertTrue(alice.opLevel() >= 2, "the player refusal touched nothing");
     }
 
+    @Test
+    void theDataTagArmsMatchAsSubsets() throws Exception {
+        dispatch("/summon Zombie ~ ~ ~ {NoAI:1b,CustomName:\"Guard\"}");
+        await(() -> server.mobs().all().stream()
+                        .anyMatch(m -> "Guard".equals(m.customName()) && m.noAi()),
+                "the summon NBT read landed (the name pair + the pin)");
+
+        var zombie = server.mobs().all().stream()
+                .filter(m -> "Guard".equals(m.customName())).findFirst().orElse(null);
+        assertNotNull(zombie);
+        assertTrue(zombie.noAi(), "the NoAI row landed through the summon read");
+        assertEquals(20.0f, zombie.health(), 1e-6f, "the summon keeps the ceiling");
+
+        // The Rotation rows stick while the command's own coordinates
+        // override the Pos rows (the reference's setPositionAndAngles order).
+        double sx = alice.position().x() + 4.0;
+        double sz = alice.position().z() + 4.0;
+        dispatch("/summon Zombie ~4 ~ ~4 {Rotation:[90.0f,30.0f]}");
+        dispatch("/summon Zombie ~4 ~ ~4 {Rotation:[90.0f,30.0f],NoAI:1b}");
+        await(() -> server.mobs().all().stream().anyMatch(m ->
+                        Math.abs(m.position().x() - sx) < 1e-6
+                                && Math.abs(m.position().z() - sz) < 1e-6),
+                "the command coordinates overrode the Pos rows");
+        var placed = server.mobs().all().stream()
+                .filter(m -> Math.abs(m.position().x() - sx) < 1e-6
+                        && Math.abs(m.position().z() - sz) < 1e-6)
+                .findFirst().orElse(null);
+        assertNotNull(placed);
+        assertEquals(90.0f, placed.yaw(), 1e-6f, "the Rotation rows stuck");
+        assertEquals(30.0f, placed.pitch(), 1e-6f);
+
+        // /testforblock's dataTag: a chest filled through /blockdata, then
+        // matched by its Items row (the subset walk).
+        int x = (int) Math.floor(alice.position().x());
+        int y = (int) Math.floor(alice.position().y());
+        int z = (int) Math.floor(alice.position().z());
+        dispatch("/setblock ~2 ~ ~ chest");
+        var chestPos = new BlockPosition(x + 2, y, z);
+        await(() -> server.world().getBlock(chestPos).identifier().value().equals("chest"),
+                "the chest landed");
+        dispatch("/blockdata ~2 ~ ~ {Items:[{Slot:0b,id:\"minecraft:stone\",Count:3b}]}");
+        await(() -> {
+            var chest = server.chests().peek(chestPos);
+            return chest != null && chest.getItem(0).count() == 3;
+        }, "the Items row landed");
+        var rows = new java.util.LinkedHashMap<
+                String, net.zaminmc.torch.server.nbt.Snbt.Tag>();
+        tick(() -> server.tileNbt().writeTile(server.world(), 0, chestPos, rows));
+        assertTrue(net.zaminmc.torch.server.nbt.NbtOps.matches(
+                net.zaminmc.torch.server.nbt.Snbt.Tag.ofCompound(
+                        net.zaminmc.torch.server.nbt.Snbt.parseCompound(
+                                "{Items:[{Slot:0b,id:\"minecraft:stone\",Count:3b}]}")),
+                net.zaminmc.torch.server.nbt.Snbt.Tag.ofCompound(rows), true),
+                "the Items pattern matched the written rows");
+        org.junit.jupiter.api.Assertions.assertFalse(net.zaminmc.torch.server.nbt.NbtOps.matches(
+                net.zaminmc.torch.server.nbt.Snbt.Tag.ofCompound(
+                        net.zaminmc.torch.server.nbt.Snbt.parseCompound(
+                                "{Items:[{Slot:0b,id:\"minecraft:dirt\",Count:3b}]}")),
+                net.zaminmc.torch.server.nbt.Snbt.Tag.ofCompound(rows), true),
+                "the wrong item refused the subset match");
+    }
 }
