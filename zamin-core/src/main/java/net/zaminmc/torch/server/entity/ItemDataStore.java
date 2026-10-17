@@ -41,9 +41,11 @@ public final class ItemDataStore {
     private static final int MAGIC_0 = 'Z';
     private static final int MAGIC_1 = 'I';
     private static final int MAGIC_2 = 'D';
-    private static final int FORMAT_VERSION = 2;
+    private static final int FORMAT_VERSION = 3;
     /** The pre-Wave-G shape (Slice 93): the stack rows stop after the enchant pairs. */
     private static final int FORMAT_VERSION_1 = 1;
+    /** The pre-H2 shape (Slice 94): the stack rows stop after the Lore list. */
+    private static final int FORMAT_VERSION_2 = 2;
 
     private static final int FLAG_NEVER_DESPAWN = 0x01;
     private static final int FLAG_THROWER = 0x02;
@@ -113,6 +115,15 @@ public final class ItemDataStore {
                             writeString(out, line);
                         }
                     }
+                    // The v3 tail (Slice 95 — the BlockEntityTag raw compound,
+                    // the Wave H2 arm): the whole subtree as ONE SNBT string
+                    // row (NbtOps.write over the adapted boxes). An absent
+                    // arm writes the null marker.
+                    writeNullableString(out, item.stack().blockEntityTag() == null
+                            ? null
+                            : net.zaminmc.torch.server.nbt.NbtOps.write(
+                                    net.zaminmc.torch.server.nbt.NbtOps.fromBoxed(
+                                            item.stack().blockEntityTag())));
                     writeVarInt(out, item.age());
                     writeVarInt(out, item.pickupDelay());
                     int flags = 0;
@@ -156,7 +167,8 @@ public final class ItemDataStore {
                 throw new IOException("Not a ZID file");
             }
             int version = in.readByte();
-            if (version != FORMAT_VERSION && version != FORMAT_VERSION_1) {
+            if (version != FORMAT_VERSION && version != FORMAT_VERSION_2
+                    && version != FORMAT_VERSION_1) {
                 throw new IOException("Unsupported ZID version: " + version);
             }
             int count = readVarInt(in);
@@ -186,11 +198,11 @@ public final class ItemDataStore {
                 }
                 // The v2 tail (Slice 94): the Wave G rows — absent in a v1
                 // file, the model's defaults then.
-                boolean unbreakable = version >= FORMAT_VERSION && in.readBoolean();
-                int repairCost = version >= FORMAT_VERSION ? readVarInt(in) : 0;
-                int hideFlags = version >= FORMAT_VERSION ? readVarInt(in) : 0;
+                boolean unbreakable = version >= FORMAT_VERSION_2 && in.readBoolean();
+                int repairCost = version >= FORMAT_VERSION_2 ? readVarInt(in) : 0;
+                int hideFlags = version >= FORMAT_VERSION_2 ? readVarInt(in) : 0;
                 java.util.List<String> loreLines = null;
-                if (version >= FORMAT_VERSION) {
+                if (version >= FORMAT_VERSION_2) {
                     int loreCount = readVarInt(in);
                     if (loreCount > 0) {
                         loreLines = new java.util.ArrayList<>(loreCount);
@@ -199,6 +211,10 @@ public final class ItemDataStore {
                         }
                     }
                 }
+                // The v3 tail (Slice 95): the BlockEntityTag SNBT string row —
+                // a v2 file never carries it (the null marker reads null).
+                String blockEntityTagRow = version >= FORMAT_VERSION
+                        ? readNullableString(in) : null;
                 // An unresolvable item id (a newer save on an older build)
                 // still consumes its rows: the body simply never joins the
                 // world (the restore skips the empty stack).
@@ -227,6 +243,14 @@ public final class ItemDataStore {
                     }
                     if (loreLines != null && !loreLines.isEmpty()) {
                         stack = stack.withLore(loreLines);
+                    }
+                    if (blockEntityTagRow != null) {
+                        java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> parsed =
+                                net.zaminmc.torch.server.nbt.Snbt.parseCompound(blockEntityTagRow);
+                        if (!parsed.isEmpty()) {
+                            stack = stack.withBlockEntityTag(
+                                    net.zaminmc.torch.server.nbt.NbtOps.toBoxed(parsed));
+                        }
                     }
                 }
                 int age = readVarInt(in);

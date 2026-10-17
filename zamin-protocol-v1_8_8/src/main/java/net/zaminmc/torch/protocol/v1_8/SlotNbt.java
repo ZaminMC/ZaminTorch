@@ -23,9 +23,13 @@ final class SlotNbt {
     private static final byte TAG_BYTE = 1;
     private static final byte TAG_SHORT = 2;
     private static final byte TAG_INT = 3;
-    private static final byte TAG_COMPOUND = 10;
+    private static final byte TAG_LONG = 4;
+    private static final byte TAG_FLOAT = 5;
+    private static final byte TAG_DOUBLE = 6;
     private static final byte TAG_STRING = 8;
     private static final byte TAG_LIST = 9;
+    private static final byte TAG_COMPOUND = 10;
+    private static final byte TAG_INT_ARRAY = 11;
 
     private SlotNbt() {
     }
@@ -42,7 +46,8 @@ final class SlotNbt {
                 || stack.unbreakable()
                 || stack.repairCost() > 0
                 || stack.hideFlags() > 0
-                || (stack.lore() != null && !stack.lore().isEmpty());
+                || (stack.lore() != null && !stack.lore().isEmpty())
+                || (stack.blockEntityTag() != null && !stack.blockEntityTag().isEmpty());
     }
 
     /**
@@ -124,6 +129,15 @@ final class SlotNbt {
             writeShortString(out, "HideFlags");
             out.writeInt(stack.hideFlags());
         }
+        // The raw compound (Wave H2 — tag.BlockEntityTag, the whole
+        // subtree walked from the model's boxed form, every NBT family
+        // of the tree's own: the api module cannot see a tag type, so the
+        // wire writer walks the boxes directly).
+        if (stack.blockEntityTag() != null && !stack.blockEntityTag().isEmpty()) {
+            out.writeByte(TAG_COMPOUND); // tag.BlockEntityTag
+            writeShortString(out, "BlockEntityTag");
+            writeBoxedCompound(out, stack.blockEntityTag());
+        }
         out.writeByte(TAG_END);        // end of root
     }
 
@@ -183,6 +197,224 @@ final class SlotNbt {
             } else {
                 skipPayload(in, type);
             }
+        }
+    }
+
+    /**
+     * Reads the tag.BlockEntityTag subtree out of a slot NBT payload
+     * (buffer positioned ON the marker byte), in its boxed form, or null
+     * when the payload is absent or carries no compound row. The test
+     * client's reader for the Wave H2 arm — every family parsed, the
+     * boxed tree mirrors the writer's walk.
+     */
+    static java.util.Map<String, Object> readBlockEntityTag(ByteBuf in) {
+        int type = in.readUnsignedByte();
+        if (type == TAG_END) {
+            return null; // no NBT
+        }
+        if (type != TAG_COMPOUND) {
+            throw new IllegalArgumentException("Slot NBT must root at a compound: " + type);
+        }
+        skipShortString(in); // root name
+        java.util.Map<String, Object> found = null;
+        while (true) {
+            int rowType = in.readUnsignedByte();
+            if (rowType == TAG_END) {
+                return found;
+            }
+            String name = readShortString(in);
+            if ("BlockEntityTag".equals(name) && rowType == TAG_COMPOUND) {
+                if (found == null) {
+                    found = parseCompoundPayload(in);
+                } else {
+                    skipCompoundPayload(in); // the first row wins (vanilla NBT is a name-keyed map)
+                }
+            } else {
+                skipPayload(in, rowType);
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // The boxed-tree walk (Wave H2): the writer walks the model's boxes
+    // directly, the reader parses every family back into boxes.
+    // ------------------------------------------------------------------
+
+    /** Writes one boxed compound's rows (the recursion's own end marker). */
+    private static void writeBoxedCompound(ByteBuf out, java.util.Map<String, Object> rows) {
+        for (java.util.Map.Entry<String, Object> row : rows.entrySet()) {
+            Object value = row.getValue();
+            if (value instanceof Byte b) {
+                out.writeByte(TAG_BYTE);
+                writeShortString(out, row.getKey());
+                out.writeByte(b);
+            } else if (value instanceof Short s) {
+                out.writeByte(TAG_SHORT);
+                writeShortString(out, row.getKey());
+                out.writeShort(s);
+            } else if (value instanceof Integer i) {
+                out.writeByte(TAG_INT);
+                writeShortString(out, row.getKey());
+                out.writeInt(i);
+            } else if (value instanceof Long l) {
+                out.writeByte(TAG_LONG);
+                writeShortString(out, row.getKey());
+                out.writeLong(l);
+            } else if (value instanceof Float f) {
+                out.writeByte(TAG_FLOAT);
+                writeShortString(out, row.getKey());
+                out.writeFloat(f);
+            } else if (value instanceof Double d) {
+                out.writeByte(TAG_DOUBLE);
+                writeShortString(out, row.getKey());
+                out.writeDouble(d);
+            } else if (value instanceof String str) {
+                out.writeByte(TAG_STRING);
+                writeShortString(out, row.getKey());
+                writeShortString(out, str);
+            } else if (value instanceof int[] array) {
+                out.writeByte(TAG_INT_ARRAY);
+                writeShortString(out, row.getKey());
+                out.writeInt(array.length);
+                for (int element : array) {
+                    out.writeInt(element);
+                }
+            } else if (value instanceof java.util.List<?> list) {
+                out.writeByte(TAG_LIST);
+                writeShortString(out, row.getKey());
+                byte elementType = list.isEmpty()
+                        ? TAG_END // vanilla's empty list carries type 0
+                        : wireTypeOf(list.get(0));
+                out.writeByte(elementType);
+                out.writeInt(list.size());
+                for (Object element : list) {
+                    writeBoxedPayload(out, elementType, element);
+                }
+            } else if (value instanceof java.util.Map<?, ?> nested) {
+                out.writeByte(TAG_COMPOUND);
+                writeShortString(out, row.getKey());
+                //noinspection unchecked
+                writeBoxedCompound(out, (java.util.Map<String, Object>) nested);
+            } else {
+                throw new IllegalArgumentException("Unsupported boxed NBT value: "
+                        + value.getClass().getName());
+            }
+        }
+        out.writeByte(TAG_END); // the compound's own end
+    }
+
+    /** One list element's payload (the element type already announced). */
+    private static void writeBoxedPayload(ByteBuf out, byte type, Object value) {
+        switch (type) {
+            case TAG_BYTE -> out.writeByte((Byte) value);
+            case TAG_SHORT -> out.writeShort((Short) value);
+            case TAG_INT -> out.writeInt((Integer) value);
+            case TAG_LONG -> out.writeLong((Long) value);
+            case TAG_FLOAT -> out.writeFloat((Float) value);
+            case TAG_DOUBLE -> out.writeDouble((Double) value);
+            case TAG_STRING -> writeShortString(out, (String) value);
+            case TAG_INT_ARRAY -> {
+                int[] array = (int[]) value;
+                out.writeInt(array.length);
+                for (int element : array) {
+                    out.writeInt(element);
+                }
+            }
+            case TAG_LIST -> {
+                java.util.List<?> nested = (java.util.List<?>) value;
+                byte nestedType = nested.isEmpty()
+                        ? TAG_END
+                        : wireTypeOf(nested.get(0));
+                out.writeByte(nestedType);
+                out.writeInt(nested.size());
+                for (Object element : nested) {
+                    writeBoxedPayload(out, nestedType, element);
+                }
+            }
+            case TAG_COMPOUND -> //noinspection unchecked
+                    writeBoxedCompound(out, (java.util.Map<String, Object>) value);
+            default -> throw new IllegalArgumentException("Unsupported list element type: " + type);
+        }
+    }
+
+    /** The boxed value's wire family byte. */
+    private static byte wireTypeOf(Object value) {
+        if (value instanceof Byte) {
+            return TAG_BYTE;
+        }
+        if (value instanceof Short) {
+            return TAG_SHORT;
+        }
+        if (value instanceof Integer) {
+            return TAG_INT;
+        }
+        if (value instanceof Long) {
+            return TAG_LONG;
+        }
+        if (value instanceof Float) {
+            return TAG_FLOAT;
+        }
+        if (value instanceof Double) {
+            return TAG_DOUBLE;
+        }
+        if (value instanceof String) {
+            return TAG_STRING;
+        }
+        if (value instanceof int[]) {
+            return TAG_INT_ARRAY;
+        }
+        if (value instanceof java.util.List) {
+            return TAG_LIST;
+        }
+        if (value instanceof java.util.Map) {
+            return TAG_COMPOUND;
+        }
+        throw new IllegalArgumentException("Unsupported boxed NBT value: "
+                + value.getClass().getName());
+    }
+
+    /** Parses one compound's rows into boxes (the reader's own walk). */
+    private static java.util.Map<String, Object> parseCompoundPayload(ByteBuf in) {
+        java.util.Map<String, Object> out = new java.util.LinkedHashMap<>();
+        while (true) {
+            int type = in.readUnsignedByte();
+            if (type == TAG_END) {
+                return out;
+            }
+            String name = readShortString(in);
+            out.put(name, parsePayload(in, type));
+        }
+    }
+
+    /** One payload's boxed form (the writer's inverse). */
+    private static Object parsePayload(ByteBuf in, int type) {
+        switch (type) {
+            case TAG_BYTE -> { return in.readByte(); }
+            case TAG_SHORT -> { return in.readShort(); }
+            case TAG_INT -> { return in.readInt(); }
+            case TAG_LONG -> { return in.readLong(); }
+            case TAG_FLOAT -> { return in.readFloat(); }
+            case TAG_DOUBLE -> { return in.readDouble(); }
+            case TAG_STRING -> { return readShortString(in); }
+            case TAG_LIST -> {
+                int elementType = in.readUnsignedByte();
+                int length = in.readInt();
+                java.util.List<Object> elements = new java.util.ArrayList<>(length);
+                for (int i = 0; i < length; i++) {
+                    elements.add(parsePayload(in, elementType));
+                }
+                return java.util.List.copyOf(elements);
+            }
+            case TAG_INT_ARRAY -> {
+                int length = in.readInt();
+                int[] values = new int[length];
+                for (int i = 0; i < length; i++) {
+                    values[i] = in.readInt();
+                }
+                return values;
+            }
+            case TAG_COMPOUND -> { return parseCompoundPayload(in); }
+            default -> throw new IllegalArgumentException("Unknown NBT tag type: " + type);
         }
     }
 
