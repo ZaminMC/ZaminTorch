@@ -2179,6 +2179,12 @@ public final class EngineServer implements Server, EngineBridge {
                 // The public §27.3 primed-TNT view: the live fuse bodies.
                 world.attachPrimedTntView(tntSystem::primedBodies);
                 ticker.setTickHandler(() -> {
+                    // The /debug profiler's head (MinecraftServer.tick lines
+                    // 489-494 + 497): the delayed activation — a profiling
+                    // request from /debug start turns on HERE, the table
+                    // reset — then root and the jobs section (tickWorlds'
+                    // own first section, the cross-owner drains inside).
+                    tickProfilerBegin();
                     // The per-region boundary walk FIRST (the §7 protocol's
                     // target-side apply): every live region domain drains its
                     // inbound cross-owner intents at its own boundary, so an
@@ -2187,6 +2193,13 @@ public final class EngineServer implements Server, EngineBridge {
                     world.drainRegionIntents(crossOwnerRouter);
                     netherWorld.drainRegionIntents(crossOwnerRouter);
                     endWorld.drainRegionIntents(crossOwnerRouter);
+                    // swap("levels") + the world's own name and tick section
+                    // (tickWorlds lines 544-561: jobs closes, the levels
+                    // section opens, each world pushes its data name then
+                    // its tick section — the engine's one walk carries all
+                    // three worlds' systems; the reference's per-world loop
+                    // is the engine's systems fan, ledgered).
+                    tickProfilerLevels();
                     blockUpdateSystem.tick(); // §466: scheduled updates (falls start here)
                     redstoneSystem.tick(); // the torch/repeater scheduled reactions
                     pistonSystem.tick(); // the piston block events + the moving carriers
@@ -2286,6 +2299,13 @@ public final class EngineServer implements Server, EngineBridge {
                     if (tabList != null) {
                         tabList.tick(players);
                     }
+                    // The /debug profiler's tail (tickWorlds lines 580-599 +
+                    // tick's own pop at 533): the world's tick section and its
+                    // name close, the connection/players/tickables sections
+                    // ride (the engine's equivalents live in the ticker's own
+                    // submitted-task drain — the sections stand empty here,
+                    // ledgered), then root closes.
+                    tickProfilerEnd();
                 });
                 witherSweepDrops = new DropService(new java.util.Random()); // Slice 59: the engine-side break walk's own table
                 // The skull store (Slice 60): the tiles + the summon
@@ -17581,9 +17601,8 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /**
-     * /debug (DebugCommand 1:1, op-3): the start/stop arms. The engine
-     * carries no profiler — the arms answer the feedback and the profiler
-     * itself is ledgered as pending.
+     * /debug (DebugCommand 1:1, op-3): the start/stop arms over the real
+     * profiler — the delayed activation, the span anchors, the report walk.
      */
     private String debugCommand(CommandSender sender, String[] args) {
         if (args.length < 1) {
@@ -17593,15 +17612,160 @@ public final class EngineServer implements Server, EngineBridge {
             if (args.length != 1) {
                 return "Usage: /debug <start|stop>";
             }
+            // DebugCommand's start arm: the delayed activation (the next
+            // tick's head turns the table on) + the span anchors.
+            debugStartMillis = System.currentTimeMillis();
+            debugStartTicks = world.totalTicks();
+            profilerRequested = true;
             return "Started debugging";
         }
         if ("stop".equals(args[0])) {
             if (args.length != 1) {
                 return "Usage: /debug <start|stop>";
             }
-            return "Stopped debugging. After 10 seconds, traced 0 tick events";
+            if (!profiler.isProfiling()) {
+                return "Not started profiling";
+            }
+            long durationMillis = System.currentTimeMillis() - debugStartMillis;
+            long durationTicks = world.totalTicks() - debugStartTicks;
+            // The report builds while the table still collects (the
+            // reference's own order), then the table turns off.
+            writeProfilerReport(durationMillis, durationTicks);
+            profiler.stop();
+            profilerRequested = false;
+            return "Stopped debugging. After " + (durationMillis / 1000.0)
+                    + " seconds, traced " + durationTicks + " tick events";
         }
         return "Usage: /debug <start|stop>";
+    }
+
+    // --- the /debug profiler (Slice 90 p2 — Profiler 1:1) --------------------
+
+    /** The engine's profiler (the reference's MinecraftServer.profiler). */
+    private final net.zaminmc.torch.server.profiler.EngineProfiler profiler =
+            new net.zaminmc.torch.server.profiler.EngineProfiler();
+    /** The delayed-activation request (MinecraftServer.profiling's own flag). */
+    private volatile boolean profilerRequested;
+    private long debugStartMillis;
+    private long debugStartTicks;
+
+    /** The tick head: the delayed activation, root, and the jobs section. */
+    private void tickProfilerBegin() {
+        if (profilerRequested) {
+            profilerRequested = false;
+            profiler.start();
+        }
+        profiler.push("root");
+        profiler.push("jobs");
+    }
+
+    /** jobs closes; the levels section opens with the world's name and tick. */
+    private void tickProfilerLevels() {
+        profiler.swap("levels");
+        profiler.push(config.worldName());
+        profiler.push("tick");
+    }
+
+    /** The tick tail: the world closes, the late sections, root closes. */
+    private void tickProfilerEnd() {
+        profiler.pop(); // the world's tick section
+        profiler.pop(); // the world's name
+        profiler.swap("connection");
+        profiler.swap("players");
+        profiler.swap("tickables");
+        profiler.pop(); // tickables closes (tickWorlds line 599)
+        profiler.pop(); // root closes (tick line 533)
+    }
+
+    /**
+     * The profiler's report (DebugCommand's own walk): the debug/ folder's
+     * profile-results-&lt;timestamp&gt;.txt — the witty comment, the time and
+     * tick spans, the ticks-per-second line, and the BEGIN/END PROFILE DUMP
+     * with the recursive section tree (the [NN] spacing, the location -
+     * %-of-parent/%-of-total rows, the "unspecified" children's recursion
+     * refusal).
+     */
+    private void writeProfilerReport(long durationMillis, long durationTicks) {
+        try {
+            java.nio.file.Path debugDir = java.nio.file.Path.of(config.dataDir(), "debug");
+            java.nio.file.Files.createDirectories(debugDir);
+            String stamp = new java.text.SimpleDateFormat("yyyy-MM-dd_HH.mm.ss")
+                    .format(new java.util.Date());
+            java.nio.file.Path file = debugDir.resolve("profile-results-" + stamp + ".txt");
+            java.nio.file.Files.writeString(file, buildProfilerReport(durationMillis, durationTicks));
+        } catch (Exception writeError) {
+            LOGGER.warning(() -> "Could not save profiler results: " + writeError);
+        }
+    }
+
+    private String buildProfilerReport(long durationMillis, long durationTicks) {
+        StringBuilder report = new StringBuilder();
+        report.append("---- Minecraft Profiler Results ----\n");
+        report.append("// ").append(wittyComment()).append("\n\n");
+        report.append("Time span: ").append(durationMillis).append(" ms\n");
+        report.append("Tick span: ").append(durationTicks).append(" ticks\n");
+        report.append("// This is approximately ")
+                .append(String.format("%.2f", durationTicks / (durationMillis / 1000.0)))
+                .append(" ticks per second. It should be ")
+                .append(20)
+                .append(" ticks per second\n\n");
+        report.append("--- BEGIN PROFILE DUMP ---\n\n");
+        addProfilerResults(0, "root", report);
+        report.append("--- END PROFILE DUMP ---\n\n");
+        return report.toString();
+    }
+
+    /** DebugCommand.addResults 1:1 — the recursive section tree. */
+    private void addProfilerResults(int spacing, String location, StringBuilder report) {
+        java.util.List<net.zaminmc.torch.server.profiler.EngineProfiler.Result> list =
+                profiler.getResults(location);
+        if (list != null && list.size() >= 3) {
+            for (int i = 1; i < list.size(); i++) {
+                net.zaminmc.torch.server.profiler.EngineProfiler.Result result = list.get(i);
+                report.append(String.format("[%02d] ", spacing));
+                for (int j = 0; j < spacing; j++) {
+                    report.append(" ");
+                }
+                report.append(result.location)
+                        .append(" - ")
+                        .append(String.format("%.2f", result.percentageOfParent))
+                        .append("%/")
+                        .append(String.format("%.2f", result.percentageOfTotal))
+                        .append("%\n");
+                if (!"unspecified".equals(result.location)) {
+                    try {
+                        addProfilerResults(spacing + 1, location + "." + result.location, report);
+                    } catch (Exception recursionError) {
+                        report.append("[[ EXCEPTION ").append(recursionError).append(" ]]");
+                    }
+                }
+            }
+        }
+    }
+
+    /** DebugCommand.getWittyComment 1:1 — the nanoTime selection. */
+    private static String wittyComment() {
+        String[] comments = {
+                "Shiny numbers!",
+                "Am I not running fast enough? :(",
+                "I'm working as hard as I can!",
+                "Will I ever be good enough for you? :(",
+                "Speedy. Zoooooom!",
+                "Hello world",
+                "40% better than a crash report.",
+                "Now with extra numbers",
+                "Now with less numbers",
+                "Now with the same numbers",
+                "You should add flames to things, it makes them go faster!",
+                "Do you feel the need for... optimization?",
+                "*cracks redstone whip*",
+                "Maybe if you treated it better then it'll have more motivation to work faster! Poor server."
+        };
+        try {
+            return comments[(int) (System.nanoTime() % comments.length)];
+        } catch (Throwable unavailable) {
+            return "Witty comment unavailable :(";
+        }
     }
 
     /**
