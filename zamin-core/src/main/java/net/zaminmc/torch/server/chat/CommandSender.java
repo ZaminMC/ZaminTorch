@@ -56,4 +56,14 @@ public interface CommandSender {
         PlayerSession p = player();
         return p != null ? TargetSelector.Candidate.candidateOf(p) : null;
     }
+
+    /**
+     * The command's result reporting — 1:1 the reference's
+     * CommandSource.addResult. The console's arm is empty (the
+     * MinecraftServer's own override); the entity senders route to their
+     * stat holder, the dispatch layer reports the registry-level counts.
+     */
+    default void addResult(net.zaminmc.torch.server.command.EngineCommandResults.Type type,
+                           int result) {
+    }
 }

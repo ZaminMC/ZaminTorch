@@ -76,6 +76,7 @@ public final class CommandService {
         }
         if (line.isEmpty()) {
             sender.sendMessage("Usage: /<command>");
+            sender.addResult(net.zaminmc.torch.server.command.EngineCommandResults.Type.SUCCESS_COUNT, 0);
             return 0;
         }
         String[] parts = line.split("\\s+");
@@ -84,21 +85,32 @@ public final class CommandService {
             // Vanilla behavior: an unknown or unauthorized command does not
             // reveal itself; the refusal text is identical for both.
             sender.sendMessage("Unknown command. Type \"/help\" for help.");
+            // The reference's run reports the zero on every path (the
+            // trailing addResult(SUCCESS_COUNT, j) after the if/else).
+            sender.addResult(net.zaminmc.torch.server.command.EngineCommandResults.Type.SUCCESS_COUNT, 0);
             return 0;
         }
+        // The registry-level result reporting (CommandRegistry.run's own
+        // addResult pair): one affected entity for the plain arm (the
+        // reference's multi-selector expansion reports its count — the
+        // engine's commands carry their multi-targets internally; ledgered).
+        sender.addResult(net.zaminmc.torch.server.command.EngineCommandResults.Type.AFFECTED_ENTITIES, 1);
         String[] args = new String[Math.max(0, parts.length - 1)];
         System.arraycopy(parts, 1, args, 0, args.length);
-        String result;
+        String result = null;
+        int success;
         try {
             result = command.executor().apply(sender, args);
+            success = 1;
         } catch (RuntimeException e) {
             // A broken command must not damage the engine (§54); report to the sender.
             sender.sendMessage("Command failed: " + e.getMessage());
-            return 0;
+            success = 0;
         }
+        sender.addResult(net.zaminmc.torch.server.command.EngineCommandResults.Type.SUCCESS_COUNT, success);
         if (result != null && !result.isEmpty()) {
             sender.sendMessage(result);
         }
-        return 1;
+        return success;
     }
 }
