@@ -8329,3 +8329,67 @@ readNbt projections are the missing piece); (2) /achievement + the
 achievement system (parent chains, toasts); (3) the /debug profiler
 ledger; (4) the stats' tile/entity NBT persistence; (5) the §27
 window-family re-sync rows + the border's worldborder.json persistence.
+
+## Slice 89 — the NBT surface (the per-family writeNbt/readNbt projections + the NBT command arms)
+
+- **THE NBT SURFACE** (`server/nbt/`): NbtOps (the NbtCompound/NbtUtils/
+  NbtElement surface over Snbt.Tag — the deep copy, the deep equality
+  with compounds-unordered/lists-ordered, the reference's recursive
+  merge, the NbtUtils.matches subset check with the list recursion, the
+  SNBT writer with the per-type suffix forms, and the getter family's
+  exact coercion contracts: contains(key,99)'s any-numeric widening,
+  getBoolean getByte!=0, getList's element-family gate; Tag.asLong's
+  64-bit fix — the widened getters truncated the UUID rows), ItemNbt
+  (the id/Count/Damage rows), EngineCommandResults.readNbt/writeNbt
+  (the CommandStats compound), PotionSystem.putFromNbt (the
+  replace-without-gates arm), and the LeadSystem tick's stashed-leash
+  resolution (the knot by position, the holder by uuid, the third
+  resolver seam).
+- **ENTITYNBT** (the reference's Entity.writeNbtWithoutId/readNbt + the
+  LivingEntity and MobEntity custom walks + the per-type rows): MobEntity
+  grew the base rows (uuid with the LONG-pair read, silent, pitch,
+  setRotation's head-yaw follow, the raw fire/hurt/death accessors,
+  setVelocity/setOnGround, public rawPersistent, the leashNbt stash +
+  applyLeashRows, the per-type setters, setZombieConversionTime's -1
+  arm). The per-type rows: sheep Sheared/Color, pig Saddle, horse
+  Type/Variant/Temper/Tame with the armor/saddle through the reference's
+  own ITEM row forms, villager Profession, wolf
+  Tame/Sitting/Angry/CollarColor, zombie
+  IsVillager/IsBaby-only-when-true/ConversionTime-with->-1.
+- **TILENBT** (the reference's BlockEntity.writeNbt/readNbt): the id
+  registry 1:1 with the engine's own block-name spellings (furnace_lit,
+  wall_sign*, skull_*, the comparator pairs, hopper_*, the brewing
+  stand's bottle variants, jukebox_record), the per-family projections
+  (chest/furnace/hopper/dispenser/brewing/beacon/sign/spawner/control/
+  jukebox/skull), the Seams record wired in EngineServer with the public
+  tileNbt() accessor + EngineWorld.blockRegistry(); CommandState's
+  setters public; HopperBlockEntity.cooldown(); JukeboxBlockSystem
+  .restoreRecord.
+- **THE COMMAND ARMS**: /blockdata (the write-merge-compare-read cycle
+  with the forced x/y/z, the unchanged refusal, the notValid/outOfWorld
+  refusals, the block re-publish), /entitydata (the noPlayers refusal,
+  the UUID strip, the read back whose Pos rows MOVE the body), /testfor's
+  dataTag (the subset match against the written rows), /testforblock's
+  dataTag (the reference's hasBlockEntity gate on the EXPECTED block),
+  and /summon's NBT now reads through EntityNbt.readNbt with the
+  reference's own order (the whole entity reads, THEN the command
+  coordinates override the Pos rows; the Rotation/Motion stick) — the
+  hand-rolled applySummonNbt/parseItemNbt removed.
+- **THE NoAI MOVEMENT GATE** (found by the tests): the reference's
+  isLocallyControlled over moveRelative — a pinned body integrates NO
+  motion (the vanilla midair freeze), the velocity decays *0.98, the
+  contact arms and wounds continue, the flight families' own integration
+  ledgered.
+- Tests: NbtOpsTest (6), EntityNbtTest (11), TileNbtTest (6),
+  NbtCommandsTest (3) — the affected batches green (nbt, leash, entity,
+  container families, MissingCommandsWaveOne, GiantMob).
+
+NEXT (in order): (1) /achievement + the achievement system (parent
+chains, toasts); (2) the /debug profiler; (3) the stats' tile/entity
+NBT persistence (the ZCB/ZMD envelopes now carry the rows through
+EngineCommandResults.readNbt/writeNbt — the wiring is the piece); (4)
+the §27 window-family re-sync rows + the border's worldborder.json
+persistence; (5) the older ledgered gaps (the MC|AdvCdm arm type 0, the
+areCommandBlocksEnabled gate, the vehicle damage-source surface, the
+variant carts' VariantState read view, the public Player-surface
+title/chat exposure).
