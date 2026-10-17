@@ -20771,6 +20771,19 @@ public final class EngineServer implements Server, EngineBridge {
         // ZPD v9: the statistics return with the player (the stats slice —
         // an empty map in older files).
         session.stats().load(snapshot.stats());
+        // ZPD v10: the command-stat bindings return with the player (Slice 90 —
+        // the reference's Entity.readNbt line 1195).
+        if (!snapshot.commandStats().isEmpty()) {
+            java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> envelope =
+                    new java.util.LinkedHashMap<>();
+            java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> stats =
+                    new java.util.LinkedHashMap<>();
+            for (java.util.Map.Entry<String, String> pair : snapshot.commandStats().entrySet()) {
+                net.zaminmc.torch.server.nbt.NbtOps.putString(stats, pair.getKey(), pair.getValue());
+            }
+            net.zaminmc.torch.server.nbt.NbtOps.putCompound(envelope, "CommandStats", stats);
+            session.commandResults().readNbt(envelope);
+        }
         session.setBody(snapshot.health(), snapshot.food(), snapshot.saturation());
     }
 
@@ -20812,7 +20825,25 @@ public final class EngineServer implements Server, EngineBridge {
                 session.rotation(), session.inventory().heldSlot(), filled,
                 session.health(), session.food(), session.saturation(),
                 session.gamemode().legacyId(), session.totalXp(), session.bedSpawn(), ender,
-                session.stats().snapshot());
+                session.stats().snapshot(), commandStatsOf(session));
+    }
+
+    /**
+     * The session's command-stat bindings' snapshot (Slice 90 — the
+     * reference's Entity.writeNbt line 1128: the player's .dat carries its
+     * CommandResults): the flattened pairs, empty when nothing is bound.
+     */
+    private static java.util.Map<String, String> commandStatsOf(PlayerSession session) {
+        java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> envelope =
+                new java.util.LinkedHashMap<>();
+        session.commandResults().writeNbt(envelope);
+        java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> stats =
+                net.zaminmc.torch.server.nbt.NbtOps.getCompound(envelope, "CommandStats");
+        java.util.Map<String, String> pairs = new java.util.LinkedHashMap<>();
+        for (java.util.Map.Entry<String, net.zaminmc.torch.server.nbt.Snbt.Tag> pair : stats.entrySet()) {
+            pairs.put(pair.getKey(), net.zaminmc.torch.server.nbt.NbtOps.getString(stats, pair.getKey()));
+        }
+        return pairs;
     }
 
     /**

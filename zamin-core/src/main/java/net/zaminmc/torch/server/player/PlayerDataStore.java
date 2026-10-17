@@ -49,7 +49,7 @@ public final class PlayerDataStore {
     private static final int MAGIC_0 = 'Z';
     private static final int MAGIC_1 = 'P';
     private static final int MAGIC_2 = 'D';
-    private static final int FORMAT_VERSION = 9;
+    private static final int FORMAT_VERSION = 10;
 
     private final Path directory;
 
@@ -115,6 +115,13 @@ public final class PlayerDataStore {
                 for (java.util.Map.Entry<String, Integer> stat : snapshot.stats().entrySet()) {
                     writeString(out, stat.getKey());
                     writeVarInt(out, stat.getValue());
+                }
+                // ZPD v10: the command-stat tail (Slice 90 — the reference's
+                // Entity.writeNbt: the player's .dat carries its CommandResults).
+                writeVarInt(out, snapshot.commandStats().size());
+                for (java.util.Map.Entry<String, String> pair : snapshot.commandStats().entrySet()) {
+                    writeString(out, pair.getKey());
+                    writeString(out, pair.getValue());
                 }
             }
             Files.move(temp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
@@ -198,9 +205,20 @@ public final class PlayerDataStore {
                     stats.put(key, readVarInt(in));
                 }
             }
+            // Version 10 appends the command-stat pairs; older saves load empty.
+            java.util.Map<String, String> commandStats = new java.util.LinkedHashMap<>();
+            if (version >= 10) {
+                int pairCount = readVarInt(in);
+                if (pairCount < 0 || pairCount > 64) {
+                    throw new IOException("Implausible command-stat pair count: " + pairCount);
+                }
+                for (int i = 0; i < pairCount; i++) {
+                    commandStats.put(readString(in), readString(in));
+                }
+            }
             return Optional.of(new PlayerSnapshot(uuid, name, position, rotation, heldSlot,
                     stacks, health, food, saturation, gamemodeId, totalXp, bedSpawn, enderSlots,
-                    stats));
+                    stats, commandStats));
         } catch (IOException | RuntimeException corrupt) {
             // A malformed value (bad identifier, out-of-range slot) is corruption
             // just as much as a broken header: quarantine, then treat as absent.
