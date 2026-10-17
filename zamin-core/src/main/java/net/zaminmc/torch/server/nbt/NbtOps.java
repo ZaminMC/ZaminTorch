@@ -284,6 +284,130 @@ public final class NbtOps {
         return tag.asDouble();
     }
 
+    // ------------------------------------------------------------------
+    // The boxed-tree adapters (Wave H2 — ItemStack's BlockEntityTag arm
+    // carries the raw compound in its boxed form; the api module cannot
+    // see this package's tag type, so the arm stores the tree as
+    // Map<String, Object> and the rows are adapted here, at every
+    // boundary that needs Snbt.Tag rows: ItemNbt's row, the placement
+    // consult's merge, the persistence stores' SNBT tails)
+    // ------------------------------------------------------------------
+
+    /**
+     * One tag tree into its boxed form (the api record's carrier):
+     * scalars into their boxes, int arrays cloned, lists and compounds
+     * walked recursively. The answer's {@code Map}/{@code List} equals is
+     * the reference's NbtCompound.equals (unordered keys, ordered lists).
+     */
+    public static Map<String, Object> toBoxed(Map<String, Snbt.Tag> rows) {
+        Map<String, Object> out = new LinkedHashMap<>();
+        if (rows == null) {
+            return out;
+        }
+        for (Map.Entry<String, Snbt.Tag> row : rows.entrySet()) {
+            out.put(row.getKey(), toBoxedElement(row.getValue()));
+        }
+        return out;
+    }
+
+    /** One element's boxed form (the per-type walk, mirrors copyElement). */
+    public static Object toBoxedElement(Snbt.Tag tag) {
+        if (tag == null) {
+            return null;
+        }
+        return switch (tag.type()) {
+            case BYTE -> tag.asByte();
+            case SHORT -> (short) widen(tag);
+            case INT -> (int) widen(tag);
+            case LONG -> tag.asLong();
+            case FLOAT -> (float) widen(tag);
+            case DOUBLE -> tag.asDouble();
+            case STRING -> tag.asString();
+            case INT_ARRAY -> {
+                int[] rows = tag.asIntArray();
+                yield rows == null ? new int[0] : rows.clone();
+            }
+            case LIST -> {
+                List<Snbt.Tag> elements = tag.asList();
+                List<Object> copied = new ArrayList<>();
+                if (elements != null) {
+                    for (Snbt.Tag element : elements) {
+                        copied.add(toBoxedElement(element));
+                    }
+                }
+                yield List.copyOf(copied);
+            }
+            case COMPOUND -> toBoxed(tag.asCompound());
+        };
+    }
+
+    /**
+     * A boxed tree back into tag rows (the consult/row side): the walk is
+     * the inverse of {@link #toBoxed} — every family one-to-one. The
+     * api-side sanitizer guarantees the shape, so an unexpected type here
+     * is a programming error and fails loudly.
+     */
+    public static Map<String, Snbt.Tag> fromBoxed(Map<String, Object> boxed) {
+        Map<String, Snbt.Tag> out = new LinkedHashMap<>();
+        if (boxed == null) {
+            return out;
+        }
+        for (Map.Entry<String, Object> row : boxed.entrySet()) {
+            out.put(row.getKey(), fromBoxedElement(row.getValue()));
+        }
+        return out;
+    }
+
+    /** One boxed value's tag form (the inverse walk). */
+    public static Snbt.Tag fromBoxedElement(Object value) {
+        if (value == null) {
+            throw new IllegalArgumentException("A boxed NBT value is null");
+        }
+        if (value instanceof Byte b) {
+            return Snbt.Tag.ofByte(b);
+        }
+        if (value instanceof Short s) {
+            return Snbt.Tag.ofShort(s);
+        }
+        if (value instanceof Integer i) {
+            return Snbt.Tag.ofInt(i);
+        }
+        if (value instanceof Long l) {
+            return Snbt.Tag.ofLong(l);
+        }
+        if (value instanceof Float f) {
+            return Snbt.Tag.ofFloat(f);
+        }
+        if (value instanceof Double d) {
+            return Snbt.Tag.ofDouble(d);
+        }
+        if (value instanceof String str) {
+            return Snbt.Tag.ofString(str);
+        }
+        if (value instanceof int[] array) {
+            return Snbt.Tag.ofIntArray(array.clone());
+        }
+        if (value instanceof List<?> list) {
+            List<Snbt.Tag> copied = new ArrayList<>(list.size());
+            for (Object element : list) {
+                copied.add(fromBoxedElement(element));
+            }
+            return Snbt.Tag.ofList(copied);
+        }
+        if (value instanceof Map<?, ?> map) {
+            Map<String, Snbt.Tag> copied = new LinkedHashMap<>();
+            for (Map.Entry<?, ?> row : map.entrySet()) {
+                if (!(row.getKey() instanceof String key)) {
+                    throw new IllegalArgumentException("A boxed NBT compound carries a non-string key");
+                }
+                copied.put(key, fromBoxedElement(row.getValue()));
+            }
+            return Snbt.Tag.ofCompound(copied);
+        }
+        throw new IllegalArgumentException("Unsupported boxed NBT value type: "
+                + value.getClass().getName());
+    }
+
     /**
      * The deep equality (the reference's entrySet equals): compounds compare
      * their key rows with deep-equal values (order-insensitive, the map
