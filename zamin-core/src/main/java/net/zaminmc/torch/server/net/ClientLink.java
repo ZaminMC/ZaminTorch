@@ -291,4 +291,13 @@ public interface ClientLink {
      */
     default void sendChatComponent(String json, int position) {
     }
+
+    /**
+     * Spawn Position (0x05): the world spawn re-anchor (the reference's
+     * PlayerManager.sendPacket on /setworldspawn; the join burst carries
+     * the same packet). Safe from any thread; default no-op for
+     * engine-internal links.
+     */
+    default void updateSpawnPosition(int x, int y, int z) {
+    }
 }

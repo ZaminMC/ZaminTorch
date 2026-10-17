@@ -1,0 +1,212 @@
+package net.zaminmc.torch.server;
+
+import net.zaminmc.torch.server.command.TargetSelector;
+import net.zaminmc.torch.server.config.EngineConfig;
+import net.zaminmc.torch.server.entity.MobType;
+import net.zaminmc.torch.server.player.PlayerSession;
+import net.zaminmc.torch.util.Position;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import java.nio.file.Path;
+import java.util.UUID;
+import java.util.concurrent.CopyOnWriteArrayList;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+/**
+ * The missing-commands batch, wave one (Slice 88): /kill's any-kind arm
+ * (the selector ladder; a mob leaves without drops, a player walks the
+ * death walk), /testfor's ladder + success line, /toggledownfall's flip,
+ * /spawnpoint's bed-spawn stamp, and /setworldspawn's move + 0x05
+ * broadcast.
+ */
+class MissingCommandsWaveOneTest {
+
+    @TempDir
+    Path dataDir;
+
+    EngineServer server;
+    PlayerSession alice;
+    PlayerSession bob;
+    final CopyOnWriteArrayList<String> bobWire = new CopyOnWriteArrayList<>();
+
+    @BeforeEach
+    void boot() throws Exception {
+        EngineConfig config = new EngineConfig("127.0.0.1", 0,
+                "waveone" + Math.abs(UUID.randomUUID().hashCode() % 100000),
+                "it", 20, 2, 20, dataDir.toString(),
+                net.zaminmc.torch.GameMode.SURVIVAL);
+        server = new EngineServer(config);
+        server.start();
+        alice = join("Alice", new RecordingLink());
+        bob = join("Bob", new RecordingLink(bobWire));
+        await(() -> alice.state() == net.zaminmc.torch.entity.PlayerState.PLAYING
+                        && bob.state() == net.zaminmc.torch.entity.PlayerState.PLAYING,
+                "both playing");
+        server.ticker().submit(() -> alice.setOpLevel(2));
+        await(() -> alice.opLevel() >= 2, "Alice opped");
+    }
+
+    @AfterEach
+    void stop() {
+        server.shutdown(null);
+    }
+
+    private static final class RecordingLink implements net.zaminmc.torch.server.net.ClientLink {
+        final CopyOnWriteArrayList<String> wire;
+
+        RecordingLink() {
+            this(new CopyOnWriteArrayList<>());
+        }
+
+        RecordingLink(CopyOnWriteArrayList<String> wire) {
+            this.wire = wire;
+        }
+
+        @Override
+        public boolean isActive() {
+            return true;
+        }
+
+        @Override
+        public void kick(String reason) {
+        }
+
+        @Override
+        public void updateSpawnPosition(int x, int y, int z) {
+            wire.add("spawnPos:" + x + "/" + y + "/" + z);
+        }
+    }
+
+    private PlayerSession join(String name, RecordingLink link) {
+        var accepted = (net.zaminmc.torch.server.net.EngineBridge.Accepted)
+                server.joinRequest(link, name,
+                        UUID.nameUUIDFromBytes(("OfflinePlayer:" + name).getBytes()));
+        PlayerSession session = accepted.session();
+        server.ticker().submit(session::markPlaying);
+        return session;
+    }
+
+    private String dispatch(String line) {
+        // submitChat returns nothing; the feedback rides the system path.
+        server.chatService().submitChat(alice, line);
+        return null;
+    }
+
+    @Test
+    void theKillAnyKindArm() throws Exception {
+        Position at = alice.position();
+        server.ticker().submit(() -> {
+            server.mobs().spawnAt(MobType.ZOMBIE, new Position(at.x() + 3, at.y(), at.z()));
+        });
+        await(() -> server.mobs().all().stream().anyMatch(m -> m.type() == MobType.ZOMBIE),
+                "the zombie spawned");
+
+        // By selector: the mob leaves without drops.
+        dispatch("/kill @e[type=Zombie]");
+        await(() -> server.mobs().all().stream().noneMatch(m -> m.type() == MobType.ZOMBIE),
+                "the zombie removed");
+
+        // By name: the player arm still answers (the death walk is tested by
+        // the survival suites; here the ladder resolves).
+        dispatch("/kill Bob");
+        await(() -> bob.dead() || bob.state() != net.zaminmc.torch.entity.PlayerState.PLAYING,
+                "the death walk ran");
+    }
+
+    @Test
+    void theTestforLadder() throws Exception {
+        Position at = alice.position();
+        server.ticker().submit(() -> {
+            server.mobs().spawnAt(MobType.COW, new Position(at.x() - 3, at.y(), at.z()));
+        });
+        await(() -> server.mobs().all().stream().anyMatch(m -> m.type() == MobType.COW),
+                "the cow spawned");
+        // The engine's dispatch catches the refusal and answers the sender;
+        // the ladder itself is exercised through CommandParse here.
+        TargetSelector.Candidate byName = net.zaminmc.torch.server.command.CommandParse
+                .parseEntity(server.playerRegistry(), aliceSender(), "Alice");
+        assertEquals("Alice", byName.name());
+        assertTrue(byName.player());
+        TargetSelector.Candidate bySelector = net.zaminmc.torch.server.command.CommandParse
+                .parseEntity(server.playerRegistry(), aliceSender(), "@e[type=Cow]");
+        assertEquals("Cow", bySelector.name());
+        assertFalse(bySelector.player());
+        boolean refused = false;
+        try {
+            net.zaminmc.torch.server.command.CommandParse.parseEntity(
+                    server.playerRegistry(), aliceSender(), "Nobody");
+        } catch (IllegalArgumentException expected) {
+            refused = "That entity could not be found".equals(expected.getMessage());
+        }
+        assertTrue(refused, "the not-found refusal");
+    }
+
+    @Test
+    void theToggledownfallFlip() throws Exception {
+        boolean before = server.weather().raining();
+        dispatch("/toggledownfall");
+        await(() -> server.weather().raining() != before, "the rain flag flipped");
+        dispatch("/toggledownfall");
+        await(() -> server.weather().raining() == before, "the rain flag flipped back");
+    }
+
+    @Test
+    void theSpawnpointStamp() throws Exception {
+        assertNull(bob.bedSpawn(), "no stamp yet");
+        dispatch("/spawnpoint Bob 10 64 10");
+        await(() -> bob.bedSpawn() != null, "the stamp landed");
+        Position stamp = bob.bedSpawn();
+        assertEquals(10.5, stamp.x(), 1e-9);
+        assertEquals(64.0, stamp.y(), 1e-9);
+        assertEquals(10.5, stamp.z(), 1e-9);
+    }
+
+    @Test
+    void theSetworldspawnBroadcast() throws Exception {
+        dispatch("/setworldspawn 5 40 5");
+        await(() -> !bobWire.isEmpty(), "the 0x05 broadcast reached Bob");
+        assertEquals("spawnPos:5/40/5", bobWire.get(0));
+        Position spawn = server.world().spawnPosition();
+        assertEquals(5.5, spawn.x(), 1e-9);
+        assertEquals(40.0, spawn.y(), 1e-9);
+        assertEquals(5.5, spawn.z(), 1e-9);
+    }
+
+    private net.zaminmc.torch.server.chat.CommandSender aliceSender() {
+        return new net.zaminmc.torch.server.chat.CommandSender() {
+            @Override public String name() {
+                return "Alice";
+            }
+
+            @Override public void sendMessage(String message) {
+            }
+
+            @Override public int opLevel() {
+                return 2;
+            }
+
+            @Override public PlayerSession player() {
+                return alice;
+            }
+        };
+    }
+
+    private void await(java.util.function.BooleanSupplier condition, String description)
+            throws InterruptedException {
+        long deadline = System.currentTimeMillis() + 30_000;
+        while (System.currentTimeMillis() < deadline) {
+            if (condition.getAsBoolean()) {
+                return;
+            }
+            Thread.sleep(50);
+        }
+        throw new AssertionError("Condition not met in time: " + description);
+    }
+}

@@ -39,6 +39,37 @@ public final class CommandParse {
         return serverplayerentity;
     }
 
+    /**
+     * The reference's parseEntity(source, s) 1:1: the any-kind ladder —
+     * selector first, then the player registry by name, then by uuid.
+     * Mob-kind matches only arrive through selectors (the reference's own
+     * shape: the non-selector arms consult the player manager).
+     */
+    public static TargetSelector.Candidate parseEntity(
+            PlayerRegistry players, CommandSender source, String s) {
+        TargetSelector.Candidate entity = TargetSelector.selectFirst(
+                TargetSelector.sourceViewOf(source), s);
+        if (entity == null) {
+            PlayerSession byName = players.byName(s).orElse(null);
+            if (byName != null) {
+                return TargetSelector.Candidate.candidateOf(byName);
+            }
+            try {
+                PlayerSession byUuid = players.byUuid(UUID.fromString(s)).orElse(null);
+                if (byUuid != null) {
+                    return TargetSelector.Candidate.candidateOf(byUuid);
+                }
+            } catch (IllegalArgumentException illegalargumentexception) {
+                // swallowed, the reference's own catch
+            }
+        }
+
+        if (entity == null) {
+            throw new IllegalArgumentException("That entity could not be found");
+        }
+        return entity;
+    }
+
     /** The reference's parseString(args, startIndex): the space-joined tail. */
     public static String parseString(String[] args, int startIndex) {
         StringBuilder sb = new StringBuilder();
