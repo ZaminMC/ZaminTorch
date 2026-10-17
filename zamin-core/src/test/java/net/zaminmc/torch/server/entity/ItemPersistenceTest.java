@@ -303,4 +303,41 @@ class ItemPersistenceTest {
         // The tree stays deeply immutable after the ride.
         assertTrue(stack.blockEntityTag().get("Items") instanceof java.util.List);
     }
+
+    @Test
+    void theAttributeModifiersRideTheZidTail(@TempDir Path dir) throws Exception {
+        // Wave J — the ZID v6 tail: the whole modifier list as ONE
+        // parseable-SNBT string row (the BlockEntityTag tail's own
+        // pattern), round-tripped through the store. A v5-era body loads
+        // with the arm absent (the null marker never parses).
+        ItemEntityManager manager = new ItemEntityManager(GROUND, new Random(11), 1);
+        java.util.UUID uuid = java.util.UUID.fromString(
+                "CB3F55D3-645C-4F38-A497-9C13A33DB5CF");
+        manager.spawnDropAtBlock(new Position(2.5, 6.0, 2.5),
+                ItemStack.of(BuiltinItems.DIAMOND_SWORD, 1)
+                        .withAttributeModifiers(java.util.List.of(
+                                new net.zaminmc.torch.item.AttributeModifier(
+                                        "generic.attackDamage", "Weapon modifier",
+                                        10.0, 0, uuid))),
+                0);
+
+        ItemDataStore store = new ItemDataStore(dir.resolve("items.bin"));
+        store.save(manager.snapshot());
+        var loaded = store.load();
+        assertEquals(1, loaded.size());
+        net.zaminmc.torch.item.ItemStack held = loaded.get(0).stack();
+        assertTrue(held.attributeModifiers() != null, "the arm rode the v6 tail");
+        assertEquals(1, held.attributeModifiers().size());
+        net.zaminmc.torch.item.AttributeModifier row =
+                held.attributeModifiers().get(0);
+        assertEquals("generic.attackDamage", row.attributeName());
+        assertEquals("Weapon modifier", row.name());
+        assertEquals(10.0, row.amount(), 0.0);
+        assertEquals(0, row.operation());
+        assertEquals(uuid, row.uuid());
+        // The fold consult survives the restart with it (the tagged drop
+        // still out-damages the bare table).
+        assertEquals(11.0f, net.zaminmc.torch.server.item.Tools.heldDamageOf(held),
+                0.0001f, "the fold over the restarted stack (base 1 + 10)");
+    }
 }
