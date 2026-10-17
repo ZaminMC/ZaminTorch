@@ -113,6 +113,9 @@ class Protocol18ConformanceTest {
         m.put("S2C_UPDATE_SCORE", 0x3C);
         m.put("S2C_DISPLAY_SCOREBOARD", 0x3D);
         m.put("S2C_TEAMS", 0x3E);
+        // World Border 0x44 (Slice 86): after Camera 0x43, before Title 0x45
+        // (the reference's WorldBorderS2CPacket registration slot).
+        m.put("S2C_WORLD_BORDER", 0x44);
         m.put("S2C_DISCONNECT", 0x40);
         m.put("S2C_COMBAT_EVENT", 0x42);
         // Not play-state packets, same constant class: the login state's

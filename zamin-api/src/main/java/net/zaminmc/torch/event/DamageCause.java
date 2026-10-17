@@ -39,7 +39,10 @@ public enum DamageCause {
     /** The potion family's periodic/instant arm ({@code DamageSource.magic}). */
     MAGIC,
     /** The lightning bolt ({@code DamageSource.lightningBolt}). */
-    LIGHTNING;
+    LIGHTNING,
+    /** {@code inWall}: suffocation + the world border's damage walk
+     * ({@code DamageSource.IN_WALL} — bypasses armor). */
+    IN_WALL;
 
     /** The reference {@code DamageSource.isFire} family. */
     public boolean isFire() {

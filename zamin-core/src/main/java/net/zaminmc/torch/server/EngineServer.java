@@ -262,6 +262,9 @@ public final class EngineServer implements Server, EngineBridge {
      */
     private final net.zaminmc.torch.server.scoreboard.EngineScoreboard scoreboard =
             new net.zaminmc.torch.server.scoreboard.EngineScoreboard(players);
+    /** The world border (Slice 86 — the engine's one border, the reference's worlds[0]). */
+    private final net.zaminmc.torch.server.border.EngineWorldBorder worldBorder =
+            new net.zaminmc.torch.server.border.EngineWorldBorder(players);
     /** The scoreboard's persistence (world/scoreboard.json — Slice 85). */
     private net.zaminmc.torch.server.scoreboard.ScoreboardDataStore scoreboardStore;
     private final CraftingService crafting = CraftingService.builtin();
@@ -3223,6 +3226,15 @@ public final class EngineServer implements Server, EngineBridge {
         return scoreboard;
     }
 
+    /**
+     * The world border (Slice 86): the center/size/lerp/damage model with
+     * the setter broadcasts. Tick-lane mutations; the lerp reads are
+     * wall-clock.
+     */
+    public net.zaminmc.torch.server.border.EngineWorldBorder worldBorder() {
+        return worldBorder;
+    }
+
     /** The simulation-owned item entity manager (present once the world is up). */
     public ItemEntityManager itemEntities() {
         return itemEntities;
@@ -3845,6 +3857,21 @@ public final class EngineServer implements Server, EngineBridge {
             // count times the rate — plus the jump charges (0.2, 0.8
             // sprinting). Climbing charges nothing (the historical arm).
             tickMovementExhaustion(session);
+            // The world-border damage walk (LivingEntity.baseTick lines
+            // 196-202): a player whose box left the border takes
+            // max(1, floor(-depth * rate)) per tick — IN_WALL (bypasses
+            // armor, exhaustion 0.3, the reference's own source).
+            double bx = session.position().x();
+            double bz = session.position().z();
+            if (!worldBorder.containsBox(bx - 0.3, bz - 0.3, bx + 0.3, bz + 0.3)) {
+                double depth = worldBorder.getDistanceFrom(bx, bz)
+                        + worldBorder.getSafeZone();
+                if (depth < 0.0) {
+                    damageOnTick(session,
+                            Math.max(1, (int) Math.floor(-depth * worldBorder.getDamagePerBlock())),
+                            0.3f, "suffocated in a wall", DamageKind.IN_WALL);
+                }
+            }
             // The scoreboard's health driver (ServerPlayerEntity.tick lines
             // 313-317: when the body's health moves, every health objective's
             // score re-computes — the ceil average over the single body; the
@@ -16367,6 +16394,11 @@ public final class EngineServer implements Server, EngineBridge {
         commands.register(new CommandService.Command("scoreboard",
                 "Scoreboard control: /scoreboard <objectives|players|teams> ...",
                 2, new net.zaminmc.torch.server.scoreboard.ScoreboardCommand(scoreboard)::run));
+        // The vanilla world border command (Slice 86 — WorldBorderCommand
+        // 1:1, op-2): set/add/center/damage/warning/get.
+        commands.register(new CommandService.Command("worldborder",
+                "World border control: /worldborder <set|add|center|damage|warning|get> ...",
+                2, this::worldBorderCommand));
         commands.register(new CommandService.Command("time",
                 "Query or set the day: /time query | /time set <day|noon|night|midnight|ticks>",
                 this::timeCommand));
@@ -17560,6 +17592,179 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /**
+     * The {@code /worldborder} command (Slice 86 — WorldBorderCommand 1:1,
+     * op-2): set (immediate + the lerped form), add (relative to the current
+     * lerp), center, damage buffer/amount, warning time/distance, and get.
+     * Runs on the tick thread through chat dispatch.
+     */
+    private String worldBorderCommand(CommandSender sender, String[] args) {
+        var border = worldBorder;
+        if (args.length == 0) {
+            throw new IllegalArgumentException(
+                    "Usage: /worldborder <set|add|center|damage|warning|get> ...");
+        }
+        switch (args[0].toLowerCase()) {
+            case "set" -> {
+                if (args.length != 2 && args.length != 3) {
+                    throw new IllegalArgumentException("Usage: /worldborder set <size> [seconds]");
+                }
+                double from = border.getSizeLerpTarget();
+                double to = parseBorderDouble(args[1], 1.0, 6.0E7);
+                long timeMs = args.length > 2
+                        ? parseBorderLong(args[2], 0L, Long.MAX_VALUE) * 1000L : 0L;
+                if (timeMs > 0L) {
+                    border.setSize(from, to, timeMs);
+                    return "Setting border to " + String.format("%.1f", to) + " blocks wide"
+                            + " (from " + String.format("%.1f", from) + ") over "
+                            + (timeMs / 1000L) + " seconds";
+                }
+                border.setSize(to);
+                return "Setting border to " + String.format("%.1f", to) + " blocks wide"
+                        + " (from " + String.format("%.1f", from) + ")";
+            }
+            case "add" -> {
+                if (args.length != 2 && args.length != 3) {
+                    throw new IllegalArgumentException("Usage: /worldborder add <delta> [seconds]");
+                }
+                double current = border.getLerpSize();
+                double delta = parseBorderDouble(args[1], -current, 6.0E7 - current);
+                long timeMs = border.getLerpTime() + (args.length > 2
+                        ? parseBorderLong(args[2], 0L, Long.MAX_VALUE) * 1000L : 0L);
+                double to = current + delta;
+                if (timeMs > 0L) {
+                    border.setSize(current, to, timeMs);
+                    return "Setting border to " + String.format("%.1f", to) + " blocks wide"
+                            + " (from " + String.format("%.1f", current) + ") over "
+                            + (timeMs / 1000L) + " seconds";
+                }
+                border.setSize(to);
+                return "Setting border to " + String.format("%.1f", to) + " blocks wide"
+                        + " (from " + String.format("%.1f", current) + ")";
+            }
+            case "center" -> {
+                if (args.length != 3) {
+                    throw new IllegalArgumentException("Usage: /worldborder center <x> <z>");
+                }
+                double x = parseBorderCoordinate(sender, args[1], true);
+                double z = parseBorderCoordinate(sender, args[2], false);
+                border.setCenter(x, z);
+                return "Setting border center to " + x + ", " + z;
+            }
+            case "damage" -> {
+                if (args.length < 2) {
+                    throw new IllegalArgumentException(
+                            "Usage: /worldborder damage <buffer|amount> <value>");
+                }
+                if (args[1].equalsIgnoreCase("buffer")) {
+                    if (args.length != 3) {
+                        throw new IllegalArgumentException(
+                                "Usage: /worldborder damage buffer <blocks>");
+                    }
+                    double to = parseBorderDouble(args[2], 0.0, Double.MAX_VALUE);
+                    double from = border.getSafeZone();
+                    border.setSafeZone(to);
+                    return "Setting border buffer to " + String.format("%.1f", to)
+                            + " blocks (from " + String.format("%.1f", from) + ")";
+                }
+                if (args[1].equalsIgnoreCase("amount")) {
+                    if (args.length != 3) {
+                        throw new IllegalArgumentException(
+                                "Usage: /worldborder damage amount <damage>");
+                    }
+                    double to = parseBorderDouble(args[2], 0.0, Double.MAX_VALUE);
+                    double from = border.getDamagePerBlock();
+                    border.setDamagePerBlock(to);
+                    return "Setting border damage to " + String.format("%.2f", to)
+                            + " per block (from " + String.format("%.2f", from) + ")";
+                }
+                throw new IllegalArgumentException(
+                        "Usage: /worldborder damage <buffer|amount> <value>");
+            }
+            case "warning" -> {
+                if (args.length < 2) {
+                    throw new IllegalArgumentException(
+                            "Usage: /worldborder warning <time|distance> <value>");
+                }
+                if (args[1].equalsIgnoreCase("time")) {
+                    if (args.length != 3) {
+                        throw new IllegalArgumentException(
+                                "Usage: /worldborder warning time <seconds>");
+                    }
+                    int to = (int) parseBorderLong(args[2], 0L, Integer.MAX_VALUE);
+                    int from = border.getWarningTime();
+                    border.setWarningTime(to);
+                    return "Setting border warning to " + to + " seconds (from " + from + ")";
+                }
+                if (args[1].equalsIgnoreCase("distance")) {
+                    if (args.length != 3) {
+                        throw new IllegalArgumentException(
+                                "Usage: /worldborder warning distance <blocks>");
+                    }
+                    int to = (int) parseBorderLong(args[2], 0L, Integer.MAX_VALUE);
+                    int from = border.getWarningDistance();
+                    border.setWarningDistance(to);
+                    return "Setting border warning distance to " + to
+                            + " blocks (from " + from + ")";
+                }
+                throw new IllegalArgumentException(
+                        "Usage: /worldborder warning <time|distance> <value>");
+            }
+            case "get" -> {
+                double size = border.getLerpSize();
+                return "The border is currently " + String.format("%.0f", size) + " blocks wide";
+            }
+            default -> throw new IllegalArgumentException(
+                    "Usage: /worldborder <set|add|center|damage|warning|get> ...");
+        }
+    }
+
+    /** The bounded double parse (the reference's parseDouble bounds). */
+    private static double parseBorderDouble(String value, double min, double max) {
+        double parsed;
+        try {
+            parsed = Double.parseDouble(value);
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("'" + value + "' is not a number");
+        }
+        if (parsed < min || parsed > max) {
+            throw new IllegalArgumentException("'" + value + "' is out of bounds");
+        }
+        return parsed;
+    }
+
+    /** The bounded long parse. */
+    private static long parseBorderLong(String value, long min, long max) {
+        long parsed;
+        try {
+            parsed = Long.parseLong(value);
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("'" + value + "' is not a number");
+        }
+        if (parsed < min || parsed > max) {
+            throw new IllegalArgumentException("'" + value + "' is out of bounds");
+        }
+        return parsed;
+    }
+
+    /**
+     * The center coordinate parse (the reference's parseCoordinate): plain
+     * values pass through, {@code ~} is the sender's own position (the
+     * console's source block is 0).
+     */
+    private static double parseBorderCoordinate(CommandSender sender, String value,
+                                                boolean xAxis) {
+        if (!value.startsWith("~")) {
+            return parseBorderDouble(value, -2.9999984E7, 2.9999984E7);
+        }
+        double base = sender.player() != null
+                ? (xAxis ? sender.player().position().x() : sender.player().position().z())
+                : 0.0;
+        String offset = value.substring(1);
+        return offset.isEmpty() ? base : base + parseBorderDouble(offset,
+                -2.9999984E7, 2.9999984E7);
+    }
+
+    /**
      * The {@code /gamerule} command (Slice 24a — GameRuleCommand 1:1):
      * the bare form lists every rule in the reference's listArgs shape
      * ({@code "a, b, c and d"}), the one-arg form answers the query
@@ -18396,6 +18601,19 @@ public final class EngineServer implements Server, EngineBridge {
         net.zaminmc.torch.server.scoreboard.EngineScoreboard board = scoreboard;
         if (board != null) {
             board.syncTo(session);
+        }
+    }
+
+    @Override
+    public void joinWorldBorder(PlayerSession session) {
+        // The reference's sendWorldInfo (PlayerManager line 679): the full
+        // border INITIALIZE, placed after the teleport in the join walk.
+        net.zaminmc.torch.server.border.EngineWorldBorder border = worldBorder;
+        if (border != null) {
+            session.link().worldBorderInit(border.getCenterX(), border.getCenterZ(),
+                    border.getLerpSize(), border.getSizeLerpTarget(),
+                    border.getLerpTime(), border.maxSize(),
+                    border.getWarningDistance(), border.getWarningTime());
         }
     }
 

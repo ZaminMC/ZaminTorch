@@ -265,6 +265,10 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 // after the tab-list flush, before the teleport.
                 engine.joinScoreboard(accepted.session());
                 sendInitialPositionAndLook(channel);
+                // The world border's join sync (PlayerManager.sendWorldInfo
+                // line 679): the full INITIALIZE, after the teleport like
+                // the reference's join walk.
+                engine.joinWorldBorder(accepted.session());
                 sendWindowItems(channel, accepted.session().inventory().snapshot(),
                         accepted.session().crafting().snapshot(),
                         accepted.session().inventory().armorSnapshot(),
@@ -2069,6 +2073,89 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             }
         }
         channel.writeAndFlush(out);
+    }
+
+    @Override
+    public void worldBorderSize(double sizeLerpTarget) {
+        writeWorldBorderPacket(Protocol18.WORLD_BORDER_SET_SIZE, buffer -> {
+            buffer.writeDouble(sizeLerpTarget);
+        });
+    }
+
+    @Override
+    public void worldBorderLerp(double lerpSize, double sizeLerpTarget, long lerpTimeMs) {
+        writeWorldBorderPacket(Protocol18.WORLD_BORDER_LERP_SIZE, buffer -> {
+            buffer.writeDouble(lerpSize);
+            buffer.writeDouble(sizeLerpTarget);
+            writeVarLong(buffer, lerpTimeMs);
+        });
+    }
+
+    @Override
+    public void worldBorderCenter(double centerX, double centerZ) {
+        writeWorldBorderPacket(Protocol18.WORLD_BORDER_SET_CENTER, buffer -> {
+            buffer.writeDouble(centerX);
+            buffer.writeDouble(centerZ);
+        });
+    }
+
+    @Override
+    public void worldBorderWarningTime(int seconds) {
+        writeWorldBorderPacket(Protocol18.WORLD_BORDER_SET_WARNING_TIME, buffer -> {
+            ByteBufOps.writeVarInt(buffer, seconds);
+        });
+    }
+
+    @Override
+    public void worldBorderWarningBlocks(int blocks) {
+        writeWorldBorderPacket(Protocol18.WORLD_BORDER_SET_WARNING_BLOCKS, buffer -> {
+            ByteBufOps.writeVarInt(buffer, blocks);
+        });
+    }
+
+    @Override
+    public void worldBorderInit(double centerX, double centerZ, double lerpSize,
+                                double sizeLerpTarget, long lerpTimeMs, int maxSize,
+                                int warningBlocks, int warningTime) {
+        writeWorldBorderPacket(Protocol18.WORLD_BORDER_INITIALIZE, buffer -> {
+            buffer.writeDouble(centerX);
+            buffer.writeDouble(centerZ);
+            buffer.writeDouble(lerpSize);
+            buffer.writeDouble(sizeLerpTarget);
+            writeVarLong(buffer, lerpTimeMs);
+            ByteBufOps.writeVarInt(buffer, maxSize);
+            ByteBufOps.writeVarInt(buffer, warningBlocks);
+            ByteBufOps.writeVarInt(buffer, warningTime);
+        });
+    }
+
+    /** One World Border packet (0x44): the varint action + the per-action fields. */
+    private interface BorderFieldWriter {
+        void write(ByteBuf buffer);
+    }
+
+    private void writeWorldBorderPacket(int action, BorderFieldWriter fields) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(72);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_WORLD_BORDER);
+        ByteBufOps.writeVarInt(out, action);
+        fields.write(out);
+        channel.writeAndFlush(out);
+    }
+
+    /** The protocol 47 varlong (7 bits per byte, high bit = continuation). */
+    private static void writeVarLong(ByteBuf out, long value) {
+        while (true) {
+            if ((value & ~0x7FL) == 0) {
+                out.writeByte((int) value);
+                return;
+            }
+            out.writeByte((int) ((value & 0x7F) | 0x80));
+            value >>>= 7;
+        }
     }
 
     @Override
