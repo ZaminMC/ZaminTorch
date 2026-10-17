@@ -988,6 +988,11 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
         link.sendChatComponent(json, 0);
     }
 
+    @Override
+    public void sendActionBar(String message) {
+        link.sendChatComponent(plainComponentJson(message), 2);
+    }
+
     /** A plain text as the serialized component ({"text": ...}). */
     private static String plainComponentJson(String text) {
         return net.zaminmc.torch.server.text.TextJson.toJson(
