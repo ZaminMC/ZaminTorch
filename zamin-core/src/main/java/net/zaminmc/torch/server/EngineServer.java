@@ -18651,6 +18651,34 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     @Override
+    public void joinTabListHeaderFooter(PlayerSession session) {
+        // Slice 87 — the header/footer API's join consistency: a stored pair
+        // reaches the joiner at its own burst. The null-text clear is the
+        // wire's writeText(null) form.
+        String[] pair = tabListPair;
+        if (pair != null) {
+            session.link().tabListHeaderFooter(pair[0], pair[1]);
+        }
+    }
+
+    /** The tab-list header/footer API state (Slice 87); null until set. */
+    private volatile String[] tabListPair;
+
+    @Override
+    public void setTabListHeaderFooter(String headerJson, String footerJson) {
+        String header = headerJson == null ? "null" : headerJson;
+        String footer = footerJson == null ? "null" : footerJson;
+        tabListPair = new String[] {header, footer};
+        // The broadcast reaches every live session; later joins get the
+        // pair at their own burst (joinTabListHeaderFooter).
+        for (PlayerSession session : players.all()) {
+            if (session.state() == PlayerState.PLAYING) {
+                session.link().tabListHeaderFooter(header, footer);
+            }
+        }
+    }
+
+    @Override
     public void movementProposal(PlayerSession session, Position position, Rotation rotation, boolean onGround) {
         // The credits gate (Slice 64 — the reference's handlePlayerMove
         // line 198: {@code !this.player.leavingTheEnd} — the removed body

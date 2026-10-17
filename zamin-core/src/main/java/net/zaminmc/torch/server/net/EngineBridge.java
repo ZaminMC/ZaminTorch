@@ -61,6 +61,15 @@ public interface EngineBridge {
     void joinWorldBorder(PlayerSession session);
 
     /**
+     * Mid-join hook (Slice 87 — the tab-list header/footer API state): the
+     * engine sends the joiner the current header/footer pair when one is
+     * set. The vanilla 1.8.8 server never sends the packet (the reference
+     * wires only the client handler) — this is the native API surface's
+     * join consistency, not a vanilla behavior.
+     */
+    void joinTabListHeaderFooter(PlayerSession session);
+
+    /**
      * A movement proposal (position, look, or combined). Validated server-side;
      * applied on the simulation context.
      */

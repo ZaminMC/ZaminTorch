@@ -8150,3 +8150,65 @@ header/footer (0x47); (2) the missing-commands batch; (3) the §27
 window-family re-sync rows; (4) the border's persistence (the reference's
 level.dat row — worldborder.json in the engine's store convention); (5)
 the periodic release cadence.
+
+## Slice 87 — the titles wave (the text model + the 0x45/0x47 wire + the target selector + /title + /tellraw + the header/footer API)
+
+- **THE TEXT MODEL** (`server/text/`, Text/Style/Formatting 1:1 over the
+  dependency-free JSON walk): the GSON tree semantics ported whole — the
+  bare-literal short form, the style fields inlined in the reference's own
+  order (addStyle before the type dispatch), the with-args flattening (a
+  bare literal arg becomes its raw string), the empty-array null quirk
+  (fromJson("[]") answers null), and the insertion-vanishing quirk
+  (Style.isEmpty omits the insertion field — an insertion-only style
+  serializes as the bare form and drops it). ScoreText's content consults
+  the live main board through the installed-supplier seam;
+  TranslatableText's translation machinery is client-side (the no-locale
+  fallback answers the key itself).
+- **THE WIRE**: Title 0x45 (TitlesS2CPacket's write walk — the varint enum
+  ordinal, the JSON text on TITLE/SUBTITLE, the three i32s on TIMES, the
+  empty CLEAR/RESET arms) + Player List Header/Footer 0x47
+  (TabListS2CPacket's two-text walk) over ClientLink's six new title verbs
+  + the header/footer verb + the raw-JSON chat verb (Chat 0x02 at a
+  position byte — the reference's sendMessage(Component)); the conformance
+  rows + Protocol18's constants. The vanilla server NEVER sends 0x47 (the
+  reference wires only the client handler) — the verb exists for the
+  native API surface.
+- **THE SELECTOR** (`server/command/TargetSelector` 1:1): the whole
+  p/a/e/r walk over the engine's universe seam — the positional short
+  form, type/xp/gamemode/team/score_/name/rm-r/ry-rx/c with the
+  reference's own quirks (the p/a type-ignored quirk, the !type
+  matches-players quirk, the r shuffle, the p/a/e distance sort, the c==1
+  self-bias, the wrapDegrees windows, the negative-d box extension). The
+  engine install: the live players + the living mobs per the reference's
+  dimension ids (-1/0/1), the main board for the score_/team predicates.
+  The engine's mobs carry no public uuid (the score owner key rides the
+  name) and no tracked pitch (rx reads 0) — ledgered.
+- **THE COMMANDS** (op-2): /title (TitleCommand 1:1 — the five arms with
+  the exact args gates, the case-insensitive type names with the TITLE
+  default, the strict times ints, the joined-string JSON parse with the
+  tellraw jsonException root-cause refusal) + /tellraw (TellRawCommand
+  1:1 — updateForEntity resolves the component against the receiving
+  player, the delivery as the raw-JSON system chat line);
+  TextUtils.updateForEntity 1:1 (the score-owner selector walk, the
+  selector components into the listText "a, b and c" join, the translate
+  args recursion) + CommandParse (parsePlayer's
+  selector/uuid/name/not-found ladder, parseString, the strict parseInt).
+- **THE 0x47 API**: Server.setTabListHeaderFooter(headerJson, footerJson)
+  — the stored pair broadcast to every PLAYING session, later joins get
+  the pair at their own burst (joinTabListHeaderFooter, called beside
+  joinWorldBorder in the adapter's join walk); null clears to the wire's
+  null-text form.
+- Tests: TextJsonTest (22), TargetSelectorTest (5 over the live engine),
+  TitleTellRawCommandTest (4), TabListHeaderFooterApiTest (1); the
+  protocol conformance rows extended.
+
+NEXT (in order): (1) the remaining twenty-one missing vanilla commands —
+the batch now unblocked by the selector (execute, testfor, kill @e,
+spreadplayers, stats, effect, enchant, achievement, blockdata,
+entitydata, replaceitem, setblock, fill, clone, particle, playsound,
+setworldspawn, spawnpoint, toggledownfall, trigger, debug — the
+/summon-style 1:1 walks); (2) the public Player-surface title/chat
+exposure (§27.3 — the verbs are ClientLink-internal this slice); (3) the
+real-wire title integration test over the protocol module; (4) the §27
+window-family re-sync rows; (5) the border's worldborder.json
+persistence; (6) the periodic release cadence.
