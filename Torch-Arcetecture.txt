@@ -1258,9 +1258,28 @@ names its commit.
       and the ocelot's CatType (the coat's int row, the reference's own
       UNGATED read — an absent row resets the coat to wild). The
       remaining envelopes, in dependency order:
-      - the base defaults (FallDistance/Air/PortalCooldown/
-        HurtByTimestamp/AbsorptionAmount/CanPickUpLoot/DropChances) —
-        each needs its own behavioral model to read into;
+      - [x] the base defaults (Slice 92, 980b3c7/c9fcbde/0b2ec50): the
+        absorption hearts (the hurt walk's eat-first double-shave, the
+        ABSORPTION effect's +/-4 band through the potion system's new
+        absorb hook — the install, the upgrade walk's
+        restore-the-eaten-hearts quirk, the removal), the breath clock
+        (the eye-level drain, the -20 drown rhythm, the squid/guardian
+        water-breathers, the WATER_BREATHING shield), the fall model
+        (checkFallDamage's accumulate/spend/water-zero walk +
+        takeFallDamage's ceil(distance-3-jumpBoost) wound with the
+        empty-override kinds and the creeper's fuse arm), the portal
+        cooldown's decrement, the hurt timestamp's age stamp, and the
+        loot-pickup pair — CanPickUpLoot (the local difficulty's own
+        multiplier stand-in with the inhabited/moon terms zeroed, the
+        villager's always-true, the NoAI pin's gate) + DropChances (the
+        equip walk over the grown box, the 2.0 always-drop marker, the
+        death walk's player-kill gate + looting widen + durability
+        shave, the XP equipment bonus row) — every row into its own
+        behavioral model, all tested (AbsorptionModelTest 8,
+        BaseDefaultsModelTest 13, LootPickupModelTest 11 — 429 green in
+        the adjacent sweep). The standing envelopes left inside: the
+        GIVE_DIAMOND arm (the ItemEntity carries no thrower field), the
+        lava's fallDistance *0.5 (the engine's shared fluid model);
       - the horse's/wolf's OwnerUUID + the horse's
         EatingHaystack/ChestedHorse/HasReproduced/Bred (the engine's
         tamer-is-a-name model vs the reference's uuid);
