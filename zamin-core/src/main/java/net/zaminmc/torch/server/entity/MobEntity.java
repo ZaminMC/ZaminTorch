@@ -7549,6 +7549,17 @@ public final class MobEntity implements LivingEntity {
         return eyeHeight();
     }
 
+    /**
+     * The pinned body's own decay (Slice 92 — the reference's
+     * non-controlled arm, LivingEntity lines 1415-1419: {@code velocity
+     * *= 0.98} per component while the mind and the movement stay gated).
+     */
+    private void decayVelocity() {
+        velocityX *= 0.98;
+        velocityY *= 0.98;
+        velocityZ *= 0.98;
+    }
+
     private void tickBody() {
         // The void (1.8.8 EntityLivingBase): past the kill plane the
         // out-of-world damage lands every tick until death; the body keeps
@@ -7560,6 +7571,14 @@ public final class MobEntity implements LivingEntity {
         // the whole vertical + horizontal integration; no gravity, no
         // ground snap, no walk.
         if (type == MobType.GHAST && !dead) {
+            // The NoAI pin (Slice 92 — the reference's isLocallyControlled
+            // gate covers the flight families too: the drift rides
+            // moveRelative, a pinned ghast freezes midair with the *0.98
+            // decay, the same arm the walker takes).
+            if (noAi) {
+                decayVelocity();
+                return;
+            }
             tickGhastBody();
             integrateFlight();
             return;
@@ -7575,6 +7594,10 @@ public final class MobEntity implements LivingEntity {
         // The bat's flight (Slice 16e — BatEntity.tick): the roost snap or
         // the hangPos wander; no gravity, no walk.
         if (type == MobType.BAT && !dead) {
+            if (noAi) { // the pin (Slice 92 — the reference gates the bat's own move)
+                decayVelocity();
+                return;
+            }
             tickBatBody();
             return;
         }
@@ -7582,6 +7605,10 @@ public final class MobEntity implements LivingEntity {
         // stroke owns the velocity; the position integrates it directly
         // (no gravity, no walk).
         if (type == MobType.SQUID && !dead) {
+            if (noAi) { // the pin (Slice 92 — the stroke rides moveRelative)
+                decayVelocity();
+                return;
+            }
             boolean squidInFluid = world.inFluid(position.x(), position.y() + 0.2, position.z());
             tickSquidBody(squidInFluid);
             position = new Position(position.x() + velocityX, position.y() + velocityY,
@@ -7593,6 +7620,10 @@ public final class MobEntity implements LivingEntity {
         // the movement control): the sinusoidal water body or the land
         // flop owns the whole integration (no walk, no ground snap).
         if (type == MobType.GUARDIAN && !dead) {
+            if (noAi) { // the pin (Slice 92 — the swim rides moveRelative)
+                decayVelocity();
+                return;
+            }
             boolean guardianInFluid = world.inFluid(position.x(), position.y() + 0.2, position.z());
             tickGuardianBody(guardianInFluid);
             return;
@@ -7631,13 +7662,13 @@ public final class MobEntity implements LivingEntity {
         // (void, fire, cactus, the water douse) keep running, and the
         // wounds/despawn windows continue (the pin gates the MIND and the
         // MOVEMENT alone). The special flight families above (ghast,
-        // dragon, bat, squid, guardian) own their own integration and are
-        // NOT pinned by this gate (the reference gates them through
-        // moveRelative — the engine's flight-family envelope, ledgered).
+        // dragon, bat, squid, guardian) carry their own pin at their own
+        // branches (Slice 92 — the reference gates them through
+        // moveRelative exactly like the walker; the dragon's steering
+        // rides the already-pinned mind, its body does nothing on its
+        // own).
         if (noAi) {
-            velocityX *= 0.98;
-            velocityY *= 0.98;
-            velocityZ *= 0.98;
+            decayVelocity();
             return;
         }
         if (inFluid) {

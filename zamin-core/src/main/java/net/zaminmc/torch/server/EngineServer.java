@@ -632,6 +632,7 @@ public final class EngineServer implements Server, EngineBridge {
                 // The public block-change observation covers the nether's
                 // commits too (the event carries the world's own name).
                 netherWorld.addChangeListener(new PublicBlockChangeBridge());
+                netherWorld.addChangeListener(new TilePlacementListener());
                 // The End dimension (Slice 61): the third EngineWorld —
                 // vanilla's DIM1. The reference's TheEndDimension: same
                 // world seed, its own chunk map, its own delta persistence
@@ -657,6 +658,7 @@ public final class EngineServer implements Server, EngineBridge {
                 LOGGER.info(() -> "End dimension '"
                         + endWorld.name() + "' ready (seed " + worldSeed + ")");
                 endWorld.addChangeListener(new PublicBlockChangeBridge());
+                endWorld.addChangeListener(new TilePlacementListener());
                 // Light (§475/§476): derived world state, recomputed on every
                 // committed change and on chunk generation. Registered FIRST
                 // (before spawn pregeneration) so every generated chunk — boot
@@ -671,6 +673,14 @@ public final class EngineServer implements Server, EngineBridge {
                 // fires BlockChangedEvent through the engine bus (the
                 // bridge implements the combined pair).
                 world.addChangeListener(new PublicBlockChangeBridge());
+                // Slice 92 — the placement-created tile (the reference's
+                // World.setBlockState -> the block's own createBlockEntity):
+                // the moment a tile-family block lands, its block entity
+                // exists. The lazy getOrCreate stand-in retires for the
+                // container + beacon + spawner families (the write-
+                // materialized families — the sign, the command block, the
+                // jukebox, the skull — keep their own model, ledgered).
+                world.addChangeListener(new TilePlacementListener());
                 pregenerateSpawnArea(world);
                 ticker.attachWorld(world);
                 // The public §27.6 owner path: plugins execute on the
@@ -13282,6 +13292,81 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /**
+     * Slice 92 — the placement-created tile (the reference's
+     * {@code World.setBlockState} -> the block's own
+     * {@code createBlockEntity}): the moment a tile-family block lands,
+     * its block entity exists — the lazy getOrCreate stand-in retires for
+     * the getOrCreate-backed families (the containers, the beacon, the
+     * spawner — a fresh spawner arms its own default cadence exactly like
+     * the reference's placement tile; an untyped one still walks nothing,
+     * its own gate). The write-materialized families (the sign, the
+     * command block, the jukebox, the skull) keep their own model —
+     * ledgered: their empty-state rows are the write difference.
+     */
+    private final class TilePlacementListener
+            implements net.zaminmc.torch.server.world.WorldChangeListener {
+        @Override
+        public void onBlockChanged(EngineWorld world, BlockPosition position, BlockType newType) {
+            // The placement arm rides the replaced pair.
+        }
+
+        @Override
+        public void onBlockReplaced(EngineWorld changed, BlockPosition position,
+                                    BlockType oldType, BlockType newType) {
+            String name = newType.identifier().value();
+            switch (name) {
+                case "chest", "trapped_chest" -> {
+                    if (chestManager != null) {
+                        chestManager.getOrCreate(position);
+                    }
+                }
+                case "furnace", "lit_furnace" -> {
+                    if (furnaceManager != null) {
+                        furnaceManager.getOrCreate(position);
+                    }
+                }
+                case "hopper" -> {
+                    if (hopperSystem != null) {
+                        hopperSystem.getOrCreate(position);
+                    }
+                }
+                case "dispenser", "dropper" -> {
+                    if (dispenserSystem != null) {
+                        dispenserSystem.getOrCreate(position);
+                    }
+                }
+                case "brewing_stand" -> {
+                    if (brewingStands != null) {
+                        brewingStands.getOrCreate(position);
+                    }
+                }
+                case "beacon" -> {
+                    if (beaconSystem != null) {
+                        beaconSystem.getOrCreate(position);
+                    }
+                }
+                case "mob_spawner" -> {
+                    if (spawners != null) {
+                        spawners.getOrCreate(dimensionOf(changed), position);
+                    }
+                }
+                default -> { }
+            }
+        }
+
+        /** The changed world's own dimension id (the spawner's key). */
+        private int dimensionOf(EngineWorld changed) {
+            if (changed == netherWorld) {
+                return -1;
+            }
+            if (changed == endWorld) {
+                return 1;
+            }
+            return 0;
+        }
+    }
+
+    /**
      * Resolves a splash's thrower body from the engine id (the
      * {@code DamageSource.magic(potion, thrower)} attacker): a live mob,
      * a playing player, or null for dispensers and removed throwers.
@@ -17417,9 +17502,12 @@ public final class EngineServer implements Server, EngineBridge {
         net.zaminmc.torch.server.command.TargetSelector.Candidate found = net.zaminmc.torch.server.command.CommandParse
                 .parseEntity(players, sender, args[0]);
         // The dataTag arm (TestForCommand lines 29-44): the parsed compound
-        // matched as a SUBSET against the body's written rows. A player's
-        // write surface has no engine model — the empty compound stands in
-        // (ledgered: only a {} pattern matches a player).
+        // matched as a SUBSET against the body's written rows — the mob
+        // walk (EntityNbt) or the player's own projection (PlayerNbt,
+        // Slice 92 — the reference's player writeNbt rows over the
+        // engine's model: the base rows, the living rows, the inventory,
+        // the xp band, the hunger pair, the abilities compound, the
+        // ender chest, the game type).
         if (args.length >= 2) {
             StringBuilder joined = new StringBuilder();
             for (int i = 1; i < args.length; i++) {
@@ -17436,7 +17524,11 @@ public final class EngineServer implements Server, EngineBridge {
             }
             java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> written =
                     new java.util.LinkedHashMap<>();
-            if (!found.player()) {
+            if (found.player()) {
+                net.zaminmc.torch.server.nbt.PlayerNbt.writeNbtWithoutId(
+                        (net.zaminmc.torch.server.player.PlayerSession) found.handle(),
+                        written, potionSystem);
+            } else {
                 net.zaminmc.torch.server.nbt.EntityNbt.writeNbtWithoutId(
                         (net.zaminmc.torch.server.entity.MobEntity) found.handle(),
                         written, potionSystem);
