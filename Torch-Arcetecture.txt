@@ -1650,8 +1650,10 @@ offline-mode vanilla server's un-cached-name behavior.
   and persists; the envelope's standing row RETIRED)
 - (Wave K LANDED at 7d90dc5/22d8709 — the skull's Owner profile: the
   tile arm, the item arm, the Rot rename; the skull row RETIRED)
-- The EnderChest contents-on-player angle — VERIFY + retire (the
-  reference's EnderChest tile carries no contents; the ender slots ride
-  the player's own dat, which the engine already models — PlayerNbt's
-  ender rows).
+- (the EnderChest angle VERIFIED + RETIRED: the reference's
+  EnderChestBlockEntity overrides no writeNbt — the tile carries the
+  id/x/y/z rows alone (the animation/viewer fields are transient), and
+  the contents ride the player's own dat as the EnderItems list, which
+  the engine's PlayerNbt already writes 1:1 — the standing row was
+  already-landed work)
 - (the mob_spawner ITEM landed at de272c6 — retired)

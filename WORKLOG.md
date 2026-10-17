@@ -9031,3 +9031,9 @@ model them; the tile carries no contents in the reference); (2) the
 shared container-open event (demand-named); (3) the next vanilla wave
 per the compatibility ledger (the §28.7 adapter stands after the 1.8.8
 polish).
+
+- The EnderChest angle VERIFIED + RETIRED live: the reference's
+  EnderChestBlockEntity overrides no writeNbt (the tile carries
+  id/x/y/z alone — the animation/viewer fields transient), and the
+  contents ride the player's EnderItems, which PlayerNbt already
+  writes 1:1. No work needed — the standing row retires.
