@@ -61,6 +61,22 @@ public final class ItemEntityManager {
                 net.zaminmc.torch.server.entity.MobEntity collector) {
         }
 
+        /**
+         * The pickup's own effects (Slice 93/D1 — ItemEntity.onPlayerCollision
+         * lines 269-300's tail, the part that rides a SUCCESSFUL add — the
+         * partial pickup included, the reference's addItem-returned-true
+         * semantics): the achievement family (GET_LOG for the log/log2
+         * pair, KILL_COW for the leather, GET_DIAMOND, GET_BLAZE_ROD, and
+         * GIVE_DIAMOND — the diamond picked up with a thrower stamps THAT
+         * player) and the random.pop sound at the collector's position
+         * (0.2F, the {@code ((r - r) * 0.7F + 1.0F) * 2.0F} pitch). The
+         * engine's cross-system walk (the stats, the thrower lookup, the
+         * fx) lives in the server's dispatch; the manager stays decoupled.
+         */
+        default void onItemPickupEffects(ItemEntity entity, PlayerSession collector,
+                int collectedCount) {
+        }
+
         void onItemStackChanged(ItemEntity entity);
 
         void onItemRemoved(ItemEntity entity, String reason);
@@ -201,6 +217,13 @@ public final class ItemEntityManager {
                 if (player.state() != PlayerState.PLAYING) {
                     continue; // only players in play state collect items
                 }
+                // The owner-window gate (Slice 93/D1 — onPlayerCollision
+                // lines 266-267): an owned body answers only to its owner
+                // until the last 200 ticks before despawn; the engine's
+                // drops carry no owner (the null arm passes everyone).
+                if (!entity.pickupAllowedFor(player.name())) {
+                    continue;
+                }
                 if (!withinPickupRange(player, entity)) {
                     continue;
                 }
@@ -210,6 +233,12 @@ public final class ItemEntityManager {
                 int collected = wanted.count() - remainder.count();
                 if (collected <= 0) {
                     continue; // inventory could not take any of it
+                }
+                // The pickup's own effects (the reference's tail — the
+                // achievements and the pop sound ride EVERY successful
+                // add, the partial pickup included).
+                for (Listener listener : listeners) {
+                    listener.onItemPickupEffects(entity, player, collected);
                 }
                 if (remainder.isEmpty()) {
                     iterator.remove();
