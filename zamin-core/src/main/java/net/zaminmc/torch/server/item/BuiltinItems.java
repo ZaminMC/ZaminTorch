@@ -515,6 +515,17 @@ public final class BuiltinItems {
     public static final EngineItemType COMMAND_BLOCK = new EngineItemType(
             Identifier.parse("minecraft:command_block"), "Command Block", 64);
 
+    /**
+     * The mob spawner's own item (Slice 95 — the reference's
+     * Item.getItemFromBlock(Blocks.MOB_SPAWNER), id 52 shared with the
+     * block): the placement consult's family resolution needs no item
+     * mapping (the plain-identifier lookup resolves it), and a /give'd
+     * stack carrying BlockEntityTag lands its cadence rows on placement
+     * through the same consult the H3 test walked directly.
+     */
+    public static final EngineItemType MOB_SPAWNER = new EngineItemType(
+            Identifier.parse("minecraft:mob_spawner"), "Mob Spawner", 64);
+
     // The mount slice (community items.json: saddle 329, iron/gold/diamond
     // horse armor 417/418/419, lead 420, carrot on a stick 398, emerald 388).
     // The saddle equips horses and pigs; the horse armors go on tamed horses
@@ -1084,7 +1095,7 @@ public final class BuiltinItems {
                 // resolve the held stack; the hopper 408 and the command
                 // cart's 422 ride along).
                 FURNACE_MINECART, TNT_MINECART, HOPPER_MINECART, COMMAND_BLOCK_MINECART,
-                COMMAND_BLOCK,
+                COMMAND_BLOCK, MOB_SPAWNER,
                 // The trade-stock + firework family's missing registrations
                 // (the Slice 21g/65 repair the fishing slice exposed): the
                 // fishing rod 346, clock 347, cake 354, cookie 357, melon
