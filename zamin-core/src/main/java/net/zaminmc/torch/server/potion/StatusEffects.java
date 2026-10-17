@@ -141,4 +141,57 @@ public final class StatusEffects {
         Effect effect = byId(id);
         return effect == null ? 0 : effect.color();
     }
+
+    /**
+     * The 1.8.8 unlocalized-name table (the reference's StatusEffect.get
+     * lookups — "/effect @p speed" resolves by these keys).
+     */
+    private static final java.util.Map<String, Integer> BY_NAME = java.util.Map.ofEntries(
+            java.util.Map.entry("speed", SPEED),
+            java.util.Map.entry("slowness", SLOWNESS),
+            java.util.Map.entry("haste", HASTE),
+            java.util.Map.entry("mining_fatigue", MINING_FATIGUE),
+            java.util.Map.entry("strength", STRENGTH),
+            java.util.Map.entry("instant_health", INSTANT_HEALTH),
+            java.util.Map.entry("instant_damage", INSTANT_DAMAGE),
+            java.util.Map.entry("jump_boost", JUMP_BOOST),
+            java.util.Map.entry("nausea", NAUSEA),
+            java.util.Map.entry("regeneration", REGENERATION),
+            java.util.Map.entry("resistance", RESISTANCE),
+            java.util.Map.entry("fire_resistance", FIRE_RESISTANCE),
+            java.util.Map.entry("water_breathing", WATER_BREATHING),
+            java.util.Map.entry("invisibility", INVISIBILITY),
+            java.util.Map.entry("blindness", BLINDNESS),
+            java.util.Map.entry("night_vision", NIGHT_VISION),
+            java.util.Map.entry("hunger", HUNGER),
+            java.util.Map.entry("weakness", WEAKNESS),
+            java.util.Map.entry("poison", POISON),
+            java.util.Map.entry("wither", WITHER),
+            java.util.Map.entry("health_boost", HEALTH_BOOST),
+            java.util.Map.entry("absorption", ABSORPTION),
+            java.util.Map.entry("saturation", SATURATION));
+
+    /** The reference's StatusEffect.get(name): null when unknown. */
+    public static Integer byName(String name) {
+        return BY_NAME.get(name);
+    }
+
+    /**
+     * The 1.8.8 display names (the reference's effect.moveSpeed family, the
+     * en_US translations — the /effect feedback's translatable text).
+     */
+    private static final String[] DISPLAY_NAMES = {
+            null,
+            "Speed", "Slowness", "Haste", "Mining Fatigue", "Strength",
+            "Instant Health", "Instant Damage", "Jump Boost", "Nausea",
+            "Regeneration", "Resistance", "Fire Resistance", "Water Breathing",
+            "Invisibility", "Blindness", "Night Vision", "Hunger", "Weakness",
+            "Poison", "Wither", "Health Boost", "Absorption", "Saturation"
+    };
+
+    /** The display name for the feedback lines; the key's own form when unknown. */
+    public static String displayName(int id) {
+        return id >= 0 && id < DISPLAY_NAMES.length && DISPLAY_NAMES[id] != null
+                ? DISPLAY_NAMES[id] : "effect." + id;
+    }
 }

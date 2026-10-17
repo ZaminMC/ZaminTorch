@@ -16448,6 +16448,10 @@ public final class EngineServer implements Server, EngineBridge {
         commands.register(new CommandService.Command("setworldspawn",
                 "Set the world spawn: /setworldspawn [x y z]",
                 2, this::setworldspawnCommand));
+        // The missing-commands batch, wave two (/effect — EffectCommand 1:1).
+        commands.register(new CommandService.Command("effect",
+                "Apply an effect: /effect <player> <clear|effect> [seconds] [amplifier] [hideParticles]",
+                2, this::effectCommand));
         commands.register(new CommandService.Command("time",
                 "Query or set the day: /time query | /time set <day|noon|night|midnight|ticks>",
                 this::timeCommand));
@@ -16952,6 +16956,110 @@ public final class EngineServer implements Server, EngineBridge {
         net.zaminmc.torch.server.command.TargetSelector.Candidate found = net.zaminmc.torch.server.command.CommandParse
                 .parseEntity(players, sender, args[0]);
         return "Found " + found.name();
+    }
+
+    /**
+     * /effect (EffectCommand 1:1, op-2): the clear arm (refusal when the
+     * body carries nothing), the by-id-or-name parse (min id 1, the
+     * unlocalized-name table), the seconds/amplifier bounds (0..1000000,
+     * 0..255), the instant-duration rule (seconds as duration; otherwise
+     * seconds*20; the no-arg default 600 / instant 1), the zero-seconds
+     * remove arm (with the notActive refusal), and hideParticles ("true").
+     */
+    private String effectCommand(CommandSender sender, String[] args) {
+        if (args.length < 2) {
+            return "Usage: /effect <player> <clear|effect> [seconds] [amplifier] [hideParticles]";
+        }
+        net.zaminmc.torch.server.command.TargetSelector.Candidate target =
+                net.zaminmc.torch.server.command.CommandParse.parseEntity(players, sender, args[0]);
+        Object body = target.handle();
+        if ("clear".equals(args[1])) {
+            if (potionSystem.allOf(body).isEmpty()) {
+                return "Could not take effects from " + target.name() + " as they have none";
+            }
+            ticker.submit(() -> potionSystem.clear(body));
+            return "Took all effects from " + target.name();
+        }
+
+        // The by-id parse (min 1) with the by-name fallback — the
+        // reference's InvalidNumberException rethrown when the name misses.
+        int id;
+        try {
+            id = Integer.parseInt(args[1]);
+            if (id < 1) {
+                throw new NumberFormatException(args[1]);
+            }
+        } catch (NumberFormatException invalid) {
+            Integer byName = net.zaminmc.torch.server.potion.StatusEffects.byName(args[1]);
+            if (byName == null) {
+                return "'" + args[1] + "' is not a valid number";
+            }
+            id = byName;
+        }
+
+        net.zaminmc.torch.server.potion.StatusEffects.Effect effect =
+                net.zaminmc.torch.server.potion.StatusEffects.byId(id);
+        if (effect == null) {
+            return "Unknown effect: " + id;
+        }
+
+        int seconds = 30;
+        int duration = 600;
+        int amplifier = 0;
+        boolean particles = true;
+        if (args.length >= 3) {
+            seconds = net.zaminmc.torch.server.command.CommandParse.parseInt(args[2]);
+            if (seconds < 0 || seconds > 1_000_000) {
+                return "Seconds must be 0..1000000";
+            }
+            duration = effect.instant() ? seconds : seconds * 20;
+        } else if (effect.instant()) {
+            duration = 1;
+        }
+
+        if (args.length >= 4) {
+            amplifier = net.zaminmc.torch.server.command.CommandParse.parseInt(args[3]);
+            if (amplifier < 0 || amplifier > 255) {
+                return "Amplifier must be 0..255";
+            }
+        }
+
+        if (args.length >= 5 && "true".equalsIgnoreCase(args[4])) {
+            particles = false;
+        }
+
+        final int fx = id;
+        final int fd = duration;
+        final int fa = amplifier;
+        final boolean fp = particles;
+        final Object fbody = body;
+        final String fname = target.name();
+        final int fseconds = seconds;
+        if (seconds > 0) {
+            ticker.submit(() -> {
+                if (effect.instant()) {
+                    // The instant family: one application, no lingering
+                    // instance (the reference's performEffect-once walk).
+                    potionSystem.applyInstant(fbody, fx, fa, 1.0);
+                    return;
+                }
+                net.zaminmc.torch.server.potion.StatusEffectInstance instance =
+                        new net.zaminmc.torch.server.potion.StatusEffectInstance(fx, fd, fa);
+                instance.setParticles(fp);
+                potionSystem.add(fbody, instance);
+            });
+            return String.format(java.util.Locale.ROOT,
+                    "Given %s (ID %d) to %s for %d seconds",
+                    net.zaminmc.torch.server.potion.StatusEffects.displayName(id), id, fname, fseconds);
+        }
+        if (potionSystem.hasEffect(body, id)) {
+            ticker.submit(() -> potionSystem.remove(fbody, fx));
+            return String.format(java.util.Locale.ROOT, "Took %s from %s",
+                    net.zaminmc.torch.server.potion.StatusEffects.displayName(id), fname);
+        }
+        return String.format(java.util.Locale.ROOT,
+                "Could not take %s from %s as they do not have it",
+                net.zaminmc.torch.server.potion.StatusEffects.displayName(id), fname);
     }
 
     /**
