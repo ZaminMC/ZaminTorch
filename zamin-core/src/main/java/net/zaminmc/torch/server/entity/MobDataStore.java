@@ -418,7 +418,7 @@ public final class MobDataStore {
             // null marker.
             writeNullableString(out, nbt.heldEquipment().blockEntityTag() == null
                     ? null
-                    : net.zaminmc.torch.server.nbt.NbtOps.write(
+                    : net.zaminmc.torch.server.nbt.NbtOps.writeParseable(
                             net.zaminmc.torch.server.nbt.NbtOps.fromBoxed(
                                     nbt.heldEquipment().blockEntityTag())));
         }

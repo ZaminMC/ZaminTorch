@@ -553,6 +553,77 @@ public final class NbtOps {
     // ------------------------------------------------------------------
 
     /** The reference's NbtCompound.toString: {@code {k:v,k:v}}. */
+    /**
+     * The PARSEABLE SNBT form (Wave H2 — the persistence tails' string
+     * row): lists as {@code [a,b]}, compounds as {@code {k:v}}, strings
+     * quoted with backslash escapes — everything Snbt.parseCompound reads
+     * back. This is NOT {@link #write}'s shape: that writer keeps the
+     * reference's own toString list form (the index-colon
+     * {@code 0:{..},1:{..}}), which the parser cannot read; the tails
+     * chose a string row for their binary formats, so they need the
+     * round-trippable form. The one known lossy corner is the 1.8.8
+     * grammar's own: an empty list re-parses as the empty INT ARRAY
+     * ({@code []} is the all-int form — the reference's SnbtParser has
+     * the same ambiguity).
+     */
+    public static String writeParseable(Map<String, Snbt.Tag> rows) {
+        StringBuilder out = new StringBuilder("{");
+        boolean first = true;
+        if (rows != null) {
+            for (Map.Entry<String, Snbt.Tag> row : rows.entrySet()) {
+                if (!first) {
+                    out.append(',');
+                }
+                first = false;
+                out.append(row.getKey()).append(':').append(writeParseableElement(row.getValue()));
+            }
+        }
+        return out.append('}').toString();
+    }
+
+    /** One element's parseable form (the write walk's inverse). */
+    public static String writeParseableElement(Snbt.Tag tag) {
+        if (tag == null) {
+            return "";
+        }
+        return switch (tag.type()) {
+            case BYTE -> tag.asByte() + "b";
+            case SHORT -> (short) widen(tag) + "s";
+            case INT -> (int) widen(tag) + "";
+            case LONG -> tag.asLong() + "L";
+            case FLOAT -> (float) widen(tag) + "f";
+            case DOUBLE -> tag.asDouble() + "d";
+            case STRING -> "\"" + tag.asString().replace("\\", "\\\\")
+                    .replace("\"", "\\\"") + "\"";
+            case INT_ARRAY -> {
+                int[] values = tag.asIntArray();
+                StringBuilder out = new StringBuilder("[");
+                if (values != null) {
+                    for (int value : values) {
+                        out.append(value).append(',');
+                    }
+                }
+                yield out.append(']').toString();
+            }
+            case LIST -> {
+                List<Snbt.Tag> elements = tag.asList();
+                StringBuilder out = new StringBuilder("[");
+                boolean firstElement = true;
+                if (elements != null) {
+                    for (Snbt.Tag element : elements) {
+                        if (!firstElement) {
+                            out.append(',');
+                        }
+                        firstElement = false;
+                        out.append(writeParseableElement(element));
+                    }
+                }
+                yield out.append(']').toString();
+            }
+            case COMPOUND -> writeParseable(tag.asCompound());
+        };
+    }
+
     public static String write(Map<String, Snbt.Tag> rows) {
         StringBuilder out = new StringBuilder("{");
         if (rows != null) {

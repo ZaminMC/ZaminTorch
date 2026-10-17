@@ -262,4 +262,45 @@ class ItemPersistenceTest {
             serverTwo.shutdown(null);
         }
     }
+
+    @Test
+    void theBlockEntityTagArmRidesTheZidTail(@TempDir Path dir) throws Exception {
+        // Wave H2 — the ZID v3 tail: the raw compound as ONE SNBT string row
+        // (NbtOps.write over the adapted boxes), round-tripped through the
+        // store. A v2-era body loads with the arm absent (the null marker
+        // never parses).
+        ItemEntityManager manager = new ItemEntityManager(GROUND, new Random(7), 1);
+        java.util.Map<String, Object> inner = new java.util.LinkedHashMap<>();
+        inner.put("Slot", (byte) 0);
+        inner.put("id", "minecraft:diamond");
+        inner.put("Count", (byte) 5);
+        java.util.Map<String, Object> tag = new java.util.LinkedHashMap<>();
+        tag.put("Items", java.util.List.of(inner));
+        tag.put("Lock", "Kept");
+        manager.spawnDropAtBlock(new Position(2.5, 6.0, 2.5),
+                ItemStack.of(BuiltinItems.CHEST, 1).withBlockEntityTag(tag), 0);
+
+        ItemDataStore store = new ItemDataStore(dir.resolve("items.bin"));
+        store.save(manager.snapshot());
+        var loaded = store.load();
+        org.junit.jupiter.api.Assertions.assertEquals(1, loaded.size(),
+                "the load returned the body: " + loaded.size());
+        ItemEntityManager restored = new ItemEntityManager(GROUND, new Random(7), 100);
+        restored.restoreAll(loaded);
+        org.junit.jupiter.api.Assertions.assertEquals(1, restored.size(),
+                "the restore joined the body");
+
+        ItemEntity body = restored.all().get(0);
+        assertEquals(1, body.stack().count());
+        net.zaminmc.torch.item.ItemStack stack = body.stack();
+        assertTrue(stack.blockEntityTag() != null, "the arm rode the tail");
+        assertEquals("Kept", stack.blockEntityTag().get("Lock"));
+        java.util.List<?> items = (java.util.List<?>) stack.blockEntityTag().get("Items");
+        assertEquals(1, items.size());
+        java.util.Map<?, ?> row = (java.util.Map<?, ?>) items.get(0);
+        assertEquals("minecraft:diamond", row.get("id"));
+        assertEquals((byte) 5, row.get("Count"));
+        // The tree stays deeply immutable after the ride.
+        assertTrue(stack.blockEntityTag().get("Items") instanceof java.util.List);
+    }
 }

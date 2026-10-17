@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -216,5 +217,62 @@ class SlotNbtTest {
         byte[] encoded = SlotNbt.ModifiedUtf8.encode(value);
         out.writeShort(encoded.length);
         out.writeBytes(encoded);
+    }
+
+    @Test
+    void theBlockEntityTagPayloadRoundTripsEveryFamily() {
+        // Wave H2 — the raw compound on the wire: every NBT family of the
+        // tree's own (byte/short/int/long/float/double/string/int-array,
+        // lists of compounds, an empty list with vanilla's type-0 element
+        // convention), written from the model's boxed form and parsed back
+        // by the test reader into the same boxes.
+        java.util.Map<String, Object> inner = new java.util.LinkedHashMap<>();
+        inner.put("Slot", (byte) 0);
+        inner.put("id", "minecraft:diamond");
+        inner.put("Count", (byte) 2);
+        java.util.Map<String, Object> inner1 = new java.util.LinkedHashMap<>();
+        inner1.put("Slot", (byte) 1);
+        inner1.put("id", "minecraft:emerald");
+        inner1.put("Count", (byte) 3);
+        java.util.Map<String, Object> tag = new java.util.LinkedHashMap<>();
+        tag.put("Items", java.util.List.of(inner, inner1));
+        tag.put("Lock", "Secret");
+        tag.put("EmptyList", java.util.List.of());
+        tag.put("Rows", new int[]{7, 8});
+        tag.put("Big", 9876543210L);
+        tag.put("Ratio", 0.5f);
+        tag.put("Precise", 1.25d);
+        tag.put("Short", (short) 12);
+        net.zaminmc.torch.item.ItemStack stack = bareStack().withBlockEntityTag(tag);
+        assertTrue(SlotNbt.hasPayload(stack));
+
+        ByteBuf out = Unpooled.buffer();
+        SlotNbt.writeFor(out, stack);
+        java.util.Map<String, Object> read = SlotNbt.readBlockEntityTag(out);
+        assertNotNull(read, "the compound row parsed");
+        assertEquals(2, ((java.util.List<?>) read.get("Items")).size());
+        java.util.Map<String, Object> item0 =
+                (java.util.Map<String, Object>) ((java.util.List<?>) read.get("Items")).get(0);
+        assertEquals("minecraft:diamond", item0.get("id"));
+        assertEquals((byte) 2, item0.get("Count"));
+        assertEquals((byte) 0, item0.get("Slot"));
+        java.util.Map<String, Object> item1 =
+                (java.util.Map<String, Object>) ((java.util.List<?>) read.get("Items")).get(1);
+        assertEquals("minecraft:emerald", item1.get("id"));
+        assertEquals((byte) 3, item1.get("Count"));
+        assertEquals("Secret", read.get("Lock"));
+        assertTrue(((java.util.List<?>) read.get("EmptyList")).isEmpty(),
+                "the empty list round-trips");
+        assertArrayEquals(new int[]{7, 8}, (int[]) read.get("Rows"));
+        assertEquals(9876543210L, read.get("Big"));
+        assertEquals(0.5f, read.get("Ratio"));
+        assertEquals(1.25d, read.get("Precise"));
+        assertEquals((short) 12, read.get("Short"));
+
+        // A stack without the arm reads null (and the bare marker byte
+        // stays the only payload).
+        out.clear();
+        SlotNbt.writeFor(out, bareStack());
+        assertNull(SlotNbt.readBlockEntityTag(out));
     }
 }
