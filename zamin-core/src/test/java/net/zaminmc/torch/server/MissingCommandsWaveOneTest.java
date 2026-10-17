@@ -295,6 +295,31 @@ class MissingCommandsWaveOneTest {
         assertEquals(2, aliceParticles.size(), "the refusal fired no packet");
     }
 
+    @Test
+    void theTriggerArm() throws Exception {
+        // Create a trigger objective + an unlocked row for Alice through the
+        // real /scoreboard arms, then fire /trigger as Alice.
+        dispatch("/scoreboard objectives add clicks trigger");
+        dispatch("/scoreboard players set Alice clicks 0");
+        dispatch("/scoreboard players enable Alice clicks");
+        await(() -> server.scoreboard().getScore("Alice",
+                        server.scoreboard().getObjective("clicks")) != null
+                        && !server.scoreboard().getScore("Alice",
+                        server.scoreboard().getObjective("clicks")).isLocked(),
+                "the row unlocked");
+        dispatch("/trigger clicks add 5");
+        await(() -> server.scoreboard().getScore("Alice",
+                        server.scoreboard().getObjective("clicks")).get() == 5,
+                "the trigger added");
+        // The row re-locked: a second trigger refuses.
+        assertTrue(server.scoreboard().getScore("Alice",
+                server.scoreboard().getObjective("clicks")).isLocked(), "the row re-locked");
+        dispatch("/trigger clicks set 9");
+        await(() -> server.scoreboard().getScore("Alice",
+                        server.scoreboard().getObjective("clicks")).get() == 5,
+                "the locked refusal kept the value");
+    }
+
     private net.zaminmc.torch.server.chat.CommandSender aliceSender() {
         return new net.zaminmc.torch.server.chat.CommandSender() {
             @Override public String name() {
