@@ -8619,3 +8619,40 @@ VANILLA_1_8_8_COMPATIBILITY.md's standing envelopes and land the next
 dependency-correct vanilla wave; (3) the standing demand-named items
 (the shared container-open event, the §28.7 Bukkit adapter — after the
 1.8.8 implementation is polished).
+
+## Slice 91 Wave C (first half) — the spawner's cadence + the creeper's own rows
+
+- **p1 (8245604) — THE SPAWNER'S CADENCE ROWS**: the six NBT rows steer
+  each spawner's own walk — MobSpawnerBlockEntity carries the reference's
+  fields (the defaults 200/800/4/6/16/4), the tick walk reads the
+  spawner's OWN rows (the player gate, the attempt count, the nearby cap,
+  the re-arm band, the position roll), the nearby count ports the
+  reference's exact grown-box geometry (the [pos, pos+1] box grown by the
+  range, intersected with each mob's own bounding box — the old
+  center-band stand-in missed the far-edge mobs), the TileNbt read
+  carries the PAIRED contains(key,99) gates with the reference's own
+  zeroing quirk (MinSpawnDelay alone zeroes maxSpawnDelay AND
+  spawnCount), and the wire tile carries the per-spawner rows (the
+  block-event-1 spin reset reads the client's minSpawnDelay from them).
+  SpawnerManagerTest 9 (5 new), TileNbtTest 7 (1 new), NbtCommandsTest 3,
+  SpawnerMinecartTest 6.
+- **p2 (bc8f0fb) — THE CREEPER'S OWN ROWS**: powered/ExplosionRadius/
+  ignited/Fuse into the model — the charged flag doubles the blast
+  (radius * (charged ? 2.0F : 1.0F)), the permanent ignite never cools
+  (the swell arm sits ABOVE the goal walk — the stroll goal was consuming
+  target-less creepers), the Fuse row steers the swell's duration, the
+  NBT rows carry the reference's exact write gates (powered only when
+  charged, the one-way ignite) and read gates (the numeric contains
+  gates), the wire publishes the index-17 charged byte beside the
+  index-16 fuse. CreeperRowsAcceptanceTest 3 over the live engine (the
+  event's power 4 = 2 * 2.0F, the no-target ignited swell, the radius-1
+  sphere), EntityNbtTest's creeper round-trip, GameRule/MobManager/
+  Peaceful re-verified.
+
+NEXT (in order): C2 — the containers' CustomName/Lock rows (the
+dependency check done: ItemStack already carries displayName — the Lock
+gate's key is available; the reference's openChestMenu walk: locked &&
+!canUnlockInventory && !spectator -> the action-bar chat
+(container.isLocked) + random.door_close + no window; canUnlockInventory
+= the held item's custom hover name equals the lock key); then C3's
+remaining envelopes per the §29 ledger.
