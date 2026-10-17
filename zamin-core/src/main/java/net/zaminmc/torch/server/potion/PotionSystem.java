@@ -76,6 +76,19 @@ public final class PotionSystem {
             return false;
         }
 
+        /**
+         * The absorption hearts' delta (AbsorptionStatusEffect's own
+         * addModifiers/removeModifiers pair — ±{@code 4 * (amplifier + 1)},
+         * lines 13-23): fires on the effect's install, its re-apply (the
+         * upgrade walk's remove+add pair) and its removal. The default
+         * no-op covers the test stubs and the players (their absorption
+         * model is the engine's standing envelope — the golden apple's
+         * player-side hearts ledgered for the player-body slice); the
+         * engine's mob arm lands the delta on the body.
+         */
+        default void absorb(Object body, float delta) {
+        }
+
         /** Whether the body is a player session (the effect-store keying). */
         boolean isPlayer(Object body);
 
@@ -132,8 +145,23 @@ public final class PotionSystem {
         StatusEffectInstance existing = store.get(id);
         if (existing != null) {
             existing.combine(instance);
+            // onStatusEffectUpgraded(merged, true) — LivingEntity lines
+            // 555-566: the combine path fires the remove+add modifier pair
+            // at the MERGED amplifier (the combine raised it in place
+            // first). The reference's own quirk: a re-applied absorption
+            // RESTORES the eaten hearts (the remove dips negative, the
+            // setter's clamp zeroes it, the add stacks the full band back).
+            if (id == StatusEffects.ABSORPTION) {
+                bodies.absorb(body, -4.0f * (existing.amplifier() + 1));
+                bodies.absorb(body, 4.0f * (existing.amplifier() + 1));
+            }
         } else {
             store.put(id, instance);
+            // onStatusEffectApplied (LivingEntity lines 593-599):
+            // addModifiers — a fresh absorption grants its full band.
+            if (id == StatusEffects.ABSORPTION) {
+                bodies.absorb(body, 4.0f * (instance.amplifier() + 1));
+            }
         }
         if (bodies.isPlayer(body)) {
             for (Listener listener : listeners) {
@@ -184,9 +212,16 @@ public final class PotionSystem {
             return;
         }
         StatusEffectInstance removed = store.remove(id);
-        if (removed != null && bodies.isPlayer(body)) {
-            for (Listener listener : listeners) {
-                listener.onEffectRemoved((PlayerSession) body, removed);
+        if (removed != null) {
+            // onStatusEffectRemoved (LivingEntity lines 608-614):
+            // removeModifiers — the absorption band goes back.
+            if (removed.id() == StatusEffects.ABSORPTION) {
+                bodies.absorb(body, -4.0f * (removed.amplifier() + 1));
+            }
+            if (bodies.isPlayer(body)) {
+                for (Listener listener : listeners) {
+                    listener.onEffectRemoved((PlayerSession) body, removed);
+                }
             }
         }
     }
@@ -194,10 +229,18 @@ public final class PotionSystem {
     /** Clears every effect on the body (death, the dimension rules' surface). */
     public void clear(Object body) {
         Map<Integer, StatusEffectInstance> store = effects.remove(bodies.keyOf(body));
-        if (store != null && bodies.isPlayer(body)) {
+        if (store != null) {
+            // clearStatusEffects (LivingEntity lines 526-537): every
+            // effect walks the removal arm — the absorption bands go
+            // back one by one.
             for (StatusEffectInstance instance : store.values()) {
-                for (Listener listener : listeners) {
-                    listener.onEffectRemoved((PlayerSession) body, instance);
+                if (instance.id() == StatusEffects.ABSORPTION) {
+                    bodies.absorb(body, -4.0f * (instance.amplifier() + 1));
+                }
+                if (bodies.isPlayer(body)) {
+                    for (Listener listener : listeners) {
+                        listener.onEffectRemoved((PlayerSession) body, instance);
+                    }
                 }
             }
         }

@@ -29,9 +29,11 @@ import java.util.UUID;
  * <p><b>The engine's standing envelopes</b> (each row written with the
  * reference's own default, read into the engine's model where the model
  * carries the state — FallDistance 0.0f, Air 300s, PortalCooldown 0,
- * HurtByTimestamp 0, AbsorptionAmount 0.0f, CanPickUpLoot false, the
- * DropChances 0.085 quintet: the engine models none of these mechanics,
- * the rows round-trip only): ledgered.</p>
+ * HurtByTimestamp 0, CanPickUpLoot false, the DropChances 0.085 quintet:
+ * the engine models none of these mechanics, the rows round-trip only):
+ * ledgered. The AbsorptionAmount row LANDED into the model (Slice 92 —
+ * the absorption hearts eat first in the hurt walk, the ABSORPTION
+ * effect's ±4 band rides the potion system's absorb hook).</p>
  *
  * <p><b>The living rows</b>: HealF (the any-numeric read gate) else the
  * Health row (the reference's own quirk — a FLOAT or SHORT row applies,
@@ -163,7 +165,7 @@ public final class EntityNbt {
         NbtOps.putShort(nbt, "HurtTime", (short) mob.hurtTime());
         NbtOps.putInt(nbt, "HurtByTimestamp", 0);
         NbtOps.putShort(nbt, "DeathTime", (short) mob.deathTime());
-        NbtOps.putFloat(nbt, "AbsorptionAmount", 0.0f);
+        NbtOps.putFloat(nbt, "AbsorptionAmount", mob.absorption());
         List<Snbt.Tag> attributes = new ArrayList<>();
         if (mob.hasMovementSpeedOverride()) {
             attributes.add(attributeRows("generic.movementSpeed",
@@ -431,6 +433,11 @@ public final class EntityNbt {
             Map<String, Snbt.Tag> nbt,
             PotionSystem potions,
             Runnable equipmentChanged) {
+        // LivingEntity.readCustomNbt (line 418 — the FIRST row the walk
+        // reads): the absorption hearts install ungated; the
+        // ActiveEffects rows below ride put (no modifier walk) — the
+        // hearts come from the ROW, not the effect's re-apply.
+        mob.setAbsorption(NbtOps.getFloat(nbt, "AbsorptionAmount"));
         // LivingEntity.readCustomNbt.
         // Attributes (the reference's contains(key, 9) list gate): the
         // {Name, Base} walk — the engine honors the two consult names.
@@ -493,8 +500,7 @@ public final class EntityNbt {
         }
         mob.setHurtTime(NbtOps.getShort(nbt, "HurtTime"));
         mob.setDeathTime(NbtOps.getShort(nbt, "DeathTime"));
-        // HurtByTimestamp / AbsorptionAmount: the engine's standing
-        // envelopes (no model).
+        // HurtByTimestamp: the engine's standing envelope (no model).
         // MobEntity.readCustomNbt.
         mob.setPersistent(NbtOps.getBoolean(nbt, "PersistenceRequired"));
         List<Snbt.Tag> equipment = NbtOps.getList(nbt, "Equipment", Snbt.Tag.Type.COMPOUND);

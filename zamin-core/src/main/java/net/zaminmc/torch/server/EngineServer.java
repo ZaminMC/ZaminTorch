@@ -13434,6 +13434,18 @@ public final class EngineServer implements Server, EngineBridge {
         }
 
         @Override
+        public void absorb(Object body, float delta) {
+            // Slice 92 — AbsorptionStatusEffect's modifier pair over the
+            // engine's bodies: the mob arm lands the delta on the body's
+            // own hearts store; the players carry no absorption model yet
+            // (the golden apple's player-side hearts — the engine's
+            // standing envelope, ledgered for the player-body slice).
+            if (body instanceof MobEntity mob) {
+                mob.setAbsorption(mob.absorption() + delta);
+            }
+        }
+
+        @Override
         public boolean isPlayer(Object body) {
             return body instanceof PlayerSession;
         }

@@ -440,6 +440,8 @@ public final class MobEntity implements LivingEntity {
     private float yaw;
     private float headYaw;
     private float health;
+    /** The absorption hearts (LivingEntity.absorption, line 126). */
+    private float absorption;
     private boolean onGround;
     /** The body's command-stat bindings (the reference's Entity field). */
     private final net.zaminmc.torch.server.command.EngineCommandResults commandResults =
@@ -1054,6 +1056,19 @@ public final class MobEntity implements LivingEntity {
         health = Math.max(0.0f, Math.min(maxHealth(), value));
     }
 
+    /**
+     * The absorption hearts (LivingEntity lines 1623-1633: the getter
+     * over the field, the setter's own clamp — a negative read lands
+     * zero, the hearts never dip below empty).
+     */
+    public float absorption() {
+        return absorption;
+    }
+
+    public void setAbsorption(float value) {
+        absorption = Math.max(0.0f, value);
+    }
+
     public boolean onGround() {
         return onGround;
     }
@@ -1242,8 +1257,24 @@ public final class MobEntity implements LivingEntity {
         if (isInLove()) {
             resetLove();
         }
-        health = Math.max(0.0f, health - amount);
+        // The hurt flash rides takeDamage's own walk (damagedTimer = 10,
+        // LivingEntity.takeDamage) — it fires even for a fully absorbed
+        // hit; the absorption below gates the HEALTH term alone.
         hurtFlash = HURT_FLASH_TICKS;
+        // applyDamage (LivingEntity lines 913-921): the absorption eats
+        // first — a fully absorbed hit lands no health change (the
+        // {@code if (damage != 0.0F)} guard skips the whole health walk);
+        // the eaten part shaves the store; a REMAINING hit shaves the
+        // store again by the landed damage — the reference's own
+        // double-shave quirk (the same damage eats health AND hearts).
+        float incoming = amount;
+        amount = Math.max(amount - absorption, 0.0f);
+        setAbsorption(absorption - (incoming - amount));
+        if (amount == 0.0f) {
+            return;
+        }
+        setAbsorption(absorption - amount);
+        health = Math.max(0.0f, health - amount);
         if (health <= 0) {
             dead = true;
             return;
