@@ -39,12 +39,14 @@ public final class MobDataStore {
     private static final int MAGIC_0 = 'Z';
     private static final int MAGIC_1 = 'M';
     private static final int MAGIC_2 = 'D';
-    private static final int FORMAT_VERSION = 9;
+    private static final int FORMAT_VERSION = 10;
 
     /** The v7 store's own version (Slice 94's Wave G tail — the load keeps reading it). */
     private static final int FORMAT_VERSION_7 = 7;
     /** The v8 store's own version (Slice 95's BlockEntityTag row — the load keeps reading it). */
     private static final int FORMAT_VERSION_8 = 8;
+    /** The pre-color shape (Slice 96): the stack rows stop after the CanPlaceOn list. */
+    private static final int FORMAT_VERSION_9 = 9;
 
     /** The v6 store's own version (Slice 92's held-stack tail — the load keeps reading it). */
     private static final int FORMAT_VERSION_6 = 6;
@@ -128,7 +130,8 @@ public final class MobDataStore {
                 throw new IOException("Not a ZMD file");
             }
             int version = in.readByte();
-            if (version != FORMAT_VERSION && version != FORMAT_VERSION_8
+            if (version != FORMAT_VERSION && version != FORMAT_VERSION_9
+                    && version != FORMAT_VERSION_8
                     && version != FORMAT_VERSION_7
                     && version != FORMAT_VERSION_6
                     && version != FORMAT_VERSION_4
@@ -440,6 +443,11 @@ public final class MobDataStore {
                     writeString(out, key);
                 }
             }
+            // The v10 tail (the leather tint): a nullable int row.
+            out.writeBoolean(nbt.heldEquipment().displayColor() != null);
+            if (nbt.heldEquipment().displayColor() != null) {
+                out.writeInt(nbt.heldEquipment().displayColor());
+            }
         }
         if ((flags & NBT_FLAG_MOVEMENT_SPEED) != 0) {
             out.writeDouble(nbt.movementSpeed());
@@ -535,8 +543,10 @@ public final class MobDataStore {
                                     net.zaminmc.torch.server.nbt.NbtOps.toBoxed(parsed));
                         }
                     }
-                    // The v9 tail (Wave I): the two lists.
-                    int destroyCount = readVarInt(in);
+                    // The v9 tail (Wave I): the two lists — the gate names
+                    // its own version (the v10 bump's audit: an unconditional
+                    // read inside the v7 block would misparse v7/v8 files).
+                    int destroyCount = version >= FORMAT_VERSION_9 ? readVarInt(in) : 0;
                     if (destroyCount > 0) {
                         java.util.List<String> keys = new java.util.ArrayList<>(destroyCount);
                         for (int k = 0; k < destroyCount; k++) {
@@ -544,13 +554,17 @@ public final class MobDataStore {
                         }
                         held = held.withCanDestroy(keys);
                     }
-                    int placeCount = readVarInt(in);
+                    int placeCount = version >= FORMAT_VERSION_9 ? readVarInt(in) : 0;
                     if (placeCount > 0) {
                         java.util.List<String> keys = new java.util.ArrayList<>(placeCount);
                         for (int k = 0; k < placeCount; k++) {
                             keys.add(readString(in));
                         }
                         held = held.withCanPlaceOn(keys);
+                    }
+                    // The v10 tail (the leather tint): absent in a v9 file.
+                    if (version >= FORMAT_VERSION && in.readBoolean()) {
+                        held = held.withDisplayColor(in.readInt());
                     }
                 }
             }

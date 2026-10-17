@@ -49,7 +49,8 @@ final class SlotNbt {
                 || (stack.lore() != null && !stack.lore().isEmpty())
                 || (stack.blockEntityTag() != null && !stack.blockEntityTag().isEmpty())
                 || (stack.canDestroy() != null && !stack.canDestroy().isEmpty())
-                || (stack.canPlaceOn() != null && !stack.canPlaceOn().isEmpty());
+                || (stack.canPlaceOn() != null && !stack.canPlaceOn().isEmpty())
+                || stack.displayColor() != null;
     }
 
     /**
@@ -91,7 +92,7 @@ final class SlotNbt {
                 out.writeByte(TAG_END);    // end of the element compound
             }
         }
-        if (named || lored) {
+        if (named || lored || stack.displayColor() != null) {
             out.writeByte(TAG_COMPOUND); // tag.display
             writeShortString(out, "display");
             {
@@ -110,6 +111,12 @@ final class SlotNbt {
                     for (String line : stack.lore()) {
                         writeShortString(out, line);
                     }
+                }
+                if (stack.displayColor() != null) {
+                    // display.color (the leather tint, an INT row).
+                    out.writeByte(TAG_INT);
+                    writeShortString(out, "color");
+                    out.writeInt(stack.displayColor());
                 }
                 out.writeByte(TAG_END);    // end of tag.display
             }

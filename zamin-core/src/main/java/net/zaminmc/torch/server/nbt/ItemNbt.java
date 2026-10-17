@@ -69,12 +69,18 @@ public final class ItemNbt {
         boolean hasCanDestroy = stack.canDestroy() != null && !stack.canDestroy().isEmpty();
         boolean hasCanPlaceOn = stack.canPlaceOn() != null && !stack.canPlaceOn().isEmpty();
         if (hasName || hasLore || hasEnch || unbreakable || repairCost > 0 || hideFlags > 0
-                || hasBlockEntityTag || hasCanDestroy || hasCanPlaceOn) {
+                || hasBlockEntityTag || hasCanDestroy || hasCanPlaceOn
+                || stack.displayColor() != null) {
             Map<String, Snbt.Tag> tag = new java.util.LinkedHashMap<>();
-            if (hasName || hasLore) {
+            if (hasName || hasLore || stack.displayColor() != null) {
                 Map<String, Snbt.Tag> display = new java.util.LinkedHashMap<>();
                 if (hasName) {
                     NbtOps.putString(display, "Name", stack.displayName());
+                }
+                if (stack.displayColor() != null) {
+                    // display.color (the leather tint, a contains(...,3)
+                    // INT row — ArmorItem.getColor's own gate).
+                    NbtOps.putInt(display, "color", stack.displayColor());
                 }
                 if (hasLore) {
                     java.util.List<Snbt.Tag> lines = new java.util.ArrayList<>();
@@ -209,6 +215,12 @@ public final class ItemNbt {
         String name = NbtOps.getString(display, "Name");
         if (name != null && !name.isEmpty()) {
             stack = stack.withName(name);
+        }
+        // display.color (the contains(...,3) INT gate — a non-int row
+        // never lands; getInt answers 0 for a missing row, so the gate
+        // rides containsNumeric).
+        if (NbtOps.containsNumeric(display, "color")) {
+            stack = stack.withDisplayColor(NbtOps.getInt(display, "color"));
         }
         java.util.List<Snbt.Tag> loreRows = NbtOps.getList(display, "Lore", Snbt.Tag.Type.STRING);
         if (!loreRows.isEmpty()) {
