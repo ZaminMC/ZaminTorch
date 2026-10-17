@@ -41,11 +41,13 @@ public final class ItemDataStore {
     private static final int MAGIC_0 = 'Z';
     private static final int MAGIC_1 = 'I';
     private static final int MAGIC_2 = 'D';
-    private static final int FORMAT_VERSION = 3;
+    private static final int FORMAT_VERSION = 4;
     /** The pre-Wave-G shape (Slice 93): the stack rows stop after the enchant pairs. */
     private static final int FORMAT_VERSION_1 = 1;
     /** The pre-H2 shape (Slice 94): the stack rows stop after the Lore list. */
     private static final int FORMAT_VERSION_2 = 2;
+    /** The pre-I1 shape (Slice 95): the stack rows stop after the BlockEntityTag row. */
+    private static final int FORMAT_VERSION_3 = 3;
 
     private static final int FLAG_NEVER_DESPAWN = 0x01;
     private static final int FLAG_THROWER = 0x02;
@@ -124,6 +126,22 @@ public final class ItemDataStore {
                             : net.zaminmc.torch.server.nbt.NbtOps.writeParseable(
                                     net.zaminmc.torch.server.nbt.NbtOps.fromBoxed(
                                             item.stack().blockEntityTag())));
+                    // The v4 tail (Wave I — the adventure gates' lists):
+                    // the count + the strings, the Lore row's own shape.
+                    writeVarInt(out, item.stack().canDestroy() == null
+                            ? 0 : item.stack().canDestroy().size());
+                    if (item.stack().canDestroy() != null) {
+                        for (String key : item.stack().canDestroy()) {
+                            writeString(out, key);
+                        }
+                    }
+                    writeVarInt(out, item.stack().canPlaceOn() == null
+                            ? 0 : item.stack().canPlaceOn().size());
+                    if (item.stack().canPlaceOn() != null) {
+                        for (String key : item.stack().canPlaceOn()) {
+                            writeString(out, key);
+                        }
+                    }
                     writeVarInt(out, item.age());
                     writeVarInt(out, item.pickupDelay());
                     int flags = 0;
@@ -167,7 +185,8 @@ public final class ItemDataStore {
                 throw new IOException("Not a ZID file");
             }
             int version = in.readByte();
-            if (version != FORMAT_VERSION && version != FORMAT_VERSION_2
+            if (version != FORMAT_VERSION && version != FORMAT_VERSION_3
+                    && version != FORMAT_VERSION_2
                     && version != FORMAT_VERSION_1) {
                 throw new IOException("Unsupported ZID version: " + version);
             }
@@ -213,8 +232,27 @@ public final class ItemDataStore {
                 }
                 // The v3 tail (Slice 95): the BlockEntityTag SNBT string row —
                 // a v2 file never carries it (the null marker reads null).
-                String blockEntityTagRow = version >= FORMAT_VERSION
+                String blockEntityTagRow = version >= FORMAT_VERSION_3
                         ? readNullableString(in) : null;
+                // The v4 tail (Wave I): the two lists — absent in a v3 file.
+                java.util.List<String> canDestroyRows = null;
+                java.util.List<String> canPlaceOnRows = null;
+                if (version >= FORMAT_VERSION) {
+                    int destroyCount = readVarInt(in);
+                    if (destroyCount > 0) {
+                        canDestroyRows = new java.util.ArrayList<>(destroyCount);
+                        for (int k = 0; k < destroyCount; k++) {
+                            canDestroyRows.add(readString(in));
+                        }
+                    }
+                    int placeCount = readVarInt(in);
+                    if (placeCount > 0) {
+                        canPlaceOnRows = new java.util.ArrayList<>(placeCount);
+                        for (int k = 0; k < placeCount; k++) {
+                            canPlaceOnRows.add(readString(in));
+                        }
+                    }
+                }
                 // An unresolvable item id (a newer save on an older build)
                 // still consumes its rows: the body simply never joins the
                 // world (the restore skips the empty stack).
@@ -251,6 +289,12 @@ public final class ItemDataStore {
                             stack = stack.withBlockEntityTag(
                                     net.zaminmc.torch.server.nbt.NbtOps.toBoxed(parsed));
                         }
+                    }
+                    if (canDestroyRows != null && !canDestroyRows.isEmpty()) {
+                        stack = stack.withCanDestroy(canDestroyRows);
+                    }
+                    if (canPlaceOnRows != null && !canPlaceOnRows.isEmpty()) {
+                        stack = stack.withCanPlaceOn(canPlaceOnRows);
                     }
                 }
                 int age = readVarInt(in);

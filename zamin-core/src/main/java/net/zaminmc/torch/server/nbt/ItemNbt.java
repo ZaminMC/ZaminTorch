@@ -66,8 +66,10 @@ public final class ItemNbt {
         int hideFlags = stack.hideFlags();
         boolean hasBlockEntityTag = stack.blockEntityTag() != null
                 && !stack.blockEntityTag().isEmpty();
+        boolean hasCanDestroy = stack.canDestroy() != null && !stack.canDestroy().isEmpty();
+        boolean hasCanPlaceOn = stack.canPlaceOn() != null && !stack.canPlaceOn().isEmpty();
         if (hasName || hasLore || hasEnch || unbreakable || repairCost > 0 || hideFlags > 0
-                || hasBlockEntityTag) {
+                || hasBlockEntityTag || hasCanDestroy || hasCanPlaceOn) {
             Map<String, Snbt.Tag> tag = new java.util.LinkedHashMap<>();
             if (hasName || hasLore) {
                 Map<String, Snbt.Tag> display = new java.util.LinkedHashMap<>();
@@ -108,6 +110,23 @@ public final class ItemNbt {
             if (hasBlockEntityTag) {
                 NbtOps.putCompound(tag, "BlockEntityTag",
                         NbtOps.fromBoxed(stack.blockEntityTag()));
+            }
+            // The adventure gates' lists (Wave I — contains(...,9) +
+            // getList(...,8): a TAG_LIST of TAG_STRING over the block
+            // keys), written only when the model carries them.
+            if (stack.canDestroy() != null && !stack.canDestroy().isEmpty()) {
+                java.util.List<Snbt.Tag> keys = new java.util.ArrayList<>();
+                for (String key : stack.canDestroy()) {
+                    keys.add(Snbt.Tag.ofString(key));
+                }
+                NbtOps.putList(tag, "CanDestroy", keys);
+            }
+            if (stack.canPlaceOn() != null && !stack.canPlaceOn().isEmpty()) {
+                java.util.List<Snbt.Tag> keys = new java.util.ArrayList<>();
+                for (String key : stack.canPlaceOn()) {
+                    keys.add(Snbt.Tag.ofString(key));
+                }
+                NbtOps.putList(tag, "CanPlaceOn", keys);
             }
             NbtOps.putCompound(rows, "tag", tag);
         }
@@ -236,6 +255,34 @@ public final class ItemNbt {
         Map<String, Snbt.Tag> blockEntityTag = NbtOps.getCompound(tag, "BlockEntityTag");
         if (!blockEntityTag.isEmpty()) {
             stack = stack.withBlockEntityTag(NbtOps.toBoxed(blockEntityTag));
+        }
+        // The adventure gates' lists (Wave I — getList(...,8): an
+        // element-family mismatch answers empty, the reference's own gate).
+        java.util.List<Snbt.Tag> canDestroy = NbtOps.getList(tag, "CanDestroy", Snbt.Tag.Type.STRING);
+        if (!canDestroy.isEmpty()) {
+            java.util.List<String> keys = new java.util.ArrayList<>(canDestroy.size());
+            for (Snbt.Tag key : canDestroy) {
+                String entry = key != null ? key.asString() : null;
+                if (entry != null && !entry.isEmpty()) {
+                    keys.add(entry);
+                }
+            }
+            if (!keys.isEmpty()) {
+                stack = stack.withCanDestroy(keys);
+            }
+        }
+        java.util.List<Snbt.Tag> canPlaceOn = NbtOps.getList(tag, "CanPlaceOn", Snbt.Tag.Type.STRING);
+        if (!canPlaceOn.isEmpty()) {
+            java.util.List<String> keys = new java.util.ArrayList<>(canPlaceOn.size());
+            for (Snbt.Tag key : canPlaceOn) {
+                String entry = key != null ? key.asString() : null;
+                if (entry != null && !entry.isEmpty()) {
+                    keys.add(entry);
+                }
+            }
+            if (!keys.isEmpty()) {
+                stack = stack.withCanPlaceOn(keys);
+            }
         }
         return stack;
     }

@@ -39,10 +39,12 @@ public final class MobDataStore {
     private static final int MAGIC_0 = 'Z';
     private static final int MAGIC_1 = 'M';
     private static final int MAGIC_2 = 'D';
-    private static final int FORMAT_VERSION = 8;
+    private static final int FORMAT_VERSION = 9;
 
     /** The v7 store's own version (Slice 94's Wave G tail — the load keeps reading it). */
     private static final int FORMAT_VERSION_7 = 7;
+    /** The v8 store's own version (Slice 95's BlockEntityTag row — the load keeps reading it). */
+    private static final int FORMAT_VERSION_8 = 8;
 
     /** The v6 store's own version (Slice 92's held-stack tail — the load keeps reading it). */
     private static final int FORMAT_VERSION_6 = 6;
@@ -126,7 +128,8 @@ public final class MobDataStore {
                 throw new IOException("Not a ZMD file");
             }
             int version = in.readByte();
-            if (version != FORMAT_VERSION && version != FORMAT_VERSION_7
+            if (version != FORMAT_VERSION && version != FORMAT_VERSION_8
+                    && version != FORMAT_VERSION_7
                     && version != FORMAT_VERSION_6
                     && version != FORMAT_VERSION_4
                     && version != FORMAT_VERSION_3 && version != FORMAT_VERSION_2
@@ -421,6 +424,22 @@ public final class MobDataStore {
                     : net.zaminmc.torch.server.nbt.NbtOps.writeParseable(
                             net.zaminmc.torch.server.nbt.NbtOps.fromBoxed(
                                     nbt.heldEquipment().blockEntityTag())));
+            // The v9 tail (Wave I — the adventure gates' lists): the
+            // count + the strings, the Lore row's own shape.
+            writeVarInt(out, nbt.heldEquipment().canDestroy() == null
+                    ? 0 : nbt.heldEquipment().canDestroy().size());
+            if (nbt.heldEquipment().canDestroy() != null) {
+                for (String key : nbt.heldEquipment().canDestroy()) {
+                    writeString(out, key);
+                }
+            }
+            writeVarInt(out, nbt.heldEquipment().canPlaceOn() == null
+                    ? 0 : nbt.heldEquipment().canPlaceOn().size());
+            if (nbt.heldEquipment().canPlaceOn() != null) {
+                for (String key : nbt.heldEquipment().canPlaceOn()) {
+                    writeString(out, key);
+                }
+            }
         }
         if ((flags & NBT_FLAG_MOVEMENT_SPEED) != 0) {
             out.writeDouble(nbt.movementSpeed());
@@ -506,7 +525,7 @@ public final class MobDataStore {
                     // The v8 tail (Slice 95 — the BlockEntityTag raw compound,
                     // the Wave H2 arm): the whole subtree as ONE SNBT string
                     // row. Absent arm writes the null marker.
-                    String blockEntityTagRow = version >= FORMAT_VERSION
+                    String blockEntityTagRow = version >= FORMAT_VERSION_8
                             ? readNullableString(in) : null;
                     if (blockEntityTagRow != null) {
                         java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> parsed =
@@ -515,6 +534,23 @@ public final class MobDataStore {
                             held = held.withBlockEntityTag(
                                     net.zaminmc.torch.server.nbt.NbtOps.toBoxed(parsed));
                         }
+                    }
+                    // The v9 tail (Wave I): the two lists.
+                    int destroyCount = readVarInt(in);
+                    if (destroyCount > 0) {
+                        java.util.List<String> keys = new java.util.ArrayList<>(destroyCount);
+                        for (int k = 0; k < destroyCount; k++) {
+                            keys.add(readString(in));
+                        }
+                        held = held.withCanDestroy(keys);
+                    }
+                    int placeCount = readVarInt(in);
+                    if (placeCount > 0) {
+                        java.util.List<String> keys = new java.util.ArrayList<>(placeCount);
+                        for (int k = 0; k < placeCount; k++) {
+                            keys.add(readString(in));
+                        }
+                        held = held.withCanPlaceOn(keys);
                     }
                 }
             }
