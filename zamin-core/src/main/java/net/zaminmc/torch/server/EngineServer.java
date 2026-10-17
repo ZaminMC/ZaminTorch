@@ -239,6 +239,7 @@ public final class EngineServer implements Server, EngineBridge {
     private volatile net.zaminmc.torch.server.concurrent.DomainWorkerPool domainWorkerPool;
     /** The Phase 4 cross-owner router: the §7 intent protocol's live surface. */
     private volatile net.zaminmc.torch.server.concurrent.CrossOwnerRouter crossOwnerRouter;
+    private volatile net.zaminmc.torch.server.concurrent.CrossOwnerView crossOwnerView;
     /** The overworld's spatial ownership partition (the Phase 4 activation). */
     private volatile net.zaminmc.torch.server.concurrent.RegionPartition worldRegionPartition;
     /** The nether's spatial ownership partition (the same granularity). */
@@ -2123,6 +2124,7 @@ public final class EngineServer implements Server, EngineBridge {
                     // The ambient router drain already ran at the tick edge.
                     world.drainRegionIntents(crossOwnerRouter);
                     netherWorld.drainRegionIntents(crossOwnerRouter);
+                    endWorld.drainRegionIntents(crossOwnerRouter);
                     blockUpdateSystem.tick(); // §466: scheduled updates (falls start here)
                     redstoneSystem.tick(); // the torch/repeater scheduled reactions
                     pistonSystem.tick(); // the piston block events + the moving carriers
@@ -2489,6 +2491,12 @@ public final class EngineServer implements Server, EngineBridge {
                 ticker.attachDomainPool(domainWorkerPool);
                 crossOwnerRouter = new net.zaminmc.torch.server.concurrent.CrossOwnerRouter();
                 ticker.attachCrossOwnerRouter(crossOwnerRouter, simulationDomain);
+                // The public cross-owner view (§28.2's default nonblocking
+                // API — Slice 80): the router's plugin-facing face, wired
+                // beside its router so the view's shutdown walk rides the
+                // engine's own stop order.
+                crossOwnerView = new net.zaminmc.torch.server.concurrent.CrossOwnerView(
+                        crossOwnerRouter);
                 // The discovery wave (Slice 79 — §28.5's DISCOVERED → LOADED
                 // stages): every jar in the data dir's plugins/ registers
                 // through the host over the live lanes. Per-jar isolated —
@@ -2635,6 +2643,12 @@ public final class EngineServer implements Server, EngineBridge {
             if (crossOwnerRouter != null) {
                 crossOwnerRouter.shutdown();
             }
+            // The view's own shutdown walk (§28.5 — outstanding requests
+            // are invalidated, not delivered) runs AFTER the router's
+            // queue clear: every still-queued handle flips CANCELLED.
+            if (crossOwnerView != null) {
+                crossOwnerView.shutdown();
+            }
             ticker.stop();
             try {
                 ticker.awaitStop(5_000);
@@ -2657,13 +2671,21 @@ public final class EngineServer implements Server, EngineBridge {
 
     @Override
     public Collection<World> worlds() {
-        // Both live dimensions (the nether boots alongside the overworld — 8b).
+        // The live dimensions (the nether boots alongside the overworld —
+        // 8b; the End rides Slice 61's third EngineWorld — worlds() grew
+        // it in Slice 80 so the public collection stops hiding it).
         if (world == null) {
             return java.util.List.of();
         }
-        return netherWorld == null
-                ? java.util.List.of((World) world)
-                : java.util.List.of((World) world, (World) netherWorld);
+        java.util.List<World> live = new java.util.ArrayList<>(2);
+        live.add(world);
+        if (netherWorld != null) {
+            live.add(netherWorld);
+        }
+        if (endWorld != null) {
+            live.add(endWorld);
+        }
+        return live;
     }
 
     @Override
@@ -2686,6 +2708,16 @@ public final class EngineServer implements Server, EngineBridge {
      */
     public EngineWorld netherWorld() {
         return netherWorld;
+    }
+
+    /**
+     * The End dimension (Slice 61's third EngineWorld — vanilla's DIM1),
+     * or null before the boot constructs it. The public worlds()
+     * collection carries it once booted (Slice 80's own fix — the End
+     * stopped hiding from the §27 surface).
+     */
+    public EngineWorld endWorld() {
+        return endWorld;
     }
 
     /**
@@ -2726,6 +2758,16 @@ public final class EngineServer implements Server, EngineBridge {
         net.zaminmc.torch.concurrent.AsyncCompute view = computeView;
         if (view == null) {
             throw new IllegalStateException("compute is unavailable before the server boots");
+        }
+        return view;
+    }
+
+    /** The public cross-owner view (§28.2's nonblocking request API; wired at boot). */
+    @Override
+    public net.zaminmc.torch.concurrent.CrossOwner crossOwner() {
+        net.zaminmc.torch.concurrent.CrossOwner view = crossOwnerView;
+        if (view == null) {
+            throw new IllegalStateException("cross-owner requests are unavailable before the server boots");
         }
         return view;
     }

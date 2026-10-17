@@ -7745,3 +7745,57 @@ NEXT (in order): (1) the remaining sections 27/28 audit rows (the
 cross-owner request surface — the AUDITED row with the router internal
 today); (2) the next vanilla wave per the ledger; (3) the periodic
 full-suite verification (the milestone convention).
+
+## Slice 80 — the plugin-facing cross-owner request surface (§28.2's default nonblocking API) + the End dimension's missing region drain
+
+- **The public interface (`api concurrent.CrossOwner`)**: the
+  `CrossOwnerRouter`'s plugin-facing face over **`Server.crossOwner()`**
+  — `submit(world, position, operation, action)` (the one-way command,
+  §10.1's default), `submit(..., Supplier, BiConsumer)` (the
+  result-carrying form), and the `deadlineTick` overload (the last tick
+  the request may still apply). The `Request` handle: `state()`
+  (QUEUED/APPLIED/FAILED/CANCELLED/EXPIRED/REFUSED), `cancel()` while
+  queued, `resultNow()` (the non-blocking peek), `failure()`; the §28.9
+  counters (submitted/refused/applied/failed/cancelled/expired).
+- **The contract (§28.2's own rules, now enforced by an adapter)**:
+  submission never blocks from any thread; the action AND the completion
+  run in the TARGET owner's validated context at a tick boundary (the
+  explicit completion context — never an arbitrary owner); admission is
+  exactly-once per request (a fresh operation id each — a retry is a new
+  request by contract); the per-target pending bound refuses LOUDLY (the
+  handle reports REFUSED); a throwing action completes FAILED with the
+  throwable and never kills the drain; cancellation skips without
+  running; the deadline expires past its tick without running; at
+  shutdown the queued requests flip CANCELLED with no completion
+  (§28.5's invalidated-not-delivered law).
+- **The engine view (`server/concurrent/CrossOwnerView`)**: the routing
+  resolves the target position's region domain (the partitioned world's
+  own lane — the same domain the tick-head boundary walk drains) or the
+  unpartitioned world's own domain; the guard wraps every action (the
+  cancel gate, the deadline gate against the target world's own tick
+  clock at drain time, the failure isolation — the guard NEVER throws,
+  so the router's counters stay its own "drained-without-throwing"
+  telemetry and the view's counters carry the semantic outcomes); the
+  live-handle registry keeps the shutdown walk bounded.
+- **THE END'S MISSING REGION DRAIN (the engine fix)**: the tick head
+  drained the overworld's and the nether's region intents but never the
+  End's — an intent toward the End's region domain sat queued forever
+  (the Slice 61 dimension landed after the drain wiring; nobody added
+  its line). `endWorld.drainRegionIntents(crossOwnerRouter)` now rides
+  the tick head beside its siblings.
+- **The End's public presence (§27's surface fix)**: `Server.worlds()`
+  grew the End (the collection stopped hiding the third dimension —
+  EventApiAcceptanceTest's size assertion updated with it) and
+  `EngineServer.endWorld()` joined `world()`/`netherWorld()`.
+- Tests: `CrossOwnerApiAcceptanceTest` (9 — the target-context apply
+  with the completion contract + the mutation landing, the failure
+  isolation + the survivor, the cancel gate, the expiry gate + the
+  on-own-tick apply, the loud backpressure with the REFUSED handle, the
+  unpartitioned routing through the world's own domain, the live-engine
+  foreign-thread apply through the public accessor, the End's drain
+  through the live engine). The concurrent family + RegionBoundaryTest +
+  Event/World/BlockEntity API acceptance green.
+
+NEXT (in order): (1) the remaining §27/28 audit rows (the pistons/
+fluids observe hooks — the interaction-events wave); (2) the next
+vanilla wave per the ledger; (3) the periodic full-suite verification.

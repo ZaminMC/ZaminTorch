@@ -43,6 +43,14 @@ public interface Server {
     net.zaminmc.torch.concurrent.AsyncCompute compute();
 
     /**
+     * The cross-owner request surface (§28.2's default nonblocking
+     * API): a mutation request toward the owner of a world position —
+     * the target applies it in its own validated context at a tick
+     * boundary; the submitter never blocks.
+     */
+    net.zaminmc.torch.concurrent.CrossOwner crossOwner();
+
+    /**
      * The blocking-I/O surface (§28.1's fourth category — the storage
      * lane): database, filesystem, HTTP, and other potentially blocking
      * work on its own bounded pool, completions validated and published
