@@ -1320,22 +1320,28 @@ with a thrower stamps THAT player) ride onPlayerCollision. The engine
 folded the lava halving into the water's full zero (the shared fluid
 model) and carries no thrower field at all. Order:
 
-- [ ] D1 — the GIVE_DIAMOND arm: the thrower/owner fields on
-      ItemEntity, the drop site's thrower stamp
-      (PlayerEntity.dropItem's `setThrower(getName())`), the pickup
-      walk's owner-window gate, the achievement family on the
-      successful pickup, the random.pop sound;
-- [ ] D2 — the lava walk for the living family: the mob arm
-      (takeLavaDamage's 4.0 at the wound cadence + the 15-second arm +
-      the fallDistance halving, the fire-resistance gate over the wound
-      through the per-mob amplifier query), the player arm (the same
-      walk through the engine's fire-family model — the lava timer's
-      own 10-tick cadence, the shadowing of the fire-family wounds
-      while submerged, "tried to swim in lava"), and the shared fluid
-      model's split (the water's full zero vs the lava's *0.5 halving,
-      the reference's own tick order — halve first, then the water
-      zero);
-- [ ] D3 — the ledger + worklog rows (the envelope notes retired, the
+- [x] D1 — the GIVE_DIAMOND arm LANDED (156a890): the thrower/owner
+      fields on ItemEntity, the drop site's thrower stamp
+      (PlayerEntity.dropItem's `setThrower(getName())` — the Q-key drop
+      alone, the reference's own call-shape split), the pickup walk's
+      owner-window gate, the achievement family on the successful
+      pickup (GET_LOG for log/log2, KILL_COW, GET_DIAMOND, GET_BLAZE_ROD,
+      GIVE_DIAMOND — the diamond picked up with a thrower stamps THAT
+      player, the self-pickup exempt), the random.pop sound — AND the
+      outside-click duplication fix the landing exposed (the -999 arm
+      dropped the cursor's stack AND refilled the inventory; one copy
+      leaves the body now). ItemThrowerPickupTest 6, the adjacent sweep
+      green (10 classes);
+- [x] D2 — the lava walk for the living family LANDED (f40f8b6): the
+      mob arm (takeLavaDamage's 4.0 at the 10-tick i-frame cadence + the
+      15-second max-arm + the fire-resistance gate through the per-mob
+      amplifier query), the burn clock's own resistance gate, the player
+      arm (tickLavaBody — "tried to swim in lava", the LAVA protection
+      kind), and the shared fluid model's split in three consults (the
+      fall store's water-zero vs lava-halving, the burn douse, the
+      blaze's drown — the pre-split engine drowned a blaze in its own
+      element). LavaWalkTest 8, the adjacent sweep green (12 classes);
+- [x] D3 — the ledger + worklog rows (the envelope notes retired, the
       new rows' evidence and tests).
 
 ## Standing (demand-named, not scheduled)
