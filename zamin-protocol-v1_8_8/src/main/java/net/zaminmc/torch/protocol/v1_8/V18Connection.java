@@ -2252,6 +2252,18 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         sendSound(name, new net.zaminmc.torch.util.Position(x, y, z), volume, pitch);
     }
 
+    @Override
+    public void worldParticles(int particleId, boolean longDistance, double x, double y, double z,
+                               float offsetX, float offsetY, float offsetZ,
+                               float particleData, int count, int[] params) {
+        // /particle's World Particles (0x2A) — the reference's
+        // ServerWorld.addParticle payload, broadcast per recipient.
+        sendParticles(particleId, longDistance,
+                new net.zaminmc.torch.util.Position(x, y, z),
+                offsetX, offsetY, offsetZ, particleData, count,
+                params == null ? new int[0] : params);
+    }
+
     /** The protocol 47 varlong (7 bits per byte, high bit = continuation). */
     private static void writeVarLong(ByteBuf out, long value) {
         while (true) {

@@ -310,4 +310,16 @@ public interface ClientLink {
      */
     default void playSound(String name, double x, double y, double z, float volume, float pitch) {
     }
+
+    /**
+     * World Particles (0x2A) for THIS client (the reference's
+     * ServerWorld.addParticle → sendToAround: /particle broadcasts to every
+     * player within the radius; the verb carries the already-decided
+     * payload). The params carry the crack families' extra varints. Safe
+     * from any thread; default no-op for engine-internal links.
+     */
+    default void worldParticles(int particleId, boolean longDistance, double x, double y, double z,
+                                float offsetX, float offsetY, float offsetZ,
+                                float particleData, int count, int[] params) {
+    }
 }

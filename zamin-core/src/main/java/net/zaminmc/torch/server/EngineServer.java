@@ -16458,6 +16458,9 @@ public final class EngineServer implements Server, EngineBridge {
         commands.register(new CommandService.Command("playsound",
                 "Play a sound to a player: /playsound <sound> <player> [x y z] [volume] [pitch] [minVolume]",
                 2, this::playsoundCommand));
+        commands.register(new CommandService.Command("particle",
+                "Spawn particles: /particle <name> <x y z> <ox oy oz> <data> [count] [normal|force]",
+                2, this::particleCommand));
         commands.register(new CommandService.Command("time",
                 "Query or set the day: /time query | /time set <day|noon|night|midnight|ticks>",
                 this::timeCommand));
@@ -17222,6 +17225,110 @@ public final class EngineServer implements Server, EngineBridge {
         final float fpit = (float) pitch;
         target.link().playSound(fname, fx2, fy2, fz2, fvol, fpit);
         return "Played '" + sound + "' to " + target.name();
+    }
+
+    /**
+     * /particle (ParticleCommand 1:1, op-2): the key match (the parameterized
+     * families by prefix, the rest by equality), the ~-relative coords with
+     * the block-center correction, the offset/data doubles, the count
+     * (default 0), the force flag, the crack families' parameter parse
+     * (the key's _-split tail), and the broadcast to every player within
+     * (force ? 512 : 32) in the source's dimension.
+     */
+    private String particleCommand(CommandSender sender, String[] args) {
+        if (args.length < 8) {
+            return "Usage: /particle <name> <x y z> <ox oy oz> <data> [count] [normal|force]";
+        }
+        net.zaminmc.torch.server.fx.ParticleTypes type = null;
+        for (net.zaminmc.torch.server.fx.ParticleTypes candidate : net.zaminmc.torch.server.fx.ParticleTypes.values()) {
+            if (candidate.hasParameters()) {
+                if (args[0].startsWith(candidate.getKey())) {
+                    type = candidate;
+                    break;
+                }
+            } else if (args[0].equals(candidate.getKey())) {
+                type = candidate;
+                break;
+            }
+        }
+        if (type == null) {
+            return "Unknown particle name: " + args[0];
+        }
+
+        PlayerSession self = sender.player();
+        double sx = self != null ? self.position().x() : 0.0;
+        double sy = self != null ? self.position().y() : 0.0;
+        double sz = self != null ? self.position().z() : 0.0;
+        double x = parseCenteredCoordinate(sx, args[1]);
+        double y = parseCenteredCoordinate(sy, args[2]);
+        double z = parseCenteredCoordinate(sz, args[3]);
+        float offX = (float) Double.parseDouble(args[4]);
+        float offY = (float) Double.parseDouble(args[5]);
+        float offZ = (float) Double.parseDouble(args[6]);
+        float data = (float) Double.parseDouble(args[7]);
+        int count = 0;
+        if (args.length > 8) {
+            count = net.zaminmc.torch.server.command.CommandParse.parseInt(args[8]);
+            if (count < 0) {
+                return "Count must be at least 0";
+            }
+        }
+        boolean force = args.length > 9 && "force".equals(args[9]);
+
+        int[] params = new int[type.getParameterCount()];
+        if (type.hasParameters()) {
+            String[] parts = args[0].split("_", 3);
+            for (int j = 1; j < parts.length && j <= params.length; j++) {
+                try {
+                    params[j - 1] = Integer.parseInt(parts[j]);
+                } catch (NumberFormatException notAParticle) {
+                    return "Unknown particle name: " + args[0];
+                }
+            }
+        }
+
+        // The reference's sendToAround: every player within (force ? 512 : 32)
+        // in the source's dimension.
+        final int fid = type.getId();
+        final boolean fforce = force;
+        final double fxx = x;
+        final double fyy = y;
+        final double fzz = z;
+        final float fox = offX;
+        final float foy = offY;
+        final float foz = offZ;
+        final float fdata = data;
+        final int fcount = count;
+        final int[] fparams = params;
+        final int dimension = self != null ? self.dimension() : 0;
+        double radius = force ? 512.0 : 32.0;
+        for (PlayerSession session : players.all()) {
+            if (session.state() != PlayerState.PLAYING || session.dimension() != dimension) {
+                continue;
+            }
+            double dx = session.position().x() - fxx;
+            double dy = session.position().y() - fyy;
+            double dz = session.position().z() - fzz;
+            if (dx * dx + dy * dy + dz * dz > radius * radius) {
+                continue;
+            }
+            session.link().worldParticles(fid, fforce, fxx, fyy, fzz, fox, foy, foz, fdata, fcount, fparams);
+        }
+        return String.format(java.util.Locale.ROOT, "Showing %s to %s",
+                args[0], Math.max(count, 1));
+    }
+
+    /**
+     * The reference's parseCoordinate(source, token, centerCorrect): the
+     * ~-relative walk, then the integer-center correction (+0.5 when the
+     * value lands on a whole block).
+     */
+    private static double parseCenteredCoordinate(double source, String token) {
+        double value = parseRelativeCoordinate(source, token);
+        if (value == Math.floor(value)) {
+            return value + 0.5;
+        }
+        return value;
     }
 
     /**
