@@ -134,6 +134,21 @@ final class Protocol18 {
     /** Combat event 2 = entity died (playerId varint, entityId i32, message). */
     static final int COMBAT_EVENT_ENTITY_DIED = 2;
 
+    /**
+     * Player Info (0x38, protocol 47 — PlayerInfoS2CPacket): varint action,
+     * varint entry count, then per action: ADD (uuid + name string + varint
+     * property count + properties + varint gamemode + varint ping + bool
+     * has-display-name), UPDATE_GAME_MODE (uuid + varint), UPDATE_PING
+     * (uuid + varint), UPDATE_DISPLAY_NAME (uuid + bool), REMOVE (uuid).
+     */
+    static final int S2C_PLAYER_INFO = 0x38;
+    /** Player Info actions (the reference's writeEnum ordinal order). */
+    static final int PLAYER_INFO_ADD_PLAYER = 0;
+    static final int PLAYER_INFO_UPDATE_GAME_MODE = 1;
+    static final int PLAYER_INFO_UPDATE_PING = 2;
+    static final int PLAYER_INFO_UPDATE_DISPLAY_NAME = 3;
+    static final int PLAYER_INFO_REMOVE_PLAYER = 4;
+
     // Serverbound play packet ids (protocol 47) — cross-checked against the
     // community protocol.json (PrismarineJS/minecraft-data) mapping. The
     // "Player" ground packet lives at 0x03 ("flying"); 0x0F is the client's

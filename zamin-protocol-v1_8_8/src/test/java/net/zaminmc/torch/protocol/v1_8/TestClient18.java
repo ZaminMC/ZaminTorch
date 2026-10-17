@@ -8,6 +8,7 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+import java.util.UUID;
 
 /**
  * A minimal scripted 1.8.8 test client speaking real wire frames over a real
@@ -287,6 +288,132 @@ final class TestClient18 implements AutoCloseable {
         }
         throw new IOException("Timed out waiting for packet ids "
                 + java.util.Arrays.toString(expectedIds));
+    }
+
+    // ---- tab list (Player Info 0x38) ----------------------------------------
+
+    /** One parsed Player Info entry (the fields the actions carry). */
+    record TabEntry(UUID uuid, String name, int gamemode, int ping) {
+    }
+
+    /** A parsed Player Info packet: the action + its entries. */
+    record ParsedPlayerInfo(int action, java.util.List<TabEntry> entries) {
+    }
+
+    /** Parses a Player Info packet body (id already consumed). */
+    private static ParsedPlayerInfo parsePlayerInfo(ByteBuf buffer) throws IOException {
+        int action = ByteBufOps.readVarInt(buffer);
+        int count = ByteBufOps.readVarInt(buffer);
+        java.util.List<TabEntry> entries = new java.util.ArrayList<>(count);
+        for (int i = 0; i < count; i++) {
+            switch (action) {
+                case Protocol18.PLAYER_INFO_ADD_PLAYER -> {
+                    UUID uuid = ByteBufOps.readUuid(buffer);
+                    String name = ByteBufOps.readString(buffer, 16);
+                    int properties = ByteBufOps.readVarInt(buffer);
+                    for (int p = 0; p < properties; p++) { // consume the properties
+                        ByteBufOps.readString(buffer, 32767);
+                        ByteBufOps.readString(buffer, 32767);
+                        if (buffer.readBoolean()) {
+                            ByteBufOps.readString(buffer, 32767);
+                        }
+                    }
+                    int gamemode = ByteBufOps.readVarInt(buffer);
+                    int ping = ByteBufOps.readVarInt(buffer);
+                    if (buffer.readBoolean()) { // display name
+                        ByteBufOps.readString(buffer, 32767);
+                    }
+                    entries.add(new TabEntry(uuid, name, gamemode, ping));
+                }
+                case Protocol18.PLAYER_INFO_UPDATE_GAME_MODE -> entries.add(
+                        new TabEntry(ByteBufOps.readUuid(buffer), null,
+                                ByteBufOps.readVarInt(buffer), -1));
+                case Protocol18.PLAYER_INFO_UPDATE_PING -> entries.add(
+                        new TabEntry(ByteBufOps.readUuid(buffer), null, -1,
+                                ByteBufOps.readVarInt(buffer)));
+                case Protocol18.PLAYER_INFO_UPDATE_DISPLAY_NAME -> {
+                    UUID uuid = ByteBufOps.readUuid(buffer);
+                    if (buffer.readBoolean()) {
+                        ByteBufOps.readString(buffer, 32767);
+                    }
+                    entries.add(new TabEntry(uuid, null, -1, -1));
+                }
+                case Protocol18.PLAYER_INFO_REMOVE_PLAYER -> entries.add(
+                        new TabEntry(ByteBufOps.readUuid(buffer), null, -1, -1));
+                default -> throw new IOException("Unknown player info action " + action);
+            }
+        }
+        return new ParsedPlayerInfo(action, entries);
+    }
+
+    /**
+     * Reads packets until a Player Info packet with the expected action
+     * arrives; parses every entry per the action's wire shape (the
+     * reference's read walk). Entries of OTHER actions are skipped (the
+     * cadence's UPDATE_PING can interleave).
+     */
+    java.util.List<TabEntry> readPlayerInfo(int expectedAction, long timeoutMs) throws IOException {
+        long deadline = System.currentTimeMillis() + timeoutMs;
+        while (System.currentTimeMillis() < deadline) {
+            byte[] payload = readPacket();
+            ByteBuf buffer = Unpooled.wrappedBuffer(payload);
+            int id = ByteBufOps.readVarInt(buffer);
+            if (id != Protocol18.S2C_PLAYER_INFO) {
+                continue;
+            }
+            ParsedPlayerInfo parsed = parsePlayerInfo(buffer);
+            if (parsed.action() == expectedAction) {
+                return parsed.entries();
+            }
+            // another action's packet: keep draining
+        }
+        throw new IOException("Timed out waiting for player info action " + expectedAction);
+    }
+
+    /**
+     * The join-sequence reader for the tab-list test: walks the join burst
+     * like {@link #readUntilPositionAndLook} (anchoring the walk tracker on
+     * the position packet) but COLLECTS every ADD entry it passes — the
+     * joiner's own ADDs arrive before the position packet and would
+     * otherwise be discarded by the skip.
+     */
+    java.util.List<TabEntry> readUntilPositionCollectingTabAdds() throws IOException {
+        java.util.List<TabEntry> adds = new java.util.ArrayList<>();
+        long deadline = System.currentTimeMillis() + 20_000;
+        while (System.currentTimeMillis() < deadline) {
+            byte[] payload = readPacket();
+            ByteBuf buffer = Unpooled.wrappedBuffer(payload);
+            int id = ByteBufOps.readVarInt(buffer);
+            if (id == Protocol18.S2C_PLAYER_POSITION_AND_LOOK) {
+                lastX = buffer.readDouble();
+                lastY = buffer.readDouble();
+                lastZ = buffer.readDouble();
+                return adds;
+            }
+            if (id == Protocol18.S2C_PLAYER_INFO) {
+                ParsedPlayerInfo parsed = parsePlayerInfo(buffer);
+                if (parsed.action() == Protocol18.PLAYER_INFO_ADD_PLAYER) {
+                    adds.addAll(parsed.entries());
+                }
+            }
+        }
+        throw new IOException("Timed out waiting for position packet");
+    }
+
+    /** Collects every ADD entry until the named player appears (deadline-bounded). */
+    java.util.List<TabEntry> collectTabAddsUntil(String playerName, long timeoutMs) throws IOException {
+        long deadline = System.currentTimeMillis() + timeoutMs;
+        java.util.List<TabEntry> seen = new java.util.ArrayList<>();
+        while (System.currentTimeMillis() < deadline) {
+            java.util.List<TabEntry> batch = readPlayerInfo(Protocol18.PLAYER_INFO_ADD_PLAYER,
+                    deadline - System.currentTimeMillis());
+            seen.addAll(batch);
+            boolean found = batch.stream().anyMatch(e -> playerName.equals(e.name()));
+            if (found) {
+                return seen;
+            }
+        }
+        throw new IOException("Timed out waiting for the tab entry of " + playerName);
     }
 
     void sendDigging(int status, int x, int y, int z, int face) throws IOException {

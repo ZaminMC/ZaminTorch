@@ -1,5 +1,7 @@
 package net.zaminmc.torch.server.net;
 
+import java.util.UUID;
+
 /**
  * The engine's handle to a client connection, implemented by the protocol adapter.
  *
@@ -88,5 +90,47 @@ public interface ClientLink {
      * Safe from any thread; default no-op for engine-internal links.
      */
     default void sendStatistics(java.util.Map<String, Integer> stats) {
+    }
+
+    /**
+     * One tab-list entry: the tab-list family's wire payload (the reference's
+     * PlayerInfoS2CPacket.Entry — the offline profile's uuid + name, the game
+     * mode id, and the smoothed ping). No display name: the reference's
+     * getPlayerListName() answers null, and offline profiles carry no
+     * texture properties.
+     */
+    record TabListEntry(UUID uuid, String name, int gamemodeId, int ping) {
+    }
+
+    /**
+     * Player Info 0x38 action ADD_PLAYER (the reference's ctor walk: uuid,
+     * name, zero properties, game mode varint, ping varint, no display
+     * name). One packet with the given entries. Safe from any thread;
+     * default no-op for engine-internal links.
+     */
+    default void tabListAdd(java.util.List<TabListEntry> entries) {
+    }
+
+    /**
+     * Player Info 0x38 action REMOVE_PLAYER: uuid per entry, one packet.
+     * Safe from any thread; default no-op for engine-internal links.
+     */
+    default void tabListRemove(java.util.List<UUID> ids) {
+    }
+
+    /**
+     * Player Info 0x38 action UPDATE_GAME_MODE (2 = creative ...): the uuid
+     * + the new mode id. Safe from any thread; default no-op for
+     * engine-internal links.
+     */
+    default void tabListUpdateGamemode(UUID id, int gamemodeId) {
+    }
+
+    /**
+     * Player Info 0x38 action UPDATE_PING: one packet carrying every entry's
+     * uuid + smoothed ping (the reference's single batched broadcast).
+     * Safe from any thread; default no-op for engine-internal links.
+     */
+    default void tabListUpdatePing(java.util.List<TabListEntry> entries) {
     }
 }

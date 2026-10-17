@@ -107,4 +107,19 @@ final class ByteBufOps {
         int z = (int) (packed << 38 >> 38);              // low 26 bits, sign-extended
         return new int[]{x, y, z};
     }
+
+    /**
+     * The protocol 47 uuid layout (PacketByteBuf.writeUuid): two big-endian
+     * longs — most-significant first, least-significant second. (The
+     * 1.16+ int-array form does not exist here.)
+     */
+    static void writeUuid(ByteBuf out, java.util.UUID uuid) {
+        out.writeLong(uuid.getMostSignificantBits());
+        out.writeLong(uuid.getLeastSignificantBits());
+    }
+
+    /** @return the uuid read from two big-endian longs (msb first). */
+    static java.util.UUID readUuid(ByteBuf in) {
+        return new java.util.UUID(in.readLong(), in.readLong());
+    }
 }
