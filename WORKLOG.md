@@ -8851,3 +8851,27 @@ block entity (EnderChest/daylight detector/enchanting table/end portal/
 flower pot/banner/piston moving state/comparator OutputSignal/skull
 Owner profile), the item-tag envelope's remains (CanDestroy/CanPlace,
 BlockEntityTag, the attribute modifiers, display.color).
+
+## Slice 94 (cont.) — Wave H1: the comparator's OutputSignal persistence
+
+- **H1 — the ZCD store** (7de9ad4): the reference's
+  ComparatorBlockEntity is one int row (writeNbt OutputSignal, readNbt
+  reads it) — the engine's model existed (RedstoneSystem's
+  comparatorOutputs), the persistence alone was missing (a restart
+  answered 0 until the first update). The ComparatorDataStore (the ZND
+  pattern — atomic writes, corrupt-quarantine, the per-position i32
+  rows), the snapshot/restore surface (the restore at boot lands the
+  rows BEFORE any update — the loaded comparator answers its stored
+  strength straight into getWeakPower), the EngineServer wiring (the
+  boot restore beside the redstoneSystem creation, the saveAllNow arm).
+  RedstoneComparatorTest 7 (the new restart round trip: the chest-fed
+  comparator's live 7 rides the store through the reboot).
+
+NEXT (in order): Wave H2 — the BlockEntityTag placement arm (BlockItem
+lines 76-94: the raw-compound model arm, ItemNbt's row, the placement
+consult over the TilePlacementListener-created tile — the merge walk,
+the forced x/y/z, the op gate over the command-block family, the
+no-change skip) + H3's tests; then the ledger's remaining envelopes
+(the other no-BE tile families: EnderChest contents on the player, the
+skull's Owner profile; the item-tag envelope's last arms:
+CanDestroy/CanPlace, the attribute modifiers, display.color).
