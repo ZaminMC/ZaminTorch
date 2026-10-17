@@ -1522,21 +1522,24 @@ client's own render — the engine models the data alone).
 canUseOnBlockInAdventureMode answers false across the whole reference
 set (no item overrides it) — the port keeps the constant-false seam.
 
-- [ ] I1 — the model arms + the rows: the canDestroy/canPlaceOn string
-      lists on ItemStack (sanitized immutable, the bare-name
-      normalization the engine's id conventions carry — "stone" and
-      "minecraft:stone" name the same block), the ItemNbt rows
-      (tag.CanDestroy/CanPlaceOn as string lists, write-only-when-
-      carried), the SlotNbt wire arms, the ZID v4/ZMD v9 tails;
-- [ ] I2 — the gates: the derived mayBuild (adventure/spectator), the
-      place gate in both placement walks (the CanPlaceOn consult naming
-      the CLICKED block), the mine gates at the dig start and the
-      finish (the CanDestroy consult naming the mined block), the
-      spectator use guard;
-- [ ] I3 — the tests (the adventure placement refused without the
-      entry and passing with it; the adventure dig refused likewise;
-      the survival path untouched; the arms' rows/wire/tails round
-      trips) + the ledger/worklog rows.
+- [x] I1 — LANDED (Slice 96, commit 9355690): the two string lists on
+      the record (the bare-name normalization — "stone" gains the
+      minecraft: prefix), threaded through EVERY withX/split (the audit
+      caught four stragglers still on the 10-arg form — the Wave G
+      split/strip lesson relearned), the ItemNbt rows (contains(...,9)
+      + getList(...,8)), the SlotNbt wire arms, the ZID v4/ZMD v9 tails;
+- [x] I2 — LANDED (commit 9004a56): the derived mayBuild, the
+      canUseItemOn consult at the survival placement walk, the
+      canMineBlock consult at the dig start + the harvest + the
+      creative-break walk, ADVENTURE routed through the survival
+      placement path (a passing gate consumes — the reference's own
+      stack.size--), the spectator use guard;
+- [x] I3 — LANDED (commit 9004a56): AdventureGatesTest 4 green (the
+      bare stack never places and never consumes; the wrong-name list
+      never places; the CLICKED-block naming places and consumes; the
+      /give normalization stone -> minecraft:stone; the bare dig never
+      breaks, the named list breaks; survival untouched) + the store
+      suites re-verified (ItemPersistence 7, MobDataStore 7).
 
 ## Standing (demand-named, not scheduled)
 
@@ -1545,9 +1548,9 @@ set (no item overrides it) — the port keeps the constant-false seam.
 - The §28.7 Bukkit/Spigot/Paper compatibility adapter (§27.1's order:
   after the 1.8.8 implementation is polished into a playable,
   maintainable server).
-- The remaining model-less item-tag arms (CanDestroy/CanPlace, the
-  attribute modifiers, display.color) — the envelope after Wave H2's
-  raw compound.
+- The remaining model-less item-tag arms (the attribute modifiers,
+  display.color) — the envelope after Waves H2/I (CanDestroy/CanPlace
+  LANDED as Wave I).
 - The skull's Owner profile + the EnderChest contents-on-player angle
   (the no-BE tile families' remains).
 - The mob_spawner ITEM (BuiltinItems carries no spawner item yet — the
