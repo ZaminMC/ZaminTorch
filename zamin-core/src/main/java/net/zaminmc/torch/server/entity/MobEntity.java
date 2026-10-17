@@ -7273,6 +7273,23 @@ public final class MobEntity implements LivingEntity {
         if (inFluid && fireTicks > 0) {
             extinguish(); // the water douses the burn (the historical rule)
         }
+        // The NoAI pin (the reference's isLocallyControlled gate over
+        // moveRelative, LivingEntity lines 1134-1145 + the non-controlled
+        // else arm at 1415): a pinned body integrates NO motion — no
+        // gravity, no walk, no ground snap (the vanilla midair freeze);
+        // the velocity decays (the *0.98 family). The contact arms above
+        // (void, fire, cactus, the water douse) keep running, and the
+        // wounds/despawn windows continue (the pin gates the MIND and the
+        // MOVEMENT alone). The special flight families above (ghast,
+        // dragon, bat, squid, guardian) own their own integration and are
+        // NOT pinned by this gate (the reference gates them through
+        // moveRelative — the engine's flight-family envelope, ledgered).
+        if (noAi) {
+            velocityX *= 0.98;
+            velocityY *= 0.98;
+            velocityZ *= 0.98;
+            return;
+        }
         if (inFluid) {
             velocityY = Math.max(velocityY - GRAVITY_PER_TICK, -0.05) * 0.8;
         } else if (onGround && velocityY <= 0.0) {

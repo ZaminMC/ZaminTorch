@@ -16526,6 +16526,15 @@ public final class EngineServer implements Server, EngineBridge {
         commands.register(new CommandService.Command("testforblocks",
                 "Compare regions: /testforblocks <x1 y1 z1> <x2 y2 z2> <x y z> [masked|all]",
                 2, this::testforblocksCommand));
+        // The NBT command arms (Slice 89 — BlockDataCommand/
+        // EntityDataCommand 1:1, op-2): the write-merge-compare-read cycles
+        // over the tile/entity NBT projections.
+        commands.register(new CommandService.Command("blockdata",
+                "Set a block entity's data: /blockdata <x y z> <dataTag>",
+                2, this::blockdataCommand));
+        commands.register(new CommandService.Command("entitydata",
+                "Set an entity's data: /entitydata <entity> <dataTag>",
+                2, this::entitydataCommand));
         commands.register(new CommandService.Command("time",
                 "Query or set the day: /time query | /time set <day|noon|night|midnight|ticks>",
                 this::timeCommand));
@@ -18485,6 +18494,140 @@ public final class EngineServer implements Server, EngineBridge {
         }
         sender.addResult(net.zaminmc.torch.server.command.EngineCommandResults.Type.AFFECTED_BLOCKS, compared);
         return "Successfully compared " + compared + " blocks";
+    }
+
+    /**
+     * /blockdata (BlockDataCommand 1:1, op-2): the write-merge-compare-read
+     * cycle over the tile NBT surface (Slice 89) — the current rows written,
+     * the input parsed as one compound, the recursive merge, the x/y/z rows
+     * forced back (the reference's own putInt after the merge), the
+     * unchanged refusal (the deep equals against the pre-merge copy), the
+     * read onto the tile, and the block re-publish (the reference's
+     * notifyBlockChanged).
+     */
+    private String blockdataCommand(CommandSender sender, String[] args) {
+        if (args.length < 4) {
+            return "Usage: /blockdata <x y z> <dataTag>";
+        }
+        sender.addResult(net.zaminmc.torch.server.command.EngineCommandResults.Type.AFFECTED_BLOCKS, 0);
+        int x;
+        int y;
+        int z;
+        try {
+            x = (int) Math.floor(net.zaminmc.torch.server.command.CommandParse
+                    .parseCoordinate(sender.sourcePos()[0], args[0]));
+            y = (int) Math.floor(net.zaminmc.torch.server.command.CommandParse
+                    .parseCoordinate(sender.sourcePos()[1], args[1]));
+            z = (int) Math.floor(net.zaminmc.torch.server.command.CommandParse
+                    .parseCoordinate(sender.sourcePos()[2], args[2]));
+        } catch (RuntimeException e) {
+            return e.getMessage();
+        }
+        var pos = new net.zaminmc.torch.block.BlockPosition(x, y, z);
+        EngineWorld useWorld = worldFor(sender.sourceDimension());
+        if (!useWorld.isChunkLoadedAt(pos)) {
+            return "Cannot change blocks outside of the loaded world";
+        }
+        // The notValid gate: the block family must carry a tile (the
+        // reference's getBlockEntity != null stands in through the id
+        // registry's family resolution).
+        if (net.zaminmc.torch.server.nbt.TileNbt.idOf(
+                useWorld.getBlock(pos).identifier().value()) == null) {
+            return "The target block is not a block entity";
+        }
+        // The current rows + the pre-merge copy.
+        java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> rows =
+                new java.util.LinkedHashMap<>();
+        if (!tileNbt.writeTile(useWorld, sender.sourceDimension(), pos, rows)) {
+            return "The target block is not a block entity";
+        }
+        java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> before =
+                net.zaminmc.torch.server.nbt.NbtOps.copy(rows);
+        // The dataTag text: everything past the coordinates as one compound.
+        StringBuilder joined = new StringBuilder();
+        for (int i = 3; i < args.length; i++) {
+            if (i > 3) {
+                joined.append(' ');
+            }
+            joined.append(args[i]);
+        }
+        java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> input;
+        try {
+            input = net.zaminmc.torch.server.nbt.Snbt.parseCompound(joined.toString());
+        } catch (IllegalArgumentException tagError) {
+            return "Error parsing tag: " + tagError.getMessage();
+        }
+        net.zaminmc.torch.server.nbt.NbtOps.merge(rows, input);
+        // The reference's own forced rows after the merge (lines 61-63).
+        net.zaminmc.torch.server.nbt.NbtOps.putInt(rows, "x", x);
+        net.zaminmc.torch.server.nbt.NbtOps.putInt(rows, "y", y);
+        net.zaminmc.torch.server.nbt.NbtOps.putInt(rows, "z", z);
+        if (net.zaminmc.torch.server.nbt.NbtOps.equal(rows, before)) {
+            return "The data tag did not change: " + net.zaminmc.torch.server.nbt.NbtOps.write(rows);
+        }
+        tileNbt.readTile(useWorld, sender.sourceDimension(), pos, rows);
+        // The reference's markDirty + notifyBlockChanged: the tile's own
+        // setters fired their listeners; the block re-publish carries the
+        // change to the clients.
+        useWorld.republish(pos);
+        sender.addResult(net.zaminmc.torch.server.command.EngineCommandResults.Type.AFFECTED_BLOCKS, 1);
+        return "The data tag: " + net.zaminmc.torch.server.nbt.NbtOps.write(rows);
+    }
+
+    /**
+     * /entitydata (EntityDataCommand 1:1, op-2): the noPlayers refusal, the
+     * UUID strip from the input (the reference's own remove pair before the
+     * merge — the mob's own uuid never changes), the write-merge-compare
+     * cycle over EntityNbt, and the read back (the Pos rows MOVE the body —
+     * the reference's own readNbt behavior).
+     */
+    private String entitydataCommand(CommandSender sender, String[] args) {
+        if (args.length < 2) {
+            return "Usage: /entitydata <entity> <dataTag>";
+        }
+        net.zaminmc.torch.server.command.TargetSelector.Candidate target;
+        try {
+            target = net.zaminmc.torch.server.command.CommandParse
+                    .parseEntity(players, sender, args[0]);
+        } catch (RuntimeException e) {
+            return e.getMessage();
+        }
+        if (target.player()) {
+            return "Data tag is not allowed on players";
+        }
+        net.zaminmc.torch.server.entity.MobEntity mob =
+                (net.zaminmc.torch.server.entity.MobEntity) target.handle();
+        // The current rows + the pre-merge copy.
+        java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> rows =
+                new java.util.LinkedHashMap<>();
+        net.zaminmc.torch.server.nbt.EntityNbt.writeNbtWithoutId(mob, rows, potionSystem);
+        java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> before =
+                net.zaminmc.torch.server.nbt.NbtOps.copy(rows);
+        // The dataTag text.
+        StringBuilder joined = new StringBuilder();
+        for (int i = 1; i < args.length; i++) {
+            if (i > 1) {
+                joined.append(' ');
+            }
+            joined.append(args[i]);
+        }
+        java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> input;
+        try {
+            input = net.zaminmc.torch.server.nbt.Snbt.parseCompound(joined.toString());
+        } catch (IllegalArgumentException tagError) {
+            return "Error parsing tag: " + tagError.getMessage();
+        }
+        // The reference's UUID strip (lines 50-51): the input's UUID rows
+        // never merge — the body's own uuid survives.
+        input.remove("UUIDMost");
+        input.remove("UUIDLeast");
+        net.zaminmc.torch.server.nbt.NbtOps.merge(rows, input);
+        if (net.zaminmc.torch.server.nbt.NbtOps.equal(rows, before)) {
+            return "The data tag did not change: " + net.zaminmc.torch.server.nbt.NbtOps.write(rows);
+        }
+        net.zaminmc.torch.server.nbt.EntityNbt.readNbt(mob, rows, potionSystem,
+                () -> mobManager.equipmentChanged(mob));
+        return "The data tag: " + net.zaminmc.torch.server.nbt.NbtOps.write(rows);
     }
 
     /**
