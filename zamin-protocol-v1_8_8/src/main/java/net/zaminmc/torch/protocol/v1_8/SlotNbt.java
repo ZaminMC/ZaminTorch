@@ -47,7 +47,9 @@ final class SlotNbt {
                 || stack.repairCost() > 0
                 || stack.hideFlags() > 0
                 || (stack.lore() != null && !stack.lore().isEmpty())
-                || (stack.blockEntityTag() != null && !stack.blockEntityTag().isEmpty());
+                || (stack.blockEntityTag() != null && !stack.blockEntityTag().isEmpty())
+                || (stack.canDestroy() != null && !stack.canDestroy().isEmpty())
+                || (stack.canPlaceOn() != null && !stack.canPlaceOn().isEmpty());
     }
 
     /**
@@ -137,6 +139,26 @@ final class SlotNbt {
             out.writeByte(TAG_COMPOUND); // tag.BlockEntityTag
             writeShortString(out, "BlockEntityTag");
             writeBoxedCompound(out, stack.blockEntityTag());
+        }
+        // The adventure gates' lists (Wave I — the Lore walk's own shape:
+        // a TAG_LIST of TAG_STRING over the block keys).
+        if (stack.canDestroy() != null && !stack.canDestroy().isEmpty()) {
+            out.writeByte(TAG_LIST);
+            writeShortString(out, "CanDestroy");
+            out.writeByte(TAG_STRING);
+            out.writeInt(stack.canDestroy().size());
+            for (String key : stack.canDestroy()) {
+                writeShortString(out, key);
+            }
+        }
+        if (stack.canPlaceOn() != null && !stack.canPlaceOn().isEmpty()) {
+            out.writeByte(TAG_LIST);
+            writeShortString(out, "CanPlaceOn");
+            out.writeByte(TAG_STRING);
+            out.writeInt(stack.canPlaceOn().size());
+            for (String key : stack.canPlaceOn()) {
+                writeShortString(out, key);
+            }
         }
         out.writeByte(TAG_END);        // end of root
     }

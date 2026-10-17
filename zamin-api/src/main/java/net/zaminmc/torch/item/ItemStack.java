@@ -65,12 +65,19 @@ import java.util.Objects;
  *                    the reference's NbtCompound.equals semantics (unordered keys,
  *                    ordered lists) are exactly {@code Map}/{@code List} equals over
  *                    the boxed tree — the merge identity never needs a custom walk
+ * @param canDestroy  the tag's CanDestroy string list (Wave I — the adventure
+ *                    mine gate, a TAG_LIST of TAG_STRING over the block keys):
+ *                    null = absent, immutable, every entry a normalized block
+ *                    identifier (bare names gain the minecraft: prefix)
+ * @param canPlaceOn  the tag's CanPlaceOn string list (the adventure place
+ *                    gate, the same shape); null = absent, immutable
  */
 public record ItemStack(ItemType type, int count, int damage, String displayName,
                         Map<Integer, Integer> enchantments,
                         boolean unbreakable, int repairCost, int hideFlags,
                         List<String> lore,
-                        Map<String, Object> blockEntityTag) {
+                        Map<String, Object> blockEntityTag,
+                        List<String> canDestroy, List<String> canPlaceOn) {
 
     /** The wire's i16 damage/metadata ceiling (the historical field width). */
     public static final int MAX_DAMAGE = 0x7FFF;
@@ -95,7 +102,7 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         if (type == null) {
             if (count != 0 || damage != 0 || displayName != null || enchantments != null
                     || unbreakable || repairCost != 0 || hideFlags != 0 || lore != null
-                    || blockEntityTag != null) {
+                    || blockEntityTag != null || canDestroy != null || canPlaceOn != null) {
                 throw new IllegalArgumentException("A stack without a type must be empty (count "
                         + count + ", damage " + damage + ")");
             }
@@ -131,6 +138,8 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
             }
             lore = sanitizeLore(lore);
             blockEntityTag = sanitizeBlockEntityTag(blockEntityTag);
+            canDestroy = sanitizeBlockKeyList(canDestroy);
+            canPlaceOn = sanitizeBlockKeyList(canPlaceOn);
         }
     }
 
@@ -146,6 +155,15 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
                      int repairCost, int hideFlags, List<String> lore) {
         this(type, count, damage, displayName, enchantments, unbreakable,
                 repairCost, hideFlags, lore, null);
+    }
+
+    /** The pre-I1 ten-arg shape (the compatibility constructor over the new arms' defaults). */
+    public ItemStack(ItemType type, int count, int damage, String displayName,
+                     Map<Integer, Integer> enchantments, boolean unbreakable,
+                     int repairCost, int hideFlags, List<String> lore,
+                     Map<String, Object> blockEntityTag) {
+        this(type, count, damage, displayName, enchantments, unbreakable,
+                repairCost, hideFlags, lore, blockEntityTag, null, null);
     }
 
     /** A fresh stack with no damage and no custom name. */
@@ -185,7 +203,7 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
             return isEmpty() ? this : EMPTY;
         }
         return new ItemStack(type, newCount, damage, displayName, enchantments,
-                unbreakable, repairCost, hideFlags, lore, blockEntityTag);
+                unbreakable, repairCost, hideFlags, lore, blockEntityTag, canDestroy, canPlaceOn);
     }
 
     /**
@@ -200,7 +218,7 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
             return this;
         }
         return new ItemStack(type, count, newDamage, displayName, enchantments,
-                unbreakable, repairCost, hideFlags, lore, blockEntityTag);
+                unbreakable, repairCost, hideFlags, lore, blockEntityTag, canDestroy, canPlaceOn);
     }
 
     /** @return the same stack carrying {@code newName} (null clears the name). */
@@ -209,7 +227,7 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
             return this;
         }
         return new ItemStack(type, count, damage, newName, enchantments,
-                unbreakable, repairCost, hideFlags, lore, blockEntityTag);
+                unbreakable, repairCost, hideFlags, lore, blockEntityTag, canDestroy, canPlaceOn);
     }
 
     /**
@@ -221,7 +239,7 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
             return this;
         }
         return new ItemStack(type, count, damage, displayName, newEnchantments,
-                unbreakable, repairCost, hideFlags, lore, blockEntityTag);
+                unbreakable, repairCost, hideFlags, lore, blockEntityTag, canDestroy, canPlaceOn);
     }
 
     // ---------------------------------------------------------------
@@ -234,7 +252,8 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
             return this;
         }
         return new ItemStack(type, count, damage, displayName, enchantments,
-                flag, repairCost, hideFlags, lore, blockEntityTag);
+                flag, repairCost, hideFlags, lore, blockEntityTag,
+                canDestroy, canPlaceOn);
     }
 
     /** @return the same stack carrying the anvil's RepairCost (0 clears). */
@@ -243,7 +262,8 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
             return this;
         }
         return new ItemStack(type, count, damage, displayName, enchantments,
-                unbreakable, Math.max(0, cost), hideFlags, lore, blockEntityTag);
+                unbreakable, Math.max(0, cost), hideFlags, lore, blockEntityTag,
+                canDestroy, canPlaceOn);
     }
 
     /** @return the same stack carrying the tooltip's HideFlags mask (0 clears). */
@@ -252,7 +272,8 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
             return this;
         }
         return new ItemStack(type, count, damage, displayName, enchantments,
-                unbreakable, repairCost, Math.max(0, flags), lore, blockEntityTag);
+                unbreakable, repairCost, Math.max(0, flags), lore, blockEntityTag,
+                canDestroy, canPlaceOn);
     }
 
     /** @return the same stack carrying the display.Lore lines (null clears). */
@@ -261,7 +282,8 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
             return this;
         }
         return new ItemStack(type, count, damage, displayName, enchantments,
-                unbreakable, repairCost, hideFlags, lines, blockEntityTag);
+                unbreakable, repairCost, hideFlags, lines, blockEntityTag,
+                canDestroy, canPlaceOn);
     }
 
     /**
@@ -274,7 +296,33 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
             return this;
         }
         return new ItemStack(type, count, damage, displayName, enchantments,
-                unbreakable, repairCost, hideFlags, lore, rows);
+                unbreakable, repairCost, hideFlags, lore, rows, canDestroy, canPlaceOn);
+    }
+
+    /**
+     * @return the same stack carrying the tag's CanDestroy list (Wave I —
+     *         the adventure mine gate's block keys; null or empty clears).
+     */
+    public ItemStack withCanDestroy(List<String> keys) {
+        if (isEmpty()) {
+            return this;
+        }
+        return new ItemStack(type, count, damage, displayName, enchantments,
+                unbreakable, repairCost, hideFlags, lore, blockEntityTag,
+                keys, canPlaceOn);
+    }
+
+    /**
+     * @return the same stack carrying the tag's CanPlaceOn list (the
+     *         adventure place gate's block keys; null or empty clears).
+     */
+    public ItemStack withCanPlaceOn(List<String> keys) {
+        if (isEmpty()) {
+            return this;
+        }
+        return new ItemStack(type, count, damage, displayName, enchantments,
+                unbreakable, repairCost, hideFlags, lore, blockEntityTag,
+                canDestroy, keys);
     }
 
     /**
@@ -351,7 +399,7 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         }
         int taken = Math.min(Math.min(amount, count), type.maxStackSize());
         return new ItemStack(type, taken, damage, displayName, enchantments,
-                unbreakable, repairCost, hideFlags, lore, blockEntityTag);
+                unbreakable, repairCost, hideFlags, lore, blockEntityTag, canDestroy, canPlaceOn);
     }
 
     /**
@@ -377,7 +425,9 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
                 && a.repairCost == b.repairCost
                 && a.hideFlags == b.hideFlags
                 && Objects.equals(a.lore, b.lore)
-                && blockEntityTagEqual(a.blockEntityTag, b.blockEntityTag);
+                && blockEntityTagEqual(a.blockEntityTag, b.blockEntityTag)
+                && Objects.equals(a.canDestroy, b.canDestroy)
+                && Objects.equals(a.canPlaceOn, b.canPlaceOn);
     }
 
     /**
@@ -475,6 +525,33 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
             return null;
         }
         return (Map<String, Object>) sanitizeBoxedValue(input, "BlockEntityTag");
+    }
+
+    /**
+     * The adventure gates' own sanitize (Wave I — CanDestroy/CanPlaceOn,
+     * the TAG_LIST of TAG_STRING over the block keys): null or empty
+     * parses to absent, every entry trimmed non-blank, a bare name gains
+     * the minecraft: prefix (the engine's id convention — "stone" and
+     * "minecraft:stone" name the same block), the order kept (the
+     * reference's NbtList is ordered), the answer immutable.
+     */
+    private static List<String> sanitizeBlockKeyList(List<String> input) {
+        if (input == null || input.isEmpty()) {
+            return null;
+        }
+        java.util.List<String> cleaned = new java.util.ArrayList<>(input.size());
+        for (String key : input) {
+            if (key == null) {
+                continue;
+            }
+            String trimmed = key.trim();
+            if (trimmed.isEmpty()) {
+                continue;
+            }
+            String normalized = trimmed.contains(":") ? trimmed : "minecraft:" + trimmed;
+            cleaned.add(normalized);
+        }
+        return cleaned.isEmpty() ? null : List.copyOf(cleaned);
     }
 
     /** One boxed NBT value's validation + deep immutable copy (recursive). */
