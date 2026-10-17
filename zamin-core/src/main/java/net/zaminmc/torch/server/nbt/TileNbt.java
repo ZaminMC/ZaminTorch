@@ -457,4 +457,76 @@ public final class TileNbt {
             lockSetter.accept(NbtOps.getString(rows, "Lock"));
         }
     }
+
+    // ------------------------------------------------------------------
+    // The placement consult (Wave H2 — BlockItem.setTileNbt, lines 70-100)
+    // ------------------------------------------------------------------
+
+    /**
+     * The reference's requireOpForPlacingWithNbt families: the three
+     * overriding bodies (SignBlockEntity 122, CommandBlockBlockEntity 82,
+     * MobSpawnerBlockEntity 69 — each {@code return true}); the base BE
+     * answers false. The engine's own id registry names them.
+     */
+    private static final java.util.Set<String> REQUIRE_OP_FAMILIES =
+            java.util.Set.of("Sign", "Control", "MobSpawner");
+
+    /**
+     * The placement's BlockEntityTag consult — BlockItem.setTileNbt 1:1
+     * (lines 70-100): the freshly-placed tile's written rows merged with
+     * the stack's tag rows, x/y/z forced back, the no-change refusal, and
+     * the re-read into the tile. Called by the interaction service right
+     * after its commit (the TilePlacementListener has already created the
+     * tile family's model during the world mutation).
+     *
+     * <p><b>The 1.8.8 quirk, ported verbatim:</b> the pristine copy is
+     * taken BEFORE the write (lines 83-84), so the no-change refusal can
+     * never fire — x/y/z always land in the merged compound, the
+     * {@code !equals} is always true, and the read + markDirty always
+     * runs. The refusal is dead code in 1.8.8 (fixed in 1.9+ by copying
+     * after the write); the port keeps the dead branch and this note.
+     *
+     * <p>The op gate (line 79): the three requireOp families refuse the
+     * merge for a non-op placer — the reference's {@code isOp} is the ops
+     * list membership; the engine's op level 2 stands in (the convention
+     * every vanilla command uses). A refusal only skips the NBT apply:
+     * the placement itself already committed, exactly like the reference
+     * (setTileNbt runs after setBlockState succeeded).</p>
+     *
+     * @param dimension the world's own id (the spawner family's key)
+     * @return true when the rows were merged and re-read into the tile
+     */
+    public boolean applyPlacementTag(EngineWorld world, int dimension, BlockPosition pos,
+            net.zaminmc.torch.item.ItemStack stack, int opLevel) {
+        if (stack == null || stack.isEmpty()
+                || stack.blockEntityTag() == null || stack.blockEntityTag().isEmpty()) {
+            return false; // hasNbt() && contains("BlockEntityTag", 10): no
+        }
+        String blockName = world.getBlock(pos).identifier().value();
+        String id = idOf(blockName);
+        if (id == null) {
+            return false; // the tile at the position: no tile family, no merge
+        }
+        if (REQUIRE_OP_FAMILIES.contains(id) && opLevel < 2) {
+            return false; // requireOpForPlacingWithNbt && !isOp
+        }
+        Map<String, Snbt.Tag> rows = new java.util.LinkedHashMap<>();
+        // THE 1.8.8 QUIRK: the copy precedes the write (lines 83-84) — the
+        // refusal below is unreachable; kept verbatim with the note above.
+        Map<String, Snbt.Tag> pristine = NbtOps.copy(rows);
+        writeTile(world, dimension, pos, rows);
+        NbtOps.merge(rows, NbtOps.fromBoxed(stack.blockEntityTag()));
+        NbtOps.putInt(rows, "x", pos.x());
+        NbtOps.putInt(rows, "y", pos.y());
+        NbtOps.putInt(rows, "z", pos.z());
+        if (!NbtOps.equal(rows, pristine)) {
+            readTile(world, dimension, pos, rows);
+            // markDirty: the engine's tiles ARE the live model — the read's
+            // mutations land straight into the managers; the Z-family
+            // stores snapshot them at saveAllNow (the reference's dirty
+            // flag exists to reach exactly this guarantee).
+            return true;
+        }
+        return false;
+    }
 }

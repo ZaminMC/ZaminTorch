@@ -111,6 +111,24 @@ public final class BlockInteractionService {
      */
     private volatile java.util.function.BiPredicate<BlockPosition, BlockType> placementSupportGate;
 
+    /**
+     * The placement's BlockEntityTag consult (Wave H2 — BlockItem.useOn
+     * lines 46-51 -> setTileNbt lines 70-100): the held stack's raw
+     * compound merged into the freshly-placed tile's rows, right after
+     * the commit. Null keeps the placement bare (the pre-H2 behavior).
+     */
+    private volatile PlacementTagConsult placementTagConsult;
+
+    /**
+     * The consult's own signature (the engine-side seam: the world, the
+     * dimension id for the tile family's key, the position, the held
+     * stack, and the placer's op level — the reference's isOp gate).
+     */
+    public interface PlacementTagConsult {
+        boolean apply(EngineWorld world, int dimension, BlockPosition position,
+                      net.zaminmc.torch.item.ItemStack held, int opLevel);
+    }
+
     /** Wires the {@code doTileDrops} read (the game-rule table's block-drop gate). */
     public void setTileDropsRead(java.util.function.BooleanSupplier tileDropsRead) {
         this.tileDropsRead = java.util.Objects.requireNonNull(tileDropsRead, "tileDropsRead");
@@ -120,6 +138,11 @@ public final class BlockInteractionService {
     public void setPlacementSupportGate(
             java.util.function.BiPredicate<BlockPosition, BlockType> gate) {
         this.placementSupportGate = java.util.Objects.requireNonNull(gate, "gate");
+    }
+
+    /** Wires the placement's BlockEntityTag consult (the tile NBT seam). */
+    public void setPlacementTagConsult(PlacementTagConsult consult) {
+        this.placementTagConsult = java.util.Objects.requireNonNull(consult, "consult");
     }
 
     /**
@@ -759,6 +782,19 @@ public final class BlockInteractionService {
             return;
         }
         commit(target, held);
+        // BlockItem.useOn lines 46-51: the placement's setTileNbt consult —
+        // the claimed block's tile already exists (the TilePlacementListener
+        // created the family's model during the commit), and the reference's
+        // consult input is the HELD STACK: the authoritative inventory's own
+        // held slot stands in for the creative client's claim (the engine's
+        // claimed-block model is its own trust stance).
+        PlacementTagConsult consult = placementTagConsult;
+        if (consult != null) {
+            net.zaminmc.torch.item.ItemStack heldStack = player.inventory().held();
+            if (!heldStack.isEmpty()) {
+                consult.apply(world, 0, target, heldStack, player.opLevel());
+            }
+        }
     }
 
     private void survivalPlaceOnTick(PlayerSession player, BlockPosition clicked, int face) {
@@ -823,6 +859,14 @@ public final class BlockInteractionService {
             return;
         }
         commit(target, heldBlock);
+        // BlockItem.useOn lines 46-51: the placement's setTileNbt consult —
+        // the freshly-placed tile's rows merged with the held stack's
+        // BlockEntityTag, BEFORE the consume (the reference's own order:
+        // setBlockState, then setTileNbt, then the stack's size--).
+        PlacementTagConsult consult = placementTagConsult;
+        if (consult != null) {
+            consult.apply(world, 0, target, heldStack, player.opLevel());
+        }
         player.inventory().consumeHeld(1); // atomic with the commit above (§431)
         // The used-item stat (ItemStack.useOn's own row over the placed
         // block item — the reference counts the use on the placement).
