@@ -404,6 +404,76 @@ class MissingCommandsWaveOneTest {
                 new net.zaminmc.torch.block.BlockPosition(x + 1, y + 4, z + 1)).identifier().value());
     }
 
+    @Test
+    void theExecuteArm() throws Exception {
+        int x = (int) Math.floor(alice.position().x());
+        int y = (int) Math.floor(alice.position().y());
+        int z = (int) Math.floor(alice.position().z());
+        // The plain nested run: the nested ~ resolves against the EXECUTE
+        // coords (here the entity's own body), not the sending console.
+        dispatch("/execute Alice ~ ~ ~ setblock ~ ~2 ~ stone");
+        await(() -> server.world().getBlock(
+                        new net.zaminmc.torch.block.BlockPosition(x, y + 2, z)).identifier().value().equals("stone"),
+                "the nested setblock landed");
+
+        // The offset execute coords: the nested ~ resolves against the
+        // PARSED position (three east of Alice, two above it).
+        dispatch("/execute Alice ~3 ~ ~ setblock ~ ~2 ~ glass");
+        await(() -> server.world().getBlock(
+                        new net.zaminmc.torch.block.BlockPosition(x + 3, y + 2, z)).identifier().value().equals("glass"),
+                "the offset nested setblock landed");
+
+        // The detect arm: the match (the stone from the first run) lets
+        // the nested command through — the detect coords are relative to
+        // the execute coords, the -1 meta is any.
+        dispatch("/execute Alice ~ ~ ~ detect ~ ~2 ~ stone -1 setblock ~ ~4 ~ cobblestone");
+        await(() -> server.world().getBlock(
+                        new net.zaminmc.torch.block.BlockPosition(x, y + 4, z)).identifier().value().equals("cobblestone"),
+                "the detected nested run landed");
+
+        // The detect mismatch: the refusal, nothing placed.
+        dispatch("/execute Alice ~ ~ ~ detect ~ ~2 ~ gold_block -1 setblock ~ ~5 ~ dirt");
+        Thread.sleep(300);
+        assertEquals("air", server.world().getBlock(
+                new net.zaminmc.torch.block.BlockPosition(x, y + 5, z)).identifier().value(),
+                "the mismatched detect refused the nested run");
+
+        // The too-short form: five args minimum, the fourth is the command.
+        dispatch("/execute Alice ~ ~ ~");
+        Thread.sleep(200);
+        assertEquals("air", server.world().getBlock(
+                new net.zaminmc.torch.block.BlockPosition(x, y + 6, z)).identifier().value(),
+                "the short form refused");
+    }
+
+    @Test
+    void theExecuteMobArm() throws Exception {
+        Position at = alice.position();
+        server.ticker().submit(() -> {
+            server.mobs().spawnAt(MobType.ZOMBIE, new Position(at.x() + 4, at.y(), at.z()));
+        });
+        await(() -> server.mobs().all().stream().anyMatch(m -> m.type() == MobType.ZOMBIE),
+                "the zombie spawned");
+        // The nested run as the MOB (a selector, the any-kind ladder): the
+        // execute coords anchor at the zombie's body — the nested ~
+        // resolves against them, not Alice's position.
+        dispatch("/execute @e[type=Zombie] ~ ~ ~ setblock ~ ~2 ~ cobblestone");
+        int zx = (int) Math.floor(at.x() + 4);
+        int zy = (int) Math.floor(at.y());
+        int zz = (int) Math.floor(at.z());
+        await(() -> server.world().getBlock(
+                        new net.zaminmc.torch.block.BlockPosition(zx, zy + 2, zz)).identifier().value().equals("cobblestone"),
+                "the mob's nested setblock landed");
+        // Alice's own column stayed air — the anchor really was the mob.
+        int ax = (int) Math.floor(alice.position().x());
+        int ay = (int) Math.floor(alice.position().y());
+        int az = (int) Math.floor(alice.position().z());
+        Thread.sleep(300);
+        assertEquals("air", server.world().getBlock(
+                new net.zaminmc.torch.block.BlockPosition(ax, ay + 2, az)).identifier().value(),
+                "the anchor was the zombie, not Alice");
+    }
+
     private net.zaminmc.torch.server.chat.CommandSender aliceSender() {
         return new net.zaminmc.torch.server.chat.CommandSender() {
             @Override public String name() {

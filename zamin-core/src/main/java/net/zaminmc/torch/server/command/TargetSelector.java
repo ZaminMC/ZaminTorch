@@ -673,27 +673,20 @@ public final class TargetSelector {
     /** The reference's SourceView over the engine's CommandSender — the command layer's adapter. */
     public static SourceView sourceViewOf(
             net.zaminmc.torch.server.chat.CommandSender sender) {
-        PlayerSession player = sender.player();
-        if (player == null) {
-            return new SourceView() {
-                @Override public int[] blockPos() { return new int[] {0, 0, 0}; }
-                @Override public int dimension() { return 0; }
-                @Override public Candidate asEntity() { return null; }
-                @Override public boolean canUseSelectors() { return sender.opLevel() >= 1; }
-                @Override public void sendInvalidType(String typeName) {
-                    sender.sendMessage("Unknown entity type: " + typeName);
-                }
-            };
-        }
-        Candidate self = Candidate.candidateOf(player);
+        // The command-source surface (CommandSender's own defaults carry the
+        // player/console shapes; /execute's proxied source overrides all
+        // three — the parsed coords, the entity's dimension, the entity).
+        double[] pos = sender.sourcePos();
+        int dimension = sender.sourceDimension();
+        Candidate self = sender.asSourceEntity();
         return new SourceView() {
             @Override public int[] blockPos() {
                 return new int[] {
-                        (int) Math.floor(player.position().x()),
-                        (int) Math.floor(player.position().y()),
-                        (int) Math.floor(player.position().z()) };
+                        (int) Math.floor(pos[0]),
+                        (int) Math.floor(pos[1]),
+                        (int) Math.floor(pos[2]) };
             }
-            @Override public int dimension() { return player.dimension(); }
+            @Override public int dimension() { return dimension; }
             @Override public Candidate asEntity() { return self; }
             @Override public boolean canUseSelectors() { return sender.opLevel() >= 1; }
             @Override public void sendInvalidType(String typeName) {

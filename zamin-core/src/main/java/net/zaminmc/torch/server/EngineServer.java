@@ -16476,6 +16476,11 @@ public final class EngineServer implements Server, EngineBridge {
         commands.register(new CommandService.Command("clone",
                 "Copy a region: /clone <x1 y1 z1> <x2 y2 z2> <dx dy dz> [replace|masked|filtered] [force|move] [filterBlock] [filterMeta]",
                 2, this::cloneCommand));
+        // The missing-commands batch, wave six (/execute — ExecuteCommand
+        // 1:1, op-2): the nested run over the proxied command source.
+        commands.register(new CommandService.Command("execute",
+                "Run a command as an entity: /execute <entity> <x y z> <command> [command args]",
+                2, this::executeCommand));
         commands.register(new CommandService.Command("time",
                 "Query or set the day: /time query | /time set <day|noon|night|midnight|ticks>",
                 this::timeCommand));
@@ -17176,10 +17181,12 @@ public final class EngineServer implements Server, EngineBridge {
         String sound = args[0];
         PlayerSession target = net.zaminmc.torch.server.command.CommandParse
                 .parsePlayer(players, sender, args[1]);
-        PlayerSession self = sender.player();
-        double sx = self != null ? self.position().x() : 0.0;
-        double sy = self != null ? self.position().y() : 0.0;
-        double sz = self != null ? self.position().z() : 0.0;
+        // The ~ origin: the command-source position (the execute proxy's
+        // parsed coords re-anchor these — CommandSender.sourcePos).
+        double[] source = sender.sourcePos();
+        double sx = source[0];
+        double sy = source[1];
+        double sz = source[2];
         int i = 2;
         double x = sx;
         double y = sy;
@@ -17270,10 +17277,12 @@ public final class EngineServer implements Server, EngineBridge {
             return "Unknown particle name: " + args[0];
         }
 
-        PlayerSession self = sender.player();
-        double sx = self != null ? self.position().x() : 0.0;
-        double sy = self != null ? self.position().y() : 0.0;
-        double sz = self != null ? self.position().z() : 0.0;
+        // The ~ origin: the command-source position (the execute proxy's
+        // parsed coords re-anchor these — CommandSender.sourcePos).
+        double[] source = sender.sourcePos();
+        double sx = source[0];
+        double sy = source[1];
+        double sz = source[2];
         double x = parseCenteredCoordinate(sx, args[1]);
         double y = parseCenteredCoordinate(sy, args[2]);
         double z = parseCenteredCoordinate(sz, args[3]);
@@ -17315,7 +17324,7 @@ public final class EngineServer implements Server, EngineBridge {
         final float fdata = data;
         final int fcount = count;
         final int[] fparams = params;
-        final int dimension = self != null ? self.dimension() : 0;
+        final int dimension = sender.sourceDimension();
         double radius = force ? 512.0 : 32.0;
         for (PlayerSession session : players.all()) {
             if (session.state() != PlayerState.PLAYING || session.dimension() != dimension) {
@@ -17417,10 +17426,12 @@ public final class EngineServer implements Server, EngineBridge {
         if (args.length < 4) {
             return "Usage: /setblock <x y z> <block> [meta] [destroy|keep|replace] [dataTag]";
         }
-        PlayerSession self = sender.player();
-        double sx = self != null ? self.position().x() : 0.0;
-        double sy = self != null ? self.position().y() : 0.0;
-        double sz = self != null ? self.position().z() : 0.0;
+        // The ~ origin: the command-source position (the execute proxy's
+        // parsed coords re-anchor these — CommandSender.sourcePos).
+        double[] source = sender.sourcePos();
+        double sx = source[0];
+        double sy = source[1];
+        double sz = source[2];
         int x = (int) Math.floor(parseRelativeCoordinate(sx, args[0]));
         int y = (int) Math.floor(parseRelativeCoordinate(sy, args[1]));
         int z = (int) Math.floor(parseRelativeCoordinate(sz, args[2]));
@@ -17471,10 +17482,12 @@ public final class EngineServer implements Server, EngineBridge {
         if (args.length < 7) {
             return "Usage: /fill <x1 y1 z1> <x2 y2 z2> <block> [meta] [mode] [filterBlock] [filterMeta]";
         }
-        PlayerSession self = sender.player();
-        double sx = self != null ? self.position().x() : 0.0;
-        double sy = self != null ? self.position().y() : 0.0;
-        double sz = self != null ? self.position().z() : 0.0;
+        // The ~ origin: the command-source position (the execute proxy's
+        // parsed coords re-anchor these — CommandSender.sourcePos).
+        double[] source = sender.sourcePos();
+        double sx = source[0];
+        double sy = source[1];
+        double sz = source[2];
         int x1 = (int) Math.floor(parseRelativeCoordinate(sx, args[0]));
         int y1 = (int) Math.floor(parseRelativeCoordinate(sy, args[1]));
         int z1 = (int) Math.floor(parseRelativeCoordinate(sz, args[2]));
@@ -17573,10 +17586,12 @@ public final class EngineServer implements Server, EngineBridge {
         if (args.length < 9) {
             return "Usage: /clone <x1 y1 z1> <x2 y2 z2> <dx dy dz> [replace|masked|filtered] [force|move] [filterBlock] [filterMeta]";
         }
-        PlayerSession self = sender.player();
-        double sx = self != null ? self.position().x() : 0.0;
-        double sy = self != null ? self.position().y() : 0.0;
-        double sz = self != null ? self.position().z() : 0.0;
+        // The ~ origin: the command-source position (the execute proxy's
+        // parsed coords re-anchor these — CommandSender.sourcePos).
+        double[] source = sender.sourcePos();
+        double sx = source[0];
+        double sy = source[1];
+        double sz = source[2];
         int bx = (int) Math.floor(parseRelativeCoordinate(sx, args[0]));
         int by = (int) Math.floor(parseRelativeCoordinate(sy, args[1]));
         int bz = (int) Math.floor(parseRelativeCoordinate(sz, args[2]));
@@ -17664,6 +17679,115 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /**
+     * /execute (ExecuteCommand 1:1, op-2): the entity (the any-kind
+     * ladder), the ~-relative coords parsed against the ENTITY's own body
+     * with the ±30000000 bounds, the detect arm (the second coord triple
+     * parsed against the first, the block with the -1..15 meta where -1
+     * is any, the state match against the engine's named-variant
+     * convention, the mismatch refusal), and the nested run over the
+     * proxied command source — the name, entity, dimension, and the ~
+     * origin swapped for the run, the feedback routed back to the
+     * original sender, the permission level inherited.
+     *
+     * <p>The reference's own quirk preserved: the {@code j < 1}
+     * allInvocationsFailed throw lands inside the command's own catch
+     * arm, so every failed nested run reports the failed line — the
+     * allInvocationsFailed text never shows.</p>
+     */
+    private String executeCommand(CommandSender sender, String[] args) {
+        if (args.length < 5) {
+            return "Usage: /execute <entity> <x y z> <command> [command args]";
+        }
+        net.zaminmc.torch.server.command.TargetSelector.Candidate entity;
+        double d0;
+        double d1;
+        double d2;
+        try {
+            entity = net.zaminmc.torch.server.command.CommandParse
+                    .parseEntity(players, sender, args[0]);
+            d0 = net.zaminmc.torch.server.command.CommandParse.parseCoordinate(entity.x(), args[1]);
+            d1 = net.zaminmc.torch.server.command.CommandParse.parseCoordinate(entity.y(), args[2]);
+            d2 = net.zaminmc.torch.server.command.CommandParse.parseCoordinate(entity.z(), args[3]);
+        } catch (RuntimeException e) {
+            return e.getMessage();
+        }
+        int i = 4;
+        if ("detect".equals(args[4]) && args.length > 10) {
+            String rawName = args[8].contains(":") ? args[8] : "minecraft:" + args[8];
+            var block = blockRegistry.byKey(rawName).orElse(null);
+            if (block == null) {
+                return "There is no such block with name " + args[8];
+            }
+            double d3;
+            double d4;
+            double d5;
+            int k;
+            try {
+                d3 = net.zaminmc.torch.server.command.CommandParse.parseCoordinate(d0, args[5]);
+                d4 = net.zaminmc.torch.server.command.CommandParse.parseCoordinate(d1, args[6]);
+                d5 = net.zaminmc.torch.server.command.CommandParse.parseCoordinate(d2, args[7]);
+                k = net.zaminmc.torch.server.command.CommandParse.parseInt(args[9], -1, 15);
+            } catch (RuntimeException e) {
+                return e.getMessage();
+            }
+            var detectPos = new net.zaminmc.torch.block.BlockPosition(
+                    (int) Math.floor(d3), (int) Math.floor(d4), (int) Math.floor(d5));
+            var state = worldFor(entity.dimension()).getBlock(detectPos);
+            boolean match = state.identifier().equals(block.identifier());
+            if (match && k >= 0) {
+                // The engine names variants directly (setblock/fill's own
+                // convention): the state's legacy nibble is its type's.
+                match = state instanceof net.zaminmc.torch.server.block.EngineBlockType engineType
+                        ? engineType.legacyMetadata() == k
+                        : k == 0;
+            }
+            if (!match) {
+                return "Failed to execute 'detect' as " + entity.name();
+            }
+            i = 10;
+        }
+        String s = net.zaminmc.torch.server.command.CommandParse.parseString(args, i);
+        // The proxied command source (the reference's anonymous
+        // CommandSource): the entity's name, the entity itself, the
+        // entity's world, and the parsed coords as the ~ origin — the
+        // feedback flows to the original sender, the permission level
+        // stays the original's.
+        final CommandSender original = sender;
+        final net.zaminmc.torch.server.command.TargetSelector.Candidate acting = entity;
+        final double px = d0;
+        final double py = d1;
+        final double pz = d2;
+        CommandSender proxied = new CommandSender() {
+            @Override public String name() {
+                return acting.name();
+            }
+            @Override public void sendMessage(String message) {
+                original.sendMessage(message);
+            }
+            @Override public int opLevel() {
+                return original.opLevel();
+            }
+            @Override public PlayerSession player() {
+                return acting.player() ? (PlayerSession) acting.handle() : null;
+            }
+            @Override public double[] sourcePos() {
+                return new double[] {px, py, pz};
+            }
+            @Override public int sourceDimension() {
+                return acting.dimension();
+            }
+            @Override public net.zaminmc.torch.server.command.TargetSelector.Candidate asSourceEntity() {
+                return acting;
+            }
+        };
+        int j = commands.dispatchCounted(proxied, s);
+        if (j < 1) {
+            return "Failed to execute '" + s + "' as " + entity.name();
+        }
+        return null;
+    }
+
+    /**
      * /toggledownfall (ToggleDownfallCommand 1:1, op-2): flips the rain
      * flag on the overworld's data (the reference's worlds[0]
      * .setRaining(!isRaining())). The engine's setWeather carries the
@@ -17697,9 +17821,13 @@ public final class EngineServer implements Server, EngineBridge {
         double y = Math.floor(at.y());
         double z = Math.floor(at.z());
         if (args.length > 3) {
-            x = parseRelativeCoordinate(x, args[1]);
-            y = parseRelativeCoordinate(y, args[2]);
-            z = parseRelativeCoordinate(z, args[3]);
+            // The ~ origin is the SOURCE's position (the reference's
+            // parseBlockPos(source, ...) — the target's own block only
+            // backs the no-coords arm; the execute proxy re-anchors).
+            double[] source = sender.sourcePos();
+            x = parseRelativeCoordinate(Math.floor(source[0]), args[1]);
+            y = parseRelativeCoordinate(Math.floor(source[1]), args[2]);
+            z = parseRelativeCoordinate(Math.floor(source[2]), args[3]);
         }
         Position point = new Position(x + 0.5, y, z + 0.5);
         ticker.submit(() -> target.setBedSpawn(point));
@@ -18638,9 +18766,8 @@ public final class EngineServer implements Server, EngineBridge {
         if (!value.startsWith("~")) {
             return parseBorderDouble(value, -2.9999984E7, 2.9999984E7);
         }
-        double base = sender.player() != null
-                ? (xAxis ? sender.player().position().x() : sender.player().position().z())
-                : 0.0;
+        double[] source = sender.sourcePos();
+        double base = xAxis ? source[0] : source[2];
         String offset = value.substring(1);
         return offset.isEmpty() ? base : base + parseBorderDouble(offset,
                 -2.9999984E7, 2.9999984E7);
