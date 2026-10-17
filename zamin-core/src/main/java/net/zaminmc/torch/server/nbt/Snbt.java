@@ -114,6 +114,15 @@ public final class Snbt {
             };
         }
 
+        /**
+         * The numeric value as a long (Slice 89 — the UUID rows' own
+         * family): a LONG row answers its exact 64 bits (the asDouble
+         * widening loses them), every other numeric family widens.
+         */
+        public long asLong() {
+            return type == Type.LONG ? (Long) value : (long) asDouble();
+        }
+
         /** @return the numeric value as a float (0 for non-numbers). */
         public float asFloat() {
             return (float) asDouble();

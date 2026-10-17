@@ -154,6 +154,23 @@ public final class PotionSystem {
         return store == null ? Map.of() : store;
     }
 
+    /**
+     * The readNbt arm (Slice 89 — the reference's
+     * {@code statusEffects.put(id, instance)} at LivingEntity.readCustomNbt):
+     * the replace WITHOUT the add gates — no undead refusal, no combine,
+     * the row's instance installs outright.
+     */
+    public void putFromNbt(Object body, StatusEffectInstance instance) {
+        int key = bodies.keyOf(body);
+        effects.computeIfAbsent(key, k -> new LinkedHashMap<>())
+                .put(instance.id(), instance);
+        if (bodies.isPlayer(body)) {
+            for (Listener listener : listeners) {
+                listener.onEffectAdded((PlayerSession) body, instance);
+            }
+        }
+    }
+
     /** @return whether the body carries an active fire-resistance (the burn gates). */
     public boolean hasEffect(Object body, int id) {
         StatusEffectInstance instance = get(body, id);

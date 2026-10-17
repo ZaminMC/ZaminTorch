@@ -13382,7 +13382,8 @@ public final class EngineServer implements Server, EngineBridge {
 
     /** The leash walk + the knots' survival poll (Slice 11c). */
     private void tickLeashes() {
-        leadSystem.tick(mobManager.all(), player -> player.position());
+        leadSystem.tick(mobManager.all(), player -> player.position(),
+                uuid -> players.byUuid(uuid));
     }
 
     /** The leash system's mob surface (the tie scan + the lead drop). */
