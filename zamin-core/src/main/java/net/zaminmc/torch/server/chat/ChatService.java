@@ -76,6 +76,12 @@ public final class ChatService {
                 @Override public void sendMessage(String content) { deliverSystem(sender, content); }
                 @Override public int opLevel() { return sender.opLevel(); }
                 @Override public PlayerSession player() { return sender; }
+                @Override public void addResult(
+                        net.zaminmc.torch.server.command.EngineCommandResults.Type type, int result) {
+                    // The reference's Entity.addResult: the holder consults
+                    // the entity's own source view (this sender's player()).
+                    sender.commandResults().add(this, type, result);
+                }
             }, message);
             return;
         }

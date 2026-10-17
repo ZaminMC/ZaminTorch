@@ -546,6 +546,52 @@ class MissingCommandsWaveOneTest {
         }, "the teamed pair landed together on one pile");
     }
 
+    @Test
+    void theStatsArm() throws Exception {
+        // An objective with an existing score for Alice (the reference's
+        // hasScore gate: only an existing score is set).
+        dispatch("/scoreboard objectives add statcnt dummy");
+        dispatch("/scoreboard players set Alice statcnt 0");
+        await(() -> {
+            var obj = server.scoreboard().getObjective("statcnt");
+            return obj != null && server.scoreboard().hasScore("Alice", obj);
+        }, "the objective and the score exist");
+        var objective = server.scoreboard().getObjective("statcnt");
+
+        // The SuccessCount binding: a successful run sets 1, an unknown
+        // command's dispatch reports 0 (the dispatch-level stat).
+        dispatch("/stats entity Alice set SuccessCount Alice statcnt");
+        dispatch("/time query");
+        await(() -> server.scoreboard().getScore("Alice", objective).get() == 1,
+                "the success count landed");
+        dispatch("/nosuchcommand");
+        await(() -> server.scoreboard().getScore("Alice", objective).get() == 0,
+                "the failed run reported zero");
+
+        // The AffectedBlocks binding: the fill's own count. The
+        // SuccessCount binding is cleared first — in the reference both
+        // bindings would stay live and the trailing SUCCESS_COUNT write
+        // (1) would overwrite the fill's count.
+        dispatch("/stats entity Alice clear SuccessCount");
+        dispatch("/stats entity Alice set AffectedBlocks Alice statcnt");
+        dispatch("/fill ~1 ~5 ~1 ~2 ~5 ~4 glass"); // 2x1x4 = 8
+        await(() -> server.scoreboard().getScore("Alice", objective).get() == 8,
+                "the fill's affected-blocks count landed");
+
+        // The clear arm: the binding gone, later runs leave the score.
+        dispatch("/stats entity Alice clear AffectedBlocks");
+        dispatch("/fill ~1 ~5 ~1 ~2 ~5 ~4 stone");
+        Thread.sleep(400);
+        assertEquals(8, server.scoreboard().getScore("Alice", objective).get(),
+                "the cleared binding stopped the updates");
+
+        // The unknown-type refusal.
+        dispatch("/stats entity Alice set NotAStat Alice statcnt");
+        Thread.sleep(300);
+        // The binding never changed (the clear left none): the last score stays.
+        assertEquals(8, server.scoreboard().getScore("Alice", objective).get());
+    }
+
     private net.zaminmc.torch.server.chat.CommandSender aliceSender() {
         return new net.zaminmc.torch.server.chat.CommandSender() {
             @Override public String name() {

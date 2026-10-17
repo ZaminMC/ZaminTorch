@@ -441,6 +441,9 @@ public final class MobEntity implements LivingEntity {
     private float headYaw;
     private float health;
     private boolean onGround;
+    /** The body's command-stat bindings (the reference's Entity field). */
+    private final net.zaminmc.torch.server.command.EngineCommandResults commandResults =
+            new net.zaminmc.torch.server.command.EngineCommandResults();
 
     private Mode mode = Mode.IDLE;
     private int modeTicks;
@@ -898,6 +901,11 @@ public final class MobEntity implements LivingEntity {
 
     public Position position() {
         return position;
+    }
+
+    /** The body's command-stat bindings (the /stats surface). */
+    public net.zaminmc.torch.server.command.EngineCommandResults commandResults() {
+        return commandResults;
     }
 
     /**

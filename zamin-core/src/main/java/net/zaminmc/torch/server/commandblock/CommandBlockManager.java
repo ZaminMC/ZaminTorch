@@ -36,6 +36,14 @@ public final class CommandBlockManager
         private int successCount;
         private boolean trackOutput = true;
         private String lastOutput;
+        /** The tile's command-stat bindings (the reference's BlockEntity field). */
+        private final net.zaminmc.torch.server.command.EngineCommandResults commandResults =
+                new net.zaminmc.torch.server.command.EngineCommandResults();
+
+        /** The tile's command-stat bindings (the /stats surface). */
+        public net.zaminmc.torch.server.command.EngineCommandResults commandResults() {
+            return commandResults;
+        }
 
         /** The stored command (no leading slash). */
         public String command() {

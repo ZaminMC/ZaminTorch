@@ -720,6 +720,10 @@ public final class EngineServer implements Server, EngineBridge {
                         },
                         () -> scoreboard);
                 net.zaminmc.torch.server.text.ScoreText.installBoard(() -> scoreboard);
+                // The command-stats resolve seam (EngineCommandResults 1:1):
+                // the players registry + the main board, the same seam the
+                // selector rides.
+                net.zaminmc.torch.server.command.EngineCommandResults.install(players, scoreboard);
                 // §27.6's admission protocol for the mind: goal registrations
                 // (the public goals() surface) land on the world's owner lane,
                 // between ticks, from any thread.
@@ -10458,6 +10462,13 @@ public final class EngineServer implements Server, EngineBridge {
             @Override public PlayerSession player() {
                 return null;
             }
+
+            @Override public void addResult(
+                    net.zaminmc.torch.server.command.EngineCommandResults.Type type, int result) {
+                // The tile's own holder carries the run's results (the
+                // reference's CommandExecutor.addResult walk).
+                executor.commandResults().add(this, type, result);
+            }
         }, line);
         return known ? 1 : 0;
     }
@@ -16484,6 +16495,9 @@ public final class EngineServer implements Server, EngineBridge {
         commands.register(new CommandService.Command("spreadplayers",
                 "Spread players: /spreadplayers <x> <z> <spreadDistance> <maxRange> <respectTeams> <player...>",
                 2, this::spreadplayersCommand));
+        commands.register(new CommandService.Command("stats",
+                "Bind command stats: /stats <entity <player>|block <x y z>> <set <stat> <source> <objective>|clear <stat>>",
+                2, this::statsCommand));
         commands.register(new CommandService.Command("time",
                 "Query or set the day: /time query | /time set <day|noon|night|midnight|ticks>",
                 this::timeCommand));
@@ -17105,6 +17119,7 @@ public final class EngineServer implements Server, EngineBridge {
         if (args.length < 2) {
             return "Usage: /enchant <player> <enchantment|id> [level]";
         }
+        sender.addResult(net.zaminmc.torch.server.command.EngineCommandResults.Type.AFFECTED_ITEMS, 0);
         PlayerSession target = net.zaminmc.torch.server.command.CommandParse
                 .parsePlayer(players, sender, args[0]);
         net.zaminmc.torch.item.ItemStack held = target.inventory().held();
@@ -17166,6 +17181,7 @@ public final class EngineServer implements Server, EngineBridge {
             ftarget.inventory().enchantHeld(fid, flevel);
             publishInventoryChanged(ftarget);
         });
+        sender.addResult(net.zaminmc.torch.server.command.EngineCommandResults.Type.AFFECTED_ITEMS, 1);
         return "Enchanting succeeded";
     }
 
@@ -17429,6 +17445,7 @@ public final class EngineServer implements Server, EngineBridge {
         if (args.length < 4) {
             return "Usage: /setblock <x y z> <block> [meta] [destroy|keep|replace] [dataTag]";
         }
+        sender.addResult(net.zaminmc.torch.server.command.EngineCommandResults.Type.AFFECTED_BLOCKS, 0);
         // The ~ origin: the command-source position (the execute proxy's
         // parsed coords re-anchor these — CommandSender.sourcePos).
         double[] source = sender.sourcePos();
@@ -17469,6 +17486,7 @@ public final class EngineServer implements Server, EngineBridge {
         }
         final var ftype = type;
         ticker.submit(() -> world.setBlock(position, ftype));
+        sender.addResult(net.zaminmc.torch.server.command.EngineCommandResults.Type.AFFECTED_BLOCKS, 1);
         return "Block placed";
     }
 
@@ -17485,6 +17503,7 @@ public final class EngineServer implements Server, EngineBridge {
         if (args.length < 7) {
             return "Usage: /fill <x1 y1 z1> <x2 y2 z2> <block> [meta] [mode] [filterBlock] [filterMeta]";
         }
+        sender.addResult(net.zaminmc.torch.server.command.EngineCommandResults.Type.AFFECTED_BLOCKS, 0);
         // The ~ origin: the command-source position (the execute proxy's
         // parsed coords re-anchor these — CommandSender.sourcePos).
         double[] source = sender.sourcePos();
@@ -17572,6 +17591,7 @@ public final class EngineServer implements Server, EngineBridge {
                 }
             }
         }
+        sender.addResult(net.zaminmc.torch.server.command.EngineCommandResults.Type.AFFECTED_BLOCKS, placed[0]);
         return "Filled " + placed[0] + " blocks";
     }
 
@@ -17589,6 +17609,7 @@ public final class EngineServer implements Server, EngineBridge {
         if (args.length < 9) {
             return "Usage: /clone <x1 y1 z1> <x2 y2 z2> <dx dy dz> [replace|masked|filtered] [force|move] [filterBlock] [filterMeta]";
         }
+        sender.addResult(net.zaminmc.torch.server.command.EngineCommandResults.Type.AFFECTED_BLOCKS, 0);
         // The ~ origin: the command-source position (the execute proxy's
         // parsed coords re-anchor these — CommandSender.sourcePos).
         double[] source = sender.sourcePos();
@@ -17678,6 +17699,7 @@ public final class EngineServer implements Server, EngineBridge {
                 world.setBlock(cell, net.zaminmc.torch.server.block.BuiltinBlocks.AIR);
             }
         }
+        sender.addResult(net.zaminmc.torch.server.command.EngineCommandResults.Type.AFFECTED_BLOCKS, copied[0]);
         return "Cloned " + copied[0] + " blocks";
     }
 
@@ -17781,6 +17803,17 @@ public final class EngineServer implements Server, EngineBridge {
             }
             @Override public net.zaminmc.torch.server.command.TargetSelector.Candidate asSourceEntity() {
                 return acting;
+            }
+            @Override public void addResult(
+                    net.zaminmc.torch.server.command.EngineCommandResults.Type type, int result) {
+                // The reference's ExecuteCommand proxy: entity.addResult —
+                // the ENTITY's holder carries the nested run's results.
+                if (acting.player()) {
+                    ((PlayerSession) acting.handle()).commandResults().add(this, type, result);
+                } else {
+                    ((net.zaminmc.torch.server.entity.MobEntity) acting.handle())
+                            .commandResults().add(this, type, result);
+                }
             }
         };
         int j = commands.dispatchCounted(proxied, s);
@@ -17975,6 +18008,109 @@ public final class EngineServer implements Server, EngineBridge {
             }
         }
         return teams.size();
+    }
+
+    /**
+     * /stats (StatsCommand 1:1, op-2): the entity arm (the any-kind
+     * ladder — the holder on the player or the mob) and the block arm
+     * (a command block or a sign tile), each with the set pair (the
+     * source name + the objective, the empty-string refusal) and the
+     * clear arm, over the five stat types by their reference names
+     * (SuccessCount/AffectedBlocks/AffectedEntities/AffectedItems/
+     * QueryResult). The unknown-type and the no-compatible-block
+     * refusals.
+     */
+    private String statsCommand(CommandSender sender, String[] args) {
+        if (args.length < 1) {
+            return "Usage: /stats <entity <player>|block <x y z>> <set <stat> <source> <objective>|clear <stat>>";
+        }
+        boolean block;
+        int i;
+        if (args[0].equals("entity")) {
+            block = false;
+            if (args.length < 3) {
+                return "Usage: /stats entity <player> <set <stat> <source> <objective>|clear <stat>>";
+            }
+            i = 2;
+        } else if (args[0].equals("block")) {
+            block = true;
+            if (args.length < 5) {
+                return "Usage: /stats block <x y z> <set <stat> <source> <objective>|clear <stat>>";
+            }
+            i = 4;
+        } else {
+            return "Usage: /stats <entity <player>|block <x y z>> <set <stat> <source> <objective>|clear <stat>>";
+        }
+        String arm = args[i++];
+        if ("set".equals(arm)) {
+            if (args.length < i + 3) {
+                return block
+                        ? "Usage: /stats block <x y z> set <stat> <source> <objective>"
+                        : "Usage: /stats entity <player> set <stat> <source> <objective>";
+            }
+        } else if (!"clear".equals(arm)) {
+            return "Usage: /stats <entity <player>|block <x y z>> <set <stat> <source> <objective>|clear <stat>>";
+        } else if (args.length < i + 1) {
+            return block
+                    ? "Usage: /stats block <x y z> clear <stat>"
+                    : "Usage: /stats entity <player> clear <stat>";
+        }
+        net.zaminmc.torch.server.command.EngineCommandResults.Type type =
+                net.zaminmc.torch.server.command.EngineCommandResults.Type.byName(args[i++]);
+        if (type == null) {
+            return "Couldn't process this statistic";
+        }
+        net.zaminmc.torch.server.command.EngineCommandResults results;
+        if (block) {
+            int bx;
+            int by;
+            int bz;
+            try {
+                bx = (int) Math.floor(net.zaminmc.torch.server.command.CommandParse
+                        .parseCoordinate(sender.sourcePos()[0], args[1]));
+                by = (int) Math.floor(net.zaminmc.torch.server.command.CommandParse
+                        .parseCoordinate(sender.sourcePos()[1], args[2]));
+                bz = (int) Math.floor(net.zaminmc.torch.server.command.CommandParse
+                        .parseCoordinate(sender.sourcePos()[2], args[3]));
+            } catch (RuntimeException e) {
+                return e.getMessage();
+            }
+            if (by < 0 || by > 256) {
+                return "Value must be at most 256";
+            }
+            var pos = new net.zaminmc.torch.block.BlockPosition(bx, by, bz);
+            var tile = commandBlocks.at(pos);
+            if (tile != null) {
+                results = tile.commandResults();
+            } else if (signs().peek(pos) != null) {
+                results = signs().statsAt(pos);
+            } else {
+                return "There is no command block or sign at " + bx + ", " + by + ", " + bz;
+            }
+        } else {
+            net.zaminmc.torch.server.command.TargetSelector.Candidate entity;
+            try {
+                entity = net.zaminmc.torch.server.command.CommandParse
+                        .parseEntity(players, sender, args[1]);
+            } catch (RuntimeException e) {
+                return e.getMessage();
+            }
+            results = entity.player()
+                    ? ((PlayerSession) entity.handle()).commandResults()
+                    : ((net.zaminmc.torch.server.entity.MobEntity) entity.handle()).commandResults();
+        }
+        if ("set".equals(arm)) {
+            String sourceName = args[i++];
+            String objectiveName = args[i];
+            if (sourceName.isEmpty() || objectiveName.isEmpty()) {
+                return "Couldn't process this statistic";
+            }
+            results.set(type, sourceName, objectiveName);
+            return "Stored the " + type.getName() + " of " + sourceName
+                    + " in " + objectiveName;
+        }
+        results.clear(type);
+        return "Cleared the " + type.getName() + " statistic";
     }
 
     /**
@@ -18296,10 +18432,17 @@ public final class EngineServer implements Server, EngineBridge {
         if (target == null) {
             return "Usage: /clear [player]";
         }
+        int cleared = 0;
+        for (var stack : target.inventory().slots()) {
+            if (stack != null && !stack.isEmpty()) {
+                cleared += stack.count();
+            }
+        }
         ticker.submit(() -> {
             target.inventory().clear();
             publishInventoryChanged(target);
         });
+        sender.addResult(net.zaminmc.torch.server.command.EngineCommandResults.Type.AFFECTED_ITEMS, cleared);
         return "Cleared " + target.name() + "'s inventory";
     }
 
@@ -19111,6 +19254,10 @@ public final class EngineServer implements Server, EngineBridge {
      */
     private String timeCommand(CommandSender sender, String[] args) {
         if (args.length >= 1 && args[0].equalsIgnoreCase("query")) {
+            // The reference's query stat (TimeCommand line 63): the day
+            // counter (the time-of-day's own value on the query arm).
+            sender.addResult(net.zaminmc.torch.server.command.EngineCommandResults.Type.QUERY_RESULT,
+                    (int) (world.timeOfDay() % MobManager.DAY_LENGTH));
             return "Time: " + world.timeOfDay() + " / " + MobManager.DAY_LENGTH
                     + " (total " + world.totalTicks() + ")";
         }
@@ -19478,10 +19625,22 @@ public final class EngineServer implements Server, EngineBridge {
         net.zaminmc.torch.item.ItemStack remainder = sender.inventory().pickUp(granted);
         publishInventoryChanged(sender);
         int given = count - remainder.count();
+        sender.commandResults().add(senderSelfView(sender),
+                net.zaminmc.torch.server.command.EngineCommandResults.Type.AFFECTED_ITEMS, given);
         String variantName = metadata != 0 ? " (metadata " + metadata + ")" : "";
         return remainder.isEmpty()
                 ? "Given " + given + " x " + type.displayName() + variantName
                 : "Inventory full: gave " + given + " of " + count;
+    }
+
+    /** A sender view over a session (the stats resolve walk's source). */
+    private static CommandSender senderSelfView(PlayerSession session) {
+        return new CommandSender() {
+            @Override public String name() { return session.name(); }
+            @Override public void sendMessage(String message) { }
+            @Override public int opLevel() { return session.opLevel(); }
+            @Override public PlayerSession player() { return session; }
+        };
     }
 
     private void publishChat(ChatService.ChatEvent event) {

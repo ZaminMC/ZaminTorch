@@ -63,6 +63,9 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
     /** The session's statistics (the stats slice — the tick-lane counters). */
     private final net.zaminmc.torch.server.stat.PlayerStats stats =
             new net.zaminmc.torch.server.stat.PlayerStats();
+    /** The session's command-stat bindings (the reference's Entity field). */
+    private final net.zaminmc.torch.server.command.EngineCommandResults commandResults =
+            new net.zaminmc.torch.server.command.EngineCommandResults();
 
     /** The kinds of container windows a session can hold open. */
     public enum ContainerKind {
@@ -394,6 +397,11 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
 
     public UUID uuid() {
         return uuid;
+    }
+
+    /** The session's command-stat bindings (the /stats surface). */
+    public net.zaminmc.torch.server.command.EngineCommandResults commandResults() {
+        return commandResults;
     }
 
     public String name() {

@@ -29,6 +29,15 @@ public final class SignManager {
     public static final int MAX_LINE_LENGTH = 64;
 
     private final Map<BlockPosition, String[]> signs = new LinkedHashMap<>();
+    /** The signs' command-stat bindings (the reference's SignBlockEntity field). */
+    private final Map<BlockPosition, net.zaminmc.torch.server.command.EngineCommandResults> statsHolders =
+            new LinkedHashMap<>();
+
+    /** The sign's command-stat bindings at the position — created on demand (the /stats set arm). */
+    public net.zaminmc.torch.server.command.EngineCommandResults statsAt(BlockPosition position) {
+        return statsHolders.computeIfAbsent(position,
+                p -> new net.zaminmc.torch.server.command.EngineCommandResults());
+    }
 
     /** Stores (replaces) the text of the sign at the position. */
     public void set(BlockPosition position, String[] lines) {
@@ -74,6 +83,8 @@ public final class SignManager {
         signs.entrySet().removeIf(entry ->
                 world.isChunkLoadedAt(entry.getKey())
                         && !isSignBlock(world, entry.getKey()));
+        // The stat bindings ride their sign (the reference's tile NBT).
+        statsHolders.keySet().retainAll(signs.keySet());
     }
 
     private static boolean isSignBlock(EngineWorld world, BlockPosition position) {
