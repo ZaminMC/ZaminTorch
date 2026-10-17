@@ -16455,6 +16455,9 @@ public final class EngineServer implements Server, EngineBridge {
         commands.register(new CommandService.Command("enchant",
                 "Enchant the held item: /enchant <player> <enchantment|id> [level]",
                 2, this::enchantCommand));
+        commands.register(new CommandService.Command("playsound",
+                "Play a sound to a player: /playsound <sound> <player> [x y z] [volume] [pitch] [minVolume]",
+                2, this::playsoundCommand));
         commands.register(new CommandService.Command("time",
                 "Query or set the day: /time query | /time set <day|noon|night|midnight|ticks>",
                 this::timeCommand));
@@ -17138,6 +17141,87 @@ public final class EngineServer implements Server, EngineBridge {
             publishInventoryChanged(ftarget);
         });
         return "Enchanting succeeded";
+    }
+
+    /**
+     * /playsound (PlaySoundCommand 1:1, op-2): the per-player direct packet.
+     * The coords are ~-relative to the source's own position; the volume
+     * (0..MAX), pitch (0..2), and minimumVolume (0..1) bounds; the too-far
+     * gate (volume > 1 ? volume*16 : 16) with the playerTooFar refusal; and
+     * the fold-back rule (the point moves to 2.0 from the target and the
+     * volume drops to the minimum).
+     */
+    private String playsoundCommand(CommandSender sender, String[] args) {
+        if (args.length < 2) {
+            return "Usage: /playsound <sound> <player> [x y z] [volume] [pitch] [minVolume]";
+        }
+        String sound = args[0];
+        PlayerSession target = net.zaminmc.torch.server.command.CommandParse
+                .parsePlayer(players, sender, args[1]);
+        PlayerSession self = sender.player();
+        double sx = self != null ? self.position().x() : 0.0;
+        double sy = self != null ? self.position().y() : 0.0;
+        double sz = self != null ? self.position().z() : 0.0;
+        int i = 2;
+        double x = sx;
+        double y = sy;
+        double z = sz;
+        if (args.length > i) {
+            x = parseRelativeCoordinate(sx, args[i++]);
+        }
+        if (args.length > i) {
+            y = parseRelativeCoordinate(sy, args[i++]);
+        }
+        if (args.length > i) {
+            z = parseRelativeCoordinate(sz, args[i++]);
+        }
+        double volume = 1.0;
+        if (args.length > i) {
+            volume = Double.parseDouble(args[i++]);
+            if (volume < 0.0) {
+                return "Volume must be at least 0";
+            }
+        }
+        double pitch = 1.0;
+        if (args.length > i) {
+            pitch = Double.parseDouble(args[i++]);
+            if (pitch < 0.0 || pitch > 2.0) {
+                return "Pitch must be 0..2";
+            }
+        }
+        double minimumVolume = 0.0;
+        if (args.length > i) {
+            minimumVolume = Double.parseDouble(args[i]);
+            if (minimumVolume < 0.0 || minimumVolume > 1.0) {
+                return "Minimum volume must be 0..1";
+            }
+        }
+
+        double audible = volume > 1.0 ? volume * 16.0 : 16.0;
+        double dx = x - target.position().x();
+        double dy = y - target.position().y();
+        double dz = z - target.position().z();
+        double distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        if (distance > audible) {
+            if (minimumVolume <= 0.0) {
+                return target.name() + " is too far away to hear the sound";
+            }
+            if (distance > 0.0) {
+                x = target.position().x() + dx / distance * 2.0;
+                y = target.position().y() + dy / distance * 2.0;
+                z = target.position().z() + dz / distance * 2.0;
+            }
+            volume = minimumVolume;
+        }
+
+        final String fname = sound;
+        final double fx2 = x;
+        final double fy2 = y;
+        final double fz2 = z;
+        final float fvol = (float) volume;
+        final float fpit = (float) pitch;
+        target.link().playSound(fname, fx2, fy2, fz2, fvol, fpit);
+        return "Played '" + sound + "' to " + target.name();
     }
 
     /**

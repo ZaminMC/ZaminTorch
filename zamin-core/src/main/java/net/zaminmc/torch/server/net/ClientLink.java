@@ -300,4 +300,14 @@ public interface ClientLink {
      */
     default void updateSpawnPosition(int x, int y, int z) {
     }
+
+    /**
+     * Named Sound Effect (0x29) sent directly to THIS client (the reference's
+     * PlaySoundCommand: a per-player packet, not a world broadcast). The
+     * name is the 1.8.8 sound key ("mob.zombie.say"); unknown names are
+     * ignored by the client. Safe from any thread; default no-op for
+     * engine-internal links.
+     */
+    default void playSound(String name, double x, double y, double z, float volume, float pitch) {
+    }
 }

@@ -2244,6 +2244,14 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         channel.writeAndFlush(out);
     }
 
+    @Override
+    public void playSound(String name, double x, double y, double z, float volume, float pitch) {
+        // /playsound's per-player Named Sound Effect (0x29) — the reference's
+        // SoundEventS2CPacket ctor walk: the *8 fixed-point positions, the
+        // f32 volume, the u8 pitch (63 = 1.0).
+        sendSound(name, new net.zaminmc.torch.util.Position(x, y, z), volume, pitch);
+    }
+
     /** The protocol 47 varlong (7 bits per byte, high bit = continuation). */
     private static void writeVarLong(ByteBuf out, long value) {
         while (true) {
