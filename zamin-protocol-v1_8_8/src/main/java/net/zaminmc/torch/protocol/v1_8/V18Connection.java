@@ -269,6 +269,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 // line 679): the full INITIALIZE, after the teleport like
                 // the reference's join walk.
                 engine.joinWorldBorder(accepted.session());
+                engine.joinTabListHeaderFooter(accepted.session());
                 sendWindowItems(channel, accepted.session().inventory().snapshot(),
                         accepted.session().crafting().snapshot(),
                         accepted.session().inventory().armorSnapshot(),

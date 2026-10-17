@@ -74,6 +74,19 @@ public interface Server {
     /** All currently active (connected) players. Read-only snapshot. */
     Collection<Player> players();
 
+    /**
+     * The tab-list header/footer (Slice 87 — Player List Header/Footer
+     * 0x47, TabListS2CPacket's two-text walk): the serialized components
+     * (the {@code {"text":...}} JSON form) for every online player, with
+     * later joins receiving the current pair at their own join burst.
+     * A null argument clears to the client's default (the wire's own
+     * null-text form). The vanilla 1.8.8 server never sends this packet
+     * (the reference wires only the client handler) — this is the native
+     * API surface, not a vanilla behavior. Safe to call from any thread;
+     * the wire never blocks.
+     */
+    void setTabListHeaderFooter(String headerJson, String footerJson);
+
     /** Blocks until the server stopped. Safe to call from any thread. */
     void awaitShutdown();
 
