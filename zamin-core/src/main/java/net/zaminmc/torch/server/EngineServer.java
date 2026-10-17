@@ -2446,6 +2446,14 @@ public final class EngineServer implements Server, EngineBridge {
                 // The game-rule read (Slice 24a): doTileDrops gates the
                 // break's drop walk (Block.java's own gate).
                 blockInteraction.setTileDropsRead(() -> gameRules.getBoolean("doTileDrops"));
+                // The placement's BlockEntityTag consult (Wave H2 —
+                // BlockItem.setTileNbt lines 70-100 over the fresh tile's
+                // rows): the held stack's raw compound merged into the tile
+                // the TilePlacementListener just created during the commit.
+                // The dimension is the overworld's 0 (the engine's placement
+                // surface is the single overworld-bound service; a per-world
+                // generalization re-wires one call).
+                blockInteraction.setPlacementTagConsult(tileNbt::applyPlacementTag);
                 // The placement-support gate (Slice 44 — PlantBlock.canBePlaced
                 // lines 36-38 over canBePlacedOn): the flora consult refusing
                 // a placement whose soil is wrong — the flowers (all nine) and
@@ -20981,6 +20989,23 @@ public final class EngineServer implements Server, EngineBridge {
             granted = net.zaminmc.torch.item.ItemStack.of(type, count).withDamage(metadata);
         } catch (IllegalArgumentException invalidVariant) {
             return "Cannot grant that metadata: " + invalidVariant.getMessage();
+        }
+        // The dataTag arm (Wave H2 — the reference's GiveCommand: the
+        // trailing argument parsed as SNBT and set as the stack's whole
+        // tag compound — the reference's own parseText joins the split
+        // args with spaces; a parse failure is the command's own tag
+        // error, and the granted stack carries every model arm the walk
+        // reads (display.Name, ench, Unbreakable, RepairCost, HideFlags,
+        // Lore, BlockEntityTag).
+        if (args.length >= 4) {
+            String dataTag = String.join(" ",
+                    java.util.Arrays.copyOfRange(args, 3, args.length));
+            try {
+                granted = net.zaminmc.torch.server.nbt.ItemNbt.readTagInto(
+                        granted, net.zaminmc.torch.server.nbt.Snbt.parseCompound(dataTag));
+            } catch (IllegalArgumentException badTag) {
+                return "Invalid dataTag: " + badTag.getMessage();
+            }
         }
         net.zaminmc.torch.item.ItemStack remainder = sender.inventory().pickUp(granted);
         publishInventoryChanged(sender);

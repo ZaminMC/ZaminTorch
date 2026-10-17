@@ -156,67 +156,7 @@ public final class ItemNbt {
         // still-model-less arms parse into nothing — the standing
         // envelope.
         Map<String, Snbt.Tag> tag = NbtOps.getCompound(rows, "tag");
-        if (!tag.isEmpty()) {
-            Map<String, Snbt.Tag> display = NbtOps.getCompound(tag, "display");
-            String name = NbtOps.getString(display, "Name");
-            if (name != null && !name.isEmpty()) {
-                stack = stack.withName(name);
-            }
-            java.util.List<Snbt.Tag> loreRows = NbtOps.getList(display, "Lore", Snbt.Tag.Type.STRING);
-            if (!loreRows.isEmpty()) {
-                java.util.List<String> lines = new java.util.ArrayList<>(loreRows.size());
-                for (Snbt.Tag row : loreRows) {
-                    String line = row != null ? row.asString() : null;
-                    if (line != null && !line.isEmpty()) {
-                        lines.add(line);
-                    }
-                }
-                if (!lines.isEmpty()) {
-                    stack = stack.withLore(lines);
-                }
-            }
-            java.util.List<Snbt.Tag> ench = NbtOps.getList(tag, "ench", Snbt.Tag.Type.COMPOUND);
-            if (!ench.isEmpty()) {
-                Map<Integer, Integer> pairs = new java.util.LinkedHashMap<>();
-                for (Snbt.Tag row : ench) {
-                    Map<String, Snbt.Tag> compound = row != null ? row.asCompound() : null;
-                    if (compound == null) {
-                        continue;
-                    }
-                    int id = NbtOps.getShort(compound, "id");
-                    int lvl = NbtOps.getShort(compound, "lvl");
-                    if (id >= 0 && lvl >= 1) {
-                        pairs.put(id, lvl);
-                    }
-                }
-                if (!pairs.isEmpty()) {
-                    stack = stack.withEnchantments(pairs);
-                }
-            }
-            // The Wave G scalar rows: Unbreakable consults the reference's
-            // getBoolean (a missing row answers false), RepairCost and
-            // HideFlags ride their int rows (a missing or non-positive row
-            // keeps the model's absent-zero default).
-            if (NbtOps.getBoolean(tag, "Unbreakable")) {
-                stack = stack.withUnbreakable(true);
-            }
-            int repairCost = NbtOps.getInt(tag, "RepairCost");
-            if (repairCost > 0) {
-                stack = stack.withRepairCost(repairCost);
-            }
-            int hideFlags = NbtOps.getInt(tag, "HideFlags");
-            if (hideFlags > 0) {
-                stack = stack.withHideFlags(hideFlags);
-            }
-            // The raw compound (Wave H2 — the reference's
-            // contains("BlockEntityTag", 10) gate: getCompound answers
-            // empty for a missing OR non-compound row, so a non-compound
-            // BlockEntityTag never lands on the model).
-            Map<String, Snbt.Tag> blockEntityTag = NbtOps.getCompound(tag, "BlockEntityTag");
-            if (!blockEntityTag.isEmpty()) {
-                stack = stack.withBlockEntityTag(NbtOps.toBoxed(blockEntityTag));
-            }
-        }
+        stack = readTagInto(stack, tag);
         if (damage > 0) {
             stack = stack.withDamage(Math.min(ItemStack.MAX_DAMAGE, damage));
         }
@@ -233,5 +173,70 @@ public final class ItemNbt {
         NbtOps.putByte(rows, "Slot", (byte) slot);
         write(stack, rows);
         return rows;
+    }
+
+    /**
+     * The tag compound's arm walk, shared by the row read and the /give
+     * dataTag arm (Wave H2 — the reference's GiveCommand sets the WHOLE
+     * tag compound: {@code stack.setNbt(SnbtParser.parse(s))}, the same
+     * arms this walk reads). An empty or null compound returns the stack
+     * unchanged.
+     */
+    public static ItemStack readTagInto(ItemStack stack, Map<String, Snbt.Tag> tag) {
+        if (stack == null || stack.isEmpty() || tag == null || tag.isEmpty()) {
+            return stack;
+        }
+        Map<String, Snbt.Tag> display = NbtOps.getCompound(tag, "display");
+        String name = NbtOps.getString(display, "Name");
+        if (name != null && !name.isEmpty()) {
+            stack = stack.withName(name);
+        }
+        java.util.List<Snbt.Tag> loreRows = NbtOps.getList(display, "Lore", Snbt.Tag.Type.STRING);
+        if (!loreRows.isEmpty()) {
+            java.util.List<String> lines = new java.util.ArrayList<>(loreRows.size());
+            for (Snbt.Tag row : loreRows) {
+                String line = row != null ? row.asString() : null;
+                if (line != null && !line.isEmpty()) {
+                    lines.add(line);
+                }
+            }
+            if (!lines.isEmpty()) {
+                stack = stack.withLore(lines);
+            }
+        }
+        java.util.List<Snbt.Tag> ench = NbtOps.getList(tag, "ench", Snbt.Tag.Type.COMPOUND);
+        if (!ench.isEmpty()) {
+            Map<Integer, Integer> pairs = new java.util.LinkedHashMap<>();
+            for (Snbt.Tag row : ench) {
+                Map<String, Snbt.Tag> compound = row != null ? row.asCompound() : null;
+                if (compound == null) {
+                    continue;
+                }
+                int id = NbtOps.getShort(compound, "id");
+                int lvl = NbtOps.getShort(compound, "lvl");
+                if (id >= 0 && lvl >= 1) {
+                    pairs.put(id, lvl);
+                }
+            }
+            if (!pairs.isEmpty()) {
+                stack = stack.withEnchantments(pairs);
+            }
+        }
+        if (NbtOps.getBoolean(tag, "Unbreakable")) {
+            stack = stack.withUnbreakable(true);
+        }
+        int repairCost = NbtOps.getInt(tag, "RepairCost");
+        if (repairCost > 0) {
+            stack = stack.withRepairCost(repairCost);
+        }
+        int hideFlags = NbtOps.getInt(tag, "HideFlags");
+        if (hideFlags > 0) {
+            stack = stack.withHideFlags(hideFlags);
+        }
+        Map<String, Snbt.Tag> blockEntityTag = NbtOps.getCompound(tag, "BlockEntityTag");
+        if (!blockEntityTag.isEmpty()) {
+            stack = stack.withBlockEntityTag(NbtOps.toBoxed(blockEntityTag));
+        }
+        return stack;
     }
 }
