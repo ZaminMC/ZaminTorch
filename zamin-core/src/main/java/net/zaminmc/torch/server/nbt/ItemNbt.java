@@ -125,10 +125,11 @@ public final class ItemNbt {
         }
         count = Math.min(type.maxStackSize(), count);
         ItemStack stack = ItemStack.of(type, count);
+        // The Damage row reads first (the reference's own row order) but
+        // APPLIES after the tag arms — the Unbreakable exemption's own
+        // order: a flagged stack's damage row may ride past the max, and
+        // the model only accepts it once the flag has landed.
         int damage = NbtOps.getShort(rows, "Damage");
-        if (damage > 0) {
-            stack = stack.withDamage(Math.min(ItemStack.MAX_DAMAGE, damage));
-        }
         // The tag compound (Slice 92 — readNbt lines 150-155): the
         // display.Name row lands the hover string (getHoverName lines
         // 371-377), the display.Lore list lands the tooltip lines
@@ -193,6 +194,9 @@ public final class ItemNbt {
             if (hideFlags > 0) {
                 stack = stack.withHideFlags(hideFlags);
             }
+        }
+        if (damage > 0) {
+            stack = stack.withDamage(Math.min(ItemStack.MAX_DAMAGE, damage));
         }
         return stack;
     }

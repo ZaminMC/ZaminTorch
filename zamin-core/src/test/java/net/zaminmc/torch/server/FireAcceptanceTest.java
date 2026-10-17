@@ -112,6 +112,33 @@ class FireAcceptanceTest {
     }
 
     @Test
+    void theUnbreakableFlintLightsButNeverWears() throws Exception {
+        // The reference's isDamageable gate (ItemStack.java line 163) over
+        // the live use arm: the flagged steel lights its fires forever —
+        // the wear walk (takeDamage line 197's own first consult) never
+        // moves a flagged stack's durability.
+        server = boot();
+        PlayerSession igniter = join("Smith");
+        BlockPosition ground = new BlockPosition(0, 64, 0);
+        setBlock(ground, BuiltinBlocks.STONE);
+        igniter.inventory().setSlot(0, ItemStack.of(item("minecraft:flint_and_steel"), 1)
+                .withUnbreakable(true));
+        igniter.inventory().selectHotbarSlot(0);
+
+        for (int i = 0; i < 3; i++) {
+            // Re-aim at the fresh cell beside the last fire (the fire
+            // occupies the first target after the first strike).
+            useOn(igniter, ground.offset(i, 0, 0), 1);
+        }
+
+        assertTrue(igniter.inventory().held().damage() == 0,
+                "the flagged steel never wore");
+        assertEquals(1, igniter.inventory().held().count(),
+                "the flagged steel never broke");
+        server.shutdown(null);
+    }
+
+    @Test
     void fireEatsThePlankFloorBeneathIt() throws Exception {
         server = boot();
         join("Bystander");

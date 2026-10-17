@@ -83,6 +83,44 @@ class DispenserSystemTest {
     }
 
     @Test
+    void theUnbreakableFlintInTheDispenserNeverWears() throws Exception {
+        // The reference's takeDamage gate (ItemStack.java line 197 — the
+        // !isDamageable consult) over the dispenser's own flint arm: the
+        // flagged steel lights its fire and keeps its stack whole —
+        // wearOne's Unbreakable consult (Slice 94/G1).
+        EngineServer server = boot(EngineConfig.WHOLE_WORLD_REGION_SIZE);
+        try {
+            int x = 50, z = 50, y = 40;
+            BlockPosition dispenser = new BlockPosition(x, y, z);
+            server.ticker().submit(() -> {
+                // The dispenser facing up, holding the flagged steel.
+                server.world().setBlock(dispenser,
+                        DispenserBlocks.dispenserOf(1, false));
+                server.dispensers().getOrCreate(dispenser).setItem(0, ItemStack.of(
+                                net.zaminmc.torch.server.item.BuiltinItems.FLINT_AND_STEEL, 1)
+                        .withUnbreakable(true));
+                server.world().setBlock(new BlockPosition(x + 1, y, z), BuiltinBlocks.STONE);
+                server.world().setBlock(new BlockPosition(x + 2, y, z),
+                        RedstoneBlocks.leverOf(1, false));
+            });
+            server.ticker().submit(() -> server.redstone().useLever(
+                    new BlockPosition(x + 2, y, z)));
+            // The 4-tick reaction: the fire lands above, the steel stays
+            // pristine (never wears, never breaks, never spends).
+            await(() -> server.world().getBlock(
+                            new BlockPosition(x, y + 1, z)).equals(BuiltinBlocks.FIRE),
+                    "the flagged steel still lit its fire");
+            await(() -> server.dispensers().peek(dispenser) != null
+                            && server.dispensers().peek(dispenser).getItem(0).count() == 1,
+                    "the slot kept its steel");
+            assertEquals(0, server.dispensers().peek(dispenser).getItem(0).damage(),
+                    "the flagged steel never wore");
+        } finally {
+            server.shutdown(() -> { });
+        }
+    }
+
+    @Test
     void theDispensedArrowBecomesAProjectile() throws Exception {
         EngineServer server = boot(EngineConfig.WHOLE_WORLD_REGION_SIZE);
         try {

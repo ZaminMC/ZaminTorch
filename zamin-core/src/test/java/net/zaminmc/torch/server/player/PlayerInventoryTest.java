@@ -5,6 +5,7 @@ import net.zaminmc.torch.server.item.BuiltinItems;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -311,5 +312,39 @@ class PlayerInventoryTest {
         assertThrows(IllegalArgumentException.class, () -> inventory.swapWithHotbar(9, 9));
         assertEquals(5, inventory.held().count());
         assertTrue(inventory.cursor().isEmpty());
+    }
+
+    @Test
+    void theUnbreakableFlagHoldsTheDurabilityEverywhere() {
+        // The reference's isDamageable (ItemStack.java line 163 —
+        // maxDamage > 0 && !Unbreakable): takeDamage's own first gate
+        // (line 197) holds a flagged stack at whatever it carries, at
+        // every wear site.
+        PlayerInventory inventory = new PlayerInventory();
+        inventory.pickUp(ItemStack.of(BuiltinItems.IRON_PICKAXE).withUnbreakable(true));
+        assertFalse(inventory.damageHeld(5, new java.util.Random()),
+                "a flagged tool never wears");
+        assertEquals(0, inventory.held().damage());
+        assertEquals(1, inventory.held().count());
+        // Repeated visits never move it either.
+        assertFalse(inventory.damageHeld(1, new java.util.Random()));
+        assertEquals(0, inventory.held().damage());
+
+        // The armor family rides the same gate (wearArmor's per-piece walk
+        // + the thorns visit's own site).
+        PlayerInventory armored = new PlayerInventory();
+        armored.setArmor(1, ItemStack.of(BuiltinItems.IRON_CHESTPLATE).withUnbreakable(true));
+        assertFalse(armored.wearArmor(10.0F, new java.util.Random()));
+        assertEquals(0, armored.armorAt(1).damage());
+        assertFalse(armored.wearArmorStack(1, 2, new java.util.Random()));
+        assertEquals(0, armored.armorAt(1).damage());
+
+        // The contrast: an unflagged piece of the same kind wears.
+        PlayerInventory control = new PlayerInventory();
+        control.setArmor(1, ItemStack.of(BuiltinItems.IRON_CHESTPLATE));
+        assertTrue(control.wearArmor(4.0F, new java.util.Random()));
+        assertTrue(control.armorAt(1).damage() > 0);
+        assertTrue(control.armorAt(1).damage() < control.armorAt(1).type().maxDurability(),
+                "the control piece survives the single unit");
     }
 }

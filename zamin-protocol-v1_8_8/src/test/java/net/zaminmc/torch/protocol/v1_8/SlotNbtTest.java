@@ -124,6 +124,94 @@ class SlotNbtTest {
         return new net.zaminmc.torch.item.ItemStack(stick, 1, 0, name);
     }
 
+    /** A bare stack the builders can shape (the Wave G wire arms' fixture). */
+    private static net.zaminmc.torch.item.ItemStack bareStack() {
+        return namedStack(null);
+    }
+
+    @Test
+    void theLorePayloadMatchesTheVanillaByteLayout() {
+        // tag.display.Lore alone (the reference's getList("Lore", 8) — a
+        // TAG_LIST of TAG_STRING): byte-exact against the layout the real
+        // client's NBT parser walks.
+        ByteBuf out = Unpooled.buffer();
+        SlotNbt.writeFor(out, bareStack().withLore(java.util.List.of("Hi")));
+        assertTrue(SlotNbt.hasPayload(bareStack().withLore(java.util.List.of("Hi"))));
+        byte[] bytes = new byte[out.readableBytes()];
+        out.readBytes(bytes);
+        // 10 (root) | len 0 (root name) | 10 (display) | len 7 "display"
+        // | 9 (list) | len 4 "Lore" | 8 (string element type)
+        // | count 1 | len 2 "Hi" | 0 (end display) | 0 (end root)
+        assertArrayEquals(new byte[] {
+                10, 0, 0,
+                10, 0, 7, 'd', 'i', 's', 'p', 'l', 'a', 'y',
+                9, 0, 4, 'L', 'o', 'r', 'e',
+                8,
+                0, 0, 0, 1,
+                0, 2, 'H', 'i',
+                0,
+                0
+        }, bytes);
+        // The structural skip still consumes it whole.
+        ByteBuf again = Unpooled.buffer();
+        SlotNbt.writeFor(again, bareStack().withLore(java.util.List.of("Hi")));
+        SlotNbt.skip(again);
+        assertEquals(0, again.readableBytes(), "the skip consumed the lore payload");
+    }
+
+    @Test
+    void theWaveGScalarPayloadMatchesTheVanillaByteLayout() {
+        // The three scalars alone: Unbreakable the byte, RepairCost the
+        // int, HideFlags the int — each a named NBT row inside the root.
+        ByteBuf out = Unpooled.buffer();
+        net.zaminmc.torch.item.ItemStack flagged = bareStack()
+                .withUnbreakable(true)
+                .withRepairCost(7)
+                .withHideFlags(6);
+        SlotNbt.writeFor(out, flagged);
+        byte[] bytes = new byte[out.readableBytes()];
+        out.readBytes(bytes);
+        assertArrayEquals(new byte[] {
+                10, 0, 0,
+                1, 0, 11, 'U', 'n', 'b', 'r', 'e', 'a', 'k', 'a', 'b', 'l', 'e', 1,
+                3, 0, 10, 'R', 'e', 'p', 'a', 'i', 'r', 'C', 'o', 's', 't', 0, 0, 0, 7,
+                3, 0, 9, 'H', 'i', 'd', 'e', 'F', 'l', 'a', 'g', 's', 0, 0, 0, 6,
+                0
+        }, bytes);
+        // The structural skip consumes the scalar payload whole.
+        ByteBuf again = Unpooled.buffer();
+        SlotNbt.writeFor(again, flagged);
+        SlotNbt.skip(again);
+        assertEquals(0, again.readableBytes(), "the skip consumed the scalar payload");
+    }
+
+    @Test
+    void theCombinedWaveGPayloadSkipsWhole() {
+        // Every arm at once (enchanted display-lore flag-cost-mask): the
+        // skip lands exactly after — the wire's own full-shape proof.
+        ByteBuf out = Unpooled.buffer();
+        net.zaminmc.torch.item.ItemStack everything = bareStack()
+                .withName("Full House")
+                .withEnchantments(java.util.Map.of(16, 3))
+                .withLore(java.util.List.of("line one", "line two"))
+                .withUnbreakable(true)
+                .withRepairCost(2)
+                .withHideFlags(1);
+        assertTrue(SlotNbt.hasPayload(everything));
+        SlotNbt.writeFor(out, everything);
+        assertEquals("Full House", SlotNbt.readDisplayName(out));
+        ByteBuf again = Unpooled.buffer();
+        SlotNbt.writeFor(again, everything);
+        SlotNbt.skip(again);
+        assertEquals(0, again.readableBytes(), "the skip consumed the full payload");
+        // The marker consult agrees: a bare stack carries nothing, every
+        // Wave G arm alone signals a payload.
+        assertFalse(SlotNbt.hasPayload(bareStack()));
+        assertTrue(SlotNbt.hasPayload(bareStack().withUnbreakable(true)));
+        assertTrue(SlotNbt.hasPayload(bareStack().withRepairCost(1)));
+        assertTrue(SlotNbt.hasPayload(bareStack().withHideFlags(4)));
+    }
+
     private static void writeShortString(ByteBuf out, String value) {
         byte[] encoded = SlotNbt.ModifiedUtf8.encode(value);
         out.writeShort(encoded.length);
