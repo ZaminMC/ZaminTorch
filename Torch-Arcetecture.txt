@@ -1595,6 +1595,49 @@ equipment-better comparison.
       1 — 20-1=19, never the sword's defaults); the adjacent sweep 128
       core + 106 protocol green.
 
+## Wave K — the skull's Owner profile (the no-BE tile families' remains)
+
+The evidence (SkullBlockEntity 15-90 + NbtUtils.readProfile/writeProfile
+9-77 + SkullItem.use 55-81): the tile's SkullType/Rot bytes plus the
+player head's Owner compound (Name, the Id STRING with the tolerant
+uuid parse, the Properties compound's per-key {Value, Signature?}
+lists), the type-3 gate (the Owner row alone consults), the LEGACY
+ExtraType string (the pre-1.7 name-only form), the createUpdatePacket
+carrying the whole writeNbt family, and the placement's damage-3 arm
+(the stack's SkullOwner row — the compound form or the string form —
+else the plain Steve head). The engine's own key was "Rotation" —
+vanilla's is "Rot" — the rename landed with the wave.
+
+- [x] K1 — LANDED (Slice 98, commit 7d90dc5): the api record SkullProfile
+      (the reference's readProfile law: a garbage uuid string parses
+      null, an empty-both compound reads null — the record refuses the
+      empty-both form), SkullTile's fourth arm + the place() overload,
+      TileNbt's rows (THE ROT RENAME + the Owner writeProfile shape +
+      the type-3 gate's read: the Owner compound first, else the legacy
+      ExtraType string), the wire's writeSkullTile carrying the Owner
+      compound (the 0x35 packet's whole writeNbt family — the client's
+      own skin render reads the rows). TileNbtTest 8 (the rename + the
+      full round-trip + the ExtraType legacy), WitherSkullTest 4,
+      SkullSummonTest 5;
+- [x] K2 — LANDED (commit 22d8709): the FIFTEENTH ItemStack component
+      (the SkullOwner item row — SkullItem.use's placement consult; the
+      two-branch read: the compound through readProfile, else the string
+      birthing a name-only profile; the audit clean across all fourteen
+      builders + split + mergeable), the SlotNbt wire arm, the ZID
+      v7/ZMD v12 tails (the v6/v11 gates renamed at the bump), and the
+      placement consult at placeSkullOnTick (the damage-3 arm consults
+      held.skullOwner(), the tagless head keeps the plain Steve —
+      setProfile(null)'s own branch). ItemTagRowsTest 10,
+      ItemPersistenceTest 9, MobDataStoreTest 9, SlotNbtTest 11.
+
+The ledgered corners: the two forms of the same head (the string
+SkullOwner vs the compound) merge in the engine — never in vanilla's
+raw-tag compare — and the engine writes the compound form back (the
+reference never writes the row at all); the online texture fill
+(updateProfile's session-service consult) is the out-of-engine seam —
+a profile given to the engine is the profile it keeps, exactly an
+offline-mode vanilla server's un-cached-name behavior.
+
 ## Standing (demand-named, not scheduled)
 
 - The shared container-open event (the chest family row's "if demand
@@ -1605,6 +1648,10 @@ equipment-better comparison.
 - (Wave J LANDED at 3ea955e — the item-tag envelope is now COMPLETE:
   every row the reference's ItemStack reads, the engine models, wires
   and persists; the envelope's standing row RETIRED)
-- The skull's Owner profile + the EnderChest contents-on-player angle
-  (the no-BE tile families' remains).
+- (Wave K LANDED at 7d90dc5/22d8709 — the skull's Owner profile: the
+  tile arm, the item arm, the Rot rename; the skull row RETIRED)
+- The EnderChest contents-on-player angle — VERIFY + retire (the
+  reference's EnderChest tile carries no contents; the ender slots ride
+  the player's own dat, which the engine already models — PlayerNbt's
+  ender rows).
 - (the mob_spawner ITEM landed at de272c6 — retired)
