@@ -34,6 +34,16 @@ public interface EngineBridge {
     void joinCompleted(PlayerSession session);
 
     /**
+     * Mid-join hook (the reference's PlayerManager.add walk, lines 261-273):
+     * the adapter has sent the pre-position join packets; the engine now
+     * announces the joiner on every tab list (ADD to all) and sends the
+     * joiner the full current list — the joiner's own wire carries their
+     * entry twice (the broadcast copy + the per-player loop), exactly like
+     * the reference's add() ordering.
+     */
+    void joinTabList(PlayerSession session);
+
+    /**
      * A movement proposal (position, look, or combined). Validated server-side;
      * applied on the simulation context.
      */

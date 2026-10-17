@@ -253,6 +253,11 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 // world spawn for fresh players, the saved spot for returning ones.
                 chunkTracker.sendInitial(accepted.session().position()
                         .toBlockPosition().chunkPosition());
+                // The tab-list walk (the reference's PlayerManager.add — the
+                // ADD broadcast + the joiner's full-list flush) sits between
+                // the pre-position packets and the teleport, exactly where
+                // vanilla's initializeConnectionToPlayer places it.
+                engine.joinTabList(accepted.session());
                 sendInitialPositionAndLook(channel);
                 sendWindowItems(channel, accepted.session().inventory().snapshot(),
                         accepted.session().crafting().snapshot(),
@@ -507,6 +512,13 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         int id = ByteBufOps.readVarInt(packet);
         if (pendingKeepAlive == id) {
             pendingKeepAlive = -1;
+            // The round trip feeds the session's smoothed ping (the
+            // reference's handleKeepAlive lines 910-914: the engine's own
+            // (ping * 3 + roundTrip) / 4 lives in PlayerSession).
+            PlayerSession current = session;
+            if (current != null) {
+                current.updatePing((int) (System.currentTimeMillis() - keepAliveSentAt));
+            }
         }
     }
 
@@ -1879,6 +1891,87 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         for (java.util.Map.Entry<String, Integer> stat : stats.entrySet()) {
             ByteBufOps.writeString(out, stat.getKey());
             ByteBufOps.writeVarInt(out, stat.getValue());
+        }
+        channel.writeAndFlush(out);
+    }
+
+    @Override
+    public void tabListAdd(java.util.List<net.zaminmc.torch.server.net.ClientLink.TabListEntry> entries) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        // Player Info (0x38) action ADD_PLAYER — the reference's write walk
+        // (PlayerInfoS2CPacket lines 116-140): uuid, name, varint property
+        // count (offline = 0 — the engine carries no profile properties),
+        // varint game mode, varint ping, boolean has-display-name (the
+        // reference's getPlayerListName() answers null → always false).
+        ByteBuf out = Unpooled.buffer(96);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_PLAYER_INFO);
+        ByteBufOps.writeVarInt(out, Protocol18.PLAYER_INFO_ADD_PLAYER);
+        ByteBufOps.writeVarInt(out, entries.size());
+        for (net.zaminmc.torch.server.net.ClientLink.TabListEntry entry : entries) {
+            ByteBufOps.writeUuid(out, entry.uuid());
+            ByteBufOps.writeString(out, entry.name());
+            ByteBufOps.writeVarInt(out, 0); // properties: offline profile has none
+            ByteBufOps.writeVarInt(out, entry.gamemodeId());
+            ByteBufOps.writeVarInt(out, entry.ping());
+            out.writeBoolean(false); // no display name (getPlayerListName = null)
+        }
+        channel.writeAndFlush(out);
+    }
+
+    @Override
+    public void tabListRemove(java.util.List<UUID> ids) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        // Player Info (0x38) action REMOVE_PLAYER — the uuid-only entries
+        // (the reference's lines 158-159).
+        ByteBuf out = Unpooled.buffer(48);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_PLAYER_INFO);
+        ByteBufOps.writeVarInt(out, Protocol18.PLAYER_INFO_REMOVE_PLAYER);
+        ByteBufOps.writeVarInt(out, ids.size());
+        for (UUID id : ids) {
+            ByteBufOps.writeUuid(out, id);
+        }
+        channel.writeAndFlush(out);
+    }
+
+    @Override
+    public void tabListUpdateGamemode(UUID id, int gamemodeId) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        // Player Info (0x38) action UPDATE_GAME_MODE — uuid + varint mode
+        // (the reference's lines 141-143).
+        ByteBuf out = Unpooled.buffer(32);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_PLAYER_INFO);
+        ByteBufOps.writeVarInt(out, Protocol18.PLAYER_INFO_UPDATE_GAME_MODE);
+        ByteBufOps.writeVarInt(out, 1);
+        ByteBufOps.writeUuid(out, id);
+        ByteBufOps.writeVarInt(out, gamemodeId);
+        channel.writeAndFlush(out);
+    }
+
+    @Override
+    public void tabListUpdatePing(java.util.List<net.zaminmc.torch.server.net.ClientLink.TabListEntry> entries) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        // Player Info (0x38) action UPDATE_PING — the batched refresh (the
+        // reference's lines 145-147): every entry's uuid + varint ping in
+        // ONE packet.
+        ByteBuf out = Unpooled.buffer(64);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_PLAYER_INFO);
+        ByteBufOps.writeVarInt(out, Protocol18.PLAYER_INFO_UPDATE_PING);
+        ByteBufOps.writeVarInt(out, entries.size());
+        for (net.zaminmc.torch.server.net.ClientLink.TabListEntry entry : entries) {
+            ByteBufOps.writeUuid(out, entry.uuid());
+            ByteBufOps.writeVarInt(out, entry.ping());
         }
         channel.writeAndFlush(out);
     }

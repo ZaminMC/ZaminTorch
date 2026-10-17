@@ -7972,3 +7972,62 @@ footprint's own follow-up); (3) the remaining §27 omissions.
 NEXT (in order): (1) the next vanilla wave per the ledger; (2) the
 remaining §27 omissions (the window-family re-sync rows); (3) the
 periodic release cadence.
+
+## Slice 84 — the tab-list family (Player Info 0x38: the join/quit/gamemode/ping walks)
+
+- **THE GAP**: the engine never sent Player Info — the client's tab list was
+  EMPTY (no players, no ping column). The full vanilla family is now ported
+  1:1: `PlayerInfoS2CPacket`'s five actions over the wire, the four
+  `PlayerManager`/`ServerPlayerInteractionManager` send sites, and the
+  keep-alive ping smoothing.
+- **THE ENGINE SEAM**: `ClientLink` grew the tab-list family (tabListAdd /
+  tabListRemove / tabListUpdateGamemode / tabListUpdatePing + the
+  TabListEntry record — no properties, no display name: the offline
+  profile's own shape, getPlayerListName answers null 1:1);
+  `EngineBridge.joinTabList` is the adapter's MID-BURST hook (between the
+  pre-position packets and the teleport — exactly where vanilla's
+  initializeConnectionToPlayer places the add() walk); `PlayerSession` grew
+  `ping`/`updatePing` (the reference's `(ping * 3 + roundTrip) / 4`
+  smoothing, the keep-alive handler reporting each round trip).
+- **THE WALKS** (`server/player/TabListService`): the JOIN announce
+  reproduces the reference's add() wire shape EXACTLY — every other player
+  learns the joiner once, the joiner's own wire carries their entry TWICE
+  (the broadcast's self copy + the per-player loop's final iteration — the
+  reference's own double-add quirk, ported verbatim); the QUIT broadcast
+  (remove line 298) rides the tick queue AFTER the yellow line's submits
+  (the tick queue's FIFO preserves the reference's line-then-REMOVE wire
+  order); the GAMEMODE broadcast (setGameMode line 44 — no self-skip, the
+  subject hears it too); the PING refresh (tick lines 504-508 — the
+  `++counter > 600` off-by-one fires every 601 ticks, ONE batched packet
+  carrying every online player to every wire).
+- **THE WIRE** (`V18Connection`): the four writers per the reference's
+  write() body (the uuid = two big-endian longs — ByteBufOps.writeUuid);
+  Protocol18 grew S2C_PLAYER_INFO = 0x38 + the action constants; the
+  conformance table's row added (the test that guards against the
+  Unload-Chunk class of id bugs caught the new constant immediately).
+- Tests: `TabListServiceTest` (5 — the join wire shape with the double
+  self-add + the others-once, the quit REMOVE, the gamemode broadcast incl.
+  the subject, the 601-tick cadence as one batched packet, the ping
+  smoothing formula) + `TabListIntegrationTest` (3 over the real wire: the
+  joiner on every tab list + the own-entry-twice through the
+  join-collecting reader, the /gamemode UPDATE on both wires, the
+  disconnect REMOVE). The full protocol suite (94) + the core player/event
+  families green; one chest-family flake (the random-tick grass block
+  change racing readBlockChange) green in isolation — the documented flake
+  class.
+- Ledgered: the joiner's ADDs flush after the chunk pre-burst (the
+  engine's pre-existing chunk-burst-first join shape vs vanilla's
+  abilities-then-ADDs); the per-player loop's packet order follows the
+  registry's concurrent map (the reference's join-order ArrayList is not
+  client-observable — the 1.8 client hashes its tab entries); the yellow
+  line + ADD ordering on other wires rides the async chat submit.
+
+NEXT (in order): (1) the scoreboard system (the reference's biggest
+missing subsystem — Scoreboard/Objective/Criteria/Score/Team + the 0x3B/
+0x3C/0x3D/0x3E wire family + the /scoreboard command + the join sync
+walk); (2) the world border (0x44 + the damage/warning/lerp mechanics +
+/worldborder); (3) the titles family (0x45 + /title) and the player-list
+header/footer (0x47); (4) the missing-commands batch (/effect /particle
+/playsound /enchant /spawnpoint /setworldspawn /achievement /testfor
+/setblock /entitydata /replaceitem /stats /trigger /spreadplayers /fill
+/clone); (5) the §27 window-family re-sync rows.

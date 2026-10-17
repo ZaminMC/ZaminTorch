@@ -252,6 +252,8 @@ public final class EngineServer implements Server, EngineBridge {
             pendingChunkLoads = new java.util.concurrent.ConcurrentHashMap<>();
     private BlockInteractionService blockInteraction;
     private ChatService chatService;
+    /** The tab-list family (Slice 84 — the PlayerInfo walks: join/quit/gamemode/ping). */
+    private net.zaminmc.torch.server.player.TabListService tabList;
     private final CraftingService crafting = CraftingService.builtin();
     private WorldStorage worldStorage;
     /** The nether dimension's delta persistence (DIM-1/zamin-delta.bin). */
@@ -2222,6 +2224,12 @@ public final class EngineServer implements Server, EngineBridge {
                         // players in that dimension only).
                         publishTimeChanged(); // smooth day cycle on every client
                     }
+                    // The tab-list ping refresh (PlayerManager.tick lines
+                    // 504-508: ++counter > 600 → the batched UPDATE_PING —
+                    // every 601 ticks, the reference's own off-by-one).
+                    if (tabList != null) {
+                        tabList.tick(players);
+                    }
                 });
                 witherSweepDrops = new DropService(new java.util.Random()); // Slice 59: the engine-side break walk's own table
                 // The skull store (Slice 60): the tiles + the summon
@@ -2459,6 +2467,8 @@ public final class EngineServer implements Server, EngineBridge {
                 commands = dispatcher;
                 chatService = new ChatService(ticker, dispatcher, this::publishChat);
                 chatService.setEventBus(eventBus); // §27.7: the public chat gate
+                // The tab-list walks (Slice 84 — PlayerManager's own family).
+                tabList = new net.zaminmc.torch.server.player.TabListService();
                 // The permanent architecture's Phase 1-3 wiring completes
                 // BEFORE the readiness latch: the simulation domain (Phase
                 // 1 — every EngineWorld mutation asserts through it), the
@@ -17346,6 +17356,12 @@ public final class EngineServer implements Server, EngineBridge {
         }
         session.setGamemode(mode);
         session.link().updateGamemode(mode.legacyId());
+        // The tab-list gamemode broadcast (ServerPlayerInteractionManager
+        // .setGameMode line 44: UPDATE_GAME_MODE to everyone including the
+        // subject — no self-skip in the reference's sendPacket).
+        if (tabList != null) {
+            tabList.broadcastGamemode(players, session);
+        }
         // The protocol-47 abilities map: 0x01 invulnerable, 0x02 flying,
         // 0x04 may-fly, 0x08 instant build — the historical grant. Flight
         // rights follow the mode (the movement guard reads the same flag).
@@ -18226,6 +18242,17 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     @Override
+    public void joinTabList(PlayerSession session) {
+        // The reference's add() walk (PlayerManager lines 261-273): the
+        // ADD broadcast + the joiner's own full-list flush (their own entry
+        // twice — the reference's own wire shape).
+        net.zaminmc.torch.server.player.TabListService walks = tabList;
+        if (walks != null) {
+            walks.joinAnnounce(players, session);
+        }
+    }
+
+    @Override
     public void movementProposal(PlayerSession session, Position position, Rotation rotation, boolean onGround) {
         // The credits gate (Slice 64 — the reference's handlePlayerMove
         // line 198: {@code !this.player.leavingTheEnd} — the removed body
@@ -18297,6 +18324,15 @@ public final class EngineServer implements Server, EngineBridge {
             for (PlayerSession online : players.all()) {
                 systemMessage(online, "\u00a7e" + quitLine);
             }
+        }
+        // The tab-list REMOVE broadcast (PlayerManager.remove line 298 — the
+        // walk after the registry removal, so the leaver learns nothing).
+        // It rides the tick queue AFTER the yellow line's submits: the
+        // reference's wire order is the line first, the REMOVE second, and
+        // the tick queue's FIFO keeps that order on every remaining wire.
+        net.zaminmc.torch.server.player.TabListService walks = tabList;
+        if (walks != null && ticker != null) {
+            ticker.submit(() -> walks.announceQuit(players, session));
         }
         // Persist on the tick thread so the save is ordered after any queued
         // inventory work for this player (pickup, wear, give). A carried cursor

@@ -418,6 +418,29 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
         return link;
     }
 
+    /**
+     * The smoothed round-trip latency in milliseconds (the tab list's own
+     * column). The keep-alive handler reports each round trip; the smoothing
+     * is the reference's own (ServerPlayNetworkHandler lines 910-914):
+     * {@code ping = (ping * 3 + roundTrip) / 4}. Volatile: the writes come
+     * from one connection's event loop, the reads ride the tab-list walks.
+     */
+    private volatile int ping;
+
+    /** @return the smoothed latency in ms (0 until the first keep-alive lands). */
+    public int ping() {
+        return ping;
+    }
+
+    /**
+     * One keep-alive round trip observation (the connection's event loop is
+     * the only writer): the 3/4 + 1/4 smoothing, integer arithmetic exactly
+     * like the reference.
+     */
+    public void updatePing(int roundTripMs) {
+        ping = (ping * 3 + roundTripMs) / 4;
+    }
+
     public net.zaminmc.torch.GameMode gamemode() {
         return gamemode;
     }
