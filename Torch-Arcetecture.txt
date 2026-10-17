@@ -1253,11 +1253,11 @@ names its commit.
       rows (CustomName only when set, Lock ALWAYS — the NONE lock's
       empty-key row). ContainerLockAcceptanceTest 2, TileNbtTest 8,
       the container regression sweep 29 green.
-- [~] C3 — the per-kind stragglers LANDED (b745b65): the skeleton's
+- [x] C3 — the per-kind stragglers LANDED (b745b65): the skeleton's
       SkeletonType (the wither variant's byte, the numeric contains-gate)
       and the ocelot's CatType (the coat's int row, the reference's own
       UNGATED read — an absent row resets the coat to wild). The
-      remaining envelopes, in dependency order:
+      remaining envelopes, ALL LANDED (Slice 92):
       - [x] the base defaults (Slice 92, 980b3c7/c9fcbde/0b2ec50): the
         absorption hearts (the hurt walk's eat-first double-shave, the
         ABSORPTION effect's +/-4 band through the potion system's new
@@ -1277,17 +1277,66 @@ names its commit.
         shave, the XP equipment bonus row) — every row into its own
         behavioral model, all tested (AbsorptionModelTest 8,
         BaseDefaultsModelTest 13, LootPickupModelTest 11 — 429 green in
-        the adjacent sweep). The standing envelopes left inside: the
-        GIVE_DIAMOND arm (the ItemEntity carries no thrower field), the
-        lava's fallDistance *0.5 (the engine's shared fluid model);
-      - the horse's/wolf's OwnerUUID + the horse's
-        EatingHaystack/ChestedHorse/HasReproduced/Bred (the engine's
-        tamer-is-a-name model vs the reference's uuid);
-      - the item-tag compound's remaining arms (the display name and
-        the enchantments already ride ItemStack);
-      - the flight families' NoAI interaction;
-      - the lazy-tile stand-in (the placement-created tile);
-      - the player-write model (the /testfor empty compound).
+        the adjacent sweep). The standing envelopes left inside moved to
+        Wave D below (the GIVE_DIAMOND arm, the lava's fallDistance
+        *0.5);
+      - [x] the horse's/wolf's OwnerUUID + the horse's
+        EatingHaystack/ChestedHorse/HasReproduced/Bred (Slice 92 p4,
+        01281d2): the uuid model beside the engine's name-keyed owner
+        (both arms recorded at the tame sites, the gates consult the
+        uuid first), the wolf's write retired to the reference's own
+        shape (OwnerUUID + Sitting + Angry + CollarColor — NO Tame row),
+        the ocelot's missing Tameable rows added, the horse's graze
+        re-arm + the bred markers, the ZMD v6 tameable/horse block;
+      - [x] the item-tag compound's model arms (Slice 92 p5, 071f562):
+        tag.display.Name + tag.ench round-trip through ItemStack (the
+        write only when carried, the lvl>=1 read gate; the model-less
+        arms parse into nothing, the envelope), the ZMD v6 held-stack
+        tail;
+      - [x] the flight families' NoAI pin (Slice 92 p6, 90376d0): the
+        reference's isLocallyControlled gate over moveRelative — a
+        pinned flight body freezes midair with the *0.98 decay;
+      - [x] the lazy-tile stand-in retired (Slice 92 p6, 90376d0): the
+        TilePlacementListener over all three worlds — the moment a
+        tile-family block lands its block entity exists (the
+        write-materialized families keep their model, ledgered);
+      - [x] the player-write model (Slice 92 p6, 90376d0): PlayerNbt —
+        the reference's player writeNbt rows over the engine's model
+        (the base + living + inventory/armor 100-103 band + xp + hunger
+        pair + abilities compound + ender chest + SelectedItem +
+        playerGameType); the /testfor dataTag reads them.
+
+## Wave D — the living family's lava walk + the item thrower (the C3 tail's two standing envelopes)
+
+The evidence (Entity.java lines 337-341 + ItemEntity.java lines
+24-25/262-306): every Entity.tick carries the `isInLava` arm —
+takeLavaDamage's flat 4.0 LAVA-source wound + setOnFireFor(15) (the
+fire-immune kinds exempt) + `fallDistance *= 0.5F` — and the item body
+carries the thrower/owner strings whose pickup gate (the owner window:
+`owner == null || 6000 - age <= 200 || owner.equals(name)`) and
+achievement family (GET_LOG for log/log2, KILL_COW for leather,
+GET_DIAMOND, GET_BLAZE_ROD, and GIVE_DIAMOND — the diamond picked up
+with a thrower stamps THAT player) ride onPlayerCollision. The engine
+folded the lava halving into the water's full zero (the shared fluid
+model) and carries no thrower field at all. Order:
+
+- [ ] D1 — the GIVE_DIAMOND arm: the thrower/owner fields on
+      ItemEntity, the drop site's thrower stamp
+      (PlayerEntity.dropItem's `setThrower(getName())`), the pickup
+      walk's owner-window gate, the achievement family on the
+      successful pickup, the random.pop sound;
+- [ ] D2 — the lava walk for the living family: the mob arm
+      (takeLavaDamage's 4.0 at the wound cadence + the 15-second arm +
+      the fallDistance halving, the fire-resistance gate over the wound
+      through the per-mob amplifier query), the player arm (the same
+      walk through the engine's fire-family model — the lava timer's
+      own 10-tick cadence, the shadowing of the fire-family wounds
+      while submerged, "tried to swim in lava"), and the shared fluid
+      model's split (the water's full zero vs the lava's *0.5 halving,
+      the reference's own tick order — halve first, then the water
+      zero);
+- [ ] D3 — the ledger + worklog rows (the envelope notes retired, the
+      new rows' evidence and tests).
 
 ## Standing (demand-named, not scheduled)
 
