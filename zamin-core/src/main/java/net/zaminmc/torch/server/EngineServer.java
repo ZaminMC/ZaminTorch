@@ -16452,6 +16452,9 @@ public final class EngineServer implements Server, EngineBridge {
         commands.register(new CommandService.Command("effect",
                 "Apply an effect: /effect <player> <clear|effect> [seconds] [amplifier] [hideParticles]",
                 2, this::effectCommand));
+        commands.register(new CommandService.Command("enchant",
+                "Enchant the held item: /enchant <player> <enchantment|id> [level]",
+                2, this::enchantCommand));
         commands.register(new CommandService.Command("time",
                 "Query or set the day: /time query | /time set <day|noon|night|midnight|ticks>",
                 this::timeCommand));
@@ -17060,6 +17063,81 @@ public final class EngineServer implements Server, EngineBridge {
         return String.format(java.util.Locale.ROOT,
                 "Could not take %s from %s as they do not have it",
                 net.zaminmc.torch.server.potion.StatusEffects.displayName(id), fname);
+    }
+
+    /**
+     * /enchant (EnchantCommand 1:1, op-2): the held stack only, the
+     * by-id-or-key parse (min id 0, the 1.8.8 key table), the no-item
+     * refusal, the not-found refusal, the canEnchant gate, the
+     * compatibility walk over the stack's existing rows, the level bounds
+     * (1..maxLevel), and the write through the held-slot's enchant arm.
+     */
+    private String enchantCommand(CommandSender sender, String[] args) {
+        if (args.length < 2) {
+            return "Usage: /enchant <player> <enchantment|id> [level]";
+        }
+        PlayerSession target = net.zaminmc.torch.server.command.CommandParse
+                .parsePlayer(players, sender, args[0]);
+        net.zaminmc.torch.item.ItemStack held = target.inventory().held();
+        if (held.isEmpty()) {
+            return "The player is not holding any item";
+        }
+
+        // The by-id parse (min 0) with the by-key fallback.
+        int id;
+        try {
+            id = Integer.parseInt(args[1]);
+            if (id < 0) {
+                throw new NumberFormatException(args[1]);
+            }
+        } catch (NumberFormatException invalid) {
+            net.zaminmc.torch.server.enchantment.Enchantments.Entry byKey =
+                    net.zaminmc.torch.server.enchantment.Enchantments.byKey(args[1]);
+            if (byKey == null) {
+                return "'" + args[1] + "' is not a valid number";
+            }
+            id = byKey.id;
+        }
+
+        net.zaminmc.torch.server.enchantment.Enchantments.Entry entry =
+                net.zaminmc.torch.server.enchantment.Enchantments.byId(id);
+        if (entry == null) {
+            return "There is no such enchantment with ID " + id;
+        }
+        if (!entry.canEnchant(held, false)) {
+            return "The item cannot be enchanted with this enchantment";
+        }
+
+        int level = 1;
+        if (args.length >= 3) {
+            level = net.zaminmc.torch.server.command.CommandParse.parseInt(args[2]);
+            if (level < 1 || level > entry.maxLevel) {
+                return "Level must be 1.." + entry.maxLevel;
+            }
+        }
+
+        // The compatibility walk over the stack's existing rows.
+        if (held.enchantments() != null) {
+            for (java.util.Map.Entry<Integer, Integer> existing : held.enchantments().entrySet()) {
+                net.zaminmc.torch.server.enchantment.Enchantments.Entry other =
+                        net.zaminmc.torch.server.enchantment.Enchantments.byId(existing.getKey());
+                if (other != null && !other.isCompatible(entry)) {
+                    return String.format(java.util.Locale.ROOT,
+                            "The enchantments %s and %s are not compatible",
+                            net.zaminmc.torch.server.enchantment.Enchantments.displayName(id),
+                            net.zaminmc.torch.server.enchantment.Enchantments.displayName(other.id));
+                }
+            }
+        }
+
+        final PlayerSession ftarget = target;
+        final int fid = id;
+        final int flevel = level;
+        ticker.submit(() -> {
+            ftarget.inventory().enchantHeld(fid, flevel);
+            publishInventoryChanged(ftarget);
+        });
+        return "Enchanting succeeded";
     }
 
     /**

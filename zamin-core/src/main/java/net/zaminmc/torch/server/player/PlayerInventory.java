@@ -203,6 +203,11 @@ public final class PlayerInventory implements net.zaminmc.torch.entity.Player.In
         slots[heldSlot] = slots[heldSlot].withName(name);
     }
 
+    /** /enchant's write: the held stack gains/sets one enchantment row. */
+    public void enchantHeld(int id, int level) {
+        slots[heldSlot] = slots[heldSlot].withEnchantment(id, level);
+    }
+
     public ItemStack dropHeld(boolean entireStack) {
         ItemStack current = slots[heldSlot];
         if (current.isEmpty()) {

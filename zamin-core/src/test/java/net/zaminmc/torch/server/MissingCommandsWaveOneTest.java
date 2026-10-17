@@ -211,6 +211,30 @@ class MissingCommandsWaveOneTest {
         await(() -> server.potions().allOf(alice).isEmpty(), "the clear arm");
     }
 
+    @Test
+    void theEnchantArm() throws Exception {
+        // Put a sword in Alice's hand through the self-give path (the
+        // engine's /give has no player arg): the held stack is the target.
+        dispatch("/give minecraft:iron_sword 1");
+        await(() -> !alice.inventory().held().isEmpty(), "the sword landed");
+        dispatch("/enchant Alice sharpness 3");
+        await(() -> alice.inventory().held().enchantments() != null
+                        && alice.inventory().held().enchantments().containsKey(16),
+                "the sharpness row landed");
+        assertEquals(3, alice.inventory().held().enchantments().get(16).intValue());
+        // The compatibility refusal: sharpness + smite.
+        dispatch("/enchant Alice smite 1");
+        // The level-bounds refusal.
+        dispatch("/enchant Alice sharpness 99");
+        // The canEnchant refusal: depth strider on a sword.
+        dispatch("/enchant Alice depth_strider 1");
+        Thread.sleep(300);
+        // The incompatible and out-of-bounds writes never landed: the row
+        // stays exactly sharpness 3.
+        assertEquals(3, alice.inventory().held().enchantments().get(16).intValue());
+        assertEquals(1, alice.inventory().held().enchantments().size());
+    }
+
     private net.zaminmc.torch.server.chat.CommandSender aliceSender() {
         return new net.zaminmc.torch.server.chat.CommandSender() {
             @Override public String name() {
