@@ -162,6 +162,20 @@ final class Protocol18 {
     static final int S2C_DISPLAY_SCOREBOARD = 0x3D;
     static final int S2C_TEAMS = 0x3E;
 
+    /**
+     * World Border (0x44, protocol 47 — WorldBorderS2CPacket): varint action
+     * (0 SET_SIZE, 1 LERP_SIZE, 2 SET_CENTER, 3 INITIALIZE, 4 SET_WARNING_TIME,
+     * 5 SET_WARNING_BLOCKS) then the per-action fields (doubles, the lerp
+     * time as varlong, the varint ints).
+     */
+    static final int S2C_WORLD_BORDER = 0x44;
+    static final int WORLD_BORDER_SET_SIZE = 0;
+    static final int WORLD_BORDER_LERP_SIZE = 1;
+    static final int WORLD_BORDER_SET_CENTER = 2;
+    static final int WORLD_BORDER_INITIALIZE = 3;
+    static final int WORLD_BORDER_SET_WARNING_TIME = 4;
+    static final int WORLD_BORDER_SET_WARNING_BLOCKS = 5;
+
     // Serverbound play packet ids (protocol 47) — cross-checked against the
     // community protocol.json (PrismarineJS/minecraft-data) mapping. The
     // "Player" ground packet lives at 0x03 ("flying"); 0x0F is the client's

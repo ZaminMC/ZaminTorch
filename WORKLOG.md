@@ -8111,3 +8111,42 @@ header/footer (0x47); (4) the missing-commands batch (/effect /particle
   the visibility options + join/leave/empty, the persistence round trip
   through shutdown + reload incl. the display slot + the team color +
   the member index). The command/player families green.
+
+## Slice 86 — the world border (the model + the 0x44 wire family + the damage walk + the join init + the command)
+
+- **THE MODEL** (`server/border/EngineWorldBorder`): WorldBorder 1:1 — the
+  center, the size (default 6.0E7), the wall-clock lerp toward a target size
+  (the snap at completion), the 29999984 clamp, the containment + distance
+  reads, and the damage family (safeZone 5.0, damagePerBlock 0.2) + the
+  warning pair (15s / 5 blocks). Every setter broadcasts its own wire verb
+  (the reference's WorldBorderListener/PlayerManager pair collapsed into
+  the model); the DAMAGE family sends NOTHING (the reference's own empty
+  listener arms — the packet enum carries no type for them).
+- **THE WIRE**: ClientLink's six border verbs (size/lerp/center/warningTime/
+  warningBlocks/init) + V18Connection's writers (0x44 with the varint
+  action + the per-action fields incl. the varlong lerp time) + the
+  conformance row + `EngineBridge.joinWorldBorder` (the full INITIALIZE
+  after the teleport, the reference's sendWorldInfo position).
+- **THE DAMAGE WALK**: LivingEntity.baseTick lines 196-202 — a player whose
+  0.6-wide box left the border takes max(1, floor(-depth * rate)) per tick
+  through the new DamageKind/DamageCause IN_WALL (bypasses armor like the
+  reference's setBypassesArmor, exhaustion 0.3, the "suffocated in a wall"
+  death line).
+- **THE COMMAND** (/worldborder, WorldBorderCommand 1:1, op-2): set (the
+  immediate + the lerped forms), add (relative to the current lerp), center
+  (with the ~-relative parse), damage buffer/amount, warning time/distance,
+  get — the bounded parses, the %-format feedback.
+- Tests: `WorldBorderTest` (4 — the geometry + the defaults + the lerp walk
+  with the midway read and the snap, the setter broadcasts through a live
+  session incl. the join INITIALIZE's full default state, the damage walk
+  with the inside-quiet/outside-chew pair, the command arms). The full
+  protocol suite + the gamerule/player/pvp families green.
+- THE DEBUG WALK: the daemon served a stale test-results XML while
+  compileTestJava failed (the missing throws) — the kill-daemon + clean
+  pattern exposed the real error.
+
+NEXT (in order): (1) the titles family (0x45 + /title) + the player-list
+header/footer (0x47); (2) the missing-commands batch; (3) the §27
+window-family re-sync rows; (4) the border's persistence (the reference's
+level.dat row — worldborder.json in the engine's store convention); (5)
+the periodic release cadence.

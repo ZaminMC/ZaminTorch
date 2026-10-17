@@ -42,7 +42,11 @@ public enum DamageKind {
     OUT_OF_WORLD,
     /** The lightning bolt ({@code DamageSource.lightningBolt} — an ordinary
      * source: the armor ladder applies, no projection family). */
-    LIGHTNING;
+    LIGHTNING,
+    /** {@code inWall}: suffocation + the world border's damage walk
+     * ({@code DamageSource.IN_WALL} — bypasses armor, like the reference's
+     * own setBypassesArmor in-wall source). */
+    IN_WALL;
 
     /** The reference {@code DamageSource.isFire} family. */
     public boolean isFire() {

@@ -53,6 +53,14 @@ public interface EngineBridge {
     void joinScoreboard(PlayerSession session);
 
     /**
+     * Mid-join hook (the reference's PlayerManager.sendWorldInfo, line 679):
+     * the adapter has sent the teleport; the engine now sends the full world
+     * border INITIALIZE (the reference places sendWorldInfo after the
+     * teleport in the join walk).
+     */
+    void joinWorldBorder(PlayerSession session);
+
+    /**
      * A movement proposal (position, look, or combined). Validated server-side;
      * applied on the simulation context.
      */

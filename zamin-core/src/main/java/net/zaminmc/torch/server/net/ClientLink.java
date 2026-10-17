@@ -183,4 +183,51 @@ public interface ClientLink {
      */
     default void scoreboardTeam(ScoreboardTeamData team, int action, java.util.List<String> members) {
     }
+
+    /**
+     * World Border (0x44) SET_SIZE: the new target size (double). Safe from
+     * any thread; default no-op for engine-internal links.
+     */
+    default void worldBorderSize(double sizeLerpTarget) {
+    }
+
+    /**
+     * World Border (0x44) LERP_SIZE: the current size, the target size, and
+     * the remaining lerp time in ms (varlong). Safe from any thread;
+     * default no-op for engine-internal links.
+     */
+    default void worldBorderLerp(double lerpSize, double sizeLerpTarget, long lerpTimeMs) {
+    }
+
+    /**
+     * World Border (0x44) SET_CENTER: the new center (two doubles). Safe
+     * from any thread; default no-op for engine-internal links.
+     */
+    default void worldBorderCenter(double centerX, double centerZ) {
+    }
+
+    /**
+     * World Border (0x44) SET_WARNING_TIME: the warning seconds (varint).
+     * Safe from any thread; default no-op for engine-internal links.
+     */
+    default void worldBorderWarningTime(int seconds) {
+    }
+
+    /**
+     * World Border (0x44) SET_WARNING_BLOCKS: the warning distance in blocks
+     * (varint). Safe from any thread; default no-op for engine-internal
+     * links.
+     */
+    default void worldBorderWarningBlocks(int blocks) {
+    }
+
+    /**
+     * World Border (0x44) INITIALIZE (the join sync, PlayerManager
+     * .sendWorldInfo line 679): the full border state. Safe from any
+     * thread; default no-op for engine-internal links.
+     */
+    default void worldBorderInit(double centerX, double centerZ, double lerpSize,
+                                 double sizeLerpTarget, long lerpTimeMs, int maxSize,
+                                 int warningBlocks, int warningTime) {
+    }
 }
