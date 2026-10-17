@@ -20,7 +20,9 @@ import io.netty.buffer.ByteBuf;
 final class SlotNbt {
 
     private static final byte TAG_END = 0;
+    private static final byte TAG_BYTE = 1;
     private static final byte TAG_SHORT = 2;
+    private static final byte TAG_INT = 3;
     private static final byte TAG_COMPOUND = 10;
     private static final byte TAG_STRING = 8;
     private static final byte TAG_LIST = 9;
@@ -33,22 +35,29 @@ final class SlotNbt {
         return displayName != null && !displayName.isEmpty();
     }
 
-    /** @return whether a stack carries any NBT the engine models (name or enchantments). */
+    /** @return whether a stack carries any NBT the engine models (the Wave G arms included). */
     static boolean hasPayload(net.zaminmc.torch.item.ItemStack stack) {
         return hasPayload(stack.displayName())
-                || (stack.enchantments() != null && !stack.enchantments().isEmpty());
+                || (stack.enchantments() != null && !stack.enchantments().isEmpty())
+                || stack.unbreakable()
+                || stack.repairCost() > 0
+                || stack.hideFlags() > 0
+                || (stack.lore() != null && !stack.lore().isEmpty());
     }
 
     /**
      * Writes the full slot NBT for a stack: the root TAG_Compound marker
      * (which doubles as the slot's "NBT present" signal) plus the payload
-     * {@code {ench:[{id:short,lvl:short}...], display:{Name:"…"}}} — the
-     * enchantments first, the display after (vanilla NBT is a name-keyed
-     * map; the order is the engine's, the client reads either).
+     * {@code {ench:[{id:short,lvl:short}...], display:{Name:"…", Lore:["…"]},
+     * Unbreakable:byte, RepairCost:int, HideFlags:int}} — the enchantments
+     * first, the display after, then Slice 94's Wave G scalars (vanilla NBT
+     * is a name-keyed map; the order is the engine's, the client reads
+     * either).
      */
     static void writeFor(ByteBuf out, net.zaminmc.torch.item.ItemStack stack) {
         var enchantments = stack.enchantments();
         boolean named = hasPayload(stack.displayName());
+        boolean lored = stack.lore() != null && !stack.lore().isEmpty();
         boolean enchanted = enchantments != null && !enchantments.isEmpty();
         // The enchanted book's own NBT shape (Slice 12c): the book stores
         // its enchantments under StoredEnchantments, never the item "ench"
@@ -75,15 +84,45 @@ final class SlotNbt {
                 out.writeByte(TAG_END);    // end of the element compound
             }
         }
-        if (named) {
+        if (named || lored) {
             out.writeByte(TAG_COMPOUND); // tag.display
             writeShortString(out, "display");
             {
-                out.writeByte(TAG_STRING); // tag.display.Name
-                writeShortString(out, "Name");
-                writeShortString(out, stack.displayName());
+                if (named) {
+                    out.writeByte(TAG_STRING); // tag.display.Name
+                    writeShortString(out, "Name");
+                    writeShortString(out, stack.displayName());
+                }
+                if (lored) {
+                    // tag.display.Lore (the reference's getList("Lore", 8):
+                    // a TAG_LIST of TAG_STRING, the tooltip's own lines).
+                    out.writeByte(TAG_LIST);
+                    writeShortString(out, "Lore");
+                    out.writeByte(TAG_STRING); // the element type
+                    out.writeInt(stack.lore().size());
+                    for (String line : stack.lore()) {
+                        writeShortString(out, line);
+                    }
+                }
                 out.writeByte(TAG_END);    // end of tag.display
             }
+        }
+        // The Wave G scalars — the reference's own rows, each riding only
+        // when the model carries it (absent-means-default).
+        if (stack.unbreakable()) {
+            out.writeByte(TAG_BYTE);   // tag.Unbreakable
+            writeShortString(out, "Unbreakable");
+            out.writeByte(1);
+        }
+        if (stack.repairCost() > 0) {
+            out.writeByte(TAG_INT);    // tag.RepairCost
+            writeShortString(out, "RepairCost");
+            out.writeInt(stack.repairCost());
+        }
+        if (stack.hideFlags() > 0) {
+            out.writeByte(TAG_INT);    // tag.HideFlags
+            writeShortString(out, "HideFlags");
+            out.writeInt(stack.hideFlags());
         }
         out.writeByte(TAG_END);        // end of root
     }

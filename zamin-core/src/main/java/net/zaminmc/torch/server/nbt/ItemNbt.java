@@ -16,10 +16,14 @@ import java.util.Map;
  * <p><b>The tag compound</b> (Slice 92 — the model's own arms, the
  * reference's shapes): {@code tag.display.Name} (the hover string) and
  * {@code tag.ench} (the {id, lvl} short pairs) round-trip through the
- * engine's ItemStack model. The model-less arms — RepairCost,
- * Unbreakable, CanDestroy/CanPlace, HideFlags, BlockEntityTag, the
- * attribute modifiers, Lore — parse into nothing and are never written
- * (the engine's standing envelope, ledgered).</p>
+ * engine's ItemStack model. <b>Slice 94's Wave G</b> lands the four
+ * model-less arms: {@code tag.Unbreakable} (the byte over isDamageable
+ * line 163), {@code tag.RepairCost} (the anvil's int, lines 634-643),
+ * {@code tag.HideFlags} (the tooltip's mask, lines 442-443), and
+ * {@code tag.display.Lore} (the tooltip's string list, lines 474-475).
+ * The remaining arms — CanDestroy/CanPlace, BlockEntityTag, the
+ * attribute modifiers, display.color — parse into nothing and are never
+ * written (the engine's standing envelope, ledgered).</p>
  */
 public final class ItemNbt {
 
@@ -44,14 +48,32 @@ public final class ItemNbt {
         // The tag compound (Slice 92 — writeNbt line 126-128: the whole
         // tag rides when the stack carries one): the engine's model arms
         // in the reference's own shapes — display.Name the hover string,
-        // ench the {id, lvl} pairs (addEnchantment lines 590-603).
-        boolean hasDisplay = stack.displayName() != null;
+        // display.Lore the tooltip lines (getTooltip lines 474-480), ench
+        // the {id, lvl} pairs (addEnchantment lines 590-603), and Slice
+        // 94's Wave G arms — Unbreakable the byte, RepairCost the anvil
+        // int (setRepairCost line 638-643), HideFlags the tooltip mask
+        // (lines 442-443). Each row rides only when the model carries
+        // it (the reference's absent-means-default convention).
+        boolean hasName = stack.displayName() != null;
+        boolean hasLore = stack.lore() != null && !stack.lore().isEmpty();
         boolean hasEnch = stack.enchantments() != null && !stack.enchantments().isEmpty();
-        if (hasDisplay || hasEnch) {
+        boolean unbreakable = stack.unbreakable();
+        int repairCost = stack.repairCost();
+        int hideFlags = stack.hideFlags();
+        if (hasName || hasLore || hasEnch || unbreakable || repairCost > 0 || hideFlags > 0) {
             Map<String, Snbt.Tag> tag = new java.util.LinkedHashMap<>();
-            if (hasDisplay) {
+            if (hasName || hasLore) {
                 Map<String, Snbt.Tag> display = new java.util.LinkedHashMap<>();
-                NbtOps.putString(display, "Name", stack.displayName());
+                if (hasName) {
+                    NbtOps.putString(display, "Name", stack.displayName());
+                }
+                if (hasLore) {
+                    java.util.List<Snbt.Tag> lines = new java.util.ArrayList<>();
+                    for (String line : stack.lore()) {
+                        lines.add(Snbt.Tag.ofString(line));
+                    }
+                    NbtOps.putList(display, "Lore", lines);
+                }
                 NbtOps.putCompound(tag, "display", display);
             }
             if (hasEnch) {
@@ -63,6 +85,15 @@ public final class ItemNbt {
                     ench.add(Snbt.Tag.ofCompound(row));
                 }
                 NbtOps.putList(tag, "ench", ench);
+            }
+            if (unbreakable) {
+                NbtOps.putBoolean(tag, "Unbreakable", true);
+            }
+            if (repairCost > 0) {
+                NbtOps.putInt(tag, "RepairCost", repairCost);
+            }
+            if (hideFlags > 0) {
+                NbtOps.putInt(tag, "HideFlags", hideFlags);
             }
             NbtOps.putCompound(rows, "tag", tag);
         }
@@ -100,15 +131,34 @@ public final class ItemNbt {
         }
         // The tag compound (Slice 92 — readNbt lines 150-155): the
         // display.Name row lands the hover string (getHoverName lines
-        // 371-377), the ench list lands the pairs (getEnchantments line
-        // 363); the model-less arms parse into nothing — the engine's
-        // standing envelope.
+        // 371-377), the display.Lore list lands the tooltip lines
+        // (lines 474-480 — the reference reads the raw strings, the
+        // formatting prefix is the client's own render step), the ench
+        // list lands the pairs (getEnchantments line 363), and Slice 94's
+        // Wave G arms land their model rows — Unbreakable the byte
+        // (getBoolean over the tag), RepairCost the int (contains(..., 3)
+        // gate, line 634-635), HideFlags the mask (lines 442-443); the
+        // still-model-less arms parse into nothing — the standing
+        // envelope.
         Map<String, Snbt.Tag> tag = NbtOps.getCompound(rows, "tag");
         if (!tag.isEmpty()) {
             Map<String, Snbt.Tag> display = NbtOps.getCompound(tag, "display");
             String name = NbtOps.getString(display, "Name");
             if (name != null && !name.isEmpty()) {
                 stack = stack.withName(name);
+            }
+            java.util.List<Snbt.Tag> loreRows = NbtOps.getList(display, "Lore", Snbt.Tag.Type.STRING);
+            if (!loreRows.isEmpty()) {
+                java.util.List<String> lines = new java.util.ArrayList<>(loreRows.size());
+                for (Snbt.Tag row : loreRows) {
+                    String line = row != null ? row.asString() : null;
+                    if (line != null && !line.isEmpty()) {
+                        lines.add(line);
+                    }
+                }
+                if (!lines.isEmpty()) {
+                    stack = stack.withLore(lines);
+                }
             }
             java.util.List<Snbt.Tag> ench = NbtOps.getList(tag, "ench", Snbt.Tag.Type.COMPOUND);
             if (!ench.isEmpty()) {
@@ -127,6 +177,21 @@ public final class ItemNbt {
                 if (!pairs.isEmpty()) {
                     stack = stack.withEnchantments(pairs);
                 }
+            }
+            // The Wave G scalar rows: Unbreakable consults the reference's
+            // getBoolean (a missing row answers false), RepairCost and
+            // HideFlags ride their int rows (a missing or non-positive row
+            // keeps the model's absent-zero default).
+            if (NbtOps.getBoolean(tag, "Unbreakable")) {
+                stack = stack.withUnbreakable(true);
+            }
+            int repairCost = NbtOps.getInt(tag, "RepairCost");
+            if (repairCost > 0) {
+                stack = stack.withRepairCost(repairCost);
+            }
+            int hideFlags = NbtOps.getInt(tag, "HideFlags");
+            if (hideFlags > 0) {
+                stack = stack.withHideFlags(hideFlags);
             }
         }
         return stack;

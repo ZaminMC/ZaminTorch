@@ -39,7 +39,10 @@ public final class MobDataStore {
     private static final int MAGIC_0 = 'Z';
     private static final int MAGIC_1 = 'M';
     private static final int MAGIC_2 = 'D';
-    private static final int FORMAT_VERSION = 6;
+    private static final int FORMAT_VERSION = 7;
+
+    /** The v6 store's own version (Slice 92's held-stack tail — the load keeps reading it). */
+    private static final int FORMAT_VERSION_6 = 6;
 
     /** The v4 store's own version (Slice 78b's shape — the load keeps reading it). */
     private static final int FORMAT_VERSION_4 = 4;
@@ -120,7 +123,8 @@ public final class MobDataStore {
                 throw new IOException("Not a ZMD file");
             }
             int version = in.readByte();
-            if (version != FORMAT_VERSION && version != FORMAT_VERSION_4
+            if (version != FORMAT_VERSION && version != FORMAT_VERSION_6
+                    && version != FORMAT_VERSION_4
                     && version != FORMAT_VERSION_3 && version != FORMAT_VERSION_2
                     && version != 1) {
                 throw new IOException("Unsupported ZMD version: " + version);
@@ -384,6 +388,21 @@ public final class MobDataStore {
                     out.writeShort(pair.getValue());
                 }
             }
+            // The v7 tail (Slice 94 — the Wave G arms on the stack model):
+            // the Unbreakable byte, the RepairCost varint, the HideFlags
+            // varint, then the Lore list (the count + the strings).
+            out.writeBoolean(nbt.heldEquipment().unbreakable());
+            writeVarInt(out, nbt.heldEquipment().repairCost());
+            writeVarInt(out, nbt.heldEquipment().hideFlags());
+            var heldLore = nbt.heldEquipment().lore();
+            if (heldLore == null || heldLore.isEmpty()) {
+                writeVarInt(out, 0);
+            } else {
+                writeVarInt(out, heldLore.size());
+                for (String line : heldLore) {
+                    writeString(out, line);
+                }
+            }
         }
         if ((flags & NBT_FLAG_MOVEMENT_SPEED) != 0) {
             out.writeDouble(nbt.movementSpeed());
@@ -427,7 +446,7 @@ public final class MobDataStore {
                     .orElse(null);
             // The v6 tail (Slice 92): the display name + the enchant
             // pairs land on the model.
-            if (held != null && version >= FORMAT_VERSION) {
+            if (held != null && version >= FORMAT_VERSION_6) {
                 String heldName = readNullableString(in);
                 if (heldName != null) {
                     held = held.withName(heldName);
@@ -443,6 +462,29 @@ public final class MobDataStore {
                         }
                     }
                     held = held.withEnchantments(pairs);
+                }
+                // The v7 tail (Slice 94 — the Wave G rows): absent in a v6
+                // file, the model's defaults then.
+                if (version >= FORMAT_VERSION) {
+                    if (in.readBoolean()) {
+                        held = held.withUnbreakable(true);
+                    }
+                    int repairCost = readVarInt(in);
+                    if (repairCost > 0) {
+                        held = held.withRepairCost(repairCost);
+                    }
+                    int hideFlags = readVarInt(in);
+                    if (hideFlags > 0) {
+                        held = held.withHideFlags(hideFlags);
+                    }
+                    int loreCount = readVarInt(in);
+                    if (loreCount > 0) {
+                        java.util.List<String> lines = new java.util.ArrayList<>(loreCount);
+                        for (int i = 0; i < loreCount; i++) {
+                            lines.add(readString(in));
+                        }
+                        held = held.withLore(lines);
+                    }
                 }
             }
         }

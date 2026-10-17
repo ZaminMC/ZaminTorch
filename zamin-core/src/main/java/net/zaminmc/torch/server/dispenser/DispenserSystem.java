@@ -611,6 +611,12 @@ public final class DispenserSystem implements WorldChangeListener {
         if (maxDurability <= 0) {
             return consumeOne(stack); // a non-durable stack just spends one
         }
+        // The Unbreakable gate (Slice 94/G1 — the reference's takeDamage
+        // line 197: !isDamageable answers before any wear): a flagged
+        // flint-and-steel never climbs, never breaks.
+        if (stack.unbreakable()) {
+            return stack;
+        }
         int damage = stack.damage() + 1;
         return damage >= maxDurability ? ItemStack.EMPTY : stack.withDamage(damage);
     }
