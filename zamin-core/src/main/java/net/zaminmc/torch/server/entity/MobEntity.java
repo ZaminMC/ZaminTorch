@@ -103,6 +103,22 @@ public final class MobEntity implements LivingEntity {
     public static final int FIRE_TICKS = 160;
     /** The historical burn rate: one damage per second while on fire. */
     public static final float FIRE_DAMAGE_PER_SECOND = 1.0f;
+    /**
+     * The lava burn's duration (Slice 93/D2 — Entity.takeLavaDamage line
+     * 360's {@code setOnFireFor(15)}): fifteen seconds, re-armed every
+     * tick the body stands in the lava (the ignite rule's own max-arm —
+     * the reference re-arms unconditionally, the store never runs below
+     * 300 while submerged).
+     */
+    public static final int LAVA_BURN_TICKS = 15 * 20;
+    /**
+     * The lava wound (takeLavaDamage line 359's flat {@code 4.0F} with
+     * the LAVA source — isFire for the resistance consult): one wound
+     * per hurt-i-frame window (the reference's invulnerableTicks/2 = 10).
+     */
+    public static final float LAVA_DAMAGE_PER_WOUND = 4.0f;
+    /** The lava wound's cadence (the hurt-i-frame window, 10 ticks). */
+    public static final int LAVA_WOUND_CADENCE_TICKS = 10;
 
     /**
      * Minimal world query the mob needs (tick-thread context only). The
@@ -516,6 +532,9 @@ public final class MobEntity implements LivingEntity {
     private int fireDamageTimer;
     // The cactus's contact clock (the historical 1 damage per second).
     private int cactusDamageTimer;
+    // The lava wound's cadence clock (Slice 93/D2 — the reference's
+    // hurt-i-frame window: one 4.0 wound per 10 submerged ticks).
+    private int lavaDamageTimer;
 
     // The goal layer (the community PathfinderGoal architecture).
     private final GoalSelector goals = MobGoals.standard();
@@ -1483,7 +1502,15 @@ public final class MobEntity implements LivingEntity {
                     fireTicks = 0;
                 }
                 fireDamageTimer = 0; // no wound ever arms against the immune
-            } else if (++fireDamageTimer >= 20) {
+            } else if (++fireDamageTimer >= 20
+                    // The FIRE_RESISTANCE consult (Slice 93/D2 — LivingEntity
+                    // lines 645-647's own gate over the ON_FIRE source, an
+                    // isFire family member like the lava): a resistant body
+                    // burns visually but never wounds — the same gate the
+                    // reference's takeDamage carries for the whole fire
+                    // family.
+                    && effectAmplifierPlusOne(
+                            net.zaminmc.torch.server.potion.StatusEffects.FIRE_RESISTANCE) == 0) {
                 fireDamageTimer = 0;
                 hurt(FIRE_DAMAGE_PER_SECOND);
             }
@@ -3042,10 +3069,17 @@ public final class MobEntity implements LivingEntity {
      * eye-offset re-roll, and the hover rise toward a higher target.
      */
     private void tickBlazeMind(Position target, boolean canHunt) {
-        // mobAiTick lines 110-112: the water contact drowns the body
-        // (DROWN 1.0 per tick — the same shape the snow golem's melt
-        // rides).
-        if (world.inFluid(position.x(), position.y() + 0.2, position.z())) {
+        // mobAiTick lines 110-112: the water-or-rain contact drowns the
+        // body (DROWN 1.0 per tick — the same shape the snow golem's melt
+        // rides). The consult is the reference's own isInWaterOrRain —
+        // the WATER flag alone plus the rain pair, NEVER the lava (the
+        // blaze stands in its own element; the pre-Slice-93 engine
+        // consulted the shared inFluid and a blaze in lava drowned
+        // itself — Slice 93/D2's split of the shared fluid model).
+        if ((world.inFluid(position.x(), position.y() + 0.2, position.z())
+                && !world.inLava(position.x(), position.y() + 0.2, position.z()))
+                || world.isRainingAt(position.x(), position.y(), position.z())
+                || world.isRainingAt(position.x(), position.y() + type.height, position.z())) {
             hurt(1.0f);
         }
 
@@ -7635,6 +7669,30 @@ public final class MobEntity implements LivingEntity {
                 && world.inFire(position.x(), position.y(), position.z())) {
             ignite(FIRE_TICKS);
         }
+        // The lava walk (Slice 93/D2 — Entity.tick lines 337-341, the
+        // isInLava arm): takeLavaDamage's pair — the fifteen-second arm
+        // (setOnFireFor's own max-arm) and the flat 4.0 LAVA-source wound
+        // at the hurt-i-frame cadence (the reference's invulnerableTicks/2
+        // = 10 window, the same shape the cactus contact rides) — the
+        // fire-immune kinds exempt (takeLavaDamage's own gate). The wound
+        // itself additionally gated by FIRE_RESISTANCE (LivingEntity lines
+        // 645-647's isFire-source consult — a resistant body burns
+        // visually but never wounds, exactly the reference's own takeDamage
+        // gate). The consult is the body's own mid-band (the y + 0.2
+        // single-point convention the vehicle lava walk established). The
+        // store's own halving rides the fall walk below (Entity.tick's own
+        // split: the halving in the tick, the water zero in the move).
+        boolean inLava = !dead
+                && world.inLava(position.x(), position.y() + 0.2, position.z());
+        if (inLava && !fireImmune()) {
+            ignite(LAVA_BURN_TICKS);
+            if (++lavaDamageTimer >= LAVA_WOUND_CADENCE_TICKS
+                    && effectAmplifierPlusOne(
+                            net.zaminmc.torch.server.potion.StatusEffects.FIRE_RESISTANCE) == 0) {
+                lavaDamageTimer = 0;
+                hurt(LAVA_DAMAGE_PER_WOUND);
+            }
+        }
         // Cactus contact pricks at the hurt-i-frame rhythm (10 ticks).
         if (!dead && world.touchingCactus(position.x(), position.y(), position.z())
                 && ++cactusDamageTimer % 10 == 0) {
@@ -7651,7 +7709,12 @@ public final class MobEntity implements LivingEntity {
         // Vertical: gravity + ground snap (the item-entity model). A body in
         // fluid sinks slowly and bobs (the historical fluid buoyancy).
         boolean inFluid = world.inFluid(position.x(), position.y() + 0.2, position.z());
-        if (inFluid && fireTicks > 0) {
+        // The douse is the WATER consult alone (checkWaterCollisions'
+        // own family — Slice 93/D2's split of the shared fluid model: a
+        // body in lava keeps its burn, the reference's own shape; the
+        // pre-split engine extinguished it because the fluid test covered
+        // both kinds).
+        if (inFluid && !inLava && fireTicks > 0) {
             extinguish(); // the water douses the burn (the historical rule)
         }
         // The NoAI pin (the reference's isLocallyControlled gate over
@@ -7796,13 +7859,20 @@ public final class MobEntity implements LivingEntity {
 
         // checkFallDamage (Slice 92 — Entity lines 719-731, the reference's
         // own shape over the ACTUAL moved delta): the water zeroes the
-        // store (checkWaterCollisions line 771 — the engine's fluid model
-        // folds the lava's own *0.5 halving into the zero, the shared
-        // fluid envelope); a still-falling body accumulates {@code -dy};
+        // store (checkWaterCollisions line 771) while the LAVA halves it
+        // (Entity.tick's own arm, Slice 93/D2 — the shared fluid model's
+        // split: {@code fallDistance *= 0.5F} every tick submerged, the
+        // halving running BEFORE the tick's accumulate exactly like the
+        // reference's tick-then-move order; a body touching both kinds
+        // halves then zeroes — the water's zero wins, the reference's own
+        // consult order); a still-falling body accumulates {@code -dy};
         // the landing spends the store through takeFallDamage and zeroes
         // it. The store's own NBT row (FallDistance) round-trips the
         // mid-air value.
-        if (inFluid) {
+        if (inLava) {
+            fallDistance *= 0.5f;
+        }
+        if (inFluid && !inLava) {
             fallDistance = 0.0f;
         }
         if (onGround) {

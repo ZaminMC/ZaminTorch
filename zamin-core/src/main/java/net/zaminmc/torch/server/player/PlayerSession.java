@@ -390,6 +390,36 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
         return ++cactusTimer;
     }
 
+    // ---------------------------------------------------------------
+    // The lava family (Slice 93/D2 — Entity.tick's isInLava arm over the
+    // player body): the wound cadence clock and the fall store's own
+    // halving seam.
+    // ---------------------------------------------------------------
+
+    /** The lava wound's cadence counter (the reference's i-frame window). */
+    private int lavaTimer;
+
+    /** @return the incremented lava wound cadence counter. */
+    public int advanceLavaTimer() {
+        return ++lavaTimer;
+    }
+
+    /** Resets the lava wound cadence counter (out of the lava, resistant). */
+    public void resetLavaTimer() {
+        lavaTimer = 0;
+    }
+
+    /**
+     * The lava's fall-store halving (Entity.tick line 339's
+     * {@code fallDistance *= 0.5F} — every tick the body stands in the
+     * lava): the store halves instead of the water's full zero, so a
+     * body that fell INTO the lava still spends the halved remainder on
+     * the landing at the bottom.
+     */
+    public void halveFallDistance() {
+        fallDistance *= 0.5f;
+    }
+
     public PlayerSession(UUID uuid, String name, ClientLink link) {
         this.uuid = Objects.requireNonNull(uuid, "uuid");
         this.name = Objects.requireNonNull(name, "name");

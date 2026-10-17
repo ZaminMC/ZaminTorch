@@ -4087,6 +4087,7 @@ public final class EngineServer implements Server, EngineBridge {
             tickBreath(session);
             tickPortalStand(session);
             tickFireBody(session);
+            tickLavaBody(session); // the isInLava arm (Slice 93/D2)
             tickCactusContact(session);
             // The ladder catch: a body on a ladder accumulates no fall
             // distance, so the descent never rounds into landing damage.
@@ -4094,16 +4095,31 @@ public final class EngineServer implements Server, EngineBridge {
                     session.position().z())) {
                 session.resetFallDistance();
             }
-            // The fluid catch: a body in water accumulates no fall distance
-            // (the historical rule — vanilla zeroes fallDistance while the
-            // bounding box touches water). Without it the whole in-water
-            // descent is spent as landing damage the moment the body steps
-            // onto the shore — the "unknown damage coming out of water"
-            // real-client regression class.
-            if (fluidAt(session.position().x(), session.position().y(),
-                    session.position().z())
-                    || fluidAt(session.position().x(),
-                            session.position().y() + 1.0, session.position().z())) {
+            // The fluid catches (the reference's own two consults, Slice
+            // 93/D2's split of the shared fluid model): the LAVA halves the
+            // fall store (Entity.tick line 339's {@code fallDistance *=
+            // 0.5F}, every tick submerged — a body that fell into the lava
+            // still spends the halved remainder on the landing at the
+            // bottom), then the WATER zeroes it (checkWaterCollisions' own
+            // family — a body touching both kinds halves then zeroes, the
+            // water's zero winning exactly like the reference's
+            // tick-then-move consult order). Without the split the whole
+            // in-lava descent was spent as landing damage the moment the
+            // body reached the bottom — the shared-fluid envelope the
+            // ledger carried. Without the water zero the whole in-water
+            // descent is spent on the shore — the "unknown damage coming
+            // out of water" real-client regression class.
+            double feetX = session.position().x();
+            double feetY = session.position().y();
+            double feetZ = session.position().z();
+            boolean lavaTouch = lavaAt(feetX, feetY, feetZ)
+                    || lavaAt(feetX, feetY + 1.0, feetZ);
+            if (lavaTouch) {
+                session.halveFallDistance();
+            }
+            if (!lavaTouch
+                    && (fluidAt(feetX, feetY, feetZ)
+                            || fluidAt(feetX, feetY + 1.0, feetZ))) {
                 session.resetFallDistance();
             }
             // The movement-exhaustion ledger (the vanilla per-meter rates,
@@ -4347,8 +4363,13 @@ public final class EngineServer implements Server, EngineBridge {
                         0.0f, "went up in flames", DamageKind.ON_FIRE);
             }
         }
-        // Fluid contact douses the burn (the historical rule).
-        if (FluidBlocks.kindOf(feetBlock.identifier()) != null && session.burning()) {
+        // Fluid contact douses the burn (the historical rule — the WATER
+        // consult alone, Slice 93/D2's split of the shared fluid model: a
+        // body in lava keeps its burn, the reference's own shape; the
+        // pre-split engine extinguished it because the kind test covered
+        // both fluids).
+        if (FluidBlocks.kindOf(feetBlock.identifier()) != null && session.burning()
+                && !FluidBlocks.isLava(feetBlock.identifier())) {
             session.extinguish();
             session.resetFireDamageTimer();
         }
@@ -4370,6 +4391,55 @@ public final class EngineServer implements Server, EngineBridge {
             }
         }
         session.tickFire();
+    }
+
+    /**
+     * The lava walk (Slice 93/D2 — Entity.tick lines 337-341, the isInLava
+     * arm over the player body): takeLavaDamage's pair — the
+     * fifteen-second arm ({@code setOnFireFor(15)}, the ignite rule's own
+     * max-arm) and the flat 4.0 LAVA-source wound at the hurt-i-frame
+     * cadence (the reference's invulnerableTicks/2 = 10 window — the
+     * engine's own lava timer, the same one-wound-per-window shape the
+     * fire family's timer carries; the 4.0 shadows the burn clock's 1.0
+     * residual while submerged, the reference's own lastDamageTaken
+     * shadowing). The wound consults the protection step (the LAVA kind
+     * is a fire source — Protection's fire curve applies) and carries the
+     * source's own 0.3 exhaustion; the death message is the lava row's
+     * own ("tried to swim in lava"). Fire resistance gates the whole arm
+     * — the engine's established player fire-family model (Slice 11b): a
+     * resistant body neither burns nor wounds (the reference arms the
+     * visual burn but its takeDamage gate holds every wound; the engine's
+     * player model never arms the burn under resistance, the documented
+     * convention). Creative and spectator bodies are immune (the mode
+     * guard). The two-sample box consult (the feet + the body band) is
+     * the engine's single-point convention over the reference's
+     * contracted shape, the same shape the fluid catch carries.
+     * Tick-thread context.
+     */
+    private void tickLavaBody(PlayerSession session) {
+        if (session.gamemode() == GameMode.CREATIVE
+                || session.gamemode() == GameMode.SPECTATOR) {
+            return;
+        }
+        boolean fireResistant = potionSystem.hasEffect(session,
+                net.zaminmc.torch.server.potion.StatusEffects.FIRE_RESISTANCE);
+        if (fireResistant) {
+            session.resetLavaTimer();
+            return; // the engine's fire-family convention: no arm, no wound
+        }
+        Position feet = session.position();
+        boolean inLava = lavaAt(feet.x(), feet.y(), feet.z())
+                || lavaAt(feet.x(), feet.y() + 1.0, feet.z());
+        if (!inLava) {
+            return;
+        }
+        session.ignite(MobEntity.LAVA_BURN_TICKS);
+        if (session.advanceLavaTimer() % MobEntity.LAVA_WOUND_CADENCE_TICKS == 0) {
+            damageOnTick(session,
+                    applyEnchantProtection(session, MobEntity.LAVA_DAMAGE_PER_WOUND,
+                            DamageKind.LAVA),
+                    "tried to swim in lava", DamageKind.LAVA);
+        }
     }
 
     /**
@@ -21655,6 +21725,22 @@ public final class EngineServer implements Server, EngineBridge {
             return false;
         }
         return FluidBlocks.kindOf(world.getBlock(blockAt(x, y, z)).identifier()) != null;
+    }
+
+    /**
+     * The lava consult (Slice 93/D2 — the shared fluid model's split): the
+     * LAVA kind alone at the point, the water-family consult staying
+     * {@link #fluidAt} minus the lava arm (the caller's own
+     * {@code fluidAt && !lavaAt} split, the reference's own two-consult
+     * shape — containsLiquid over WATER for the douse/zero,
+     * isInLava over LAVA for the halving/walk).
+     */
+    private boolean lavaAt(double x, double y, double z) {
+        if (y < net.zaminmc.torch.block.BlockPosition.MIN_Y
+                || y > net.zaminmc.torch.block.BlockPosition.MAX_Y) {
+            return false;
+        }
+        return FluidBlocks.isLava(world.getBlock(blockAt(x, y, z)).identifier());
     }
 
     /**
