@@ -466,6 +466,9 @@ public final class EngineServer implements Server, EngineBridge {
 
     /** The command-block tile persistence (Slice 72 — the ZCB envelope). */
     private net.zaminmc.torch.server.commandblock.CommandBlockDataStore commandBlockStore;
+
+    /** The tile NBT projections (Slice 89 — the /blockdata arm's surface). */
+    private net.zaminmc.torch.server.nbt.TileNbt tileNbt;
     /** The vehicles (boats, minecarts); created at boot, tick-thread owned. */
     private volatile net.zaminmc.torch.server.entity.vehicle.VehicleManager vehicleManager;
     /** The fishing bobbers (Slice 67); created at boot, tick-thread owned. */
@@ -2322,6 +2325,16 @@ public final class EngineServer implements Server, EngineBridge {
                                 fxManager.poof(new Position(at.x(), at.y() - 1.5, at.z()));
                             }
                         });
+                // The tile NBT projections (Slice 89 — the reference's
+                // BlockEntity.writeNbt/readNbt over the engine's tile
+                // families): the /blockdata and /testforblock dataTag
+                // arms ride this surface.
+                tileNbt = new net.zaminmc.torch.server.nbt.TileNbt(
+                        new net.zaminmc.torch.server.nbt.TileNbt.Seams(
+                                chestManager, furnaceManager, hopperSystem,
+                                dispenserSystem, brewingStands, beaconSystem,
+                                signManager, spawners, commandBlocks, noteBlocks,
+                                skulls, jukeboxes));
                 blockInteraction = new BlockInteractionService(world, ticker,
                         change -> world.republish(change.position()), // the resync path (§441)
                         session -> session.gamemode(), new DropService(new java.util.Random()), itemEntities,
@@ -3244,6 +3257,11 @@ public final class EngineServer implements Server, EngineBridge {
     /** The semantic chat entry point: validation, commands, audience. */
     public ChatService chatService() {
         return chatService;
+    }
+
+    /** The tile NBT projections (Slice 89 — the /blockdata arm's surface). */
+    public net.zaminmc.torch.server.nbt.TileNbt tileNbt() {
+        return tileNbt;
     }
 
     /**

@@ -65,6 +65,11 @@ public final class HopperBlockEntity {
         return transferCooldown > 0;
     }
 
+    /** @return the raw cooldown ticks (the TransferCooldown row — Slice 89). */
+    public int cooldown() {
+        return transferCooldown;
+    }
+
     public void setCooldown(int cooldown) {
         this.transferCooldown = cooldown;
     }
