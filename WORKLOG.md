@@ -8656,3 +8656,31 @@ gate's key is available; the reference's openChestMenu walk: locked &&
 (container.isLocked) + random.door_close + no window; canUnlockInventory
 = the held item's custom hover name equals the lock key); then C3's
 remaining envelopes per the §29 ledger.
+
+## Slice 91 Wave C (second half) — the containers' CustomName/Lock rows (01099c8)
+
+- **p3 — THE NAMED-KEY GATE + THE CUSTOM WINDOW TITLE**: the five
+  container families (chest/furnace/hopper/dispenser/brewing) carry the
+  reference's lockKey + customName; the open gate is
+  ServerPlayerEntity.openChestMenu's own walk — a locked container
+  without the named key answers the ACTION-BAR chat (the translatable
+  container.isLocked component over the display name, Chat 0x02 @ 2
+  through TextJson) + random.door_close and never opens; the key is the
+  held item's own custom hover name (ItemStack.displayName — the
+  dependency was already satisfied); spectators pass every lock. The
+  custom window title rides the Open Window's title row (the LiteralText
+  over the family default). The TileNbt rows carry the reference's write
+  gates (CustomName only when set, Lock ALWAYS — even NONE writes its
+  empty key) and the string-typed read gates. ContainerLockAcceptanceTest
+  2 (the lock-out chat + no window; the named key opening; the wrong
+  name; the empty lock), TileNbtTest 8 (the name-lock round-trip), the
+  container sweep 29 (ContainerApi, BrewingStandApi, HopperSystem,
+  DispenserSystem, WindowResync + ChestIntegration over the real wire).
+
+NEXT (in order): C3's remaining envelopes per the §29 ledger — the
+skeleton's SkeletonType (the wither mapping), the ocelot's CatType, the
+base defaults (FallDistance/Air/PortalCooldown/HurtByTimestamp/
+AbsorptionAmount/CanPickUpLoot/DropChances), the horse's/wolf's
+OwnerUUID + the horse's EatingHaystack/ChestedHorse/HasReproduced/Bred,
+the item-tag compound's remaining arms, the flight families' NoAI
+interaction, the lazy-tile stand-in, the player-write model.

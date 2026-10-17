@@ -1243,12 +1243,16 @@ names its commit.
         cools (the swell outranks the goal walk), the Fuse/ExplosionRadius
         rows steer the swell and the blast, the wire's index-17 charged
         byte. CreeperRowsAcceptanceTest 3, EntityNbtTest's creeper rows.
-- [ ] C2 — the containers' CustomName/Lock rows (the dependency check
-      done: the ItemStack ALREADY carries displayName — the Lock gate's
-      key is available): the five container BEs' lock string + custom
-      name, the open gate (the reference's openChestMenu walk: locked &&
-      no-key && !spectator -> the action-bar chat + random.door_close +
-      no window), the custom window title, the TileNbt rows.
+- [x] C2 (01099c8) — the containers' CustomName/Lock rows LANDED: the
+      five container BEs carry lockKey + customName; the open gate is
+      the reference's openChestMenu walk (locked && no-key && !
+      spectator -> the action-bar chat (the translatable
+      container.isLocked component) + random.door_close + no window;
+      the key = the held item's custom hover name); the custom window
+      title (the LiteralText over the family's default); the TileNbt
+      rows (CustomName only when set, Lock ALWAYS — the NONE lock's
+      empty-key row). ContainerLockAcceptanceTest 2, TileNbtTest 8,
+      the container regression sweep 29 green.
 - [ ] C3 — the remaining envelopes in dependency order: the skeleton's
       SkeletonType (the wither mapping), the ocelot's CatType, the base
       defaults (FallDistance/Air/PortalCooldown/HurtByTimestamp/
