@@ -154,6 +154,19 @@ public final class JukeboxBlockSystem implements WorldChangeListener {
     }
 
     /**
+     * The single-position restore (Slice 89 — the reference's readNbt
+     * {@code setRecord(ItemStack.fromNbt(...))} over the /blockdata arm):
+     * the same put + variant flip as the boot load's own walk.
+     */
+    public void restoreRecord(BlockPosition position, ItemStack record) {
+        records.put(position, record == null ? ItemStack.EMPTY : record);
+        if (record != null && !record.isEmpty()
+                && JukeboxBlocks.isFamily(world.getBlock(position))) {
+            world.setBlock(position, JukeboxBlocks.variantOf(true));
+        }
+    }
+
+    /**
      * The break arm (onRemoved lines 74-78 → removeRecord): the held record
      * ejects with the stop event BEFORE the block's own drop. The engine's
      * break listener calls this after the block left the world (the same

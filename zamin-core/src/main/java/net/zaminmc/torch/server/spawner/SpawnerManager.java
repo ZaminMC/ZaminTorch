@@ -91,7 +91,7 @@ public final class SpawnerManager {
             return delay;
         }
 
-        void setDelay(int delay) {
+        public void setDelay(int delay) {
             this.delay = delay;
         }
     }

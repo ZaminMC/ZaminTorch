@@ -171,6 +171,11 @@ public final class EngineWorld implements World {
         return chunk.getBlock(position.localX(), position.y(), position.localZ());
     }
 
+    /** The world's own registry (the block-identity lookups' surface). */
+    public BlockRegistry blockRegistry() {
+        return registry;
+    }
+
     /**
      * Applies one block state. Owner-thread only. On an actual change the
      * world dispatches its own change event (§208: the world is the source of

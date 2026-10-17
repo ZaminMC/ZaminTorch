@@ -66,12 +66,12 @@ public final class CommandBlockManager
         }
 
         /** The edit's landing (setCommand line 107: the count resets). */
-        void setCommand(String command) {
+        public void setCommand(String command) {
             this.command = command == null ? "" : command;
             this.successCount = 0;
         }
 
-        void setTrackOutput(boolean trackOutput) {
+        public void setTrackOutput(boolean trackOutput) {
             this.trackOutput = trackOutput;
             if (!trackOutput) {
                 this.lastOutput = null;
@@ -82,7 +82,7 @@ public final class CommandBlockManager
             this.lastOutput = message;
         }
 
-        void setSuccessCount(int successCount) {
+        public void setSuccessCount(int successCount) {
             this.successCount = successCount;
         }
     }
