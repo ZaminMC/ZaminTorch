@@ -209,4 +209,49 @@ public interface Player {
          */
         boolean setArmor(int armorSlot, ItemStack stack);
     }
+
+    // --- open window (the §27 window family's public surface) ------------------
+
+    /**
+     * The live open-window view over the session (the §27 window family's
+     * read surface): what container window the player currently holds
+     * open — its kind, its wire id, and its position-keyed or mount-keyed
+     * identity. The engine session IS the handle (§27.5).
+     *
+     * <p>Reads are live-authoritative and consistent on the owner context;
+     * the underlying fields publish best-effort for the adapter's
+     * cross-thread syncs (the same contract as the body state). When no
+     * container window is open the kind is {@link WindowKind#NONE}, the
+     * window id is -1, the position is empty, and the mount id is -1.</p>
+     */
+    OpenWindow openWindow();
+
+    /** The live open-window view (the engine session behind the handle). */
+    interface OpenWindow {
+
+        /** @return the open window's kind (NONE when no container window is open). */
+        WindowKind kind();
+
+        /**
+         * @return the wire window id of the open container window, or -1
+         * when none is open (the player's own inventory window 0 is always
+         * present on the wire and is not an open-container state).
+         */
+        int windowId();
+
+        /**
+         * @return the position-keyed identity — the block the open window's
+         * container belongs to; empty for the mount-keyed windows (the
+         * horse, the carts) and the private/session windows (the crafting
+         * table, the enchanting table, the villager).
+         */
+        java.util.Optional<net.zaminmc.torch.block.BlockPosition> position();
+
+        /**
+         * @return the mount-keyed identity — the engine entity id of the
+         * horse or cart the open window belongs to; -1 for the
+         * position-keyed and private windows.
+         */
+        int mountId();
+    }
 }

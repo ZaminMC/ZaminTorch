@@ -105,6 +105,15 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     private int beaconSlotsSynced = -1;
     private int beaconPropsSynced = -1;
     private final int[] beaconPropsSent = new int[3];
+    // The §27 window family's re-sync state (the chest/hopper/dispenser
+    // families): the container's slotsSerial last seen by this client, so
+    // the per-tick view fan only re-syncs the Window Items when the
+    // contents actually moved (a plugin's setSlot, the hopper system's
+    // transfer, the world side's own writes — one open window at a time,
+    // same shape as the furnace's).
+    private int chestSlotsSynced = -1;
+    private int hopperSlotsSynced = -1;
+    private int dispenserSlotsSynced = -1;
 
     V18Connection(V18ProtocolServer adapter, EngineServer engine) {
         this.adapter = adapter;
@@ -1130,6 +1139,13 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeByte(27); // the GUI's own slots: 3 rows of 9
         channel.writeAndFlush(out);
         sendContainerWindowItems(channel, windowId, player);
+        // The §27 window family: capture the serial the open just synced —
+        // the per-tick view fan then re-syncs only on a later change.
+        var openAt = player.openContainerPosition();
+        var openedChest = openAt == null ? null : engine.chests().peek(openAt);
+        if (openedChest != null) {
+            chestSlotsSynced = openedChest.slotsSerial();
+        }
     }
 
     /**
@@ -1152,6 +1168,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeByte(27); // the GUI's own slots: 3 rows of 9
         channel.writeAndFlush(out);
         sendChestWindowItems(channel, windowId, player.enderChest(), player);
+        chestSlotsSynced = player.enderChest().slotsSerial();
     }
 
     /**
@@ -1377,6 +1394,10 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeByte(27); // the GUI's own slots: the chest menu over the cart
         channel.writeAndFlush(out);
         sendContainerWindowItems(channel, windowId, player);
+        var openedCart = engineVehicleChest(player.containerMountId());
+        if (openedCart != null) {
+            chestSlotsSynced = openedCart.slotsSerial();
+        }
     }
 
     /**
@@ -1398,6 +1419,10 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeByte(5); // the GUI's own slots: the hopper menu over the cart
         channel.writeAndFlush(out);
         sendContainerWindowItems(channel, windowId, player);
+        var openedHopperCart = engineVehicleHopper(player.containerMountId());
+        if (openedHopperCart != null) {
+            hopperSlotsSynced = openedHopperCart.slotsSerial();
+        }
     }
 
     /**
@@ -1428,6 +1453,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeByte(9); // the GUI's own slots: 3 rows of 3
         channel.writeAndFlush(out);
         sendContainerWindowItems(channel, windowId, player);
+        dispenserSlotsSynced = container.slotsSerial();
     }
 
     /**
@@ -1453,6 +1479,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeByte(5); // the GUI's own slots: the hopper's five
         channel.writeAndFlush(out);
         sendContainerWindowItems(channel, windowId, player);
+        hopperSlotsSynced = hopper.slotsSerial();
     }
 
     /**
@@ -1535,6 +1562,59 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         if (stand.slotsSerial() != brewingSlotsSynced) {
             brewingSlotsSynced = stand.slotsSerial();
             sendBrewingWindowItems(channel, windowId, stand, session);
+        }
+    }
+
+    /**
+     * Per-tick chest-family view (the §27 window family's re-sync wave,
+     * driven by the engine's fan): the connection re-syncs the full
+     * authoritative Window Items only when the container's slotsSerial
+     * moved since the open (or the last re-sync) — a plugin's setSlot, a
+     * hopper transfer into the chest, the world side's own writes. The
+     * resolved chest carries whichever chest-layout window is open (the
+     * world chest, the ender grid, the cart's chest). Called on the tick
+     * thread by the adapter's fan-out.
+     */
+    void sendChestViewTick(Channel channel, int windowId,
+                           net.zaminmc.torch.server.chest.ChestBlockEntity chest) {
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        if (chest.slotsSerial() != chestSlotsSynced) {
+            chestSlotsSynced = chest.slotsSerial();
+            sendChestWindowItems(channel, windowId, chest, session);
+        }
+    }
+
+    /**
+     * Per-tick hopper-family view (the same wave): the 5-slot window's
+     * re-sync on the hopper's own serial — the world hopper or the hopper
+     * minecart's hopper. Called on the tick thread by the adapter's fan-out.
+     */
+    void sendHopperViewTick(Channel channel, int windowId,
+                             net.zaminmc.torch.server.hopper.HopperBlockEntity hopper) {
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        if (hopper.slotsSerial() != hopperSlotsSynced) {
+            hopperSlotsSynced = hopper.slotsSerial();
+            sendHopperWindowItems(channel, windowId, hopper, session);
+        }
+    }
+
+    /**
+     * Per-tick dispenser-family view (the same wave): the 9-slot window's
+     * re-sync on the dispenser's own serial. Called on the tick thread by
+     * the adapter's fan-out.
+     */
+    void sendDispenserViewTick(Channel channel, int windowId,
+                                net.zaminmc.torch.server.dispenser.DispenserBlockEntity dispenser) {
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        if (dispenser.slotsSerial() != dispenserSlotsSynced) {
+            dispenserSlotsSynced = dispenser.slotsSerial();
+            sendDispenserWindowItems(channel, windowId, dispenser, session);
         }
     }
 

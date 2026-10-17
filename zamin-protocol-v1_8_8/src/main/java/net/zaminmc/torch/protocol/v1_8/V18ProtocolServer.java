@@ -765,6 +765,35 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                 }
             }
         });
+        // The §27 window family's re-sync wave (the chest/hopper/dispenser
+        // families generalized over the furnace's own diff path): a plugin's
+        // setSlot, the hopper system's transfers, and the world side's own
+        // writes all bump the container's serial; the per-tick view fan
+        // re-syncs the open viewer's Window Items only on a real change.
+        server.addChestViewListener((viewer, chest) -> {
+            for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                if (connection.currentSession() == viewer) {
+                    connection.sendChestViewTick(channelOf(connection),
+                            viewer.openContainerWindowId(), chest);
+                }
+            }
+        });
+        server.addHopperViewListener((viewer, hopper) -> {
+            for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                if (connection.currentSession() == viewer) {
+                    connection.sendHopperViewTick(channelOf(connection),
+                            viewer.openContainerWindowId(), hopper);
+                }
+            }
+        });
+        server.addDispenserViewListener((viewer, dispenser) -> {
+            for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                if (connection.currentSession() == viewer) {
+                    connection.sendDispenserViewTick(channelOf(connection),
+                            viewer.openContainerWindowId(), dispenser);
+                }
+            }
+        });
         // Brewing windows (Slice 11e): the same per-tick view fan-out — the
         // brew timer's property move + the slots resync on change.
         // The beacon's state changes (Slice 29b — the reference's
