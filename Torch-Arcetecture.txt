@@ -1216,24 +1216,48 @@ names its commit.
       added (Player.openWindow -> Player.OpenWindow, the live view +
       the re-sync story), the WORKLOG Slice 91 closing entry.
 
-## Wave B — the sign tiles' command-stats persistence
+## Wave B — the sign tiles' command-stats persistence (COMPLETE)
 
-- [ ] B1 — the engine's own convention decision (the reference's
-      SignBlockEntity carries none): the SignManager's in-memory
-      `statsHolders` (the `/stats set` arm) persist through the sign
-      data store the same way the ZCB v2 / ZMD v5 / ZPD v10 tails ride
-      `EngineCommandResults.writeNbt/readNbt` — version-aware, older
-      files load with empty bindings.
+- [x] B1 — the engine's own convention decision (the reference's
+      SignBlockEntity carries none), landed 91f4ee8: the SignManager's
+      in-memory `statsHolders` (the `/stats set` arm) persist through
+      the sign data store — the ZSD v2 tail (the same flattened
+      CommandStats pair shape the ZCB v2 store carries, riding
+      EngineCommandResults.writeNbt/readNbt), version-aware: v1 files
+      load with empty bindings (the hand-written v1 file's unit row),
+      v2 files round-trip the source/objective pairs through the
+      restart (CommandStatsPersistenceTest's fourth envelope).
 
-## Wave C — the next vanilla wave per the ledger
+## Wave C — the NBT-surface standing envelopes, landed wave by wave
 
-- [ ] C1 — survey `VANILLA_1_8_8_COMPATIBILITY.md`'s standing envelopes
-      (the Slice 89 NBT-surface row: the base defaults, the per-type
-      no-model rows, the containers' CustomName/Lock, the spawner
-      cadence, the no-tile families, the item-tag compound, the flight
-      families before the NoAI gate, the lazy-tile stand-in, the
-      player-empty-compound, the reference's own quirks) and land the
-      next dependency-correct wave.
+- [x] C1 — the survey + the first two envelopes LANDED:
+      - **p1 (8245604) — the spawner's cadence rows**: the six NBT rows
+        (MinSpawnDelay/MaxSpawnDelay/SpawnCount/MaxNearbyEntities/
+        RequiredPlayerRange/SpawnRange) now steer each spawner's own walk
+        (MobSpawnerBlockEntity carries the reference's fields; the paired
+        read gates carry the zeroing quirk; the nearby count ports the
+        reference's grown-box + entity-box intersection; the wire tile
+        carries the per-spawner rows). SpawnerManagerTest 9, TileNbtTest 7.
+      - **p2 (bc8f0fb) — the creeper's powered/ExplosionRadius/ignited**:
+        the charged flag doubles the blast, the permanent ignite never
+        cools (the swell outranks the goal walk), the Fuse/ExplosionRadius
+        rows steer the swell and the blast, the wire's index-17 charged
+        byte. CreeperRowsAcceptanceTest 3, EntityNbtTest's creeper rows.
+- [ ] C2 — the containers' CustomName/Lock rows (the dependency check
+      done: the ItemStack ALREADY carries displayName — the Lock gate's
+      key is available): the five container BEs' lock string + custom
+      name, the open gate (the reference's openChestMenu walk: locked &&
+      no-key && !spectator -> the action-bar chat + random.door_close +
+      no window), the custom window title, the TileNbt rows.
+- [ ] C3 — the remaining envelopes in dependency order: the skeleton's
+      SkeletonType (the wither mapping), the ocelot's CatType, the base
+      defaults (FallDistance/Air/PortalCooldown/HurtByTimestamp/
+      AbsorptionAmount/CanPickUpLoot/DropChances), the horse's/wolf's
+      OwnerUUID + the horse's EatingHaystack/ChestedHorse/HasReproduced/
+      Bred, the item-tag compound's remaining arms (the display name and
+      the enchantments already ride ItemStack), the flight families'
+      NoAI interaction, the lazy-tile stand-in (the placement-created
+      tile), the player-write model (the /testfor empty compound).
 
 ## Standing (demand-named, not scheduled)
 
