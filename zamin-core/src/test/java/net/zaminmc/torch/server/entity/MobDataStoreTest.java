@@ -120,6 +120,48 @@ class MobDataStoreTest {
         assertEquals(List.of("Rusted but eternal"), again.lore());
     }
 
+    @Test
+    void theHeldStacksAttributeModifiersSurviveTheStore() throws Exception {
+        // Wave J — the ZMD v11 tail: the whole modifier list as ONE
+        // parseable-SNBT string row (the BlockEntityTag tail's pattern),
+        // riding the held equipment block. A v10-era body loads with the
+        // arm absent.
+        MobManager manager = new MobManager(new StubWorld(), new java.util.Random(9),
+                (position, stack) -> { }, 1_100_000, (x, z) -> 4);
+        java.util.UUID uuid = java.util.UUID.fromString(
+                "CB3F55D3-645C-4F38-A497-9C13A33DB5CF");
+        MobEntity zombie = manager.spawnAt(
+                MobType.ZOMBIE, new Position(0.5, 4.0, 0.5));
+        zombie.setHeldEquipment(net.zaminmc.torch.item.ItemStack.of(
+                        net.zaminmc.torch.server.item.BuiltinItems.IRON_SWORD, 1)
+                .withAttributeModifiers(List.of(
+                        new net.zaminmc.torch.item.AttributeModifier(
+                                "generic.attackDamage", "Weapon modifier",
+                                12.0, 0, uuid))));
+
+        MobDataStore store = new MobDataStore(tempDir.resolve("wavej.zmd"));
+        store.save(manager.snapshot());
+
+        List<MobManager.MobSnapshot> loaded = store.load();
+        assertEquals(1, loaded.size());
+        net.zaminmc.torch.item.ItemStack held = loaded.get(0).nbt().heldEquipment();
+        assertTrue(held != null && held.attributeModifiers() != null,
+                "the arm rode the v11 tail");
+        assertEquals(1, held.attributeModifiers().size());
+        net.zaminmc.torch.item.AttributeModifier row = held.attributeModifiers().get(0);
+        assertEquals("generic.attackDamage", row.attributeName());
+        assertEquals("Weapon modifier", row.name());
+        assertEquals(12.0, row.amount(), 0.0);
+        assertEquals(0, row.operation());
+        assertEquals(uuid, row.uuid());
+        // The equipment-better compare consult survives with it (the
+        // tagged sword out-ranks the bare tier table).
+        assertTrue(net.zaminmc.torch.server.item.Tools.heldDamageOf(held)
+                        > net.zaminmc.torch.server.item.Tools.attackDamageOf(
+                                net.zaminmc.torch.server.item.BuiltinItems.IRON_SWORD),
+                "the fold outranks the bare table (13 vs 6)");
+    }
+
     /** A flat world: solid below y=4, the surface at 4, no players near. */
     private static final class StubWorld implements MobEntity.WorldQuery {
         @Override

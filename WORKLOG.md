@@ -8958,3 +8958,50 @@ caught). ItemTagRowsTest 9. THE VERSION-GATE DISCIPLINE again: the
 MobDataStore v9 lists' reads now name their own version (the v10 bump's
 audit — the unconditional read inside the v7 block would have misparsed
 v7/v8 files; the same pattern as the tame-gate repair).
+
+### Slice 97 — Wave J COMPLETE: the attribute modifiers (the item-tag
+envelope's final arm)
+
+- 3ea955e (J1+J2): the api record AttributeModifier (the Validate pair
+  as the constructor's law; the whole-row identity — the reference's
+  uuid-only equals is the live instance set's own), the FOURTEENTH
+  ItemStack component (the per-call audit clean; a present-but-empty
+  list stays present — the attribute-wipe, the reference's own
+  contains(...,9) branch, never the every-other-arm empty-to-null
+  convention), the ItemNbt rows (the fromNbt shape, the
+  BOTH-uuid-arms-non-zero keep-gate — the plan's "LSB-zero skip" is
+  really the conjunction), the SlotNbt wire, the ZID v6/ZMD v11 tails
+  (ONE parseable-SNBT string row, the wrapped compound — the
+  BlockEntityTag pattern; the v10 color gate renamed to its own version
+  at the bump, the standing audit), Tools.heldDamageOf (computeValue's
+  fold verbatim over the player's base 1.0: op-0 adds, the d1 snapshot,
+  op-1 scaling the POST-op-0 d0, op-2's 1+amount multiplies, the
+  0..2048 clamp; the tagless fall-back to the type table), all four
+  damage sites switched. THE AUDIT'S CATCH: dropEquipment's pre-G1
+  5-arg reconstruction had silently stripped every tag arm since Slice
+  94 — the shave now rides withDamage alone.
+- The tests (the same push): AttributeModifierTest 8, the store rows
+  (ItemPersistenceTest 8, MobDataStoreTest 8), the LIVE flagship
+  AttributeMeleeIntegrationTest (the /give dataTag feeding a 10.0 op-0
+  sword — the victim's health re-sync reads 9; the zero-uuid wipe sword
+  dealing the bare fist's 1 — 19, never the sword's defaults).
+- The sweep: 128 core + 106 protocol green in the adjacent batches.
+
+The reference facts this slice pinned (worth remembering):
+- The player's ATTACK_DAMAGE base is 1.0 (PlayerEntity's own
+  registration) — the fold's base is NOT the attribute's 2.0 default.
+- The keep-gate is a CONJUNCTION: LSB != 0 AND MSB != 0 — either arm's
+  zero drops the row.
+- op-1 scales the POST-op-0 base (d0 after the adds), not the raw base.
+- The vanilla sword compare (MobEntity.updateInventory) reads the TIER
+  field alone — the engine's upgrade to the folded damage preserves the
+  tagless ordering while making tagged swords comparable.
+- The reference's tooltip adds the enchant damage to the
+  ATTACK_DAMAGE_MODIFIER_UUID row (display-only — the client's own
+  render; the engine models the data alone).
+
+NEXT per the standing rows: (1) the skull's Owner profile + the
+EnderChest contents-on-player angle (the no-BE tile families' remains);
+(2) the shared container-open event (demand-named); (3) survey the
+ledger for the next vanilla wave (the §28.7 adapter stands after the
+1.8.8 polish).

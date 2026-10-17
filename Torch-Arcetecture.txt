@@ -1559,20 +1559,41 @@ the three player melee walks (EngineServer 4911 the dragon part, 4966
 the mob melee, 5170 the player melee) and MobManager's 3053
 equipment-better comparison.
 
-- [ ] J1 — the model + the rows: the api record AttributeModifier
-      (attributeName/name/amount/operation/uuid), the arm on ItemStack,
-      the ItemNbt rows (the fromNbt shape, the LSB-zero skip on read),
-      the SlotNbt wire (TAG_LIST of TAG_COMPOUND), the ZID v6/ZMD v11
-      tails (ONE parseable-SNBT string row — the whole list as one row,
-      the BlockEntityTag tail's own pattern);
-- [ ] J2 — the apply surface: Tools.heldDamageOf(stack) — the
-      attackDamage-named modifiers folded over the bare-hand base 1.0
-      (op 0 add, op 1 add amount*base, op 2 multiply total), falling to
-      the type table when the stack carries no list; the four sites
-      switched;
-- [ ] J3 — the tests (the fold's operations, the LSB-zero skip, the
-      fall-back, the /give dataTag feeding a damage-boosted stack
-      through a live melee) + the ledger/worklog rows.
+- [x] J1 — LANDED (Slice 97, commit 3ea955e): the api record
+      AttributeModifier (attributeName/name/amount/operation/uuid, the
+      reference's Validate pair as the constructor's own law), the
+      FOURTEENTH ItemStack component (the per-call audit clean — every
+      withX/split/mergeable threaded; the audit's BONUS CATCH:
+      dropEquipment's pre-G1 5-arg reconstruction had silently stripped
+      every tag arm since Slice 94 — the shave now rides withDamage
+      alone), the ItemNbt rows (the contains(...,9) PRESENCE gate — a
+      present-but-emptied list NEVER falls back to the defaults, the
+      attribute-wipe; the BOTH-uuid-arms-non-zero keep-gate — either
+      arm's zero drops the row), the SlotNbt wire (TAG_LIST of
+      TAG_COMPOUND, the empty list as type-0), the ZID v6/ZMD v11 tails
+      (ONE parseable-SNBT string row, the wrapped-compound form; the
+      v10 color gate renamed to its own version at the bump — the
+      standing audit);
+- [x] J2 — LANDED (commit 3ea955e): Tools.heldDamageOf — computeValue's
+      fold verbatim over the player's registered base 1.0 (op-0 adds,
+      the d1 snapshot, op-1 scaling the POST-op-0 d0, op-2's 1+amount
+      multiplies, the 0..2048 RangedAttribute clamp), the tagless
+      fall-back to the type table, all FOUR sites switched (EngineServer
+      4911/4966/5170 + MobManager's sword compare — the reference's own
+      compare reads the tier field alone; the engine upgrades both sides
+      to the folded damage, the tagless ordering preserved);
+- [x] J3 — LANDED (commit chain through the tests): AttributeModifierTest
+      8 (the round trip + the merge identity, the zero-uuid skip, the
+      invalid-row skip, computeValue's own order incl. the op-1 base
+      subtlety + the clamps, the type-table fall-back, the wipe — both
+      the parsed and the api-built forms, the /give read walk, the
+      record's whole-row identity), ItemPersistenceTest 8 +
+      MobDataStoreTest 8 (the v6/v11 tails' restart round trips),
+      AttributeMeleeIntegrationTest 1 LIVE over the wire (the /give
+      dataTag feeding a 10.0 op-0 sword — the victim's health re-sync
+      reads 20-11=9; the zero-uuid wipe sword dealing the bare fist's
+      1 — 20-1=19, never the sword's defaults); the adjacent sweep 128
+      core + 106 protocol green.
 
 ## Standing (demand-named, not scheduled)
 
@@ -1581,10 +1602,9 @@ equipment-better comparison.
 - The §28.7 Bukkit/Spigot/Paper compatibility adapter (§27.1's order:
   after the 1.8.8 implementation is polished into a playable,
   maintainable server).
-- (the attribute modifiers moved to Wave J above; the color tail
-  LANDED at 67102d2 — the item-tag envelope is now EMPTY beyond Wave J)
+- (Wave J LANDED at 3ea955e — the item-tag envelope is now COMPLETE:
+  every row the reference's ItemStack reads, the engine models, wires
+  and persists; the envelope's standing row RETIRED)
 - The skull's Owner profile + the EnderChest contents-on-player angle
   (the no-BE tile families' remains).
-- The mob_spawner ITEM (BuiltinItems carries no spawner item yet — the
-  H3 spawner test walked the consult directly; the item's registration
-  is its own small slice with the creative-menu arm).
+- (the mob_spawner ITEM landed at de272c6 — retired)
