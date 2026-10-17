@@ -115,6 +115,40 @@ public final class CommandParse {
         }
     }
 
+    /** The reference's parseDouble(s, min): the min-bounded form. */
+    public static double parseDouble(String s, double min) {
+        return parseDouble(s, min, Double.MAX_VALUE);
+    }
+
+    /**
+     * The reference's parseDouble(s, min, max): the strict parse plus the
+     * at-least/at-most bounds refusals.
+     */
+    public static double parseDouble(String s, double min, double max) {
+        double d = parseDouble(s);
+        if (d < min) {
+            throw new IllegalArgumentException("Value must be at least " + min);
+        }
+        if (d > max) {
+            throw new IllegalArgumentException("Value must be at most " + max);
+        }
+        return d;
+    }
+
+    /**
+     * The reference's parseBoolean(s): true/1 and false/0, anything else
+     * the "'%s' is not a valid boolean value" refusal.
+     */
+    public static boolean parseBoolean(String s) {
+        if (s.equals("true") || s.equals("1")) {
+            return true;
+        }
+        if (s.equals("false") || s.equals("0")) {
+            return false;
+        }
+        throw new IllegalArgumentException("'" + s + "' is not a valid boolean value");
+    }
+
     /**
      * The reference's parseCoordinate(c, s, false): the ~-relative form
      * with the ±30000000 world bounds (execute's own parse walk — a bare
@@ -122,10 +156,25 @@ public final class CommandParse {
      * plain number stands alone).
      */
     public static double parseCoordinate(double c, String s) {
+        return parseCoordinate(c, s, false);
+    }
+
+    /**
+     * The reference's parseCoordinate(c, s, center): the ~-relative form
+     * with the ±30000000 world bounds; a plain integer coordinate gains
+     * the +0.5 block center when {@code center} (parseBlockPos's own
+     * walk).
+     */
+    public static double parseCoordinate(double c, String s, boolean center) {
         boolean tilde = s.startsWith("~");
         double d = tilde ? c : 0.0;
         if (!tilde || s.length() > 1) {
-            d += parseDouble(tilde ? s.substring(1) : s);
+            String t = tilde ? s.substring(1) : s;
+            boolean decimal = t.contains(".");
+            d += parseDouble(t);
+            if (!decimal && !tilde && center) {
+                d += 0.5;
+            }
         }
         if (d < -30000000.0) {
             throw new IllegalArgumentException("Value must be at least -30000000");

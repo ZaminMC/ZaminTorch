@@ -16481,6 +16481,9 @@ public final class EngineServer implements Server, EngineBridge {
         commands.register(new CommandService.Command("execute",
                 "Run a command as an entity: /execute <entity> <x y z> <command> [command args]",
                 2, this::executeCommand));
+        commands.register(new CommandService.Command("spreadplayers",
+                "Spread players: /spreadplayers <x> <z> <spreadDistance> <maxRange> <respectTeams> <player...>",
+                2, this::spreadplayersCommand));
         commands.register(new CommandService.Command("time",
                 "Query or set the day: /time query | /time set <day|noon|night|midnight|ticks>",
                 this::timeCommand));
@@ -17785,6 +17788,284 @@ public final class EngineServer implements Server, EngineBridge {
             return "Failed to execute '" + s + "' as " + entity.name();
         }
         return null;
+    }
+
+    /**
+     * /spreadplayers (SpreadPlayersCommand 1:1, op-2): the centered x/z
+     * parse (a bare integer gains +0.5), the spreadDistance (at least 0)
+     * and maxRange (at least spreadDistance+1) bounds, the respect-teams
+     * boolean, the selector-or-name entity list, and the reference's own
+     * relaxation — the pile repulsion walk (at most 10000 iterations, the
+     * too-close pushes with the normalized retreat, the bound clamps, the
+     * fire/liquid re-rolls, the random reset when a pile has nowhere to
+     * go), then the landing: floor+0.5 x/z with the above-highest-non-air
+     * Y (257 for an empty column), the team pile sharing when respectTeams,
+     * and the count + average-distance feedback. The failure line when
+     * 10000 iterations cannot separate the piles.
+     */
+    private String spreadplayersCommand(CommandSender sender, String[] args) {
+        if (args.length < 6) {
+            return "Usage: /spreadplayers <x> <z> <spreadDistance> <maxRange> <respectTeams> <player...>";
+        }
+        int i = 0;
+        double d0;
+        double d1;
+        double d2;
+        double d3;
+        boolean teams;
+        try {
+            d0 = net.zaminmc.torch.server.command.CommandParse
+                    .parseCoordinate(sender.sourcePos()[0], args[i++], true);
+            d1 = net.zaminmc.torch.server.command.CommandParse
+                    .parseCoordinate(sender.sourcePos()[2], args[i++], true);
+            d2 = net.zaminmc.torch.server.command.CommandParse.parseDouble(args[i++], 0.0);
+            d3 = net.zaminmc.torch.server.command.CommandParse.parseDouble(args[i++], d2 + 1.0);
+            teams = net.zaminmc.torch.server.command.CommandParse.parseBoolean(args[i++]);
+        } catch (RuntimeException e) {
+            return e.getMessage();
+        }
+        java.util.List<net.zaminmc.torch.server.command.TargetSelector.Candidate> list =
+                new java.util.ArrayList<>();
+        while (i < args.length) {
+            String s = args[i++];
+            if (net.zaminmc.torch.server.command.TargetSelector.isValid(s)) {
+                java.util.List<net.zaminmc.torch.server.command.TargetSelector.Candidate> found =
+                        net.zaminmc.torch.server.command.TargetSelector.select(
+                                net.zaminmc.torch.server.command.TargetSelector.sourceViewOf(sender), s);
+                if (found.isEmpty()) {
+                    return "No entities were found";
+                }
+                list.addAll(found);
+            } else {
+                PlayerSession playerentity = players.byName(s).orElse(null);
+                if (playerentity == null) {
+                    return "That player could not be found";
+                }
+                list.add(net.zaminmc.torch.server.command.TargetSelector.Candidate.candidateOf(playerentity));
+            }
+        }
+        if (list.isEmpty()) {
+            return "No entities were found";
+        }
+        String kind = teams ? "team(s)" : "player(s)";
+        sender.sendMessage("Spreading " + list.size() + " " + kind + " " + (int) d3
+                + " blocks apart around " + (int) d0 + ", " + (int) d1
+                + " (min " + (int) d2 + " apart)");
+
+        EngineWorld useWorld = worldFor(list.get(0).dimension());
+        java.util.Random random = new java.util.Random();
+        double minX = d0 - d3;
+        double minZ = d1 - d3;
+        double maxX = d0 + d3;
+        double maxZ = d1 + d3;
+        int pileCount = teams ? teamCountOf(list) : list.size();
+        SpreadPile[] piles = new SpreadPile[pileCount];
+        for (int p = 0; p < piles.length; p++) {
+            piles[p] = new SpreadPile();
+            piles[p].setPileLocation(random, minX, minZ, maxX, maxZ);
+        }
+        // The relaxation (the reference's own loop shape).
+        double minSeen = Float.MAX_VALUE;
+        int iter;
+        boolean moved = true;
+        for (iter = 0; iter < 10000 && moved; iter++) {
+            moved = false;
+            minSeen = Float.MAX_VALUE;
+            for (int jx = 0; jx < piles.length; jx++) {
+                SpreadPile pile = piles[jx];
+                int tooClose = 0;
+                SpreadPile push = new SpreadPile();
+                for (int l = 0; l < piles.length; l++) {
+                    if (jx != l) {
+                        SpreadPile other = piles[l];
+                        double dist = pile.distanceTo(other);
+                        minSeen = Math.min(dist, minSeen);
+                        if (dist < d2) {
+                            tooClose++;
+                            push.x += other.x - pile.x;
+                            push.z += other.z - pile.z;
+                        }
+                    }
+                }
+                if (tooClose > 0) {
+                    push.x /= tooClose;
+                    push.z /= tooClose;
+                    double len = push.absolute();
+                    if (len > 0.0) {
+                        push.normalize();
+                        pile.subtract(push);
+                    } else {
+                        pile.setPileLocation(random, minX, minZ, maxX, maxZ);
+                    }
+                    moved = true;
+                }
+                if (pile.clamp(minX, minZ, maxX, maxZ)) {
+                    moved = true;
+                }
+            }
+            if (!moved) {
+                for (SpreadPile pile : piles) {
+                    if (!pile.isNotFireOrLiquidAtTopOfWorld(useWorld)) {
+                        pile.setPileLocation(random, minX, minZ, maxX, maxZ);
+                        moved = true;
+                    }
+                }
+            }
+        }
+        if (iter >= 10000) {
+            return "Could not spread " + piles.length + " " + kind + " around " + (int) d0 + ", "
+                    + (int) d1 + " (too many players for space - try using spread of at most "
+                    + String.format(java.util.Locale.ROOT, "%.2f", minSeen) + ")";
+        }
+        // The landing: one pile per entity, shared per team when teams.
+        double total = 0.0;
+        int next = 0;
+        java.util.Map<net.zaminmc.torch.server.scoreboard.ScoreboardTeam, SpreadPile> teamPiles =
+                new java.util.HashMap<>();
+        for (net.zaminmc.torch.server.command.TargetSelector.Candidate candidate : list) {
+            SpreadPile pile;
+            if (teams) {
+                net.zaminmc.torch.server.scoreboard.ScoreboardTeam team = candidate.player()
+                        ? scoreboard().getTeamOfMember(candidate.name())
+                        : null;
+                if (!teamPiles.containsKey(team)) {
+                    teamPiles.put(team, piles[next++]);
+                }
+                pile = teamPiles.get(team);
+            } else {
+                pile = piles[next++];
+            }
+            double landX = Math.floor(pile.x) + 0.5;
+            double landY = pile.getAboveHighestNonAir(useWorld);
+            double landZ = Math.floor(pile.z) + 0.5;
+            if (candidate.player()) {
+                PlayerSession session = (PlayerSession) candidate.handle();
+                teleportOnTick(session, new Position(landX, landY, landZ));
+            } else {
+                ((net.zaminmc.torch.server.entity.MobEntity) candidate.handle())
+                        .teleport(new Position(landX, landY, landZ));
+            }
+            double nearest = Double.MAX_VALUE;
+            for (SpreadPile other : piles) {
+                if (pile != other) {
+                    nearest = Math.min(pile.distanceTo(other), nearest);
+                }
+            }
+            total += nearest;
+        }
+        String result = "Successfully spread " + piles.length + " " + kind
+                + " around " + (int) d0 + ", " + (int) d1;
+        if (piles.length > 1) {
+            result += " (average distance between " + (teams ? "teams" : "players") + " was "
+                    + String.format(java.util.Locale.ROOT, "%.2f", total / list.size())
+                    + " blocks apart after " + iter + " iterations)";
+        }
+        return result;
+    }
+
+    /** The reference's getTeamCount: the distinct teams of the players (mobs are their own null team). */
+    private int teamCountOf(
+            java.util.List<net.zaminmc.torch.server.command.TargetSelector.Candidate> list) {
+        java.util.Set<net.zaminmc.torch.server.scoreboard.ScoreboardTeam> teams = new java.util.HashSet<>();
+        for (net.zaminmc.torch.server.command.TargetSelector.Candidate candidate : list) {
+            if (candidate.player()) {
+                teams.add(scoreboard().getTeamOfMember(candidate.name()));
+            } else {
+                teams.add(null);
+            }
+        }
+        return teams.size();
+    }
+
+    /**
+     * The reference's SpreadPlayersCommand.Pile 1:1: a candidate landing
+     * point with the repulsion math, the bound clamp, the top-of-world
+     * walks (the above-highest-non-air landing Y — 257 for an empty
+     * column — and the not-fire-or-liquid validity), and the random
+     * placement.
+     */
+    private static final class SpreadPile {
+        double x;
+        double z;
+
+        SpreadPile() {
+        }
+
+        SpreadPile(double x, double z) {
+            this.x = x;
+            this.z = z;
+        }
+
+        double distanceTo(SpreadPile other) {
+            double dx = this.x - other.x;
+            double dz = this.z - other.z;
+            return Math.sqrt(dx * dx + dz * dz);
+        }
+
+        void normalize() {
+            double d = absolute();
+            this.x /= d;
+            this.z /= d;
+        }
+
+        float absolute() {
+            return (float) Math.sqrt(this.x * this.x + this.z * this.z);
+        }
+
+        void subtract(SpreadPile other) {
+            this.x = this.x - other.x;
+            this.z = this.z - other.z;
+        }
+
+        boolean clamp(double minX, double minZ, double maxX, double maxZ) {
+            boolean clamped = false;
+            if (this.x < minX) {
+                this.x = minX;
+                clamped = true;
+            } else if (this.x > maxX) {
+                this.x = maxX;
+                clamped = true;
+            }
+            if (this.z < minZ) {
+                this.z = minZ;
+                clamped = true;
+            } else if (this.z > maxZ) {
+                this.z = maxZ;
+                clamped = true;
+            }
+            return clamped;
+        }
+
+        int getAboveHighestNonAir(EngineWorld world) {
+            int bx = (int) Math.floor(this.x);
+            int bz = (int) Math.floor(this.z);
+            for (int y = 255; y >= 0; y--) {
+                if (!world.getBlock(new net.zaminmc.torch.block.BlockPosition(bx, y, bz))
+                        .identifier().value().equals("air")) {
+                    return y + 1;
+                }
+            }
+            return 257;
+        }
+
+        boolean isNotFireOrLiquidAtTopOfWorld(EngineWorld world) {
+            int bx = (int) Math.floor(this.x);
+            int bz = (int) Math.floor(this.z);
+            for (int y = 255; y >= 0; y--) {
+                var type = world.getBlock(new net.zaminmc.torch.block.BlockPosition(bx, y, bz));
+                String name = type.identifier().value();
+                if (!name.equals("air")) {
+                    return !net.zaminmc.torch.server.block.FluidBlocks.isFluid(type.identifier())
+                            && !name.equals("fire");
+                }
+            }
+            return false;
+        }
+
+        void setPileLocation(java.util.Random random, double minX, double minZ, double maxX, double maxZ) {
+            this.x = minX >= maxX ? minX : random.nextDouble() * (maxX - minX) + minX;
+            this.z = minZ >= maxZ ? minZ : random.nextDouble() * (maxZ - minZ) + minZ;
+        }
     }
 
     /**
