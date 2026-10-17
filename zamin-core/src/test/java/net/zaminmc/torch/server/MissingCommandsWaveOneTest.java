@@ -35,6 +35,7 @@ class MissingCommandsWaveOneTest {
     PlayerSession alice;
     PlayerSession bob;
     final CopyOnWriteArrayList<String> bobWire = new CopyOnWriteArrayList<>();
+    final CopyOnWriteArrayList<String> bobSounds = new CopyOnWriteArrayList<>();
 
     @BeforeEach
     void boot() throws Exception {
@@ -45,7 +46,7 @@ class MissingCommandsWaveOneTest {
         server = new EngineServer(config);
         server.start();
         alice = join("Alice", new RecordingLink());
-        bob = join("Bob", new RecordingLink(bobWire));
+        bob = join("Bob", new RecordingLink(bobWire, bobSounds));
         await(() -> alice.state() == net.zaminmc.torch.entity.PlayerState.PLAYING
                         && bob.state() == net.zaminmc.torch.entity.PlayerState.PLAYING,
                 "both playing");
@@ -60,13 +61,15 @@ class MissingCommandsWaveOneTest {
 
     private static final class RecordingLink implements net.zaminmc.torch.server.net.ClientLink {
         final CopyOnWriteArrayList<String> wire;
+        final CopyOnWriteArrayList<String> sounds;
 
         RecordingLink() {
-            this(new CopyOnWriteArrayList<>());
+            this(new CopyOnWriteArrayList<>(), new CopyOnWriteArrayList<>());
         }
 
-        RecordingLink(CopyOnWriteArrayList<String> wire) {
+        RecordingLink(CopyOnWriteArrayList<String> wire, CopyOnWriteArrayList<String> sounds) {
             this.wire = wire;
+            this.sounds = sounds;
         }
 
         @Override
@@ -81,6 +84,11 @@ class MissingCommandsWaveOneTest {
         @Override
         public void updateSpawnPosition(int x, int y, int z) {
             wire.add("spawnPos:" + x + "/" + y + "/" + z);
+        }
+
+        @Override
+        public void playSound(String name, double x, double y, double z, float volume, float pitch) {
+            sounds.add(name + "|" + volume + "|" + pitch);
         }
     }
 
@@ -233,6 +241,25 @@ class MissingCommandsWaveOneTest {
         // stays exactly sharpness 3.
         assertEquals(3, alice.inventory().held().enchantments().get(16).intValue());
         assertEquals(1, alice.inventory().held().enchantments().size());
+    }
+
+    @Test
+    void thePlaysoundArms() throws Exception {
+        // The direct per-player packet: the recording link hears it at the
+        // sender's own position (the ~ defaults).
+        dispatch("/playsound mob.zombie.say Bob");
+        await(() -> !bobSounds.isEmpty(), "the sound reached Bob");
+        assertEquals("mob.zombie.say|1.0|1.0", bobSounds.get(0));
+
+        // The too-far refusal: a point far outside the 16-block gate.
+        dispatch("/playsound mob.zombie.say Bob 500 40 500");
+        Thread.sleep(300);
+        assertEquals(1, bobSounds.size(), "the too-far arm refused");
+
+        // The fold-back rule: the same far point with a minimum volume.
+        dispatch("/playsound mob.zombie.say Bob 500 40 500 1.0 1.0 0.5");
+        await(() -> bobSounds.size() >= 2, "the fold-back landed");
+        assertEquals("mob.zombie.say|0.5|1.0", bobSounds.get(1));
     }
 
     private net.zaminmc.torch.server.chat.CommandSender aliceSender() {
