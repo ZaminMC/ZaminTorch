@@ -17084,7 +17084,7 @@ public final class EngineServer implements Server, EngineBridge {
         commands.register(new CommandService.Command("ping", "Check server responsiveness",
                 (sender, args) -> "pong"));
         commands.register(new CommandService.Command("give",
-                "Give yourself an item: /give <name> [count] [metadata]",
+                "Give yourself an item: /give <name> [count] [metadata] [dataTag]",
                 playerCommand(this::giveCommand)));
         commands.register(new CommandService.Command("gamerule",
                 "Query or set a game rule: /gamerule <rule> [true|false|value]",
