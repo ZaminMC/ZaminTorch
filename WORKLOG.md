@@ -8313,9 +8313,19 @@ NEXT: wave two — /effect + /enchant + /achievement; then /particle +
   scoreboard, command-block, sign, console, chest/furnace/hopper/
   dispenser/brewing families green.
 
+- **/TESTFORBLOCK** (TestForBlockCommand 1:1, op-2) + **/TESTFORBLOCKS**
+  (TestForBlocksCommand 1:1, op-2 — the reference's compare walk): the
+  meta gate (-1 any over the type's legacyMetadata), the loaded-chunk
+  and loaded-area gates, the 524288 cap, the masked air-skip, the
+  per-cell identity compare, the mismatch refusals, the compared-count
+  feedback, the AFFECTED_BLOCKS pairs. The dataTag/tile-NBT arms ride
+  the readNbt surface (ledgered).
+- Tests: MissingCommandsWaveOneTest (22).
+
 NEXT (in order): (1) the NBT command arms — /blockdata + /entitydata +
-/testfor's dataTag + /summon's NBT form (the Snbt read/write surface);
-(2) /achievement + the achievement system (parent chains, toasts);
-(3) /testforblock + /testforblocks; (4) the /debug profiler ledger; (5)
-the stats' tile/entity NBT persistence; (6) the §27 window-family
-re-sync rows + the border's worldborder.json persistence.
+/testfor's dataTag + /summon's NBT form (the Snbt read/write surface —
+Snbt.parseCompound already parses; the per-family tile/mob writeNbt/
+readNbt projections are the missing piece); (2) /achievement + the
+achievement system (parent chains, toasts); (3) the /debug profiler
+ledger; (4) the stats' tile/entity NBT persistence; (5) the §27
+window-family re-sync rows + the border's worldborder.json persistence.
