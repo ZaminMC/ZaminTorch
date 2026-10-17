@@ -1253,15 +1253,22 @@ names its commit.
       rows (CustomName only when set, Lock ALWAYS — the NONE lock's
       empty-key row). ContainerLockAcceptanceTest 2, TileNbtTest 8,
       the container regression sweep 29 green.
-- [ ] C3 — the remaining envelopes in dependency order: the skeleton's
-      SkeletonType (the wither mapping), the ocelot's CatType, the base
-      defaults (FallDistance/Air/PortalCooldown/HurtByTimestamp/
-      AbsorptionAmount/CanPickUpLoot/DropChances), the horse's/wolf's
-      OwnerUUID + the horse's EatingHaystack/ChestedHorse/HasReproduced/
-      Bred, the item-tag compound's remaining arms (the display name and
-      the enchantments already ride ItemStack), the flight families'
-      NoAI interaction, the lazy-tile stand-in (the placement-created
-      tile), the player-write model (the /testfor empty compound).
+- [~] C3 — the per-kind stragglers LANDED (b745b65): the skeleton's
+      SkeletonType (the wither variant's byte, the numeric contains-gate)
+      and the ocelot's CatType (the coat's int row, the reference's own
+      UNGATED read — an absent row resets the coat to wild). The
+      remaining envelopes, in dependency order:
+      - the base defaults (FallDistance/Air/PortalCooldown/
+        HurtByTimestamp/AbsorptionAmount/CanPickUpLoot/DropChances) —
+        each needs its own behavioral model to read into;
+      - the horse's/wolf's OwnerUUID + the horse's
+        EatingHaystack/ChestedHorse/HasReproduced/Bred (the engine's
+        tamer-is-a-name model vs the reference's uuid);
+      - the item-tag compound's remaining arms (the display name and
+        the enchantments already ride ItemStack);
+      - the flight families' NoAI interaction;
+      - the lazy-tile stand-in (the placement-created tile);
+      - the player-write model (the /testfor empty compound).
 
 ## Standing (demand-named, not scheduled)
 
