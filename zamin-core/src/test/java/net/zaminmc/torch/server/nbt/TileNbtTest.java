@@ -19,6 +19,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -344,11 +345,65 @@ class TileNbtTest {
         Map<String, Snbt.Tag> skullRows = writeAt(skullPos);
         assertEquals("Skull", NbtOps.getString(skullRows, "id"));
         assertEquals(2, NbtOps.getByte(skullRows, "SkullType"));
-        assertEquals(11, NbtOps.getByte(skullRows, "Rotation"));
+        // The reference's own key is "Rot" (Wave K's rename — the engine's
+        // old "Rotation" spelling never existed in vanilla).
+        assertEquals(11, NbtOps.getByte(skullRows, "Rot"));
         BlockPosition freshSkull = place("skull");
         readAt(freshSkull, skullRows);
         assertEquals(11, server.skulls().tileAt(freshSkull).rotation());
         assertEquals(2, server.skulls().tileAt(freshSkull).type());
+        assertNull(server.skulls().tileAt(freshSkull).profile(),
+                "a non-3 type carries no profile");
+
+        // The player head's Owner profile (Wave K — readNbt lines 37-46):
+        // the compound's Name/Id/Properties rows round-trip the model.
+        java.util.UUID notchId = java.util.UUID.fromString(
+                "b50ad385-829d-4e11-a963-e6321040d9e1");
+        net.zaminmc.torch.item.SkullProfile notch = new net.zaminmc.torch.item.SkullProfile(
+                "Notch", notchId,
+                java.util.Map.of("textures", java.util.List.of(
+                        new net.zaminmc.torch.item.SkullProfile.Property(
+                                "base64skin==", "signed=="))));
+        BlockPosition headPos = place("skull");
+        tick(() -> server.skulls().place(headPos, 3, 5, notch));
+        Map<String, Snbt.Tag> headRows = writeAt(headPos);
+        assertEquals(3, NbtOps.getByte(headRows, "SkullType"));
+        Map<String, Snbt.Tag> owner = NbtOps.getCompound(headRows, "Owner");
+        assertEquals("Notch", NbtOps.getString(owner, "Name"));
+        assertEquals(notchId.toString(), NbtOps.getString(owner, "Id"));
+        Map<String, Snbt.Tag> properties = NbtOps.getCompound(owner, "Properties");
+        java.util.List<Snbt.Tag> textures =
+                NbtOps.getList(properties, "textures", Snbt.Tag.Type.COMPOUND);
+        assertEquals(1, textures.size());
+        assertEquals("base64skin==",
+                NbtOps.getString(textures.get(0).asCompound(), "Value"));
+        assertEquals("signed==",
+                NbtOps.getString(textures.get(0).asCompound(), "Signature"));
+        // The read lands it back (the type-3 gate alone consults it).
+        BlockPosition freshHead = place("skull");
+        readAt(freshHead, headRows);
+        net.zaminmc.torch.item.SkullProfile loaded =
+                server.skulls().tileAt(freshHead).profile();
+        assertNotNull(loaded, "the profile rode the rows");
+        assertEquals("Notch", loaded.name());
+        assertEquals(notchId, loaded.id());
+        assertEquals(1, loaded.properties().get("textures").size());
+        assertEquals("base64skin==", loaded.properties().get("textures").get(0).value());
+        assertEquals("signed==", loaded.properties().get("textures").get(0).signature());
+        // The LEGACY ExtraType string (the pre-1.7 form): a non-empty name
+        // births a name-only profile.
+        Map<String, Snbt.Tag> legacyRows = new LinkedHashMap<>();
+        NbtOps.putByte(legacyRows, "SkullType", (byte) 3);
+        NbtOps.putByte(legacyRows, "Rot", (byte) 7);
+        NbtOps.putString(legacyRows, "ExtraType", "jeb_");
+        BlockPosition legacyHead = place("skull");
+        readAt(legacyHead, legacyRows);
+        net.zaminmc.torch.item.SkullProfile legacy =
+                server.skulls().tileAt(legacyHead).profile();
+        assertNotNull(legacy, "the ExtraType string births the name-only profile");
+        assertEquals("jeb_", legacy.name());
+        assertNull(legacy.id());
+        assertNull(legacy.properties());
     }
 
     @Test

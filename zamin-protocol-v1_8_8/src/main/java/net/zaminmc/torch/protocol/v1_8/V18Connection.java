@@ -1359,6 +1359,40 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         writeNbtInt(out, "z", position.z());
         writeNbtByte(out, "SkullType", tile.type());
         writeNbtByte(out, "Rot", tile.rotation());
+        // The player head's Owner compound (Wave K — the reference's
+        // createUpdatePacket writes the whole writeNbt family: the
+        // profile's Name/Id/Properties rows ride the tile packet, the
+        // client's own skin render reads them).
+        if (tile.profile() != null) {
+            out.writeByte(10);          // TAG_Compound
+            SlotNbt.writeShortString(out, "Owner");
+            var profile = tile.profile();
+            if (profile.name() != null && !profile.name().isEmpty()) {
+                writeNbtString(out, "Name", profile.name());
+            }
+            if (profile.id() != null) {
+                writeNbtString(out, "Id", profile.id().toString());
+            }
+            if (profile.properties() != null && !profile.properties().isEmpty()) {
+                out.writeByte(10);      // TAG_Compound
+                SlotNbt.writeShortString(out, "Properties");
+                for (var keyRow : profile.properties().entrySet()) {
+                    out.writeByte(9);   // TAG_LIST
+                    SlotNbt.writeShortString(out, keyRow.getKey());
+                    out.writeByte(10);  // the element type: compounds
+                    out.writeInt(keyRow.getValue().size());
+                    for (var property : keyRow.getValue()) {
+                        writeNbtString(out, "Value", property.value());
+                        if (property.signature() != null) {
+                            writeNbtString(out, "Signature", property.signature());
+                        }
+                        out.writeByte(0); // end of the property compound
+                    }
+                }
+                out.writeByte(0);       // end of Properties
+            }
+            out.writeByte(0);           // end of Owner
+        }
         out.writeByte(0);               // end of the root
         channel.writeAndFlush(out);
     }
