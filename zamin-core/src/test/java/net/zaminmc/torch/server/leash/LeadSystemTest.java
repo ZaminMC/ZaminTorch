@@ -282,7 +282,7 @@ class LeadSystemTest {
         assertNull(rig.leads().knotAt(fence), "the knot removed");
         assertEquals(1, rig.wire().knotRemovals);
         // The tied mob still holds the gone knot: the tick walk releases it.
-        rig.leads().tick(rig.mobs().all(), p -> p.position());
+        rig.leads().tick(rig.mobs().all(), p -> p.position(), uuid -> java.util.Optional.empty());
         assertFalse(cow.isLeashed(), "the holder-gone arm released the mob");
         assertTrue(rig.drops().anyNear(cow.position().x(), cow.position().z(), 3.0),
                 "the lead dropped");
@@ -299,16 +299,16 @@ class LeadSystemTest {
         rig.leads().interactMobWithLead(player, cow);
         double before = cow.position().x();
         // At 3 blocks: the slack — no pull, no follow, no snap.
-        rig.leads().tick(List.of(cow), p -> p.position());
+        rig.leads().tick(List.of(cow), p -> p.position(), uuid -> java.util.Optional.empty());
         assertEquals(before, cow.position().x(), 1e-9, "inside the slack nothing moves");
         assertTrue(cow.isLeashed(), "the slack holds the leash");
         // The holder walks to 8 blocks: the follow band (no snap yet).
         player.applyMovement(new Position(18.5, 4.0, 10.5), Rotation.ZERO, true);
-        rig.leads().tick(List.of(cow), p -> p.position());
+        rig.leads().tick(List.of(cow), p -> p.position(), uuid -> java.util.Optional.empty());
         assertTrue(cow.isLeashed(), "eight blocks only follows — no snap");
         // The holder warps past ten: the snap.
         player.applyMovement(new Position(24.5, 4.0, 10.5), Rotation.ZERO, true);
-        rig.leads().tick(List.of(cow), p -> p.position());
+        rig.leads().tick(List.of(cow), p -> p.position(), uuid -> java.util.Optional.empty());
         assertFalse(cow.isLeashed(), "the leash snapped at ten");
         assertTrue(rig.drops().anyNear(cow.position().x(), cow.position().z(), 4.0),
                 "the snapped lead dropped");
@@ -323,7 +323,7 @@ class LeadSystemTest {
         rig.leads().interactMobWithLead(player, cow);
         // The holder dies: the tick walk's holder-gone arm.
         player.markDead();
-        rig.leads().tick(rig.mobs().all(), p -> p.position());
+        rig.leads().tick(rig.mobs().all(), p -> p.position(), uuid -> java.util.Optional.empty());
         assertFalse(cow.isLeashed(), "a dead holder holds nothing");
         assertTrue(rig.drops().anyNear(cow.position().x(), cow.position().z(), 3.0));
     }
@@ -342,16 +342,16 @@ class LeadSystemTest {
         // The stub world has no fence: the survival poll fails at tick 100
         // (the reference's own cadence — the knot hangs up to five seconds).
         for (int i = 0; i < 99; i++) {
-            rig.leads().tick(rig.mobs().all(), p -> p.position());
+            rig.leads().tick(rig.mobs().all(), p -> p.position(), uuid -> java.util.Optional.empty());
         }
         assertNotNull(rig.leads().knotAt(fence), "still hanging at 99 ticks");
-        rig.leads().tick(rig.mobs().all(), p -> p.position());
+        rig.leads().tick(rig.mobs().all(), p -> p.position(), uuid -> java.util.Optional.empty());
         assertNull(rig.leads().knotAt(fence), "the 100-tick poll dropped it");
         // The tied mob still holds the gone knot: the release rides the
         // NEXT tick's holder-gone walk (the mobs loop runs before the
         // knots' survival poll inside one tick).
         assertTrue(cow.isLeashed(), "the fall tick left the mob holding");
-        rig.leads().tick(rig.mobs().all(), p -> p.position());
+        rig.leads().tick(rig.mobs().all(), p -> p.position(), uuid -> java.util.Optional.empty());
         assertFalse(cow.isLeashed());
         assertTrue(rig.drops().anyNear(cow.position().x(), cow.position().z(), 4.0));
     }

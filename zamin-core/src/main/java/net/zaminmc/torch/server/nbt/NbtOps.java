@@ -117,6 +117,11 @@ public final class NbtOps {
         };
     }
 
+    /** The reference's contains(key, 99): any numeric family at the key. */
+    public static boolean containsNumeric(Map<String, Snbt.Tag> rows, String key) {
+        return isNumeric(rows.get(key));
+    }
+
     /** The reference's contains(key, type). */
     public static boolean contains(Map<String, Snbt.Tag> rows, String key, Snbt.Tag.Type type) {
         Snbt.Tag tag = rows.get(key);
@@ -145,7 +150,7 @@ public final class NbtOps {
 
     public static long getLong(Map<String, Snbt.Tag> rows, String key) {
         Snbt.Tag tag = rows.get(key);
-        return isNumeric(tag) ? (long) tag.asDouble() : 0L;
+        return isNumeric(tag) ? tag.asLong() : 0L;
     }
 
     public static float getFloat(Map<String, Snbt.Tag> rows, String key) {
@@ -253,7 +258,7 @@ public final class NbtOps {
             case BYTE -> Snbt.Tag.ofByte(tag.asByte());
             case SHORT -> Snbt.Tag.ofShort((short) widen(tag));
             case INT -> Snbt.Tag.ofInt((int) widen(tag));
-            case LONG -> Snbt.Tag.ofLong((long) widen(tag));
+            case LONG -> Snbt.Tag.ofLong(tag.asLong());
             case FLOAT -> Snbt.Tag.ofFloat((float) widen(tag));
             case DOUBLE -> Snbt.Tag.ofDouble(tag.asDouble());
             case STRING -> Snbt.Tag.ofString(tag.asString());
@@ -335,6 +340,7 @@ public final class NbtOps {
                 yield true;
             }
             case COMPOUND -> equal(a.asCompound(), b.asCompound());
+            case LONG -> a.asLong() == b.asLong();
             default -> a.asDouble() == b.asDouble();
         };
     }
@@ -447,7 +453,7 @@ public final class NbtOps {
             case BYTE -> tag.asByte() + "b";
             case SHORT -> (short) tag.asDouble() + "s";
             case INT -> (int) tag.asDouble() + "";
-            case LONG -> (long) tag.asDouble() + "L";
+            case LONG -> tag.asLong() + "L";
             case FLOAT -> (float) tag.asDouble() + "f";
             case DOUBLE -> tag.asDouble() + "d";
             case STRING -> "\"" + tag.asString().replace("\"", "\\\"") + "\"";

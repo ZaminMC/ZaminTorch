@@ -654,7 +654,7 @@ public final class MobEntity implements LivingEntity {
      * a saved raw false never silently pins a body whose leash is not
      * itself persisted).
      */
-    boolean rawPersistent() {
+    public boolean rawPersistent() {
         return persistent;
     }
 
@@ -665,6 +665,15 @@ public final class MobEntity implements LivingEntity {
     private boolean customNameVisible;
     private boolean noAi;
     private boolean invulnerable;
+
+    // The EntityNbt rows (Slice 89 — the reference's Entity base rows the
+    // engine now carries): the body's own uuid (UUIDMost/UUIDLeast — a
+    // random one at construction, the readNbt rows overwrite it), the
+    // Silent flag, and the body pitch (the Rotation row's second element —
+    // the engine's own no-consult envelope keeps it storage-only).
+    private java.util.UUID uuid = java.util.UUID.randomUUID();
+    private boolean silent;
+    private float pitch;
 
     /** @return the custom name, or null when the body carries none. */
     public String customName() {
@@ -704,6 +713,89 @@ public final class MobEntity implements LivingEntity {
     /** Sets the invulnerability flag (Invulnerable). */
     public void setInvulnerable(boolean invulnerable) {
         this.invulnerable = invulnerable;
+    }
+
+    /** @return the body's own uuid (the UUIDMost/UUIDLeast rows — Slice 89). */
+    public java.util.UUID getUuid() {
+        return uuid;
+    }
+
+    /** Sets the body's uuid (readNbt's own rows). */
+    public void setUuid(java.util.UUID uuid) {
+        this.uuid = uuid;
+    }
+
+    /** @return whether the body makes no sound (Silent — Slice 89). */
+    public boolean isSilent() {
+        return silent;
+    }
+
+    /** Sets the silence flag (Silent). */
+    public void setSilent(boolean silent) {
+        this.silent = silent;
+    }
+
+    /** @return the body pitch (the Rotation row's second element — Slice 89). */
+    public float pitch() {
+        return pitch;
+    }
+
+    /** Sets the body pitch (readNbt's Rotation row). */
+    public void setPitch(float pitch) {
+        this.pitch = pitch;
+    }
+
+    /** @return the hurt animation's remaining ticks (the HurtTime row — Slice 89). */
+    public int hurtTime() {
+        return hurtFlash;
+    }
+
+    /** Sets the hurt animation ticks (the HurtTime row). */
+    public void setHurtTime(int hurtTime) {
+        this.hurtFlash = Math.max(0, hurtTime);
+    }
+
+    /** @return the death animation's elapsed ticks (the DeathTime row — Slice 89). */
+    public int deathTime() {
+        return deathTicks;
+    }
+
+    /** Sets the death animation ticks (the DeathTime row). */
+    public void setDeathTime(int deathTime) {
+        this.deathTicks = Math.max(0, deathTime);
+    }
+
+    /** Sets the whole motion (readNbt's Motion row — Slice 89). */
+    public void setVelocity(double vx, double vy, double vz) {
+        this.velocityX = vx;
+        this.velocityY = vy;
+        this.velocityZ = vz;
+    }
+
+    /** Sets the on-ground flag (readNbt's OnGround row — Slice 89). */
+    public void setOnGround(boolean onGround) {
+        this.onGround = onGround;
+    }
+
+    /**
+     * Sets the whole rotation (readNbt's Rotation row — Slice 89): the
+     * yaw, the pitch, and the head yaw follows the yaw (the reference's
+     * setHeadYaw(yaw)/setBodyYaw(yaw) at read time).
+     */
+    public void setRotation(float yaw, float pitch) {
+        this.yaw = yaw;
+        this.pitch = pitch;
+        this.headYaw = yaw;
+    }
+
+    /** @return the raw movement-speed override, or NaN when unset (the Attributes Base row). */
+    public double movementSpeedOverride() {
+        return movementSpeedOverride;
+    }
+
+    /** @return the raw attack-damage override, or NaN when unset (the Attributes Base row). */
+    public double attackDamageOverride() {
+        return attackDamageOverride;
     }
 
     // ---- the public LivingEntity handle (§27.5: the engine object IS the
@@ -754,7 +846,7 @@ public final class MobEntity implements LivingEntity {
 
     @Override
     public Rotation rotation() {
-        return new Rotation(yaw, 0.0f);
+        return new Rotation(yaw, pitch);
     }
 
     @Override
@@ -5289,6 +5381,47 @@ public final class MobEntity implements LivingEntity {
         this.leashHolderKnot = null;
     }
 
+    // The readNbt leash stash (Slice 89 — the reference's own leashNbt
+    // field): readCustomNbt stores the Leash compound unresolved; the
+    // leash tick resolves it later (the knot by position, the holder by
+    // uuid) exactly like the reference's updateLeashStatus.
+    private java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> leashNbt;
+
+    /** Stashes the unresolved Leash compound (readNbt's own shape). */
+    public void stashLeashNbt(java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> rows) {
+        this.leashNbt = rows;
+    }
+
+    /** Takes the stashed Leash compound (null when none) — the resolver consumes it once. */
+    public java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> takeLeashNbt() {
+        java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> taken = leashNbt;
+        leashNbt = null;
+        return taken;
+    }
+
+    /**
+     * The readNbt leash rows (Slice 89 — the reference's readCustomNbt
+     * lines 317-320): the Leashed flag sets outright (a true with no
+     * holder and no stash drops at the next tick's holder-gone arm,
+     * exactly the reference's shape); a true with a Leash COMPOUND stashes
+     * it unresolved.
+     */
+    public void applyLeashRows(boolean leashed,
+            java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> nbt) {
+        this.leashed = leashed;
+        if (!leashed) {
+            this.leashHolderPlayer = null;
+            this.leashHolderKnot = null;
+            this.leashNbt = null;
+            return;
+        }
+        java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> leash =
+                net.zaminmc.torch.server.nbt.NbtOps.getCompound(nbt, "Leash");
+        if (!leash.isEmpty()) {
+            stashLeashNbt(leash);
+        }
+    }
+
     // --- the public §27.3 leash family (the LivingEntity handle's reads
     // over the state above — the engine object IS the handle, §27.5) ------
 
@@ -5965,6 +6098,11 @@ public final class MobEntity implements LivingEntity {
     /** @return true while the body is on fire (the living-flags bit 0x01). */
     public boolean burning() {
         return fireTicks > 0;
+    }
+
+    /** Sets the whole burn clock (readNbt's Fire row — Slice 89). */
+    public void setFireTicks(int fireTicks) {
+        this.fireTicks = Math.max(0, fireTicks);
     }
 
     /** Arms the fire clock to at least {@code ticks} (the ignite rule). */

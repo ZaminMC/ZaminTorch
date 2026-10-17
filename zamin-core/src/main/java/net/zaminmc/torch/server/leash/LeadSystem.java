@@ -250,9 +250,20 @@ public final class LeadSystem {
      * one walks the leash physics: the follow beyond four blocks, the pull
      * beyond six ({@code v += d * |d| * 0.4}), the snap at ten. The knots
      * run their own survival clock.
+     *
+     * <p><b>The stashed-leash resolution</b> (Slice 89 — the reference's
+     * own {@code if (this.leashNbt != null) readLeashNbt()} at the walk's
+     * top): a mob whose readNbt left an unresolved Leash compound resolves
+     * it first — the knot form by position (a live knot attaches, anything
+     * else drops with the lead), the holder-uuid form against the online
+     * players (a live session attaches). The reference's any-entity holder
+     * form (a mob holding another mob) has no engine model — those rows
+     * resolve to nobody and drop (ledgered).</p>
      */
     public void tick(Iterable<MobEntity> allMobs,
-                     java.util.function.Function<PlayerSession, Position> holderResolver) {
+                     java.util.function.Function<PlayerSession, Position> holderResolver,
+                     java.util.function.Function<java.util.UUID,
+                             java.util.Optional<PlayerSession>> playerByUuid) {
         for (MobEntity mob : allMobs) {
             if (!mob.isLeashed()) {
                 continue;
@@ -260,6 +271,13 @@ public final class LeadSystem {
             if (mob.dead()) {
                 detachLeash(mob, true);
                 continue;
+            }
+            // The stashed Leash compound (the readNbt rows): resolve first.
+            java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> stash =
+                    mob.takeLeashNbt();
+            if (stash != null) {
+                resolveStashedLeash(mob, stash, playerByUuid);
+                continue; // the resolved walk picks up next tick
             }
             PlayerSession holderPlayer = mob.leashHolderPlayer();
             if (holderPlayer != null) {
@@ -294,6 +312,52 @@ public final class LeadSystem {
                 removeKnot(knot, false); // the fence broke: no creative hand
             }
         }
+    }
+
+    /**
+     * The stashed compound's resolution (the reference's readLeashNbt):
+     * the X/Y/Z INT triple against the live knots, the UUIDMost/UUIDLeast
+     * LONG pair against the online players; an unresolvable holder drops
+     * the lead.
+     */
+    private void resolveStashedLeash(MobEntity mob,
+            java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> stash,
+            java.util.function.Function<java.util.UUID,
+                    java.util.Optional<PlayerSession>> playerByUuid) {
+        net.zaminmc.torch.server.nbt.Snbt.Tag x =
+                stash.get("X");
+        if (x != null && net.zaminmc.torch.server.nbt.NbtOps.containsNumeric(stash, "X")
+                && net.zaminmc.torch.server.nbt.NbtOps.containsNumeric(stash, "Y")
+                && net.zaminmc.torch.server.nbt.NbtOps.containsNumeric(stash, "Z")) {
+            net.zaminmc.torch.block.BlockPosition fence =
+                    new net.zaminmc.torch.block.BlockPosition(
+                            (int) net.zaminmc.torch.server.nbt.NbtOps.getDouble(stash, "X"),
+                            (int) net.zaminmc.torch.server.nbt.NbtOps.getDouble(stash, "Y"),
+                            (int) net.zaminmc.torch.server.nbt.NbtOps.getDouble(stash, "Z"));
+            LeashKnot knot = knotAt(fence);
+            if (knot != null) {
+                mob.attachLeashToKnot(knot);
+                return;
+            }
+            detachLeash(mob, true);
+            return;
+        }
+        if (net.zaminmc.torch.server.nbt.NbtOps.contains(stash, "UUIDMost",
+                        net.zaminmc.torch.server.nbt.Snbt.Tag.Type.LONG)
+                && net.zaminmc.torch.server.nbt.NbtOps.contains(stash, "UUIDLeast",
+                        net.zaminmc.torch.server.nbt.Snbt.Tag.Type.LONG)) {
+            java.util.UUID holder = new java.util.UUID(
+                    net.zaminmc.torch.server.nbt.NbtOps.getLong(stash, "UUIDMost"),
+                    net.zaminmc.torch.server.nbt.NbtOps.getLong(stash, "UUIDLeast"));
+            java.util.Optional<PlayerSession> session = playerByUuid.apply(holder);
+            if (session.isPresent()) {
+                mob.attachLeashToPlayer(session.get());
+                return;
+            }
+        }
+        // An unresolvable holder (the reference's any-entity form has no
+        // engine model — ledgered): the lead drops.
+        detachLeash(mob, true);
     }
 
     /** The leash physics (PathFinderMobEntity lines 88-111). */

@@ -191,4 +191,56 @@ public final class EngineCommandResults {
         }
         return false;
     }
+
+    // ------------------------------------------------------------------
+    // The NBT projections (Slice 89 — the reference's CommandResults
+    // readNbt/writeNbt, 1:1)
+    // ------------------------------------------------------------------
+
+    /**
+     * The reference's readNbt: the CommandStats compound's per-type
+     * {@code <Name>Name/<Name>Objective} STRING pairs, each binding through
+     * the same set gate as /stats.
+     */
+    public void readNbt(java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> nbt) {
+        java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> stats =
+                net.zaminmc.torch.server.nbt.NbtOps.getCompound(nbt, "CommandStats");
+        if (stats.isEmpty()) {
+            return;
+        }
+        for (Type type : Type.values()) {
+            String nameKey = type.getName() + "Name";
+            String objectiveKey = type.getName() + "Objective";
+            if (net.zaminmc.torch.server.nbt.NbtOps.contains(stats, nameKey,
+                            net.zaminmc.torch.server.nbt.Snbt.Tag.Type.STRING)
+                    && net.zaminmc.torch.server.nbt.NbtOps.contains(stats, objectiveKey,
+                            net.zaminmc.torch.server.nbt.Snbt.Tag.Type.STRING)) {
+                set(type,
+                        net.zaminmc.torch.server.nbt.NbtOps.getString(stats, nameKey),
+                        net.zaminmc.torch.server.nbt.NbtOps.getString(stats, objectiveKey));
+            }
+        }
+    }
+
+    /**
+     * The reference's writeNbt: every bound type's pair as STRING rows,
+     * the whole compound only when at least one pair exists.
+     */
+    public void writeNbt(java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> nbt) {
+        java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> stats =
+                new java.util.LinkedHashMap<>();
+        for (Type type : Type.values()) {
+            String source = sourceOf(type);
+            String objective = objectiveOf(type);
+            if (source != null && objective != null) {
+                net.zaminmc.torch.server.nbt.NbtOps.putString(stats,
+                        type.getName() + "Name", source);
+                net.zaminmc.torch.server.nbt.NbtOps.putString(stats,
+                        type.getName() + "Objective", objective);
+            }
+        }
+        if (!stats.isEmpty()) {
+            net.zaminmc.torch.server.nbt.NbtOps.putCompound(nbt, "CommandStats", stats);
+        }
+    }
 }
