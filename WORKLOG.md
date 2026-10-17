@@ -8924,3 +8924,25 @@ NEXT: the standing rows (the remaining model-less arms: CanDestroy/
 CanPlace, the attribute modifiers, display.color; the skull's Owner
 profile; the mob_spawner item registration); then the next vanilla
 wave per the compatibility ledger.
+
+## Slice 96 — Wave I: the adventure gates (COMPLETE)
+
+The evidence (ItemStack.java 689-734, PlayerEntity.canUseItemOn
+1509-1521, ServerPlayerInteractionManager 112-133/195-211): the
+abilities' mayBuild is FALSE in adventure and spectator; the placement
+consult names the CLICKED block (pos.offset(face.opposite)); the mine
+consults (BOTH arms) name the mined block. The lists are TAG_LIST of
+TAG_STRING; canUseOnBlockInAdventureMode is constant-false in the whole
+reference set.
+
+- 9355690 (I1): the model arms + rows + wire + the ZID v4/ZMD v9 tails
+  (four withX stragglers caught still on the 10-arg form — they would
+  have STRIPPED the new arms; the audit pattern stays in the commit).
+- 9004a56 (I2+I3): the gates (mayModifyWorld/canUseItemOn/canMineBlock
+  helpers in the interaction service; ADVENTURE routed through the
+  survival placement path, a passing gate consuming; the spectator use
+  guard) + AdventureGatesTest 4 green.
+
+NEXT per the standing rows: the attribute modifiers + display.color
+(the item-tag envelope's remains); the skull's Owner profile; the
+EnderChest contents-on-player angle.
