@@ -86,6 +86,14 @@ import java.util.Objects;
  *                    Immutable; every element is a valid row (the read walk
  *                    skips invalid elements and zero-uuid rows before the
  *                    model ever sees them)
+ * @param skullOwner the tag's SkullOwner row (Wave K — SkullItem.use lines
+ *                    70-77, the player-head placement consult): null =
+ *                    absent (a damage-3 stack places the plain Steve head),
+ *                    else the parsed profile — the STRING form
+ *                    (a name-only profile) and the COMPOUND form
+ *                    (readProfile's shape) both parse here; the engine
+ *                    writes the compound form back (the reference never
+ *                    writes the row at all — it only reads)
  */
 public record ItemStack(ItemType type, int count, int damage, String displayName,
                         Map<Integer, Integer> enchantments,
@@ -94,7 +102,8 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
                         Map<String, Object> blockEntityTag,
                         List<String> canDestroy, List<String> canPlaceOn,
                         Integer displayColor,
-                        List<AttributeModifier> attributeModifiers) {
+                        List<AttributeModifier> attributeModifiers,
+                        SkullProfile skullOwner) {
 
     /** The wire's i16 damage/metadata ceiling (the historical field width). */
     public static final int MAX_DAMAGE = 0x7FFF;
@@ -120,7 +129,8 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
             if (count != 0 || damage != 0 || displayName != null || enchantments != null
                     || unbreakable || repairCost != 0 || hideFlags != 0 || lore != null
                     || blockEntityTag != null || canDestroy != null || canPlaceOn != null
-                    || displayColor != null || attributeModifiers != null) {
+                    || displayColor != null || attributeModifiers != null
+                    || skullOwner != null) {
                 throw new IllegalArgumentException("A stack without a type must be empty (count "
                         + count + ", damage " + damage + ")");
             }
@@ -205,7 +215,20 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
                      Integer displayColor) {
         this(type, count, damage, displayName, enchantments, unbreakable,
                 repairCost, hideFlags, lore, blockEntityTag, canDestroy, canPlaceOn,
-                displayColor, null);
+                displayColor, null, null);
+    }
+
+    /** The pre-K1 fourteen-arg shape (the compatibility constructor). */
+    public ItemStack(ItemType type, int count, int damage, String displayName,
+                     Map<Integer, Integer> enchantments, boolean unbreakable,
+                     int repairCost, int hideFlags, List<String> lore,
+                     Map<String, Object> blockEntityTag,
+                     List<String> canDestroy, List<String> canPlaceOn,
+                     Integer displayColor,
+                     List<AttributeModifier> attributeModifiers) {
+        this(type, count, damage, displayName, enchantments, unbreakable,
+                repairCost, hideFlags, lore, blockEntityTag, canDestroy, canPlaceOn,
+                displayColor, attributeModifiers, null);
     }
 
     /** A fresh stack with no damage and no custom name. */
@@ -246,7 +269,7 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         }
         return new ItemStack(type, newCount, damage, displayName, enchantments,
                 unbreakable, repairCost, hideFlags, lore, blockEntityTag, canDestroy, canPlaceOn,
-                displayColor, attributeModifiers);
+                displayColor, attributeModifiers, skullOwner);
     }
 
     /**
@@ -262,7 +285,7 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         }
         return new ItemStack(type, count, newDamage, displayName, enchantments,
                 unbreakable, repairCost, hideFlags, lore, blockEntityTag, canDestroy, canPlaceOn,
-                displayColor, attributeModifiers);
+                displayColor, attributeModifiers, skullOwner);
     }
 
     /** @return the same stack carrying {@code newName} (null clears the name). */
@@ -272,7 +295,7 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         }
         return new ItemStack(type, count, damage, newName, enchantments,
                 unbreakable, repairCost, hideFlags, lore, blockEntityTag, canDestroy, canPlaceOn,
-                displayColor, attributeModifiers);
+                displayColor, attributeModifiers, skullOwner);
     }
 
     /**
@@ -285,7 +308,7 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         }
         return new ItemStack(type, count, damage, displayName, newEnchantments,
                 unbreakable, repairCost, hideFlags, lore, blockEntityTag, canDestroy, canPlaceOn,
-                displayColor, attributeModifiers);
+                displayColor, attributeModifiers, skullOwner);
     }
 
     // ---------------------------------------------------------------
@@ -299,7 +322,7 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         }
         return new ItemStack(type, count, damage, displayName, enchantments,
                 flag, repairCost, hideFlags, lore, blockEntityTag,
-                canDestroy, canPlaceOn, displayColor, attributeModifiers);
+                canDestroy, canPlaceOn, displayColor, attributeModifiers, skullOwner);
     }
 
     /** @return the same stack carrying the anvil's RepairCost (0 clears). */
@@ -309,7 +332,7 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         }
         return new ItemStack(type, count, damage, displayName, enchantments,
                 unbreakable, Math.max(0, cost), hideFlags, lore, blockEntityTag,
-                canDestroy, canPlaceOn, displayColor, attributeModifiers);
+                canDestroy, canPlaceOn, displayColor, attributeModifiers, skullOwner);
     }
 
     /** @return the same stack carrying the tooltip's HideFlags mask (0 clears). */
@@ -319,7 +342,7 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         }
         return new ItemStack(type, count, damage, displayName, enchantments,
                 unbreakable, repairCost, Math.max(0, flags), lore, blockEntityTag,
-                canDestroy, canPlaceOn, displayColor, attributeModifiers);
+                canDestroy, canPlaceOn, displayColor, attributeModifiers, skullOwner);
     }
 
     /** @return the same stack carrying the display.Lore lines (null clears). */
@@ -329,7 +352,7 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         }
         return new ItemStack(type, count, damage, displayName, enchantments,
                 unbreakable, repairCost, hideFlags, lines, blockEntityTag,
-                canDestroy, canPlaceOn, displayColor, attributeModifiers);
+                canDestroy, canPlaceOn, displayColor, attributeModifiers, skullOwner);
     }
 
     /**
@@ -343,7 +366,7 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         }
         return new ItemStack(type, count, damage, displayName, enchantments,
                 unbreakable, repairCost, hideFlags, lore, rows, canDestroy, canPlaceOn,
-                displayColor, attributeModifiers);
+                displayColor, attributeModifiers, skullOwner);
     }
 
     /**
@@ -356,7 +379,7 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         }
         return new ItemStack(type, count, damage, displayName, enchantments,
                 unbreakable, repairCost, hideFlags, lore, blockEntityTag,
-                keys, canPlaceOn, displayColor, attributeModifiers);
+                keys, canPlaceOn, displayColor, attributeModifiers, skullOwner);
     }
 
     /**
@@ -369,7 +392,7 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         }
         return new ItemStack(type, count, damage, displayName, enchantments,
                 unbreakable, repairCost, hideFlags, lore, blockEntityTag,
-                canDestroy, keys, displayColor, attributeModifiers);
+                canDestroy, keys, displayColor, attributeModifiers, skullOwner);
     }
 
     /**
@@ -399,7 +422,21 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         }
         return new ItemStack(type, count, damage, displayName, enchantments,
                 unbreakable, repairCost, hideFlags, lore, blockEntityTag,
-                canDestroy, canPlaceOn, displayColor, modifiers);
+                canDestroy, canPlaceOn, displayColor, modifiers, skullOwner);
+    }
+
+    /**
+     * @return the same stack carrying the tag's SkullOwner profile (Wave
+     *         K — the player-head placement consult's own row; null
+     *         clears to the plain Steve head).
+     */
+    public ItemStack withSkullOwner(SkullProfile profile) {
+        if (isEmpty()) {
+            return this;
+        }
+        return new ItemStack(type, count, damage, displayName, enchantments,
+                unbreakable, repairCost, hideFlags, lore, blockEntityTag,
+                canDestroy, canPlaceOn, displayColor, attributeModifiers, profile);
     }
 
     /**
@@ -477,7 +514,7 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         int taken = Math.min(Math.min(amount, count), type.maxStackSize());
         return new ItemStack(type, taken, damage, displayName, enchantments,
                 unbreakable, repairCost, hideFlags, lore, blockEntityTag, canDestroy, canPlaceOn,
-                displayColor, attributeModifiers);
+                displayColor, attributeModifiers, skullOwner);
     }
 
     /**
@@ -507,7 +544,8 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
                 && Objects.equals(a.canDestroy, b.canDestroy)
                 && Objects.equals(a.canPlaceOn, b.canPlaceOn)
                 && Objects.equals(a.displayColor, b.displayColor)
-                && Objects.equals(a.attributeModifiers, b.attributeModifiers);
+                && Objects.equals(a.attributeModifiers, b.attributeModifiers)
+                && Objects.equals(a.skullOwner, b.skullOwner);
     }
 
     /**

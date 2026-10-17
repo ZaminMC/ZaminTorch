@@ -340,4 +340,28 @@ class ItemPersistenceTest {
         assertEquals(11.0f, net.zaminmc.torch.server.item.Tools.heldDamageOf(held),
                 0.0001f, "the fold over the restarted stack (base 1 + 10)");
     }
+    @Test
+    void theSkullOwnerRidesTheZidTail(@TempDir Path dir) throws Exception {
+        // Wave K — the ZID v7 tail: the player head's profile as ONE
+        // parseable-SNBT string row, round-tripped through the store.
+        ItemEntityManager manager = new ItemEntityManager(GROUND, new Random(13), 1);
+        java.util.UUID notchId = java.util.UUID.fromString(
+                "b50ad385-829d-4e11-a963-e6321040d9e1");
+        var head = BuiltinItems.lookup(
+                net.zaminmc.torch.util.Identifier.parse("minecraft:skull")).orElseThrow();
+        manager.spawnDropAtBlock(new Position(2.5, 6.0, 2.5),
+                new ItemStack(head, 1, 3).withSkullOwner(
+                        new net.zaminmc.torch.item.SkullProfile("Notch", notchId, null)),
+                0);
+
+        ItemDataStore store = new ItemDataStore(dir.resolve("items.bin"));
+        store.save(manager.snapshot());
+        var loaded = store.load();
+        assertEquals(1, loaded.size());
+        net.zaminmc.torch.item.SkullProfile owner =
+                loaded.get(0).stack().skullOwner();
+        assertTrue(owner != null, "the arm rode the v7 tail");
+        assertEquals("Notch", owner.name());
+        assertEquals(notchId, owner.id());
+    }
 }
