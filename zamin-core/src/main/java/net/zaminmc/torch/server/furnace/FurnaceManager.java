@@ -54,7 +54,53 @@ public final class FurnaceManager {
         this.contentsChanged = listener;
     }
 
-    /** Binds the per-position wake to a block entity. */
+    /**
+     * The public §27.7 burn + smelt gates (Slice 82): fires the
+     * FurnaceBurnEvent / FurnaceSmeltEvent at the entity's own decision
+     * points. The world name is captured at the tick's entry (the gates
+     * run on the tick thread inside the same tick call — the single
+     * writer's own context).
+     */
+    private volatile net.zaminmc.torch.server.event.EngineEventBus eventBus;
+    private String tickWorldName; // tick-thread only (captured at tick entry)
+
+    /** Wires the public §27.7 gates (the burn + smelt observe hooks). */
+    public void setEventBus(net.zaminmc.torch.server.event.EngineEventBus eventBus) {
+        this.eventBus = Objects.requireNonNull(eventBus, "eventBus");
+    }
+
+    /** The entity-side gate adapter: the events over the captured world name. */
+    private final FurnaceBlockEntity.Gates publicGates = new FurnaceBlockEntity.Gates() {
+        @Override
+        public boolean allowIgnite(net.zaminmc.torch.item.ItemStack fuel, int burnTicks) {
+            var bus = eventBus;
+            if (bus == null) {
+                return true;
+            }
+            var event = new net.zaminmc.torch.event.block.FurnaceBurnEvent(
+                    tickWorldName, gatePosition, fuel, burnTicks);
+            bus.fire(event);
+            return !event.cancelled();
+        }
+
+        @Override
+        public boolean allowSmelt(net.zaminmc.torch.item.ItemStack input,
+                                  net.zaminmc.torch.item.ItemStack result) {
+            var bus = eventBus;
+            if (bus == null) {
+                return true;
+            }
+            var event = new net.zaminmc.torch.event.block.FurnaceSmeltEvent(
+                    tickWorldName, gatePosition, input, result);
+            bus.fire(event);
+            return !event.cancelled();
+        }
+    };
+
+    /** The firing entity's position (tick-thread only, set before each gate). */
+    private BlockPosition gatePosition;
+
+    /** Binds the per-position wake + the public gates to a block entity. */
     private void wire(BlockPosition position, FurnaceBlockEntity entity) {
         entity.setContentsListener(() -> {
             java.util.function.Consumer<BlockPosition> fan = contentsChanged;
@@ -62,6 +108,7 @@ public final class FurnaceManager {
                 fan.accept(position);
             }
         });
+        entity.setGates(publicGates);
     }
 
     /** @return the furnace state at the position, creating it on first use. */
@@ -113,8 +160,10 @@ public final class FurnaceManager {
      * dies — the block change also feeds the light engine its 13-level glow.
      */
     public void tick(EngineWorld world, ItemEntityManager items) {
+        tickWorldName = world.name(); // the gates' world row (this tick's own)
         furnaces.entrySet().removeIf(entry -> {
             BlockPosition position = entry.getKey();
+            gatePosition = position; // the firing entity's own row
             FurnaceBlockEntity furnace = entry.getValue();
             if (!isFurnaceBlock(world, position)) {
                 // The block-gone discard only decides on a LOADED chunk —
