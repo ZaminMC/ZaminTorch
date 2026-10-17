@@ -592,6 +592,66 @@ class MissingCommandsWaveOneTest {
         assertEquals(8, server.scoreboard().getScore("Alice", objective).get());
     }
 
+    @Test
+    void theReplaceItemArm() throws Exception {
+        // The entity arm: the hotbar family.
+        dispatch("/replaceitem entity Alice slot.hotbar.0 stone 5");
+        await(() -> !alice.inventory().slot(0).isEmpty()
+                        && alice.inventory().slot(0).type().identifier().value().equals("stone")
+                        && alice.inventory().slot(0).count() == 5,
+                "the hotbar slot landed");
+
+        // The weapon slot writes the held cell.
+        dispatch("/replaceitem entity Alice slot.weapon glass 3");
+        await(() -> !alice.inventory().held().isEmpty()
+                        && alice.inventory().held().type().identifier().value().equals("glass"),
+                "the weapon slot landed");
+
+        // The inventory family: slot.inventory.0 is index 9.
+        dispatch("/replaceitem entity Alice slot.inventory.0 cobblestone 2");
+        await(() -> !alice.inventory().slot(9).isEmpty()
+                        && alice.inventory().slot(9).type().identifier().value().equals("cobblestone"),
+                "the inventory slot landed");
+
+        // The literal air clears.
+        dispatch("/replaceitem entity Alice slot.hotbar.0 air");
+        await(() -> alice.inventory().slot(0).isEmpty(), "the air form cleared the slot");
+
+        // The ender chest family.
+        dispatch("/replaceitem entity Alice slot.enderchest.3 dirt 4");
+        await(() -> !alice.enderChest().getItem(3).isEmpty()
+                        && alice.enderChest().getItem(3).type().identifier().value().equals("dirt"),
+                "the ender chest slot landed");
+
+        // The unsupported family refuses.
+        dispatch("/replaceitem entity Alice slot.villager.0 stone");
+        Thread.sleep(300);
+
+        // The block arm: a chest placed and filled through its container
+        // slot (the tile appears on the write — the engine's lazy
+        // first-use creation).
+        int x = (int) Math.floor(alice.position().x());
+        int y = (int) Math.floor(alice.position().y());
+        int z = (int) Math.floor(alice.position().z());
+        dispatch("/setblock ~2 ~ ~ chest");
+        var chestPos = new net.zaminmc.torch.block.BlockPosition(x + 2, y, z);
+        await(() -> server.world().getBlock(chestPos).identifier().value().equals("chest"),
+                "the chest block landed");
+        dispatch("/replaceitem block ~2 ~ ~ slot.container.0 stone 7");
+        await(() -> {
+            var chest = server.chests().peek(chestPos);
+            return chest != null && !chest.getItem(0).isEmpty()
+                    && chest.getItem(0).type().identifier().value().equals("stone")
+                    && chest.getItem(0).count() == 7;
+        }, "the chest's container slot landed");
+
+        // The no-container refusal (the plain stone beside it).
+        dispatch("/replaceitem block ~3 ~ ~ slot.container.0 stone");
+        Thread.sleep(300);
+        var beside = new net.zaminmc.torch.block.BlockPosition(x + 3, y, z);
+        assertEquals("air", server.world().getBlock(beside).identifier().value());
+    }
+
     private net.zaminmc.torch.server.chat.CommandSender aliceSender() {
         return new net.zaminmc.torch.server.chat.CommandSender() {
             @Override public String name() {

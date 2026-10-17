@@ -16498,6 +16498,9 @@ public final class EngineServer implements Server, EngineBridge {
         commands.register(new CommandService.Command("stats",
                 "Bind command stats: /stats <entity <player>|block <x y z>> <set <stat> <source> <objective>|clear <stat>>",
                 2, this::statsCommand));
+        commands.register(new CommandService.Command("replaceitem",
+                "Replace a slot: /replaceitem <entity <player>|block <x y z>> <slot> <item> [count] [metadata]",
+                2, this::replaceitemCommand));
         commands.register(new CommandService.Command("time",
                 "Query or set the day: /time query | /time set <day|noon|night|midnight|ticks>",
                 this::timeCommand));
@@ -18111,6 +18114,211 @@ public final class EngineServer implements Server, EngineBridge {
         }
         results.clear(type);
         return "Cleared the " + type.getName() + " statistic";
+    }
+
+    /** The reference's SLOTS_BY_ID table, verbatim. */
+    private static final java.util.Map<String, Integer> REPLACE_ITEM_SLOTS = buildReplaceItemSlots();
+
+    private static java.util.Map<String, Integer> buildReplaceItemSlots() {
+        java.util.Map<String, Integer> slots = new java.util.HashMap<>();
+        for (int i = 0; i < 54; i++) {
+            slots.put("slot.container." + i, i);
+        }
+        for (int j = 0; j < 9; j++) {
+            slots.put("slot.hotbar." + j, j);
+        }
+        for (int k = 0; k < 27; k++) {
+            slots.put("slot.inventory." + k, 9 + k);
+        }
+        for (int l = 0; l < 27; l++) {
+            slots.put("slot.enderchest." + l, 200 + l);
+        }
+        for (int i1 = 0; i1 < 8; i1++) {
+            slots.put("slot.villager." + i1, 300 + i1);
+        }
+        for (int j1 = 0; j1 < 15; j1++) {
+            slots.put("slot.horse." + j1, 500 + j1);
+        }
+        slots.put("slot.weapon", 99);
+        slots.put("slot.armor.head", 103);
+        slots.put("slot.armor.chest", 102);
+        slots.put("slot.armor.legs", 101);
+        slots.put("slot.armor.feet", 100);
+        slots.put("slot.horse.saddle", 400);
+        slots.put("slot.horse.armor", 401);
+        slots.put("slot.horse.chest", 499);
+        return java.util.Collections.unmodifiableMap(slots);
+    }
+
+    /**
+     * /replaceitem (ReplaceItemCommand 1:1, op-2): the entity arm (the
+     * any-kind ladder — the player's weapon/armor/hotbar/inventory/
+     * enderchest slots; the mob's weapon; the unsupported slots refuse)
+     * and the block arm (the container family — chest/furnace/hopper/
+     * brewing/dispenser — with the reference's silent out-of-range
+     * skip), the reference's own slot table, the literal air's clear
+     * form, the 1..64 count bounds, the metadata, and the AFFECTED_ITEMS
+     * stat pair. The villager/horse slot families answer the failed
+     * refusal (the engine models those inventories nowhere — ledgered);
+     * the player armor write keeps the engine's kind gate (the
+     * reference's raw array write — ledgered).
+     */
+    private String replaceitemCommand(CommandSender sender, String[] args) {
+        if (args.length < 1) {
+            return "Usage: /replaceitem <entity <player>|block <x y z>> <slot> <item> [count] [metadata]";
+        }
+        boolean block;
+        int i;
+        if (args[0].equals("entity")) {
+            block = false;
+            if (args.length < 4) {
+                return "Usage: /replaceitem entity <player> <slot> <item> [count] [metadata]";
+            }
+            i = 2;
+        } else if (args[0].equals("block")) {
+            block = true;
+            if (args.length < 6) {
+                return "Usage: /replaceitem block <x y z> <slot> <item> [count] [metadata]";
+            }
+            i = 4;
+        } else {
+            return "Usage: /replaceitem <entity <player>|block <x y z>> <slot> <item> [count] [metadata]";
+        }
+        Integer slotId = REPLACE_ITEM_SLOTS.get(args[i++]);
+        if (slotId == null) {
+            return "Invalid parameter '" + args[i - 1] + "'";
+        }
+        final int j = slotId;
+        // The item parse: a registry item, or the literal air (the clear form).
+        String rawName = args[i].contains(":") ? args[i] : "minecraft:" + args[i];
+        net.zaminmc.torch.item.ItemStack stack = null;
+        String displayName;
+        int count = 1;
+        if (rawName.equals("minecraft:air")) {
+            displayName = "Air";
+        } else {
+            var type = net.zaminmc.torch.server.item.BuiltinItems.lookup(
+                    net.zaminmc.torch.util.Identifier.parse(rawName)).orElse(null);
+            if (type == null) {
+                return "There is no such item with name " + args[i];
+            }
+            i++;
+            try {
+                count = args.length > i
+                        ? net.zaminmc.torch.server.command.CommandParse.parseInt(args[i++], 1, 64)
+                        : 1;
+            } catch (RuntimeException e) {
+                return e.getMessage();
+            }
+            int meta = 0;
+            if (args.length > i) {
+                try {
+                    meta = net.zaminmc.torch.server.command.CommandParse.parseInt(args[i++]);
+                } catch (RuntimeException e) {
+                    return e.getMessage();
+                }
+            }
+            try {
+                stack = net.zaminmc.torch.item.ItemStack.of(type, count).withDamage(meta);
+            } catch (IllegalArgumentException invalidVariant) {
+                return "Cannot grant that metadata: " + invalidVariant.getMessage();
+            }
+            displayName = type.displayName();
+        }
+        final net.zaminmc.torch.item.ItemStack placed = stack;
+        final String name = displayName;
+        sender.addResult(net.zaminmc.torch.server.command.EngineCommandResults.Type.AFFECTED_ITEMS, 0);
+        if (block) {
+            int bx;
+            int by;
+            int bz;
+            try {
+                bx = (int) Math.floor(net.zaminmc.torch.server.command.CommandParse
+                        .parseCoordinate(sender.sourcePos()[0], args[1]));
+                by = (int) Math.floor(net.zaminmc.torch.server.command.CommandParse
+                        .parseCoordinate(sender.sourcePos()[1], args[2]));
+                bz = (int) Math.floor(net.zaminmc.torch.server.command.CommandParse
+                        .parseCoordinate(sender.sourcePos()[2], args[3]));
+            } catch (RuntimeException e) {
+                return e.getMessage();
+            }
+            var pos = new net.zaminmc.torch.block.BlockPosition(bx, by, bz);
+            // The container families resolve by the BLOCK's identity (the
+            // engine creates the tile lazily on first use — the reference's
+            // tile exists since placement; getOrCreate stands in).
+            String blockName = worldFor(sender.sourceDimension())
+                    .getBlock(pos).identifier().value();
+            var empty = net.zaminmc.torch.item.ItemStack.EMPTY;
+            if (blockName.equals("chest") || blockName.equals("trapped_chest")) {
+                if (j >= 0 && j < net.zaminmc.torch.server.chest.ChestBlockEntity.SLOT_COUNT) {
+                    chestManager.getOrCreate(pos).setSlot(j, placed != null ? placed : empty);
+                }
+            } else if (blockName.equals("furnace") || blockName.equals("lit_furnace")) {
+                if (j >= 0 && j < net.zaminmc.torch.server.furnace.FurnaceBlockEntity.SLOT_COUNT) {
+                    furnaceManager.getOrCreate(pos).setSlot(j, placed != null ? placed : empty);
+                }
+            } else if (blockName.startsWith("hopper")) {
+                if (j >= 0 && j < net.zaminmc.torch.server.hopper.HopperBlockEntity.SLOT_COUNT) {
+                    hopperSystem.getOrCreate(pos).setItem(j, placed); // null empties
+                }
+            } else if (blockName.startsWith("brewing_stand")) {
+                if (j >= 0 && j < net.zaminmc.torch.server.brewing.BrewingStandBlockEntity.SLOT_COUNT) {
+                    brewingStands.getOrCreate(pos).setItem(j, placed);
+                }
+            } else if (blockName.startsWith("dispenser") || blockName.startsWith("dropper")) {
+                if (j >= 0 && j < net.zaminmc.torch.server.dispenser.DispenserBlockEntity.SLOT_COUNT) {
+                    dispenserSystem.getOrCreate(pos).setItem(j, placed);
+                }
+            } else {
+                return "There is no container at " + bx + ", " + by + ", " + bz;
+            }
+        } else {
+            net.zaminmc.torch.server.command.TargetSelector.Candidate entity;
+            try {
+                entity = net.zaminmc.torch.server.command.CommandParse
+                        .parseEntity(players, sender, args[1]);
+            } catch (RuntimeException e) {
+                return e.getMessage();
+            }
+            boolean replaced;
+            if (entity.player()) {
+                PlayerSession session = (PlayerSession) entity.handle();
+                var inventory = session.inventory();
+                var empty = net.zaminmc.torch.item.ItemStack.EMPTY;
+                if (j == 99) {
+                    // slot.weapon: the held hotbar cell.
+                    inventory.setSlot(inventory.heldSlot(), placed != null ? placed : empty);
+                    replaced = true;
+                } else if (j >= 100 && j <= 103) {
+                    // The armor family: the engine's index (0=head..3=feet)
+                    // is the id's mirror (100=feet..103=head). The engine's
+                    // kind gate stands (the reference's raw write — ledgered).
+                    replaced = inventory.setArmor(3 - (j - 100), placed != null ? placed : empty);
+                } else if (j >= 0 && j < 36) {
+                    inventory.setSlot(j, placed != null ? placed : empty);
+                    replaced = true;
+                } else if (j >= 200 && j < 227) {
+                    session.enderChest().setSlot(j - 200, placed != null ? placed : empty);
+                    replaced = true;
+                } else {
+                    replaced = false; // villager/horse (the engine models none — ledgered)
+                }
+            } else {
+                net.zaminmc.torch.server.entity.MobEntity mob =
+                        (net.zaminmc.torch.server.entity.MobEntity) entity.handle();
+                if (j == 99) {
+                    mob.setHeldEquipment(placed);
+                    replaced = true;
+                } else {
+                    replaced = false; // the mob armor/villager/horse families (ledgered)
+                }
+            }
+            if (!replaced) {
+                return "Could not replace slot " + j + " with " + count + " x " + name;
+            }
+        }
+        sender.addResult(net.zaminmc.torch.server.command.EngineCommandResults.Type.AFFECTED_ITEMS, count);
+        return "Replaced slot " + j + " with " + count + " x " + name;
     }
 
     /**
