@@ -63,7 +63,7 @@ class WolfEntityTest {
         assertEquals(2.0f, wolf.attackDamage(), 1e-6f); // the wild kind default
         assertTrue(wolf.ownerName().isEmpty());
 
-        wolf.tameWolf("Owner");
+        wolf.tameWolf("Owner", "");
         assertTrue(wolf.wolfTamed());
         assertEquals("Owner", wolf.ownerName());
         assertEquals(20.0f, wolf.health(), 1e-6f); // setHealth(20) under the raised ceiling
@@ -80,7 +80,7 @@ class WolfEntityTest {
     @Test
     void theTamedBodyHealsToItsOwnCeiling() {
         MobEntity wolf = wolf(12L);
-        wolf.tameWolf("Owner");
+        wolf.tameWolf("Owner", "");
         // Hurt below the tamed ceiling, heal back to 20 (not the wild 8).
         wolf.hurt(6.0f);
         assertEquals(14.0f, wolf.health(), 1e-6f);
@@ -91,7 +91,7 @@ class WolfEntityTest {
     @Test
     void theSitToggleAndTheAngryClear() {
         MobEntity wolf = wolf(13L);
-        wolf.tameWolf("Owner");
+        wolf.tameWolf("Owner", "");
         assertTrue(wolf.wolfSitting());
         wolf.toggleWolfSitting();
         assertFalse(wolf.wolfSitting());
@@ -117,8 +117,8 @@ class WolfEntityTest {
         b.enterLove(2);
         assertFalse(a.canBreedWith(b));
 
-        a.tameWolf("Owner");
-        b.tameWolf("Owner");
+        a.tameWolf("Owner", "");
+        b.tameWolf("Owner", "");
         // The tame starts both sitting (sitGoal.setEnabledWithOwner(true))
         // — the sitting gate refuses while they sit.
         assertTrue(a.wolfSitting());
@@ -149,7 +149,7 @@ class WolfEntityTest {
         assertFalse(wild.persistent(), "the wild wolf is not persistent");
 
         MobEntity tamed = wolf(17L);
-        tamed.tameWolf("Owner");
+        tamed.tameWolf("Owner", "");
         for (int i = 0; i < 3000; i++) {
             tamed.tick(false);
         }
@@ -169,7 +169,7 @@ class WolfEntityTest {
                     "the angry body always growls");
         }
         MobEntity weakTamed = wolf(32L);
-        weakTamed.tameWolf("Owner");
+        weakTamed.tameWolf("Owner", "");
         weakTamed.setHealthCarried(6.0f);
         boolean whined = false, barkedWeak = false;
         for (int i = 0; i < 600; i++) {
@@ -184,7 +184,7 @@ class WolfEntityTest {
         assertTrue(whined, "the 1/3 whine arm observed under 10 health");
         assertTrue(barkedWeak, "the 2/3 bark arm observed");
         MobEntity strongTamed = wolf(33L);
-        strongTamed.tameWolf("Owner");
+        strongTamed.tameWolf("Owner", "");
         strongTamed.setHealthCarried(20.0f);
         boolean panted = false, barkedStrong = false;
         for (int i = 0; i < 600; i++) {

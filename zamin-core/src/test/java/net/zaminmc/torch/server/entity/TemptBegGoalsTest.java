@@ -176,7 +176,7 @@ class TemptBegGoalsTest {
         assertTrue(cat.postureFlags() == 0x10);
 
         // The tamed cat never flees (onTamedChanged's own removal).
-        cat.tameOcelot("Owner", 1);
+        cat.tameOcelot("Owner", "", 1);
         assertFalse(cat.goalFleePlayerCanUse(), "the tamed cat stands its ground");
     }
 
@@ -212,12 +212,12 @@ class TemptBegGoalsTest {
 
         // The beef begs any wolf (the breeding family); the bone begs only
         // the untamed one.
-        dog.tameWolf("Owner");
+        dog.tameWolf("Owner", "");
         world.player.held = "minecraft:beef";
         world.player.position = new Position(5.5, 8.0, 0.5);
         assertTrue(dog.goalBegCanUse(), "the meat family begs the tamed wolf too");
         dog.goalBegTick();
-        dog.tameWolf("Owner"); // idempotent flag state
+        dog.tameWolf("Owner", ""); // idempotent flag state
         world.player.held = "minecraft:bone";
         dog.setWolfBegging(false);
         assertFalse(dog.goalBegCanUse(), "the bone no longer begs the tamed wolf");

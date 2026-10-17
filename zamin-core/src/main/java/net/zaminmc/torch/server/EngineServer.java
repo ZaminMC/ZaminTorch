@@ -4944,7 +4944,8 @@ public final class EngineServer implements Server, EngineBridge {
                 // wolves join the fight on the victim (the owner's own
                 // getLastAttackedMob + getLastAttackTime change, the event-site
                 // arm).
-                mobManager.ownerWolvesJoinFight(attacker.name(), mob);
+                mobManager.ownerWolvesJoinFight(attacker.name(),
+                    attacker.uuid().toString(), mob);
                 // The knockback-enchantment extra rides the attacker's look
                 // yaw (the reference's addVelocity arm), and the attacker's
                 // motion decays to 60% with the sprint wiped (lines 983-992).
@@ -11323,7 +11324,7 @@ public final class EngineServer implements Server, EngineBridge {
             // The owner's empty-hand verb (lines 327-332): the sit toggle —
             // a held breeding food feeds through the fall-through below
             // instead (the reference's own isBreedingItem gate).
-            if (mob.ownerName().equals(player.name())
+            if (mob.isOwner(player)
                     && !isBreedingItem(mob.type(), heldId)) {
                 mob.toggleWolfSitting();
                 publishWolfState(mob);
@@ -11335,7 +11336,7 @@ public final class EngineServer implements Server, EngineBridge {
             // the owner, the sitting start, the hearts) or smokes.
             eatFromHand(player);
             if (gameplayRandom.nextInt(3) == 0) {
-                mob.tameWolf(player.name());
+                mob.tameWolf(player.name(), player.uuid().toString());
                 publishWolfState(mob);
                 sendMobStatusToAll(mob, 7); // the taming hearts
             } else {
@@ -11372,7 +11373,7 @@ public final class EngineServer implements Server, EngineBridge {
         if (mob.wolfTamed()) {
             // The owner's empty-hand verb: the sit toggle (a held breeding
             // fish feeds through the fall-through instead).
-            if (mob.ownerName().equals(player.name())
+            if (mob.isOwner(player)
                     && !isBreedingItem(mob.type(), heldId)) {
                 mob.toggleWolfSitting();
                 publishWolfState(mob);
@@ -11385,7 +11386,8 @@ public final class EngineServer implements Server, EngineBridge {
             // eaten; the 1-in-3 lands the flag, the coat, the owner, the sit.
             eatFromHand(player);
             if (gameplayRandom.nextInt(3) == 0) {
-                mob.tameOcelot(player.name(), 1 + gameplayRandom.nextInt(3));
+                mob.tameOcelot(player.name(), player.uuid().toString(),
+                        1 + gameplayRandom.nextInt(3));
                 publishWolfState(mob);
                 sendMobStatusToAll(mob, 7); // the taming hearts
             } else {
@@ -11593,7 +11595,8 @@ public final class EngineServer implements Server, EngineBridge {
         if (player.ridingAny()) {
             return;
         }
-        mobManager.mountMob(mob, player.engineEntityId());
+        mobManager.mountMob(mob, player.engineEntityId(),
+                player.name(), player.uuid().toString());
     }
 
     /** Re-publishes the index-16 horse flags to the observers (deltas ride the 0x1C). */
@@ -14707,7 +14710,8 @@ public final class EngineServer implements Server, EngineBridge {
             // wolves join the fight on the attacker (the owner's own
             // getAttacker + getLastAttackedTime change, the event-site arm).
             if (mobManager != null && !mob.dead()) {
-                mobManager.ownerWolvesJoinFight(target.name(), mob);
+                mobManager.ownerWolvesJoinFight(target.name(),
+                        target.uuid().toString(), mob);
             }
             // The same-thread survival damage path; the victim's armor eats
             // its share first (the 1.8 envelope), then the enchantment-

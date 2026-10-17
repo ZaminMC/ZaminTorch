@@ -39,7 +39,7 @@ public final class MobDataStore {
     private static final int MAGIC_0 = 'Z';
     private static final int MAGIC_1 = 'M';
     private static final int MAGIC_2 = 'D';
-    private static final int FORMAT_VERSION = 5;
+    private static final int FORMAT_VERSION = 6;
 
     /** The v4 store's own version (Slice 78b's shape — the load keeps reading it). */
     private static final int FORMAT_VERSION_4 = 4;
@@ -94,6 +94,10 @@ public final class MobDataStore {
                     // The v5 command-stat tail (Slice 90): the bound pairs
                     // after the NBT rows.
                     writeCommandStatsPairs(out, mob.commandStats());
+                    // The v6 tameable/horse tail (Slice 92): the owner
+                    // pair, the tamed bit, the family's sitting/angry, the
+                    // horse's bred markers.
+                    writeTameExtras(out, mob.tame());
                 }
             }
             Files.move(temp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
@@ -140,10 +144,13 @@ public final class MobDataStore {
                 // The v5 command-stat tail (Slice 90 — the reference's
                 // Entity.writeNbt line 1128: every entity carries its
                 // CommandResults in the save).
-                java.util.Map<String, String> commandStats = version >= FORMAT_VERSION
+                java.util.Map<String, String> commandStats = version >= 5
                         ? readCommandStatsPairs(in) : null;
+                // The v6 tameable/horse tail (Slice 92).
+                MobManager.MobTameExtras tame = version >= FORMAT_VERSION
+                        ? readTameExtras(in) : null;
                 loaded.add(new MobManager.MobSnapshot(type, x, y, z, yaw, health,
-                        extras, nbt, commandStats));
+                        extras, nbt, commandStats, tame));
             }
             return loaded;
         } catch (IOException | RuntimeException corrupt) {
@@ -243,6 +250,56 @@ public final class MobDataStore {
     private static final int NBT_FLAG_ATTACK_DAMAGE = 0x80;
 
     /** Writes the command-stat pairs (the v5 tail): the pair count then the key/value strings. */
+
+    private static void writeNullableString(DataOutputStream out, String value)
+            throws IOException {
+        if (value == null) {
+            out.writeByte(0);
+            return;
+        }
+        out.writeByte(1);
+        writeString(out, value);
+    }
+
+    private static String readNullableString(DataInputStream in) throws IOException {
+        if (in.readByte() == 0) {
+            return null;
+        }
+        return readString(in);
+    }
+
+    /**
+     * The v6 tameable/horse tail (Slice 92): a null marker byte, else the
+     * present byte + the owner pair + the flags.
+     */
+    private static void writeTameExtras(DataOutputStream out,
+            MobManager.MobTameExtras tame) throws IOException {
+        if (tame == null) {
+            out.writeByte(0);
+            return;
+        }
+        out.writeByte(1);
+        writeNullableString(out, tame.ownerName());
+        writeNullableString(out, tame.ownerUuid());
+        out.writeBoolean(tame.tamed());
+        out.writeBoolean(tame.sitting());
+        out.writeBoolean(tame.angry());
+        out.writeBoolean(tame.horseBred());
+        out.writeBoolean(tame.horseHasReproduced());
+    }
+
+    /** The tail's read (the mirror of {@link #writeTameExtras}). */
+    private static MobManager.MobTameExtras readTameExtras(DataInputStream in)
+            throws IOException {
+        if (in.readByte() == 0) {
+            return null;
+        }
+        String ownerName = readNullableString(in);
+        String ownerUuid = readNullableString(in);
+        return new MobManager.MobTameExtras(ownerName, ownerUuid,
+                in.readBoolean(), in.readBoolean(), in.readBoolean(),
+                in.readBoolean(), in.readBoolean());
+    }
     private static void writeCommandStatsPairs(DataOutputStream out,
             java.util.Map<String, String> commandStats) throws IOException {
         int count = commandStats == null ? 0 : commandStats.size();

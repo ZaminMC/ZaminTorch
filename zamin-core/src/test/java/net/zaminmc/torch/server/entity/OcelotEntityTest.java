@@ -64,7 +64,7 @@ class OcelotEntityTest {
         // is its own — the cat keeps whatever it had under the same 10).
         cat.hurt(3.0f);
         assertEquals(7.0f, cat.health(), 1e-6f);
-        cat.tameOcelot("Owner", 2);
+        cat.tameOcelot("Owner", "", 2);
         assertTrue(cat.wolfTamed());
         assertEquals("Owner", cat.ownerName());
         assertEquals(2, cat.catVariant()); // 1 + nextInt(3): the tamed coats
@@ -82,8 +82,8 @@ class OcelotEntityTest {
         b.enterLove(2);
         assertFalse(a.canBreedWith(b), "wild cats never breed");
 
-        a.tameOcelot("Owner", 1);
-        b.tameOcelot("Owner", 3);
+        a.tameOcelot("Owner", "", 1);
+        b.tameOcelot("Owner", "", 3);
         assertTrue(a.wolfSitting());
         assertFalse(a.canBreedWith(b), "the sitting gate");
         a.toggleWolfSitting();
@@ -95,7 +95,7 @@ class OcelotEntityTest {
         // A wolf and an ocelot never breed (the kind gate).
         MobEntity dog = new MobEntity(601, MobType.WOLF, new Position(0.5, 8.0, 0.5),
                 new Random(24L), worldAt());
-        dog.tameWolf("Owner");
+        dog.tameWolf("Owner", "");
         dog.toggleWolfSitting();
         a.enterLove(1);
         assertFalse(a.canBreedWith(dog));
@@ -112,7 +112,7 @@ class OcelotEntityTest {
         assertFalse(wild.persistent());
 
         MobEntity tamed = ocelot(26L);
-        tamed.tameOcelot("Owner", 1);
+        tamed.tameOcelot("Owner", "", 1);
         for (int i = 0; i < 3000; i++) {
             tamed.tick(false);
         }
@@ -130,7 +130,7 @@ class OcelotEntityTest {
             assertEquals("", wild.effectiveIdleSound(), "the wild cat is silent");
         }
         MobEntity cat = ocelot(42L);
-        cat.tameWolf("Owner");
+        cat.tameWolf("Owner", "");
         cat.enterLove(9);
         for (int i = 0; i < 20; i++) {
             assertEquals("mob.cat.purr", cat.effectiveIdleSound(),

@@ -190,8 +190,8 @@ class BreedingAndDonkeyChestTest {
         a.enterLove(1);
         b.enterLove(2);
         assertFalse(a.canBreedWith(b), "untamed horses never breed");
-        a.tame("a");
-        b.tame("b");
+        a.tame("a", "");
+        b.tame("b", "");
         assertTrue(a.canBreedWith(b), "tamed full-health adults in love qualify");
     }
 
@@ -257,7 +257,7 @@ class BreedingAndDonkeyChestTest {
 
     private static void tameAndLove(MobEntity horse) {
         // The taming slice's tame bit, then the love.
-        horse.tame("tester");
+        horse.tame("tester", "");
         horse.setBreedingAge(0);
         horse.enterLove(1);
     }
@@ -289,7 +289,7 @@ class BreedingAndDonkeyChestTest {
         MobEntity donkey = new MobEntity(1, MobType.HORSE, new Position(0.5, 4.0, 0.5),
                 new Random(1), worldAt());
         donkey.setHorseSubtype(MobEntity.HORSE_SUBTYPE_DONKEY);
-        donkey.tame("tester");
+        donkey.tame("tester", "");
         donkey.applySaddle();
         donkey.setChested(true);
         donkey.setChestSlot(0, ItemStack.of(BuiltinItems.WHEAT, 32));

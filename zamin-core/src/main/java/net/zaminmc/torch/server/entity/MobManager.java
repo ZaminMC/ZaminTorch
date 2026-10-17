@@ -997,12 +997,13 @@ public final class MobManager {
      * for pigs and tamed horses. Returns whether the rider is in the seat.
      * Tick-thread context.
      */
-    public boolean mountMob(MobEntity mob, int riderEngineId) {
+    public boolean mountMob(MobEntity mob, int riderEngineId,
+            String ownerName, String ownerUuid) {
         Objects.requireNonNull(mob, "mob");
         if (!mob.isMountable() || mob.hasRider() || mob.dead()) {
             return false;
         }
-        MobEntity.MountAttempt attempt = mob.attemptMount();
+        MobEntity.MountAttempt attempt = mob.attemptMount(ownerName, ownerUuid);
         mob.setRider(riderEngineId);
         for (Listener listener : listeners) {
             listener.onMobMounted(mob, riderEngineId);
@@ -1714,23 +1715,43 @@ public final class MobManager {
      */
     public record MobSnapshot(String type, double x, double y, double z, float yaw,
                               float health, MobStateExtras extras, MobNbtExtras nbt,
-                              java.util.Map<String, String> commandStats) {
+                              java.util.Map<String, String> commandStats,
+                              MobTameExtras tame) {
         /** The v1-compatible shape (no extras — every v1 record loads this way). */
         public MobSnapshot(String type, double x, double y, double z, float yaw, float health) {
-            this(type, x, y, z, yaw, health, null, null, null);
+            this(type, x, y, z, yaw, health, null, null, null, null);
         }
 
         /** The pre-v3 shape (no NBT rows — every v2 record loads this way). */
         public MobSnapshot(String type, double x, double y, double z, float yaw,
                 float health, MobStateExtras extras) {
-            this(type, x, y, z, yaw, health, extras, null, null);
+            this(type, x, y, z, yaw, health, extras, null, null, null);
         }
 
         /** The pre-v5 shape (no command-stat pairs — every v3/v4 record loads this way). */
         public MobSnapshot(String type, double x, double y, double z, float yaw,
                 float health, MobStateExtras extras, MobNbtExtras nbt) {
-            this(type, x, y, z, yaw, health, extras, nbt, null);
+            this(type, x, y, z, yaw, health, extras, nbt, null, null);
         }
+
+        /** The pre-v6 shape (no tame block — every v5 record loads this way). */
+        public MobSnapshot(String type, double x, double y, double z, float yaw,
+                float health, MobStateExtras extras, MobNbtExtras nbt,
+                java.util.Map<String, String> commandStats) {
+            this(type, x, y, z, yaw, health, extras, nbt, commandStats, null);
+        }
+    }
+
+    /**
+     * The tameable/horse state block (Slice 92 — the reference's own world
+     * save rows: TameableEntity's OwnerUUID + Sitting, WolfEntity's Angry,
+     * HorseBaseEntity's Tame/Bred/HasReproduced): null when the body
+     * carries none of it (the plain kinds).
+     */
+    public record MobTameExtras(
+            String ownerName, String ownerUuid,
+            boolean tamed, boolean sitting, boolean angry,
+            boolean horseBred, boolean horseHasReproduced) {
     }
 
     /**
@@ -1849,6 +1870,10 @@ public final class MobManager {
             // Entity.readNbt line 1195: every entity reads its CommandResults
             // back).
             restoreCommandStats(mob, snapshot.commandStats());
+            // The v6 tameable/horse block (Slice 92 — the reference's own
+            // readCustomNbt arms: the owner pair, the tamed bit, the
+            // family's sitting/angry, the horse's bred markers).
+            restoreTameExtras(mob, snapshot.tame());
             any = true;
         }
         return any;
@@ -1919,7 +1944,7 @@ public final class MobManager {
             Position position = mob.position();
             saved.add(new MobSnapshot(mob.type().name(), position.x(), position.y(),
                     position.z(), mob.yaw(), mob.health(), stateExtrasOf(mob),
-                    nbtExtrasOf(mob), commandStatsOf(mob)));
+                    nbtExtrasOf(mob), commandStatsOf(mob), tameExtrasOf(mob)));
         }
         return saved;
     }
@@ -1963,6 +1988,57 @@ public final class MobManager {
         }
         net.zaminmc.torch.server.nbt.NbtOps.putCompound(envelope, "CommandStats", stats);
         mob.commandResults().readNbt(envelope);
+    }
+
+    /** The tameable/horse block's restore (the mirror of {@link #tameExtrasOf}). */
+    static void restoreTameExtras(MobEntity mob, MobTameExtras tame) {
+        if (tame == null) {
+            return;
+        }
+        if (tame.ownerName() != null) {
+            mob.setCustomOwnerName(tame.ownerName());
+        }
+        if (tame.ownerUuid() != null) {
+            mob.setOwnerUuid(tame.ownerUuid());
+        }
+        boolean tameable = mob.type() == MobType.WOLF || mob.type() == MobType.OCELOT;
+        if (tameable) {
+            if (tame.tamed()) {
+                mob.setTamedFlag(true);
+            }
+            mob.setWolfSitting(tame.sitting());
+            mob.setWolfAngry(tame.angry());
+        } else if (mob.type() == MobType.HORSE) {
+            mob.setTamedFlag(tame.tamed());
+            mob.setHorseBred(tame.horseBred());
+            mob.setHorseHasReproduced(tame.horseHasReproduced());
+        }
+    }
+
+    /**
+     * The tameable/horse block's snapshot (Slice 92): the owner pair, the
+     * tamed bit, the tameable family's sitting/angry pair, the horse's
+     * bred markers — null when the body carries none of it.
+     */
+    static MobTameExtras tameExtrasOf(MobEntity mob) {
+        boolean tameable = mob.type() == MobType.WOLF || mob.type() == MobType.OCELOT;
+        boolean horse = mob.type() == MobType.HORSE;
+        if (!tameable && !horse) {
+            return null;
+        }
+        String ownerName = mob.ownerName().isEmpty() ? null : mob.ownerName();
+        String ownerUuid = mob.ownerUuid().isEmpty() ? null : mob.ownerUuid();
+        boolean tamed = tameable ? mob.wolfTamed() : mob.tamed();
+        if (ownerName == null && ownerUuid == null && !tamed
+                && !(tameable && (mob.wolfSitting() || mob.wolfAngry()))
+                && !(horse && (mob.horseBred() || mob.horseHasReproduced()))) {
+            return null;
+        }
+        return new MobTameExtras(ownerName, ownerUuid, tamed,
+                tameable && mob.wolfSitting(),
+                tameable && mob.wolfAngry(),
+                horse && mob.horseBred(),
+                horse && mob.horseHasReproduced());
     }
 
     /** The /summon NBT rows' snapshot (Slice 75): null when none are set. */
@@ -2282,8 +2358,14 @@ public final class MobManager {
      * attacked their owner. A sitting wolf never joins (SitGoal's own
      * claim on the movement).
      */
-    public void ownerWolvesJoinFight(String ownerName, MobEntity target) {
-        if (ownerName == null || ownerName.isEmpty() || target == null || target.dead()) {
+    public void ownerWolvesJoinFight(String ownerName, String ownerUuid,
+            MobEntity target) {
+        if (target == null || target.dead()) {
+            return;
+        }
+        boolean byName = ownerName != null && !ownerName.isEmpty();
+        boolean byUuid = ownerUuid != null && !ownerUuid.isEmpty();
+        if (!byName && !byUuid) {
             return;
         }
         for (MobEntity wolf : mobs) {
@@ -2293,7 +2375,11 @@ public final class MobManager {
             if (wolf.wolfSitting()) {
                 continue; // the sitting pet stays seated
             }
-            if (!ownerName.equals(wolf.ownerName())) {
+            boolean owned = byUuid && ownerUuid.equals(wolf.ownerUuid());
+            if (!owned && byName) {
+                owned = ownerName.equals(wolf.ownerName());
+            }
+            if (!owned) {
                 continue;
             }
             wolf.setMobAttackTarget(target);
