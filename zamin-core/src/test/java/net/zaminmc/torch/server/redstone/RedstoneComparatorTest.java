@@ -131,6 +131,44 @@ class RedstoneComparatorTest {
     }
 
     @Test
+    void theHopperContentChangeWakesTheComparator() throws Exception {
+        EngineServer server = boot();
+        try {
+            // The hopper's own content wake (Slice 91 p5 — the dead
+            // contentsListener wired through the hopper system like every
+            // other container family): a fill inside the 5-slot hopper must
+            // re-arm the comparator exactly like the chest's fill does.
+            int x = 50, z = 50, y = 40;
+            server.ticker().submit(() -> {
+                server.world().setBlock(new BlockPosition(x, y, z),
+                        net.zaminmc.torch.server.hopper.HopperBlocks.hopperOf(0, true));
+                server.world().setBlock(new BlockPosition(x + 1, y - 1, z), BuiltinBlocks.STONE);
+                server.world().setBlock(new BlockPosition(x + 2, y - 1, z), BuiltinBlocks.STONE);
+                server.world().setBlock(new BlockPosition(x + 1, y, z),
+                        RedstoneBlocks.comparatorOf(RedstoneBlocks.FACING_WEST, false, false));
+                server.world().setBlock(new BlockPosition(x + 2, y, z), RedstoneBlocks.wireOfPower(0));
+            });
+            await(() -> RedstoneBlocks.isComparator(typeAt(server, x + 1, y, z)), "the comparator placed");
+            await(() -> wirePower(server, x + 2, y, z) == 0,
+                    "the empty hopper keeps the comparator silent");
+            // One full stack in the 5-slot hopper: floor(14 * 1/5) + 1 = 3
+            // (InventoryMenu.getAnalogSignal over the hopper's own size).
+            server.ticker().submit(() -> server.hopper().getOrCreate(new BlockPosition(x, y, z))
+                    .setItem(0, ItemStack.of(BuiltinItems.STONE, 64)));
+            await(() -> wirePower(server, x + 2, y, z) == 3,
+                    "one stack in the hopper: the fullness 3 wakes the comparator");
+            // The falling arm: emptying the hopper drops the output (the
+            // hopper faces DOWN into open air — nothing pushes or pulls).
+            server.ticker().submit(() -> server.hopper().getOrCreate(new BlockPosition(x, y, z))
+                    .setItem(0, ItemStack.EMPTY));
+            await(() -> wirePower(server, x + 2, y, z) == 0,
+                    "the emptied hopper reads 0 again");
+        } finally {
+            server.shutdown(() -> { });
+        }
+    }
+
+    @Test
     void theSubtractModeTakesTheSideSignalOffTheInput() throws Exception {
         EngineServer server = boot();
         try {
