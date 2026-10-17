@@ -352,4 +352,106 @@ class EntityNbtTest {
     private static PotionSystem potions() {
         return new PotionSystem(new StubBodies());
     }
+
+    @Test
+    void theSheepAndPigRowsRoundTrip() {
+        PotionSystem potions = potions();
+        MobEntity sheep = new MobEntity(11, MobType.SHEEP,
+                new Position(0.5, 64.0, 0.5), new Random(3), new StubWorld());
+        sheep.setSheared(true);
+        sheep.setSheepFleeceColor(6); // DyeColor id 6
+        Map<String, Snbt.Tag> written = new java.util.LinkedHashMap<>();
+        EntityNbt.writeNbtWithoutId(sheep, written, potions);
+        assertTrue(NbtOps.getBoolean(written, "Sheared"));
+        assertEquals(6, NbtOps.getByte(written, "Color"));
+
+        MobEntity loaded = new MobEntity(12, MobType.SHEEP,
+                new Position(0.5, 64.0, 0.5), new Random(3), new StubWorld());
+        EntityNbt.readNbt(loaded, written, potions, null);
+        assertTrue(loaded.sheared());
+        assertEquals(6, loaded.sheepFleeceColor());
+
+        MobEntity pig = new MobEntity(13, MobType.PIG,
+                new Position(0.5, 64.0, 0.5), new Random(3), new StubWorld());
+        Map<String, Snbt.Tag> pigRows = Snbt.parseCompound("{Saddle:true}");
+        EntityNbt.readNbt(pig, pigRows, potions, null);
+        assertTrue(pig.pigSaddled());
+        Map<String, Snbt.Tag> pigWritten = new java.util.LinkedHashMap<>();
+        EntityNbt.writeNbtWithoutId(pig, pigWritten, potions);
+        assertTrue(NbtOps.getBoolean(pigWritten, "Saddle"));
+    }
+
+    @Test
+    void theHorseRowsRoundTripThroughTheItemForms() {
+        PotionSystem potions = potions();
+        MobEntity horse = new MobEntity(14, MobType.HORSE,
+                new Position(0.5, 64.0, 0.5), new Random(3), new StubWorld());
+        horse.setTamedFlag(true);
+        horse.applySaddle();
+        horse.applyArmor(2); // golden
+        horse.setHorseVariant(4 | 2 << 8);
+        horse.setHorseTemper(55);
+        Map<String, Snbt.Tag> written = new java.util.LinkedHashMap<>();
+        EntityNbt.writeNbtWithoutId(horse, written, potions);
+        assertTrue(NbtOps.getBoolean(written, "Tame"));
+        assertTrue(NbtOps.contains(written, "SaddleItem", Snbt.Tag.Type.COMPOUND));
+        assertEquals("minecraft:saddle",
+                NbtOps.getString(NbtOps.getCompound(written, "SaddleItem"), "id"));
+        assertEquals("minecraft:golden_horse_armor",
+                NbtOps.getString(NbtOps.getCompound(written, "ArmorItem"), "id"));
+        assertEquals(4 | 2 << 8, NbtOps.getInt(written, "Variant"));
+        assertEquals(55, NbtOps.getInt(written, "Temper"));
+
+        MobEntity loaded = new MobEntity(15, MobType.HORSE,
+                new Position(0.5, 64.0, 0.5), new Random(3), new StubWorld());
+        EntityNbt.readNbt(loaded, written, potions, null);
+        assertTrue(loaded.tamed());
+        assertTrue(loaded.saddled());
+        assertEquals(2, loaded.armorType(), "the ArmorItem row's id landed as the armor type");
+        assertEquals(4 | 2 << 8, loaded.variant());
+        assertEquals(55, loaded.temper());
+    }
+
+    @Test
+    void theVillagerWolfZombieRowsRoundTrip() {
+        PotionSystem potions = potions();
+        MobEntity villager = new MobEntity(16, MobType.VILLAGER,
+                new Position(0.5, 64.0, 0.5), new Random(3), new StubWorld());
+        Map<String, Snbt.Tag> villagerRows = Snbt.parseCompound("{Profession:3}");
+        EntityNbt.readNbt(villager, villagerRows, potions, null);
+        assertEquals(3, villager.profession());
+
+        MobEntity wolf = new MobEntity(17, MobType.WOLF,
+                new Position(0.5, 64.0, 0.5), new Random(3), new StubWorld());
+        Map<String, Snbt.Tag> wolfRows = Snbt.parseCompound(
+                "{Tame:true,Sitting:true,Angry:false,CollarColor:5b}");
+        EntityNbt.readNbt(wolf, wolfRows, potions, null);
+        assertTrue(wolf.wolfTamed());
+        assertTrue(wolf.wolfSitting());
+        assertFalse(wolf.wolfAngry());
+        assertEquals(5, wolf.wolfCollarColor());
+
+        MobEntity zombie = new MobEntity(18, MobType.ZOMBIE,
+                new Position(0.5, 64.0, 0.5), new Random(3), new StubWorld());
+        Map<String, Snbt.Tag> zombieRows = Snbt.parseCompound(
+                "{IsVillager:true,IsBaby:true,ConversionTime:120}");
+        EntityNbt.readNbt(zombie, zombieRows, potions, null);
+        assertTrue(zombie.zombieVillager());
+        assertTrue(zombie.isBaby());
+        assertTrue(zombie.zombieConverting());
+        assertEquals(120, zombie.zombieConversionTicks());
+        // The written form: the reference's own gates (IsVillager/IsBaby
+        // only when true, the conversion time always with -1 for off).
+        Map<String, Snbt.Tag> zombieWritten = new java.util.LinkedHashMap<>();
+        EntityNbt.writeNbtWithoutId(zombie, zombieWritten, potions);
+        assertTrue(NbtOps.getBoolean(zombieWritten, "IsVillager"));
+        assertTrue(NbtOps.getBoolean(zombieWritten, "IsBaby"));
+        assertEquals(120, NbtOps.getInt(zombieWritten, "ConversionTime"));
+        // The reference's own read gate: a ConversionTime row arms only
+        // when > -1 — a -1 row (the write's "not converting" marker) is
+        // IGNORED, the countdown keeps whatever it held.
+        EntityNbt.readNbt(zombie, Snbt.parseCompound("{ConversionTime:-1}"), potions, null);
+        assertTrue(zombie.zombieConverting(), "a -1 row does not cancel (the reference's own gate)");
+        assertEquals(120, zombie.zombieConversionTicks());
+    }
 }
