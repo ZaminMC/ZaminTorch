@@ -1456,11 +1456,17 @@ forced back after the merge), the requireOpForPlacingWithNbt op-gate
 (the merged rows equal the written rows: no re-read, still a successful
 placement).
 
-- [ ] H1 — the comparator's OutputSignal store: the Z-family binary
+- [x] H1 — the comparator's OutputSignal store: the Z-family binary
       shape (the ZCD magic over RedstoneSystem's comparatorOutputs
       snapshot — the per-position varint outputs, the version byte) +
       the snapshot/restore surface on RedstoneSystem + the saveAllNow/
-      boot wiring (the ZND pattern);
+      boot wiring (the ZND pattern); DONE — Slice 94 (commit 7de9ad4):
+      the ComparatorDataStore (the reference's whole BE is that one int
+      row), the boot restore beside the redstoneSystem creation (the
+      rows land BEFORE any update — a loaded comparator answers its
+      stored strength straight into getWeakPower), the saveAllNow arm,
+      RedstoneComparatorTest 7 (the chest-fed comparator's live 7 rides
+      the store through the reboot, answered before any update);
 - [ ] H2 — the BlockEntityTag placement arm: the ItemStack model's
       raw-compound arm (the model-less envelope's remains — a raw
       Map<String,Snbt.Tag> carried verbatim), ItemNbt's read/write of
