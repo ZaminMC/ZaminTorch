@@ -1504,6 +1504,40 @@ placement).
       bare FORMAT_VERSION (a v6 file would misparse into the
       quarantine path); it now names FORMAT_VERSION_6.
 
+## Wave I — the adventure gates (CanDestroy/CanPlace)
+
+The evidence (ItemStack.java lines 689-734, PlayerEntity.canUseItemOn
+1509-1521, ServerPlayerInteractionManager 112-133 and 195-211,
+PlayerAbilities): the abilities' mayBuild flag is FALSE in adventure
+and spectator (the engine's PlayerNbt already derives it exactly that
+way); the placement consult (BlockItem.useOn line 39 ->
+canUseItemOn) refuses a placement unless the held stack's CanPlaceOn
+list names the CLICKED block (pos.offset(face.getOpposite()) — the
+block the face belongs to, never the placed family); the mine consults
+(BOTH the dig start and the harvest) refuse unless the stack's
+CanDestroy list names the mined block. Both lists are TAG_LIST of
+TAG_STRING over the block keys (contains(...,9) + getList(...,8));
+the tooltip prints them under HideFlags' 8/16 bits (the tooltip is the
+client's own render — the engine models the data alone).
+canUseOnBlockInAdventureMode answers false across the whole reference
+set (no item overrides it) — the port keeps the constant-false seam.
+
+- [ ] I1 — the model arms + the rows: the canDestroy/canPlaceOn string
+      lists on ItemStack (sanitized immutable, the bare-name
+      normalization the engine's id conventions carry — "stone" and
+      "minecraft:stone" name the same block), the ItemNbt rows
+      (tag.CanDestroy/CanPlaceOn as string lists, write-only-when-
+      carried), the SlotNbt wire arms, the ZID v4/ZMD v9 tails;
+- [ ] I2 — the gates: the derived mayBuild (adventure/spectator), the
+      place gate in both placement walks (the CanPlaceOn consult naming
+      the CLICKED block), the mine gates at the dig start and the
+      finish (the CanDestroy consult naming the mined block), the
+      spectator use guard;
+- [ ] I3 — the tests (the adventure placement refused without the
+      entry and passing with it; the adventure dig refused likewise;
+      the survival path untouched; the arms' rows/wire/tails round
+      trips) + the ledger/worklog rows.
+
 ## Standing (demand-named, not scheduled)
 
 - The shared container-open event (the chest family row's "if demand
