@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Random;
 
 /**
@@ -116,6 +117,9 @@ public final class PistonSystem implements WorldChangeListener {
     private final FxManager fx;
     private final Random random;
 
+    /** The public §27.7 piston-move gate (the observe/cancel hook; null = unwired). */
+    private volatile net.zaminmc.torch.server.event.EngineEventBus eventBus;
+
     /** The two-queue block-event swap (ServerWorld lines 96 + 808-840). */
     private final List<BlockEvent>[] blockEvents = new ArrayList[]{new ArrayList<>(), new ArrayList<>()};
     private int nextBlockEventQueueIndex;
@@ -134,6 +138,41 @@ public final class PistonSystem implements WorldChangeListener {
 
     EngineWorld world() {
         return world;
+    }
+
+    /** Wires the public §27.7 piston-move gate (the observe/cancel hook). */
+    public void setEventBus(net.zaminmc.torch.server.event.EngineEventBus eventBus) {
+        this.eventBus = Objects.requireNonNull(eventBus, "eventBus");
+    }
+
+    /**
+     * The §27.7 pre-commit gate: fires the public PistonMoveEvent with the
+     * resolver's own prospective lists (a fresh resolution — the same pure
+     * walk the movement itself runs) and answers whether the movement
+     * stands. A null bus (the unwired window) admits everything.
+     */
+    private boolean firePistonMoveGate(BlockPosition base, int facing,
+                                       boolean extending, boolean sticky) {
+        var bus = eventBus;
+        if (bus == null) {
+            return true;
+        }
+        PistonStructureResolver resolver =
+                new PistonStructureResolver(this, base, facing, extending);
+        List<BlockPosition> moved;
+        List<BlockPosition> broken;
+        if (resolver.resolve()) {
+            moved = resolver.getToMove();
+            broken = resolver.getToBreak();
+        } else {
+            moved = List.of();
+            broken = List.of();
+        }
+        var event = new net.zaminmc.torch.event.block.PistonMoveEvent(
+                world.name(), base, net.zaminmc.torch.block.Direction.byId(facing),
+                extending, sticky, moved, broken);
+        bus.fire(event);
+        return !event.cancelled();
     }
 
     // ------------------------------------------------------------------
@@ -328,12 +367,20 @@ public final class PistonSystem implements WorldChangeListener {
         }
 
         if (event.type() == 0) {
+            if (!firePistonMoveGate(event.position(), facing, true,
+                    PistonBlocks.pistonSticky(type))) {
+                return false; // the §27.7 gate cancelled the extend
+            }
             if (!move(event.position(), facing, true)) {
                 return false;
             }
             world.setBlock(event.position(), PistonBlocks.pistonOfState(type, true));
             pistonSound(event.position(), "tile.piston.out", 0.25f);
         } else if (event.type() == 1) {
+            if (!firePistonMoveGate(event.position(), facing, false,
+                    PistonBlocks.pistonSticky(type))) {
+                return false; // the §27.7 gate cancelled the retract
+            }
             BlockPosition ahead = event.position().offset(OFFSETS[facing][0],
                     OFFSETS[facing][1], OFFSETS[facing][2]);
             MovingBlock inFlight = movingBlocks.get(ahead);

@@ -58,6 +58,9 @@ public final class FluidSystem implements WorldChangeListener {
         BlockType airType();
 
         long totalTicks();
+
+        /** The world's own name (the public event's world row). */
+        String name();
     }
 
     /** Torch wash-out and fizz feedback. */
@@ -77,12 +80,42 @@ public final class FluidSystem implements WorldChangeListener {
     private final World world;
     private final Sink sink;
 
+    /** The public §27.7 flow gate (the observe/cancel hook; null = unwired). */
+    private volatile net.zaminmc.torch.server.event.EngineEventBus eventBus;
+
     private final ArrayDeque<Scheduled> queue = new ArrayDeque<>();
     private final Set<Long> pending = new HashSet<>();
 
     public FluidSystem(World world, Sink sink) {
         this.world = Objects.requireNonNull(world, "world");
         this.sink = Objects.requireNonNull(sink, "sink");
+    }
+
+    /** Wires the public §27.7 flow gate (the observe/cancel hook). */
+    public void setEventBus(net.zaminmc.torch.server.event.EngineEventBus eventBus) {
+        this.eventBus = Objects.requireNonNull(eventBus, "eventBus");
+    }
+
+    /**
+     * The §27.7 pre-commit gate: fires the public FluidFlowEvent right
+     * before the flow commits and answers whether the cell takes the
+     * fluid. A cancelled flow behaves as blocked ground (the walk's own
+     * rules continue around it). A null bus (the unwired window) admits
+     * everything.
+     */
+    private boolean fireFlowGate(BlockPosition from, BlockPosition target,
+                                 FluidBlocks.Kind kind, int level) {
+        var bus = eventBus;
+        if (bus == null) {
+            return true;
+        }
+        var event = new net.zaminmc.torch.event.block.FluidFlowEvent(
+                world.name(), from, target,
+                (kind == FluidBlocks.Kind.WATER
+                        ? FluidBlocks.WATER_SOURCE : FluidBlocks.LAVA_SOURCE).toString(),
+                level);
+        bus.fire(event);
+        return !event.cancelled();
     }
 
     /**
@@ -221,7 +254,7 @@ public final class FluidSystem implements WorldChangeListener {
     private void spread(BlockPosition position, FluidBlocks.Kind kind, int level) {
         if (position.y() > BlockPosition.MIN_Y) {
             BlockPosition below = position.offset(0, -1, 0);
-            if (handleTarget(below, kind, 8)) {
+            if (handleTarget(position, below, kind, 8)) {
                 return; // poured down (or reacted) — the whole flow went there
             }
         }
@@ -231,7 +264,7 @@ public final class FluidSystem implements WorldChangeListener {
             return; // the reach ends here
         }
         for (BlockPosition side : SIDES) {
-            handleTarget(offset(position, side), kind, next);
+            handleTarget(position, offset(position, side), kind, next);
         }
     }
 
@@ -240,7 +273,8 @@ public final class FluidSystem implements WorldChangeListener {
      * Returns whether the target consumed the flow (a reaction or a down
      * pour) so the caller stops spreading.
      */
-    private boolean handleTarget(BlockPosition target, FluidBlocks.Kind kind, int level) {
+    private boolean handleTarget(BlockPosition from, BlockPosition target,
+                                 FluidBlocks.Kind kind, int level) {
         Identifier existing = world.getBlock(target).identifier();
         FluidBlocks.Kind otherKind = FluidBlocks.kindOf(existing);
         if (otherKind != null && otherKind != kind) {
@@ -248,9 +282,12 @@ public final class FluidSystem implements WorldChangeListener {
             convertLavaOnContact(target);
             return true;
         }
-        if (!existing.equals(world.airType())
+        if (!existing.equals(world.airType().identifier())
                 && !existing.equals(BuiltinBlocks.TORCH.identifier())) {
             return false; // solid ground or the same fluid already there
+        }
+        if (!fireFlowGate(from, target, kind, level)) {
+            return false; // the §27.7 gate cancelled this flow step — blocked
         }
         flowInto(target, kind, level);
         return true;
