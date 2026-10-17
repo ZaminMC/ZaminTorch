@@ -142,5 +142,9 @@ class PlayerTitleChatApiTest {
         assertTrue(link.chats.get(0).startsWith("0:\"box line\""), "the box position (the bare-string quirk)");
         assertTrue(link.chats.get(1).startsWith("1:\"system line\""), "the system position (the bare-string quirk)");
         assertEquals("0:{\"text\":\"raw\",\"color\":\"gold\"}", link.chats.get(2), "the raw component");
+        // The action bar (position 2 — the line above the hotbar).
+        alice.sendActionBar("above the hotbar");
+        await(() -> link.chats.size() >= 4, "the action bar landed");
+        assertTrue(link.chats.get(3).startsWith("2:\"above the hotbar\""), "the action-bar position");
     }
 }

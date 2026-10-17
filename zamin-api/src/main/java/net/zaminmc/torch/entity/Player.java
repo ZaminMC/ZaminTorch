@@ -143,6 +143,12 @@ public interface Player {
      */
     void sendChatComponent(String json);
 
+    /**
+     * An action-bar line (Chat 0x02, position 2 — the text above the
+     * hotbar, no chat-log echo). Safe from any thread.
+     */
+    void sendActionBar(String message);
+
     // --- slot-level inventory (the container/inventory wave) ---------------
 
     /**
