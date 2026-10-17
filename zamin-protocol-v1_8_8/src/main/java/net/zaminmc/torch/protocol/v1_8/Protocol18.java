@@ -149,6 +149,19 @@ final class Protocol18 {
     static final int PLAYER_INFO_UPDATE_DISPLAY_NAME = 3;
     static final int PLAYER_INFO_REMOVE_PLAYER = 4;
 
+    /**
+     * The scoreboard wire family (protocol 47): Scoreboard Objective 0x3B
+     * (name, byte action, [displayName + renderType on add/update]), Update
+     * Score 0x3C (owner, varint mode, objective, [varint value on change]),
+     * Display Scoreboard 0x3D (byte slot, objective name), Teams 0x3E (name,
+     * byte action, [the team payload on create/update], [varint-counted
+     * members on create/join/leave]).
+     */
+    static final int S2C_SCOREBOARD_OBJECTIVE = 0x3B;
+    static final int S2C_UPDATE_SCORE = 0x3C;
+    static final int S2C_DISPLAY_SCOREBOARD = 0x3D;
+    static final int S2C_TEAMS = 0x3E;
+
     // Serverbound play packet ids (protocol 47) — cross-checked against the
     // community protocol.json (PrismarineJS/minecraft-data) mapping. The
     // "Player" ground packet lives at 0x03 ("flying"); 0x0F is the client's

@@ -133,4 +133,54 @@ public interface ClientLink {
      */
     default void tabListUpdatePing(java.util.List<TabListEntry> entries) {
     }
+
+    /**
+     * One scoreboard objective's wire payload (ScoreboardObjectiveS2CPacket's
+     * own fields): the name, the display name, and the render type key.
+     */
+    record ScoreboardObjectiveData(String name, String displayName, String renderType) {
+    }
+
+    /**
+     * One team's wire payload (TeamS2CPacket's own fields): the names, the
+     * decoration, the friendly flags byte, the name-tag visibility key, and
+     * the chat color id (-1 = RESET).
+     */
+    record ScoreboardTeamData(String name, String displayName, String prefix, String suffix,
+                              int friendlyFlags, String nameTagVisibility, int colorId) {
+    }
+
+    /**
+     * Scoreboard Objective (0x3B): string name, byte action (0 add, 1
+     * remove, 2 update), then for add/update the display name string and the
+     * render type string. Safe from any thread; default no-op for
+     * engine-internal links.
+     */
+    default void scoreboardObjective(ScoreboardObjectiveData data, int action) {
+    }
+
+    /**
+     * Update Score (0x3C): string owner, varint mode (0 CHANGE, 1 REMOVE),
+     * string objective, and for CHANGE the varint value. Safe from any
+     * thread; default no-op for engine-internal links.
+     */
+    default void scoreboardScore(String owner, int mode, String objective, int value) {
+    }
+
+    /**
+     * Display Scoreboard (0x3D): byte slot (0-18), string objective name
+     * ("" = cleared). Safe from any thread; default no-op for
+     * engine-internal links.
+     */
+    default void scoreboardDisplay(int slot, String objectiveName) {
+    }
+
+    /**
+     * Teams (0x3E): string name, byte action (0 create, 1 remove, 2 update,
+     * 3 join, 4 leave), for create/update the full team payload, and for
+     * create/join/leave the varint-counted member strings. Safe from any
+     * thread; default no-op for engine-internal links.
+     */
+    default void scoreboardTeam(ScoreboardTeamData team, int action, java.util.List<String> members) {
+    }
 }

@@ -258,6 +258,12 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 // the pre-position packets and the teleport, exactly where
                 // vanilla's initializeConnectionToPlayer places it.
                 engine.joinTabList(accepted.session());
+                // The scoreboard join sync (PlayerManager.updateScoreboard
+                // lines 168-185): every team + every displayed objective —
+                // vanilla places it before the yellow join broadcast (which
+                // the engine sends during accept), so here it lands right
+                // after the tab-list flush, before the teleport.
+                engine.joinScoreboard(accepted.session());
                 sendInitialPositionAndLook(channel);
                 sendWindowItems(channel, accepted.session().inventory().snapshot(),
                         accepted.session().crafting().snapshot(),
@@ -1972,6 +1978,95 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         for (net.zaminmc.torch.server.net.ClientLink.TabListEntry entry : entries) {
             ByteBufOps.writeUuid(out, entry.uuid());
             ByteBufOps.writeVarInt(out, entry.ping());
+        }
+        channel.writeAndFlush(out);
+    }
+
+    @Override
+    public void scoreboardObjective(
+            net.zaminmc.torch.server.net.ClientLink.ScoreboardObjectiveData data, int action) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        // Scoreboard Objective (0x3B, ScoreboardObjectiveS2CPacket's write
+        // walk lines 79-90): string name, byte action (0 add, 1 remove, 2
+        // update), then display name + render type on add/update.
+        ByteBuf out = Unpooled.buffer(96);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_SCOREBOARD_OBJECTIVE);
+        ByteBufOps.writeString(out, data.name());
+        out.writeByte(action);
+        if (action == 0 || action == 2) {
+            ByteBufOps.writeString(out, data.displayName());
+            ByteBufOps.writeString(out, data.renderType());
+        }
+        channel.writeAndFlush(out);
+    }
+
+    @Override
+    public void scoreboardScore(String owner, int mode, String objective, int value) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        // Update Score (0x3C, ScoreboardScoreS2CPacket's write walk lines
+        // 65-75): string owner, varint mode (writeEnum ordinal: 0 CHANGE, 1
+        // REMOVE), string objective, varint value on change.
+        ByteBuf out = Unpooled.buffer(96);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_UPDATE_SCORE);
+        ByteBufOps.writeString(out, owner);
+        ByteBufOps.writeVarInt(out, mode);
+        ByteBufOps.writeString(out, objective);
+        if (mode == 0) {
+            ByteBufOps.writeVarInt(out, value);
+        }
+        channel.writeAndFlush(out);
+    }
+
+    @Override
+    public void scoreboardDisplay(int slot, String objectiveName) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        // Display Scoreboard (0x3D, ScoreboardDisplayS2CPacket's write walk
+        // lines 26-31): byte slot, string objective name ("" = cleared).
+        ByteBuf out = Unpooled.buffer(48);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_DISPLAY_SCOREBOARD);
+        out.writeByte(slot);
+        ByteBufOps.writeString(out, objectiveName);
+        channel.writeAndFlush(out);
+    }
+
+    @Override
+    public void scoreboardTeam(net.zaminmc.torch.server.net.ClientLink.ScoreboardTeamData team,
+                               int action, java.util.List<String> members) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        // Teams (0x3E, TeamS2CPacket's write walk lines 80-99): string name,
+        // byte action (0 create, 1 remove, 2 update, 3 join, 4 leave), the
+        // full payload on create/update (display name, prefix, suffix, the
+        // friendly-flags byte, the name-tag visibility key, the color byte),
+        // and the varint-counted members on create/join/leave.
+        ByteBuf out = Unpooled.buffer(128);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_TEAMS);
+        ByteBufOps.writeString(out, team.name());
+        out.writeByte(action);
+        if (action == 0 || action == 2) {
+            ByteBufOps.writeString(out, team.displayName());
+            ByteBufOps.writeString(out, team.prefix());
+            ByteBufOps.writeString(out, team.suffix());
+            out.writeByte(team.friendlyFlags());
+            ByteBufOps.writeString(out, team.nameTagVisibility());
+            out.writeByte(team.colorId());
+        }
+        if (action == 0 || action == 3 || action == 4) {
+            ByteBufOps.writeVarInt(out, members.size());
+            for (String member : members) {
+                ByteBufOps.writeString(out, member);
+            }
         }
         channel.writeAndFlush(out);
     }
