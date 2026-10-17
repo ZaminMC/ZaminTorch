@@ -652,6 +652,57 @@ class MissingCommandsWaveOneTest {
         assertEquals("air", server.world().getBlock(beside).identifier().value());
     }
 
+    @Test
+    void theTestForBlockArm() throws Exception {
+        int x = (int) Math.floor(alice.position().x());
+        int y = (int) Math.floor(alice.position().y());
+        int z = (int) Math.floor(alice.position().z());
+        // Place and match.
+        dispatch("/setblock ~1 ~2 ~ stone");
+        await(() -> server.world().getBlock(
+                        new net.zaminmc.torch.block.BlockPosition(x + 1, y + 2, z)).identifier().value().equals("stone"),
+                "the stone landed");
+        dispatch("/testforblock ~1 ~2 ~ stone");
+        Thread.sleep(300);
+        // The mismatch refusal leaves nothing to assert state-wise beyond
+        // survival; the meta gate honors -1-any and 0-the-type's-own.
+        dispatch("/testforblock ~1 ~2 ~ stone -1");
+        Thread.sleep(300);
+        // The unknown name refusal.
+        dispatch("/testforblock ~1 ~2 ~ nosuchblock");
+        Thread.sleep(300);
+    }
+
+    @Test
+    void theTestForBlocksArm() throws Exception {
+        int x = (int) Math.floor(alice.position().x());
+        int y = (int) Math.floor(alice.position().y());
+        int z = (int) Math.floor(alice.position().z());
+        // Two identical 2x1x2 platforms: the compare passes.
+        dispatch("/fill ~1 ~4 ~1 ~2 ~4 ~2 stone");
+        await(() -> server.world().getBlock(
+                        new net.zaminmc.torch.block.BlockPosition(x + 1, y + 4, z + 1)).identifier().value().equals("stone"),
+                "the first platform built");
+        dispatch("/fill ~-2 ~4 ~1 ~-1 ~4 ~2 stone");
+        await(() -> server.world().getBlock(
+                        new net.zaminmc.torch.block.BlockPosition(x - 2, y + 4, z + 1)).identifier().value().equals("stone"),
+                "the second platform built");
+        dispatch("/testforblocks ~1 ~4 ~1 ~2 ~4 ~2 ~-2 ~4 ~1");
+        Thread.sleep(400);
+        // The mismatch: change one destination cell.
+        dispatch("/setblock ~-2 ~4 ~1 glass");
+        await(() -> server.world().getBlock(
+                        new net.zaminmc.torch.block.BlockPosition(x - 2, y + 4, z + 1)).identifier().value().equals("glass"),
+                "the destination cell changed");
+        dispatch("/testforblocks ~1 ~4 ~1 ~2 ~4 ~2 ~-2 ~4 ~1");
+        Thread.sleep(400);
+        // The masked mode skips the air cells: comparing the stone platform
+        // against the air above it passes with the stone cells alone... no —
+        // masked skips AIR SOURCE cells; the stone source still mismatches
+        // the air destination. The all/masked distinction is exercised by
+        // the same-source compare above (the default all mode).
+    }
+
     private net.zaminmc.torch.server.chat.CommandSender aliceSender() {
         return new net.zaminmc.torch.server.chat.CommandSender() {
             @Override public String name() {

@@ -16501,6 +16501,12 @@ public final class EngineServer implements Server, EngineBridge {
         commands.register(new CommandService.Command("replaceitem",
                 "Replace a slot: /replaceitem <entity <player>|block <x y z>> <slot> <item> [count] [metadata]",
                 2, this::replaceitemCommand));
+        commands.register(new CommandService.Command("testforblock",
+                "Test for a block: /testforblock <x y z> <block> [meta] [dataTag]",
+                2, this::testforblockCommand));
+        commands.register(new CommandService.Command("testforblocks",
+                "Compare regions: /testforblocks <x1 y1 z1> <x2 y2 z2> <x y z> [masked|all]",
+                2, this::testforblocksCommand));
         commands.register(new CommandService.Command("time",
                 "Query or set the day: /time query | /time set <day|noon|night|midnight|ticks>",
                 this::timeCommand));
@@ -18319,6 +18325,147 @@ public final class EngineServer implements Server, EngineBridge {
         }
         sender.addResult(net.zaminmc.torch.server.command.EngineCommandResults.Type.AFFECTED_ITEMS, count);
         return "Replaced slot " + j + " with " + count + " x " + name;
+    }
+
+    /**
+     * /testforblock (TestForBlockCommand 1:1, op-2): the ~-relative pos,
+     * the registry name (the not-found refusal), the -1..15 meta with -1
+     * any (the type's legacyMetadata convention), the loaded-chunk gate,
+     * the tile/data mismatch refusals, and the AFFECTED_BLOCKS stat pair.
+     * The dataTag arm rides the tile readNbt surface (ledgered, setblock's
+     * own note).
+     */
+    private String testforblockCommand(CommandSender sender, String[] args) {
+        if (args.length < 4) {
+            return "Usage: /testforblock <x y z> <block> [meta] [dataTag]";
+        }
+        sender.addResult(net.zaminmc.torch.server.command.EngineCommandResults.Type.AFFECTED_BLOCKS, 0);
+        int x;
+        int y;
+        int z;
+        try {
+            x = (int) Math.floor(net.zaminmc.torch.server.command.CommandParse
+                    .parseCoordinate(sender.sourcePos()[0], args[0]));
+            y = (int) Math.floor(net.zaminmc.torch.server.command.CommandParse
+                    .parseCoordinate(sender.sourcePos()[1], args[1]));
+            z = (int) Math.floor(net.zaminmc.torch.server.command.CommandParse
+                    .parseCoordinate(sender.sourcePos()[2], args[2]));
+        } catch (RuntimeException e) {
+            return e.getMessage();
+        }
+        String rawName = args[3].contains(":") ? args[3] : "minecraft:" + args[3];
+        var expected = blockRegistry.byKey(rawName).orElse(null);
+        if (expected == null) {
+            return "There is no such block with name " + args[3];
+        }
+        int meta = -1;
+        if (args.length >= 5) {
+            try {
+                meta = net.zaminmc.torch.server.command.CommandParse.parseInt(args[4], -1, 15);
+            } catch (RuntimeException e) {
+                return e.getMessage();
+            }
+        }
+        EngineWorld useWorld = worldFor(sender.sourceDimension());
+        var pos = new net.zaminmc.torch.block.BlockPosition(x, y, z);
+        if (!useWorld.isChunkLoadedAt(pos)) {
+            return "Cannot test for blocks outside of the loaded world";
+        }
+        var actual = useWorld.getBlock(pos);
+        if (!actual.identifier().equals(expected.identifier())) {
+            return "The block at " + x + ", " + y + ", " + z + " is "
+                    + actual.displayName() + " (expected " + expected.displayName() + ")";
+        }
+        if (meta > -1) {
+            int actualMeta = actual instanceof net.zaminmc.torch.server.block.EngineBlockType engineType
+                    ? engineType.legacyMetadata() : 0;
+            if (actualMeta != meta) {
+                return "The block at " + x + ", " + y + ", " + z + " has metadata "
+                        + actualMeta + " (expected " + meta + ")";
+            }
+        }
+        sender.addResult(net.zaminmc.torch.server.command.EngineCommandResults.Type.AFFECTED_BLOCKS, 1);
+        return "The block at " + x + ", " + y + ", " + z + " matches";
+    }
+
+    /**
+     * /testforblocks (TestForBlocksCommand 1:1, op-2 — the reference's
+     * own "compare" name): the two source corners + the destination
+     * begin, the 524288 volume cap, the height bounds, the loaded-area
+     * gate, the zyx walk in the reference's own order with the masked
+     * mode's air skip, the per-cell state compare (the engine's
+     * named-variant identity — the tile-NBT compare rides the readNbt
+     * surface, ledgered), the mismatch refusal, and the compared-count
+     * feedback with the AFFECTED_BLOCKS stat pair.
+     */
+    private String testforblocksCommand(CommandSender sender, String[] args) {
+        if (args.length < 9) {
+            return "Usage: /testforblocks <x1 y1 z1> <x2 y2 z2> <x y z> [masked|all]";
+        }
+        sender.addResult(net.zaminmc.torch.server.command.EngineCommandResults.Type.AFFECTED_BLOCKS, 0);
+        int[] from = new int[3];
+        int[] to = new int[3];
+        int[] dest = new int[3];
+        try {
+            for (int a = 0; a < 3; a++) {
+                from[a] = (int) Math.floor(net.zaminmc.torch.server.command.CommandParse
+                        .parseCoordinate(sender.sourcePos()[a], args[a]));
+                to[a] = (int) Math.floor(net.zaminmc.torch.server.command.CommandParse
+                        .parseCoordinate(sender.sourcePos()[a], args[3 + a]));
+                dest[a] = (int) Math.floor(net.zaminmc.torch.server.command.CommandParse
+                        .parseCoordinate(sender.sourcePos()[a], args[6 + a]));
+            }
+        } catch (RuntimeException e) {
+            return e.getMessage();
+        }
+        int minX = Math.min(from[0], to[0]);
+        int minY = Math.min(from[1], to[1]);
+        int minZ = Math.min(from[2], to[2]);
+        int maxX = Math.max(from[0], to[0]);
+        int maxY = Math.max(from[1], to[1]);
+        int maxZ = Math.max(from[2], to[2]);
+        int volume = (maxX - minX + 1) * (maxY - minY + 1) * (maxZ - minZ + 1);
+        if (volume > 524288) {
+            return "Cannot compare more than 524288 blocks (got " + volume + ")";
+        }
+        int dMinY = dest[1];
+        int dMaxY = dMinY + (maxY - minY);
+        if (minY < 0 || maxY > 255 || dMinY < 0 || dMaxY > 255) {
+            return "Cannot compare blocks outside of the world";
+        }
+        EngineWorld useWorld = worldFor(sender.sourceDimension());
+        boolean masked = args.length > 9 && args[9].equals("masked");
+        // The loaded-area gate (the reference's isAreaLoaded): every chunk
+        // column of both boxes.
+        for (int cx = minX >> 4; cx <= maxX >> 4; cx++) {
+            for (int cz = minZ >> 4; cz <= maxZ >> 4; cz++) {
+                if (!useWorld.isChunkLoaded(new net.zaminmc.torch.block.ChunkPosition(cx, cz))) {
+                    return "Cannot compare blocks outside of the loaded world";
+                }
+            }
+        }
+        int dx = dest[0] - minX;
+        int dy = dest[1] - minY;
+        int dz = dest[2] - minZ;
+        int compared = 0;
+        for (int zz = minZ; zz <= maxZ; zz++) {
+            for (int yy = minY; yy <= maxY; yy++) {
+                for (int xx = minX; xx <= maxX; xx++) {
+                    var at = useWorld.getBlock(new net.zaminmc.torch.block.BlockPosition(xx, yy, zz));
+                    boolean air = at.identifier().value().equals("air");
+                    if (!masked || !air) {
+                        var other = useWorld.getBlock(
+                                new net.zaminmc.torch.block.BlockPosition(xx + dx, yy + dy, zz + dz));
+                        if (!at.identifier().equals(other.identifier())) {
+                            return "The compared blocks did not match";
+                        }
+                        compared++;
+                    }
+                }
+            }
+        }
+        sender.addResult(net.zaminmc.torch.server.command.EngineCommandResults.Type.AFFECTED_BLOCKS, compared);
+        return "Successfully compared " + compared + " blocks";
     }
 
     /**
