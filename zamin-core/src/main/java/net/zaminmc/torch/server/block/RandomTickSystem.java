@@ -39,7 +39,6 @@ public final class RandomTickSystem {
     private static final int SECTIONS = 16;
 
     private final EngineWorld world;
-    private final Random random;
     /**
      * The {@code randomTickSpeed} read (Slice 24a — ServerWorld.tickChunks
      * line 343: {@code getInt("randomTickSpeed")} per tick walk; the
@@ -48,9 +47,49 @@ public final class RandomTickSystem {
      */
     private volatile java.util.function.IntSupplier randomTickSpeedRead;
 
+    private final Random random;
+
+    /**
+     * The lane's parallel executor (the Phase-6 slice): null keeps the
+     * sequential walk — the picks computed inline on the tick lane.
+     */
+    private volatile net.zaminmc.torch.server.concurrent.DomainWorkerPool lanePool;
+
+    /**
+     * The lane's OWN tick counter (the stream derivation's time axis):
+     * incremented once per {@link #tick} call, NOT read from the world's
+     * tick — the direct-driven tests call {@code tick()} without the
+     * ticker (the world's counter never moves), and a frozen time axis
+     * would freeze the derived stream with it (the same picks every
+     * call — the statistical guard loops' own death). The live wiring
+     * advances both counters together (one {@code tick()} per world
+     * tick), so the lane's counter IS the tick the picks belong to.
+     */
+    private long laneTick;
+
+    /**
+     * The lane's engagement evidence (§28.9 observability): the count of
+     * tick walks that actually rode the pool dispatch (the multi-region
+     * gate passed AND the pool armed). The lane's equivalence test
+     * asserts this is > 0 armed and == 0 unarmed — the proof the walk
+     * exercised the lane, never a silent sequential fallback.
+     */
+    private volatile long parallelDispatchTicks;
+
     public RandomTickSystem(EngineWorld world, Random random) {
         this.world = Objects.requireNonNull(world, "world");
         this.random = Objects.requireNonNull(random, "random");
+    }
+
+    /**
+     * Arms the parallel lane (the Phase-6 gate): the per-region pick
+     * computation dispatches onto the pool when armed — the derived
+     * streams keep the picks IDENTICAL to the sequential walk (the
+     * equivalence the lane's own proof carries), and the apply side
+     * never leaves the tick lane (§6.2's one authoritative writer).
+     */
+    public void setLanePool(net.zaminmc.torch.server.concurrent.DomainWorkerPool pool) {
+        this.lanePool = pool;
     }
 
     /**
@@ -61,26 +100,104 @@ public final class RandomTickSystem {
         this.randomTickSpeedRead = java.util.Objects.requireNonNull(read, "read");
     }
 
-    /** Advances one tick of random growth. Tick-thread context. */
+    /**
+     * The lane's engagement evidence: how many tick walks rode the pool
+     * dispatch (the observability the lane's own proof asserts on —
+     * 0 means every walk ran the sequential compute, whether unarmed
+     * or single-region).
+     */
+    public long parallelDispatchTicks() {
+        return parallelDispatchTicks;
+    }
+
+    /**
+     * Advances one tick of random growth. Tick-thread context.
+     *
+     * <p>THE LANE (the Phase-6 slice): the pick COMPUTATION rides the
+     * per-region derived streams ({@link RandomTickPicks}) — the
+     * sequential walk below and the parallel dispatch the lane caller
+     * drives produce IDENTICAL picks per (tick, region) — and every
+     * world write stays on THIS thread (§6.2's one authoritative
+     * writer: the apply side never leaves the tick lane).</p>
+     */
     public void tick(Iterable<PlayerSession> players) {
+        // randomTickSpeed (Slice 24a — ServerWorld.tickChunks line 343):
+        // the rule answers the per-section pick count, read once per
+        // walk; 0 stops the walk entirely (the reference's own l2 > 0
+        // gate).
+        java.util.function.IntSupplier speedRead = randomTickSpeedRead;
+        int picks = speedRead != null ? speedRead.getAsInt() : PICKS_PER_SECTION;
+        if (picks <= 0) {
+            return;
+        }
+        laneTick++;
+        // THE LANE (the Phase-6 slice — the compute-then-apply region
+        // lane): the in-range chunks group by their region, each
+        // region's picks derive from its OWN stream
+        // (RandomTickPicks.streamFor(baseSeed, tick, regionId)) — so
+        // the sequential walk and the pool dispatch produce IDENTICAL
+        // picks — and every world write applies on THIS thread (the
+        // apply side never leaves the tick lane, §6.2's one writer).
+        java.util.Map<Long, java.util.List<long[]>> byRegion =
+                new java.util.TreeMap<>();
         for (EngineChunk chunk : world.loadedChunks()) {
             if (!withinPlayerRange(chunk.position(), players)) {
                 continue;
             }
-            // randomTickSpeed (Slice 24a — ServerWorld.tickChunks line
-            // 343): the rule answers the per-section pick count, read
-            // once per chunk walk; 0 stops the walk entirely (the
-            // reference's own l2 > 0 gate).
-            java.util.function.IntSupplier speedRead = randomTickSpeedRead;
-            int picks = speedRead != null ? speedRead.getAsInt() : PICKS_PER_SECTION;
-            for (int section = 0; section < SECTIONS; section++) {
-                for (int pick = 0; pick < picks; pick++) {
-                    int x = chunk.position().x() * 16 + random.nextInt(16);
-                    int y = section * 16 + random.nextInt(16);
-                    int z = chunk.position().z() * 16 + random.nextInt(16);
-                    randomTick(new BlockPosition(x, y, z));
-                }
+            net.zaminmc.torch.server.concurrent.RegionPartition partition =
+                    world.regionPartition();
+            long regionId = partition != null
+                    ? partition.regionId(chunk.position().x(), chunk.position().z()) : 0L;
+            byRegion.computeIfAbsent(regionId, key -> new java.util.ArrayList<>())
+                    .add(new long[]{chunk.position().x(), chunk.position().z()});
+        }
+        if (byRegion.isEmpty()) {
+            return;
+        }
+        long tick = laneTick;
+        long seed = world.generatorSeed();
+        java.util.List<java.util.Map.Entry<Long, java.util.List<long[]>>> regions =
+                new java.util.ArrayList<>(byRegion.entrySet());
+        java.util.List<java.util.List<long[]>> computed =
+                new java.util.ArrayList<>(java.util.Collections.nCopies(
+                        regions.size(), null));
+        net.zaminmc.torch.server.concurrent.DomainWorkerPool pool = lanePool;
+        if (pool != null && !pool.isShutdown() && regions.size() > 1) {
+            // The parallel compute: one job per region, the results by
+            // stable index; the join happens HERE (the tick edge waits).
+            java.util.List<Runnable> jobs = new java.util.ArrayList<>();
+            for (int index = 0; index < regions.size(); index++) {
+                final int slot = index;
+                var entry = regions.get(index);
+                jobs.add(() -> computed.set(slot,
+                        net.zaminmc.torch.server.concurrent.RandomTickPicks.picksForRegion(
+                                seed, tick, entry.getKey(), entry.getValue(), picks)));
             }
+            pool.dispatchAndJoin(jobs);
+            parallelDispatchTicks++;
+        } else {
+            for (int index = 0; index < regions.size(); index++) {
+                var entry = regions.get(index);
+                computed.set(index,
+                        net.zaminmc.torch.server.concurrent.RandomTickPicks.picksForRegion(
+                                seed, tick, entry.getKey(), entry.getValue(), picks));
+            }
+        }
+        // The apply: in the stable region order, on the tick lane.
+        for (java.util.List<long[]> regionPicks : computed) {
+            applyPicks(regionPicks);
+        }
+    }
+
+    /**
+     * The lane's apply side: the per-region picks (computed inline or
+     * on the worker pool — the streams make them identical) applied
+     * IN ORDER on the tick lane. Public: the lane's equivalence test
+     * drives the same picks through both paths.
+     */
+    public void applyPicks(java.util.List<long[]> picks) {
+        for (long[] cell : picks) {
+            randomTick(new BlockPosition((int) cell[0], (int) cell[1], (int) cell[2]));
         }
     }
 
