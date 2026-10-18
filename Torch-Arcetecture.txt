@@ -458,7 +458,9 @@ World generation/loading may be asynchronous, but installation into authoritativ
 
 Persistence must not publish an older snapshot over newer state.
 
-Define behavior for unload/load races, cancellation, forced saves, shutdown, and partial failures.
+Define behavior for unload/load races, cancellation, forced saves, shutdown, and partial failures. The current storage backend, the intended Vanilla/Paper 26.1+ directory target, and the import/migration boundary are separately specified in §31; a directory-layout decision is not a data-format compatibility claim.
+
+The launcher console, logging sinks, command dispatch, and owner-safe completion are specified in §30. That proposal preserves the existing command service and does not itself change the runtime.
 
 ---
 
@@ -632,9 +634,11 @@ Maintain authoritative documentation for:
 - parallel computation;
 - testing/benchmarks;
 - implementation roadmap;
-- ADRs.
+- ADRs;
+- terminal-console integration and logging-sink semantics (§30);
+- world/dimension storage layout, format identity, and migration safety (§31).
 
-Major decisions must record decision, evidence, alternatives, consequences, risks, and revisit conditions.
+The console and modern-storage sections are architecture proposals, not claims of shipped runtime features. Major decisions must record decision, evidence, alternatives, consequences, risks, and revisit conditions.
 
 ---
 
@@ -1729,3 +1733,232 @@ ender chest (Slice 29a) set the precedent, and L2/L3 follow it.
   the engine's PlayerNbt already writes 1:1 — the standing row was
   already-landed work)
 - (the mob_spawner ITEM landed at de272c6 — retired)
+
+---
+
+# 30. MODERN INTERACTIVE TERMINAL CONSOLE — PAPER-INFORMED, TORCH-OWNED
+
+**Status: proposed architecture; not implemented by this document update.** Research checked on 2026-10-18. The concrete Torch baseline below was inspected in the develop code at commit 26851c46dd4bb6f9a931798146ad6056db275aa2. Paper source links that use main are floating references; resolve and record exact commits before implementation.
+
+## 30.1 Existing Torch baseline
+
+The current console is intentionally simple and lives at the launcher boundary:
+
+- zamin-launcher/.../LauncherRuntime.java is the composition root. It reads System.in with a UTF-8 BufferedReader, prints > , dispatches stop/shutdown, save, and state, and sends ordinary slash commands to EngineServer.consoleCommand.
+- zamin-launcher/.../ZaminLauncher.java configures java.util.logging.SimpleFormatter; the process logging API is JUL (java.util.logging), not Log4j2.
+- LauncherRuntime.attachFileLogging writes logs/latest.log using a rotating JUL FileHandler (5 MB files, five generations). Console output and file output are currently coupled through JUL handlers rather than independent, declarative sinks.
+- server/chat/CommandService is the command dispatcher: it parses the command name and arguments, enforces each command's operator level, returns the normal unknown-command refusal for both unknown and unauthorized commands, catches runtime failures, and records command result counts. ConsoleSender is level 4 and routes feedback through the logger. ConsoleCommandTest verifies that a bare console line reaches the same server-side command route and persists its effect.
+- When input reaches EOF or the console throws an IOException, LauncherRuntime waits for server shutdown rather than stopping the server. Preserve this: losing an interactive terminal must not unexpectedly kill a running server.
+- The engine already has ownership-bound simulation scheduling and a bounded blocking-I/O lane. The terminal reader must not become a simulation thread or receive live mutable world state.
+
+The relevant current files are zamin-launcher/src/main/java/net/zaminmc/torch/launcher/LauncherRuntime.java, ZaminLauncher.java, zamin-core/src/main/java/net/zaminmc/torch/server/chat/CommandService.java, ConsoleSender.java, zamin-core/src/main/java/net/zaminmc/torch/server/concurrent/BlockingIoLane.java, and zamin-core/src/test/java/net/zaminmc/torch/server/ConsoleCommandTest.java.
+
+## 30.2 What the upstream implementation actually does
+
+Primary references examined:
+
+- Paper's PaperConsole at [commit a90108f43cabdf058548f9b27b9319bf7842c49d](https://github.com/PaperMC/Paper/blob/a90108f43cabdf058548f9b27b9319bf7842c49d/paper-server/src/main/java/com/destroystokyo/paper/console/PaperConsole.java). It extends SimpleTerminalConsole; it is not a second command dispatcher.
+- [TerminalConsoleAppender README](https://github.com/Minecrell/TerminalConsoleAppender/blob/master/README.md) and [TerminalConsoleAppender.java](https://github.com/Minecrell/TerminalConsoleAppender/blob/master/src/main/java/net/minecrell/terminalconsole/TerminalConsoleAppender.java), observed on master on 2026-10-18. Its documented artifact is net.minecrell:terminalconsoleappender:1.3.0; lock and review the actual selected dependency version before adopting it.
+- [Paper's log4j2.xml](https://github.com/PaperMC/Paper/blob/main/paper-server/src/main/resources/log4j2.xml), observed on main on 2026-10-18.
+- Paper's [BrigadierCommandCompleter](https://github.com/PaperMC/Paper/blob/main/paper-server/src/main/java/io/papermc/paper/console/BrigadierCommandCompleter.java) and [BrigadierConsoleParser](https://github.com/PaperMC/Paper/blob/main/paper-server/src/main/java/io/papermc/paper/console/BrigadierConsoleParser.java), observed on main on 2026-10-18.
+
+Verified distinctions:
+
+1. **JLine is the terminal interaction layer.** Its Terminal and LineReader provide line editing, a persistent editable input line, history, parser/completer hooks, and terminal-aware output. Terminal detection matters: redirected stdout or a hosting panel may not support the same features as a real TTY. ANSI support is a separate capability and must also be detected/overridden deliberately.
+2. **TerminalConsoleAppender is a Log4j2 output appender, not the command system.** It prints through a JLine terminal and, when the reader is attached to that terminal, can redraw the prompt/input line after log output. The appender's SimpleTerminalConsole is a reference input-loop abstraction; an application must still provide command dispatch and shutdown. The upstream README advises asynchronous logging because terminal writes can block.
+3. **Paper wires several pieces together.** PaperConsole connects the line-reading abstraction to the server's command path; Paper's parser/completer bridge the console cursor to Brigadier. The log4j2.xml config separately defines a TerminalConsole, a file appender rolling logs/latest.log into dated compressed logs, and asynchronous fan-out. The file layout strips ANSI formatting. Its NETWORK_PACKETS marker filter is a logging filter, not a terminal feature.
+4. **Completion can touch server-owned state.** Paper's completer parses command input and schedules suggestion computation through the main server executor before joining the result. That behavior is evidence of a threading boundary, not a recipe to copy unchanged. A join/wait that can deadlock or stall Torch's owner thread is unacceptable.
+5. **Licensing and backend differ.** TerminalConsoleAppender is documented as a Log4j2 appender and its README identifies its license. Torch currently uses JUL and has no established Log4j2 configuration. Adding the appender alone would not transparently integrate with the current logger; switching logging backends is a separate architectural and dependency decision.
+
+## 30.3 Torch decision
+
+**Use JLine 3 directly behind a small Torch terminal adapter, and retain JUL as the logging source of truth for the first implementation.** Do not adopt TerminalConsoleAppender until an explicit logging-backend decision says Torch is moving to Log4j2. This gets the user-facing capabilities without introducing two logging systems or creating a parallel command route.
+
+The terminal adapter belongs at the launcher/integration boundary. It owns only terminal I/O, rendering, history, and completion presentation. It does not own server lifecycle state, command parsing/execution, permissions, world state, or logging retention. Do not add a wrapper/module merely to mirror Paper's class names.
+
+Implement the following:
+
+- **Input and redraw:** create one JLine Terminal and LineReader for the interactive session. Route log messages through a JLine-aware JUL Handler/writer that prints above the currently edited line and restores the prompt and buffer. Never interleave raw System.out.println calls with JLine-managed input once interactive mode is active.
+- **One command path:** once a line is accepted, pass it to the existing EngineServer.consoleCommand/CommandService route. Keep aliases, command-result recording, permission refusal, plugin/native registration, exception handling, and stop/save behavior in that route. Do not introduce a console-only command registry or bypass operator level checks.
+- **Completion:** use the existing command-service registry as the semantic source of truth. Add a completion/query surface that emits immutable candidates from a safely published registry snapshot. If completion requires dynamic game state, capture only the necessary immutable facts on the authoritative owner and publish/version the snapshot; compute candidate formatting on the console thread. Never provide a live world/player/entity reference to the completer. Never hold up a tick waiting for console completion, and never make tab completion a synchronous cross-owner RPC. Plugin registration/unregistration must invalidate or rebuild the snapshot.
+- **History:** configure bounded persistent history; make its location and limits explicit; exclude commands designated sensitive by policy and avoid storing credentials/tokens. History persistence errors must not crash the server or leak the entered command into another output sink.
+- **Terminal and ANSI detection:** support auto, forced on, and forced off only as deliberate operator choices. Default to automatic capability detection. If the environment is non-interactive, unsupported, redirected, or a control panel, turn off line redraw and ANSI escapes and use a plain line-oriented mode when input is available. If stdin is absent or closes, disable the reader and leave the server running.
+- **Formatting:** timestamps, levels, logger/source, message text, and complete exception details must survive. Color is presentation only: colorized terminal messages must retain the same semantic content as the file record; the file must contain no ANSI escape sequences. Minecraft legacy formatting codes need a documented strip-or-translate rule rather than passing raw control codes to every terminal.
+- **Output policy:** route the same log event to independent terminal and file sinks. A terminal level/filter may hide noisy output from the screen but must never discard that record from the persistent diagnostic sink. Preserve an asynchronous or bounded handoff for potentially slow terminal/file I/O; define what happens when a sink queue is full.
+- **Lifecycle:** the reader runs outside the simulation/owner thread. stop, shutdown, Ctrl+C, JVM shutdown, terminal EOF, and terminal failure converge on idempotent lifecycle operations. Stop accepting lines when shutdown begins; unblock/close the reader, then join its thread with a bounded deadline. Do not wait for a terminal thread while holding an owner gate or while a tick is required for shutdown progress.
+- **Errors:** a failed JLine initialization should log the reason, disable enhanced mode, and fall back to plain I/O where practical. A broken command, completion error, terminal write failure, or history failure must be isolated from the simulation loop. Do not swallow the main failure silently.
+- **Configuration:** the proposed tweaks/console.yml is an architecture-level configuration target, not an existing file. It should control interactive-mode selection, ANSI policy, prompt, history enablement/path/limit/sensitive-command policy, completion mode, terminal log threshold, and fallback behavior. Keep persistent logging level/rotation/retention under logging configuration rather than making console visibility decide what gets saved. Do not create that file as part of this documentation-only change.
+- **Dependencies:** use the JLine terminal and reader artifacts at one aligned version; select exactly one terminal provider (Jansi or JNA) after Windows/Linux/macOS and packaged-runtime checks. Pin versions centrally, check transitive dependencies and license notices, and verify the release artifact contains the required providers. Do not copy a dependency version merely because an upstream sample uses it.
+
+Do not expose a new Console API simply to reproduce JLine types. If a native plugin capability is needed, expose documented server-console/command-completion contracts through the existing native API architecture, independent of JLine implementation details. No public method may bypass §27.6 ownership rules.
+
+## 30.4 Configuration semantics and tests
+
+The configuration must have documented auto behavior and startup diagnostics for each branch. An explicit on request that cannot be honored should warn and fall back safely rather than printing escape sequences blindly. off must disable interactive editing/colors without disabling command dispatch where a plain input stream exists. Terminal output and file-log thresholds are independent.
+
+Required tests before this proposal can be marked implemented/verified:
+
+1. A real command typed through the interactive reader takes the existing command route and retains permission/result behavior.
+2. A log record emitted while a partially typed command is present redraws cleanly, preserving both the line and cursor; concurrent log bursts do not scramble or lose terminal output.
+3. History survives restart, remains bounded, handles unreadable/locked history files, and excludes configured sensitive commands.
+4. Completion works for built-in and registered plugin/native commands; unknown, partial, mid-line cursor, and argument candidates are tested. A deliberately slow owner must not be stalled by completion, and completion must not return a stale mutable-world answer as authoritative.
+5. TTY auto-detection, redirected streams, no stdin, EOF, unavailable terminal providers, ANSI forced off/on, and plain-console fallback are covered.
+6. Shutdown by command, Ctrl+C, signal hook, EOF, terminal exception, and repeated shutdown is idempotent; the input thread does not keep a stopped process alive.
+7. Terminal filtering never removes a record from the file sink; file output strips ANSI and preserves full exceptions; rotation and backpressure behavior are tested.
+8. The same tests run against the packaged server artifact, not only the Gradle test classpath.
+
+**Acceptance gate:** no production console claim until the terminal adapter, JUL bridge, completion snapshot, fallback, lifecycle tests, and packaged-runtime checks pass. This section is a design plan, not evidence that any of those changes have landed.
+
+---
+
+# 31. WORLD STORAGE LAYOUT — VANILLA/PAPER 26.1+ REFERENCE, TORCH FORMAT BOUNDARY
+
+**Status: target architecture and migration policy; not implemented.** Research checked on 2026-10-18. The Minecraft 26.1 format and Paper 26.1 migration rules below are based on official public documentation. Paper source links that use main were inspected on that date and must be pinned to a commit before implementation.
+
+## 31.1 Existing Torch storage is not a Vanilla 26.1 world
+
+Current Torch has server/config/ServerLayout, EngineConfig.worldDir(), worldDataDir() and playerDataDir(), plus the WorldStorage abstraction and custom DeltaWorldStorage implementation. The current layout is a Paper-like server home with a world folder, world/data, and world/playerdata; the main world persistence abstraction saves a Torch delta snapshot in a Torch-owned binary format. Numerous separate engine stores persist entity, player, block-entity, and subsystem state. That is **not** a Minecraft 26.1 level.dat/Anvil-world implementation and must not be labelled Vanilla/Paper-compatible because the folder names look similar.
+
+Relevant code inspected:
+
+- zamin-core/src/main/java/net/zaminmc/torch/server/config/EngineConfig.java
+- zamin-core/src/main/java/net/zaminmc/torch/server/config/ServerLayout.java
+- zamin-core/src/main/java/net/zaminmc/torch/server/world/WorldStorage.java
+- zamin-core/src/main/java/net/zaminmc/torch/server/world/DeltaWorldStorage.java
+- zamin-core/src/main/java/net/zaminmc/torch/server/concurrent/BlockingIoLane.java
+- per-subsystem *DataStore classes and their versioned readers/writers.
+
+Torch's 1.8.8 gameplay target, current custom serialized records, legacy block/item identifiers, and versioned Torch save formats remain separate from a modern Vanilla file layout. A 26.1 folder migration also changes serialized data, names and metadata semantics; moving folders alone does not convert those contents.
+
+## 31.2 Verified Vanilla 26.1+ layout
+
+Primary sources:
+
+- Mojang's [Minecraft Java Edition 26.1 release notes — World Storage](https://feedback.minecraft.net/hc/en-us/articles/44551668333837-Minecraft-Java-Edition-26-1).
+- Paper's [26.1 update announcement](https://papermc.io/news/26-1/), published 2026-04-26.
+- Paper's [migration guide](https://docs.papermc.io/paper/migration/) and [world configuration guide](https://docs.papermc.io/paper/reference/world-configuration/).
+- Paper's live migration implementation: [WorldFolderMigration](https://github.com/PaperMC/Paper/blob/main/paper-server/src/main/java/io/papermc/paper/world/migration/WorldFolderMigration.java), [WorldMigrationSupport](https://github.com/PaperMC/Paper/blob/main/paper-server/src/main/java/io/papermc/paper/world/migration/WorldMigrationSupport.java), [VanillaWorldMigration](https://github.com/PaperMC/Paper/blob/main/paper-server/src/main/java/io/papermc/paper/world/migration/VanillaWorldMigration.java), and [LegacyCraftBukkitWorldMigration](https://github.com/PaperMC/Paper/blob/main/paper-server/src/main/java/io/papermc/paper/world/migration/LegacyCraftBukkitWorldMigration.java). These files were inspected on main on 2026-10-18; resolve the links to a full source commit before implementing a port.
+
+The relevant modern structure is, conceptually:
+
+~~~text
+<world>/
+├── level.dat
+├── data/
+│   └── <namespace>/
+│       └── ...                 # data shared across dimensions
+├── datapacks/
+├── dimensions/
+│   └── <namespace>/
+│       └── <dimension-key>/
+│           ├── data/
+│           │   └── <namespace>/
+│           │       └── ...     # data owned by this dimension
+│           ├── entities/
+│           ├── poi/
+│           ├── region/
+│           └── ...             # format/version-specific dimension files
+├── players/
+│   ├── advancements/
+│   ├── data/
+│   └── stats/
+├── resourcepacks/
+│   └── resources.zip           # optional world resource pack
+└── generated/
+    └── <namespace>/
+        └── structure/          # saved structure-block templates
+~~~
+
+Details relevant to a faithful implementation:
+
+- The default dimensions use keys minecraft:overworld, minecraft:the_nether, and minecraft:the_end, stored beneath dimensions/minecraft/overworld, dimensions/minecraft/the_nether, and dimensions/minecraft/the_end. The folder scheme is keyed by namespace and dimension path, not the server's display/world name.
+- The root data/ is now for data shared between dimensions. Dimension-owned data moves under the matching dimension's data/. Vanilla saved-data files live under namespace subdirectories: for example, data/minecraft/scoreboard.dat; command storage uses data/<namespace>/command_storage.dat.
+- Mojang's 26.1 notes also record file/name changes including chunks.dat → chunk_tickets.dat, maps under data/minecraft/maps with numeric filenames, idcounts.dat → last_id.dat, removal of the special raids_end.dat name, and generated/<namespace>/structure (singular). These are format semantics, not cosmetic examples; any actual converter must enumerate all rows for the target version.
+- Player directories are under players/: advancements, data (player saves), and stats. resources.zip, when used, is under resourcepacks/.
+- level.dat itself also changed: 26.1 replaces the legacy Player tag with singleplayer_uuid and changes difficulty settings, among other versioned data changes. A folder migration must not pretend to implement those tag/data-version conversions.
+
+The list above is a high-level directory contract from the 26.1 release notes, not a replacement for the selected Minecraft version's full storage API, datafixers, or per-file schema. Recheck the official release notes and source on every game-version upgrade.
+
+## 31.3 Paper-specific behavior is not Vanilla format
+
+Paper 26.1 follows the new dimension-based structure while preserving per-world settings that were historically coupled to the Bukkit storage layout:
+
+- Per-world configuration is stored beside each dimension as dimensions/<namespace>/<key>/paper-world.yml; defaults live under config/paper-world-defaults.yml. The per-world file contains only overrides and inherits defaults. It is **Paper-owned config**, not a Vanilla world file.
+- Paper-only state is kept under the dimension's namespaced data, e.g. dimensions/<namespace>/<key>/data/paper/level_overrides.dat, metadata.dat, and persistent_data_container.dat. Do not write Torch-owned data into the paper namespace.
+- Paper preserves dimension/world identity, gamerules, spawn/level overrides, PDC, and related saved data during migration. Its implementation moves eligible legacy dimension directories (region, entities, poi), migrates per-world config when a target config is absent, handles shared saved-data rows, and imports legacy Paper/CraftBukkit metadata. Some of its routines delete migrated legacy roots only after the migration path completes.
+- Paper's world-key direction is also important: a name is a display/configuration selector, while a stable namespaced key identifies the world/dimension. Paper states that direct Spigot/CraftBukkit → Paper 26.1 migration is fundamentally unsupported; the documented route goes through Vanilla first. Do not claim that a legacy directory layout can always be transformed safely.
+
+Torch should adopt the identity, separation, and namespace principles, not Paper-owned filenames or Paper's implementation as a drop-in converter.
+
+## 31.4 Explicit Torch format decision
+
+1. **Supported format today:** the current Torch custom persistence format and current Torch/Paper-like runtime directory organization only. Vanilla 1.8.8 Anvil/level.dat imports, Bukkit multi-folder worlds, and Vanilla/Paper 26.1 files are not currently verified import formats.
+2. **Modern layout decision:** treat the Vanilla 26.1+ dimension/namespace layout as a **future versioned storage backend and migration target**, not as a live default or a claim about today's new-world saves. Keep the present backend selected by default until the new backend's codecs, save/load round trips, all *DataStore mappings, and crash-recovery tests exist. A later decision may make it the default for new worlds only after the implementation preserves all required Torch state and declares exactly which game-data format it writes.
+3. **No implicit conversion:** never detect an old layout and silently convert it during normal startup. Never read a 1.8.8 save as a 26.1 save because both have a world/ directory. An explicit migration command should be a separate maintenance operation with a dry-run report, a full backup, and a declared source and target format.
+4. **No format overclaim:** a modern directory tree alone does not make chunk data, level.dat, saved data, player files, IDs, NBT, entity records, POI, or data packs compatible with Vanilla 26.1. Likewise, porting a modern path shape does not change Torch's gameplay target from 1.8.8.
+5. **Version and identity markers:** every backend needs a stable format identifier and monotonically versioned schema. Store Torch metadata under a Torch-owned namespace, such as data/torch/ or dimension-local data/torch/, never under data/paper/. Record storage-layout version independently from gameplay/protocol version and independently from each subsystem's data schema. Unknown newer versions must fail safely or open read-only; never rewrite them using defaults.
+
+This is deliberately conservative because WorldStorage currently loads/saves Torch snapshots, and no complete source-format converter was found in the inspected repository. It is not permission to reduce the API or to defer the public storage abstraction: the native API must expose supported world/dimension/storage capabilities as specified in §27 without leaking paths or raw mutable engine state.
+
+## 31.5 Proposed Torch ownership and directory contract
+
+The world name selects a root directory, but is not a dimension identity. Each world has a stable world ID; each dimension is identified by a validated namespaced Identifier such as minecraft:overworld. A dimension key must not be derived from an unchecked path or a human display name. Identifier normalization and validation must reject empty, traversal, separator, absolute-path, and drive-prefix attacks before any filesystem resolution.
+
+When the modern backend is implemented, use the following contract:
+
+- **World-shared files:** <world>/level.dat and <world>/data/<namespace>/... only for fields that are truly shared across dimensions. Torch-global world-owned data, if needed, resides in the reserved torch namespace. Do not mix overworld-only weather, generators, or per-dimension block state into this shared store unless the selected game-version semantics say it is shared.
+- **Dimension files:** <world>/dimensions/<namespace>/<dimension-path>/region, entities, poi, and <world>/dimensions/<namespace>/<dimension-path>/data/<namespace>/.... Each subsystem's save codec declares whether its data is world-shared, dimension-scoped, player-scoped, or global-server-scoped. Dimension paths are generated from validated IDs, not accepted as arbitrary input.
+- **Per-dimension configuration:** keep defaults centrally (proposed config/torch-world-defaults.yml) and sparse per-dimension overrides in a clearly Torch-owned file beside the dimension (proposed torch-world.yml). These are Torch design names, not Vanilla/Paper standard files. Configuration is not saved world state; changes to defaults must not overwrite explicit dimension overrides.
+- **Player data:** the modern-layout backend uses the corresponding players/data, players/advancements, and players/stats partitions only when the respective player schemas are implemented. Until then, keep the live Torch store unchanged. Player UUID is the persistence key; player name is metadata and must not decide file identity.
+- **World generation and datapacks:** datapacks/ and generated/<namespace>/structure/ are format-specific surfaces. Only expose them as supported when pack validation, deterministic world-generation inputs, structure codecs, and their data-version behavior are implemented. A directory's presence alone does not establish support.
+- **Other subsystem data:** do not merge all *DataStore files into one opaque blob simply to fit the tree. Inventory each store; record its owner scope, codec/schema version, atomicity, restore order, and migration transform. Preserve separate stores when they have independent lifecycle or update cadence.
+- **World identity:** preserve stable world IDs across renames/moves and use dimension keys for dimension identity. Resolve multiple world roots deterministically and reject duplicate IDs rather than silently loading two copies of one world's state.
+- **Public API boundary:** storage paths, manifests, codecs, locks and migration machinery are engine concerns. Native APIs expose typed storage capabilities and safe snapshots/operations; do not expose the underlying filesystem path as a substitute for a supported world API. Maintain Section 27's full-capability goal without bypassing owner authorization.
+
+Do not create a new module or class for every individual file. Add the smallest storage-format adapter that gives WorldStorage an explicit codec/layout boundary and keeps authoritative world state independent of the on-disk representation.
+
+## 31.6 I/O, concurrency, locking, and durability
+
+- **Single writer:** at any instant there must be one authoritative writer for a given world/dimension/chunk or region file. Shared collections are not proof that the mutable values are safe to write concurrently.
+- **Snapshot before I/O:** capture a consistent immutable snapshot under the correct ownership context; serialize/flush it on the bounded I/O lane. The worker receives no live mutable world/chunk/entity object and no mutation authority.
+- **Stale-write prevention:** attach monotonically increasing save generation/revision metadata. A late completion from an older snapshot must not replace newer persisted state. Cancellation, unload, ownership migration, restart and server shutdown all invalidate or drain in-flight writes explicitly.
+- **Atomic replacement:** where the filesystem supports it, write a sibling temporary file, flush file contents, and atomically replace the target. Document weaker guarantees on filesystems that do not support atomic moves. Never truncate the only known-good copy before replacement is ready. Preserve/quarantine corrupt inputs with a diagnostic rather than silently replacing them with an empty world.
+- **Region I/O:** if using Anvil region files, serialize access per region file and use a bounded I/O pipeline. Do not let two workers update different chunks by concurrently rewriting the same region header/table. Keep chunk save scheduling, region-file locking and owner authority as separate but coordinated constraints.
+- **Session ownership:** acquire a process/world-session lock before writes begin. Reject a second live writer for the same world instead of relying only on a lock file's presence or timestamp. If matching a particular Vanilla/Paper on-disk lock convention, confirm its precise semantics in that version's source first; stale-lock recovery must be deliberate and testable.
+- **Ordering and save barriers:** preserve per-key save order, define whether saveAllNow waits for all accepted writes to become durable, reject new writes after shutdown begins, drain or cancel outstanding I/O deterministically, then close storage. A completed save response must mean what its API documents—accepted, flushed, or durable—not an ambiguous mixture.
+- **Crash handling:** quarantine unreadable records and surface the path, format version, and reason. Do not silently turn unreadable state into default state and later overwrite the evidence. Boot must identify incomplete migration/save journals and either resume safely or stop without destroying source data.
+- **Diagnostics:** expose queue depth, write latency, failure counts, last successful save, stale completion counts and per-world/per-dimension errors. Metrics must not become unbounded labels keyed by arbitrary plugin/world input.
+
+This extends the existing §9 ownership, §13 persistence, and §17 lifecycle rules. It does not establish a second storage authority or relax §3's single-writer invariants.
+
+## 31.7 Migration policy — explicit, backed up, recoverable
+
+Paper's 26.1 code is useful evidence of the actual migration complexity, but Torch must not blindly replicate its startup behavior. Paper warns operators and delays startup migration; its implementation distinguishes no-op/current data, Vanilla migration, and legacy CraftBukkit migration, moves eligible folders/configuration, converts selected saved data and metadata, and may remove migrated legacy roots at the end. Paper's own guide says Bukkit/CraftBukkit → Paper 26.1 cannot be a direct migration. These facts demonstrate that this operation is a format conversion with destructive risk, not a harmless directory tidy-up.
+
+Torch's migration contract:
+
+1. **Preflight, no writes:** acquire exclusive maintenance ownership or require the server to be stopped; identify source/target backend and format versions; inspect every known file/store and data version; detect duplicate worlds/IDs, symlinks or path escape, incomplete prior runs, corrupt entries, free-space shortage, and destination collisions. Output a machine-readable and human-readable plan with counts, expected moves/conversions, omissions and risk.
+2. **Explicit consent:** require an explicit operator command/flag. Never auto-convert because startup found a legacy layout. Never interpret --force as permission to overwrite unrecognized data.
+3. **Backup:** require a full consistent backup made while source writers are stopped. Verify it is readable before touching source files. For the modern 26.1 target, record that Vanilla warns a world upgraded to 26.1 cannot be downgraded to older releases.
+4. **Staging and journal:** write into a new staging destination, not over the source. Maintain a versioned journal of each action, source hash/identity, output, and completion state. Operations must be idempotent. Preserve unknown files unchanged unless a reviewed migration explicitly handles them.
+5. **Conflict rule:** do not overwrite a target just because a source has the same basename. If both source and target exist with conflicting content, stop and report; provide a separate, explicit resolution tool rather than choosing silently.
+6. **Validated transforms:** directory moves and file-format transformations are separately enumerated. For each field, map what happens to level metadata, shared/per-dimension saved data, blocks/chunks, block entities, entities, POI, players, scoreboard, stats, advancements, datapacks, generated structures, Torch stores, and plugin/native data. If any required row lacks a converter, mark that source format unsupported rather than claiming a complete migration.
+7. **Verification before cutover:** reopen the staged destination through the target reader; verify file inventories, per-store counts, checksums where meaningful, owner UUIDs, dimension IDs, and representative chunk/entity/player round trips. Compare gameplay invariants when the source semantics can be represented. A matching file count alone is insufficient.
+8. **Atomic cutover and recovery:** keep the original source untouched until validation passes. Promote the staged tree through a documented rename/swap mechanism where supported. If cutover fails, restore the prior active root. Retain backup, journal, source and report until the operator explicitly confirms cleanup.
+9. **Restart and observability:** report source and destination formats, converted/skipped/quarantined counts, every limitation and warning. Startup detects an interrupted journal and refuses normal writes until recovery is resolved; it must not repeatedly apply a partial migration on every boot.
+10. **Compatibility boundary:** do not claim a direct import from a legacy Bukkit/Paper 1.8.8 folder into the Vanilla/Paper 26.1 data schema until a field-complete migration exists and passes tests. Paper's documented route for its own Bukkit-derived layout goes through Vanilla, but that is not automatically a valid converter for Torch's custom WorldStorage.
+
+## 31.8 Storage tests required before declaring the modern backend supported
+
+- New world and each default/custom dimension create the exact expected directory identities without path traversal or accidental key collisions.
+- World-shared versus dimension-local saved data remains separate across save/reload and two dimensions with different values.
+- Every WorldStorage and *DataStore schema has round-trip, absent-field, older-version, unknown-newer-version, malformed-input, truncation, and quarantine tests.
+- Player UUID persistence survives player rename; modern player-file partitions are not written until their target codecs are implemented.
+- Concurrent chunk/region writes cannot overwrite newer revisions; same-region writes serialize; separate regions may proceed only within the bounded I/O design.
+- Fault injection covers crashes before temporary-file completion, after flush, during atomic replace, after journal update, and during migration cutover. Recovery preserves the only good source.
+- Duplicate process/session access is rejected; shutdown/save barriers wait for the documented durability point; late stale completions do not reappear after unload or migration.
+- Migration tests cover already-modern/no-op input, each supported legacy source, duplicate/colliding targets, symlinks/path escape, corrupt files, insufficient space, interrupted phases, backup validation, exact rollback, unknown files, and incomplete converter mappings.
+- Golden fixtures from the targeted upstream release verify the actual directory names and codec/file semantics. Keep fixtures/version identifiers pinned; do not use the latest format fixture to infer an older version.
+- The complete engine, native API, persistence, protocol, and real-client regression suites must remain green. Add before/after persistence correctness and I/O latency measurements, but do not claim speedups without reproducible workloads.
+
+**Acceptance gate:** the modern layout is not supported until the backend can load, save, recover and migrate the complete declared source/destination formats. Until then, the existing Torch format remains the default and migration remains explicitly unsupported. The native API's capability goal in §27 is not reduced by this storage decision; it stays the obligation to expose all real supported capabilities through safe, documented contracts.
