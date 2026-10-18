@@ -568,11 +568,12 @@ public final class CollisionShapes {
     }
 
     /**
-     * The chest family: the plain chest, the trapped chest, and the ender
-     * chest's four facing states.
+     * The chest family: the plain chest, the trapped chest, the facing
+     * states of both (Slice L2), and the ender chest's four facing states.
      */
     private static boolean isChestFamily(String value) {
         return value.equals("chest") || value.equals("trapped_chest")
+                || value.startsWith("chest_") || value.startsWith("trapped_chest_")
                 || value.startsWith("ender_chest");
     }
 
@@ -608,11 +609,13 @@ public final class CollisionShapes {
      * never forms).
      */
     private static boolean sameChestFamily(String value, String neighbor) {
-        if (value.equals("trapped_chest")) {
-            return "trapped_chest".equals(neighbor);
+        if (value.equals("trapped_chest") || value.startsWith("trapped_chest_")) {
+            return neighbor != null
+                    && (neighbor.equals("trapped_chest") || neighbor.startsWith("trapped_chest_"));
         }
-        if (value.equals("chest")) {
-            return "chest".equals(neighbor);
+        if (value.equals("chest") || value.startsWith("chest_")) {
+            return neighbor != null
+                    && (neighbor.equals("chest") || neighbor.startsWith("chest_"));
         }
         return neighbor != null && neighbor.startsWith("ender_chest")
                 && value.startsWith("ender_chest");

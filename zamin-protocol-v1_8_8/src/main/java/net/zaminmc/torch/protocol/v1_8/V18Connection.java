@@ -3235,11 +3235,18 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeByte(open ? 1 : 0);
         // The carrier is the block that actually sits there (Slice 29a — the
         // ender chest's own BE broadcasts over legacy 130; the plain chest's
-        // over 54).
+        // over 54; the trapped chest's over 146 — ChestBlock(1)'s own id,
+        // the reference's doBlockEvent carrier).
         int carrier = Protocol18.CHEST_LEGACY_BLOCK_ID;
-        if (engine.world() != null && net.zaminmc.torch.server.chest.EnderChestBlocks
-                .isFamily(engine.world().getBlock(position))) {
-            carrier = Protocol18.ENDER_CHEST_LEGACY_BLOCK_ID;
+        if (engine.world() != null && engine.world().getBlock(position) != null) {
+            String carrierValue = engine.world().getBlock(position).identifier().value();
+            if (net.zaminmc.torch.server.chest.EnderChestBlocks.isFamily(
+                    engine.world().getBlock(position))) {
+                carrier = Protocol18.ENDER_CHEST_LEGACY_BLOCK_ID;
+            } else if (carrierValue.equals("trapped_chest")
+                    || carrierValue.startsWith("trapped_chest_")) {
+                carrier = Protocol18.TRAPPED_CHEST_LEGACY_BLOCK_ID;
+            }
         }
         out.writeInt(carrier);
         channel.writeAndFlush(out);

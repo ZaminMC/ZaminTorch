@@ -111,6 +111,14 @@ public final class TileNbt {
         if (blockName.startsWith("brewing_stand")) {
             return "Cauldron"; // the plain stand and the has-bottle variants
         }
+        // The chest pair's facing states (Slice L2 — the tile family's
+        // own consult over every state).
+        if (blockName.startsWith("trapped_chest")) {
+            return "Chest";
+        }
+        if (blockName.startsWith("chest")) {
+            return "Chest";
+        }
         if (blockName.equals("banner") || blockName.equals("standing_banner")
                 || blockName.equals("wall_banner")) {
             return "Banner";

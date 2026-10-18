@@ -123,6 +123,8 @@ final class Protocol18 {
     /** The chest lid Block Action: action 1, param 1 = open / 0 = close. */
     static final int BLOCK_ACTION_CHEST_LID = 1;
     static final int CHEST_LEGACY_BLOCK_ID = 54;
+    /** The trapped chest's legacy wire id (the reference's register(146, "trapped_chest")). */
+    static final int TRAPPED_CHEST_LEGACY_BLOCK_ID = 146;
     /** The note block's legacy wire id (the reference's register(25, "noteblock")). */
     static final int NOTE_BLOCK_LEGACY_BLOCK_ID = 25;
     // Protocol 47 has NO unload-chunk packet: the 1.8 client prunes

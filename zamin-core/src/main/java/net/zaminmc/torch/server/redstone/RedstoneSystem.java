@@ -707,11 +707,13 @@ public final class RedstoneSystem implements WorldChangeListener {
             // when powered (getSignal).
             return TripwireBlocks.hookPowered(type) ? 15 : 0;
         }
-        if (type.identifier().value().equals("trapped_chest")) {
+        if (type.identifier().value().equals("trapped_chest")
+                || type.identifier().value().startsWith("trapped_chest_")) {
             // ChestBlock.getSignal lines 379-392 (Slice 49b): the viewer
             // count clamped 0-15, weakly in EVERY direction (the
             // indirect-only source — the comparator's analog arm reads the
-            // container fullness through its own chain).
+            // container fullness through its own chain). Slice L2: the
+            // trapped family's four facing states join the consult.
             java.util.function.ToIntFunction<BlockPosition> viewers = trappedChestViewers;
             if (viewers == null) {
                 return 0;

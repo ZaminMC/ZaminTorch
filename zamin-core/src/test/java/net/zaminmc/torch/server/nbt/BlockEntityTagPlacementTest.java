@@ -275,7 +275,9 @@ class BlockEntityTagPlacementTest {
         AtomicInteger tables = new AtomicInteger();
         server.useItemOnBlock(alice, groundAt(), 1, Optional.empty(), id -> tables.incrementAndGet());
         BlockPosition target = targetAt();
-        await(() -> server.world().getBlock(target).equals(BuiltinBlocks.CHEST),
+        await(() -> net.zaminmc.torch.server.chest.ChestFacingBlocks.isPlainFamily(
+                        server.world().getBlock(target))
+                        || server.world().getBlock(target).equals(BuiltinBlocks.CHEST),
                 "the chest placed");
         var placed = server.chests().getOrCreate(target);
         assertEquals("Secret", placed.lockKey());
@@ -394,7 +396,9 @@ class BlockEntityTagPlacementTest {
         layGround();
         BlockPosition target = targetAt();
         tick(() -> server.world().setBlock(target, BuiltinBlocks.CHEST));
-        await(() -> server.world().getBlock(target).equals(BuiltinBlocks.CHEST),
+        await(() -> net.zaminmc.torch.server.chest.ChestFacingBlocks.isPlainFamily(
+                        server.world().getBlock(target))
+                        || server.world().getBlock(target).equals(BuiltinBlocks.CHEST),
                 "the chest placed bare");
         var chestItem = net.zaminmc.torch.server.item.BuiltinItems.lookup(
                 net.zaminmc.torch.util.Identifier.parse("minecraft:chest")).orElseThrow();
@@ -435,7 +439,9 @@ class BlockEntityTagPlacementTest {
         AtomicInteger tables = new AtomicInteger();
         server.useItemOnBlock(alice, groundAt(), 1, Optional.empty(), id -> tables.incrementAndGet());
         BlockPosition target = targetAt();
-        await(() -> server.world().getBlock(target).equals(BuiltinBlocks.CHEST),
+        await(() -> net.zaminmc.torch.server.chest.ChestFacingBlocks.isPlainFamily(
+                        server.world().getBlock(target))
+                        || server.world().getBlock(target).equals(BuiltinBlocks.CHEST),
                 "the granted stack placed its chest");
         assertEquals("Keyed", server.chests().getOrCreate(target).lockKey());
         // A malformed dataTag is the command's own tag error.
