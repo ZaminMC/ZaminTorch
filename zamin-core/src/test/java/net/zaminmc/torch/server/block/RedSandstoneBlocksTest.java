@@ -126,13 +126,14 @@ class RedSandstoneBlocksTest {
 
     @Test
     void theStatsMergesFoldTheFamily() {
-        // The mined-block stat consult (EngineStats.merged's own band): the
-        // red sand counts on the sand row, the double slab on the single,
-        // the TYPE states on the vanilla registry names direct.
+        // The mined-block stat consult (Slice L4's registry scheme): the
+        // red sand counts on the sand row (12's damage-1 variant), the
+        // double slab on its OWN row (181 is a registry Block), the TYPE
+        // states on the vanilla registry names direct.
         assertEquals("stat.mineBlock.minecraft.sand",
                 net.zaminmc.torch.server.stat.EngineStats.mineBlockOf(
                         Identifier.parse("minecraft:red_sand")));
-        assertEquals("stat.mineBlock.minecraft.stone_slab2",
+        assertEquals("stat.mineBlock.minecraft.double_stone_slab2",
                 net.zaminmc.torch.server.stat.EngineStats.mineBlockOf(
                         Identifier.parse("minecraft:double_stone_slab2")));
         assertEquals("stat.mineBlock.minecraft.red_sandstone",
