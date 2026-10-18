@@ -9122,3 +9122,47 @@ SEAMLESS skins (the double_stone_slab2 181 + the stone 43 family's
 bit 8 — register-only arms); (3) the double-plant's
 canBeReplaced-per-variant refinement; (4) the shared container-open
 event (demand-named).
+
+
+### Slice L4 — the stats-completeness fold (Wave L's fourth arm, BOTH registries)
+
+- 19391d8 (L4a, the BLOCK arm): the 197-entry block registry oracle
+  (reference Block.java's registrations, ids 1-197 in order), the
+  BLOCK_NAMES divergence table SEPARATE from the item path's
+  VANILLA_NAMES (the melon collision — block 103 melon_block vs item
+  362 melon), the pure state fold (blockMerged's suffix-strip), and
+  the RETIRED merge table (vanilla keeps its own row for every
+  registry Block — the grass on grass, the farmland, the doubles, the
+  lit/powered forms, the flowing fluids, the redstone torch).
+- 157bf4f (L4b, the ITEM arm): the 187-entry item registry oracle
+  (reference Item.java, ids 256-2267) over the UNION row set, the item
+  completeness walk, and THE STRIP'S TRAPS: 67 is stone_stairs (the
+  strip had folded the engine's cobblestone_stairs onto the COBBLESTONE
+  row — the wrong family), the 44-family's slab variants carried the
+  same trap (sandstone_slab onto sandstone, cobblestone_slab onto
+  cobblestone, stone_brick_slab onto STONE), all fixed explicitly onto
+  stone_slab.
+- The evidence walks: StatsCompletenessTest 5 — every registered
+  block's mine key resolves into the 197-name set, every registered
+  item's use key into the union; the tests ARE the survey (a new state
+  family without its fold fails there rather than counting on a key
+  the 1.8.8 client drops).
+- The registry spellings the survey pinned: 98 stonebrick (one word),
+  144 skull (mob_head is the 1.9 flattening's), 67 stone_stairs,
+  165 slime, 395 map / 358 filled_map, 382 speckled_melon, 351 dye
+  (the lapis and bone meal ride the damage band), 112 nether_brick
+  (singular), the five 1.7 woods' slabs have no registry ids (126/125
+  alone), 140 flower_pot's prefix rule, the white stained clay as the
+  dye loop's sixteenth member.
+- The audit tooling: scripts/l4_survey.py (the resolvability survey),
+  scripts/l4_audit.py (the legacy-id cross-check — every engine
+  block's resolved row must carry its own true legacy id; the metadata
+  nibbles read as false mismatches, the legacy-id column is the
+  truth).
+
+NEXT per the standing rows: (1) L5 — the SEAMLESS skins (the
+double_stone_slab2 181 + the stone 43 family's bit 8 — register-only
+arms); (2) L6 — the double-plant's canBeReplaced-per-variant; (3) the
+shared container-open event (demand-named); (4) a broader regression
+batch over the stat-adjacent suites (the full suite in the established
+seven-batch pattern).

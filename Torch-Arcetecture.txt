@@ -1666,12 +1666,26 @@ ender chest (Slice 29a) set the precedent, and L2/L3 follow it.
       stats fold completed for the family AND the L2 chest pair —
       mining a facing-state chest counted on a key the 1.8.8 client
       drops);
-- [ ] L4 — the stats-completeness fold: every registered state whose
-      id is not a 1.8.8 registry name counts mining on a key the
-      client drops (the stairs/doors/slabs/skulls/pots/plates/rails
-      families fold onto their registry rows; the pinned
-      oak_stairs_east row in StatsTest flips with it; the used-item
-      stat rows the ledger named ride here too);
+- [x] L4 — LANDED (Slice L4a 19391d8 + L4b 157bf4f): the stats-
+      completeness fold over BOTH registries — the 197-entry block
+      oracle + the 187-entry item oracle (reference Block.java/Item.java
+      verbatim), the BLOCK_NAMES/ITEM-name divergence tables SEPARATE
+      (the melon collision: block 103 melon_block vs item 362 melon),
+      the pure state fold (the suffix-strip), and the RETIRED merge
+      table (vanilla keeps its own row for every registry Block: the
+      grass, the farmland, the doubles, the lit/powered forms, the
+      flowing fluids). The completeness walks: every registered block's
+      mine key resolves into the 197-name set, every registered item's
+      use key into the union — the tests ARE the survey. THE AUDIT'S
+      CATCHES: 67 is stone_stairs (the strip had folded the engine's
+      cobblestone_stairs onto the cobblestone row — the prefix-strip's
+      own trap), the 44-family's slab variants carried the same trap,
+      98 is stonebrick ONE WORD, 144 is skull (the mob_head spelling is
+      the 1.9 flattening's), 395 is map (358 alone is the FILLED form),
+      382 is speckled_melon, the five 1.7 woods' slabs have no registry
+      ids of their own, and the white stained clay was the dye loop's
+      missing sixteenth member. The legacy-id cross-check audit
+      (scripts/l4_audit.py) verified all 459 mapped ids;
 - [ ] L5 — the SEAMLESS skins (the double_stone_slab2 181 + the stone
       43 family's bit 8 — register-only arms, no gameplay path sets
       the bit);
