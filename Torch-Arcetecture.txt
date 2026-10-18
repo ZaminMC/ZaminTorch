@@ -667,15 +667,15 @@ Torch has published development releases, so the initial artifact gate has been 
 
 ### Phase 4 — 1.8.8 mechanics foundation — IN PROGRESS
 
-The engine has substantial reference-driven mechanics and API coverage, tracked in Section 29 and `VANILLA_1_8_8_COMPATIBILITY.md`. The current ledger includes completed Waves A–K and metadata-variant Wave L slices L1–L5. That is progress by mechanic, not full Minecraft 1.8.8 compatibility: keep each remaining behavior, difference, test, and status explicit. Do not replace reference behavior with modern defaults or narrow the native API to match an incomplete compatibility layer.
+The engine has substantial reference-driven mechanics and API coverage, tracked in Section 29 and `VANILLA_1_8_8_COMPATIBILITY.md`. The current ledger includes completed Waves A–K, the metadata-variant Wave L (L1–L6), the stairs' two-box geometry (L7), Wave M (the swept-box physics solver across every moving family), and the first Phase-6 gameplay lane (P6). That is progress by mechanic, not full Minecraft 1.8.8 compatibility: keep each remaining behavior, difference, test, and status explicit. Do not replace reference behavior with modern defaults or narrow the native API to match an incomplete compatibility layer.
 
-### Phase 5 — Supporting parallel computation — INFRASTRUCTURE IMPLEMENTED; workload adoption remains evidence-gated
+### Phase 5 — Supporting parallel computation — INFRASTRUCTURE IMPLEMENTED; FIRST WORKLOAD ADOPTED (RANDOM-TICK PICKS); REMAINING ADOPTIONS EVIDENCE-GATED
 
-The bounded `ComputeSubsystem`, typed/versioned results, owner-context application, stale-result rejection/fallback, failure reporting, and shutdown are implemented. Each proposed workload (for example pathfinding, chunk generation, lighting, serialization, or persistence preparation) still needs a specific immutable-input contract, version validation, behavioral equivalence tests, and before/after measurements before it can be described as safely offloaded.
+The bounded `ComputeSubsystem`, typed/versioned results, owner-context application, stale-result rejection/fallback, failure reporting, and shutdown are implemented. The FIRST workload adoption is LANDED: the random-tick pick computation (P6-lane) rides the domain worker pool under Phase 5's own contract shape (immutable inputs in, picked positions out, no world read). Each remaining proposed workload (for example pathfinding, chunk generation, lighting, serialization, or persistence preparation) still needs a specific immutable-input contract, version validation, behavioral equivalence tests, and before/after measurements before it can be described as safely offloaded.
 
-### Phase 6 — Partitioned simulation and boundaries — FOUNDATIONS IMPLEMENTED; FULL PARALLEL EXECUTION NOT COMPLETE
+### Phase 6 — Partitioned simulation and boundaries — FOUNDATIONS IMPLEMENTED; FIRST PARALLEL GAMEPLAY LANDED (RANDOM-TICK LANE, GATED); FULL PARALLEL EXECUTION NOT COMPLETE
 
-The repository contains the region partition, position-aware ownership checks, migration protocol, cross-owner router, bounded domain worker pool, boundary scopes, and seam tests for the mechanics specifically covered by the implementation ledger. The current server run remains deliberately gated: the parallel per-region gameplay execution lane and complete per-mechanic boundary protocols are **not** complete. Do not claim full multiregion simulation or activate an untested boundary mechanic merely because its infrastructure exists.
+The repository contains the region partition, position-aware ownership checks, migration protocol, cross-owner router, bounded domain worker pool, boundary scopes, and seam tests for the mechanics specifically covered by the implementation ledger. The FIRST parallel per-region gameplay execution lane is LANDED and evidence-gated: the random-tick compute-then-apply walk (Slice P6-lane) computes each region's picks as one pure job on the domain worker pool (derived per-(tick, region) streams make the parallel and sequential walks produce IDENTICAL picks — proven by the lockstep equivalence test) and applies every world write on the tick lane in the stable region order (§6.2's one authoritative writer). The lane is armed only by `torch.parallel-region-ticks` AND a real region split (default OFF — the whole-world default keeps every walk sequential). The broader per-mechanic boundary protocols and the remaining gameplay lanes (entities, tiles) are **not** complete: do not claim full multiregion simulation or activate an untested boundary mechanic merely because its infrastructure exists.
 
 ### Phase 7 — Heavy-owner optimization — NOT STARTED AS A GENERAL CAPABILITY
 
@@ -685,7 +685,7 @@ Proceed only after the ordinary owner/boundary model is correct and profiling de
 
 Dynamic split/merge and load-driven migration remain future work. First prove migration with in-flight tasks, delayed work, messages, compute results, persistence, shutdown, and stale-generation invalidation; add telemetry and anti-oscillation rules before enabling automatic balancing.
 
-**Next concrete mechanics work:** continue from Section 29: Wave L6's double-plant per-variant replacement behavior LANDED; the stairs' true two-box ascending collision geometry LANDED (the two-box slice — the base slab + the tall back with the reference's own corner resolution; the swept-box BODY model still rides the physics-solver slice). The remaining §29 ledger work is the Wave L tail's standing rows and the phase-gated items below. Keep these outstanding items visible until code and tests prove them complete.
+**Next concrete mechanics work:** continue from Section 29: Wave M COMPLETE (the swept-box body model across every moving family); the Phase-6 random-tick lane LANDED (P6-lane, gated). The remaining §29 ledger work is the Wave L tail's standing rows, the Phase-5 workload adoptions still open (pathfinding, lighting, serialization — each needs its own immutable-input contract, equivalence tests, and measurements), and the phase-gated items below. Keep these outstanding items visible until code and tests prove them complete.
 
 # 23. COMMITS / PUSHES / RELEASES
 
@@ -1843,6 +1843,40 @@ WAVE M COMPLETE — the swept-box BODY model is the MOVING bodies' own
 law across every family; the point queries stay for the standers and
 the readers (the stub worlds' own fold, the legacy walk retired only
 where the surface exists).
+
+## Wave P — the parallel execution lanes (Phase 6's gated gameplay adoption)
+
+The §22 Phase 6 evidence gate opens lane by lane: each lane proves its
+compute-then-apply split with an equivalence test BEFORE it can be
+described as parallel, and every lane stays behind its own arm gate
+(the default run keeps the sequential walk).
+
+- [x] P6 — LANDED (Slice P6-lane, commit 0be92dc): the random-tick
+      compute-then-apply region lane. `RandomTickPicks` — the PURE
+      per-region pick computation (the region id, the tick, the chunk
+      positions, the picks-per-section band IN — the picked positions
+      OUT, no world read anywhere: Phase 5's immutable-input contract).
+      THE DERIVED STREAMS: `streamFor(baseSeed, tick*P1, regionId*P2)`
+      — per-(tick, region) deterministic, so the sequential walk and
+      the pool dispatch produce IDENTICAL picks by construction. THE
+      TIME AXIS: the system's OWN `laneTick` counter (NOT
+      `world.totalTicks()` — the direct-driven tests call tick()
+      without the ticker; a frozen axis would freeze the stream).
+      THE LANE: one job per region on the `DomainWorkerPool`, the
+      applies IN THE STABLE REGION ORDER on the tick lane (§6.2's one
+      authoritative writer). THE OBSERVABILITY:
+      `parallelDispatchTicks()` — the lane's own engagement evidence.
+      THE GATE: `torch.parallel-region-ticks` AND a real region split
+      (default OFF). Evidence: `RandomTickLaneTest` 5 — the LOCKSTEP
+      equivalence (two identically-built worlds, EXACT state equality,
+      not a convergence fixed point; the two-boot design could never
+      align absolute tick numbers), the live boot wiring (the property
+      gate + a 4-chunk split rides the dispatch through the real tick
+      loop), the stream contract, the pick shape, the pool dispatch;
+      the direct sweep block/world/concurrent 330 green + the broad
+      entity/physics/piston/scheduler/vehicle sweep green + the
+      protocol module 108 (one documented load flake, green in
+      isolation) (sweep-P6lane-*.log);
 
 ## Standing (demand-named, not scheduled)
 

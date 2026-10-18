@@ -9611,3 +9611,50 @@ contract, milestone-gated).
   lifts nothing.
 - Evidence: the protocol module FULL 108 green (the rail ride again)
   + the vehicle/physics packages 81 green (full-suite-M4b-fix.log).
+
+## Slice P6-lane — the first parallel gameplay execution lane
+
+- **THE LANE**: the random-tick walk's compute-then-apply split — the
+  in-range chunks group by their region, each region's pick
+  COMPUTATION rides as one job on the `DomainWorkerPool` (pure,
+  parallel), the applies run IN THE STABLE REGION ORDER on the tick
+  lane (§6.2's one authoritative writer — the compute side never
+  touches world state).
+- **THE DERIVED STREAMS** (`RandomTickPicks`): per-(tick, region)
+  deterministic — `streamFor(baseSeed, tick*P1, regionId*P2)` — so the
+  sequential walk and the pool dispatch produce IDENTICAL picks by
+  construction (the equivalence is a property of the stream, not a
+  hope about scheduling).
+- **THE TIME AXIS DISCOVERY**: the derivation reads the system's OWN
+  `laneTick` counter, NOT `world.totalTicks()` — the direct-driven
+  tests (RandomTickSystemTest's statistical guard loops) call `tick()`
+  without the ticker, and a frozen time axis would freeze the derived
+  stream with it: the same picks every call. The live wiring advances
+  both counters together (one `tick()` per world tick).
+- **THE OBSERVABILITY**: `parallelDispatchTicks()` — the count of
+  walks that actually rode the pool; the test asserts it is > 0 armed
+  and == 0 unarmed (never a silent sequential fallback).
+- **THE GATE**: `torch.parallel-region-ticks` at boot (default OFF) +
+  the multi-region gate `regions.size() > 1` (the whole-world default
+  region size keeps every walk sequential until an operator configures
+  a real split).
+- **THE LOCKSTEP TEST DESIGN**: two identically-built worlds (same
+  generator/seed, same light engine, same 2-chunk partition, same
+  chunk generation order, same seeded apply randomness) driven
+  tick-by-tick — one sequential, one on the pool — compared for EXACT
+  state equality while BOTH differ from their initial snapshot. The
+  earlier two-boot design could never work: two server boots can never
+  align their absolute tick numbers, and the streams are per-tick.
+- Evidence: `RandomTickLaneTest` 5 green (the lockstep equivalence,
+  the live boot wiring through the real tick loop, the stream
+  contract, the pick shape, the pool dispatch) +
+  `RandomTickSystemTest` 3 green unchanged; the direct sweep
+  block/world/concurrent **330 green**; the broad
+  entity/physics/piston/scheduler/vehicle sweep green; the protocol
+  module 108 (one documented load flake — DonkeyChest, green in
+  isolation) (sweep-P6lane-*.log).
+
+**Next:** the §29 ledger's standing rows and the Phase-5 workload
+adooptions (each needs its own immutable-input contract and
+equivalence proof), the phase-gated items (Bukkit adapter, Anvil
+import, modern-protocol module).
