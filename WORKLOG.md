@@ -9279,3 +9279,29 @@ NEXT per the standing rows: (1) the stairs' true two-box collision
 geometry (the physics-solver slice); (2) the §30 console's per-command
 argument completion (demand-named); (3) the §31 modern backend (the
 codecs + the migration contract, milestone-gated).
+
+### Slice — the adventure place gate threaded at the dispatch (a pre-existing regression repaired)
+
+- THE CATCH: the L6 sweep's broad rerun surfaced AdventureGatesTest 2/4
+  failing — at 26851c4 (the session-start commit), BEFORE any of today's
+  work. The bisect: Slice 96 landed the adventure CanPlaceOn consult at
+  the generic survival fallback when the CHEST still rode it; Slice L2's
+  placeChestFacingOnTick then gave the chest (and every other family
+  item) its own arm ABOVE the fallback — silently routing ~30 placement
+  arms around the consult. An adventure player holding a chest placed it
+  straight through the refusal; the L2 sweep never reran the interaction
+  package, so the hole sat undetected.
+- THE FIX: the consult threaded ONCE at the dispatch's placement
+  transition (after the last USE arm — the container opens, the bucket,
+  the bottle, the flint — the reference's own order; before the
+  reed/cactus and every placement arm below), through
+  BlockInteractionService.canUseItemOnForPlacement (the public
+  dispatch-level surface over the Wave-I consult).
+- The stale assertion repaired with it: the L2 chest placement lands the
+  LOOK-FACING state (chest_north/...), never the bare 54 constant — the
+  test now reads the plain family, matching the 1:1 law.
+- The full sweep after: every root-package class A-Z green, the
+  subpackage batches green, api/protocol/launcher green; the three
+  load-flakes (VehicleWorldDamage, GameRule mobGriefing, LifecycleEvent
+  death-scatter, ScoreboardIntegration health-hearts) each verified
+  green in isolation on this 2-core host.
