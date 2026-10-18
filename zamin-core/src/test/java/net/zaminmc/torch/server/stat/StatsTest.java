@@ -88,6 +88,19 @@ class StatsTest {
                 EngineStats.mineBlockOf(Identifier.parse("minecraft:lit_furnace")));
         assertEquals("stat.mineBlock.minecraft.furnace",
                 EngineStats.mineBlockOf(Identifier.parse("minecraft:furnace_lit")));
+        // The furnace pair's facing states (Slice L3 — the whole family
+        // on the furnace row: the vanilla stat is keyed by the registry
+        // Block, one row for all sixteen states).
+        assertEquals("stat.mineBlock.minecraft.furnace",
+                EngineStats.mineBlockOf(Identifier.parse("minecraft:furnace_north")));
+        assertEquals("stat.mineBlock.minecraft.furnace",
+                EngineStats.mineBlockOf(Identifier.parse("minecraft:furnace_lit_west")));
+        // The chest pair's facing states (the L3 audit's catch — L2
+        // shipped the family without the fold).
+        assertEquals("stat.mineBlock.minecraft.chest",
+                EngineStats.mineBlockOf(Identifier.parse("minecraft:chest_north")));
+        assertEquals("stat.mineBlock.minecraft.trapped_chest",
+                EngineStats.mineBlockOf(Identifier.parse("minecraft:trapped_chest_east")));
         assertEquals("stat.mineBlock.minecraft.redstone_ore",
                 EngineStats.mineBlockOf(Identifier.parse("minecraft:lit_redstone_ore")));
         assertEquals("stat.mineBlock.minecraft.repeater",

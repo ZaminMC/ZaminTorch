@@ -378,9 +378,13 @@ public final class WorldSolidity {
                 || value.equals("nether_brick_fence");
     }
 
-    /** Either furnace half (61 unlit / 62 lit) — the container's two faces. */
+    /** Either furnace half (61 unlit / 62 lit) — the container's two faces, the facing states included (Slice L3). */
     public static boolean isFurnaceBlock(Identifier id) {
-        return id.equals(BuiltinBlocks.FURNACE.identifier())
-                || id.equals(BuiltinBlocks.FURNACE_LIT.identifier());
+        String value = id.value();
+        if (!id.namespace().equals("minecraft")) {
+            return false;
+        }
+        return value.equals("furnace") || value.equals("furnace_lit")
+                || value.startsWith("furnace_") || value.startsWith("furnace_lit_");
     }
 }

@@ -1023,6 +1023,10 @@ final class LegacyBlockIds {
             // 114-127: the same Direction-id nibble band over 54 and 146).
             merged.put(Identifier.parse("minecraft:chest_" + facing), 54);
             merged.put(Identifier.parse("minecraft:trapped_chest_" + facing), 146);
+            // The furnace pair's facing states (Slice L3 — FurnaceBlock
+            // lines 114-123: the same band over 61 and 62).
+            merged.put(Identifier.parse("minecraft:furnace_" + facing), 61);
+            merged.put(Identifier.parse("minecraft:furnace_lit_" + facing), 62);
         }
         merged.put(Identifier.parse("minecraft:ender_chest"), 130);
         // The daylight detector family (Slice 27c — Block.java lines
@@ -1325,6 +1329,16 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:trapped_chest_south"), 3),
             Map.entry(Identifier.parse("minecraft:trapped_chest_west"), 4),
             Map.entry(Identifier.parse("minecraft:trapped_chest_east"), 5),
+            // The furnace pair's facing nibbles (Slice L3 — the same band
+            // over 61 and 62, FurnaceBlock lines 114-123).
+            Map.entry(Identifier.parse("minecraft:furnace_north"), 2),
+            Map.entry(Identifier.parse("minecraft:furnace_south"), 3),
+            Map.entry(Identifier.parse("minecraft:furnace_west"), 4),
+            Map.entry(Identifier.parse("minecraft:furnace_east"), 5),
+            Map.entry(Identifier.parse("minecraft:furnace_lit_north"), 2),
+            Map.entry(Identifier.parse("minecraft:furnace_lit_south"), 3),
+            Map.entry(Identifier.parse("minecraft:furnace_lit_west"), 4),
+            Map.entry(Identifier.parse("minecraft:furnace_lit_east"), 5),
             Map.entry(Identifier.parse("minecraft:oak_door_east"), 2),
             Map.entry(Identifier.parse("minecraft:oak_door_south"), 3),
             Map.entry(Identifier.parse("minecraft:oak_door_open"), 4),
@@ -2013,6 +2027,15 @@ final class LegacyBlockIds {
             if (identifier.namespace().equals("minecraft")
                     && (identifier.value().startsWith("chest_")
                     || identifier.value().startsWith("trapped_chest_"))) {
+                reversed.put((legacy << 4) | metadataOf(identifier), identifier);
+            }
+        });
+        // The furnace pair folds its facings in too (Slice L3 — 61|2 and
+        // 62|2 resolve the north states).
+        BY_IDENTIFIER.forEach((identifier, legacy) -> {
+            if (identifier.namespace().equals("minecraft")
+                    && (identifier.value().startsWith("furnace_")
+                    || identifier.value().startsWith("furnace_lit_"))) {
                 reversed.put((legacy << 4) | metadataOf(identifier), identifier);
             }
         });

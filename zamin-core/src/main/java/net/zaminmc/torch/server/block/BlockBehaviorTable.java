@@ -129,6 +129,20 @@ public final class BlockBehaviorTable {
             Map.entry(Identifier.parse("minecraft:furnace"),
                     new BlockBehavior(3.5, true, true, "rock", 1,
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:furnace"), 1)))),
+            // The furnace pair's facing states (Slice L3 — the same 3.5
+            // rock rows, every state dropping the furnace item).
+            Map.entry(Identifier.parse("minecraft:furnace_north"),
+                    new BlockBehavior(3.5, true, true, "rock", 1,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:furnace"), 1)))),
+            Map.entry(Identifier.parse("minecraft:furnace_south"),
+                    new BlockBehavior(3.5, true, true, "rock", 1,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:furnace"), 1)))),
+            Map.entry(Identifier.parse("minecraft:furnace_west"),
+                    new BlockBehavior(3.5, true, true, "rock", 1,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:furnace"), 1)))),
+            Map.entry(Identifier.parse("minecraft:furnace_east"),
+                    new BlockBehavior(3.5, true, true, "rock", 1,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:furnace"), 1)))),
 
             // Community data (pc/1.8 blocks.json): noteblock hardness 0.8
             // (the reference's own setStrength(0.8F) registration), material
@@ -899,6 +913,18 @@ public final class BlockBehaviorTable {
             // themselves (the cactus's slight inset is the collision slice's
             // concern).
             Map.entry(Identifier.parse("minecraft:furnace_lit"),
+                    new BlockBehavior(3.5, true, true, "rock", 1,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:furnace"), 1)))),
+            Map.entry(Identifier.parse("minecraft:furnace_lit_north"),
+                    new BlockBehavior(3.5, true, true, "rock", 1,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:furnace"), 1)))),
+            Map.entry(Identifier.parse("minecraft:furnace_lit_south"),
+                    new BlockBehavior(3.5, true, true, "rock", 1,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:furnace"), 1)))),
+            Map.entry(Identifier.parse("minecraft:furnace_lit_west"),
+                    new BlockBehavior(3.5, true, true, "rock", 1,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:furnace"), 1)))),
+            Map.entry(Identifier.parse("minecraft:furnace_lit_east"),
                     new BlockBehavior(3.5, true, true, "rock", 1,
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:furnace"), 1)))),
 

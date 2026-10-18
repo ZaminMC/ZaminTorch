@@ -1033,6 +1033,9 @@ public final class BuiltinBlocks {
         // The chest pair's facing states (Slice L2 — the four plain + the
         // four trapped, the Direction-id nibble band 2-5).
         builder = net.zaminmc.torch.server.chest.ChestFacingBlocks.registerAll(builder);
+        // The furnace pair's facing states (Slice L3 — the four plain + the
+        // four lit, the same Direction-id nibble band).
+        builder = net.zaminmc.torch.server.furnace.FurnaceFacingBlocks.registerAll(builder);
         // The complete door families (Slice 34 — DoorBlock/DoorItem 1:1):
         // the five new woods' twelve states each, the oak hinge pair, and
         // the iron door's open + hinge states. The shipped oak/iron
