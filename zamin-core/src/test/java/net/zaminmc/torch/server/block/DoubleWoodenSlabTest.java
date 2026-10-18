@@ -41,12 +41,14 @@ class DoubleWoodenSlabTest {
 
     @Test
     void theStatsMergesFoldOntoTheWoodenSlabRow() {
-        // The vanilla per-block-id scheme: every 125 state counts on the
-        // 126 row.
-        assertEquals("stat.mineBlock.minecraft.wooden_slab",
+        // Slice L4's registry scheme: every 125 state counts on the 125
+        // row (the double wooden slab is a registry Block in its own
+        // right — the old fold onto the 126 single row was the engine's
+        // own simplification).
+        assertEquals("stat.mineBlock.minecraft.double_wooden_slab",
                 net.zaminmc.torch.server.stat.EngineStats.mineBlockOf(
                         Identifier.parse("minecraft:double_dark_oak_slab")));
-        assertEquals("stat.mineBlock.minecraft.wooden_slab",
+        assertEquals("stat.mineBlock.minecraft.double_wooden_slab",
                 net.zaminmc.torch.server.stat.EngineStats.mineBlockOf(
                         Identifier.parse("minecraft:double_wooden_slab")));
     }

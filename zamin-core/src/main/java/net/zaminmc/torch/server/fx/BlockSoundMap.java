@@ -71,6 +71,13 @@ public final class BlockSoundMap {
             Map.entry("minecraft:glass_pane", "dig.glass"),
             Map.entry("minecraft:iron_bars", "dig.stone"),
             Map.entry("minecraft:double_stone_slab", "dig.stone"),
+            Map.entry("minecraft:stone_brick_slab_top", "dig.stone"),
+            // Slice L5 — the variant doubles + the seamless skins.
+            Map.entry("minecraft:double_sandstone_slab", "dig.stone"),
+            Map.entry("minecraft:double_cobblestone_slab", "dig.stone"),
+            Map.entry("minecraft:double_stone_brick_slab", "dig.stone"),
+            Map.entry("minecraft:double_stone_slab_seamless", "dig.stone"),
+            Map.entry("minecraft:double_stone_slab2_seamless", "dig.stone"),
             Map.entry("minecraft:smooth_sandstone", "dig.stone"),
             Map.entry("minecraft:sandstone_stairs_east", "dig.stone"),
             Map.entry("minecraft:sandstone_stairs_west", "dig.stone"),

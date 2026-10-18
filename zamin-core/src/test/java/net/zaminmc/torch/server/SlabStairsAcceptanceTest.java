@@ -196,8 +196,11 @@ class SlabStairsAcceptanceTest {
         assertEquals(BuiltinBlocks.COBBLESTONE_SLAB, world.getBlock(above),
                 "the cobble family places its own half");
         useOn(builder, above, 1, 0);
-        assertEquals(BuiltinBlocks.COBBLESTONE, world.getBlock(above),
-                "the cobble double is the cobblestone cube");
+        // Slice L5 — the pair doubles into the family's OWN 43 variant
+        // double (the VARIANT nibble), no longer the parent cube's
+        // pre-52 stand-in.
+        assertEquals(BuiltinBlocks.DOUBLE_COBBLESTONE_SLAB, world.getBlock(above),
+                "the cobble double is the cobblestone variant double");
 
         BlockPosition next = floor.offset(1, 1, 0);
         server.ticker().submit(() -> world.setBlock(floor.offset(1, 0, 0), BuiltinBlocks.STONE));

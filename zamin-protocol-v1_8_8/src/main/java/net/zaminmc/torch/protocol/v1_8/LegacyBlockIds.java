@@ -415,6 +415,12 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:glass_pane"), 102),
             Map.entry(Identifier.parse("minecraft:iron_bars"), 101),
             Map.entry(Identifier.parse("minecraft:double_stone_slab"), 43),
+            // The 43-family variant doubles + the seamless skins (Slice
+            // L5 — the VARIANT nibble 1/3/5 and the SEAMLESS bit 8).
+            Map.entry(Identifier.parse("minecraft:double_sandstone_slab"), 43),
+            Map.entry(Identifier.parse("minecraft:double_cobblestone_slab"), 43),
+            Map.entry(Identifier.parse("minecraft:double_stone_brick_slab"), 43),
+            Map.entry(Identifier.parse("minecraft:double_stone_slab_seamless"), 43),
             Map.entry(Identifier.parse("minecraft:smooth_sandstone"), 24),
             Map.entry(Identifier.parse("minecraft:carrots_stage0"), 141),
             Map.entry(Identifier.parse("minecraft:carrots_stage1"), 141),
@@ -509,6 +515,7 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:infested_cracked_stone_bricks"), 97),
             Map.entry(Identifier.parse("minecraft:infested_chiseled_stone_bricks"), 97),
             Map.entry(Identifier.parse("minecraft:stone_brick_slab"), 44),
+            Map.entry(Identifier.parse("minecraft:stone_brick_slab_top"), 44),
             Map.entry(Identifier.parse("minecraft:mob_spawner"), 52),
             Map.entry(Identifier.parse("minecraft:iron_door_west"), 71),
             Map.entry(Identifier.parse("minecraft:iron_door_north"), 71),
@@ -831,6 +838,7 @@ final class LegacyBlockIds {
             merged.put(Identifier.parse("minecraft:red_sandstone_stairs_" + facing + "_top"), 180);
         }
         merged.put(Identifier.parse("minecraft:double_stone_slab2"), 181);
+        merged.put(Identifier.parse("minecraft:double_stone_slab2_seamless"), 181);
         merged.put(Identifier.parse("minecraft:stone_slab2"), 182);
         merged.put(Identifier.parse("minecraft:stone_slab2_top"), 182);
         // The anvil family (Slice 53 — Block.java's own row 145): the twelve
@@ -1411,6 +1419,14 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:infested_cracked_stone_bricks"), 4),
             Map.entry(Identifier.parse("minecraft:infested_chiseled_stone_bricks"), 5),
             Map.entry(Identifier.parse("minecraft:stone_brick_slab"), 5),
+            Map.entry(Identifier.parse("minecraft:stone_brick_slab_top"), 13),
+            // The 43-family variant doubles' nibbles + the SEAMLESS bit
+            // (Slice L5 — DoubleStoneSlabBlock's own fold).
+            Map.entry(Identifier.parse("minecraft:double_sandstone_slab"), 1),
+            Map.entry(Identifier.parse("minecraft:double_cobblestone_slab"), 3),
+            Map.entry(Identifier.parse("minecraft:double_stone_brick_slab"), 5),
+            Map.entry(Identifier.parse("minecraft:double_stone_slab_seamless"), 8),
+            Map.entry(Identifier.parse("minecraft:double_stone_slab2_seamless"), 8),
             Map.entry(Identifier.parse("minecraft:iron_door_north"), 1),
             Map.entry(Identifier.parse("minecraft:iron_door_east"), 2),
             Map.entry(Identifier.parse("minecraft:iron_door_south"), 3),
@@ -2027,6 +2043,19 @@ final class LegacyBlockIds {
             if (identifier.namespace().equals("minecraft")
                     && (identifier.value().startsWith("chest_")
                     || identifier.value().startsWith("trapped_chest_"))) {
+                reversed.put((legacy << 4) | metadataOf(identifier), identifier);
+            }
+        });
+        // The stone-slab family's doubles fold their nibbles in (Slice
+        // L5 — 43|1/3/5/8 and 181|8 resolve the variant doubles and the
+        // seamless skins).
+        BY_IDENTIFIER.forEach((identifier, legacy) -> {
+            if (identifier.namespace().equals("minecraft")
+                    && (identifier.value().startsWith("double_sandstone_slab")
+                    || identifier.value().startsWith("double_cobblestone_slab")
+                    || identifier.value().startsWith("double_stone_brick_slab")
+                    || identifier.value().startsWith("double_stone_slab_seamless")
+                    || identifier.value().startsWith("double_stone_slab2_seamless"))) {
                 reversed.put((legacy << 4) | metadataOf(identifier), identifier);
             }
         });

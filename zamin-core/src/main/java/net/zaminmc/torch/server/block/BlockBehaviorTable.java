@@ -481,9 +481,24 @@ public final class BlockBehaviorTable {
             Map.entry(Identifier.parse("minecraft:iron_bars"),
                     new BlockBehavior(5.0, true, false, "rock", 1,
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:iron_bars"), 1)))),
+            // Slice L5 — the drop repair: DoubleStoneSlabBlock.getDropItem
+            // is the SINGLE slab item and getBaseDropCount's isDouble ? 2
+            // : 1 — the double never dropped itself.
             Map.entry(Identifier.parse("minecraft:double_stone_slab"),
                     new BlockBehavior(2.0, true, false, "rock", 0,
-                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:double_stone_slab"), 1)))),
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:stone_slab"), 2)))),
+            Map.entry(Identifier.parse("minecraft:double_sandstone_slab"),
+                    new BlockBehavior(2.0, true, true, "rock", 1,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:sandstone_slab"), 2)))),
+            Map.entry(Identifier.parse("minecraft:double_cobblestone_slab"),
+                    new BlockBehavior(2.0, true, true, "rock", 1,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:cobblestone_slab"), 2)))),
+            Map.entry(Identifier.parse("minecraft:double_stone_brick_slab"),
+                    new BlockBehavior(2.0, true, true, "rock", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:stone_brick_slab"), 2)))),
+            Map.entry(Identifier.parse("minecraft:double_stone_slab_seamless"),
+                    new BlockBehavior(2.0, true, false, "rock", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:stone_slab"), 2)))),
             Map.entry(Identifier.parse("minecraft:smooth_sandstone"),
                     new BlockBehavior(0.8, true, false, "rock", 0,
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:smooth_sandstone"), 1)))),
@@ -554,6 +569,9 @@ public final class BlockBehaviorTable {
             Map.entry(Identifier.parse("minecraft:infested_chiseled_stone_bricks"),
                     new BlockBehavior(0.0, true, false, "clay", 0, List.of())),
             Map.entry(Identifier.parse("minecraft:stone_brick_slab"),
+                    new BlockBehavior(2.0, true, true, "rock", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:stone_brick_slab"), 1)))),
+            Map.entry(Identifier.parse("minecraft:stone_brick_slab_top"),
                     new BlockBehavior(2.0, true, true, "rock", 0,
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:stone_brick_slab"), 1)))),
             Map.entry(Identifier.parse("minecraft:mob_spawner"),
@@ -1517,7 +1535,6 @@ public final class BlockBehaviorTable {
                                             member.identifier())))));
         }
         for (Identifier slab : new Identifier[] {
-                Identifier.parse("minecraft:double_stone_slab2"),
                 Identifier.parse("minecraft:stone_slab2"),
                 Identifier.parse("minecraft:stone_slab2_top")}) {
             behaviors.put(slab,
@@ -1525,6 +1542,17 @@ public final class BlockBehaviorTable {
                             java.util.List.of(new BlockBehavior.Drop(
                                     Identifier.parse("minecraft:stone_slab2"), 1))));
         }
+        // Slice L5 — the drop repair: the 181 double yields TWO singles
+        // (RedSandstoneSlab.getBaseDropCount's isDouble ? 2 : 1), and the
+        // seamless skin drops the same pair.
+        behaviors.put(Identifier.parse("minecraft:double_stone_slab2"),
+                new BlockBehavior(2.0, true, true, "rock", 1,
+                        java.util.List.of(new BlockBehavior.Drop(
+                                Identifier.parse("minecraft:stone_slab2"), 2))));
+        behaviors.put(Identifier.parse("minecraft:double_stone_slab2_seamless"),
+                new BlockBehavior(2.0, true, true, "rock", 1,
+                        java.util.List.of(new BlockBehavior.Drop(
+                                Identifier.parse("minecraft:stone_slab2"), 2))));
 
         // The anvil family (Slice 53 — AnvilBlock's own row:
         // setStrength(5.0F) over Material.ANVIL with the pickaxe gate —
