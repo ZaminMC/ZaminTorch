@@ -812,6 +812,22 @@ public final class BlockInteractionService {
         return !bus.fire(new BlockPlaceEvent(player, world, position, block)).cancelled();
     }
 
+    /**
+     * The placement's occupied gate (World.canBlockBePlaced over
+     * Block.canBeReplaced, Wave L6): the target cell accepts the placement
+     * when it is air OR replaceable flora — the tall grass and the large
+     * fern (the double-plant family's GRASS/FERN variants, both halves)
+     * yield their place silently; the four double-plant FLOWERS refuse
+     * like any normal block. A replaced lower's upper pops through the
+     * update system's own support arm, and the replaced flora drops
+     * nothing — exactly the reference's walk.
+     */
+    private boolean canOccupy(BlockPosition target) {
+        BlockType existing = world.getBlock(target);
+        return existing.equals(world.airType())
+                || WorldSolidity.isReplaceable(existing.identifier());
+    }
+
     private void placeOnTick(PlayerSession player, BlockPosition clicked, int face, BlockType held) {
         BlockPosition target = InteractionRules.offsetByFace(clicked, face);
         if (target == null) {
@@ -820,8 +836,8 @@ public final class BlockInteractionService {
         if (world.getBlock(clicked).equals(world.airType())) {
             return; // must click an existing block face (§215)
         }
-        if (!world.getBlock(target).equals(world.airType())) {
-            return; // target must be air
+        if (!canOccupy(target)) {
+            return; // air or replaceable flora (Block.canBeReplaced, Wave L6)
         }
         if (!InteractionRules.withinReach(player.position(), target)) {
             LOGGER.fine(() -> "Rejected placement (out of reach) by " + player.name());
@@ -887,7 +903,7 @@ public final class BlockInteractionService {
         }
         BlockPosition target = InteractionRules.offsetByFace(clicked, face);
         if (target == null || world.getBlock(clicked).equals(world.airType())
-                || !world.getBlock(target).equals(world.airType())
+                || !canOccupy(target)
                 || !InteractionRules.withinSurvivalReach(player.position(), target)
                 || (WorldSolidity.isSolid(heldBlock)
                         && InteractionRules.intersectsPlayer(player.position(), target))) {
@@ -895,8 +911,8 @@ public final class BlockInteractionService {
                 LOGGER.fine(() -> "Rejected survival placement (bad face) by " + player.name());
             } else if (world.getBlock(clicked).equals(world.airType())) {
                 LOGGER.fine(() -> "Rejected survival placement (clicked air) by " + player.name());
-            } else if (!world.getBlock(target).equals(world.airType())) {
-                LOGGER.fine(() -> "Rejected survival placement (target not air: "
+            } else if (!canOccupy(target)) {
+                LOGGER.fine(() -> "Rejected survival placement (target not placeable: "
                         + world.getBlock(target).identifier() + " at " + target + ") by " + player.name());
             } else if (!InteractionRules.withinSurvivalReach(player.position(), target)) {
                 LOGGER.fine(() -> "Rejected survival placement (out of reach) by " + player.name());

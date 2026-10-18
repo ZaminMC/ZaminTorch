@@ -31,6 +31,33 @@ public final class DoublePlantBlocks {
     /** The wire id (Block.java's own row {@code register(175, "double_plant", ...)}). */
     public static final int WIRE_ID = 175;
 
+    /** The GRASS variant id (VARIANT band slot 2 — the reference's DOUBLE_GRASS). */
+    public static final int VARIANT_GRASS = 2;
+    /** The FERN variant id (VARIANT band slot 3 — the reference's DOUBLE_FERN). */
+    public static final int VARIANT_FERN = 3;
+
+    /**
+     * The family's replaceability law (DoublePlantBlock.canBeReplaced lines
+     * 60-68, 1:1): a double-plant cell yields its place only for the GRASS
+     * and FERN variants — the tall grass and the large fern are the
+     * walk-through flora a placement may REPLACE; the four FLOWER variants
+     * (sunflower, lilac, rose, peony) are not replaceable, so a placement
+     * against them resolves the neighbouring face like any normal block.
+     * The UPPER cells answer through their identifier's variant (the
+     * engine's flat model already carries what the reference resolves
+     * virtually through {@code resolveVirtualProperties}'s pos.down() read).
+     *
+     * @return true when the identifier is one of the four grass/fern states
+     *         (the two lowers + the two uppers)
+     */
+    public static boolean isReplaceableVariant(Identifier id) {
+        if (!isDoublePlantIdentifier(id)) {
+            return false;
+        }
+        int variant = variantOf(id);
+        return variant == VARIANT_GRASS || variant == VARIANT_FERN;
+    }
+
     /**
      * The VARIANT band (DoublePlantBlock.Variant's ids 0-5 in the
      * reference's declaration order — the reference's own keys

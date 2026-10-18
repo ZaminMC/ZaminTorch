@@ -1707,9 +1707,20 @@ ender chest (Slice 29a) set the precedent, and L2/L3 follow it.
       double-slab pin; DoubleWoodenSlabTest's L4-consistent stats rows;
       BlockRegistryTest 854; the stats/protocol/adjacent regression
       sweep green;
-- [ ] L6 — the double-plant's canBeReplaced-per-variant (the grass/
-      fern walk-through refinement) and the upper's per-facing wire
-      band 8..11 (only if a future arm needs it);
+- [x] L6 — LANDED: the double-plant's canBeReplaced-per-variant —
+      DoublePlantBlocks.isReplaceableVariant (the reference lines 60-68
+      1:1: only the GRASS and FERN variants, both halves, yield their
+      place; the four FLOWERS refuse), WorldSolidity.isReplaceable's
+      double-plant arm (walk-through solidity keeps the WHOLE family —
+      replaceability and walk-through are two different laws), and THE
+      OCCUPIED-GATE SWEEP: the generic placements (creative + survival,
+      BlockInteractionService's canOccupy) and all 30 of EngineServer's
+      family placement gates now accept air OR replaceable flora
+      (World.canBlockBePlaced over canBeReplaced) — a stone clicked into
+      a tall grass REPLACES it silently and the update system pops the
+      orphaned upper, exactly the reference's walk. The upper's
+      per-facing wire band 8..11 stays UNNEEDED (no gameplay path sets
+      FACING — the standing note's own gate);
 - [ ] the stairs' true two-box ascending collision geometry (the
       bottom slab + the tall back half — the swept-box model rides
       the physics-solver slice).
@@ -1815,7 +1826,7 @@ Required tests before this proposal can be marked implemented/verified:
 
 # 31. WORLD STORAGE LAYOUT — VANILLA/PAPER 26.1+ REFERENCE, TORCH FORMAT BOUNDARY
 
-**Status: target architecture and migration policy; not implemented.** Research checked on 2026-10-18. The Minecraft 26.1 format and Paper 26.1 migration rules below are based on official public documentation. Paper source links that use main were inspected on that date and must be pinned to a commit before implementation.
+**Status: TARGET ARCHITECTURE — the modern backend remains future-gated (§31.4's own decision: the current Torch format stays the default until codecs, round trips, and crash-recovery tests exist). The IMMEDIATE boundary items LANDED on develop (2026-10-19): WorldSessionLock (§31.6 session ownership — an OS FileLock over world/session.lock held for the whole run and released at shutdown; a crashed process's lock evaporates with it so there is no stale-marker recovery to get wrong, and a genuinely live second writer is refused loudly BEFORE any store is touched) and StorageManifest (§31.4.5 format identity — world/data/storage.properties carrying the format family and layout generation independent of the game version: first boot writes it, every boot verifies it, a different family or a NEWER layout refuses to touch the world — the no-implicit-conversion guard). StorageBoundaryTest 8 (the lock's refusal/release/stale-marker/no-contention arms; the manifest's first-boot/wrong-family/newer-layout/garbage/unreadable arms; the real two-boot restart walk). The modern 26.1 backend itself, the codecs, and the migration machinery remain future slices under §31.7's contract.** Research checked on 2026-10-18. The Minecraft 26.1 format and Paper 26.1 migration rules below are based on official public documentation. Paper source links that use main were inspected on that date and must be pinned to a commit before implementation.
 
 ## 31.1 Existing Torch storage is not a Vanilla 26.1 world
 
