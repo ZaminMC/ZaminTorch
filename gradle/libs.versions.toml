@@ -1,0 +1,14 @@
+# Central dependency pinning (§30.3: "Pin versions centrally"). The console
+# artifacts ride one aligned JLine version with exactly one terminal provider
+# (Jansi), selected for: bundled natives for Windows/Linux/macOS inside the
+# jar (the fat-jar packaged runtime needs no extra installs), a far smaller
+# footprint than the JNA provider, and no native compile step at build time.
+# The ADR lives in docs/CONCURRENCY_DECISIONS_AND_ROLLOUT.md (ADR-21).
+
+[versions]
+jline = "3.26.3"
+
+[libraries]
+jline-terminal = { module = "org.jline:jline-terminal", version.ref = "jline" }
+jline-reader = { module = "org.jline:jline-reader", version.ref = "jline" }
+jline-terminal-jansi = { module = "org.jline:jline-terminal-jansi", version.ref = "jline" }

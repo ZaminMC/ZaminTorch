@@ -49,6 +49,17 @@ public final class CommandService {
         return new ArrayList<>(commands.values());
     }
 
+    /**
+     * The completion snapshot (the console's §30 surface): an immutable,
+     * safely published copy of the registered names, taken under the same
+     * lock as registration so a plugin registering mid-read can never tear
+     * the view. Completion consumers must treat this as a point-in-time
+     * snapshot — a later registration invalidates nothing but the next call.
+     */
+    public synchronized List<String> commandNames() {
+        return List.copyOf(commands.keySet());
+    }
+
     /** Executes a command intent (already identified by the leading slash). */
     public void dispatch(CommandSender sender, String rawInput) {
         dispatchCounted(sender, rawInput);
