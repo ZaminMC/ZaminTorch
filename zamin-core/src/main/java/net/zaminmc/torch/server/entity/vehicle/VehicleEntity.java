@@ -482,6 +482,28 @@ public abstract class VehicleEntity implements net.zaminmc.torch.entity.Vehicle 
                         position.x(), position.y() - halfHeight, position.z(),
                         width, halfHeight * 2.0);
         body.onGround = onGround;
+        // THE PRE-MOVE OVERLAP LIFT (the engine's spawn-convention
+        // bridge): the engine's cart spawns place the centre at the
+        // rail's ride offset (or a fire test's flame cell), the box's
+        // feet 0.29 INTO the cell below — an overlap the reference
+        // never creates (vanilla spawns bodies clear of the ground)
+        // and the clip law cannot resolve (a box already inside
+        // another's span clips on neither axis). The legacy landing
+        // answered the same overlap with its snap-UP (floor(feet) +
+        // 1.0 + half); the lift here performs the same raise to the
+        // highest overlapped top BEFORE the move, so a spawned-in-
+        // ground body stands on the ground exactly where the legacy
+        // walk stood it — never sinks.
+        java.util.List<net.zaminmc.torch.server.physics.Aabb> overlapping =
+                net.zaminmc.torch.server.physics.EntityCollisions.gatherBlockBoxes(
+                        surface, body.shape(), true);
+        if (!overlapping.isEmpty()) {
+            double liftTo = Double.NEGATIVE_INFINITY;
+            for (net.zaminmc.torch.server.physics.Aabb box : overlapping) {
+                liftTo = Math.max(liftTo, box.maxY);
+            }
+            body.y = liftTo;
+        }
         net.zaminmc.torch.server.physics.EntityMoveSolver.Result result =
                 net.zaminmc.torch.server.physics.EntityMoveSolver.move(
                         surface, body, moveX, moveY, moveZ,

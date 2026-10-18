@@ -9583,3 +9583,31 @@ contract, milestone-gated).
   (M4a), the vehicles (M4b). The ledger's §29 Wave M section carries
   the full record; the swept-box BODY model is the moving bodies' own
   law, the point queries the standers' and the readers'.
+
+## Slice M4b-fix — the pre-move overlap lift
+
+- **THE REGRESSION the protocol module caught**: the
+  VehicleIntegrationTest's rail ride timed out waiting for the cart's
+  teleports — the DIAG walk found the FIRECART test's plain cart
+  SUNK to y=3.35 inside the dirt, directly under the rail test's new
+  cart; the player's interact mounted the sunken body and the steers
+  drove a buried cart.
+- **THE ROOT CAUSE**: the engine's cart spawns place the CENTRE at
+  the rail's ride offset (cellY + 0.06) or a fire test's flame cell
+  — the box's feet 0.29 INTO the cell below, an overlap the
+  reference never creates (vanilla spawns bodies clear of the
+  ground) and the clip law cannot resolve (a box already inside
+  another's span clips on neither axis — the Y clip requires the
+  mover entirely above). The legacy landing had answered the same
+  overlap with its snap-UP ({@code floor(feet) + 1.0 + half}); the
+  solver's first port let the body sink forever.
+- **THE FIX**: the pre-move overlap lift in
+  `VehicleEntity.solverMove` — the boxes overlapping the body's
+  CURRENT shape gathered before the move, the feet raised to the
+  highest overlapped top (the same raise the legacy landing
+  performed), then the solver move. A spawned-in-ground body stands
+  where the legacy walk stood it — never sinks — and a properly
+  resting body (feet exactly at a top, the half-open convention)
+  lifts nothing.
+- Evidence: the protocol module FULL 108 green (the rail ride again)
+  + the vehicle/physics packages 81 green (full-suite-M4b-fix.log).
