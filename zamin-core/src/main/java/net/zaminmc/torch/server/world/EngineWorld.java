@@ -694,6 +694,14 @@ public final class EngineWorld implements World {
     }
 
     /**
+     * The generator's seed (the lane stream derivation's root — the
+     * RandomTickPicks contract reads it once per tick walk).
+     */
+    public long generatorSeed() {
+        return generator.seed();
+    }
+
+    /**
      * Attaches the spatial ownership partition (the Phase 4 spatial
      * activation). Called once at boot, before the loop starts; the
      * partition's region domains become the per-position mutation authority

@@ -2671,6 +2671,16 @@ public final class EngineServer implements Server, EngineBridge {
                 pluginHost = new net.zaminmc.torch.server.plugin.PluginManager(
                         computeView, blockingIoView);
                 domainWorkerPool = new net.zaminmc.torch.server.concurrent.DomainWorkerPool();
+                // The Phase-6 lane's experimental gate (§22's deliberate
+                // gating): torch.parallel-region-ticks arms the random-
+                // tick lane's parallel compute (the picks on the worker
+                // pool, the applies on the tick lane — the derived
+                // streams keep the two modes identical). Default OFF
+                // until the lane's own evidence retires the gate.
+                if (Boolean.getBoolean("torch.parallel-region-ticks")
+                        && randomTicks != null) {
+                    randomTicks.setLanePool(domainWorkerPool);
+                }
                 ticker.attachDomainPool(domainWorkerPool);
                 crossOwnerRouter = new net.zaminmc.torch.server.concurrent.CrossOwnerRouter();
                 ticker.attachCrossOwnerRouter(crossOwnerRouter, simulationDomain);
