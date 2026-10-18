@@ -1638,6 +1638,50 @@ reference never writes the row at all); the online texture fill
 a profile given to the engine is the profile it keeps, exactly an
 offline-mode vanilla server's un-cached-name behavior.
 
+## Wave L — the metadata-variants families (the state bands the ledger deferred)
+
+The compatibility ledger's own bucket: the per-state metadata bands
+the shipped families carried as single meta-0 forms (or partial
+bands). The Direction-id nibble band 2-5 is the shared spine — the
+ender chest (Slice 29a) set the precedent, and L2/L3 follow it.
+
+- [x] L1 — LANDED (Slice L1, commit 546a90a): the stairs' HALF bit —
+      the fifty-two upside-down states over the reference's own fold,
+      the placement law's underside/cursor split, the collision law's
+      upper-half fill, the tables (the woods' dig.wood repair), and
+      THE AUDIT'S CATCH (the sandstone stairs' four facing nibbles
+      never registered — every form carried meta 0);
+- [x] L2 — LANDED (commit 0c4d097): the chest pair's four FACING
+      states each — the look-opposite placement + the neighbour
+      re-facing walk + THE QUIRK (the along-axis arm keeps the plain
+      look-direction state), the family consults everywhere, and THE
+      AUDIT'S CATCH (the trapped chest's lid Block Action carried
+      legacy 54 — the reference carries ChestBlock(1)'s own 146);
+- [x] L3 — LANDED (commit 3049823): the furnace pair's four FACING
+      states each — the look-opposite placement + the custom-name
+      carry, the lit swap keeping the FACING whole, the family
+      consults everywhere, and THE AUDIT'S CATCHES (the lit stem's
+      prefix trap on isPlainFamily + partnerOf's same-form guard; the
+      comparator's analog reader matched the bare ids alone; the
+      stats fold completed for the family AND the L2 chest pair —
+      mining a facing-state chest counted on a key the 1.8.8 client
+      drops);
+- [ ] L4 — the stats-completeness fold: every registered state whose
+      id is not a 1.8.8 registry name counts mining on a key the
+      client drops (the stairs/doors/slabs/skulls/pots/plates/rails
+      families fold onto their registry rows; the pinned
+      oak_stairs_east row in StatsTest flips with it; the used-item
+      stat rows the ledger named ride here too);
+- [ ] L5 — the SEAMLESS skins (the double_stone_slab2 181 + the stone
+      43 family's bit 8 — register-only arms, no gameplay path sets
+      the bit);
+- [ ] L6 — the double-plant's canBeReplaced-per-variant (the grass/
+      fern walk-through refinement) and the upper's per-facing wire
+      band 8..11 (only if a future arm needs it);
+- [ ] the stairs' true two-box ascending collision geometry (the
+      bottom slab + the tall back half — the swept-box model rides
+      the physics-solver slice).
+
 ## Standing (demand-named, not scheduled)
 
 - The shared container-open event (the chest family row's "if demand
