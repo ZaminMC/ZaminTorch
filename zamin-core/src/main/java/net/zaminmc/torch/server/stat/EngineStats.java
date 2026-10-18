@@ -94,24 +94,31 @@ public final class EngineStats {
 
     // --- the item and block families ---------------------------------------
 
-    /** The mined-block stat key ({@code stat.mineBlock.<id>} over the dotted form). */
+    /**
+     * The mined-block stat key (Slice L4 — StatList.initMineStats' own
+     * scheme: one row per registry Block, keyed by the 1.8.8 registry
+     * name). The engine's state families fold onto their registry
+     * Block's row through the strip consult; the name divergences ride
+     * the block-name table (never the item table — the melon block 103
+     * and the melon item 362 share an id and resolve apart).
+     */
     public static String mineBlockOf(Identifier block) {
-        return "stat.mineBlock." + dotted(merged(block));
+        return "stat.mineBlock." + dottedBlock(blockMerged(block));
     }
 
     /** The crafted-item stat key ({@code stat.craftItem.<id>}). */
     public static String craftItemOf(Identifier item) {
-        return "stat.craftItem." + dotted(merged(item));
+        return "stat.craftItem." + dotted(item);
     }
 
     /** The used-item stat key ({@code stat.useItem.<id>}). */
     public static String useItemOf(Identifier item) {
-        return "stat.useItem." + dotted(merged(item));
+        return "stat.useItem." + dotted(item);
     }
 
     /** The broken-item stat key ({@code stat.breakItem.<id>}). */
     public static String breakItemOf(Identifier item) {
-        return "stat.breakItem." + dotted(merged(item));
+        return "stat.breakItem." + dotted(item);
     }
 
     // --- the entity kill pair ------------------------------------------------
@@ -207,128 +214,231 @@ public final class EngineStats {
         return names;
     }
 
-    // --- the merge table -----------------------------------------------------
+    // --- the block registry oracle (Slice L4) -------------------------------
 
     /**
-     * Stats.mergeBlockStats 1:1 — the literal forms count on their family's
-     * base member: the flowing fluids on the source form, the lit
-     * furnaces/ores/lamps and the powered repeaters/comparators on the
-     * plain form, the redstone torch on the unlit form, the grass and the
-     * farmland on dirt, the jack o'lantern on the pumpkin, and the double
-     * slabs on their single form. The engine's state-identifier families
-     * (the fluid levels, the lit furnace's state band) fold onto the same
-     * targets through the prefix rules.
+     * The 1.8.8 block registry's own names (reference Block.java's
+     * registrations, ids 1-197 in order — id 0 is air, unregistered):
+     * the mine-stat rows are keyed by these names alone
+     * (StatList.initMineStats walks Block.REGISTRY, one row per Block —
+     * the states never carry their own rows). Every engine block's
+     * mine key must resolve into this set; the completeness test walks
+     * the whole registry and asserts it.
      */
-    private static final Map<String, String> MERGES = buildMerges();
+    private static final List<String> BLOCK_REGISTRY = List.of(
+            "stone", "grass", "dirt", "cobblestone", "planks", "sapling",
+            "bedrock", "flowing_water", "water", "flowing_lava", "lava", "sand",
+            "gravel", "gold_ore", "iron_ore", "coal_ore", "log", "leaves",
+            "sponge", "glass", "lapis_ore", "lapis_block", "dispenser", "sandstone",
+            "noteblock", "bed", "golden_rail", "detector_rail", "sticky_piston", "web",
+            "tallgrass", "deadbush", "piston", "piston_head", "wool", "piston_extension",
+            "yellow_flower", "red_flower", "brown_mushroom", "red_mushroom", "gold_block", "iron_block",
+            "double_stone_slab", "stone_slab", "brick_block", "tnt", "bookshelf", "mossy_cobblestone",
+            "obsidian", "torch", "fire", "mob_spawner", "oak_stairs", "chest",
+            "redstone_wire", "diamond_ore", "diamond_block", "crafting_table", "wheat", "farmland",
+            "furnace", "lit_furnace", "standing_sign", "wooden_door", "ladder", "rail",
+            "stone_stairs", "wall_sign", "lever", "stone_pressure_plate", "iron_door", "wooden_pressure_plate",
+            "redstone_ore", "lit_redstone_ore", "unlit_redstone_torch", "redstone_torch", "stone_button", "snow_layer",
+            "ice", "snow", "cactus", "clay", "reeds", "jukebox",
+            "fence", "pumpkin", "netherrack", "soul_sand", "glowstone", "portal",
+            "lit_pumpkin", "cake", "unpowered_repeater", "powered_repeater", "stained_glass", "trapdoor",
+            "monster_egg", "stonebrick", "brown_mushroom_block", "red_mushroom_block", "iron_bars", "glass_pane",
+            "melon_block", "pumpkin_stem", "melon_stem", "vine", "fence_gate", "brick_stairs",
+            "stone_brick_stairs", "mycelium", "waterlily", "nether_brick", "nether_brick_fence", "nether_brick_stairs",
+            "nether_wart", "enchanting_table", "brewing_stand", "cauldron", "end_portal", "end_portal_frame",
+            "end_stone", "dragon_egg", "redstone_lamp", "lit_redstone_lamp", "double_wooden_slab", "wooden_slab",
+            "cocoa", "sandstone_stairs", "emerald_ore", "ender_chest", "tripwire_hook", "tripwire",
+            "emerald_block", "spruce_stairs", "birch_stairs", "jungle_stairs", "command_block", "beacon",
+            "cobblestone_wall", "flower_pot", "carrots", "potatoes", "wooden_button", "skull",
+            "anvil", "trapped_chest", "light_weighted_pressure_plate", "heavy_weighted_pressure_plate", "unpowered_comparator", "powered_comparator",
+            "daylight_detector", "redstone_block", "quartz_ore", "hopper", "quartz_block", "quartz_stairs",
+            "activator_rail", "dropper", "stained_hardened_clay", "stained_glass_pane", "leaves2", "log2",
+            "acacia_stairs", "dark_oak_stairs", "slime", "barrier", "iron_trapdoor", "prismarine",
+            "sea_lantern", "hay_block", "carpet", "hardened_clay", "coal_block", "packed_ice",
+            "double_plant", "standing_banner", "wall_banner", "daylight_detector_inverted", "red_sandstone", "red_sandstone_stairs",
+            "double_stone_slab2", "stone_slab2", "spruce_fence_gate", "birch_fence_gate", "jungle_fence_gate", "dark_oak_fence_gate",
+            "acacia_fence_gate", "spruce_fence", "birch_fence", "jungle_fence", "dark_oak_fence", "acacia_fence",
+            "spruce_door", "birch_door", "jungle_door", "acacia_door", "dark_oak_door"
+    );
 
-    private static Map<String, String> buildMerges() {
-        Map<String, String> merges = new LinkedHashMap<>();
-        // The fluids: every flowing level counts on the source form.
-        merges.put("flowing_water", "water");
-        merges.put("flowing_lava", "lava");
-        // The lit and powered literals.
-        merges.put("lit_furnace", "furnace");
-        merges.put("lit_redstone_ore", "redstone_ore");
-        merges.put("powered_repeater", "repeater");
-        merges.put("powered_comparator", "comparator");
-        merges.put("redstone_torch", "unlit_redstone_torch");
-        merges.put("lit_redstone_lamp", "redstone_lamp");
-        merges.put("lit_pumpkin", "pumpkin");
-        merges.put("grass_block", "dirt");
-        merges.put("farmland", "dirt");
-        merges.put("double_stone_slab", "stone_slab");
-        merges.put("double_wooden_slab", "wooden_slab");
-        // The double wooden slabs' per-wood forms (Slice 58 — the vanilla
-        // per-block-id scheme: every 125 state counts on the 126 row).
-        merges.put("double_spruce_slab", "wooden_slab");
-        merges.put("double_birch_slab", "wooden_slab");
-        merges.put("double_jungle_slab", "wooden_slab");
-        merges.put("double_acacia_slab", "wooden_slab");
-        merges.put("double_dark_oak_slab", "wooden_slab");
-        merges.put("double_stone_slab2", "stone_slab2");
-        // The red sand (Slice 52 — the SandBlock family's RED_SAND variant)
-        // counts on the sand row exactly like the reference's single sand
-        // block id. The TYPE states fold onto the block's base name (the
-        // vanilla per-block-id scheme: mining any of 179's states counts on
-        // stat.mineBlock.minecraft.red_sandstone), the stair facings onto
-        // the stairs' base, the top slab onto the single — the same fold
-        // the doubles take.
-        merges.put("red_sand", "sand");
-        merges.put("chiseled_red_sandstone", "red_sandstone");
-        merges.put("smooth_red_sandstone", "red_sandstone");
-        merges.put("red_sandstone_stairs_east", "red_sandstone_stairs");
-        merges.put("red_sandstone_stairs_west", "red_sandstone_stairs");
-        merges.put("red_sandstone_stairs_south", "red_sandstone_stairs");
-        merges.put("red_sandstone_stairs_north", "red_sandstone_stairs");
-        // The HALF bit's upside-down forms (the vanilla per-block-id
-        // scheme: every 180 state counts on the stairs row).
-        merges.put("red_sandstone_stairs_east_top", "red_sandstone_stairs");
-        merges.put("red_sandstone_stairs_west_top", "red_sandstone_stairs");
-        merges.put("red_sandstone_stairs_south_top", "red_sandstone_stairs");
-        merges.put("red_sandstone_stairs_north_top", "red_sandstone_stairs");
-        merges.put("stone_slab2_top", "stone_slab2");
-        // The anvil family (Slice 53 — the vanilla per-block-id scheme:
-        // mining any of 145's twelve states counts on the anvil row).
-        merges.put("anvil_west", "anvil");
-        merges.put("anvil_north", "anvil");
-        merges.put("anvil_east", "anvil");
-        merges.put("anvil_chipped", "anvil");
-        merges.put("anvil_chipped_west", "anvil");
-        merges.put("anvil_chipped_north", "anvil");
-        merges.put("anvil_chipped_east", "anvil");
-        merges.put("anvil_damaged", "anvil");
-        merges.put("anvil_damaged_west", "anvil");
-        merges.put("anvil_damaged_north", "anvil");
-        merges.put("anvil_damaged_east", "anvil");
-        return merges;
+    /** The registry names as the O(1) oracle (the list keeps the id order). */
+    private static final java.util.Set<String> BLOCK_REGISTRY_SET =
+            new java.util.LinkedHashSet<>(BLOCK_REGISTRY);
+
+    /** @return the 1.8.8 registry's own names in id order (the oracle). */
+    static List<String> blockRegistryNames() {
+        return BLOCK_REGISTRY;
     }
 
-    /** @return the identifier the stats count on (the merge table's own target). */
-    private static Identifier merged(Identifier id) {
+    /**
+     * The block-name divergences (Slice L4): the engine's block ids
+     * whose 1.8.8 registry names differ, plus the PREFIX families —
+     * the variant members whose family base is not a suffix strip
+     * (blue_orchid onto red_flower, infested_stone onto monster_egg,
+     * the dye bands). This table is the MINE path's own — the item
+     * path keeps VANILLA_NAMES, because the registries diverge apart
+     * (the melon block is melon_block, the melon item stays melon).
+     */
+    private static final Map<String, String> BLOCK_NAMES = buildBlockNames();
+
+    private static Map<String, String> buildBlockNames() {
+        Map<String, String> names = new LinkedHashMap<>();
+        // The planks: one registry id (5) with the wood damage.
+        for (String wood : new String[] {"oak", "spruce", "birch", "jungle", "acacia", "dark_oak"}) {
+            names.put(wood + "_planks", "planks");
+            names.put(wood + "_sapling", "sapling");
+        }
+        // The logs and leaves: 17/18 for the classic woods, 162/161 for the pair.
+        for (String wood : new String[] {"oak", "spruce", "birch", "jungle"}) {
+            names.put(wood + "_log", "log");
+            names.put(wood + "_leaves", "leaves");
+        }
+        names.put("acacia_log", "log2");
+        names.put("dark_oak_log", "log2");
+        names.put("acacia_leaves", "leaves2");
+        names.put("dark_oak_leaves", "leaves2");
+        // The grass (the registry's own name), the oak door (64 is
+        // "wooden_door" — the 1.7 woods keep their own ids), the oak
+        // fence (85), the oak slab (158) and the oak gate (107).
+        names.put("grass_block", "grass");
+        names.put("oak_door", "wooden_door");
+        names.put("oak_fence", "fence");
+        names.put("oak_slab", "wooden_slab");
+        names.put("oak_fence_gate", "fence_gate");
+        // The reed (83's own name) and the portal (90's own name).
+        names.put("sugar_cane", "reeds");
+        names.put("nether_portal", "portal");
+        names.put("nether_portal_z", "portal");
+        // The flora's old spellings (31/32/37/38's own names).
+        names.put("tall_grass", "tallgrass");
+        names.put("dead_bush", "deadbush");
+        names.put("dandelion", "yellow_flower");
+        names.put("poppy", "red_flower");
+        // The red flower's variant states onto the family id (38).
+        for (String variant : new String[] {"blue_orchid", "allium", "houstonia",
+                "red_tulip", "orange_tulip", "white_tulip", "pink_tulip", "oxeye_daisy"}) {
+            names.put(variant, "red_flower");
+        }
+        // The five 1.7 woods' wooden slabs (126/125 are the registry's
+        // own wooden ids — the woods ride the variant nibble; the tops
+        // fold through the strip onto these entries).
+        for (String wood : new String[] {"spruce", "birch", "jungle", "acacia", "dark_oak"}) {
+            names.put(wood + "_slab", "wooden_slab");
+            names.put("double_" + wood + "_slab", "double_wooden_slab");
+        }
+        // The red sand (12 is "sand" with the damage-1 variant) and the
+        // red sandstone's chiseled member (179's variant nibble).
+        names.put("red_sand", "sand");
+        names.put("chiseled_red_sandstone", "red_sandstone");
+        names.put("smooth_red_sandstone", "red_sandstone");
+        // The double-plant variants onto 175's own id (the uppers ride
+        // the strip: sunflower_upper -> sunflower -> double_plant).
+        for (String variant : new String[] {"sunflower", "lilac", "double_grass",
+                "double_fern", "rose", "peony"}) {
+            names.put(variant, "double_plant");
+        }
+        // The dye families' colored members onto their single-registry ids.
+        for (String color : new String[] {"white", "orange", "magenta", "light_blue", "yellow",
+                "lime", "pink", "gray", "silver", "cyan", "purple", "blue", "brown", "green",
+                "red", "black"}) {
+            names.put(color + "_wool", "wool");
+            names.put("carpet_" + color, "carpet");
+            names.put("stained_clay_" + color, "stained_hardened_clay");
+            names.put("stained_glass_" + color, "stained_glass");
+            names.put("stained_glass_pane_" + color, "stained_glass_pane");
+        }
+        // The literal divergences (Slice L4 — the registry spellings the
+        // engine's modern names never carried): the lit furnace (62 is
+        // lit_furnace), the cobweb (30 is web), the melon block (103 is
+        // melon_block — the ITEM keeps the melon name), the nether
+        // brick block (112 is nether_brick, singular), the quartz block
+        // (155 is quartz_block), the repeater/comparator bases (93/149
+        // are the unpowered_ forms), the standing sign (63), the wet
+        // sponge (19's own item variant — the block row is the sponge's).
+        names.put("furnace_lit", "lit_furnace");
+        // The stone bricks (98 is "stonebrick", one word — the engine's
+        // plural never existed in the registry).
+        names.put("stone_bricks", "stonebrick");
+        names.put("cobweb", "web");
+        names.put("melon", "melon_block");
+        names.put("nether_bricks", "nether_brick");
+        names.put("quartz", "quartz_block");
+        names.put("repeater", "unpowered_repeater");
+        names.put("comparator", "unpowered_comparator");
+        names.put("sign", "standing_sign");
+        names.put("wet_sponge", "sponge");
+        // The sandstone and stone-brick variant members (the registry's
+        // single ids with the variant nibble — prefix families, never
+        // suffix strips).
+        names.put("chiseled_sandstone", "sandstone");
+        names.put("smooth_sandstone", "sandstone");
+        names.put("chiseled_stone_bricks", "stonebrick");
+        names.put("cracked_stone_bricks", "stonebrick");
+        names.put("mossy_stone_bricks", "stonebrick");
+        // The infested family (97 is monster_egg — the variant nibble).
+        for (String variant : new String[] {"stone", "cobblestone", "stone_bricks",
+                "mossy_stone_bricks", "cracked_stone_bricks", "chiseled_stone_bricks"}) {
+            names.put("infested_" + variant, "monster_egg");
+        }
+        return names;
+    }
+
+    /**
+     * The mine path's fold (Slice L4 — the pure state fold): the
+     * engine's state families fold onto their registry Block's row by
+     * stripping the trailing variant/facing/half segments until a
+     * resolvable base lands (oak_stairs_east_top onto oak_stairs,
+     * furnace_lit_north onto furnace_lit, wheat_stage3 onto wheat).
+     * The literal merges of the old scheme are GONE — vanilla keeps
+     * its own rows for the grass, the farmland, the doubles, the lit
+     * and powered forms, and the flowing fluids (registry 8/10 exist).
+     */
+    private static Identifier blockMerged(Identifier id) {
         if (!id.namespace().equals("minecraft")) {
             return id;
         }
         String value = id.value();
-        String merged = MERGES.get(value);
-        if (merged != null) {
-            return Identifier.parse("minecraft:" + merged);
+        if (blockRowOf(value) != null) {
+            return id; // the base resolves directly — never stripped
         }
-        // The engine's state families: the flowing fluids' level suffixes
-        // and the lit furnace's state band fold onto their base form.
-        if (value.startsWith("flowing_water")) {
-            return Identifier.parse("minecraft:water");
+        String[] parts = value.split("_");
+        for (int k = parts.length - 1; k >= 1; k--) {
+            String candidate = String.join("_",
+                    java.util.Arrays.asList(parts).subList(0, k));
+            if (blockRowOf(candidate) != null) {
+                return Identifier.parse("minecraft:" + candidate);
+            }
         }
-        if (value.startsWith("flowing_lava")) {
-            return Identifier.parse("minecraft:lava");
+        return id; // unresolvable — the completeness test's own catch
+    }
+
+    /**
+     * @return the registry row a block name counts on (the block-name
+     * table's divergence first, else the registry's own name), or null
+     * when neither resolves.
+     */
+    static String blockRowOf(String engineName) {
+        String mapped = BLOCK_NAMES.get(engineName);
+        if (mapped != null) {
+            return mapped;
         }
-        if (value.equals("furnace_lit")) {
-            return Identifier.parse("minecraft:furnace");
+        if (engineName.startsWith("potted_")) {
+            // The flower-pot family (140 is "flower_pot" — every potted
+            // member rides the metadata band, the prefix rule).
+            return "flower_pot";
         }
-        // The furnace pair's facing states (Slice L3 — the whole family
-        // folds onto the furnace row like the bare lit form: the vanilla
-        // stat is keyed by the registry Block, one row for all sixteen
-        // states, so a lit north furnace and a plain south one count
-        // together on stat.mineBlock.minecraft.furnace).
-        if (value.startsWith("furnace_north") || value.startsWith("furnace_south")
-                || value.startsWith("furnace_west") || value.startsWith("furnace_east")) {
-            return Identifier.parse("minecraft:furnace");
-        }
-        if (value.startsWith("furnace_lit_")) {
-            return Identifier.parse("minecraft:furnace");
-        }
-        // The chest pair's facing states (the L3 audit's catch — L2
-        // shipped the family without the fold: mining a facing-state
-        // chest counted on a key the 1.8.8 client drops, never on the
-        // chest row vanilla's own registry-keyed stat carries).
-        if (value.startsWith("chest_north") || value.startsWith("chest_south")
-                || value.startsWith("chest_west") || value.startsWith("chest_east")) {
-            return Identifier.parse("minecraft:chest");
-        }
-        if (value.startsWith("trapped_chest_north") || value.startsWith("trapped_chest_south")
-                || value.startsWith("trapped_chest_west") || value.startsWith("trapped_chest_east")) {
-            return Identifier.parse("minecraft:trapped_chest");
-        }
-        return id;
+        return BLOCK_REGISTRY_SET.contains(engineName) ? engineName : null;
+    }
+
+    /**
+     * The mine path's dotted form: the registry row over the block-name
+     * consult (VANILLA_NAMES never runs here — the item divergences
+     * would corrupt the block rows).
+     */
+    private static String dottedBlock(Identifier id) {
+        String value = id.value();
+        String row = blockRowOf(value);
+        return "minecraft." + (row != null ? row : value);
     }
 
     /**

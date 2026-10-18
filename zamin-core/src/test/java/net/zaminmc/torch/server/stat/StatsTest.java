@@ -67,62 +67,65 @@ class StatsTest {
                 EngineStats.useItemOf(Identifier.parse("minecraft:bucket")));
         assertEquals("stat.breakItem.minecraft.iron_pickaxe",
                 EngineStats.breakItemOf(Identifier.parse("minecraft:iron_pickaxe")));
-        // The engine's state identifiers keep their own rows (the whole
-        // state counts on itself — the client resolves the family display).
-        assertEquals("stat.mineBlock.minecraft.oak_stairs_east",
+        // Slice L4 — the state families fold onto their registry Block's
+        // row (the old "state keeps its own row" claim was wrong: the
+        // 1.8.8 client DROPS unknown stat keys, StatList.getOneStat's
+        // null walk).
+        assertEquals("stat.mineBlock.minecraft.oak_stairs",
                 EngineStats.mineBlockOf(Identifier.parse("minecraft:oak_stairs_east")));
     }
 
     @Test
-    void theMergeTableKeepsTheLiteralsOnTheirBase() {
-        // Stats.mergeBlockStats 1:1: the flowing fluids on the source form
-        // (every level through the prefix rule).
-        assertEquals("stat.mineBlock.minecraft.water",
+    void theRegistrySchemeKeepsEveryBlockOnItsOwnRow() {
+        // Slice L4 — StatList.initMineStats 1:1: one row per registry
+        // BLOCK, keyed by the 1.8.8 registry name. The old merge table
+        // (the flowing fluids on the source, the lit/powered forms on
+        // their plain forms, the grass/farmland on dirt, the doubles on
+        // their singles) was the engine's own simplification — vanilla
+        // keeps a row for EVERY registry Block, and the 1.8.8 client
+        // drops any key outside its own registry.
+        assertEquals("stat.mineBlock.minecraft.flowing_water",
                 EngineStats.mineBlockOf(Identifier.parse("minecraft:flowing_water")));
-        assertEquals("stat.mineBlock.minecraft.water",
+        assertEquals("stat.mineBlock.minecraft.flowing_water",
                 EngineStats.mineBlockOf(Identifier.parse("minecraft:flowing_water_2")));
-        assertEquals("stat.mineBlock.minecraft.lava",
+        assertEquals("stat.mineBlock.minecraft.flowing_lava",
                 EngineStats.mineBlockOf(Identifier.parse("minecraft:flowing_lava")));
-        // The lit and powered literals on their plain forms.
-        assertEquals("stat.mineBlock.minecraft.furnace",
-                EngineStats.mineBlockOf(Identifier.parse("minecraft:lit_furnace")));
-        assertEquals("stat.mineBlock.minecraft.furnace",
+        // The lit and powered forms on their OWN registry rows.
+        assertEquals("stat.mineBlock.minecraft.lit_furnace",
                 EngineStats.mineBlockOf(Identifier.parse("minecraft:furnace_lit")));
-        // The furnace pair's facing states (Slice L3 — the whole family
-        // on the furnace row: the vanilla stat is keyed by the registry
-        // Block, one row for all sixteen states).
         assertEquals("stat.mineBlock.minecraft.furnace",
                 EngineStats.mineBlockOf(Identifier.parse("minecraft:furnace_north")));
-        assertEquals("stat.mineBlock.minecraft.furnace",
+        assertEquals("stat.mineBlock.minecraft.lit_furnace",
                 EngineStats.mineBlockOf(Identifier.parse("minecraft:furnace_lit_west")));
-        // The chest pair's facing states (the L3 audit's catch — L2
-        // shipped the family without the fold).
+        // The chest pair's facing states (Slice L2/L3's folds ride the
+        // strip now — the plain family on the chest row).
         assertEquals("stat.mineBlock.minecraft.chest",
                 EngineStats.mineBlockOf(Identifier.parse("minecraft:chest_north")));
         assertEquals("stat.mineBlock.minecraft.trapped_chest",
                 EngineStats.mineBlockOf(Identifier.parse("minecraft:trapped_chest_east")));
-        assertEquals("stat.mineBlock.minecraft.redstone_ore",
+        assertEquals("stat.mineBlock.minecraft.lit_redstone_ore",
                 EngineStats.mineBlockOf(Identifier.parse("minecraft:lit_redstone_ore")));
-        assertEquals("stat.mineBlock.minecraft.repeater",
+        assertEquals("stat.mineBlock.minecraft.powered_repeater",
                 EngineStats.mineBlockOf(Identifier.parse("minecraft:powered_repeater")));
-        assertEquals("stat.mineBlock.minecraft.comparator",
+        assertEquals("stat.mineBlock.minecraft.powered_comparator",
                 EngineStats.mineBlockOf(Identifier.parse("minecraft:powered_comparator")));
-        assertEquals("stat.mineBlock.minecraft.redstone_lamp",
+        assertEquals("stat.mineBlock.minecraft.lit_redstone_lamp",
                 EngineStats.mineBlockOf(Identifier.parse("minecraft:lit_redstone_lamp")));
-        assertEquals("stat.mineBlock.minecraft.pumpkin",
+        assertEquals("stat.mineBlock.minecraft.lit_pumpkin",
                 EngineStats.mineBlockOf(Identifier.parse("minecraft:lit_pumpkin")));
-        // The grass and the farmland on dirt, the doubles on their singles.
-        assertEquals("stat.mineBlock.minecraft.dirt",
+        // The grass and the farmland on their own rows, the doubles on
+        // their own (43/125 are registry Blocks in their own right).
+        assertEquals("stat.mineBlock.minecraft.grass",
                 EngineStats.mineBlockOf(Identifier.parse("minecraft:grass_block")));
-        assertEquals("stat.mineBlock.minecraft.dirt",
+        assertEquals("stat.mineBlock.minecraft.farmland",
                 EngineStats.mineBlockOf(Identifier.parse("minecraft:farmland")));
-        assertEquals("stat.mineBlock.minecraft.stone_slab",
+        assertEquals("stat.mineBlock.minecraft.double_stone_slab",
                 EngineStats.mineBlockOf(Identifier.parse("minecraft:double_stone_slab")));
-        assertEquals("stat.mineBlock.minecraft.wooden_slab",
+        assertEquals("stat.mineBlock.minecraft.double_wooden_slab",
                 EngineStats.mineBlockOf(Identifier.parse("minecraft:double_wooden_slab")));
-        // The lit torch counts on the unlit form (the merge direction — the
-        // engine's redstone_torch naming carries the lit literal).
-        assertEquals("stat.mineBlock.minecraft.unlit_redstone_torch",
+        // The redstone torch on its own row (76 is the lit form's own
+        // registry name — the engine's redstone_torch id IS the lit one).
+        assertEquals("stat.mineBlock.minecraft.redstone_torch",
                 EngineStats.mineBlockOf(Identifier.parse("minecraft:redstone_torch")));
     }
 
