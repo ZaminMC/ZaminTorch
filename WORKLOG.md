@@ -9553,3 +9553,25 @@ contract, milestone-gated).
   plus the sweep 426 green (full-suite-M4a.log).
 - M4b (the vehicles: the carts' and boats' own query + the ridden
   bodies) rides the next slice.
+
+## Slice M4b — the vehicles onto the solver
+
+- **THE CAPABILITY SPREAD**: `VehicleEntity.WorldQuery` extends
+  `HasCollisionWorld` (the shared optional surface); the live
+  `VehicleWorldQuery` carries its own `collisionSurface` (the
+  overworld reads, the chunk gate, the border consult — the same
+  one-surface shape every family carries now).
+- **THE SHARED `solverMove`** on VehicleEntity (the centre
+  convention translated at the boundary, the zeroing signals landing
+  on the velocities through the setters).
+- **THE CONVERSIONS**: (1) the boat's tick — the 1.5-wide hull (the
+  reference's own setSize(1.5, 0.6) width; the height keeps the
+  engine's 0.4 the resting rows pin) clipped axis by axis, the
+  shore's exact face never the point refusal, the steer impulse
+  folded into the passed motion; (2) the minecart's OFF-RAIL tail —
+  the 0.98 box (the reference's own setSize(0.98, 0.7)) with the
+  landing the box's own footprint. THE ON-RAIL WALK STAYS: the rail
+  physics is its own cell-snapped law (the reference's own rail
+  grid), not a swept-box concern.
+- Evidence: the sweep 426 green (entity+vehicle+physics 406 + the
+  live vehicle/combat batch 20, full-suite-M4b.log).

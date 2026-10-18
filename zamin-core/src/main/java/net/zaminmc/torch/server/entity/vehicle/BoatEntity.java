@@ -14,6 +14,13 @@ import java.util.Random;
 public final class BoatEntity extends VehicleEntity {
 
     public static final double HALF_HEIGHT = 0.2;
+
+    /**
+     * The hull's width (the physics-solver slice — the reference's own
+     * {@code setSize(1.5F, 0.6F)}: the swept box's X/Z span; the height
+     * keeps the engine's own 0.4 convention the resting rows pin).
+     */
+    public static final double HULL_WIDTH = 1.5;
     /** Water acceleration per tick of forward steer. */
     public static final double WATER_ACCELERATION = 0.035;
     /** Land acceleration per tick of forward steer. */
@@ -43,7 +50,7 @@ public final class BoatEntity extends VehicleEntity {
             setVelocity(velocityX(), (velocityY() - GRAVITY_PER_TICK) * 0.98, velocityZ());
         }
 
-        double newX = at.x() + velocityX();
+        double moveX = velocityX();
         double newZ = at.z() + velocityZ();
         double newY = at.y() + velocityY();
 
@@ -51,9 +58,27 @@ public final class BoatEntity extends VehicleEntity {
             double radians = Math.toRadians(rotation().yaw());
             double steerX = -Math.sin(radians) * forward * accel;
             double steerZ = Math.cos(radians) * forward * accel;
-            newX += steerX * 2.0; // the steer impulse rides the drag decay
+            moveX += steerX * 2.0; // the steer impulse rides the drag decay
             newZ += steerZ * 2.0;
         }
+
+        // THE SWEPT-BOX APPLICATION (the physics-solver slice): the
+        // boat's own Entity.move — the 1.5-wide hull (the reference's
+        // own setSize) clipped axis by axis, the shore's exact face
+        // never the point refusal — when the query provides the
+        // collision surface.
+        net.zaminmc.torch.server.physics.EntityMoveSolver.Result swept =
+                solverMove(world, HALF_HEIGHT, HULL_WIDTH,
+                        moveX, velocityY(), newZ - at.z());
+        if (swept != null) {
+            decay(inWater ? 0.85 : 0.6);
+            if (!inWater) {
+                capHorizontal(LAND_SPEED_CAP);
+            }
+            return;
+        }
+
+        double newX = at.x() + moveX;
 
         // Horizontal block refusal (the flat model: zero the step).
         if (blocked(world, newX, at.z(), at.y() + HALF_HEIGHT)) {

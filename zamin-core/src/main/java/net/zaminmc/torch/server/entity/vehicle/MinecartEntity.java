@@ -19,6 +19,12 @@ import java.util.Random;
 public class MinecartEntity extends VehicleEntity {
 
     public static final double HALF_HEIGHT = 0.35;
+
+    /**
+     * The cart's width (the physics-solver slice — the reference's own
+     * {@code setSize(0.98F, 0.7F)}: the swept box's X/Z span).
+     */
+    public static final double CART_WIDTH = 0.98;
     /** The rail top offset: the cart rides just above the rail cell floor. */
     public static final double RIDE_Y_OFFSET = 0.06;
     /** The steer acceleration per tick on rails. */
@@ -199,6 +205,18 @@ public class MinecartEntity extends VehicleEntity {
     /** The off-rail tail: gravity + heavy drag, the boat's land rules. */
     private void tickOffRail(Position at) {
         setVelocity(velocityX(), (velocityY() - GRAVITY_PER_TICK) * 0.98, velocityZ());
+        // THE SWEPT-BOX APPLICATION (the physics-solver slice): the
+        // cart's own Entity.move — the 0.98 box (the reference's own
+        // setSize) clipped against every collision box its swept shape
+        // touches, the landing the box's own footprint — when the query
+        // provides the collision surface.
+        net.zaminmc.torch.server.physics.EntityMoveSolver.Result swept =
+                solverMove(query, HALF_HEIGHT, CART_WIDTH,
+                        velocityX(), velocityY(), velocityZ());
+        if (swept != null) {
+            decay(OFF_RAIL_DRAG);
+            return;
+        }
         double newX = at.x() + velocityX();
         double newZ = at.z() + velocityZ();
         double newY = at.y() + velocityY();

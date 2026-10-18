@@ -13500,6 +13500,40 @@ public final class EngineServer implements Server, EngineBridge {
     /** The vehicle world query: the shape-aware solids plus rails. */
     private final class VehicleWorldQuery
             implements net.zaminmc.torch.server.entity.vehicle.VehicleEntity.WorldQuery {
+        /**
+         * The swept-box surface (the physics-solver slice): the overworld
+         * block reads the vehicles clip against — the same one-surface
+         * shape the other families carry.
+         */
+        private final net.zaminmc.torch.server.physics.EntityCollisionWorld collisionSurface =
+                new net.zaminmc.torch.server.physics.EntityCollisionWorld() {
+                    @Override
+                    public net.zaminmc.torch.block.BlockType blockAt(int x, int y, int z) {
+                        if (y < net.zaminmc.torch.block.BlockPosition.MIN_Y
+                                || y > net.zaminmc.torch.block.BlockPosition.MAX_Y) {
+                            return world.airType();
+                        }
+                        return world.getBlock(
+                                new net.zaminmc.torch.block.BlockPosition(x, y, z));
+                    }
+
+                    @Override
+                    public boolean chunkLoaded(int x, int z) {
+                        return world.isChunkLoadedAt(
+                                new net.zaminmc.torch.block.BlockPosition(x, 64, z));
+                    }
+
+                    @Override
+                    public boolean borderContains(int x, int z) {
+                        return worldBorder.contains(x, z);
+                    }
+                };
+
+        @Override
+        public net.zaminmc.torch.server.physics.EntityCollisionWorld collisionWorld() {
+            return collisionSurface;
+        }
+
         @Override
         public boolean isSolid(double x, double y, double z) {
             return solidAt(x, y, z);
