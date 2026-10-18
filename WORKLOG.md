@@ -9240,3 +9240,42 @@ format-identity markers, the session lock, the no-implicit-conversion
 guard) — the modern backend itself stays future-gated; (2) Wave L6
 (the double-plant's canBeReplaced-per-variant); (3) the stairs'
 two-box geometry on the physics-solver slice.
+
+### Slice Arch-31-immediate + Wave L6 — the storage boundary + the double-plant's per-variant law
+
+- Arch-31 (the immediate items §31.4/§31.6; the modern 26.1 backend stays
+  future-gated by §31.4's own decision): WorldSessionLock — the OS FileLock
+  over world/session.lock, held for the run, released at shutdown; the
+  crashed-process lock evaporates with the process (no stale-marker story
+  AT ALL — the deliberate answer to §31.6's "never rely on presence or
+  timestamp"), and a live second writer (cross-process, or the same JVM's
+  OverlappingFileLockException) is refused loudly before any store is
+  touched. StorageManifest — world/data/storage.properties: the format
+  family (zamin-delta) + the layout generation, independent of the game
+  version; first boot writes it, every boot verifies, a different family
+  (a Vanilla tree pointed at Torch, say) or a NEWER layout refuses to
+  touch the world — the no-implicit-conversion guard's spine. Wired into
+  EngineServer's boot (before any storage load) and shutdown (the
+  release). StorageBoundaryTest 8.
+- Wave L6 (the double-plant's canBeReplaced-per-variant,
+  DoublePlantBlock lines 60-68 1:1): DoublePlantBlocks.isReplaceableVariant
+  (only the GRASS and FERN variants, both halves — the engine's flat
+  identifiers carry what the reference resolves virtually through the
+  lower), WorldSolidity.isReplaceable's family arm, and THE OCCUPIED-GATE
+  SWEEP — the audit's catch: the generic placement had NEVER accepted
+  replaceable flora (BlockInteractionService's creative + survival gates
+  were air-only, and all 30 of EngineServer's family gates the same), so
+  a stone clicked into a tall grass silently failed instead of replacing
+  it. The gates now accept air OR replaceable flora
+  (World.canBlockBePlaced over canBeReplaced); the replaced flora drops
+  nothing and the orphaned upper pops through the update system's own
+  support arm. The family stays walk-through as a WHOLE (isFlora is the
+  solidity read; replaceability and walk-through are two laws).
+  DoublePlantReplaceableAcceptanceTest 3 (the law over all twelve states,
+  the live grass replace + upper pop, the fern upper replace through the
+  identifier's variant, the sunflower refusal).
+
+NEXT per the standing rows: (1) the stairs' true two-box collision
+geometry (the physics-solver slice); (2) the §30 console's per-command
+argument completion (demand-named); (3) the §31 modern backend (the
+codecs + the migration contract, milestone-gated).

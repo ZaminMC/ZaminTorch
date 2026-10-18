@@ -212,11 +212,20 @@ public final class WorldSolidity {
     }
 
     /**
-     * The replaceable read (the armor stand's placement gate — the
-     * reference's {@code canBeReplaced}): air and the walk-through flora
-     * answer true; a body may stand there.
+     * The replaceable read (the reference's {@code canBeReplaced}): air and
+     * the walk-through flora answer true; a body may stand there.
+     *
+     * <p>The double-plant family's per-variant refinement (Wave L6 —
+     * DoublePlantBlock.canBeReplaced 1:1): only the GRASS and FERN variants
+     * (both halves) are replaceable; the four FLOWER variants are placement
+     * targets like any normal block. The family stays walk-through as a
+     * whole ({@link #isFlora} is the solidity read, unchanged) —
+     * replaceability and walk-through are two different laws.</p>
      */
     public static boolean isReplaceable(Identifier id) {
+        if (DoublePlantBlocks.isDoublePlantIdentifier(id)) {
+            return DoublePlantBlocks.isReplaceableVariant(id);
+        }
         return isFlora(id);
     }
 

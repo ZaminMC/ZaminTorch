@@ -55,9 +55,18 @@ class DoublePlantBlocksTest {
             // The light rows: the CUTOUT pair passes light.
             assertEquals(0, BlockLightTable.lookup(lower.identifier()).orElseThrow().filter());
             assertEquals(0, BlockLightTable.lookup(upper.identifier()).orElseThrow().filter());
-            // The solidity: the walk-through flora.
-            assertTrue(WorldSolidity.isReplaceable(lower.identifier()));
+            // The solidity: the walk-through flora (the WHOLE family stays
+            // collision-less) — and the replaceability is the per-variant
+            // law (Wave L6 — DoublePlantBlock.canBeReplaced lines 60-68):
+            // the grass/fern variants yield their place, the flowers refuse.
+            assertFalse(WorldSolidity.isSolid(lower));
             assertFalse(WorldSolidity.isSolid(upper));
+            boolean replaceable = variant == DoublePlantBlocks.VARIANT_GRASS
+                    || variant == DoublePlantBlocks.VARIANT_FERN;
+            assertEquals(replaceable,
+                    WorldSolidity.isReplaceable(lower.identifier()));
+            assertEquals(replaceable,
+                    WorldSolidity.isReplaceable(upper.identifier()));
         }
         // The family item's damage consult (Variant.byId's clamp to the
         // sunflower on out-of-band damage).

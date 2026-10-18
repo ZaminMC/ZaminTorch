@@ -235,6 +235,8 @@ public final class EngineServer implements Server, EngineBridge {
     private volatile net.zaminmc.torch.server.concurrent.OwnershipDomain endDomain;
     /** The Phase 2 scheduler: the tick's deferred-work substrate. */
     private volatile net.zaminmc.torch.server.concurrent.SimulationScheduler simulationScheduler;
+    /** The world-session lock (§31.6): one live writer per world root. */
+    private volatile net.zaminmc.torch.server.world.WorldSessionLock worldSessionLock;
     /** The Phase 3 compute lane: bounded workers over immutable snapshots. */
     private volatile net.zaminmc.torch.server.concurrent.ComputeSubsystem computeSubsystem;
     /** The §28.1 fourth-category blocking-I/O lane: the storage lane's own bounded pool. */
@@ -578,6 +580,22 @@ public final class EngineServer implements Server, EngineBridge {
                 // Player persistence: one ZPD file per identity under world/playerdata.
                 playerStore = new PlayerDataStore(
                         config.playerDataDir());
+                // The world-session lock (§31.6 session ownership): exactly
+                // one LIVE writer per world root. An OS-level FileLock held
+                // for the whole run — a crashed process's lock evaporates
+                // with it (no stale-marker recovery to get wrong), and a
+                // genuinely live second writer is refused loudly here,
+                // before any store is touched.
+                worldSessionLock = net.zaminmc.torch.server.world.WorldSessionLock
+                        .acquire(config.worldDir());
+                // The storage identity manifest (§31.4): the Torch-owned
+                // marker recording the format family and layout generation,
+                // independent of the gameplay/protocol version. First boot
+                // writes it; every later boot verifies it — a different
+                // family or a NEWER layout refuses to touch the world (the
+                // no-implicit-conversion guard: directory names are never a
+                // compatibility claim).
+                net.zaminmc.torch.server.world.StorageManifest.open(config.worldDataDir());
                 // Ticker thread constructs the world so it is the owner from the start.
                 Thread owner = Thread.currentThread();
                 // level-type decides the terrain: flat keeps the slice fixture,
@@ -2824,6 +2842,13 @@ public final class EngineServer implements Server, EngineBridge {
 
         state.set(ServerState.STOPPED);
         shutdownLatch.countDown();
+        // The world-session lock releases with the server (a restart may
+        // acquire it again immediately — the WeatherSystemTest restart
+        // walk proves the release path).
+        if (worldSessionLock != null) {
+            worldSessionLock.close();
+            worldSessionLock = null;
+        }
         LOGGER.info("Server stopped");
     }
 
@@ -3234,7 +3259,7 @@ public final class EngineServer implements Server, EngineBridge {
                                  java.util.Optional<BlockType> creativeHeld) {
         BlockPosition target = offsetByFace(clicked, face);
         if (target == null || world.getBlock(clicked).equals(world.airType())
-                || !world.getBlock(target).equals(world.airType())) {
+                || !canOccupyForPlacement(target)) {
             return; // the generic placement gates (bad face / clicked air / occupied)
         }
         if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5
@@ -3302,7 +3327,7 @@ public final class EngineServer implements Server, EngineBridge {
         }
         BlockPosition target = offsetByFace(clicked, face);
         if (target == null || world.getBlock(clicked).equals(world.airType())
-                || !world.getBlock(target).equals(world.airType())) {
+                || !canOccupyForPlacement(target)) {
             return; // the generic placement gates (bad face / clicked air / occupied)
         }
         if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5
@@ -8479,7 +8504,7 @@ public final class EngineServer implements Server, EngineBridge {
     private void placePumpkinOnTick(PlayerSession session, BlockPosition clicked, int face,
                                     java.util.Optional<BlockType> creativeHeld, boolean lit) {
         BlockPosition target = offsetByFace(clicked, face);
-        if (target == null || !world.getBlock(target).equals(world.airType())) {
+        if (target == null || !canOccupyForPlacement(target)) {
             return;
         }
         if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5) {
@@ -8568,7 +8593,7 @@ public final class EngineServer implements Server, EngineBridge {
                                           java.util.Optional<BlockType> creativeHeld) {
         BlockPosition target = offsetByFace(clicked, face);
         if (target == null || world.getBlock(clicked).equals(world.airType())
-                || !world.getBlock(target).equals(world.airType())) {
+                || !canOccupyForPlacement(target)) {
             return;
         }
         if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5) {
@@ -8616,7 +8641,7 @@ public final class EngineServer implements Server, EngineBridge {
                                           java.util.Optional<BlockType> creativeHeld) {
         BlockPosition target = offsetByFace(clicked, face);
         if (target == null || world.getBlock(clicked).equals(world.airType())
-                || !world.getBlock(target).equals(world.airType())) {
+                || !canOccupyForPlacement(target)) {
             return;
         }
         if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5) {
@@ -8670,7 +8695,7 @@ public final class EngineServer implements Server, EngineBridge {
                                   java.util.Optional<BlockType> creativeHeld) {
         BlockPosition target = offsetByFace(clicked, face);
         if (target == null || world.getBlock(clicked).equals(world.airType())
-                || !world.getBlock(target).equals(world.airType())) {
+                || !canOccupyForPlacement(target)) {
             return;
         }
         if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5) {
@@ -8750,7 +8775,7 @@ public final class EngineServer implements Server, EngineBridge {
                                    java.util.Optional<BlockType> creativeHeld, boolean wooden) {
         BlockPosition target = offsetByFace(clicked, face);
         if (target == null || world.getBlock(clicked).equals(world.airType())
-                || !world.getBlock(target).equals(world.airType())) {
+                || !canOccupyForPlacement(target)) {
             return;
         }
         if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5) {
@@ -8772,7 +8797,7 @@ public final class EngineServer implements Server, EngineBridge {
                                   java.util.Optional<BlockType> creativeHeld, boolean wooden) {
         BlockPosition target = offsetByFace(clicked, face);
         if (target == null || world.getBlock(clicked).equals(world.airType())
-                || !world.getBlock(target).equals(world.airType())) {
+                || !canOccupyForPlacement(target)) {
             return;
         }
         if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5) {
@@ -8802,7 +8827,7 @@ public final class EngineServer implements Server, EngineBridge {
                                    java.util.Optional<BlockType> creativeHeld) {
         BlockPosition target = offsetByFace(clicked, face);
         if (target == null || world.getBlock(clicked).equals(world.airType())
-                || !world.getBlock(target).equals(world.airType())) {
+                || !canOccupyForPlacement(target)) {
             return;
         }
         if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5) {
@@ -8851,7 +8876,7 @@ public final class EngineServer implements Server, EngineBridge {
                                      java.util.Optional<BlockType> creativeHeld) {
         BlockPosition target = offsetByFace(clicked, face);
         if (target == null || world.getBlock(clicked).equals(world.airType())
-                || !world.getBlock(target).equals(world.airType())) {
+                || !canOccupyForPlacement(target)) {
             return;
         }
         if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5
@@ -8882,7 +8907,7 @@ public final class EngineServer implements Server, EngineBridge {
                                        java.util.Optional<BlockType> creativeHeld) {
         BlockPosition target = offsetByFace(clicked, face);
         if (target == null || world.getBlock(clicked).equals(world.airType())
-                || !world.getBlock(target).equals(world.airType())) {
+                || !canOccupyForPlacement(target)) {
             return;
         }
         if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5
@@ -8916,7 +8941,7 @@ public final class EngineServer implements Server, EngineBridge {
                                    java.util.Optional<BlockType> creativeHeld, boolean sticky) {
         BlockPosition target = offsetByFace(clicked, face);
         if (target == null || world.getBlock(clicked).equals(world.airType())
-                || !world.getBlock(target).equals(world.airType())) {
+                || !canOccupyForPlacement(target)) {
             return;
         }
         if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5
@@ -8956,7 +8981,7 @@ public final class EngineServer implements Server, EngineBridge {
     private void placeTripwireOnTick(PlayerSession session, BlockPosition clicked, int face,
                                       java.util.Optional<BlockType> creativeHeld) {
         BlockPosition target = offsetByFace(clicked, face);
-        if (target == null || !world.getBlock(target).equals(world.airType())) {
+        if (target == null || !canOccupyForPlacement(target)) {
             return;
         }
         if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5
@@ -8981,7 +9006,7 @@ public final class EngineServer implements Server, EngineBridge {
     private void placeTripwireHookOnTick(PlayerSession session, BlockPosition clicked, int face,
                                          java.util.Optional<BlockType> creativeHeld) {
         BlockPosition target = offsetByFace(clicked, face);
-        if (target == null || !world.getBlock(target).equals(world.airType())) {
+        if (target == null || !canOccupyForPlacement(target)) {
             return;
         }
         if (!net.zaminmc.torch.server.redstone.TripwireSystem.hookPlacementSupported(
@@ -9011,7 +9036,7 @@ public final class EngineServer implements Server, EngineBridge {
                                           java.util.Optional<BlockType> creativeHeld) {
         BlockPosition target = offsetByFace(clicked, face);
         if (target == null || world.getBlock(clicked).equals(world.airType())
-                || !world.getBlock(target).equals(world.airType())) {
+                || !canOccupyForPlacement(target)) {
             return;
         }
         if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5
@@ -9059,7 +9084,7 @@ public final class EngineServer implements Server, EngineBridge {
         boolean trappedKind = trapped || (held != null && held.equals("minecraft:trapped_chest"));
         BlockPosition target = offsetByFace(clicked, face);
         if (target == null || world.getBlock(clicked).equals(world.airType())
-                || !world.getBlock(target).equals(world.airType())) {
+                || !canOccupyForPlacement(target)) {
             return;
         }
         if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5
@@ -9136,7 +9161,7 @@ public final class EngineServer implements Server, EngineBridge {
                                        java.util.Optional<BlockType> creativeHeld) {
         BlockPosition target = offsetByFace(clicked, face);
         if (target == null || world.getBlock(clicked).equals(world.airType())
-                || !world.getBlock(target).equals(world.airType())) {
+                || !canOccupyForPlacement(target)) {
             return;
         }
         if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5
@@ -9173,7 +9198,7 @@ public final class EngineServer implements Server, EngineBridge {
                                     java.util.Optional<BlockType> creativeHeld) {
         BlockPosition target = offsetByFace(clicked, face);
         if (target == null || world.getBlock(clicked).equals(world.airType())
-                || !world.getBlock(target).equals(world.airType())) {
+                || !canOccupyForPlacement(target)) {
             return;
         }
         if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5
@@ -9199,7 +9224,7 @@ public final class EngineServer implements Server, EngineBridge {
                                               java.util.Optional<BlockType> creativeHeld) {
         BlockPosition target = offsetByFace(clicked, face);
         if (target == null || world.getBlock(clicked).equals(world.airType())
-                || !world.getBlock(target).equals(world.airType())) {
+                || !canOccupyForPlacement(target)) {
             return;
         }
         if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5
@@ -9227,7 +9252,7 @@ public final class EngineServer implements Server, EngineBridge {
                                       java.util.Optional<BlockType> creativeHeld, boolean dropper) {
         BlockPosition target = offsetByFace(clicked, face);
         if (target == null || world.getBlock(clicked).equals(world.airType())
-                || !world.getBlock(target).equals(world.airType())) {
+                || !canOccupyForPlacement(target)) {
             return;
         }
         if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5
@@ -9307,7 +9332,7 @@ public final class EngineServer implements Server, EngineBridge {
             return false;
         }
         BlockPosition target = offsetByFace(clicked, face);
-        if (target == null || !world.getBlock(target).equals(world.airType())) {
+        if (target == null || !canOccupyForPlacement(target)) {
             return false; // no open cell: the generic path's no-op
         }
         BlockType soil = world.getBlock(target.offset(0, -1, 0));
@@ -9795,7 +9820,7 @@ public final class EngineServer implements Server, EngineBridge {
         // sunflower on out-of-band damage).
         int variant = heldStack.damage() < 0 || heldStack.damage() > 5 ? 0 : heldStack.damage();
         BlockPosition target = offsetByFace(clicked, face);
-        if (target == null || !world.getBlock(target).equals(world.airType())) {
+        if (target == null || !canOccupyForPlacement(target)) {
             return false; // no open cell: the generic path's no-op
         }
         // The two-cell gate: the soil carries AND the headroom is open.
@@ -9996,7 +10021,7 @@ public final class EngineServer implements Server, EngineBridge {
             // Pour: the source lands against the clicked face; the bucket
             // empties into the hand the historical way.
             BlockPosition target = offsetByFace(clicked, face);
-            if (target == null || !world.getBlock(target).equals(world.airType())) {
+            if (target == null || !canOccupyForPlacement(target)) {
                 return false; // no open cell: the pour stays in the bucket
             }
             FluidBlocks.Kind kind = held.endsWith("water_bucket")
@@ -10183,7 +10208,7 @@ public final class EngineServer implements Server, EngineBridge {
         };
         BlockPosition target = offsetByFace(clicked, face);
         if (target == null || world.getBlock(clicked).equals(world.airType())
-                || !world.getBlock(target).equals(world.airType())) {
+                || !canOccupyForPlacement(target)) {
             return;
         }
         if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5
@@ -10248,7 +10273,7 @@ public final class EngineServer implements Server, EngineBridge {
         }
         BlockPosition target = offsetByFace(clicked, face);
         if (target == null || world.getBlock(clicked).equals(world.airType())
-                || !world.getBlock(target).equals(world.airType())) {
+                || !canOccupyForPlacement(target)) {
             return;
         }
         if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5
@@ -10288,7 +10313,7 @@ public final class EngineServer implements Server, EngineBridge {
         String wood = family.substring(0, family.length() - "_fence_gate".length());
         BlockPosition target = offsetByFace(clicked, face);
         if (target == null || world.getBlock(clicked).equals(world.airType())
-                || !world.getBlock(target).equals(world.airType())) {
+                || !canOccupyForPlacement(target)) {
             return;
         }
         if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5
@@ -10320,7 +10345,7 @@ public final class EngineServer implements Server, EngineBridge {
                                    java.util.Optional<BlockType> creativeHeld) {
         BlockPosition target = offsetByFace(clicked, face);
         if (target == null || world.getBlock(clicked).equals(world.airType())
-                || !world.getBlock(target).equals(world.airType())) {
+                || !canOccupyForPlacement(target)) {
             return;
         }
         if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5
@@ -10367,7 +10392,7 @@ public final class EngineServer implements Server, EngineBridge {
                                 java.util.Optional<BlockType> creativeHeld) {
         BlockPosition target = offsetByFace(clicked, face);
         if (target == null || world.getBlock(clicked).equals(world.airType())
-                || !world.getBlock(target).equals(world.airType())) {
+                || !canOccupyForPlacement(target)) {
             return;
         }
         if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5
@@ -10773,7 +10798,7 @@ public final class EngineServer implements Server, EngineBridge {
         }
         BlockPosition target = offsetByFace(clicked, face);
         if (target == null || world.getBlock(clicked).equals(world.airType())
-                || !world.getBlock(target).equals(world.airType())) {
+                || !canOccupyForPlacement(target)) {
             return;
         }
         if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5
@@ -10806,7 +10831,7 @@ public final class EngineServer implements Server, EngineBridge {
                                  java.util.Optional<BlockType> creativeHeld) {
         BlockPosition target = offsetByFace(clicked, face);
         if (target == null || world.getBlock(clicked).equals(world.airType())
-                || !world.getBlock(target).equals(world.airType())) {
+                || !canOccupyForPlacement(target)) {
             return;
         }
         if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5
@@ -11192,6 +11217,22 @@ public final class EngineServer implements Server, EngineBridge {
             case 5 -> clicked.offset(1, 0, 0);
             default -> null;
         };
+    }
+
+    /**
+     * The placement's occupied gate (World.canBlockBePlaced 1:1 over
+     * Block.canBeReplaced): the target cell accepts the placement when it
+     * is air OR replaceable flora — the tall grass and the large fern (the
+     * double-plant family's GRASS/FERN variants, both halves, Wave L6's
+     * per-variant law) yield their place silently, exactly the reference's
+     * walk; the four double-plant FLOWERS refuse like any normal block.
+     * The replaced flora drops nothing and a replaced lower's upper pops
+     * through the update system's own support arm.
+     */
+    private boolean canOccupyForPlacement(BlockPosition target) {
+        BlockType existing = world.getBlock(target);
+        return existing.equals(world.airType())
+                || WorldSolidity.isReplaceable(existing.identifier());
     }
 
     /**
