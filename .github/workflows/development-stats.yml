@@ -1,0 +1,66 @@
+name: Development Statistics (Java LOC)
+
+# Keeps the "Development Statistics" <details> dropdown in README.md (on main)
+# in sync with the develop branch. Tracks Java lines of code ONLY in the root
+# modules: zamin-api, zamin-core, zamin-launcher, zamin-protocol-v1_8_8, tools.
+# Shows today's stats (with 24h/7d/30d deltas, diff-colored) plus a per-day
+# history archive stored in .github/loc-history.json.
+#
+# Triggers:
+#   - every push to develop  (immediate sync)
+#   - every 6 hours          (scheduled sync)
+#   - manual dispatch        (Actions tab -> Run workflow)
+
+on:
+  push:
+    branches:
+      - develop
+  schedule:
+    - cron: "0 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: development-stats-readme
+  cancel-in-progress: true
+
+env:
+  LOC_SNAPSHOT: /tmp/loc-snapshot.json
+
+jobs:
+  update-development-stats:
+    name: Java LOC per module (develop) -> Development Statistics (main)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout develop branch (full history for trends + backfill)
+        uses: actions/checkout@v4
+        with:
+          ref: develop
+          fetch-depth: 0
+
+      - name: Count Java LOC per module (now, 1d/7d/30d ago, past days)
+        run: python3 .github/scripts/loc_stats.py count
+
+      - name: Checkout main branch (README + history target)
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - name: Render Development Statistics dropdown
+        run: python3 .github/scripts/loc_stats.py render
+
+      - name: Commit and push (as Abasing)
+        run: |
+          git config user.name "Abasing"
+          git config user.email "140362885+Abasing@users.noreply.github.com"
+          git add README.md .github/loc-history.json
+          if git diff --cached --quiet; then
+            echo "Development Statistics already up to date; nothing to commit."
+          else
+            git commit -m "docs: update Development Statistics - Java LOC ${LOC_TOTAL:-n/a} (from develop) [skip ci]"
+            git push origin HEAD:main
+            echo "Pushed Development Statistics update (Java LOC = ${LOC_TOTAL:-n/a})."
+          fi
