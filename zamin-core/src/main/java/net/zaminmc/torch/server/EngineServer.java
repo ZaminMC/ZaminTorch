@@ -7989,6 +7989,23 @@ public final class EngineServer implements Server, EngineBridge {
         if (useFlintOnTick(session, clicked, face)) {
             return; // the fire starter did its work; no placement follows
         }
+        // The adventure place gate (Wave I — PlayerEntity.canUseItemOn 1:1
+        // over ItemBlock.useOn line 39), threaded HERE because every arm
+        // below is a BLOCK-ITEM placement (the reed/cactus, the double
+        // plant, the skull, the sign, the doors, the ladders, the slabs,
+        // the stairs, the chests, the furnace, the carpet, ... and the
+        // generic fallback): a restricted placer's held stack must carry
+        // the CLICKED block in its CanPlaceOn list, or nothing places and
+        // nothing consumes. The arms above are USES, not placements (the
+        // container opens, the bucket, the bottle, the flint) — the
+        // reference's own order. THE AUDIT'S CATCH: the family arms had
+        // silently routed around the consult (only the generic fallback
+        // carried it), so an adventure player could place a CHEST straight
+        // through the gate — AdventureGatesTest's phase-1 refusal pinned
+        // the hole shut.
+        if (!blockInteraction.canUseItemOnForPlacement(session, clicked)) {
+            return; // the CanPlaceOn refusal: no placement, no consumption
+        }
         if (useReedOnTick(session, clicked, face, creativeHeld)) {
             return; // the reed/cactus placement override ran
         }

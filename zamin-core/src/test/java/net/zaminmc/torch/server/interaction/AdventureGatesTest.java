@@ -147,11 +147,14 @@ class AdventureGatesTest {
 
         // 3. The list naming the CLICKED block (the reference's
         // pos.offset(face.opposite) — the stone, never the chest family):
-        // the placement lands and consumes like the survival path.
+        // the placement lands and consumes like the survival path. The L2
+        // chest slice places the LOOK-FACING state (chest_north/... — never
+        // the bare 54 constant), so the assertion reads the family.
         tick(() -> adventurer.inventory().setSlot(0,
                 ItemStack.of(chest, 1).withCanPlaceOn(List.of("minecraft:stone"))));
         server.useItemOnBlock(adventurer, ground, 1, Optional.empty(), id -> { });
-        await(() -> server.world().getBlock(target).equals(BuiltinBlocks.CHEST),
+        await(() -> net.zaminmc.torch.server.chest.ChestFacingBlocks
+                .isPlainFamily(server.world().getBlock(target)),
                 "the named list places");
         await(() -> adventurer.inventory().held().isEmpty(), "the passing gate consumes");
     }
@@ -214,7 +217,8 @@ class AdventureGatesTest {
                 net.zaminmc.torch.util.Identifier.parse("minecraft:chest")).orElseThrow();
         tick(() -> adventurer.inventory().setSlot(0, ItemStack.of(chest, 1)));
         server.useItemOnBlock(adventurer, ground, 1, Optional.empty(), id -> { });
-        await(() -> server.world().getBlock(target).equals(BuiltinBlocks.CHEST),
+        await(() -> net.zaminmc.torch.server.chest.ChestFacingBlocks
+                .isPlainFamily(server.world().getBlock(target)),
                 "the survival placement passes without the list");
     }
 }
