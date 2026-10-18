@@ -170,8 +170,29 @@ public final class EngineStats {
         // "wooden_door" — the 1.7 woods keep their own ids).
         names.put("grass_block", "grass");
         names.put("oak_door", "wooden_door");
-        // The bare fence (85).
+        // The bare fence (85), the oak gate (107), the oak slab (126),
+        // and the 44-variant slabs (the sandstone/cobblestone/brick
+        // riders on the stone_slab item's damage band).
         names.put("oak_fence", "fence");
+        names.put("oak_fence_gate", "fence_gate");
+        names.put("oak_slab", "wooden_slab");
+        names.put("sandstone_slab", "stone_slab");
+        names.put("cobblestone_slab", "stone_slab");
+        // The stone-brick/nether-brick block items (98 is "stonebrick",
+        // 112 is "nether_brick"), the cobblestone stairs item (67 is
+        // "stone_stairs"), and the slime block's item (165 is "slime").
+        names.put("stone_bricks", "stonebrick");
+        names.put("nether_bricks", "nether_brick");
+        names.put("cobblestone_stairs", "stone_stairs");
+        names.put("slime_block", "slime");
+        // The pure items whose registry names diverge: the lapis and the
+        // bone meal (351 is "dye" — the damage band), the glistering
+        // melon (382 is "speckled_melon"), the empty map (395 is "map" —
+        // 358 alone is the filled form).
+        names.put("lapis", "dye");
+        names.put("bone_meal", "dye");
+        names.put("glistering_melon", "speckled_melon");
+        names.put("empty_map", "map");
         // The reed (83's own name) and the portal (90's own name).
         names.put("sugar_cane", "reeds");
         names.put("nether_portal", "portal");
@@ -271,6 +292,61 @@ public final class EngineStats {
     }
 
     /**
+     * The 1.8.8 item registry's own PURE items (reference Item.java's
+     * registrations, ids 256-2267 — the block items below 256 share the
+     * BLOCK registry's names, so the item rows resolve over the UNION:
+     * every useItem/craftItem/breakItem key must land in it).
+     */
+    private static final List<String> ITEM_REGISTRY = List.of(
+            "iron_shovel", "iron_pickaxe", "iron_axe", "flint_and_steel", "apple", "bow",
+            "arrow", "coal", "diamond", "iron_ingot", "gold_ingot", "iron_sword",
+            "wooden_sword", "wooden_shovel", "wooden_pickaxe", "wooden_axe", "stone_sword", "stone_shovel",
+            "stone_pickaxe", "stone_axe", "diamond_sword", "diamond_shovel", "diamond_pickaxe", "diamond_axe",
+            "stick", "bowl", "mushroom_stew", "golden_sword", "golden_shovel", "golden_pickaxe",
+            "golden_axe", "string", "feather", "gunpowder", "wooden_hoe", "stone_hoe",
+            "iron_hoe", "diamond_hoe", "golden_hoe", "wheat_seeds", "wheat", "bread",
+            "leather_helmet", "leather_chestplate", "leather_leggings", "leather_boots", "chainmail_helmet", "chainmail_chestplate",
+            "chainmail_leggings", "chainmail_boots", "iron_helmet", "iron_chestplate", "iron_leggings", "iron_boots",
+            "diamond_helmet", "diamond_chestplate", "diamond_leggings", "diamond_boots", "golden_helmet", "golden_chestplate",
+            "golden_leggings", "golden_boots", "flint", "porkchop", "cooked_porkchop", "painting",
+            "golden_apple", "sign", "wooden_door", "bucket", "water_bucket", "lava_bucket",
+            "minecart", "saddle", "iron_door", "redstone", "snowball", "boat",
+            "leather", "milk_bucket", "brick", "clay_ball", "reeds", "paper",
+            "book", "slime_ball", "chest_minecart", "furnace_minecart", "egg", "compass",
+            "fishing_rod", "clock", "glowstone_dust", "fish", "cooked_fish", "dye",
+            "bone", "sugar", "cake", "bed", "repeater", "cookie",
+            "filled_map", "shears", "melon", "pumpkin_seeds", "melon_seeds", "beef",
+            "cooked_beef", "chicken", "cooked_chicken", "rotten_flesh", "ender_pearl", "blaze_rod",
+            "ghast_tear", "gold_nugget", "nether_wart", "potion", "glass_bottle", "spider_eye",
+            "fermented_spider_eye", "blaze_powder", "magma_cream", "brewing_stand", "cauldron", "ender_eye",
+            "speckled_melon", "spawn_egg", "experience_bottle", "fire_charge", "writable_book", "written_book",
+            "emerald", "item_frame", "flower_pot", "carrot", "potato", "baked_potato",
+            "poisonous_potato", "map", "golden_carrot", "skull", "carrot_on_a_stick", "nether_star",
+            "pumpkin_pie", "fireworks", "firework_charge", "enchanted_book", "comparator", "netherbrick",
+            "quartz", "tnt_minecart", "hopper_minecart", "prismarine_shard", "prismarine_crystals", "rabbit",
+            "cooked_rabbit", "rabbit_stew", "rabbit_foot", "rabbit_hide", "armor_stand", "iron_horse_armor",
+            "golden_horse_armor", "diamond_horse_armor", "lead", "name_tag", "command_block_minecart", "mutton",
+            "cooked_mutton", "banner", "spruce_door", "birch_door", "jungle_door", "acacia_door",
+            "dark_oak_door", "record_13", "record_cat", "record_blocks", "record_chirp", "record_far",
+            "record_mall", "record_mellohi", "record_stal", "record_strad", "record_ward", "record_11",
+            "record_wait"
+    );
+
+    /** The item rows: the pure items over the union with the block names. */
+    private static final java.util.Set<String> ITEM_ROW_SET = buildItemRowSet();
+
+    private static java.util.Set<String> buildItemRowSet() {
+        java.util.Set<String> rows = new java.util.LinkedHashSet<>(ITEM_REGISTRY);
+        rows.addAll(BLOCK_REGISTRY);
+        return rows;
+    }
+
+    /** @return the 1.8.8 item rows (the pure items over the block union). */
+    static java.util.Set<String> itemRowSet() {
+        return ITEM_ROW_SET;
+    }
+
+    /**
      * The block-name divergences (Slice L4): the engine's block ids
      * whose 1.8.8 registry names differ, plus the PREFIX families —
      * the variant members whose family base is not a suffix strip
@@ -359,6 +435,20 @@ public final class EngineStats {
         // The stone bricks (98 is "stonebrick", one word — the engine's
         // plural never existed in the registry).
         names.put("stone_bricks", "stonebrick");
+        // The cobblestone stairs (67 is "stone_stairs" — THE STRIP'S OWN
+        // TRAP: the engine id's cobblestone- prefix folds onto the
+        // cobblestone row, the WRONG family; the explicit entry keeps the
+        // stairs states on the stone_stairs row).
+        names.put("cobblestone_stairs", "stone_stairs");
+        // The 44-family slab variants (the sandstone/cobblestone/stone-
+        // brick riders on the stone_slab item's damage band — THE STRIP'S
+        // TRAP again: each would fold onto its prefix block, the wrong
+        // family; the explicit entries keep the band on stone_slab).
+        names.put("sandstone_slab", "stone_slab");
+        names.put("cobblestone_slab", "stone_slab");
+        names.put("stone_brick_slab", "stone_slab");
+        // The slime block (165 is "slime" — the engine's modern name).
+        names.put("slime_block", "slime");
         names.put("cobweb", "web");
         names.put("melon", "melon_block");
         names.put("nether_bricks", "nether_brick");
