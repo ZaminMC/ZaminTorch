@@ -78,8 +78,12 @@ public final class CollisionShapes {
     /** The no-connection probe: every neighbour reads as air. */
     static final NeighborProbe ISOLATED = (dx, dy, dz) -> null;
 
-    /** One collision box as fractions of the cell (maxY may pass 1.0). */
-    record Box(double minX, double minY, double minZ, double maxX, double maxY, double maxZ) {
+    /**
+     * One collision box as fractions of the cell (maxY may pass 1.0 —
+     * the 1.5-tall families). Public since the physics-solver slice:
+     * the swept-box gather reads the table through this form.
+     */
+    public record Box(double minX, double minY, double minZ, double maxX, double maxY, double maxZ) {
 
         boolean contains(double fx, double fy, double fz) {
             return fx >= minX && fx < maxX && fy >= minY && fy < maxY && fz >= minZ && fz < maxZ;
@@ -139,6 +143,18 @@ public final class CollisionShapes {
         return best == Double.NEGATIVE_INFINITY
                 ? Double.NEGATIVE_INFINITY
                 : Math.floor(y) + best;
+    }
+
+    /**
+     * The type's collision boxes as cell fractions (the physics-solver
+     * slice's public view of the table): each box a {@code 0..1}
+     * fraction tuple over the cell, the 1.5-tall families carrying
+     * {@code maxY} past the ceiling. The connection families — the
+     * fences, the walls, the panes, the closed gates — resolve their
+     * arms against the probe, exactly like the point queries do.
+     */
+    public static List<Box> cellBoxes(BlockType type, NeighborProbe probe) {
+        return boxesOf(type, probe);
     }
 
     /** @return whether the type carries the full-cube stand-in shape. */

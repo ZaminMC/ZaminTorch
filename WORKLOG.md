@@ -9352,3 +9352,93 @@ engineering ledger's own order: potions, leads, structures, natural
 spawn cycles; (2) the §30 console's per-command argument completion
 (demand-named); (3) the §31 modern backend (the codecs + the migration
 contract, milestone-gated).
+
+## Slice M1+M2 — the physics-solver foundation (Wave M opens)
+
+- **M1 — the geometry + the gather**: the new `server/physics` package.
+  `Aabb` — the 1:1 port of the reference's `util/math/Box.java` in
+  ABSOLUTE world coordinates: `expanded` (the swept-motion face law —
+  a negative delta grows the min face, a positive the max), `grown`/
+  `contract`/`moved`/`union`, `intersects` (the reference's own
+  half-open convention — touching faces never intersect), and the
+  clipping trio `intersectX/intersectY/intersectZ` (lines 104-162
+  verbatim: the box clips the axis limit to its own face distance ONLY
+  when the two boxes overlap on the other two axes — a fall that never
+  reaches the floor passes untouched, a fall that would pass through
+  clips to exactly the ceiling). `EntityCollisionWorld` — the
+  block-read surface (blockAt + the chunkLoaded gate + the
+  borderContains consult; the caller owns the dimension context, the
+  reference's own Entity.world law). `EntityCollisions` — the 1:1 port
+  of `World.getCollisions(Entity, Box)` lines 897-940's BLOCK side:
+  the cell band `floor(minX)..floor(maxX+1)` with the Y band starting
+  ONE cell below (the reference's own `k - 1` — the 1.5-tall families
+  poke through their ceiling so the cell below the region still
+  contributes), the chunk gate (an unloaded column contributes
+  nothing), the border law (a cell outside the world border reads as
+  STONE for a body INSIDE the border — the reference's own flag/flag1
+  walk — and real for a body already outside), and per cell the
+  block's own `addCollisions` through the SAME `CollisionShapes`
+  table the point queries read (`cellBoxes` — the new public view;
+  the connection families resolve their arms against the cell's own
+  neighbour probe, so the swept-box model and the point model read
+  ONE law), each box offset into world coordinates and added only
+  when it intersects the swept region.
+- **M2 — the move itself**: `EntityMoveSolver` — the 1:1 port of
+  `Entity.move` lines 390-585, the BODY model the ledger deferred from
+  the collision-shape slice. The `Body` (the feet-centre x/y/z + the
+  width/height the shape derives from, the reference's `setPosition`
+  line 246 law, with `setPositionFromShape` recovering the position
+  from the moved shape exactly like line 586's own tail); the
+  `MoveLaw` (the per-family fields distilled: stepHeight — 0.5 the
+  walkers, 0.0 the item bodies and falling blocks, 1.0 the horses;
+  the sneaking edge-guard gate; noClip; inCobweb); the `Result` (the
+  clipped deltas + collidingHorizontally/Vertically + onGround — the
+  downward clip only, exactly line 563 — + the velocity-zeroing
+  signals: the X clip zeroes velocityX, the Z clip velocityZ, the
+  vertical clip velocityY through the reference's own
+  `beforeCollision` default, + the cobweb zero). THE WALK ITSELF:
+  the cobweb drag (0.25/0.05/0.25), the sneaking edge-guard (the
+  0.05 shaved walk that never leaves the support — X alone, then Z,
+  then the pair, lines 409-446 verbatim), the gather over the shape
+  expanded by the motion, the Y clip then X then Z (each box in walk
+  order), and THE STEP-HEIGHT RETRY (lines 469-545 verbatim — the
+  two-pass up-and-over walk at the full intended motion, the
+  squared-distance comparison d20 vs d10, the descending second pass,
+  the keep-only-if-better comparison against the clipped walk). Pure
+  geometry: no entity state crosses in or out — the caller owns the
+  velocities, the fall distance, and the family side effects, exactly
+  the reference's own Entity/LivingEntity split.
+- THE TEST-SIDE DISCOVERIES the physics drove (all in the tests, the
+  solver needed no repair after the first port): (1) the clip's own
+  direction — the reference calls `collisionBox.intersectY(moverShape,
+  limit)`, the collision box the receiver; (2) the grounded walker's
+  convention — `LivingEntity.travel` runs the move BEFORE the gravity,
+  so a standing body enters `move()` with the previous tick's small
+  negative drift (-0.0784*0.98), and WITHOUT it `onGround` reads false
+  on a flat walk (d4 = 0 never satisfies `d4 < 0.0`); (3) the stair
+  climb takes TWO ticks at step height 0.5 (the first tick steps onto
+  the base slab and clips at the tall back's near face — 12.5 - 0.3
+  - 10.7 = 1.5 on the pin — the second clears the back), exactly the
+  reference's own per-tick walk, NOT the one-tight smooth climb;
+  (4) the sneaking guard shaves in 0.05 steps from the REQUESTED
+  motion, landing at 0.95 for a 1.5 walk off a single cell.
+- Evidence: PhysicsSolverGeometryTest 13 (the expanded/intersects
+  laws, the clip trio over both directions and the no-reach pass, the
+  full-cube/slab/fence-band gather in world coordinates, the
+  one-below start the tall families need, the unloaded-column skip,
+  the border STONE wall + the outside-body real read, the
+  non-intersecting box gate) + EntityMoveSolverTest 13 (the
+  through-fall clip + onGround + zeroVy, the upward clip never
+  grounding, the wall walk's exact face + the diagonal's per-axis
+  pair, the step onto the half slab keeping the full 2.0 walk, the
+  stepless clip, the retry never climbing a full wall, THE FENCE
+  LANDING FROM THE CELL ABOVE — the ledger's own named case, feet
+  6.7 falling 1.2 rest at 6.5 exactly — the short body under the top
+  slab, the two-tick stair ascent, the cobweb drag, the no-clip
+  pass-through, the sneaking shave) — 26 NEW. Regression sweep:
+  block 129 + entity 366 + world/structure/spawn 137 + root batch A
+  42 — 700 tests, 0 failures (full-suite-M1.log).
+- The rewiring (M3: the MobEntity families onto the solver; M4: the
+  items, the falling blocks, the vehicles) rides the NEXT units —
+  this slice is the verified foundation, the families' own point
+  queries untouched (the 366 green prove it).
