@@ -685,7 +685,7 @@ Proceed only after the ordinary owner/boundary model is correct and profiling de
 
 Dynamic split/merge and load-driven migration remain future work. First prove migration with in-flight tasks, delayed work, messages, compute results, persistence, shutdown, and stale-generation invalidation; add telemetry and anti-oscillation rules before enabling automatic balancing.
 
-**Next concrete mechanics work:** continue from Section 29: implement and verify Wave L6's double-plant per-variant replacement behavior; only add the upper-half facing wire band if an actual gameplay path requires it. The stairs' true two-box ascending collision geometry remains assigned to the physics-solver slice. Keep these outstanding items visible until code and tests prove them complete.
+**Next concrete mechanics work:** continue from Section 29: Wave L6's double-plant per-variant replacement behavior LANDED; the stairs' true two-box ascending collision geometry LANDED (the two-box slice — the base slab + the tall back with the reference's own corner resolution; the swept-box BODY model still rides the physics-solver slice). The remaining §29 ledger work is the Wave L tail's standing rows and the phase-gated items below. Keep these outstanding items visible until code and tests prove them complete.
 
 # 23. COMMITS / PUSHES / RELEASES
 
@@ -1721,9 +1721,41 @@ ender chest (Slice 29a) set the precedent, and L2/L3 follow it.
       orphaned upper, exactly the reference's walk. The upper's
       per-facing wire band 8..11 stays UNNEEDED (no gameplay path sets
       FACING — the standing note's own gate);
-- [ ] the stairs' true two-box ascending collision geometry (the
-      bottom slab + the tall back half — the swept-box model rides
-      the physics-solver slice).
+- [x] the stairs' true two-box ascending collision geometry — LANDED
+      (the two-box slice): CollisionShapes.stairBoxes, the 1:1 port of
+      StairsBlock.addCollisions — the base half slab
+      (setBaseShapeForCollisions) ALWAYS, plus the tall back on the
+      FACING side (isInnerStair) rising through the opposite Y band
+      (the top form's back DESCENDS into the lower band on the facing
+      side), narrowed to the quarter cell when the facing neighbour's
+      perpendicular same-half stair forms the OUTER corner, and the
+      third step quarter (setStepShapeForCollisions) when the behind
+      neighbour forms the INNER corner — the reference's virtual SHAPE
+      resolved against the neighbours through the flat identifiers,
+      exactly like the wire's own resolveVirtualProperties fold (the
+      corner forms are NEVER stored: the probe reads any family's
+      states, the same-half/same-facing gates the reference's own
+      isStairSameHalfSameFacing walk). StairsBlocks.java carries the
+      family parse (the thirteen families' eight states each, the
+      facing segment + the _top HALF bit, the bare item forms never
+      states). THE STALE L1 PIN RETIRED: the "tall half's body carries
+      no collision" claim was the single-slab stand-in's own
+      justification, not the reference's law — StairsHalfBitTest's
+      underside assertion now reads the descended back on the facing
+      side (the low side stays open below a top stair). Evidence:
+      StairsCollisionGeometryTest 9 (the straight two-box law over all
+      four facings and both halves, the support ladder 0.5/1.0, the
+      outer-corner narrowing on two mirrored arms, the same-same
+      blocker, the half mismatch, the inner-corner third box, the
+      non-stair neighbours, the parse law over all thirteen families,
+      and the LIVE dropped-item arm — an emerald resting on the tall
+      back's ceiling beside a diamond on the base slab's half through
+      the engine's own shape-aware ground), CollisionShapeTest 19
+      (the legacy centre-column pins untouched), StairsHalfBitTest's
+      repaired rows; the swept-box BODY model (a body straddling the
+      bands from the cell above) still rides the physics-solver slice
+      — the point queries keep the legacy convention exactly like the
+      fence's 1.5 bands;
 
 ## Standing (demand-named, not scheduled)
 

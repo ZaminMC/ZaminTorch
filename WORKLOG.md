@@ -9305,3 +9305,50 @@ codecs + the migration contract, milestone-gated).
   load-flakes (VehicleWorldDamage, GameRule mobGriefing, LifecycleEvent
   death-scatter, ScoreboardIntegration health-hearts) each verified
   green in isolation on this 2-core host.
+
+### Slice — the stairs' true two-box ascending collision geometry (the §29 ledger's last unchecked stair row, LANDED)
+
+- THE LAW (StairsBlock.addCollisions 1:1): the base half slab
+  (setBaseShapeForCollisions) ALWAYS, plus the tall back on the FACING
+  side (isInnerStair) through the opposite Y band — the bottom form's
+  back rising 0.5→1.0, the TOP form's back descending 0→0.5 on the
+  facing side — with the reference's own corner resolution: the outer
+  corner narrows the back to the quarter cell (the facing neighbour's
+  perpendicular same-half stair, the isStairSameHalfSameFacing blocker
+  read), the inner corner adds the third step quarter
+  (setStepShapeForCollisions, the behind neighbour's perpendicular
+  stair).
+- THE VIRTUAL SHAPE, resolved engine-side: the corner forms are never
+  stored (the wire carries facing+half alone — the reference's own
+  resolveVirtualProperties fold); CollisionShapes.stairBoxes resolves
+  them at read time through the NeighborProbe, parsing any family's
+  flat stair states (StairsBlocks.java: the thirteen families' eight
+  states each, the facing segment + the _top HALF bit; the bare item
+  forms never states; sameHalfSameFacing the reference's own
+  any-family instanceof law).
+- THE STALE L1 PIN RETIRED: the "tall half's body carries no collision"
+  comment in the old single-slab arm was the deferral's own stand-in
+  phrasing, not the reference's law — StairsHalfBitTest's underside
+  assertion now reads the descended back on the facing side (the low
+  side stays open below a top stair), the pins that survive the
+  centre-column scan untouched.
+- Evidence: StairsCollisionGeometryTest 9 — the straight two-box law
+  over all four facings and both halves (the support ladder 0.5 on the
+  low side / 1.0 on the tall), the outer-corner narrowing on two
+  mirrored arms (east + south), the same-same blocker, the half
+  mismatch, the inner-corner third box, the non-stair neighbours, the
+  parse law over all thirteen families, and the LIVE dropped-item arm
+  (an emerald resting on the tall back's ceiling 65.125 beside a
+  diamond on the base slab's half 64.625, through the engine's own
+  shape-aware ground); CollisionShapeTest 19 and SlabStairsAcceptance
+  green with no changes; the focused sweep + the full suite rerun
+  (full-suite-L7.log).
+- The swept-box BODY model (a body straddling the bands from the cell
+  above) still rides the physics-solver slice — the point queries keep
+  the legacy convention exactly like the fence's 1.5 bands.
+
+NEXT per the standing rows: (1) the §22 vanilla continuation — the
+engineering ledger's own order: potions, leads, structures, natural
+spawn cycles; (2) the §30 console's per-command argument completion
+(demand-named); (3) the §31 modern backend (the codecs + the migration
+contract, milestone-gated).
