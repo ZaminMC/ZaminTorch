@@ -273,6 +273,12 @@ public final class BlockLightTable {
             Map.entry(Identifier.parse("minecraft:glass_pane"), new LightData(0, 0)),
             Map.entry(Identifier.parse("minecraft:iron_bars"), new LightData(0, 0)),
             Map.entry(Identifier.parse("minecraft:double_stone_slab"), new LightData(0, 15)),
+            // Slice L5 — the variant doubles + the seamless skins: the
+            // same opaque full cubes as the plain doubles.
+            Map.entry(Identifier.parse("minecraft:double_sandstone_slab"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:double_cobblestone_slab"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:double_stone_brick_slab"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:double_stone_slab_seamless"), new LightData(0, 15)),
             Map.entry(Identifier.parse("minecraft:smooth_sandstone"), new LightData(0, 15)),
             Map.entry(Identifier.parse("minecraft:sandstone_stairs_east"), new LightData(0, 15)),
             Map.entry(Identifier.parse("minecraft:sandstone_stairs_west"), new LightData(0, 15)),
@@ -304,6 +310,7 @@ public final class BlockLightTable {
             Map.entry(Identifier.parse("minecraft:infested_cracked_stone_bricks"), new LightData(0, 15)),
             Map.entry(Identifier.parse("minecraft:infested_chiseled_stone_bricks"), new LightData(0, 15)),
             Map.entry(Identifier.parse("minecraft:stone_brick_slab"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:stone_brick_slab_top"), new LightData(0, 15)),
             Map.entry(Identifier.parse("minecraft:mob_spawner"), new LightData(0, 0)),
             Map.entry(Identifier.parse("minecraft:iron_door_west"), new LightData(0, 15)),
             Map.entry(Identifier.parse("minecraft:iron_door_north"), new LightData(0, 15)),
@@ -698,6 +705,7 @@ public final class BlockLightTable {
             merged.put(member.identifier(), new LightData(0, 15));
         }
         merged.put(Identifier.parse("minecraft:double_stone_slab2"), new LightData(0, 15));
+        merged.put(Identifier.parse("minecraft:double_stone_slab2_seamless"), new LightData(0, 15));
         merged.put(Identifier.parse("minecraft:stone_slab2"), new LightData(0, 15));
         merged.put(Identifier.parse("minecraft:stone_slab2_top"), new LightData(0, 15));
         // The anvil family (Slice 53 — AnvilBlock's own reads: setOpacity(0)

@@ -447,6 +447,14 @@ public final class EngineStats {
         names.put("sandstone_slab", "stone_slab");
         names.put("cobblestone_slab", "stone_slab");
         names.put("stone_brick_slab", "stone_slab");
+        // The 43-family variant doubles + the seamless skins (Slice L5 —
+        // 43's VARIANT nibble and the SEAMLESS bit ride the double's own
+        // registry row; 181's skin likewise).
+        names.put("double_sandstone_slab", "double_stone_slab");
+        names.put("double_cobblestone_slab", "double_stone_slab");
+        names.put("double_stone_brick_slab", "double_stone_slab");
+        names.put("double_stone_slab_seamless", "double_stone_slab");
+        names.put("double_stone_slab2_seamless", "double_stone_slab2");
         // The slime block (165 is "slime" — the engine's modern name).
         names.put("slime_block", "slime");
         names.put("cobweb", "web");

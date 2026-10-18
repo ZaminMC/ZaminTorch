@@ -81,6 +81,12 @@ public final class BuiltinBlocks {
     public static final EngineBlockType RED_SANDSTONE_STAIRS_NORTH = RedSandstoneBlocks.stairsState(3);
     public static final EngineBlockType DOUBLE_STONE_SLAB2 = new EngineBlockType(
             Identifier.parse("minecraft:double_stone_slab2"), "Double Red Sandstone Slab");
+    // The seamless skin (RedSandstoneSlab's SEAMLESS bit 8 on the double
+    // — Slice L5: register-only, no gameplay path sets the bit; the skin
+    // arrives through world data and leaves through the merge).
+    public static final EngineBlockType DOUBLE_STONE_SLAB2_SEAMLESS = new EngineBlockType(
+            Identifier.parse("minecraft:double_stone_slab2_seamless"),
+            "Double Red Sandstone Slab", 8);
     public static final EngineBlockType STONE_SLAB2 = new EngineBlockType(
             Identifier.parse("minecraft:stone_slab2"), "Red Sandstone Slab");
     public static final EngineBlockType STONE_SLAB2_TOP = new EngineBlockType(
@@ -452,6 +458,22 @@ public final class BuiltinBlocks {
             Identifier.parse("minecraft:iron_bars"), "Iron Bars");
     public static final EngineBlockType DOUBLE_STONE_SLAB = new EngineBlockType(
             Identifier.parse("minecraft:double_stone_slab"), "Double Stone Slab");
+    // The 43-family variant doubles (Slice L5 — DoubleStoneSlabBlock's
+    // VARIANT nibble: the pairs used the PARENT BLOCKS as stand-ins, the
+    // pre-52 convention; the proper doubles carry their variant whole).
+    public static final EngineBlockType DOUBLE_SANDSTONE_SLAB = new EngineBlockType(
+            Identifier.parse("minecraft:double_sandstone_slab"), "Double Sandstone Slab", 1);
+    public static final EngineBlockType DOUBLE_COBBLESTONE_SLAB = new EngineBlockType(
+            Identifier.parse("minecraft:double_cobblestone_slab"),
+            "Double Cobblestone Slab", 3);
+    public static final EngineBlockType DOUBLE_STONE_BRICK_SLAB = new EngineBlockType(
+            Identifier.parse("minecraft:double_stone_brick_slab"),
+            "Double Stone Brick Slab", 5);
+    // The seamless skin (StoneSlabBlock's SEAMLESS bit 8 on the double —
+    // the historical smooth stone's own form, register-only alike).
+    public static final EngineBlockType DOUBLE_STONE_SLAB_SEAMLESS = new EngineBlockType(
+            Identifier.parse("minecraft:double_stone_slab_seamless"),
+            "Double Stone Slab", 8);
     public static final EngineBlockType SMOOTH_SANDSTONE = new EngineBlockType(
             Identifier.parse("minecraft:smooth_sandstone"), "Sandstone", 2);
     public static final EngineBlockType SANDSTONE_STAIRS_EAST = new EngineBlockType(
@@ -541,6 +563,10 @@ public final class BuiltinBlocks {
             "Infested Chiseled Stone Bricks", 5);
     public static final EngineBlockType STONE_BRICK_SLAB = new EngineBlockType(
             Identifier.parse("minecraft:stone_brick_slab"), "Stone Brick Slab", 5);
+    // The top half (Slice L5 — the variant's own top form was missing:
+    // the stone-brick slab could never lay its upper half; 5 | 8 = 13).
+    public static final EngineBlockType STONE_BRICK_SLAB_TOP = new EngineBlockType(
+            Identifier.parse("minecraft:stone_brick_slab_top"), "Stone Brick Slab", 13);
     public static final EngineBlockType MOB_SPAWNER = new EngineBlockType(
             Identifier.parse("minecraft:mob_spawner"), "Mob Spawner");
     // The note block (legacy 25, the reference's `noteblock` registration,
@@ -909,6 +935,11 @@ public final class BuiltinBlocks {
                 .register(GLASS_PANE)
                 .register(IRON_BARS)
                 .register(DOUBLE_STONE_SLAB)
+                // Slice L5 — the 43-family variant doubles + the seamless skin.
+                .register(DOUBLE_SANDSTONE_SLAB)
+                .register(DOUBLE_COBBLESTONE_SLAB)
+                .register(DOUBLE_STONE_BRICK_SLAB)
+                .register(DOUBLE_STONE_SLAB_SEAMLESS)
                 .register(SMOOTH_SANDSTONE)
                 .register(SANDSTONE_STAIRS_EAST)
                 .register(SANDSTONE_STAIRS_WEST)
@@ -937,6 +968,7 @@ public final class BuiltinBlocks {
                 .register(INFESTED_CRACKED_STONE_BRICKS)
                 .register(INFESTED_CHISELED_STONE_BRICKS)
                 .register(STONE_BRICK_SLAB)
+                .register(STONE_BRICK_SLAB_TOP)
                 .register(MOB_SPAWNER)
                 .register(NOTE_BLOCK)
                 .register(JUKEBOX)
@@ -1116,6 +1148,8 @@ public final class BuiltinBlocks {
             builder = builder.register(member);
         }
         builder = builder.register(DOUBLE_STONE_SLAB2)
+                // Slice L5 — the seamless skin.
+                .register(DOUBLE_STONE_SLAB2_SEAMLESS)
                 .register(STONE_SLAB2)
                 .register(STONE_SLAB2_TOP);
         // The anvil family (Slice 53 — AnvilBlock 1:1): the twelve states

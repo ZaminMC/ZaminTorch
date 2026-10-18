@@ -8137,7 +8137,12 @@ public final class EngineServer implements Server, EngineBridge {
             placeAnvilOnTick(session, clicked, face, creativeHeld);
             return;
         }
-        if (heldId.endsWith("_slab") || heldId.equals("stone_slab2")
+        // Slice L5's second dispatch repair: the stone_slab2 arm compared
+        // the BARE name while heldId carries the namespace — and the
+        // endsWith(_slab) fallback misses the "slab2" suffix — so the
+        // red-sandstone family NEVER reached the slab path (the pair
+        // stacked singles instead of doubling).
+        if (heldId.endsWith("_slab") || heldId.equals("minecraft:stone_slab2")
                 || creativeHeld.map(t -> isSlabIdentifier(t.identifier().value())).orElse(false)) {
             placeSlabOnTick(session, clicked, face, creativeHeld, cursorY);
             return; // the half/double rule overrides the generic placement
@@ -10595,27 +10600,40 @@ public final class EngineServer implements Server, EngineBridge {
                     BuiltinBlocks.OAK_SLAB, BuiltinBlocks.OAK_SLAB_TOP,
                     BuiltinBlocks.DOUBLE_WOODEN_SLAB};
         }
-        if (value.startsWith("stone_slab")) {
-            return new net.zaminmc.torch.block.BlockType[]{
-                    BuiltinBlocks.STONE_SLAB, BuiltinBlocks.STONE_SLAB_TOP, BuiltinBlocks.STONE};
-        }
-        if (value.startsWith("cobblestone_slab")) {
-            return new net.zaminmc.torch.block.BlockType[]{
-                    BuiltinBlocks.COBBLESTONE_SLAB, BuiltinBlocks.COBBLESTONE_SLAB_TOP,
-                    BuiltinBlocks.COBBLESTONE};
-        }
-        if (value.startsWith("sandstone_slab")) {
-            return new net.zaminmc.torch.block.BlockType[]{
-                    BuiltinBlocks.SANDSTONE_SLAB, BuiltinBlocks.SANDSTONE_SLAB_TOP,
-                    BuiltinBlocks.SANDSTONE};
-        }
         // The red sandstone slab pair (Slice 52 — the reference's own
         // stone_slab2 family: the doubles carry the SEAMLESS bit's plain
-        // form, the family's own 181 double).
+        // form, the family's own 181 double). THE ORDER REPAIR (Slice
+        // L5's audit): the arm sat BELOW the stone_slab startsWith and
+        // was dead code — every red-sandstone pair merged into the 43
+        // double.
         if (value.equals("stone_slab2") || value.equals("stone_slab2_top")) {
             return new net.zaminmc.torch.block.BlockType[]{
                     BuiltinBlocks.STONE_SLAB2, BuiltinBlocks.STONE_SLAB2_TOP,
                     BuiltinBlocks.DOUBLE_STONE_SLAB2};
+        }
+        // Slice L5 — the 43-family pairs double into their OWN variant
+        // doubles (DoubleStoneSlabBlock's VARIANT nibble), no longer the
+        // parent blocks' pre-52 stand-ins.
+        if (value.startsWith("stone_slab")) {
+            return new net.zaminmc.torch.block.BlockType[]{
+                    BuiltinBlocks.STONE_SLAB, BuiltinBlocks.STONE_SLAB_TOP,
+                    BuiltinBlocks.DOUBLE_STONE_SLAB};
+        }
+        if (value.startsWith("cobblestone_slab")) {
+            return new net.zaminmc.torch.block.BlockType[]{
+                    BuiltinBlocks.COBBLESTONE_SLAB, BuiltinBlocks.COBBLESTONE_SLAB_TOP,
+                    BuiltinBlocks.DOUBLE_COBBLESTONE_SLAB};
+        }
+        if (value.startsWith("sandstone_slab")) {
+            return new net.zaminmc.torch.block.BlockType[]{
+                    BuiltinBlocks.SANDSTONE_SLAB, BuiltinBlocks.SANDSTONE_SLAB_TOP,
+                    BuiltinBlocks.DOUBLE_SANDSTONE_SLAB};
+        }
+        if (value.startsWith("stone_brick_slab")) {
+            // The missing arm: the stone-brick pair never merged at all.
+            return new net.zaminmc.torch.block.BlockType[]{
+                    BuiltinBlocks.STONE_BRICK_SLAB, BuiltinBlocks.STONE_BRICK_SLAB_TOP,
+                    BuiltinBlocks.DOUBLE_STONE_BRICK_SLAB};
         }
         // The wooden-slab families (Slice 36 — the reference's own id 126
         // carrying the variant nibble): each wood's pair doubles into its
