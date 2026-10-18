@@ -153,9 +153,21 @@ class ItemBoxPhysicsAcceptanceTest {
             // A three-tall stone wall at x=5, the item thrown east at it
             // from two and a half blocks out.
             server.ticker().submit(() -> {
+                // The wall spans z 2..10: a diagonal throw (vx 0.4, vz
+                // 0.3) cannot out-run the wall's south end — the box
+                // reaches the face while its z-band still overlaps, the
+                // X axis clips, the slide runs ALONG the face. (The
+                // historical 1-cell pillar was never touched by either
+                // model's trajectory: the throw clears its south corner
+                // first, and the old pass rode the leading-face
+                // stand-in's freeze-on-open-ground artifact — the item
+                // stopped mid-slide at (4.737, 4.178) on empty ground,
+                // which the x assertion happened to accept.)
                 for (int y = 5; y <= 7; y++) {
-                    server.world().setBlock(new BlockPosition(5, y, 2),
-                            net.zaminmc.torch.server.block.BuiltinBlocks.STONE);
+                    for (int z = 2; z <= 10; z++) {
+                        server.world().setBlock(new BlockPosition(5, y, z),
+                                net.zaminmc.torch.server.block.BuiltinBlocks.STONE);
+                    }
                 }
             });
             await(() -> server.world().getBlock(new BlockPosition(5, 5, 2))
@@ -199,9 +211,21 @@ class ItemBoxPhysicsAcceptanceTest {
         EngineServer server = boot();
         try {
             server.ticker().submit(() -> {
+                // The wall spans z 2..10: a diagonal throw (vx 0.4, vz
+                // 0.3) cannot out-run the wall's south end — the box
+                // reaches the face while its z-band still overlaps, the
+                // X axis clips, the slide runs ALONG the face. (The
+                // historical 1-cell pillar was never touched by either
+                // model's trajectory: the throw clears its south corner
+                // first, and the old pass rode the leading-face
+                // stand-in's freeze-on-open-ground artifact — the item
+                // stopped mid-slide at (4.737, 4.178) on empty ground,
+                // which the x assertion happened to accept.)
                 for (int y = 5; y <= 7; y++) {
-                    server.world().setBlock(new BlockPosition(5, y, 2),
-                            net.zaminmc.torch.server.block.BuiltinBlocks.STONE);
+                    for (int z = 2; z <= 10; z++) {
+                        server.world().setBlock(new BlockPosition(5, y, z),
+                                net.zaminmc.torch.server.block.BuiltinBlocks.STONE);
+                    }
                 }
             });
             await(() -> server.world().getBlock(new BlockPosition(5, 5, 2))
