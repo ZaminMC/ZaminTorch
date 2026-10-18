@@ -260,6 +260,12 @@ public final class EngineStats {
         merges.put("red_sandstone_stairs_west", "red_sandstone_stairs");
         merges.put("red_sandstone_stairs_south", "red_sandstone_stairs");
         merges.put("red_sandstone_stairs_north", "red_sandstone_stairs");
+        // The HALF bit's upside-down forms (the vanilla per-block-id
+        // scheme: every 180 state counts on the stairs row).
+        merges.put("red_sandstone_stairs_east_top", "red_sandstone_stairs");
+        merges.put("red_sandstone_stairs_west_top", "red_sandstone_stairs");
+        merges.put("red_sandstone_stairs_south_top", "red_sandstone_stairs");
+        merges.put("red_sandstone_stairs_north_top", "red_sandstone_stairs");
         merges.put("stone_slab2_top", "stone_slab2");
         // The anvil family (Slice 53 — the vanilla per-block-id scheme:
         // mining any of 145's twelve states counts on the anvil row).

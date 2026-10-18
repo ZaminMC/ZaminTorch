@@ -8136,8 +8136,8 @@ public final class EngineServer implements Server, EngineBridge {
         }
         if (heldId.equals("minecraft:oak_stairs") || heldId.equals("minecraft:cobblestone_stairs")
                 || creativeHeld.map(t -> isStairsIdentifier(t.identifier().value())).orElse(false)) {
-            placeStairsOnTick(session, clicked, face, creativeHeld);
-            return; // the ascending-facing rule overrides the generic placement
+            placeStairsOnTick(session, clicked, face, creativeHeld, cursorY);
+            return; // the ascending-facing + HALF rule overrides the generic placement
         }
         // The lily pad's own use (Slice 42 — LilyPadItem.startUsing lines
         // 26-51): the aimed cell must be a WATER SOURCE with air above —
@@ -10480,39 +10480,51 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /**
-     * The stairs family of a stairs identifier: the four ascending states
-     * in the look-band order {south, west, north, east} (the bed band).
+     * The stairs family of a stairs identifier: the EIGHT states — the
+     * four ascending halves then the four upside-down — in the look-band
+     * order {south, west, north, east} (the bed band), the HALF bit's
+     * top forms at +4 (StairsBlock.getPlacementState's own fold).
      */
     private net.zaminmc.torch.block.BlockType[] stairsFamilyOf(String value) {
         if (value.startsWith("oak_stairs")) {
             return new net.zaminmc.torch.block.BlockType[]{
                     BuiltinBlocks.OAK_STAIRS_SOUTH, BuiltinBlocks.OAK_STAIRS_WEST,
-                    BuiltinBlocks.OAK_STAIRS_NORTH, BuiltinBlocks.OAK_STAIRS_EAST};
+                    BuiltinBlocks.OAK_STAIRS_NORTH, BuiltinBlocks.OAK_STAIRS_EAST,
+                    BuiltinBlocks.OAK_STAIRS_SOUTH_TOP, BuiltinBlocks.OAK_STAIRS_WEST_TOP,
+                    BuiltinBlocks.OAK_STAIRS_NORTH_TOP, BuiltinBlocks.OAK_STAIRS_EAST_TOP};
         }
         if (value.startsWith("cobblestone_stairs")) {
             return new net.zaminmc.torch.block.BlockType[]{
                     BuiltinBlocks.COBBLESTONE_STAIRS_SOUTH, BuiltinBlocks.COBBLESTONE_STAIRS_WEST,
-                    BuiltinBlocks.COBBLESTONE_STAIRS_NORTH, BuiltinBlocks.COBBLESTONE_STAIRS_EAST};
+                    BuiltinBlocks.COBBLESTONE_STAIRS_NORTH, BuiltinBlocks.COBBLESTONE_STAIRS_EAST,
+                    BuiltinBlocks.COBBLESTONE_STAIRS_SOUTH_TOP, BuiltinBlocks.COBBLESTONE_STAIRS_WEST_TOP,
+                    BuiltinBlocks.COBBLESTONE_STAIRS_NORTH_TOP, BuiltinBlocks.COBBLESTONE_STAIRS_EAST_TOP};
         }
-        // The red sandstone stairs (Slice 52 — the family's own four
+        // The red sandstone stairs (Slice 52 — the family's own eight
         // states over the Bukkit band).
         if (value.startsWith("red_sandstone_stairs")) {
             return new net.zaminmc.torch.block.BlockType[]{
                     BuiltinBlocks.RED_SANDSTONE_STAIRS_SOUTH, BuiltinBlocks.RED_SANDSTONE_STAIRS_WEST,
-                    BuiltinBlocks.RED_SANDSTONE_STAIRS_NORTH, BuiltinBlocks.RED_SANDSTONE_STAIRS_EAST};
+                    BuiltinBlocks.RED_SANDSTONE_STAIRS_NORTH, BuiltinBlocks.RED_SANDSTONE_STAIRS_EAST,
+                    blockRegistry.require(Identifier.parse("minecraft:red_sandstone_stairs_south_top")),
+                    blockRegistry.require(Identifier.parse("minecraft:red_sandstone_stairs_west_top")),
+                    blockRegistry.require(Identifier.parse("minecraft:red_sandstone_stairs_north_top")),
+                    blockRegistry.require(Identifier.parse("minecraft:red_sandstone_stairs_east_top"))};
         }
         // The new stair families (Slice 36 — the eight over the foundation
-        // and the masonry set): the four facings resolve through the
+        // and the masonry set): the eight forms resolve through the
         // registry (the states' own registration).
         if (WoodShapeBlocks.isStairsItem(value) || WoodShapeBlocks.isStairsState(value)) {
             String bare = value.contains(":")
                     ? value.substring(value.indexOf(':') + 1) : value;
             String family = bare.substring(0, bare.indexOf("_stairs"));
-            net.zaminmc.torch.block.BlockType[] states = new net.zaminmc.torch.block.BlockType[4];
+            net.zaminmc.torch.block.BlockType[] states = new net.zaminmc.torch.block.BlockType[8];
             String[] facings = {"south", "west", "north", "east"};
             for (int i = 0; i < 4; i++) {
                 states[i] = blockRegistry.require(Identifier.parse(
                         "minecraft:" + family + "_stairs_" + facings[i]));
+                states[i + 4] = blockRegistry.require(Identifier.parse(
+                        "minecraft:" + family + "_stairs_" + facings[i] + "_top"));
             }
             return states;
         }
@@ -10563,8 +10575,10 @@ public final class EngineServer implements Server, EngineBridge {
             return;
         }
         // Glowstone's BlockStep convention: DOWN face hangs the top half,
-        // UP lays the bottom, the sides split on the cursor's upper half.
-        boolean top = face == 0 || (face != 1 && cursorY >= 0.5f);
+        // UP lays the bottom, the sides split on the cursor's upper half
+        // (the reference's strict > 0.5 — the exact-middle click lays the
+        // bottom exactly like the reference's own dy > 0.5f gate).
+        boolean top = face == 0 || (face != 1 && cursorY > 0.5f);
         world.setBlock(target, top ? family[1] : family[0]);
         consumePlaced(session, creativeHeld);
     }
@@ -10572,10 +10586,14 @@ public final class EngineServer implements Server, EngineBridge {
     /**
      * The stairs placement (the historical ItemStairs): the ascending
      * direction follows the placer's cardinal look — the walk-up feel —
-     * with the Bukkit band (E=0 W=1 S=2 N=3). Tick-thread context.
+     * with the Bukkit band (E=0 W=1 S=2 N=3). The HALF bit
+     * (StairsBlock.getPlacementState lines 493-500): the underside click
+     * hangs the upside-down form, the top face lays the plain, a side
+     * face splits on the cursor's upper half — the slab law's own shape.
+     * Tick-thread context.
      */
     private void placeStairsOnTick(PlayerSession session, BlockPosition clicked, int face,
-                                   java.util.Optional<BlockType> creativeHeld) {
+                                   java.util.Optional<BlockType> creativeHeld, float cursorY) {
         String held = heldIdentifierOf(session, creativeHeld);
         net.zaminmc.torch.block.BlockType[] family = held == null ? null : stairsFamilyOf(held);
         if (family == null) {
@@ -10595,7 +10613,12 @@ public final class EngineServer implements Server, EngineBridge {
             return;
         }
         double yaw = ((session.rotation().yaw() % 360.0) + 360.0 + 45.0) % 360.0;
-        world.setBlock(target, family[(int) (yaw / 90.0) % 4]);
+        int lookBand = (int) (yaw / 90.0) % 4;
+        // StairsBlock.getPlacementState: dir != DOWN && (dir == UP
+        // || !(dy > 0.5)) ? BOTTOM : TOP — the underside always hangs,
+        // the top face always lays, the sides split at the cursor's half.
+        boolean top = face == 0 || (face != 1 && cursorY > 0.5f);
+        world.setBlock(target, family[(top ? 4 : 0) + lookBand]);
         consumePlaced(session, creativeHeld);
     }
 

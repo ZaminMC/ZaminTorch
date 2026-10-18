@@ -294,13 +294,19 @@ public final class CollisionShapes {
                     new Box(0.875, 0, 0, 1, 1, 1),
                     new Box(0, 0, 0.875, 1, 1, 1));
         }
-        // The slab and stair halves (the shipped half rule): the bottom
-        // slab and the facing stair states fill their cell's lower half,
-        // the top slab the upper (the bare stair forms keep the flat
-        // full-cube default, exactly the shipped shape). The stone_slab2
-        // pair joins through its own names (the '2' family breaks the
-        // suffix conventions — Slice 52).
-        if (value.endsWith("_slab_top") || value.equals("stone_slab2_top")) {
+        // The slab and stair halves: the bottom slab and the bottom stair
+        // states fill their cell's lower half, the top slab and the
+        // UPSIDE-DOWN stair states the upper (StairsBlock.
+        // setBaseShapeForCollisions lines 74-81 — the reference's own
+        // collision law: the base half box alone, the tall half's body
+        // carries no collision in 1.8.8; the inner-corner riser is the
+        // connection-dependent refinement). The stone_slab2 pair joins
+        // through its own names (the '2' family breaks the suffix
+        // conventions — Slice 52).
+        if (value.endsWith("_slab_top") || value.equals("stone_slab2_top")
+                || value.endsWith("_stairs_east_top")
+                || value.endsWith("_stairs_west_top") || value.endsWith("_stairs_south_top")
+                || value.endsWith("_stairs_north_top")) {
             return List.of(new Box(0, 0.5, 0, 1, 1, 1));
         }
         if (value.endsWith("_slab") || value.equals("stone_slab2")

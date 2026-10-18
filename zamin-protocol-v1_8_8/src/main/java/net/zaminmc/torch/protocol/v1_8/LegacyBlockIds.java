@@ -385,10 +385,18 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:oak_stairs_west"), 53),
             Map.entry(Identifier.parse("minecraft:oak_stairs_south"), 53),
             Map.entry(Identifier.parse("minecraft:oak_stairs_north"), 53),
+            Map.entry(Identifier.parse("minecraft:oak_stairs_east_top"), 53),
+            Map.entry(Identifier.parse("minecraft:oak_stairs_west_top"), 53),
+            Map.entry(Identifier.parse("minecraft:oak_stairs_south_top"), 53),
+            Map.entry(Identifier.parse("minecraft:oak_stairs_north_top"), 53),
             Map.entry(Identifier.parse("minecraft:cobblestone_stairs_east"), 67),
             Map.entry(Identifier.parse("minecraft:cobblestone_stairs_west"), 67),
             Map.entry(Identifier.parse("minecraft:cobblestone_stairs_south"), 67),
             Map.entry(Identifier.parse("minecraft:cobblestone_stairs_north"), 67),
+            Map.entry(Identifier.parse("minecraft:cobblestone_stairs_east_top"), 67),
+            Map.entry(Identifier.parse("minecraft:cobblestone_stairs_west_top"), 67),
+            Map.entry(Identifier.parse("minecraft:cobblestone_stairs_south_top"), 67),
+            Map.entry(Identifier.parse("minecraft:cobblestone_stairs_north_top"), 67),
             // The village slice (community blocks.json): the sandstone
             // stairs 128 (the desert swap's ascending band rides the
             // metadata nibble like the oak/cobble pair), the glass pane
@@ -400,6 +408,10 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:sandstone_stairs_west"), 128),
             Map.entry(Identifier.parse("minecraft:sandstone_stairs_south"), 128),
             Map.entry(Identifier.parse("minecraft:sandstone_stairs_north"), 128),
+            Map.entry(Identifier.parse("minecraft:sandstone_stairs_east_top"), 128),
+            Map.entry(Identifier.parse("minecraft:sandstone_stairs_west_top"), 128),
+            Map.entry(Identifier.parse("minecraft:sandstone_stairs_south_top"), 128),
+            Map.entry(Identifier.parse("minecraft:sandstone_stairs_north_top"), 128),
             Map.entry(Identifier.parse("minecraft:glass_pane"), 102),
             Map.entry(Identifier.parse("minecraft:iron_bars"), 101),
             Map.entry(Identifier.parse("minecraft:double_stone_slab"), 43),
@@ -530,6 +542,10 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:nether_brick_stairs_west"), 114),
             Map.entry(Identifier.parse("minecraft:nether_brick_stairs_south"), 114),
             Map.entry(Identifier.parse("minecraft:nether_brick_stairs_north"), 114),
+            Map.entry(Identifier.parse("minecraft:nether_brick_stairs_east_top"), 114),
+            Map.entry(Identifier.parse("minecraft:nether_brick_stairs_west_top"), 114),
+            Map.entry(Identifier.parse("minecraft:nether_brick_stairs_south_top"), 114),
+            Map.entry(Identifier.parse("minecraft:nether_brick_stairs_north_top"), 114),
             Map.entry(Identifier.parse("minecraft:nether_wart_stage0"), 115),
             Map.entry(Identifier.parse("minecraft:nether_wart_stage1"), 115),
             Map.entry(Identifier.parse("minecraft:nether_wart_stage2"), 115),
@@ -811,6 +827,8 @@ final class LegacyBlockIds {
         merged.put(Identifier.parse("minecraft:red_sandstone_stairs"), 180);
         for (String facing : new String[] {"east", "west", "south", "north"}) {
             merged.put(Identifier.parse("minecraft:red_sandstone_stairs_" + facing), 180);
+            // The HALF bit's upside-down form (StairsBlock's TOP fold).
+            merged.put(Identifier.parse("minecraft:red_sandstone_stairs_" + facing + "_top"), 180);
         }
         merged.put(Identifier.parse("minecraft:double_stone_slab2"), 181);
         merged.put(Identifier.parse("minecraft:stone_slab2"), 182);
@@ -918,6 +936,10 @@ final class LegacyBlockIds {
             for (int s = 0; s < facingSuffixes.length; s++) {
                 merged.put(Identifier.parse(
                         "minecraft:" + stairFamilies[f] + "_stairs" + facingSuffixes[s]),
+                        stairIds[f]);
+                // The HALF bit's upside-down forms (StairsBlock's TOP fold).
+                merged.put(Identifier.parse(
+                        "minecraft:" + stairFamilies[f] + "_stairs" + facingSuffixes[s] + "_top"),
                         stairIds[f]);
             }
             merged.put(Identifier.parse("minecraft:" + stairFamilies[f] + "_stairs"), stairIds[f]);
@@ -1317,9 +1339,20 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:oak_stairs_west"), 1),
             Map.entry(Identifier.parse("minecraft:oak_stairs_south"), 2),
             Map.entry(Identifier.parse("minecraft:oak_stairs_north"), 3),
+            // The stairs' HALF bit (StairsBlock.getMetadataFromState:
+            // (HALF == TOP ? 4 : 0) | (5 - FACING.getId()) — the east
+            // rides the 4 default, the rest +4).
+            Map.entry(Identifier.parse("minecraft:oak_stairs_east_top"), 4),
+            Map.entry(Identifier.parse("minecraft:oak_stairs_west_top"), 5),
+            Map.entry(Identifier.parse("minecraft:oak_stairs_south_top"), 6),
+            Map.entry(Identifier.parse("minecraft:oak_stairs_north_top"), 7),
             Map.entry(Identifier.parse("minecraft:cobblestone_stairs_west"), 1),
             Map.entry(Identifier.parse("minecraft:cobblestone_stairs_south"), 2),
             Map.entry(Identifier.parse("minecraft:cobblestone_stairs_north"), 3),
+            Map.entry(Identifier.parse("minecraft:cobblestone_stairs_east_top"), 4),
+            Map.entry(Identifier.parse("minecraft:cobblestone_stairs_west_top"), 5),
+            Map.entry(Identifier.parse("minecraft:cobblestone_stairs_south_top"), 6),
+            Map.entry(Identifier.parse("minecraft:cobblestone_stairs_north_top"), 7),
             // The vehicle slice: the rail's flat orientation (0 = NS default).
             Map.entry(Identifier.parse("minecraft:rail_ew"), 1),
             // The nether portal's axis (the reference PortalBlock.getMetadata:
@@ -1368,6 +1401,10 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:nether_brick_stairs_west"), 1),
             Map.entry(Identifier.parse("minecraft:nether_brick_stairs_south"), 2),
             Map.entry(Identifier.parse("minecraft:nether_brick_stairs_north"), 3),
+            Map.entry(Identifier.parse("minecraft:nether_brick_stairs_east_top"), 4),
+            Map.entry(Identifier.parse("minecraft:nether_brick_stairs_west_top"), 5),
+            Map.entry(Identifier.parse("minecraft:nether_brick_stairs_south_top"), 6),
+            Map.entry(Identifier.parse("minecraft:nether_brick_stairs_north_top"), 7),
             Map.entry(Identifier.parse("minecraft:nether_wart_stage1"), 1),
             Map.entry(Identifier.parse("minecraft:nether_wart_stage2"), 2),
             Map.entry(Identifier.parse("minecraft:nether_wart_stage3"), 3),
@@ -1450,6 +1487,10 @@ final class LegacyBlockIds {
                 for (int s = 0; s < facingSuffixes.length; s++) {
                     merged.put(Identifier.parse(
                             "minecraft:" + family + "_stairs" + facingSuffixes[s]), s);
+                    // The HALF bit's upside-down forms (+4).
+                    merged.put(Identifier.parse(
+                            "minecraft:" + family + "_stairs" + facingSuffixes[s] + "_top"),
+                            s | 4);
                 }
             }
             String[] slabWoods = {"spruce", "birch", "jungle", "acacia", "dark_oak"};
@@ -1665,6 +1706,21 @@ final class LegacyBlockIds {
         merged.put(Identifier.parse("minecraft:red_sandstone_stairs_west"), 1);
         merged.put(Identifier.parse("minecraft:red_sandstone_stairs_south"), 2);
         merged.put(Identifier.parse("minecraft:red_sandstone_stairs_north"), 3);
+        merged.put(Identifier.parse("minecraft:red_sandstone_stairs_east_top"), 4);
+        merged.put(Identifier.parse("minecraft:red_sandstone_stairs_west_top"), 5);
+        merged.put(Identifier.parse("minecraft:red_sandstone_stairs_south_top"), 6);
+        merged.put(Identifier.parse("minecraft:red_sandstone_stairs_north_top"), 7);
+        // The sandstone stairs' own facing band over 128 — THE AUDIT'S
+        // CATCH: the shipped village slice never registered the four
+        // nibble rows, so every sandstone stair carried meta 0 (the east
+        // form) on the wire; the band lands with the HALF bit's forms.
+        merged.put(Identifier.parse("minecraft:sandstone_stairs_west"), 1);
+        merged.put(Identifier.parse("minecraft:sandstone_stairs_south"), 2);
+        merged.put(Identifier.parse("minecraft:sandstone_stairs_north"), 3);
+        merged.put(Identifier.parse("minecraft:sandstone_stairs_east_top"), 4);
+        merged.put(Identifier.parse("minecraft:sandstone_stairs_west_top"), 5);
+        merged.put(Identifier.parse("minecraft:sandstone_stairs_south_top"), 6);
+        merged.put(Identifier.parse("minecraft:sandstone_stairs_north_top"), 7);
         merged.put(Identifier.parse("minecraft:stone_slab2_top"), 8);
         // The anvil's metadata nibbles (Slice 53 — AnvilBlock.
         // getMetadataFromState: the FACING horizontal id whole in the low

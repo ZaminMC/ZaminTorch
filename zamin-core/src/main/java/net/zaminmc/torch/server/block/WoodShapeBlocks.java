@@ -76,6 +76,20 @@ public final class WoodShapeBlocks {
                 .toList();
     }
 
+    /**
+     * The four UPSIDE-DOWN states of a stair family (StairsBlock's HALF
+     * bit): the reference's own metadata writer folds the form as
+     * {@code (HALF == TOP ? 4 : 0) | (5 - FACING.getId())} — the top
+     * states carry the facing's own nibble | 4 over the shipped band.
+     */
+    public static List<EngineBlockType> stairsTopStates(String family) {
+        return FACINGS.stream()
+                .map(facing -> new EngineBlockType(
+                        Identifier.parse("minecraft:" + family + "_stairs_" + facing + "_top"),
+                        displayOf(family), FACINGS.indexOf(facing) | 4))
+                .toList();
+    }
+
     /** The fence block of a wood (the item keeps the bare id). */
     public static EngineBlockType fenceState(String wood) {
         String display = woodDisplay(wood) + " Fence";
@@ -121,6 +135,7 @@ public final class WoodShapeBlocks {
         java.util.ArrayList<EngineBlockType> blocks = new java.util.ArrayList<>();
         for (String family : STAIRS.keySet()) {
             blocks.addAll(stairsStates(family));
+            blocks.addAll(stairsTopStates(family));
         }
         for (String wood : FENCES.keySet()) {
             blocks.add(fenceState(wood));
@@ -139,7 +154,14 @@ public final class WoodShapeBlocks {
     /** Whether the value is any stair family's facing state. */
     public static boolean isStairsState(String value) {
         return value.endsWith("_stairs_east") || value.endsWith("_stairs_west")
-                || value.endsWith("_stairs_south") || value.endsWith("_stairs_north");
+                || value.endsWith("_stairs_south") || value.endsWith("_stairs_north")
+                || isStairsTopState(value);
+    }
+
+    /** Whether the value is a stair family's UPSIDE-DOWN state. */
+    public static boolean isStairsTopState(String value) {
+        return value.endsWith("_stairs_east_top") || value.endsWith("_stairs_west_top")
+                || value.endsWith("_stairs_south_top") || value.endsWith("_stairs_north_top");
     }
 
     /** Whether the value is a wood fence block (the shipped oak included). */

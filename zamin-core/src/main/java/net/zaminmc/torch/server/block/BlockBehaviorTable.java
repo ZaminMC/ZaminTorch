@@ -459,6 +459,18 @@ public final class BlockBehaviorTable {
             Map.entry(Identifier.parse("minecraft:sandstone_stairs_north"),
                     new BlockBehavior(0.8, true, false, "rock", 0,
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:sandstone_stairs_north"), 1)))),
+            Map.entry(Identifier.parse("minecraft:sandstone_stairs_east_top"),
+                    new BlockBehavior(0.8, true, false, "rock", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:sandstone_stairs_east_top"), 1)))),
+            Map.entry(Identifier.parse("minecraft:sandstone_stairs_west_top"),
+                    new BlockBehavior(0.8, true, false, "rock", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:sandstone_stairs_west_top"), 1)))),
+            Map.entry(Identifier.parse("minecraft:sandstone_stairs_south_top"),
+                    new BlockBehavior(0.8, true, false, "rock", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:sandstone_stairs_south_top"), 1)))),
+            Map.entry(Identifier.parse("minecraft:sandstone_stairs_north_top"),
+                    new BlockBehavior(0.8, true, false, "rock", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:sandstone_stairs_north_top"), 1)))),
 
             // The stronghold set (Slice 12c — community blocks.json 1.8
             // values): the stone-brick family 1.5 rock pickaxe-gated
@@ -561,6 +573,18 @@ public final class BlockBehaviorTable {
                     new BlockBehavior(2.0, true, true, "rock", 0,
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:nether_brick_stairs"), 1)))),
             Map.entry(Identifier.parse("minecraft:nether_brick_stairs_north"),
+                    new BlockBehavior(2.0, true, true, "rock", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:nether_brick_stairs"), 1)))),
+            Map.entry(Identifier.parse("minecraft:nether_brick_stairs_east_top"),
+                    new BlockBehavior(2.0, true, true, "rock", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:nether_brick_stairs"), 1)))),
+            Map.entry(Identifier.parse("minecraft:nether_brick_stairs_west_top"),
+                    new BlockBehavior(2.0, true, true, "rock", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:nether_brick_stairs"), 1)))),
+            Map.entry(Identifier.parse("minecraft:nether_brick_stairs_south_top"),
+                    new BlockBehavior(2.0, true, true, "rock", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:nether_brick_stairs"), 1)))),
+            Map.entry(Identifier.parse("minecraft:nether_brick_stairs_north_top"),
                     new BlockBehavior(2.0, true, true, "rock", 0,
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:nether_brick_stairs"), 1)))),
             Map.entry(Identifier.parse("minecraft:nether_wart_stage0"),
@@ -892,6 +916,19 @@ public final class BlockBehaviorTable {
             Map.entry(Identifier.parse("minecraft:oak_stairs_north"),
                     new BlockBehavior(2.0, true, false, "wood", 0,
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:oak_stairs"), 1)))),
+            // The HALF bit's upside-down forms (StairsBlock's TOP fold).
+            Map.entry(Identifier.parse("minecraft:oak_stairs_east_top"),
+                    new BlockBehavior(2.0, true, false, "wood", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:oak_stairs"), 1)))),
+            Map.entry(Identifier.parse("minecraft:oak_stairs_west_top"),
+                    new BlockBehavior(2.0, true, false, "wood", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:oak_stairs"), 1)))),
+            Map.entry(Identifier.parse("minecraft:oak_stairs_south_top"),
+                    new BlockBehavior(2.0, true, false, "wood", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:oak_stairs"), 1)))),
+            Map.entry(Identifier.parse("minecraft:oak_stairs_north_top"),
+                    new BlockBehavior(2.0, true, false, "wood", 0,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:oak_stairs"), 1)))),
             Map.entry(Identifier.parse("minecraft:cobblestone_stairs_east"),
                     new BlockBehavior(2.0, true, true, "rock", 1,
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:cobblestone_stairs"), 1)))),
@@ -902,6 +939,18 @@ public final class BlockBehaviorTable {
                     new BlockBehavior(2.0, true, true, "rock", 1,
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:cobblestone_stairs"), 1)))),
             Map.entry(Identifier.parse("minecraft:cobblestone_stairs_north"),
+                    new BlockBehavior(2.0, true, true, "rock", 1,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:cobblestone_stairs"), 1)))),
+            Map.entry(Identifier.parse("minecraft:cobblestone_stairs_east_top"),
+                    new BlockBehavior(2.0, true, true, "rock", 1,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:cobblestone_stairs"), 1)))),
+            Map.entry(Identifier.parse("minecraft:cobblestone_stairs_west_top"),
+                    new BlockBehavior(2.0, true, true, "rock", 1,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:cobblestone_stairs"), 1)))),
+            Map.entry(Identifier.parse("minecraft:cobblestone_stairs_south_top"),
+                    new BlockBehavior(2.0, true, true, "rock", 1,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:cobblestone_stairs"), 1)))),
+            Map.entry(Identifier.parse("minecraft:cobblestone_stairs_north_top"),
                     new BlockBehavior(2.0, true, true, "rock", 1,
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:cobblestone_stairs"), 1)))),
 
@@ -1227,6 +1276,9 @@ public final class BlockBehaviorTable {
             BlockBehavior stairs = new BlockBehavior(strength, true, !wood,
                     wood ? "wood" : "rock", 0, List.of(new BlockBehavior.Drop(item, 1)));
             for (EngineBlockType state : WoodShapeBlocks.stairsStates(family)) {
+                behaviors.put(state.identifier(), stairs);
+            }
+            for (EngineBlockType state : WoodShapeBlocks.stairsTopStates(family)) {
                 behaviors.put(state.identifier(), stairs);
             }
         }

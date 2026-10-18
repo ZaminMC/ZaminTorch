@@ -193,10 +193,18 @@ public final class BlockLightTable {
             Map.entry(Identifier.parse("minecraft:oak_stairs_west"), new LightData(0, 15)),
             Map.entry(Identifier.parse("minecraft:oak_stairs_south"), new LightData(0, 15)),
             Map.entry(Identifier.parse("minecraft:oak_stairs_north"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:oak_stairs_east_top"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:oak_stairs_west_top"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:oak_stairs_south_top"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:oak_stairs_north_top"), new LightData(0, 15)),
             Map.entry(Identifier.parse("minecraft:cobblestone_stairs_east"), new LightData(0, 15)),
             Map.entry(Identifier.parse("minecraft:cobblestone_stairs_west"), new LightData(0, 15)),
             Map.entry(Identifier.parse("minecraft:cobblestone_stairs_south"), new LightData(0, 15)),
             Map.entry(Identifier.parse("minecraft:cobblestone_stairs_north"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:cobblestone_stairs_east_top"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:cobblestone_stairs_west_top"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:cobblestone_stairs_south_top"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:cobblestone_stairs_north_top"), new LightData(0, 15)),
             // The rails: walk-through track, light passes (the flora rule).
             Map.entry(Identifier.parse("minecraft:rail"), new LightData(0, 0)),
             Map.entry(Identifier.parse("minecraft:rail_ew"), new LightData(0, 0)),
@@ -252,6 +260,10 @@ public final class BlockLightTable {
             Map.entry(Identifier.parse("minecraft:sandstone_stairs_west"), new LightData(0, 15)),
             Map.entry(Identifier.parse("minecraft:sandstone_stairs_south"), new LightData(0, 15)),
             Map.entry(Identifier.parse("minecraft:sandstone_stairs_north"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:sandstone_stairs_east_top"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:sandstone_stairs_west_top"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:sandstone_stairs_south_top"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:sandstone_stairs_north_top"), new LightData(0, 15)),
 
             // The stronghold set (Slice 12c): the stone-brick family are
             // full opaque cubes (dataset filterLight 15), the infested
@@ -299,6 +311,10 @@ public final class BlockLightTable {
             Map.entry(Identifier.parse("minecraft:nether_brick_stairs_west"), new LightData(0, 15)),
             Map.entry(Identifier.parse("minecraft:nether_brick_stairs_south"), new LightData(0, 15)),
             Map.entry(Identifier.parse("minecraft:nether_brick_stairs_north"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:nether_brick_stairs_east_top"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:nether_brick_stairs_west_top"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:nether_brick_stairs_south_top"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:nether_brick_stairs_north_top"), new LightData(0, 15)),
             Map.entry(Identifier.parse("minecraft:nether_wart_stage0"), new LightData(0, 0)),
             Map.entry(Identifier.parse("minecraft:nether_wart_stage1"), new LightData(0, 0)),
             Map.entry(Identifier.parse("minecraft:nether_wart_stage2"), new LightData(0, 0)),
@@ -574,6 +590,9 @@ public final class BlockLightTable {
         // (the stairs, the slabs) filter 15 like their parents.
         for (String family : WoodShapeBlocks.STAIRS.keySet()) {
             for (EngineBlockType state : WoodShapeBlocks.stairsStates(family)) {
+                merged.put(state.identifier(), new LightData(0, 15));
+            }
+            for (EngineBlockType state : WoodShapeBlocks.stairsTopStates(family)) {
                 merged.put(state.identifier(), new LightData(0, 15));
             }
         }
