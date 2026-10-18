@@ -26,6 +26,11 @@ import java.util.Locale;
  *
  * <p>Reference rows ported:</p>
  * <ul>
+ * <li>the stairs ({@code StairsBlock.addCollisions}): the TRUE two-box
+ * ascending law — the base half slab plus the tall back on the facing
+ * side, with the reference's own virtual corner SHAPE resolved against
+ * the neighbours (the outer corner's narrowed quarter back, the inner
+ * corner's third step box);</li>
  * <li>the six wood fences ({@code FenceBlock.addCollisions}): the
  * 0.375-0.625 post 1.5 tall with the connection arms on the connected
  * sides (same-material fence, any fence gate, or a full cube that is not
@@ -294,25 +299,23 @@ public final class CollisionShapes {
                     new Box(0.875, 0, 0, 1, 1, 1),
                     new Box(0, 0, 0.875, 1, 1, 1));
         }
-        // The slab and stair halves: the bottom slab and the bottom stair
-        // states fill their cell's lower half, the top slab and the
-        // UPSIDE-DOWN stair states the upper (StairsBlock.
-        // setBaseShapeForCollisions lines 74-81 — the reference's own
-        // collision law: the base half box alone, the tall half's body
-        // carries no collision in 1.8.8; the inner-corner riser is the
-        // connection-dependent refinement). The stone_slab2 pair joins
-        // through its own names (the '2' family breaks the suffix
-        // conventions — Slice 52).
-        if (value.endsWith("_slab_top") || value.equals("stone_slab2_top")
-                || value.endsWith("_stairs_east_top")
-                || value.endsWith("_stairs_west_top") || value.endsWith("_stairs_south_top")
-                || value.endsWith("_stairs_north_top")) {
+        // The stairs family (the two-box collision slice — StairsBlock.
+        // addCollisions 1:1): the base half slab + the tall back on the
+        // facing side, the reference's own ascending law, with the corner
+        // SHAPE resolved against the neighbours exactly like the wire's
+        // own virtual fold (the outer corner narrows the back to the
+        // quarter, the inner corner adds the third step box).
+        if (StairsBlocks.isStairState(value)) {
+            return stairBoxes(value, probe);
+        }
+        // The slab halves (the stair states parse above now): the bottom
+        // slab fills its cell's lower half, the top slab the upper. The
+        // stone_slab2 pair joins through its own names (the '2' family
+        // breaks the suffix conventions — Slice 52).
+        if (value.endsWith("_slab_top") || value.equals("stone_slab2_top")) {
             return List.of(new Box(0, 0.5, 0, 1, 1, 1));
         }
-        if (value.endsWith("_slab") || value.equals("stone_slab2")
-                || value.endsWith("_stairs_east")
-                || value.endsWith("_stairs_west") || value.endsWith("_stairs_south")
-                || value.endsWith("_stairs_north")) {
+        if (value.endsWith("_slab") || value.equals("stone_slab2")) {
             return List.of(new Box(0, 0, 0, 1, 0.5, 1));
         }
         // The anvil's own band (Slice 53 — AnvilBlock.updateShape): the X
@@ -338,6 +341,219 @@ public final class CollisionShapes {
         }
         // Everything else: the full cube when it blocks a body at all.
         return WorldSolidity.isSolid(type) ? List.of(FULL_CUBE) : List.of();
+    }
+
+    // --- the stairs -----------------------------------------------------------
+
+    /** One stair neighbour read: the facing and half a flat stair state carries. */
+    private record StairNeighbor(String facing, boolean top) {
+    }
+
+    /**
+     * The stair neighbour at the offset — a stair state's facing and
+     * half, null when the cell holds no stair (the reference's
+     * {@code isStair} + the property reads).
+     */
+    private static StairNeighbor stairAt(NeighborProbe probe, int dx, int dz) {
+        BlockType neighbor = probe.neighbor(dx, 0, dz);
+        if (neighbor == null) {
+            return null;
+        }
+        String value = neighbor.identifier().value();
+        return StairsBlocks.isStairState(value)
+                ? new StairNeighbor(StairsBlocks.facingOf(value), StairsBlocks.isTop(value))
+                : null;
+    }
+
+    /**
+     * The reference's {@code isStairSameHalfSameFacing(world, pos, state)}
+     * read: the cell at the offset holds a stair of the queried state's
+     * own half AND facing — any family.
+     */
+    private static boolean stairSameHalfSameFacingAt(NeighborProbe probe,
+            String query, int dx, int dz) {
+        BlockType neighbor = probe.neighbor(dx, 0, dz);
+        return neighbor != null
+                && StairsBlocks.sameHalfSameFacing(neighbor.identifier().value(), query);
+    }
+
+    /**
+     * The stairs' collision boxes (StairsBlock.addCollisions lines
+     * 384-397 1:1): the three-box walk the reference itself performs —
+     * <ol>
+     * <li>the base half slab ({@code setBaseShapeForCollisions} lines
+     * 74-80: the bottom form's lower half, the top form's upper) —
+     * always;</li>
+     * <li>the tall back on the facing side ({@code isInnerStair}: the
+     * opposite Y band, the facing half of the cell — narrowed to the
+     * quarter when the facing neighbour's perpendicular stair forms the
+     * OUTER corner);</li>
+     * <li>the inner corner's step box ({@code setStepShapeForCollisions}:
+     * a quarter of the base band behind, when the behind neighbour's
+     * perpendicular stair forms the INNER corner and the back stayed
+     * whole).</li>
+     * </ol>
+     * The corner forms are the reference's virtual SHAPE — resolved
+     * from the neighbours at read time exactly like the wire's own
+     * {@code resolveVirtualProperties} fold, never stored.
+     */
+    private static List<Box> stairBoxes(String value, NeighborProbe probe) {
+        boolean top = StairsBlocks.isTop(value);
+        String facing = StairsBlocks.facingOf(value);
+        // The two Y bands: the base band (the half the form sits in) and
+        // the tall band (the opposite half the back rises into / the top
+        // form's back descends into).
+        double baseMinY = top ? 0.5 : 0.0;
+        double baseMaxY = top ? 1.0 : 0.5;
+        double f = top ? 0.0 : 0.5;
+        double f1 = top ? 0.5 : 1.0;
+
+        // Box 1 — setBaseShapeForCollisions: the base half slab, always.
+        Box base = new Box(0, baseMinY, 0, 1, baseMaxY, 1);
+
+        // Box 2 — isInnerStair: the tall back on the facing half, the
+        // flag staying true when no corner narrows it.
+        double f2 = 0.0;
+        double f3 = 1.0;
+        double f4 = 0.0;
+        double f5 = 0.5;
+        boolean flag1 = true;
+        if (facing.equals("east")) {
+            f2 = 0.5;
+            f5 = 1.0;
+            StairNeighbor n = stairAt(probe, 1, 0); // pos.east()
+            if (n != null && n.top == top) {
+                if (n.facing.equals("north")
+                        && !stairSameHalfSameFacingAt(probe, value, 0, 1)) {
+                    f5 = 0.5;
+                    flag1 = false;
+                } else if (n.facing.equals("south")
+                        && !stairSameHalfSameFacingAt(probe, value, 0, -1)) {
+                    f4 = 0.5;
+                    flag1 = false;
+                }
+            }
+        } else if (facing.equals("west")) {
+            f3 = 0.5;
+            f5 = 1.0;
+            StairNeighbor n = stairAt(probe, -1, 0); // pos.west()
+            if (n != null && n.top == top) {
+                if (n.facing.equals("north")
+                        && !stairSameHalfSameFacingAt(probe, value, 0, 1)) {
+                    f5 = 0.5;
+                    flag1 = false;
+                } else if (n.facing.equals("south")
+                        && !stairSameHalfSameFacingAt(probe, value, 0, -1)) {
+                    f4 = 0.5;
+                    flag1 = false;
+                }
+            }
+        } else if (facing.equals("south")) {
+            f4 = 0.5;
+            f5 = 1.0;
+            StairNeighbor n = stairAt(probe, 0, 1); // pos.south()
+            if (n != null && n.top == top) {
+                if (n.facing.equals("west")
+                        && !stairSameHalfSameFacingAt(probe, value, 1, 0)) {
+                    f3 = 0.5;
+                    flag1 = false;
+                } else if (n.facing.equals("east")
+                        && !stairSameHalfSameFacingAt(probe, value, -1, 0)) {
+                    f2 = 0.5;
+                    flag1 = false;
+                }
+            }
+        } else { // north
+            StairNeighbor n = stairAt(probe, 0, -1); // pos.north()
+            if (n != null && n.top == top) {
+                if (n.facing.equals("west")
+                        && !stairSameHalfSameFacingAt(probe, value, 1, 0)) {
+                    f3 = 0.5;
+                    flag1 = false;
+                } else if (n.facing.equals("east")
+                        && !stairSameHalfSameFacingAt(probe, value, -1, 0)) {
+                    f2 = 0.5;
+                    flag1 = false;
+                }
+            }
+        }
+        Box back = new Box(f2, f, f4, f3, f1, f5);
+        if (!flag1) {
+            // The outer corner: the base slab + the narrowed quarter.
+            return List.of(base, back);
+        }
+
+        // Box 3 — setStepShapeForCollisions: the inner corner's step
+        // quarter in the base band, behind the back.
+        double g2 = 0.0;
+        double g3 = 0.5;
+        double g4 = 0.5;
+        double g5 = 1.0;
+        boolean step = false;
+        if (facing.equals("east")) {
+            StairNeighbor n = stairAt(probe, -1, 0); // pos.west()
+            if (n != null && n.top == top) {
+                if (n.facing.equals("north")
+                        && !stairSameHalfSameFacingAt(probe, value, 0, -1)) {
+                    g4 = 0.0;
+                    g5 = 0.5;
+                    step = true;
+                } else if (n.facing.equals("south")
+                        && !stairSameHalfSameFacingAt(probe, value, 0, 1)) {
+                    g4 = 0.5;
+                    g5 = 1.0;
+                    step = true;
+                }
+            }
+        } else if (facing.equals("west")) {
+            StairNeighbor n = stairAt(probe, 1, 0); // pos.east()
+            if (n != null && n.top == top) {
+                g2 = 0.5;
+                g3 = 1.0;
+                if (n.facing.equals("north")
+                        && !stairSameHalfSameFacingAt(probe, value, 0, -1)) {
+                    g4 = 0.0;
+                    g5 = 0.5;
+                    step = true;
+                } else if (n.facing.equals("south")
+                        && !stairSameHalfSameFacingAt(probe, value, 0, 1)) {
+                    g4 = 0.5;
+                    g5 = 1.0;
+                    step = true;
+                }
+            }
+        } else if (facing.equals("south")) {
+            StairNeighbor n = stairAt(probe, 0, -1); // pos.north()
+            if (n != null && n.top == top) {
+                g4 = 0.0;
+                g5 = 0.5;
+                if (n.facing.equals("west")
+                        && !stairSameHalfSameFacingAt(probe, value, -1, 0)) {
+                    step = true;
+                } else if (n.facing.equals("east")
+                        && !stairSameHalfSameFacingAt(probe, value, 1, 0)) {
+                    g2 = 0.5;
+                    g3 = 1.0;
+                    step = true;
+                }
+            }
+        } else { // north
+            StairNeighbor n = stairAt(probe, 0, 1); // pos.south()
+            if (n != null && n.top == top) {
+                if (n.facing.equals("west")
+                        && !stairSameHalfSameFacingAt(probe, value, -1, 0)) {
+                    step = true;
+                } else if (n.facing.equals("east")
+                        && !stairSameHalfSameFacingAt(probe, value, 1, 0)) {
+                    g2 = 0.5;
+                    g3 = 1.0;
+                    step = true;
+                }
+            }
+        }
+        return step
+                ? List.of(base, back, new Box(g2, f, g4, g3, f1, g5))
+                : List.of(base, back);
     }
 
     // --- the fence family ---------------------------------------------------

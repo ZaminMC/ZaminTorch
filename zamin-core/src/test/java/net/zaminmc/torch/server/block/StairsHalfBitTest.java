@@ -125,15 +125,20 @@ class StairsHalfBitTest {
                 Identifier.parse("minecraft:oak_stairs_west_top")).orElseThrow().filter());
         assertEquals(15, BlockLightTable.lookup(
                 Identifier.parse("minecraft:brick_stairs_east_top")).orElseThrow().filter());
-        // The collision law (setBaseShapeForCollisions lines 74-81): the
-        // top form fills the cell's UPPER half — the base half box alone,
-        // the 1.8.8 law (the tall half's body carries no collision).
+        // The collision law (the two-box slice): the top form's base
+        // fills the cell's UPPER half, and its tall back descends into
+        // the LOWER half on the FACING side — the reference's own
+        // two-box law (setBaseShapeForCollisions + isInnerStair), the
+        // L1-era single-slab stand-in retired.
         assertTrue(CollisionShapes.contains(BuiltinBlocks.OAK_STAIRS_EAST_TOP,
                 0.5, 0.75, 0.5, CollisionShapes.ISOLATED),
                 "the upside-down stair's upper half collides");
+        assertTrue(CollisionShapes.contains(BuiltinBlocks.OAK_STAIRS_EAST_TOP,
+                0.75, 0.25, 0.5, CollisionShapes.ISOLATED),
+                "the top stair's back descends on the facing (east) side");
         assertTrue(!CollisionShapes.contains(BuiltinBlocks.OAK_STAIRS_EAST_TOP,
-                0.5, 0.25, 0.5, CollisionShapes.ISOLATED),
-                "the underside stays open below the top stair");
+                0.25, 0.25, 0.5, CollisionShapes.ISOLATED),
+                "the low (west) side stays open below the top stair");
         assertTrue(CollisionShapes.contains(BuiltinBlocks.OAK_STAIRS_EAST,
                 0.5, 0.25, 0.5, CollisionShapes.ISOLATED),
                 "the plain stair's lower half keeps its box");
