@@ -1686,9 +1686,16 @@ ender chest (Slice 29a) set the precedent, and L2/L3 follow it.
       ids of their own, and the white stained clay was the dye loop's
       missing sixteenth member. The legacy-id cross-check audit
       (scripts/l4_audit.py) verified all 459 mapped ids;
-- [ ] L5 — the SEAMLESS skins (the double_stone_slab2 181 + the stone
-      43 family's bit 8 — register-only arms, no gameplay path sets
-      the bit);
+- [x] L5 — LANDED (commit a7ddcbd): the stone-slab family's doubles +
+      the SEAMLESS skins — the three variant doubles the engine never
+      had (43|1/3/5 — the pairs had merged into the PARENT BLOCKS),
+      the two register-only seamless skins (43|8 + 181|8), the missing
+      stone_brick_slab_top, the drop-law repairs (43 dropped ITSELF,
+      181 dropped ONE — vanilla drops TWO singles), and TWO dispatch
+      catches (the slab2 family arm was dead code below the
+      stone_slab startsWith; the dispatch's stone_slab2 check compared
+      the bare name against the namespaced heldId — the family never
+      reached the slab path, the pairs stacked singles forever);
 - [ ] L6 — the double-plant's canBeReplaced-per-variant (the grass/
       fern walk-through refinement) and the upper's per-facing wire
       band 8..11 (only if a future arm needs it);
