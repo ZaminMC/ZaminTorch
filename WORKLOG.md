@@ -9037,3 +9037,88 @@ polish).
   id/x/y/z alone — the animation/viewer fields transient), and the
   contents ride the player's EnderItems, which PlayerNbt already
   writes 1:1. No work needed — the standing row retires.
+
+
+### Slice L1 — the stairs' HALF bit (the metadata-variants slice's first arm)
+
+- 546a90a: the fifty-two upside-down states over the reference's own
+  fold ((HALF == TOP ? 4 : 0) | (5 - FACING.getId())) — the
+  oak/cobblestone/sandstone/nether-brick/red-sandstone hand rows + the
+  eight families' loops; the placement law (getPlacementState lines
+  493-500: the underside click hangs the top form, the top face lays
+  the bottom, the side faces split on the cursor's upper half — the
+  cursor byte now threaded into placeStairsOnTick); the collision law
+  (setBaseShapeForCollisions lines 74-81: the top form fills the
+  cell's UPPER half — the 1.8.8 law where the base half box alone is
+  the collision); the tables (behavior/light/sound — the woods'
+  dig.wood rule repairing the five Slice-36 families that defaulted to
+  dig.stone — the stats fold for the red sandstone tops).
+- THE AUDIT'S CATCH: the sandstone stairs' four facing nibbles never
+  registered — every sandstone stair carried meta 0 (the east form),
+  so a real client rendered all four facings as east-ascending.
+- Also: the slab law's cursorY >= 0.5 tightened to the reference's
+  strict > 0.5 (BlockStep's dy > 0.5f gate).
+- Evidence: StairsHalfBitTest 3, StairsHalfWireTest 2,
+  BlockRegistryTest 832.
+
+### Slice L2 — the chest pair's FACING states (the metadata-variants slice's second arm)
+
+- 0c4d097: the ChestFacingBlocks hub (the plain 54's four + the
+  trapped 146's four over the Direction-id nibble band 2-5 — the same
+  band the ender chest shipped in Slice 29a), the placement walk
+  (getPlacementState's look-opposite + onPlaced's neighbour re-facing
+  walk lines 96-125 VERBATIM — the perpendicular same-kind neighbour
+  adopts the new state so a pair's fronts match, and THE QUIRK: when
+  the facing axis runs along the only neighbour the placement keeps
+  the plain look-direction state), the setTileNbt consult threaded
+  into the walk (the H2 BlockEntityTag arm), and the family consults
+  everywhere (the open dispatch, the manager's spill, the hopper's
+  container adapter, the trapped chest's redstone probe + the open's
+  neighbor wake + the stats pair, the comparator's analog read, the
+  collision box's pair rule, the flammable band, TileNbt's idOf
+  family).
+- THE AUDIT'S CATCH: the trapped chest's lid Block Action carried
+  legacy 54 — the reference's doBlockEvent carries ChestBlock(1)'s
+  own 146; the carrier now resolves the family.
+- Evidence: ChestFacingTest 2 (the band, the consults, the placement's
+  three arms over the live engine), BlockEntityTagPlacementTest's
+  three chest arms, BlockRegistryTest 840.
+
+### Slice L3 — the furnace pair's FACING states (the metadata-variants slice's third arm)
+
+- 3049823: the FurnaceFacingBlocks hub (the plain 61's four + the lit
+  62's four over the same Direction-id nibble band), the placement law
+  (getPlacementState line 133's look-opposite + onPlaced lines 138-146's
+  custom-name carry — the held stack's hover name rides the fresh tile,
+  the anvil-named furnace's own GUI title), the lit swap keeping the
+  FACING whole (updateLitState lines 108-125 — syncLitBlock now
+  consults the family's partner state), and the family consults
+  everywhere (the open dispatch, the spill, the hopper's container
+  adapter, the comparator's analog read, the note block's STONE
+  material band, TileNbt's idOf family, the light/behavior/sound
+  tables, the stats fold).
+- THE AUDIT'S CATCHES: (1) the family's own prefix trap — the lit
+  stem shares the furnace_ prefix, so isPlainFamily excludes it
+  explicitly (the chest pair's trapped_chest_ prefix never overlapped)
+  and partnerOf gained the same-form null guard the bare forms always
+  had; (2) the comparator's analog reader matched the bare ids alone —
+  every post-L3 furnace (a facing state) read as not-a-source; (3) the
+  stats fold was half-done in-flight (the lit states folded, the plain
+  states did not) — the whole family folds onto the furnace row, and
+  the L2 chest pair's states fold with it (the chest family shipped
+  without any fold — mining a facing-state chest counted on a key the
+  1.8.8 client drops).
+- Evidence: FurnaceFacingTest 2 (the band, the family consults + the
+  prefix trap + the same-form guard, the live placement's
+  look-opposite + the name carry + the natural ignition's lit swap
+  keeping the facing), StatsTest's fold rows, BlockRegistryTest 848.
+
+NEXT per the standing rows: (1) the stats-completeness slice (the L3
+audit's catch generalizes: every registered state whose id is not a
+1.8.8 registry name counts mining on a key the client drops — the
+stairs/doors/slabs/skulls/pots/plates/rails families fold onto their
+registry rows; the pinned oak_stairs_east row flips with it); (2) the
+SEAMLESS skins (the double_stone_slab2 181 + the stone 43 family's
+bit 8 — register-only arms); (3) the double-plant's
+canBeReplaced-per-variant refinement; (4) the shared container-open
+event (demand-named).
