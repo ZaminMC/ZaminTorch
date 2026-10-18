@@ -778,6 +778,19 @@ public final class BlockInteractionService {
     }
 
     /**
+     * The dispatch-level placement consult (Wave I's audit repair): every
+     * block-item placement arm in {@code EngineServer.useItemOnBlockOnTick}
+     * rides this one gate — the held stack's CanPlaceOn list must name the
+     * CLICKED block (the authoritative inventory's held slot stands in for
+     * the creative claim, the engine's trust stance), exactly the reference's
+     * {@code PlayerEntity.canUseItemOn} over {@code ItemBlock.useOn} line 39.
+     * Safe from the tick thread only (reads the live inventory and world).
+     */
+    public boolean canUseItemOnForPlacement(PlayerSession player, BlockPosition clicked) {
+        return canUseItemOn(player, heldOf(player), world.getBlock(clicked));
+    }
+
+    /**
      * The mine gate's consult (ServerPlayerInteractionManager 112-133 and
      * 195-211): the CanDestroy list must name the mined block.
      */
