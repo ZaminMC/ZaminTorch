@@ -14,6 +14,7 @@ import net.zaminmc.torch.server.net.EngineBridge;
 import net.zaminmc.torch.server.player.PlayerSession;
 import net.zaminmc.torch.util.Identifier;
 import net.zaminmc.torch.util.Position;
+import net.zaminmc.torch.util.Rotation;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -87,7 +88,7 @@ class GameRuleAcceptanceTest {
         var result = server.joinRequest(link, name, UUID.nameUUIDFromBytes(name.getBytes()));
         PlayerSession session = ((EngineBridge.Accepted) result).session();
         server.joinCompleted(session);
-        session.applyMovement(at, net.zaminmc.torch.util.Rotation.ZERO, true);
+        session.applyMovement(at, Rotation.ZERO, true);
         return session;
     }
 
@@ -334,15 +335,27 @@ class GameRuleAcceptanceTest {
         sub.unsubscribe();
 
         // The rule arm (CreeperEntity.explode line 208): the same blast
-        // wounds but never breaks. The sample is a fresh block placed
-        // after the control blast (its sphere already ate the area).
+        // wounds but never breaks. The fresh sample sits on INTACT
+        // ground away from the control blast's random crater: the
+        // rule arm's subject is the BLAST's block preservation, not
+        // the approach walk, so the second stage plays out on terrain
+        // the first blast never touched — a fuse-range spawn on solid
+        // ground detonates deterministically. (The historical
+        // same-spot stage walked the creeper through the crater to a
+        // player floating 4 blocks above a 3-deep pit, where the
+        // prime gate's vertical 2.0 never engages — the pre-existing
+        // flake the physics-solver diagnosis caught, both walk models
+        // susceptible: the legacy walk even freezes a body inside a
+        // solid cell with the velocity accumulating forever.)
         setRule("mobGriefing", "false");
-        BlockPosition groundSample = new BlockPosition(4, 4, 4);
+        walker.applyMovement(new Position(8.5, 5.0, 8.5),
+                Rotation.ZERO, true);
+        BlockPosition groundSample = new BlockPosition(8, 4, 8);
         server.ticker().submit(() -> server.world().setBlock(groundSample,
                 BuiltinBlocks.DIRT));
         await(() -> !server.world().getBlock(groundSample).equals(BuiltinBlocks.AIR),
                 "the sample block stands");
-        var creeper = server.mobs().spawnAt(MobType.CREEPER, new Position(2.5, 5, 4.5));
+        var creeper = server.mobs().spawnAt(MobType.CREEPER, new Position(9.5, 5, 9.5));
         assertNotNull(creeper, "the second creeper spawned");
         float healthBefore = walker.health();
         AtomicReference<net.zaminmc.torch.event.world.ExplosionEvent> blast2 =

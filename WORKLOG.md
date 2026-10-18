@@ -9442,3 +9442,69 @@ contract, milestone-gated).
   items, the falling blocks, the vehicles) rides the NEXT units —
   this slice is the verified foundation, the families' own point
   queries untouched (the 366 green prove it).
+
+## Slice M3 — the mob families onto the solver
+
+- **THE CAPABILITY**: `MobEntity.WorldQuery.collisionWorld()` — the
+  swept-box surface as an OPTIONAL world capability (the default null:
+  a stub world without block reads keeps the legacy point-query walk —
+  the 366 existing entity tests untouched BY CONSTRUCTION). The live
+  server's `MobWorldQuery` overrides it: one `collisionSurface` built
+  once, the block reads resolving the ACTIVE dimension at call time
+  (the per-body flip drives them — the reference's own Entity.world
+  law), the chunk gate through the world's own loaded-column read, and
+  the border consult on the engine's one border (the reference's
+  worlds[0] border the other dimensions derive from).
+- **THE CONVERSIONS**: the shared `MobEntity.solverMove(...)` — the
+  Body from the position + the type's own width/height, the solver's
+  outcome applied (position, onGround, the velocity-zeroing signals
+  X/Z/Y), returning the Result for the family arms:
+  (1) `tickBody`'s walk — the main walker: the solver's clip replaces
+  the destination-cell stop, the detour armed on the solver's own
+  horizontal-clip signal, the fall law (Slice 92) riding the ACTUAL
+  clipped delta;
+  (2) the ridden body (the pig 0.5 / the horse's 1.0 step — the
+  reference's EntityHorse override);
+  (3) `integrateFlight` — the ghast's per-axis stand-in RETIRED (its
+  own comment named it): the 4-tall body now clips against every box
+  its swept shape touches;
+  (4) the guardian's water arm (the seabed rest through the solver's
+  downward clip) and the land flop (the rise clips at the ceiling).
+- **THE STANDING DRIFT (the slice's own 1:1 repair)**: the reference's
+  LivingEntity.travel applies the gravity AFTER the move — a standing
+  body ENTERS move() carrying the previous tick's
+  `(0 - 0.08) * 0.98 = -0.0784`, the cycle the vertical clip's
+  zeroing re-arms every tick. The engine's gravity-BEFORE-move order
+  had zeroed the grounded vertical (`velocityY = 0.0`), and a zero dy
+  never turns the ground on (`d4 < 0.0` fails) — the drift restores
+  the reference's cycle for the solver path (the legacy walk keeps
+  its own zeroing, its tests pinned to it).
+- **THE GAMERULE FLAKE CLOSED (the diagnosis the sweep forced)**: the
+  mobGriefing test's second stage walked the second creeper through
+  the first blast's RANDOM crater to a player FLOATING 4 blocks above
+  a 3-deep pit — the prime gate's vertical 2.0 never engages, the
+  creeper stuck at the crater floor in CHASE forever. BOTH walk
+  models susceptible (the baseline trace caught the legacy walk
+  freezing a body inside a solid cell with the velocity accumulating
+  — the stand-in's own trap); the solver merely raised the rate (the
+  box hangs further over edges than the centre point, the descent
+  into the deep floor likelier). THE TEST REPAIR: the rule stage now
+  plays on INTACT ground (the player moved past the crater, the fresh
+  sample beside, the creeper spawned within the prime range) — the
+  stage's subject is the BLAST's block preservation, not the approach
+  walk. Stable across 6 consecutive runs (the same flake profile
+  would have hit the baseline too).
+- Evidence: MobSolverWalkTest 7 NEW (the grounded walk keeps the
+  floor; the wall stops the body at its FACE — 7.0 - 0.45 exactly,
+  never the full stop; the half slab mounts in ONE step at 64.5
+  keeping the eastward motion; the full block refuses the 0.5 step;
+  THE LEDGER'S NAMED CASE through the live tickBody — the fence's 1.5
+  band catches a body from the cell above; the four-block fall wounds
+  1.0 through the clipped delta; the guardian's seabed rest) +
+  PhysicsSolverGeometryTest 13 + EntityMoveSolverTest 13 green
+  unchanged; the sweep entity 373 + physics 26 + root 60 + GameRule
+  11 = 470 green (full-suite-M3.log; the VehicleWorldDamageTest
+  one-off documented — terrain-random, green 3/3 isolated on both
+  trees).
+- M4 (the ItemEntity + the FallingBlockEntity + the vehicles) rides
+  the next slice.

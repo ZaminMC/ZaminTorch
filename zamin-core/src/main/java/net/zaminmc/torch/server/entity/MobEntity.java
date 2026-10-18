@@ -91,6 +91,19 @@ public final class MobEntity implements LivingEntity {
     public static final double PANIC_SPEED_MULTIPLIER = 1.8;
     /** Position epsilon so ground queries see the block *below* the feet. */
     private static final double GROUND_EPSILON = 1.0E-7;
+
+    /**
+     * The walkers' step height (the physics-solver slice — the
+     * reference's own {@code Entity.stepHeight} 0.5: the half slab and
+     * the stair's base mount in ONE step, the full cube never).
+     */
+    private static final double WALK_STEP_HEIGHT = 0.5;
+
+    /**
+     * The horse's step height (EntityHorse's own 1.0 override — the
+     * full block mounts in one step, the reference's own ridden climb).
+     */
+    private static final double HORSE_STEP_HEIGHT = 1.0;
     /**
      * The vanilla kill plane (1.8.8 living entities): below it the
      * out-of-world damage consumes the body. Between y=0 and here the body
@@ -150,6 +163,21 @@ public final class MobEntity implements LivingEntity {
 
         /** @return the nearest playing player's position within {@code range} blocks, or null. */
         Position nearestPlayer(double x, double y, double z, double range);
+
+        /**
+         * The swept-box collision surface (the physics-solver slice):
+         * the real block reads the {@code EntityMoveSolver} clips a
+         * moving body against — the reference's own {@code
+         * Entity.world} consult. The default answers null: a stub
+         * world without block reads keeps the legacy point-query walk
+         * (the {@code isSolidAt}/{@code supportY} fold), exactly like
+         * the reference's client-side stand-ins never reach the real
+         * move. The live server's provider overrides this with the
+         * dimension-aware reads.
+         */
+        default net.zaminmc.torch.server.physics.EntityCollisionWorld collisionWorld() {
+            return null;
+        }
 
         /**
          * @return whether nothing solid blocks the straight segment between
@@ -4548,6 +4576,19 @@ public final class MobEntity implements LivingEntity {
             velocityZ += drift * sinYaw;
             velocityY += Math.sin((guardianTicks + entityId) * 0.75) * 0.05
                     * (sinYaw + cosYaw) * 0.25;
+            // THE SWEPT-BOX APPLICATION (the physics-solver slice): the
+            // swimmer's own Entity.move — no step, the seabed rest the
+            // solver's own downward clip — when the world provides the
+            // collision surface.
+            if (solverMove(velocityX, velocityY, velocityZ, 0.0) != null) {
+                velocityX *= GUARDIAN_SWIM_DECAY;
+                velocityY *= GUARDIAN_SWIM_DECAY;
+                velocityZ *= GUARDIAN_SWIM_DECAY;
+                if (!guardianMoving && guardianChargeTicks == Integer.MIN_VALUE) {
+                    velocityY -= GUARDIAN_IDLE_SINK; // the idle drift down
+                }
+                return;
+            }
             double newX = position.x() + velocityX;
             double newY = position.y() + velocityY;
             double newZ = position.z() + velocityZ;
@@ -4580,6 +4621,13 @@ public final class MobEntity implements LivingEntity {
             onGround = false;
         } else {
             velocityY = (velocityY - GRAVITY_PER_TICK) * 0.98;
+        }
+        // THE SWEPT-BOX APPLICATION (the physics-solver slice): the
+        // flopping body's own Entity.move — the flop's rise clips at the
+        // ceiling, the fall rests on the floor's shape — when the world
+        // provides the collision surface.
+        if (solverMove(velocityX, velocityY, velocityZ, 0.0) != null) {
+            return;
         }
         double newX = position.x() + velocityX;
         double newY = position.y() + velocityY;
@@ -4781,11 +4829,24 @@ public final class MobEntity implements LivingEntity {
     }
 
     /**
-     * The flying body's position integration: each axis moves through its
-     * own cell, a solid blocking cell stops that axis' drift (the engine's
-     * per-axis stand-in for the reference's swept move).
+     * The flying body's position integration: the swept-box clip (the
+     * physics-solver slice — the reference's own {@code Entity.move}
+     * with no step and no ground: a flying body's drift stops exactly
+     * at each wall's face, axis by axis) when the world provides the
+     * collision surface; the per-axis cell stand-in (a solid blocking
+     * cell stops that axis' drift) otherwise.
      */
     private void integrateFlight() {
+        // THE SWEPT-BOX APPLICATION: the ghast's own Entity.move — the
+        // 4-tall body clips against every box its swept shape touches.
+        net.zaminmc.torch.server.physics.EntityMoveSolver.Result swept =
+                solverMove(velocityX, velocityY, velocityZ, 0.0);
+        if (swept != null) {
+            if (swept.collidingHorizontally()) {
+                ghastMoving = false;
+            }
+            return;
+        }
         double midY = position.y() + 2.0; // the 4-tall body's center band
         double newX = position.x() + velocityX;
         double newY = position.y() + velocityY;
@@ -6479,6 +6540,21 @@ public final class MobEntity implements LivingEntity {
         velocityX *= damping;
         velocityZ *= damping;
 
+        // THE SWEPT-BOX APPLICATION (the physics-solver slice): the
+        // ridden body's own Entity.move — the horse's step height 1.0
+        // (the full-block mount), the pig's 0.5 — when the world
+        // provides the collision surface. The standing drift (the
+        // reference's gravity-AFTER-move cycle: a grounded body enters
+        // with -0.0784, never the zeroed vertical).
+        double mountDrift = onGround && velocityY == 0.0
+                ? (0.0 - GRAVITY_PER_TICK) * 0.98 : velocityY;
+        net.zaminmc.torch.server.physics.EntityMoveSolver.Result swept =
+                solverMove(moveX, mountDrift, moveZ,
+                        type == MobType.HORSE ? HORSE_STEP_HEIGHT : WALK_STEP_HEIGHT);
+        if (swept != null) {
+            return;
+        }
+
         double newX = position.x() + moveX;
         double newY = position.y() + velocityY;
         double newZ = position.z() + moveZ;
@@ -7599,6 +7675,52 @@ public final class MobEntity implements LivingEntity {
         velocityZ *= 0.98;
     }
 
+    /**
+     * The swept-box movement application (the physics-solver slice):
+     * the reference's own {@code Entity.move} — the axis-by-axis clip
+     * against every collision box the swept shape touches, with the
+     * step-height retry — replacing the point-query walk's stop-at-
+     * destination stand-in for the bodies whose world provides the
+     * collision surface. The caller keeps its own velocity model (the
+     * damping and the walk are already folded into the passed motion);
+     * the solver's zeroing signals land back on the velocities, the
+     * onGround flag flips on the downward clip alone, and the
+     * horizontal-collision signal answers for the detour arms.
+     *
+     * @return the move's outcome, or null when the world provides no
+     * collision surface (the caller takes its legacy walk)
+     */
+    private net.zaminmc.torch.server.physics.EntityMoveSolver.Result solverMove(
+            double moveX, double moveY, double moveZ, double stepHeight) {
+        net.zaminmc.torch.server.physics.EntityCollisionWorld collisionWorld =
+                world.collisionWorld();
+        if (collisionWorld == null) {
+            return null;
+        }
+        net.zaminmc.torch.server.physics.EntityMoveSolver.Body body =
+                new net.zaminmc.torch.server.physics.EntityMoveSolver.Body(
+                        position.x(), position.y(), position.z(),
+                        type.width, type.height);
+        body.onGround = onGround;
+        net.zaminmc.torch.server.physics.EntityMoveSolver.Result result =
+                net.zaminmc.torch.server.physics.EntityMoveSolver.move(collisionWorld,
+                        body, moveX, moveY, moveZ,
+                        new net.zaminmc.torch.server.physics.EntityMoveSolver.MoveLaw(
+                                stepHeight, false, false, false));
+        position = new Position(body.x, body.y, body.z);
+        onGround = result.onGround();
+        if (result.zeroVelocityX()) {
+            velocityX = 0.0;
+        }
+        if (result.zeroVelocityZ()) {
+            velocityZ = 0.0;
+        }
+        if (result.zeroVelocityY()) {
+            velocityY = 0.0;
+        }
+        return result;
+    }
+
     private void tickBody() {
         // The void (1.8.8 EntityLivingBase): past the kill plane the
         // out-of-world damage lands every tick until death; the body keeps
@@ -7831,6 +7953,59 @@ public final class MobEntity implements LivingEntity {
         velocityX *= damping;
         velocityZ *= damping;
 
+        // THE SWEPT-BOX APPLICATION (the physics-solver slice): the
+        // reference's own Entity.move — the axis-by-axis clip against
+        // every collision box the body's swept shape touches, the
+        // step-height retry over the half slab, the exact face stop at
+        // the wall — when the world provides the collision surface.
+        // The fall law rides the ACTUAL moved delta exactly like the
+        // legacy walk's own shape (Slice 92's checkFallDamage).
+        boolean wasOnGround = onGround;
+        // THE STANDING DRIFT (the slice's own 1:1 repair): the
+        // reference's LivingEntity.travel applies the gravity AFTER the
+        // move, so a standing body ENTERS move() carrying the previous
+        // tick's {@code (0 - 0.08) * 0.98 = -0.0784} — the cycle the
+        // vertical clip's own zeroing re-arms every tick. The engine's
+        // gravity-BEFORE-move order had zeroed the grounded vertical
+        // (the {@code velocityY = 0.0} arm above), and a zero dy never
+        // turns the ground on ({@code d4 < 0.0} fails) — the drift
+        // restores the reference's cycle for the solver path.
+        double standingDrift = wasOnGround && velocityY == 0.0
+                ? (0.0 - GRAVITY_PER_TICK) * 0.98 : velocityY;
+        net.zaminmc.torch.server.physics.EntityMoveSolver.Result swept =
+                solverMove(moveX, standingDrift, moveZ, WALK_STEP_HEIGHT);
+        if (swept != null) {
+            if (swept.collidingHorizontally() && walk > 0 && detourTicks == 0
+                    && swept.onGround()) {
+                // Blocked mid-walk: slide along the wall (a 45-90° turn
+                // for a handful of ticks) before the mind re-chooses —
+                // the same detour the legacy walk arms, keyed on the
+                // solver's own horizontal-clip signal.
+                clearPath();
+                repathCooldown = 0;
+                float side = random.nextBoolean() ? 45.0f : -45.0f;
+                detourYaw = yaw + side + (random.nextFloat() * 45.0f - 22.5f);
+                detourTicks = DETOUR_TICKS;
+            }
+            if (inLava) {
+                fallDistance *= 0.5f;
+            }
+            if (inFluid && !inLava) {
+                fallDistance = 0.0f;
+            }
+            if (onGround) {
+                if (!wasOnGround && fallDistance > 0.0f) {
+                    takeFallDamage(fallDistance, 1.0f);
+                    fallDistance = 0.0f;
+                }
+            } else {
+                if (swept.dy() < 0.0) {
+                    fallDistance = (float) (fallDistance - swept.dy());
+                }
+            }
+            return;
+        }
+
         double newX = position.x() + moveX;
         double newY = position.y() + velocityY;
         double newZ = position.z() + moveZ;
@@ -7868,7 +8043,9 @@ public final class MobEntity implements LivingEntity {
             }
         }
 
-        boolean wasOnGround = onGround;
+        // The ground snap over the legacy walk (wasOnGround captured
+        // before the application above — the solver's null return left
+        // it untouched).
         if (velocityY <= 0 && world.isSolidAt(newX, newY - GROUND_EPSILON, newZ)) {
             newY = world.supportY(newX, newY - GROUND_EPSILON, newZ);
             velocityY = 0.0;

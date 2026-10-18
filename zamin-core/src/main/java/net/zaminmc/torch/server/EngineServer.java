@@ -16335,6 +16335,47 @@ public final class EngineServer implements Server, EngineBridge {
          */
         private int activeDimension = 0;
 
+        /**
+         * The swept-box collision surface (the physics-solver slice):
+         * the dimension-aware block reads the {@code EntityMoveSolver}
+         * clips a moving body against — the reference's own
+         * {@code Entity.world} consult through {@code getCollisions}.
+         * Built once; the reads resolve the ACTIVE dimension at call
+         * time (the per-body flip drives them), the chunk gate follows
+         * the world's own loaded-column read, and the border consult
+         * rides the engine's one border (the reference's own
+         * worlds[0] border the other dimensions derive from).
+         */
+        private final net.zaminmc.torch.server.physics.EntityCollisionWorld collisionSurface =
+                new net.zaminmc.torch.server.physics.EntityCollisionWorld() {
+                    @Override
+                    public net.zaminmc.torch.block.BlockType blockAt(int x, int y, int z) {
+                        if (y < net.zaminmc.torch.block.BlockPosition.MIN_Y
+                                || y > net.zaminmc.torch.block.BlockPosition.MAX_Y) {
+                            return world.airType();
+                        }
+                        return activeWorld().getBlock(
+                                new net.zaminmc.torch.block.BlockPosition(x, y, z));
+                    }
+
+                    @Override
+                    public boolean chunkLoaded(int x, int z) {
+                        return activeWorld().isChunkLoadedAt(
+                                new net.zaminmc.torch.block.BlockPosition(x, 64, z));
+                    }
+
+                    @Override
+                    public boolean borderContains(int x, int z) {
+                        return worldBorder.contains(x, z);
+                    }
+                };
+
+        /** The solver's surface (the tick lane's own dimension context). */
+        @Override
+        public net.zaminmc.torch.server.physics.EntityCollisionWorld collisionWorld() {
+            return collisionSurface;
+        }
+
         /** The dimension context switch (the manager's per-body flip). */
         @Override
         public void setActiveDimension(int dimension) {
