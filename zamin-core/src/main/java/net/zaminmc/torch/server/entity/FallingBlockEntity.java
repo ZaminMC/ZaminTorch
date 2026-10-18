@@ -36,7 +36,7 @@ public final class FallingBlockEntity implements net.zaminmc.torch.entity.Fallin
     public static final double HALF_WIDTH = 0.49;
 
     /** Minimal ground query the entity needs from its world (tick-thread context only). */
-    public interface Ground {
+    public interface Ground extends net.zaminmc.torch.server.physics.HasCollisionWorld {
         /** @return whether the block containing this point is solid. */
         boolean isSolid(double x, double y, double z);
 
@@ -218,6 +218,35 @@ public final class FallingBlockEntity implements net.zaminmc.torch.entity.Fallin
             return Step.VOID;
         }
         velocityY -= GRAVITY_PER_TICK;
+        // THE SWEPT-BOX LANDING (the physics-solver slice): the 0.98
+        // box's own Y clip against every collision box its swept shape
+        // touches — the box's FOOTPRINT catches the slab's edge and the
+        // funnel's rim the centre point misses — when the ground
+        // provides the collision surface.
+        net.zaminmc.torch.server.physics.EntityCollisionWorld collisionWorld =
+                ground.collisionWorld();
+        if (collisionWorld != null) {
+            net.zaminmc.torch.server.physics.EntityMoveSolver.Body body =
+                    new net.zaminmc.torch.server.physics.EntityMoveSolver.Body(
+                            position.x(), position.y(), position.z(),
+                            HALF_WIDTH * 2.0, HALF_HEIGHT * 2.0);
+            body.onGround = onGround;
+            net.zaminmc.torch.server.physics.EntityMoveSolver.Result result =
+                    net.zaminmc.torch.server.physics.EntityMoveSolver.move(
+                            collisionWorld, body, 0.0, velocityY, 0.0,
+                            net.zaminmc.torch.server.physics.EntityMoveSolver.MoveLaw.plain());
+            position = new Position(body.x, body.y, body.z);
+            onGround = result.onGround();
+            if (onGround) {
+                // The vanilla post-ground velocities (drag, then the -0.5
+                // bounce): kept for state parity, unobservable — the
+                // manager removes a landed entity this same tick.
+                velocityY = velocityY * 0.98 * -0.5;
+                return Step.LANDED;
+            }
+            velocityY *= 0.98;
+            return Step.MOVED;
+        }
         double newBottom = position.y() + velocityY;
         // The vanilla move: the box bottom collides with the support; the
         // epsilon keeps a resting bottom querying the block below the surface.

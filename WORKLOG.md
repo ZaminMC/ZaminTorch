@@ -9508,3 +9508,48 @@ contract, milestone-gated).
   trees).
 - M4 (the ItemEntity + the FallingBlockEntity + the vehicles) rides
   the next slice.
+
+## Slice M4a — the item + falling-block families onto the solver
+
+- **THE SHARED CAPABILITY**: `physics.HasCollisionWorld` — the
+  optional collision-surface interface (the default-null
+  `collisionWorld()`) now the ONE declaration the three query
+  families extend (`MobEntity.WorldQuery`, `ItemEntity.Ground`,
+  `FallingBlockEntity.Ground`) — a class implementing several (the
+  live `ShapeGround`, the test stubs) never meets the diamond. The
+  live ShapeGround carries one `collisionSurface` (the overworld
+  reads + the chunk gate + the border consult — the item/falling
+  families' ground reads the overworld alone, the manager's own
+  dimension blindness, ledgered).
+- **THE ITEM BODIES**: ItemEntity.tick's application — the swept-box
+  branch (the 0.25 box through the solver, the engine's centre
+  convention translated to the feet convention at the boundary), the
+  leading-face sample stand-in RETIRED for the worlds that provide
+  the surface, the standing drift carried (the same gravity-after-
+  move cycle the walkers took — without it the ground flag would
+  flicker every other tick). The stub grounds keep the leading-face
+  fold untouched.
+- **THE FALLING BLOCKS**: the 0.98 box's own Y clip — the box
+  FOOTPRINT catches the slab's edge and the funnel's rim the centre
+  point missed (the vanilla FallingBlockEntity's own move) — the
+  landing fold retired on the same capability gate.
+- **THE WALL-SLIDE TEST'S OWN ARTIFACT CLOSED (the diagnosis)**: the
+  ItemBoxPhysics wall-slide test pinned the OLD model's freeze — the
+  baseline trace caught the item stopped mid-slide at (4.737, 4.178)
+  ON EMPTY GROUND (the leading-face stand-in's own bug, the same
+  family as the legacy mob freeze the GameRule diagnosis caught); the
+  historical 1-cell pillar was NEVER touched by either model's
+  trajectory (the (0.4, 0.3) throw clears its south corner before
+  the box reaches the face). THE REPAIR: the wall now spans z 2..10 —
+  the diagonal cannot out-run it, the X axis clips at the face
+  (4.875) and the slide runs ALONG it, the test's actual intent.
+- Evidence: ItemSolverPhysicsTest 7 NEW (the item's box resting on
+  the SLAB'S EDGE at 64.5 — the centre over the empty cell, the box's
+  overlap carrying the landing; the wall's exact face 6.875 with the
+  velocity zeroed and the second tick held; the fence's 1.5 band
+  catching the item from above; the falling block's 0.98 box on the
+  slab's edge AND its clean miss past the cell; the fence-band
+  landing; the legacy point fold pinned on its own convention) —
+  plus the sweep 426 green (full-suite-M4a.log).
+- M4b (the vehicles: the carts' and boats' own query + the ridden
+  bodies) rides the next slice.

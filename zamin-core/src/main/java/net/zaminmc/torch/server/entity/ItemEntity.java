@@ -29,7 +29,7 @@ public final class ItemEntity implements net.zaminmc.torch.entity.DroppedItem {
     public static final int PICKUP_DELAY_PLAYER_THROW_TICKS = 40; // 2s for player-thrown
 
     /** Minimal ground query the entity needs from its world (tick-thread context only). */
-    public interface Ground {
+    public interface Ground extends net.zaminmc.torch.server.physics.HasCollisionWorld {
         /** @return whether the block containing this point is solid. */
         boolean isSolid(double x, double y, double z);
 
@@ -228,6 +228,45 @@ public final class ItemEntity implements net.zaminmc.torch.entity.DroppedItem {
         double damping = onGround ? 0.6 : 0.98;
         velocityX *= damping;
         velocityZ *= damping;
+
+        // THE SWEPT-BOX APPLICATION (the physics-solver slice): the
+        // item's own Entity.move — the 0.25 box clipped axis by axis
+        // against every collision box its swept shape touches (the
+        // leading-face sample stand-in RETIRED) — when the ground
+        // provides the collision surface. The engine's centre
+        // convention translates to the solver's feet convention (the
+        // bottom = position.y - HALF_HEIGHT).
+        net.zaminmc.torch.server.physics.EntityCollisionWorld collisionWorld =
+                ground.collisionWorld();
+        if (collisionWorld != null) {
+            net.zaminmc.torch.server.physics.EntityMoveSolver.Body body =
+                    new net.zaminmc.torch.server.physics.EntityMoveSolver.Body(
+                            position.x(), position.y() - HALF_HEIGHT, position.z(),
+                            HALF_WIDTH * 2.0, HALF_HEIGHT * 2.0);
+            body.onGround = onGround;
+            // The standing drift (the reference's gravity-AFTER-move cycle:
+            // a resting body enters with (0 - g) * 0.98, never the zeroed
+            // vertical — a zero dy never grounds and the flag would
+            // flicker every other tick).
+            double driftY = onGround && velocityY == 0.0
+                    ? (0.0 - GRAVITY_PER_TICK) * 0.98 : velocityY;
+            net.zaminmc.torch.server.physics.EntityMoveSolver.Result result =
+                    net.zaminmc.torch.server.physics.EntityMoveSolver.move(
+                            collisionWorld, body, velocityX, driftY, velocityZ,
+                            net.zaminmc.torch.server.physics.EntityMoveSolver.MoveLaw.plain());
+            position = new Position(body.x, body.y + HALF_HEIGHT, body.z);
+            onGround = result.onGround();
+            if (result.zeroVelocityX()) {
+                velocityX = 0.0;
+            }
+            if (result.zeroVelocityZ()) {
+                velocityZ = 0.0;
+            }
+            if (result.zeroVelocityY()) {
+                velocityY = 0.0;
+            }
+            return fixedPoint(position) != before;
+        }
 
         double newY = position.y() + velocityY;
         double newX = position.x() + velocityX;

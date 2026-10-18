@@ -138,7 +138,7 @@ public final class MobEntity implements LivingEntity {
      * line and fluid queries default to open/empty so tests and simple
      * worlds only implement what they use.
      */
-    public interface WorldQuery {
+    public interface WorldQuery extends net.zaminmc.torch.server.physics.HasCollisionWorld {
         /** @return whether the block containing this point is solid. */
         boolean isSolid(double x, double y, double z);
 
@@ -164,20 +164,6 @@ public final class MobEntity implements LivingEntity {
         /** @return the nearest playing player's position within {@code range} blocks, or null. */
         Position nearestPlayer(double x, double y, double z, double range);
 
-        /**
-         * The swept-box collision surface (the physics-solver slice):
-         * the real block reads the {@code EntityMoveSolver} clips a
-         * moving body against — the reference's own {@code
-         * Entity.world} consult. The default answers null: a stub
-         * world without block reads keeps the legacy point-query walk
-         * (the {@code isSolidAt}/{@code supportY} fold), exactly like
-         * the reference's client-side stand-ins never reach the real
-         * move. The live server's provider overrides this with the
-         * dimension-aware reads.
-         */
-        default net.zaminmc.torch.server.physics.EntityCollisionWorld collisionWorld() {
-            return null;
-        }
 
         /**
          * @return whether nothing solid blocks the straight segment between

@@ -22009,6 +22009,44 @@ public final class EngineServer implements Server, EngineBridge {
      */
     private final class ShapeGround implements
             ItemEntity.Ground, FallingBlockEntity.Ground, ProjectileManager.SolidQuery {
+        /**
+         * The swept-box surface (the physics-solver slice): the overworld
+         * block reads the item bodies and the falling blocks clip against
+         * — the same one-surface shape the mob query carries, the chunk
+         * gate and the border consult included. (The item/falling
+         * families' ground reads the overworld alone — the manager's own
+         * dimension blindness, ledgered; the surface matches it.)
+         */
+        private final net.zaminmc.torch.server.physics.EntityCollisionWorld collisionSurface =
+                new net.zaminmc.torch.server.physics.EntityCollisionWorld() {
+                    @Override
+                    public net.zaminmc.torch.block.BlockType blockAt(int x, int y, int z) {
+                        if (y < net.zaminmc.torch.block.BlockPosition.MIN_Y
+                                || y > net.zaminmc.torch.block.BlockPosition.MAX_Y) {
+                            return world.airType();
+                        }
+                        return world.getBlock(
+                                new net.zaminmc.torch.block.BlockPosition(x, y, z));
+                    }
+
+                    @Override
+                    public boolean chunkLoaded(int x, int z) {
+                        return world.isChunkLoadedAt(
+                                new net.zaminmc.torch.block.BlockPosition(x, 64, z));
+                    }
+
+                    @Override
+                    public boolean borderContains(int x, int z) {
+                        return worldBorder.contains(x, z);
+                    }
+                };
+
+        /** The solver's surface (both Ground families' single override). */
+        @Override
+        public net.zaminmc.torch.server.physics.EntityCollisionWorld collisionWorld() {
+            return collisionSurface;
+        }
+
         @Override
         public boolean isSolid(double x, double y, double z) {
             return solidAt(x, y, z);
