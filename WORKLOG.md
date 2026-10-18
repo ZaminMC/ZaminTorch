@@ -9575,3 +9575,11 @@ contract, milestone-gated).
   grid), not a swept-box concern.
 - Evidence: the sweep 426 green (entity+vehicle+physics 406 + the
   live vehicle/combat batch 20, full-suite-M4b.log).
+
+## Wave M closed
+
+- The physics-solver wave complete across every family: the
+  foundation (M1+M2), the mobs (M3), the items + falling blocks
+  (M4a), the vehicles (M4b). The ledger's §29 Wave M section carries
+  the full record; the swept-box BODY model is the moving bodies' own
+  law, the point queries the standers' and the readers'.

@@ -1816,9 +1816,33 @@ queries as the MOVING bodies' own law. The point queries
       mount, the full block's refusal, THE NAMED CASE through the
       live tickBody, the fall wound, the seabed rest); the sweep 470
       green (full-suite-M3.log);
-- [ ] M4 — the ItemEntity + the FallingBlockEntity + the vehicles
-      onto the solver (the 0.25-box item bodies, the falling blocks'
-      landing gate, the boats' own buoyancy walk);
+- [x] M4 — LANDED (M4a 4f68af6 + M4b 5a62a0d): the ItemEntity + the
+      FallingBlockEntity + the vehicles onto the solver. THE SHARED
+      CAPABILITY: `physics.HasCollisionWorld` — the optional surface
+      as ONE declaration the three query families extend (no diamonds
+      for the classes implementing several); the live providers each
+      carry one collisionSurface (the dimension-aware reads for the
+      mobs, the overworld for the items/falling/vehicles — the
+      families' own dimension blindness, ledgered). THE ITEM BODIES:
+      the 0.25 box through the solver (the leading-face sample
+      stand-in RETIRED on the gate), the standing drift carried. THE
+      FALLING BLOCKS: the 0.98 box's own Y clip — the FOOTPRINT
+      catches the slab's edge the centre point missed. THE VEHICLES:
+      the boat's 1.5 hull (the reference's own setSize width) clipped
+      axis by axis, the off-rail cart's 0.98 box — the on-rail walk
+      STAYS (the rail physics is its own cell-snapped law). THE
+      WALL-SLIDE ARTIFACT CLOSED (the diagnosis: the old test pinned
+      the leading-face stand-in's freeze-on-open-ground — the item
+      stopped mid-slide at (4.737, 4.178) on empty ground, the
+      baseline trace's own catch; the wall now spans z 2..10 so the
+      diagonal clips the face and slides ALONG it, the test's
+      intent). Evidence: ItemSolverPhysicsTest 7 + the sweeps
+      (full-suite-M4a/M4b.log — 426 green each);
+
+WAVE M COMPLETE — the swept-box BODY model is the MOVING bodies' own
+law across every family; the point queries stay for the standers and
+the readers (the stub worlds' own fold, the legacy walk retired only
+where the surface exists).
 
 ## Standing (demand-named, not scheduled)
 
