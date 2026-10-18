@@ -397,6 +397,16 @@ public final class BuiltinBlocks {
             Identifier.parse("minecraft:oak_stairs_south"), "Oak Stairs", 2);
     public static final EngineBlockType OAK_STAIRS_NORTH = new EngineBlockType(
             Identifier.parse("minecraft:oak_stairs_north"), "Oak Stairs", 3);
+    // The stairs' upside-down forms (StairsBlock's HALF bit 4 — the
+    // reference's (HALF == TOP ? 4 : 0) | (5 - FACING.getId()) fold).
+    public static final EngineBlockType OAK_STAIRS_EAST_TOP = new EngineBlockType(
+            Identifier.parse("minecraft:oak_stairs_east_top"), "Oak Stairs", 4);
+    public static final EngineBlockType OAK_STAIRS_WEST_TOP = new EngineBlockType(
+            Identifier.parse("minecraft:oak_stairs_west_top"), "Oak Stairs", 5);
+    public static final EngineBlockType OAK_STAIRS_SOUTH_TOP = new EngineBlockType(
+            Identifier.parse("minecraft:oak_stairs_south_top"), "Oak Stairs", 6);
+    public static final EngineBlockType OAK_STAIRS_NORTH_TOP = new EngineBlockType(
+            Identifier.parse("minecraft:oak_stairs_north_top"), "Oak Stairs", 7);
     public static final EngineBlockType COBBLESTONE_STAIRS_EAST = new EngineBlockType(
             Identifier.parse("minecraft:cobblestone_stairs_east"), "Cobblestone Stairs");
     public static final EngineBlockType COBBLESTONE_STAIRS_WEST = new EngineBlockType(
@@ -405,6 +415,14 @@ public final class BuiltinBlocks {
             Identifier.parse("minecraft:cobblestone_stairs_south"), "Cobblestone Stairs", 2);
     public static final EngineBlockType COBBLESTONE_STAIRS_NORTH = new EngineBlockType(
             Identifier.parse("minecraft:cobblestone_stairs_north"), "Cobblestone Stairs", 3);
+    public static final EngineBlockType COBBLESTONE_STAIRS_EAST_TOP = new EngineBlockType(
+            Identifier.parse("minecraft:cobblestone_stairs_east_top"), "Cobblestone Stairs", 4);
+    public static final EngineBlockType COBBLESTONE_STAIRS_WEST_TOP = new EngineBlockType(
+            Identifier.parse("minecraft:cobblestone_stairs_west_top"), "Cobblestone Stairs", 5);
+    public static final EngineBlockType COBBLESTONE_STAIRS_SOUTH_TOP = new EngineBlockType(
+            Identifier.parse("minecraft:cobblestone_stairs_south_top"), "Cobblestone Stairs", 6);
+    public static final EngineBlockType COBBLESTONE_STAIRS_NORTH_TOP = new EngineBlockType(
+            Identifier.parse("minecraft:cobblestone_stairs_north_top"), "Cobblestone Stairs", 7);
 
     // The rail (community blocks.json: block 66, the flat orientation in
     // the metadata nibble: 0 = north-south, 1 = east-west). Walk-through
@@ -444,6 +462,14 @@ public final class BuiltinBlocks {
             Identifier.parse("minecraft:sandstone_stairs_south"), "Sandstone Stairs", 2);
     public static final EngineBlockType SANDSTONE_STAIRS_NORTH = new EngineBlockType(
             Identifier.parse("minecraft:sandstone_stairs_north"), "Sandstone Stairs", 3);
+    public static final EngineBlockType SANDSTONE_STAIRS_EAST_TOP = new EngineBlockType(
+            Identifier.parse("minecraft:sandstone_stairs_east_top"), "Sandstone Stairs", 4);
+    public static final EngineBlockType SANDSTONE_STAIRS_WEST_TOP = new EngineBlockType(
+            Identifier.parse("minecraft:sandstone_stairs_west_top"), "Sandstone Stairs", 5);
+    public static final EngineBlockType SANDSTONE_STAIRS_SOUTH_TOP = new EngineBlockType(
+            Identifier.parse("minecraft:sandstone_stairs_south_top"), "Sandstone Stairs", 6);
+    public static final EngineBlockType SANDSTONE_STAIRS_NORTH_TOP = new EngineBlockType(
+            Identifier.parse("minecraft:sandstone_stairs_north_top"), "Sandstone Stairs", 7);
     public static final EngineBlockType CARROTS_STAGE0 = new EngineBlockType(
             Identifier.parse("minecraft:carrots_stage0"), "Carrots");
     public static final EngineBlockType CARROTS_STAGE1 = new EngineBlockType(
@@ -579,6 +605,14 @@ public final class BuiltinBlocks {
             Identifier.parse("minecraft:nether_brick_stairs_south"), "Nether Brick Stairs", 2);
     public static final EngineBlockType NETHER_BRICK_STAIRS_NORTH = new EngineBlockType(
             Identifier.parse("minecraft:nether_brick_stairs_north"), "Nether Brick Stairs", 3);
+    public static final EngineBlockType NETHER_BRICK_STAIRS_EAST_TOP = new EngineBlockType(
+            Identifier.parse("minecraft:nether_brick_stairs_east_top"), "Nether Brick Stairs", 4);
+    public static final EngineBlockType NETHER_BRICK_STAIRS_WEST_TOP = new EngineBlockType(
+            Identifier.parse("minecraft:nether_brick_stairs_west_top"), "Nether Brick Stairs", 5);
+    public static final EngineBlockType NETHER_BRICK_STAIRS_SOUTH_TOP = new EngineBlockType(
+            Identifier.parse("minecraft:nether_brick_stairs_south_top"), "Nether Brick Stairs", 6);
+    public static final EngineBlockType NETHER_BRICK_STAIRS_NORTH_TOP = new EngineBlockType(
+            Identifier.parse("minecraft:nether_brick_stairs_north_top"), "Nether Brick Stairs", 7);
     public static final EngineBlockType NETHER_WART_STAGE0 = new EngineBlockType(
             Identifier.parse("minecraft:nether_wart_stage0"), "Nether Wart");
     public static final EngineBlockType NETHER_WART_STAGE1 = new EngineBlockType(
@@ -857,10 +891,18 @@ public final class BuiltinBlocks {
                 .register(OAK_STAIRS_WEST)
                 .register(OAK_STAIRS_SOUTH)
                 .register(OAK_STAIRS_NORTH)
+                .register(OAK_STAIRS_EAST_TOP)
+                .register(OAK_STAIRS_WEST_TOP)
+                .register(OAK_STAIRS_SOUTH_TOP)
+                .register(OAK_STAIRS_NORTH_TOP)
                 .register(COBBLESTONE_STAIRS_EAST)
                 .register(COBBLESTONE_STAIRS_WEST)
                 .register(COBBLESTONE_STAIRS_SOUTH)
                 .register(COBBLESTONE_STAIRS_NORTH)
+                .register(COBBLESTONE_STAIRS_EAST_TOP)
+                .register(COBBLESTONE_STAIRS_WEST_TOP)
+                .register(COBBLESTONE_STAIRS_SOUTH_TOP)
+                .register(COBBLESTONE_STAIRS_NORTH_TOP)
                 .register(RAIL)
                 .register(RAIL_EW)
                 .register(COBWEB)
@@ -872,6 +914,10 @@ public final class BuiltinBlocks {
                 .register(SANDSTONE_STAIRS_WEST)
                 .register(SANDSTONE_STAIRS_SOUTH)
                 .register(SANDSTONE_STAIRS_NORTH)
+                .register(SANDSTONE_STAIRS_EAST_TOP)
+                .register(SANDSTONE_STAIRS_WEST_TOP)
+                .register(SANDSTONE_STAIRS_SOUTH_TOP)
+                .register(SANDSTONE_STAIRS_NORTH_TOP)
                 .register(CARROTS_STAGE0)
                 .register(CARROTS_STAGE1)
                 .register(CARROTS_STAGE2)
@@ -914,6 +960,10 @@ public final class BuiltinBlocks {
                 .register(NETHER_BRICK_STAIRS_WEST)
                 .register(NETHER_BRICK_STAIRS_SOUTH)
                 .register(NETHER_BRICK_STAIRS_NORTH)
+                .register(NETHER_BRICK_STAIRS_EAST_TOP)
+                .register(NETHER_BRICK_STAIRS_WEST_TOP)
+                .register(NETHER_BRICK_STAIRS_SOUTH_TOP)
+                .register(NETHER_BRICK_STAIRS_NORTH_TOP)
                 .register(NETHER_WART_STAGE0)
                 .register(NETHER_WART_STAGE1)
                 .register(NETHER_WART_STAGE2)

@@ -86,7 +86,14 @@ public final class RedSandstoneBlocks {
                 "Red Sandstone Stairs", facing);
     }
 
-    /** Every registration this family owns (the red sand + the three TYPE states + the four stairs). */
+    /** One UPSIDE-DOWN stairs state (StairsBlock's HALF bit 4, Slice L1). */
+    public static EngineBlockType stairsTopState(int facing) {
+        return new EngineBlockType(
+                Identifier.parse("minecraft:red_sandstone_stairs_" + STAIR_FACINGS.get(facing) + "_top"),
+                "Red Sandstone Stairs", facing | 4);
+    }
+
+    /** Every registration this family owns (the red sand + the three TYPE states + the eight stairs). */
     public static List<EngineBlockType> familyBlocks() {
         List<EngineBlockType> blocks = new ArrayList<>();
         blocks.add(redSand());
@@ -95,6 +102,7 @@ public final class RedSandstoneBlocks {
         }
         for (int facing = 0; facing < STAIR_FACINGS.size(); facing++) {
             blocks.add(stairsState(facing));
+            blocks.add(stairsTopState(facing));
         }
         return List.copyOf(blocks);
     }
@@ -144,7 +152,8 @@ public final class RedSandstoneBlocks {
         }
         String value = id.value();
         for (String facing : STAIR_FACINGS) {
-            if (value.equals("red_sandstone_stairs_" + facing)) {
+            if (value.equals("red_sandstone_stairs_" + facing)
+                    || value.equals("red_sandstone_stairs_" + facing + "_top")) {
                 return true;
             }
         }

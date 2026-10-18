@@ -109,7 +109,24 @@ public final class BlockSoundMap {
 
     /** The dig family sound name for a block identifier; stone is the default. */
     public static Optional<String> digSound(Identifier block) {
-        return Optional.ofNullable(DIG_FAMILY_BY_BLOCK.get(
-                block.namespace() + ":" + block.value()));
+        String resolved = DIG_FAMILY_BY_BLOCK.get(
+                block.namespace() + ":" + block.value());
+        if (resolved != null) {
+            return Optional.of(resolved);
+        }
+        // The stair families' rule (the HALF bit's audit catch): the five
+        // new woods' stair states (Slice 36) and every family's
+        // upside-down forms carry no hand rows — the woods dig wood, the
+        // masonry set falls to the caller's stone default.
+        String value = block.value();
+        if (block.namespace().equals("minecraft")
+                && (value.endsWith("_stairs") || value.contains("_stairs_"))) {
+            if (value.startsWith("oak_stairs") || value.startsWith("spruce_stairs")
+                    || value.startsWith("birch_stairs") || value.startsWith("jungle_stairs")
+                    || value.startsWith("acacia_stairs") || value.startsWith("dark_oak_stairs")) {
+                return Optional.of("dig.wood");
+            }
+        }
+        return Optional.empty();
     }
 }
