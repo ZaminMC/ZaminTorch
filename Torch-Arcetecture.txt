@@ -640,47 +640,48 @@ Major decisions must record decision, evidence, alternatives, consequences, risk
 
 # 22. IMPLEMENTATION ROADMAP
 
-Use this order unless actual dependencies demand another:
+**Status snapshot checked against `develop` at `26851c46dd4bb6f9a931798146ad6056db275aa2` (2026-10-18).** This status overlay is evidence-based, not a claim that all Torch mechanics or all concurrency phases are complete. Section 29 and `VANILLA_1_8_8_COMPATIBILITY.md` remain the per-mechanic records. The rollout phase numbers in this section are the original project roadmap; concurrency implementation notes in `TORCH_ENGINEERING.md` use a separate rollout numbering. Map by capability, not by phase number.
 
-### Phase 0 — Audit and architecture
+### Phase 0 — Audit and architecture — PARTIAL; one source input remains blocked
 
-Finish the evidence audit and freeze the ownership contract.
+- The Folia 26.2.x audit is documented: all 21 patches read and 460 modified Java paths inventoried in `docs/FOLIA_PATCH_INVENTORY.md`, with the subsystem analysis in `docs/FOLIA_FORENSIC_AUDIT.md`.
+- The committed `reference/1.8.8/` tree is present and is the source for reference-driven mechanics work.
+- **The requested `1.8.8 - mechanics.zip` is absent from the inspected `develop` tree.** Do not claim that archive was inspected; recover it if it remains a required source.
+- Continue auditing every mutable access path and retain explicit ownership/boundary decisions. Do not mark this phase wholly complete while the stated input/audit gaps remain.
 
-### Phase 1 — Ownership primitives
+### Phase 1 — Ownership primitives — IMPLEMENTED
 
-Execution context, owner identity, generation, assertions, lifecycle.
+`OwnershipDomain`, owner generations and transfer checks, strict/diagnostic enforcement, `OwnershipViolationException`, `ComputeTicket`/`StaleResultException`, and `DomainTask` are present and wired into the world/tick execution path. The engineering ledger records eight ownership tests green. This establishes enforcement infrastructure; it does not prove every gameplay path race-free.
 
-### Phase 2 — Scheduler
+### Phase 2 — Scheduler — IMPLEMENTED
 
-Shared worker execution while preserving owner serialization.
+`SimulationScheduler` provides per-domain FIFO work, stable due-tick ordering, bounded admission, cancellation, owner-gated execution, and orderly shutdown. Keep scheduler behavior and gameplay ordering separately tested; do not treat the existence of the scheduler as proof that every region is already ticking in parallel.
 
-### Phase 3 — FIRST TESTABLE DEV JAR
+### Phase 3 — FIRST TESTABLE DEV JAR — MILESTONE ACHIEVED; VERIFY EACH HEAD
 
-Build the actual project, verify it boots/runs, and release the first dev jar before spending the next long cycle on broader implementation. Use a factual changelog. If release tooling is unavailable, produce the jar and document the exact remaining release action.
+Torch has published development releases, so the initial artifact gate has been reached. A release tag or older jar does **not** prove the current `develop` head has been built and published. Every work cycle must verify the actual commit, artifact, and test run before claiming a release for new changes.
 
-### Phase 4 — 1.8.8 mechanics foundation
+### Phase 4 — 1.8.8 mechanics foundation — IN PROGRESS
 
-Use the actual reference source/archive. Start with foundational world/entity/movement/collision behavior and expand through dependencies.
+The engine has substantial reference-driven mechanics and API coverage, tracked in Section 29 and `VANILLA_1_8_8_COMPATIBILITY.md`. The current ledger includes completed Waves A–K and metadata-variant Wave L slices L1–L5. That is progress by mechanic, not full Minecraft 1.8.8 compatibility: keep each remaining behavior, difference, test, and status explicit. Do not replace reference behavior with modern defaults or narrow the native API to match an incomplete compatibility layer.
 
-### Phase 5 — Supporting parallel computation
+### Phase 5 — Supporting parallel computation — INFRASTRUCTURE IMPLEMENTED; workload adoption remains evidence-gated
 
-Move proven-safe calculations off-owner.
+The bounded `ComputeSubsystem`, typed/versioned results, owner-context application, stale-result rejection/fallback, failure reporting, and shutdown are implemented. Each proposed workload (for example pathfinding, chunk generation, lighting, serialization, or persistence preparation) still needs a specific immutable-input contract, version validation, behavioral equivalence tests, and before/after measurements before it can be described as safely offloaded.
 
-### Phase 6 — Partitioned simulation and boundaries
+### Phase 6 — Partitioned simulation and boundaries — FOUNDATIONS IMPLEMENTED; FULL PARALLEL EXECUTION NOT COMPLETE
 
-Expand independent owner execution and cross-owner gameplay.
+The repository contains the region partition, position-aware ownership checks, migration protocol, cross-owner router, bounded domain worker pool, boundary scopes, and seam tests for the mechanics specifically covered by the implementation ledger. The current server run remains deliberately gated: the parallel per-region gameplay execution lane and complete per-mechanic boundary protocols are **not** complete. Do not claim full multiregion simulation or activate an untested boundary mechanic merely because its infrastructure exists.
 
-### Phase 7 — Heavy-owner optimization
+### Phase 7 — Heavy-owner optimization — NOT STARTED AS A GENERAL CAPABILITY
 
-Introduce measured intra-owner decomposition only after correctness is strong.
+Proceed only after the ordinary owner/boundary model is correct and profiling demonstrates a dense-owner bottleneck. Begin with snapshot-based computation and deterministic owner-side application. Do not introduce concurrent authoritative mutation without a complete, tested conflict/commit protocol.
 
-### Phase 8 — Adaptive balancing
+### Phase 8 — Adaptive balancing — NOT STARTED
 
-Only after migration and telemetry are proven, add dynamic split/merge/rebalancing.
+Dynamic split/merge and load-driven migration remain future work. First prove migration with in-flight tasks, delayed work, messages, compute results, persistence, shutdown, and stale-generation invalidation; add telemetry and anti-oscillation rules before enabling automatic balancing.
 
-Do not create a giant speculative framework before the earlier phases work.
-
----
+**Next concrete mechanics work:** continue from Section 29: implement and verify Wave L6's double-plant per-variant replacement behavior; only add the upper-half facing wire band if an actual gameplay path requires it. The stairs' true two-box ascending collision geometry remains assigned to the physics-solver slice. Keep these outstanding items visible until code and tests prove them complete.
 
 # 23. COMMITS / PUSHES / RELEASES
 
@@ -1686,16 +1687,22 @@ ender chest (Slice 29a) set the precedent, and L2/L3 follow it.
       ids of their own, and the white stained clay was the dye loop's
       missing sixteenth member. The legacy-id cross-check audit
       (scripts/l4_audit.py) verified all 459 mapped ids;
-- [x] L5 — LANDED (commit a7ddcbd): the stone-slab family's doubles +
-      the SEAMLESS skins — the three variant doubles the engine never
-      had (43|1/3/5 — the pairs had merged into the PARENT BLOCKS),
-      the two register-only seamless skins (43|8 + 181|8), the missing
-      stone_brick_slab_top, the drop-law repairs (43 dropped ITSELF,
-      181 dropped ONE — vanilla drops TWO singles), and TWO dispatch
-      catches (the slab2 family arm was dead code below the
-      stone_slab startsWith; the dispatch's stone_slab2 check compared
-      the bare name against the namespaced heldId — the family never
-      reached the slab path, the pairs stacked singles forever);
+- [x] L5 — LANDED (Slice L5, commit a7ddcbd): the stone-slab
+      family's double states and SEAMLESS skins — the three variant
+      doubles the engine did not have (43|1/3/5; pairs had merged into
+      parent blocks), the register-only seamless skins (43|8 and 181|8),
+      the missing stone_brick_slab_top, and the drop-law repairs (43
+      previously dropped itself; 181 dropped one slab, while vanilla
+      yields two singles). The live dispatch audit caught two independent
+      failures: the slab2 family arm was dead code below the stone_slab
+      prefix check, and the namespaced heldId could never match the bare
+      stone_slab2 comparison. Both are repaired, so both slab families
+      now reach their intended placement/merge path. Evidence: DoubleStoneSlabFamilyTest
+      2 (variant nibble, drop/count law, and live pairs resolving into
+      their own 43|1 and 181 doubles); SlabStairsAcceptanceTest's own
+      double-slab pin; DoubleWoodenSlabTest's L4-consistent stats rows;
+      BlockRegistryTest 854; the stats/protocol/adjacent regression
+      sweep green;
 - [ ] L6 — the double-plant's canBeReplaced-per-variant (the grass/
       fern walk-through refinement) and the upper's per-facing wire
       band 8..11 (only if a future arm needs it);
