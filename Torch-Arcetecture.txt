@@ -1794,9 +1794,28 @@ queries as the MOVING bodies' own law. The point queries
       band from the cell above, feet 6.7 falling 1.2, rests at 6.5
       exactly); the regression sweep 700 green
       (full-suite-M1.log);
-- [ ] M3 — the MobEntity families onto the solver (the 26 point-query
-      sites: the land walkers, the swimmers' seabed rest, the
-      guardians' bobbing, the flopping fish arms);
+- [x] M3 — LANDED: the MobEntity families onto the solver. The
+      capability (`WorldQuery.collisionWorld()` — null by default, the
+      stub worlds keep the point walk; the live MobWorldQuery's one
+      surface with the ACTIVE-dimension reads, the chunk gate, the
+      border consult) + the shared `solverMove` + the four
+      conversions (tickBody's walk with the detour on the solver's
+      own horizontal-clip signal and the fall law over the clipped
+      delta; the ridden body's pig 0.5 / horse 1.0 steps; the ghast's
+      per-axis stand-in RETIRED; the guardian's seabed rest + flop).
+      THE STANDING DRIFT repair (the reference applies gravity AFTER
+      the move — a standing body enters with -0.0784, the cycle the
+      clip's zeroing re-arms; the engine's zeroed vertical never
+      grounds). THE GAMERULE FLAKE CLOSED (the diagnosis: the second
+      stage walked the creeper through the first blast's random
+      crater to a player floating 4 blocks up — the prime gate's
+      vertical 2.0 never engages, BOTH walk models susceptible, the
+      legacy trace caught its own freeze-inside-solid trap; the stage
+      now plays on intact ground, stable 6/6). Evidence:
+      MobSolverWalkTest 7 (the wall's exact face, the one-step slab
+      mount, the full block's refusal, THE NAMED CASE through the
+      live tickBody, the fall wound, the seabed rest); the sweep 470
+      green (full-suite-M3.log);
 - [ ] M4 — the ItemEntity + the FallingBlockEntity + the vehicles
       onto the solver (the 0.25-box item bodies, the falling blocks'
       landing gate, the boats' own buoyancy walk);
