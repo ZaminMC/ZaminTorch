@@ -72,6 +72,7 @@ proven over the wire and against a live process.
 | Pig saddles + carrot-on-a-stick steering | implemented |
 | Villager trading: careers, MC|TrList/TrSel wire, merchant window | implemented |
 | Anti-cheat: reach check, nuker budget, fastplace guard, violation ladders | implemented |
+| Interactive terminal console: JLine line editing, history, tab completion, colored log bridge, plain fallback | implemented |
 | Item NBT (display names, enchantments, lore, attribute modifiers, SkullOwner, BlockEntityTag — the full ItemStack tag envelope) | implemented |
 | Anvil world format import | planned (compatibility adapter) |
 | Minestom integration | deferred (see ADR in plan) |

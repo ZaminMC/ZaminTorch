@@ -9194,3 +9194,49 @@ the upper's per-facing wire band 8..11 (only if a future arm needs
 it); (2) the shared container-open event (demand-named); (3) a broader
 regression batch (the full suite in the established seven-batch
 pattern).
+
+### Slice Arch-30 — the modern interactive terminal console (§30, ADR-21)
+
+- 0afb2fe (the foundation): JLine 3.26.3 pinned centrally with ONE
+  provider (Jansi — gradle/libs.versions.toml), the launcher console
+  package (TorchConsole, TerminalLogBridge, ConsoleCommands,
+  CommandCompleter, FilteredHistory, AnsiSanitizer, ConsoleConfig,
+  LogFileFormatter, EngineConsoleTarget), CommandService.commandNames()
+  (the synchronized immutable snapshot, zamin-core), and the
+  LauncherRuntime rewiring (console.properties loaded, the file sink on
+  the source-bearing ESC-free formatter).
+- 11731c2 (the 30.4 test list): 47 launcher tests across 9 classes +
+  verifyPackagedConsole (the fat jar must carry JLine + the Jansi
+  natives — 15 libraries verified, wired into check).
+- THE EMPIRICAL AUDIT'S CATCHES (all pinned in ADR-21): (1) JLine's
+  DefaultHistory attaches on the FIRST readLine, not at build — the
+  explicit attach now loads previous sessions at boot, makes save()
+  work before any input, and turns the HISTORY_SIZE bound live (it had
+  silently been the 500 default); (2) terminal.close() does NOT unblock
+  a pending dumb read — requestShutdown also interrupts the loop thread,
+  and the UserInterruptException handler distinguishes its own interrupt
+  (flag already set: just end the loop) from a real Ctrl+C (converge on
+  the idempotent stop); (3) a throwing engine route is caught in
+  ConsoleCommands' default arm (the reading loop previously died with
+  the uncaught exception); (4) §c is LIGHT red SGR 91 — the palette
+  tests pinned to the true mapping; (5) JLine's completion unit is the
+  WHOLE current word regardless of cursor position — kept as JLine's
+  native convention, documented in the test.
+- The contracts the tests pin: the ONE command path (stop/shutdown/save/
+  state built-ins + the existing consoleCommand route — the real-server
+  integration persists a console ban end to end), log records print
+  ABOVE a partially typed line with the line surviving, EOF ends the
+  console but NEVER the server, the terminal threshold hides from the
+  screen only (the file sink keeps every record, ANSI-free), the
+  bounded queue drops-and-counts loudly without ever blocking a logging
+  thread, sensitive commands never enter history (the restart round
+  trip, the bound, the unreadable-file degradation), completion answers
+  the first word from the immutable snapshot (argument positions answer
+  nothing, honestly), and both the JLine and plain loops ride the same
+  dispatcher.
+
+NEXT per the standing rows: (1) §31's immediate boundary items (the
+format-identity markers, the session lock, the no-implicit-conversion
+guard) — the modern backend itself stays future-gated; (2) Wave L6
+(the double-plant's canBeReplaced-per-variant); (3) the stairs'
+two-box geometry on the physics-solver slice.
