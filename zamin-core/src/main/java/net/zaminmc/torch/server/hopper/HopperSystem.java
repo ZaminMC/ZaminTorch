@@ -644,7 +644,10 @@ public final class HopperSystem implements WorldChangeListener {
      */
     private List<ContainerSlot> containerSlotsAt(BlockPosition at, int face) {
         BlockType type = world.getBlock(at);
-        if (type.identifier().equals(BuiltinBlocks.CHEST.identifier())) {
+        if (type.identifier().equals(BuiltinBlocks.CHEST.identifier())
+                || net.zaminmc.torch.server.chest.ChestFacingBlocks.isPlainFamily(type)
+                || type.identifier().value().equals("trapped_chest")
+                || net.zaminmc.torch.server.chest.ChestFacingBlocks.isTrappedFamily(type)) {
             ChestBlockEntity chest = chests.getOrCreate(at);
             List<ContainerSlot> slots = new ArrayList<>(ChestBlockEntity.SLOT_COUNT);
             for (int i = 0; i < ChestBlockEntity.SLOT_COUNT; i++) {

@@ -19,6 +19,7 @@ import net.zaminmc.torch.server.block.BlockUpdateSystem;
 import net.zaminmc.torch.server.block.RandomTickSystem;
 import net.zaminmc.torch.server.chest.ChestBlockEntity;
 import net.zaminmc.torch.server.chest.ChestDataStore;
+import net.zaminmc.torch.server.chest.ChestFacingBlocks;
 import net.zaminmc.torch.server.chest.ChestManager;
 import net.zaminmc.torch.server.container.ContainerViews;
 import net.zaminmc.torch.server.config.EngineConfig;
@@ -1331,7 +1332,10 @@ public final class EngineServer implements Server, EngineBridge {
                 // not-a-source answer).
                 redstoneSystem.setAnalogReader(position -> {
                     BlockType block = world.getBlock(position);
-                    if (block.identifier().equals(BuiltinBlocks.CHEST.identifier())) {
+                    if (block.identifier().equals(BuiltinBlocks.CHEST.identifier())
+                            || ChestFacingBlocks.isPlainFamily(block)
+                            || block.identifier().equals(BuiltinBlocks.TRAPPED_CHEST.identifier())
+                            || ChestFacingBlocks.isTrappedFamily(block)) {
                         net.zaminmc.torch.server.chest.ChestBlockEntity chest = chestManager.peek(position);
                         return chest == null ? 0
                                 : net.zaminmc.torch.server.redstone.RedstoneSystem.containerFullness(
@@ -7764,11 +7768,13 @@ public final class EngineServer implements Server, EngineBridge {
             openFurnaceOnTick(session, clicked, onTableOpened);
             return;
         }
-        if (current.identifier().equals(net.zaminmc.torch.server.block.BuiltinBlocks.CHEST.identifier())) {
+        if (ChestFacingBlocks.isPlainFamily(current)
+                || current.identifier().equals(net.zaminmc.torch.server.block.BuiltinBlocks.CHEST.identifier())) {
             openChestOnTick(session, clicked, onTableOpened);
             return;
         }
-        if (current.identifier().equals(net.zaminmc.torch.server.block.BuiltinBlocks.TRAPPED_CHEST.identifier())) {
+        if (ChestFacingBlocks.isTrappedFamily(current)
+                || current.identifier().equals(net.zaminmc.torch.server.block.BuiltinBlocks.TRAPPED_CHEST.identifier())) {
             // ChestBlock(1).use lines 326-341: the same container GUI opens
             // (the viewer-count power rides the redstone system's probe).
             openChestOnTick(session, clicked, onTableOpened);
@@ -8197,6 +8203,17 @@ public final class EngineServer implements Server, EngineBridge {
                 || creativeHeld.map(t -> t.identifier().value().startsWith("ender_chest_")).orElse(false)) {
             placeEnderChestOnTick(session, clicked, face, creativeHeld);
             return; // the player-facing rule overrides the generic placement
+        }
+        // The chest pair (Slice L2 — ChestBlock.onPlaced lines 84-135): the
+        // look-opposite facing state over the plain 54 / the trapped 146,
+        // the neighbour re-facing walk aligning a same-kind pair.
+        if (heldId.equals("minecraft:chest") || heldId.equals("minecraft:trapped_chest")
+                || creativeHeld.map(t -> ChestFacingBlocks.isAnyFacing(t)
+                        || t.identifier().value().equals("chest")
+                        || t.identifier().value().equals("trapped_chest")).orElse(false)) {
+            placeChestFacingOnTick(session, clicked, face, creativeHeld,
+                    heldId != null && heldId.equals("minecraft:trapped_chest"));
+            return; // the look-opposite rule overrides the generic placement
         }
         if (heldId.equals("minecraft:hopper")
                 || creativeHeld.map(t -> t.identifier().value().equals("hopper")).orElse(false)) {
@@ -8965,6 +8982,89 @@ public final class EngineServer implements Server, EngineBridge {
         world.setBlock(target, net.zaminmc.torch.server.redstone.TripwireBlocks.hookOf(
                 face & 7, false, false));
         consumePlaced(session, creativeHeld);
+    }
+
+    /**
+     * The chest placement (Slice L2 — ChestBlock.onPlaced lines 84-135,
+     * 1:1): the look-opposite facing state over the Direction-id band
+     * 2-5, with onPlaced's own neighbour re-facing walk — the same-kind
+     * neighbour on the perpendicular axis adopts the new state so a
+     * pair's fronts match, and the walk's corner keeps the plain
+     * look-direction state when the facing axis runs along the only
+     * neighbour (the vanilla quirk, the never-re-written placement).
+     * Tick-thread context.
+     */
+    private void placeChestFacingOnTick(PlayerSession session, BlockPosition clicked, int face,
+                                        java.util.Optional<BlockType> creativeHeld, boolean trapped) {
+        String held = heldIdentifierOf(session, creativeHeld);
+        boolean trappedKind = trapped || (held != null && held.equals("minecraft:trapped_chest"));
+        BlockPosition target = offsetByFace(clicked, face);
+        if (target == null || world.getBlock(clicked).equals(world.airType())
+                || !world.getBlock(target).equals(world.airType())) {
+            return;
+        }
+        if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5
+                || intersectsPlayerBox(session.position(), target)) {
+            return;
+        }
+        if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE
+                && session.inventory().held().isEmpty()) {
+            return;
+        }
+        double yaw = ((session.rotation().yaw() % 360.0) + 360.0 + 45.0) % 360.0;
+        int lookBand = (int) (yaw / 90.0) % 4; // 0=S,1=W,2=N,3=E of the look
+        int facing = net.zaminmc.torch.server.chest.ChestFacingBlocks.lookOppositeOf(lookBand);
+        boolean xAxis = lookBand == 1 || lookBand == 3; // looking west/east
+        // The same-kind neighbours (onPlaced's flags: north/south/west/east).
+        boolean north = sameChestKindAt(target.offset(0, 0, -1), trappedKind);
+        boolean south = sameChestKindAt(target.offset(0, 0, 1), trappedKind);
+        boolean west = sameChestKindAt(target.offset(-1, 0, 0), trappedKind);
+        boolean east = sameChestKindAt(target.offset(1, 0, 0), trappedKind);
+        BlockType state = net.zaminmc.torch.server.chest.ChestFacingBlocks
+                .stateFor(trappedKind, facing);
+        if (!north && !south && !west && !east) {
+            // The plain place: the look-opposite state.
+            world.setBlock(target, state);
+        } else if (!xAxis || !north && !south) {
+            if (!xAxis && (west || east)) {
+                // The facing runs north/south and the perpendicular
+                // (west/east) neighbour exists: the pair aligns on the new
+                // chest's state (the neighbour re-faces).
+                world.setBlock(west ? target.offset(-1, 0, 0) : target.offset(1, 0, 0), state);
+                world.setBlock(target, state);
+            } else {
+                // THE QUIRK: the facing axis runs along the only neighbours
+                // — onPlaced never re-writes the placement, so the cell
+                // keeps getPlacementState's NON-opposite state (the look).
+                world.setBlock(target, net.zaminmc.torch.server.chest.ChestFacingBlocks
+                        .stateFor(trappedKind,
+                                net.zaminmc.torch.server.chest.ChestFacingBlocks.lookOf(lookBand)));
+            }
+        } else {
+            // The facing runs east/west and the perpendicular (north/south)
+            // neighbour exists: the pair aligns on the new chest's state.
+            world.setBlock(north ? target.offset(0, 0, -1) : target.offset(0, 0, 1), state);
+            world.setBlock(target, state);
+        }
+        // The placement's setTileNbt consult (Wave H2 — BlockItem.useOn
+        // lines 46-51: the held stack's BlockEntityTag merges into the
+        // fresh tile the TilePlacementListener created during the commit).
+        // The chest family's tile consult runs here because this walk owns
+        // the placement — the generic arm's own consult never fires.
+        if (tileNbt != null) {
+            net.zaminmc.torch.item.ItemStack heldStack = session.inventory().held();
+            if (!heldStack.isEmpty()) {
+                tileNbt.applyPlacementTag(world, 0, target, heldStack, session.opLevel());
+            }
+        }
+        consumePlaced(session, creativeHeld);
+    }
+
+    /** Whether the cell holds the same kind of chest (the plain or the trapped family alone). */
+    private boolean sameChestKindAt(BlockPosition position, boolean trapped) {
+        BlockType block = world.getBlock(position);
+        return trapped ? net.zaminmc.torch.server.chest.ChestFacingBlocks.isTrappedFamily(block)
+                : net.zaminmc.torch.server.chest.ChestFacingBlocks.isPlainFamily(block);
     }
 
     /**
@@ -12431,8 +12531,10 @@ public final class EngineServer implements Server, EngineBridge {
         publishChestLid(position, session, true);
         // Slice 49b: the trapped chest's viewer count changed — the
         // neighbors re-evaluate (ChestBlockEntity's own onOpen notify).
+        // Slice L2: the four facing states join the family consult.
         if (world.getBlock(position).identifier()
-                .equals(net.zaminmc.torch.server.block.BuiltinBlocks.TRAPPED_CHEST.identifier())) {
+                .equals(net.zaminmc.torch.server.block.BuiltinBlocks.TRAPPED_CHEST.identifier())
+                || ChestFacingBlocks.isTrappedFamily(world.getBlock(position))) {
             redstoneSystem.updateNeighbors(position);
             // Stats.java's own pair: the trapped chest counts its own row
             // (ChestBlock(1).use's incrementStat), never CHESTS_OPENED.

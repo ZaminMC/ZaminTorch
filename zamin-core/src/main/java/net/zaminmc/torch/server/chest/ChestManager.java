@@ -98,10 +98,13 @@ public final class ChestManager {
 
     private static boolean isChestBlock(EngineWorld world, BlockPosition position) {
         // Slice 49b: the trapped chest joins the family (ChestBlock(1) —
-        // the same container, the same GUI, the same spill).
+        // the same container, the same GUI, the same spill). Slice L2: the
+        // four facing states of each kind join through the family consult.
         net.zaminmc.torch.util.Identifier id = world.getBlock(position).identifier();
         return id.equals(BuiltinBlocks.CHEST.identifier())
-                || id.value().equals("trapped_chest");
+                || id.value().equals("trapped_chest")
+                || ChestFacingBlocks.isPlainFamily(world.getBlock(position))
+                || ChestFacingBlocks.isTrappedFamily(world.getBlock(position));
     }
 
     /**

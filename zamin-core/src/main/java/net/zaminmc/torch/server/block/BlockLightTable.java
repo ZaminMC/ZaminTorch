@@ -111,9 +111,19 @@ public final class BlockLightTable {
             // paying only the standard per-cell step.
             Map.entry(Identifier.parse("minecraft:glass"), new LightData(0, 0)),
             Map.entry(Identifier.parse("minecraft:chest"), new LightData(0, 0)),
+            // The chest pair's facing states (Slice L2 — the same
+            // non-solid-render partial cube).
+            Map.entry(Identifier.parse("minecraft:chest_north"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:chest_south"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:chest_west"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:chest_east"), new LightData(0, 0)),
             // The trapped chest (Slice 49b — the same non-solid-render
             // partial cube the chest carries).
             Map.entry(Identifier.parse("minecraft:trapped_chest"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:trapped_chest_north"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:trapped_chest_south"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:trapped_chest_west"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:trapped_chest_east"), new LightData(0, 0)),
             // The ender chest family (Slice 29a — the reference's own
             // setLight(0.5F) registration, Block.java line 1282: emission
             // (int)(15 * 0.5) = 7, the chest's blue glow): the empty
