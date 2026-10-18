@@ -43,6 +43,7 @@ import net.zaminmc.torch.server.experience.ExperienceOrbEntity;
 import net.zaminmc.torch.server.experience.ExperienceOrbManager;
 import net.zaminmc.torch.server.furnace.FurnaceBlockEntity;
 import net.zaminmc.torch.server.furnace.FurnaceDataStore;
+import net.zaminmc.torch.server.furnace.FurnaceFacingBlocks;
 import net.zaminmc.torch.server.furnace.FurnaceManager;
 import net.zaminmc.torch.server.fx.BlockSoundMap;
 import net.zaminmc.torch.server.fx.FxManager;
@@ -1370,7 +1371,8 @@ public final class EngineServer implements Server, EngineBridge {
                                         stand.snapshotSlots(), 64);
                     }
                     if (block.identifier().equals(BuiltinBlocks.FURNACE.identifier())
-                            || block.identifier().equals(BuiltinBlocks.FURNACE_LIT.identifier())) {
+                            || block.identifier().equals(BuiltinBlocks.FURNACE_LIT.identifier())
+                            || net.zaminmc.torch.server.furnace.FurnaceFacingBlocks.isAnyFacing(block)) {
                         net.zaminmc.torch.server.furnace.FurnaceBlockEntity furnace =
                                 furnaceManager.peek(position);
                         return furnace == null ? 0
@@ -8215,6 +8217,16 @@ public final class EngineServer implements Server, EngineBridge {
                     heldId != null && heldId.equals("minecraft:trapped_chest"));
             return; // the look-opposite rule overrides the generic placement
         }
+        // The furnace (Slice L3 — FurnaceBlock.getPlacementState line 133
+        // + onPlaced lines 138-149): the look-opposite facing state over
+        // the Direction-id band 2-5, the held stack's display name riding
+        // the fresh tile (the hasCustomHoverName carry).
+        if (heldId.equals("minecraft:furnace")
+                || creativeHeld.map(t -> FurnaceFacingBlocks.isAnyFacing(t)
+                        || t.identifier().value().equals("furnace")).orElse(false)) {
+            placeFurnaceFacingOnTick(session, clicked, face, creativeHeld);
+            return; // the look-opposite rule overrides the generic placement
+        }
         if (heldId.equals("minecraft:hopper")
                 || creativeHeld.map(t -> t.identifier().value().equals("hopper")).orElse(false)) {
             placeHopperOnTick(session, clicked, face, creativeHeld);
@@ -8981,6 +8993,48 @@ public final class EngineServer implements Server, EngineBridge {
         }
         world.setBlock(target, net.zaminmc.torch.server.redstone.TripwireBlocks.hookOf(
                 face & 7, false, false));
+        consumePlaced(session, creativeHeld);
+    }
+
+    /**
+     * The furnace placement (Slice L3 — FurnaceBlock 1:1): the
+     * look-opposite facing state over the Direction-id band 2-5, with
+     * onPlaced's own custom-name carry (the held stack's display name
+     * riding the fresh tile, lines 141-147). Tick-thread context.
+     */
+    private void placeFurnaceFacingOnTick(PlayerSession session, BlockPosition clicked, int face,
+                                          java.util.Optional<BlockType> creativeHeld) {
+        BlockPosition target = offsetByFace(clicked, face);
+        if (target == null || world.getBlock(clicked).equals(world.airType())
+                || !world.getBlock(target).equals(world.airType())) {
+            return;
+        }
+        if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5
+                || intersectsPlayerBox(session.position(), target)) {
+            return;
+        }
+        if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE
+                && session.inventory().held().isEmpty()) {
+            return;
+        }
+        double yaw = ((session.rotation().yaw() % 360.0) + 360.0 + 45.0) % 360.0;
+        int lookBand = (int) (yaw / 90.0) % 4; // 0=S,1=W,2=N,3=E of the look
+        world.setBlock(target, FurnaceFacingBlocks.plainOf(
+                FurnaceFacingBlocks.lookOppositeOf(lookBand)));
+        // FurnaceBlock.onPlaced lines 141-147: the held stack's hover name
+        // carries into the fresh tile (the anvil-named furnace's own GUI
+        // title). The BlockEntityTag consult runs for the tagged stacks.
+        net.zaminmc.torch.item.ItemStack heldStack = session.inventory().held();
+        if (!heldStack.isEmpty()) {
+            net.zaminmc.torch.server.furnace.FurnaceBlockEntity furnace =
+                    furnaceManager.getOrCreate(target);
+            if (heldStack.displayName() != null && furnace != null) {
+                furnace.setCustomName(heldStack.displayName());
+            }
+            if (tileNbt != null) {
+                tileNbt.applyPlacementTag(world, 0, target, heldStack, session.opLevel());
+            }
+        }
         consumePlaced(session, creativeHeld);
     }
 

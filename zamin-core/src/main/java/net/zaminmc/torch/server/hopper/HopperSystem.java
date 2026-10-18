@@ -696,7 +696,8 @@ public final class HopperSystem implements WorldChangeListener {
             return slots;
         }
         if (type.identifier().equals(BuiltinBlocks.FURNACE.identifier())
-                || type.identifier().equals(BuiltinBlocks.FURNACE_LIT.identifier())) {
+                || type.identifier().equals(BuiltinBlocks.FURNACE_LIT.identifier())
+                || net.zaminmc.torch.server.furnace.FurnaceFacingBlocks.isAnyFacing(type)) {
             FurnaceBlockEntity furnace = furnaces.getOrCreate(at);
             List<ContainerSlot> slots = new ArrayList<>(2);
             // The reference's sided arrays: top {input}, bottom {output,

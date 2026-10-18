@@ -135,6 +135,8 @@ public final class NoteBlockSystem implements WorldChangeListener {
             "stone_slab", "stone_slab_top", "double_stone_slab", "stone_brick_slab",
             "cobblestone_slab",
             "furnace", "furnace_lit", "mob_spawner",
+            "furnace_north", "furnace_south", "furnace_west", "furnace_east",
+            "furnace_lit_north", "furnace_lit_south", "furnace_lit_west", "furnace_lit_east",
             "netherrack", "nether_bricks", "nether_brick_fence",
             "nether_brick_stairs_east", "nether_brick_stairs_north",
             "nether_brick_stairs_south", "nether_brick_stairs_west",

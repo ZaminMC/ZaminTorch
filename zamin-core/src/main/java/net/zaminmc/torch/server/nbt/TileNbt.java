@@ -119,6 +119,10 @@ public final class TileNbt {
         if (blockName.startsWith("chest")) {
             return "Chest";
         }
+        // The furnace pair's facing states (Slice L3 — the same consult).
+        if (blockName.startsWith("furnace")) {
+            return "Furnace";
+        }
         if (blockName.equals("banner") || blockName.equals("standing_banner")
                 || blockName.equals("wall_banner")) {
             return "Banner";

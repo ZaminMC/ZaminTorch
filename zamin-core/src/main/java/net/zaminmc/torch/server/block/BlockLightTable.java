@@ -94,6 +94,10 @@ public final class BlockLightTable {
             Map.entry(Identifier.parse("minecraft:torch"), new LightData(14, 0)),
             Map.entry(Identifier.parse("minecraft:fire"), new LightData(15, 0)),
             Map.entry(Identifier.parse("minecraft:furnace_lit"), new LightData(13, 15)),
+            Map.entry(Identifier.parse("minecraft:furnace_lit_north"), new LightData(13, 15)),
+            Map.entry(Identifier.parse("minecraft:furnace_lit_south"), new LightData(13, 15)),
+            Map.entry(Identifier.parse("minecraft:furnace_lit_west"), new LightData(13, 15)),
+            Map.entry(Identifier.parse("minecraft:furnace_lit_east"), new LightData(13, 15)),
 
             // The nether's materials (community blocks.json 1.8 values):
             // glowstone emits the historical 15; netherrack/soul sand/quartz
@@ -139,6 +143,10 @@ public final class BlockLightTable {
             Map.entry(Identifier.parse("minecraft:diamond_block"), new LightData(0, 15)),
             Map.entry(Identifier.parse("minecraft:emerald_block"), new LightData(0, 15)),
             Map.entry(Identifier.parse("minecraft:furnace"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:furnace_north"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:furnace_south"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:furnace_west"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:furnace_east"), new LightData(0, 0)),
 
             // The brewing stand (Slice 11e): the reference's setLight(0.125F)
             // = filter 1 — the engine's max(1, filter) step absorbs it into

@@ -27,6 +27,10 @@ public final class BlockSoundMap {
             Map.entry("minecraft:iron_ore", "dig.stone"),
             Map.entry("minecraft:diamond_ore", "dig.stone"),
             Map.entry("minecraft:furnace", "dig.stone"),
+            Map.entry("minecraft:furnace_north", "dig.stone"),
+            Map.entry("minecraft:furnace_south", "dig.stone"),
+            Map.entry("minecraft:furnace_west", "dig.stone"),
+            Map.entry("minecraft:furnace_east", "dig.stone"),
             // wooden family
             Map.entry("minecraft:oak_planks", "dig.wood"),
             Map.entry("minecraft:oak_log", "dig.wood"),
@@ -91,6 +95,10 @@ public final class BlockSoundMap {
             Map.entry("minecraft:sugar_cane", "dig.grass"),
             Map.entry("minecraft:cactus", "dig.wool"),
             Map.entry("minecraft:furnace_lit", "dig.stone"),
+            Map.entry("minecraft:furnace_lit_north", "dig.stone"),
+            Map.entry("minecraft:furnace_lit_south", "dig.stone"),
+            Map.entry("minecraft:furnace_lit_west", "dig.stone"),
+            Map.entry("minecraft:furnace_lit_east", "dig.stone"),
             // cloth family (the wool block-item's placeable form)
             Map.entry("minecraft:wool", "dig.wool"),
             // soft families

@@ -190,15 +190,17 @@ public final class FurnaceManager {
         });
     }
 
-    /** Swaps the furnace block to its lit (or unlit) variant, the historical visual. */
+    /**
+     * Swaps the furnace block to its lit (or unlit) variant, the historical
+     * visual. Slice L3: the swap keeps the FACING whole
+     * (AbstractFurnaceBlock.updateState's own write — the partner state
+     * over the same Direction-id nibble).
+     */
     private void syncLitBlock(EngineWorld world, BlockPosition position, boolean burning) {
-        var expected = burning
-                ? net.zaminmc.torch.server.block.BuiltinBlocks.FURNACE
-                : net.zaminmc.torch.server.block.BuiltinBlocks.FURNACE_LIT;
-        if (world.getBlock(position).equals(expected)) {
-            world.setBlock(position, burning
-                    ? net.zaminmc.torch.server.block.BuiltinBlocks.FURNACE_LIT
-                    : net.zaminmc.torch.server.block.BuiltinBlocks.FURNACE);
+        var swap = net.zaminmc.torch.server.furnace.FurnaceFacingBlocks.partnerOf(
+                world.getBlock(position), burning);
+        if (swap != null) {
+            world.setBlock(position, swap);
         }
     }
 

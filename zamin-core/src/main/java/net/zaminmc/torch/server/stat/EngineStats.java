@@ -304,6 +304,30 @@ public final class EngineStats {
         if (value.equals("furnace_lit")) {
             return Identifier.parse("minecraft:furnace");
         }
+        // The furnace pair's facing states (Slice L3 — the whole family
+        // folds onto the furnace row like the bare lit form: the vanilla
+        // stat is keyed by the registry Block, one row for all sixteen
+        // states, so a lit north furnace and a plain south one count
+        // together on stat.mineBlock.minecraft.furnace).
+        if (value.startsWith("furnace_north") || value.startsWith("furnace_south")
+                || value.startsWith("furnace_west") || value.startsWith("furnace_east")) {
+            return Identifier.parse("minecraft:furnace");
+        }
+        if (value.startsWith("furnace_lit_")) {
+            return Identifier.parse("minecraft:furnace");
+        }
+        // The chest pair's facing states (the L3 audit's catch — L2
+        // shipped the family without the fold: mining a facing-state
+        // chest counted on a key the 1.8.8 client drops, never on the
+        // chest row vanilla's own registry-keyed stat carries).
+        if (value.startsWith("chest_north") || value.startsWith("chest_south")
+                || value.startsWith("chest_west") || value.startsWith("chest_east")) {
+            return Identifier.parse("minecraft:chest");
+        }
+        if (value.startsWith("trapped_chest_north") || value.startsWith("trapped_chest_south")
+                || value.startsWith("trapped_chest_west") || value.startsWith("trapped_chest_east")) {
+            return Identifier.parse("minecraft:trapped_chest");
+        }
         return id;
     }
 
