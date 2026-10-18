@@ -2,6 +2,12 @@ dependencies {
     api(project(":zamin-api"))
     implementation(project(":zamin-core"))
     implementation(project(":zamin-protocol-v1_8_8"))
+    // The interactive terminal console (architecture §30): JLine 3 behind the
+    // Torch adapter, JUL retained as the logging source of truth. Versions
+    // are pinned centrally in gradle/libs.versions.toml (ADR-21).
+    implementation(libs.jline.terminal)
+    implementation(libs.jline.reader)
+    implementation(libs.jline.terminal.jansi)
 }
 
 tasks.withType<Jar>().configureEach {

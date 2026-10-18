@@ -1,6 +1,10 @@
 package net.zaminmc.torch.launcher;
 
 import net.zaminmc.torch.ServerState;
+import net.zaminmc.torch.launcher.console.ConsoleConfig;
+import net.zaminmc.torch.launcher.console.EngineConsoleTarget;
+import net.zaminmc.torch.launcher.console.LogFileFormatter;
+import net.zaminmc.torch.launcher.console.TorchConsole;
 import net.zaminmc.torch.server.EngineServer;
 import net.zaminmc.torch.server.config.ConfigLoader;
 import net.zaminmc.torch.server.config.EngineConfig;
@@ -8,9 +12,7 @@ import net.zaminmc.torch.server.config.ServerLayout;
 import net.zaminmc.torch.server.net.ProtocolAdapter;
 import net.zaminmc.torch.protocol.v1_8.V18ProtocolServer;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -79,62 +81,33 @@ final class LauncherRuntime {
         }
     }
 
-    /** Duplicates the console stream into logs/latest.log (rotating). */
+    /** Duplicates the console stream into logs/latest.log (rotating), the
+     *  file sink of the independent-sinks policy (§30.3): every record lands
+     *  here regardless of the terminal sink's threshold or backpressure. */
     private void attachFileLogging(Path root) throws IOException {
         Files.createDirectories(root.resolve("logs"));
         FileHandler fileHandler = new FileHandler("logs/latest.log", 5_000_000, 5, true);
-        fileHandler.setFormatter(new SimpleFormatter());
+        fileHandler.setFormatter(new LogFileFormatter());
         fileHandler.setEncoding(StandardCharsets.UTF_8.name());
         Logger rootLogger = Logger.getLogger("");
         rootLogger.addHandler(fileHandler);
     }
 
-    /** Minimal console: reads lines, supports the first administrative commands. */
-    private void runConsole(EngineServer server, ProtocolAdapter adapter) throws IOException {
-        LOGGER.info("Console ready. Type 'help' for commands.");
-        System.out.print("> ");
-        System.out.flush();
-        try (BufferedReader reader = new BufferedReader(
-                new InputStreamReader(System.in, StandardCharsets.UTF_8))) {
-            String line;
-            while (server.state() == ServerState.RUNNING && (line = reader.readLine()) != null) {
-                String raw = line.trim();
-                // Only the command word routes the switch; arguments keep
-                // their case (player names and ban reasons are case-bearing).
-                String command = raw.toLowerCase();
-                if (!command.isEmpty()) {
-                    // Acknowledge what the operator typed so interleaved log
-                    // lines never leave a command's fate ambiguous.
-                    LOGGER.info(() -> "Console: " + command);
-                }
-                switch (command) {
-                    case "" -> { /* the bare enter: prompt redraw only */ }
-                    case "stop", "shutdown" -> {
-                        LOGGER.info("Stop requested from console");
-                        // Direct path: stop must work even if the tick loop is wedged.
-                        server.shutdown(adapter::shutdown);
-                        return;
-                    }
-                    case "save" -> {
-                        server.saveAllNow();
-                        LOGGER.info("World saved");
-                    }
-                    case "state" -> LOGGER.info(() -> "Server state: " + server.state()
-                            + ", players=" + server.players().size());
-                    default -> {
-                        // Everything else rides the same dispatcher the chat
-                        // slash commands use (help, gamemode, op, say, ...).
-                        server.consoleCommand(raw);
-                    }
-                }
-                System.out.print("> ");
-                System.out.flush();
-            }
-        } catch (IOException ignored) {
-            // Console unavailable (e.g. daemonized process): fall through to latch wait.
-        }
-        // Console EOF or closure: the server keeps serving until stopped by signal
-        // or shutdown call. A closed console must never stop a live server.
+    /**
+     * The terminal console (architecture §30): the interactive JLine reader
+     * with the log bridge, or the plain line fallback — both over the ONE
+     * command path. Console EOF or failure never stops a live server; the
+     * 'stop' built-in, Ctrl+C, and signals converge on the same idempotent
+     * shutdown.
+     */
+    private void runConsole(EngineServer server, ProtocolAdapter adapter) {
+        ConsoleConfig consoleConfig = ConsoleConfig.loadOrDefault(
+                Path.of(ConsoleConfig.DEFAULT_FILE));
+        TorchConsole console = new TorchConsole(consoleConfig,
+                new EngineConsoleTarget(server, adapter::shutdown));
+        console.run();
+        // Console EOF, terminal failure, or a completed stop: the server
+        // keeps serving until the shutdown actually completes.
         server.awaitShutdown();
     }
 }
