@@ -9166,3 +9166,31 @@ arms); (2) L6 — the double-plant's canBeReplaced-per-variant; (3) the
 shared container-open event (demand-named); (4) a broader regression
 batch over the stat-adjacent suites (the full suite in the established
 seven-batch pattern).
+
+
+### Slice L5 — the stone-slab family's doubles + the SEAMLESS skins
+
+- a7ddcbd: the three variant doubles (double_sandstone_slab 43|1,
+  double_cobblestone_slab 43|3, double_stone_brick_slab 43|5 — the
+  pairs had merged into the PARENT BLOCKS, the pre-52 stand-in), the
+  two register-only seamless skins (43|8 + 181|8), the missing
+  stone_brick_slab_top, and the drop-law repairs (the 43 double
+  dropped ITSELF; the 181 double dropped ONE — vanilla yields TWO
+  singles through getDropItem + getBaseDropCount's isDouble ? 2 : 1).
+- THE AUDIT'S TWO DISPATCH CATCHES: the slab2 family arm sat BELOW the
+  stone_slab startsWith in slabFamilyOf (dead code — every
+  red-sandstone pair resolved the STONE family), AND the dispatch's
+  stone_slab2 check compared the BARE name while heldId carries the
+  namespace with endsWith(_slab) missing the slab2 suffix (the family
+  never reached the slab path at all — the pairs stacked singles
+  forever). BOTH repaired and driven by the live test.
+- Evidence: DoubleStoneSlabFamilyTest 2 (the band + the repairs + the
+  live merges), SlabStairsAcceptanceTest's flipped pin,
+  DoubleWoodenSlabTest's L4-consistent rows, BlockRegistryTest 854.
+
+NEXT per the standing rows: (1) L6 — the double-plant's
+canBeReplaced-per-variant (the grass/fern walk-through refinement) +
+the upper's per-facing wire band 8..11 (only if a future arm needs
+it); (2) the shared container-open event (demand-named); (3) a broader
+regression batch (the full suite in the established seven-batch
+pattern).
