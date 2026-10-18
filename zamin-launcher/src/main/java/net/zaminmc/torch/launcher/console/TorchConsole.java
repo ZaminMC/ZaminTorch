@@ -49,26 +49,43 @@ public final class TorchConsole {
     private volatile boolean shutdownRequested;
     /** The live terminal, for unblocking a blocked read from another thread. */
     private volatile Terminal activeTerminal;
+    /** The loop thread, for the interrupt that unblocks a pending read. */
+    private volatile Thread loopThread;
+    /** The test seam: an injected terminal bypasses the builder (null in production). */
+    private final Terminal injectedTerminal;
 
     public TorchConsole(ConsoleConfig config, ConsoleTarget target) {
+        this(config, target, null);
+    }
+
+    /** Test seam: runs the console over a caller-provided terminal. */
+    TorchConsole(ConsoleConfig config, ConsoleTarget target, Terminal terminal) {
         this.config = config;
         this.target = target;
         this.dispatcher = new ConsoleCommands(target);
+        this.injectedTerminal = terminal;
     }
 
     /** Runs the console loop on the calling thread; returns when it ends. */
     public void run() {
-        Terminal terminal = buildTerminal();
-        if (terminal != null) {
-            interactiveLoop(terminal);
-        } else {
-            plainLoop();
+        loopThread = Thread.currentThread();
+        try {
+            Terminal terminal = buildTerminal();
+            if (terminal != null) {
+                interactiveLoop(terminal);
+            } else {
+                plainLoop();
+            }
+        } finally {
+            loopThread = null;
         }
     }
 
     /**
      * Requests console shutdown from any thread: idempotent, and it unblocks
-     * a pending read so the loop can end within the bounded close deadline.
+     * a pending read (the terminal is closed and the loop thread interrupted —
+     * the interrupt surfaces as {@link UserInterruptException}, whose handler
+     * sees the already-set flag and ends the loop WITHOUT a second stop call).
      * The SERVER's stop is the target's own business (the dispatcher's stop
      * route or an external signal calls it separately).
      */
@@ -79,8 +96,12 @@ public final class TorchConsole {
             try {
                 terminal.close();
             } catch (Exception ignored) {
-                // already closed or a provider quirk: the loop's read failure covers it
+                // already closed or a provider quirk: the interrupt covers it
             }
+        }
+        Thread loop = this.loopThread;
+        if (loop != null && loop != Thread.currentThread()) {
+            loop.interrupt();
         }
     }
 
@@ -101,6 +122,9 @@ public final class TorchConsole {
      * (forced-on degrades safely, never printing escape sequences blindly).
      */
     private Terminal buildTerminal() {
+        if (injectedTerminal != null) {
+            return injectedTerminal;
+        }
         if (config.interactive() == ConsoleConfig.Interactive.OFF) {
             return null;
         }
@@ -171,9 +195,15 @@ public final class TorchConsole {
                 try {
                     line = reader.readLine(config.prompt());
                 } catch (UserInterruptException e) {
-                    // Ctrl+C during editing: the same idempotent stop as 'stop'.
+                    // Ctrl+C during editing converges on the same idempotent
+                    // stop as the 'stop' command — UNLESS the interrupt came
+                    // from requestShutdown() itself (the flag already set):
+                    // then the loop just ends, no second stop.
+                    boolean external = !shutdownRequested;
                     requestShutdown();
-                    target.requestStop();
+                    if (external) {
+                        target.requestStop();
+                    }
                     break;
                 } catch (EndOfFileException e) {
                     break; // EOF: the console ends, the server keeps serving
@@ -225,10 +255,17 @@ public final class TorchConsole {
             builder.completer(new CommandCompleter(target::commandNames));
         }
         try {
-            return builder.build();
+            LineReader reader = builder.build();
+            // JLine attaches the history on the first readLine; attach now so
+            // the previous sessions' lines are loaded at boot, save() works
+            // before any line is typed, and the HISTORY_SIZE bound is live.
+            // attach() swallows an unreadable history file with a warning —
+            // the console keeps working without it (30.4.3).
+            history.attach(reader);
+            return reader;
         } catch (RuntimeException e) {
-            // An unreadable/locked history file must not kill the console:
-            // rebuild without persistence and warn (30.4.3).
+            // A broken build must not kill the console: rebuild without
+            // history persistence and warn (30.4.3).
             LOGGER.warning("[console] history could not be attached (" + e.getMessage()
                     + "); continuing without it");
             return LineReaderBuilder.builder()

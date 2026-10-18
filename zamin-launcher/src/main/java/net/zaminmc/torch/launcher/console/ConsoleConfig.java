@@ -56,6 +56,13 @@ public record ConsoleConfig(
                 true, Level.INFO, DEFAULT_QUEUE_CAPACITY, true);
     }
 
+    /** A copy with a different history file (tests and custom bindings). */
+    public ConsoleConfig withHistory(Path file) {
+        return new ConsoleConfig(interactive, ansi, prompt, historyEnabled, file,
+                historyLimit, sensitiveCommands, completionEnabled, terminalThreshold,
+                terminalQueueCapacity, plainFallbackEnabled);
+    }
+
     /**
      * Loads {@code console.properties} beside the server root, writing the
      * documented defaults first when absent. Missing or invalid values fall

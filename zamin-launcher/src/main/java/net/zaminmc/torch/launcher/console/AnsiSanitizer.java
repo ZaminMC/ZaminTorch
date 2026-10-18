@@ -86,7 +86,13 @@ public final class AnsiSanitizer {
     }
 
     private static String rewrite(String text, boolean translate) {
-        if (text == null || text.indexOf('§') < 0) {
+        if (text == null) {
+            return text;
+        }
+        // Defense in depth: even a direct caller never sees a raw ESC byte
+        // (the bridge strips first; this is the second gate).
+        text = stripEscapes(text);
+        if (text.indexOf('§') < 0) {
             return text;
         }
         StringBuilder out = new StringBuilder(text.length() + 8);
