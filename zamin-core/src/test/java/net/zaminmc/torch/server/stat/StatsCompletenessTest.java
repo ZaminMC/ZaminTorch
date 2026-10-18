@@ -50,6 +50,25 @@ class StatsCompletenessTest {
     }
 
     @Test
+    void everyRegisteredItemCountsOnARegistryRow() {
+        // The item rows resolve over the UNION: the pure items (256+)
+        // plus the block items (the block registry's names below 256).
+        java.util.List<String> unresolved = new java.util.ArrayList<>();
+        for (var item : net.zaminmc.torch.server.item.BuiltinItems.all()) {
+            if (!item.identifier().namespace().equals("minecraft")) {
+                continue;
+            }
+            String key = EngineStats.useItemOf(item.identifier());
+            String row = key.substring("stat.useItem.minecraft.".length());
+            if (!EngineStats.itemRowSet().contains(row)) {
+                unresolved.add(item.identifier().value() + " -> " + key);
+            }
+        }
+        org.junit.jupiter.api.Assertions.assertTrue(unresolved.isEmpty(),
+                "items counting on rows the 1.8.8 client drops: " + unresolved);
+    }
+
+    @Test
     void theRegistryOracleCarriesThe197Rows() {
         // The reference's own registrations: ids 1-197, one name each
         // (id 0 is air, unregistered).
