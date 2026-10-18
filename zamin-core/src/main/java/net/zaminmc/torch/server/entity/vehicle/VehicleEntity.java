@@ -60,7 +60,7 @@ public abstract class VehicleEntity implements net.zaminmc.torch.entity.Vehicle 
     }
 
     /** Minimal world query the vehicle needs (tick-thread context only). */
-    public interface WorldQuery {
+    public interface WorldQuery extends net.zaminmc.torch.server.physics.HasCollisionWorld {
         /** @return whether the block containing this point is solid. */
         boolean isSolid(double x, double y, double z);
 
@@ -455,6 +455,49 @@ public abstract class VehicleEntity implements net.zaminmc.torch.entity.Vehicle 
     protected void commit(double x, double y, double z, boolean grounded) {
         position = new Position(x, y, z);
         onGround = grounded;
+    }
+
+    /**
+     * The swept-box movement application (the physics-solver slice):
+     * the vehicle's own {@code Entity.move} — the axis-by-axis clip
+     * against every collision box the swept shape touches — when the
+     * query provides the collision surface. The engine's centre
+     * convention translates to the solver's feet convention at the
+     * boundary (the bottom = position.y - halfHeight). The zeroing
+     * signals land back on the velocities.
+     *
+     * @return the outcome, or null when the query provides no surface
+     * (the caller takes its point-query walk)
+     */
+    protected net.zaminmc.torch.server.physics.EntityMoveSolver.Result solverMove(
+            WorldQuery world, double halfHeight, double width,
+            double moveX, double moveY, double moveZ) {
+        net.zaminmc.torch.server.physics.EntityCollisionWorld surface =
+                world.collisionWorld();
+        if (surface == null) {
+            return null;
+        }
+        net.zaminmc.torch.server.physics.EntityMoveSolver.Body body =
+                new net.zaminmc.torch.server.physics.EntityMoveSolver.Body(
+                        position.x(), position.y() - halfHeight, position.z(),
+                        width, halfHeight * 2.0);
+        body.onGround = onGround;
+        net.zaminmc.torch.server.physics.EntityMoveSolver.Result result =
+                net.zaminmc.torch.server.physics.EntityMoveSolver.move(
+                        surface, body, moveX, moveY, moveZ,
+                        net.zaminmc.torch.server.physics.EntityMoveSolver.MoveLaw.plain());
+        position = new Position(body.x, body.y + halfHeight, body.z);
+        onGround = result.onGround();
+        if (result.zeroVelocityX()) {
+            setVelocity(0.0, velocityY(), velocityZ());
+        }
+        if (result.zeroVelocityZ()) {
+            setVelocity(velocityX(), velocityY(), 0.0);
+        }
+        if (result.zeroVelocityY()) {
+            setVelocity(velocityX(), 0.0, velocityZ());
+        }
+        return result;
     }
 
     protected void decay(double factor) {
