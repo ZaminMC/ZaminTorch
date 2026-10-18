@@ -1004,6 +1004,41 @@ COMMUNITY_REFERENCES.md.**
   VillagerTradeIntegrationTest — open/TrList/TrSel/execute/spent-out;
   the DataWatcher parity net grew the pig's saddle byte row).
 
+## 10ad. Slice Arch-30 — the modern interactive terminal console (committed 2026-10-19)
+
+Architecture §30 implemented (decision record ADR-21). The launcher's console is now a
+JLine 3.26.3 terminal adapter (one provider: Jansi, pinned in `gradle/libs.versions.toml`)
+with JUL retained as the logging source of truth — no Log4j2, no TerminalConsoleAppender.
+
+- **`zamin-launcher/.../console/`** — the whole adapter at the launcher boundary:
+  `TorchConsole` (terminal build per the auto/on/off interactive policy, ANSI resolution
+  with warn-and-degrade, the reading loop, the plain fallback byte-for-byte in shape,
+  bridge attach/detach restoring the default console handler), `TerminalLogBridge` (the
+  terminal JUL sink: prints ABOVE the edited line, independent terminal-only threshold,
+  bounded async handoff with drop-count + rate-limited loud warning), `ConsoleCommands`
+  (the ONE command path: the stop/shutdown/save/state built-ins + the existing
+  EngineServer.consoleCommand route, shared by both loops, a throwing route isolated),
+  `CommandCompleter` (first-word completion over the immutable registry snapshot — never
+  live state), `FilteredHistory` (the sensitive-command policy at the single add() funnel),
+  `AnsiSanitizer` (the documented strip-or-translate rule: raw ESC never passes to any
+  sink), `ConsoleConfig` (`console.properties`, every §30.3 knob, each degrading safely),
+  `LogFileFormatter` (the file sink: source name + full throwable, ESC-free),
+  `EngineConsoleTarget` (the five safe engine surfaces — no world/player/entity reference
+  crosses into the console).
+- **The empirically-driven catches** (in ADR-21): JLine's DefaultHistory attaches on the
+  first readLine, not at build — attach is explicit now (previous-session lines load at
+  boot, save() works pre-input, the HISTORY_SIZE bound is live); terminal.close() does not
+  unblock a pending dumb read — requestShutdown also interrupts the loop thread (the
+  UserInterrupt handler distinguishes its own interrupt from a real Ctrl+C by the
+  already-set flag); JLine's completion unit is the whole current word (kept as native).
+- **CommandService.commandNames()** — the synchronized immutable snapshot (zamin-core).
+- **Tests**: 47 launcher tests across 9 classes — the full §30.4 list (route, redraw,
+  history round trip/bound/sensitive/unreadable, completion incl. argument-position and
+  mid-word, EOF/stop/requestShutdown idempotency, throwing-route isolation, sink
+  independence, backpressure, ESC injection, the real-EngineServer integration) +
+  `verifyPackagedConsole` wired into `check` (the fat jar must carry JLine + the Jansi
+  natives for Linux/Windows/Mac/FreeBSD — 15 native libraries verified).
+
 ## 11. Known risks
 
 - 1.8.8 client quirks not obvious from protocol docs (e.g. exact chunk/lighting expectations) — mitigated by scripted-client tests + real client validation.

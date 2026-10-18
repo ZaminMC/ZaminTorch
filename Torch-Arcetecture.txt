@@ -1738,7 +1738,9 @@ ender chest (Slice 29a) set the precedent, and L2/L3 follow it.
 
 # 30. MODERN INTERACTIVE TERMINAL CONSOLE — PAPER-INFORMED, TORCH-OWNED
 
-**Status: proposed architecture; not implemented by this document update.** Research checked on 2026-10-18. The concrete Torch baseline below was inspected in the develop code at commit 26851c46dd4bb6f9a931798146ad6056db275aa2. Paper source links that use main are floating references; resolve and record exact commits before implementation.
+**Status: IMPLEMENTED on develop (slices 0afb2fe + 11731c2, 2026-10-19).** The JLine 3 terminal adapter, the JUL bridge with redraw-above-the-line, the one command path, the completion snapshot, bounded persistent history with the sensitive-command policy, ANSI/TTY detection with safe degradation, the plain fallback, idempotent lifecycle (Ctrl+C via UserInterruptException, EOF never stopping a live server), and the packaged-artifact check all landed, with the 30.4 test list green (47 launcher tests: ConsoleConfig 5, AnsiSanitizer 5, CommandCompleter 5, ConsoleCommands 5, FilteredHistory 5, TerminalLogBridge 5, TorchConsole 7, ConsoleRouteIntegration 1) and `verifyPackagedConsole` proving JLine + the Jansi natives inside the release jar. The decision record is ADR-21 (JLine 3.26.3, one provider: Jansi; JUL retained; config as console.properties per the engine's properties convention — a recorded naming decision, not the proposed console.yml). Two production notes from the empirical audit ride in ADR-21: JLine's history attach is explicit (it does not happen at build), and requestShutdown interrupts the loop thread because terminal.close() alone does not unblock a pending read. Original proposal text follows.
+
+**Original research notes (2026-10-18).** The concrete Torch baseline below was inspected in the develop code at commit 26851c46dd4bb6f9a931798146ad6056db275aa2. Paper source links that use main are floating references; resolve and record exact commits before implementation.
 
 ## 30.1 Existing Torch baseline
 
