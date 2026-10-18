@@ -1757,6 +1757,50 @@ ender chest (Slice 29a) set the precedent, and L2/L3 follow it.
       — the point queries keep the legacy convention exactly like the
       fence's 1.5 bands;
 
+## Wave M — the physics solver (the swept-box BODY model)
+
+The ledger's own standing deferral retired slice by slice: the
+reference's `Entity.move` (lines 390-585) — the axis-by-axis clipping
+of a body's motion against every collision box its swept shape
+touches, with the step-height retry — replaces the per-family point
+queries as the MOVING bodies' own law. The point queries
+(`isSolidAt`/`supportY`) stay for the standers and the readers.
+
+- [x] M1+M2 — LANDED (the foundation): the `server/physics` package.
+      `Aabb` — the reference's own `util/math/Box.java` in absolute
+      world coordinates (the swept-motion expansion, the half-open
+      intersects, the clip trio `intersectX/Y/Z` lines 104-162 — the
+      box clips the axis limit to its own face distance only when the
+      two overlap on the other axes). `EntityCollisions` — the
+      reference's `World.getCollisions` block side (the cell band
+      with the one-below Y start the 1.5-tall families need, the
+      chunk gate, the border STONE wall for a body inside, the
+      per-block shape boxes through the SAME table the point queries
+      read — `CollisionShapes.cellBoxes` the public view). The
+      `EntityMoveSolver` — `Entity.move` 1:1: the cobweb drag, the
+      sneaking edge-guard, the Y-then-X-then-Z clips, THE STEP-HEIGHT
+      RETRY (the two-pass up-and-over walk, the squared-distance
+      comparison, the keep-only-if-better law), the onGround/
+      colliding flags, and the velocity-zeroing signals. THE
+      TEST-SIDE DISCOVERIES: the clip's own direction
+      (collisionBox.intersectY(moverShape, limit) — the collision box
+      the receiver); the grounded walker's drift convention (the move
+      runs BEFORE the gravity — a standing body enters with -0.0784*
+      0.98 or onGround reads false); the stair climb's TWO-tick law
+      at step 0.5 (the first tick clips at the tall back's near face
+      — 1.5 on the pin — the second clears it). Evidence:
+      PhysicsSolverGeometryTest 13 + EntityMoveSolverTest 13 — the
+      ledger's own named case live (a body straddling the fence's 1.5
+      band from the cell above, feet 6.7 falling 1.2, rests at 6.5
+      exactly); the regression sweep 700 green
+      (full-suite-M1.log);
+- [ ] M3 — the MobEntity families onto the solver (the 26 point-query
+      sites: the land walkers, the swimmers' seabed rest, the
+      guardians' bobbing, the flopping fish arms);
+- [ ] M4 — the ItemEntity + the FallingBlockEntity + the vehicles
+      onto the solver (the 0.25-box item bodies, the falling blocks'
+      landing gate, the boats' own buoyancy walk);
+
 ## Standing (demand-named, not scheduled)
 
 - The shared container-open event (the chest family row's "if demand
