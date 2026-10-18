@@ -63,8 +63,14 @@ public final class ConsoleCommands {
             }
             default -> {
                 // Everything else rides the same dispatcher the chat slash
-                // commands use (help, gamemode, op, say, ...).
-                target.consoleCommand(raw);
+                // commands use (help, gamemode, op, say, ...). A throwing
+                // route is isolated from the reading loop (§30.3 errors): the
+                // engine's own dispatcher reports failures to the sender.
+                try {
+                    target.consoleCommand(raw);
+                } catch (RuntimeException e) {
+                    LOGGER.warning(() -> "Console command route failed (isolated): " + e);
+                }
                 return Result.CONTINUE;
             }
         }

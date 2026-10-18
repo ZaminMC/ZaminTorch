@@ -1,3 +1,5 @@
+import java.util.zip.ZipFile
+
 dependencies {
     api(project(":zamin-api"))
     implementation(project(":zamin-core"))
@@ -64,6 +66,55 @@ val fatJar = tasks.register<Jar>("fatServerJar") {
     for (jar in runtimeJars) {
         from(zipTree(jar)) { exclude("META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA", "module-info.class") }
     }
+}
+
+/**
+ * The packaged-console check (architecture §30.4.8): the interactive console
+ * must work from the RELEASE artifact, not only the Gradle test classpath —
+ * so the fat jar is verified to carry the JLine classes AND the Jansi
+ * provider's native libraries for Windows/Linux/macOS. A missing native
+ * would silently degrade every packaged server to the plain console on the
+ * platform that needs it most.
+ */
+val verifyPackagedConsole = tasks.register("verifyPackagedConsole") {
+    group = "zamin"
+    description = "Verifies the fat jar contains JLine + the Jansi natives (the packaged console)."
+    dependsOn(fatJar)
+    doLast {
+        val jarFile = fatJar.get().archiveFile.get().asFile
+        ZipFile(jarFile).use { zip ->
+            val entries = zip.entries().asSequence().map { it.name }.toSet()
+            fun requireEntry(path: String, why: String) {
+                check(entries.any { it.startsWith(path) }) {
+                    "packaged console broken: $why missing from ${jarFile.name} (expected $path)"
+                }
+            }
+            requireEntry("org/jline/terminal/", "the JLine terminal classes")
+            requireEntry("org/jline/reader/", "the JLine reader classes")
+            requireEntry("org/jline/utils/", "the JLine support classes")
+            requireEntry("org/fusesource/jansi/", "the Jansi provider")
+            // The provider's bundled natives (per-OS trees: .so/.dll/.jnilib).
+            val natives = entries.count {
+                it.startsWith("org/fusesource/jansi/internal/native/") &&
+                        (it.endsWith(".so") || it.endsWith(".dll") || it.endsWith(".jnilib"))
+            }
+            val osFamilies = listOf("Linux", "Windows", "Mac", "FreeBSD")
+            for (family in osFamilies) {
+                check(entries.any { it.startsWith("org/fusesource/jansi/internal/native/$family/") && !it.endsWith("/") }) {
+                    "packaged console broken: the Jansi $family native tree is empty"
+                }
+            }
+            check(natives >= 3) {
+                "packaged console broken: expected Jansi native libraries for at least" +
+                        " Windows/Linux/Mac, found $natives"
+            }
+            println("verifyPackagedConsole: JLine + $natives Jansi native libraries present in ${jarFile.name}")
+        }
+    }
+}
+
+tasks.named("check") {
+    dependsOn(verifyPackagedConsole)
 }
 
 val stageDist = tasks.register<DefaultTask>("stageDist") {
