@@ -45,4 +45,7 @@ dependencies {
     // API classes at runtime — JavaPlugin, PluginDescriptionFile and the
     // loader machinery come from the artifact itself.
     testImplementation(libs.spigot.api)
+    // The harness's end-of-run shutdown listener (the shared engine's clean
+    // stop after the last test in the JVM).
+    testImplementation("org.junit.platform:junit-platform-launcher")
 }
