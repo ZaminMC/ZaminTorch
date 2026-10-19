@@ -4,14 +4,13 @@ import net.zaminmc.torch.block.BlockPosition;
 import net.zaminmc.torch.util.Position;
 
 /**
- * Interaction rules of the current compatibility behavior (creative, 1.8-scale
- * reach). Centralized so the values and their reasons live in one place (§593).
+ * Interaction rules shared by the interaction walks (N7 — the secondary
+ * reach bands retired: the use walk's only band is the handler's own 64.0
+ * body gate; the dig keeps the reference's own 36.0 band). Centralized so
+ * the values and their reasons live in one place (§593).
  */
 final class InteractionRules {
 
-    static final double CREATIVE_REACH_SQ = 6.0 * 6.0;
-    /** Historical survival block-interaction distance from the eye. */
-    static final double SURVIVAL_REACH_SQ = 4.5 * 4.5;
     /**
      * The dig handler's own reach band (ServerPlayNetworkHandler
      * .handlePlayerDig lines 424-433, 1:1): squared 6.0 — the dig's own
@@ -24,21 +23,10 @@ final class InteractionRules {
     static final double DIG_REACH_SQ = 6.0 * 6.0;
     /** The dig band's own eye offset: the reference's {@code + 1.5}, not 1.62. */
     static final double DIG_EYE = 1.5;
-    static final double EYE_HEIGHT = 1.62;
     static final double PLAYER_HALF_WIDTH = 0.3;
     static final double PLAYER_HEIGHT = 1.8;
 
     private InteractionRules() {
-    }
-
-    /** @return whether the position is within creative reach of the player's eye. */
-    static boolean withinReach(Position playerPosition, BlockPosition target) {
-        return withinReachSquared(playerPosition, target, CREATIVE_REACH_SQ);
-    }
-
-    /** @return whether the position is within survival reach of the player's eye. */
-    static boolean withinSurvivalReach(Position playerPosition, BlockPosition target) {
-        return withinReachSquared(playerPosition, target, SURVIVAL_REACH_SQ);
     }
 
     /**
@@ -55,17 +43,6 @@ final class InteractionRules {
         double dy = playerPosition.y() + DIG_EYE - (target.y() + 0.5);
         double dz = playerPosition.z() - (target.z() + 0.5);
         return dx * dx + dy * dy + dz * dz <= DIG_REACH_SQ;
-    }
-
-    private static boolean withinReachSquared(Position playerPosition, BlockPosition target,
-                                              double reachSquared) {
-        double eyeX = playerPosition.x();
-        double eyeY = playerPosition.y() + EYE_HEIGHT;
-        double eyeZ = playerPosition.z();
-        double dx = (target.x() + 0.5) - eyeX;
-        double dy = (target.y() + 0.5) - eyeY;
-        double dz = (target.z() + 0.5) - eyeZ;
-        return dx * dx + dy * dy + dz * dz <= reachSquared;
     }
 
     /** @return whether the block AABB intersects the player's bounding box. */
