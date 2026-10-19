@@ -1935,6 +1935,20 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         }
     }
 
+    /**
+     * The anti-desync resync pair's own cell (handlePlayerUse lines
+     * 494-497): the per-player unicast shape of the same 0x23 Block
+     * Change write the committed-change broadcast owns — the engine's
+     * use walk hands the authoritative post-use state of the clicked
+     * cell and the face-offset cell, and the client's predicted ghost
+     * from a refused or short-circuited use reverts to the truth.
+     */
+    @Override
+    public void blockResync(net.zaminmc.torch.block.BlockPosition position,
+                            net.zaminmc.torch.block.BlockType type) {
+        sendBlockChange(position, type);
+    }
+
     @Override
     public void kick(String reason) {
         Channel channel = adapter.channelOf(this);

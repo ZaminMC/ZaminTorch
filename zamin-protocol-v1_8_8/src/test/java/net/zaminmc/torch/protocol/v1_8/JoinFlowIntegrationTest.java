@@ -171,7 +171,9 @@ class JoinFlowIntegrationTest {
             awaitCondition(() -> server.world().getBlock(new net.zaminmc.torch.block.BlockPosition(2, 4, 2))
                             .identifier().toString().equals("minecraft:air"),
                     "grass removed from world");
-            int[] removal = client.readBlockChange(5_000);
+            // The positional read (Slice N3): the use handler's anti-desync
+            // pair interleaves its own two 0x23s ahead of the dig's commit.
+            int[] removal = client.readBlockChangeAt(2, 4, 2, 0, 5_000);
             assertEquals(2, removal[0]);
             assertEquals(4, removal[1]);
             assertEquals(2, removal[2]);
@@ -187,7 +189,9 @@ class JoinFlowIntegrationTest {
             awaitCondition(() -> server.world().getBlock(new net.zaminmc.torch.block.BlockPosition(2, 4, 2))
                             .identifier().toString().equals("minecraft:dirt"),
                     "dirt placed back from the inventory");
-            int[] echo = client.readBlockChange(5_000);
+            // The positional read (Slice N3): the pair's own (2,4,2)=dirt
+            // cell IS the echo here — the first matching change.
+            int[] echo = client.readBlockChangeAt(2, 4, 2, 3, 5_000);
             assertEquals(2, echo[0]);
             assertEquals(4, echo[1]);
             assertEquals(2, echo[2]);
