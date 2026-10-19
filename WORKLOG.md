@@ -10438,3 +10438,15 @@ Stage Summary:
 - THE PHASE-7 GATE BAR IS ANSWERED WITH MEASUREMENTS: the dense-owner bottleneck is real at extreme item density (superlinear merge walk), named and quantified; the optimization lanes stay gated per the numbers (normal densities far from pressure)
 - The §28.7 Bukkit adapter first slice is MERGED (24/0 + 118/0 + the merge-tree re-verification); the adapter family's next slices stay demand-named (per-event-type scopes, entity adapters, the inventory family, the launcher wiring + the GPL distribution decision, §28.8's remaining adversarial cases)
 - Next: the parallel instance's Anvil-import PR to review+merge when it opens; the demand-named Phase-7 merge-walk bucketing (the evidence now justifies it when the operator scenarios demand); the Minestom module decision (ADR-0001 revisit); Phase 8 stays gated on Phase 7's actual optimization landing first
+
+---
+Task ID: p7-profiling-opener (cont.)
+Agent: main (Abasing session)
+Task: The opener's final verification belt
+
+Work Log:
+- The acceptance-family belt over the section-fanned tick handler: the profiler package 8/0 + EVERY *AcceptanceTest in net.zaminmc.torch.server (the whole system fan through the production tick path) = 292/0 — the section wrapping's zero-behavior-when-off claim verified on the full acceptance surface
+
+Stage Summary:
+- THE PHASE-7 PROFILING OPENER SLICE IS COMPLETE AND FULLY VERIFIED: profiler 8/0 + acceptance belt 292/0; develop pushed through 40071d3 (docs), all commits authored Abasing
+- Next: the Anvil-import PR (Instance 2) to review+merge when it opens; the Minestom module decision (ADR-0001 revisit) is the roadmap's remaining unstarted decision item; the Phase-7 merge-walk bucketing is demand-named with the evidence recorded (gated on operator scenarios)
