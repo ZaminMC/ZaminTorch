@@ -21696,9 +21696,18 @@ public final class EngineServer implements Server, EngineBridge {
                     }
                 }
                 // The comparator's stored outputs (Wave H1 — the
-                // ComparatorBlockEntity's OutputSignal rows).
+                // ComparatorBlockEntity's OutputSignal rows). S4: the ride
+                // through the pipeline's named path (the map copy is the
+                // immutable input contract already).
                 if (comparatorStore != null && redstoneSystem != null) {
-                    comparatorStore.save(redstoneSystem.comparatorSnapshot());
+                    if (pipeline != null) {
+                        publications.add(pipeline.submitSave("comparator",
+                                redstoneSystem.comparatorSnapshot(),
+                                comparatorStore::serialize,
+                                comparatorStore::writeSerialized));
+                    } else {
+                        comparatorStore.save(redstoneSystem.comparatorSnapshot());
+                    }
                 }
                 // The scoreboard (Slice 85): the reference saves scoreboard.dat
                 // with the world; the engine's own shutdown + /save walk.
@@ -21726,7 +21735,16 @@ public final class EngineServer implements Server, EngineBridge {
                     }
                 }
                 if (jukeboxStore != null && jukeboxes != null) {
-                    jukeboxStore.save(jukeboxes.snapshotRecords());
+                    // S4: the ride through the pipeline's named path (the
+                    // stack map copy is the immutable input contract already).
+                    if (pipeline != null) {
+                        publications.add(pipeline.submitSave("jukebox",
+                                jukeboxes.snapshotRecords(),
+                                jukeboxStore::serialize,
+                                jukeboxStore::writeSerialized));
+                    } else {
+                        jukeboxStore.save(jukeboxes.snapshotRecords());
+                    }
                 }
                 if (decorationStore != null && decorations != null) {
                     net.zaminmc.torch.server.decoration.DecorationSystem.Snapshot decorationSaved =
