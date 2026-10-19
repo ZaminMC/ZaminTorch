@@ -10082,3 +10082,37 @@ measurement), then pathfinding/lighting.
 onto the same shape family by family: the board/border pair (the
 snapshot contracts already landed, awaiting the wiring), then the
 tile/entity/metadata families; then pathfinding/lighting.
+
+## Slice S3 — the board/border pair rides the save pipeline (the THIRD serialization workload)
+
+- **THE PAIR'S SPLIT** (the S1/S2 shape's third adoption — the pair's
+  snapshot contracts landed with S1, this slice completes them): the
+  scoreboard's and the border's serialize are the PURE functions (the
+  immutable snapshot IN, the JSON bytes OUT — no board/border read, no
+  I/O; the text walks are the historical saves' own, byte-identical);
+  the file halves are `writeSerialized` (the temp write + the atomic
+  move — the pair's historical DIRECT writes normalized to the engine's
+  own durability convention, the same rule every other store runs: a
+  crashed write never leaves a truncated file behind); the sync saves
+  compose `writeSerialized(serialize(snapshot()))`.
+- **THE WIRING**: `saveAllNow`'s scoreboard/border saves ride the
+  pipeline's named path when booted — the snapshot stays on the tick
+  lane (the owner-thread-only read, the border's `getLerpSize`
+  completion arm included), the serialization and the file half leave
+  it; the caller waits for the pair's publication latches with the
+  rest's; the un-pipelined fallback keeps the sync form.
+- Evidence: `BoardBorderSaveSplitTest` 3 (the byte-identity of both
+  sync files against the pure serializers + the round-trip loads
+  restoring the objective/team/score/slot rows and the border's nine
+  rows; the pair through the real lanes — one capture per save (a
+  pending lerp's live size moves with real time, the save's content is
+  the capture-time state), the lerp rows persisting through the landed
+  file) + the world/scoreboard/border/persistence sweep green. The S2
+  failure-arm test's lane-counter assertion made timing-tolerant
+  (markFailed runs on the worker after the latch released). Landed at
+  9d6ffa98.
+
+**Next:** S4 — the remaining tile stores (note/comparator/jukebox/sign/
+command-block/beacon/brewing/dispenser) onto the same shape, then the
+entity/metadata families (decoration/armor-stand/ender-crystal/
+weather/gamerule/mob/item/vehicle), then pathfinding/lighting.
