@@ -10311,3 +10311,4 @@ Work Log:
 Stage Summary:
 - develop: the per-command argument completion landed (13 arms + the plumbing + the gated consult)
 - Next: the lighting batch shape (the staleness protocol), the Anvil canvas, the adapters
+- The final belt sweep: entity/vehicle/physics/piston/scheduler/command 424/0 (sweep-args-belt.log); the session's full evidence: the light suite 18/0, the wiring sweep 355/0, the protocol module 110 (one load flake, green in isolation), the command/console/chat/config sweep, the belt 424/0
