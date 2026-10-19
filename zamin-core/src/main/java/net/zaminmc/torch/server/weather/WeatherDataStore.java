@@ -45,23 +45,59 @@ public final class WeatherDataStore {
 
     /**
      * Saves the five fields. Callers snapshot state on the tick thread
-     * before calling (the engine routes this through the ticker).
+     * before calling (the engine routes this through the ticker). The
+     * synchronous form composes the S5 pipeline's own two halves — the
+     * pure serialization and the file publication — so the sync save's
+     * bytes and the pipeline's bytes are identical by construction (one
+     * serializer, one file half).
      */
     public void save(WeatherState state) {
+        writeSerialized(serialize(state));
+    }
+
+    /**
+     * The pure serialization (the compute pool's own half, Slice S5 —
+     * the Phase-5 serialization lane's own shape): the immutable snapshot
+     * IN (the WeatherState record is a five-primitive value), the ZWD
+     * bytes OUT — no world read, no I/O. The byte walk is the historical
+     * save walk's own (version 1, byte-identical).
+     */
+    public byte[] serialize(WeatherState state) {
+        java.io.ByteArrayOutputStream sink = new java.io.ByteArrayOutputStream();
+        try (DataOutputStream out = new DataOutputStream(
+                new BufferedOutputStream(sink))) {
+            out.writeByte(MAGIC_0);
+            out.writeByte(MAGIC_1);
+            out.writeByte(MAGIC_2);
+            out.writeByte(FORMAT_VERSION);
+            out.writeInt(state.clearWeatherTime());
+            out.writeBoolean(state.raining());
+            out.writeInt(state.rainTime());
+            out.writeBoolean(state.thundering());
+            out.writeInt(state.thunderTime());
+        } catch (IOException e) {
+            // The sink is an in-memory buffer; an IOException here is a
+            // defect, not a persistence failure — still loud.
+            throw new java.io.UncheckedIOException("Weather serialize failed", e);
+        }
+        return sink.toByteArray();
+    }
+
+    /**
+     * Publishes already-serialized ZWD bytes: the temp-file write + the
+     * atomic move — the historical save walk's own file half with the
+     * store's own failure contract 1:1 (the catch-all severe log, never
+     * a throw). Safe from any thread that holds the publication right
+     * (the save pipeline's per-storage lock orders the async
+     * publications; the synchronous save is uncontended).
+     */
+    public void writeSerialized(byte[] data) {
         try {
             Path temp = file.resolveSibling(file.getFileName() + ".tmp");
             Files.createDirectories(file.getParent());
             try (DataOutputStream out = new DataOutputStream(new BufferedOutputStream(
                     Files.newOutputStream(temp)))) {
-                out.writeByte(MAGIC_0);
-                out.writeByte(MAGIC_1);
-                out.writeByte(MAGIC_2);
-                out.writeByte(FORMAT_VERSION);
-                out.writeInt(state.clearWeatherTime());
-                out.writeBoolean(state.raining());
-                out.writeInt(state.rainTime());
-                out.writeBoolean(state.thundering());
-                out.writeInt(state.thunderTime());
+                out.write(data);
             }
             Files.move(temp, file, StandardCopyOption.REPLACE_EXISTING,
                     StandardCopyOption.ATOMIC_MOVE);
