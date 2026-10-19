@@ -21760,13 +21760,38 @@ public final class EngineServer implements Server, EngineBridge {
                     enderCrystalStore.save(enderCrystals.destroyedCellsSnapshot());
                 }
                 if (dispenserStore != null && dispenserSystem != null) {
-                    dispenserStore.save(dispenserSystem.snapshot());
+                    // S4: the pipeline's named path (the deep capture on
+                    // the tick lane, the rest off it).
+                    if (pipeline != null) {
+                        publications.add(pipeline.submitSave("dispenser",
+                                dispenserStore.capture(dispenserSystem.snapshot()),
+                                dispenserStore::serialize,
+                                dispenserStore::writeSerialized));
+                    } else {
+                        dispenserStore.save(dispenserSystem.snapshot());
+                    }
                 }
                 if (brewingStore != null && brewingStands != null) {
-                    brewingStore.save(brewingStands.snapshot());
+                    // S4: the pipeline's named path.
+                    if (pipeline != null) {
+                        publications.add(pipeline.submitSave("brewing",
+                                brewingStore.capture(brewingStands.snapshot()),
+                                brewingStore::serialize,
+                                brewingStore::writeSerialized));
+                    } else {
+                        brewingStore.save(brewingStands.snapshot());
+                    }
                 }
                 if (beaconStore != null && beaconSystem != null) {
-                    beaconStore.save(beaconSystem.snapshot());
+                    // S4: the pipeline's named path.
+                    if (pipeline != null) {
+                        publications.add(pipeline.submitSave("beacon",
+                                beaconStore.capture(beaconSystem.snapshot()),
+                                beaconStore::serialize,
+                                beaconStore::writeSerialized));
+                    } else {
+                        beaconStore.save(beaconSystem.snapshot());
+                    }
                 }
                 if (signStore != null && signManager != null) {
                     // S4: the ride through the pipeline's named path (the
