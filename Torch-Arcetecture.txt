@@ -1944,7 +1944,7 @@ every arm must sit in its own stage.
       TwoStageUseLawAcceptanceTest 12 (the window arm + the anchor
       acknowledgment) + the protocol module FULL 108 green with the
       window live (sweep-N5-proto.log);
-- [x] N6 — LANDED: the dig handler's own gates (handlePlayerDig lines
+- [x] N6 — LANDED (commit cbe9b16): the dig handler's own gates (handlePlayerDig lines
       424-456, 1:1). THE DIG REACH BAND: {@code d3 = (player.x -
       (x+0.5))^2 + (player.y + 1.5 - (y+0.5))^2 + (player.z -
       (z+0.5))^2 > 36.0} — the dig's own six-block band from the feet
