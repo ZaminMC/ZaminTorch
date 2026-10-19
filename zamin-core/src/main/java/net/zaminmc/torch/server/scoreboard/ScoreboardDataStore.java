@@ -130,35 +130,99 @@ public final class ScoreboardDataStore {
         }
     }
 
-    /** Persists the model. */
+    /**
+     * The immutable persistence projection (Slice P7 — the serialization
+     * lane's own input contract): every scoreboard row captured on the
+     * owning lane, safe to cross into the I/O lane — the write half
+     * never reads the live board (§31.6's snapshot-before-I/O).
+     */
+    public record Snapshot(List<ObjectiveRow> objectives, List<TeamRow> teams,
+                           List<SlotRow> slots, List<ScoreRow> scores) {
+
+        /** One objective's persisted rows. */
+        public record ObjectiveRow(String name, String criterion, String displayName,
+                                   String renderType) {
+        }
+
+        /** One team's persisted rows (every field + the members). */
+        public record TeamRow(String name, String displayName, String prefix, String suffix,
+                              boolean friendlyFire, boolean seeInvisibles,
+                              String nameTagVisibility, String deathMessageVisibility,
+                              int color, List<String> members) {
+        }
+
+        /** One display slot's bound objective (by name). */
+        public record SlotRow(int slot, String objective) {
+        }
+
+        /** One score cell. */
+        public record ScoreRow(String owner, String objective, int value) {
+        }
+    }
+
+    /** The consistent projection of the live board. Owner-thread only. */
+    public Snapshot snapshot() {
+        List<Snapshot.ObjectiveRow> objectives = new java.util.ArrayList<>();
+        for (ScoreboardObjective o : board.getObjectives()) {
+            objectives.add(new Snapshot.ObjectiveRow(o.name(), o.criterion().name(),
+                    o.displayName(), o.renderType().key()));
+        }
+        List<Snapshot.TeamRow> teams = new java.util.ArrayList<>();
+        for (ScoreboardTeam t : board.getTeams()) {
+            teams.add(new Snapshot.TeamRow(t.name(), t.displayName(), t.prefix(),
+                    t.suffix(), t.allowFriendlyFire(), t.showFriendlyInvisibles(),
+                    t.nameTagVisibility().key(), t.deathMessageVisibility().key(),
+                    t.colorId(), List.copyOf(t.members())));
+        }
+        List<Snapshot.SlotRow> slots = new java.util.ArrayList<>();
+        for (int i = 0; i < EngineScoreboard.DISPLAY_SLOTS; i++) {
+            ScoreboardObjective displayed = board.getDisplayObjective(i);
+            if (displayed != null) {
+                slots.add(new Snapshot.SlotRow(i, displayed.name()));
+            }
+        }
+        List<Snapshot.ScoreRow> scores = new java.util.ArrayList<>();
+        for (ScoreboardScore s : board.getScores()) {
+            scores.add(new Snapshot.ScoreRow(s.owner(), s.objective().name(), s.get()));
+        }
+        return new Snapshot(List.copyOf(objectives), List.copyOf(teams),
+                List.copyOf(slots), List.copyOf(scores));
+    }
+
+    /** Persists the model (the synchronous save's shape). */
     public void save() {
+        save(snapshot());
+    }
+
+    /** Publishes an already-captured snapshot (the I/O lane's unit). */
+    public void save(Snapshot snapshot) {
         StringBuilder json = new StringBuilder("{\n\"objectives\": [\n");
-        List<ScoreboardObjective> objectives = List.copyOf(board.getObjectives());
+        List<Snapshot.ObjectiveRow> objectives = snapshot.objectives();
         for (int i = 0; i < objectives.size(); i++) {
-            ScoreboardObjective o = objectives.get(i);
+            Snapshot.ObjectiveRow o = objectives.get(i);
             json.append("  {\"name\": ").append(quote(o.name()))
-                    .append(", \"criterion\": ").append(quote(o.criterion().name()))
+                    .append(", \"criterion\": ").append(quote(o.criterion()))
                     .append(", \"displayName\": ").append(quote(o.displayName()))
-                    .append(", \"renderType\": ").append(quote(o.renderType().key()))
+                    .append(", \"renderType\": ").append(quote(o.renderType()))
                     .append('}').append(i < objectives.size() - 1 ? "," : "").append('\n');
         }
         json.append("],\n\"teams\": [\n");
-        List<ScoreboardTeam> teams = List.copyOf(board.getTeams());
+        List<Snapshot.TeamRow> teams = snapshot.teams();
         for (int i = 0; i < teams.size(); i++) {
-            ScoreboardTeam t = teams.get(i);
+            Snapshot.TeamRow t = teams.get(i);
             json.append("  {\"name\": ").append(quote(t.name()))
                     .append(", \"displayName\": ").append(quote(t.displayName()))
                     .append(", \"prefix\": ").append(quote(t.prefix()))
                     .append(", \"suffix\": ").append(quote(t.suffix()))
-                    .append(", \"friendlyFire\": ").append(t.allowFriendlyFire() ? 1 : 0)
-                    .append(", \"seeInvisibles\": ").append(t.showFriendlyInvisibles() ? 1 : 0)
+                    .append(", \"friendlyFire\": ").append(t.friendlyFire() ? 1 : 0)
+                    .append(", \"seeInvisibles\": ").append(t.seeInvisibles() ? 1 : 0)
                     .append(", \"nameTagVisibility\": ")
-                    .append(quote(t.nameTagVisibility().key()))
+                    .append(quote(t.nameTagVisibility()))
                     .append(", \"deathMessageVisibility\": ")
-                    .append(quote(t.deathMessageVisibility().key()))
-                    .append(", \"color\": ").append(t.colorId())
+                    .append(quote(t.deathMessageVisibility()))
+                    .append(", \"color\": ").append(t.color())
                     .append(", \"members\": [");
-            List<String> members = List.copyOf(t.members());
+            List<String> members = t.members();
             for (int m = 0; m < members.size(); m++) {
                 json.append(quote(members.get(m))).append(m < members.size() - 1 ? ", " : "");
             }
@@ -166,24 +230,21 @@ public final class ScoreboardDataStore {
         }
         json.append("],\n\"slots\": [\n");
         int slots = 0;
-        for (int i = 0; i < EngineScoreboard.DISPLAY_SLOTS; i++) {
-            ScoreboardObjective displayed = board.getDisplayObjective(i);
-            if (displayed != null) {
-                if (slots > 0) {
-                    json.append(",\n");
-                }
-                json.append("  {\"slot\": ").append(i)
-                        .append(", \"objective\": ").append(quote(displayed.name())).append('}');
-                slots++;
+        for (Snapshot.SlotRow row : snapshot.slots()) {
+            if (slots > 0) {
+                json.append(",\n");
             }
+            json.append("  {\"slot\": ").append(row.slot())
+                    .append(", \"objective\": ").append(quote(row.objective())).append('}');
+            slots++;
         }
         json.append("\n],\n\"scores\": [\n");
-        List<ScoreboardScore> scores = List.copyOf(board.getScores());
+        List<Snapshot.ScoreRow> scores = snapshot.scores();
         for (int i = 0; i < scores.size(); i++) {
-            ScoreboardScore s = scores.get(i);
+            Snapshot.ScoreRow s = scores.get(i);
             json.append("  {\"owner\": ").append(quote(s.owner()))
-                    .append(", \"objective\": ").append(quote(s.objective().name()))
-                    .append(", \"value\": ").append(s.get())
+                    .append(", \"objective\": ").append(quote(s.objective()))
+                    .append(", \"value\": ").append(s.value())
                     .append('}').append(i < scores.size() - 1 ? "," : "").append('\n');
         }
         json.append("]\n}\n");

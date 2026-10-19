@@ -51,42 +51,28 @@ public final class DeltaWorldStorage implements WorldStorage {
 
     @Override
     public void save(WorldDeltaSnapshot snapshot) {
+        // The S1 split: the serialization is the PURE function
+        // (WorldDeltaSerializer — the Phase-5 adoption's immutable-input
+        // contract), the publication is this walk's own file half. The
+        // on-tick path keeps producing the same bytes (the same code,
+        // moved) — the equivalence test proves it 1:1.
+        writeSerialized(WorldDeltaSerializer.serialize(snapshot));
+    }
+
+    /**
+     * Publishes already-serialized ZWD bytes: the temp-file write + the
+     * atomic move, the historical save walk's own file half. Safe from
+     * any thread that holds the publication right (the save pipeline's
+     * per-storage lock orders the async publications; the synchronous
+     * save is uncontended).
+     */
+    public void writeSerialized(byte[] data) {
         try {
             Path temp = file.resolveSibling(file.getFileName() + ".tmp");
             Files.createDirectories(file.getParent());
             try (DataOutputStream out = new DataOutputStream(new BufferedOutputStream(
                     Files.newOutputStream(temp)))) {
-                out.writeByte(MAGIC_0);
-                out.writeByte(MAGIC_1);
-                out.writeByte(MAGIC_2);
-                out.writeByte(FORMAT_VERSION);
-                out.writeLong(snapshot.totalTicks());
-                out.writeLong(snapshot.timeOfDay());
-
-                Map<Identifier, Integer> paletteIds = new HashMap<>();
-                for (Map<Integer, BlockType> entries : snapshot.deltas().values()) {
-                    for (BlockType type : entries.values()) {
-                        paletteIds.computeIfAbsent(type.identifier(), id -> paletteIds.size());
-                    }
-                }
-                out.writeInt(paletteIds.size());
-                Identifier[] palette = new Identifier[paletteIds.size()];
-                for (Map.Entry<Identifier, Integer> entry : paletteIds.entrySet()) {
-                    palette[entry.getValue()] = entry.getKey();
-                }
-                for (Identifier identifier : palette) {
-                    writeString(out, identifier.toString());
-                }
-
-                out.writeInt(snapshot.deltas().size());
-                for (Map.Entry<Long, Map<Integer, BlockType>> chunk : snapshot.deltas().entrySet()) {
-                    out.writeLong(chunk.getKey());
-                    out.writeInt(chunk.getValue().size());
-                    for (Map.Entry<Integer, BlockType> entry : chunk.getValue().entrySet()) {
-                        out.writeInt(entry.getKey());
-                        writeVarInt(out, paletteIds.get(entry.getValue().identifier()));
-                    }
-                }
+                out.write(data);
             }
             Files.move(temp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
         } catch (IOException e) {

@@ -278,6 +278,10 @@ public final class EngineServer implements Server, EngineBridge {
     private volatile net.zaminmc.torch.server.border.WorldBorderDataStore borderStore;
     private final CraftingService crafting = CraftingService.builtin();
     private WorldStorage worldStorage;
+    /** The Phase-5 save pipeline (S1): the delta saves' serialization on
+     * the compute pool, the publication on the I/O lane, the sequence
+     * gate at the file. Wired at boot beside the other lanes. */
+    private volatile net.zaminmc.torch.server.world.WorldSavePipeline savePipeline;
     /** The nether dimension's delta persistence (DIM-1/zamin-delta.bin). */
     private WorldStorage netherStorage;
     /** The End dimension (Slice 61): vanilla's DIM1 — the island world. */
@@ -2691,6 +2695,12 @@ public final class EngineServer implements Server, EngineBridge {
                 ticker.attachIoLane(blockingIoLane, simulationDomain);
                 blockingIoView = new net.zaminmc.torch.server.concurrent.BlockingIoView(
                         blockingIoLane, simulationDomain);
+                // The Phase-5 persistence-preparation pipeline (S1) over the
+                // same lanes + domain (the delta saves' compute-then-publish
+                // split; the sequence gate keeps the older snapshot off the
+                // file when a newer one already landed).
+                savePipeline = new net.zaminmc.torch.server.world.WorldSavePipeline(
+                        computeSubsystem, blockingIoLane, simulationDomain);
                 // The §28.5/§28.6 plugin host over the engine's own lanes
                 // (the lifecycle machine + the scopes + the quotas).
                 pluginHost = new net.zaminmc.torch.server.plugin.PluginManager(
@@ -3224,6 +3234,11 @@ public final class EngineServer implements Server, EngineBridge {
     /** The §28.1 blocking-I/O lane (public: the storage-lane tests read its telemetry). */
     public net.zaminmc.torch.server.concurrent.BlockingIoLane blockingIoLane() {
         return blockingIoLane;
+    }
+
+    /** The Phase-5 save pipeline (public: the persistence tests read its telemetry). */
+    public net.zaminmc.torch.server.world.WorldSavePipeline savePipeline() {
+        return savePipeline;
     }
 
     /** The Phase 4 cross-owner router (public: the boundary tests read its telemetry). */
@@ -21580,23 +21595,54 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /**
-     * Persists world state on the owning tick thread (consistent snapshot) and
-     * waits for durability. Safe from any thread; no-op if the world is absent.
+     * Persists world state. The snapshot build stays on the owning tick
+     * thread (consistent snapshot, §6.2's one authoritative writer); the
+     * world-delta saves ride the Phase-5 pipeline (S1) — the
+     * serialization on the compute pool, the publication on the
+     * blocking-I/O lane, the sequence gate at the file — while the other
+     * stores keep their synchronous walks (S2+ adopts them). Waits for
+     * durability: every publication latch (the save's own bytes landed,
+     * or a newer snapshot superseded it) plus the synchronous stores.
+     * Safe from any thread; no-op if the world is absent.
      */
     public void saveAllNow() {
         if (world == null || ticker == null) {
             return;
         }
-        java.util.concurrent.CountDownLatch saved = new java.util.concurrent.CountDownLatch(1);
+        java.util.concurrent.CountDownLatch snapshotTaken = new java.util.concurrent.CountDownLatch(1);
+        java.util.List<java.util.concurrent.CountDownLatch> publications =
+                new java.util.concurrent.CopyOnWriteArrayList<>();
         ticker.submit(() -> {
             try {
                 // Mid-fall blocks land now: blocks persist, entities do not.
                 if (fallingEntities != null) {
                     fallingEntities.finishAllFalls();
                 }
-                worldStorage.save(world.snapshotDeltas());
+                // The delta saves: the snapshot on the tick lane, the rest
+                // off it (the pipeline's own sequence gate keeps an older
+                // snapshot off the file when a newer one already landed).
+                net.zaminmc.torch.server.world.WorldSavePipeline pipeline = savePipeline;
+                if (pipeline != null
+                        && worldStorage instanceof net.zaminmc.torch.server.world.DeltaWorldStorage delta) {
+                    publications.add(pipeline.submitSave(delta, world.snapshotDeltas()));
+                } else {
+                    worldStorage.save(world.snapshotDeltas());
+                }
                 if (netherStorage != null && netherWorld != null) {
-                    netherStorage.save(netherWorld.snapshotDeltas());
+                    if (pipeline != null
+                            && netherStorage instanceof net.zaminmc.torch.server.world.DeltaWorldStorage netherDelta) {
+                        publications.add(pipeline.submitSave(netherDelta, netherWorld.snapshotDeltas()));
+                    } else {
+                        netherStorage.save(netherWorld.snapshotDeltas());
+                    }
+                }
+                if (endStorage != null && endWorld != null) {
+                    if (pipeline != null
+                            && endStorage instanceof net.zaminmc.torch.server.world.DeltaWorldStorage endDelta) {
+                        publications.add(pipeline.submitSave(endDelta, endWorld.snapshotDeltas()));
+                    } else {
+                        endStorage.save(endWorld.snapshotDeltas());
+                    }
                 }
                 if (furnaceStore != null && furnaceManager != null) {
                     furnaceStore.save(furnaceManager.snapshot());
@@ -21670,12 +21716,24 @@ public final class EngineServer implements Server, EngineBridge {
                     vehicleStore.save(vehicleManager.snapshot());
                 }
             } finally {
-                saved.countDown();
+                snapshotTaken.countDown();
             }
         });
         try {
-            if (!saved.await(10, java.util.concurrent.TimeUnit.SECONDS)) {
+            // The snapshot build + the synchronous stores first (the old
+            // durability point), then the async publications (the S1
+            // pipeline's own latches — the save's bytes landed, or a
+            // newer snapshot superseded it).
+            if (!snapshotTaken.await(10, java.util.concurrent.TimeUnit.SECONDS)) {
                 LOGGER.warning("World save did not complete within 10s");
+                return;
+            }
+            net.zaminmc.torch.server.world.WorldSavePipeline pipeline = savePipeline;
+            for (java.util.concurrent.CountDownLatch publication : publications) {
+                if (pipeline != null
+                        && !pipeline.awaitSave(publication, 10_000)) {
+                    LOGGER.warning("A world-delta publication did not land within 10s");
+                }
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
