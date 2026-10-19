@@ -10361,3 +10361,19 @@ Stage Summary:
 - THE LIGHTING BATCH SLICE IS COMPLETE AND FULLY VERIFIED: the light package 24/0, the block/concurrent/world sweeps green, the protocol module 110/110
 - develop pushed through bc65c91a; all commits authored Abasing
 - Next: review+merge the parallel instances' PRs when they open (Anvil import / Bukkit adapter); the Minestom module decision (ADR-0001 revisit) and the Phase-7 profiling opener remain the roadmap's next demand-named items
+
+---
+Task ID: session-2026-10-20-light-audit
+Agent: main (Abasing session)
+Task: The vanilla 1:1 light audit — BlockLightTable vs reference/1.8.8's registrations
+
+Work Log:
+- Extracted VANILLA's complete light map from reference/1.8.8/net/minecraft/block/Block.java + the subclass constructors: setLight(f) truncates ((int)(15*f) — Block.java line 254), the opacity default is the CONSTRUCTOR's isSolidRender() ? 255 : 0 (line 216), explicit setOpacity overrides (water/ice 3, web 1, leaves 1, snow_layer 0, carpet 0, anvil/enchanting_table 0, stairs/slabs/farmland 255)
+- The vanilla authority table: torch 14/0, fire 15/0, lava+flowing 15/0, lit_furnace 13/15(opaque), glowstone 15, portal 11/0, lit_pumpkin 15, brewing_stand 1/0 (0.125 truncates to 1!), beacon 15/0 (setLight(1.0)), sea_lantern 15, lit_redstone_ore 9/15, redstone_torch 7/0, powered_comparator 9/0 (0.625 truncates to 9), dragon_egg 1/0, end_portal_frame 1/0 (light 1, partial block so opacity 0), brown+red mushroom 1/0 (both share the 0.125 instance), end_portal 15, redstone_lamp lit 15
+- THE FOUND DIVERGENCES (engine vs vanilla — the reference is the authority per the standing 1:1 law): (1) snow_layer (0,15) -> vanilla (0,0) — snow layers currently BLOCK all skylight, vanilla passes free; (2) oak_leaves (1,1) -> (0,1) — leaves currently EMIT light 1 (the dataset quirk), vanilla emits nothing (no setLight); (3) brewing_stand (0,0) -> (1,0); (4) beacon (0,0) -> (15,0) — beacons should GLOW; (5) the unlit furnace family (0,0) -> (0,15) — the unlit furnace currently passes light, vanilla blocks it (solid render 255; the lit rows already say 15 — the family is self-inconsistent today); (6) brown_mushroom + red_mushroom (0,0) -> (1,0); (7) the end_portal_frame family (0,15) -> (1,0); (8) falling_water (0,2) -> (0,3) — every water form attenuates 3; (9) the powered_comparator family (0,0) -> (9,0)
+- The wood-variant leaves ride "the shipped oak row's own 1/1" (BlockLightTable's mergeLight comment) — the oak fix propagates through mergeLight to every variant's leaves
+- The redstone family already correct (redstone_torch 7, lit_redstone_lamp 15, lit_redstone_ore 9 — the REDSTONE_LIGHT map)
+- NOT YET VERIFIED against the engine's entries: dragon_egg (exists per DragonEggBlocksTest), end_portal (the portal block — vanilla 15)
+
+Stage Summary:
+- (in flight — the fixes land next; the reference citations recorded above)
