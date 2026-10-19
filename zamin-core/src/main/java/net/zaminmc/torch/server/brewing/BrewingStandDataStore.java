@@ -59,35 +59,111 @@ public final class BrewingStandDataStore {
      * before calling (the engine routes this through the ticker).
      */
     public void save(Map<BlockPosition, BrewingStandBlockEntity> stands) {
+        writeSerialized(serialize(capture(stands)));
+    }
+
+    /** One brewing slot's persisted rows ({@code null} = the empty slot). */
+    public record Slot(String id, int count, int damage, String displayName) {
+
+        /** The immutable row of a live stack ({@code null} when empty). */
+        public static Slot of(net.zaminmc.torch.item.ItemStack stack) {
+            if (stack == null || stack.isEmpty()) {
+                return null;
+            }
+            return new Slot(stack.type().identifier().toString(), stack.count(),
+                    stack.damage(), stack.displayName());
+        }
+    }
+
+    /**
+     * The immutable persistence projection (Slice S4 — the Phase-5
+     * serialization lane's own input contract): every brewing-stand row
+     * captured on the owning lane, safe to cross into the compute pool —
+     * the serializer never reads the live entities (§31.6's
+     * snapshot-before-I/O; the system's own map copy holds LIVE entities,
+     * the capture is the deep form).
+     */
+    public record Snapshot(java.util.List<Row> rows) {
+
+        /** One brewing stand's persisted rows. */
+        public record Row(int x, int y, int z, int timer, java.util.List<Slot> slots) {
+        }
+    }
+
+    /**
+     * The deep capture of the live map — called ON the owning tick lane
+     * (the system's snapshot() is the map copy; this walks it into the
+     * immutable rows). The caller's map is not retained.
+     */
+    public Snapshot capture(Map<BlockPosition, BrewingStandBlockEntity> stands) {
+        java.util.List<Snapshot.Row> rows = new java.util.ArrayList<>(stands.size());
+        for (Map.Entry<BlockPosition, BrewingStandBlockEntity> entry : stands.entrySet()) {
+            BlockPosition position = entry.getKey();
+            BrewingStandBlockEntity stand = entry.getValue();
+            net.zaminmc.torch.item.ItemStack[] liveSlots = stand.snapshotSlots();
+            java.util.List<Slot> slots = new java.util.ArrayList<>(liveSlots.length);
+            for (net.zaminmc.torch.item.ItemStack stack : liveSlots) {
+                slots.add(Slot.of(stack));
+            }
+            rows.add(new Snapshot.Row(position.x(), position.y(), position.z(),
+                    stand.timer(), java.util.Collections.unmodifiableList(slots)));
+        }
+        return new Snapshot(java.util.List.copyOf(rows));
+    }
+
+    /**
+     * The pure serialization (the compute pool's own half): the immutable
+     * snapshot IN, the bytes OUT — no world read, no I/O. The byte walk
+     * is the historical save walk's own (byte-identical).
+     */
+    public byte[] serialize(Snapshot snapshot) {
+        java.io.ByteArrayOutputStream sink = new java.io.ByteArrayOutputStream();
+        try (DataOutputStream out = new DataOutputStream(
+                new java.io.BufferedOutputStream(sink))) {
+            out.writeByte(MAGIC_0);
+            out.writeByte(MAGIC_1);
+            out.writeByte(MAGIC_2);
+            out.writeByte(FORMAT_VERSION);
+            writeVarInt(out, snapshot.rows().size());
+            for (Snapshot.Row row : snapshot.rows()) {
+                out.writeInt(row.x());
+                out.writeInt(row.y());
+                out.writeInt(row.z());
+                writeVarInt(out, row.timer());
+                for (Slot slot : row.slots()) {
+                    if (slot == null) {
+                        out.writeByte(0);
+                    } else {
+                        out.writeByte(1);
+                        writeString(out, slot.id());
+                        writeVarInt(out, slot.count());
+                        writeVarInt(out, slot.damage());
+                        writeOptionalString(out, slot.displayName());
+                    }
+                }
+            }
+        } catch (IOException e) {
+            // The sink is an in-memory buffer; an IOException here is a
+            // defect, not a persistence failure — still loud.
+            throw new java.io.UncheckedIOException("Brewing serialize failed", e);
+        }
+        return sink.toByteArray();
+    }
+
+    /**
+     * Publishes already-serialized bytes: the temp-file write + the atomic
+     * move, the historical save walk's own file half. Safe from any thread
+     * that holds the publication right (the save pipeline's per-storage
+     * lock orders the async publications; the synchronous save is
+     * uncontended).
+     */
+    public void writeSerialized(byte[] data) {
         try {
             Path temp = file.resolveSibling(file.getFileName() + ".tmp");
             Files.createDirectories(file.getParent());
             try (DataOutputStream out = new DataOutputStream(new BufferedOutputStream(
                     Files.newOutputStream(temp)))) {
-                out.writeByte(MAGIC_0);
-                out.writeByte(MAGIC_1);
-                out.writeByte(MAGIC_2);
-                out.writeByte(FORMAT_VERSION);
-                writeVarInt(out, stands.size());
-                for (Map.Entry<BlockPosition, BrewingStandBlockEntity> entry : stands.entrySet()) {
-                    BlockPosition position = entry.getKey();
-                    BrewingStandBlockEntity stand = entry.getValue();
-                    out.writeInt(position.x());
-                    out.writeInt(position.y());
-                    out.writeInt(position.z());
-                    writeVarInt(out, stand.timer());
-                    for (ItemStack stack : stand.snapshotSlots()) {
-                        if (stack.isEmpty()) {
-                            out.writeByte(0);
-                        } else {
-                            out.writeByte(1);
-                            writeString(out, stack.type().identifier().toString());
-                            writeVarInt(out, stack.count());
-                            writeVarInt(out, stack.damage());
-                            writeOptionalString(out, stack.displayName());
-                        }
-                    }
-                }
+                out.write(data);
             }
             Files.move(temp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
         } catch (IOException e) {
