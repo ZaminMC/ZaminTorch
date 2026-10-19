@@ -49,25 +49,61 @@ public final class ComparatorDataStore {
     /**
      * Saves the full stored-output map. Callers snapshot state on the tick
      * thread before calling (the engine routes this through the ticker).
+     * The synchronous form composes the S4 pipeline's own two halves — the
+     * pure serialization over the already-immutable map, the file
+     * publication — so the sync save's bytes and the pipeline's bytes are
+     * identical by construction (one serializer, one file half).
      */
     public void save(Map<BlockPosition, Integer> outputs) {
+        writeSerialized(serialize(outputs));
+    }
+
+    /**
+     * The pure serialization (Slice S4 — the compute pool's own half): the
+     * immutable map IN (the system's own comparatorSnapshot() copy — the
+     * values are boxed ints, the capture contract already satisfied), the
+     * ZCD bytes OUT — no world read, no I/O. The byte walk is the
+     * historical save walk's own (version 1, byte-identical).
+     */
+    public byte[] serialize(Map<BlockPosition, Integer> outputs) {
+        java.io.ByteArrayOutputStream sink = new java.io.ByteArrayOutputStream();
+        try (DataOutputStream out = new DataOutputStream(
+                new java.io.BufferedOutputStream(sink))) {
+            out.writeByte(MAGIC_0);
+            out.writeByte(MAGIC_1);
+            out.writeByte(MAGIC_2);
+            out.writeByte(FORMAT_VERSION);
+            writeVarInt(out, outputs.size());
+            for (Map.Entry<BlockPosition, Integer> entry : outputs.entrySet()) {
+                BlockPosition position = entry.getKey();
+                out.writeInt(position.x());
+                out.writeInt(position.y());
+                out.writeInt(position.z());
+                out.writeInt(entry.getValue());
+            }
+        } catch (IOException e) {
+            // The sink is an in-memory buffer; an IOException here is a
+            // defect, not a persistence failure — still loud.
+            throw new java.io.UncheckedIOException("Comparator serialize failed", e);
+        }
+        return sink.toByteArray();
+    }
+
+    /**
+     * Publishes already-serialized ZCD bytes: the temp-file write + the
+     * atomic move (the non-atomic fallback preserved), the historical save
+     * walk's own file half with the store's own failure contract (the
+     * severe log, never a throw). Safe from any thread that holds the
+     * publication right (the save pipeline's per-storage lock orders the
+     * async publications; the synchronous save is uncontended).
+     */
+    public void writeSerialized(byte[] data) {
         try {
             Path temp = file.resolveSibling(file.getFileName() + ".tmp");
             Files.createDirectories(file.getParent());
             try (DataOutputStream out = new DataOutputStream(new BufferedOutputStream(
                     Files.newOutputStream(temp)))) {
-                out.writeByte(MAGIC_0);
-                out.writeByte(MAGIC_1);
-                out.writeByte(MAGIC_2);
-                out.writeByte(FORMAT_VERSION);
-                writeVarInt(out, outputs.size());
-                for (Map.Entry<BlockPosition, Integer> entry : outputs.entrySet()) {
-                    BlockPosition position = entry.getKey();
-                    out.writeInt(position.x());
-                    out.writeInt(position.y());
-                    out.writeInt(position.z());
-                    out.writeInt(entry.getValue());
-                }
+                out.write(data);
             }
             try {
                 Files.move(temp, file, java.nio.file.StandardCopyOption.REPLACE_EXISTING,

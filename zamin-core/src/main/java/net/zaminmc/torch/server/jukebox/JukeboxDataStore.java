@@ -50,27 +50,64 @@ public final class JukeboxDataStore {
 
     /**
      * Saves the record map. Callers snapshot state on the tick thread before
-     * calling (the engine routes this through the ticker).
+     * calling (the engine routes this through the ticker). The synchronous
+     * form composes the S4 pipeline's own two halves — the pure
+     * serialization over the already-immutable map, the file publication —
+     * so the sync save's bytes and the pipeline's bytes are identical by
+     * construction (one serializer, one file half).
      */
     public void save(Map<BlockPosition, ItemStack> records) {
         Objects.requireNonNull(records, "records");
+        writeSerialized(serialize(records));
+    }
+
+    /**
+     * The pure serialization (Slice S4 — the compute pool's own half): the
+     * immutable map IN (the system's own snapshotRecords() copy — the
+     * stacks are the engine's immutable ItemStack, the capture contract
+     * already satisfied), the ZJD bytes OUT — no world read, no I/O. The
+     * byte walk is the historical save walk's own (version 1,
+     * byte-identical).
+     */
+    public byte[] serialize(Map<BlockPosition, ItemStack> records) {
+        java.io.ByteArrayOutputStream sink = new java.io.ByteArrayOutputStream();
+        try (DataOutputStream out = new DataOutputStream(
+                new java.io.BufferedOutputStream(sink))) {
+            out.writeByte(MAGIC_0);
+            out.writeByte(MAGIC_1);
+            out.writeByte(MAGIC_2);
+            out.writeByte(FORMAT_VERSION);
+            writeVarInt(out, records.size());
+            for (Map.Entry<BlockPosition, ItemStack> entry : records.entrySet()) {
+                BlockPosition position = entry.getKey();
+                out.writeInt(position.x());
+                out.writeInt(position.y());
+                out.writeInt(position.z());
+                writeStack(out, entry.getValue());
+            }
+        } catch (IOException e) {
+            // The sink is an in-memory buffer; an IOException here is a
+            // defect, not a persistence failure — still loud.
+            throw new java.io.UncheckedIOException("Jukebox serialize failed", e);
+        }
+        return sink.toByteArray();
+    }
+
+    /**
+     * Publishes already-serialized ZJD bytes: the temp-file write + the
+     * atomic move (the non-atomic fallback preserved), the historical save
+     * walk's own file half with the store's own failure contract (the
+     * severe log, never a throw). Safe from any thread that holds the
+     * publication right (the save pipeline's per-storage lock orders the
+     * async publications; the synchronous save is uncontended).
+     */
+    public void writeSerialized(byte[] data) {
         try {
             Path temp = file.resolveSibling(file.getFileName() + ".tmp");
             Files.createDirectories(file.getParent());
             try (DataOutputStream out = new DataOutputStream(new BufferedOutputStream(
                     Files.newOutputStream(temp)))) {
-                out.writeByte(MAGIC_0);
-                out.writeByte(MAGIC_1);
-                out.writeByte(MAGIC_2);
-                out.writeByte(FORMAT_VERSION);
-                writeVarInt(out, records.size());
-                for (Map.Entry<BlockPosition, ItemStack> entry : records.entrySet()) {
-                    BlockPosition position = entry.getKey();
-                    out.writeInt(position.x());
-                    out.writeInt(position.y());
-                    out.writeInt(position.z());
-                    writeStack(out, entry.getValue());
-                }
+                out.write(data);
             }
             try {
                 Files.move(temp, file, StandardCopyOption.REPLACE_EXISTING,
