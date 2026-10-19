@@ -323,6 +323,38 @@ class TwoStageUseLawAcceptanceTest {
     }
 
     /**
+     * THE HANDLER'S 8-BLOCK BODY GATE (handlePlayerUse lines 463-472:
+     * {@code squaredDistanceTo(x + 0.5, y + 0.5, z + 0.5) < 64.0} from
+     * the BODY's feet — never the eyes): a chest clicked from beyond
+     * eight blocks stays shut; the same chest clicked from inside opens.
+     */
+    @Test
+    void theBeyondEightBlocksUseRefuses() throws Exception {
+        BlockPosition chestAt = new BlockPosition(2, 5, 0);
+        place(chestAt, BuiltinBlocks.CHEST);
+        hold(ItemStack.EMPTY);
+
+        // Beyond eight blocks: the use answers nothing.
+        server.ticker().submit(() -> player.applyMovement(
+                new Position(0.5, 5.0, 20.5),
+                net.zaminmc.torch.util.Rotation.ZERO, true));
+        await(() -> player.position().z() > 19.0, "the player walked away");
+        use(chestAt, 4);
+        Thread.sleep(300);
+        assertEquals(PlayerSession.ContainerKind.NONE, player.openContainerKind(),
+                "the too-far use never opened the chest");
+
+        // Back inside eight blocks: the chest opens.
+        server.ticker().submit(() -> player.applyMovement(
+                new Position(0.5, 5.0, 0.5),
+                net.zaminmc.torch.util.Rotation.ZERO, true));
+        await(() -> player.position().z() < 2.0, "the player walked back");
+        use(chestAt, 4);
+        await(() -> player.openContainerKind() == PlayerSession.ContainerKind.CHEST,
+                "the in-range use opened the chest");
+    }
+
+    /**
      * THE TRAPDOOR'S SWING for a held bottle (the late-block class's
      * third family): unsneaked the wooden trapdoor flips OPEN; sneaked
      * with a stone it stands closed while the stone places.
