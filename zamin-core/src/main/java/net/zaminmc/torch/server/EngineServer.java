@@ -7787,10 +7787,56 @@ public final class EngineServer implements Server, EngineBridge {
                 cursorX, cursorY, cursorZ, onTableOpened));
     }
 
+    /**
+     * THE REFERENCE'S TWO-STAGE USE LAW (ServerPlayerInteractionManager
+     * .useBlock lines 259-296, 1:1): the BLOCK's use arm runs first —
+     * {@code if (!player.isSneaking() || player.getDisplayItemInHand()
+     * == null) { if (block.use(...)) return true; }} — and when it
+     * consumes the click the held item's useOn NEVER runs; the SNEAKING
+     * USE-BYPASS skips the whole block stage when the player sneaks with
+     * an item in hand (the reference's own shift-click-place convention:
+     * the chest stays shut, the door stands still, the item places); an
+     * empty hand skips the block stage for no-one and the item stage for
+     * everyone ({@code itemInHand == null} answers false). The engine's
+     * arms live in the two stage methods: the block stage
+     * {@link #useBlockArmOnTick}, the item stage
+     * {@link #useItemArmOnTick}.
+     */
     private void useItemOnBlockOnTick(PlayerSession session, net.zaminmc.torch.block.BlockPosition clicked,
                                       int face, java.util.Optional<net.zaminmc.torch.block.BlockType> creativeHeld,
                                       float cursorX, float cursorY, float cursorZ,
                                       java.util.function.IntConsumer onTableOpened) {
+        // The held stack the law reads (getDisplayItemInHand — the
+        // selected slot's own stack, the authoritative inventory any
+        // mode carries: creative's Set Creative Slot populates it too).
+        net.zaminmc.torch.item.ItemStack heldForLaw = session.inventory().held();
+        boolean heldEmpty = heldForLaw == null || heldForLaw.isEmpty();
+        if (!session.sneaking() || heldEmpty) {
+            if (useBlockArmOnTick(session, clicked, face, onTableOpened)) {
+                return; // the block's use consumed the click (the reference's true)
+            }
+        }
+        if (heldEmpty) {
+            return; // the item stage's own gate: useBlock's itemInHand == null
+        }
+        useItemArmOnTick(session, clicked, face, creativeHeld,
+                cursorX, cursorY, cursorZ);
+    }
+
+    /**
+     * STAGE 1 — the BLOCK's use arms (the reference's own dispatch, one
+     * block one use): every arm either consumes the click (returns true
+     * — the reference's {@code use} answering true) or falls through to
+     * the next block arm exactly like the reference's per-block override
+     * answering false. The redstone ore's use answers SUPER.use — false —
+     * after lighting the ore, so the click keeps flowing (the reference's
+     * own shape). Tick-thread context.
+     *
+     * @return true when the block's use consumed the click (the item
+     *         stage must not run)
+     */
+    private boolean useBlockArmOnTick(PlayerSession session, net.zaminmc.torch.block.BlockPosition clicked,
+                                      int face, java.util.function.IntConsumer onTableOpened) {
         net.zaminmc.torch.block.BlockType current = world.getBlock(clicked);
         if (current.identifier().equals(
                 net.zaminmc.torch.server.block.BuiltinBlocks.REDSTONE_ORE.identifier())) {
@@ -7803,12 +7849,12 @@ public final class EngineServer implements Server, EngineBridge {
         }
         if (WorldSolidity.isFurnaceBlock(current.identifier())) {
             openFurnaceOnTick(session, clicked, onTableOpened);
-            return;
+            return true;
         }
         if (ChestFacingBlocks.isPlainFamily(current)
                 || current.identifier().equals(net.zaminmc.torch.server.block.BuiltinBlocks.CHEST.identifier())) {
             openChestOnTick(session, clicked, onTableOpened);
-            return;
+            return true;
         }
         if (ChestFacingBlocks.isTrappedFamily(current)
                 || current.identifier().equals(net.zaminmc.torch.server.block.BuiltinBlocks.TRAPPED_CHEST.identifier())) {
@@ -7816,25 +7862,25 @@ public final class EngineServer implements Server, EngineBridge {
             // (the viewer-count power rides the redstone system's probe).
             openChestOnTick(session, clicked, onTableOpened);
             redstoneSystem.updateNeighbors(clicked);
-            return;
+            return true;
         }
         if (net.zaminmc.torch.server.chest.EnderChestBlocks.isFamily(current)) {
             // EnderChestBlock.use lines 73-92: the player's OWN inventory
             // opens (the block is the door, not the storage).
             openEnderChestOnTick(session, clicked, onTableOpened);
-            return;
+            return true;
         }
         if (net.zaminmc.torch.server.beacon.BeaconSystem.isBeacon(current)) {
             // BeaconBlock.use lines 34-46: the beacon GUI opens over the
             // block entity's own payment slot.
             openBeaconOnTick(session, clicked, onTableOpened);
-            return;
+            return true;
         }
         if (net.zaminmc.torch.server.dispenser.DispenserBlocks.isFamily(current)) {
             // DispenserBlock.use lines 78-94: the container opens (the
             // dropper keeps its own menu type on the wire).
             openDispenserOnTick(session, clicked, onTableOpened);
-            return;
+            return true;
         }
         if (net.zaminmc.torch.server.noteblock.NoteBlockSystem.isNoteBlock(current)) {
             // NoteBlock.use lines 41-56: the tune ((note + 1) % 25) then the
@@ -7843,7 +7889,7 @@ public final class EngineServer implements Server, EngineBridge {
             // The tune stat (NoteBlock.use's own incrementStat).
             session.stats().increment(
                     net.zaminmc.torch.server.stat.EngineStats.NOTE_BLOCKS_TUNED, 1);
-            return;
+            return true;
         }
         if (net.zaminmc.torch.server.jukebox.JukeboxBlocks.isFamily(current)) {
             // JukeboxBlock.use lines 30-38: a playing jukebox ejects its
@@ -7852,7 +7898,7 @@ public final class EngineServer implements Server, EngineBridge {
             // the item arms (the disc's useOn insert) and the placement
             // proposal, the reference's own order.
             if (jukeboxes.useFromTick(clicked)) {
-                return;
+                return true;
             }
         }
         if (net.zaminmc.torch.server.daylight.DaylightDetectorBlocks.isFamily(current)) {
@@ -7860,18 +7906,18 @@ public final class EngineServer implements Server, EngineBridge {
             // keeping the POWER level, then the immediate re-update — the
             // use consumed, no placement proposal follows.
             if (daylightDetectors.useFromTick(clicked)) {
-                return;
+                return true;
             }
         }
         if (net.zaminmc.torch.server.hopper.HopperBlocks.isHopper(current)) {
             // HopperBlock.use lines 135-146: the container menu opens.
             openHopperOnTick(session, clicked, onTableOpened);
-            return;
+            return true;
         }
         if (net.zaminmc.torch.server.brewing.BrewingStandBlocks.isBrewingStand(current)) {
             // BrewingStandBlock.use lines 77-89: the container menu opens.
             openBrewingStandOnTick(session, clicked, onTableOpened);
-            return;
+            return true;
         }
         if (net.zaminmc.torch.server.cauldron.CauldronBlocks.isCauldron(current)) {
             // CauldronBlock.use lines 77-160: the bucket/bottle arms consume
@@ -7881,17 +7927,110 @@ public final class EngineServer implements Server, EngineBridge {
             // and the engine's armor carries no color model (hasColor
             // always false — the reference's own uncolored-leather answer).
             if (useCauldronOnTick(session, clicked, current)) {
-                return;
+                return true;
             }
         }
         if (current.identifier().equals(net.zaminmc.torch.server.block.BuiltinBlocks.CRAFTING_TABLE.identifier())) {
             openCraftingTableOnTick(session, onTableOpened);
-            return;
+            return true;
         }
         if (current.identifier().equals(net.zaminmc.torch.server.block.BuiltinBlocks.ENCHANTING_TABLE.identifier())) {
             openEnchantingTableOnTick(session, clicked, onTableOpened);
-            return;
+            return true;
         }
+        if (cycleRepeaterDelayOnTick(clicked)) {
+            return true; // the repeater's use consumed the right-click (the delay cycle)
+        }
+        if (redstoneSystem.useComparator(clicked)) {
+            // The mode cycle's click (ComparatorBlock.use lines 148-151): the
+            // pitch answers the NEW mode — 0.55 subtract / 0.50 compare.
+            fxManager.sound(new Position(clicked.x() + 0.5, clicked.y() + 0.5, clicked.z() + 0.5),
+                    "random.click", 0.3f,
+                    net.zaminmc.torch.server.redstone.RedstoneBlocks.comparatorSubtract(
+                            world.getBlock(clicked)) ? 0.55f : 0.5f);
+            return true; // the comparator's mode cycle consumed the right-click
+        }
+        if (redstoneSystem.useLever(clicked)) {
+            fxManager.sound(new Position(clicked.x() + 0.5, clicked.y() + 0.5, clicked.z() + 0.5),
+                    "random.click", 0.3f,
+                    net.zaminmc.torch.server.redstone.RedstoneBlocks.leverPowered(
+                            world.getBlock(clicked)) ? 0.6f : 0.5f);
+            return true; // the lever's toggle consumed the right-click
+        }
+        if (redstoneSystem.useButton(clicked)) {
+            fxManager.sound(new Position(clicked.x() + 0.5, clicked.y() + 0.5, clicked.z() + 0.5),
+                    "random.click", 0.3f, 0.6f);
+            return true; // the button's press consumed the right-click
+        }
+        if (useCakeOnTick(session, clicked)) {
+            return true; // the cake's slice was eaten
+        }
+        // The dragon egg's use (Slice 55 — DragonEggBlock.use lines 75-79:
+        // the right click teleports the egg away; the portal particles are
+        // the client's own rendering over the block change).
+        if (useDragonEggOnTick(clicked)) {
+            return true; // the egg's teleport consumed the right-click
+        }
+        if (useFlowerPotOnTick(session, clicked)) {
+            return true; // the pot's plant was potted
+        }
+        if (isBedHalf(current)) {
+            sleepOnTick(session, clicked);
+            return true; // the bed consumes the right-click (the historical sleep use)
+        }
+        if (isDoorHalf(current)) {
+            // The reference's use() (DoorBlock lines 124-141): clicking
+            // EITHER half swings the pair (the upper redirects down to the
+            // lower); the iron door's material refuses the swing but still
+            // consumes the use (use returns true before the toggle).
+            BlockPosition lower = WoodDoorFamily.isUpper(current)
+                    ? clicked.offset(0, -1, 0) : clicked;
+            if (WoodDoorFamily.isDoor(world.getBlock(lower))) {
+                toggleDoorOnTick(lower);
+            }
+            return true; // the swing consumes the right-click (the historical door
+                         // use: a door swings regardless of what the hand holds)
+        }
+        if (net.zaminmc.torch.server.block.FenceGateBlocks.isGate(current)) {
+            // The gate's own use() (FenceGateBlock lines 94-110): the
+            // open/close flip with the far-side facing rewrite — the gate
+            // swings regardless of what the hand holds (the reference's
+            // own true before any item consult).
+            toggleFenceGateOnTick(session, clicked, current);
+            return true;
+        }
+        if (net.zaminmc.torch.server.block.TrapdoorBlocks.isTrapdoor(current)) {
+            // The trapdoor's own use() (TrapdoorBlock lines 107-116): the
+            // wood flips OPEN (the doEvent 1003/1006 pair riding the fx
+            // bus), the iron's material refusal still consumes the use
+            // (the reference's return true).
+            if (!net.zaminmc.torch.server.block.TrapdoorBlocks.isIron(
+                    net.zaminmc.torch.server.block.TrapdoorBlocks.familyOf(current))) {
+                boolean opening = !net.zaminmc.torch.server.block.TrapdoorBlocks.isOpen(current);
+                world.setBlock(clicked, net.zaminmc.torch.server.block.TrapdoorBlocks
+                        .flipOpen(current));
+                fxManager.sound(new Position(clicked.x() + 0.5, clicked.y() + 0.5, clicked.z() + 0.5),
+                        opening ? "random.door_open" : "random.door_close", 0.8f, 1.0f);
+            }
+            return true; // the swing consumed the right-click (either family)
+        }
+        return false; // no block arm consumed the click — the item stage runs
+    }
+
+    /**
+     * STAGE 2 — the held item's arms (the reference's
+     * {@code itemInHand.useOn(...)}) in the engine's dispatch order: the
+     * bucket, the bottle, the disc, the lead, the fireworks, the flint,
+     * the adventure place gate, and every placement family. The arms are
+     * mutually exclusive by held item — the reference runs exactly ONE
+     * useOn (the held item's own), and each arm here matches its own
+     * item family or falls to the generic placement. Reached only when
+     * the hand is not empty AND the block stage did not consume (or was
+     * skipped by the sneaking use-bypass). Tick-thread context.
+     */
+    private void useItemArmOnTick(PlayerSession session, net.zaminmc.torch.block.BlockPosition clicked,
+                                   int face, java.util.Optional<net.zaminmc.torch.block.BlockType> creativeHeld,
+                                   float cursorX, float cursorY, float cursorZ) {
         if (useBucketOnTick(session, clicked, face)) {
             return; // the bucket did its work; no placement proposal follows
         }
@@ -7972,30 +8111,6 @@ public final class EngineServer implements Server, EngineBridge {
             }
             return; // the launch consumed the use
         }
-        if (cycleRepeaterDelayOnTick(clicked)) {
-            return; // the repeater's use consumed the right-click (the delay cycle)
-        }
-        if (redstoneSystem.useComparator(clicked)) {
-            // The mode cycle's click (ComparatorBlock.use lines 148-151): the
-            // pitch answers the NEW mode — 0.55 subtract / 0.50 compare.
-            fxManager.sound(new Position(clicked.x() + 0.5, clicked.y() + 0.5, clicked.z() + 0.5),
-                    "random.click", 0.3f,
-                    net.zaminmc.torch.server.redstone.RedstoneBlocks.comparatorSubtract(
-                            world.getBlock(clicked)) ? 0.55f : 0.5f);
-            return; // the comparator's mode cycle consumed the right-click
-        }
-        if (redstoneSystem.useLever(clicked)) {
-            fxManager.sound(new Position(clicked.x() + 0.5, clicked.y() + 0.5, clicked.z() + 0.5),
-                    "random.click", 0.3f,
-                    net.zaminmc.torch.server.redstone.RedstoneBlocks.leverPowered(
-                            world.getBlock(clicked)) ? 0.6f : 0.5f);
-            return; // the lever's toggle consumed the right-click
-        }
-        if (redstoneSystem.useButton(clicked)) {
-            fxManager.sound(new Position(clicked.x() + 0.5, clicked.y() + 0.5, clicked.z() + 0.5),
-                    "random.click", 0.3f, 0.6f);
-            return; // the button's press consumed the right-click
-        }
         if (useFlintOnTick(session, clicked, face)) {
             return; // the fire starter did its work; no placement follows
         }
@@ -8021,18 +8136,6 @@ public final class EngineServer implements Server, EngineBridge {
         }
         if (useDoublePlantOnTick(session, clicked, face)) {
             return; // the double-plant pair placement was consumed
-        }
-        if (useCakeOnTick(session, clicked)) {
-            return; // the cake's slice was eaten
-        }
-        // The dragon egg's use (Slice 55 — DragonEggBlock.use lines 75-79:
-        // the right click teleports the egg away; the portal particles are
-        // the client's own rendering over the block change).
-        if (useDragonEggOnTick(clicked)) {
-            return; // the egg's teleport consumed the right-click
-        }
-        if (useFlowerPotOnTick(session, clicked)) {
-            return; // the pot's plant was potted
         }
         if (useFarmingOnTick(session, clicked, face)) {
             return; // the hoe/seed/bone-meal/cocoa use was consumed
@@ -8063,46 +8166,6 @@ public final class EngineServer implements Server, EngineBridge {
                 || creativeHeld.map(t -> SignManager.isSignType(t)).orElse(false)) {
             placeSignOnTick(session, clicked, face, creativeHeld);
             return; // the sign's facing overrides the generic placement
-        }
-        if (isBedHalf(current)) {
-            sleepOnTick(session, clicked);
-            return; // the bed consumes the right-click (the historical sleep use)
-        }
-        if (isDoorHalf(current)) {
-            // The reference's use() (DoorBlock lines 124-141): clicking
-            // EITHER half swings the pair (the upper redirects down to the
-            // lower); the iron door's material refuses the swing but still
-            // consumes the use (use returns true before the toggle).
-            BlockPosition lower = WoodDoorFamily.isUpper(current)
-                    ? clicked.offset(0, -1, 0) : clicked;
-            if (WoodDoorFamily.isDoor(world.getBlock(lower))) {
-                toggleDoorOnTick(lower);
-            }
-            return; // the swing consumes the right-click (the historical door
-                    // use: a door swings regardless of what the hand holds)
-        }
-        if (net.zaminmc.torch.server.block.FenceGateBlocks.isGate(current)) {
-            // The gate's own use() (FenceGateBlock lines 94-110): the
-            // open/close flip with the far-side facing rewrite — the gate
-            // swings regardless of what the hand holds (the reference's
-            // own true before any item consult).
-            toggleFenceGateOnTick(session, clicked, current);
-            return;
-        }
-        if (net.zaminmc.torch.server.block.TrapdoorBlocks.isTrapdoor(current)) {
-            // The trapdoor's own use() (TrapdoorBlock lines 107-116): the
-            // wood flips OPEN (the doEvent 1003/1006 pair riding the fx
-            // bus), the iron's material refusal still consumes the use
-            // (the reference's return true).
-            if (!net.zaminmc.torch.server.block.TrapdoorBlocks.isIron(
-                    net.zaminmc.torch.server.block.TrapdoorBlocks.familyOf(current))) {
-                boolean opening = !net.zaminmc.torch.server.block.TrapdoorBlocks.isOpen(current);
-                world.setBlock(clicked, net.zaminmc.torch.server.block.TrapdoorBlocks
-                        .flipOpen(current));
-                fxManager.sound(new Position(clicked.x() + 0.5, clicked.y() + 0.5, clicked.z() + 0.5),
-                        opening ? "random.door_open" : "random.door_close", 0.8f, 1.0f);
-            }
-            return; // the swing consumed the right-click (either family)
         }
         if (net.zaminmc.torch.server.block.TrapdoorBlocks.isTrapdoorItem(heldId)
                 || creativeHeld.map(t -> net.zaminmc.torch.server.block.TrapdoorBlocks
