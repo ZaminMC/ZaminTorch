@@ -50,40 +50,83 @@ public final class DecorationDataStore {
         this.file = Objects.requireNonNull(file, "file");
     }
 
+    /** The pipeline's own input pair (Slice S5 — the sign store's shape). */
+    public record SaveInput(List<DecorationSystem.FrameRecord> frames,
+                            List<DecorationSystem.PaintingRecord> paintings) { }
+
     /**
      * Saves the decoration snapshot. Callers snapshot state on the tick
      * thread before calling (the engine routes this through the ticker).
+     * The synchronous form composes the S5 pipeline's own two halves —
+     * the pure serialization and the file publication — so the sync
+     * save's bytes and the pipeline's bytes are identical by
+     * construction (one serializer, one file half).
      */
     public void save(List<DecorationSystem.FrameRecord> frames,
                      List<DecorationSystem.PaintingRecord> paintings) {
+        writeSerialized(serialize(frames, paintings));
+    }
+
+    /**
+     * The pure serialization (the compute pool's own half, Slice S5):
+     * the immutable snapshot IN (the frame/painting records are the
+     * fresh values the system's own snapshot walk builds — the engine's
+     * ItemStack is the immutable model), the ZED bytes OUT — no world
+     * read, no I/O. The byte walk is the historical save walk's own
+     * (version 1, byte-identical).
+     */
+    public byte[] serialize(List<DecorationSystem.FrameRecord> frames,
+                            List<DecorationSystem.PaintingRecord> paintings) {
         Objects.requireNonNull(frames, "frames");
         Objects.requireNonNull(paintings, "paintings");
+        java.io.ByteArrayOutputStream sink = new java.io.ByteArrayOutputStream();
+        try (DataOutputStream out = new DataOutputStream(
+                new BufferedOutputStream(sink))) {
+            out.writeByte(MAGIC_0);
+            out.writeByte(MAGIC_1);
+            out.writeByte(MAGIC_2);
+            out.writeByte(FORMAT_VERSION);
+            writeVarInt(out, frames.size());
+            for (DecorationSystem.FrameRecord record : frames) {
+                out.writeInt(record.pos().x());
+                out.writeInt(record.pos().y());
+                out.writeInt(record.pos().z());
+                out.writeByte(record.facing());
+                writeStack(out, record.item());
+                out.writeByte(record.rotation());
+            }
+            writeVarInt(out, paintings.size());
+            for (DecorationSystem.PaintingRecord record : paintings) {
+                out.writeInt(record.pos().x());
+                out.writeInt(record.pos().y());
+                out.writeInt(record.pos().z());
+                out.writeByte(record.facing());
+                writeString(out, record.motive());
+            }
+        } catch (IOException e) {
+            // The sink is an in-memory buffer; an IOException here is a
+            // defect, not a persistence failure — still loud.
+            throw new java.io.UncheckedIOException("Decoration serialize failed", e);
+        }
+        return sink.toByteArray();
+    }
+
+    /**
+     * Publishes already-serialized ZED bytes: the temp-file write + the
+     * atomic move (the non-atomic fallback preserved) — the historical
+     * save walk's own file half with the store's own failure contract
+     * 1:1 (the severe log, never a throw). Safe from any thread that
+     * holds the publication right (the save pipeline's per-storage lock
+     * orders the async publications; the synchronous save is
+     * uncontended).
+     */
+    public void writeSerialized(byte[] data) {
         try {
             Path temp = file.resolveSibling(file.getFileName() + ".tmp");
             Files.createDirectories(file.getParent());
             try (DataOutputStream out = new DataOutputStream(new BufferedOutputStream(
                     Files.newOutputStream(temp)))) {
-                out.writeByte(MAGIC_0);
-                out.writeByte(MAGIC_1);
-                out.writeByte(MAGIC_2);
-                out.writeByte(FORMAT_VERSION);
-                writeVarInt(out, frames.size());
-                for (DecorationSystem.FrameRecord record : frames) {
-                    out.writeInt(record.pos().x());
-                    out.writeInt(record.pos().y());
-                    out.writeInt(record.pos().z());
-                    out.writeByte(record.facing());
-                    writeStack(out, record.item());
-                    out.writeByte(record.rotation());
-                }
-                writeVarInt(out, paintings.size());
-                for (DecorationSystem.PaintingRecord record : paintings) {
-                    out.writeInt(record.pos().x());
-                    out.writeInt(record.pos().y());
-                    out.writeInt(record.pos().z());
-                    out.writeByte(record.facing());
-                    writeString(out, record.motive());
-                }
+                out.write(data);
             }
             try {
                 Files.move(temp, file, StandardCopyOption.REPLACE_EXISTING,

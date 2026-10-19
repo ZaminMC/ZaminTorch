@@ -21747,17 +21747,47 @@ public final class EngineServer implements Server, EngineBridge {
                     }
                 }
                 if (decorationStore != null && decorations != null) {
+                    // S5: the frame/painting snapshot rides the pipeline's
+                    // named path (the system's snapshot record is the
+                    // immutable input contract already — fresh records on
+                    // this lane).
                     net.zaminmc.torch.server.decoration.DecorationSystem.Snapshot decorationSaved =
                             decorations.snapshot();
-                    decorationStore.save(decorationSaved.frames(), decorationSaved.paintings());
+                    if (pipeline != null) {
+                        publications.add(pipeline.submitSave("decoration",
+                                new net.zaminmc.torch.server.decoration.DecorationDataStore.SaveInput(
+                                        decorationSaved.frames(), decorationSaved.paintings()),
+                                input -> decorationStore.serialize(input.frames(), input.paintings()),
+                                decorationStore::writeSerialized));
+                    } else {
+                        decorationStore.save(decorationSaved.frames(), decorationSaved.paintings());
+                    }
                 }
                 if (armorStandStore != null && armorStands != null) {
-                    armorStandStore.save(armorStands.snapshot());
+                    // S5: the stand records ride the pipeline's named path
+                    // (the system's fresh records are the immutable input
+                    // contract already).
+                    if (pipeline != null) {
+                        publications.add(pipeline.submitSave("armor-stand",
+                                armorStands.snapshot(),
+                                armorStandStore::serialize,
+                                armorStandStore::writeSerialized));
+                    } else {
+                        armorStandStore.save(armorStands.snapshot());
+                    }
                 }
                 if (enderCrystalStore != null && enderCrystals != null) {
                     // Slice 62 — the destroyed-pillar marks (the crystals
                     // themselves rebuild from the deterministic decorate).
-                    enderCrystalStore.save(enderCrystals.destroyedCellsSnapshot());
+                    // S5: the fresh cell set rides the pipeline's named path.
+                    if (pipeline != null) {
+                        publications.add(pipeline.submitSave("ender-crystal",
+                                enderCrystals.destroyedCellsSnapshot(),
+                                enderCrystalStore::serialize,
+                                enderCrystalStore::writeSerialized));
+                    } else {
+                        enderCrystalStore.save(enderCrystals.destroyedCellsSnapshot());
+                    }
                 }
                 if (dispenserStore != null && dispenserSystem != null) {
                     // S4: the pipeline's named path (the deep capture on
