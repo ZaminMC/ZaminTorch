@@ -10032,3 +10032,53 @@ equivalence tests, and measurements), the §29 standing rows.
 onto the same compute-then-publish shape, store family by store family
 (each with its own immutable-input contract, equivalence test, and
 measurement), then pathfinding/lighting.
+
+## Slice S2 — the container trio's compute-then-publish split (the SECOND serialization workload)
+
+- **THE SPLIT** (the S1 shape's own second adoption): each store's save
+  (furnace/chest/hopper) divides into the CAPTURE (the deep immutable
+  rows on the owning tick lane — the manager's own `snapshot()` is the
+  SHALLOW map copy whose values are the LIVE entities; the capture
+  walks them into the `Slot`/`Row` records so the serializer never
+  reads a live entity, §31.6's snapshot-before-I/O), the SERIALIZE (the
+  pure function: the immutable snapshot IN, the ZFD/ZCD/ZHD bytes OUT,
+  no world read, no I/O), and the PUBLICATION (the temp write + the
+  atomic move — the file half, safe off the tick lane).
+- **THE BYTE-IDENTITY**: the byte walk is the historical save walk's
+  own — same magic/version, same rows, same slot encoding (the EMPTY
+  stack in a real slot and the never-touched slot both encode byte 0),
+  same map order — proven against the pre-S2 interleaved walk
+  replicated as the reference in the test. The synchronous `save`
+  composes `writeSerialized(serialize(capture(live)))` — one
+  serializer, one file half, the sync bytes and the pipeline bytes
+  identical by construction; zero call-site churn on the old walk.
+- **THE NAMED PATH**: `WorldSavePipeline.submitSave(name, snapshot,
+  serializer, publisher)` — the same two halves as the typed
+  world-delta path under the NAMED sequence gate (`publishNamed`: the
+  per-storage lock + the monotonic per-name landed sequence, the named
+  storages gate independently); `saveAllNow`'s trio saves ride it when
+  booted — the deep capture stays on the tick lane inside the save
+  walk, the serialization and the file half leave it, the caller waits
+  for the trio's publication latches with the delta saves' (the 10s
+  bounds preserved); the un-pipelined fallback keeps the sync form.
+- **THE RELEASE-ON-FAILURE ARM** (both paths): a publication that
+  fails loudly releases the save's durability latch before the failure
+  rethrows to the lane (the lane logs SEVERE + counts the failure; the
+  caller's walk never hangs on the failed save — the old walk's
+  loud-failure contract with the async latch shape).
+- Evidence: `ContainerSaveSplitTest` 5 (the byte-identity against the
+  historical walk + the round-trip loads with the burn/slot/name/damage
+  state, the EMPTY-stack and header-only edges, the deep-capture
+  no-alias contract) + `ContainerSavePipelineTest` 4 (the named path
+  through the real lanes lands exactly the pure serializer's bytes with
+  the telemetry + the round-trip restore; the named gate's
+  older/same-sequence drops with the independent sequence spaces; the
+  superseded named save's latch release; the failed publication's latch
+  release with nothing written and the lane's loud failure) + the full
+  persistence/concurrent sweep green. Landed at 818060f7 (part 1) +
+  dfa88e6a (part 2).
+
+**Next:** S3 — the save walk's remaining synchronous stores adopted
+onto the same shape family by family: the board/border pair (the
+snapshot contracts already landed, awaiting the wiring), then the
+tile/entity/metadata families; then pathfinding/lighting.
