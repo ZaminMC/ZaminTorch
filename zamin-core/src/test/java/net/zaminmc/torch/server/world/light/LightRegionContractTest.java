@@ -27,16 +27,19 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * plus every loaded 3x3 neighbor's materials and current light, captured
  * on the owning lane per SECTION (packed filter/emission bytes; wire-packed
  * light clones); the off-lane compute reads ONLY it. THE EQUIVALENCE: the
- * SAME static algorithms run over the live routing (inside the install
- * hook, the production path) and over the captured region (the detached
- * {@link InitialLightCompute} + the owner-side
- * {@code LightEngine.applyInitial}); the twin worlds must agree cell-for-
- * cell across the whole 3x3 — every cell's block light AND sky light, plus
- * every light section's materialization (the wire's own visibility) — and
- * the relight queues must agree in first-marked ORDER. THE MEASUREMENTS:
- * the live compute vs the capture vs the detached compute vs the apply,
- * logged for the ledger's verdict — the numbers decide whether the offload
- * lane is worth wiring, single-chunk and in the pregen's batch shape.</p>
+ * SAME static algorithms run over the LIVE routing (the fresh chunk's
+ * compute driven explicitly through {@code LightEngine.computeInitial})
+ * and over the captured region (the detached {@link InitialLightCompute} +
+ * the owner-side {@code LightEngine.applyInitial} — which since the wiring
+ * is also what the production install hook rides); the twin worlds must
+ * agree cell-for-cell across the whole 3x3 — every cell's block light AND
+ * sky light, plus every light section's materialization (the wire's own
+ * visibility) — and the relight queues must agree in first-marked ORDER.
+ * The wiring's own acceptance is the light suite's hand-checked
+ * expectations (every getOrGenerate now flows through the region path).
+ * THE MEASUREMENTS: the live compute vs the capture vs the detached
+ * compute vs the apply, logged for the ledger's verdict — the numbers
+ * decided the wiring, single-chunk and in the pregen's batch shape.</p>
  */
 class LightRegionContractTest {
 
@@ -76,23 +79,6 @@ class LightRegionContractTest {
             chunk.setBlock(8, 12, 8, BuiltinBlocks.STONE);
         }
         return chunk;
-    }
-
-    /**
-     * Installs the 8 neighbors around the center in a fixed row-major order —
-     * the production path: the install hook computes each chunk's initial
-     * light inside {@code installGenerated} (before publication).
-     */
-    private void setupNeighborsLive(EngineWorld world, boolean worked) {
-        for (int dx = -1; dx <= 1; dx++) {
-            for (int dz = -1; dz <= 1; dz++) {
-                if (dx == 0 && dz == 0) {
-                    continue;
-                }
-                world.getOrGenerate(new ChunkPosition(dx, dz));
-            }
-        }
-        sculptNeighbors(world, worked);
     }
 
     /**
@@ -188,13 +174,13 @@ class LightRegionContractTest {
             EngineWorld live = newWorld();
             LightEngine liveEngine = new LightEngine(live);
             live.addChangeListener(liveEngine);
-            live.addChunkLoadListener(liveEngine);
-            setupNeighborsLive(live, worked);
+            setupNeighborsOff(live, liveEngine, worked); // the manual sequence: the live routing, identical states
             liveEngine.flushRelight(m -> { }); // drain the setup's marks
             EngineChunk liveFresh = newFreshChunk(live, worked);
-            live.installGenerated(FRESH, liveFresh); // the hook computes inside
+            liveEngine.computeInitial(liveFresh); // the LIVE routing, driven explicitly
+            live.installGenerated(FRESH, liveFresh);
 
-            // ---- the OFF world: the compute-then-apply split (no install hook)
+            // ---- the OFF world: the compute-then-apply split (the production hook's own path)
             EngineWorld off = newWorld();
             LightEngine offEngine = new LightEngine(off);
             off.addChangeListener(offEngine);
@@ -249,8 +235,7 @@ class LightRegionContractTest {
         EngineWorld world = newWorld();
         LightEngine engine = new LightEngine(world);
         world.addChangeListener(engine);
-        world.addChunkLoadListener(engine);
-        setupNeighborsLive(world, true);
+        setupNeighborsOff(world, engine, true);
         EngineChunk fresh = newFreshChunk(world, true);
         LightRegion region = LightRegion.capture(world, fresh);
 
@@ -292,8 +277,7 @@ class LightRegionContractTest {
             EngineWorld world = newWorld();
             LightEngine engine = new LightEngine(world);
             world.addChangeListener(engine);
-            world.addChunkLoadListener(engine);
-            setupNeighborsLive(world, worked);
+            setupNeighborsOff(world, engine, worked);
 
             // warmup both paths (the JIT's own band)
             for (int i = 0; i < 15; i++) {
