@@ -9744,3 +9744,43 @@ its own reach rules — an audit item).
 re-sends after every use — a protocol-layer slice), the ops model (the
 spawn-protection gate's dependency), the remaining Phase-5 workload
 adoptions.
+
+## Slice N3 — the use packet's tail: the too-high arm + the resync pair
+
+- **THE BUILD-TOO-HIGH ARM** (handlePlayerUse lines 466-476, 1:1): the
+  ceiling cell with the UP face answers the RED build.tooHigh
+  translatable chat (the engine's TranslatableText/Style/TextJson —
+  the key + the 256 arg + the inlined color, exactly the reference's
+  ChatMessageS2CPacket shape) BEFORE the distance gate (the else-band
+  order: any distance still answers) plus the resync pair, and no use
+  arm runs. The engine's BlockPosition ctor bounds y to 0..255, so the
+  reference's second band (y >= height) never engages.
+- **THE ANTI-DESYNC RESYNC PAIR** (lines 494-497, 1:1): after EVERY
+  block-face use — accepted, refused by any gate, or consumed by any
+  arm — the clicking player's client receives the authoritative state
+  of the clicked cell AND the face-offset cell. The client predicts its
+  use's outcome locally; a refused click would leave a GHOST block
+  without the pair. The accepted use's own writes already broadcast —
+  the pair merely repeats them.
+- **THE SEAM**: `ClientLink.blockResync` — the per-player unicast verb
+  (default no-op for engine-internal links; the V18Connection override
+  writes the same 0x23 the committed-change broadcast owns); the
+  engine's use walk wrapped in try/finally so the pair fires on every
+  exit path. The off-world neighbour (UP at the ceiling, DOWN at the
+  floor) is guarded — the reference's dead packet at the void cell is
+  skipped (the client drops it either way).
+- **THE WIRE-SIDE DISCOVERY**: the JoinFlow echo test's plain
+  block-change read caught the pair interleaving ahead of the dig's own
+  commit — moved to the POSITIONAL read (`readBlockChangeAt`, the
+  helper the grass-decay class already established): the pair's 0x23s
+  are by-design traffic now.
+- Evidence: TwoStageUseLawAcceptanceTest 11 (the pair arm: the accepted
+  open fires clicked+offset in order, the refused too-far use STILL
+  fires the pair with the truth; the too-high arm: the red JSON + the
+  ceiling resync + no container from 250 blocks below) + the protocol
+  module FULL 108 green + the core interaction sweep green
+  (sweep-N3-proto2/core.log).
+
+**Next:** the ops model (the spawn-protection gate's dependency), the
+teleported-flag gate, the Phase-5 workload adoptions (pathfinding,
+lighting, serialization), the §29 standing rows.

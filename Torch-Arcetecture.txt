@@ -1894,6 +1894,25 @@ every arm must sit in its own stage.
       return). Evidence: TwoStageUseLawAcceptanceTest 9 (the new
       beyond-eight-blocks arm) + the six geometry-repaired tests +
       the 24-class interaction sweep green (sweep-N2-fixed2/full.log);
+- [x] N3 — LANDED (commit c5d1792): the use packet's tail. THE
+      BUILD-TOO-HIGH ARM: the ceiling cell with the UP face answers
+      the RED build.tooHigh translatable chat (the engine's own
+      TranslatableText/Style/TextJson — the key + the 256 arg + the
+      inlined color on the wire) BEFORE the distance gate (the
+      reference's else-band order: any distance still answers) + the
+      resync pair, and NO use arm runs. THE ANTI-DESYNC RESYNC PAIR:
+      after EVERY block-face use — accepted, refused by any gate, or
+      consumed by any arm — the clicking player's client receives the
+      authoritative state of the clicked cell AND the face-offset cell
+      (the reference's two BlockUpdate packets: the client's predicted
+      ghost from a refused click reverts — the never-desync guarantee).
+      THE SEAM: `ClientLink.blockResync` (default no-op; the
+      V18Connection override writes the 0x23), the use walk wrapped so
+      the pair fires on every exit path. Evidence:
+      TwoStageUseLawAcceptanceTest 11 (the pair arm + the too-high
+      arm) + the protocol module FULL 108 green (the JoinFlow echo
+      moved to the positional read — the pair interleaves by design)
+      (sweep-N3-proto2/core.log);
 
 ## Wave P — the parallel execution lanes (Phase 6's gated gameplay adoption)
 
