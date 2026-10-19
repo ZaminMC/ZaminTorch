@@ -10240,3 +10240,24 @@ adapter, the Minestom modern protocol).
 bar: the immutable-input contract, the equivalence, the measurements);
 the phase-gated items (the swept-box body model, the Anvil canvas, the
 Bukkit/Paper adapter, the Minestom modern protocol).
+
+## The lighting gate's reconnaissance (recorded for the next slice — nothing claimed)
+
+- THE CURRENT DESIGN (LightEngine's own javadoc, §475/§476): the light
+  updates run SYNCHRONOUSLY INSIDE the world's mutation on the owning
+  tick thread — the unlight/relight BFS pair per committed change, no
+  concurrency, "correctness first... deliberately NOT the first
+  concurrency project". The mutation-bound incremental updates are
+  synchronous BY DESIGN; the offload candidate is NOT them.
+- THE OFFLOAD CANDIBLE the recon names: the INITIAL per-chunk compute
+  (a freshly generated, still-unpublished chunk): clear, fill direct
+  sky columns, radiate emitters, spread lateral shade, reconcile the
+  loaded neighbors' borders — a PURE compute over the chunk's blocks +
+  the neighbors' border light, applied on the tick lane before the
+  chunk's publication (the random-tick picks' own compute-then-apply
+  shape). The gate's three-part bar applies to THAT proposal: the
+  immutable-input contract (the chunk block snapshot + the neighbor
+  borders), the equivalence (the recomputed light == the synchronous
+  walk's), the measurements (the chunk-gen light cost vs the capture).
+- Next session start: git config Abasing, pull --rebase, re-read
+  Torch-Arcetecture.txt (the user edits it between sessions).
