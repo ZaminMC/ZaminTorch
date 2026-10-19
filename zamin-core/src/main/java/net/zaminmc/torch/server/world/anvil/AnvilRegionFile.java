@@ -13,12 +13,14 @@ import java.util.zip.InflaterInputStream;
  * The read-only Anvil region file reader (the Anvil canvas' storage leg —
  * the reference's {@code world/chunk/storage/RegionFile.java} read side,
  * ported 1:1 with §31.6's isolation duty replacing the reference's silent
- * null answers). The format: an 8 KiB header — 1024 entries of 3 bytes
- * (a 24-bit big-endian {@code (sectorOffset << 8) | sectorCount}) then
- * 1024 entries of 4-byte timestamps — followed by 4 KiB sectors. A chunk
- * payload is {@code 4-byte length + 1-byte compression scheme + bytes}:
- * scheme 1 gzip, scheme 2 zlib (the reference's own accepted pair — the
- * scheme byte's raw form 3 is accepted here too because the import is
+ * null answers). The format: an 8 KiB header — 1024 location entries of
+ * one 4-byte big-endian int each ({@code (sectorOffset << 8) |
+ * sectorCount}, the int's top byte always zero — the reference's own
+ * {@code readInt()} walk and {@code writeChunkBlockInfo}'s 4-byte seeks)
+ * then 1024 entries of 4-byte timestamps — followed by 4 KiB sectors. A
+ * chunk payload is {@code 4-byte length + 1-byte compression scheme +
+ * bytes}: scheme 1 gzip, scheme 2 zlib (the reference's own accepted pair —
+ * the scheme byte's raw form 3 is accepted here too because the import is
  * read-only and the payload is unambiguous; ledgered below). One entry
  * covers 32x32 chunks; the entry index is {@code x + z * 32} for the
  * chunk's position masked to the region.
@@ -94,7 +96,17 @@ public final class AnvilRegionFile {
      *                     WHOLE file before any entry is walked
      */
     public static AnvilRegionFile open(Path file) throws IOException {
-        byte[] whole = Files.readAllBytes(file);
+        return of(file, Files.readAllBytes(file));
+    }
+
+    /**
+     * Wraps already-read region file bytes (the live import's I/O-lane
+     * shape: the bytes were read on the blocking-I/O lane, the parse and
+     * the entry walk stay on the owning lane).
+     *
+     * @throws IOException the bytes are shorter than the 8 KiB header
+     */
+    public static AnvilRegionFile of(Path file, byte[] whole) throws IOException {
         if (whole.length < HEADER_BYTES) {
             throw new IOException("Region file is shorter than the 8 KiB header ("
                     + whole.length + " bytes): " + file);
@@ -119,12 +131,10 @@ public final class AnvilRegionFile {
      */
     public int locationOf(int localX, int localZ) {
         int index = entryIndex(localX, localZ);
-        // The header stores each location as 3 bytes big-endian followed by
-        // the next entry — the int the reference's readInt answers.
-        int b0 = whole[index * 3] & 0xFF;
-        int b1 = whole[index * 3 + 1] & 0xFF;
-        int b2 = whole[index * 3 + 2] & 0xFF;
-        return b0 << 16 | b1 << 8 | b2;
+        // The reference's readInt() walk: one 4-byte big-endian entry per
+        // chunk (writeChunkBlockInfo's own 4-byte seek stride).
+        return (whole[index * 4] & 0xFF) << 24 | (whole[index * 4 + 1] & 0xFF) << 16
+                | (whole[index * 4 + 2] & 0xFF) << 8 | (whole[index * 4 + 3] & 0xFF);
     }
 
     /** @return the entry's raw timestamp (the header's second 4 KiB half). */
