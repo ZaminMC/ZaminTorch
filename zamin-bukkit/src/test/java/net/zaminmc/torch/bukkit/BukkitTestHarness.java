@@ -114,6 +114,19 @@ public final class BukkitTestHarness {
         return ((EngineBridge.Accepted) result).session();
     }
 
+    /**
+     * The order-independence law: every class's entry state, ensured —
+     * the probe live and listening (idempotent; the reload's own law
+     * re-enables it with a FRESH scope when a previous class's drill left
+     * it disabled).
+     */
+    public void ensureProbeEnabled() {
+        org.bukkit.plugin.Plugin probe = org.bukkit.Bukkit.getPluginManager().getPlugin("Probe");
+        if (probe != null && !probe.isEnabled()) {
+            org.bukkit.Bukkit.getPluginManager().enablePlugin(probe);
+        }
+    }
+
     /** The engine's own disconnect walk (fires the quit event). */
     public void disconnect(PlayerSession session) {
         server.clientDisconnected(session, "test");
