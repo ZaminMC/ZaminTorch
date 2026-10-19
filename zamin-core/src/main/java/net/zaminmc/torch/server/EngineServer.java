@@ -21769,7 +21769,18 @@ public final class EngineServer implements Server, EngineBridge {
                     beaconStore.save(beaconSystem.snapshot());
                 }
                 if (signStore != null && signManager != null) {
-                    signStore.save(signManager.snapshot(), signManager.statsSnapshot());
+                    // S4: the ride through the pipeline's named path (the
+                    // manager's snapshot copies are the immutable input
+                    // contract already).
+                    if (pipeline != null) {
+                        publications.add(pipeline.submitSave("sign",
+                                new net.zaminmc.torch.server.sign.SignDataStore.SaveInput(
+                                        signManager.snapshot(), signManager.statsSnapshot()),
+                                input -> signStore.serialize(input.signs(), input.stats()),
+                                signStore::writeSerialized));
+                    } else {
+                        signStore.save(signManager.snapshot(), signManager.statsSnapshot());
+                    }
                 }
                 if (commandBlockStore != null && commandBlocks != null) {
                     commandBlockStore.save(commandBlocks.snapshot());

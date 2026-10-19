@@ -57,33 +57,72 @@ public final class SignDataStore {
      * state on the tick thread before calling (the engine routes this
      * through the ticker).
      */
+    /** The two-map save input (the pipeline's named path's own snapshot object). */
+    public record SaveInput(Map<BlockPosition, String[]> signs,
+                            Map<BlockPosition, net.zaminmc.torch.server.command.EngineCommandResults> stats) {
+    }
+
     public void save(Map<BlockPosition, String[]> signs,
                      Map<BlockPosition, net.zaminmc.torch.server.command.EngineCommandResults> stats) {
+        writeSerialized(serialize(signs, stats));
+    }
+
+    /**
+     * The pure serialization (Slice S4 — the compute pool's own half): the
+     * immutable maps IN (the manager's own snapshot copies — the sign
+     * lines are fresh arrays per capture, the command results are the
+     * engine's immutable rows), the ZSD bytes OUT — no world read, no
+     * I/O. The byte walk is the historical save walk's own (byte-identical,
+     * the CommandStats tail included).
+     */
+    public byte[] serialize(Map<BlockPosition, String[]> signs,
+                            Map<BlockPosition, net.zaminmc.torch.server.command.EngineCommandResults> stats) {
+        java.io.ByteArrayOutputStream sink = new java.io.ByteArrayOutputStream();
+        try (DataOutputStream out = new DataOutputStream(
+                new java.io.BufferedOutputStream(sink))) {
+            out.writeByte(MAGIC_0);
+            out.writeByte(MAGIC_1);
+            out.writeByte(MAGIC_2);
+            out.writeByte(FORMAT_VERSION);
+            writeVarInt(out, signs.size());
+            for (Map.Entry<BlockPosition, String[]> entry : signs.entrySet()) {
+                BlockPosition position = entry.getKey();
+                out.writeInt(position.x());
+                out.writeInt(position.y());
+                out.writeInt(position.z());
+                String[] lines = entry.getValue();
+                for (int i = 0; i < SignManager.LINES; i++) {
+                    String line = i < lines.length ? lines[i] : "";
+                    writeString(out, line);
+                }
+                // The CommandStats tail (Slice 91 Wave B — the ZCB v2
+                // shape): the flattened pair count + the pairs.
+                writeCommandStats(out,
+                        stats == null ? null : stats.get(position));
+            }
+        } catch (java.io.IOException e) {
+            // The sink is an in-memory buffer; an IOException here is a
+            // defect, not a persistence failure — still loud.
+            throw new java.io.UncheckedIOException("Sign serialize failed", e);
+        }
+        return sink.toByteArray();
+    }
+
+    /**
+     * Publishes already-serialized ZSD bytes: the temp-file write + the
+     * atomic move, the historical save walk's own file half with the
+     * store's own failure contract (the severe log, never a throw). Safe
+     * from any thread that holds the publication right (the save
+     * pipeline's per-storage lock orders the async publications; the
+     * synchronous save is uncontended).
+     */
+    public void writeSerialized(byte[] data) {
         try {
             Path temp = file.resolveSibling(file.getFileName() + ".tmp");
             Files.createDirectories(file.getParent());
             try (DataOutputStream out = new DataOutputStream(new BufferedOutputStream(
                     Files.newOutputStream(temp)))) {
-                out.writeByte(MAGIC_0);
-                out.writeByte(MAGIC_1);
-                out.writeByte(MAGIC_2);
-                out.writeByte(FORMAT_VERSION);
-                writeVarInt(out, signs.size());
-                for (Map.Entry<BlockPosition, String[]> entry : signs.entrySet()) {
-                    BlockPosition position = entry.getKey();
-                    out.writeInt(position.x());
-                    out.writeInt(position.y());
-                    out.writeInt(position.z());
-                    String[] lines = entry.getValue();
-                    for (int i = 0; i < SignManager.LINES; i++) {
-                        String line = i < lines.length ? lines[i] : "";
-                        writeString(out, line);
-                    }
-                    // The CommandStats tail (Slice 91 Wave B — the ZCB v2
-                    // shape): the flattened pair count + the pairs.
-                    writeCommandStats(out,
-                            stats == null ? null : stats.get(position));
-                }
+                out.write(data);
             }
             Files.move(temp, file, StandardCopyOption.REPLACE_EXISTING,
                     StandardCopyOption.ATOMIC_MOVE);
