@@ -186,6 +186,13 @@ class ContainerSavePipelineTest {
             assertEquals(0, pipeline.landed(), "the failed save never landed");
             assertFalse(Files.exists(dir.resolve("never.bin")),
                     "the failed save wrote nothing");
+            // the failure stays loud at the lane: markFailed runs on the
+            // worker after the latch released — poll briefly
+            long deadline = System.currentTimeMillis() + 2_000;
+            while (io.failedCount() <= failedBefore
+                    && System.currentTimeMillis() < deadline) {
+                Thread.sleep(10);
+            }
             assertTrue(io.failedCount() > failedBefore,
                     "the failure stayed loud at the lane");
         } finally {

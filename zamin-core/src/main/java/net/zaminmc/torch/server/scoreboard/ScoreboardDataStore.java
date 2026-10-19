@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.List;
 
 /**
@@ -191,11 +192,15 @@ public final class ScoreboardDataStore {
 
     /** Persists the model (the synchronous save's shape). */
     public void save() {
-        save(snapshot());
+        writeSerialized(serialize(snapshot()));
     }
 
-    /** Publishes an already-captured snapshot (the I/O lane's unit). */
-    public void save(Snapshot snapshot) {
+    /**
+     * The pure serialization (Slice S3 — the compute pool's own half): the
+     * immutable snapshot IN, the JSON bytes OUT — no board read, no I/O.
+     * The text walk is the historical save's own, byte-identical.
+     */
+    public byte[] serialize(Snapshot snapshot) {
         StringBuilder json = new StringBuilder("{\n\"objectives\": [\n");
         List<Snapshot.ObjectiveRow> objectives = snapshot.objectives();
         for (int i = 0; i < objectives.size(); i++) {
@@ -248,11 +253,26 @@ public final class ScoreboardDataStore {
                     .append('}').append(i < scores.size() - 1 ? "," : "").append('\n');
         }
         json.append("]\n}\n");
+        return json.toString().getBytes(StandardCharsets.UTF_8);
+    }
+
+    /**
+     * Publishes already-serialized bytes: the temp-file write + the atomic
+     * move — the engine's own durability convention (the historical save
+     * wrote the file directly; the atomic move is the S3 normalization, the
+     * same rule every other store runs — a crashed write never leaves a
+     * truncated file behind). Safe from any thread that holds the
+     * publication right (the save pipeline's per-storage lock orders the
+     * async publications; the synchronous save is uncontended).
+     */
+    public void writeSerialized(byte[] data) {
         try {
+            Path temp = file.resolveSibling(file.getFileName() + ".tmp");
             Files.createDirectories(file.getParent());
-            Files.writeString(file, json.toString(), StandardCharsets.UTF_8);
+            Files.write(temp, data);
+            Files.move(temp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
         } catch (IOException e) {
-            throw new IllegalStateException("Scoreboard save failed: " + e.getMessage(), e);
+            throw new IllegalStateException("Scoreboard save failed for " + file, e);
         }
     }
 
