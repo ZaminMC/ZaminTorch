@@ -667,7 +667,7 @@ Torch has published development releases, so the initial artifact gate has been 
 
 ### Phase 4 — 1.8.8 mechanics foundation — IN PROGRESS
 
-The engine has substantial reference-driven mechanics and API coverage, tracked in Section 29 and `VANILLA_1_8_8_COMPATIBILITY.md`. The current ledger includes completed Waves A–K, the metadata-variant Wave L (L1–L6), the stairs' two-box geometry (L7), Wave M (the swept-box physics solver across every moving family), and the first Phase-6 gameplay lane (P6). That is progress by mechanic, not full Minecraft 1.8.8 compatibility: keep each remaining behavior, difference, test, and status explicit. Do not replace reference behavior with modern defaults or narrow the native API to match an incomplete compatibility layer.
+The engine has substantial reference-driven mechanics and API coverage, tracked in Section 29 and `VANILLA_1_8_8_COMPATIBILITY.md`. The current ledger includes completed Waves A–K, the metadata-variant Wave L (L1–L6), the stairs' two-box geometry (L7), Wave M (the swept-box physics solver across every moving family), the first Phase-6 gameplay lane (P6), and the use/dig dispatch law family through N6 (the two-stage use law, the use handler's gates, the use packet's tail, the spawn-protection gate, the teleport window, the dig handler's own gates). That is progress by mechanic, not full Minecraft 1.8.8 compatibility: keep each remaining behavior, difference, test, and status explicit. Do not replace reference behavior with modern defaults or narrow the native API to match an incomplete compatibility layer.
 
 ### Phase 5 — Supporting parallel computation — INFRASTRUCTURE IMPLEMENTED; FIRST WORKLOAD ADOPTED (RANDOM-TICK PICKS); REMAINING ADOPTIONS EVIDENCE-GATED
 
@@ -685,7 +685,7 @@ Proceed only after the ordinary owner/boundary model is correct and profiling de
 
 Dynamic split/merge and load-driven migration remain future work. First prove migration with in-flight tasks, delayed work, messages, compute results, persistence, shutdown, and stale-generation invalidation; add telemetry and anti-oscillation rules before enabling automatic balancing.
 
-**Next concrete mechanics work:** continue from Section 29: Wave M COMPLETE (the swept-box body model across every moving family); the Phase-6 random-tick lane LANDED (P6-lane, gated). The remaining §29 ledger work is the Wave L tail's standing rows, the Phase-5 workload adoptions still open (pathfinding, lighting, serialization — each needs its own immutable-input contract, equivalence tests, and measurements), and the phase-gated items below. Keep these outstanding items visible until code and tests prove them complete.
+**Next concrete mechanics work:** continue from Section 29: the use/dig dispatch law family through N6 (the two-stage use law, the use handler's gates, the use packet's tail, the spawn-protection gate, the teleport window, the dig handler's own gates with the band repair and the extinguish arm); Wave M COMPLETE; the Phase-6 random-tick lane LANDED (P6-lane, gated). The remaining §29 ledger work: the placement handler's own gates (the reference's handlePlayerBlockPlacement — its own 64.0-or-creative band from the BODY and its consults, the natural N7), the Phase-5 workload adoptions still open (pathfinding, lighting, serialization — each needs its own immutable-input contract, equivalence tests, and measurements), and the phase-gated items below. Keep these outstanding items visible until code and tests prove them complete.
 
 # 23. COMMITS / PUSHES / RELEASES
 
@@ -1944,6 +1944,55 @@ every arm must sit in its own stage.
       TwoStageUseLawAcceptanceTest 12 (the window arm + the anchor
       acknowledgment) + the protocol module FULL 108 green with the
       window live (sweep-N5-proto.log);
+- [x] N6 — LANDED: the dig handler's own gates (handlePlayerDig lines
+      424-456, 1:1). THE DIG REACH BAND: {@code d3 = (player.x -
+      (x+0.5))^2 + (player.y + 1.5 - (y+0.5))^2 + (player.z -
+      (z+0.5))^2 > 36.0} — the dig's own six-block band from the feet
+      raised by the reference's own {@code + 1.5} (never the 1.62
+      standing eye, never the use walk's 64.0), applied to START,
+      FINISH, ABORT, and the creative break's ride through the same
+      case band. THE REAL BUG THE BAND REPAIRS: the old survival band
+      was the 4.5-block reach from the 1.62 eye — a dig at five blocks
+      that vanilla opens, the engine refused; the finish and the abort
+      carried NO band at all. THE START CONSULTS: the N4 law + the
+      border consult (the reference's own {@code !isSpawnProtected &&
+      border.contains} pair) with the refusal answering the BlockUpdate
+      echo to the digger's link — the seam sits at the service's own
+      walk ({@code setDigStartGate}: EngineServer wires the pair, the
+      service's walk echoes on refusal). THE EXTINGUISH ARM: the 1.8
+      C07's face byte threaded from the wire, the face-offset cell's
+      FIRE dies with the doEvent-1004 fizz ({@code random.fizz} 0.5,
+      2.6 ± (rand-rand)*0.8 — the FxManager's own broadcast); the
+      survival start discards the return (the dig still opens), the
+      CREATIVE law consumes the click ({@code if (!extinguishFire)
+      tryMineBlock} — a fire at the offset survives the block behind
+      it); the mode gates run FIRST (the SPECTATOR refusal before the
+      CanDestroy consult, the reference's own order — the reference's
+      restrictsWorldModification walk). THE TAIL ECHO (lines 449-452):
+      after the finish and the abort, a still-standing block answers
+      the digger's link ({@code ClientLink.blockResync}) — the early
+      finish's park and every refusal replaced their internal resyncs
+      with the single handler-level tail; the accepted finish (the
+      cell now air) echoes nothing. THE IGNORED ABORT: an abort beyond
+      the band answers NOTHING — the session stays live (the
+      reference's {@code return}). THE ADAPTATIONS: the compat
+      overloads (the face-less START / the pos-less abort on the
+      engine's internal API path — the extinguish never arms, the
+      abort runs ungated, the pre-N6 behavior); the too-high gate is
+      structural (the BlockPosition ctor's 0..255 bound answers nothing
+      at the wire, the reference's {@code y >= worldHeight} band); the
+      wire's mode dispatch realigned (the adventure and spectator digs
+      ride the shared case band — the walk's own arms refuse inside —
+      and the drops guard is {@code isSpectator()} alone, the
+      reference's own shape). Evidence: DigHandlerGatesAcceptanceTest 8
+      (the band widening's own inside edge, the beyond-band NOTHING,
+      the consults' refusal echo + the operator's free pass, the
+      extinguish arm survival-side + the creative extinguish-first,
+      the early-park's NEW tail echo, the ignored abort's live session,
+      the in-band abort's double echo) + the direct sweep 90 green (the
+      16 dig/use-driving classes) + the block package 129 + the
+      protocol module FULL 108 green (the face byte rides the wire,
+      the adventure digs ride the shared band) (sweep-N6-*.log);
 
 ## Wave P — the parallel execution lanes (Phase 6's gated gameplay adoption)
 

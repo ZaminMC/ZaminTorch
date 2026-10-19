@@ -2631,6 +2631,31 @@ public final class EngineServer implements Server, EngineBridge {
                                 0.8f + fxRandom.nextFloat() * 0.2f);
                     }
                 });
+                // The dig-start consult (Slice N6 — handlePlayerDig lines
+                // 437-445, 1:1): the reference's own pair —
+                // {@code !this.server.isSpawnProtected(serverworld, blockpos,
+                // this.player) && serverworld.getWorldBorder().contains(
+                // blockpos)} — a refused consult answers the BlockUpdate echo
+                // and NO dig opens. The isSpawnProtected walk is the N4 law
+                // (the op store's chebyshev band); the border consult is the
+                // shared dynamic border the /worldborder commands move (the
+                // default 6.0E7 size is the reference's own unconfigured
+                // infinity, so the gate changes nothing until configured).
+                blockInteraction.setDigStartGate((session, pos) ->
+                        !isSpawnProtected(session, pos)
+                                && worldBorder.contains(pos.x(), pos.z()));
+                // The fire-extinguish FX (Slice N6 — World.extinguishFire
+                // line 1642's {@code doEvent(player, 1004, pos, 0)}: the
+                // reference broadcasts the WorldEvent packet and the CLIENT
+                // plays WorldRenderer case 1004's {@code random.fizz at
+                // 0.5F, pitch 2.6F ± (rand-rand)*0.8F} — the engine's FxManager
+                // plays the sound directly, the established engine pattern
+                // (the wet extinguish's own fizz at 0.7F/1.6F beside it).
+                blockInteraction.setFireExtinguishFx(pos -> {
+                    Position center = new Position(pos.x() + 0.5, pos.y() + 0.5, pos.z() + 0.5);
+                    fxManager.sound(center, "random.fizz", 0.5f,
+                            2.6f + (fxRandom.nextFloat() - fxRandom.nextFloat()) * 0.8f);
+                });
                 CommandService dispatcher = new CommandService();
                 registerBuiltinCommands(dispatcher);
                 commands = dispatcher;
