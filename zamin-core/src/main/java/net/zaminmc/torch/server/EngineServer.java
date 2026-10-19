@@ -21693,11 +21693,28 @@ public final class EngineServer implements Server, EngineBridge {
                 }
                 // The scoreboard (Slice 85): the reference saves scoreboard.dat
                 // with the world; the engine's own shutdown + /save walk.
+                // S3: the board rides the pipeline's named path — the
+                // snapshot here on the tick lane, the serialization and the
+                // file half off it.
                 if (scoreboardStore != null) {
-                    scoreboardStore.save();
+                    if (pipeline != null) {
+                        publications.add(pipeline.submitSave("scoreboard",
+                                scoreboardStore.snapshot(),
+                                scoreboardStore::serialize,
+                                scoreboardStore::writeSerialized));
+                    } else {
+                        scoreboardStore.save();
+                    }
                 }
                 if (borderStore != null) {
-                    borderStore.save();
+                    if (pipeline != null) {
+                        publications.add(pipeline.submitSave("border",
+                                borderStore.snapshot(),
+                                borderStore::serialize,
+                                borderStore::writeSerialized));
+                    } else {
+                        borderStore.save();
+                    }
                 }
                 if (jukeboxStore != null && jukeboxes != null) {
                     jukeboxStore.save(jukeboxes.snapshotRecords());
