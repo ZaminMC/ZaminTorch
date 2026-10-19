@@ -431,6 +431,21 @@ public final class EngineTicker {
         return tickThread;
     }
 
+    /**
+     * The §28.7 main-thread check's engine-side answer (the §27.6
+     * integration interface the Bukkit/Spigot/Paper compatibility adapter
+     * consumes): whether the current thread is the simulation loop's own
+     * tick thread — the thread a legacy {@code isPrimaryThread}-style
+     * assumption is really asking about. The answer is a THREAD fact, not
+     * an ownership claim: a domain worker running an owner's due work
+     * holds the owner's authority (§6.1) but is NOT this thread, and the
+     * adapter reports that honestly. Safe from any thread; never waits.
+     */
+    public boolean isOwnerThread() {
+        Thread owner = tickThread;
+        return owner != null && owner == Thread.currentThread();
+    }
+
     long lastTickOverrunNanos() {
         return lastTickOverrunNanos;
     }
