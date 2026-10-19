@@ -84,21 +84,56 @@ public final class WorldBorderDataStore {
         }
     }
 
-    /** Saves the border's live state (the pending lerp as the remaining time). */
-    public void save() {
+    /**
+     * The immutable persistence projection (Slice P7 — the serialization
+     * lane's own input contract): the nine border rows captured on the
+     * owning lane, safe to cross into the I/O lane — the write half
+     * never reads the live border (§31.6's snapshot-before-I/O).
+     *
+     * @param centerX          the center X
+     * @param centerZ          the center Z
+     * @param size             the live size (a completed lerp snaps here)
+     * @param sizeLerpTarget   the pending resize target
+     * @param sizeLerpTime     the remaining lerp time
+     * @param safeZone         the safe-zone radius
+     * @param damagePerBlock   the per-block damage outside the buffer
+     * @param warningTime      the warning time (seconds)
+     * @param warningDistance  the warning distance (blocks)
+     */
+    public record Snapshot(double centerX, double centerZ, double size,
+                           double sizeLerpTarget, long sizeLerpTime,
+                           double safeZone, double damagePerBlock,
+                           int warningTime, int warningDistance) {
+    }
+
+    /** The consistent projection of the live border. Owner-thread only. */
+    public Snapshot snapshot() {
         // The live size first — a completed lerp snaps here (getLerpSize's
         // own completion arm), so a finished resize saves stationary.
-        double size = border.getLerpSize();
+        return new Snapshot(border.getCenterX(), border.getCenterZ(),
+                border.getLerpSize(), border.getSizeLerpTarget(),
+                border.getLerpTime(), border.getSafeZone(),
+                border.getDamagePerBlock(), border.getWarningTime(),
+                border.getWarningDistance());
+    }
+
+    /** Saves the border's live state (the synchronous save's shape). */
+    public void save() {
+        save(snapshot());
+    }
+
+    /** Publishes an already-captured snapshot (the I/O lane's unit). */
+    public void save(Snapshot snapshot) {
         String json = "{\n"
-                + "  \"centerX\": " + border.getCenterX() + ",\n"
-                + "  \"centerZ\": " + border.getCenterZ() + ",\n"
-                + "  \"size\": " + size + ",\n"
-                + "  \"sizeLerpTarget\": " + border.getSizeLerpTarget() + ",\n"
-                + "  \"sizeLerpTime\": " + border.getLerpTime() + ",\n"
-                + "  \"safeZone\": " + border.getSafeZone() + ",\n"
-                + "  \"damagePerBlock\": " + border.getDamagePerBlock() + ",\n"
-                + "  \"warningTime\": " + border.getWarningTime() + ",\n"
-                + "  \"warningDistance\": " + border.getWarningDistance() + "\n"
+                + "  \"centerX\": " + snapshot.centerX() + ",\n"
+                + "  \"centerZ\": " + snapshot.centerZ() + ",\n"
+                + "  \"size\": " + snapshot.size() + ",\n"
+                + "  \"sizeLerpTarget\": " + snapshot.sizeLerpTarget() + ",\n"
+                + "  \"sizeLerpTime\": " + snapshot.sizeLerpTime() + ",\n"
+                + "  \"safeZone\": " + snapshot.safeZone() + ",\n"
+                + "  \"damagePerBlock\": " + snapshot.damagePerBlock() + ",\n"
+                + "  \"warningTime\": " + snapshot.warningTime() + ",\n"
+                + "  \"warningDistance\": " + snapshot.warningDistance() + "\n"
                 + "}\n";
         try {
             Files.createDirectories(file.getParent());
