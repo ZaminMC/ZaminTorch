@@ -21599,11 +21599,15 @@ public final class EngineServer implements Server, EngineBridge {
      * thread (consistent snapshot, §6.2's one authoritative writer); the
      * world-delta saves ride the Phase-5 pipeline (S1) — the
      * serialization on the compute pool, the publication on the
-     * blocking-I/O lane, the sequence gate at the file — while the other
-     * stores keep their synchronous walks (S2+ adopts them). Waits for
-     * durability: every publication latch (the save's own bytes landed,
-     * or a newer snapshot superseded it) plus the synchronous stores.
-     * Safe from any thread; no-op if the world is absent.
+     * blocking-I/O lane, the sequence gate at the file — and the
+     * container trio (furnace/chest/hopper, S2) rides the same pipeline
+     * through its named path (the deep capture here on the tick lane,
+     * the pure serializer off it, the file half on the I/O lane) while
+     * the remaining stores keep their synchronous walks (S3+ adopts
+     * them). Waits for durability: every publication latch (the save's
+     * own bytes landed, or a newer snapshot superseded it) plus the
+     * synchronous stores. Safe from any thread; no-op if the world is
+     * absent.
      */
     public void saveAllNow() {
         if (world == null || ticker == null) {
@@ -21645,13 +21649,39 @@ public final class EngineServer implements Server, EngineBridge {
                     }
                 }
                 if (furnaceStore != null && furnaceManager != null) {
-                    furnaceStore.save(furnaceManager.snapshot());
+                    // S2: the container trio rides the pipeline — the deep
+                    // capture on the tick lane (the manager's snapshot() is
+                    // the shallow map copy; the capture is the deep form),
+                    // the serialization on the compute pool, the file half
+                    // on the I/O lane, the named sequence gate at the file.
+                    if (pipeline != null) {
+                        publications.add(pipeline.submitSave("furnace",
+                                furnaceStore.capture(furnaceManager.snapshot()),
+                                furnaceStore::serialize,
+                                furnaceStore::writeSerialized));
+                    } else {
+                        furnaceStore.save(furnaceManager.snapshot());
+                    }
                 }
                 if (chestStore != null && chestManager != null) {
-                    chestStore.save(chestManager.snapshot());
+                    if (pipeline != null) {
+                        publications.add(pipeline.submitSave("chest",
+                                chestStore.capture(chestManager.snapshot()),
+                                chestStore::serialize,
+                                chestStore::writeSerialized));
+                    } else {
+                        chestStore.save(chestManager.snapshot());
+                    }
                 }
                 if (hopperStore != null && hopperSystem != null) {
-                    hopperStore.save(hopperSystem.snapshot());
+                    if (pipeline != null) {
+                        publications.add(pipeline.submitSave("hopper",
+                                hopperStore.capture(hopperSystem.snapshot()),
+                                hopperStore::serialize,
+                                hopperStore::writeSerialized));
+                    } else {
+                        hopperStore.save(hopperSystem.snapshot());
+                    }
                 }
                 if (noteStore != null && noteBlocks != null) {
                     noteStore.save(noteBlocks.snapshotTiles());

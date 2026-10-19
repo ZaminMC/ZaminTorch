@@ -5,6 +5,7 @@ import net.zaminmc.torch.server.concurrent.ComputeSubsystem;
 import net.zaminmc.torch.server.concurrent.OwnershipDomain;
 
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
@@ -92,7 +93,20 @@ public final class WorldSavePipeline {
                         serialized.incrementAndGet();
                         try {
                             io.submit(domain, "world-delta-save-" + seq,
-                                    () -> publish(storage, seq, bytes),
+                                    () -> {
+                                        boolean landedNow;
+                                        try {
+                                            landedNow = publish(storage, seq, bytes);
+                                        } catch (RuntimeException publicationFailure) {
+                                            // The publication failed loudly (the
+                                            // lane logs it): the save never landed,
+                                            // and the caller's durability walk must
+                                            // never hang on the failure.
+                                            finish(done, finished);
+                                            throw publicationFailure;
+                                        }
+                                        return landedNow;
+                                    },
                                     (landedNow, ioGeneration) -> {
                                         if (landedNow) {
                                             landed.incrementAndGet();
@@ -156,6 +170,119 @@ public final class WorldSavePipeline {
     /** Waits for the save's durability demand, bounded — the caller's walk. */
     public boolean awaitSave(CountDownLatch latch, long timeoutMillis) throws InterruptedException {
         return latch.await(timeoutMillis, TimeUnit.MILLISECONDS);
+    }
+
+    /**
+     * One generic async save (Slice S2 — the container trio's own path):
+     * the same two halves as the typed path, but the caller owns the
+     * serialization and the publication — the pure serializer (the
+     * snapshot IN, the bytes OUT) rides the compute pool, the publisher
+     * (the store's own file half) rides the I/O lane under the named
+     * sequence gate. The snapshot must be immutable (the caller captures
+     * it on the owning tick lane); the serializer must not read the world
+     * or the filesystem; the publisher touches only the filesystem.
+     */
+    public <S> CountDownLatch submitSave(String storageName, S snapshot,
+                                         java.util.function.Function<S, byte[]> serializer,
+                                         java.util.function.Consumer<byte[]> publisher) {
+        java.util.Objects.requireNonNull(storageName, "storageName");
+        java.util.Objects.requireNonNull(snapshot, "snapshot");
+        java.util.Objects.requireNonNull(serializer, "serializer");
+        java.util.Objects.requireNonNull(publisher, "publisher");
+        long seq = submitted.incrementAndGet();
+        CountDownLatch done = new CountDownLatch(1);
+        AtomicBoolean finished = new AtomicBoolean(false);
+
+        try {
+            compute.submit(domain, snapshot,
+                    input -> {
+                        long start = System.nanoTime();
+                        byte[] bytes = serializer.apply(input);
+                        serializeNanos.addAndGet(System.nanoTime() - start);
+                        return bytes;
+                    },
+                    (bytes, generation) -> {
+                        serialized.incrementAndGet();
+                        try {
+                            io.submit(domain, "store-save-" + storageName + "-" + seq,
+                                    () -> {
+                                        boolean landedNow;
+                                        try {
+                                            landedNow = publishNamed(storageName, seq, bytes, publisher);
+                                        } catch (RuntimeException publicationFailure) {
+                                            // The publication failed loudly (the
+                                            // lane logs it): the save never landed,
+                                            // and the caller's durability walk must
+                                            // never hang on the failure.
+                                            finish(done, finished);
+                                            throw publicationFailure;
+                                        }
+                                        return landedNow;
+                                    },
+                                    (landedNow, ioGeneration) -> {
+                                        if (landedNow) {
+                                            landed.incrementAndGet();
+                                        } else {
+                                            staleDropped.incrementAndGet();
+                                            LOGGER.fine(() -> "Save #" + seq + " (" + storageName
+                                                    + ") superseded by a newer snapshot; the newer"
+                                                    + " bytes own the file");
+                                        }
+                                        finish(done, finished);
+                                    },
+                                    () -> {
+                                        staleDropped.incrementAndGet();
+                                        finish(done, finished);
+                                    });
+                        } catch (IllegalStateException laneRefused) {
+                            LOGGER.log(Level.WARNING, "Save #" + seq + " (" + storageName
+                                    + ") refused by the I/O lane", laneRefused);
+                            finish(done, finished);
+                        }
+                    },
+                    () -> {
+                        staleDropped.incrementAndGet();
+                        finish(done, finished);
+                    });
+        } catch (IllegalStateException computeRefused) {
+            LOGGER.log(Level.WARNING, "Save #" + seq + " (" + storageName
+                    + ") refused by the compute subsystem", computeRefused);
+            finish(done, finished);
+        }
+        return done;
+    }
+
+    /**
+     * The named publication gate: the same monotonic-sequence rule as the
+     * typed path, keyed by the storage's own name — inside the per-storage
+     * right, only a sequence newer than everything already landed may
+     * write. Package-private: the gate's own unit tests exercise it
+     * directly.
+     */
+    boolean publishNamed(String storageName, long seq, byte[] bytes,
+                         java.util.function.Consumer<byte[]> publisher) {
+        synchronized (namedLocks.computeIfAbsent(storageName, key -> new Object())) {
+            if (seq <= namedLandedSeqOf(storageName)) {
+                return false; // the stale save: a newer snapshot owns the file
+            }
+            publisher.accept(bytes);
+            rememberNamedLandedSeq(storageName, seq);
+            return true;
+        }
+    }
+
+    // The named-path per-storage landed-sequence memory (the generic gate's
+    // own state), keyed by the caller's storage name.
+    private final ConcurrentHashMap<String, Object> namedLocks = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, AtomicLong> namedLandedSeqs = new ConcurrentHashMap<>();
+
+    private long namedLandedSeqOf(String storageName) {
+        AtomicLong seq = namedLandedSeqs.get(storageName);
+        return seq == null ? -1 : seq.get();
+    }
+
+    private void rememberNamedLandedSeq(String storageName, long seq) {
+        namedLandedSeqs.computeIfAbsent(storageName, key -> new AtomicLong(-1)).set(seq);
     }
 
     private static void finish(CountDownLatch done, AtomicBoolean finished) {
