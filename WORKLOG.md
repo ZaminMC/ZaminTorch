@@ -10261,3 +10261,23 @@ Bukkit/Paper adapter, the Minestom modern protocol).
   walk's), the measurements (the chunk-gen light cost vs the capture).
 - Next session start: git config Abasing, pull --rebase, re-read
   Torch-Arcetecture.txt (the user edits it between sessions).
+
+---
+Task ID: session-2026-10-19-light-gate
+Agent: main (Abasing session)
+Task: The lighting workload's own §22 three-part bar — the gate the previous session's recon named (the initial per-chunk compute as the offload candidate)
+
+Work Log:
+- Recovered the environment (the /home/zaminmc home was gone with the reset): re-verified the repo at /home/z/my-project/ZaminTorch, in sync through 2d1a40f (release 97), read the worklog's NEXT WINDOW (the lighting gate's three-part bar)
+- THE SEAM: refactored LightEngine so every computation (the incremental updates AND the initial compute) is specified ONCE as static routines over a new package-private LightAccess state view — LiveAccess (the unpublished chunk + the world map + the relight queue, the exact prior behavior) one implementation; the behavior-preserving regression net: the light package + block + world + concurrent sweep 355/0 across 65 classes
+- THE CONTRACT: LightRegion — the initial compute's whole read set captured per SECTION (the pathfinding verdict's own named reopen condition, natural here): the fresh chunk's materials + every loaded 3x3 neighbor's materials and current light; packed filter|emission bytes per present block section, wire-packed nibble clones per materialized light section, absent sections free. THE 3x3 BOUND derived in the javadoc (every consult within 14 BFS steps of a seed; 16 of 16 columns is the whole neighbor chunk)
+- THE PURE COMPUTE + THE APPLY: InitialLightCompute (the RegionAccess working state — the fresh light starts cleared, the neighbors' from the captured clones, writes recorded in order) + InitialLightResult (packed write lists) + LightEngine.applyInitial (the owner-side replay through the same guarded setters)
+- THE EQUIVALENCE (LightRegionContractTest): twin worlds — the LIVE arm through the production install hook, the OFF arm through capture/compute/apply/install-without-hook — cell-for-cell across the whole 3x3 + every light section's materialization + the relight queues in first-marked order; the worked scene (the 16-tall cliff, the emitter cluster, the overhang, the strip-corner torch)
+- THE BUG THE GATE CAUGHT (the forensic trail): the OFF world showed a 533-cell torch cone at the diagonal (-1,-1)'s far corner — bisected to the strip-corner torch (16,6,15), then the write-list context revealed it: the neighbor-write packing's slot field spans NINE values (0..8) but every mask read THREE bits — slot 8 (the (+1,+1) diagonal) folded onto slot 0 and the apply misapplied the (1,1) chunk's cone to the (-1,-1) chunk. Fixed to 4-bit masks; the packing comment carries the lesson
+- THE MEASUREMENTS (median of 40, post-warmup): flat — live 9,921,521ns | capture 1,368,322ns | compute 4,509,052ns | apply 21,074ns | offload total 5,898,448ns (x0.59); worked — live 53,005,237ns | capture 1,176,361ns | compute 19,297,976ns | apply 3,875,982ns | offload total 24,350,319ns (x0.46); the pregen batch (81 chunks, P=4): flat 803,643us live-serial vs 203,849us offload wall (3.9x), worked 4,293,424us vs 800,023us (5.4x). The result shapes: flat 1,280 fresh writes / 0 neighbor writes / 0 relight; worked 26,257 / 79,024 / 7 columns
+- THE VERDICT: UNLIKE PATHFINDING (rejected at 24-73x), lighting is a MEASURED WIN at both shapes — the capture is section-level and the live path's cost is dominated by routing (per-cell BlockPosition allocations + map lookups vs array nibbles). Committed fff9698 as Abasing, pushed; the regression sweep 355/0; docs landed (§22 Phase-5 note + the Phase-5 header + the Next-work line)
+
+Stage Summary:
+- develop pushed through the docs commit, all commits authored Abasing
+- The Phase-5 workload gates are now BOTH ANSWERED: pathfinding REJECTED WITH EVIDENCE; lighting a MEASURED WIN (contract + equivalence + numbers; the wiring itself demand-named)
+- Next: the lighting wiring (the pregen's per-chunk dispatchAndJoin over the seam — the pipelined shape needs the staleness protocol first), then the phase-gated items (the swept-box body model, the Anvil canvas, the adapters)
