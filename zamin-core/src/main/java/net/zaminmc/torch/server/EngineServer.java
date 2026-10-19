@@ -7806,6 +7806,54 @@ public final class EngineServer implements Server, EngineBridge {
                                       int face, java.util.Optional<net.zaminmc.torch.block.BlockType> creativeHeld,
                                       float cursorX, float cursorY, float cursorZ,
                                       java.util.function.IntConsumer onTableOpened) {
+        // THE BUILD-TOO-HIGH ARM (handlePlayerUse lines 466-476, 1:1 — the
+        // else band of the height check, BEFORE the distance gate: the
+        // reference's own order, a too-high click from ANY distance still
+        // answers): the proceed band is {@code y < height-1 || (face != UP
+        // && y < height)}; the engine's BlockPosition ctor already bounds y
+        // to 0..255, so the arm reduces to the ceiling cell with the UP
+        // face — the red build.tooHigh chat, the resync pair, and NO use
+        // arm runs (the reference's worldHeight is 256, the engine's own
+        // MAX_Y + 1).
+        if (face == 1
+                && clicked.y() >= net.zaminmc.torch.block.BlockPosition.MAX_Y) {
+            net.zaminmc.torch.server.text.TranslatableText tooHigh =
+                    new net.zaminmc.torch.server.text.TranslatableText(
+                            "build.tooHigh",
+                            new net.zaminmc.torch.server.text.LiteralText(
+                                    String.valueOf(net.zaminmc.torch.block.BlockPosition.MAX_Y + 1)));
+            tooHigh.getStyle().setColor(net.zaminmc.torch.server.text.Formatting.RED);
+            session.link().sendChatComponent(
+                    net.zaminmc.torch.server.text.TextJson.toJson(tooHigh), 0);
+            resyncUsePair(session, clicked, face);
+            return;
+        }
+        try {
+            useItemOnBlockInnerOnTick(session, clicked, face, creativeHeld,
+                    cursorX, cursorY, cursorZ, onTableOpened);
+        } finally {
+            // THE ANTI-DESYNC RESYNC PAIR (handlePlayerUse lines 494-497,
+            // 1:1): after EVERY block-face use — accepted, refused by any
+            // gate, or consumed by any arm — the clicking player's client
+            // receives the authoritative state of the clicked cell AND the
+            // face-offset cell. The reference's own BlockUpdate pair: the
+            // client predicts its use's outcome locally, and a refused or
+            // short-circuited click would leave a GHOST block without the
+            // pair (the accepted use's own writes already broadcast; the
+            // pair merely repeats them — the never-desync guarantee).
+            resyncUsePair(session, clicked, face);
+        }
+    }
+
+    /**
+     * The use walk's own body (the gates + the two stages) — split from
+     * {@link #useItemOnBlockOnTick} so the too-high arm and the resync
+     * pair can wrap it 1:1. Tick-thread context.
+     */
+    private void useItemOnBlockInnerOnTick(PlayerSession session, net.zaminmc.torch.block.BlockPosition clicked,
+                                           int face, java.util.Optional<net.zaminmc.torch.block.BlockType> creativeHeld,
+                                           float cursorX, float cursorY, float cursorZ,
+                                           java.util.function.IntConsumer onTableOpened) {
         // THE HANDLER'S OWN GATES (ServerPlayNetworkHandler.handlePlayerUse
         // lines 463-472, 1:1 — the gates that guard the interactionManager
         // .useBlock CALL itself, so both stages sit inside them): the
@@ -7851,6 +7899,33 @@ public final class EngineServer implements Server, EngineBridge {
         }
         useItemArmOnTick(session, clicked, face, creativeHeld,
                 cursorX, cursorY, cursorZ);
+    }
+
+    /**
+     * THE ANTI-DESYNC RESYNC PAIR (handlePlayerUse lines 494-497, 1:1):
+     * the clicked cell and the face-offset cell handed to the clicking
+     * player's link with their CURRENT authoritative state — the
+     * reference's own two BlockUpdate packets, sent after every
+     * block-face use whatever the outcome (the client's predicted ghost
+     * from a refused or short-circuited click reverts to the truth; the
+     * accepted use's own writes already broadcast, the pair merely
+     * repeats them). The face-offset cell's Y band is guarded — the
+     * reference writes the packet at the off-world cell too (an
+     * out-of-world read answering air the client drops), the engine's
+     * positions bound to 0..255 so the guard merely skips that dead
+     * packet. Tick-thread context.
+     */
+    private void resyncUsePair(PlayerSession session, BlockPosition clicked, int face) {
+        session.link().blockResync(clicked, world.getBlock(clicked));
+        int dx = face == 4 ? -1 : face == 5 ? 1 : 0;
+        int dy = face == 0 ? -1 : face == 1 ? 1 : 0;
+        int dz = face == 2 ? -1 : face == 3 ? 1 : 0;
+        int offsetY = clicked.y() + dy;
+        if (offsetY < BlockPosition.MIN_Y || offsetY > BlockPosition.MAX_Y) {
+            return; // the off-world neighbour: the reference's dead packet (dropped either way)
+        }
+        BlockPosition offset = new BlockPosition(clicked.x() + dx, offsetY, clicked.z() + dz);
+        session.link().blockResync(offset, world.getBlock(offset));
     }
 
     /**

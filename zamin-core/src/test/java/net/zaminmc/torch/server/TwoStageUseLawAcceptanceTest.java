@@ -18,6 +18,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 import java.util.function.BooleanSupplier;
 
@@ -46,6 +48,9 @@ class TwoStageUseLawAcceptanceTest {
 
     private EngineServer server;
     private PlayerSession player;
+    /** The recording link: the resync pair's own observation surface. */
+    private final List<String> resyncs = new ArrayList<>();
+    private final List<String> chatComponents = new ArrayList<>();
 
     @BeforeEach
     void boot() throws Exception {
@@ -58,6 +63,13 @@ class TwoStageUseLawAcceptanceTest {
         ClientLink link = new ClientLink() {
             @Override public boolean isActive() { return true; }
             @Override public void kick(String reason) { }
+            @Override public void blockResync(net.zaminmc.torch.block.BlockPosition position,
+                    net.zaminmc.torch.block.BlockType type) {
+                resyncs.add(position + "=" + type.identifier());
+            }
+            @Override public void sendChatComponent(String json, int position) {
+                chatComponents.add(json);
+            }
         };
         var result = server.joinRequest(link, "Clicker",
                 UUID.nameUUIDFromBytes("Clicker".getBytes()));
@@ -383,5 +395,77 @@ class TwoStageUseLawAcceptanceTest {
                 "the sneaked stone placed beside the trapdoor");
         assertTrue(!TrapdoorBlocks.isOpen(server.world().getBlock(trapdoorAt)),
                 "the sneaked click never flipped the trapdoor");
+    }
+
+    /**
+     * THE ANTI-DESYNC RESYNC PAIR (handlePlayerUse lines 494-497): after
+     * EVERY block-face use — the accepted chest-open, the refused
+     * too-far click — the clicking player's client receives the
+     * authoritative state of the clicked cell AND the face-offset cell
+     * (the refused use's predicted ghost reverts; the accepted use's
+     * writes repeat).
+     */
+    @Test
+    void theResyncPairFollowsEveryUse() throws Exception {
+        BlockPosition chestAt = new BlockPosition(2, 5, 0);
+        place(chestAt, BuiltinBlocks.CHEST);
+        hold(ItemStack.EMPTY);
+
+        // The accepted use: the pair fires (the chest + the west offset cell).
+        resyncs.clear();
+        use(chestAt, 4);
+        await(() -> player.openContainerKind() == PlayerSession.ContainerKind.CHEST,
+                "the chest opened");
+        await(() -> resyncs.size() >= 2, "the pair arrived");
+        assertTrue(resyncs.get(0).startsWith("BlockPosition[x=2, y=5, z=0]=minecraft:chest"),
+                "the clicked cell first: " + resyncs.get(0));
+        assertTrue(resyncs.get(1).startsWith("BlockPosition[x=1, y=5, z=0]="),
+                "the face-offset cell second: " + resyncs.get(1));
+
+        // The refused too-far use: the pair STILL fires (the reference's
+        // flag stays true on the refused branch — the ghost reverts).
+        server.ticker().submit(() -> player.applyMovement(
+                new Position(0.5, 5.0, 20.5),
+                net.zaminmc.torch.util.Rotation.ZERO, true));
+        await(() -> player.position().z() > 19.0, "the player walked away");
+        resyncs.clear();
+        use(chestAt, 4);
+        await(() -> resyncs.size() >= 2,
+                "the refused use's pair arrived too (the anti-desync)");
+        assertTrue(resyncs.get(0).startsWith("BlockPosition[x=2, y=5, z=0]=minecraft:chest"),
+                "the refused pair carries the truth: " + resyncs.get(0));
+    }
+
+    /**
+     * THE BUILD-TOO-HIGH ARM (handlePlayerUse lines 466-476): a use on
+     * the UP face of the ceiling cell — y 255 — answers the red
+     * build.tooHigh chat and the resync pair from ANY distance (the
+     * reference's own order: the height band precedes the distance
+     * gate), and NO use arm runs (no window, no placement).
+     */
+    @Test
+    void theBuildTooHighArmAnswersRed() throws Exception {
+        BlockPosition ceiling = new BlockPosition(2, 255, 0);
+        place(ceiling, BuiltinBlocks.STONE);
+        hold(ItemStack.of(BuiltinItems.STONE, 5));
+        resyncs.clear();
+        chatComponents.clear();
+
+        // The player stands 250 blocks below the ceiling — the too-high
+        // arm fires BEFORE the distance gate (the reference's else band).
+        use(ceiling, 1); // the UP face at the ceiling cell
+
+        await(() -> !chatComponents.isEmpty(), "the too-high chat arrived");
+        String json = chatComponents.get(0);
+        assertTrue(json.contains("build.tooHigh"),
+                "the translatable key rides the wire: " + json);
+        assertTrue(json.contains("\"color\":\"red\""),
+                "the red style inlines into the component: " + json);
+        assertTrue(json.contains("256"), "the height arg: " + json);
+        await(() -> resyncs.size() >= 1, "the pair's clicked cell arrived");
+        assertTrue(resyncs.get(0).startsWith("BlockPosition[x=2, y=255, z=0]=minecraft:stone"),
+                "the ceiling cell's truth: " + resyncs.get(0));
+        assertEquals(PlayerSession.ContainerKind.NONE, player.openContainerKind(),
+                "no use arm ran");
     }
 }

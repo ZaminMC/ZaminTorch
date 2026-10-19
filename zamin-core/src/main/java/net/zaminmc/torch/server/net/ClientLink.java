@@ -293,6 +293,19 @@ public interface ClientLink {
     }
 
     /**
+     * The anti-desync block resync (ServerPlayNetworkHandler.handlePlayerUse
+     * lines 494-497): the authoritative state of one cell pushed to THIS
+     * client after a use — the reference sends the pair (the clicked cell +
+     * the face-offset cell) after EVERY block-face use, accepted, refused,
+     * or too-high, so the client's predicted ghost from a refused or
+     * short-circuited use reverts to the truth. Safe from any thread;
+     * default no-op for engine-internal links.
+     */
+    default void blockResync(net.zaminmc.torch.block.BlockPosition position,
+                             net.zaminmc.torch.block.BlockType type) {
+    }
+
+    /**
      * Spawn Position (0x05): the world spawn re-anchor (the reference's
      * PlayerManager.sendPacket on /setworldspawn; the join burst carries
      * the same packet). Safe from any thread; default no-op for
