@@ -10116,3 +10116,33 @@ tile/entity/metadata families; then pathfinding/lighting.
 command-block/beacon/brewing/dispenser) onto the same shape, then the
 entity/metadata families (decoration/armor-stand/ender-crystal/
 weather/gamerule/mob/item/vehicle), then pathfinding/lighting.
+
+## Slice S4 — the tile stores ride the save pipeline (the FIFTH/SIXTH/SEVENTH serialization workloads, parts 1–5)
+
+- **THE EIGHT STORES' SPLITS** (the S1/S2/S3 shape's continued
+  adoption, store by store): the note tile (c142cff4), the comparator's
+  outputs + the jukebox's records (99c083cc), the sign pair — the four
+  line rows + the CommandStats tail (aa2580c2, tests 8993af50), the
+  command-block tile with the stats tail pre-flattened (4a2cb8ee), and
+  the effect-tile trio — the dispenser's slots, the brewing stand's
+  timer + slots, the beacon's levels/effects/payment (902d5a52). Each
+  store's save composes `writeSerialized(serialize(capture(live)))`:
+  the CAPTURE on the owning tick lane (the deep immutable form where
+  the system's own snapshot is the shallow map copy over LIVE
+  tiles/entities; the already-immutable contracts adopt as-is), the
+  SERIALIZE the pure function, the PUBLICATION the file half with each
+  store's own failure contract preserved 1:1.
+- **THE BYTE-IDENTITY**: every serializer's byte walk is the historical
+  save walk's own — proven against the pre-S4 interleaved walks
+  replicated as the references in the tests.
+- **THE WIRING**: `saveAllNow`'s eight saves ride the pipeline's named
+  path when booted; the un-pipelined fallback keeps the sync form.
+- Evidence: NoteDataStoreSplitTest 2 + TileStateSaveSplitTest 3 +
+  SignDataStoreSplitTest 3 + CommandBlockDataStoreSplitTest 2 +
+  EffectTileSaveSplitTest 3 + the S4 regression batch green. Landed at
+  c142cff4, 99c083cc, aa2580c2, 8993af50, 4a2cb8ee, 902d5a52.
+
+**Next:** S5 — the save walk's remaining synchronous stores onto the
+same shape, family by family: the entity-ish trio (decoration/
+armor-stand/ender-crystal), the config pair (weather/gamerule), the
+entity family (mob/item/vehicle); then pathfinding/lighting.
