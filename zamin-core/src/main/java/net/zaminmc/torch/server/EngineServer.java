@@ -7863,6 +7863,18 @@ public final class EngineServer implements Server, EngineBridge {
                                            int face, java.util.Optional<net.zaminmc.torch.block.BlockType> creativeHeld,
                                            float cursorX, float cursorY, float cursorZ,
                                            java.util.function.IntConsumer onTableOpened) {
+        // THE TELEPORT WINDOW (handlePlayerUse line 475's own first consult,
+        // 1:1): a use through an in-flight teleport refuses — the wire's
+        // teleport order (the Position And Look) is unacknowledged and the
+        // client's click still carries its pre-teleport world (the
+        // reference's {@code if (this.teleported && ...)} gate). The window
+        // closes on the client's movement at the anchor (the d3 < 0.25
+        // band the movement walk consults); engine-internal teleports
+        // (stub links) never arm it — the engine's own API path is
+        // authoritative by construction.
+        if (session.teleportPending()) {
+            return; // the unacknowledged teleport: no use arm runs
+        }
         // THE HANDLER'S OWN GATES (ServerPlayNetworkHandler.handlePlayerUse
         // lines 463-472, 1:1 — the gates that guard the interactionManager
         // .useBlock CALL itself, so both stages sit inside them): the
@@ -22138,6 +22150,14 @@ public final class EngineServer implements Server, EngineBridge {
         }
         // Per-channel ordering (transport guarantee) makes this safe.
         session.applyMovement(position, rotation, onGround);
+        // THE TELEPORT ACKNOWLEDGMENT (the movement handler's own band,
+        // lines 203-211): a position proposal within d3 < 0.25 squared of
+        // the in-flight teleport's anchor closes the teleport window (the
+        // look-only packet never acknowledges in the reference — the
+        // engine's unified proposal carries the current position, so a
+        // look packet AT the anchor acknowledges identically; the client
+        // is at the anchor either way).
+        session.acknowledgeTeleportIfAtAnchor(position);
     }
 
     @Override
