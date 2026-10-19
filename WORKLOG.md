@@ -10450,3 +10450,19 @@ Work Log:
 Stage Summary:
 - THE PHASE-7 PROFILING OPENER SLICE IS COMPLETE AND FULLY VERIFIED: profiler 8/0 + acceptance belt 292/0; develop pushed through 40071d3 (docs), all commits authored Abasing
 - Next: the Anvil-import PR (Instance 2) to review+merge when it opens; the Minestom module decision (ADR-0001 revisit) is the roadmap's remaining unstarted decision item; the Phase-7 merge-walk bucketing is demand-named with the evidence recorded (gated on operator scenarios)
+
+---
+Task ID: adr-0001-revisit
+Agent: main (Abasing session)
+Task: The Minestom module decision — ADR-0001's roadmap revisit (§22's remaining "Minestom modern protocol" item)
+
+Work Log:
+- The inputs gathered: ADR-0001 (docs/ENGINEERING_PLAN.md §3 — deferred, "re-evaluate at the modern-protocol milestone"), ADR-20 (the concurrency decision record), the §4 baseline requirement, the ADR-0002 community-reuse table, and the current tree's protocol state (zamin-protocol-v1_8_8, protocol 47, one consumer)
+- THE RE-EVALUATION'S FINDINGS: (a) no second protocol consumer exists, no operator requirement for modern-client support is on record, and the Bukkit adapter's landed first slice covers the legacy plugin surface without any Minestom-shaped gap; (b) both original blockers stand — upstream Minestom's codec/connection/registries remain hard-wired to one modern protocol line (a protocol-47 client still cannot be served without forking), and the instance/chunk model would still birth a second authoritative world representation against §834's one-source-of-truth; (c) the revisit's own condition — the modern-protocol milestone — is NOT YET ARMED by any demand: the condition is not "reached", it is "not started"
+- THE DECISION: DEFER STANDS. The explicit ARMING TRIGGERS recorded so no future session can start zamin-minestom speculatively (the §31 machinery-without-a-workload rule): Trigger A — an operator/user requirement for modern Java clients (1.20+) to join a Torch world; Trigger B — the Bukkit/Paper adapter roadmap hits a capability the spigot-api lineage cannot bridge and Minestom demonstrably can; Trigger C — a multi-protocol shared-world requirement. When a trigger fires, the module follows the pattern the Bukkit adapter just proved (standalone module, pinned-by-resolution upstream, ONE minimal engine-side accessor, honest limitations from day one)
+- The records: docs/ENGINEERING_PLAN.md §3's revisit paragraph + ADR-20's revisit note in docs/CONCURRENCY_DECISIONS_AND_ROLLOUT.md + §22's next-work line (the Minestom item now carries the answered state)
+
+Stage Summary:
+- The roadmap's three phase-gated items are now all in an explicit state: the Anvil canvas (Instance 2, in flight), the Bukkit adapter (slice 1 merged, the family demand-named), the Minestom module (DEFERRED with explicit triggers — the decision is no longer an open question but a recorded answer)
+- The §22 remaining-work line now names only live work; no speculative module starts without a trigger
+- Next: the Anvil-import PR review when Instance 2 opens it; the demand-named Phase-7 merge-walk bucketing when operator scenarios demand it
