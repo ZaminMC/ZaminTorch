@@ -102,6 +102,13 @@ class FarmingAcceptanceTest {
         BlockPosition soil = new BlockPosition(0, 64, 0);
         setBlock(soil, BuiltinBlocks.GRASS_BLOCK);
 
+        // The handler's 8-block body gate (Slice N2): the farmer stands
+        // at the soil before the use.
+        server.ticker().submit(() -> farmer.applyMovement(
+                new Position(0.5, 65.5, 1.5),
+                net.zaminmc.torch.util.Rotation.ZERO, true));
+        Thread.sleep(150);
+
         hold(farmer, item("minecraft:iron_hoe"), 1);
         int before = farmer.inventory().held().damage();
         useOn(farmer, soil);
@@ -121,6 +128,12 @@ class FarmingAcceptanceTest {
         BlockPosition dirt = new BlockPosition(4, 64, 4);
         setBlock(farmland, BuiltinBlocks.FARMLAND);
         setBlock(dirt, BuiltinBlocks.DIRT);
+        // The handler's 8-block body gate (Slice N2): the farmer stands
+        // between the two soils before the uses.
+        server.ticker().submit(() -> farmer.applyMovement(
+                new Position(2.5, 65.5, 2.5),
+                net.zaminmc.torch.util.Rotation.ZERO, true));
+        Thread.sleep(150);
 
         // On plain dirt the seeds refuse (the historical gate).
         hold(farmer, item("minecraft:wheat_seeds"), 4);
@@ -180,6 +193,13 @@ class FarmingAcceptanceTest {
         BlockPosition soil = new BlockPosition(0, 64, 0);
         setBlock(soil, BuiltinBlocks.FARMLAND);
         setBlock(soil.offset(0, 1, 0), BuiltinBlocks.WHEAT_STAGE2);
+
+        // The handler's 8-block body gate (Slice N2): the farmer stands
+        // at the crop before the use.
+        server.ticker().submit(() -> farmer.applyMovement(
+                new Position(0.5, 65.5, 1.5),
+                net.zaminmc.torch.util.Rotation.ZERO, true));
+        Thread.sleep(150);
 
         hold(farmer, item("minecraft:bone_meal"), 2);
         useOn(farmer, soil.offset(0, 1, 0));

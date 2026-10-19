@@ -7806,6 +7806,36 @@ public final class EngineServer implements Server, EngineBridge {
                                       int face, java.util.Optional<net.zaminmc.torch.block.BlockType> creativeHeld,
                                       float cursorX, float cursorY, float cursorZ,
                                       java.util.function.IntConsumer onTableOpened) {
+        // THE HANDLER'S OWN GATES (ServerPlayNetworkHandler.handlePlayerUse
+        // lines 463-472, 1:1 — the gates that guard the interactionManager
+        // .useBlock CALL itself, so both stages sit inside them): the
+        // 8-block body gate — {@code this.player.squaredDistanceTo(
+        // x + 0.5, y + 0.5, z + 0.5) < 64.0}, measured from the BODY's
+        // origin (Entity.squaredDistanceTo lines 937-942: the feet,
+        // never the eyes) — a use beyond eight blocks answers NOTHING
+        // (no block arm, no item arm: the container stays shut at a
+        // distance, the door stands still, nothing places).
+        double dx = session.position().x() - (clicked.x() + 0.5);
+        double dy = session.position().y() - (clicked.y() + 0.5);
+        double dz = session.position().z() - (clicked.z() + 0.5);
+        if (dx * dx + dy * dy + dz * dz >= 64.0) {
+            return; // the too-far use: the reference's own refusal
+        }
+        // the world-border consult — {@code serverworld.getWorldBorder()
+        // .contains(blockpos)} — a use outside the border refuses (the
+        // engine's shared dynamic border the /worldborder commands move;
+        // the default 6.0E7 size is the reference's own unconfigured
+        // infinity, so the gate changes nothing until configured).
+        if (!worldBorder.contains(clicked.x(), clicked.z())) {
+            return; // the outside-border use
+        }
+        // the spawn-protection consult (DedicatedServer.isSpawnProtected
+        // lines 387-409) degenerates for an op-less server — the
+        // reference's own {@code getOps().isEmpty() -> false} — so the
+        // engine needs no gate until the ops model lands (ledgered with
+        // the ops slice); the {@code teleported} flag (the anti-use-
+        // while-teleporting gate) rides the teleport slice's own ledger.
+        //
         // The held stack the law reads (getDisplayItemInHand — the
         // selected slot's own stack, the authoritative inventory any
         // mode carries: creative's Set Creative Slot populates it too).
@@ -9428,11 +9458,17 @@ public final class EngineServer implements Server, EngineBridge {
         BlockType soil = world.getBlock(target.offset(0, -1, 0));
         boolean allowed;
         if (wantsCane) {
-            allowed = (soil.identifier().equals(BuiltinBlocks.GRASS_BLOCK.identifier())
-                    || soil.identifier().equals(BuiltinBlocks.DIRT.identifier())
-                    || soil.identifier().equals(BuiltinBlocks.SAND.identifier())
-                    || WorldSolidity.isSugarCane(soil.identifier()))
-                    && waterBesideSoil(target.offset(0, -1, 0));
+            // SugarCaneBlock.canBePlaced lines 52-68: the STACK case
+            // answers TRUE outright (a cane below a cane — no water
+            // consult anywhere in the reference's early return); the
+            // soil case demands grass/dirt/sand with WATER beside the
+            // soil (the neighbour's down cell — exactly the four
+            // horizontal neighbours of the soil the walk below reads).
+            allowed = WorldSolidity.isSugarCane(soil.identifier())
+                    || ((soil.identifier().equals(BuiltinBlocks.GRASS_BLOCK.identifier())
+                            || soil.identifier().equals(BuiltinBlocks.DIRT.identifier())
+                            || soil.identifier().equals(BuiltinBlocks.SAND.identifier()))
+                            && waterBesideSoil(target.offset(0, -1, 0)));
         } else {
             allowed = (soil.identifier().equals(BuiltinBlocks.SAND.identifier())
                     || WorldSolidity.isCactus(soil.identifier()));
@@ -9459,7 +9495,14 @@ public final class EngineServer implements Server, EngineBridge {
             }
         }
         if (!allowed) {
-            return false; // the soil refuses: the generic path's no-op
+            // THE FAMILY'S OWN REFUSAL (ItemBlock.useOn -> canPlace ->
+            // canBePlaced false, 1:1): the use ends with NOTHING placed
+            // and NOTHING consumed — the click must not fall through to
+            // the generic placement (a path with no family survival
+            // consult; the N2 gate's own catch: the old fall-through
+            // planted a reed on dry soil the moment the player stood
+            // near enough for the generic path's reach gate to pass).
+            return true;
         }
         world.setBlock(target, wantsCane ? BuiltinBlocks.SUGAR_CANE : BuiltinBlocks.CACTUS);
         if (session.gamemode() == GameMode.SURVIVAL) {

@@ -93,6 +93,12 @@ class CaneAndCactusAcceptanceTest {
         // Dry dirt: the cane refuses (the historical reed gate).
         BlockPosition dry = new BlockPosition(0, 64, 0);
         setBlock(dry, BuiltinBlocks.DIRT);
+        // The handler's 8-block body gate (Slice N2): the farmer stands
+        // near the soils before the uses.
+        server.ticker().submit(() -> farmer.applyMovement(
+                new Position(2.5, 65.5, 0.5),
+                net.zaminmc.torch.util.Rotation.ZERO, true));
+        Thread.sleep(150);
         farmer.inventory().setSlot(0, ItemStack.of(item("minecraft:sugar_cane"), 4));
         farmer.inventory().selectHotbarSlot(0);
         useOn(farmer, dry, 1);

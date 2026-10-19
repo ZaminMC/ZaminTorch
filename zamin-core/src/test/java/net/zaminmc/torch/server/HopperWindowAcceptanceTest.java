@@ -6,6 +6,7 @@ import net.zaminmc.torch.server.config.EngineConfig;
 import net.zaminmc.torch.server.hopper.HopperBlocks;
 import net.zaminmc.torch.server.item.BuiltinItems;
 import net.zaminmc.torch.server.net.ClientLink;
+import net.zaminmc.torch.util.Position;
 import net.zaminmc.torch.server.net.EngineBridge;
 import net.zaminmc.torch.server.player.PlayerSession;
 import org.junit.jupiter.api.Test;
@@ -56,6 +57,11 @@ class HopperWindowAcceptanceTest {
             BlockPosition at = new BlockPosition(90, 60, 90);
             server.ticker().submit(() ->
                     server.world().setBlock(at, HopperBlocks.hopperOf(0, true)));
+            // The handler's 8-block body gate (Slice N2): the player
+            // stands at the hopper before the use.
+            server.ticker().submit(() -> session.applyMovement(
+                    new Position(90.5, 61.5, 91.5),
+                    net.zaminmc.torch.util.Rotation.ZERO, true));
             awaitSettled();
 
             // The right-click open (HopperBlock.use): the window id assigns,

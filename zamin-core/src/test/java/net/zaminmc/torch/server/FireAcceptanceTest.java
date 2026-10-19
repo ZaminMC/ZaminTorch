@@ -98,6 +98,12 @@ class FireAcceptanceTest {
         PlayerSession igniter = join("Igniter");
         BlockPosition ground = new BlockPosition(0, 64, 0);
         setBlock(ground, BuiltinBlocks.STONE);
+        // The handler's 8-block body gate (Slice N2): the igniter stands
+        // at the ground before the use.
+        server.ticker().submit(() -> igniter.applyMovement(
+                new Position(0.5, 65.5, 1.5),
+                net.zaminmc.torch.util.Rotation.ZERO, true));
+        Thread.sleep(150);
         igniter.inventory().setSlot(0, ItemStack.of(item("minecraft:flint_and_steel"), 1));
         igniter.inventory().selectHotbarSlot(0);
         int before = igniter.inventory().held().damage();

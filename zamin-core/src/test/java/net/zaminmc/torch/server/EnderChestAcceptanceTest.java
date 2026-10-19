@@ -7,6 +7,7 @@ import net.zaminmc.torch.server.item.BuiltinItems;
 import net.zaminmc.torch.server.net.ClientLink;
 import net.zaminmc.torch.server.net.EngineBridge;
 import net.zaminmc.torch.server.player.PlayerSession;
+import net.zaminmc.torch.util.Position;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.io.TempDir;
@@ -83,6 +84,12 @@ class EnderChestAcceptanceTest {
                     EnderChestBlocks.enderChestOf(3)));
             await(() -> EnderChestBlocks.isFamily(server.world().getBlock(at)),
                     "the ender chest block landed");
+            // The handler's 8-block body gate (Slice N2): the player
+            // stands at the chest before the use.
+            server.ticker().submit(() -> session.applyMovement(
+                    new Position(99.5, 61.5, 100.5),
+                    net.zaminmc.torch.util.Rotation.ZERO, true));
+            await(() -> session.position().x() == 99.5, "the player stood at the chest");
             assertNull(server.chests().peek(at), "no world chest state at the door");
 
             // The use opens the player's OWN grid (EnderChestBlock.use).
@@ -139,6 +146,12 @@ class EnderChestAcceptanceTest {
                 EnderChestBlocks.enderChestOf(2)));
         await(() -> EnderChestBlocks.isFamily(first.world().getBlock(at)),
                 "the ender chest block landed");
+        // The handler's 8-block body gate (Slice N2): the player stands
+        // at the chest before the use.
+        first.ticker().submit(() -> player.applyMovement(
+                new Position(103.5, 61.5, 104.5),
+                net.zaminmc.torch.util.Rotation.ZERO, true));
+        await(() -> player.position().x() == 103.5, "the player stood at the chest");
         AtomicInteger opened = new AtomicInteger(-1);
         first.useItemOnBlock(player, at, 1, Optional.empty(), 0, opened::set);
         await(() -> opened.get() > 0, "the ender window opened");

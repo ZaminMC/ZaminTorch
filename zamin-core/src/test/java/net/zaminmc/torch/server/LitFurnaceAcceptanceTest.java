@@ -11,6 +11,7 @@ import net.zaminmc.torch.server.furnace.FurnaceBlockEntity;
 import net.zaminmc.torch.server.net.ClientLink;
 import net.zaminmc.torch.server.net.EngineBridge;
 import net.zaminmc.torch.server.player.PlayerSession;
+import net.zaminmc.torch.util.Position;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 
@@ -111,6 +112,12 @@ class LitFurnaceAcceptanceTest {
         PlayerSession smelter = join("Smelter");
         BlockPosition at = new BlockPosition(0, 64, 0);
         setBlock(at, BuiltinBlocks.FURNACE_LIT);
+        // The handler's 8-block body gate (Slice N2): the smelter stands
+        // at the furnace before the use.
+        server.ticker().submit(() -> smelter.applyMovement(
+                new Position(0.5, 65.5, 1.5),
+                net.zaminmc.torch.util.Rotation.ZERO, true));
+        Thread.sleep(150);
 
         // The lit variant is a furnace: the use dispatch opens its window.
         int[] windowId = {-1};
