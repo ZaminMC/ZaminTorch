@@ -10281,3 +10281,18 @@ Stage Summary:
 - develop pushed through the docs commit, all commits authored Abasing
 - The Phase-5 workload gates are now BOTH ANSWERED: pathfinding REJECTED WITH EVIDENCE; lighting a MEASURED WIN (contract + equivalence + numbers; the wiring itself demand-named)
 - Next: the lighting wiring (the pregen's per-chunk dispatchAndJoin over the seam — the pipelined shape needs the staleness protocol first), then the phase-gated items (the swept-box body model, the Anvil canvas, the adapters)
+
+---
+Task ID: session-2026-10-19-light-gate (cont.)
+Agent: main (Abasing session)
+Task: The lighting wiring — the gate's verdict put into production
+
+Work Log:
+- The install hook (LightEngine.onChunkGenerated) now rides the measured region path: capture the 3x3, run the same algorithms over the region routing, apply the recorded writes — synchronous on the owning lane (a routing win, not a concurrency change; no gate needed — the twin-world equivalence was proven BEFORE the wiring, the light suite's hand-checked expectations are the acceptance)
+- The contract test restructured so the equivalence keeps its power forever: the LIVE arm drives the live routing EXPLICITLY (computeInitial, not the hook — the hook now rides the region path itself); both worlds' setups run the identical manual sequence
+- The light suite 18/0 (LightEngineTest 10 hand-checked + LightSectionTest 5 + the contract 3); the direct sweep block/world/concurrent/light 355/0 (/home/z/my-project/sweep-P5wire-direct.log)
+
+Stage Summary:
+- THE LIGHTING GATE IS FULLY CLOSED: contract + equivalence + measurements + the wiring, all landed
+- The pool dispatch remains deferred to the batch shape (the staleness protocol is that step's gate)
+- Next: the phase-gated items (the swept-box body model, the Anvil canvas, the adapters), per-command argument completion

@@ -87,9 +87,20 @@ public final class LightEngine implements WorldChangeListener, ChunkLoadListener
 
     // ------------------------------------------------------------------ chunk load hook
 
+    /**
+     * THE WIRING (the §22 lighting gate's verdict): the initial compute now
+     * rides the MEASURED region path — capture the 3x3 read set, run the
+     * same algorithms over the region routing, apply the recorded writes —
+     * a 0.46-0.59x routing win over the live path per chunk (the pregen
+     * batch 3.9-5.4x), with semantics identical by the proven twin-world
+     * equivalence. The compute stays synchronous on the calling (owning)
+     * lane; the pool dispatch is deferred to the batch shape (the pipelined
+     * capture would see pre-apply neighbor states — the staleness protocol
+     * is that step's gate, recorded with the numbers).
+     */
     @Override
     public void onChunkGenerated(EngineWorld world, EngineChunk chunk) {
-        computeInitial(chunk);
+        applyInitial(InitialLightCompute.compute(LightRegion.capture(world, chunk)), chunk);
     }
 
     // ------------------------------------------------------------------ initial compute (the live entry)
