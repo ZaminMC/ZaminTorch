@@ -11,26 +11,26 @@ being architecturally unlike the historical Bukkit/CraftBukkit/Spigot/Paper line
 
 <!-- LOC_STATS:START -->
 <details>
-<summary>📊 Development Statistics — 227,593 Java lines · 24h +17,310 (click to expand)</summary>
+<summary>📊 Development Statistics — 227,588 Java lines · 24h +17,305 (click to expand)</summary>
 
 ### 📈 Today — 2026-10-19
 
 | Module | Java LOC | ± 24h | ± 7d | ± since start |
 |---|---|---|---|---|
 | zamin-api | 7,036 | +0 | +6,000 | +7,036 |
-| zamin-core | 197,202 | +14,827 | +115,528 | +197,202 |
+| zamin-core | 197,197 | +14,822 | +115,523 | +197,197 |
 | zamin-launcher | 2,669 | +2,194 | +2,297 | +2,669 |
 | zamin-protocol-v1_8_8 | 20,686 | +289 | +8,060 | +20,686 |
 | tools | 0 | — | — | — |
-| **Total** | **227,593** | **+17,310** | **+131,885** | **+227,593** |
+| **Total** | **227,588** | **+17,305** | **+131,880** | **+227,588** |
 
 ```diff
-+ added 17,310 lines vs 24 hours ago
-+ added 131,885 lines vs 7 days ago
-+ added 227,593 lines vs 30 days ago (since start)
++ added 17,305 lines vs 24 hours ago
++ added 131,880 lines vs 7 days ago
++ added 227,588 lines vs 30 days ago (since start)
 ```
 
-*811 Java files · tracked modules: `zamin-api`, `zamin-core`, `zamin-launcher`, `zamin-protocol-v1_8_8`, `tools` · dates in PKT (UTC+5) · auto-updated on every push to `develop` and every 6 hours · last update 2026-10-19 13:09 PKT. `tools` currently contains no Java code; it is counted automatically once it does.*
+*811 Java files · tracked modules: `zamin-api`, `zamin-core`, `zamin-launcher`, `zamin-protocol-v1_8_8`, `tools` · dates in PKT (UTC+5) · auto-updated on every push to `develop` and every 6 hours · last update 2026-10-19 13:26 PKT. `tools` currently contains no Java code; it is counted automatically once it does.*
 
 <details>
 <summary>📜 Past stats — 12 recorded days</summary>
