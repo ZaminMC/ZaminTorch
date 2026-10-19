@@ -49,7 +49,8 @@ public final class ConfigLoader {
                 levelType(properties),
                 boolOf(properties, "white-list", false),
                 regionSize(properties),
-                boolOf(properties, "enable-command-block", false));
+                boolOf(properties, "enable-command-block", false),
+                intOf(properties, "spawn-protection", 16));
     }
 
     /** The bind address: empty means the wildcard (the vanilla convention). */

@@ -41,6 +41,13 @@ import java.util.Objects;
  *                        {@code advMode.notEnabled} while off (the
  *                        execution itself is ungated, the reference's own
  *                        shape — a block that exists runs).
+ * @param spawnProtectionRadius the {@code spawn-protection} property
+ *                        (DedicatedServer.getSpawnProtectionRadius:
+ *                        {@code getInt("spawn-protection", 16)}): the
+ *                        chebyshev radius around spawn where non-operators
+ *                        may not use blocks — armed only while at least
+ *                        one operator exists (the reference's own
+ *                        {@code getOps().isEmpty() -> false}); 0 disables.
  */
 public record EngineConfig(
         String host,
@@ -56,7 +63,8 @@ public record EngineConfig(
         String levelType,
         boolean whiteList,
         int regionSizeChunks,
-        boolean enableCommandBlocks
+        boolean enableCommandBlocks,
+        int spawnProtectionRadius
 ) {
 
     /**
@@ -66,12 +74,20 @@ public record EngineConfig(
      */
     public static final int WHOLE_WORLD_REGION_SIZE = 1 << 30;
 
+    /**
+     * The vanilla dedicated default ({@code getInt("spawn-protection", 16)}):
+     * the chebyshev radius around spawn where non-operators may not use
+     * blocks — armed only while at least one operator exists (the
+     * reference's own {@code getOps().isEmpty() -> false}).
+     */
+    public static final int DEFAULT_SPAWN_PROTECTION = 16;
+
     /** Compatibility constructor for callers that do not care about mode/type. */
     public EngineConfig(String host, int port, String worldName, String motd,
                         int maxPlayers, int viewDistance, int tickRateHz, String dataDir) {
         this(host, port, worldName, motd, maxPlayers, viewDistance, tickRateHz,
                 dataDir, GameMode.SURVIVAL, true, "flat", false, WHOLE_WORLD_REGION_SIZE,
-                false);
+                false, DEFAULT_SPAWN_PROTECTION);
     }
 
     /** Compatibility constructor for callers that set only the mode. */
@@ -79,7 +95,8 @@ public record EngineConfig(
                         int maxPlayers, int viewDistance, int tickRateHz, String dataDir,
                         GameMode gamemode) {
         this(host, port, worldName, motd, maxPlayers, viewDistance, tickRateHz,
-                dataDir, gamemode, true, "flat", false, WHOLE_WORLD_REGION_SIZE, false);
+                dataDir, gamemode, true, "flat", false, WHOLE_WORLD_REGION_SIZE,
+                false, DEFAULT_SPAWN_PROTECTION);
     }
 
     /**
@@ -91,7 +108,21 @@ public record EngineConfig(
                         GameMode gamemode, boolean pvp, String levelType, boolean whiteList,
                         int regionSizeChunks) {
         this(host, port, worldName, motd, maxPlayers, viewDistance, tickRateHz,
-                dataDir, gamemode, pvp, levelType, whiteList, regionSizeChunks, false);
+                dataDir, gamemode, pvp, levelType, whiteList, regionSizeChunks, false,
+                DEFAULT_SPAWN_PROTECTION);
+    }
+
+    /**
+     * Compatibility constructor for the pre-N4 shape (the spawn protection
+     * keeps the vanilla dedicated default 16).
+     */
+    public EngineConfig(String host, int port, String worldName, String motd,
+                        int maxPlayers, int viewDistance, int tickRateHz, String dataDir,
+                        GameMode gamemode, boolean pvp, String levelType, boolean whiteList,
+                        int regionSizeChunks, boolean enableCommandBlocks) {
+        this(host, port, worldName, motd, maxPlayers, viewDistance, tickRateHz,
+                dataDir, gamemode, pvp, levelType, whiteList, regionSizeChunks,
+                enableCommandBlocks, DEFAULT_SPAWN_PROTECTION);
     }
 
     public EngineConfig {
@@ -118,6 +149,10 @@ public record EngineConfig(
         if (regionSizeChunks < 1 || regionSizeChunks > WHOLE_WORLD_REGION_SIZE) {
             throw new IllegalArgumentException("regionSizeChunks out of range (1.."
                     + WHOLE_WORLD_REGION_SIZE + "): " + regionSizeChunks);
+        }
+        if (spawnProtectionRadius < 0) {
+            throw new IllegalArgumentException("spawnProtectionRadius must not be negative: "
+                    + spawnProtectionRadius);
         }
         Objects.requireNonNull(dataDir, "dataDir");
         if (dataDir.isBlank()) {

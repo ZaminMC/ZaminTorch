@@ -3479,6 +3479,15 @@ public final class EngineServer implements Server, EngineBridge {
         return randomTicks;
     }
 
+    /**
+     * The operator store (ops.json) — the /op //deop commands' own
+     * persistence, exposed for the spawn-protection consult's tests and
+     * the plugin surface.
+     */
+    public net.zaminmc.torch.server.ops.OpStore opStore() {
+        return opStore;
+    }
+
     /** The crafting matcher (exposed for recipe tests). */
     public CraftingService crafting() {
         return crafting;
@@ -7878,11 +7887,18 @@ public final class EngineServer implements Server, EngineBridge {
             return; // the outside-border use
         }
         // the spawn-protection consult (DedicatedServer.isSpawnProtected
-        // lines 387-409) degenerates for an op-less server — the
-        // reference's own {@code getOps().isEmpty() -> false} — so the
-        // engine needs no gate until the ops model lands (ledgered with
-        // the ops slice); the {@code teleported} flag (the anti-use-
-        // while-teleporting gate) rides the teleport slice's own ledger.
+        // lines 387-409, 1:1 — armed by Slice N4 now that the ops model
+        // exists): an op-less server protects nothing (the reference's
+        // own {@code getOps().isEmpty() -> false}); an operator passes
+        // freely; a non-operator inside the chebyshev radius around
+        // spawn (the {@code spawn-protection} property, default 16) is
+        // refused. The overworld-only dimension gate is structural here
+        // (the use walk's world IS the overworld); the {@code teleported}
+        // flag (the anti-use-while-teleporting gate) rides the teleport
+        // slice's own ledger.
+        if (isSpawnProtected(session, clicked)) {
+            return; // the spawn-protection refusal: no use arm runs
+        }
         //
         // The held stack the law reads (getDisplayItemInHand — the
         // selected slot's own stack, the authoritative inventory any
@@ -7926,6 +7942,35 @@ public final class EngineServer implements Server, EngineBridge {
         }
         BlockPosition offset = new BlockPosition(clicked.x() + dx, offsetY, clicked.z() + dz);
         session.link().blockResync(offset, world.getBlock(offset));
+    }
+
+    /**
+     * The spawn-protection consult (DedicatedServer.isSpawnProtected lines
+     * 387-409, 1:1): the overworld alone (the use walk's world IS the
+     * overworld — the reference's {@code dimension.getId() != 0 -> false}
+     * is structural); an op-less server protects NOTHING (the reference's
+     * own {@code getOps().isEmpty() -> false} — a fresh server's uses are
+     * free until the first /op arms the band); an operator passes freely;
+     * a non-operator inside the chebyshev radius around the world's spawn
+     * ({@code max(|dx|, |dz|) <= radius}) is refused. The radius rides
+     * the {@code spawn-protection} property (default 16, 0 disables).
+     * Tick-thread context (reads the op store and the spawn anchor).
+     */
+    private boolean isSpawnProtected(PlayerSession player, BlockPosition pos) {
+        if (opStore.entries().isEmpty()) {
+            return false; // nobody opped: the reference's own unarmed band
+        }
+        if (opStore.isOp(player.uuid())) {
+            return false; // the operator passes freely
+        }
+        int radius = config.spawnProtectionRadius();
+        if (radius <= 0) {
+            return false; // the disabled band
+        }
+        BlockPosition spawn = world.spawnPosition().toBlockPosition();
+        int dx = Math.abs(pos.x() - spawn.x());
+        int dz = Math.abs(pos.z() - spawn.z());
+        return Math.max(dx, dz) <= radius;
     }
 
     /**
