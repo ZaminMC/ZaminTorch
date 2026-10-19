@@ -41,7 +41,7 @@ tasks.register<JavaExec>("runServer") {
  * (.github/workflows/release.yml) stamps this constant and
  * UpdateChecker.BUILD_VERSION on every cut.
  */
-val distVersion = "1.8.8-97"
+val distVersion = "1.8.8-98"
 
 val fatJar = tasks.register<Jar>("fatServerJar") {
     group = "zamin"
