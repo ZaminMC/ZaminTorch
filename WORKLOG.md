@@ -10377,3 +10377,24 @@ Work Log:
 
 Stage Summary:
 - (in flight — the fixes land next; the reference citations recorded above)
+
+---
+Task ID: session-2026-10-20-light-audit (cont.)
+Agent: main (Abasing session)
+Task: The vanilla 1:1 light audit's fixes — the nine divergence families landed against the reference's own registrations
+
+Work Log:
+- Environment reset recovered (fresh clone at /home/z/ZaminTorch, develop @ 7f39d04b = torch-1.8.8-101); Abasing identity set; the interrupted audit's findings re-verified line by line before any edit (the register block in reference/1.8.8/net/minecraft/block/Block.java: setLight truncation (int)(15*f) line 254, the constructor default isSolidRender()?255:0 line 216)
+- THE AUDIT'S OWN ERROR CAUGHT DURING RE-VERIFICATION: the first cut gave BOTH mushrooms the 0.125 glow ("both share the 0.125 instance") — the reference registers them as TWO locals (Block.java lines 1058-1061): block3 (brown) carries setLight(0.125F), block4 (red) carries NONE. Only the brown glows; the red row stays (0,0) — the reference is the authority, not the audit's summary
+- THE TWO UNVERIFIED ROWS CLOSED: dragon_egg (1,0) and end_portal (15,0) were already correct in the engine (the class-internal setLight arms: DragonEgg registration line 1266, EndPortalBlock line 22)
+- THE NINE FIXES in BlockLightTable: snow_layer (0,15)->(0,0) [setOpacity(0) line 1175]; oak_leaves + every wood variant through mergeLight (1,1)->(0,1) [no setLight line 1027 + AbstractLeavesBlock setOpacity(1) line 30]; the brewing stand's 8 states (0,0)->(1,0) [setLight(0.125F) line 1241 — an EMISSION; the old comment had misread the call as a filter]; beacon (0,0)->(15,0) [setLight(1.0F) line 1300]; the unlit furnace family's 5 states (0,0)->(0,15) [FurnaceBlock(false) overrides nothing, line 1126 — solid render, now self-consistent with the lit 13/15]; brown_mushroom (0,0)->(1,0); the end portal frames' 8 states (0,15)->(1,0) [setLight(0.125F) line 1249 + isSolidRender false]; falling_water (0,2)->(0,3) [setOpacity(3) line 1017 — the dataset's filterLight 2 retired]; the powered comparators' 8 states (0,0)->(9,0) [setLight(0.625F) line 1321; the unpowered family correctly stays dark]
+- THE CENSUS TEST (VanillaLightAuditTest 5): the nine corrected families pinned with the reference lines; the COMPLETE setLight census (every registry emitter + the two class-internal arms); the complete setOpacity census (water/ice/web/snow_layer/carpet/anvil/enchanting_table/leaves/stairs/slabs/farmland); the solid-render default anchors; and the COMPLETENESS BAR — every nonzero-emission row in the table must appear in the reference's census, so no invented glow can survive a future edit
+- The consumers checked before the edit: BeaconSystem reads only the beacon's FILTER (unchanged at 0); the light suite's hand-checked scenes use torch/glass/stone only; the table is the single source of truth (LightEngine/LightRegion/RandomTickSystem all consult it) — the fixes flow through both routings automatically
+- Evidence: VanillaLightAuditTest 5/0 + the block+light sweep 158/0 + the consumer sweep (world/redstone/beacon/furnace/brewing) 188/0 + concurrent/entity/vehicle 484/0 + the belt (physics/piston/scheduler/command/item) 57/0 + the protocol module FULL 110/0 (fresh --rerun — the chunk packets carry the light sections, the right regression arm for a light table change)
+- Docs: the compatibility ledger's brewing row corrected (the misread note replaced) + the new VERIFIED audit row with the full citations; §22's "Next concrete mechanics work" line carries the audit's landing
+
+Stage Summary:
+- develop: the vanilla 1:1 light audit's nine families LANDED, all commits authored Abasing
+- THE LIGHT TABLE IS NOW REFERENCE-DERIVED where the reference speaks: every setLight/setOpacity call in the register block and both class-internal arms pinned by the census test; the dataset (minecraft-data) remains the source only where the reference never overrode (the default band)
+- The audit's own mushroom error is the session's lesson recorded: verify the AUDIT against the reference with the same discipline as the code — the two-registrations catch (block3/block4)
+- Next: the parallel instances' PRs (Anvil import — nothing pushed yet; the Bukkit adapter's scaffold at 3e5a5f3a on feature/bukkit-adapter) to review+merge; the Minestom module decision (ADR-0001 revisit); Phase 7's profiling opener
