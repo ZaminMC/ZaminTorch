@@ -746,6 +746,10 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         // client's acknowledgment at the anchor it was just given.
         lastTeleportAnchor = player.position();
         sendPositionAndLook(channel, player.position(), player.rotation(), true);
+        // THE TELEPORT WINDOW (the respawn's own re-anchor — the reference's
+        // respawn walk calling teleport): uses refuse until the client's
+        // movement acknowledges the spawn anchor.
+        player.markTeleportPending(player.position());
         sendUpdateHealth(player);
         sendSetExperience(player); // the respawned body's reset (or surviving) XP bar
         sendWindowItems(channel, player.inventory().snapshot(),
@@ -2448,6 +2452,14 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         // The movement guard's snap-back: re-assert the authoritative state.
         // Any thread; writeAndFlush is the channel's own ordering.
         sendPositionAndLook(channel, player.position(), player.rotation(), true);
+        // THE TELEPORT WINDOW (the reference's networkHandler.teleport()
+        // setting {@code teleported = false} — the wire's own teleport
+        // order, both the engine's teleports and the rejected-movement
+        // snap-backs): uses refuse until the client's movement
+        // acknowledges the anchor (the d3 < 0.25 squared band the
+        // engine's movement walk consults) — the use handler's own first
+        // consult, handlePlayerUse line 475.
+        player.markTeleportPending(player.position());
     }
 
     /** The abilities flag byte for a session's current game mode. */

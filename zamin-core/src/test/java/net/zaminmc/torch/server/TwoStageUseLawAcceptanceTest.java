@@ -398,6 +398,42 @@ class TwoStageUseLawAcceptanceTest {
     }
 
     /**
+     * THE TELEPORT WINDOW (handlePlayerUse line 475's own first consult):
+     * a use through an in-flight teleport refuses — the wire's Position
+     * And Look is unacknowledged and the click still carries the
+     * pre-teleport world; the client's movement at the anchor (the d3
+     * &lt; 0.25 band) opens the gate again.
+     */
+    @Test
+    void theTeleportWindowRefusesUntilAcknowledged() throws Exception {
+        BlockPosition chestAt = new BlockPosition(2, 5, 0);
+        place(chestAt, BuiltinBlocks.CHEST);
+        hold(ItemStack.EMPTY);
+
+        // The wire's teleport order arms the window (the session's own
+        // verb — the stub link carries no wire, the engine's internal
+        // teleports never arm).
+        server.ticker().submit(() ->
+                player.markTeleportPending(new Position(0.5, 5.0, 0.5)));
+        await(() -> player.teleportPending(), "the window armed");
+
+        use(chestAt, 4);
+        Thread.sleep(300);
+        assertEquals(PlayerSession.ContainerKind.NONE, player.openContainerKind(),
+                "the unacknowledged teleport refused the use");
+
+        // The client's movement at the anchor acknowledges (the d3 < 0.25
+        // band — the engine's own movement proposal walk).
+        server.movementProposal(player, new Position(0.5, 5.0, 0.5),
+                net.zaminmc.torch.util.Rotation.ZERO, true);
+        await(() -> !player.teleportPending(), "the anchor acknowledged");
+
+        use(chestAt, 4);
+        await(() -> player.openContainerKind() == PlayerSession.ContainerKind.CHEST,
+                "the acknowledged teleport opened the gate");
+    }
+
+    /**
      * THE ANTI-DESYNC RESYNC PAIR (handlePlayerUse lines 494-497): after
      * EVERY block-face use — the accepted chest-open, the refused
      * too-far click — the clicking player's client receives the

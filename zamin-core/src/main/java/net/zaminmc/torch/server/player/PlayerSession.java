@@ -226,6 +226,19 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
     /** The operator level (0 = player, 4 = console-equivalent). */
     private volatile int opLevel;
 
+    /**
+     * THE TELEPORT WINDOW (ServerPlayNetworkHandler's {@code teleported}
+     * flag, inverted): a server-ordered teleport is IN FLIGHT until the
+     * client's movement lands at the anchor (the reference's own
+     * {@code d3 < 0.25} squared band) — uses refuse through the window
+     * (the use handler's own first consult, handlePlayerUse line 475:
+     * {@code if (this.teleported && ...)}). Tick-thread written, volatile
+     * for the use-walk read.
+     */
+    private volatile boolean teleportPending;
+    /** The in-flight teleport's anchor (the acknowledgment band's target). */
+    private volatile Position teleportAnchor;
+
     /** The underwater breath clock: 300 ticks of air (the historical 15 s). */
     private int airTicks = 300;
     private int drownTimer;
@@ -547,6 +560,45 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
 
     public void setOpLevel(int level) {
         this.opLevel = Math.max(0, level);
+    }
+
+    /**
+     * Arms the teleport window (the engine's teleport order — the
+     * reference's {@code teleport()} setting {@code teleported = false}):
+     * uses refuse until the client's movement lands at the anchor.
+     * Tick-thread context.
+     */
+    public void markTeleportPending(Position anchor) {
+        this.teleportAnchor = java.util.Objects.requireNonNull(anchor, "anchor");
+        this.teleportPending = true;
+    }
+
+    /**
+     * The teleport-window consult (the use handler's first gate,
+     * handlePlayerUse line 475): a pending teleport refuses uses.
+     */
+    public boolean teleportPending() {
+        return teleportPending;
+    }
+
+    /**
+     * The in-flight teleport's anchor (the acknowledgment band's target,
+     * or null when no teleport is in flight).
+     */
+    public Position teleportAnchor() {
+        return teleportAnchor;
+    }
+
+    /**
+     * Acknowledges the in-flight teleport (the movement handler's own
+     * band, lines 203-211: a position packet within {@code d3 < 0.25}
+     * squared of the anchor re-arms the flag). Tick-thread context.
+     */
+    public void acknowledgeTeleportIfAtAnchor(Position position) {
+        if (teleportPending && teleportAnchor != null
+                && position.distanceSquared(teleportAnchor) < 0.25) {
+            teleportPending = false;
+        }
     }
 
     // The portal stand clock (the reference's Entity portal tick,
