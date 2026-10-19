@@ -9842,3 +9842,59 @@ serialization), the §29 standing rows.
 the eye +1.5, the too-high, the spawn-protection + border consults on
 START with the BlockUpdate echo on refusal — handlePlayerDig lines
 424-456), the Phase-5 workload adoptions, the §29 standing rows.
+
+## Slice N6 — the dig handler's own gates
+
+- **THE LAW** (ServerPlayNetworkHandler.handlePlayerDig lines 424-456,
+  1:1): the dig's own six-block band
+  `d3 = (player.x-(x+0.5))^2 + (player.y+1.5-(y+0.5))^2 + (player.z-(z+0.5))^2`
+  — from the feet raised by the reference's own `+ 1.5` (never the 1.62
+  standing eye), squared 36.0, applied to START, FINISH, ABORT, and the
+  creative break's ride through the same case band.
+- **THE REAL BUG THE BAND REPAIRS**: the old survival band was the
+  4.5-block reach from the 1.62 eye (withinSurvivalReach) — a dig at
+  five blocks that vanilla OPENS, the engine refused; the finish and
+  the abort carried NO band at all (a finish from any distance broke,
+  an abort from any distance stopped).
+- **THE START CONSULTS** (lines 437-445): the N4 spawn-protection law +
+  the border consult — the refusal answers the BlockUpdate echo to the
+  digger's link. THE SEAM: `setDigStartGate` (the service's own walk
+  consults; EngineServer wires `!isSpawnProtected && border.contains`).
+- **THE EXTINGUISH ARM** (startMiningBlock line 128 over
+  World.extinguishFire lines 1639-1647): the 1.8 C07's face byte
+  threaded from the wire (`handleDigging` reads it — the packet's tail
+  byte the engine never consumed before); the face-offset cell's FIRE
+  dies with the doEvent-1004 fizz (`random.fizz` 0.5, 2.6±(rand-rand)*0.8
+  — `setFireExtinguishFx` into the FxManager). The survival start
+  discards the return (the dig still opens); the CREATIVE law consumes
+  the click (`if (!extinguishFire) tryMineBlock` — the fire dies, the
+  block behind it SURVIVES). The mode gates run FIRST (the SPECTATOR
+  refusal before the CanDestroy consult — canMineBlock's new arm, the
+  reference's restrictsWorldModification order).
+- **THE TAIL ECHO** (lines 449-452): after the finish and the abort, a
+  still-standing block answers the digger's link (`ClientLink.blockResync`)
+  — the early finish's park and every refusal replaced their internal
+  resyncs with the single handler-level tail (the old code's "prediction
+  stays" comment missed the reference's own BlockUpdate); the accepted
+  finish (the cell now air) echoes nothing. THE IGNORED ABORT: beyond
+  the band the abort answers NOTHING — the session stays live.
+- **THE ADAPTATIONS**: the compat overloads (face-less START /
+  pos-less abort on the engine's internal API path — the extinguish
+  never arms, the abort runs ungated; zero call-site churn across the
+  ~60 existing test drives); the too-high gate is structural (the
+  BlockPosition ctor's 0..255 bound answers nothing at the wire); the
+  wire's mode dispatch realigned (adventure/spectator digs ride the
+  shared case band — the walk's arms refuse inside; the drops guard is
+  `isSpectator()` alone).
+- Evidence: DigHandlerGatesAcceptanceTest 8/8 (the band widening's own
+  inside edge — the old band refused, the dig band opens; the
+  beyond-band NOTHING; the consults' refusal echo + the operator's free
+  pass; the extinguish arm survival-side + the creative
+  extinguish-first; the early-park's NEW tail echo; the ignored abort's
+  live session; the in-band abort's double echo) + the direct sweep 90/0
+  (the 16 dig/use-driving classes) + the block package 129/0 + the
+  protocol module FULL 108/0 (sweep-N6-new/direct/proto/blockpkg.log).
+
+**Next:** the placement handler's own gates (handlePlayerBlockPlacement —
+its 64.0-or-creative band from the BODY, its own consults — the natural
+N7), the Phase-5 workload adoptions, the §29 standing rows.

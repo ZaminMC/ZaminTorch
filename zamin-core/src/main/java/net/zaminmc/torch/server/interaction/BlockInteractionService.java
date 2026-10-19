@@ -120,6 +120,24 @@ public final class BlockInteractionService {
     private volatile PlacementTagConsult placementTagConsult;
 
     /**
+     * The dig-start consult (Slice N6 — handlePlayerDig lines 437-445,
+     * 1:1): {@code !this.server.isSpawnProtected(...) && serverworld
+     * .getWorldBorder().contains(blockpos)} — the consult whose refusal
+     * answers the BlockUpdate echo instead of opening the dig. True =
+     * the dig MAY open; null keeps the ungated historical path (the
+     * engine's internal API path — the reference's consults ride the
+     * network handler, the engine's seam is the service's own walk).
+     */
+    private volatile java.util.function.BiPredicate<PlayerSession, BlockPosition> digStartGate;
+
+    /**
+     * The fire-extinguish FX hook (Slice N6 — World.extinguishFire line
+     * 1642's {@code doEvent(player, 1004, pos, 0)}): the fizz broadcast
+     * at the removed fire cell. Null keeps the removal silent.
+     */
+    private volatile java.util.function.Consumer<BlockPosition> fireExtinguishFx;
+
+    /**
      * The consult's own signature (the engine-side seam: the world, the
      * dimension id for the tile family's key, the position, the held
      * stack, and the placer's op level — the reference's isOp gate).
@@ -143,6 +161,24 @@ public final class BlockInteractionService {
     /** Wires the placement's BlockEntityTag consult (the tile NBT seam). */
     public void setPlacementTagConsult(PlacementTagConsult consult) {
         this.placementTagConsult = java.util.Objects.requireNonNull(consult, "consult");
+    }
+
+    /**
+     * Wires the dig-start consult (the spawn-protection + border pair,
+     * the reference's own {@code !isSpawnProtected && contains} band).
+     * True = the dig may open; false = the refusal answers the echo.
+     */
+    public void setDigStartGate(
+            java.util.function.BiPredicate<PlayerSession, BlockPosition> gate) {
+        this.digStartGate = java.util.Objects.requireNonNull(gate, "gate");
+    }
+
+    /**
+     * Wires the fire-extinguish FX (the reference's doEvent 1004 — the
+     * fizz at the removed fire cell).
+     */
+    public void setFireExtinguishFx(java.util.function.Consumer<BlockPosition> fx) {
+        this.fireExtinguishFx = java.util.Objects.requireNonNull(fx, "fx");
     }
 
     /**
@@ -232,27 +268,82 @@ public final class BlockInteractionService {
         this.inventorySync = Objects.requireNonNull(inventorySync, "inventorySync");
     }
 
-    /** Requests an instant (creative) break. Safe from any thread. */
+    /**
+     * Requests an instant (creative) break. Safe from any thread. The
+     * compat overload without the face (the engine's internal API path
+     * — Slice N6's documented adaptation: the reference's every dig
+     * carries the packet's face; the internal path's face-less break
+     * simply never arms the extinguish).
+     */
     public void submitCreativeBreak(PlayerSession player, BlockPosition position) {
+        submitCreativeBreak(player, position, -1);
+    }
+
+    /**
+     * Requests an instant (creative) break with the dig packet's face.
+     * Safe from any thread. THE CREATIVE EXTINGUISH-FIRST LAW
+     * (ServerPlayerInteractionManager.startMiningBlock lines 105-110,
+     * 1:1): {@code if (!extinguishFire(null, pos, face)) tryMineBlock}
+     * — a fire block at the face-offset cell consumes the click itself
+     * (the fire dies, the block behind it SURVIVES).
+     */
+    public void submitCreativeBreak(PlayerSession player, BlockPosition position, int face) {
         Objects.requireNonNull(player, "player");
         Objects.requireNonNull(position, "position");
-        ticker.submit(() -> creativeBreakOnTick(player, position));
+        ticker.submit(() -> creativeBreakOnTick(player, position, face));
     }
 
-    /** Reports the start of a survival dig. Safe from any thread. */
+    /**
+     * Reports the start of a survival dig. Safe from any thread. The
+     * compat overload without the face (the internal API path — no
+     * extinguish arm arms).
+     */
     public void submitMiningStart(PlayerSession player, BlockPosition target) {
+        submitMiningStart(player, target, -1);
+    }
+
+    /**
+     * Reports the start of a survival dig with the dig packet's face.
+     * Safe from any thread. THE EXTINGUISH ARM
+     * (ServerPlayerInteractionManager.startMiningBlock line 128, 1:1):
+     * every survival dig start runs {@code world.extinguishFire(null,
+     * pos, face)} — a fire block at the face-offset cell dies (the dig
+     * still opens: the reference discards the return on the survival
+     * path, lines 128+).
+     */
+    public void submitMiningStart(PlayerSession player, BlockPosition target, int face) {
         Objects.requireNonNull(player, "player");
         Objects.requireNonNull(target, "target");
-        ticker.submit(() -> miningStartOnTick(player, target));
+        ticker.submit(() -> miningStartOnTick(player, target, face));
     }
 
-    /** Reports an aborted survival dig (client moved away or released). Safe from any thread. */
+    /**
+     * Reports an aborted survival dig (client moved away or released).
+     * Safe from any thread. The compat overload without the packet's
+     * position (the internal API path — no reach band, no tail echo:
+     * the reference's abort gates and echo both read the packet's own
+     * blockpos, lines 424-452).
+     */
     public void submitMiningAborted(PlayerSession player) {
-        Objects.requireNonNull(player, "player");
-        ticker.submit(() -> stopMiningOnTick(player));
+        submitMiningAborted(player, null);
     }
 
-    /** Reports the completion of a survival dig. Safe from any thread. */
+    /**
+     * Reports an aborted survival dig with the packet's position. Safe
+     * from any thread. THE ABORT'S OWN GATES (handlePlayerDig lines
+     * 424-433 + 449-452, 1:1): an abort beyond the 6-block dig band
+     * answers NOTHING (the session stays live, exactly the reference's
+     * {@code return}), and the abort's tail answers the authoritative
+     * state of the packet's cell when it still holds its block.
+     */
+    public void submitMiningAborted(PlayerSession player, BlockPosition target) {
+        Objects.requireNonNull(player, "player");
+        ticker.submit(() -> stopMiningOnTick(player, target));
+    }
+
+    /**
+     * Reports the completion of a survival dig. Safe from any thread.
+     */
     public void submitMiningFinished(PlayerSession player, BlockPosition target) {
         Objects.requireNonNull(player, "player");
         Objects.requireNonNull(target, "target");
@@ -287,14 +378,29 @@ public final class BlockInteractionService {
 
     // ---- tick-thread execution ---------------------------------------------
 
-    private void creativeBreakOnTick(PlayerSession player, BlockPosition position) {
+    private void creativeBreakOnTick(PlayerSession player, BlockPosition position, int face) {
         BlockType current = world.getBlock(position);
         if (current.equals(world.airType())) {
             return; // nothing to break: no-op, no error
         }
-        if (!InteractionRules.withinReach(player.position(), position)) {
-            LOGGER.fine(() -> "Rejected break (out of reach) by " + player.name());
+        // THE DIG REACH BAND (handlePlayerDig lines 424-433, 1:1 — the
+        // creative break rides the same case band): from the feet raised
+        // by the reference's own + 1.5 to the target cell's centre,
+        // squared at most 36.0 — a break beyond six blocks answers
+        // NOTHING (the reference's {@code d3 > 36.0} gate guards the
+        // interactionManager call for every mode alike).
+        if (!InteractionRules.withinDigReach(player.position(), position)) {
+            LOGGER.fine(() -> "Rejected creative break (beyond the dig band) by " + player.name());
             return;
+        }
+        // THE CREATIVE EXTINGUISH-FIRST LAW (startMiningBlock lines
+        // 105-110, 1:1): {@code if (!this.world.extinguishFire(null, pos,
+        // face)) this.tryMineBlock(pos)} — a fire block at the
+        // face-offset cell consumes the click itself: the fire dies with
+        // its fizz, the block behind it SURVIVES (no break event, no
+        // drops, nothing spends).
+        if (extinguishFireAt(face >= 0 ? position : null, face)) {
+            return; // the extinguish consumed the click
         }
         // The adventure mine gate (Wave I — a restricted placer's held
         // stack must carry the block in its CanDestroy list; creative
@@ -341,13 +447,34 @@ public final class BlockInteractionService {
      * dig. Instant-progress blocks break on the START itself; everything else
      * starts accumulating and broadcasts its initial stage.
      */
-    private void miningStartOnTick(PlayerSession player, BlockPosition target) {
+    private void miningStartOnTick(PlayerSession player, BlockPosition target, int face) {
+        // THE DIG REACH BAND (handlePlayerDig lines 424-433, 1:1): the
+        // dig's own six-block band from the feet raised by the
+        // reference's + 1.5 — a START beyond it answers NOTHING (no dig
+        // opens, no echo). THE REAL BUG THIS REPAIRS: the old band was
+        // the 4.5-block survival reach from the 1.62 standing eye — a
+        // dig at five blocks that vanilla opens, the engine refused.
+        if (!InteractionRules.withinDigReach(player.position(), target)) {
+            LOGGER.fine(() -> "Rejected mining start (beyond the dig band) by " + player.name());
+            return;
+        }
+        // THE START CONSULTS (handlePlayerDig lines 437-445, 1:1): the
+        // reference's {@code !this.server.isSpawnProtected(serverworld,
+        // blockpos, this.player) && serverworld.getWorldBorder()
+        // .contains(blockpos)} — a refused consult answers the BlockUpdate
+        // echo (the client's predicted dig-start ghost reverts) and NO
+        // dig opens; the passed consult opens the dig exactly like the
+        // reference's interactionManager.startMiningBlock call.
+        java.util.function.BiPredicate<PlayerSession, BlockPosition> startGate = digStartGate;
+        if (startGate != null && !startGate.test(player, target)) {
+            player.link().blockResync(target, world.getBlock(target));
+            LOGGER.fine(() -> "Refused mining start (spawn-protection/border) by "
+                    + player.name() + " — the refusal echo answers");
+            return;
+        }
         BlockBehavior behavior = BlockBehaviorTable.of(world.getBlock(target).identifier()).orElse(null);
         if (behavior == null || !behavior.diggable() || behavior.hardness() < 0) {
             return; // air or unbreakable: no dig (bedrock never opens one)
-        }
-        if (!InteractionRules.withinSurvivalReach(player.position(), target)) {
-            return;
         }
         // The adventure mine gate (Wave I — ServerPlayerInteractionManager
         // 112-133: a restricted placer's held stack must carry the block
@@ -356,6 +483,13 @@ public final class BlockInteractionService {
             LOGGER.fine(() -> "Rejected mining start (adventure CanDestroy) by " + player.name());
             return;
         }
+        // THE EXTINGUISH ARM (startMiningBlock line 128, 1:1): every
+        // survival dig start runs {@code world.extinguishFire(null, pos,
+        // face)} — a fire block at the face-offset cell dies with its
+        // fizz; the return is discarded, the dig still opens. THE ORDER
+        // 1:1: the reference's mode gates run FIRST (the spectator and
+        // CanDestroy refusals above) — a refused dig never extinguishes.
+        extinguishFireAt(face >= 0 ? target : null, face);
         // The reference's startMining arm (ServerPlayerInteractionManager
         // line 133: block.startMining before the speed consult) — the note
         // block plays here; creative never reaches this path.
@@ -387,35 +521,62 @@ public final class BlockInteractionService {
     }
 
     /**
-     * The vanilla {@code finishMiningBlock}: an accumulated progress of at
-     * least 0.7 mines immediately; an early finish parks the dig as
-     * {@code wasMining} — the tick loop keeps accumulating and self-completes
-     * at 1.0, exactly the vanilla no-resync behavior that keeps an
-     * honest-but-laggy client's prediction standing.
+     * The vanilla {@code finishMiningBlock} wrapped in the dig handler's
+     * own band and tail (handlePlayerDig lines 424-456, 1:1): the FINISH
+     * beyond the six-block dig band answers NOTHING (the block never
+     * breaks — the reference's {@code d3 > 36.0} gate refuses before the
+     * interactionManager call), and after every other outcome the walk's
+     * tail answers the authoritative state of the packet's cell when it
+     * still holds its block — THE TAIL ECHO (lines 449-452): the accepted
+     * finish (the cell now air) echoes nothing; the early-parked finish,
+     * the refused finish, and the cancelled break all answer the truth
+     * (the client's predicted ghost reverts — the never-desync guarantee
+     * that replaces the walk's old internal resyncs: the reference's
+     * finish walk carries no echoes of its own, the handler's single
+     * tail echo covers them all).
      */
     private void miningFinishOnTick(PlayerSession player, BlockPosition target) {
+        // THE DIG REACH BAND: a finish beyond six blocks answers NOTHING.
+        if (!InteractionRules.withinDigReach(player.position(), target)) {
+            LOGGER.fine(() -> "Rejected mining finish (beyond the dig band) by "
+                    + player.name());
+            return;
+        }
+        try {
+            miningFinishWalk(player, target);
+        } finally {
+            // THE TAIL ECHO (handlePlayerDig lines 449-452, 1:1): after
+            // the finish — accepted, parked, refused, or cancelled — the
+            // cell still holding its block answers the clicking player's
+            // link with the truth (the reference's own BlockUpdate:
+            // {@code getBlockState(blockpos).getBlock().getMaterial()
+            // != Material.AIR -> sendPacket}).
+            if (!world.getBlock(target).equals(world.airType())) {
+                player.link().blockResync(target, world.getBlock(target));
+            }
+        }
+    }
+
+    /** The finish walk itself (the reference's finishMiningBlock shape). */
+    private void miningFinishWalk(PlayerSession player, BlockPosition target) {
         BlockType current = world.getBlock(target);
         if (current.equals(world.airType())) {
             return; // already gone (race or double finish): no-op
         }
         MiningSession session = miningSessions.get(player.uuid());
-        if (session == null || session.target == null || !session.target.equals(target)
-                || !InteractionRules.withinSurvivalReach(player.position(), target)) {
-            resync(target);
-            LOGGER.fine(() -> "Rejected mining finish (no session/wrong target/out of reach) by "
+        if (session == null || session.target == null || !session.target.equals(target)) {
+            LOGGER.fine(() -> "Rejected mining finish (no session/wrong target) by "
                     + player.name());
             return;
         }
         // The adventure mine gate's second arm (Wave I — the reference's
         // tryHarvestBlock 195-211: the same consult at the harvest).
         if (!canMineBlock(player, heldOf(player), current)) {
-            resync(target);
             LOGGER.fine(() -> "Rejected mining finish (adventure CanDestroy) by " + player.name());
             return;
         }
         BlockBehavior behavior = BlockBehaviorTable.of(current.identifier()).orElse(null);
         if (behavior == null || !behavior.diggable()) {
-            resync(target);
             return;
         }
         long elapsedTicks = world.totalTicks() - session.startTick;
@@ -429,7 +590,10 @@ public final class BlockInteractionService {
             }
         } else {
             // The vanilla early finish: the dig keeps accumulating and
-            // self-completes later — no resync (the client's prediction stays).
+            // self-completes later — the walk itself stays silent (the
+            // TAIL ECHO outside answers the still-standing block, exactly
+            // the reference's handler-level BlockUpdate the old code's
+            // "prediction stays" comment missed).
             session.prevTarget = session.target;
             session.prevStartTick = session.startTick;
             session.prevLastStage = session.lastStage;
@@ -437,8 +601,41 @@ public final class BlockInteractionService {
         }
     }
 
-    /** The vanilla {@code stopMiningBlock}: the live dig ends, its animation clears. */
-    private void stopMiningOnTick(PlayerSession player) {
+    /**
+     * The vanilla {@code stopMiningBlock} wrapped in the dig handler's
+     * own band and tail (handlePlayerDig lines 424-456, 1:1): the ABORT
+     * beyond the six-block dig band answers NOTHING — the session stays
+     * live, exactly the reference's {@code return} (an ignored abort
+     * never stops the dig); the walk's tail answers the authoritative
+     * state of the packet's cell when it still holds its block — the
+     * same tail echo the finish carries (the reference's shared
+     * else-band tail, lines 449-452). The compat path (a null target,
+     * the internal API's face-less abort) runs the walk ungated with no
+     * tail, the pre-N6 behavior.
+     */
+    private void stopMiningOnTick(PlayerSession player, BlockPosition packetTarget) {
+        if (packetTarget != null) {
+            // THE DIG REACH BAND: an abort beyond six blocks is IGNORED.
+            if (!InteractionRules.withinDigReach(player.position(), packetTarget)) {
+                LOGGER.fine(() -> "Ignored mining abort (beyond the dig band) by "
+                        + player.name() + " — the session stays live");
+                return;
+            }
+        }
+        try {
+            stopMiningWalk(player);
+        } finally {
+            if (packetTarget != null
+                    && !world.getBlock(packetTarget).equals(world.airType())) {
+                // THE TAIL ECHO: the cleared dig's cell still holding its
+                // block answers the truth (the client's abort ghost reverts).
+                player.link().blockResync(packetTarget, world.getBlock(packetTarget));
+            }
+        }
+    }
+
+    /** The abort walk itself (the reference's stopMiningBlock shape). */
+    private void stopMiningWalk(PlayerSession player) {
         MiningSession session = miningSessions.get(player.uuid());
         if (session == null) {
             return;
@@ -451,6 +648,38 @@ public final class BlockInteractionService {
         if (session.prevTarget == null) {
             miningSessions.remove(player.uuid());
         }
+    }
+
+    /**
+     * THE EXTINGUISH ARM (World.extinguishFire lines 1639-1647, 1:1): the
+     * dig's own fire law — {@code pos.offset(face)}, a FIRE block there
+     * dies: {@code doEvent(player, 1004, pos, 0)} (the fizz broadcast)
+     * then {@code removeBlock(pos)}. A null base (the internal API's
+     * face-less path — Slice N6's documented adaptation) or an invalid
+     * face never arms; the off-world offset is guarded (the reference's
+     * raw write at the out-of-band cell, an out-of-world read answering
+     * air the client drops — the engine's bounds merely skip it). The
+     * reference's {@code player} exclusion argument is null from the dig
+     * start (the reference itself passes null), so the fizz reaches
+     * everyone in earshot.
+     */
+    private boolean extinguishFireAt(BlockPosition base, int face) {
+        if (base == null) {
+            return false; // the face-less internal path: no arm
+        }
+        BlockPosition offset = InteractionRules.offsetByFace(base, face);
+        if (offset == null || offset.y() < BlockPosition.MIN_Y || offset.y() > BlockPosition.MAX_Y) {
+            return false; // the invalid face / the off-world neighbour
+        }
+        if (!world.getBlock(offset).identifier().value().equals("fire")) {
+            return false; // not fire: nothing to extinguish
+        }
+        java.util.function.Consumer<BlockPosition> fx = fireExtinguishFx;
+        if (fx != null) {
+            fx.accept(offset); // the doEvent 1004: the fizz at the fire cell
+        }
+        commit(offset, world.airType());
+        return true;
     }
 
     /**
@@ -797,6 +1026,14 @@ public final class BlockInteractionService {
     private static boolean canMineBlock(PlayerSession player, ItemStack held, BlockType mined) {
         if (mayModifyWorld(player)) {
             return true;
+        }
+        // The reference's own order (ServerPlayerInteractionManager lines
+        // 118-121): the SPECTATOR refusal comes BEFORE the CanDestroy
+        // consult — a spectator never mines, whatever the held stack's
+        // list claims (Slice N6: the wire's dig case band is shared by
+        // every mode, the walk's own arms refuse inside).
+        if (player.gamemode() == GameMode.SPECTATOR) {
+            return false;
         }
         if (held == null || held.isEmpty()) {
             return false;

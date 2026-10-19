@@ -977,28 +977,51 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     private void handleDigging(PlayerSession player, ByteBuf packet) {
         int status = packet.readByte();
         int[] pos = ByteBufOps.readPackedBlockPosition(packet);
+        // The 1.8 C07 tail: the dig's own face byte — the reference's
+        // startMiningBlock(pos, face) carries it (the extinguish arm's
+        // face-offset cell); every dig action's packet carries it, the
+        // START is the only consumer. A malformed body that omits it
+        // reads the -1 sentinel (no extinguish arm, nothing throws).
+        int face = packet.isReadable(1) ? packet.readUnsignedByte() : -1;
         net.zaminmc.torch.GameMode mode = player.gamemode();
         try {
             var target = new net.zaminmc.torch.block.BlockPosition(pos[0], pos[1], pos[2]);
             if (mode == net.zaminmc.torch.GameMode.CREATIVE) {
-                // Creative breaking is instant on "started digging".
+                // Creative breaking is instant on "started digging" (the 1.8
+                // client sends START to break; the trailing STOP hits an
+                // already-air cell). The face rides the extinguish-first
+                // law (a fire at the face-offset cell consumes the click).
                 if (status == 0 || status == 2) {
-                    engine.blockInteraction().submitCreativeBreak(player, target);
+                    engine.blockInteraction().submitCreativeBreak(player, target, face);
                 }
                 return;
             }
             if (mode == net.zaminmc.torch.GameMode.ADVENTURE
                     || mode == net.zaminmc.torch.GameMode.SPECTATOR) {
-                // Adventure bodies may not break (the historical canDestroy
-                // rule); spectators own no body at all. Drops still ride.
-                if (status == 3) engine.dropHeld(player, true);
-                if (status == 4) engine.dropHeld(player, false);
-                if (status == 5) engine.releaseUsingItem(player);
-                return;
+                // The reference's own band (handlePlayerDig's case is shared
+                // by every mode; the manager's arms refuse inside): the
+                // drops guard is {@code isSpectator()} alone (DROP_ITEM/
+                // DROP_ALL_ITEMS: adventure drops, spectators don't); the
+                // dig actions (0/1/2) ride the shared case band below —
+                // the walk's own spectator refusal and the adventure
+                // CanDestroy consult answer inside, exactly the
+                // reference's restrictsWorldModification walk.
+                if (status == 3 || status == 4) {
+                    if (mode != net.zaminmc.torch.GameMode.SPECTATOR) {
+                        if (status == 3) engine.dropHeld(player, true);  // drop whole held stack (Ctrl+Q)
+                        else engine.dropHeld(player, false);             // drop one held item (Q)
+                    }
+                    return; // the spectator's drop: the reference's isSpectator refusal
+                }
+                if (status == 5) {
+                    engine.releaseUsingItem(player); // released a use (eat cancel)
+                    return;
+                }
+                // 0/1/2 fall through to the shared case band.
             }
             switch (status) {
-                case 0 -> engine.blockInteraction().submitMiningStart(player, target);
-                case 1 -> engine.blockInteraction().submitMiningAborted(player);
+                case 0 -> engine.blockInteraction().submitMiningStart(player, target, face);
+                case 1 -> engine.blockInteraction().submitMiningAborted(player, target);
                 case 2 -> engine.blockInteraction().submitMiningFinished(player, target);
                 case 3 -> engine.dropHeld(player, true);  // drop whole held stack (Ctrl+Q)
                 case 4 -> engine.dropHeld(player, false); // drop one held item (Q)
