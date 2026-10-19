@@ -1,10 +1,10 @@
 {
   "2026-10-19": {
-    "total": 220862,
+    "total": 220760,
     "files": 787,
     "modules": {
       "zamin-api": 7036,
-      "zamin-core": 190471,
+      "zamin-core": 190369,
       "zamin-launcher": 2669,
       "zamin-protocol-v1_8_8": 20686,
       "tools": 0
