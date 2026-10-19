@@ -23,10 +23,27 @@ import java.util.Optional;
  * <p>Notable values from the dataset: torch {@code emitLight 14}; glass and
  * chest are fully transparent to light ({@code filterLight 0}) — light passes
  * through them unattenuated-by-opacity; every full opaque cube filters 15
- * (stone, grass, dirt, sand, gravel, ores, bedrock). The furnace is registered
- * with emission 0: the dataset's 13 belongs to the LIT furnace variant
- * (historical lit-furnace emission), which arrives with a lit block state of
- * its own — an unlit furnace glowing would be wrong.</p>
+ * (stone, grass, dirt, sand, gravel, ores, bedrock). The furnace family is
+ * consistent with vanilla: the UNLIT furnace never glows but its solid-render
+ * cube still filters 15, while the lit variant emits the reference's
+ * (int)(15 * 0.875) = 13 (Block.java line 1128).</p>
+ *
+ * <p>THE VANILLA 1:1 AUDIT (the light map re-derived from the reference's own
+ * registrations — {@code reference/1.8.8/net/minecraft/block/Block.java}'s
+ * register block, the sole authority per the standing law): every
+ * {@code setLight(f)} chain is an EMISSION — {@code (int)(15 * f)} truncated
+ * (Block.java line 254) — and every {@code setOpacity(n)} chain a filter;
+ * blocks without either answer the constructor's default —
+ * {@code isSolidRender() ? 255 : 0} (Block.java line 216), the engine's 15 or
+ * 0. Nine families were corrected against it: snow_layer (opacity 0, line
+ * 1175), the leaves' emission 0 with filter 1 (line 1027 +
+ * AbstractLeavesBlock line 30), the brewing stand's emission 1 (line 1241),
+ * the beacon's emission 15 (line 1300), the unlit furnace's solid-render
+ * filter 15 (line 1126), the BROWN mushroom's emission 1 (line 1058 — the red
+ * registration carries no setLight, line 1061), the end portal frames'
+ * emission 1 with opacity 0 (line 1249 + isSolidRender false), the falling
+ * water's opacity 3 (line 1017), and the powered comparators' emission 9
+ * (line 1321).</p>
  *
  * <p>Semantics of the two numbers in the engine's model: {@code emission} is
  * the block-light level a cell holding this block radiates from itself;
@@ -62,12 +79,21 @@ public final class BlockLightTable {
             Map.entry(Identifier.parse("minecraft:gold_ore"), new LightData(0, 15)),
             Map.entry(Identifier.parse("minecraft:redstone_ore"), new LightData(0, 15)),
             Map.entry(Identifier.parse("minecraft:oak_log"), new LightData(0, 15)),
-            Map.entry(Identifier.parse("minecraft:oak_leaves"), new LightData(1, 1)),
+            // The leaves (the audit): the reference's leaves registration
+            // carries NO setLight (Block.java line 1027) — the dataset's
+            // emitLight 1 is a quirk, vanilla leaves never glow — and
+            // AbstractLeavesBlock's own setOpacity(1) (line 30) gives the
+            // diffuse filter 1. Every wood variant rides this row through
+            // mergeLight.
+            Map.entry(Identifier.parse("minecraft:oak_leaves"), new LightData(0, 1)),
 
-            // The fluids: water attenuates two per cell (dataset filterLight 2)
-            // and emits nothing; lava emits the historical 15 (its glow).
+            // The fluids (the audit): the reference registers BOTH water
+            // forms with setOpacity(3) (Block.java lines 1017-1018) — the
+            // source and the falling/flowing levels all attenuate 3 per cell
+            // (the dataset's filterLight 2 retired); lava emits the reference's
+            // setLight(1.0F) = 15 (lines 1019-1020).
             Map.entry(Identifier.parse("minecraft:water"), new LightData(0, 3)),
-            Map.entry(Identifier.parse("minecraft:falling_water"), new LightData(0, 2)),
+            Map.entry(Identifier.parse("minecraft:falling_water"), new LightData(0, 3)),
             Map.entry(Identifier.parse("minecraft:lava"), new LightData(15, 0)),
             Map.entry(Identifier.parse("minecraft:falling_lava"), new LightData(15, 0)),
             Map.entry(Identifier.parse("minecraft:sand"), new LightData(0, 15)),
@@ -99,20 +125,23 @@ public final class BlockLightTable {
             Map.entry(Identifier.parse("minecraft:furnace_lit_west"), new LightData(13, 15)),
             Map.entry(Identifier.parse("minecraft:furnace_lit_east"), new LightData(13, 15)),
 
-            // The nether's materials (community blocks.json 1.8 values):
-            // glowstone emits the historical 15; netherrack/soul sand/quartz
-            // ore are full opaque cubes (filter 15); the mushrooms shade
-            // nothing and emit nothing.
+            // The nether's materials (the audit's reads): glowstone emits
+            // the reference's setLight(1.0F) = 15 (line 1191);
+            // netherrack/soul sand/quartz ore are full opaque cubes (filter
+            // 15); the mushrooms are TWO registrations (Block.java lines
+            // 1058-1061) — only the BROWN carries setLight(0.125F) = 1 (the
+            // tiny glow; the audit's first cut wrongly gave both the 0.125 —
+            // the reference's block4 has no setLight), and neither shades.
             Map.entry(Identifier.parse("minecraft:glowstone"), new LightData(15, 0)),
             Map.entry(Identifier.parse("minecraft:netherrack"), new LightData(0, 15)),
             Map.entry(Identifier.parse("minecraft:soul_sand"), new LightData(0, 15)),
             Map.entry(Identifier.parse("minecraft:quartz_ore"), new LightData(0, 15)),
-            Map.entry(Identifier.parse("minecraft:brown_mushroom"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:brown_mushroom"), new LightData(1, 0)),
             Map.entry(Identifier.parse("minecraft:red_mushroom"), new LightData(0, 0)),
 
             // Transparent to light, no emission (dataset filterLight 0): light
-            // crosses glass, a chest's empty bounding shape and an unlit furnace
-            // paying only the standard per-cell step.
+            // crosses glass and a chest's empty bounding shape paying only the
+            // standard per-cell step.
             Map.entry(Identifier.parse("minecraft:glass"), new LightData(0, 0)),
             Map.entry(Identifier.parse("minecraft:chest"), new LightData(0, 0)),
             // The chest pair's facing states (Slice L2 — the same
@@ -136,30 +165,40 @@ public final class BlockLightTable {
             Map.entry(Identifier.parse("minecraft:ender_chest_south"), new LightData(7, 0)),
             Map.entry(Identifier.parse("minecraft:ender_chest_west"), new LightData(7, 0)),
             Map.entry(Identifier.parse("minecraft:ender_chest_east"), new LightData(7, 0)),
-            // The beacon (Slice 29b — the GLASS material's own transparency,
-            // no emission in the reference's registration) + the pyramid's
-            // two missing minerals (opaque cubes, filter 15).
-            Map.entry(Identifier.parse("minecraft:beacon"), new LightData(0, 0)),
+            // The beacon (Slice 29b + the audit): the GLASS material's own
+            // transparency — isSolidRender false, opacity 0 — and the
+            // reference's setLight(1.0F) = 15 (Block.java line 1300): the
+            // beacon GLOWS at full strength + the pyramid's two missing
+            // minerals (opaque cubes, filter 15).
+            Map.entry(Identifier.parse("minecraft:beacon"), new LightData(15, 0)),
             Map.entry(Identifier.parse("minecraft:diamond_block"), new LightData(0, 15)),
             Map.entry(Identifier.parse("minecraft:emerald_block"), new LightData(0, 15)),
-            Map.entry(Identifier.parse("minecraft:furnace"), new LightData(0, 0)),
-            Map.entry(Identifier.parse("minecraft:furnace_north"), new LightData(0, 0)),
-            Map.entry(Identifier.parse("minecraft:furnace_south"), new LightData(0, 0)),
-            Map.entry(Identifier.parse("minecraft:furnace_west"), new LightData(0, 0)),
-            Map.entry(Identifier.parse("minecraft:furnace_east"), new LightData(0, 0)),
+            // The unlit furnace family (the audit): FurnaceBlock(false)
+            // overrides neither isSolidRender nor the light calls (Block.java
+            // line 1126) — a solid-render cube, filter 15 — while the lit
+            // rows above carry the setLight(0.875F) = 13: the family is
+            // self-consistent, the unlit variant glows nothing but still
+            // blocks light.
+            Map.entry(Identifier.parse("minecraft:furnace"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:furnace_north"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:furnace_south"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:furnace_west"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:furnace_east"), new LightData(0, 15)),
 
-            // The brewing stand (Slice 11e): the reference's setLight(0.125F)
-            // = filter 1 — the engine's max(1, filter) step absorbs it into
-            // the standard per-cell cost, so the stand registers like the
-            // chest (light passes paying the ordinary step).
-            Map.entry(Identifier.parse("minecraft:brewing_stand"), new LightData(0, 0)),
-            Map.entry(Identifier.parse("minecraft:brewing_stand_bottle0"), new LightData(0, 0)),
-            Map.entry(Identifier.parse("minecraft:brewing_stand_bottle1"), new LightData(0, 0)),
-            Map.entry(Identifier.parse("minecraft:brewing_stand_bottle2"), new LightData(0, 0)),
-            Map.entry(Identifier.parse("minecraft:brewing_stand_bottle0_bottle1"), new LightData(0, 0)),
-            Map.entry(Identifier.parse("minecraft:brewing_stand_bottle0_bottle2"), new LightData(0, 0)),
-            Map.entry(Identifier.parse("minecraft:brewing_stand_bottle1_bottle2"), new LightData(0, 0)),
-            Map.entry(Identifier.parse("minecraft:brewing_stand_bottle0_bottle1_bottle2"), new LightData(0, 0)),
+            // The brewing stand (Slice 11e + the audit): the reference's
+            // setLight(0.125F) (Block.java line 1241) is an EMISSION —
+            // (int)(15 * 0.125) = 1, the faint glow under the stand (the old
+            // row misread the call as a filter) — and the stand's
+            // isSolidRender false keeps the opacity 0. Every bottle-bit
+            // state is the same block's own states.
+            Map.entry(Identifier.parse("minecraft:brewing_stand"), new LightData(1, 0)),
+            Map.entry(Identifier.parse("minecraft:brewing_stand_bottle0"), new LightData(1, 0)),
+            Map.entry(Identifier.parse("minecraft:brewing_stand_bottle1"), new LightData(1, 0)),
+            Map.entry(Identifier.parse("minecraft:brewing_stand_bottle2"), new LightData(1, 0)),
+            Map.entry(Identifier.parse("minecraft:brewing_stand_bottle0_bottle1"), new LightData(1, 0)),
+            Map.entry(Identifier.parse("minecraft:brewing_stand_bottle0_bottle2"), new LightData(1, 0)),
+            Map.entry(Identifier.parse("minecraft:brewing_stand_bottle1_bottle2"), new LightData(1, 0)),
+            Map.entry(Identifier.parse("minecraft:brewing_stand_bottle0_bottle1_bottle2"), new LightData(1, 0)),
 
             // The flora passes light fully (dataset filterLight 0: the plants
             // shade nothing); sandstone is a full opaque cube (filter 15).
@@ -293,10 +332,14 @@ public final class BlockLightTable {
             // full opaque cubes (dataset filterLight 15), the infested
             // egg identical (the disguise), the spawner a cutout cage
             // (filter 0), the iron door pair opaque like the oak family,
-            // the portal frames opaque (their cutout shape still filters
-            // the dataset's 15), and the smooth brick slab's bottom-half
-            // carries the dataset's full filter (the slab collision
-            // refinement lives with the shape queries).
+            // and the smooth brick slab's bottom-half carries the dataset's
+            // full filter (the slab collision refinement lives with the
+            // shape queries). The portal frames (the audit): the reference's
+            // setLight(0.125F) (Block.java line 1249) is an EMISSION —
+            // (int)(15 * 0.125) = 1, the eye-socket's faint glow — and
+            // EndPortalFrameBlock's isSolidRender false (its line 29) gives
+            // opacity 0: the 13/16-high frame PASSES light (the old rows
+            // filtered 15 on the dataset's say-so).
             Map.entry(Identifier.parse("minecraft:stone_bricks"), new LightData(0, 15)),
             Map.entry(Identifier.parse("minecraft:mossy_stone_bricks"), new LightData(0, 15)),
             Map.entry(Identifier.parse("minecraft:cracked_stone_bricks"), new LightData(0, 15)),
@@ -317,14 +360,14 @@ public final class BlockLightTable {
             Map.entry(Identifier.parse("minecraft:iron_door_east"), new LightData(0, 15)),
             Map.entry(Identifier.parse("minecraft:iron_door_south"), new LightData(0, 15)),
             Map.entry(Identifier.parse("minecraft:iron_door_upper"), new LightData(0, 15)),
-            Map.entry(Identifier.parse("minecraft:end_portal_frame_south"), new LightData(0, 15)),
-            Map.entry(Identifier.parse("minecraft:end_portal_frame_west"), new LightData(0, 15)),
-            Map.entry(Identifier.parse("minecraft:end_portal_frame_north"), new LightData(0, 15)),
-            Map.entry(Identifier.parse("minecraft:end_portal_frame_east"), new LightData(0, 15)),
-            Map.entry(Identifier.parse("minecraft:end_portal_frame_eye_south"), new LightData(0, 15)),
-            Map.entry(Identifier.parse("minecraft:end_portal_frame_eye_west"), new LightData(0, 15)),
-            Map.entry(Identifier.parse("minecraft:end_portal_frame_eye_north"), new LightData(0, 15)),
-            Map.entry(Identifier.parse("minecraft:end_portal_frame_eye_east"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:end_portal_frame_south"), new LightData(1, 0)),
+            Map.entry(Identifier.parse("minecraft:end_portal_frame_west"), new LightData(1, 0)),
+            Map.entry(Identifier.parse("minecraft:end_portal_frame_north"), new LightData(1, 0)),
+            Map.entry(Identifier.parse("minecraft:end_portal_frame_east"), new LightData(1, 0)),
+            Map.entry(Identifier.parse("minecraft:end_portal_frame_eye_south"), new LightData(1, 0)),
+            Map.entry(Identifier.parse("minecraft:end_portal_frame_eye_west"), new LightData(1, 0)),
+            Map.entry(Identifier.parse("minecraft:end_portal_frame_eye_north"), new LightData(1, 0)),
+            Map.entry(Identifier.parse("minecraft:end_portal_frame_eye_east"), new LightData(1, 0)),
 
             // The fortress set (Slice 12d): the nether-brick family are
             // full opaque cubes (dataset filterLight 15), the fence's
@@ -360,7 +403,11 @@ public final class BlockLightTable {
             // own emission), the snow family and the plain pumpkin opaque.
             Map.entry(Identifier.parse("minecraft:lit_pumpkin"), new LightData(15, 0)),
             Map.entry(Identifier.parse("minecraft:snow"), new LightData(0, 15)),
-            Map.entry(Identifier.parse("minecraft:snow_layer"), new LightData(0, 15)),
+            // The snow layer (the audit): the reference's explicit
+            // setOpacity(0) (Block.java line 1175) — the thin cover passes
+            // skylight whole (the old row's 15 blocked it); the full snow
+            // block above stays the solid cube.
+            Map.entry(Identifier.parse("minecraft:snow_layer"), new LightData(0, 0)),
             // The ice (Slice 21c): the reference's translucent Material.ICE —
             // the dataset's filterLight 3 (the historical opacity 3).
             Map.entry(Identifier.parse("minecraft:ice"), new LightData(0, 3)),
@@ -403,9 +450,12 @@ public final class BlockLightTable {
             Map.entry(Identifier.parse("minecraft:flowing_lava_5"), new LightData(15, 0)),
             Map.entry(Identifier.parse("minecraft:flowing_lava_6"), new LightData(15, 0)),
             Map.entry(Identifier.parse("minecraft:flowing_lava_7"), new LightData(15, 0)),
-            // The comparator's whole directional/mode family (the
-            // powered pair included): a non-cube that never emits
-            // (the reference's comparator carries no setLight).
+            // The comparator's whole directional/mode family (the audit):
+            // the reference registers the POWERED pair with
+            // setLight(0.625F) (Block.java line 1321) — (int)(15 * 0.625)
+            // = 9, the powered comparator's glow — while the unpowered
+            // registration (line 1319) carries no setLight; neither
+            // shades (the circuit shape's non-solid render).
             Map.entry(Identifier.parse("minecraft:comparator_east_compare"), new LightData(0, 0)),
             Map.entry(Identifier.parse("minecraft:comparator_east_subtract"), new LightData(0, 0)),
             Map.entry(Identifier.parse("minecraft:comparator_south_compare"), new LightData(0, 0)),
@@ -414,14 +464,14 @@ public final class BlockLightTable {
             Map.entry(Identifier.parse("minecraft:comparator_west_subtract"), new LightData(0, 0)),
             Map.entry(Identifier.parse("minecraft:comparator_north_compare"), new LightData(0, 0)),
             Map.entry(Identifier.parse("minecraft:comparator_north_subtract"), new LightData(0, 0)),
-            Map.entry(Identifier.parse("minecraft:powered_comparator_east_compare"), new LightData(0, 0)),
-            Map.entry(Identifier.parse("minecraft:powered_comparator_east_subtract"), new LightData(0, 0)),
-            Map.entry(Identifier.parse("minecraft:powered_comparator_south_compare"), new LightData(0, 0)),
-            Map.entry(Identifier.parse("minecraft:powered_comparator_south_subtract"), new LightData(0, 0)),
-            Map.entry(Identifier.parse("minecraft:powered_comparator_west_compare"), new LightData(0, 0)),
-            Map.entry(Identifier.parse("minecraft:powered_comparator_west_subtract"), new LightData(0, 0)),
-            Map.entry(Identifier.parse("minecraft:powered_comparator_north_compare"), new LightData(0, 0)),
-            Map.entry(Identifier.parse("minecraft:powered_comparator_north_subtract"), new LightData(0, 0)),
+            Map.entry(Identifier.parse("minecraft:powered_comparator_east_compare"), new LightData(9, 0)),
+            Map.entry(Identifier.parse("minecraft:powered_comparator_east_subtract"), new LightData(9, 0)),
+            Map.entry(Identifier.parse("minecraft:powered_comparator_south_compare"), new LightData(9, 0)),
+            Map.entry(Identifier.parse("minecraft:powered_comparator_south_subtract"), new LightData(9, 0)),
+            Map.entry(Identifier.parse("minecraft:powered_comparator_west_compare"), new LightData(9, 0)),
+            Map.entry(Identifier.parse("minecraft:powered_comparator_west_subtract"), new LightData(9, 0)),
+            Map.entry(Identifier.parse("minecraft:powered_comparator_north_compare"), new LightData(9, 0)),
+            Map.entry(Identifier.parse("minecraft:powered_comparator_north_subtract"), new LightData(9, 0)),
             Map.entry(Identifier.parse("minecraft:vine"), new LightData(0, 0)));
 
     /**
@@ -601,13 +651,14 @@ public final class BlockLightTable {
         merged.putAll(REDSTONE_LIGHT);
         // The wood-variant foundation (Slice 35): the planks and logs are
         // opaque cubes (filter 15 like the shipped oak rows), the leaves
-        // diffuse light (the shipped oak row's own 1/1), the saplings pass
-        // whole.
+        // carry the audit's read — emission 0, the diffuse filter 1 (the
+        // oak row's own 0/1 above; the reference registers leaves2 the same
+        // way) — the saplings pass whole.
         for (int variant = 0; variant < WoodVariantBlocks.WOODS.size(); variant++) {
             if (variant != 0) {
                 merged.put(WoodVariantBlocks.planksBlock(variant), new LightData(0, 15));
                 merged.put(WoodVariantBlocks.logBlock(variant), new LightData(0, 15));
-                merged.put(WoodVariantBlocks.leavesBlock(variant), new LightData(1, 1));
+                merged.put(WoodVariantBlocks.leavesBlock(variant), new LightData(0, 1));
             }
             merged.put(WoodVariantBlocks.saplingBlock(variant), new LightData(0, 0));
         }
