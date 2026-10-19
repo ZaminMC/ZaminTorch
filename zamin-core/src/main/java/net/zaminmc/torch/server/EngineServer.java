@@ -3297,9 +3297,8 @@ public final class EngineServer implements Server, EngineBridge {
                 || !canOccupyForPlacement(target)) {
             return; // the generic placement gates (bad face / clicked air / occupied)
         }
-        if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5
-                || intersectsPlayerBox(session.position(), target)) {
-            return; // the placement reach gate (the historical survival reach)
+        if (intersectsPlayerBox(session.position(), target)) {
+            return; // the vanilla body rule (the reference's own entity collision check)
         }
         if (creativeHeld.isEmpty()
                 && session.gamemode() != GameMode.CREATIVE
@@ -3365,9 +3364,8 @@ public final class EngineServer implements Server, EngineBridge {
                 || !canOccupyForPlacement(target)) {
             return; // the generic placement gates (bad face / clicked air / occupied)
         }
-        if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5
-                || intersectsPlayerBox(session.position(), target)) {
-            return; // the placement reach gate (the historical survival reach)
+        if (intersectsPlayerBox(session.position(), target)) {
+            return; // the vanilla body rule (the reference's own entity collision check)
         }
         net.zaminmc.torch.item.ItemStack held = session.inventory().held();
         int type = 0;
@@ -8397,8 +8395,7 @@ public final class EngineServer implements Server, EngineBridge {
                     clickedBlock.identifier())) {
                 int frameFacing = net.zaminmc.torch.server.block.EndPortalBlocks
                         .frameFacingOf(clickedBlock.identifier());
-                if (frameFacing >= 0
-                        && distanceSquaredEyeToBlock(session.position(), clicked) <= 4.5 * 4.5) {
+                if (frameFacing >= 0) {
                     world.setBlock(clicked, blockRegistry.require(
                             net.zaminmc.torch.server.block.EndPortalBlocks
                                     .eyedFrameOf(clickedBlock.identifier()).orElseThrow()));
@@ -8462,8 +8459,7 @@ public final class EngineServer implements Server, EngineBridge {
             BlockType aimed = world.getBlock(clicked);
             if (FluidBlocks.kindOf(aimed.identifier()) == FluidBlocks.Kind.WATER
                     && FluidBlocks.isSource(aimed.identifier())
-                    && world.getBlock(clicked.offset(0, 1, 0)).equals(world.airType())
-                    && distanceSquaredEyeToBlock(session.position(), clicked) <= 4.5 * 4.5) {
+                    && world.getBlock(clicked.offset(0, 1, 0)).equals(world.airType())) {
                 if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE
                         && !session.inventory().held().isEmpty()) {
                     world.setBlock(clicked.offset(0, 1, 0), BuiltinBlocks.WATERLILY);
@@ -8702,9 +8698,6 @@ public final class EngineServer implements Server, EngineBridge {
         if (target == null) {
             return;
         }
-        if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5) {
-            return;
-        }
         if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE
                 && session.inventory().held().isEmpty()) {
             return;
@@ -8729,9 +8722,6 @@ public final class EngineServer implements Server, EngineBridge {
         if (target == null) {
             return;
         }
-        if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5) {
-            return;
-        }
         if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE
                 && session.inventory().held().isEmpty()) {
             return;
@@ -8752,9 +8742,6 @@ public final class EngineServer implements Server, EngineBridge {
      */
     private void placeArmorStandOnTick(PlayerSession session, BlockPosition clicked, int face,
                                        java.util.Optional<BlockType> creativeHeld) {
-        if (distanceSquaredEyeToBlock(session.position(), clicked) > 4.5 * 4.5) {
-            return;
-        }
         if (face == 0) {
             return; // DOWN: the reference's own refusal
         }
@@ -8782,9 +8769,6 @@ public final class EngineServer implements Server, EngineBridge {
                                     java.util.Optional<BlockType> creativeHeld, boolean lit) {
         BlockPosition target = offsetByFace(clicked, face);
         if (target == null || !canOccupyForPlacement(target)) {
-            return;
-        }
-        if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5) {
             return;
         }
         if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE
@@ -8873,9 +8857,6 @@ public final class EngineServer implements Server, EngineBridge {
                 || !canOccupyForPlacement(target)) {
             return;
         }
-        if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5) {
-            return;
-        }
         if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE
                 && session.inventory().held().isEmpty()) {
             return;
@@ -8919,9 +8900,6 @@ public final class EngineServer implements Server, EngineBridge {
         BlockPosition target = offsetByFace(clicked, face);
         if (target == null || world.getBlock(clicked).equals(world.airType())
                 || !canOccupyForPlacement(target)) {
-            return;
-        }
-        if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5) {
             return;
         }
         if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE
@@ -8973,9 +8951,6 @@ public final class EngineServer implements Server, EngineBridge {
         BlockPosition target = offsetByFace(clicked, face);
         if (target == null || world.getBlock(clicked).equals(world.airType())
                 || !canOccupyForPlacement(target)) {
-            return;
-        }
-        if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5) {
             return;
         }
         if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE
@@ -9055,9 +9030,6 @@ public final class EngineServer implements Server, EngineBridge {
                 || !canOccupyForPlacement(target)) {
             return;
         }
-        if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5) {
-            return;
-        }
         if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE
                 && session.inventory().held().isEmpty()) {
             return;
@@ -9075,9 +9047,6 @@ public final class EngineServer implements Server, EngineBridge {
         BlockPosition target = offsetByFace(clicked, face);
         if (target == null || world.getBlock(clicked).equals(world.airType())
                 || !canOccupyForPlacement(target)) {
-            return;
-        }
-        if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5) {
             return;
         }
         if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE
@@ -9105,9 +9074,6 @@ public final class EngineServer implements Server, EngineBridge {
         BlockPosition target = offsetByFace(clicked, face);
         if (target == null || world.getBlock(clicked).equals(world.airType())
                 || !canOccupyForPlacement(target)) {
-            return;
-        }
-        if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5) {
             return;
         }
         // The color member: creative claims its block variant directly,
@@ -9156,9 +9122,8 @@ public final class EngineServer implements Server, EngineBridge {
                 || !canOccupyForPlacement(target)) {
             return;
         }
-        if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5
-                || intersectsPlayerBox(session.position(), target)) {
-            return;
+        if (intersectsPlayerBox(session.position(), target)) {
+            return; // the vanilla body rule (the reference's own entity collision check)
         }
         if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE
                 && session.inventory().held().isEmpty()) {
@@ -9187,9 +9152,8 @@ public final class EngineServer implements Server, EngineBridge {
                 || !canOccupyForPlacement(target)) {
             return;
         }
-        if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5
-                || intersectsPlayerBox(session.position(), target)) {
-            return;
+        if (intersectsPlayerBox(session.position(), target)) {
+            return; // the vanilla body rule (the reference's own entity collision check)
         }
         if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE
                 && session.inventory().held().isEmpty()) {
@@ -9221,9 +9185,8 @@ public final class EngineServer implements Server, EngineBridge {
                 || !canOccupyForPlacement(target)) {
             return;
         }
-        if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5
-                || intersectsPlayerBox(session.position(), target)) {
-            return;
+        if (intersectsPlayerBox(session.position(), target)) {
+            return; // the vanilla body rule (the reference's own entity collision check)
         }
         if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE
                 && session.inventory().held().isEmpty()) {
@@ -9261,9 +9224,8 @@ public final class EngineServer implements Server, EngineBridge {
         if (target == null || !canOccupyForPlacement(target)) {
             return;
         }
-        if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5
-                || intersectsPlayerBox(session.position(), target)) {
-            return;
+        if (intersectsPlayerBox(session.position(), target)) {
+            return; // the vanilla body rule (the reference's own entity collision check)
         }
         if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE
                 && session.inventory().held().isEmpty()) {
@@ -9290,9 +9252,8 @@ public final class EngineServer implements Server, EngineBridge {
                 world, target, face)) {
             return; // the solid-wall gate
         }
-        if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5
-                || intersectsPlayerBox(session.position(), target)) {
-            return;
+        if (intersectsPlayerBox(session.position(), target)) {
+            return; // the vanilla body rule (the reference's own entity collision check)
         }
         if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE
                 && session.inventory().held().isEmpty()) {
@@ -9316,9 +9277,8 @@ public final class EngineServer implements Server, EngineBridge {
                 || !canOccupyForPlacement(target)) {
             return;
         }
-        if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5
-                || intersectsPlayerBox(session.position(), target)) {
-            return;
+        if (intersectsPlayerBox(session.position(), target)) {
+            return; // the vanilla body rule (the reference's own entity collision check)
         }
         if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE
                 && session.inventory().held().isEmpty()) {
@@ -9364,9 +9324,8 @@ public final class EngineServer implements Server, EngineBridge {
                 || !canOccupyForPlacement(target)) {
             return;
         }
-        if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5
-                || intersectsPlayerBox(session.position(), target)) {
-            return;
+        if (intersectsPlayerBox(session.position(), target)) {
+            return; // the vanilla body rule (the reference's own entity collision check)
         }
         if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE
                 && session.inventory().held().isEmpty()) {
@@ -9441,9 +9400,8 @@ public final class EngineServer implements Server, EngineBridge {
                 || !canOccupyForPlacement(target)) {
             return;
         }
-        if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5
-                || intersectsPlayerBox(session.position(), target)) {
-            return;
+        if (intersectsPlayerBox(session.position(), target)) {
+            return; // the vanilla body rule (the reference's own entity collision check)
         }
         if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE
                 && session.inventory().held().isEmpty()) {
@@ -9478,9 +9436,8 @@ public final class EngineServer implements Server, EngineBridge {
                 || !canOccupyForPlacement(target)) {
             return;
         }
-        if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5
-                || intersectsPlayerBox(session.position(), target)) {
-            return;
+        if (intersectsPlayerBox(session.position(), target)) {
+            return; // the vanilla body rule (the reference's own entity collision check)
         }
         if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE
                 && session.inventory().held().isEmpty()) {
@@ -9504,9 +9461,8 @@ public final class EngineServer implements Server, EngineBridge {
                 || !canOccupyForPlacement(target)) {
             return;
         }
-        if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5
-                || intersectsPlayerBox(session.position(), target)) {
-            return;
+        if (intersectsPlayerBox(session.position(), target)) {
+            return; // the vanilla body rule (the reference's own entity collision check)
         }
         if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE
                 && session.inventory().held().isEmpty()) {
@@ -9532,9 +9488,8 @@ public final class EngineServer implements Server, EngineBridge {
                 || !canOccupyForPlacement(target)) {
             return;
         }
-        if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5
-                || intersectsPlayerBox(session.position(), target)) {
-            return;
+        if (intersectsPlayerBox(session.position(), target)) {
+            return; // the vanilla body rule (the reference's own entity collision check)
         }
         if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE
                 && session.inventory().held().isEmpty()) {
@@ -10238,8 +10193,7 @@ public final class EngineServer implements Server, EngineBridge {
                 BlockPosition pod = clicked.offset(
                         face == 4 ? -1 : face == 5 ? 1 : 0, 0,
                         face == 2 ? -1 : face == 3 ? 1 : 0);
-                if (world.getBlock(pod).equals(world.airType())
-                        && distanceSquaredEyeToBlock(session.position(), pod) <= 4.5 * 4.5) {
+                if (world.getBlock(pod).equals(world.airType())) {
                     world.setBlock(pod, net.zaminmc.torch.server.block.CocoaBlocks
                             .placementState(face));
                     session.inventory().consumeHeld(1);
@@ -10501,9 +10455,8 @@ public final class EngineServer implements Server, EngineBridge {
                 || !canOccupyForPlacement(target)) {
             return;
         }
-        if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5
-                || intersectsPlayerBox(session.position(), target)) {
-            return;
+        if (intersectsPlayerBox(session.position(), target)) {
+            return; // the vanilla body rule (the reference's own entity collision check)
         }
         if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE
                 && session.inventory().held().isEmpty()) {
@@ -10566,9 +10519,8 @@ public final class EngineServer implements Server, EngineBridge {
                 || !canOccupyForPlacement(target)) {
             return;
         }
-        if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5
-                || intersectsPlayerBox(session.position(), target)) {
-            return;
+        if (intersectsPlayerBox(session.position(), target)) {
+            return; // the vanilla body rule (the reference's own entity collision check)
         }
         if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE
                 && session.inventory().held().isEmpty()) {
@@ -10606,9 +10558,8 @@ public final class EngineServer implements Server, EngineBridge {
                 || !canOccupyForPlacement(target)) {
             return;
         }
-        if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5
-                || intersectsPlayerBox(session.position(), target)) {
-            return;
+        if (intersectsPlayerBox(session.position(), target)) {
+            return; // the vanilla body rule (the reference's own entity collision check)
         }
         if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE
                 && session.inventory().held().isEmpty()) {
@@ -10638,9 +10589,8 @@ public final class EngineServer implements Server, EngineBridge {
                 || !canOccupyForPlacement(target)) {
             return;
         }
-        if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5
-                || intersectsPlayerBox(session.position(), target)) {
-            return;
+        if (intersectsPlayerBox(session.position(), target)) {
+            return; // the vanilla body rule (the reference's own entity collision check)
         }
         if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE
                 && session.inventory().held().isEmpty()) {
@@ -10685,9 +10635,8 @@ public final class EngineServer implements Server, EngineBridge {
                 || !canOccupyForPlacement(target)) {
             return;
         }
-        if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5
-                || intersectsPlayerBox(session.position(), target)) {
-            return;
+        if (intersectsPlayerBox(session.position(), target)) {
+            return; // the vanilla body rule (the reference's own entity collision check)
         }
         // The head cell: one along the look's cardinal (the sign band order
         // S/W/N/E with offsets +Z/-X/-Z/+X for the look yaw bands).
@@ -10782,9 +10731,8 @@ public final class EngineServer implements Server, EngineBridge {
         if (!WorldSolidity.isSolid(world.getBlock(target.offset(0, -1, 0)))) {
             return; // World.hasSolidTop: no floor, no door
         }
-        if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5
-                || intersectsPlayerBox(session.position(), target)) {
-            return;
+        if (intersectsPlayerBox(session.position(), target)) {
+            return; // the vanilla body rule (the reference's own entity collision check)
         }
         if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE
                 && session.inventory().held().isEmpty()) {
@@ -11040,9 +10988,6 @@ public final class EngineServer implements Server, EngineBridge {
         BlockType clickedBlock = world.getBlock(clicked);
         if (isSlabIdentifier(clickedBlock.identifier().value())
                 && clickedBlock.identifier().value().startsWith(stem)) {
-            if (distanceSquaredEyeToBlock(session.position(), clicked) > 4.5 * 4.5) {
-                return;
-            }
             world.setBlock(clicked, family[2]);
             consumePlaced(session, creativeHeld);
             return;
@@ -11053,7 +10998,6 @@ public final class EngineServer implements Server, EngineBridge {
         }
         BlockType existing = world.getBlock(target);
         if (!existing.equals(world.airType())
-                || distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5
                 || intersectsPlayerBox(session.position(), target)) {
             return;
         }
@@ -11091,9 +11035,8 @@ public final class EngineServer implements Server, EngineBridge {
                 || !canOccupyForPlacement(target)) {
             return;
         }
-        if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5
-                || intersectsPlayerBox(session.position(), target)) {
-            return;
+        if (intersectsPlayerBox(session.position(), target)) {
+            return; // the vanilla body rule (the reference's own entity collision check)
         }
         if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE
                 && session.inventory().held().isEmpty()) {
@@ -11124,9 +11067,8 @@ public final class EngineServer implements Server, EngineBridge {
                 || !canOccupyForPlacement(target)) {
             return;
         }
-        if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5
-                || intersectsPlayerBox(session.position(), target)) {
-            return;
+        if (intersectsPlayerBox(session.position(), target)) {
+            return; // the vanilla body rule (the reference's own entity collision check)
         }
         if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE
                 && session.inventory().held().isEmpty()) {
@@ -11176,9 +11118,6 @@ public final class EngineServer implements Server, EngineBridge {
                                        boolean hopperCart) {
         BlockPosition target = offsetByFace(clicked, face);
         if (target == null) {
-            return;
-        }
-        if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5) {
             return;
         }
         if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE
@@ -11312,9 +11251,6 @@ public final class EngineServer implements Server, EngineBridge {
                                              java.util.Optional<BlockType> creativeHeld) {
         BlockPosition target = offsetByFace(clicked, face);
         if (target == null) {
-            return;
-        }
-        if (distanceSquaredEyeToBlock(session.position(), target) > 4.5 * 4.5) {
             return;
         }
         if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE
@@ -11479,14 +11415,6 @@ public final class EngineServer implements Server, EngineBridge {
             return false;
         }
         return WorldSolidity.isLadder(world.getBlock(blockAt(x, y, z)).identifier());
-    }
-
-    /** Eye-to-block-center distance squared, the survival reach gate's shape. */
-    private static double distanceSquaredEyeToBlock(Position playerPosition, BlockPosition target) {
-        double dx = (target.x() + 0.5) - playerPosition.x();
-        double dy = (target.y() + 0.5) - (playerPosition.y() + 1.62);
-        double dz = (target.z() + 0.5) - playerPosition.z();
-        return dx * dx + dy * dy + dz * dz;
     }
 
     /** Whether the block AABB intersects the player's bounding box. */
