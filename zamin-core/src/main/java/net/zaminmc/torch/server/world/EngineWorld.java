@@ -513,13 +513,7 @@ public final class EngineWorld implements World {
             return existing; // the newer authoritative state wins
         }
         // Persisted deltas override freshly generated terrain at the same positions.
-        Map<Integer, BlockType> chunkDeltas = deltas.get(key);
-        if (chunkDeltas != null) {
-            for (Map.Entry<Integer, BlockType> entry : chunkDeltas.entrySet()) {
-                int index = entry.getKey();
-                generated.setBlock(index & 0xF, (index >> 8) & 0xFF, (index >> 4) & 0xF, entry.getValue());
-            }
-        }
+        applyPersistedDeltas(generated);
         // Chunk-load hooks run before publication (§344): the chunk becomes
         // visible only fully generated AND fully lit. Listeners must not
         // re-enter generation (they peek neighbors, never create chunks).
@@ -528,6 +522,25 @@ public final class EngineWorld implements World {
         }
         EngineChunk raced = chunks.putIfAbsent(key, generated);
         return raced != null ? raced : generated;
+    }
+
+    /**
+     * Overlays any persisted deltas over a freshly generated (still-detached)
+     * chunk — {@link #installGenerated}'s own first half, factored out for the
+     * batched pregen: the wave driver applies the overlay BEFORE the light
+     * region's capture, so a pool-computed initial result is derived from the
+     * same delta-corrected materials the sequential walk's hook would see
+     * (the write is idempotent — installGenerated re-applying the same rows
+     * changes nothing).
+     */
+    public void applyPersistedDeltas(EngineChunk generated) {
+        Map<Integer, BlockType> chunkDeltas = deltas.get(generated.position().packed());
+        if (chunkDeltas != null) {
+            for (Map.Entry<Integer, BlockType> entry : chunkDeltas.entrySet()) {
+                int index = entry.getKey();
+                generated.setBlock(index & 0xF, (index >> 8) & 0xFF, (index >> 4) & 0xF, entry.getValue());
+            }
+        }
     }
 
     /** The terrain generator (the detached chunk generation reads it off-owner). */

@@ -2779,6 +2779,24 @@ public final class EngineServer implements Server, EngineBridge {
         Position spawn = engineWorld.spawnPosition();
         var center = spawn.toBlockPosition().chunkPosition();
         int radius = config.viewDistance();
+        if (Boolean.getBoolean("torch.parallel-pregen-light")) {
+            // THE LIGHTING BATCH LANE (§22's lighting batch shape, the same
+            // deliberate gating family as torch.parallel-region-ticks): the
+            // initial light computes ride the domain worker pool in waves —
+            // default OFF until the lane's own evidence retires the gate.
+            // The pool is local to the pregen (created and shut down here):
+            // the boot's own domainWorkerPool does not exist yet at this
+            // point of the sequence, and the lane's lifetime is exactly the
+            // batch's.
+            var pool = new net.zaminmc.torch.server.concurrent.DomainWorkerPool();
+            try {
+                net.zaminmc.torch.server.world.light.LightBatchPregen.pregenerate(
+                        engineWorld, lightEngine, center, radius, pool);
+            } finally {
+                pool.shutdown();
+            }
+            return;
+        }
         for (int dx = -radius; dx <= radius; dx++) {
             for (int dz = -radius; dz <= radius; dz++) {
                 engineWorld.getOrGenerate(new net.zaminmc.torch.block.ChunkPosition(center.x() + dx, center.z() + dz));
