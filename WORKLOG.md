@@ -9784,3 +9784,31 @@ adoptions.
 **Next:** the ops model (the spawn-protection gate's dependency), the
 teleported-flag gate, the Phase-5 workload adoptions (pathfinding,
 lighting, serialization), the §29 standing rows.
+
+## Slice N4 — the spawn-protection gate
+
+- **THE LAW** (DedicatedServer.isSpawnProtected lines 387-409, 1:1): an
+  op-less server protects NOTHING (the reference's own
+  `getOps().isEmpty() -> false` — a fresh vanilla server's spawn area
+  is fully usable until the first /op arms the band); once an operator
+  exists, a non-operator inside the chebyshev radius around spawn
+  (`max(|dx|, |dz|) <= radius`) is refused while the operator passes
+  freely; radius 0 disables.
+- **THE RADIUS**: the `spawn-protection` server property (the
+  reference's `getInt("spawn-protection", 16)`) — EngineConfig's
+  fifteenth component, a new 14-arg compat constructor absorbing every
+  pre-N4 canonical caller (zero call-site churn across the 159 sites),
+  ConfigLoader reading the property.
+- **THE GATE**: `EngineServer.isSpawnProtected` between the border
+  consult and the two stages; the overworld-only dimension gate is
+  structural (the use walk's world IS the overworld); the public
+  `opStore()` accessor joins the engine surface beside `randomTicks()`.
+- Evidence: SpawnProtectionAcceptanceTest 3 (the unarmed band, the
+  armed band's refusal + the operator's pass, the chebyshev edge at
+  (40,5,40) outside the default 16) + TwoStageUseLawAcceptanceTest 11 +
+  the config/command-block/vehicle/lane/interaction regression batch
+  green (sweep-N4.log).
+
+**Next:** the teleported-flag gate (the last ledgered use-gate
+dependency), the Phase-5 workload adoptions (pathfinding, lighting,
+serialization), the §29 standing rows.
