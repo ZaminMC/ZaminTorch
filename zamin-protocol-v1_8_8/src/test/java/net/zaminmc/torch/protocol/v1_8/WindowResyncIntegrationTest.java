@@ -182,6 +182,15 @@ class WindowResyncIntegrationTest extends ProtocolTestBase {
             // open air (nothing to push into: no cross-test coupling)
             server.world().execute(() -> server.world().setBlock(
                     HOPPER_C, net.zaminmc.torch.server.hopper.HopperBlocks.hopperOf(0, true)));
+            // The handler's 8-block body gate (Slice N2): the engine-side
+            // teleport walks the player to the hopper's column (the real
+            // client's movement guard rejects teleport-sized jumps — the
+            // authoritative move is the test's own verb here).
+            server.teleportPlayer(awaitPlayer("Hopperer"),
+                    new net.zaminmc.torch.util.Position(
+                            HOPPER_C.x() - 1.5, HOPPER_C.y() + 0.5,
+                            HOPPER_C.z() + 0.5));
+            Thread.sleep(300);
             client.sendBlockPlacement(HOPPER_C.x(), HOPPER_C.y(), HOPPER_C.z(), 1, -1);
             Object[] open = client.readOpenWindow(10_000);
             int windowId = (Integer) open[0];
@@ -221,6 +230,13 @@ class WindowResyncIntegrationTest extends ProtocolTestBase {
             // this test's own dispenser at its own column
             server.world().execute(() -> server.world().setBlock(
                     DISPENSER_D, net.zaminmc.torch.server.dispenser.DispenserBlocks.dispenserOf(1, false)));
+            // The handler's 8-block body gate (Slice N2): the engine-side
+            // teleport walks the player to the dispenser's column.
+            server.teleportPlayer(awaitPlayer("Dispenserer"),
+                    new net.zaminmc.torch.util.Position(
+                            DISPENSER_D.x() - 1.5, DISPENSER_D.y() + 0.5,
+                            DISPENSER_D.z() + 0.5));
+            Thread.sleep(300);
             client.sendBlockPlacement(DISPENSER_D.x(), DISPENSER_D.y(), DISPENSER_D.z(), 1, -1);
             Object[] open = client.readOpenWindow(10_000);
             int windowId = (Integer) open[0];
