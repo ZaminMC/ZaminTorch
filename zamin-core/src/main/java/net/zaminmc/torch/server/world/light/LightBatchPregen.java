@@ -47,7 +47,8 @@ import java.util.List;
  * in both directions — the recorded neighbor writes land because the earlier
  * chunk is loaded).</p>
  *
- * <p>THE ORDER: waves fixed as (0,0), (0,1), (1,0), (1,1); within a wave,
+ * <p>THE ORDER: waves fixed as (0,0), (1,0), (0,1), (1,1) (the driver's
+ * {@code wx = wave & 1, wz = wave >> 1} walk); within a wave,
  * column-major (dx outer, dz inner) — the sequential walk's own local order,
  * so the two walks agree on every pair whose wave order happens to match the
  * column-major order. Deterministic by construction: same area, same seed,
