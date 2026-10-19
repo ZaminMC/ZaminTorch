@@ -9812,3 +9812,33 @@ lighting, serialization), the §29 standing rows.
 **Next:** the teleported-flag gate (the last ledgered use-gate
 dependency), the Phase-5 workload adoptions (pathfinding, lighting,
 serialization), the §29 standing rows.
+
+## Slice N5 — the teleport-window use gate
+
+- **THE LAW** (handlePlayerUse line 475 + the movement handler's
+  acknowledgment band, lines 203-211, 1:1): a use through an in-flight
+  teleport refuses — the wire's Position And Look is unacknowledged and
+  the click carries the pre-teleport world; the client's movement
+  within d3 < 0.25 squared of the anchor closes the window.
+- **THE SEAM (architecture-first)**: the window arms at the WIRE layer
+  — `V18Connection.resyncPosition` (the engine's teleports, the
+  rejected-movement snap-backs — 1:1 the reference's reject-walk
+  re-teleport — the seat re-anchors) and the respawn's own re-anchor
+  send; `PlayerSession.markTeleportPending/teleportPending/
+  acknowledgeTeleportIfAtAnchor` the session's verbs; the
+  acknowledgment rides the movement-proposal tail.
+- **THE DOCUMENTED ADAPTATIONS**: the join anchor never arms (the
+  one-shot formality, no prior client state); the engine's internal
+  API path (stub links, plugins, tests) never arms — the reference's
+  own networkHandler-scoped flag semantics preserved.
+- Evidence: TwoStageUseLawAcceptanceTest 12 (the NEW window arm: the
+  pending teleport refuses the chest, the anchor acknowledgment through
+  the engine's own movementProposal opens the gate) + the protocol
+  module FULL 108 green with the window live (the two WindowResync
+  sites send the real client's position acknowledgment) + the
+  teleport-using block tests green (sweep-N5-proto.log).
+
+**Next:** the dig handler's own gates (the 6-block mining reach from
+the eye +1.5, the too-high, the spawn-protection + border consults on
+START with the BlockUpdate echo on refusal — handlePlayerDig lines
+424-456), the Phase-5 workload adoptions, the §29 standing rows.

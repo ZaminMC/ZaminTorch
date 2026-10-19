@@ -1928,6 +1928,22 @@ every arm must sit in its own stage.
       3 (the unarmed band, the armed band's refusal + the operator's
       pass, the chebyshev edge) + the regression batch green
       (sweep-N4.log);
+- [x] N5 — LANDED (commit 2c268fd): the teleport-window use gate. THE
+      LAW (handlePlayerUse line 475's own first consult): a use through
+      an IN-FLIGHT teleport refuses — the wire's Position And Look
+      order is unacknowledged and the click carries the pre-teleport
+      world; the client's movement at the anchor (the reference's d3
+      &lt; 0.25 squared band) closes the window. THE SEAM: the window
+      arms at the WIRE layer (resyncPosition — the teleports, the
+      snap-backs, the seat re-anchors — and the respawn's own
+      re-anchor); the acknowledgment rides the movement-proposal tail.
+      THE DOCUMENTED ADAPTATIONS: the join anchor never arms (the
+      one-shot formality with no prior client state); the engine's
+      internal API path (stub links, plugins) never arms — the
+      reference's own networkHandler-scoped flag semantics. Evidence:
+      TwoStageUseLawAcceptanceTest 12 (the window arm + the anchor
+      acknowledgment) + the protocol module FULL 108 green with the
+      window live (sweep-N5-proto.log);
 
 ## Wave P — the parallel execution lanes (Phase 6's gated gameplay adoption)
 
