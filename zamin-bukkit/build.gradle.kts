@@ -49,3 +49,10 @@ dependencies {
     // stop after the last test in the JVM).
     testImplementation("org.junit.platform:junit-platform-launcher")
 }
+
+// The suite's own evidence line: the execution order is part of the test
+// contract (the classes' @Order walk 0..4, the methods' @Order inside) —
+// started events make the order visible in the run log.
+tasks.withType<Test>().configureEach {
+    testLogging.events("started", "failed", "skipped")
+}

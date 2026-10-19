@@ -8,6 +8,8 @@ import org.bukkit.plugin.Plugin;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.MethodOrderer;
+import org.junit.jupiter.api.TestMethodOrder;
 
 import java.nio.file.StandardOpenOption;
 import java.util.List;
@@ -41,14 +43,18 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * </ol>
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 @Order(4)
 class BukkitAdversarialTest {
 
     private static BukkitTestHarness harness() throws Exception {
-        return BukkitTestHarness.harness();
+        BukkitTestHarness harness = BukkitTestHarness.harness();
+        harness.ensureProbeEnabled(); // the class's entry state (order-independent)
+        return harness;
     }
 
     @Test
+    @Order(1)
     void anOffOwnerLegacyWriteIsRoutedByTheOwnerNeverRaced() throws Exception {
         BukkitTestHarness harness = harness();
         // From the probe's own enable wave: the async body (primary=false)
@@ -66,8 +72,14 @@ class BukkitAdversarialTest {
     }
 
     @Test
+    @Order(2)
     void theEngineDirectRouteStillRejectsOffOwnerWrites() throws Exception {
         BukkitTestHarness harness = harness();
+        // The routed write from the wave must be in place before this test
+        // probes the cell (order-independence: await it, never assume it).
+        harness.await(() -> "minecraft:glowstone".equals(
+                harness.server.world().getBlock(new BlockPosition(2, 6, 2)).identifier()
+                        .toString()), "the routed write applied");
         // The engine's OWN enforcement, unweakened by the adapter (§28.10's
         // final rule): a direct engine write from the blocking lane throws
         // the ownership violation — the adapter never routed around it.
@@ -96,27 +108,41 @@ class BukkitAdversarialTest {
     }
 
     @Test
+    @Order(3)
     void disableDuringExecutionInvalidatesTheUnfinishedWork() throws Exception {
         BukkitTestHarness harness = harness();
         Plugin probe = Bukkit.getPluginManager().getPlugin("Probe");
         // The probe must be live for its §28.5 laws to be under test.
         assertTrue(probe.isEnabled(), "the probe is live before the drill");
 
-        // A queued delayed task (must NEVER run after the disable) and an
-        // in-flight async body (running work completes — the engine's law,
-        // its late completion dropped — never delivered).
+        // A queued delayed task (must NEVER run after the disable) and a
+        // genuinely IN-FLIGHT async body (started BEFORE the disable —
+        // running work completes, the engine's law; its late completion
+        // dropped, never delivered).
         int queuedBefore = count(harness, "disable-drill:queued-ran");
         long droppedLateBefore = droppedLateCount(harness);
         Bukkit.getScheduler().runTaskLater(probe, () -> append(harness,
                 "disable-drill:queued-ran"), 4);
         Bukkit.getScheduler().runTaskAsynchronously(probe, () -> {
+            append(harness, "disable-drill:async-started"); // the in-flight marker
             try {
-                Thread.sleep(250); // in-flight when the disable walk runs
+                Thread.sleep(250); // running when the disable walk runs
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
             append(harness, "disable-drill:async-done");
         });
+        // The body must be RUNNING before the disable lands — a body still
+        // QUEUED at the sweep is cancelled (§28.5's own law for outstanding
+        // work), which is a different (also correct) outcome than this
+        // drill's target.
+        harness.await(() -> {
+            try {
+                return count(harness, "disable-drill:async-started") > 0;
+            } catch (Exception e) {
+                return false;
+            }
+        }, "the async body is running before the disable");
 
         // The disable walk DURING execution: seal, onDisable, sweep.
         Bukkit.getPluginManager().disablePlugin(probe);
@@ -131,9 +157,10 @@ class BukkitAdversarialTest {
         assertEquals(net.zaminmc.torch.plugin.PluginState.DISABLED,
                 harness.server.plugins().byId("Probe").orElseThrow().state());
 
-        // The in-flight body completed on the lane (the engine's law: running
-        // work cannot be cancelled) — but its late COMPLETION is dropped by
-        // the native scope (§28.5: never delivered to the disabled plugin).
+        // The in-flight body completed on the lane (the engine's law:
+        // running work cannot be cancelled — the sweep's cancel verb only
+        // wins while the submission is still queued). Its late COMPLETION
+        // is dropped by the native scope (§28.5: never delivered).
         harness.await(() -> {
             try {
                 return count(harness, "disable-drill:async-done") > 0;

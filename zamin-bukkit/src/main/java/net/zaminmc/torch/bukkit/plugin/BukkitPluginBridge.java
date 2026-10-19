@@ -67,6 +67,17 @@ public final class BukkitPluginBridge {
     private final Map<Plugin, Record> byPlugin = new ConcurrentHashMap<>();
     private final Map<String, Record> byName = new ConcurrentHashMap<>();
 
+    /**
+     * The walk-scoped handle (§28.5's own law): the native host passes the
+     * handle TO the enable/disable callback, and the plugin's own lifecycle
+     * code runs INSIDE that callback — scheduling tasks and registering
+     * listeners before the registration call ever returns. The bridge
+     * publishes the handle for the walk's duration so the scheduler and
+     * the manager can own those resources in the CURRENT scope; the walks
+     * run single-threaded under the engine host's lifecycle lock.
+     */
+    private volatile PluginHandle walkHandle;
+
     private record Record(Plugin plugin, PluginHandle handle) {
     }
 
@@ -152,12 +163,22 @@ public final class BukkitPluginBridge {
         PluginBody body = new PluginBody() {
             @Override
             public void onEnable(PluginHandle handle) {
-                loaderFor(plugin).enablePlugin(plugin);
+                walkHandle = handle; // the walk-scoped publication (see the field's law)
+                try {
+                    loaderFor(plugin).enablePlugin(plugin);
+                } finally {
+                    walkHandle = null;
+                }
             }
 
             @Override
             public void onDisable(PluginHandle handle) {
-                loaderFor(plugin).disablePlugin(plugin);
+                walkHandle = handle;
+                try {
+                    loaderFor(plugin).disablePlugin(plugin);
+                } finally {
+                    walkHandle = null;
+                }
             }
         };
         Runnable closeLoader = () -> {
@@ -237,7 +258,10 @@ public final class BukkitPluginBridge {
 
     public PluginHandle nativeHandleOf(Plugin plugin) {
         Record record = byPlugin.get(plugin);
-        return record == null ? null : record.handle();
+        if (record != null && record.handle() != null) {
+            return record.handle();
+        }
+        return walkHandle; // the walk-scoped answer (the field's own law)
     }
 
     public Plugin pluginByName(String name) {

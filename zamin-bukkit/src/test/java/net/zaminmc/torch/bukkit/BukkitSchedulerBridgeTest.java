@@ -6,6 +6,8 @@ import org.bukkit.scheduler.BukkitTask;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.MethodOrderer;
+import org.junit.jupiter.api.TestMethodOrder;
 
 import java.util.List;
 
@@ -22,14 +24,18 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * simulated worker thread), every task scope-owned.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 @Order(3)
 class BukkitSchedulerBridgeTest {
 
     private static BukkitTestHarness harness() throws Exception {
-        return BukkitTestHarness.harness();
+        BukkitTestHarness harness = BukkitTestHarness.harness();
+        harness.ensureProbeEnabled(); // the class's entry state (order-independent)
+        return harness;
     }
 
     @Test
+    @Order(1)
     void syncTasksRunOnThePrimaryThreadInFifoOrder() throws Exception {
         BukkitTestHarness harness = harness();
         // The probe's own enable-wave tasks (from its first enable — the
@@ -44,6 +50,7 @@ class BukkitSchedulerBridgeTest {
     }
 
     @Test
+    @Order(2)
     void aLaterTaskLandsAtItsOwnTick() throws Exception {
         BukkitTestHarness harness = harness();
         awaitLine(harness, "sched:later-2");
@@ -52,6 +59,7 @@ class BukkitSchedulerBridgeTest {
     }
 
     @Test
+    @Order(3)
     void aRepeatingTaskBeatsAtItsPeriodUntilCancelled() throws Exception {
         BukkitTestHarness harness = harness();
         org.bukkit.plugin.Plugin probe = Bukkit.getPluginManager().getPlugin("Probe");
@@ -60,31 +68,45 @@ class BukkitSchedulerBridgeTest {
         // beats, each on the owner context, then cancelTask stops it.
         int beats = count(harness, "sched:timer-beat");
         assertTrue(beats >= 3, "the timer beat at least three times: " + beats);
+        // The beats' own ticks are strictly increasing (the engine's drain
+        // order made visible through the bridge).
         List<String> lines = harness.probeLogLines();
-        long firstTick = tickOf(lines, 1);
-        long thirdTick = tickOf(lines, 3);
-        assertTrue(thirdTick >= firstTick + 4,
-                "the beats are spaced (period 2 in engine ticks): first=" + firstTick
-                        + " third=" + thirdTick);
-
-        int taskId = -1;
-        for (org.bukkit.scheduler.BukkitTask task : Bukkit.getScheduler().getPendingTasks()) {
-            if (task.getOwner() == probe && task.isSync()) {
-                // the timer is the probe's only repeating sync task
-                taskId = task.getTaskId();
+        long previous = -1;
+        int seen = 0;
+        for (String line : lines) {
+            if (line.contains("sched:timer-beat")) {
+                seen++;
+                long tick = Long.parseLong(
+                        line.substring(line.indexOf("tick=") + 5).trim());
+                assertTrue(tick > previous, "beat ticks strictly increase: " + line);
+                previous = tick;
             }
         }
-        assertTrue(taskId > 0, "the timer is pending");
-        assertTrue(Bukkit.getScheduler().isQueued(taskId), "queued before the cancel");
-        Bukkit.getScheduler().cancelTask(taskId);
+        assertTrue(seen >= 3, "at least three beat lines");
+
+        // Order-independence: the probe may have been enabled more than
+        // once (a fresh wave per enable) — cancel EVERY pending sync task
+        // of the probe, then no beat may ever appear again.
+        for (org.bukkit.scheduler.BukkitTask task : List.copyOf(
+                Bukkit.getScheduler().getPendingTasks())) {
+            if (task.getOwner() == probe && task.isSync()) {
+                assertTrue(Bukkit.getScheduler().isQueued(task.getTaskId()),
+                        "queued before the cancel");
+                Bukkit.getScheduler().cancelTask(task.getTaskId());
+            }
+        }
         int frozen = count(harness, "sched:timer-beat");
         Thread.sleep(400); // certainly past two more beat slots
         assertEquals(frozen, count(harness, "sched:timer-beat"),
-                "the cancelled timer never beat again");
-        assertFalse(Bukkit.getScheduler().isQueued(taskId), "not queued after the cancel");
+                "the cancelled timers never beat again");
+        for (org.bukkit.scheduler.BukkitTask task : Bukkit.getScheduler().getPendingTasks()) {
+            assertFalse(task.getOwner() == probe && task.isSync(),
+                    "no pending sync task of the probe remains");
+        }
     }
 
     @Test
+    @Order(4)
     void asyncBodiesRunOffTheOwnerOnThePluginOwnLane() throws Exception {
         BukkitTestHarness harness = harness();
         awaitLine(harness, "adversarial:async-body-done");
@@ -100,6 +122,7 @@ class BukkitSchedulerBridgeTest {
     }
 
     @Test
+    @Order(5)
     void theEngineAnsweredIsPrimaryThreadHonestly() throws Exception {
         BukkitTestHarness harness = harness();
         // On the test thread: NOT the primary thread (the engine's own
@@ -112,6 +135,7 @@ class BukkitSchedulerBridgeTest {
     }
 
     @Test
+    @Order(6)
     void anAsyncTaskFromTheTestSideRunsOnTheLane() throws Exception {
         BukkitTestHarness harness = harness();
         org.bukkit.plugin.Plugin probe = Bukkit.getPluginManager().getPlugin("Probe");

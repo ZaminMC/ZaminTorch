@@ -1,8 +1,10 @@
 package net.zaminmc.torch.bukkit;
 
+import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.TestMethodOrder;
 
 import java.util.List;
 
@@ -20,14 +22,18 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * pending tasks, and the reload hands the plugin a FRESH scope.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 @Order(1)
 class BukkitLifecycleAcceptanceTest {
 
     private static BukkitTestHarness harness() throws Exception {
-        return BukkitTestHarness.harness();
+        BukkitTestHarness harness = BukkitTestHarness.harness();
+        harness.ensureProbeEnabled(); // the class's entry state (order-independent)
+        return harness;
     }
 
     @Test
+    @Order(1)
     void theProbeLoadedThroughTheLegacyMachineryInOrder() throws Exception {
         BukkitTestHarness harness = harness();
         // The load walk's own order: onLoad before the native enable walk.
@@ -39,6 +45,7 @@ class BukkitLifecycleAcceptanceTest {
     }
 
     @Test
+    @Order(2)
     void theLegacyPluginManagerSurfaceAnswers() throws Exception {
         BukkitTestHarness harness = harness();
         org.bukkit.plugin.Plugin probe = harness.adapter.bukkitServer()
@@ -51,6 +58,7 @@ class BukkitLifecycleAcceptanceTest {
     }
 
     @Test
+    @Order(3)
     void theEngineHostOwnsTheBridgedPlugin() throws Exception {
         BukkitTestHarness harness = harness();
         org.bukkit.plugin.Plugin probe = harness.adapter.bukkitServer()
@@ -64,6 +72,7 @@ class BukkitLifecycleAcceptanceTest {
     }
 
     @Test
+    @Order(4)
     void theDisableWalkSweepsTheOwnedResources() throws Exception {
         BukkitTestHarness harness = harness();
         org.bukkit.plugin.PluginManager manager = harness.adapter.bukkitServer()
@@ -94,20 +103,18 @@ class BukkitLifecycleAcceptanceTest {
     }
 
     @Test
+    @Order(5)
     void theReloadHandsThePluginAFreshScope() throws Exception {
         BukkitTestHarness harness = harness();
         org.bukkit.plugin.PluginManager manager = harness.adapter.bukkitServer()
                 .getPluginManager();
         org.bukkit.plugin.Plugin probe = manager.getPlugin("Probe");
         manager.enablePlugin(probe); // reload's own law: simply enabled
-        harness.await(() -> {
-            try {
-                return harness.probeLogContains("event:join");
-            } catch (Exception e) {
-                return false;
-            }
-        }, "the re-enabled probe is live again");
-        assertTrue(probe.isEnabled());
+        assertTrue(probe.isEnabled(), "the reload's enable walk landed it enabled again");
+        // The walk's own order evidence: a SECOND onEnable line after the
+        // first (the probe logs its walks in order).
+        assertTrue(countOf(harness.probeLogLines(), "lifecycle:onEnable") >= 2,
+                "the re-enable's onEnable ran (the fresh scope's own walk)");
 
         int joinsBefore = countOf(harness.probeLogLines(), "event:join");
         harness.join("AfterReload");

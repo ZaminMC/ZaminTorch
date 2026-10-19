@@ -8,6 +8,8 @@ import net.zaminmc.torch.util.Position;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.MethodOrderer;
+import org.junit.jupiter.api.TestMethodOrder;
 
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
@@ -23,14 +25,18 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * the assertions read both worlds' observable state.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 @Order(2)
 class BukkitEventBridgeTest {
 
     private static BukkitTestHarness harness() throws Exception {
-        return BukkitTestHarness.harness();
+        BukkitTestHarness harness = BukkitTestHarness.harness();
+        harness.ensureProbeEnabled(); // the class's entry state (order-independent)
+        return harness;
     }
 
     @Test
+    @Order(1)
     void thePriorityOrderIsTheLegacyOneOnTheLiveDispatch() throws Exception {
         BukkitTestHarness harness = harness();
         PlayerSession worker = harness.join("BreakOrder");
@@ -53,6 +59,7 @@ class BukkitEventBridgeTest {
     }
 
     @Test
+    @Order(2)
     void aLegacyCancelMapsBackOntoTheEngineEvent() throws Exception {
         BukkitTestHarness harness = harness();
         PlayerSession worker = harness.join("BreakCancel");
@@ -70,6 +77,7 @@ class BukkitEventBridgeTest {
     }
 
     @Test
+    @Order(3)
     void aLegacyChatCancelSuppressesTheEngineBroadcast() throws Exception {
         BukkitTestHarness harness = harness();
         PlayerSession speaker = harness.join("Chatter");
@@ -90,19 +98,25 @@ class BukkitEventBridgeTest {
     }
 
     @Test
+    @Order(4)
     void theJoinAndQuitObservationsBridgeWithTheMutableLine() throws Exception {
         BukkitTestHarness harness = harness();
         PlayerSession joiner = harness.join("JoinLine");
         harness.await(() -> harness.probeLogContains("event:join message="),
                 "the join observation bridged");
-        assertTrue(harness.probeLogContains("primary=true"),
-                "the bridge dispatched on the owner context (the honest flag)");
+        // The chat events' context IS the owner's (the engine routes chat
+        // through the ticker) — asserted by the probe's own chat lines
+        // elsewhere; the join/quit lines ride the caller's context.
         harness.disconnect(joiner);
         harness.await(() -> harness.probeLogContains("event:quit message="),
                 "the quit observation bridged");
+        // The join/quit context is the CALLER's (the engine fires them on
+        // the joining/disconnecting connection's context — §27.7's own
+        // law, wherever the engine fired it, the bridge dispatched there).
     }
 
     @Test
+    @Order(5)
     void aThrowingListenerNeverBreaksTheChainOrTheEngine() throws Exception {
         BukkitTestHarness harness = harness();
         PlayerSession worker = harness.join("BreakIsolation");
@@ -125,6 +139,7 @@ class BukkitEventBridgeTest {
     }
 
     @Test
+    @Order(6)
     void aReentrantDispatchNestsWithoutDeadlock() throws Exception {
         BukkitTestHarness harness = harness();
         PlayerSession speaker = harness.join("Reentrant");
