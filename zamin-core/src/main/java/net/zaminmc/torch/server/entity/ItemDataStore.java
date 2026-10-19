@@ -67,15 +67,30 @@ public final class ItemDataStore {
 
     /**
      * Saves the full item population snapshot. Callers snapshot state on
-     * the tick lane; the write itself is the store's own (atomic).
+     * the tick lane; the write itself is the store's own (atomic). The
+     * synchronous form composes the S5 pipeline's own two halves — the
+     * pure serialization and the file publication — so the sync save's
+     * bytes and the pipeline's bytes are identical by construction (one
+     * serializer, one file half).
      */
     public void save(List<ItemEntityManager.ItemRecord> items) {
+        writeSerialized(serialize(items));
+    }
+
+    /**
+     * The pure serialization (the compute pool's own half, Slice S5): the
+     * immutable snapshot IN (the records are the fresh values the
+     * manager's own snapshot walk builds on the tick lane — the value
+     * records over the immutable ItemStack model, the maps and arrays
+     * the walk's own fresh copies), the ZID bytes OUT — no
+     * world read, no I/O. The byte walk is the historical save walk's
+     * own (byte-identical).
+     */
+    public byte[] serialize(List<ItemEntityManager.ItemRecord> items) {
         Objects.requireNonNull(items, "items");
-        try {
-            Path temp = file.resolveSibling(file.getFileName() + ".tmp");
-            Files.createDirectories(file.getParent());
-            try (DataOutputStream out = new DataOutputStream(new BufferedOutputStream(
-                    Files.newOutputStream(temp)))) {
+        java.io.ByteArrayOutputStream sink = new java.io.ByteArrayOutputStream();
+        try (DataOutputStream out = new DataOutputStream(
+                new BufferedOutputStream(sink))) {
                 out.writeByte(MAGIC_0);
                 out.writeByte(MAGIC_1);
                 out.writeByte(MAGIC_2);
@@ -193,9 +208,32 @@ public final class ItemDataStore {
                         writeNullableString(out, item.owner());
                     }
                 }
+        } catch (IOException e) {
+            // The sink is an in-memory buffer; an IOException here is a
+            // defect, not a persistence failure — still loud (the store's
+            // own contract).
+            throw new IllegalStateException("Item serialize failed", e);
+        }
+        return sink.toByteArray();
+    }
+
+    /**
+     * Publishes already-serialized ZID bytes: the temp-file
+     * write + the atomic move — the historical save walk's own file half
+     * with the store's own failure contract 1:1 (the loud throw, never a
+     * silent loss). Safe from any thread that holds the publication
+     * right (the save pipeline's per-storage lock orders the async
+     * publications; the synchronous save is uncontended).
+     */
+    public void writeSerialized(byte[] data) {
+        try {
+            Path temp = file.resolveSibling(file.getFileName() + ".tmp");
+            Files.createDirectories(file.getParent());
+            try (DataOutputStream out = new DataOutputStream(new BufferedOutputStream(
+                    Files.newOutputStream(temp)))) {
+                out.write(data);
             }
-            Files.move(temp, file, StandardCopyOption.REPLACE_EXISTING,
-                    StandardCopyOption.ATOMIC_MOVE);
+            Files.move(temp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
         } catch (IOException e) {
             throw new IllegalStateException("Item save failed for " + file, e);
         }
