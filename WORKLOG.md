@@ -10208,3 +10208,35 @@ and lighting (each needs its own immutable-input contract,
 equivalence tests, and before/after measurements); the phase-gated
 items (the swept-box body model, the Anvil canvas, the Bukkit/Paper
 adapter, the Minestom modern protocol).
+
+## The pathfinding offload gate — answered with measurements (531fc22)
+
+- **THE CONTRACT**: `PathRegion` — the pathfinding workload's explicit
+  input (§6.5): the reachable box's material grid (one flat byte array,
+  the CellMaterial ordinals), captured on the owning lane. The box
+  bounds proven sound analytically (the g-cost cap bounds every
+  reachable node within 2r per axis; the capture takes 2r + 2 with the
+  body/scan margin) AND empirically (the node-for-node equivalence,
+  including the closest-node fallback that explores the whole reachable
+  set).
+- **THE EQUIVALENCE** (PathRegionContractTest): the snapshot search and
+  the live search agree node-for-node at both engine follow ranges —
+  the reachable route, the wall-detour fallback (the wall placed inside
+  the range band: the vanilla neighbor gate only proposes nodes within
+  range of the target), and the beyond-range refusal.
+- **THE MEASUREMENTS** (the §22 gate's bar): range 8 — live 12.4µs,
+  capture 294µs, snapshot 7.2µs (34,656 cells); range 16 — live 18.7µs,
+  capture 1,363µs, snapshot 8.8µs (196,000 cells).
+- **THE VERDICT**: the eager capture costs 24-73x the on-lane search —
+  the offload is a MEASURED NET LOSS at the engine's AI shape (the
+  staggered 20-30-tick re-paths produce no batch; the ranges are 8/16).
+  REJECTED WITH EVIDENCE per the §7 discipline (task overhead is part
+  of the design). THE REOPEN CONDITIONS: the section-palette capture
+  (~1000x fewer mappings), a batch AI shape sharing one region cache,
+  or ranges far beyond 16.
+- Evidence: PathRegionContractTest 3/3 + the pathing package 22/0.
+
+**Next:** the Phase-5 lighting workload's own gate (the same three-part
+bar: the immutable-input contract, the equivalence, the measurements);
+the phase-gated items (the swept-box body model, the Anvil canvas, the
+Bukkit/Paper adapter, the Minestom modern protocol).
