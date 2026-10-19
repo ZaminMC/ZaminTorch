@@ -21821,10 +21821,31 @@ public final class EngineServer implements Server, EngineBridge {
                     }
                 }
                 if (weatherStore != null && weather != null) {
-                    weatherStore.save(weather.snapshot());
+                    // S5: the WorldData flag pair rides the pipeline's
+                    // named path (the WeatherState record is the immutable
+                    // input contract already — a five-primitive value the
+                    // system's snapshot builds fresh on this lane).
+                    if (pipeline != null) {
+                        publications.add(pipeline.submitSave("weather",
+                                weather.snapshot(),
+                                weatherStore::serialize,
+                                weatherStore::writeSerialized));
+                    } else {
+                        weatherStore.save(weather.snapshot());
+                    }
                 }
                 if (gameRuleStore != null && gameRules != null) {
-                    gameRuleStore.save(gameRules.entries());
+                    // S5: the table's fresh entries list is the immutable
+                    // input contract already (the GameRules' own snapshot
+                    // walk builds the immutable Map.entry pairs).
+                    if (pipeline != null) {
+                        publications.add(pipeline.submitSave("gamerule",
+                                gameRules.entries(),
+                                gameRuleStore::serialize,
+                                gameRuleStore::writeSerialized));
+                    } else {
+                        gameRuleStore.save(gameRules.entries());
+                    }
                 }
                 if (mobStore != null && mobManager != null) {
                     mobStore.save(mobManager.snapshot());
