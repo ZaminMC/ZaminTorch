@@ -10312,3 +10312,16 @@ Stage Summary:
 - develop: the per-command argument completion landed (13 arms + the plumbing + the gated consult)
 - Next: the lighting batch shape (the staleness protocol), the Anvil canvas, the adapters
 - The final belt sweep: entity/vehicle/physics/piston/scheduler/command 424/0 (sweep-args-belt.log); the session's full evidence: the light suite 18/0, the wiring sweep 355/0, the protocol module 110 (one load flake, green in isolation), the command/console/chat/config sweep, the belt 424/0
+
+---
+Task ID: session-2026-10-20-light-batch
+Agent: main (Abasing session)
+Task: The lighting batch shape — §22's last named Phase-5 item: the pool dispatch of the initial light computes across the pregen batch, gated by the staleness question (the pipelined capture would see pre-apply neighbor states for the overlapping 3x3)
+
+Work Log:
+- Environment reset recovered (fresh clone at /home/z/zaminmc/ZaminTorch, develop @ 8f48f706 = torch-1.8.8-99); Abasing identity set
+- Oriented: the console work (§30) already landed (0afb2fe + 11731c2, 47 tests); the save walk fully pipelined (S1-S5); pathfinding gate rejected; lighting gate landed + wired; per-command completion landed. Remaining per §22: the lighting batch shape (THIS slice), the Anvil canvas (assigned to a parallel instance), the Bukkit adapter (parallel instance), the Minestom module (deferred)
+- Parallel split delivered: Instance 2 = Anvil import (feature/anvil-import), Instance 3 = Bukkit adapter slice 1 (feature/bukkit-adapter); this session keeps the lighting batch (the architecture-sensitive continuation of the lighting seam work)
+
+Stage Summary:
+- (in flight)
