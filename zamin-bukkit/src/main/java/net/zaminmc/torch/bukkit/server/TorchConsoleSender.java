@@ -4,11 +4,13 @@ import net.zaminmc.torch.bukkit.BukkitAdapter;
 
 import org.bukkit.ChatColor;
 import org.bukkit.Server;
-import org.bukkit.command.CommandException;
 import org.bukkit.command.ConsoleCommandSender;
-import org.bukkit.permissions.PermissibleBase;
 import org.bukkit.permissions.Permission;
+import org.bukkit.plugin.Plugin;
+import org.bukkit.permissions.PermissionAttachment;
+import org.bukkit.permissions.PermissionAttachmentInfo;
 
+import java.util.Set;
 import java.util.logging.Logger;
 
 /**
@@ -16,25 +18,19 @@ import java.util.logging.Logger;
  * command path (§30.3's "one command path" law — the console never grows a
  * second dispatcher), the operator arms bridged to the console's own
  * level-4 authority.
+ *
+ * <p><b>No {@code PermissibleBase}</b>: the API's own helper resolves the
+ * global {@code Bukkit.getServer()} at construction time (its
+ * recalculate walk), which the adapter's own wiring order cannot promise —
+ * the arms are implemented directly instead (the console's authority is
+ * total; the attachment registry is the honest no-op for it).</p>
  */
 public final class TorchConsoleSender implements ConsoleCommandSender {
 
     private final BukkitAdapter adapter;
-    private final PermissibleBase permissible;
 
     public TorchConsoleSender(BukkitAdapter adapter) {
         this.adapter = adapter;
-        this.permissible = new PermissibleBase(this) {
-            @Override
-            public boolean hasPermission(Permission perm) {
-                return true; // the console's own authority
-            }
-
-            @Override
-            public boolean hasPermission(String name) {
-                return true;
-            }
-        };
     }
 
     @Override
@@ -43,15 +39,15 @@ public final class TorchConsoleSender implements ConsoleCommandSender {
     }
 
     @Override
-    public void sendRawMessage(String message) {
-        sendMessage(message); // the console's own echo path
-    }
-
-    @Override
     public void sendMessage(String[] messages) {
         for (String message : messages) {
             sendMessage(message);
         }
+    }
+
+    @Override
+    public void sendRawMessage(String message) {
+        sendMessage(message); // the console's own echo path
     }
 
     @Override
@@ -66,12 +62,12 @@ public final class TorchConsoleSender implements ConsoleCommandSender {
 
     @Override
     public boolean isPermissionSet(String name) {
-        return permissible.isPermissionSet(name);
+        return false;
     }
 
     @Override
     public boolean isPermissionSet(Permission perm) {
-        return permissible.isPermissionSet(perm);
+        return false;
     }
 
     @Override
@@ -85,42 +81,38 @@ public final class TorchConsoleSender implements ConsoleCommandSender {
     }
 
     @Override
-    public org.bukkit.permissions.PermissionAttachment addAttachment(
-            org.bukkit.plugin.Plugin plugin, String name, boolean value) {
-        return permissible.addAttachment(plugin, name, value);
+    public PermissionAttachment addAttachment(Plugin plugin, String name, boolean value) {
+        throw adapter.unbridged("Console.addAttachment");
     }
 
     @Override
-    public org.bukkit.permissions.PermissionAttachment addAttachment(
-            org.bukkit.plugin.Plugin plugin) {
-        return permissible.addAttachment(plugin);
+    public PermissionAttachment addAttachment(Plugin plugin) {
+        throw adapter.unbridged("Console.addAttachment");
     }
 
     @Override
-    public org.bukkit.permissions.PermissionAttachment addAttachment(
-            org.bukkit.plugin.Plugin plugin, String name, boolean value, int ticks) {
-        return permissible.addAttachment(plugin, name, value, ticks);
+    public PermissionAttachment addAttachment(Plugin plugin, String name, boolean value, int ticks) {
+        throw adapter.unbridged("Console.addAttachment");
     }
 
     @Override
-    public org.bukkit.permissions.PermissionAttachment addAttachment(
-            org.bukkit.plugin.Plugin plugin, int ticks) {
-        return permissible.addAttachment(plugin, ticks);
+    public PermissionAttachment addAttachment(Plugin plugin, int ticks) {
+        throw adapter.unbridged("Console.addAttachment");
     }
 
     @Override
-    public void removeAttachment(org.bukkit.permissions.PermissionAttachment attachment) {
-        permissible.removeAttachment(attachment);
+    public void removeAttachment(PermissionAttachment attachment) {
+        throw adapter.unbridged("Console.removeAttachment");
     }
 
     @Override
     public void recalculatePermissions() {
-        permissible.recalculatePermissions();
+        // The console's authority is total — nothing to recalculate.
     }
 
     @Override
-    public java.util.Set<org.bukkit.permissions.PermissionAttachmentInfo> getEffectivePermissions() {
-        return permissible.getEffectivePermissions();
+    public Set<PermissionAttachmentInfo> getEffectivePermissions() {
+        return Set.of();
     }
 
     @Override
@@ -161,7 +153,7 @@ public final class TorchConsoleSender implements ConsoleCommandSender {
     }
 
     /** The engine's own console route (the ONE command path — §30.3). */
-    public void dispatch(String line) throws CommandException {
+    public void dispatch(String line) {
         adapter.engine().consoleCommand(line);
     }
 }

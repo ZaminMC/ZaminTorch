@@ -48,9 +48,19 @@ public final class MaterialMap {
         // Direction 2 first: the legacy enum's own constants, resolved
         // against the engine registry (the engine is the source of truth —
         // repositories are the source of truth over any generic mapping
-        // table we might invent).
+        // table we might invent). The legacy names are UPPERCASE ("AIR",
+        // "STONE") while the engine's identifiers are lowercase paths
+        // ("minecraft:air") — the translation lowercases; a name the
+        // engine cannot resolve is simply unmapped (logged once at use,
+        // never a wrong block).
         for (Material legacy : Material.values()) {
-            BlockType engine = blocks.byKey(legacy.name()).orElse(null);
+            BlockType engine;
+            try {
+                engine = blocks.byKey(legacy.name().toLowerCase(java.util.Locale.ROOT))
+                        .orElse(null);
+            } catch (RuntimeException unresolvableName) {
+                continue; // a legacy name the engine's identifier grammar refuses
+            }
             if (engine == null) {
                 continue;
             }
