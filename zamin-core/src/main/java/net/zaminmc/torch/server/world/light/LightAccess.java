@@ -45,11 +45,28 @@ interface LightAccess {
     /** The stored sky light; {@link LightSection#DEFAULT_SKY} for absent/unloaded storage. */
     int skyLightAt(int x, int y, int z);
 
-    /** Stores block light. Droppable (unloaded space); must mark the column relight when it lands in a loaded neighbor. */
-    void setBlockLight(int x, int y, int z, int level);
+    /**
+     * Stores block light. Droppable (unloaded space); must mark the column relight when it lands in a loaded neighbor.
+     *
+     * @return whether the write landed — {@code false} for the dropped
+     *         (unloaded) case. THE BFS'S OWN TERMINATION DEPENDS ON THIS:
+     *         a cell whose write cannot land must never be re-queued — its
+     *         read keeps answering the channel default (0) forever, so a
+     *         re-queued unloaded cell re-satisfies the push condition on
+     *         every incoming edge and the traversal explodes with the path
+     *         count (the unbounded-storm bug the batch lane's measurements
+     *         caught: a single torch at the border of unloaded space hung
+     *         the compute for half a minute).
+     */
+    boolean setBlockLight(int x, int y, int z, int level);
 
-    /** Stores sky light. Droppable (unloaded space); must mark the column relight when it lands in a loaded neighbor. */
-    void setSkyLight(int x, int y, int z, int level);
+    /**
+     * Stores sky light. Droppable (unloaded space); must mark the column relight when it lands in a loaded neighbor.
+     *
+     * @return whether the write landed (see {@link #setBlockLight} — the BFS's
+     *         re-queue gate shares the setter's own landing answer).
+     */
+    boolean setSkyLight(int x, int y, int z, int level);
 
     /**
      * Marks the column's chunk for relight, excluding the fresh chunk's own

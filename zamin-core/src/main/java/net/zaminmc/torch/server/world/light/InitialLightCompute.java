@@ -143,33 +143,35 @@ public final class InitialLightCompute {
         }
 
         @Override
-        public void setBlockLight(int x, int y, int z, int level) {
+        public boolean setBlockLight(int x, int y, int z, int level) {
             if (inFresh(x, z)) {
                 recordFreshWrite(x, y, z, InitialLightResult.CHANNEL_BLOCK, level);
                 write(freshLight, x, y, z, level, false);
-                return;
+                return true;
             }
             int slot = slotOf(x, z);
             if (slot >= 0 && neighborLight[slot] != null) {
                 recordNeighborWrite(slot, x, y, z, InitialLightResult.CHANNEL_BLOCK, level);
                 write(neighborLight[slot], x, y, z, level, false);
+                return true;
             }
-            // else: unloaded — dropped (the live setter's own behavior)
+            return false; // unloaded — dropped (the live setter's own behavior)
         }
 
         @Override
-        public void setSkyLight(int x, int y, int z, int level) {
+        public boolean setSkyLight(int x, int y, int z, int level) {
             if (inFresh(x, z)) {
                 recordFreshWrite(x, y, z, InitialLightResult.CHANNEL_SKY, level);
                 write(freshLight, x, y, z, level, true);
-                return;
+                return true;
             }
             int slot = slotOf(x, z);
             if (slot >= 0 && neighborLight[slot] != null) {
                 recordNeighborWrite(slot, x, y, z, InitialLightResult.CHANNEL_SKY, level);
                 write(neighborLight[slot], x, y, z, level, true);
+                return true;
             }
-            // else: unloaded — dropped (the live setter's own behavior)
+            return false; // unloaded — dropped (the live setter's own behavior)
         }
 
         @Override
