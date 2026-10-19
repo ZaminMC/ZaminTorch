@@ -9911,11 +9911,11 @@ N7), the Phase-5 workload adoptions, the §29 standing rows.
 - THE ENGINE'S DEVIATION (the N7 target): the engine's placement arms
   carry SECONDARY bands the reference never has — (1) the service's
   placeOnTick (withinReach 6.0^2 from eye-1.62) + survivalPlaceOnTick
-  (withinSurvivalReach 4.5^2 from eye-1.62); (2) ~19 inline
+  (withinSurvivalReach 4.5^2 from eye-1.62); (2) 38 inline
   `distanceSquaredEyeToBlock > 4.5*4.5` arms across the use walk's
   placement families (the sign at 3300, the skull at 3368, the 8401/
   8466 consult pairs, the armor stand, the paintings, the bed, the
-  rails family, 8705-9159's placement arms). A placement at 5-8 blocks
+  rails family, 8705-9159's placement arms — 38 occurrences of the 4.5-band pattern across the walk). A placement at 5-8 blocks
   (inside the handler's 64.0, outside the 4.5 eye band) is REFUSED by
   the engine and ALLOWED by the reference — the same bug class N6
   repaired for the dig. THE FIX'S SHAPE: a REMOVAL, not a re-banding —
