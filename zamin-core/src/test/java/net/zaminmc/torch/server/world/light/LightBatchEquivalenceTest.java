@@ -319,6 +319,65 @@ class LightBatchEquivalenceTest {
         assertEquals(firstMarks, secondMarks, "two batched runs agree in relight first-marked order");
     }
 
+    // ------------------------------------------------ the measurement
+
+    /**
+     * THE MEASUREMENTS (the §22 gate's before/after bar, logged for the
+     * ledger): the REAL pregen path's wall clock — the sequential walk vs
+     * the batched lane at the production shape (radius 4, 81 chunks, the
+     * boot's own view), flat and worked, median of three. The offline batch
+     * harness measured the compute shape at 3.9-5.4x; this measures what
+     * the wired lane actually delivers end-to-end (generation + capture +
+     * the pool's parallel computes + applies + installs, pool startup
+     * included).
+     */
+    @Test
+    void theMeasurementHarnessRecordsThePregenWallClock() {
+        for (boolean worked : new boolean[] {false, true}) {
+            // The registry construction (the expensive part) is hoisted OUT of
+            // the timed region; each run builds a fresh world over it (every
+            // run must actually pregenerate — an already-pregnated world
+            // measures a peek loop). Both arms time the pregen walk alone
+            // (generation + capture + computes + applies + installs; the
+            // batch arm includes its pool's startup and shutdown).
+            var registry = BuiltinBlocks.registerAll(new BlockRegistryBuilder()).freeze();
+            long sequentialNanos = timedMedian(3, () -> {
+                EngineWorld world = new EngineWorld("light-batch-meas-seq", registry,
+                        worked ? new WorkedGenerator(registry) : new FlatWorldGenerator(registry, 4),
+                        Thread.currentThread());
+                LightEngine light = new LightEngine(world);
+                world.addChangeListener(light);
+                world.addChunkLoadListener(light);
+                pregenerateSequential(world, 4);
+            });
+            long batchedNanos = timedMedian(3, () -> {
+                EngineWorld world = new EngineWorld("light-batch-meas-bat", registry,
+                        worked ? new WorkedGenerator(registry) : new FlatWorldGenerator(registry, 4),
+                        Thread.currentThread());
+                LightEngine light = new LightEngine(world);
+                world.addChangeListener(light);
+                world.addChunkLoadListener(light);
+                pregenerateBatched(world, light, 4);
+            });
+            System.out.printf("[light-batch] pregen(81) worked=%b: sequential %,d us"
+                            + " | batched %,d us (x%.2f)%n",
+                    worked, sequentialNanos / 1000, batchedNanos / 1000,
+                    batchedNanos / (double) sequentialNanos);
+        }
+    }
+
+    /** The median of N timed runs. */
+    private static long timedMedian(int runs, Runnable action) {
+        long[] samples = new long[runs];
+        for (int i = 0; i < runs; i++) {
+            long start = System.nanoTime();
+            action.run();
+            samples[i] = System.nanoTime() - start;
+        }
+        java.util.Arrays.sort(samples);
+        return samples[runs / 2];
+    }
+
     // ------------------------------------------------ the worked scene's generator
 
     /**
