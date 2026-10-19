@@ -21783,7 +21783,17 @@ public final class EngineServer implements Server, EngineBridge {
                     }
                 }
                 if (commandBlockStore != null && commandBlocks != null) {
-                    commandBlockStore.save(commandBlocks.snapshot());
+                    // S4: the ride through the pipeline's named path — the
+                    // deep capture (the stats tail pre-flattened) on the
+                    // tick lane, the rest off it.
+                    if (pipeline != null) {
+                        publications.add(pipeline.submitSave("command-block",
+                                commandBlockStore.capture(commandBlocks.snapshot()),
+                                commandBlockStore::serialize,
+                                commandBlockStore::writeSerialized));
+                    } else {
+                        commandBlockStore.save(commandBlocks.snapshot());
+                    }
                 }
                 if (weatherStore != null && weather != null) {
                     weatherStore.save(weather.snapshot());

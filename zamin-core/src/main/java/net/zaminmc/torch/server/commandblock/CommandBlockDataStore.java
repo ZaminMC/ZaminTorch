@@ -41,36 +41,122 @@ public final class CommandBlockDataStore {
 
     /**
      * Saves the full tile map. Callers snapshot state on the tick thread
-     * before calling (the engine routes this through the ticker).
+     * before calling (the engine routes this through the ticker). The
+     * synchronous form composes the S4 pipeline's own three halves — the
+     * deep capture, the pure serialization, the file publication — so the
+     * sync save's bytes and the pipeline's bytes are identical by
+     * construction (one serializer, one file half).
      */
     public void save(Map<BlockPosition, CommandBlockManager.CommandState> blocks) {
+        writeSerialized(serialize(capture(blocks)));
+    }
+
+    /**
+     * The immutable persistence projection (Slice S4 — the Phase-5
+     * serialization lane's own input contract): every command-block row
+     * captured on the owning lane, safe to cross into the compute pool —
+     * the serializer never reads the live executors (the manager's own
+     * snapshot() is the SHALLOW map copy whose values are the LIVE
+     * mutable CommandState objects; the capture is the deep form, the
+     * CommandStats tail pre-flattened into the immutable pair list at
+     * capture time — the envelope walk on the owning lane).
+     */
+    public record Snapshot(java.util.List<Row> rows) {
+
+        /** One command block's persisted rows. */
+        public record Row(int x, int y, int z, String command, int successCount,
+                          boolean trackOutput, String lastOutput,
+                          java.util.List<StatsPair> statsPairs) {
+        }
+
+        /** One CommandStats binding pair (the flattened tail row). */
+        public record StatsPair(String key, String value) {
+        }
+    }
+
+    /**
+     * The deep capture of the live tile map — called ON the owning tick
+     * lane. The CommandStats tail flattens here (the envelope walk the
+     * historical writeCommandStats ran — the compound's own pair order),
+     * so the serializer's input is fully immutable.
+     */
+    public Snapshot capture(Map<BlockPosition, CommandBlockManager.CommandState> blocks) {
+        java.util.List<Snapshot.Row> rows = new java.util.ArrayList<>(blocks.size());
+        for (Map.Entry<BlockPosition, CommandBlockManager.CommandState> entry
+                : blocks.entrySet()) {
+            BlockPosition position = entry.getKey();
+            CommandBlockManager.CommandState executor = entry.getValue();
+            java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> envelope = new LinkedHashMap<>();
+            executor.commandResults().writeNbt(envelope);
+            java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> stats =
+                    net.zaminmc.torch.server.nbt.NbtOps.getCompound(envelope, "CommandStats");
+            java.util.List<Snapshot.StatsPair> pairs = new java.util.ArrayList<>(stats.size());
+            for (Map.Entry<String, net.zaminmc.torch.server.nbt.Snbt.Tag> pair : stats.entrySet()) {
+                pairs.add(new Snapshot.StatsPair(pair.getKey(),
+                        net.zaminmc.torch.server.nbt.NbtOps.getString(stats, pair.getKey())));
+            }
+            rows.add(new Snapshot.Row(position.x(), position.y(), position.z(),
+                    executor.command(), executor.successCount(), executor.trackOutput(),
+                    executor.lastOutput(), java.util.List.copyOf(pairs)));
+        }
+        return new Snapshot(java.util.List.copyOf(rows));
+    }
+
+    /**
+     * The pure serialization (the compute pool's own half): the immutable
+     * snapshot IN, the ZCB bytes OUT — no world read, no I/O. The byte
+     * walk is the historical save walk's own (version 2, byte-identical;
+     * the tail's pair count + pairs = the historical envelope walk's own
+     * output, pre-flattened at capture).
+     */
+    public byte[] serialize(Snapshot snapshot) {
+        java.io.ByteArrayOutputStream sink = new java.io.ByteArrayOutputStream();
+        try (DataOutputStream out = new DataOutputStream(
+                new java.io.BufferedOutputStream(sink))) {
+            out.writeByte(MAGIC_0);
+            out.writeByte(MAGIC_1);
+            out.writeByte(MAGIC_2);
+            out.writeByte(FORMAT_VERSION);
+            writeVarInt(out, snapshot.rows().size());
+            for (Snapshot.Row row : snapshot.rows()) {
+                out.writeInt(row.x());
+                out.writeInt(row.y());
+                out.writeInt(row.z());
+                writeString(out, row.command());
+                out.writeInt(row.successCount());
+                out.writeBoolean(row.trackOutput());
+                writeString(out, row.lastOutput() == null ? "" : row.lastOutput());
+                // The v2 CommandStats tail: the pre-flattened pairs (the
+                // capture-time envelope walk's own output).
+                writeVarInt(out, row.statsPairs().size());
+                for (Snapshot.StatsPair pair : row.statsPairs()) {
+                    writeString(out, pair.key());
+                    writeString(out, pair.value());
+                }
+            }
+        } catch (java.io.IOException e) {
+            // The sink is an in-memory buffer; an IOException here is a
+            // defect, not a persistence failure — still loud.
+            throw new java.io.UncheckedIOException("Command block serialize failed", e);
+        }
+        return sink.toByteArray();
+    }
+
+    /**
+     * Publishes already-serialized ZCB bytes: the temp-file write + the
+     * atomic move, the historical save walk's own file half with the
+     * store's own failure contract (the severe log, never a throw). Safe
+     * from any thread that holds the publication right (the save
+     * pipeline's per-storage lock orders the async publications; the
+     * synchronous save is uncontended).
+     */
+    public void writeSerialized(byte[] data) {
         try {
             Path temp = file.resolveSibling(file.getFileName() + ".tmp");
             Files.createDirectories(file.getParent());
             try (DataOutputStream out = new DataOutputStream(new BufferedOutputStream(
                     Files.newOutputStream(temp)))) {
-                out.writeByte(MAGIC_0);
-                out.writeByte(MAGIC_1);
-                out.writeByte(MAGIC_2);
-                out.writeByte(FORMAT_VERSION);
-                writeVarInt(out, blocks.size());
-                for (Map.Entry<BlockPosition, CommandBlockManager.CommandState> entry
-                        : blocks.entrySet()) {
-                    BlockPosition position = entry.getKey();
-                    out.writeInt(position.x());
-                    out.writeInt(position.y());
-                    out.writeInt(position.z());
-                    CommandBlockManager.CommandState executor = entry.getValue();
-                    writeString(out, executor.command());
-                    out.writeInt(executor.successCount());
-                    out.writeBoolean(executor.trackOutput());
-                    writeString(out, executor.lastOutput() == null
-                            ? "" : executor.lastOutput());
-                    // The v2 CommandStats tail (Slice 90 — CommandBlockBlockEntity's
-                    // writeNbt carrying the executor's CommandResultStats): the bound
-                    // pairs flattened from the CommandStats compound.
-                    writeCommandStats(out, executor.commandResults());
-                }
+                out.write(data);
             }
             Files.move(temp, file, StandardCopyOption.REPLACE_EXISTING,
                     StandardCopyOption.ATOMIC_MOVE);
