@@ -1844,6 +1844,36 @@ law across every family; the point queries stay for the standers and
 the readers (the stub worlds' own fold, the legacy walk retired only
 where the surface exists).
 
+## Wave N — the use-dispatch law family (the interaction order's own slices)
+
+The engine's single use chain retired law by law: the reference's
+`ServerPlayerInteractionManager.useBlock` is a TWO-STAGE law (the
+block's use, then the item's useOn) with the sneaking use-bypass, and
+every arm must sit in its own stage.
+
+- [x] N1 — LANDED (Slice N1, commit 04b1002): the two-stage use law +
+      the sneaking use-bypass. THE LAW (lines 259-296, 1:1): the
+      block's use arm runs FIRST and consumes the click (the item's
+      useOn never runs); the SNEAKING USE-BYPASS skips the whole block
+      stage when the player sneaks with an item in hand; an empty hand
+      keeps the block stage and skips the item stage. THE REFACTOR:
+      `useItemOnBlockOnTick` split into the dispatcher +
+      `useBlockArmOnTick` (stage 1: the ore light — super.use false,
+      falls through — the container opens, the noteblock, the jukebox
+      eject, the daylight invert, the cauldron, the redstone quartet's
+      cycles, the cake, the dragon egg, the flower pot, the bed, the
+      door/gate/trapdoor swings) + `useItemArmOnTick` (stage 2: the
+      bucket, the bottle, the disc, the lead, the fireworks, the flint,
+      the adventure place gate, and every placement family). THE
+      ORDERING REPAIRS: the old chain ran the bottle/fireworks/flint
+      item arms BEFORE the late block arms — a bottle's early-return
+      ATE clicks the reference answers with the BLOCK's use (the door
+      swung for a bottle in vanilla, stood still in the engine; the
+      repeater's delay never cycled; a firework launched through a
+      closed door). Evidence: TwoStageUseLawAcceptanceTest 8 + the
+      32-class interaction sweep green (every useItemOnBlock-driving
+      test class — sweep-N1-batch1/batch2.log);
+
 ## Wave P — the parallel execution lanes (Phase 6's gated gameplay adoption)
 
 The §22 Phase 6 evidence gate opens lane by lane: each lane proves its
