@@ -1913,6 +1913,21 @@ every arm must sit in its own stage.
       arm) + the protocol module FULL 108 green (the JoinFlow echo
       moved to the positional read — the pair interleaves by design)
       (sweep-N3-proto2/core.log);
+- [x] N4 — LANDED (commit 02e48ac): the spawn-protection gate
+      (DedicatedServer.isSpawnProtected lines 387-409, 1:1). THE LAW:
+      an op-less server protects NOTHING (the reference's own
+      {@code getOps().isEmpty() -> false}); once an operator exists, a
+      non-operator inside the chebyshev radius around spawn
+      ({@code max(|dx|,|dz|) <= radius}) is refused while the operator
+      passes freely; radius 0 disables. THE RADIUS: the
+      {@code spawn-protection} property (default 16) — EngineConfig's
+      fifteenth component with a new 14-arg compat constructor
+      absorbing every pre-N4 caller (zero call-site churn); the
+      overworld-only dimension gate is structural (the use walk's
+      world IS the overworld). Evidence: SpawnProtectionAcceptanceTest
+      3 (the unarmed band, the armed band's refusal + the operator's
+      pass, the chebyshev edge) + the regression batch green
+      (sweep-N4.log);
 
 ## Wave P — the parallel execution lanes (Phase 6's gated gameplay adoption)
 
