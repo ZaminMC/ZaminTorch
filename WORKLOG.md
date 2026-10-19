@@ -10347,3 +10347,17 @@ Stage Summary:
 - THE PHASE-5 LIGHTING STORY IS COMPLETE: the gate (contract + equivalence + measurements), the wiring, the batch lane (waves + staleness protocol + the stash handoff), and the storm fix the lane's own measurements forced — the honest batch numbers recorded (x0.61-x0.70 at the boot shape)
 - Evidence: the light package 24/0 (LightEngineTest 10 + LightSectionTest 5 + LightRegionContractTest 3 + LightBatchEquivalenceTest 4 + UnloadedBorderStormTest 2) + block + concurrent + world (71s, post-storm-fix) sweeps green
 - Next: the parallel instances' PRs (Anvil import, Bukkit adapter) to review+merge; the wave-order javadoc line fix rides the docs commit; then the Minestom module decision (ADR-0001 revisit), Phase 7/8 (still gated on profiling/migration proof)
+
+---
+Task ID: session-2026-10-20-light-batch (cont. 2)
+Agent: main (Abasing session)
+Task: The post-fix verification belt
+
+Work Log:
+- The protocol module FULL after the storm fix: 110/110 green on the re-run (one ChestIntegrationTest load flake on the first run — green in isolation AND on the full re-run, the documented flake class; the module's chunk packets carry the light sections, so this is the right regression arm for a light-engine change)
+- The wave-order javadoc line corrected to the code's walk (bc65c91a)
+
+Stage Summary:
+- THE LIGHTING BATCH SLICE IS COMPLETE AND FULLY VERIFIED: the light package 24/0, the block/concurrent/world sweeps green, the protocol module 110/110
+- develop pushed through bc65c91a; all commits authored Abasing
+- Next: review+merge the parallel instances' PRs when they open (Anvil import / Bukkit adapter); the Minestom module decision (ADR-0001 revisit) and the Phase-7 profiling opener remain the roadmap's next demand-named items
