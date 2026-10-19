@@ -18,16 +18,68 @@ public final class CommandService {
 
     /**
      * A command: name, description, required operator level, executor
-     * returning the feedback text for the sender (null = silent).
+     * returning the feedback text for the sender (null = silent), and the
+     * optional per-command ARGUMENT completion (the reference's
+     * getSuggestions/addTabCompletionOptions arm — null where the reference
+     * defines none). The suggester receives the tokens AFTER the command
+     * name (the being-typed last token included) and answers the candidate
+     * list for the last position — UNMATCHED; the caller matches the last
+     * token through {@link #matchLastToken} (the reference's
+     * suggestMatching/getListOfStringsMatchingLastWord shape). A null or
+     * null-returning suggester falls back to the online player names (the
+     * engine's standing stand-in for the reference's getPlayerNames arms).
      */
     public record Command(String name, String description, int requiredLevel,
-                          BiFunction<CommandSender, String[], String> executor) {
+                          BiFunction<CommandSender, String[], String> executor,
+                          BiFunction<CommandSender, String[], List<String>> suggester) {
 
-        /** The no-permission shape for simple gameplay commands. */
+        /** The full shape. */
+        public Command(String name, String description, int requiredLevel,
+                       BiFunction<CommandSender, String[], String> executor,
+                       BiFunction<CommandSender, String[], List<String>> suggester) {
+            this.name = name;
+            this.description = description;
+            this.requiredLevel = requiredLevel;
+            this.executor = executor;
+            this.suggester = suggester;
+        }
+
+        /** The no-suggester shape (the pre-completion signature). */
+        public Command(String name, String description, int requiredLevel,
+                       BiFunction<CommandSender, String[], String> executor) {
+            this(name, description, requiredLevel, executor, null);
+        }
+
+        /** The no-permission, no-suggester shape for simple gameplay commands. */
         public Command(String name, String description,
                        BiFunction<CommandSender, String[], String> executor) {
-            this(name, description, 0, executor);
+            this(name, description, 0, executor, null);
         }
+
+        /** The no-permission shape with a suggester. */
+        public Command(String name, String description,
+                       BiFunction<CommandSender, String[], String> executor,
+                       BiFunction<CommandSender, String[], List<String>> suggester) {
+            this(name, description, 0, executor, suggester);
+        }
+    }
+
+    /**
+     * The reference's suggestMatching (getListOfStringsMatchingLastWord):
+     * the LAST token's case-insensitive prefix over the candidates, in the
+     * candidates' own order and case; an empty or absent last token matches
+     * everything. Used by the tab-complete consumer.
+     */
+    public static List<String> matchLastToken(String[] args, List<String> candidates) {
+        String last = args.length == 0 ? "" : args[args.length - 1].toLowerCase(java.util.Locale.ROOT);
+        List<String> out = new ArrayList<>(candidates.size());
+        for (String candidate : candidates) {
+            if (candidate != null && !candidate.isEmpty()
+                    && candidate.toLowerCase(java.util.Locale.ROOT).startsWith(last)) {
+                out.add(candidate);
+            }
+        }
+        return out;
     }
 
     private final Map<String, Command> commands = new TreeMap<>();

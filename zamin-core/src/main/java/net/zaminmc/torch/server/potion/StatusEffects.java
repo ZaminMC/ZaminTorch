@@ -176,6 +176,11 @@ public final class StatusEffects {
         return BY_NAME.get(name);
     }
 
+    /** The 1.8.8 key forms (the /effect tab-completion arm's own list). */
+    public static java.util.Set<String> names() {
+        return java.util.Collections.unmodifiableSet(BY_NAME.keySet());
+    }
+
     /**
      * The 1.8.8 display names (the reference's effect.moveSpeed family, the
      * en_US translations — the /effect feedback's translatable text).

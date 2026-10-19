@@ -10296,3 +10296,18 @@ Stage Summary:
 - THE LIGHTING GATE IS FULLY CLOSED: contract + equivalence + measurements + the wiring, all landed
 - The pool dispatch remains deferred to the batch shape (the staleness protocol is that step's gate)
 - Next: the phase-gated items (the swept-box body model, the Anvil canvas, the adapters), per-command argument completion
+
+---
+Task ID: session-2026-10-19-cmdargs
+Agent: main (Abasing session)
+Task: Per-command argument completion — the standing demand-named item
+
+Work Log:
+- THE PLUMBING: CommandService.Command gained the optional suggester component (BiFunction<CommandSender, String[], List<String>>) — the reference's getSuggestions arm; the pre-completion signatures kept compiling through overloads (the 71 existing sites untouched); matchLastToken carries the reference's suggestMatching (getListOfStringsMatchingLastWord) — the last token's case-insensitive prefix, in order, the candidates' own case, the empty token matching all
+- THIRTEEN ARMS wired 1:1 from the reference's command classes (injected by scripts/add_suggesters.py — anchor-based, no manual retyping): gamemode (+arg2 player names), defaultgamemode, time (set|add|query, the set literals, daytime|gametime), difficulty, weather, gamerule (the registered names + true|false — the engine suggests them for every rule where the reference gates on the boolean type; ledgered), give/clear (the item registry's namespaced ids — the full form via toString, the bare-path value() trap caught by the test), effect (StatusEffects.names() added — the 1.8.8 keys), enchant (Enchantments.all() keys), summon (MobType vanilla names + LightningBolt), particle (the enum keys), achievement (give|take)
+- THE PROTOCOL: handleTabComplete's spaced branch consults the resolved command's own suggester BEHIND THE SAME OP GATE as the command (an inline sender view — PlayerSession is not a CommandSender), falling back to the online player names for the no-arm commands (the engine's standing stand-in for the reference's getPlayerNames arms)
+- THE TESTS: CommandSuggestionTest 2 (the matcher + the record contract) + TabCompleteIntegrationTest +2 (the arms end-to-end over the wire — the op-grant await fixed the ticker race; the give arm caught the identifier form bug); the protocol module FULL 110 (one SurvivalFlow load flake, green in isolation); the core command/console/chat/config sweep green (sweep-args-*.log)
+
+Stage Summary:
+- develop: the per-command argument completion landed (13 arms + the plumbing + the gated consult)
+- Next: the lighting batch shape (the staleness protocol), the Anvil canvas, the adapters

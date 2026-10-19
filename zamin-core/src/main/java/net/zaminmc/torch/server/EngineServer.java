@@ -17641,10 +17641,19 @@ public final class EngineServer implements Server, EngineBridge {
                 (sender, args) -> "pong"));
         commands.register(new CommandService.Command("give",
                 "Give yourself an item: /give <name> [count] [metadata] [dataTag]",
-                playerCommand(this::giveCommand)));
+                playerCommand(this::giveCommand),
+                // GiveCommand.getSuggestions 1:1 over the engine's own item
+                // registry (Item.REGISTRY.keySet() — the namespaced ids).
+                (sender, args) -> args.length == 1 ? itemIdentifierNames() : null));
         commands.register(new CommandService.Command("gamerule",
                 "Query or set a game rule: /gamerule <rule> [true|false|value]",
-                2, this::gameruleCommand));
+                2, this::gameruleCommand,
+                // GameRuleCommand.getSuggestions 1:1: the registered rule names at
+                // arg 1, true|false at arg 2 (the engine suggests them for every rule;
+                // the reference gates on the rule's boolean type — ledgered).
+                (sender, args) -> args.length == 1
+                        ? new java.util.ArrayList<>(gameRules().names())
+                        : args.length == 2 ? java.util.List.of("true", "false") : null));
         // The vanilla scoreboard command (Slice 85 — ScoreboardCommand 1:1,
         // op-2): objectives/players/teams + the wildcard walk.
         commands.register(new CommandService.Command("scoreboard",
@@ -17682,16 +17691,29 @@ public final class EngineServer implements Server, EngineBridge {
         // The missing-commands batch, wave two (/effect — EffectCommand 1:1).
         commands.register(new CommandService.Command("effect",
                 "Apply an effect: /effect <player> <clear|effect> [seconds] [amplifier] [hideParticles]",
-                2, this::effectCommand));
+                2, this::effectCommand,
+                // EffectCommand.getSuggestions 1:1: the 1.8.8 effect keys at arg 2
+                // (the player names at arg 1 ride the standing fallback),
+                // true|false at the hideParticles position.
+                (sender, args) -> args.length == 2
+                        ? new java.util.ArrayList<>(net.zaminmc.torch.server.potion.StatusEffects.names())
+                        : args.length == 5 ? java.util.List.of("true", "false") : null));
         commands.register(new CommandService.Command("enchant",
                 "Enchant the held item: /enchant <player> <enchantment|id> [level]",
-                2, this::enchantCommand));
+                2, this::enchantCommand,
+                // EnchantCommand.getSuggestions 1:1: the 1.8.8 keys at arg 2 (the
+                // player names at arg 1 ride the standing fallback).
+                (sender, args) -> args.length == 2 ? enchantmentKeys() : null));
         commands.register(new CommandService.Command("playsound",
                 "Play a sound to a player: /playsound <sound> <player> [x y z] [volume] [pitch] [minVolume]",
                 2, this::playsoundCommand));
         commands.register(new CommandService.Command("particle",
                 "Spawn particles: /particle <name> <x y z> <ox oy oz> <data> [count] [normal|force]",
-                2, this::particleCommand));
+                2, this::particleCommand,
+                // ParticleCommand.getSuggestions 1:1: the basic particle keys at
+                // arg 1, normal|force at the mode position.
+                (sender, args) -> args.length == 1 ? particleKeys()
+                        : args.length == 10 ? java.util.List.of("normal", "force") : null));
         commands.register(new CommandService.Command("trigger",
                 "Fire a trigger objective: /trigger <objective> <add|set> <value>",
                 0, playerCommand(this::triggerCommand)));
@@ -17700,7 +17722,10 @@ public final class EngineServer implements Server, EngineBridge {
                 3, this::debugCommand));
         commands.register(new CommandService.Command("achievement",
                 "Give or take an achievement/stat: /achievement <give|take> <achievement|stat|*> [player]",
-                2, this::achievementCommand));
+                2, this::achievementCommand,
+                // AchievementCommand.getSuggestions 1:1: give|take at arg 1.
+                (sender, args) -> args.length == 1
+                        ? java.util.List.of("give", "take") : null));
         commands.register(new CommandService.Command("setblock",
                 "Place a block: /setblock <x y z> <block> [meta] [destroy|keep|replace] [dataTag]",
                 2, this::setblockCommand));
@@ -17741,7 +17766,17 @@ public final class EngineServer implements Server, EngineBridge {
                 2, this::entitydataCommand));
         commands.register(new CommandService.Command("time",
                 "Query or set the day: /time query | /time set <day|noon|night|midnight|ticks>",
-                this::timeCommand));
+                this::timeCommand,
+                // TimeCommand.getSuggestions 1:1: set|add|query at arg 1; the set
+                // arm's literals at arg 2 (the engine's parse set); daytime|gametime
+                // under query.
+                (sender, args) -> {
+                    if (args.length == 1) return java.util.List.of("set", "add", "query");
+                    if (args.length == 2 && args[0].equalsIgnoreCase("set"))
+                        return java.util.List.of("day", "noon", "night", "midnight");
+                    return args.length == 2 && args[0].equalsIgnoreCase("query")
+                            ? java.util.List.of("daytime", "gametime") : null;
+                }));
         commands.register(new CommandService.Command("rename",
                 "Rename the held item: /rename <name...> (no name clears it)",
                 0, playerCommand(this::renameCommand)));
@@ -17754,11 +17789,20 @@ public final class EngineServer implements Server, EngineBridge {
         // rides the engine's no-item-NBT envelope (ledgered).
         commands.register(new CommandService.Command("summon",
                 "Summon an entity: /summon <name> [x y z]",
-                2, playerCommand(this::summonCommand)));
+                2, playerCommand(this::summonCommand),
+                // SummonCommand.getSuggestions 1:1: the entity keys at arg 1
+                // (Entities.getKeys() — the engine's vanilla names plus the
+                // LightningBolt special the parse itself accepts).
+                (sender, args) -> args.length == 1 ? summonableEntityNames() : null));
         // The Paper operator set.
         commands.register(new CommandService.Command("gamemode",
                 "Change a game mode: /gamemode <survival|creative|adventure|spectator> [player]",
-                2, this::gamemodeCommand));
+                2, this::gamemodeCommand,
+                // GameModeCommand.getSuggestions 1:1: the mode names at arg 1,
+                // the player names at arg 2.
+                (sender, args) -> args.length == 1
+                        ? java.util.List.of("survival", "creative", "adventure", "spectator")
+                        : args.length == 2 ? onlinePlayerNames() : null));
         commands.register(new CommandService.Command("op", "Grant operator: /op <player>",
                 3, this::opCommand));
         commands.register(new CommandService.Command("deop", "Revoke operator: /deop <player>",
@@ -17816,7 +17860,10 @@ public final class EngineServer implements Server, EngineBridge {
                 2, playerCommand(this::flyCommand)));
         commands.register(new CommandService.Command("clear",
                 "Empty a player's inventory: /clear [player]",
-                2, this::clearCommand));
+                2, this::clearCommand,
+                // ClearCommand.getSuggestions 1:1: the player names at arg 1 (the
+                // standing fallback), the item ids at arg 2.
+                (sender, args) -> args.length == 2 ? itemIdentifierNames() : null));
         commands.register(new CommandService.Command("ban",
                 "Ban a player: /ban <player> [reason...]",
                 3, this::banCommand));
@@ -17831,7 +17878,10 @@ public final class EngineServer implements Server, EngineBridge {
                 3, this::whitelistCommand));
         commands.register(new CommandService.Command("weather",
                 "Set the weather: /weather <clear|rain> [seconds]",
-                2, this::weatherCommand));
+                2, this::weatherCommand,
+                // WeatherCommand.getSuggestions 1:1 (the parse's own set).
+                (sender, args) -> args.length == 1
+                        ? java.util.List.of("clear", "rain", "thunder") : null));
         // The wider Paper operator set.
         commands.register(new CommandService.Command("me",
                 "Broadcast an action: /me <action...>",
@@ -17859,10 +17909,16 @@ public final class EngineServer implements Server, EngineBridge {
                 2, this::xpCommand));
         commands.register(new CommandService.Command("difficulty",
                 "Set the difficulty: /difficulty <peaceful|easy|normal|hard>",
-                2, this::difficultyCommand));
+                2, this::difficultyCommand,
+                // DifficultyCommand.getSuggestions 1:1.
+                (sender, args) -> args.length == 1
+                        ? java.util.List.of("peaceful", "easy", "normal", "hard") : null));
         commands.register(new CommandService.Command("defaultgamemode",
                 "Set the default game mode for new players: /defaultgamemode <mode>",
-                2, this::defaultGamemodeCommand));
+                2, this::defaultGamemodeCommand,
+                // DefaultGameModeCommand 1:1 (the engine's own parse surface).
+                (sender, args) -> args.length == 1
+                        ? java.util.List.of("survival", "creative", "adventure", "spectator") : null));
         commands.register(new CommandService.Command("seed",
                 "Print the world seed",
                 0, (sender, args) -> "Seed: [" + worldSeed + "]"));
@@ -21507,6 +21563,55 @@ public final class EngineServer implements Server, EngineBridge {
      * 1} (community items.json variant, the client names it from the value).
      * Runs on the tick thread through chat dispatch.
      */
+    // ------------------------------------------------ the tab-completion candidate surfaces
+
+    /** The online player names (the reference's getPlayerNames arm). */
+    private java.util.List<String> onlinePlayerNames() {
+        java.util.List<String> names = new java.util.ArrayList<>();
+        for (PlayerSession session : players.all()) {
+            names.add(session.name());
+        }
+        return names;
+    }
+
+    /** The item registry's namespaced ids (Item.REGISTRY.keySet() 1:1 — the full form). */
+    private java.util.List<String> itemIdentifierNames() {
+        java.util.List<String> ids = new java.util.ArrayList<>();
+        for (net.zaminmc.torch.item.ItemType type : items().all()) {
+            ids.add(type.identifier().toString());
+        }
+        return ids;
+    }
+
+    /** The 1.8.8 enchantment keys in registry order (Enchantment.getKeys() 1:1). */
+    private java.util.List<String> enchantmentKeys() {
+        java.util.List<String> keys = new java.util.ArrayList<>();
+        for (net.zaminmc.torch.server.enchantment.Enchantments.Entry entry
+                : net.zaminmc.torch.server.enchantment.Enchantments.all()) {
+            keys.add(entry.key);
+        }
+        return keys;
+    }
+
+    /** The summonable entity names (Entities.getKeys() 1:1 plus the LightningBolt special). */
+    private java.util.List<String> summonableEntityNames() {
+        java.util.List<String> names = new java.util.ArrayList<>();
+        names.add("LightningBolt");
+        for (net.zaminmc.torch.server.entity.MobType type : net.zaminmc.torch.server.entity.MobType.values()) {
+            names.add(type.vanillaName());
+        }
+        return names;
+    }
+
+    /** The particle keys (ParticleType.getBasicTypes() 1:1). */
+    private java.util.List<String> particleKeys() {
+        java.util.List<String> keys = new java.util.ArrayList<>();
+        for (net.zaminmc.torch.server.fx.ParticleTypes type : net.zaminmc.torch.server.fx.ParticleTypes.values()) {
+            keys.add(type.getKey());
+        }
+        return keys;
+    }
+
     private String giveCommand(PlayerSession sender, String[] args) {
         if (args.length < 1) {
             return "Usage: /give <item> [count] [metadata]";

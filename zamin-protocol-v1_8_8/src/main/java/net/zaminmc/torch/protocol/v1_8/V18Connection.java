@@ -874,7 +874,35 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                     }
                 }
             } else {
-                completePlayerNames(player, text.substring(space + 1), completions);
+                // The per-command ARGUMENT completion (the reference's
+                // getSuggestions arms): the resolved command's own suggester
+                // answers the candidates for the being-typed last token;
+                // a command without an arm (or below the required level)
+                // falls back to the online player names (the engine's
+                // standing stand-in for the reference's getPlayerNames arms).
+                String afterName = text.substring(space + 1);
+                String[] args = afterName.split("\\s+", -1);
+                String commandName = text.substring(1, space).toLowerCase(java.util.Locale.ROOT);
+                net.zaminmc.torch.server.chat.CommandService.Command command =
+                        engine.commands().lookup(commandName);
+                java.util.List<String> candidates = null;
+                if (command != null && command.suggester() != null
+                        && player.opLevel() >= command.requiredLevel()) {
+                    net.zaminmc.torch.server.chat.CommandSender view =
+                            new net.zaminmc.torch.server.chat.CommandSender() {
+                                @Override public String name() { return player.name(); }
+                                @Override public void sendMessage(String message) { }
+                                @Override public int opLevel() { return player.opLevel(); }
+                                @Override public PlayerSession player() { return player; }
+                            };
+                    candidates = command.suggester().apply(view, args);
+                }
+                if (candidates != null) {
+                    completions.addAll(
+                            net.zaminmc.torch.server.chat.CommandService.matchLastToken(args, candidates));
+                } else {
+                    completePlayerNames(player, afterName, completions);
+                }
             }
         } else {
             completePlayerNames(player, text, completions);
