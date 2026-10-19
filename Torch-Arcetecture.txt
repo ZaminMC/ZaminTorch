@@ -1873,6 +1873,27 @@ every arm must sit in its own stage.
       closed door). Evidence: TwoStageUseLawAcceptanceTest 8 + the
       32-class interaction sweep green (every useItemOnBlock-driving
       test class — sweep-N1-batch1/batch2.log);
+- [x] N2 — LANDED (commit ab3e654): the use handler's own gates
+      (handlePlayerUse lines 463-472, 1:1). THE 8-BLOCK BODY GATE:
+      `squaredDistanceTo(x+0.5, y+0.5, z+0.5) < 64.0` from the BODY's
+      feet (never the eyes) — a use beyond eight blocks answers
+      NOTHING (both stages sit inside the gate exactly like the
+      reference's interactionManager.useBlock call). THE WORLD-BORDER
+      CONSULT: `getWorldBorder().contains(blockpos)`. THE DEGENERATE
+      CONSULTS ledgered: the spawn-protection gate (the op-less
+      server's own false) and the teleported flag. THE GATE'S OWN
+      CATCH — the reed/cactus family's real bug the gate exposed: the
+      old tests clicked from 60+ blocks away and PASSED FOR THE WRONG
+      REASON (the refused reed arm fell through to the generic
+      placement, whose distance gate alone refused); a near player
+      PLANTED A REED ON DRY SOIL through the fall-through. THE FIX
+      (SugarCaneBlock.canBePlaced + CactusBlock.canSurvive, 1:1): the
+      family's refusal CONSUMES the use (nothing places, nothing
+      spends) and the cane's STACK case answers TRUE outright (a cane
+      below a cane — no water consult in the reference's early
+      return). Evidence: TwoStageUseLawAcceptanceTest 9 (the new
+      beyond-eight-blocks arm) + the six geometry-repaired tests +
+      the 24-class interaction sweep green (sweep-N2-fixed2/full.log);
 
 ## Wave P — the parallel execution lanes (Phase 6's gated gameplay adoption)
 

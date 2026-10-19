@@ -9704,3 +9704,43 @@ workload adoptions (pathfinding, lighting, serialization); the
 useItemOnBlock 64-block reach gate + spawn protection + world-border
 consult (the reference's handler-level gates the engine models through
 its own reach rules — an audit item).
+
+## Slice N2 — the use handler's own gates
+
+- **THE 8-BLOCK BODY GATE** (handlePlayerUse lines 463-472, 1:1):
+  `squaredDistanceTo(x+0.5, y+0.5, z+0.5) < 64.0` measured from the
+  BODY's feet (Entity.squaredDistanceTo lines 937-942 — never the
+  eyes). A use beyond eight blocks answers NOTHING — both stages sit
+  inside the gate exactly like the reference's
+  interactionManager.useBlock call (the container stays shut at a
+  distance; the old engine opened chests from 100 blocks away).
+- **THE WORLD-BORDER CONSULT**: `getWorldBorder().contains(blockpos)` —
+  the shared dynamic border the /worldborder commands move; the default
+  6.0E7 size is the reference's own unconfigured infinity.
+- **THE DEGENERATE CONSULTS ledgered**: the spawn-protection gate
+  (DedicatedServer.isSpawnProtected's `getOps().isEmpty() -> false` —
+  nothing to wire until the ops model lands) and the `teleported` flag
+  (the anti-use-while-teleporting gate rides the teleport slice).
+- **THE GATE'S OWN CATCH — the reed/cactus family's real bug**: the old
+  tests clicked from 60+ blocks away (the spawn-to-y64 gulf) and PASSED
+  FOR THE WRONG REASON — the refused reed arm returned false and fell
+  through to the GENERIC placement, whose own distance gate alone
+  refused the plant. The moment a player stood near, a reed PLANTED ON
+  DRY SOIL through the fall-through. THE FIX
+  (SugarCaneBlock.canBePlaced lines 52-68 + CactusBlock.canSurvive
+  lines 85-94, 1:1): the family's refusal CONSUMES the use (nothing
+  places, nothing spends — the click never reaches the generic path),
+  and the cane's STACK case answers TRUE outright (a cane below a cane
+  — the old arm wrongly demanded water beside the stack's soil).
+- **TEST GEOMETRY REPAIRS** (the tests moved, never the law): six
+  acceptance files' players now stand near their click targets
+  (CaneAndCactus, EnderChest, Farming, Fire, HopperWindow, LitFurnace).
+- Evidence: TwoStageUseLawAcceptanceTest 9 (the new beyond-eight-blocks
+  arm: the chest stays shut at 20 blocks, opens at 1) + the six
+  geometry-repaired tests + the 24-class interaction sweep green
+  (sweep-N2-fixed2/full.log).
+
+**Next:** the anti-desync resync pair (the handler's BlockUpdate
+re-sends after every use — a protocol-layer slice), the ops model (the
+spawn-protection gate's dependency), the remaining Phase-5 workload
+adoptions.
