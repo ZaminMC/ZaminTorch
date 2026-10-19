@@ -685,7 +685,7 @@ Proceed only after the ordinary owner/boundary model is correct and profiling de
 
 Dynamic split/merge and load-driven migration remain future work. First prove migration with in-flight tasks, delayed work, messages, compute results, persistence, shutdown, and stale-generation invalidation; add telemetry and anti-oscillation rules before enabling automatic balancing.
 
-**Next concrete mechanics work:** continue from Section 29: the use/dig dispatch law family through N7 (the two-stage use law, the use handler's gates, the use packet's tail, the spawn-protection gate, the teleport window, the dig handler's own gates with the band repair and the extinguish arm, and the placement reach bands' retirement — the secondary bands are GONE, the handler's 64.0 is the only band); Wave M COMPLETE; the Phase-6 random-tick lane LANDED (P6-lane, gated); the Phase-5 serialization adoptions LANDED (S1 — the world-delta save's compute-then-publish split; S2 — the container trio's named-path adoption; S3 — the board/border pair's adoption with the atomic-move normalization; S4 — the tile stores' splits: note/comparator/jukebox/sign/command-block/dispenser/brewing/beacon). The remaining §29 ledger work: the Phase-5 workload adoptions still open (S5 — the save walk's remaining synchronous stores: the entity/metadata families decoration/armor-stand/ender-crystal/weather/gamerule/mob/item/vehicle; then pathfinding, lighting; each needs its own immutable-input contract, equivalence tests, and measurements), and the phase-gated items below. Keep these outstanding items visible until code and tests prove them complete.
+**Next concrete mechanics work:** continue from Section 29: the use/dig dispatch law family through N7 (the two-stage use law, the use handler's gates, the use packet's tail, the spawn-protection gate, the teleport window, the dig handler's own gates with the band repair and the extinguish arm, and the placement reach bands' retirement — the secondary bands are GONE, the handler's 64.0 is the only band); Wave M COMPLETE; the Phase-6 random-tick lane LANDED (P6-lane, gated); the Phase-5 serialization adoptions LANDED AND COMPLETE (S1 — the world-delta save's compute-then-publish split; S2 — the container trio's named-path adoption; S3 — the board/border pair's adoption with the atomic-move normalization; S4 — the tile stores' splits: note/comparator/jukebox/sign/command-block/dispenser/brewing/beacon; S5 — the save walk's whole remaining family: weather/gamerule, the ender-crystal/armor-stand/decoration trio, and the mob/item/vehicle entity family — the save walk is now FULLY PIPELINED, every store's serialization off the tick lane). The remaining §29 ledger work: the Phase-5 workload adoptions still open (pathfinding, lighting; each needs its own immutable-input contract, equivalence tests, and measurements), and the phase-gated items below. Keep these outstanding items visible until code and tests prove them complete.
 
 # 23. COMMITS / PUSHES / RELEASES
 
@@ -2233,6 +2233,51 @@ and stale-write rules order the concurrent publications).
       the pure serializer's bytes + the S4 regression batch green
       (CommandStatsPersistence/PersistenceAcceptance + the world/note
       block/comparator/jukebox packages).
+
+- [x] S5 — LANDED (Slice S5, parts 1–3, commits 7bc9ac8 + b46c142 +
+      934751f): the save walk's REMAINING synchronous stores onto the
+      same shape, family by family — the config pair, the tile-extra
+      trio, and the entity family. THE COMPLETE ROSTER: the weather
+      store's five rows and the game-rule table's pairs (part 1); the
+      ender crystals' destroyed-pillar marks, the armor stands'
+      equipment/pose rows, and the decorations' frame/painting records
+      (part 2); the mobs' ZMD rows, the item entities' ZID rows, and
+      the vehicles' ZVD rows (part 3). THE SPLITS (the S1/S2/S3/S4
+      shape's own continuation): each store's save composes
+      `writeSerialized(serialize(...))` — the byte walks are the
+      historical saves' own (byte-identical); the input contracts are
+      ALREADY immutable (the WeatherState record, the rule table's
+      fresh entry list, the crystal cell set, the stand records, the
+      decoration Snapshot, the MobSnapshot/ItemRecord/VehicleSnapshot
+      records — the fresh values the systems' own snapshot walks build
+      on the tick lane over the immutable ItemStack model, the
+      command-stat map the walk's own fresh copy, the cargo array the
+      chest's own snapshotSlots copy), no capture needed — the
+      comparator/jukebox shape. THE FILE HALVES: the temp write + the
+      atomic move (the non-atomic fallbacks preserved where the
+      historical contract keeps them) with each store's own failure
+      contract 1:1 (the severe logs for the tile family, the loud
+      IllegalStateException throw for the entity family). THE WIRING:
+      `saveAllNow`'s every remaining save rides the pipeline's named
+      path when booted (weather/gamerule/ender-crystal/armor-stand/
+      decoration/mobs/items/vehicles — each gating independently under
+      its own name), the un-pipelined fallback keeps the sync form.
+      THE SAVE WALK IS NOW FULLY PIPELINED: S1 deltas, S2 containers,
+      S3 board/border, S4 tiles, S5 the whole remaining family — every
+      store's serialization leaves the tick lane for the compute pool,
+      every publication rides the blocking-I/O lane under its own
+      sequence gate. Evidence: `WeatherGameRuleSaveSplitTest` 3 +
+      `TileExtraSaveSplitTest` 4 + `EntityFamilySaveSplitTest` 4 (the
+      mob byte-identity — the bare v1 shape + the rich shape with the
+      breeding-age flag row, the custom-name NBT row, the command-stat
+      pair, and the tame tail; the item byte-identity — the plain +
+      named + damaged stacks with the never-despawn/thrower/owner
+      flags; the vehicle byte-identity — the plain minecart, the
+      27-slot chest cart, the hopper cart with its enabled/cooldown
+      rows, the command cart with its four rows; each with the
+      round-trip load and the named path through the real lanes landing
+      exactly the pure serializer's bytes) + the entity+persistence
+      sweep 393/0 + the world/concurrent packages green.
 
 ## Standing (demand-named, not scheduled)
 

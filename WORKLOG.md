@@ -10146,3 +10146,65 @@ weather/gamerule/mob/item/vehicle), then pathfinding/lighting.
 same shape, family by family: the entity-ish trio (decoration/
 armor-stand/ender-crystal), the config pair (weather/gamerule), the
 entity family (mob/item/vehicle); then pathfinding/lighting.
+
+## Slice S5 (part 3) — the entity family rides the save pipeline (the save walk's LAST synchronous stores)
+
+- **THE SPLITS** (the established S-series shape): MobDataStore,
+  ItemDataStore, and VehicleDataStore each divide into the pure
+  serialization (the immutable snapshot IN, the ZMD/ZID/ZVD bytes OUT,
+  no world read, no I/O — the historical byte walks moved verbatim,
+  script-extracted and diff-verified) and the file publication half
+  (the temp write + the atomic move, each store's own LOUD-THROW
+  failure contract preserved 1:1 — the entity family throws, unlike
+  the tile family's severe logs). The sync `save` composes
+  `writeSerialized(serialize(...))` — one serializer, one file half.
+- **THE INPUT CONTRACTS**: already immutable — the MobSnapshot's every
+  extras record is a value type (MobStateExtras/MobNbtExtras/
+  MobTameExtras, the held stack the immutable ItemStack model, the
+  command-stat map the snapshot walk's own fresh LinkedHashMap), the
+  ItemRecord is fully immutable (Position primitives + ItemStack +
+  strings), the VehicleSnapshot's cargo array is the chest's own
+  snapshotSlots fresh copy (immutable-on-handoff). No capture needed —
+  the comparator/jukebox/tile-extra shape.
+- **THE WIRING**: `saveAllNow`'s mob/item/vehicle saves ride the
+  pipeline's named path when booted (three more independent sequence
+  spaces); the un-pipelined fallback keeps the sync form. THE SAVE
+  WALK IS NOW FULLY PIPELINED — S1 deltas, S2 containers, S3
+  board/border, S4 tiles, S5 the whole remaining family: every
+  store's serialization leaves the tick lane for the compute pool,
+  every publication rides the blocking-I/O lane under its own gate.
+- Evidence: EntityFamilySaveSplitTest 4/4 (the mob byte-identity
+  against the historical walk — the bare v1 shape + the rich shape
+  with the breeding-age flag row, the custom-name NBT row, the
+  command-stat pair, the tame tail; the item byte-identity — plain +
+  named + damaged stacks with the never-despawn/thrower/owner flags;
+  the vehicle byte-identity — the plain minecart, the 27-slot chest
+  cart with the named diamond, the hopper cart's enabled/cooldown
+  rows, the command cart's four rows; each with the round-trip load
+  and the trio through the real lanes landing exactly the pure
+  serializers' bytes) + the entity+persistence sweep 393/0 + the
+  world/concurrent packages green. Landed at 934751f.
+
+## The N7 evidence expansion (the parallel-session reconciliation)
+
+- The N7 reconnaissance from this window found the slice ALREADY
+  LANDED by a parallel session (83d5584 part 1 — the same 38-band
+  removal + the two service-walk bands; 544f664 part 2 —
+  PlacementReachLawAcceptanceTest 4). This window's own duplicate
+  code commit was DROPPED in the rebase (git rebase --skip — the
+  remote's implementation is the law), and the broader per-family
+  evidence test re-landed on top as a17b674: PlacementHandlerGates
+  AcceptanceTest 8 (the three retired band-pattern classes — the
+  OR-PAIR arms keep the body rule (the sign hung, the rail laid, the
+  door pair landed whole), the STANDALONE arms lost the whole guard
+  (the lever, the button, the minecart spawned), the CONJUNCT arms
+  lost only the distance conjunct (the ender eye's frame insert, the
+  lily pad, the cocoa pod); the two service walks; the creative twin;
+  the beyond-eight-blocks refusal that STAYS) — green together with
+  the parallel session's own 4 (sweep-N7-expand.log).
+
+**Next:** the Phase-5 workload adoptions that remain — pathfinding
+and lighting (each needs its own immutable-input contract,
+equivalence tests, and before/after measurements); the phase-gated
+items (the swept-box body model, the Anvil canvas, the Bukkit/Paper
+adapter, the Minestom modern protocol).
