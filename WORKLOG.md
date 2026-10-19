@@ -9658,3 +9658,49 @@ contract, milestone-gated).
 adooptions (each needs its own immutable-input contract and
 equivalence proof), the phase-gated items (Bukkit adapter, Anvil
 import, modern-protocol module).
+
+## Slice N1 — the two-stage use law + the sneaking use-bypass
+
+- **THE LAW** (ServerPlayerInteractionManager.useBlock lines 259-296,
+  1:1): the BLOCK's use arm runs first
+  (`if (!player.isSneaking() || getDisplayItemInHand() == null)`) and
+  when it consumes the click the held item's useOn NEVER runs; the
+  SNEAKING USE-BYPASS skips the whole block stage for a sneaking player
+  with an item in hand; an empty hand keeps the block stage for
+  everyone and the item stage for no-one.
+- **THE REFACTOR**: `useItemOnBlockOnTick` split into the dispatcher +
+  `useBlockArmOnTick` (stage 1) + `useItemArmOnTick` (stage 2) — every
+  block arm (the containers, the noteblock, the jukebox eject, the
+  daylight invert, the cauldron, the repeater/comparator/lever/button,
+  the cake, the dragon egg, the flower pot, the bed, the
+  door/gate/trapdoor) returns true when it consumes; the item arms
+  (bucket, bottle, disc, lead, fireworks, flint, the adventure gate,
+  every placement family) are mutually exclusive by held item exactly
+  like the reference's one-useOn dispatch.
+- **THE ORDERING REPAIRS**: the old single chain ran the bottle and
+  fireworks item arms BEFORE the late block arms — a bottle's
+  early-return ATE clicks the reference answers with the BLOCK's use:
+  a door swung for a bottle in vanilla and stood still in the engine,
+  the repeater's delay never cycled for a held bottle, a firework
+  launched through a closed door. The block stage now precedes every
+  item arm.
+- **TEST-SIDE DISCOVERIES** (ledgered): the door pair commits in ONE
+  tick submit (a lone lower pops in the redstone neighbor arm — the
+  double-plant pair lesson again); the trapdoor's mount wall gate (the
+  plain north-facing form's wall at z+1); the ore's fall-through (use
+  answers super.use — false — so the item stage still runs after the
+  ore lights).
+- Evidence: TwoStageUseLawAcceptanceTest 8 green (the bypass holds the
+  chest shut + places, the empty-hand exception, the crafting table's
+  consumed click, the door swings for the bottle AND the fireworks +
+  stands still for the sneaked stone, the repeater cycles for the
+  bottle, the ore lights only unsneaked, the noteblock tunes only
+  unsneaked, the trapdoor swings for the bottle) + the 32-class
+  interaction sweep green — every useItemOnBlock-driving test class
+  (sweep-N1-batch1/batch2.log).
+
+**Next:** the §29 ledger's standing rows; the remaining Phase-5
+workload adoptions (pathfinding, lighting, serialization); the
+useItemOnBlock 64-block reach gate + spawn protection + world-border
+consult (the reference's handler-level gates the engine models through
+its own reach rules — an audit item).
