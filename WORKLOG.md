@@ -9934,3 +9934,56 @@ N7), the Phase-5 workload adoptions, the §29 standing rows.
   the reference's own disarm at the spectate/stop band; the engine's
   window arms only at the wire's resyncPosition family — record as a
   candidate arm if the parity tests ever show a drift.
+
+## Slice N7 — the placement's own bands retired (a REMOVAL, not a re-banding)
+
+- **THE LAW** (read in full before a single line moved): the
+  reference's C08 is ONE handler with ONE band —
+  `ServerPlayNetworkHandler.handlePlayerUse` lines 460-515: the
+  face-255 useItem band, the too-high arm (N3), the four-part consult
+  chain (the N5 window AND the 64.0 body band AND the N4 law AND the
+  border) — then `interactionManager.useBlock`, and THAT walk carries
+  NO reach consult of its own; `BlockItem.useOn` carries NO band
+  (`canUseItemOn` is the adventure consult, not a distance check);
+  every placement item family (EnderEyeItem.useOn, LilyPadItem,
+  DecorationItem, ArmorStandItem, SpawnEggItem, MinecartItem, SignItem,
+  BedItem, DoorItem, SkullItem, BannerItem) carries NO band.
+- **THE DEVIATION RETIRED**: the engine's 38 inline
+  `distanceSquaredEyeToBlock > 4.5*4.5` arms across the use walk's
+  placement families (the sign/skull pair, the ender eye's frame
+  consult, the lily pad's water consult, the armor stand, the item
+  frame, the painting, the bed, the cocoa pod, the slab half, the
+  boats/carts, the redstone dust/torch, the lever, the button, the
+  plate, the carpet, the repeater, the comparator, the piston, the
+  tripwire, the furnace facing, the hopper, the daylight detector, the
+  dispenser, the ender chest, the ladder, the rails) + the service's
+  `placeOnTick` withinReach (6.0^2 from the 1.62 eye) +
+  `survivalPlaceOnTick` withinSurvivalReach (4.5^2). A placement at
+  five to eight blocks — inside the handler's 64.0, outside the 4.5
+  eye band — is REFUSED by the old engine and ALLOWED by the reference
+  (the same bug class N6 repaired for the dig). Landed at 83d55846
+  (re-verified on the fresh clone).
+- **THE STAYS**: the `intersectsPlayerBox` arm (the reference's own
+  entity-collision check inside canPlace — solid blocks never place
+  inside the player); the dig band's DIG_REACH_SQ/DIG_EYE (N6's own
+  law); the walk head's 64.0 (N2) — the ONLY band left on the use
+  path.
+- **THE DEAD CODE**: the `distanceSquaredEyeToBlock` helper +
+  `InteractionRules`' withinReach/withinSurvivalReach/
+  withinReachSquared/EYE_HEIGHT and the 6.0/4.5 constants.
+- Evidence: `PlacementReachLawAcceptanceTest` 4/4 (the seven-block
+  survival stone OPENS with the stack paid — body d3 49.25 inside the
+  handler band, the retired eye d3 50.25 outside the old; the
+  seven-block red carpet OPENS through the family arm; the nine-block
+  use answers NOTHING with the resync pair still echoing the truth —
+  N2's own edge; the into-the-player stone still refuses — the body
+  rule) + the 41-class use-driving sweep green + the FULL zamin-core
+  suite green across three sweep chunks (288 classes, pre-reset) + the
+  protocol module green (the one documented load flake green in
+  isolation) (sweep-N7-*.log). The acceptance test re-landed at
+  544f6643 after the environment reset (the pre-reset part-2 and docs
+  commits were local-only and lost).
+
+**Next:** the Phase-5 workload adoptions (pathfinding, lighting,
+serialization — each needs its own immutable-input contract,
+equivalence tests, and measurements), the §29 standing rows.

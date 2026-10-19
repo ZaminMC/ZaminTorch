@@ -667,7 +667,7 @@ Torch has published development releases, so the initial artifact gate has been 
 
 ### Phase 4 — 1.8.8 mechanics foundation — IN PROGRESS
 
-The engine has substantial reference-driven mechanics and API coverage, tracked in Section 29 and `VANILLA_1_8_8_COMPATIBILITY.md`. The current ledger includes completed Waves A–K, the metadata-variant Wave L (L1–L6), the stairs' two-box geometry (L7), Wave M (the swept-box physics solver across every moving family), the first Phase-6 gameplay lane (P6), and the use/dig dispatch law family through N6 (the two-stage use law, the use handler's gates, the use packet's tail, the spawn-protection gate, the teleport window, the dig handler's own gates). That is progress by mechanic, not full Minecraft 1.8.8 compatibility: keep each remaining behavior, difference, test, and status explicit. Do not replace reference behavior with modern defaults or narrow the native API to match an incomplete compatibility layer.
+The engine has substantial reference-driven mechanics and API coverage, tracked in Section 29 and `VANILLA_1_8_8_COMPATIBILITY.md`. The current ledger includes completed Waves A–K, the metadata-variant Wave L (L1–L6), the stairs' two-box geometry (L7), Wave M (the swept-box physics solver across every moving family), the first Phase-6 gameplay lane (P6), and the use/dig dispatch law family through N7 (the two-stage use law, the use handler's gates, the use packet's tail, the spawn-protection gate, the teleport window, the dig handler's own gates, and the placement reach bands' retirement — the handler's 64.0 is the only band). That is progress by mechanic, not full Minecraft 1.8.8 compatibility: keep each remaining behavior, difference, test, and status explicit. Do not replace reference behavior with modern defaults or narrow the native API to match an incomplete compatibility layer.
 
 ### Phase 5 — Supporting parallel computation — INFRASTRUCTURE IMPLEMENTED; FIRST WORKLOAD ADOPTED (RANDOM-TICK PICKS); REMAINING ADOPTIONS EVIDENCE-GATED
 
@@ -685,7 +685,7 @@ Proceed only after the ordinary owner/boundary model is correct and profiling de
 
 Dynamic split/merge and load-driven migration remain future work. First prove migration with in-flight tasks, delayed work, messages, compute results, persistence, shutdown, and stale-generation invalidation; add telemetry and anti-oscillation rules before enabling automatic balancing.
 
-**Next concrete mechanics work:** continue from Section 29: the use/dig dispatch law family through N6 (the two-stage use law, the use handler's gates, the use packet's tail, the spawn-protection gate, the teleport window, the dig handler's own gates with the band repair and the extinguish arm); Wave M COMPLETE; the Phase-6 random-tick lane LANDED (P6-lane, gated). The remaining §29 ledger work: the placement handler's own gates (the reference's handlePlayerBlockPlacement — its own 64.0-or-creative band from the BODY and its consults, the natural N7), the Phase-5 workload adoptions still open (pathfinding, lighting, serialization — each needs its own immutable-input contract, equivalence tests, and measurements), and the phase-gated items below. Keep these outstanding items visible until code and tests prove them complete.
+**Next concrete mechanics work:** continue from Section 29: the use/dig dispatch law family through N7 (the two-stage use law, the use handler's gates, the use packet's tail, the spawn-protection gate, the teleport window, the dig handler's own gates with the band repair and the extinguish arm, and the placement reach bands' retirement — the secondary bands are GONE, the handler's 64.0 is the only band); Wave M COMPLETE; the Phase-6 random-tick lane LANDED (P6-lane, gated). The remaining §29 ledger work: the Phase-5 workload adoptions still open (pathfinding, lighting, serialization — each needs its own immutable-input contract, equivalence tests, and measurements), and the phase-gated items below. Keep these outstanding items visible until code and tests prove them complete.
 
 # 23. COMMITS / PUSHES / RELEASES
 
@@ -1993,6 +1993,48 @@ every arm must sit in its own stage.
       16 dig/use-driving classes) + the block package 129 + the
       protocol module FULL 108 green (the face byte rides the wire,
       the adventure digs ride the shared band) (sweep-N6-*.log);
+
+- [x] N7 — LANDED (commits 83d55846 + 544f6643): the placement's own
+      bands retired — a REMOVAL, not a re-banding. THE LAW (read in
+      full): the reference's C08 is ONE handler with ONE band —
+      handlePlayerUse lines 460-515: the face-255 useItem band, the
+      too-high arm (N3), the four-part consult chain (the N5 window AND
+      the 64.0 body band AND the N4 law AND the border) — then
+      interactionManager.useBlock, and THAT walk carries NO reach
+      consult of its own; BlockItem.useOn carries NO band
+      (canUseItemOn is the adventure consult, not a distance check);
+      every placement item family (EnderEyeItem, LilyPadItem,
+      DecorationItem, ArmorStandItem, SpawnEggItem, MinecartItem,
+      SignItem, BedItem, DoorItem, SkullItem, BannerItem) carries NO
+      band. THE DEVIATION RETIRED: the engine's 38 inline
+      {@code distanceSquaredEyeToBlock > 4.5*4.5} arms across the use
+      walk's placement families (the sign/skull, the ender eye's frame
+      consult, the lily pad's water consult, the armor stand, the item
+      frame, the painting, the bed, the cocoa pod, the slab half, the
+      boats/carts, the redstone quartet, the piston/tripwire/furnace/
+      hopper/dispenser/daylight/ender-chest/carpet/plate/button/lever/
+      rail families) + the service's placeOnTick withinReach (6.0^2
+      from the 1.62 eye) + survivalPlaceOnTick withinSurvivalReach
+      (4.5^2) — a placement at five to eight blocks (inside the
+      handler's 64.0, outside the 4.5 eye band) is REFUSED by the old
+      engine and ALLOWED by the reference (the same bug class N6
+      repaired for the dig). THE STAYS: the intersectsPlayerBox arm
+      (the reference's own entity-collision check inside canPlace) and
+      the vanilla body rule (solid blocks never place inside the
+      player); the dig band's DIG_REACH_SQ/DIG_EYE (N6's own law); the
+      walk head's 64.0 (N2) — the ONLY band left. THE DEAD CODE: the
+      distanceSquaredEyeToBlock helper + InteractionRules'
+      withinReach/withinSurvivalReach/withinReachSquared/EYE_HEIGHT and
+      the 6.0/4.5 constants. Evidence: PlacementReachLawAcceptanceTest
+      4/4 (the seven-block survival stone OPENS with the stack paid —
+      body d3 49.25 inside the handler band, the retired eye d3 50.25
+      outside the old; the seven-block red carpet OPENS through the
+      family arm; the nine-block use answers NOTHING with the resync
+      pair still echoing the truth — N2's own edge; the into-the-player
+      stone still refuses — the body rule) + the 41-class use-driving
+      sweep green + the FULL zamin-core suite green across three sweep
+      chunks (288 classes) + the protocol module green (the one
+      documented load flake green in isolation) (sweep-N7-*.log);
 
 ## Wave P — the parallel execution lanes (Phase 6's gated gameplay adoption)
 
