@@ -9,14 +9,18 @@ import net.zaminmc.torch.server.item.BuiltinItems;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.logging.Logger;
@@ -52,37 +56,116 @@ public final class ChestDataStore {
 
     /**
      * Saves the full chest map. Callers snapshot state on the tick thread
-     * before calling (the engine routes this through the ticker).
+     * before calling (the engine routes this through the ticker). The
+     * synchronous form composes the S2 pipeline's own three halves — the
+     * deep capture, the pure serialization, the file publication — so the
+     * sync save's bytes and the pipeline's bytes are identical by
+     * construction (one serializer, one file half).
      */
     public void save(Map<BlockPosition, ChestBlockEntity> chests) {
+        writeSerialized(serialize(capture(chests)));
+    }
+
+    /** One chest slot's persisted rows ({@code null} = the empty slot). */
+    public record Slot(String id, int count, int damage, String displayName) {
+
+        /** The immutable row of a live stack ({@code null} when empty). */
+        public static Slot of(ItemStack stack) {
+            if (stack == null || stack.isEmpty()) {
+                return null;
+            }
+            return new Slot(stack.type().identifier().toString(), stack.count(),
+                    stack.damage(), stack.displayName());
+        }
+    }
+
+    /**
+     * The immutable persistence projection (Slice S2 — the Phase-5
+     * serialization lane's own input contract): every chest row captured
+     * on the owning lane, safe to cross into the compute pool — the
+     * serializer never reads the live entities (§31.6's snapshot-before-I/O;
+     * the manager's own map copy holds LIVE entities, the capture is the
+     * deep form).
+     */
+    public record Snapshot(List<Row> rows) {
+
+        /** One chest's persisted rows. */
+        public record Row(int x, int y, int z, List<Slot> slots) {
+        }
+    }
+
+    /**
+     * The deep capture of the live chest map — called ON the owning tick
+     * lane (the manager's snapshot() is the map copy; this walks it into the
+     * immutable rows). The caller's map is not retained.
+     */
+    public Snapshot capture(Map<BlockPosition, ChestBlockEntity> chests) {
+        List<Snapshot.Row> rows = new ArrayList<>(chests.size());
+        for (Map.Entry<BlockPosition, ChestBlockEntity> entry : chests.entrySet()) {
+            BlockPosition position = entry.getKey();
+            ChestBlockEntity chest = entry.getValue();
+            ItemStack[] liveSlots = chest.snapshotSlots();
+            List<Slot> slots = new ArrayList<>(liveSlots.length);
+            for (ItemStack stack : liveSlots) {
+                slots.add(Slot.of(stack));
+            }
+            rows.add(new Snapshot.Row(position.x(), position.y(), position.z(),
+                    java.util.Collections.unmodifiableList(slots)));
+        }
+        return new Snapshot(List.copyOf(rows));
+    }
+
+    /**
+     * The pure serialization (the compute pool's own half): the immutable
+     * snapshot IN, the ZCD bytes OUT — no world read, no I/O. The byte walk
+     * is the historical save walk's own (version 2, byte-identical).
+     */
+    public byte[] serialize(Snapshot snapshot) {
+        ByteArrayOutputStream sink = new ByteArrayOutputStream();
+        try (DataOutputStream out = new DataOutputStream(new BufferedOutputStream(sink))) {
+            out.writeByte(MAGIC_0);
+            out.writeByte(MAGIC_1);
+            out.writeByte(MAGIC_2);
+            out.writeByte(FORMAT_VERSION);
+            writeVarInt(out, snapshot.rows().size());
+            for (Snapshot.Row row : snapshot.rows()) {
+                out.writeInt(row.x());
+                out.writeInt(row.y());
+                out.writeInt(row.z());
+                for (Slot slot : row.slots()) {
+                    if (slot == null) {
+                        out.writeByte(0);
+                    } else {
+                        out.writeByte(1);
+                        writeString(out, slot.id());
+                        writeVarInt(out, slot.count());
+                        writeVarInt(out, slot.damage());
+                        writeOptionalString(out, slot.displayName());
+                    }
+                }
+            }
+        } catch (IOException e) {
+            // The sink is an in-memory buffer; an IOException here is a
+            // defect, not a persistence failure — still loud.
+            throw new UncheckedIOException("Chest serialize failed", e);
+        }
+        return sink.toByteArray();
+    }
+
+    /**
+     * Publishes already-serialized ZCD bytes: the temp-file write + the
+     * atomic move, the historical save walk's own file half. Safe from any
+     * thread that holds the publication right (the save pipeline's
+     * per-storage lock orders the async publications; the synchronous save
+     * is uncontended).
+     */
+    public void writeSerialized(byte[] data) {
         try {
             Path temp = file.resolveSibling(file.getFileName() + ".tmp");
             Files.createDirectories(file.getParent());
             try (DataOutputStream out = new DataOutputStream(new BufferedOutputStream(
                     Files.newOutputStream(temp)))) {
-                out.writeByte(MAGIC_0);
-                out.writeByte(MAGIC_1);
-                out.writeByte(MAGIC_2);
-                out.writeByte(FORMAT_VERSION);
-                writeVarInt(out, chests.size());
-                for (Map.Entry<BlockPosition, ChestBlockEntity> entry : chests.entrySet()) {
-                    BlockPosition position = entry.getKey();
-                    ChestBlockEntity chest = entry.getValue();
-                    out.writeInt(position.x());
-                    out.writeInt(position.y());
-                    out.writeInt(position.z());
-                    for (ItemStack stack : chest.snapshotSlots()) {
-                        if (stack.isEmpty()) {
-                            out.writeByte(0);
-                        } else {
-                            out.writeByte(1);
-                            writeString(out, stack.type().identifier().toString());
-                            writeVarInt(out, stack.count());
-                            writeVarInt(out, stack.damage());
-                            writeOptionalString(out, stack.displayName());
-                        }
-                    }
-                }
+                out.write(data);
             }
             Files.move(temp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
         } catch (IOException e) {
