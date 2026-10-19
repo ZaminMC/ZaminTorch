@@ -11,8 +11,10 @@ import net.zaminmc.torch.server.world.WorldChangeListener;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
 
@@ -68,6 +70,18 @@ public final class LightEngine implements WorldChangeListener, ChunkLoadListener
     private final EngineWorld world;
     private final Set<Long> relightQueue = new LinkedHashSet<>();
     private final LiveAccess live = new LiveAccess();
+    /**
+     * Pool-computed initial results awaiting their chunk's install (the
+     * batch lane's handoff): keyed by packed chunk position, stashed by the
+     * wave driver right before the install, consumed by the install hook in
+     * the same call — the publication path (§344: the chunk appears fully
+     * generated AND fully lit) stays the ONE route, the hook simply replays
+     * the precomputed writes instead of recomputing on the lane.
+     * Owning-lane only (the driver and the install run on the same thread).
+     */
+    private final Map<Long, InitialLightResult> stashedInitial = new HashMap<>();
+    /** The evidence counter: installs whose initial light came from the pool (the batch lane rode). */
+    private volatile long batchedInitialComputes;
 
     /** One BFS cell: world position plus the level carried into it. */
     private record Cell(int x, int y, int z, int level) {
@@ -93,14 +107,42 @@ public final class LightEngine implements WorldChangeListener, ChunkLoadListener
      * same algorithms over the region routing, apply the recorded writes —
      * a 0.46-0.59x routing win over the live path per chunk (the pregen
      * batch 3.9-5.4x), with semantics identical by the proven twin-world
-     * equivalence. The compute stays synchronous on the calling (owning)
-     * lane; the pool dispatch is deferred to the batch shape (the pipelined
-     * capture would see pre-apply neighbor states — the staleness protocol
-     * is that step's gate, recorded with the numbers).
+     * equivalence. THE BATCH LANE (the §22 lighting batch shape): when the
+     * wave driver ({@link LightBatchPregen}) stashed a pool-computed result
+     * for this chunk, the hook replays it instead of recomputing — the
+     * capture and the apply stay on the owning lane, only the pure compute
+     * leaves it, and the wave decomposition keeps every capture's read set
+     * identical to what the sequential walk's hook would capture (the
+     * equivalence is the batch test's own gate).
      */
     @Override
     public void onChunkGenerated(EngineWorld world, EngineChunk chunk) {
+        InitialLightResult stashed = stashedInitial.remove(chunk.position().packed());
+        if (stashed != null) {
+            // The batch lane's apply: the pool already computed this chunk's
+            // initial light over the SAME captured read set this hook would
+            // capture (the wave decomposition guarantees the visibility —
+            // same-wave siblings are mutually invisible by construction);
+            // replay the recorded writes through the identical apply half.
+            batchedInitialComputes++;
+            applyInitial(stashed, chunk);
+            return;
+        }
         applyInitial(InitialLightCompute.compute(LightRegion.capture(world, chunk)), chunk);
+    }
+
+    /**
+     * Stashes a pool-computed initial result for the NEXT install of that
+     * chunk (the batch lane's driver: stash, then installGenerated — the
+     * hook consumes it in the same call). Owning-lane only.
+     */
+    public void stashInitial(ChunkPosition position, InitialLightResult result) {
+        stashedInitial.put(position.packed(), result);
+    }
+
+    /** @return how many installs consumed a pool-computed initial result (the batch lane's evidence). */
+    public long batchedInitialComputes() {
+        return batchedInitialComputes;
     }
 
     // ------------------------------------------------------------------ initial compute (the live entry)
@@ -182,9 +224,24 @@ public final class LightEngine implements WorldChangeListener, ChunkLoadListener
             addSky(access, seed);
         }
 
-        // 4. Border reconciliation with already-loaded neighbors: their border
-        //    cells re-derive (the new terrain can shadow them), and their
-        //    stored light flows into this chunk.
+        // 4. Border reconciliation with already-loaded neighbors (the shared
+        //    walk — also the batch lane's staleness reconciler).
+        reconcileCardinalBorders(access, maxY);
+    }
+
+    /**
+     * The step-4 walk on its own: the border reconciliation of the fresh
+     * chunk with its four loaded cardinal neighbors — each neighbor's facing
+     * strip re-derives (the new terrain can shadow its cells: the unlight +
+     * re-add pair darkens what only the pre-terrain state fed), then the
+     * strip's stored light seeds the BFS back into the fresh chunk. The
+     * initial compute's own fourth step; extracted because the batch lane's
+     * equivalence argument leans on it — the LATER-installed chunk of a
+     * cross-wave border pair runs this same walk against the earlier chunk's
+     * published state, which is what recovers the contributions the earlier
+     * chunk's compute made while the later chunk was still absent.
+     */
+    static void reconcileCardinalBorders(LightAccess access, int maxY) {
         for (int[] dir : new int[][] {{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
             ChunkPosition neighbor = access.neighborAt(dir[0], dir[1]);
             if (neighbor == null) {
