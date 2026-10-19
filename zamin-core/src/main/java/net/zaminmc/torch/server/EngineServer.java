@@ -21878,13 +21878,43 @@ public final class EngineServer implements Server, EngineBridge {
                     }
                 }
                 if (mobStore != null && mobManager != null) {
-                    mobStore.save(mobManager.snapshot());
+                    // S5: the entity family rides the pipeline's named path
+                    // (the MobSnapshot records are the immutable input
+                    // contract already — the manager's own snapshot walk
+                    // builds the fresh values on this lane, every extras
+                    // record a value type, the command-stat map the walk's
+                    // own fresh copy).
+                    if (pipeline != null) {
+                        publications.add(pipeline.submitSave("mobs", mobManager.snapshot(),
+                                mobStore::serialize, mobStore::writeSerialized));
+                    } else {
+                        mobStore.save(mobManager.snapshot());
+                    }
                 }
                 if (itemStore != null && itemEntities != null) {
-                    itemStore.save(itemEntities.snapshot());
+                    // S5: the ItemRecord contract is fully immutable (the
+                    // Position primitives, the engine's own ItemStack
+                    // model, the strings) — no capture needed.
+                    if (pipeline != null) {
+                        publications.add(pipeline.submitSave("items",
+                                itemEntities.snapshot(),
+                                itemStore::serialize, itemStore::writeSerialized));
+                    } else {
+                        itemStore.save(itemEntities.snapshot());
+                    }
                 }
                 if (vehicleStore != null && vehicleManager != null) {
-                    vehicleStore.save(vehicleManager.snapshot());
+                    // S5: the VehicleSnapshot's cargo array is the
+                    // snapshot walk's own fresh copy (snapshotSlots), the
+                    // elements the immutable ItemStack model — the
+                    // immutable-on-handoff contract, no capture needed.
+                    if (pipeline != null) {
+                        publications.add(pipeline.submitSave("vehicles",
+                                vehicleManager.snapshot(),
+                                vehicleStore::serialize, vehicleStore::writeSerialized));
+                    } else {
+                        vehicleStore.save(vehicleManager.snapshot());
+                    }
                 }
             } finally {
                 snapshotTaken.countDown();
