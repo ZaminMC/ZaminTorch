@@ -7,8 +7,18 @@
 
 [versions]
 jline = "3.26.3"
+# The §28.7 compatibility adapter's pinned 1.8.8 API lineage (§27.9's
+# evidence-based compatibility). The version string is the lineage's ONLY
+# published form (no release exists); the snapshot metadata resolves to the
+# frozen build 1.8.8-R0.1-20160221.082514-43 (build 43, 2016-02-21),
+# verified by actual resolution on 2026-10-20. The API artifact carries the
+# loader machinery (JavaPluginLoader, the package-private PluginClassLoader
+# the API's own JavaPlugin constructor requires) — the adapter depends on
+# the API only, never on a server implementation (§27.2's boundary).
+spigot-api = "1.8.8-R0.1-SNAPSHOT"
 
 [libraries]
 jline-terminal = { module = "org.jline:jline-terminal", version.ref = "jline" }
 jline-reader = { module = "org.jline:jline-reader", version.ref = "jline" }
 jline-terminal-jansi = { module = "org.jline:jline-terminal-jansi", version.ref = "jline" }
+spigot-api = { module = "org.spigotmc:spigot-api", version.ref = "spigot-api" }
