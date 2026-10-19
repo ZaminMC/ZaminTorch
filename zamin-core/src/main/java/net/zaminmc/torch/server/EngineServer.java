@@ -21684,7 +21684,16 @@ public final class EngineServer implements Server, EngineBridge {
                     }
                 }
                 if (noteStore != null && noteBlocks != null) {
-                    noteStore.save(noteBlocks.snapshotTiles());
+                    // S4: the note tile rides the pipeline's named path —
+                    // the deep capture on the tick lane, the rest off it.
+                    if (pipeline != null) {
+                        publications.add(pipeline.submitSave("note",
+                                noteStore.capture(noteBlocks.snapshotTiles()),
+                                noteStore::serialize,
+                                noteStore::writeSerialized));
+                    } else {
+                        noteStore.save(noteBlocks.snapshotTiles());
+                    }
                 }
                 // The comparator's stored outputs (Wave H1 — the
                 // ComparatorBlockEntity's OutputSignal rows).

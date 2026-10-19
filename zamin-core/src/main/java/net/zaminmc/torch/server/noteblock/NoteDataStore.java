@@ -42,26 +42,90 @@ public final class NoteDataStore {
 
     /**
      * Saves the full note map. Callers snapshot state on the tick thread
-     * before calling (the engine routes this through the ticker).
+     * before calling (the engine routes this through the ticker). The
+     * synchronous form composes the S4 pipeline's own three halves — the
+     * deep capture, the pure serialization, the file publication — so the
+     * sync save's bytes and the pipeline's bytes are identical by
+     * construction (one serializer, one file half).
      */
     public void save(Map<BlockPosition, NoteBlockSystem.NoteTile> notes) {
+        writeSerialized(serialize(capture(notes)));
+    }
+
+    /**
+     * The immutable persistence projection (Slice S4 — the Phase-5
+     * serialization lane's own input contract): every note row captured
+     * on the owning lane, safe to cross into the compute pool — the
+     * serializer never reads the live tiles (§31.6's snapshot-before-I/O;
+     * the system's own snapshotTiles() is the SHALLOW map copy whose
+     * values are the LIVE tiles, the capture is the deep form).
+     */
+    public record Snapshot(java.util.List<Row> rows) {
+
+        /** One noteblock's persisted rows. */
+        public record Row(int x, int y, int z, int note) {
+        }
+    }
+
+    /**
+     * The deep capture of the live note map — called ON the owning tick
+     * lane (the system's snapshotTiles() is the shallow copy; this walks
+     * it into the immutable rows). The caller's map is not retained.
+     */
+    public Snapshot capture(Map<BlockPosition, NoteBlockSystem.NoteTile> notes) {
+        java.util.List<Snapshot.Row> rows = new java.util.ArrayList<>(notes.size());
+        for (Map.Entry<BlockPosition, NoteBlockSystem.NoteTile> entry : notes.entrySet()) {
+            BlockPosition position = entry.getKey();
+            rows.add(new Snapshot.Row(position.x(), position.y(), position.z(),
+                    entry.getValue().note()));
+        }
+        return new Snapshot(java.util.List.copyOf(rows));
+    }
+
+    /**
+     * The pure serialization (the compute pool's own half): the immutable
+     * snapshot IN, the ZND bytes OUT — no world read, no I/O. The byte
+     * walk is the historical save walk's own (version 1, byte-identical).
+     */
+    public byte[] serialize(Snapshot snapshot) {
+        java.io.ByteArrayOutputStream sink = new java.io.ByteArrayOutputStream();
+        try (DataOutputStream out = new DataOutputStream(
+                new java.io.BufferedOutputStream(sink))) {
+            out.writeByte(MAGIC_0);
+            out.writeByte(MAGIC_1);
+            out.writeByte(MAGIC_2);
+            out.writeByte(FORMAT_VERSION);
+            writeVarInt(out, snapshot.rows().size());
+            for (Snapshot.Row row : snapshot.rows()) {
+                out.writeInt(row.x());
+                out.writeInt(row.y());
+                out.writeInt(row.z());
+                out.writeByte(row.note());
+            }
+        } catch (IOException e) {
+            // The sink is an in-memory buffer; an IOException here is a
+            // defect, not a persistence failure — still loud.
+            throw new java.io.UncheckedIOException("Note serialize failed", e);
+        }
+        return sink.toByteArray();
+    }
+
+    /**
+     * Publishes already-serialized ZND bytes: the temp-file write + the
+     * atomic move (the non-atomic fallback preserved), the historical save
+     * walk's own file half with the store's own failure contract (the
+     * severe log, never a throw — the established note-store behavior).
+     * Safe from any thread that holds the publication right (the save
+     * pipeline's per-storage lock orders the async publications; the
+     * synchronous save is uncontended).
+     */
+    public void writeSerialized(byte[] data) {
         try {
             Path temp = file.resolveSibling(file.getFileName() + ".tmp");
             Files.createDirectories(file.getParent());
             try (DataOutputStream out = new DataOutputStream(new BufferedOutputStream(
                     Files.newOutputStream(temp)))) {
-                out.writeByte(MAGIC_0);
-                out.writeByte(MAGIC_1);
-                out.writeByte(MAGIC_2);
-                out.writeByte(FORMAT_VERSION);
-                writeVarInt(out, notes.size());
-                for (Map.Entry<BlockPosition, NoteBlockSystem.NoteTile> entry : notes.entrySet()) {
-                    BlockPosition position = entry.getKey();
-                    out.writeInt(position.x());
-                    out.writeInt(position.y());
-                    out.writeInt(position.z());
-                    out.writeByte(entry.getValue().note());
-                }
+                out.write(data);
             }
             try {
                 Files.move(temp, file, java.nio.file.StandardCopyOption.REPLACE_EXISTING,
