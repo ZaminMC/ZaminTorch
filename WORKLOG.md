@@ -9987,3 +9987,48 @@ N7), the Phase-5 workload adoptions, the §29 standing rows.
 **Next:** the Phase-5 workload adoptions (pathfinding, lighting,
 serialization — each needs its own immutable-input contract,
 equivalence tests, and measurements), the §29 standing rows.
+
+## Slice S1 — the world-delta save's compute-then-publish split (the FIRST serialization workload)
+
+- **THE ADOPTION** (Phase 5's own contract shape): the save's two
+  halves split along the §14 compute contract — the SERIALIZATION is
+  the pure function (`WorldDeltaSerializer.serialize`: the immutable
+  snapshot IN, the ZWD bytes OUT, no world read, no I/O) and it LEAVES
+  THE TICK LANE (one job on the compute pool per save); the
+  PUBLICATION (the temp write + the atomic move — the storage's own
+  file half, `DeltaWorldStorage.writeSerialized`) rides the
+  blocking-I/O lane — never a simulation worker; the snapshot build
+  STAYS on the tick lane (the engine's own `snapshotDeltas` walk —
+  §6.2's one authoritative writer, unchanged).
+- **THE SEQUENCE GATE** (§15's "persistence must not publish an older
+  snapshot over newer state"): every submission takes a monotonic
+  sequence; inside the per-storage publication right a snapshot whose
+  sequence is not the newest seen DROPS (its bytes discarded, never
+  written); the dropped save's durability latch still releases — the
+  newer content on disk satisfies the demand (the supersession rule).
+- **THE WIRING**: `WorldSavePipeline` over the engine's own compute
+  subsystem + I/O lane + simulation domain; `saveAllNow`'s delta saves
+  (overworld/nether/end) ride it while the other stores keep their
+  synchronous walks (S2+ adopts them); the caller waits for the
+  snapshot build AND every publication latch (the 10s bounds
+  preserved).
+- **THE OBSERVABILITY** (the §22 measurement row):
+  submitted/serialized/landed/staleDropped/serializeNanos — the
+  off-tick engagement evidence and the before/after serialization
+  measurement hook.
+- Evidence: `WorldSavePipelineTest` 4/4 (the BYTE-IDENTITY equivalence
+  — the pure serializer's bytes == the synchronous save's file, the
+  round-trip load restores the same deltas; the live pipeline through
+  the real lanes with the telemetry + the off-tick measurement; the
+  §15 gate — the older sequence never lands, the newest sequence owns
+  the file; the superseded save's latch releases) + the persistence
+  restart sweep green (PersistenceAcceptance/PlayerDataPersistence/
+  FurnaceRestart/ContainerPersistence/CommandStatsPersistence/
+  StorageBoundary). Landed at 38821dfe; docs row landed with this
+  commit (the Wave S ledger section + the Phase-5 TWO WORKLOADS
+  status).
+
+**Next:** S2 — the save walk's remaining synchronous stores adopted
+onto the same compute-then-publish shape, store family by store family
+(each with its own immutable-input contract, equivalence test, and
+measurement), then pathfinding/lighting.
