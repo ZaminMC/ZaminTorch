@@ -9898,3 +9898,39 @@ START with the BlockUpdate echo on refusal — handlePlayerDig lines
 **Next:** the placement handler's own gates (handlePlayerBlockPlacement —
 its 64.0-or-creative band from the BODY, its own consults — the natural
 N7), the Phase-5 workload adoptions, the §29 standing rows.
+
+## N7 reconnaissance (recorded for the next slice — nothing claimed)
+
+- THE REFERENCE'S SHAPE (handlePlayerUse lines 460-515, read in full):
+  the C08 packet is ONE handler — the face-255 band (useItem), the
+  too-high arm (N3), the four-part consult chain (N5's window AND the
+  64.0 body band AND the N4 law AND the border — all ANDed, in that
+  order), then useBlock (N1's two stages inside). There is NO separate
+  placement handler and NO second reach band: the reference's
+  placements ride the handler's 64.0 band ALONE.
+- THE ENGINE'S DEVIATION (the N7 target): the engine's placement arms
+  carry SECONDARY bands the reference never has — (1) the service's
+  placeOnTick (withinReach 6.0^2 from eye-1.62) + survivalPlaceOnTick
+  (withinSurvivalReach 4.5^2 from eye-1.62); (2) ~19 inline
+  `distanceSquaredEyeToBlock > 4.5*4.5` arms across the use walk's
+  placement families (the sign at 3300, the skull at 3368, the 8401/
+  8466 consult pairs, the armor stand, the paintings, the bed, the
+  rails family, 8705-9159's placement arms). A placement at 5-8 blocks
+  (inside the handler's 64.0, outside the 4.5 eye band) is REFUSED by
+  the engine and ALLOWED by the reference — the same bug class N6
+  repaired for the dig. THE FIX'S SHAPE: a REMOVAL, not a re-banding —
+  the handler's 64.0 (N2, already landed at the use walk's head) is
+  the reference's only band; the secondary bands retire arm by arm
+  with the geometry-repaired tests (players stand near, the tests
+  moved never the law — the N2 lesson).
+- THE teleported SEMANTICS CONFIRMED (the N5 cross-check): the
+  reference's `teleported` is TRUE from join (line 117), DISARMED by
+  resyncPosition (line 370), RE-ARMED by the movement landing within
+  d3 < 0.25 of the anchor (lines 208-210); the use gate (line 475)
+  requires it TRUE. The engine's N5 `teleportPending` is the inverted
+  naming of the same law (pending=true == trusted=false) — N5's landed
+  semantics match the reference 1:1; no rework needed. Line 687's
+  disarm (handlePlayerMovementAction — the sneak/stop-using site) is
+  the reference's own disarm at the spectate/stop band; the engine's
+  window arms only at the wire's resyncPosition family — record as a
+  candidate arm if the parity tests ever show a drift.
