@@ -50,36 +50,74 @@ public final class ArmorStandDataStore {
 
     /**
      * Saves the stand records. Callers snapshot state on the tick thread
-     * before calling (the engine routes this through the ticker).
+     * before calling (the engine routes this through the ticker). The
+     * synchronous form composes the S5 pipeline's own two halves — the
+     * pure serialization and the file publication — so the sync save's
+     * bytes and the pipeline's bytes are identical by construction (one
+     * serializer, one file half).
      */
     public void save(List<ArmorStandSystem.StandRecord> stands) {
+        writeSerialized(serialize(stands));
+    }
+
+    /**
+     * The pure serialization (the compute pool's own half, Slice S5):
+     * the immutable snapshot IN (the stand records are the fresh values
+     * the system's own snapshot walk builds — the engine's ItemStack is
+     * the immutable model), the ZAD bytes OUT — no world read, no I/O.
+     * The byte walk is the historical save walk's own (version 1,
+     * byte-identical).
+     */
+    public byte[] serialize(List<ArmorStandSystem.StandRecord> stands) {
         Objects.requireNonNull(stands, "stands");
+        java.io.ByteArrayOutputStream sink = new java.io.ByteArrayOutputStream();
+        try (DataOutputStream out = new DataOutputStream(
+                new BufferedOutputStream(sink))) {
+            out.writeByte(MAGIC_0);
+            out.writeByte(MAGIC_1);
+            out.writeByte(MAGIC_2);
+            out.writeByte(FORMAT_VERSION);
+            writeVarInt(out, stands.size());
+            for (ArmorStandSystem.StandRecord stand : stands) {
+                out.writeDouble(stand.x());
+                out.writeDouble(stand.y());
+                out.writeDouble(stand.z());
+                out.writeFloat(stand.yaw());
+                out.writeByte(stand.status());
+                for (ItemStack piece : stand.equipment()) {
+                    writeStack(out, piece);
+                }
+                writePose(out, stand.head());
+                writePose(out, stand.body());
+                writePose(out, stand.leftArm());
+                writePose(out, stand.rightArm());
+                writePose(out, stand.leftLeg());
+                writePose(out, stand.rightLeg());
+            }
+        } catch (IOException e) {
+            // The sink is an in-memory buffer; an IOException here is a
+            // defect, not a persistence failure — still loud.
+            throw new java.io.UncheckedIOException("Armor-stand serialize failed", e);
+        }
+        return sink.toByteArray();
+    }
+
+    /**
+     * Publishes already-serialized ZAD bytes: the temp-file write + the
+     * atomic move (the non-atomic fallback preserved) — the historical
+     * save walk's own file half with the store's own failure contract
+     * 1:1 (the severe log, never a throw). Safe from any thread that
+     * holds the publication right (the save pipeline's per-storage lock
+     * orders the async publications; the synchronous save is
+     * uncontended).
+     */
+    public void writeSerialized(byte[] data) {
         try {
             Path temp = file.resolveSibling(file.getFileName() + ".tmp");
             Files.createDirectories(file.getParent());
             try (DataOutputStream out = new DataOutputStream(new BufferedOutputStream(
                     Files.newOutputStream(temp)))) {
-                out.writeByte(MAGIC_0);
-                out.writeByte(MAGIC_1);
-                out.writeByte(MAGIC_2);
-                out.writeByte(FORMAT_VERSION);
-                writeVarInt(out, stands.size());
-                for (ArmorStandSystem.StandRecord stand : stands) {
-                    out.writeDouble(stand.x());
-                    out.writeDouble(stand.y());
-                    out.writeDouble(stand.z());
-                    out.writeFloat(stand.yaw());
-                    out.writeByte(stand.status());
-                    for (ItemStack piece : stand.equipment()) {
-                        writeStack(out, piece);
-                    }
-                    writePose(out, stand.head());
-                    writePose(out, stand.body());
-                    writePose(out, stand.leftArm());
-                    writePose(out, stand.rightArm());
-                    writePose(out, stand.leftLeg());
-                    writePose(out, stand.rightLeg());
-                }
+                out.write(data);
             }
             try {
                 Files.move(temp, file, StandardCopyOption.REPLACE_EXISTING,
