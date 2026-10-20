@@ -20,6 +20,9 @@ concurrency:
   group: repository-stats-card
   cancel-in-progress: true
 
+env:
+  CARD_SNAPSHOT: /tmp/zamintorch-repository-stats.svg
+
 jobs:
   generate:
     name: Generate Fluent repository card
@@ -34,7 +37,9 @@ jobs:
       - name: Generate statistics card
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: python3 .github/scripts/repo_stats_card.py
+        run: |
+          python3 .github/scripts/repo_stats_card.py
+          cp docs/repository-stats.svg "$CARD_SNAPSHOT"
 
       - name: Checkout main
         uses: actions/checkout@v4
@@ -42,7 +47,19 @@ jobs:
           ref: main
           fetch-depth: 1
 
-      - name: Copy generated card into main worktree
+      - name: Install generated card
         run: |
           mkdir -p docs
-          cp "$GITHUB_WORKSPACE/docs/repository-stats.svg" docs/repository-stats.svg
+          cp "$CARD_SNAPSHOT" docs/repository-stats.svg
+
+      - name: Commit and push card to main
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/repository-stats.svg
+          if git diff --cached --quiet; then
+            echo "Repository statistics card is already current."
+          else
+            git commit -m "docs: update repository statistics card [skip ci]"
+            git push origin HEAD:main
+          fi
