@@ -4316,13 +4316,21 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeByte(Protocol18.METADATA_TERMINATOR);
         channel.writeAndFlush(out);
 
-        // The mob's held item (setEquipment slot 0 — the skeleton's bow,
-        // the wither variant's stone sword) rides Entity Equipment right
-        // after the spawn, the player body's own wire order (Slice 18d).
-        net.zaminmc.torch.item.ItemStack held = mob.heldEquipment();
-        if (held != null) {
-            writeEquipment(channel, mob.entityId(), Protocol18.EQUIPMENT_SLOT_HELD, held);
-        }
+        // The mob's gear rides Entity Equipment right after the spawn —
+        // VIII4's five-slot family (the reference's TrackedEntity
+        // startTracking walk, lines 348-355: held first, then feet, legs,
+        // chest, head), the player body's own wire order (Slice 18d held
+        // the bow alone; the armor family joins 1:1).
+        writeEquipment(channel, mob.entityId(), Protocol18.EQUIPMENT_SLOT_HELD,
+                mob.heldEquipment());
+        writeEquipment(channel, mob.entityId(), Protocol18.EQUIPMENT_SLOT_FEET,
+                mob.equipment(1));
+        writeEquipment(channel, mob.entityId(), Protocol18.EQUIPMENT_SLOT_LEGS,
+                mob.equipment(2));
+        writeEquipment(channel, mob.entityId(), Protocol18.EQUIPMENT_SLOT_CHEST,
+                mob.equipment(3));
+        writeEquipment(channel, mob.entityId(), Protocol18.EQUIPMENT_SLOT_HEAD,
+                mob.equipment(4));
 
         mobSyncState.put(mob.entityId(), new long[] {
                 (long) Math.floor(mob.position().x() * 32.0),
@@ -4565,12 +4573,14 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     }
 
     /**
-     * The held equipment's re-send (Slice 78b — the /summon Equipment row
-     * and the restore's held stack land after the spawn packet went out):
-     * one Entity Equipment (0x04) over the wire slot 0. Chunk-gated like
-     * every mob packet. Any thread.
+     * The equipment's re-send (Slice 78b — the /summon Equipment row and
+     * the restore's stacks land after the spawn packet went out): the
+     * five Entity Equipment (0x04) writes over the reference's own order —
+     * held first, then feet, legs, chest, head (VIII4; the player body's
+     * sendPlayerEquipment shape, an empty slot writing the wire's own
+     * -1 clear). Chunk-gated like every mob packet. Any thread.
      */
-    void sendMobHeldEquipment(MobEntity mob) {
+    void sendMobEquipment(MobEntity mob) {
         Channel channel = adapter.channelOf(this);
         if (channel == null || !channel.isActive() || state != WireState.PLAY
                 || chunkTracker == null) {
@@ -4581,6 +4591,14 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         }
         writeEquipment(channel, mob.entityId(), Protocol18.EQUIPMENT_SLOT_HELD,
                 mob.heldEquipment());
+        writeEquipment(channel, mob.entityId(), Protocol18.EQUIPMENT_SLOT_FEET,
+                mob.equipment(1));
+        writeEquipment(channel, mob.entityId(), Protocol18.EQUIPMENT_SLOT_LEGS,
+                mob.equipment(2));
+        writeEquipment(channel, mob.entityId(), Protocol18.EQUIPMENT_SLOT_CHEST,
+                mob.equipment(3));
+        writeEquipment(channel, mob.entityId(), Protocol18.EQUIPMENT_SLOT_HEAD,
+                mob.equipment(4));
     }
 
     /**

@@ -138,9 +138,10 @@ class SummonEquipmentTest {
             assertEquals(1, zombie.heldEquipment().count(), "the Count row");
             await(() -> equipmentPublications.get() >= 1,
                     "the equipment change published (the wire's re-send)");
-            // The armor slots (1..4) parse but land nowhere — the engine's
-            // no-armor envelope: the summon still succeeded above, and the
-            // body carries the held slot alone.
+            // The armor slots (1..4) land too since VIII4 (the same walk
+            // the held row rides — MobArmorFamilyTest pins the family);
+            // this Slice 78b scene still holds: the held row alone was
+            // summoned, and the body lives.
             assertFalse(zombie.dead(), "the body lives");
         } finally {
             server.shutdown(null);
