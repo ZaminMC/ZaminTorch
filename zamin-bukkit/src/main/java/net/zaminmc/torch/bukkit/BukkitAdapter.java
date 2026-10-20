@@ -6,6 +6,7 @@ import net.zaminmc.torch.block.BlockType;
 import net.zaminmc.torch.bukkit.block.MaterialMap;
 import net.zaminmc.torch.bukkit.block.TorchBlock;
 import net.zaminmc.torch.bukkit.block.TorchBlockState;
+import net.zaminmc.torch.bukkit.command.TorchCommandBridge;
 import net.zaminmc.torch.bukkit.entity.TorchOfflinePlayer;
 import net.zaminmc.torch.bukkit.entity.TorchPlayer;
 import net.zaminmc.torch.bukkit.event.TorchEventBridge;
@@ -64,6 +65,7 @@ public final class BukkitAdapter {
     private final TorchConsoleSender console;
     private final TorchPluginManager pluginManager;
     private final BukkitPluginBridge pluginBridge;
+    private final TorchCommandBridge commandBridge;
     private final TorchSchedulerBridge schedulerBridge;
     private final TorchEventBridge eventBridge;
 
@@ -80,6 +82,7 @@ public final class BukkitAdapter {
         this.console = new TorchConsoleSender(this);
         this.pluginBridge = new BukkitPluginBridge(this);
         this.pluginManager = new TorchPluginManager(this);
+        this.commandBridge = new TorchCommandBridge(this);
         this.schedulerBridge = new TorchSchedulerBridge(this);
         this.eventBridge = new TorchEventBridge(this);
     }
@@ -229,6 +232,21 @@ public final class BukkitAdapter {
         return worlds.computeIfAbsent(engineWorld, fresh -> new TorchWorld(this, fresh));
     }
 
+    /**
+     * The engine-world lookup by name — the name the native events carry
+     * ({@code worldName()}) resolved against the adapter's own world
+     * views, or null when no world of that name is loaded (the caller's
+     * own loud-skip law: a foreign world is not the adapter's to bridge).
+     */
+    public TorchWorld worldByName(String name) {
+        for (TorchWorld view : worldViews()) {
+            if (view.getName().equals(name)) {
+                return view;
+            }
+        }
+        return null;
+    }
+
     public List<TorchWorld> worldViews() {
         List<TorchWorld> views = new ArrayList<>();
         views.add(worldView(engine.world()));
@@ -288,6 +306,10 @@ public final class BukkitAdapter {
 
     public BukkitPluginBridge pluginBridge() {
         return pluginBridge;
+    }
+
+    public TorchCommandBridge commandBridge() {
+        return commandBridge;
     }
 
     public TorchSchedulerBridge schedulerBridge() {

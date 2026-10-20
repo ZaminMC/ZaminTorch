@@ -39,10 +39,15 @@ import java.util.stream.Stream;
  *   → loader.loadPlugin(file)         the API artifact's machinery
  *   → plugin.onLoad()                 the bridge's own call (the legacy load wave)
  *   → engine host registerWithLoader  the native §28.5 machine owns it from here:
- *       body.onEnable  → loader.enablePlugin  (the legacy enable wave)
+ *       body.onEnable  → [the plugin.yml command registration — the command
+ *                        bridge's own first act, before the legacy enable
+ *                        wave, the 1.8.8 enable walk's own order] then
+ *                        loader.enablePlugin  (the legacy enable wave)
  *       body.onDisable → loader.disablePlugin (the legacy disable wave)
  *       scope sweep    → listeners unregistered, tasks cancelled, late
- *                        results invalidated (§28.5's law, unchanged)
+ *                        results invalidated, the plugin's commands
+ *                        RETIRED from the engine registry (§28.5's law,
+ *                        unchanged — the command surface rides it)
  *       unload verb    → the plugin's classloader closed (best-effort, §28.5)
  * </pre>
  *
@@ -165,6 +170,13 @@ public final class BukkitPluginBridge {
             public void onEnable(PluginHandle handle) {
                 walkHandle = handle; // the walk-scoped publication (see the field's law)
                 try {
+                    // The 1.8.8 enable walk's own order: the plugin.yml
+                    // commands register into the engine's ONE command path
+                    // BEFORE the plugin's onEnable runs (the plugin's own
+                    // getCommand("name") must resolve inside it), and the
+                    // registration's retirement rides the CURRENT scope
+                    // (§28.5 — the disable sweep retires them).
+                    adapter.commandBridge().registerPluginCommands(plugin, handle);
                     loaderFor(plugin).enablePlugin(plugin);
                 } finally {
                     walkHandle = null;
