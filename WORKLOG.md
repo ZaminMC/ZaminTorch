@@ -10880,3 +10880,33 @@ ring around the use point (inside the spawn system's own 24-block
 keep-out law — natural packs never enter it, so the ring's count can
 only move when the EGG's own spawn lands one), the test's own
 intent, 6/0 re-run.
+
+## 2026-10-21 — the shared container-open event (the standing row's retirement)
+
+The §29 standing row ("the shared container-open event — the chest
+family row's 'if demand names it' note"): the chest family alone
+carried an open observation (ChestOpenEvent, the lid/stat neighbors);
+every other container family opened silently.
+
+**The landing**: the ONE seam — PlayerSession.openContainerWindow —
+now fires the shared observation for every container family's open
+(the block containers: the chest pair, the ender chest, the furnace,
+the dispenser pair, the hopper, the brewing stand, the beacon, the
+anvil, the enchanting table, the crafting table; the entity forms:
+the horse inventory, the chest and hopper minecarts, the villager
+trades — the entity openers set the mount id BEFORE the observation
+fires through their own openContainerWindowWithMount form). The api
+record: ContainerOpenEvent (openerId/openerName, the kind name, the
+block position for the block forms, the mount id for the entity
+forms, the window id). Post-commit observation, the ChestOpenEvent
+convention: handlers observe, they do not veto; the chest's own
+ChestOpenEvent stays beside it (the lid and the trapped chest's
+neighbor ring are the chest family's own rows).
+
+**The evidence**: ContainerOpenEventTest (the chest → CHEST with the
+block cell + the opener + the window id; the furnace → FURNACE; the
+dispenser → DISPENSER — the engine's one-window law consulted between
+the opens, the use law's 64.0 band respected by the scene's own
+geometry); the container regression green (ContainerApiAcceptance,
+OpenWindowApiAcceptance, InteractionEventAcceptance,
+HopperWindowAcceptance, the brewing ContainerPersistence — 11/0).
