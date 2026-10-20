@@ -91,6 +91,35 @@ public final class ExperienceOrbManager {
     }
 
     /**
+     * The restored form (the Anvil import's exact-amount landing — the
+     * reference's {@code Entities.create} + {@code readCustomNbt} walk
+     * over ExperienceOrbEntity): the saved position, the saved point
+     * value and the saved age land whole. No random scatter velocity
+     * (the saved Motion rows apply after through the entity's own
+     * setter, the ItemEntityManager.spawnRestored pattern), no pickup
+     * delay (the reference's own load leaves the field at its zero
+     * initializer — readCustomNbt reads Health/Age/Value alone). The
+     * {@code Health} row has no engine surface (the engine's orb model
+     * carries no wound clock) — the import's ledger names it.
+     *
+     * @return the landed orb, or null when the amount is non-positive
+     *         (nothing spawns — the burst arms' own rule).
+     */
+    public ExperienceOrbEntity spawnRestored(Position at, int amount, int age) {
+        Objects.requireNonNull(at, "at");
+        if (amount <= 0) {
+            return null;
+        }
+        ExperienceOrbEntity orb = new ExperienceOrbEntity(nextEntityId++, at, amount, 0);
+        orb.setAge(age);
+        orbs.add(orb);
+        for (Listener listener : listeners) {
+            listener.onOrbSpawned(orb);
+        }
+        return orb;
+    }
+
+    /**
      * The reference's own burst walk (Slice 65 — the bottle o' enchanting's
      * onCollision lines 35-41, ExperienceOrbEntity.roundSize): the total
      * splits through the roundSize ladder — each orb takes the biggest

@@ -174,6 +174,67 @@ class ProjectileManagerTest {
     }
 
     @Test
+    void theRestoredProjectileLandsTheSavedMotionAndTheStuckClockResumes() {
+        // The Anvil import's exact-position form (the reference's
+        // Entities.create + readCustomNbt): the saved Motion lands whole
+        // (no gaussian tilt, no launch force walk), the thrower stays
+        // unknown (the reference's projectile NBT carries no shooter),
+        // and a stuck arrow's inGround + life rows resume the stick
+        // clock where the save left it — the restored arrow expires
+        // after the REMAINING ticks, not a fresh minute.
+        List<Integer> spawned = new ArrayList<>();
+        List<Integer> destroyed = new ArrayList<>();
+        ProjectileManager manager = new ProjectileManager(
+                (x, y, z) -> false, new RiggedHits(), new RecordingCombat(), FX,
+                new Random(6), 5_000);
+        manager.addListener(new ProjectileManager.Listener() {
+            @Override
+            public void onProjectileSpawned(ProjectileEntity projectile) {
+                spawned.add(projectile.entityId());
+            }
+
+            @Override
+            public void onProjectileMoved(ProjectileEntity projectile) {
+            }
+
+            @Override
+            public void onProjectileLanded(ProjectileEntity projectile) {
+            }
+
+            @Override
+            public void onProjectileRemoved(ProjectileEntity projectile, String reason) {
+                destroyed.add(projectile.entityId());
+            }
+        });
+        ProjectileEntity shard = manager.spawnRestored(ProjectileEntity.Kind.SNOWBALL,
+                new Position(1.5, 64.0, 2.5), -0.5, 0.2, 0.5);
+        assertNotNull(shard, "the restore landed the shard");
+        assertEquals(-0.5, shard.velocityX(), "the saved motion lands whole");
+        assertEquals(0.2, shard.velocityY());
+        assertEquals(0.5, shard.velocityZ());
+        assertEquals(-1, shard.throwerId(), "the thrower stays unknown (no shooter row)");
+        assertEquals(1.5, shard.position().x(), "the exact position");
+        assertEquals(1, spawned.size(), "the spawn publication rode the restore");
+
+        // The stuck arrow: inGround + life 1000 — the clock resumes at
+        // 1000, and the remaining 200 ticks carry the removal.
+        ProjectileEntity stuck = manager.spawnRestored(ProjectileEntity.Kind.ARROW,
+                new Position(4.0, 64.0, 4.0), 0.0, 0.0, 0.0);
+        assertNotNull(stuck);
+        stuck.restoreGrounded(1_000);
+        assertTrue(stuck.inGround(), "the inGround row landed");
+        assertEquals(1_000, stuck.ticksInGround(), "the life row resumed the clock");
+        assertEquals(0.0, stuck.velocityY(), "the saved velocity stays as loaded "
+                + "(the reference's stuck arm never integrates it)");
+        for (int i = 0; i < 199; i++) {
+            manager.tick();
+        }
+        assertNotNull(manager.byId(stuck.entityId()), "the restored clock holds the remaining span");
+        manager.tick();
+        assertNull(manager.byId(stuck.entityId()), "the resumed clock expires on time");
+    }
+
+    @Test
     void arrowDamageScalesWithSpeedAndMobTakesTheHit() {
         RiggedHits hits = new RiggedHits();
         RecordingCombat combat = new RecordingCombat();

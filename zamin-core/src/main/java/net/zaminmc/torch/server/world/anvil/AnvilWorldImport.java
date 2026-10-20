@@ -2,10 +2,14 @@ package net.zaminmc.torch.server.world.anvil;
 
 import net.zaminmc.torch.block.BlockPosition;
 import net.zaminmc.torch.block.ChunkPosition;
+import net.zaminmc.torch.server.decoration.DecorationSystem;
+import net.zaminmc.torch.server.decoration.ItemFrame;
+import net.zaminmc.torch.server.decoration.Painting;
 import net.zaminmc.torch.server.entity.ItemEntityManager;
 import net.zaminmc.torch.server.entity.MobEntity;
 import net.zaminmc.torch.server.entity.MobManager;
 import net.zaminmc.torch.server.entity.MobType;
+import net.zaminmc.torch.server.entity.projectile.ProjectileEntity;
 import net.zaminmc.torch.server.nbt.BinaryNbtReader;
 import net.zaminmc.torch.server.nbt.EntityNbt;
 import net.zaminmc.torch.server.nbt.ItemNbt;
@@ -67,12 +71,22 @@ import java.util.regex.Pattern;
  * for the living mobs — Pos/Rotation/Motion/UUID/custom rows all land
  * — and {@code ItemEntityManager.spawnRestored} + the {@code Item}/
  * {@code Age}/{@code PickupDelay}/{@code Thrower}/{@code Owner} rows
- * for the dropped items). Everything else the reference can save —
- * vehicles, projectiles, paintings, item frames, XP orbs, riding
- * chains — has no engine surface yet and isolates LOUDLY with its
- * exact id (§31.6's counted refusal, never a silent drop). A skipped
- * (already-loaded) chunk's content rows ride the skip whole, with a
- * counted note naming what did not apply.</p>
+ * for the dropped items, the {@code VehicleManager} hosts for the
+ * eight vehicle ids, {@code ProjectileManager.spawnRestored} for the
+ * nine projectile families (the stuck arrow's {@code inGround}/{@code
+ * life} rows included), {@code DecorationSystem.restoreFrame}/
+ * {@code restorePainting} for the item frames and paintings (the
+ * anchor/facing/motive/display rows, the legacy {@code Direction}
+ * offset quirk included), and {@code ExperienceOrbManager}
+ * .spawnRestored for the XP orbs (the {@code Value}/{@code Age} rows).
+ * What still has no engine surface isolates LOUDLY with its exact id
+ * (§31.6's counted refusal, never a silent drop): the riding chains
+ * (the non-session rider attach publication + the server-side rider
+ * follow — the reference's updateRidden — have no surface yet), the
+ * firework/eye-of-ender/leash-knot families, and every per-family row
+ * whose engine model derives it differently (the ledger names each).
+ * A skipped (already-loaded) chunk's content rows ride the skip whole,
+ * with a counted note naming what did not apply.</p>
  *
  * <p><b>THE NAMING (the reference's own):</b> region files are
  * {@code r.<regionX>.<regionZ>.mca} ({@code RegionIo.getRegionFile}'s
@@ -133,12 +147,21 @@ public final class AnvilWorldImport {
      *                       TileTicks import arm)
      * @param vehicles the vehicle seams (null = the entities walk counts
      *                 vehicle rows as not-imported)
+     * @param projectiles the projectile surface (null = the projectile
+     *                   families count as not-imported)
+     * @param decorations the hanging-decoration surface (null = the
+     *                   painting/item-frame rows count as not-imported)
+     * @param orbs the experience-orb surface (null = the XP-orb rows
+     *             count as not-imported)
      */
     public record ContentSeams(TileNbt tiles, MobManager mobs, ItemEntityManager items,
                                PotionSystem potions,
                                java.util.function.Consumer<MobEntity> equipmentChanged,
                                net.zaminmc.torch.server.block.ScheduledTickSystem scheduledTicks,
-                               VehicleSeams vehicles) {
+                               VehicleSeams vehicles,
+                               net.zaminmc.torch.server.entity.projectile.ProjectileManager projectiles,
+                               net.zaminmc.torch.server.decoration.DecorationSystem decorations,
+                               net.zaminmc.torch.server.experience.ExperienceOrbManager orbs) {
     }
 
     /** One session over the world (the chunk reader over the world's registry). */
@@ -501,6 +524,25 @@ public final class AnvilWorldImport {
                 importVehicle(id, at, rows);
                 continue;
             }
+            // The projectiles (the reference's nine wire families — the
+            // engine's own manager, the restored form).
+            var projectileKind = projectileKindOf(id);
+            if (projectileKind != null) {
+                importProjectile(id, projectileKind, at, rows);
+                continue;
+            }
+            // The hanging decorations (the painting + the item frame —
+            // the engine's own decoration system, the exact-cell form).
+            if (id.equals("Painting") || id.equals("ItemFrame")) {
+                importDecoration(id, rows);
+                continue;
+            }
+            // The XP orb (the engine's own orb manager, the exact-value
+            // form).
+            if (id.equals("XPOrb")) {
+                importXpOrb(at, rows);
+                continue;
+            }
             // The living mobs (the /summon machinery whole).
             MobType type = MobType.byVanillaName(id);
             if (type == null) {
@@ -522,9 +564,16 @@ public final class AnvilWorldImport {
             ledger.entityImported();
             if (NbtOps.contains(rows, "Riding", Snbt.Tag.Type.COMPOUND)) {
                 // The reference walks the Riding chain creating mounts and
-                // seating riders; the engine has no riding surface — the
-                // rider imports, the chain isolates loudly.
-                ledger.isolated("riding chain not imported (no riding surface)",
+                // seating riders (AnvilChunkStorage lines 331-339: the
+                // nested compound IS the mount, the outer entity rides
+                // it, the chain walks down). The engine's vehicle seat
+                // carries player riders alone — the non-session rider's
+                // attach publication and the server-side rider follow
+                // (the reference's updateRidden) have no surface yet:
+                // the rider imports, the chain isolates loudly with the
+                // missing surfaces named.
+                ledger.isolated("riding chain not imported (no mob-rider surface: the "
+                                + "attach publication + the server-side follow)",
                         "entity " + id + " rides "
                                 + NbtOps.getString(NbtOps.getCompound(rows, "Riding"), "id"));
             }
@@ -793,12 +842,291 @@ public final class AnvilWorldImport {
         }
         if (NbtOps.contains(rows, "Riding", Snbt.Tag.Type.COMPOUND)) {
             // The reference walks the Riding chain creating mounts and
-            // seating riders; the engine has no riding surface — the
-            // vehicle imports, the chain isolates loudly.
-            ledger.isolated("riding chain not imported (no riding surface)",
+            // seating riders (the nested compound IS the mount); the
+            // engine's seat carries player riders alone — the chain
+            // isolates loudly with the missing surfaces named (the mob
+            // walk's own note carries the full shape).
+            ledger.isolated("riding chain not imported (no mob-rider surface: the "
+                            + "attach publication + the server-side follow)",
                     "entity " + id + " rides "
                             + NbtOps.getString(NbtOps.getCompound(rows, "Riding"), "id"));
         }
+    }
+
+    // ------------------------------------------------------------------ the projectile walk
+
+    /**
+     * The reference's projectile wire ids (Entities.register's own
+     * names) through the engine's Kind table. The families the engine
+     * does not model (EyeOfEnderSignal, the fireworks rocket, the
+     * fishing bobber, the leash knot) stay on the generic
+     * not-importable isolation.
+     */
+    private static ProjectileEntity.Kind projectileKindOf(String id) {
+        return switch (id) {
+            case "Arrow" -> ProjectileEntity.Kind.ARROW;
+            case "Snowball" -> ProjectileEntity.Kind.SNOWBALL;
+            case "ThrownEgg" -> ProjectileEntity.Kind.EGG;
+            case "ThrownEnderpearl" -> ProjectileEntity.Kind.ENDER_PEARL;
+            case "ThrownPotion" -> ProjectileEntity.Kind.POTION;
+            case "ThrownExpBottle" -> ProjectileEntity.Kind.EXPERIENCE_BOTTLE;
+            case "Fireball" -> ProjectileEntity.Kind.LARGE_FIREBALL;
+            case "SmallFireball" -> ProjectileEntity.Kind.SMALL_FIREBALL;
+            case "WitherSkull" -> ProjectileEntity.Kind.WITHER_SKULL;
+            default -> null;
+        };
+    }
+
+    /**
+     * One projectile row (the reference's base readCustomNbt + the
+     * ArrowEntity family rows, at the engine surface's granularity):
+     * the saved Motion lands whole (the modern Motion doubles, else the
+     * reference's own legacy {@code direction} doubles — a row with
+     * NEITHER isolates loudly, the reference's own remove() shape), the
+     * stuck arrow's {@code inGround} + {@code life} land through the
+     * restored stuck form, and the per-family rows the engine's point
+     * model derives differently are named in the ledger (the arrow's
+     * xTile/yTile/zTile/inTile/inData/shake/pickup/damage/Rotation; the
+     * large fireball's ExplosionPower).
+     */
+    private void importProjectile(String id, ProjectileEntity.Kind kind,
+                                  Position at, Map<String, Snbt.Tag> rows) {
+        var manager = content == null ? null : content.projectiles();
+        if (manager == null) {
+            // No projectile surface wired: the rows count as not-imported.
+            ledger.ignored("Entities (projectile rows)", 1);
+            return;
+        }
+        List<Snbt.Tag> motion = NbtOps.getList(rows, "Motion", Snbt.Tag.Type.DOUBLE);
+        if (motion.isEmpty()) {
+            // The reference's own writeNbt carries the velocity twice —
+            // the base Motion doubles and the custom direction doubles
+            // (readCustomNbt's own source); an older save carries the
+            // custom form alone.
+            motion = NbtOps.getList(rows, "direction", Snbt.Tag.Type.DOUBLE);
+        }
+        if (motion.isEmpty()) {
+            ledger.isolated("projectile row without a Motion/direction row",
+                    "entity " + id + " at " + at.x() + "," + at.y() + "," + at.z());
+            return;
+        }
+        if (motion.size() != 3) {
+            ledger.isolated("projectile row with a corrupt Motion row",
+                    "entity " + id + " at " + at.x() + "," + at.y() + "," + at.z());
+            return;
+        }
+        ProjectileEntity spawned = manager.spawnRestored(kind, at,
+                NbtOps.listDouble(motion, 0),
+                NbtOps.listDouble(motion, 1),
+                NbtOps.listDouble(motion, 2));
+        if (spawned == null) {
+            ledger.isolated("projectile spawn withheld (the spawn gate)",
+                    "entity " + id + " at " + at.x() + "," + at.y() + "," + at.z());
+            return;
+        }
+        // The stuck rows (the reference's readCustomNbt: inGround + the
+        // ArrowEntity-only life clock — the stick clock resumes where
+        // the save left it).
+        boolean inGround = NbtOps.getByte(rows, "inGround") == 1;
+        if (inGround) {
+            int life = NbtOps.containsNumeric(rows, "life")
+                    ? NbtOps.getShort(rows, "life") : 0;
+            spawned.restoreGrounded(life);
+        }
+        // The per-family rows the engine's point model derives
+        // differently (the reference's own rows, the §31.6 envelope):
+        // the arrow's stuck cell/block (derived from the position at
+        // rest), the shake visual, the pickup gate, the damage override
+        // (the engine derives it from the speed, the Power bonus rides
+        // the launch walk), and the explicit Rotation (the wire derives
+        // the angles from the motion, the reference's own ctor walk);
+        // the large fireball's ExplosionPower (the engine's fixed 1).
+        boolean hasUnlandedFamilyRows =
+                NbtOps.containsNumeric(rows, "xTile") || NbtOps.containsNumeric(rows, "yTile")
+                || NbtOps.containsNumeric(rows, "zTile") || !NbtOps.getString(rows, "inTile").isEmpty()
+                || NbtOps.containsNumeric(rows, "inData") || NbtOps.containsNumeric(rows, "shake")
+                || NbtOps.containsNumeric(rows, "pickup") || NbtOps.containsNumeric(rows, "damage")
+                || !NbtOps.getList(rows, "Rotation", Snbt.Tag.Type.FLOAT).isEmpty()
+                || NbtOps.containsNumeric(rows, "ExplosionPower");
+        if (hasUnlandedFamilyRows) {
+            ledger.isolated("projectile rows without an engine surface "
+                            + "(xTile/yTile/zTile, inTile/inData, shake, pickup, damage, "
+                            + "Rotation, ExplosionPower — the point model derives the cell, "
+                            + "the block and the damage from the motion)",
+                    "entity " + id + " at " + at.x() + "," + at.y() + "," + at.z());
+        }
+        ledger.entityImported();
+    }
+
+    // ------------------------------------------------------------------ the hanging-decoration walk
+
+    /** One decoded hanging anchor (the reference's DecorationEntity.readCustomNbt). */
+    private record DecorationAnchor(BlockPosition cell, int facing) { }
+
+    /**
+     * The reference's anchor decode (DecorationEntity.readCustomNbt
+     * lines 177-190): the TileX/Y/Z ints are the anchor cell; the
+     * facing reads the modern {@code Facing} byte, else the legacy
+     * {@code Dir} byte — both byIdHorizontal (0-3, the engine's own
+     * convention) — and the pre-1.4.2 {@code Direction} form carries
+     * the WALL cell, the anchor offsetting into the air the decoration
+     * faces. A row with no facing form at all isolates loudly (the
+     * reference's byIdHorizontal(0) would silently face south — the
+     * engine refuses to guess).
+     */
+    private DecorationAnchor decodeDecorationAnchor(
+            String id, Position at, Map<String, Snbt.Tag> rows) {
+        int x = NbtOps.getInt(rows, "TileX");
+        int y = NbtOps.getInt(rows, "TileY");
+        int z = NbtOps.getInt(rows, "TileZ");
+        BlockPosition cell = new BlockPosition(x, y, z);
+        if (NbtOps.containsNumeric(rows, "Direction")) {
+            // The pre-1.4.2 form: the cell is the wall cell behind, the
+            // anchor sits in the air cell the facing points to (the
+            // reference's own pos.offset(direction)).
+            int facing = Math.floorMod(NbtOps.getByte(rows, "Direction"), 4);
+            int[] off = ItemFrame.FACING_OFFSETS[facing];
+            return new DecorationAnchor(cell.offset(off[0], 0, off[1]), facing);
+        }
+        if (NbtOps.containsNumeric(rows, "Facing")) {
+            return new DecorationAnchor(cell, Math.floorMod(NbtOps.getByte(rows, "Facing"), 4));
+        }
+        if (NbtOps.containsNumeric(rows, "Dir")) {
+            // The oldest form: the same horizontal id, no offset.
+            return new DecorationAnchor(cell, Math.floorMod(NbtOps.getByte(rows, "Dir"), 4));
+        }
+        ledger.isolated("decoration row without a facing form (Facing/Direction/Dir)",
+                "entity " + id + " at " + at.x() + "," + at.y() + "," + at.z());
+        return null;
+    }
+
+    /**
+     * One hanging-decoration row (the painting + the item frame — the
+     * reference's readCustomNbt over PaintingEntity/ItemFrameEntity):
+     * the anchor decode, then the painting's {@code Motive} (an unknown
+     * motive isolates loudly — the engine carries the reference's own
+     * twenty-six) or the frame's {@code Item} + {@code ItemRotation}
+     * (+ the legacy {@code Direction} form's rotation-doubling quirk,
+     * ItemFrameEntity line 171-173). The exact-cell restore arms land
+     * the bodies whole; the per-100-tick validation poll owns the
+     * unsupported-wall drop exactly like the reference's own load. The
+     * frame's {@code ItemDropChance} row has no per-frame surface (the
+     * engine's fixed 1.0) — the ledger names it.
+     */
+    private void importDecoration(String id, Map<String, Snbt.Tag> rows) {
+        var system = content == null ? null : content.decorations();
+        if (system == null) {
+            // No decoration surface wired: the rows count as not-imported.
+            ledger.ignored("Entities (decoration rows)", 1);
+            return;
+        }
+        // The Pos row is present on every entity save but the reference
+        // IGNORES it for hanging bodies (shouldSetPositionOnLoad false —
+        // the anchor rows derive the position); the decode walks the
+        // anchor forms alone. A Pos-less row still reports the origin
+        // for the isolation notes.
+        List<Snbt.Tag> pos = NbtOps.getList(rows, "Pos", Snbt.Tag.Type.DOUBLE);
+        Position reported = pos.size() == 3
+                ? new Position(NbtOps.listDouble(pos, 0),
+                        NbtOps.listDouble(pos, 1), NbtOps.listDouble(pos, 2))
+                : new Position(0, 0, 0);
+        DecorationAnchor anchor = decodeDecorationAnchor(id, reported, rows);
+        if (anchor == null) {
+            return;
+        }
+        if (id.equals("Painting")) {
+            String motiveName = NbtOps.getString(rows, "Motive");
+            if (motiveName.isEmpty()) {
+                ledger.isolated("painting row without a Motive row",
+                        "entity Painting at " + anchor.cell().x() + ","
+                                + anchor.cell().y() + "," + anchor.cell().z());
+                return;
+            }
+            Painting.Motive motive = Painting.Motive.byName(motiveName);
+            if (motive == null) {
+                ledger.isolated("painting motive not carried (the engine's own twenty-six)",
+                        "entity Painting motive '" + motiveName + "'");
+                return;
+            }
+            Painting landed = system.restorePainting(anchor.cell(), anchor.facing(), motive);
+            if (landed == null) {
+                ledger.isolated("painting anchor cell already carries a painting",
+                        "entity Painting at " + anchor.cell().x() + ","
+                                + anchor.cell().y() + "," + anchor.cell().z());
+                return;
+            }
+            ledger.entityImported();
+            return;
+        }
+        // The item frame: the displayed stack + the rotation (the
+        // legacy Direction form doubles the rotation — the reference's
+        // own old-format repair, ItemFrameEntity lines 171-173).
+        int rotation = 0;
+        if (NbtOps.containsNumeric(rows, "ItemRotation")) {
+            rotation = NbtOps.getByte(rows, "ItemRotation");
+        }
+        boolean legacyDirectionForm = NbtOps.containsNumeric(rows, "Direction");
+        net.zaminmc.torch.item.ItemStack display = null;
+        if (NbtOps.contains(rows, "Item", Snbt.Tag.Type.COMPOUND)) {
+            display = ItemNbt.read(NbtOps.getCompound(rows, "Item"));
+        }
+        if (display != null && legacyDirectionForm) {
+            rotation = rotation * 2;
+        }
+        ItemFrame landed = system.restoreFrame(anchor.cell(), anchor.facing(), display, rotation);
+        if (landed == null) {
+            ledger.isolated("item frame anchor cell already carries a frame",
+                    "entity ItemFrame at " + anchor.cell().x() + ","
+                            + anchor.cell().y() + "," + anchor.cell().z());
+            return;
+        }
+        if (NbtOps.containsNumeric(rows, "ItemDropChance")) {
+            ledger.isolated("item frame's ItemDropChance row has no per-frame surface "
+                            + "(the engine's fixed 1.0, the reference field's own initializer)",
+                    "entity ItemFrame at " + anchor.cell().x() + ","
+                            + anchor.cell().y() + "," + anchor.cell().z());
+        }
+        ledger.entityImported();
+    }
+
+    // ------------------------------------------------------------------ the XP-orb walk
+
+    /**
+     * One XP-orb row (the reference's ExperienceOrbEntity.readCustomNbt:
+     * the Value short is the point total, the Age short resumes the
+     * despawn clock; the Pos row is the spawn position): the exact-value
+     * restore lands the saved amount whole — the burst arms' random
+     * split never touches an imported orb. The {@code Health} row has
+     * no engine surface (the orb model carries no wound clock) — the
+     * ledger names it.
+     */
+    private void importXpOrb(Position at, Map<String, Snbt.Tag> rows) {
+        var manager = content == null ? null : content.orbs();
+        if (manager == null) {
+            // No orb surface wired: the rows count as not-imported.
+            ledger.ignored("Entities (XP-orb rows)", 1);
+            return;
+        }
+        if (!NbtOps.containsNumeric(rows, "Value")) {
+            ledger.isolated("XP orb row without a Value row",
+                    "entity XPOrb at " + at.x() + "," + at.y() + "," + at.z());
+            return;
+        }
+        int value = NbtOps.getShort(rows, "Value");
+        int age = NbtOps.containsNumeric(rows, "Age") ? NbtOps.getShort(rows, "Age") : 0;
+        var landed = manager.spawnRestored(at, value, age);
+        if (landed == null) {
+            ledger.isolated("XP orb spawn withheld (a non-positive Value)",
+                    "entity XPOrb at " + at.x() + "," + at.y() + "," + at.z()
+                            + " Value " + value);
+            return;
+        }
+        if (NbtOps.containsNumeric(rows, "Health")) {
+            ledger.isolated("XP orb's Health row has no engine surface "
+                            + "(the orb model carries no wound clock)",
+                    "entity XPOrb at " + at.x() + "," + at.y() + "," + at.z());
+        }
+        ledger.entityImported();
     }
 
     // ------------------------------------------------------------------ the level rows

@@ -126,6 +126,80 @@ class DecorationSystemTest {
     }
 
     // ------------------------------------------------------------------
+    // The restore arms (the Anvil import's exact-cell form)
+    // ------------------------------------------------------------------
+
+    @Test
+    void theRestoreArmsLandTheExactCellsWithoutTheFitRoll() throws Exception {
+        // The reference's readCustomNbt load walk: the saved anchor,
+        // facing, motive, display and rotation land WHOLE — no placement
+        // fit roll, no survival gate (a wall-less body stays until the
+        // per-100-tick validation poll drops it, exactly the reference's
+        // own load), and a duplicate anchor refuses loudly rather than
+        // silently evicting the first body.
+        EngineServer server = boot();
+        try {
+            // The frame: an exact cell against OPEN AIR (the survival
+            // gate would refuse on the placement path — the restore arm
+            // lands it anyway, the poll owns the later drop).
+            BlockPosition frameCell = new BlockPosition(30, 40, 30);
+            AtomicReference<ItemFrame> frame = new AtomicReference<>();
+            server.ticker().submit(() -> frame.set(
+                    server.decorations().restoreFrame(frameCell, 3,
+                            ItemStack.of(BuiltinItems.DIAMOND, 1), 5)));
+            await(server, () -> frame.get() != null, "the restore answered");
+            assertNotNull(frame.get(), "the frame landed against open air (no survival gate)");
+            assertEquals(3, frame.get().facing(), "the saved facing lands whole");
+            assertEquals("diamond", frame.get().display().type().identifier().value(),
+                    "the saved display stack lands (the size-1 copy rule)");
+            assertEquals(1, frame.get().display().count(), "the frame never holds more than one");
+            assertEquals(5, frame.get().rotation(), "the saved rotation lands whole");
+            assertNotNull(server.decorations().frameAt(frameCell),
+                    "the frame hangs in the exact saved cell");
+
+            // The duplicate anchor refuses (the occupied-cell rule — the
+            // engine keys frames by wall cell, so a second body would
+            // silently evict the first; the restore arm refuses instead).
+            AtomicReference<ItemFrame> duplicate = new AtomicReference<>(frame.get());
+            server.ticker().submit(() -> duplicate.set(
+                    server.decorations().restoreFrame(frameCell, 1, null, 0)));
+            await(server, () -> duplicate.get() == null, "the duplicate answered");
+            assertNull(duplicate.get(), "the occupied anchor refused the second frame");
+            assertEquals(3, server.decorations().frameAt(frameCell).facing(),
+                    "the first body keeps its cell");
+
+            // The painting: the exact motive lands whole (the placement
+            // path's fit roll never runs — the saved variant IS the
+            // variant), against open air, with the same duplicate rule.
+            BlockPosition paintingCell = new BlockPosition(35, 40, 35);
+            AtomicReference<Painting> painting = new AtomicReference<>();
+            server.ticker().submit(() -> painting.set(
+                    server.decorations().restorePainting(paintingCell, 0,
+                            Painting.Motive.KEBAB)));
+            await(server, () -> painting.get() != null, "the painting restore answered");
+            assertNotNull(painting.get(), "the painting landed against open air");
+            assertEquals(Painting.Motive.KEBAB, painting.get().motive(),
+                    "the saved motive lands whole — no fit roll");
+            assertEquals(0, painting.get().facing(), "the saved facing");
+            assertNotNull(server.decorations().paintingAt(paintingCell));
+            AtomicReference<Painting> duplicatePainting = new AtomicReference<>(painting.get());
+            server.ticker().submit(() -> duplicatePainting.set(
+                    server.decorations().restorePainting(paintingCell, 2,
+                            Painting.Motive.BUST)));
+            await(server, () -> duplicatePainting.get() == null, "the duplicate painting answered");
+            assertNull(duplicatePainting.get(), "the occupied anchor refused the second painting");
+
+            // The wall-less bodies drop at the validation poll exactly
+            // like the reference's own load (the per-100-tick sweep).
+            await(server, () -> server.decorations().frameAt(frameCell) == null
+                            && server.decorations().paintingAt(paintingCell) == null,
+                    "the validation poll swept the wall-less bodies");
+        } finally {
+            server.shutdown(() -> { });
+        }
+    }
+
+    // ------------------------------------------------------------------
     // The frame's interact ladder (ItemFrameEntity.interact lines 180-194)
     // ------------------------------------------------------------------
 
