@@ -1333,6 +1333,51 @@ final class TestClient18 implements AutoCloseable {
         throw new IOException("Timed out waiting for an entity teleport of " + entityId);
     }
 
+    /**
+     * Reads any movement-family packet for the given entity (the Wave VI
+     * tracked-move optimization: the small deltas ride Rel Move 0x15 /
+     * Rel Move Look 0x17, the window violations and first publications
+     * keep Entity Teleport 0x18) — returning
+     * {packetId, xOrDx32, yOrDy32, zOrDz32, onGround} where the relative
+     * forms carry the DELTA and the teleport the absolute fixed point.
+     */
+    int[] readEntityMoveFamilyOf(int entityId, long timeoutMs) throws IOException {
+        long deadline = System.currentTimeMillis() + timeoutMs;
+        while (System.currentTimeMillis() < deadline) {
+            byte[] payload = readPacketOfTypes(new int[] {
+                    Protocol18.S2C_REL_ENTITY_MOVE,
+                    Protocol18.S2C_REL_ENTITY_MOVE_LOOK,
+                    Protocol18.S2C_ENTITY_TELEPORT},
+                    Math.max(1, deadline - System.currentTimeMillis()));
+            ByteBuf buffer = Unpooled.wrappedBuffer(payload);
+            int packetId = ByteBufOps.readVarInt(buffer);
+            int id = ByteBufOps.readVarInt(buffer);
+            int a;
+            int b;
+            int c;
+            if (packetId == Protocol18.S2C_ENTITY_TELEPORT) {
+                a = buffer.readInt();
+                b = buffer.readInt();
+                c = buffer.readInt();
+                buffer.readByte(); // yaw
+                buffer.readByte(); // pitch
+            } else {
+                a = buffer.readByte();
+                b = buffer.readByte();
+                c = buffer.readByte();
+                if (packetId == Protocol18.S2C_REL_ENTITY_MOVE_LOOK) {
+                    buffer.readByte(); // yaw
+                    buffer.readByte(); // pitch
+                }
+            }
+            boolean onGround = buffer.readBoolean();
+            if (id == entityId) {
+                return new int[]{packetId, a, b, c, onGround ? 1 : 0};
+            }
+        }
+        throw new IOException("Timed out waiting for a movement packet of " + entityId);
+    }
+
     /** Reads a Collect Item packet, returning {collectedEntityId, collectorEntityId}. */
     int[] readCollectItem(long timeoutMs) throws IOException {
         byte[] payload = readPacketOfType(Protocol18.S2C_COLLECT_ITEM, timeoutMs);

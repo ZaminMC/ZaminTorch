@@ -71,15 +71,18 @@ class VehicleIntegrationTest extends ProtocolTestBase {
             assertEquals(1, mount[2], "the attach names the riding state");
             assertNotEquals(-1, mount[1], "the attach names the vehicle");
 
-            // The steer: forward drives the body (Entity Teleport per tick).
-            // A floating boat emits no teleport until it actually moves, so
+            // The steer: forward drives the body (the tracked-move family:
+            // the Wave VI optimization rides Rel Move for the small deltas,
+            // the first publication after the spawn keeps the teleport).
+            // A floating boat emits no move until it actually moves, so
             // the anchor is the spawn packet's own fixed-point position.
             for (int i = 0; i < 10; i++) {
                 client.sendSteerVehicle(0.0f, 1.0f, 0);
                 Thread.sleep(60);
             }
-            int[] after = client.readEntityTeleportOf(boatId, 20_000);
-            boolean moved = after[0] != spawn[2] || after[2] != spawn[4];
+            int[] after = client.readEntityMoveFamilyOf(boatId, 20_000);
+            boolean moved = after[0] != Protocol18.S2C_ENTITY_TELEPORT
+                    || after[1] != spawn[2] || after[3] != spawn[4];
             assertTrue(moved, "the steered boat left its spawn spot");
 
             // The unmount: the jump bit's 0x02 opens the seat.
@@ -140,17 +143,21 @@ class VehicleIntegrationTest extends ProtocolTestBase {
                 client.sendSteerVehicle(0.0f, 1.0f, 0);
                 Thread.sleep(60);
             }
-            // The first per-tick teleport can floor to the spawn's own
+            // The first per-tick move can floor to the spawn's own
             // fixed-point cell (0.02 blocks is 0.64 units), so drain the
-            // stream until a teleport actually differs from the spawn.
-            int[] after = client.readEntityTeleportOf(cartId, 20_000);
+            // stream until a move actually differs from the spawn — a
+            // RELATIVE form (0x15/0x17) differs by construction (the
+            // tracked-move consult only sends them past the 4/32 band).
+            int[] after = client.readEntityMoveFamilyOf(cartId, 20_000);
             long movedDeadline = System.currentTimeMillis() + 5_000;
-            while (after[0] == spawn[2] && after[2] == spawn[4]
+            while (after[0] == Protocol18.S2C_ENTITY_TELEPORT
+                    && after[1] == spawn[2] && after[3] == spawn[4]
                     && System.currentTimeMillis() < movedDeadline) {
-                after = client.readEntityTeleportOf(cartId,
+                after = client.readEntityMoveFamilyOf(cartId,
                         movedDeadline - System.currentTimeMillis());
             }
-            assertTrue(after[0] != spawn[2] || after[2] != spawn[4],
+            assertTrue(after[0] != Protocol18.S2C_ENTITY_TELEPORT
+                            || after[1] != spawn[2] || after[3] != spawn[4],
                     "the steered cart left its spawn spot");
 
             // The unmount clears the seat like the boat's.
