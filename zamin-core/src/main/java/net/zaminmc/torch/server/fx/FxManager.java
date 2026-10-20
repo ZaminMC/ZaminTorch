@@ -33,7 +33,7 @@ public final class FxManager {
     private static final Logger LOGGER = Logger.getLogger(FxManager.class.getName());
 
     /** One broadcast unit. The adapter translates each kind per its version. */
-    public sealed interface FxEvent permits Sound, BlockShatter, ItemShatter, Poof, Smoke, PotionSplash {
+    public sealed interface FxEvent permits Sound, BlockShatter, StandShatter, ItemShatter, Poof, Smoke, PotionSplash {
     }
 
     /** A named sound at a position (historical 1.8 resource name). */
@@ -50,6 +50,18 @@ public final class FxManager {
         public BlockShatter {
             Objects.requireNonNull(position, "position");
             Objects.requireNonNull(block, "block");
+        }
+    }
+
+    /**
+     * The armor stand's breaking burst (the reference's addBreakingParticles:
+     * BLOCK_DUST over the PLANKS state — count 10, the stand-box offsets
+     * 0.125 × 0.494 × 0.125, speed 0.05, the position at
+     * {@code y + 1.975 / 1.5}).
+     */
+    public record StandShatter(Position position) implements FxEvent {
+        public StandShatter {
+            Objects.requireNonNull(position, "position");
         }
     }
 
@@ -109,6 +121,11 @@ public final class FxManager {
     /** Emits a block-shatter burst. Any thread. */
     public void blockShatter(Position position, BlockType block) {
         emit(new BlockShatter(position, block));
+    }
+
+    /** Emits the armor stand's breaking burst (addBreakingParticles' own shape). Any thread. */
+    public void standShatter(Position position) {
+        emit(new StandShatter(position));
     }
 
     /** Emits an item-shatter crumb burst. Any thread. */

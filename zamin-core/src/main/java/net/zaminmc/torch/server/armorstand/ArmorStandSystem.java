@@ -45,6 +45,10 @@ public final class ArmorStandSystem {
 
         /** A stand's equipment slot changed (the Entity Equipment packet). */
         default void onStandEquipmentChanged(ArmorStand stand, int slot) { }
+
+        /** A stand walked (the reference's tracker teleport arm — the
+         *  relative-move optimization is the tracker's own envelope). */
+        default void onStandMoved(ArmorStand stand) { }
     }
 
     /** The engine surface the system reads (the world + the drops). */
@@ -55,6 +59,9 @@ public final class ArmorStandSystem {
         /** Whether the cell holds air. */
         boolean airAt(BlockPosition pos);
 
+        /** Whether the cell is solid (the walk's floor/wall consult — WorldSolidity's own family). */
+        boolean solidAt(BlockPosition pos);
+
         /** An item drop at a position. */
         void dropItem(Position at, ItemStack stack);
 
@@ -64,6 +71,27 @@ public final class ArmorStandSystem {
 
         /** The engine's tick clock (the double-hit window's stamp). */
         long now();
+
+        /** The breaking-particles burst (the reference's addBreakingParticles:
+         *  BLOCK_DUST over the PLANKS state). */
+        void standBreakingBurst(Position at);
+
+        /** The live RIDEABLE minecarts (the push consult — the reference's
+         *  pushAwayCollidingEntities reads only the rideable family). */
+        java.util.List<CartView> rideableCarts();
+    }
+
+    /** One rideable minecart through the push consult's eyes. */
+    public interface CartView {
+        double x();
+        double y();
+        double z();
+
+        /** Whether a rider occupies the cart (the reference's rider == null gate). */
+        boolean occupied();
+
+        /** The reference's addVelocity. */
+        void addVelocity(double dx, double dy, double dz);
     }
 
     private final Surface surface;
@@ -292,6 +320,9 @@ public final class ArmorStandSystem {
     public boolean attack(ArmorStand stand, boolean creative) {
         Objects.requireNonNull(stand, "stand");
         if (creative) {
+            // The reference's creative arm (lines 416-419): the breaking
+            // particles, then the outright remove (no drops).
+            surface.standBreakingBurst(breakingBurstAt(stand));
             remove(stand);
             return true;
         }
@@ -300,14 +331,23 @@ public final class ArmorStandSystem {
             stand.setLastDamageTime(now); // the wobble: the first hit stamps
             return true;
         }
-        // The break (onBrokenByPlayer lines 475-478): the stand item at
-        // the feet, then the equipment at the head cell (onBroken's own
-        // up() offset).
+        // The break (onBrokenByPlayer lines 475-478): the breaking
+        // particles, then the stand item at the feet, then the equipment
+        // at the head cell (onBroken's own up() offset).
+        surface.standBreakingBurst(breakingBurstAt(stand));
         remove(stand);
         surface.dropItem(new Position(stand.x(), stand.y(), stand.z()),
                 ItemStack.of(BuiltinItems.ARMOR_STAND, 1));
         dropEquipment(stand);
         return true;
+    }
+
+    /**
+     * The breaking particles' position (addBreakingParticles line 452:
+     * {@code y + height / 1.5} over the stand's fixed 0.5 × 1.975 box).
+     */
+    private static Position breakingBurstAt(ArmorStand stand) {
+        return new Position(stand.x(), stand.y() + 1.975 / 1.5, stand.z());
     }
 
     /** The equipment drop (onBroken lines 480-490): every piece at the head cell. */
@@ -343,8 +383,12 @@ public final class ArmorStandSystem {
      * contact) burns for 100 ticks, each burning tick costs the 4.0
      * on-fire toll, and the 0.5 floor breaks the stand (the equipment
      * drops — the stand item does not, the burn's own onBroken arm).
+     * The stand walk and the minecart push run first (the reference's
+     * per-tick order: the movement, then the damage clock).
      */
     public void tick() {
+        walkStands();
+        pushRideableCarts();
         List<ArmorStand> burned = null;
         for (ArmorStand stand : stands.values()) {
             if (stand.fireTicks() <= 0) {
@@ -363,6 +407,161 @@ public final class ArmorStandSystem {
             for (ArmorStand stand : burned) {
                 remove(stand);
                 dropEquipment(stand);
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // The stand walk (the reference's LivingEntity gravity, the named gap)
+    // ------------------------------------------------------------------
+
+    /** The ground friction (the reference's block slipperiness 0.6 * 0.91 — the common-case block). */
+    static final double GROUND_FRICTION = 0.6 * 0.91;
+
+    /**
+     * The stands' gravity walk (the named gap retired — the reference's
+     * LivingEntity.travel else-branch at the engine's static-entity
+     * model): every unflagged stand falls at the reference's own rhythm
+     * (velocityY -= 0.08, then *0.98), lands on the floor below its
+     * feet, and slides when pushed — the ground decays the horizontal
+     * velocity by the block slipperiness family (0.6 * 0.91 for the
+     * common case, the ice family's 0.98 is the envelope), the air
+     * decay is the reference's 0.91. The NoGravity flag (the synced
+     * byte's bit 1) freezes the walk whole; the -64 void window removes
+     * the stand (the reference's outOfWorld guard). Every moved stand
+     * rides the wire through the listener's teleport arm.
+     */
+    private void walkStands() {
+        for (ArmorStand stand : stands.values()) {
+            if (stand.noGravity()) {
+                continue; // the synced flag's own gate (the reference's noGravity)
+            }
+            double vy = stand.velocityY() - 0.08;
+            vy *= 0.98;
+            double vx = stand.velocityX();
+            double vz = stand.velocityZ();
+            if (stand.onGround()) {
+                vx *= GROUND_FRICTION;
+                vz *= GROUND_FRICTION;
+            } else {
+                vx *= 0.91;
+                vz *= 0.91;
+            }
+            double feetX = stand.x();
+            double feetZ = stand.z();
+            // The vertical move with the floor clip: the cell below the
+            // feet holds the stand up at its top.
+            double targetY = stand.y() + vy;
+            int belowCell = (int) Math.floor(stand.y() - 0.06);
+            BlockPosition below = new BlockPosition(
+                    (int) Math.floor(feetX), belowCell, (int) Math.floor(feetZ));
+            boolean landed = surface.solidAt(below);
+            double newY;
+            if (landed && targetY < belowCell + 1.0) {
+                newY = belowCell + 1.0;
+                vy = 0.0;
+            } else {
+                newY = targetY;
+            }
+            // The horizontal moves with the wall clip (the stand's box
+            // spans the feet cell and the head cell above it).
+            int feetCell = (int) Math.floor(newY);
+            double newX = feetX;
+            double newZ = feetZ;
+            if (Math.abs(vx) >= 1e-9) {
+                double targetX = feetX + vx;
+                int cellX = (int) Math.floor(targetX);
+                if (!surface.solidAt(new BlockPosition(cellX, feetCell, (int) Math.floor(feetZ)))
+                        && !surface.solidAt(new BlockPosition(cellX, feetCell + 1, (int) Math.floor(feetZ)))) {
+                    newX = targetX;
+                } else {
+                    vx = 0.0;
+                }
+            }
+            if (Math.abs(vz) >= 1e-9) {
+                double targetZ = feetZ + vz;
+                int cellZ = (int) Math.floor(targetZ);
+                if (!surface.solidAt(new BlockPosition((int) Math.floor(newX), feetCell, cellZ))
+                        && !surface.solidAt(new BlockPosition((int) Math.floor(newX), feetCell + 1, cellZ))) {
+                    newZ = targetZ;
+                } else {
+                    vz = 0.0;
+                }
+            }
+            boolean grounded = landed && newY == belowCell + 1.0;
+            stand.setVelocity(vx, vy, vz);
+            stand.setOnGround(grounded);
+            if (newX != stand.x() || newY != stand.y() || newZ != stand.z()) {
+                stand.moveTo(newX, newY, newZ);
+                if (stand.y() < -64.0) {
+                    // The reference's outOfWorld guard (Entity.baseTick's
+                    // y < -64 kill): the stand falls out and is removed.
+                    remove(stand);
+                    continue;
+                }
+                for (Listener listener : listeners) {
+                    listener.onStandMoved(stand);
+                }
+            } else {
+                stand.setOnGround(grounded);
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // The minecart push (pushAwayCollidingEntities, the named gap)
+    // ------------------------------------------------------------------
+
+    /**
+     * The armor stand's own push walk (the reference's
+     * pushAwayCollidingEntities + Entity.push, 1:1): the stand pushes no
+     * one through the ordinary entity-collision path (isPushable false,
+     * pushAway empty) — but every RIDEABLE minecart within the 0.2
+     * squared-distance band gets the reference's push, BOTH sides apart:
+     * the direction vector off the cart-to-stand axis, the 1/d² cap, the
+     * 0.05 scale, the 0.0 push-speed reduction (the minecart family
+     * carries none), the cart's rider gate (an occupied cart is not
+     * pushed), and the stand's own addVelocity (the engine's stands
+     * never carry riders).
+     */
+    private void pushRideableCarts() {
+        java.util.List<CartView> carts = surface.rideableCarts();
+        if (carts.isEmpty()) {
+            return;
+        }
+        for (ArmorStand stand : stands.values()) {
+            for (CartView cart : carts) {
+                double dx = stand.x() - cart.x();
+                double dy = stand.y() - cart.y();
+                double dz = stand.z() - cart.z();
+                if (dx * dx + dy * dy + dz * dz > 0.2) {
+                    continue; // squaredDistanceTo's own band
+                }
+                // Entity.push (lines 969-1002) with this = the cart:
+                // d0 = the STAND's x minus the CART's x.
+                double d0 = stand.x() - cart.x();
+                double d1 = stand.z() - cart.z();
+                double d2 = Math.abs(d0) > Math.abs(d1) ? Math.abs(d0) : Math.abs(d1);
+                if (d2 < 0.01) {
+                    continue;
+                }
+                d2 = Math.sqrt(d2);
+                d0 /= d2;
+                d1 /= d2;
+                double d3 = 1.0 / d2;
+                if (d3 > 1.0) {
+                    d3 = 1.0;
+                }
+                d0 *= d3;
+                d1 *= d3;
+                d0 *= 0.05;
+                d1 *= 0.05;
+                // pushSpeedReduction is 0.0 for the minecart family (the
+                // reference's own default — the multiplier is a no-op).
+                if (!cart.occupied()) {
+                    cart.addVelocity(-d0, 0.0, -d1);
+                }
+                stand.addVelocity(d0, 0.0, d1);
             }
         }
     }

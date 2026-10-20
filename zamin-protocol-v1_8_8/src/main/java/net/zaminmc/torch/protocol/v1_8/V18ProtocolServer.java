@@ -984,6 +984,18 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                     connection.sendStandEquipment(stand, slot);
                 }
             }
+
+            @Override
+            public void onStandMoved(net.zaminmc.torch.server.armorstand.ArmorStand stand) {
+                // The reference's tracker teleport arm (the walk's wire
+                // sync — the relative-move optimization stays the
+                // tracker's own envelope).
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendEntityTeleport(stand.entityId(),
+                            new net.zaminmc.torch.util.Position(stand.x(), stand.y(), stand.z()),
+                            stand.onGround());
+                }
+            }
         });
         // The ender crystals (Slice 62): the Spawn Object 200 + the slot-8
         // Int + the Destroy — the connection's own dimension gate (1) and
