@@ -2014,58 +2014,7 @@ public final class EngineServer implements Server, EngineBridge {
                         config.worldDataDir().resolve("vehicles.bin"));
                 vehicles.restoreAll(vehicleStore.load(),
                         () -> hopperSystem::hopperCartTransfer,
-                        () -> new net.zaminmc.torch.server.entity.vehicle.SpawnerMinecartEntity.SpawnHost() {
-                            /** The 16-block player gate (isNearPlayer's own). */
-                            @Override public boolean playerNearby(double x, double y, double z) {
-                                for (PlayerSession player : players.all()) {
-                                    if (player.state() != net.zaminmc.torch.entity.PlayerState.PLAYING) {
-                                        continue;
-                                    }
-                                    double dx = player.position().x() - x;
-                                    double dy = player.position().y() - y;
-                                    double dz = player.position().z() - z;
-                                    if (dx * dx + dy * dy + dz * dz <= 16.0 * 16.0) {
-                                        return true;
-                                    }
-                                }
-                                return false;
-                            }
-
-                            /** The nearby cap's same-kind count. */
-                            @Override public int nearbyOfKind(
-                                    net.zaminmc.torch.server.entity.MobType type,
-                                    int cellX, int cellY, int cellZ) {
-                                int nearby = 0;
-                                for (var mob : mobManager.all()) {
-                                    if (mob.type() != type) {
-                                        continue;
-                                    }
-                                    net.zaminmc.torch.util.Position at = mob.position();
-                                    if (Math.abs(at.x() - (cellX + 0.5))
-                                            <= net.zaminmc.torch.server.entity.vehicle.SpawnerMinecartEntity.SPAWN_RANGE
-                                            && Math.abs(at.y() - (cellY + 0.5))
-                                            <= net.zaminmc.torch.server.entity.vehicle.SpawnerMinecartEntity.SPAWN_RANGE
-                                            && Math.abs(at.z() - (cellZ + 0.5))
-                                            <= net.zaminmc.torch.server.entity.vehicle.SpawnerMinecartEntity.SPAWN_RANGE) {
-                                        nearby++;
-                                    }
-                                }
-                                return nearby;
-                            }
-
-                            /** The unobstructed spawn (the engine's cell gate). */
-                            @Override public boolean spawnAt(
-                                    net.zaminmc.torch.server.entity.MobType type,
-                                    double x, double y, double z) {
-                                if (!net.zaminmc.torch.server.spawner.SpawnerManager
-                                        .canSpawnAt(world, type, x, y, z)) {
-                                    return false;
-                                }
-                                var spawned = mobManager.spawnAt(type,
-                                        new net.zaminmc.torch.util.Position(x, y, z));
-                                return spawned != null;
-                            }
-                        },
+                        this::spawnerCartHost,
                         this::commandCartHost);
                 // The fishing (Slice 67 — FishingBobberEntity +
                 // FishingRodItem): the cast/float/bite-window/retrieve walk
@@ -11276,6 +11225,69 @@ public final class EngineServer implements Server, EngineBridge {
     private net.zaminmc.torch.server.entity.vehicle.CommandBlockMinecartEntity.CommandHost
             commandCartHost() {
         return this::runCommandCart;
+    }
+
+    /**
+     * The spawner cart's spawn surface (Slice 66 — the same host the
+     * restart restore and the live spawn paths share): the 16-block
+     * player gate, the nearby cap's same-kind count over the SPAWN_RANGE
+     * box, and the unobstructed spawn through the engine's own spawner
+     * surfaces (SpawnerManager.canSpawnAt + the /summon machinery).
+     */
+    private net.zaminmc.torch.server.entity.vehicle.SpawnerMinecartEntity.SpawnHost
+            spawnerCartHost() {
+        return new net.zaminmc.torch.server.entity.vehicle.SpawnerMinecartEntity.SpawnHost() {
+            /** The 16-block player gate (isNearPlayer's own). */
+            @Override public boolean playerNearby(double x, double y, double z) {
+                for (PlayerSession player : players.all()) {
+                    if (player.state() != net.zaminmc.torch.entity.PlayerState.PLAYING) {
+                        continue;
+                    }
+                    double dx = player.position().x() - x;
+                    double dy = player.position().y() - y;
+                    double dz = player.position().z() - z;
+                    if (dx * dx + dy * dy + dz * dz <= 16.0 * 16.0) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            /** The nearby cap's same-kind count. */
+            @Override public int nearbyOfKind(
+                    net.zaminmc.torch.server.entity.MobType type,
+                    int cellX, int cellY, int cellZ) {
+                int nearby = 0;
+                for (var mob : mobManager.all()) {
+                    if (mob.type() != type) {
+                        continue;
+                    }
+                    net.zaminmc.torch.util.Position at = mob.position();
+                    if (Math.abs(at.x() - (cellX + 0.5))
+                            <= net.zaminmc.torch.server.entity.vehicle.SpawnerMinecartEntity.SPAWN_RANGE
+                            && Math.abs(at.y() - (cellY + 0.5))
+                            <= net.zaminmc.torch.server.entity.vehicle.SpawnerMinecartEntity.SPAWN_RANGE
+                            && Math.abs(at.z() - (cellZ + 0.5))
+                            <= net.zaminmc.torch.server.entity.vehicle.SpawnerMinecartEntity.SPAWN_RANGE) {
+                        nearby++;
+                    }
+                }
+                return nearby;
+            }
+
+            /** The unobstructed spawn (the engine's cell gate). */
+            @Override public boolean spawnAt(
+                    net.zaminmc.torch.server.entity.MobType type,
+                    double x, double y, double z) {
+                if (!net.zaminmc.torch.server.spawner.SpawnerManager
+                        .canSpawnAt(world, type, x, y, z)) {
+                    return false;
+                }
+                var spawned = mobManager.spawnAt(type,
+                        new net.zaminmc.torch.util.Position(x, y, z));
+                return spawned != null;
+            }
+        };
     }
 
     /**
@@ -22215,7 +22227,12 @@ public final class EngineServer implements Server, EngineBridge {
                         new net.zaminmc.torch.server.world.anvil.AnvilWorldImport.ContentSeams(
                                 tileNbt, mobManager, itemEntities, potionSystem,
                                 mob -> mobManager.equipmentChanged(mob),
-                                scheduledTickSystem));
+                                scheduledTickSystem,
+                                new net.zaminmc.torch.server.world.anvil.AnvilWorldImport.VehicleSeams(
+                                        vehicleManager,
+                                        () -> hopperSystem::hopperCartTransfer,
+                                        this::spawnerCartHost,
+                                        this::commandCartHost)));
         try {
             io.submit(domain, "anvil-import-open", () -> {
                 // The folder inventory + the level bytes, all on the I/O
