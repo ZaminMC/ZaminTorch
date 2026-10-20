@@ -2470,6 +2470,7 @@ public final class EngineServer implements Server, EngineBridge {
                     profiled("brewingViewers", this::tickBrewingViewers);
                     profiled("beaconViewers", this::tickBeaconViewers);
                     profiled("enchantingViewers", this::tickEnchantingViewers);
+                    profiled("anvilViewers", this::tickAnvilViewers);
                     profiled("chestViewers", this::tickChestViewers);
                     profiled("hopperViewers", this::tickHopperViewers);
                     profiled("dispenserViewers", this::tickDispenserViewers);
@@ -3977,6 +3978,20 @@ public final class EngineServer implements Server, EngineBridge {
         enchantingViewListeners.add(listener);
     }
 
+    /** A per-tick anvil-window view: the adapter diffs revision + the cost property. */
+    public interface AnvilViewListener {
+        void onAnvilViewTick(PlayerSession viewer,
+                             net.zaminmc.torch.server.enchantment.AnvilMenu menu);
+    }
+
+    private final java.util.List<AnvilViewListener> anvilViewListeners =
+            new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    /** Registers an internal anvil-view observer (the protocol adapter's sync). */
+    public void addAnvilViewListener(AnvilViewListener listener) {
+        anvilViewListeners.add(listener);
+    }
+
     /** Fans per-tick furnace-window views out to the open viewer(s). Tick-thread context. */
     private void tickFurnaceViewers() {
         for (PlayerSession session : players.all()) {
@@ -4180,6 +4195,35 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /**
+     * Fans per-tick anvil-window views out to the open viewer, after the
+     * reference {@code isValid} walk: the anvil must still stand and the
+     * player must remain within squared distance 64 of its center — a
+     * stale window closes with the vanilla drop (the tick the gate turns
+     * false). Tick-thread context.
+     */
+    private void tickAnvilViewers() {
+        for (PlayerSession session : players.all()) {
+            if (session.openContainerKind() != PlayerSession.ContainerKind.ANVIL
+                    || session.openContainerWindowId() < 0) {
+                continue;
+            }
+            var menu = session.anvilMenu();
+            if (menu == null) {
+                continue;
+            }
+            var position = session.position();
+            if (!menu.stillValid(world::getBlock, position.x(), position.y(), position.z())) {
+                closeAnvilMenuOnTick(session);
+                publishInventoryChanged(session);
+                continue;
+            }
+            for (AnvilViewListener listener : anvilViewListeners) {
+                listener.onAnvilViewTick(session, menu);
+            }
+        }
+    }
+
+    /**
      * The vanilla close of an enchanting window: the menu's two slots DROP to
      * the world at the player (the reference {@code close} walk), then the
      * window state clears. Tick-thread context.
@@ -4193,6 +4237,25 @@ public final class EngineServer implements Server, EngineBridge {
                 }
             }
             session.setEnchantingMenu(null);
+        }
+        session.closeContainerWindow();
+    }
+
+    /**
+     * The vanilla close of an anvil window (the reference {@code close}
+     * lines 294-305): the two INPUT slots drop to the world at the player;
+     * the output is a server-only projection and is never returned.
+     * Tick-thread context.
+     */
+    private void closeAnvilMenuOnTick(PlayerSession session) {
+        var menu = session.anvilMenu();
+        if (menu != null) {
+            for (net.zaminmc.torch.item.ItemStack stack : menu.closeDrop()) {
+                if (!stack.isEmpty()) {
+                    throwFromPlayer(session, stack);
+                }
+            }
+            session.setAnvilMenu(null);
         }
         session.closeContainerWindow();
     }
@@ -6740,6 +6803,7 @@ public final class EngineServer implements Server, EngineBridge {
                     case HORSE -> clickHorseWindowOnTick(session, wireSlot, button, mode);
                     case VILLAGER -> clickVillagerWindowOnTick(session, wireSlot, button, mode);
                     case ENCHANTING_TABLE -> clickEnchantingWindowOnTick(session, wireSlot, button, mode);
+                    case ANVIL -> clickAnvilWindowOnTick(session, wireSlot, button, mode);
                     default -> false;
                 };
             }
@@ -7321,6 +7385,211 @@ public final class EngineServer implements Server, EngineBridge {
             return wireSlot - 29; // hotbar (engine 0-8)
         }
         return -1;
+    }
+
+    /** The anvil window's player-tail mapping (wire 3-29 main, 30-38 hotbar). */
+    private static int anvilEngineSlotOf(int wireSlot) {
+        if (wireSlot >= 3 && wireSlot <= 29) {
+            return wireSlot + 6; // main inventory (engine 9-35)
+        }
+        if (wireSlot >= 30 && wireSlot <= 38) {
+            return wireSlot - 30; // hotbar (engine 0-8)
+        }
+        return -1;
+    }
+
+    /** The session-backed Repairer (the take's XP consults). Tick-thread context. */
+    private static net.zaminmc.torch.server.enchantment.AnvilMenu.Repairer anvilRepairerOf(PlayerSession session) {
+        return new net.zaminmc.torch.server.enchantment.AnvilMenu.Repairer() {
+            @Override
+            public int xpLevel() {
+                return session.experienceLevel();
+            }
+
+            @Override
+            public boolean creative() {
+                return session.gamemode() == GameMode.CREATIVE;
+            }
+
+            @Override
+            public void addXpLevels(int levels) {
+                session.addXpLevels(levels);
+            }
+        };
+    }
+
+    /**
+     * The take's block side (the reference onItemRemoved's world consults):
+     * the 0.12 roll's anvil read and the DAMAGE-band walk over the world's
+     * own twelve-state family, the 1020/1021 world events answered through
+     * the FxManager's sound fan (the landing's own 1022 convention).
+     * Tick-thread context.
+     */
+    private net.zaminmc.torch.server.enchantment.AnvilMenu.AnvilSite anvilSiteAt(
+            net.zaminmc.torch.block.BlockPosition position) {
+        return new net.zaminmc.torch.server.enchantment.AnvilMenu.AnvilSite() {
+            @Override
+            public boolean anvilStands() {
+                return net.zaminmc.torch.server.block.AnvilBlocks
+                        .isAnvil(world.getBlock(position).identifier());
+            }
+
+            @Override
+            public int damageState() {
+                return net.zaminmc.torch.server.block.AnvilBlocks
+                        .damageOf(world.getBlock(position).identifier());
+            }
+
+            @Override
+            public void progressDamage() {
+                var current = world.getBlock(position);
+                int facing = net.zaminmc.torch.server.block.AnvilBlocks
+                        .facingOf(current.identifier());
+                int next = net.zaminmc.torch.server.block.AnvilBlocks
+                        .progressedDamage(net.zaminmc.torch.server.block.AnvilBlocks
+                                .damageOf(current.identifier()));
+                world.setBlock(position, net.zaminmc.torch.server.block.AnvilBlocks
+                        .state(facing, next));
+                soundAt(position, "random.anvil_use"); // doEvent 1021
+            }
+
+            @Override
+            public void breakAnvil() {
+                world.setBlock(position, net.zaminmc.torch.server.block.BuiltinBlocks.AIR);
+                soundAt(position, "random.anvil_break"); // doEvent 1020
+            }
+
+            @Override
+            public void useSound() {
+                soundAt(position, "random.anvil_use"); // doEvent 1021
+            }
+
+            private void soundAt(net.zaminmc.torch.block.BlockPosition at, String name) {
+                fxManager.sound(new Position(at.x() + 0.5, at.y() + 0.5, at.z() + 0.5),
+                        name, 1.0f, 1.0f);
+            }
+        };
+    }
+
+    /**
+     * Click routing for the anvil window (the reference AnvilMenu's slot
+     * layout: wire 0/1 the two inputs, 2 the output projection, 3-29 the
+     * main inventory, 30-38 the hotbar). The output take runs the full
+     * reference walk — the XP payment, the input consume, the 0.12 anvil
+     * damage roll. Tick-thread context.
+     */
+    private boolean clickAnvilWindowOnTick(PlayerSession session, int wireSlot, int button,
+                                           int mode) {
+        var inventory = session.inventory();
+        var menu = session.anvilMenu();
+        if (menu == null) {
+            return false; // stale window (state discarded): rejected, resync restores
+        }
+        switch (mode) {
+            case 0 -> {
+                if (wireSlot == 0 || wireSlot == 1) {
+                    return menu.clickInput(wireSlot, button, inventory.cursorBox());
+                }
+                if (wireSlot == 2) {
+                    return takeAnvilOutputToCursor(session, menu, button);
+                }
+                int engineSlot = anvilEngineSlotOf(wireSlot);
+                if (engineSlot >= 0) {
+                    inventory.clickSlot(engineSlot, button);
+                    return true;
+                }
+                return false;
+            }
+            case 1 -> {
+                if (wireSlot == 0 || wireSlot == 1) {
+                    menu.quickMoveToInventory(wireSlot, inventory::pickUp);
+                    return true;
+                }
+                if (wireSlot == 2) {
+                    return quickMoveAnvilOutput(session, menu);
+                }
+                int engineSlot = anvilEngineSlotOf(wireSlot);
+                if (engineSlot >= 0) {
+                    ItemStack moving = inventory.dropFromSlot(engineSlot, true);
+                    if (moving.isEmpty()) {
+                        return true; // an empty player slot: nothing to move, nothing changed
+                    }
+                    ItemStack leftover = menu.quickMoveFromPlayer(moving);
+                    if (!leftover.isEmpty()) {
+                        inventory.pickUp(leftover); // refused or partial: the rest stays
+                    }
+                    return true;
+                }
+                return false;
+            }
+            case 2 -> {
+                // Number keys exchange main inventory and hotbar only; the
+                // menu slots are rejected per packet (the historical rule,
+                // the enchanting family's own finding).
+                int engineSlot = anvilEngineSlotOf(wireSlot);
+                if (engineSlot >= PlayerInventory.HOTBAR_SLOTS && button >= 0 && button < 9) {
+                    inventory.swapWithHotbar(engineSlot, button);
+                    return true;
+                }
+                return false;
+            }
+            default -> {
+                return false;
+            }
+        }
+    }
+
+    /**
+     * The output take into the cursor (the reference PICKUP walk over the
+     * output slot: the canPickUp gate, both buttons taking, then the full
+     * onItemRemoved walk — the XP payment, the consume, the 0.12 roll).
+     * Tick-thread context.
+     */
+    private boolean takeAnvilOutputToCursor(PlayerSession session,
+                                            net.zaminmc.torch.server.enchantment.AnvilMenu menu,
+                                            int button) {
+        var repairer = anvilRepairerOf(session);
+        if (!menu.canTakeOutput(repairer)) {
+            return false; // the XP gate: the take refuses, the resync reverts
+        }
+        ItemStack result = menu.output();
+        if (result.isEmpty()) {
+            return false; // no projection: nothing to take
+        }
+        ItemStack wanted = button == 1
+                ? result.withCount((result.count() + 1) / 2) : result;
+        if (!session.inventory().takeResultToCursor(wanted)) {
+            return false; // a mismatched cursor: the take refuses
+        }
+        menu.takeOutput(repairer, session.playerRandom(),
+                anvilSiteAt(session.openContainerPosition()));
+        publishExperienceChanged(session); // the payment moved the level bar
+        return true;
+    }
+
+    /**
+     * The output quick-move into the player's inventory (the reference
+     * quickMoveItem slot-2 arm: the reverse-range move, then the full
+     * onItemRemoved walk). Tick-thread context.
+     */
+    private boolean quickMoveAnvilOutput(PlayerSession session,
+                                         net.zaminmc.torch.server.enchantment.AnvilMenu menu) {
+        var repairer = anvilRepairerOf(session);
+        if (!menu.canTakeOutput(repairer)) {
+            return false;
+        }
+        ItemStack result = menu.output();
+        if (result.isEmpty()) {
+            return false;
+        }
+        ItemStack leftover = session.inventory().pickUp(result);
+        if (leftover.equals(result)) {
+            return false; // nothing moved: the reference's moveItem refusal
+        }
+        menu.takeOutput(repairer, session.playerRandom(),
+                anvilSiteAt(session.openContainerPosition()));
+        publishExperienceChanged(session);
+        return true;
     }
 
     /**
@@ -8287,6 +8556,13 @@ public final class EngineServer implements Server, EngineBridge {
         }
         if (current.identifier().equals(net.zaminmc.torch.server.block.BuiltinBlocks.ENCHANTING_TABLE.identifier())) {
             openEnchantingTableOnTick(session, clicked, onTableOpened);
+            return true;
+        }
+        if (net.zaminmc.torch.server.block.AnvilBlocks.isAnvil(current.identifier())) {
+            // AnvilBlock.use lines 53-59: the repair + rename menu opens over
+            // the twelve-state family's every form — the click consumes the
+            // use (the reference's true), the item stage never runs.
+            openAnvilOnTick(session, clicked, onTableOpened);
             return true;
         }
         if (cycleRepeaterDelayOnTick(clicked)) {
@@ -12568,6 +12844,46 @@ public final class EngineServer implements Server, EngineBridge {
         });
     }
 
+    /**
+     * The MC|ItemName landing (the reference ServerPlayNetworkHandler lines
+     * 1081-1091): the rename text a client sent while ITS anvil window is
+     * open — the invalid characters strip, the 30-character cap (an over-cap
+     * name lands never), and the menu's {@code setItemName} recompute. Only
+     * the open ANVIL window answers; every other window ignores the channel.
+     * Safe from any thread; the application runs on the tick thread.
+     */
+    public void anvilItemName(PlayerSession session, String name) {
+        Objects.requireNonNull(session, "session");
+        String sanitized = name == null ? null : stripInvalidCharacters(name);
+        ticker.submit(() -> {
+            var menu = session.anvilMenu();
+            if (menu == null || session.openContainerKind() != PlayerSession.ContainerKind.ANVIL) {
+                return; // no anvil window: the channel lands nowhere
+            }
+            if (sanitized != null && sanitized.length() > 30) {
+                return; // the reference's own cap: an over-length name lands never
+            }
+            menu.setItemName(sanitized);
+            publishInventoryChanged(session);
+        });
+    }
+
+    /**
+     * The reference {@code SharedConstants.stripInvalidChars}: the control
+     * characters and DEL drop; every printable character stays (the same
+     * filter the item-name sanitize answers).
+     */
+    private static String stripInvalidCharacters(String text) {
+        StringBuilder cleaned = new StringBuilder(text.length());
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (c >= 0x20 && c != 0x7F) {
+                cleaned.append(c);
+            }
+        }
+        return cleaned.toString();
+    }
+
     public void tradeSelect(PlayerSession player, int offerIndex) {
         Objects.requireNonNull(player, "player");
         ticker.submit(() -> {
@@ -13087,6 +13403,34 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /**
+     * Opens the anvil's repair + rename container at the clicked block (the
+     * reference AnvilBlock.use lines 53-59 through its MenuProvider): assigns
+     * the wire window id, creates the per-open menu (the reference ctor — the
+     * position for the walk-away gate, the creative consult for the 40 gate
+     * and the merge arms), closes any carried window first, and reports the
+     * id for the adapter's Open Window + slot/property sync. The menu's two
+     * inputs are transient — closing drops both to the world (the reference
+     * close); the output is a computed projection, never returned. The
+     * shared §27.7 container-open observation fires inside
+     * {@code openContainerWindow} with the ANVIL kind. Tick-thread context.
+     */
+    private void openAnvilOnTick(PlayerSession session,
+                                  net.zaminmc.torch.block.BlockPosition position,
+                                  java.util.function.IntConsumer onTableOpened) {
+        closeOpenContainerOnTick(session);
+        dropGridToWorld(session, session.crafting()); // the vanilla close: the 2x2 grid drops
+
+        var menu = new net.zaminmc.torch.server.enchantment.AnvilMenu(position,
+                () -> session.gamemode() == GameMode.CREATIVE);
+        session.setAnvilMenu(menu);
+        int windowId = nextContainerWindowId;
+        nextContainerWindowId = nextContainerWindowId >= LAST_CONTAINER_WINDOW_ID
+                ? FIRST_CONTAINER_WINDOW_ID : nextContainerWindowId + 1;
+        session.openContainerWindow(windowId, PlayerSession.ContainerKind.ANVIL, position);
+        onTableOpened.accept(windowId);
+    }
+
+    /**
      * Opens the furnace container at the clicked block: assigns the wire
      * window id, lazily creates the block-entity state, closes any carried
      * window state first, and reports the id for the adapter's Open Window +
@@ -13352,6 +13696,8 @@ public final class EngineServer implements Server, EngineBridge {
             session.closeContainerWindow();
         } else if (session.openContainerKind() == PlayerSession.ContainerKind.ENCHANTING_TABLE) {
             closeEnchantingMenuOnTick(session); // the menu's two slots drop (the reference close)
+        } else if (session.openContainerKind() == PlayerSession.ContainerKind.ANVIL) {
+            closeAnvilMenuOnTick(session); // the two inputs drop (the reference close)
         } else {
             session.closeContainerWindow();
         }
@@ -13425,6 +13771,8 @@ public final class EngineServer implements Server, EngineBridge {
                 session.closeContainerWindow();
             } else if (session.openContainerKind() == PlayerSession.ContainerKind.ENCHANTING_TABLE) {
                 closeEnchantingMenuOnTick(session); // the menu's two slots drop; the window state clears
+            } else if (session.openContainerKind() == PlayerSession.ContainerKind.ANVIL) {
+                closeAnvilMenuOnTick(session); // the two inputs drop; the window state clears
             } else {
                 session.closeContainerWindow();
             }
