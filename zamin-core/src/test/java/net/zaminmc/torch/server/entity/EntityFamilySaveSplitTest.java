@@ -114,7 +114,7 @@ class EntityFamilySaveSplitTest {
         out.writeByte('Z');
         out.writeByte('M');
         out.writeByte('D');
-        out.writeByte(12);
+        out.writeByte(13);
         writeVarInt(out, mobs.size());
         for (MobManager.MobSnapshot mob : mobs) {
             writeString(out, mob.type());
@@ -171,6 +171,16 @@ class EntityFamilySaveSplitTest {
                 out.writeBoolean(mob.tame().horseBred());
                 out.writeBoolean(mob.tame().horseHasReproduced());
             }
+            // writeArmorTail (VIII4 — the v13 record tail): the presence
+            // byte alone when the record carries no armor rows and every
+            // chance at the 0.085 default.
+            boolean anyArmor = mob.nbt() != null
+                    && (mob.nbt().feetEquipment() != null
+                        || mob.nbt().legsEquipment() != null
+                        || mob.nbt().chestEquipment() != null
+                        || mob.nbt().headEquipment() != null
+                        || mob.nbt().dropChances() != null);
+            out.writeByte(anyArmor ? 1 : 0);
         }
         out.flush();
         return sink.toByteArray();

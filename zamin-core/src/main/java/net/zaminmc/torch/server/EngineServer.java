@@ -15976,11 +15976,15 @@ public final class EngineServer implements Server, EngineBridge {
             // The equipment bonus (MobEntity.getXpDrop lines 160-175): an
             // xp-carrying body adds 1 + nextInt(3) per equipped slot whose
             // chance sits at or under 1.0 (a picked-up hand at 2.0 pays
-            // nothing extra — the reference's own gate). The engine models
-            // the one held slot.
-            if (amount > 0 && mob.heldEquipment() != null
-                    && mob.inventoryDropChance(0) <= 1.0F) {
-                amount += 1 + gameplayRandom.nextInt(3);
+            // nothing extra — the reference's own gate). VIII4: the walk
+            // covers all five slots — the armor family joins the held.
+            if (amount > 0) {
+                for (int slot = 0; slot <= 4; slot++) {
+                    if (mob.equipment(slot) != null
+                            && mob.inventoryDropChance(slot) <= 1.0F) {
+                        amount += 1 + gameplayRandom.nextInt(3);
+                    }
+                }
             }
             experienceOrbs.spawnBurst(mob.position(), amount, 3);
         }

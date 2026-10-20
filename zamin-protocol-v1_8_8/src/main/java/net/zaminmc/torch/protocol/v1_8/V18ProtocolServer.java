@@ -378,13 +378,13 @@ public final class V18ProtocolServer implements ProtocolAdapter {
 
             /**
              * The equipment changed after the spawn (Slice 78b — the
-             * /summon Equipment row + the restore's held stack): the
-             * Entity Equipment re-send.
+             * /summon Equipment rows + the restore's stacks): the
+             * Entity Equipment re-send, all five slots (VIII4).
              */
             @Override
             public void onMobEquipmentChanged(net.zaminmc.torch.server.entity.MobEntity mob) {
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
-                    connection.sendMobHeldEquipment(mob);
+                    connection.sendMobEquipment(mob);
                 }
             }
 
