@@ -282,6 +282,13 @@ public final class EngineServer implements Server, EngineBridge {
      * the compute pool, the publication on the I/O lane, the sequence
      * gate at the file. Wired at boot beside the other lanes. */
     private volatile net.zaminmc.torch.server.world.WorldSavePipeline savePipeline;
+    /**
+     * The one-import-at-a-time gate (the Anvil canvas' explicit command):
+     * a second walk while one is in flight is refused loudly rather than
+     * racing two install walks over the same live world.
+     */
+    private final java.util.concurrent.atomic.AtomicBoolean anvilImportActive =
+            new java.util.concurrent.atomic.AtomicBoolean(false);
     /** The nether dimension's delta persistence (DIM-1/zamin-delta.bin). */
     private WorldStorage netherStorage;
     /** The End dimension (Slice 61): vanilla's DIM1 — the island world. */
@@ -17851,6 +17858,14 @@ public final class EngineServer implements Server, EngineBridge {
                     saveAllNow();
                     return "Saved the game";
                 }));
+        // The Anvil canvas' explicit entry (§31.4: never a startup
+        // detection — an operator action, the /save maintenance family's
+        // own level): import an original 1.8.8 world folder (level.dat +
+        // region/*.mca, read-only) into the live world through the
+        // publication path.
+        commands.register(new CommandService.Command("anvilimport",
+                "Import an original 1.8.8 world folder: /anvilimport <world-folder>",
+                4, this::anvilImportCommand));
         commands.register(new CommandService.Command("stop", "Stop the server",
                 4, (sender, args) -> {
                     LOGGER.info("Stop requested by " + sender.name());
@@ -21767,7 +21782,6 @@ public final class EngineServer implements Server, EngineBridge {
             }
         }
     }
-
     /**
      * Persists world state. The snapshot build stays on the owning tick
      * thread (consistent snapshot, §6.2's one authoritative writer); the
@@ -21783,6 +21797,7 @@ public final class EngineServer implements Server, EngineBridge {
      * synchronous stores. Safe from any thread; no-op if the world is
      * absent.
      */
+
     public void saveAllNow() {
         if (world == null || ticker == null) {
             return;
@@ -22114,6 +22129,148 @@ public final class EngineServer implements Server, EngineBridge {
             Thread.currentThread().interrupt();
         }
     }
+    // ------------------------------------------------------------------ the Anvil canvas' explicit import (§31.4)
+
+    /**
+     * The Anvil import command (/anvilimport, op-4 — the /save maintenance
+     * family's own level): one explicit, read-only import of an original
+     * 1.8.8 world folder (level.dat + region/*.mca) into the live world.
+     * Per §31.4 this is NEVER a startup detection — the boot does not know
+     * the importer exists; the operator's explicit action is the only
+     * entry.
+     *
+     * <p><b>THE I/O DISCIPLINE (the established maintenance pattern, the
+     * /save walk's own lanes):</b> every file read rides the blocking-I/O
+     * lane — the folder inventory + level.dat as the first task, then one
+     * read per region file — and everything that touches world state (the
+     * level rows' apply, the region bytes' parse + the per-chunk installs
+     * through {@code EngineWorld.installGenerated}) runs on the owning
+     * lane inside the lane's completion drain, between ticks. The command
+     * itself NEVER blocks the tick thread waiting on queued work (the
+     * drain delivers each phase); the final ledger summary reaches the
+     * sender from the last drain, and a mid-walk generation change (a
+     * shutdown) abandons the walk loudly through the stale arm. The
+     * choice is documented here per the task's own requirement: file I/O
+     * on maintenance commands follows the BlockingIoLane pattern, not a
+     * simulation-lane read.</p>
+     *
+     * <p><b>THE PUBLICATION RULE (recorded, the session's own javadoc):</b>
+     * a chunk position the live world already holds keeps its live state
+     * — installGenerated's contract (the newer authoritative state wins);
+     * the skipped chunks are counted in the report, never forced over.</p>
+     */
+    private String anvilImportCommand(net.zaminmc.torch.server.chat.CommandSender sender,
+                                      String[] args) {
+        if (args.length != 1) {
+            return "Usage: /anvilimport <world-folder>";
+        }
+        EngineWorld target = world;
+        net.zaminmc.torch.server.concurrent.BlockingIoLane io = blockingIoLane;
+        net.zaminmc.torch.server.concurrent.OwnershipDomain domain = simulationDomain;
+        if (target == null || ticker == null) {
+            return "The engine world is not booted";
+        }
+        if (io == null || domain == null) {
+            return "The storage lanes are not booted";
+        }
+        if (!anvilImportActive.compareAndSet(false, true)) {
+            return "An Anvil import is already running; wait for its report";
+        }
+        java.nio.file.Path folder = java.nio.file.Path.of(args[0]);
+        net.zaminmc.torch.server.world.anvil.AnvilWorldImport session =
+                net.zaminmc.torch.server.world.anvil.AnvilWorldImport.over(target);
+        try {
+            io.submit(domain, "anvil-import-open", () -> {
+                // The folder inventory + the level bytes, all on the I/O
+                // lane: a missing level.dat or region/ is a loud refusal,
+                // never a default world (§31.6).
+                java.nio.file.Path levelDat = folder.resolve("level.dat");
+                java.nio.file.Path regionDir = folder.resolve("region");
+                if (!java.nio.file.Files.isRegularFile(levelDat)) {
+                    throw new java.io.IOException("no level.dat in " + folder);
+                }
+                if (!java.nio.file.Files.isDirectory(regionDir)) {
+                    throw new java.io.IOException("no region/ directory in " + folder);
+                }
+                return new AnvilOpen(levelDat,
+                        java.nio.file.Files.readAllBytes(levelDat),
+                        net.zaminmc.torch.server.world.anvil.AnvilWorldImport.regionFiles(regionDir));
+            }, (opened, generation) -> {
+                // The owning lane (the drain): the level rows apply, the
+                // region walk starts.
+                try {
+                    session.applyLevelData(
+                            net.zaminmc.torch.server.world.anvil.AnvilLevelData.readBytes(
+                                    opened.levelDat(), opened.levelBytes()));
+                    sender.sendMessage("Anvil import: level.dat applied, "
+                            + opened.regionFiles().size() + " region file(s) queued");
+                    if (opened.regionFiles().isEmpty()) {
+                        finishAnvilImport(sender, session);
+                        return;
+                    }
+                    submitAnvilRegionFile(session, io, domain, sender, opened.regionFiles(), 0);
+                } catch (java.io.IOException | RuntimeException e) {
+                    sender.sendMessage("Anvil import refused: " + e.getMessage());
+                    anvilImportActive.set(false);
+                }
+            }, () -> {
+                sender.sendMessage("Anvil import abandoned before it started"
+                        + " (the simulation generation moved)");
+                anvilImportActive.set(false);
+            });
+        } catch (IllegalStateException laneRefused) {
+            anvilImportActive.set(false);
+            return "The I/O lane refused the import: " + laneRefused.getMessage();
+        }
+        return "Anvil import started: " + folder;
+    }
+
+    /** The open phase's result: the level bytes + the region file list. */
+    private record AnvilOpen(java.nio.file.Path levelDat, byte[] levelBytes,
+                             java.util.List<java.nio.file.Path> regionFiles) {
+    }
+
+    /** One region file's read (I/O lane) then its walk (the owning drain). */
+    private void submitAnvilRegionFile(
+            net.zaminmc.torch.server.world.anvil.AnvilWorldImport session,
+            net.zaminmc.torch.server.concurrent.BlockingIoLane io,
+            net.zaminmc.torch.server.concurrent.OwnershipDomain domain,
+            net.zaminmc.torch.server.chat.CommandSender sender,
+            java.util.List<java.nio.file.Path> regionFiles, int index) {
+        java.nio.file.Path file = regionFiles.get(index);
+        try {
+            io.submit(domain, "anvil-import-region-" + file.getFileName(),
+                    () -> java.nio.file.Files.readAllBytes(file),
+                    (bytes, generation) -> {
+                        // The owning lane: the whole region file's parse +
+                        // installs (one drain per file keeps the walk
+                        // deterministic — column-major entries, sorted files).
+                        session.importRegionBytes(file, bytes);
+                        if (index + 1 < regionFiles.size()) {
+                            submitAnvilRegionFile(session, io, domain, sender, regionFiles, index + 1);
+                        } else {
+                            finishAnvilImport(sender, session);
+                        }
+                    },
+                    () -> {
+                        sender.sendMessage("Anvil import abandoned mid-walk at "
+                                + file.getFileName() + " (the simulation generation moved)");
+                        anvilImportActive.set(false);
+                    });
+        } catch (IllegalStateException laneRefused) {
+            sender.sendMessage("Anvil import stopped: the I/O lane refused "
+                    + file.getFileName() + ": " + laneRefused.getMessage());
+            anvilImportActive.set(false);
+        }
+    }
+
+    /** The walk's last drain: the ledger summary + the gate's release. */
+    private void finishAnvilImport(net.zaminmc.torch.server.chat.CommandSender sender,
+                                   net.zaminmc.torch.server.world.anvil.AnvilWorldImport session) {
+        sender.sendMessage("Anvil import finished: " + session.ledger().summary());
+        anvilImportActive.set(false);
+    }
+
 
     /** Registers an internal world observer (e.g. the protocol adapter's sync). */
     public void addWorldListener(WorldChangeListener listener) {
