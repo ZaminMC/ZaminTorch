@@ -143,7 +143,10 @@ class SystemSectionProfilingTest {
         List<String> census = List.of(
                 "blockUpdates", "redstone", "pistons", "hoppers",
                 "daylightDetectors", "dispensers", "tripwire", "tnt", "mining",
-                "fluids", "fallingBlocks", "projectiles", "vehicles", "vehicleRiders",
+                // (The fluids' own section retired with the Wave VI fluids
+                // migration: the flow ticks ride the scheduledBlockTicks
+                // pass — the reference's own doScheduledTicks surface.)
+                "fallingBlocks", "projectiles", "vehicles", "vehicleRiders",
                 "mobRiders", "fishing", "furnaces", "chests", "signs",
                 "commandBlocks", "spawners", "itemEntities", "experienceOrbs", "mobs",
                 "weather", "lightning", "naturalSpawns", "netherSpawns",

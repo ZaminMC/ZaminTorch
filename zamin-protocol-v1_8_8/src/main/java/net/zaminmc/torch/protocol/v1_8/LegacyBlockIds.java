@@ -1289,8 +1289,11 @@ final class LegacyBlockIds {
 
     /**
      * @return the legacy numeric id, or empty when this adapter cannot
-     * represent the type. Fluid states resolve programmatically (still 9/11,
-     * flowing 8/10 — the wire family shares one id, the level rides the
+     * represent the type. Fluid states resolve programmatically over the
+     * BLOCK form (the Wave VI band: the source block — the true source
+     * AND the settled {@code still_*} levels — rides 9/11; every flowing
+     * form — the shallow levels, the plain falling column, the
+     * falling-with-above-depth band — rides 8/10; the level itself is the
      * metadata nibble via {@link #metadataOf}).
      */
     static Optional<Integer> legacyId(Identifier identifier) {
@@ -1300,10 +1303,10 @@ final class LegacyBlockIds {
         }
         FluidBlocks.Kind fluid = FluidBlocks.kindOf(identifier);
         if (fluid == FluidBlocks.Kind.WATER) {
-            return Optional.of(FluidBlocks.isSource(identifier) ? 9 : 8);
+            return Optional.of(FluidBlocks.isSourceForm(identifier) ? 9 : 8);
         }
         if (fluid == FluidBlocks.Kind.LAVA) {
-            return Optional.of(FluidBlocks.isSource(identifier) ? 11 : 10);
+            return Optional.of(FluidBlocks.isSourceForm(identifier) ? 11 : 10);
         }
         return Optional.empty();
     }

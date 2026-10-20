@@ -486,6 +486,15 @@ public final class FireBlocks {
         return raining.getAsBoolean();
     }
 
+    /**
+     * The doFireTick gate's own read (the game-rule consult the lava
+     * source's random-tick fire-start shares — LiquidSourceBlock.tick
+     * line 35's own gate).
+     */
+    static boolean fireTickEnabled() {
+        return fireTickRule.getAsBoolean();
+    }
+
     static int difficultyId() {
         return difficultyId.getAsInt();
     }
