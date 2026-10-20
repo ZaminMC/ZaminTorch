@@ -2693,17 +2693,65 @@ own tests. Order is by vanilla visibility and dependency, not size.
       decays the too-far cells with the 1/20 sapling + 1/200 apple
       drops, the persistent leaf forms never decay). The engine's
       leaves are the fresh state only.
-- [ ] VIII4 — THE MOB ARMOR FAMILY (the "no-armor mob envelope" the
-      ledger rows L127/L278 name): equipment slots 1..4 (feet/legs/
-      chest/head) land nowhere — the held slot (0) alone carries (the
-      archer's bow). THE MODEL: the four armor slots on MobEntity +
-      the armor-points consult in the damage walk (the reference's
-      getArmorPoints: 4% per point, the 80% cap) + the per-type spawn
-      dice (zombie/skeleton: the difficulty-banded per-slot chances
-      — the reference's initializeAttributeAndSkills walk) + the drop
-      chances (the default 0.085, the equipment-drop NBT rows) + the
-      Entity Equipment wire (the held form exists; the four armor
-      slots join) + the anvil import's Equipment row landing whole.
+- [x] VIII4 — THE MOB ARMOR FAMILY LANDED (2b979363 — the
+      "no-armor mob envelope" the ledger rows L127/L278 name,
+      retired): THE MODEL — MobEntity's four armor slots
+      (equipment(int)/setEquipment(int, stack) beside the held
+      accessor family, the reference's own five-slot array at line
+      60); THE DAMAGE CONSULT — MobEntity.hurt grows the reference's
+      EXACT getDamageAfterArmor law (LivingEntity lines 868-877:
+      damage * (25 - points) / 25.0F, the per-piece sum through the
+      existing Armor.specOf model over ALL FIVE slots — the
+      reference's own held-helmet quirk — 4% per point, the
+      20-point/80% cap) with the bypass split (the setBypassesArmor
+      family — ON_FIRE, DROWN, IN_WALL, STARVE, FALL, OUT_OF_WORLD,
+      GENERIC, MAGIC, WITHER — takes the new hurt(amount, true) arm;
+      the melee/arrows/explosions/lightning/anvil/cactus/lava/
+      in-fire walk consults the pieces; NOTE: the PLAYER path's
+      Armor.reduce carries the 1.9 toughness-shaped envelope
+      min(20, max(points/5, points - dmg/2)) — a pre-existing
+      divergence from the reference's linear law, recorded for the
+      owning instance, NOT changed here); THE SPAWN DICE —
+      MobManager.rollSpawnEquipment, addRandomEquipment lines
+      593-623 1:1 (the 0.15-times-multiplier gate, the nextInt(2)
+      level + three 0.095 bumps, the head-to-feet walk with HARD's
+      own 0.1 stop band against the 0.25, the leather/gold/chain/
+      iron/diamond ladder) + the zombie's 1%-or-5% iron tool arm —
+      the pigman's override never rolls, the nether wither arm
+      REPLACES the walk and strips the slots; THE DROPS — the
+      five-slot dropEquipment loop (the per-slot chance gate, the
+      2.0 picked-up marker dropping pristine without the
+      player-kill window, the [26, max-25] durability shave, the
+      held-first order) + the XP equipment bonus over all five
+      slots; THE WIRE — the spawn publication and the
+      equipment-change re-send write all five Entity Equipment
+      (0x04) slots, held first then feet/legs/chest/head (the
+      player body's own sendPlayerEquipment shape); THE PERSISTENCE
+      — EntityNbt's Equipment list lands AND writes all five rows
+      (the /summon walk and the anvil import whole, the empty row
+      SETTING its slot back to empty like the reference's own read)
+      + the ZVD store's v13 armor tail (the four stacks riding the
+      SAME stack-row family — writeEquipmentRows/readEquipmentRows
+      extracted — the non-default DropChances, the tail
+      self-sufficient beside a bare NBT block, the v12 skullOwner
+      gate renamed to its own constant per the store's own
+      bump-audit lesson); the loot-pickup walk's ARMOR compare
+      (updateInventory lines 373-385) stays demand-named — the
+      slots fill through the dice, the summon rows and the import.
+      Evidence: MobArmorFamilyTest 13/0 (the reduction band incl.
+      the held-helmet quirk + the bypass arm, the seeded dice
+      against the test's own verbatim reference-walk shadow at two
+      difficulties + the zero-multiplier gate, the HARD-site wiring
+      + the pigman refusal, the nether wither strip, the five-slot
+      drop order + the shave band + the 2.0 marker, the vanilla
+      Equipment rows + the empty-row strip, the ZVD v13 round trip,
+      the anvil import's whole list) + MobEquipmentWireOrderTest
+      (the scripted client's two five-frame batches, the re-send's
+      exact order and items); the suites: entity.* 423/0, anvil.*
+      44/0, the protocol module 115/0, the full zamin-core batch
+      sweep green; the EntityFamilySaveSplitTest's embedded
+      historical walk grew the v13 tail byte (the byte-identity
+      proof rides the new format).
 - [ ] VIII5 — THE ANVIL GUI (the repair + rename window the ledger's
       L263 row defers): ContainerKind.ANVIL — the 3-slot GUI (two
       inputs + the output), the repair cost ladder (the
