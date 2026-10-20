@@ -125,7 +125,14 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
         /** The villager trading window (offers ride the MC|TrList plugin message). */
         VILLAGER,
         /** The enchanting table (2 transient slots living in the session's menu, seed + costs included). */
-        ENCHANTING_TABLE
+        ENCHANTING_TABLE,
+        /**
+         * The anvil (the reference AnvilMenu: the 3-slot repair + rename GUI —
+         * two transient inputs and the computed output projection living in
+         * the session's menu; the repair cost rides window property 0, the
+         * rename rides the MC|ItemName channel).
+         */
+        ANVIL
     }
 
     // --- survival body state (§436 family) ---------------------------------
@@ -339,6 +346,53 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
     /** Installs (or clears with null) the open enchanting menu. Tick-thread context. */
     public void setEnchantingMenu(net.zaminmc.torch.server.enchantment.EnchantingMenu menu) {
         this.enchantingMenu = menu;
+    }
+
+    /**
+     * The open anvil menu's state (two inputs + the output projection, the
+     * repair cost, the sent rename) — the historical per-open
+     * {@code AnvilMenu}. Non-null only while an ANVIL window is open; the
+     * close paths drop its two input slots (the reference {@code close}
+     * walk; the output is a server-only projection, never returned).
+     */
+    private volatile net.zaminmc.torch.server.enchantment.AnvilMenu anvilMenu;
+
+    /** @return the open anvil menu, or null when no anvil window is open. */
+    public net.zaminmc.torch.server.enchantment.AnvilMenu anvilMenu() {
+        return anvilMenu;
+    }
+
+    /** Installs (or clears with null) the open anvil menu. Tick-thread context. */
+    public void setAnvilMenu(net.zaminmc.torch.server.enchantment.AnvilMenu menu) {
+        this.anvilMenu = menu;
+    }
+
+    /**
+     * The reference {@code PlayerEntity.addXp(int)} on the engine's
+     * authoritative points model: {@code levels} (negative to pay) move
+     * the level, the progress into the level is kept, a level below 0
+     * zeroes the whole bar (level, progress, points). No enchanting-seed
+     * reroll — the anvil's payment is {@code addXp}, never the enchanting
+     * table's own {@code applyEnchantmentCosts}. Tick-thread context.
+     */
+    public void addXpLevels(int levels) {
+        int current = experienceLevel();
+        int next = current + levels;
+        if (next < 0) {
+            totalXp = 0;
+            return;
+        }
+        long into = totalXp - net.zaminmc.torch.server.experience.ExperienceMath.totalXpForLevel(current);
+        totalXp = net.zaminmc.torch.server.experience.ExperienceMath.totalXpForLevel(next) + into;
+    }
+
+    /**
+     * The player-entity random (the reference {@code getRandom()}) — the
+     * anvil's 0.12 damage roll reads it exactly like the reference's
+     * {@code player.getRandom().nextFloat()}. Tick-thread context.
+     */
+    public java.util.Random playerRandom() {
+        return playerRandom;
     }
 
     /** @return the name of the last player who /tell'd this one (the /reply target). */
@@ -987,6 +1041,7 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
             case BEACON -> WindowKind.BEACON;
             case VILLAGER -> WindowKind.VILLAGER;
             case ENCHANTING_TABLE -> WindowKind.ENCHANTING_TABLE;
+            case ANVIL -> WindowKind.ANVIL;
         };
     }
 

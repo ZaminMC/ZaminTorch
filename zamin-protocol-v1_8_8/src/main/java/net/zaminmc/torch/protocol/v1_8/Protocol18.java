@@ -677,4 +677,25 @@ final class Protocol18 {
     static final int ENCHANTING_PROP_SEED = 3;
     static final int ENCHANTING_PROP_CLUE_FIRST = 4;
     static final int ENCHANTING_PROP_COUNT = 7;
+
+    // The anvil container window (protocol 47, "minecraft:anvil" — the
+    // reference AnvilMenu's layout): 0/1 the two repair inputs, 2 the
+    // output projection, 3-29 main, 30-38 hotbar — 39 slots. Open Window
+    // carries size 0 (the 3-arg packet form the reference's openMenu
+    // sends — the client builds the layout from the type string).
+    static final String ANVIL_WINDOW_TYPE = "minecraft:anvil";
+    static final String ANVIL_WINDOW_TITLE = "{\"text\":\"Anvil\"}";
+    static final int ANVIL_WINDOW_SLOTS = 39;
+    static final int ANVIL_WIRE_SLOT_OUTPUT = 2;
+    static final int ANVIL_WIRE_SLOT_MAIN_FIRST = 3;
+    static final int ANVIL_WIRE_SLOT_MAIN_LAST = 29;
+    static final int ANVIL_WIRE_SLOT_HOTBAR_FIRST = 30;
+    static final int ANVIL_WIRE_SLOT_HOTBAR_LAST = 38;
+    static final int ANVIL_WIRE_SLOT_HOTBAR_BASE = 30;
+    // The window's data band: property 0 the repair cost (the menu's own row).
+    static final int ANVIL_PROP_COST = 0;
+    static final int ANVIL_PROP_COUNT = 1;
+    // The rename channel (the reference ServerPlayNetworkHandler lines
+    // 1081-1091: only the open anvil window answers).
+    static final String PLUGIN_CHANNEL_ITEM_NAME = "MC|ItemName";
 }

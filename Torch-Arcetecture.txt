@@ -2758,15 +2758,60 @@ own tests. Order is by vanilla visibility and dependency, not size.
       chances (the default 0.085, the equipment-drop NBT rows) + the
       Entity Equipment wire (the held form exists; the four armor
       slots join) + the anvil import's Equipment row landing whole.
-- [ ] VIII5 — THE ANVIL GUI (the repair + rename window the ledger's
-      L263 row defers): ContainerKind.ANVIL — the 3-slot GUI (two
-      inputs + the output), the repair cost ladder (the
-      material-count multiplier, the prior-work penalty doubling, the
-      too-expensive 40 gate, the creative bypass), the rename
-      (display.Name + the strip-on-repair quirk), the combine arms
-      (tool+tool, tool+material, book+book), the XP payment, the
-      output take (the consume + the 0.12 exhaust), the break-chance
-      landing (12% per use).
+- [x] VIII5 — THE ANVIL GUI LANDED (06ca5ce0 — the repair + rename
+      window the ledger's L263 row deferred, the reference's own
+      AnvilMenu whole 1:1 as the server/enchantment/AnvilMenu over the
+      transient-session-slot precedent the enchanting table set):
+      ContainerKind.ANVIL + WindowKind.ANVIL — the 3-slot GUI (two
+      session-owned inputs + the computed output projection), the
+      use-arm's true-consumed open over the twelve-state family firing
+      the shared §27.7 container-open observation through the ONE seam;
+      THE REPAIR-COST LADDER (updateResult lines 116-279): the
+      prior-work RepairCost sum of BOTH inputs, the material-count arm
+      (the max/4-per-unit walk, one level per unit, the
+      minRepairItemCount consume band), the tool+tool durability merge
+      (the remainders + 12% of the maximum, clamped, the +2 surcharge),
+      the enchantment merge (the same-level ++ rule, the max form, the
+      per-conflict +1 penalties, the rarity-weight switch over
+      getType()'s own band — 1 answers 8, 2 answers 4, 5 answers 2, 10
+      answers 1, the default 0 — and the enchanted-book halved weight),
+      the prior-work penalty doubling on the output (max*2+1), the
+      too-expensive 40 gate with the creative bypass, the pure-rename 39
+      clamp; THE RENAME (display.Name through MC|ItemName — the
+      reference handler's invalid-character strip + the 30-char cap,
+      only the open ANVIL window answering — and the strip-on-repair
+      quirk: a custom-named input combined without a sent name loses
+      the name and pays 1); THE OUTPUT TAKE (canPickUp's
+      creative/XP/cost>0 gate, the addXp level payment through the
+      session's own points model — no seed reroll, the enchanting
+      table's payment stays its own — the input's wholesale consume +
+      the material shrink, the 0.12 anvil-damage roll walking the
+      existing DAMAGE band through the AnvilSite seam: past 2 the
+      anvil breaks (air + the 1020 event), every other landing answers
+      the 1021 use sound, a creative take never rolls); THE CLOSE (the
+      reference's inputs-only drop — the output projection is
+      server-only and never returned) + the per-tick isValid walk (the
+      anvil must stand, the squared-64 band — the walk-away close
+      dropping the inputs); THE WIRE (Open Window minecraft:anvil size
+      0 — the reference openMenu's own 3-arg packet form, the 39-slot
+      Window Items, the property-0 repair cost pushed on open + the
+      revision-diffed per-tick view, the adapter's anvil-view fan).
+      Evidence: AnvilGuiTest 13/0 (the ladder's exact numbers, the
+      material unit walk 200->138->76->14->0, the tool+tool merges, the
+      merge/conflict/book-halving rows, the 40 gate + the bypass + the
+      39 clamp, the rename rows, the XP payment with the below-zero
+      zeroing, the four roll forms with a forced random, the
+      inputs-only close, the twelve-state validity gate, the live open
+      firing the shared observation with the ANVIL kind, the live
+      repair-rename-take walking the ladder with the 10->3 level
+      payment, the walk-away close); the container regression 15/0,
+      the enchanting/enchantment suites 41/0, the window suites 4/0,
+      the interaction suites 13/0, the use-law suites 31/0, the anvil
+      family 61/0 (the block/import suites riding along), the protocol
+      module FULL 114/0, the server-root batches 393/0 + one
+      documented load flake (RangedCombatAcceptanceTest's 21s arrow
+      window, green 10/0 in isolation), the player batch 51/0, the
+      bukkit adapter 38/0, the api 19/0.
 - [ ] VIII6 — THE ACHIEVEMENT FAMILY (the ledger's repeated "rides
       the achievement surface's slice (none exists)" rows): the
       achievement model (the reference's ~34 1.8.8 achievements with

@@ -37,5 +37,7 @@ public enum WindowKind {
     /** The villager trading window (the offers ride the plugin channel). */
     VILLAGER,
     /** The enchanting table (two transient slots living in the session's menu). */
-    ENCHANTING_TABLE
+    ENCHANTING_TABLE,
+    /** The anvil (the repair + rename GUI: two transient inputs and the computed output living in the session's menu). */
+    ANVIL
 }
