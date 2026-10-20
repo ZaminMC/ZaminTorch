@@ -153,6 +153,15 @@ public final class StrongholdStructure {
     }
 
     /**
+     * The raw position table (the eye's target consult — the import-families
+     * slice): the three chunk positions in seed order, package-external
+     * consumers read it through the generator's own nearest consult.
+     */
+    public int[][] positionTable() {
+        return this.positions;
+    }
+
+    /**
      * The region's start, or null when the region carries no stronghold.
      * Deterministic in (regionX, regionZ, worldSeed) alone.
      */

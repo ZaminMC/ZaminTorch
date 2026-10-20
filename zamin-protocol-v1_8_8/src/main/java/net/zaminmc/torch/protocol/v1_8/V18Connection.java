@@ -4782,6 +4782,76 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         sendDestroyEntities(entityId);
     }
 
+    /** Removes an ended eye from this observer (the Destroy Entities). */
+    void sendEyeRemoved(int entityId) {
+        sendDestroyEntities(entityId);
+    }
+
+    /**
+     * An eye of ender launched (the import-families slice — the
+     * reference's EnderEyeEntity, EntityMap line 82: the (64, 4, true)
+     * tracker): the Spawn Object 23 at the caller's own position + the
+     * launch velocity + the throw's block event 1002 when
+     * {@code withThrowEvent} (the reference's
+     * {@code world.doEvent(null, 1002, new BlockPos(player), 0)} — the
+     * eye spawns AT the player's position, so the same point carries
+     * both; a join snapshot replays the spawn alone). Any thread.
+     */
+    void sendEyeLaunched(net.zaminmc.torch.server.endereye.EnderEyeEntity eye,
+                         boolean withThrowEvent) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY
+                || chunkTracker == null) {
+            return;
+        }
+        var blockPos = eye.position().toBlockPosition();
+        if (!chunkTracker.hasChunk(blockPos.chunkPosition().packed())) {
+            return; // outside this observer's loaded window
+        }
+        ByteBuf out = Unpooled.buffer(40);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_SPAWN_ENTITY);
+        ByteBufOps.writeVarInt(out, eye.entityId());
+        out.writeByte(Protocol18.OBJECT_ENDER_EYE);
+        out.writeInt((int) Math.floor(eye.position().x() * 32.0));
+        out.writeInt((int) Math.floor(eye.position().y() * 32.0));
+        out.writeInt((int) Math.floor(eye.position().z() * 32.0));
+        out.writeByte((int) Math.floor(eye.rotation().pitch() * 256.0 / 360.0));
+        out.writeByte((int) Math.floor(eye.rotation().yaw() * 256.0 / 360.0));
+        out.writeInt(0); // objectData: bare
+        channel.writeAndFlush(out);
+        // The tracker's syncVelocity arm (EntityMap's interval 4).
+        ByteBuf velocity = Unpooled.buffer(16);
+        ByteBufOps.writeVarInt(velocity, Protocol18.S2C_ENTITY_VELOCITY);
+        ByteBufOps.writeVarInt(velocity, eye.entityId());
+        velocity.writeShort((int) Math.round(eye.velocityX() * 8000.0));
+        velocity.writeShort((int) Math.round(eye.velocityY() * 8000.0));
+        velocity.writeShort((int) Math.round(eye.velocityZ() * 8000.0));
+        channel.writeAndFlush(velocity);
+        if (withThrowEvent) {
+            // The throw's 1002 (the fire-charge smoke at the player's own
+            // position — the eye's spawn point).
+            sendWorldEvent(eye.position(), Protocol18.WORLD_EVENT_FIRE_CHARGE_SMOKE);
+        }
+    }
+
+    /**
+     * The eye's 4-tick velocity re-sync (EntityMap's interval 4 with
+     * syncVelocity — the steering keeps re-aiming it). Any thread.
+     */
+    void sendEyeVelocity(net.zaminmc.torch.server.endereye.EnderEyeEntity eye) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(16);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_ENTITY_VELOCITY);
+        ByteBufOps.writeVarInt(out, eye.entityId());
+        out.writeShort((int) Math.round(eye.velocityX() * 8000.0));
+        out.writeShort((int) Math.round(eye.velocityY() * 8000.0));
+        out.writeShort((int) Math.round(eye.velocityZ() * 8000.0));
+        channel.writeAndFlush(out);
+    }
+
     /**
      * Set Entity Metadata (0x1C) for the enderman's whole block (Slice
      * 19d): the carried block's Short at 16 and the screaming byte at

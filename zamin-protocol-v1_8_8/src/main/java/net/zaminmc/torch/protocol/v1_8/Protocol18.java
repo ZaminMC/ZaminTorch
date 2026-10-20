@@ -103,6 +103,10 @@ final class Protocol18 {
     static final int SPAWNER_LEGACY_BLOCK_ID = 52;
     /** The fired cycle's flame burst (MobSpawner.tick line 108: doEvent 2004). */
     static final int WORLD_EVENT_SPAWNER_FLAMES = 2004;
+    /** The fire-charge smoke (the eye's throw event 1002 — the reference's doEvent at the player). */
+    static final int WORLD_EVENT_FIRE_CHARGE_SMOKE = 1002;
+    /** The eye of ender's end event 2003 (the 1-in-5 no-drop form). */
+    static final int WORLD_EVENT_ENDER_EYE_END = 2003;
     /**
      * Block Break Animation (0x25, protocol 47 — the NetworkProtocol's own
      * registration order: #37 in the clientbound play list): varint id,
@@ -293,6 +297,8 @@ final class Protocol18 {
     /** The firework rocket (Slice 65 — community entities.json
      * "FireworksRocketEntity", the Spawn Object type 76). */
     static final int OBJECT_FIREWORKS = 76;
+    /** Eye of ender (Spawn Object type 23 — TrackedEntity's own registration). */
+    static final int OBJECT_ENDER_EYE = 23;
     /** Item frame (Spawn Object type 71 — TrackedEntity lines 493-502). */
     static final int OBJECT_ITEM_FRAME = 71;
     /** Armor stand (Spawn Object type 78 — TrackedEntity line 491). */

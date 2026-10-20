@@ -312,13 +312,24 @@ class AnvilImportAcceptanceTest {
 
         Map<String, Object> zombie = AnvilFixture.entityRow("Zombie", 132.5, 1.0, 132.5);
         zombie.put("CustomName", "Anvil Zombie");
+        // The firework rocket (the import-families slice — the engine's own
+        // fireworks system, the restored form): a mid-flight Life 5 with a
+        // 40-tick fuse (the scene asserts within the remaining 35).
         Map<String, Object> firework = AnvilFixture.entityRow("FireworksRocketEntity", 134.5, 1.0, 134.5);
+        firework.put("Life", 5);
+        firework.put("LifeTime", 40);
+        firework.put("Motion", List.of(0.0, 0.04, 0.0));
+        firework.put("Rotation", List.of(0.0f, 0.0f));
+        // The fishing bobber — the new no-surface example (the engine's
+        // fishing system models the bobbers natively; the import family has
+        // no arm — the loud isolation stays).
+        Map<String, Object> bobber = AnvilFixture.entityRow("FishingBobber", 135.5, 2.0, 135.5);
         Map<String, Object> dropped = AnvilFixture.itemEntityRow(
                 "minecraft:diamond", 3, 0, 133.5, 1.0, 133.5, (short) 100);
 
         byte[] chunkNbt = AnvilFixture.nbtDocument(AnvilFixture.chunkNbt(8, 8,
                 List.of(AnvilFixture.section(0, blocks, new byte[2048], null)), null,
-                List.of(zombie, firework, dropped), List.of(chestTile, homelessTile)));
+                List.of(zombie, firework, bobber, dropped), List.of(chestTile, homelessTile)));
         AnvilFixture.writeRegionFile(vault.resolve("region").resolve("r.0.0.mca"),
                 List.of(new AnvilFixture.Entry(8, 8, AnvilRegionFile.SCHEME_ZLIB,
                         AnvilFixture.zlib(chunkNbt))));
@@ -395,14 +406,30 @@ class AnvilImportAcceptanceTest {
             assertTrue(diamonds.get(0).age() >= 100,
                     "the Age row applied (and keeps walking): " + diamonds.get(0).age());
 
-            // The report's own rows: 2 entities + 1 tile imported, the
-            // fireworks rocket (a family with no engine surface) and the
-            // no-family tile isolated by name.
-            assertTrue(report.contains("2 entities"), "the report: " + report);
+            // The report's own rows: 3 entities + 1 tile imported (the
+            // zombie, the firework rocket — the import-families slice's
+            // restored form, and the dropped item), the fishing bobber (the
+            // no-surface example) and the no-family tile isolated by name.
+            assertTrue(report.contains("3 entities"), "the report: " + report);
             assertTrue(report.contains("1 tile entities"), "the report: " + report);
+            // The restored rocket: the SAVED Life resumed the age clock and
+            // the LifeTime row carries the whole fuse (the loaded rocket
+            // bursts after the REMAINING ticks, never a fresh roll).
+            var rockets = server.fireworks().all();
+            assertEquals(1, rockets.size(),
+                    "the firework rocket imported through the restored form (report: " + report + ")");
+            assertTrue(rockets.get(0).age() >= 5 && rockets.get(0).age() <= 40,
+                    "the saved Life resumed the age clock (never a fresh roll): "
+                            + rockets.get(0).age());
+            assertEquals(40, rockets.get(0).maxAge(), "the LifeTime row carries the whole fuse");
+            assertTrue(rockets.get(0).velocityY() >= 0.04,
+                    "the loaded Motion lands whole (the flight only grows it): "
+                            + rockets.get(0).velocityY());
+            assertTrue(report.contains("firework's Rotation row has no per-rocket surface"),
+                    "the Rotation row's counted note: " + report);
             assertTrue(report.contains("entity family not importable"),
-                    "the fireworks rocket isolated loudly: " + report);
-            assertTrue(report.contains("entity FireworksRocketEntity"),
+                    "the fishing bobber isolated loudly: " + report);
+            assertTrue(report.contains("entity FishingBobber"),
                     "the isolation names the id: " + report);
             assertTrue(report.contains("tile row over a block with no tile family"),
                     "the no-family tile isolated loudly: " + report);
@@ -503,12 +530,20 @@ class AnvilImportAcceptanceTest {
         Map<String, Object> mount = AnvilFixture.entityRow("MinecartRideable", 136.5, 1.0, 136.5);
         rider.put("Riding", mount);
 
-        // The eye of ender: a family with no engine surface.
+        // The eye of ender (the import-families slice — the restored form;
+        // the transient rows' counted note names the load quirk) and the
+        // leash knot (the Tile row IS the anchor; the survival poll owns the
+        // unsupported-anchor drop — the knot lands over the stone floor).
         Map<String, Object> eye = AnvilFixture.entityRow("EyeOfEnderSignal", 137.5, 2.0, 137.5);
+        Map<String, Object> knot = AnvilFixture.entityRow("LeashKnot", 138, 1, 138);
+        knot.put("TileX", 138);
+        knot.put("TileY", 1);
+        knot.put("TileZ", 138);
+        knot.put("Direction", (byte) 0);
 
         byte[] chunkNbt = AnvilFixture.nbtDocument(AnvilFixture.chunkNbt(8, 8,
                 List.of(AnvilFixture.section(0, blocks, new byte[2048], null)), null,
-                List.of(stuckArrow, snowball, painting, frame, orb, rider, eye), null));
+                List.of(stuckArrow, snowball, painting, frame, orb, rider, eye, knot), null));
         AnvilFixture.writeRegionFile(vault.resolve("region").resolve("r.0.0.mca"),
                 List.of(new AnvilFixture.Entry(8, 8, AnvilRegionFile.SCHEME_ZLIB,
                         AnvilFixture.zlib(chunkNbt))));
@@ -624,21 +659,37 @@ class AnvilImportAcceptanceTest {
                     "the chain landed, never isolated: " + report);
 
             // The counted notes: the arrow's unlanded family rows, the
-            // frame's ItemDropChance, the orb's Health, and the
-            // eye-of-ender's generic refusal.
+            // frame's ItemDropChance, the orb's Health, and the eye's
+            // transient rows (the reference's load quirk — the eye family
+            // LANDED with the import-families slice; the no-surface
+            // isolation moved to the content scene's fishing bobber).
             assertTrue(report.contains("projectile rows without an engine surface"),
                     "the arrow's unlanded rows counted: " + report);
             assertTrue(report.contains("ItemDropChance row has no per-frame surface"),
                     "the frame's drop chance counted: " + report);
             assertTrue(report.contains("Health row has no engine surface"),
                     "the orb's health counted: " + report);
-            assertTrue(report.contains("entity EyeOfEnderSignal"),
-                    "the eye of ender isolated by name: " + report);
+            assertTrue(report.contains("eye's transient target and drops rows"),
+                    "the eye's transient rows' counted note: " + report);
+            // The eye family landed: the imported eye flies (the origin
+            // quirk — the transient target) until its 80 ticks end; the
+            // knot landed at its Tile anchor (the stone floor — the
+            // survival poll owns the unsupported drop).
+            var importedEyes = server.eyes().all();
+            assertEquals(1, importedEyes.size(),
+                    "the eye of ender imported through the restored form");
+            var importedKnots = server.leads().allKnots();
+            assertEquals(1, importedKnots.size(),
+                    "the leash knot imported at its Tile anchor");
+            assertEquals(138, importedKnots.get(0).fence().x(), "the TileX row is the anchor");
+            assertTrue(report.contains("knot's Direction row has no per-knot surface"),
+                    "the knot's Direction note: " + report);
 
-            // The report's own counter: 7 entities imported (the arrow,
+            // The report's own counter: 9 entities imported (the arrow,
             // the snowball, the painting, the frame, the orb, the rider,
-            // and the chain's cart — the eye of ender isolates).
-            assertTrue(report.contains("7 entities"), "the entity counter: " + report);
+            // the chain's cart, the eye, and the knot — the
+            // import-families slice).
+            assertTrue(report.contains("9 entities"), "the entity counter: " + report);
         } finally {
             consoleLogger.removeHandler(capture);
             server.shutdown(null);

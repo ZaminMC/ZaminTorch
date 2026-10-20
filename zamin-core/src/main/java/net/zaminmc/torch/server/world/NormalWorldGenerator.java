@@ -351,6 +351,36 @@ public final class NormalWorldGenerator implements WorldGenerator {
         temples.populate(chunk.position().x(), chunk.position().z(), view);
     }
 
+    /**
+     * The nearest stronghold's start-piece position to a point (the eye
+     * of ender's target consult — the reference's
+     * {@code world.findNearestStructure("Stronghold", pos)}, EnderEyeItem
+     * lines 121-133): the positions table's nearest entry answered as the
+     * START PIECE'S own placement — ((chunkX &lt;&lt; 4) + 2, 64, (chunkZ
+     * &lt;&lt; 4) + 2), the pieces' own start-room convention (the 1.8.8
+     * StrongholdStart at y=64, the +2 start corner) — the derivation
+     * named per §27.9. The engine's table always answers (the three
+     * positions exist by construction); the reference's not-found no-op
+     * never occurs on the engine's gen.
+     */
+    public double[] nearestStrongholdTo(double x, double z) {
+        int[][] table = strongholds.positionTable();
+        int[] best = table[0];
+        double bestDistance = Double.MAX_VALUE;
+        for (int[] position : table) {
+            double px = (position[0] << 4) + 2.0;
+            double pz = (position[1] << 4) + 2.0;
+            double dx = px - x;
+            double dz = pz - z;
+            double distance = dx * dx + dz * dz;
+            if (distance < bestDistance) {
+                bestDistance = distance;
+                best = position;
+            }
+        }
+        return new double[]{(best[0] << 4) + 2.0, 64.0, (best[1] << 4) + 2.0};
+    }
+
     /** The block for one column cell: core, skin, water, cave or ore. */
     private BlockType blockAt(int x, int y, int z, int h, boolean underwater, Biome biome) {
         if (y == 0) {
