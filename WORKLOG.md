@@ -10698,3 +10698,72 @@ the chain walk, the seating asserted on the engine ids; the vehicle
 scene's cart-rides-zombie isolates with the new note while the zombie
 mount still lands as its own row). The vehicle + entity + anvil +
 horse + protocol sweeps green; the full-suite record running detached.
+
+## 2026-10-20 — the remaining anvil import families (firework/eye-of-ender/leash-knot, Wave VII's VII3)
+
+The §22 line's last three named families — the engine's surfaces existed
+for the firework (Slice 65) and the knots (Slice 11c); the eye needed its
+whole family; the import arms were missing for all three.
+
+**The firework arm** (FireworksSystem.launchRestored + the restored
+FireworksEntity constructor): the reference's readCustomNbt — the SAVED
+Life resumes the age clock (the loaded rocket bursts after the REMAINING
+ticks, never a fresh roll), the LifeTime row carries the whole fuse (0
+default — a missing row bursts on the first tick), the loaded Motion
+lands whole with the ±10 clamp, the FireworksItem row becomes the payload
+(an absent row leaves the empty stack — the reference's null synced slot
+8), and the age-0 launch-sound gate owns the restored form's quirk 1:1
+(a loaded rocket at Life>0 never sounds).
+
+**The eye family** (the new endereye package): EnderEyeEntity 1:1 with
+the reference's EnderEyeEntity — the flight law (the server-side steering
+with the 0.0025 closing gain, the near-target 0.8 damp, the vertical
+0.015 approach on targetY), the 80-tick lifespan, the 4-in-5 drops roll
+riding the setTarget (a loaded eye never rolls — the transient quirk),
+the angles' atan2 forms with the wrap + the 0.2 damp. EnderEyeSystem's
+launch (the item's startUsing arm — the eye spawns AT the caller's
+position, the 12-block target clamp + the +8 targetY far form, the throw
+sound at 0.5 with the 0.4/(rand*0.4+0.8) pitch, the block event 1002),
+the restored launch (the transient target — the origin, a counted note),
+the 4-tick velocity cadence (EntityMap line 82: (64, 4, true)), and the
+end's two forms (the drop through the item manager's exact-position
+spawn; the 2003 event at the 1-in-5 no-drop form).
+
+**The eye's item use** (EngineServer.useEnderEyeInAir — the reference's
+EnderEyeItem.startUsing): the crosshair's frame gate first (a frame
+target never throws), the stronghold consult through
+NormalWorldGenerator.nearestStrongholdTo (the positions table answered
+as the start piece's own placement — ((cx<<4)+2, 64, (cz<<4)+2), the
+derivation named per §27.9; the flat/nether gens carry no strongholds —
+the reference's not-found no-op), the throw + the consume.
+
+**The eye's wire** (V18Connection): the Spawn Object 23 + the velocity +
+the throw's 1002 event when it is a throw (never a join — the
+withThrowEvent form), sendEyeVelocity (the 4-tick cadence), the end's
+2003, the Destroy. The join snapshot gains the rockets + the eyes (a
+pre-existing gap — the join walk never carried the fireworks).
+
+**The knot arm** (LeadSystem.restoreKnot): the Tile row IS the anchor;
+the survival poll owns the unsupported-anchor drop (the decorations' load
+convention); the occupied anchor keeps its landed body.
+
+**THE LATENT BUG the slice caught** (the LIST-type trap): the vehicle
+walk's Motion gate (and the new arms') read contains(Motion, DOUBLE)
+against LIST-typed rows — the vehicles' Motion rows have NEVER landed
+(the 12.0-clamp assert passed vacuously: the never-read 0 equals the
+clamped 0). All three gates now read the LIST type.
+
+**The demand-named follow-ups**: the end-portal-frame's eye-insertion
+useOn + the portal formation walk (the engine's block-use path lacks it
+— the eye's air arm consults the frame target 1:1 regardless); the
+firework item's Flight NBT byte (the fuse roll's plain i=1 — the
+ItemStack record needs a Fireworks component first); the fishing-bobber
+import family (the new no-surface example).
+
+**The evidence**: EnderEyeSystemTest +4; the acceptance scenes' flips
+(the content scene's rocket landed with the resumed Life + the
+whole-fuse LifeTime + the loaded Motion, the fishing bobber the new
+no-surface example; the entity scene's eye + knot landed — '9 entities'
+with the transient-rows' counted note); the anvil + leash + vehicle +
+entity + fireworks + protocol sweeps green (one contention flake in the
+protocol batch re-run clean).

@@ -879,7 +879,7 @@ public final class AnvilWorldImport {
         List<Snbt.Tag> rotation = NbtOps.getList(rows, "Rotation", Snbt.Tag.Type.FLOAT);
         spawned.setRotation(new net.zaminmc.torch.util.Rotation(
                 NbtOps.listFloat(rotation, 0), NbtOps.listFloat(rotation, 1)));
-        if (NbtOps.contains(rows, "Motion", Snbt.Tag.Type.DOUBLE)) {
+        if (NbtOps.contains(rows, "Motion", Snbt.Tag.Type.LIST)) {
             List<Snbt.Tag> motion = NbtOps.getList(rows, "Motion", Snbt.Tag.Type.DOUBLE);
             double vx = NbtOps.listDouble(motion, 0);
             double vy = NbtOps.listDouble(motion, 1);
@@ -1276,7 +1276,7 @@ public final class AnvilWorldImport {
         double vx = 0.0;
         double vy = 0.0;
         double vz = 0.0;
-        if (NbtOps.contains(rows, "Motion", Snbt.Tag.Type.DOUBLE)) {
+        if (NbtOps.contains(rows, "Motion", Snbt.Tag.Type.LIST)) {
             List<Snbt.Tag> motion = NbtOps.getList(rows, "Motion", Snbt.Tag.Type.DOUBLE);
             vx = NbtOps.listDouble(motion, 0);
             vy = NbtOps.listDouble(motion, 1);
@@ -1295,7 +1295,7 @@ public final class AnvilWorldImport {
         }
         system.launchRestored(at, vx, vy, vz, life, lifeTime, payload);
         ledger.entityImported();
-        if (NbtOps.contains(rows, "Rotation", Snbt.Tag.Type.FLOAT)) {
+        if (NbtOps.contains(rows, "Rotation", Snbt.Tag.Type.LIST)) {
             ledger.isolated("firework's Rotation row has no per-rocket surface "
                             + "(the point model derives the angles from the motion — "
                             + "the reference's own tick law)",
@@ -1323,7 +1323,7 @@ public final class AnvilWorldImport {
         double vx = 0.0;
         double vy = 0.0;
         double vz = 0.0;
-        if (NbtOps.contains(rows, "Motion", Snbt.Tag.Type.DOUBLE)) {
+        if (NbtOps.contains(rows, "Motion", Snbt.Tag.Type.LIST)) {
             List<Snbt.Tag> motion = NbtOps.getList(rows, "Motion", Snbt.Tag.Type.DOUBLE);
             vx = NbtOps.listDouble(motion, 0);
             vy = NbtOps.listDouble(motion, 1);
@@ -1346,7 +1346,7 @@ public final class AnvilWorldImport {
                         + "until its 80 ticks end, and never drops — the 2003 event "
                         + "always ends it)",
                 "entity EyeOfEnderSignal at " + at.x() + "," + at.y() + "," + at.z());
-        if (NbtOps.contains(rows, "Rotation", Snbt.Tag.Type.FLOAT)) {
+        if (NbtOps.contains(rows, "Rotation", Snbt.Tag.Type.LIST)) {
             ledger.isolated("eye's Rotation row has no per-eye surface "
                             + "(the point model re-derives the angles from the motion "
                             + "on the first flight step)",
