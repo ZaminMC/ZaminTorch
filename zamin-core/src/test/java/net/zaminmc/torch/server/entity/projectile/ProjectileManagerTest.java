@@ -301,4 +301,56 @@ class ProjectileManagerTest {
         assertTrue(second < first * 0.999, "drag bled speed across the tick");
         assertFalse(shard.inGround(), "no block in the void");
     }
+    @Test
+    void aBurningArrowPrimesTheTntItOverlaps() {
+        // The reference's per-block entity collision (Entity lines
+        // 665-689 walking the arrow's box, TntBlock.onEntityCollision
+        // lines 91-104 priming every TNT cell a burning arrow overlaps):
+        // a stuck burning arrow on the TNT face primes it; a plain arrow
+        // in the same place never does; a burning arrow away from the
+        // band never does.
+        java.util.List<net.zaminmc.torch.block.BlockPosition> primed = new ArrayList<>();
+        java.util.Set<net.zaminmc.torch.block.BlockPosition> tntCells = new java.util.HashSet<>(
+                java.util.Set.of(new net.zaminmc.torch.block.BlockPosition(10, 40, 10)));
+        ProjectileManager manager = new ProjectileManager(
+                (x, y, z) -> tntCells.contains(new net.zaminmc.torch.block.BlockPosition(
+                        (int) Math.floor(x), (int) Math.floor(y), (int) Math.floor(z))),
+                new RiggedHits(), new RecordingCombat(), FX,
+                new Random(3), 3_000);
+        manager.setBurningTntArm(new ProjectileManager.BurningTntArm() {
+            @Override public boolean isTnt(net.zaminmc.torch.block.BlockPosition pos) {
+                return tntCells.contains(pos);
+            }
+
+            @Override public void ignite(net.zaminmc.torch.block.BlockPosition pos) {
+                primed.add(pos);
+                // The reference's world.removeBlock(pos): the primed cell
+                // leaves the world, so the next pass finds no TNT there.
+                tntCells.remove(pos);
+            }
+        });
+
+        // The burning arrow drops onto the TNT cell and sticks on its
+        // face (the solid query answers inside the cell alone).
+        ProjectileEntity burning = manager.launchVector(
+                ProjectileEntity.Kind.ARROW, -1,
+                new Position(10.5, 44.0, 10.5), 0.0, -1.0, 0.0, 1.0, 0.4);
+        assertNotNull(burning, "the shot entered the world");
+        burning.setOnFireFor(2_000); // the Flame release's own clock
+        // The plain control arrow, the same drop over a plain cell.
+        ProjectileEntity plain = manager.launchVector(
+                ProjectileEntity.Kind.ARROW, -1,
+                new Position(12.5, 44.0, 10.5), 0.0, -1.0, 0.0, 1.0, 0.4);
+        assertNotNull(plain, "the control entered the world");
+
+        for (int i = 0; i < 20; i++) {
+            manager.tick();
+        }
+        assertTrue(burning.inGround(), "the burning arrow stuck on the TNT face");
+        assertTrue(plain.inGround() == false, "the control keeps falling past its plain cell");
+
+        assertTrue(primed.contains(new net.zaminmc.torch.block.BlockPosition(10, 40, 10)),
+                "the TNT cell the burning arrow overlaps was primed");
+        assertEquals(1, primed.size(), "one cell, one prime");
+    }
 }

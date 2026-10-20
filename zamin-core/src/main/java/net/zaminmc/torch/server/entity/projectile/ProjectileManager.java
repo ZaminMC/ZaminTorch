@@ -385,6 +385,29 @@ public final class ProjectileManager {
     }
 
     /**
+     * The burning arrow's TNT arm (the reference's per-block entity
+     * collision: Entity.checkBlockCollisions walks the arrow's box cells
+     * every tick and TntBlock.onEntityCollision primes every TNT cell a
+     * burning arrow overlaps — the block leaves the world and the primed
+     * body spawns through the engine's own TNT arm). Wired once by the
+     * server at boot; null (the unwired window) skips the pass.
+     */
+    public interface BurningTntArm {
+        /** @return whether the cell is the TNT block. */
+        boolean isTnt(net.zaminmc.torch.block.BlockPosition pos);
+
+        /** Primes the cell (the block leaves, the primed body spawns). */
+        void ignite(net.zaminmc.torch.block.BlockPosition pos);
+    }
+
+    private BurningTntArm burningTnt;
+
+    /** Wires the burning arrow's TNT arm (the per-block entity collision). */
+    public void setBurningTntArm(BurningTntArm arm) {
+        this.burningTnt = arm;
+    }
+
+    /**
      * The launch gate: fires the §27.7 event (the public kind form),
      * answers whether the shot may enter the world. Runs on the launch's
      * own (tick) context; a cancelled shot consumes no entity id.
@@ -631,6 +654,46 @@ public final class ProjectileManager {
                     : projectile.age() >= THROWABLE_AGE_TICKS;
             if (expired) {
                 remove(projectile, "expired");
+            }
+        }
+        burningTntPass();
+    }
+
+    /**
+     * The burning arrows' per-block TNT walk (the reference's
+     * checkBlockCollisions, Entity lines 665-689, over the TntBlock's
+     * onEntityCollision, lines 91-104): every burning arrow — in flight
+     * or stuck in the ground — walks the cells its 0.5 box overlaps (the
+     * faces shrunk by the reference's 0.001) and primes every TNT cell
+     * found. The engine's point-model walks the 0.25 band around the
+     * flight position (the box-center envelope).
+     */
+    private void burningTntPass() {
+        if (burningTnt == null) {
+            return;
+        }
+        for (int i = projectiles.size() - 1; i >= 0; i--) {
+            ProjectileEntity projectile = projectiles.get(i);
+            if (projectile.kind() != ProjectileEntity.Kind.ARROW || !projectile.burning()) {
+                continue;
+            }
+            Position at = projectile.position();
+            int minX = (int) Math.floor(at.x() - 0.25 + 0.001);
+            int maxX = (int) Math.floor(at.x() + 0.25 - 0.001);
+            int minY = (int) Math.floor(at.y() - 0.25 + 0.001);
+            int maxY = (int) Math.floor(at.y() + 0.25 - 0.001);
+            int minZ = (int) Math.floor(at.z() - 0.25 + 0.001);
+            int maxZ = (int) Math.floor(at.z() + 0.25 - 0.001);
+            for (int x = minX; x <= maxX; x++) {
+                for (int y = minY; y <= maxY; y++) {
+                    for (int z = minZ; z <= maxZ; z++) {
+                        net.zaminmc.torch.block.BlockPosition cell =
+                                new net.zaminmc.torch.block.BlockPosition(x, y, z);
+                        if (burningTnt.isTnt(cell)) {
+                            burningTnt.ignite(cell);
+                        }
+                    }
+                }
             }
         }
     }
