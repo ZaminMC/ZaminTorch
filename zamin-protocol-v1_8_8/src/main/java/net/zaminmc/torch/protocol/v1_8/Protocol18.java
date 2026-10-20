@@ -422,6 +422,7 @@ final class Protocol18 {
     static final int PARTICLE_SNOWBALL_POOF = 31;
     static final int PARTICLE_ICON_CRACK = 36;   // data: [itemId, itemMeta]
     static final int PARTICLE_BLOCK_CRACK = 37;  // data: [blockStateId]
+    static final int PARTICLE_BLOCK_DUST = 38;   // data: [blockStateId] (addBreakingParticles' own family)
     // The display family (EnumParticleTypes' own ids — ParticleType.java):
     // the server-side addParticle consults. count 0 = one particle at the
     // exact position with the offsets as its velocity, the shape

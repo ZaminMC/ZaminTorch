@@ -3682,7 +3682,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     }
 
     /** Entity Teleport (0x18) shared by every engine-global entity kind. */
-    private void sendEntityTeleport(int entityId, net.zaminmc.torch.util.Position position, boolean onGround) {
+    void sendEntityTeleport(int entityId, net.zaminmc.torch.util.Position position, boolean onGround) {
         Channel channel = adapter.channelOf(this);
         if (channel == null || !channel.isActive() || state != WireState.PLAY) {
             return;
@@ -5106,6 +5106,17 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             // this engine's blocks carry no metadata variants yet.
             sendParticles(Protocol18.PARTICLE_BLOCK_CRACK, false, at,
                     0.4f, 0.4f, 0.4f, 0.3f, 20, new int[]{legacy & 0xFFF});
+        } else if (event instanceof net.zaminmc.torch.server.fx.FxManager.StandShatter burst) {
+            at = burst.position();
+            if (beyondFeedbackRange(observer, at)) {
+                return;
+            }
+            // The armor stand's breaking burst (addBreakingParticles):
+            // BLOCK_DUST over the PLANKS state (Block.serialize = 5),
+            // count 10, the stand-box offsets 0.125 x 0.494 x 0.125,
+            // speed 0.05.
+            sendParticles(Protocol18.PARTICLE_BLOCK_DUST, false, at,
+                    0.125f, 0.494f, 0.125f, 0.05f, 10, new int[]{5});
         } else if (event instanceof net.zaminmc.torch.server.fx.FxManager.ItemShatter crumbs) {
             at = crumbs.position();
             if (beyondFeedbackRange(observer, at)) {

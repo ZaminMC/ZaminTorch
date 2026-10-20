@@ -14728,6 +14728,54 @@ public final class EngineServer implements Server, EngineBridge {
         }
 
         @Override
+        public boolean solidAt(net.zaminmc.torch.block.BlockPosition pos) {
+            return WorldSolidity.isSolid(world.getBlock(pos));
+        }
+
+        @Override
+        public void standBreakingBurst(Position at) {
+            fxManager.standShatter(at);
+        }
+
+        @Override
+        public java.util.List<net.zaminmc.torch.server.armorstand.ArmorStandSystem.CartView> rideableCarts() {
+            java.util.List<net.zaminmc.torch.server.armorstand.ArmorStandSystem.CartView> carts =
+                    new java.util.ArrayList<>();
+            if (vehicleManager == null) {
+                return carts;
+            }
+            for (net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle : vehicleManager.all()) {
+                if (vehicle.kind() != net.zaminmc.torch.server.entity.vehicle.VehicleEntity.Kind.MINECART) {
+                    continue; // the reference reads only the RIDEABLE family
+                }
+                net.zaminmc.torch.server.entity.vehicle.VehicleEntity cart = vehicle;
+                carts.add(new net.zaminmc.torch.server.armorstand.ArmorStandSystem.CartView() {
+                    @Override public double x() {
+                        return cart.position().x();
+                    }
+
+                    @Override public double y() {
+                        return cart.position().y();
+                    }
+
+                    @Override public double z() {
+                        return cart.position().z();
+                    }
+
+                    @Override public boolean occupied() {
+                        return cart.hasPassenger(); // the reference's rider == null gate
+                    }
+
+                    @Override public void addVelocity(double dx, double dy, double dz) {
+                        cart.setVelocity(cart.velocityX() + dx, cart.velocityY() + dy,
+                                cart.velocityZ() + dz);
+                    }
+                });
+            }
+            return carts;
+        }
+
+        @Override
         public void dropItem(Position at, ItemStack stack) {
             if (!stack.isEmpty()) {
                 itemEntities.spawnDropAtBlock(at, stack, ItemEntity.PICKUP_DELAY_DROP_TICKS);
@@ -14767,7 +14815,9 @@ public final class EngineServer implements Server, EngineBridge {
 
         @Override
         public long now() {
-            return world.timeOfDay();
+            // The reference's world.getTime() — the TOTAL clock, never the
+            // wrapping day clock (the double-hit window's own base).
+            return world.totalTicks();
         }
     }
 

@@ -394,6 +394,188 @@ class ArmorStandSystemTest {
         throw new AssertionError("Timed out waiting for " + description);
     }
 
+    // ------------------------------------------------------------------
+    // The named small gaps (the gravity walk, the minecart push, the
+    // breaking particles)
+    // ------------------------------------------------------------------
+
+    @Test
+    void theGravityWalkFallsAndLands() throws Exception {
+        EngineServer server = boot();
+        try {
+            // The tower: a landing floor at 30, a cleared shaft 31..38, a
+            // support at 39, the stand at 40. Removing the support drops
+            // the stand onto the floor — the cleared shaft makes the
+            // landing deterministic whatever the generator built there.
+            place(server, 12, 30, 12, BuiltinBlocks.STONE);
+            for (int y = 31; y <= 41; y++) {
+                place(server, 12, y, 12, server.world().airType());
+            }
+            for (int y = 40; y <= 41; y++) {
+                place(server, 14, y, 14, server.world().airType());
+            }
+            place(server, 12, 39, 12, BuiltinBlocks.STONE);
+            place(server, 14, 39, 14, BuiltinBlocks.STONE);
+            AtomicReference<Boolean> landed = new AtomicReference<>();
+            server.ticker().submit(() -> landed.set(server.armorStands().place(
+                    new BlockPosition(12, 39, 12), 1, 0.0f, new java.util.Random(3))));
+            await(server, () -> landed.get() != null, "the placement answered");
+            assertTrue(landed.get(), "the stand landed at 40");
+            ArmorStand stand = standAt(server, 12, 40, 12);
+            assertNotNull(stand, "the stand stands at (12.5, 40, 12.5)");
+
+            // The no-gravity twin: the same tower, the flag set — it never
+            // walks (the reference's noGravity gate).
+            AtomicReference<Boolean> flaggedLanded = new AtomicReference<>();
+            server.ticker().submit(() -> flaggedLanded.set(server.armorStands().place(
+                    new BlockPosition(14, 39, 14), 1, 0.0f, new java.util.Random(4))));
+            await(server, () -> flaggedLanded.get() != null, "the twin placed");
+            ArmorStand flagged = standAt(server, 14, 40, 14);
+            assertNotNull(flagged, "the twin stands at (14.5, 40, 14.5)");
+            server.ticker().submit(() ->
+                    flagged.setStatus((byte) (flagged.status() | ArmorStand.FLAG_NO_GRAVITY)));
+
+            // Remove both supports: the flagged stand freezes midair, the
+            // plain one falls onto the 30-floor and lands at 31.
+            place(server, 12, 39, 12, server.world().airType());
+            place(server, 14, 39, 14, server.world().airType());
+            await(server, () -> stand != null && stand.onGround()
+                    && stand.y() == 31.0, "the stand fell onto the landing floor");
+            assertEquals(31.0, stand.y(), 1e-9, "the landed feet sit on the floor's top");
+            assertEquals(0.0, stand.velocityY(), 1e-9, "the landing zeroed the fall");
+            assertTrue(stand.onGround(), "the landing set the ground state");
+            assertEquals(40.0, flagged.y(), 1e-9, "the flagged twin never walked");
+            // The flagged twin keeps the ground state it earned while it
+            // stood on its support (the reference's standing entities are
+            // onGround too) — the flag freezes the walk, not the flag's
+            // own past.
+        } finally {
+            server.shutdown(null);
+        }
+    }
+
+    @Test
+    void theMinecartPushesBothSidesApart() throws Exception {
+        EngineServer server = boot();
+        try {
+            // A stand at (13.5, 40, 13.5) over a floor; a rideable cart at
+            // (13.7, 40, 13.5) — inside the 0.2 squared band; a chest cart
+            // at (13.9, 40, 13.5) — outside the consult's family; a far
+            // rideable cart at (16.5, 40, 13.5) — outside the band.
+            place(server, 13, 39, 13, BuiltinBlocks.STONE);
+            place(server, 16, 39, 13, BuiltinBlocks.STONE);
+            AtomicReference<Boolean> landed = new AtomicReference<>();
+            server.ticker().submit(() -> landed.set(server.armorStands().place(
+                    new BlockPosition(13, 39, 13), 1, 0.0f, new java.util.Random(5))));
+            await(server, () -> landed.get() != null, "the stand placed");
+            ArmorStand stand = standAt(server, 13, 40, 13);
+            assertNotNull(stand, "the stand stands at (13.5, 40, 13.5)");
+
+            AtomicReference<Boolean> spawned = new AtomicReference<>();
+            server.ticker().submit(() -> {
+                server.vehicles().spawnMinecart(new net.zaminmc.torch.util.Position(13.7, 40.0, 13.5));
+                server.vehicles().spawnChestMinecart(new net.zaminmc.torch.util.Position(13.9, 40.0, 13.5));
+                server.vehicles().spawnMinecart(new net.zaminmc.torch.util.Position(16.5, 40.0, 13.5));
+                spawned.set(true);
+            });
+            await(server, () -> spawned.get() != null, "the carts spawned");
+            await(server, () -> server.vehicles().all().size() == 3, "three carts live");
+
+            // The push fires on the next stand tick: the near cart and the
+            // stand get the 0.05-scale velocities apart; the chest cart and
+            // the far cart stay untouched.
+            await(server, () -> stand.velocityX() < 0.0, "the stand pushed away from the cart");
+            var nearCart = server.vehicles().all().stream()
+                    .filter(c -> c instanceof net.zaminmc.torch.server.entity.vehicle.MinecartEntity
+                            && Math.abs(c.position().x() - 13.7) < 0.1)
+                    .findFirst().orElseThrow();
+            var chestCart = server.vehicles().all().stream()
+                    .filter(c -> c instanceof net.zaminmc.torch.server.entity.vehicle.ChestMinecartEntity)
+                    .findFirst().orElseThrow();
+            var farCart = server.vehicles().all().stream()
+                    .filter(c -> c instanceof net.zaminmc.torch.server.entity.vehicle.MinecartEntity
+                            && Math.abs(c.position().x() - 16.5) < 0.1)
+                    .findFirst().orElseThrow();
+            // The reference's push: d0 = stand.x - cart.x = -0.2 -> the
+            // stand gets -0.05 (away from the cart, -x), the cart +0.05.
+            assertTrue(nearCart.velocityX() > 0.0,
+                    "the near rideable cart pushed away: " + nearCart.velocityX());
+            assertEquals(0.0, chestCart.velocityX(), 1e-9,
+                    "the chest family never rides the consult");
+            assertEquals(0.0, farCart.velocityX(), 1e-9,
+                    "the far cart sits outside the 0.2 band");
+            // The stand slides (the ground friction decays it, never flips).
+            double firstX = stand.x();
+            await(server, () -> stand.x() < firstX, "the stand slid along the floor");
+        } finally {
+            server.shutdown(null);
+        }
+    }
+
+    @Test
+    void theBreakingParticlesBurstOnBothArms() throws Exception {
+        EngineServer server = boot();
+        try {
+            List<net.zaminmc.torch.server.fx.FxManager.StandShatter> bursts =
+                    new java.util.concurrent.CopyOnWriteArrayList<>();
+            server.fx().addListener(event -> {
+                if (event instanceof net.zaminmc.torch.server.fx.FxManager.StandShatter burst) {
+                    bursts.add(burst);
+                }
+            });
+
+            // The double-hit ladder: the wobble first (no burst), the
+            // second hit breaks with the burst.
+            place(server, 11, 39, 11, BuiltinBlocks.STONE);
+            AtomicReference<Boolean> landed = new AtomicReference<>();
+            server.ticker().submit(() -> landed.set(server.armorStands().place(
+                    new BlockPosition(11, 39, 11), 1, 0.0f, new java.util.Random(6))));
+            await(server, () -> landed.get() != null, "the stand placed");
+            ArmorStand stand = standAt(server, 11, 40, 11);
+            assertNotNull(stand, "the stand stands at (11.5, 40, 11.5)");
+
+            // The reference's clock base: a fresh world's first ticks are
+            // inside the double-hit window of a never-hit stand (lastDamageTime
+            // 0) — wait the clock past the window so the first hit is
+            // deterministically the wobble.
+            await(server, () -> server.world().totalTicks() > 10, "the clock advanced past the window");
+
+            AtomicReference<Boolean> wobbled = new AtomicReference<>();
+            server.ticker().submit(() -> wobbled.set(server.armorStands().attack(stand, false)));
+            await(server, () -> wobbled.get() != null, "the first hit answered");
+            assertTrue(wobbled.get(), "the first hit is consumed (the wobble)");
+            assertTrue(bursts.isEmpty(), "the wobble never bursts");
+
+            AtomicReference<Boolean> broken = new AtomicReference<>();
+            server.ticker().submit(() -> broken.set(server.armorStands().attack(stand, false)));
+            await(server, () -> broken.get() != null, "the second hit answered");
+            assertTrue(broken.get(), "the second hit breaks the stand");
+            assertEquals(1, bursts.size(), "the break bursts once");
+            assertEquals(11.5, bursts.get(0).position().x(), 1e-9);
+            assertEquals(40.0 + 1.975 / 1.5, bursts.get(0).position().y(), 1e-9,
+                    "the burst rides the reference's height/1.5 offset");
+            assertEquals(11.5, bursts.get(0).position().z(), 1e-9);
+            assertNull(standAt(server, 11, 40, 11), "the stand is gone");
+
+            // The creative arm bursts too (the reference's lines 416-419):
+            // the same floor at 39 carries a second stand at 40 (the first
+            // broke there; its cell is free again).
+            AtomicReference<Boolean> creativeLanded = new AtomicReference<>();
+            server.ticker().submit(() -> creativeLanded.set(server.armorStands().place(
+                    new BlockPosition(11, 39, 11), 1, 0.0f, new java.util.Random(7))));
+            await(server, () -> creativeLanded.get() != null, "the creative stand placed");
+            ArmorStand creative = standAt(server, 11, 40, 11);
+            assertNotNull(creative, "the second stand stands at 40");
+            AtomicReference<Boolean> creativeBroke = new AtomicReference<>();
+            server.ticker().submit(() -> creativeBroke.set(server.armorStands().attack(creative, true)));
+            await(server, () -> creativeBroke.get() != null, "the creative hit answered");
+            assertTrue(creativeBroke.get(), "the creative hand consumed the hit");
+            assertEquals(2, bursts.size(), "the creative arm bursts too");
+        } finally {
+            server.shutdown(null);
+        }
+    }
+
     private EngineServer boot() throws Exception {
         EngineConfig config = new EngineConfig("127.0.0.1", 0,
                 "astd" + Math.abs(UUID.randomUUID().hashCode() % 100000),

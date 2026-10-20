@@ -75,6 +75,12 @@ public final class ArmorStand {
     private int fireTicks;
     /** The stand's burning health (the LivingEntity float). */
     private float health = DEFAULT_HEALTH;
+    /** The walk's velocity (the reference's motion fields — the minecart push feeds these). */
+    private double velocityX;
+    private double velocityY;
+    private double velocityZ;
+    /** The walk's landing state (the reference's onGround). */
+    private boolean onGround;
 
     ArmorStand(int entityId, double x, double y, double z, float yaw) {
         this.entityId = entityId;
@@ -102,6 +108,13 @@ public final class ArmorStand {
         return z;
     }
 
+    /** The walk's own position move (the system's tick — package-private). */
+    void moveTo(double newX, double newY, double newZ) {
+        this.x = newX;
+        this.y = newY;
+        this.z = newZ;
+    }
+
     /** The stand's body yaw (the snapped 45-degree placement walk). */
     public float yaw() {
         return yaw;
@@ -124,6 +137,50 @@ public final class ArmorStand {
     /** The status byte (the synced slot 10 — the wire's own form). */
     public byte status() {
         return status;
+    }
+
+    /** The no-gravity flag (the synced byte's bit 1): a flagged stand never walks. */
+    public boolean noGravity() {
+        return (status & FLAG_NO_GRAVITY) != 0;
+    }
+
+    /** The walk's velocity x (the reference's motionX). */
+    public double velocityX() {
+        return velocityX;
+    }
+
+    /** The walk's velocity y (the reference's motionY). */
+    public double velocityY() {
+        return velocityY;
+    }
+
+    /** The walk's velocity z (the reference's motionZ). */
+    public double velocityZ() {
+        return velocityZ;
+    }
+
+    /** The reference's addVelocity (Entity.addVelocity lines 1008-1014). */
+    public void addVelocity(double dx, double dy, double dz) {
+        velocityX += dx;
+        velocityY += dy;
+        velocityZ += dz;
+    }
+
+    /** The walk's landing state (the reference's onGround). */
+    public boolean onGround() {
+        return onGround;
+    }
+
+    /** The walk's own setter (the system's tick — package-private like every field arm). */
+    void setOnGround(boolean onGround) {
+        this.onGround = onGround;
+    }
+
+    /** The walk's own velocity setter (the system's tick). */
+    void setVelocity(double vx, double vy, double vz) {
+        this.velocityX = vx;
+        this.velocityY = vy;
+        this.velocityZ = vz;
     }
 
     void setStatus(byte status) {
