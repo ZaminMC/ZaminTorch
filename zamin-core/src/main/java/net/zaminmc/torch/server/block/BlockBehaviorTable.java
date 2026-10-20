@@ -1357,6 +1357,20 @@ public final class BlockBehaviorTable {
             behaviors.put(sapling, new BlockBehavior(0.0, true, false, "plant", 0,
                     List.of(new BlockBehavior.Drop(WoodVariantBlocks.SAPLING_ITEM, 1, variant))));
         }
+        // The tree-growth family's derived bands: the leaf decay states
+        // break exactly like their fresh form (0.2 LEAVES, the
+        // shears/sapling/apple walks ride the DropService branch), the
+        // ready saplings drop the fresh family item with the variant
+        // damage (the stage bit never reaches the item).
+        for (EngineBlockType state : LeafDecayBlocks.familyBlocks()) {
+            behaviors.put(state.identifier(), new BlockBehavior(0.2, true, false, "leaves", 0,
+                    List.of()));
+        }
+        for (EngineBlockType state : SaplingBlocks.familyBlocks()) {
+            behaviors.put(state.identifier(), new BlockBehavior(0.0, true, false, "plant", 0,
+                    List.of(new BlockBehavior.Drop(WoodVariantBlocks.SAPLING_ITEM, 1,
+                            WoodVariantBlocks.variantOfSapling(state.identifier())))));
+        }
 
         // The building-shape families (Slice 36 — the reference's own
         // registrations: every wood stair `setStrength(2.0F)` WOOD, the
