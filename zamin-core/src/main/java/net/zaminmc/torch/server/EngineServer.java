@@ -1664,10 +1664,24 @@ public final class EngineServer implements Server, EngineBridge {
                     }
                     return false;
                 });
-                // Fluids (§472 pattern): the scheduled pour/dry/contact system,
-                // waking on every committed change like the neighbor rules do.
+                // Fluids (the Wave VI migration — the reference's liquid
+                // family 1:1: FlowingLiquidBlock/LiquidSourceBlock/
+                // LiquidBlock whole): the neighbor-bus wake path (onAdded +
+                // neighborChanged — the still pool's convertToFlowing, the
+                // lava's contact checks), the whole flow tick (the LEVEL
+                // 0-15 band with the falling 9-15 above-depth, the
+                // infinite-water source birth, getSpread's gap-seeking
+                // preference, spreadTo's wash-out drops), and the schedules
+                // riding the ScheduledTickSystem — the reference's own
+                // scheduleTick surface (the persistence's ZST rows and the
+                // anvil TileTicks import land on the same queue, a
+                // restart resumes the stream mid-flow).
                 fluidSystem = new FluidSystem(new FluidWorld(), new FluidSink(itemEntities));
                 fluidSystem.setEventBus(eventBus); // §27.7: the public fluid-flow gate
+                fluidSystem.setScheduledTicks(scheduledTickSystem); // the seam (the boot always wires it)
+                for (Identifier fluidFamily : FluidBlocks.familyIds()) {
+                    scheduledTickSystem.registerTicker(fluidFamily, fluidSystem::dispatchTick);
+                }
                 world.addChangeListener(fluidSystem);
                 // Explosions: the ray-fan destructor (the creeper's demolition).
                 explosionService = new ExplosionService(new BlastWorld(world), new java.util.Random());
@@ -1681,6 +1695,12 @@ public final class EngineServer implements Server, EngineBridge {
                 // The game-rule read (Slice 24a): randomTickSpeed answers
                 // the per-section pick band (ServerWorld.tickChunks 343).
                 randomTicks.setRandomTickSpeedRead(() -> gameRules.getInt("randomTickSpeed"));
+                // The liquid family's random-tick arm (LiquidBlock's own
+                // setTicksRandomly band over the reference's randomTick →
+                // tick delegation): the flowing forms re-run the flow tick,
+                // the lava source's fire-start rides the same dispatch.
+                randomTicks.setLiquidTicker((pos, state) ->
+                        fluidSystem.dispatchTick(null, pos, state, gameplayRandom));
                 // Projectiles (arrows, shards): the tick-thread physics system,
                 // with damage semantics staying here in the combat callbacks.
                 ProjectileManager projectiles = new ProjectileManager(
@@ -2330,7 +2350,11 @@ public final class EngineServer implements Server, EngineBridge {
                     profiled("tripwire", tripwireSystem::tick); // the tripwire occupancy scan
                     profiled("tnt", tntSystem::tick); // the primed TNT fuses + physics
                     profiled("mining", blockInteraction::tickMining); // the vanilla dig accumulator + 0x28 stages
-                    profiled("fluids", fluidSystem::tick);       // §472 pattern: pours, streams, contact
+                    // (The fluids' own section retired with the Wave VI
+                    // migration: the flow ticks now ride the
+                    // scheduledBlockTicks pass — the reference's own
+                    // doScheduledTicks surface, the §472-pattern queue
+                    // gone. The census list below carries the change.)
                     profiled("fallingBlocks", falling::tick);           // §470: falling physics + landings
                     profiled("projectiles", projectileManager::tick); // ranged combat physics
                     profiled("vehicles", vehicles::tick);          // the boats and minecarts
@@ -9980,7 +10004,11 @@ public final class EngineServer implements Server, EngineBridge {
         for (int step = 0; step < 200; step++) {
             BlockType at = useWorld.getBlock(new BlockPosition(x, y, z));
             if (FluidBlocks.kindOf(at.identifier()) != null) {
-                if (allowLiquids && FluidBlocks.isSource(at.identifier())) {
+                // canRayTrace (LiquidBlock lines 88-90): the form-agnostic
+                // LEVEL-0 read — the true source and the transient
+                // flowing-0 pour both catch the ray; the flowing cell
+                // passes it through.
+                if (allowLiquids && FluidBlocks.levelOf(at.identifier()) == 0) {
                     return new BlockPosition(x, y, z);
                 }
                 // the flowing cell passes the ray through (canRayTrace's gate)
@@ -10340,12 +10368,15 @@ public final class EngineServer implements Server, EngineBridge {
         String held = heldType.identifier().toString();
 
         if (held.equals("minecraft:bucket")) {
-            // Scoop: the aimed cell itself must be a source (the client's
-            // fluid ray targets the fluid block directly).
+            // Scoop: the aimed cell must be a LEVEL-0 fluid of either form
+            // (BucketItem.startUsing's own consult — the material + LEVEL
+            // == 0 pair, never the block form; the transient flowing-0
+            // pour scoopable in its one-tick window exactly like the
+            // reference's).
             BlockType at = world.getBlock(clicked);
             FluidBlocks.Kind kind = FluidBlocks.kindOf(at.identifier());
-            if (kind == null || !FluidBlocks.isSource(at.identifier())) {
-                return false; // not a source: the historical no-op
+            if (kind == null || FluidBlocks.levelOf(at.identifier()) != 0) {
+                return false; // not a source-level fluid: the historical no-op
             }
             ItemType full = kind == FluidBlocks.Kind.WATER
                     ? net.zaminmc.torch.server.item.BuiltinItems.WATER_BUCKET
@@ -10360,15 +10391,37 @@ public final class EngineServer implements Server, EngineBridge {
         }
 
         if (held.equals("minecraft:water_bucket") || held.equals("minecraft:lava_bucket")) {
-            // Pour: the source lands against the clicked face; the bucket
-            // empties into the hand the historical way.
+            // Pour (BucketItem.place lines 106-133, 1:1): the FLOWING form
+            // at LEVEL 0 — the reference's own pour state (this.liquid ==
+            // Blocks.FLOWING_WATER) — whose tick settles it into the true
+            // source and carries the spread's first pass. The nether's
+            // water vaporizes (the dimension's doesWaterVaporize): the
+            // pour fizzles away — the sound + the smoke burst, nothing
+            // placed, the bucket still empties.
             BlockPosition target = offsetByFace(clicked, face);
             if (target == null || !canOccupyForPlacement(target)) {
                 return false; // no open cell: the pour stays in the bucket
             }
             FluidBlocks.Kind kind = held.endsWith("water_bucket")
                     ? FluidBlocks.Kind.WATER : FluidBlocks.Kind.LAVA;
-            world.setBlock(target, FluidBlocks.sourceOf(kind));
+            if (kind == FluidBlocks.Kind.WATER && session.dimension() == -1) {
+                // The nether's vaporizing arm (lines 111-122): the fizz +
+                // the eight smoke puffs, no block.
+                Position at = new Position(target.x() + 0.5, target.y() + 0.5, target.z() + 0.5);
+                fxManager.sound(at, "random.fizz", 0.5f,
+                        2.6f + (gameplayRandom.nextFloat() - gameplayRandom.nextFloat()) * 0.8f);
+                for (int puff = 0; puff < 8; puff++) {
+                    fxManager.smoke(new Position(
+                            target.x() + Math.random(),
+                            target.y() + Math.random(),
+                            target.z() + Math.random()));
+                }
+                session.inventory().consumeHeld(1);
+                throwOverflow(session, java.util.List.of(session.inventory().pickUp(
+                        ItemStack.of(net.zaminmc.torch.server.item.BuiltinItems.BUCKET, 1))));
+                return true;
+            }
+            world.setBlock(target, FluidBlocks.typeOf(kind, FluidBlocks.Form.FLOWING, 0));
             session.inventory().consumeHeld(1);
             throwOverflow(session, java.util.List.of(session.inventory().pickUp(
                     ItemStack.of(net.zaminmc.torch.server.item.BuiltinItems.BUCKET, 1))));
@@ -17447,17 +17500,25 @@ public final class EngineServer implements Server, EngineBridge {
         }
     }
 
-    /** The fluid feedback: torch wash-out drops and the fizz sound. */
+    /** The fluid feedback: the wash-out drops and the fizz sound. */
     private final class FluidSink implements FluidSystem.Sink {
         private final ItemEntityManager items;
+
+        /** The wash-out rolls (spreadTo's dropItems arm — fortune 0, no tool gate). */
+        private final DropService drops = new DropService(new java.util.Random());
 
         FluidSink(ItemEntityManager items) {
             this.items = items;
         }
 
         @Override
-        public void popItem(Position at, ItemStack stack) {
-            items.spawnDropAtBlock(at, stack, ItemEntity.PICKUP_DELAY_DROP_TICKS);
+        public void wash(Position at, BlockType washed) {
+            // The displaced block's own drops (FlowingLiquidBlock.spreadTo
+            // lines 119-125): the stream pops the torch, the flower, the
+            // rail — the block's behavior rows through the wash walk.
+            for (ItemStack stack : drops.washedDrops(washed)) {
+                items.spawnDropAtBlock(at, stack, ItemEntity.PICKUP_DELAY_DROP_TICKS);
+            }
         }
 
         @Override

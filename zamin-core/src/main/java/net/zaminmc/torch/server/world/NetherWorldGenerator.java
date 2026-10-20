@@ -115,7 +115,11 @@ public final class NetherWorldGenerator implements WorldGenerator {
         this.soulSand = registry.require(Identifier.parse("minecraft:soul_sand"));
         this.gravel = registry.require(Identifier.parse("minecraft:gravel"));
         this.lava = registry.require(Identifier.parse("minecraft:lava"));
-        this.flowingLava = FluidBlocks.typeOf(FluidBlocks.Kind.LAVA, 1);
+        // The lava pocket's own pour state (the reference's
+        // Blocks.FLOWING_LAVA.defaultState() — the flowing form at LEVEL 0,
+        // ChunkProviderHell's own pocket write; the old model's level-1
+        // stand-in retired with the Wave VI band's own zero level).
+        this.flowingLava = FluidBlocks.typeOf(FluidBlocks.Kind.LAVA, FluidBlocks.Form.FLOWING, 0);
         this.fire = registry.require(Identifier.parse("minecraft:fire"));
         this.glowstone = registry.require(Identifier.parse("minecraft:glowstone"));
         this.quartzOre = registry.require(Identifier.parse("minecraft:quartz_ore"));

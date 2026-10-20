@@ -2,40 +2,62 @@ package net.zaminmc.torch.server.block;
 
 import net.zaminmc.torch.util.Identifier;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
- * The fluid kinds of the engine, as block types.
+ * The fluid state band of the engine, as block types — the reference's
+ * {@code LiquidBlock.LEVEL} 0-15 whole (reference/1.8.8
+ * net/minecraft/block/LiquidBlock.java line 22, the Wave VI fluids
+ * migration).
  *
- * <p>Data model (the historical 1.8 fluid state, flattened into type identity):
- * a fluid is one of a <b>source</b> ({@code minecraft:water}, {@code
- * minecraft:lava}), a <b>flowing level</b> ({@code minecraft:flowing_water_1}
- * .. {@code _7} — the number is the distance from the nearest source), or a
- * <b>falling column</b> ({@code minecraft:falling_water}). The identifiers
- * carry the state because the engine's block identity is the identifier; the
- * version adapter collapses them onto the 1.8 wire pairs (still 9/11 metadata
- * 0, flowing 8/10 metadata = level, falling = metadata 8). Sources only enter
- * the world through buckets this slice — infinite-source rules (the 2x2 pool)
- * are a documented non-goal.</p>
+ * <p><b>The reference's two block forms</b> (the wire's four ids): the
+ * SOURCE block ({@code water} 9 / {@code lava} 11 — {@code
+ * LiquidSourceBlock}, the settled still form) and the FLOWING block
+ * ({@code flowing_water} 8 / {@code flowing_lava} 10 — {@code
+ * FlowingLiquidBlock}, the animated form). The LEVEL nibble carries the
+ * state on both: 0 is a true source (the bucket-fill level), 1-7 the
+ * increasingly shallow flow, 8-15 the falling column (the bit 8 set,
+ * with the low three bits naming the depth of the liquid ABOVE — the
+ * reference's own {@code getLiquidState} javadoc: "If the liquid above
+ * is also falling, the depth is always 0").</p>
  *
- * <p>Spread constants are the historical ones: water advances one level per
- * block (seven blocks of reach) on a 5-tick cadence; lava advances two (three
- * blocks of reach) on a 30-tick cadence. Falling takes priority over
- * spreading — a fluid with an open cell below pours straight down, and only a
- * column with ground under it runs sideways.</p>
+ * <p><b>The engine's flattened naming</b> (the identifier IS the state,
+ * the wire adapter folds them back onto the two-form pairs through
+ * {@code metadataOf}): {@code water}/{@code lava} — the true source
+ * (LEVEL 0 on the source form); {@code still_water_N}/{@code
+ * still_lava_N} — the SOURCE-block form at a settled level N (the
+ * {@code convertToSource} write keeps the level — the still water a
+ * settled stream becomes); {@code flowing_water}/{@code flowing_lava} —
+ * the flowing form at LEVEL 0 (the bucket's own pour state, transient:
+ * its tick converts to the source); {@code flowing_*_1..7} — the
+ * shallow flow; {@code falling_water}/{@code falling_lava} — the plain
+ * falling column (LEVEL 8); {@code falling_water_N}/{@code
+ * falling_lava_N} — the falling column carrying the above-depth N
+ * (LEVEL 9-15, the demand-named band).</p>
  *
- * <p>Behavior rules ported in shape from TogAr2/MinestomFluids (MIT) — see
- * COMMUNITY_REFERENCES.md; the implementation is the engine's own.</p>
+ * <p><b>The cadence band</b> ({@code LiquidBlock.getTickRate} lines
+ * 178-186): water 5; lava 30 in a skied dimension, 10 in a no-sky
+ * dimension (the nether's own lava sea moves three times faster). The
+ * DECAY band is the tick's own {@code j} consult (water 1; lava 2 in a
+ * dimension that keeps water, 1 where water vaporizes — the nether's
+ * lava spreads at full seven-block reach): both consults live in
+ * {@link FluidSystem}'s tick over the {@link FluidSystem.World}
+ * dimension profile, 1:1 with the reference's {@code
+ * world.dimension.yeetsWater()}/{@code hasNoSky()} reads.</p>
  */
 public final class FluidBlocks {
 
     public static final int WATER_CADENCE_TICKS = 5;
     public static final int LAVA_CADENCE_TICKS = 30;
-    /** Highest flow level that still spreads (the seventh block of reach). */
-    public static final int MAX_FLOW_LEVEL = 7;
-    /** Lava loses two levels per block — three blocks of reach from a source. */
-    public static final int LAVA_LEVEL_STEP = 2;
+    /** The nether's own lava cadence ({@code getTickRate}'s no-sky band). */
+    public static final int LAVA_CADENCE_NO_SKY_TICKS = 10;
+    /** The LEVEL nibble's full band: 0-7 the flow depth, 8-15 the falling column. */
+    public static final int MAX_LEVEL = 15;
+    /** The falling bit: levels 8-15 are falling, the low three bits the above-depth. */
+    public static final int FALLING_BIT = 8;
 
     public enum Kind {
         WATER,
@@ -47,24 +69,58 @@ public final class FluidBlocks {
     public static final Identifier WATER_FALLING = Identifier.parse("minecraft:falling_water");
     public static final Identifier LAVA_FALLING = Identifier.parse("minecraft:falling_lava");
 
+    /** The block-form families (the reference's four registrations). */
+    public enum Form {
+        /** The source BLOCK ({@code LiquidSourceBlock}) — the settled still form, any level. */
+        SOURCE,
+        /** The flowing BLOCK ({@code FlowingLiquidBlock}) — the animated form, any level. */
+        FLOWING
+    }
+
     private static final String FLOWING_WATER_PREFIX = "minecraft:flowing_water_";
     private static final String FLOWING_LAVA_PREFIX = "minecraft:flowing_lava_";
+    private static final String STILL_WATER_PREFIX = "minecraft:still_water_";
+    private static final String STILL_LAVA_PREFIX = "minecraft:still_lava_";
+    private static final String FALLING_WATER_PREFIX = "minecraft:falling_water_";
+    private static final String FALLING_LAVA_PREFIX = "minecraft:falling_lava_";
 
-    /** source -> kind, flowing prefix -> kind, falling -> kind. */
+    /** The value-only prefixes (the namespace-free {@link #levelOf} walks). */
+    private static final String V_FLOWING_WATER = "flowing_water_";
+    private static final String V_FLOWING_LAVA = "flowing_lava_";
+    private static final String V_STILL_WATER = "still_water_";
+    private static final String V_STILL_LAVA = "still_lava_";
+    private static final String V_FALLING_WATER = "falling_water_";
+    private static final String V_FALLING_LAVA = "falling_lava_";
+
+    /** source/still/flowing/falling -> kind. */
     private static final Map<Identifier, Kind> FLUID_KINDS = buildKinds();
 
     /** Every fluid block type keyed by identifier (registry population). */
     private static final Map<Identifier, EngineBlockType> ALL_TYPES = buildTypes();
 
+    /** The ids in band order (the ticker registration + census walk). */
+    private static final List<Identifier> FAMILY_IDS = buildFamilyIds();
+
     private static Map<Identifier, Kind> buildKinds() {
         Map<Identifier, Kind> kinds = new HashMap<>();
         kinds.put(WATER_SOURCE, Kind.WATER);
         kinds.put(LAVA_SOURCE, Kind.LAVA);
+        kinds.put(Identifier.parse("minecraft:flowing_water"), Kind.WATER);
+        kinds.put(Identifier.parse("minecraft:flowing_lava"), Kind.LAVA);
         kinds.put(WATER_FALLING, Kind.WATER);
         kinds.put(LAVA_FALLING, Kind.LAVA);
-        for (int level = 1; level <= MAX_FLOW_LEVEL; level++) {
+        for (int level = 1; level <= 7; level++) {
+            // The shallow flow band (LEVEL 1-7) and the falling-with-level
+            // band (LEVEL 9-15 — the above-depth in the low three bits).
             kinds.put(Identifier.parse(FLOWING_WATER_PREFIX + level), Kind.WATER);
             kinds.put(Identifier.parse(FLOWING_LAVA_PREFIX + level), Kind.LAVA);
+            kinds.put(Identifier.parse(FALLING_WATER_PREFIX + level), Kind.WATER);
+            kinds.put(Identifier.parse(FALLING_LAVA_PREFIX + level), Kind.LAVA);
+        }
+        for (int level = 1; level <= MAX_LEVEL; level++) {
+            // The settled still band (the source block at LEVEL 1-15).
+            kinds.put(Identifier.parse(STILL_WATER_PREFIX + level), Kind.WATER);
+            kinds.put(Identifier.parse(STILL_LAVA_PREFIX + level), Kind.LAVA);
         }
         return Map.copyOf(kinds);
     }
@@ -73,17 +129,48 @@ public final class FluidBlocks {
         Map<Identifier, EngineBlockType> types = new HashMap<>();
         types.put(WATER_SOURCE, new EngineBlockType(WATER_SOURCE, "Water", 0));
         types.put(LAVA_SOURCE, new EngineBlockType(LAVA_SOURCE, "Lava", 0));
-        types.put(WATER_FALLING, new EngineBlockType(WATER_FALLING, "Water", 8));
-        types.put(LAVA_FALLING, new EngineBlockType(LAVA_FALLING, "Lava", 8));
-        for (int level = 1; level <= MAX_FLOW_LEVEL; level++) {
+        types.put(Identifier.parse("minecraft:flowing_water"),
+                new EngineBlockType(Identifier.parse("minecraft:flowing_water"), "Water", 0));
+        types.put(Identifier.parse("minecraft:flowing_lava"),
+                new EngineBlockType(Identifier.parse("minecraft:flowing_lava"), "Lava", 0));
+        types.put(WATER_FALLING, new EngineBlockType(WATER_FALLING, "Water", FALLING_BIT));
+        types.put(LAVA_FALLING, new EngineBlockType(LAVA_FALLING, "Lava", FALLING_BIT));
+        for (int level = 1; level <= 7; level++) {
+            // The shallow flow band (LEVEL 1-7) and the falling-with-level
+            // band (LEVEL 9-15 — the LEVEL nibble carries the whole state).
             types.put(Identifier.parse(FLOWING_WATER_PREFIX + level),
                     new EngineBlockType(Identifier.parse(FLOWING_WATER_PREFIX + level),
                             "Water", level));
             types.put(Identifier.parse(FLOWING_LAVA_PREFIX + level),
                     new EngineBlockType(Identifier.parse(FLOWING_LAVA_PREFIX + level),
                             "Lava", level));
+            types.put(Identifier.parse(FALLING_WATER_PREFIX + level),
+                    new EngineBlockType(Identifier.parse(FALLING_WATER_PREFIX + level),
+                            "Water", FALLING_BIT + level));
+            types.put(Identifier.parse(FALLING_LAVA_PREFIX + level),
+                    new EngineBlockType(Identifier.parse(FALLING_LAVA_PREFIX + level),
+                            "Lava", FALLING_BIT + level));
+        }
+        for (int level = 1; level <= MAX_LEVEL; level++) {
+            types.put(Identifier.parse(STILL_WATER_PREFIX + level),
+                    new EngineBlockType(Identifier.parse(STILL_WATER_PREFIX + level),
+                            "Water", level));
+            types.put(Identifier.parse(STILL_LAVA_PREFIX + level),
+                    new EngineBlockType(Identifier.parse(STILL_LAVA_PREFIX + level),
+                            "Lava", level));
         }
         return Map.copyOf(types);
+    }
+
+    private static List<Identifier> buildFamilyIds() {
+        List<Identifier> ids = new ArrayList<>(ALL_TYPES.size());
+        for (int level = 0; level <= MAX_LEVEL; level++) {
+            for (Kind kind : Kind.values()) {
+                ids.add(levelId(kind, Form.SOURCE, level));
+                ids.add(levelId(kind, Form.FLOWING, level));
+            }
+        }
+        return List.copyOf(ids);
     }
 
     private FluidBlocks() {
@@ -97,21 +184,116 @@ public final class FluidBlocks {
         return builder;
     }
 
-    /** @return the fluid type of a kind at a flow level (0 = source, 8 = falling). */
-    public static EngineBlockType typeOf(Kind kind, int level) {
+    // ------------------------------------------------------------------
+    // The state consults (the reference's LEVEL reads)
+    // ------------------------------------------------------------------
+
+    /**
+     * @return the identifier of a kind's form at a LEVEL 0-15 (the
+     * reference's {@code defaultState().set(LEVEL, level)} — the flattened
+     * band's own member).
+     */
+    public static Identifier levelId(Kind kind, Form form, int level) {
+        if (level < 0 || level > MAX_LEVEL) {
+            throw new IllegalArgumentException("level out of the 0-15 band: " + level);
+        }
+        String prefix;
         if (level == 0) {
-            return ALL_TYPES.get(kind == Kind.WATER ? WATER_SOURCE : LAVA_SOURCE);
+            return form == Form.SOURCE
+                    ? (kind == Kind.WATER ? WATER_SOURCE : LAVA_SOURCE)
+                    : (kind == Kind.WATER
+                            ? Identifier.parse("minecraft:flowing_water")
+                            : Identifier.parse("minecraft:flowing_lava"));
         }
-        if (level == 8) {
-            return ALL_TYPES.get(kind == Kind.WATER ? WATER_FALLING : LAVA_FALLING);
+        if (form == Form.SOURCE) {
+            prefix = kind == Kind.WATER ? STILL_WATER_PREFIX : STILL_LAVA_PREFIX;
+            return Identifier.parse(prefix + level);
         }
-        return ALL_TYPES.get(Identifier.parse(
-                (kind == Kind.WATER ? FLOWING_WATER_PREFIX : FLOWING_LAVA_PREFIX) + level));
+        if (level <= 7) {
+            prefix = kind == Kind.WATER ? FLOWING_WATER_PREFIX : FLOWING_LAVA_PREFIX;
+            return Identifier.parse(prefix + level);
+        }
+        if (level == FALLING_BIT) {
+            return kind == Kind.WATER ? WATER_FALLING : LAVA_FALLING;
+        }
+        prefix = kind == Kind.WATER ? FALLING_WATER_PREFIX : FALLING_LAVA_PREFIX;
+        return Identifier.parse(prefix + (level - FALLING_BIT));
     }
 
-    /** @return the source block type of a fluid kind. */
+    /** @return the block type of a kind's form at a LEVEL 0-15 (registry-resolved). */
+    public static EngineBlockType typeOf(Kind kind, Form form, int level) {
+        EngineBlockType type = ALL_TYPES.get(levelId(kind, form, level));
+        if (type == null) {
+            throw new IllegalStateException("Fluid state unregistered: "
+                    + levelId(kind, form, level));
+        }
+        return type;
+    }
+
+    /** @return the true source block type of a fluid kind (LEVEL 0, the source form). */
     public static EngineBlockType sourceOf(Kind kind) {
-        return ALL_TYPES.get(kind == Kind.WATER ? WATER_SOURCE : LAVA_SOURCE);
+        return typeOf(kind, Form.SOURCE, 0);
+    }
+
+    /**
+     * @return the LEVEL the identifier carries on its form: 0 for the
+     * sources and the flowing form's own zero level, 1-15 otherwise, -1
+     * for non-fluids (the reference's {@code getLiquidState} shape).
+     */
+    public static int levelOf(Identifier identifier) {
+        Kind kind = kindOf(identifier);
+        if (kind == null) {
+            return -1;
+        }
+        String value = identifier.value();
+        if (identifier.equals(WATER_SOURCE) || identifier.equals(LAVA_SOURCE)) {
+            return 0;
+        }
+        if (value.equals("flowing_water") || value.equals("flowing_lava")) {
+            return 0;
+        }
+        if (identifier.equals(WATER_FALLING) || identifier.equals(LAVA_FALLING)) {
+            return FALLING_BIT;
+        }
+        if (kind == Kind.WATER) {
+            if (value.startsWith(V_STILL_WATER)) {
+                return suffix(value, V_STILL_WATER);
+            }
+            if (value.startsWith(V_FLOWING_WATER)) {
+                return suffix(value, V_FLOWING_WATER);
+            }
+            if (value.startsWith(V_FALLING_WATER)) {
+                return FALLING_BIT + suffix(value, V_FALLING_WATER);
+            }
+        } else {
+            if (value.startsWith(V_STILL_LAVA)) {
+                return suffix(value, V_STILL_LAVA);
+            }
+            if (value.startsWith(V_FLOWING_LAVA)) {
+                return suffix(value, V_FLOWING_LAVA);
+            }
+            if (value.startsWith(V_FALLING_LAVA)) {
+                return FALLING_BIT + suffix(value, V_FALLING_LAVA);
+            }
+        }
+        return -1;
+    }
+
+    /** @return the integer suffix after the prefix (the band's own parse). */
+    private static int suffix(String value, String prefix) {
+        return Integer.parseInt(value.substring(prefix.length()));
+    }
+
+    /** @return the block form the identifier rides (the wire's 9/11 vs 8/10 pair). */
+    public static Form formOf(Identifier identifier) {
+        Kind kind = kindOf(identifier);
+        if (kind == null) {
+            throw new IllegalArgumentException("not a fluid: " + identifier);
+        }
+        String value = identifier.value();
+        return value.equals("water") || value.equals("lava")
+                || value.startsWith("still_water") || value.startsWith("still_lava")
+                ? Form.SOURCE : Form.FLOWING;
     }
 
     /** @return whether the identifier is any fluid state. */
@@ -124,9 +306,22 @@ public final class FluidBlocks {
         return FLUID_KINDS.get(identifier);
     }
 
-    /** @return whether the identifier is a source block (never the falling column). */
+    /**
+     * @return whether the identifier is the source-BLOCK form at level 0 —
+     * the true source (the bucket-fill level, the reference's {@code LEVEL
+     * == 0} on the source form; a settled {@code still_*} level is NOT a
+     * source).
+     */
     public static boolean isSource(Identifier identifier) {
         return identifier.equals(WATER_SOURCE) || identifier.equals(LAVA_SOURCE);
+    }
+
+    /**
+     * @return whether the identifier rides the source BLOCK form (any
+     * level — the wire's 9/11 pair, the settled still form).
+     */
+    public static boolean isSourceForm(Identifier identifier) {
+        return isFluid(identifier) && formOf(identifier) == Form.SOURCE;
     }
 
     /** @return whether the identifier is any water state. */
@@ -140,33 +335,19 @@ public final class FluidBlocks {
     }
 
     /**
-     * @return the flow distance the identifier carries: 0 for sources, 1..7
-     * for flowing levels, 8 for the falling column, -1 for non-fluids.
+     * @return the cadence (ticks between fluid updates) of the kind in the
+     * dimension — water's flat 5; lava's 30/10 band over the no-sky
+     * consult (the reference's {@code getTickRate} lines 178-186).
      */
-    public static int levelOf(Identifier identifier) {
-        if (identifier.equals(WATER_SOURCE) || identifier.equals(LAVA_SOURCE)) {
-            return 0;
+    public static int cadenceOf(Kind kind, boolean hasNoSky) {
+        if (kind == Kind.WATER) {
+            return WATER_CADENCE_TICKS;
         }
-        if (identifier.equals(WATER_FALLING) || identifier.equals(LAVA_FALLING)) {
-            return 8;
-        }
-        String name = identifier.toString();
-        for (int level = 1; level <= MAX_FLOW_LEVEL; level++) {
-            if (name.equals(FLOWING_WATER_PREFIX + level)
-                    || name.equals(FLOWING_LAVA_PREFIX + level)) {
-                return level;
-            }
-        }
-        return -1;
+        return hasNoSky ? LAVA_CADENCE_NO_SKY_TICKS : LAVA_CADENCE_TICKS;
     }
 
-    /** @return the cadence (ticks between fluid updates) of the kind. */
-    public static int cadenceOf(Kind kind) {
-        return kind == Kind.WATER ? WATER_CADENCE_TICKS : LAVA_CADENCE_TICKS;
-    }
-
-    /** @return how many levels the kind loses per block of horizontal travel. */
-    public static int decayOf(Kind kind) {
-        return kind == Kind.WATER ? 1 : LAVA_LEVEL_STEP;
+    /** Every fluid state identifier, band order (the registration walks). */
+    public static List<Identifier> familyIds() {
+        return FAMILY_IDS;
     }
 }

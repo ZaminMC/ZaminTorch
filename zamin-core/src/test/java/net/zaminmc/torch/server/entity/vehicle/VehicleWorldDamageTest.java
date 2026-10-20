@@ -190,7 +190,7 @@ class VehicleWorldDamageTest {
             AtomicReference<VehicleEntity> dryCart = new AtomicReference<>();
             server.ticker().submit(() -> {
                 server.world().setBlock(lavaCell,
-                        FluidBlocks.typeOf(FluidBlocks.Kind.LAVA, 0));
+                        FluidBlocks.sourceOf(FluidBlocks.Kind.LAVA));
                 server.world().setBlock(dryStone, BuiltinBlocks.STONE);
                 server.world().setBlock(chainStone, BuiltinBlocks.STONE);
                 furnaceCart.set(server.vehicles().spawnFurnaceMinecart(

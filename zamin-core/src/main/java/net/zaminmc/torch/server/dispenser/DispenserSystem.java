@@ -451,10 +451,13 @@ public final class DispenserSystem implements WorldChangeListener {
     }
 
     /**
-     * The filled bucket (Bootstrap lines 232-233): the source pours into the
-     * facing cell — the whole cell must be open (the reference's own
-     * BucketItem.place gate) — and the stack becomes one empty bucket. A
-     * blocked pour falls through to the default drop.
+     * The filled bucket (Bootstrap lines 232-233): the pour rides the
+     * reference's own state — the FLOWING form at LEVEL 0 (BucketItem.place
+     * writes {@code this.liquid.getDefaultState()}, the flowing block) —
+     * whose tick settles it into the source and carries the spread's first
+     * pass. The whole cell must be open (the reference's own place gate)
+     * — and the stack becomes one empty bucket. A blocked pour falls
+     * through to the default drop.
      */
     private ItemStack bucketPour(BlockPosition pos, int facing, ItemStack stack) {
         BlockPosition target = pos.offset(OFFSETS[facing][0], OFFSETS[facing][1],
@@ -464,7 +467,8 @@ public final class DispenserSystem implements WorldChangeListener {
         if (!world.getBlock(target).equals(world.airType())) {
             return defaultItemDrop(pos, facing, stack);
         }
-        world.setBlock(target, FluidBlocks.sourceOf(kind));
+        world.setBlock(target,
+                FluidBlocks.typeOf(kind, FluidBlocks.Form.FLOWING, 0));
         fx.sound(new Position(target.x() + 0.5, target.y() + 0.5, target.z() + 0.5),
                 "random.splash", 0.4f, kind == FluidBlocks.Kind.WATER ? 1.0f : 0.6f);
         fx.sound(centerOf(pos), "random.click", 1.0f, 1.0f);
@@ -482,7 +486,9 @@ public final class DispenserSystem implements WorldChangeListener {
                 OFFSETS[facing][2]);
         BlockType at = world.getBlock(target);
         FluidBlocks.Kind kind = FluidBlocks.kindOf(at.identifier());
-        if (kind == null || !FluidBlocks.isSource(at.identifier())) {
+        // The form-agnostic LEVEL-0 read (BucketItem's own consult — the
+        // material + LEVEL == 0 pair).
+        if (kind == null || FluidBlocks.levelOf(at.identifier()) != 0) {
             return defaultItemDrop(pos, facing, stack);
         }
         world.setBlock(target, world.airType());

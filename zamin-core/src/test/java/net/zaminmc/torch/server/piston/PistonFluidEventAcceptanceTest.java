@@ -181,10 +181,15 @@ class PistonFluidEventAcceptanceTest {
             int x = 10, z = 10, y = 40;
             BlockPosition source = new BlockPosition(x, y, z);
             BlockPosition below = new BlockPosition(x, y - 1, z);
+            // The bucket's own pour state (the Wave VI fluids migration:
+            // BucketItem.place writes the FLOWING form at LEVEL 0 — the
+            // reference's own pour; a directly-placed SOURCE is the
+            // settled still form and stays inert until a neighbor
+            // changes, exactly the reference's /setblock shape).
             server.ticker().submit(() -> server.world().setBlock(source,
-                    FluidBlocks.sourceOf(FluidBlocks.Kind.WATER)));
+                    FluidBlocks.typeOf(FluidBlocks.Kind.WATER, FluidBlocks.Form.FLOWING, 0)));
             await(() -> FluidBlocks.isFluid(typeAt(server, x, y, z).identifier()),
-                    "the water source placed");
+                    "the water pour placed");
 
             // The plugin arm: cancel every flow into the cell below the
             // source — the down-pour is blocked, so the source must fall
@@ -205,15 +210,27 @@ class PistonFluidEventAcceptanceTest {
                     sawTheCancelledTarget.set(true);
                 }
             });
-            Thread.sleep(200);
+            // The settle cycle (the 1:1 model's own rhythm): the source's
+            // next flowing pass re-fires the cancelled down-pour (the
+            // still pool re-awakens through the sideways write's neighbor
+            // update) before both cells settle — the witness must span
+            // that whole cycle.
+            Thread.sleep(400);
             assertTrue(sawTheCancelledTarget.get(),
                     "the flow toward the cancelled cell was observed");
             sub.unsubscribe();
             witness.unsubscribe();
 
-            // Without the handler the water eventually pours down.
+            // Without the handler the next wake pours down — and under the
+            // 1:1 model the settled pool needs a NEIGHBOR CHANGE to re-arm
+            // (the reference's own shape: the still source is inert until
+            // one of its neighbors commits — LiquidSourceBlock's
+            // neighborChanged → convertToFlowing). A stone placed beside
+            // the pool is that wake.
+            server.ticker().submit(() -> server.world().setBlock(
+                    new BlockPosition(x - 1, y, z), BuiltinBlocks.STONE));
             await(() -> FluidBlocks.isFluid(typeAt(server, x, y - 1, z).identifier()),
-                    "the down-pour goes through after unsubscribe");
+                    "the down-pour goes through on the next wake after unsubscribe");
         } finally {
             server.shutdown(() -> { });
         }
@@ -224,10 +241,13 @@ class PistonFluidEventAcceptanceTest {
         EngineServer server = boot();
         try {
             int x = 10, z = 10, y = 40;
+            // The bucket's own pour state (the flowing form at LEVEL 0 —
+            // the reference's pour; its tick settles the source and
+            // carries the spread's first pass).
             server.ticker().submit(() -> server.world().setBlock(new BlockPosition(x, y, z),
-                    FluidBlocks.sourceOf(FluidBlocks.Kind.WATER)));
+                    FluidBlocks.typeOf(FluidBlocks.Kind.WATER, FluidBlocks.Form.FLOWING, 0)));
             await(() -> FluidBlocks.isFluid(typeAt(server, x, y, z).identifier()),
-                    "the water source placed");
+                    "the water pour placed");
 
             CopyOnWriteArrayList<FluidFlowEvent> seen = new CopyOnWriteArrayList<>();
             EventSubscription sub = server.events().on(FluidFlowEvent.class, seen::add);

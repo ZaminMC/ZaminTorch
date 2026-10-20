@@ -39,6 +39,25 @@ public final class DropService {
     }
 
     /**
+     * The wash-out drops (the fluid spread's {@code dropItems(world, pos,
+     * state, 0)} — FlowingLiquidBlock.spreadTo's displaced-block arm, lines
+     * 119-125): the block's own drop walk at fortune 0 with NO harvest
+     * gate — the drop path carries no player or tool context (the tool
+     * gate lives in the player's break path alone, the reference's own
+     * split). A water stream washing a torch, a flower or a rail pops
+     * the block's own item exactly like a no-tool break that ignores the
+     * harvest rule.
+     */
+    public List<ItemStack> washedDrops(BlockType washed) {
+        Objects.requireNonNull(washed, "washed");
+        BlockBehavior behavior = BlockBehaviorTable.of(washed.identifier()).orElse(null);
+        if (behavior == null || !behavior.diggable()) {
+            return List.of();
+        }
+        return dropWalk(washed, behavior, null, false, 0);
+    }
+
+    /**
      * The drop walk with the loot enchantments riding (the reference's
      * {@code Block.afterMinedByPlayer}, reference/1.8.8 block/Block lines
      * 772-781): the silk arm drops the block's own item when the block is
@@ -67,6 +86,12 @@ public final class DropService {
         if (!BlockBehaviorTable.canHarvest(behavior, heldTool)) {
             return List.of(); // historical: breakable but yields nothing by hand
         }
+        return dropWalk(broken, behavior, heldTool, silkTouch, fortune);
+    }
+
+    /** The shared drop walk (every family arm — the harvest gate stays at the callers). */
+    private List<ItemStack> dropWalk(BlockType broken, BlockBehavior behavior,
+                                     ItemType heldTool, boolean silkTouch, int fortune) {
         // The infested family (Slice 18c — InfestedBlock.getSilkTouchDrop
         // lines 59-76 + getBaseDropCount 0): the egg never drops by hand
         // (the silverfish burst is the break path's spawn, not a drop

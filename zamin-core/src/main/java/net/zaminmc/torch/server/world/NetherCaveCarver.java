@@ -271,8 +271,9 @@ public final class NetherCaveCarver {
     }
 
     private boolean isLava(net.zaminmc.torch.block.BlockType type) {
-        String value = type.identifier().value();
-        return value.equals("lava") || value.equals("falling_lava") || value.startsWith("flowing_lava");
+        // The whole lava family (the Wave VI band — the reference's
+        // FLOWING_LAVA || LAVA block consult covers every form and level).
+        return net.zaminmc.torch.server.block.FluidBlocks.isLava(type.identifier());
     }
 
     /** The reference MathHelper.floor: largest int not above the value. */

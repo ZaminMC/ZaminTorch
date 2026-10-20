@@ -47,6 +47,14 @@ public final class RandomTickSystem {
      */
     private volatile java.util.function.IntSupplier randomTickSpeedRead;
 
+    /**
+     * The liquid family's random-tick arm (the Wave VI fluids migration):
+     * the flowing forms' whole flow tick and the lava source's fire-start,
+     * dispatched through the fluid system's own tick (the reference's
+     * randomTick → tick delegation). Null until wired.
+     */
+    private volatile java.util.function.BiConsumer<BlockPosition, BlockType> liquidTicker;
+
     private final Random random;
 
     /**
@@ -98,6 +106,11 @@ public final class RandomTickSystem {
      */
     public void setRandomTickSpeedRead(java.util.function.IntSupplier read) {
         this.randomTickSpeedRead = java.util.Objects.requireNonNull(read, "read");
+    }
+
+    /** Wires the liquid family's random-tick arm (the boot wiring — the fluid system's own dispatch). */
+    public void setLiquidTicker(java.util.function.BiConsumer<BlockPosition, BlockType> liquidTicker) {
+        this.liquidTicker = java.util.Objects.requireNonNull(liquidTicker, "liquidTicker");
     }
 
     /**
@@ -208,6 +221,23 @@ public final class RandomTickSystem {
      */
     public void randomTick(BlockPosition position) {
         BlockType type = world.getBlock(position);
+        // The liquid family's random ticks (LiquidBlock's own constructor
+        // band — setTicksRandomly(true) for every liquid, the source
+        // block's false-then-lava-true override; the reference's
+        // randomTick default delegates to the tick body, Block lines
+        // 434-436): the flowing forms re-run the whole flow tick, the
+        // lava source/still forms run the fire-start (the water source
+        // never ticks — LiquidSourceBlock's own water arm).
+        if (FluidBlocks.isFluid(type.identifier())) {
+            if (FluidBlocks.formOf(type.identifier()) == FluidBlocks.Form.FLOWING
+                    || FluidBlocks.kindOf(type.identifier()) == FluidBlocks.Kind.LAVA) {
+                java.util.function.BiConsumer<BlockPosition, BlockType> arm = liquidTicker;
+                if (arm != null) {
+                    arm.accept(position, type);
+                }
+            }
+            return;
+        }
         // The lit redstone ore's revert (Slice 33 — RedstoneOreBlock.tick
         // lines 59-63 over the default Block.randomTick delegation lines
         // 434-436): the LIT variant is setTicksRandomly(true), so the

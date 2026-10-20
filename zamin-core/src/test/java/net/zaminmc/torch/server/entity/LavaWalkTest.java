@@ -297,7 +297,7 @@ class LavaWalkTest {
         BlockPosition at = new BlockPosition(
                 (int) Math.floor(x), (int) Math.floor(y), (int) Math.floor(z));
         server.ticker().submit(() -> server.world().setBlock(at,
-                FluidBlocks.typeOf(FluidBlocks.Kind.LAVA, 0)));
+                FluidBlocks.sourceOf(FluidBlocks.Kind.LAVA)));
     }
 
     @Test
@@ -353,7 +353,7 @@ class LavaWalkTest {
         PlayerSession bather = join("Bather", new Position(50.5, 4, 50.5));
         BlockPosition water = new BlockPosition(50, 3, 50);
         server.ticker().submit(() -> server.world().setBlock(water,
-                FluidBlocks.typeOf(FluidBlocks.Kind.WATER, 0)));
+                FluidBlocks.sourceOf(FluidBlocks.Kind.WATER)));
         await(() -> FluidBlocks.kindOf(server.world().getBlock(water).identifier()) != null,
                 "the water placed");
         bather.applyMovement(new Position(50.5, 3.5, 50.5), Rotation.ZERO, false);

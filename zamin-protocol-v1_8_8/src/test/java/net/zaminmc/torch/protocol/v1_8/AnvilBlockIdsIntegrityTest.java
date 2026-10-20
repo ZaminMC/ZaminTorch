@@ -107,9 +107,14 @@ class AnvilBlockIdsIntegrityTest {
                         + " AnvilBlockIds):\n" + String.join(",\n", missing)
                         + "\nWrong rows:\n" + String.join(";\n", wrong)
                         + "\nUndocumented collisions:\n" + String.join(";\n", collisions));
-        assertEquals(1157, expected.size(),
+        assertEquals(1218, expected.size(),
                 "the derived table's size (the class's own pinned count; a change means the"
-                        + " registry grew — regenerate the class and re-pin this number)");
+                        + " registry grew — regenerate the class and re-pin this number)."
+                        + " The Wave VI fluids band added the 46 still/flowing-0/falling-level"
+                        + " members over the two wire pairs; this re-pin ALSO repairs the stale"
+                        + " row the fire migration left behind (a93ff6a's fifteen AGE states"
+                        + " joined the derivation without the pin moving — the test had been"
+                        + " failing on develop since)");
     }
 
     @Test
