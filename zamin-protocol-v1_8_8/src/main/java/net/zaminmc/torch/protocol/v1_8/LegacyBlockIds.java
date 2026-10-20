@@ -937,6 +937,18 @@ final class LegacyBlockIds {
         merged.put(Identifier.parse("minecraft:leaves"), 18);
         merged.put(Identifier.parse("minecraft:leaves2"), 161);
         merged.put(Identifier.parse("minecraft:sapling"), 6);
+        // The tree-growth family's derived bands (the VIII2/VIII3 slice —
+        // the leaves' decay-bit states and the saplings' ready states ride
+        // the family's own wire rows; the nibble lands in the METADATA map
+        // below, the type's legacyMetadata the same law).
+        for (int variant = 0; variant < woodNames.length; variant++) {
+            int leafWire = variant < 4 ? 18 : 161;
+            String wood = woodNames[variant];
+            merged.put(Identifier.parse("minecraft:" + wood + "_leaves_check"), leafWire);
+            merged.put(Identifier.parse("minecraft:" + wood + "_leaves_persistent"), leafWire);
+            merged.put(Identifier.parse("minecraft:" + wood + "_leaves_persistent_check"), leafWire);
+            merged.put(Identifier.parse("minecraft:" + wood + "_sapling_ready"), 6);
+        }
         // The building-shape families (Slice 36 — Block.java's own rows):
         // the eight stair families (the four facing states, the ascending
         // band in the metadata nibble), the five new wood fences, the
@@ -1527,6 +1539,21 @@ final class LegacyBlockIds {
                     merged.put(Identifier.parse(
                             "minecraft:" + woodNames[variant] + "_" + family), meta);
                 }
+            }
+            // The tree-growth bands' nibbles (the VIII2/VIII3 slice): the
+            // leaf's variant band | persistent bit 4 | check bit 8
+            // (LeavesBlock.getMetadataFromState lines 96-104), the sapling's
+            // variant | stage bit 8 (SaplingBlock lines 197-204).
+            for (int variant = 0; variant < woodNames.length; variant++) {
+                String wood = woodNames[variant];
+                int leafBase = variant & 3;
+                merged.put(Identifier.parse("minecraft:" + wood + "_leaves_persistent"),
+                        leafBase | 4);
+                merged.put(Identifier.parse("minecraft:" + wood + "_leaves_check"),
+                        leafBase | 8);
+                merged.put(Identifier.parse("minecraft:" + wood + "_leaves_persistent_check"),
+                        leafBase | 12);
+                merged.put(Identifier.parse("minecraft:" + wood + "_sapling_ready"), variant | 8);
             }
         }
         // The building-shape families' metadata nibbles (Slice 36): the
