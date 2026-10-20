@@ -11,21 +11,21 @@ being architecturally unlike the historical Bukkit/CraftBukkit/Spigot/Paper line
 
 <!-- LOC_STATS:START -->
 <details>
-<summary>📊 Development Statistics — 239,329 Java lines · 24h +15,039 (click to expand)</summary>
+<summary>📊 Development Statistics — 239,329 Java lines · 24h +14,773 (click to expand)</summary>
 
 ### 📈 Today — 2026-10-20
 
 | Module | Java LOC | ± 24h | ± 7d | ± since start |
 |---|---|---|---|---|
 | zamin-api | 7,130 | +94 | +3,979 | +7,130 |
-| zamin-core | 208,559 | +14,660 | +112,109 | +208,559 |
+| zamin-core | 208,559 | +14,394 | +112,109 | +208,559 |
 | zamin-launcher | 2,669 | +0 | +2,297 | +2,669 |
 | zamin-protocol-v1_8_8 | 20,971 | +285 | +7,246 | +20,971 |
 | tools | 0 | — | — | — |
-| **Total** | **239,329** | **+15,039** | **+125,631** | **+239,329** |
+| **Total** | **239,329** | **+14,773** | **+125,631** | **+239,329** |
 
 ```diff
-+ added 15,039 lines vs 24 hours ago
++ added 14,773 lines vs 24 hours ago
 + added 125,631 lines vs 7 days ago
 + added 239,329 lines vs 30 days ago (since start)
 ```
