@@ -1065,6 +1065,12 @@ public final class BuiltinBlocks {
         // The fire AGE band (FireBlocks — the fifteen derived states over
         // the plain minecraft:fire age-0 member above).
         builder = FireBlocks.registerAll(builder);
+        // The tree-growth family's derived bands (the 2026-10-21 audit's
+        // VIII2/VIII3): the eighteen leaf-decay states (the DECAYABLE /
+        // CHECK_DECAY combos over the six woods' fresh members) and the six
+        // ready sapling states (the STAGE bit).
+        builder = LeafDecayBlocks.registerAll(builder);
+        builder = SaplingBlocks.registerAll(builder);
         // The chest pair's facing states (Slice L2 — the four plain + the
         // four trapped, the Direction-id nibble band 2-5).
         builder = net.zaminmc.torch.server.chest.ChestFacingBlocks.registerAll(builder);

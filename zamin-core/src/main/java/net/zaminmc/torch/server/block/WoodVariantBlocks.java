@@ -115,6 +115,27 @@ public final class WoodVariantBlocks {
     /** Every family block as an engine type (the registration vocabulary).
      *  The shipped oak planks/log/leaves keep their own constants; the
      *  rest build fresh here. */
+    /** The cached fresh leaf types (one canonical instance per wood — the
+     *  registration's own members, so the decay band's stateOf and every
+     *  law return the registered identity). */
+    private static final List<EngineBlockType> LEAF_TYPES = buildLeafTypes();
+
+    private static List<EngineBlockType> buildLeafTypes() {
+        java.util.ArrayList<EngineBlockType> types = new java.util.ArrayList<>();
+        for (int variant = 0; variant < WOODS.size(); variant++) {
+            types.add(new EngineBlockType(leavesBlock(variant),
+                    DISPLAY.get(variant) + " Leaves", wireMetaOf("leaves", variant)));
+        }
+        return List.copyOf(types);
+    }
+
+    /** The fresh (DECAYABLE + !CHECK_DECAY) leaf type of a wood — the
+     *  canonical registered member (LeafDecayBlocks' band resolves onto
+     *  it). */
+    public static EngineBlockType leafType(int variant) {
+        return LEAF_TYPES.get(variant);
+    }
+
     public static List<EngineBlockType> familyBlocks() {
         java.util.ArrayList<EngineBlockType> blocks = new java.util.ArrayList<>();
         for (int variant = 0; variant < WOODS.size(); variant++) {
@@ -129,8 +150,7 @@ public final class WoodVariantBlocks {
                         display + " Log", wireMetaOf("log", variant)));
             }
             if (variant != 0) {
-                blocks.add(new EngineBlockType(leavesBlock(variant),
-                        display + " Leaves", wireMetaOf("leaves", variant)));
+                blocks.add(LEAF_TYPES.get(variant));
             }
             blocks.add(new EngineBlockType(saplingBlock(variant),
                     display + " Sapling", wireMetaOf("sapling", variant)));
@@ -175,6 +195,29 @@ public final class WoodVariantBlocks {
         return Optional.empty();
     }
 
+    /** The family's display name of a variant (the registration vocabulary's own capitalization). */
+    static String displayOf(int variant) {
+        return DISPLAY.get(variant);
+    }
+
+    /** The cached fresh log types (the canonical registered members — the
+     *  tree features' placement vocabulary). */
+    private static final List<EngineBlockType> LOG_TYPES = buildLogTypes();
+
+    private static List<EngineBlockType> buildLogTypes() {
+        java.util.ArrayList<EngineBlockType> types = new java.util.ArrayList<>();
+        for (int variant = 0; variant < WOODS.size(); variant++) {
+            types.add(new EngineBlockType(logBlock(variant),
+                    DISPLAY.get(variant) + " Log", wireMetaOf("log", variant)));
+        }
+        return List.copyOf(types);
+    }
+
+    /** The log type of a wood (the registered member). */
+    public static EngineBlockType logType(int variant) {
+        return LOG_TYPES.get(variant);
+    }
+
     private static int clampVariant(int variant) {
         return Math.max(0, Math.min(5, variant));
     }
@@ -198,14 +241,75 @@ public final class WoodVariantBlocks {
         return -1;
     }
 
-    /** Whether the identifier is any family's leaf block (the drop arm). */
+    /** Whether the identifier is any family's leaf block — the fresh form
+     *  or a decay-band member (the drop arm; the band rides
+     *  {@link LeafDecayBlocks}). */
     public static boolean isLeaves(Identifier block) {
-        return variantOf(block) >= 0 && block.value().endsWith("_leaves");
+        return variantOfLeaf(block) >= 0;
     }
 
-    /** Whether the identifier is any family's sapling block. */
+    /** Whether the identifier is any family's sapling block — the fresh
+     *  form or the stage band ({@link SaplingBlocks}). */
     public static boolean isSapling(Identifier block) {
-        return variantOf(block) >= 0 && block.value().endsWith("_sapling");
+        return variantOfSapling(block) >= 0;
+    }
+
+    /** Whether the identifier is any family's log block (the decay BFS's
+     *  distance-zero seed — AbstractLeavesBlock's LOG/LOG2 pair). */
+    public static boolean isLog(Identifier block) {
+        return variantOf(block) >= 0 && block.value().endsWith("_log");
+    }
+
+    /**
+     * The variant index of any leaf state — the fresh form or a
+     * decay-band member ({@code oak_leaves_check} is still the oak's
+     * leaf) — or -1 for a non-member. The band suffixes strip before the
+     * family match.
+     */
+    public static int variantOfLeaf(Identifier block) {
+        int variant = variantOf(block);
+        if (variant < 0 || !block.value().endsWith("_leaves")) {
+            // The band members carry the suffixes after the family name —
+            // strip and re-match (LeafDecayBlocks' own suffix set).
+            return variantOfLeafStripped(block);
+        }
+        return variant;
+    }
+
+    private static int variantOfLeafStripped(Identifier block) {
+        if (!block.namespace().equals("minecraft")) {
+            return -1;
+        }
+        String value = block.value();
+        for (int variant = 0; variant < WOODS.size(); variant++) {
+            String base = WOODS.get(variant) + "_leaves";
+            if (value.equals(base)
+                    || value.equals(base + LeafDecayBlocks.PERSISTENT_SUFFIX)
+                    || value.equals(base + LeafDecayBlocks.CHECK_SUFFIX)
+                    || value.equals(base + LeafDecayBlocks.PERSISTENT_SUFFIX
+                            + LeafDecayBlocks.CHECK_SUFFIX)) {
+                return variant;
+            }
+        }
+        return -1;
+    }
+
+    /**
+     * The variant index of any sapling state — the fresh form or the
+     * stage band's ready member — or -1 for a non-member.
+     */
+    public static int variantOfSapling(Identifier block) {
+        if (!block.namespace().equals("minecraft")) {
+            return -1;
+        }
+        String value = block.value();
+        for (int variant = 0; variant < WOODS.size(); variant++) {
+            String base = WOODS.get(variant) + "_sapling";
+            if (value.equals(base) || value.equals(base + SaplingBlocks.READY_SUFFIX)) {
+                return variant;
+            }
+        }
+        return -1;
     }
 
     /** Whether the identifier is any family's log or planks block. */
@@ -220,7 +324,7 @@ public final class WoodVariantBlocks {
      * {@code -2<<level} clamped at 10).
      */
     public static int saplingChanceOf(Identifier leafBlock, int fortuneLevel) {
-        int chance = leafBlock.value().equals("jungle_leaves") ? 40 : 20;
+        int chance = isJungleLeaf(leafBlock) ? 40 : 20;
         if (fortuneLevel > 0) {
             chance -= 2 << fortuneLevel;
             if (chance < 10) {
@@ -236,7 +340,7 @@ public final class WoodVariantBlocks {
      * own arm only.
      */
     public static int appleChanceOf(Identifier leafBlock, int fortuneLevel) {
-        if (!leafBlock.value().equals("oak_leaves")) {
+        if (!isOakLeaf(leafBlock)) {
             return 0; // the other five never roll the apple
         }
         int chance = 200;
@@ -247,5 +351,15 @@ public final class WoodVariantBlocks {
             }
         }
         return chance;
+    }
+
+    /** The jungle consult over any jungle leaf state (the band members included). */
+    private static boolean isJungleLeaf(Identifier leafBlock) {
+        return variantOfLeaf(leafBlock) == 3;
+    }
+
+    /** The oak consult over any oak leaf state (the band members included). */
+    private static boolean isOakLeaf(Identifier leafBlock) {
+        return variantOfLeaf(leafBlock) == 0;
     }
 }

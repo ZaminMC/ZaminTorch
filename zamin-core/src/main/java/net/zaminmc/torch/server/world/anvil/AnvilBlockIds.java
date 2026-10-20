@@ -88,6 +88,14 @@ public final class AnvilBlockIds {
             state(6, 3, "minecraft:jungle_sapling"),
             state(6, 4, "minecraft:acacia_sapling"),
             state(6, 5, "minecraft:dark_oak_sapling"),
+            // The sapling STAGE band (the VIII2 slice — SaplingBlock
+            // .getMetadataFromState lines 197-204: the variant | stage<<3).
+            state(6, 8, "minecraft:oak_sapling_ready"),
+            state(6, 9, "minecraft:spruce_sapling_ready"),
+            state(6, 10, "minecraft:birch_sapling_ready"),
+            state(6, 11, "minecraft:jungle_sapling_ready"),
+            state(6, 12, "minecraft:acacia_sapling_ready"),
+            state(6, 13, "minecraft:dark_oak_sapling_ready"),
             state(7, 0, "minecraft:bedrock"),
             // The liquid band whole (the Wave VI fluids migration — the
             // reference's two-form pairs over the full LEVEL nibble 0-15):
@@ -175,6 +183,23 @@ public final class AnvilBlockIds {
             state(18, 1, "minecraft:spruce_leaves"),
             state(18, 2, "minecraft:birch_leaves"),
             state(18, 3, "minecraft:jungle_leaves"),
+            // The leaf decay band (the VIII3 slice — LeavesBlock
+            // .getStateFromMetadata lines 91-101: the variant | persistent
+            // bit 4 | check bit 8; the invalid variant metas 2-3 in the
+            // 161 domain carry no row, the reference's own getVariant
+            // validation).
+            state(18, 4, "minecraft:oak_leaves_persistent"),
+            state(18, 5, "minecraft:spruce_leaves_persistent"),
+            state(18, 6, "minecraft:birch_leaves_persistent"),
+            state(18, 7, "minecraft:jungle_leaves_persistent"),
+            state(18, 8, "minecraft:oak_leaves_check"),
+            state(18, 9, "minecraft:spruce_leaves_check"),
+            state(18, 10, "minecraft:birch_leaves_check"),
+            state(18, 11, "minecraft:jungle_leaves_check"),
+            state(18, 12, "minecraft:oak_leaves_persistent_check"),
+            state(18, 13, "minecraft:spruce_leaves_persistent_check"),
+            state(18, 14, "minecraft:birch_leaves_persistent_check"),
+            state(18, 15, "minecraft:jungle_leaves_persistent_check"),
             state(19, 0, "minecraft:sponge"),
             state(19, 1, "minecraft:wet_sponge"),
             state(20, 0, "minecraft:glass"),
@@ -1045,6 +1070,14 @@ public final class AnvilBlockIds {
             state(160, 15, "minecraft:stained_glass_pane_black"),
             state(161, 0, "minecraft:acacia_leaves"),
             state(161, 1, "minecraft:dark_oak_leaves"),
+            // The leaves2 decay band (the VIII3 slice — the same bit law,
+            // the acacia/dark_oak variant pair 0-1).
+            state(161, 4, "minecraft:acacia_leaves_persistent"),
+            state(161, 5, "minecraft:dark_oak_leaves_persistent"),
+            state(161, 8, "minecraft:acacia_leaves_check"),
+            state(161, 9, "minecraft:dark_oak_leaves_check"),
+            state(161, 12, "minecraft:acacia_leaves_persistent_check"),
+            state(161, 13, "minecraft:dark_oak_leaves_persistent_check"),
             state(162, 0, "minecraft:acacia_log"),
             state(162, 1, "minecraft:dark_oak_log"),
             state(163, 0, "minecraft:acacia_stairs_east"),

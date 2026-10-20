@@ -167,8 +167,12 @@ public final class DropService {
         // at 1/200 (dropAppleWithChance with its -10<<level relief clamped
         // at 40).
         if (net.zaminmc.torch.server.block.WoodVariantBlocks.isLeaves(broken.identifier())) {
+            // The decay band's members break exactly like their fresh form
+            // (LeafDecayBlocks' derived states normalize to the base leaf
+            // before the family consults — the jungle 1/40 band and the
+            // oak apple consult the WOOD, never the decay bits).
             int variant = net.zaminmc.torch.server.block.WoodVariantBlocks
-                    .variantOf(broken.identifier());
+                    .variantOfLeaf(broken.identifier());
             boolean shears = heldTool != null
                     && Tools.specOf(heldTool)
                             .map(spec -> spec.toolClass() == ToolClass.SHEARS)

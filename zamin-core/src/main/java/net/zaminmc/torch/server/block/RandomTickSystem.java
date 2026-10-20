@@ -55,6 +55,11 @@ public final class RandomTickSystem {
      */
     private volatile java.util.function.BiConsumer<BlockPosition, BlockType> liquidTicker;
 
+    /** The leaf-decay drops' seams (the VIII3 slice): the item bodies the
+     *  decayed cells' drops land through, and the drop walk itself. */
+    private volatile net.zaminmc.torch.server.entity.ItemEntityManager leafDecayItems;
+    private volatile net.zaminmc.torch.server.interaction.DropService leafDecayDrops;
+
     private final Random random;
 
     /**
@@ -111,6 +116,15 @@ public final class RandomTickSystem {
     /** Wires the liquid family's random-tick arm (the boot wiring — the fluid system's own dispatch). */
     public void setLiquidTicker(java.util.function.BiConsumer<BlockPosition, BlockType> liquidTicker) {
         this.liquidTicker = java.util.Objects.requireNonNull(liquidTicker, "liquidTicker");
+    }
+
+    /** Wires the leaf-decay drop seams (EngineServer's own bodies — the
+     *  decayed cells' sapling/apple rolls land through the engine's own
+     *  walk, the same one a hand break rolls). */
+    public void setLeafDecayDrops(net.zaminmc.torch.server.entity.ItemEntityManager itemEntities,
+                                  net.zaminmc.torch.server.interaction.DropService drops) {
+        this.leafDecayItems = java.util.Objects.requireNonNull(itemEntities, "itemEntities");
+        this.leafDecayDrops = java.util.Objects.requireNonNull(drops, "drops");
     }
 
     /**
@@ -236,6 +250,22 @@ public final class RandomTickSystem {
                     arm.accept(position, type);
                 }
             }
+            return;
+        }
+        // The tree-growth family (the VIII2/VIII3 slice — the reference's
+        // randomTick → tick delegation, Block lines 434-436): the leaves'
+        // decay poll (the CHECK_DECAY && DECAYABLE gate owns the BFS) and
+        // the saplings' grow roll (the light gate + the 1-in-7).
+        if (LeafDecayBlocks.isLeafState(type.identifier())) {
+            net.zaminmc.torch.server.entity.ItemEntityManager items = leafDecayItems;
+            net.zaminmc.torch.server.interaction.DropService drops = leafDecayDrops;
+            if (items != null && drops != null) {
+                LeafDecayBlocks.decayTick(world, position, type, random, items, drops);
+            }
+            return;
+        }
+        if (WoodVariantBlocks.isSapling(type.identifier())) {
+            SaplingBlocks.randomTick(world, position, type, random);
             return;
         }
         // The lit redstone ore's revert (Slice 33 — RedstoneOreBlock.tick
