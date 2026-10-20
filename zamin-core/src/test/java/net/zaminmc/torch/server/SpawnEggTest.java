@@ -256,15 +256,38 @@ class SpawnEggTest {
 
             server.chatService().submitChat(player, "/give spawn_egg 1 53"); // the giant: no egg
             await(() -> !player.inventory().held().isEmpty(), "the egg granted");
-            long before = server.mobs().all().size();
+            // The no-body assert counts the mobs NEAR the use point alone
+            // (inside the natural spawn system's own 24-block keep-out
+            // ring around world spawn — NaturalSpawner line 90's law keeps
+            // every natural pack outside it, so the ring's count can only
+            // move when the EGG's own spawn lands one; the global count
+            // races the natural cycle and flakes under load).
+            long before = mobsNearUsePoint(server, stone);
 
             // spawnEntity's containsKey gate: no body, no payment.
             server.useItemOnBlock(player, stone, 1, java.util.Optional.empty(), ignored -> { });
             Thread.sleep(150); // a few ticks: nothing may arrive late
-            assertEquals(before, server.mobs().all().size(), "no body ever spawned");
+            assertEquals(before, mobsNearUsePoint(server, stone), "no body ever spawned");
             assertEquals(1, player.inventory().held().count(), "the unknown id never pays");
         } finally {
             server.shutdown(null);
         }
+    }
+
+    /**
+     * The mobs within the 16-block ring around the use point (the egg's
+     * own spawn would land at the clicked face's offset cell — well inside
+     * it; the natural spawn system's 24-block keep-out law keeps every
+     * natural pack outside the ring, so the count moves only for the egg).
+     */
+    private static long mobsNearUsePoint(EngineServer server, BlockPosition at) {
+        return server.mobs().all().stream()
+                .filter(mob -> {
+                    var position = mob.position();
+                    double dx = position.x() - at.x();
+                    double dz = position.z() - at.z();
+                    return dx * dx + dz * dz < 16.0 * 16.0;
+                })
+                .count();
     }
 }
