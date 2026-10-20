@@ -292,7 +292,7 @@ class AnvilImportAcceptanceTest {
         // reference's own save shape), a NO-family tile row over the
         // stone floor (the loud isolation), a named zombie, a three-stack
         // of diamonds on the ground (the item entity with its Age row),
-        // and a Painting — a family with no engine surface.
+        // and a fireworks rocket — a family with no engine surface.
         byte[] blocks = new byte[4096];
         for (int z = 0; z < 16; z++) {
             for (int x = 0; x < 16; x++) {
@@ -312,13 +312,13 @@ class AnvilImportAcceptanceTest {
 
         Map<String, Object> zombie = AnvilFixture.entityRow("Zombie", 132.5, 1.0, 132.5);
         zombie.put("CustomName", "Anvil Zombie");
-        Map<String, Object> painting = AnvilFixture.entityRow("Painting", 134.5, 1.0, 134.5);
+        Map<String, Object> firework = AnvilFixture.entityRow("FireworksRocketEntity", 134.5, 1.0, 134.5);
         Map<String, Object> dropped = AnvilFixture.itemEntityRow(
                 "minecraft:diamond", 3, 0, 133.5, 1.0, 133.5, (short) 100);
 
         byte[] chunkNbt = AnvilFixture.nbtDocument(AnvilFixture.chunkNbt(8, 8,
                 List.of(AnvilFixture.section(0, blocks, new byte[2048], null)), null,
-                List.of(zombie, painting, dropped), List.of(chestTile, homelessTile)));
+                List.of(zombie, firework, dropped), List.of(chestTile, homelessTile)));
         AnvilFixture.writeRegionFile(vault.resolve("region").resolve("r.0.0.mca"),
                 List.of(new AnvilFixture.Entry(8, 8, AnvilRegionFile.SCHEME_ZLIB,
                         AnvilFixture.zlib(chunkNbt))));
@@ -396,14 +396,239 @@ class AnvilImportAcceptanceTest {
                     "the Age row applied (and keeps walking): " + diamonds.get(0).age());
 
             // The report's own rows: 2 entities + 1 tile imported, the
-            // Painting and the no-family tile isolated by name.
+            // fireworks rocket (a family with no engine surface) and the
+            // no-family tile isolated by name.
             assertTrue(report.contains("2 entities"), "the report: " + report);
             assertTrue(report.contains("1 tile entities"), "the report: " + report);
             assertTrue(report.contains("entity family not importable"),
-                    "the Painting isolated loudly: " + report);
-            assertTrue(report.contains("entity Painting"), "the isolation names the id: " + report);
+                    "the fireworks rocket isolated loudly: " + report);
+            assertTrue(report.contains("entity FireworksRocketEntity"),
+                    "the isolation names the id: " + report);
             assertTrue(report.contains("tile row over a block with no tile family"),
                     "the no-family tile isolated loudly: " + report);
+        } finally {
+            consoleLogger.removeHandler(capture);
+            server.shutdown(null);
+        }
+    }
+
+    @Test
+    void theImportedEntityFamiliesLandOnTheEngineSurfaces() throws Exception {
+        // The §31.6 counted refusal's retirement, part one: the four
+        // entity families with real engine surfaces import — the
+        // projectiles (the stuck arrow's inGround + life rows, the
+        // in-flight snowball's Motion), the painting (the exact-cell
+        // anchor + the saved motive, no fit roll), the item frame (the
+        // legacy Direction form's offset + rotation-doubling quirks, the
+        // displayed stack), and the XP orb (the exact Value + the
+        // resumed Age) — while the riding chain keeps isolating LOUDLY
+        // with the missing surfaces named (the non-session rider attach
+        // publication + the server-side rider follow), and every
+        // per-family row the engine model derives differently carries
+        // its counted note.
+        Path vault = dir.resolve("families");
+        Map<String, Object> level = AnvilFixture.compound();
+        level.put("RandomSeed", 1234L);
+        level.put("SpawnX", 129);
+        level.put("SpawnY", 70);
+        level.put("SpawnZ", 129);
+        level.put("Time", 180_000L);
+        level.put("DayTime", 18_000L);
+        level.put("LevelName", "Families");
+        AnvilFixture.writeLevelDat(vault, level);
+
+        // The scene in chunk (8,8): a stone floor at y=0.
+        byte[] blocks = new byte[4096];
+        for (int z = 0; z < 16; z++) {
+            for (int x = 0; x < 16; x++) {
+                blocks[AnvilFixture.cellIndex(x, 0, z)] = 1; // stone floor
+            }
+        }
+
+        // The stuck arrow: inGround + life resume the stick clock; the
+        // arrow-only family rows (xTile/inTile/shake/pickup/damage)
+        // carry the counted unlanded-rows note.
+        Map<String, Object> stuckArrow = AnvilFixture.entityRow("Arrow", 133.5, 2.05, 133.5);
+        stuckArrow.put("Motion", List.of(0.0, 0.0, 0.0));
+        stuckArrow.put("inGround", (byte) 1);
+        stuckArrow.put("life", (short) 400);
+        stuckArrow.put("xTile", (short) 133);
+        stuckArrow.put("yTile", (short) 1);
+        stuckArrow.put("zTile", (short) 133);
+        stuckArrow.put("inTile", "minecraft:stone");
+        stuckArrow.put("shake", (byte) 4);
+        stuckArrow.put("pickup", (byte) 1);
+        stuckArrow.put("damage", 2.5);
+
+        // The in-flight snowball: the saved Motion lands whole.
+        Map<String, Object> snowball = AnvilFixture.entityRow("Snowball", 134.5, 3.0, 134.5);
+        snowball.put("Motion", List.of(-0.5, 0.2, 0.5));
+
+        // The painting: the modern Facing form + the exact motive.
+        Map<String, Object> painting = AnvilFixture.entityRow("Painting", 129.5, 1.5, 132.5);
+        painting.put("TileX", 129);
+        painting.put("TileY", 1);
+        painting.put("TileZ", 132);
+        painting.put("Facing", (byte) 0);
+        painting.put("Motive", "Kebab");
+
+        // The item frame in the LEGACY Direction form: the Tile cell is
+        // the WALL cell (129,1,130), the anchor offsets east to
+        // (130,1,130), and the legacy form doubles the item rotation
+        // (3 -> 6) — the reference's own old-format repair.
+        Map<String, Object> frame = AnvilFixture.entityRow("ItemFrame", 130.5, 1.5, 130.5);
+        frame.put("TileX", 129);
+        frame.put("TileY", 1);
+        frame.put("TileZ", 130);
+        frame.put("Direction", (byte) 3);
+        Map<String, Object> displayed = AnvilFixture.compound();
+        displayed.put("id", "minecraft:diamond");
+        displayed.put("Count", (byte) 1);
+        displayed.put("Damage", (short) 0);
+        frame.put("Item", displayed);
+        frame.put("ItemRotation", (byte) 3);
+        frame.put("ItemDropChance", 1.0f);
+
+        // The XP orb: the exact Value + the resumed Age (the Health row
+        // carries the counted no-surface note).
+        Map<String, Object> orb = AnvilFixture.entityRow("XPOrb", 135.5, 2.0, 135.5);
+        orb.put("Value", (short) 12);
+        orb.put("Age", (short) 2400);
+        orb.put("Health", (short) 5);
+
+        // The zombie riding a minecart: the rider imports whole, the
+        // chain isolates loudly with the missing surfaces named.
+        Map<String, Object> rider = AnvilFixture.entityRow("Zombie", 136.5, 1.0, 136.5);
+        rider.put("CustomName", "Chain Zombie");
+        Map<String, Object> mount = AnvilFixture.entityRow("MinecartRideable", 136.5, 1.0, 136.5);
+        rider.put("Riding", mount);
+
+        // The eye of ender: a family with no engine surface.
+        Map<String, Object> eye = AnvilFixture.entityRow("EyeOfEnderSignal", 137.5, 2.0, 137.5);
+
+        byte[] chunkNbt = AnvilFixture.nbtDocument(AnvilFixture.chunkNbt(8, 8,
+                List.of(AnvilFixture.section(0, blocks, new byte[2048], null)), null,
+                List.of(stuckArrow, snowball, painting, frame, orb, rider, eye), null));
+        AnvilFixture.writeRegionFile(vault.resolve("region").resolve("r.0.0.mca"),
+                List.of(new AnvilFixture.Entry(8, 8, AnvilRegionFile.SCHEME_ZLIB,
+                        AnvilFixture.zlib(chunkNbt))));
+
+        List<String> console = new CopyOnWriteArrayList<>();
+        Handler capture = new Handler() {
+            @Override
+            public void publish(LogRecord record) {
+                console.add(record.getMessage());
+            }
+
+            @Override
+            public void flush() {
+            }
+
+            @Override
+            public void close() {
+            }
+        };
+        Logger consoleLogger = Logger.getLogger(
+                net.zaminmc.torch.server.chat.ConsoleSender.class.getName());
+        consoleLogger.addHandler(capture);
+        consoleLogger.setLevel(Level.INFO);
+        consoleLogger.setUseParentHandlers(false);
+
+        EngineConfig config = new EngineConfig("127.0.0.1", 0, "anvil-families", "it",
+                20, 2, 20, dir.toString());
+        EngineServer server = new EngineServer(config);
+        server.start();
+        try {
+            server.consoleCommand("anvilimport " + vault);
+            long deadline = System.currentTimeMillis() + 20_000;
+            while (System.currentTimeMillis() < deadline
+                    && console.stream().noneMatch(line -> line.startsWith("Anvil import finished"))) {
+                Thread.sleep(50);
+            }
+            String report = console.stream()
+                    .filter(line -> line.startsWith("Anvil import finished"))
+                    .findFirst().orElse(null);
+            assertNotNull(report, "the final report landed (console: " + console + ")");
+
+            // The stuck arrow: the stick clock resumed at the saved life
+            // (and keeps walking — assert the band, not the instant).
+            var arrows = server.projectiles().all().stream()
+                    .filter(p -> p.kind() == net.zaminmc.torch.server.entity.projectile
+                            .ProjectileEntity.Kind.ARROW)
+                    .toList();
+            assertEquals(1, arrows.size(), "the imported arrow (report: " + report + ")");
+            assertTrue(arrows.get(0).inGround(), "the inGround row landed");
+            assertTrue(arrows.get(0).ticksInGround() >= 400,
+                    "the life row resumed the stick clock: " + arrows.get(0).ticksInGround());
+
+            // The snowball: the saved Motion landed whole (the flight
+            // may have already moved it — the launch-position band holds).
+            var shards = server.projectiles().all().stream()
+                    .filter(p -> p.kind() == net.zaminmc.torch.server.entity.projectile
+                            .ProjectileEntity.Kind.SNOWBALL)
+                    .toList();
+            assertTrue(shards.size() <= 1, "at most one snowball (it may have shattered)");
+            if (!shards.isEmpty()) {
+                assertEquals(-0.5, shards.get(0).velocityX(), 0.75,
+                        "the saved Motion's band (the flight's own drag)");
+            }
+
+            // The painting: the exact anchor + the saved motive, whole.
+            var landed = server.decorations().paintingAt(
+                    new net.zaminmc.torch.block.BlockPosition(129, 1, 132));
+            assertNotNull(landed, "the painting hangs at the saved anchor (report: " + report + ")");
+            assertEquals(net.zaminmc.torch.server.decoration.Painting.Motive.KEBAB,
+                    landed.motive(), "the saved motive lands whole — no fit roll");
+            assertEquals(0, landed.facing(), "the saved facing");
+
+            // The item frame: the legacy Direction form's offset put the
+            // anchor one cell east of the Tile row, the displayed stack
+            // landed through the size-1 copy rule, and the rotation
+            // doubled (the old-format repair, 3 -> 6).
+            var landedFrame = server.decorations().frameAt(
+                    new net.zaminmc.torch.block.BlockPosition(130, 1, 130));
+            assertNotNull(landedFrame, "the frame hangs at the OFFSET anchor (report: " + report + ")");
+            assertEquals("diamond", landedFrame.display().type().identifier().value(),
+                    "the displayed stack landed");
+            assertEquals(6, landedFrame.rotation(), "the legacy Direction form doubled the rotation");
+
+            // The XP orb: the exact value + the resumed age (both keep
+            // walking after the import — the band assertions).
+            var orbs = server.experienceOrbs().all();
+            assertEquals(1, orbs.size(), "the imported orb (report: " + report + ")");
+            assertEquals(12, orbs.get(0).amount(), "the saved Value landed whole");
+            assertTrue(orbs.get(0).age() >= 2400,
+                    "the saved Age resumed the despawn clock: " + orbs.get(0).age());
+
+            // The rider imported whole; the chain isolated loudly with
+            // the missing surfaces named.
+            var chainZombies = server.mobs().all().stream()
+                    .filter(mob -> mob.customName() != null
+                            && mob.customName().equals("Chain Zombie"))
+                    .toList();
+            assertEquals(1, chainZombies.size(), "the rider imported through the /summon walk");
+            assertTrue(report.contains("riding chain not imported"),
+                    "the chain isolated loudly: " + report);
+            assertTrue(report.contains("no mob-rider surface"),
+                    "the isolation names the missing surfaces: " + report);
+            assertTrue(report.contains("rides MinecartRideable"),
+                    "the isolation names the mount: " + report);
+
+            // The counted notes: the arrow's unlanded family rows, the
+            // frame's ItemDropChance, the orb's Health, and the
+            // eye-of-ender's generic refusal.
+            assertTrue(report.contains("projectile rows without an engine surface"),
+                    "the arrow's unlanded rows counted: " + report);
+            assertTrue(report.contains("ItemDropChance row has no per-frame surface"),
+                    "the frame's drop chance counted: " + report);
+            assertTrue(report.contains("Health row has no engine surface"),
+                    "the orb's health counted: " + report);
+            assertTrue(report.contains("entity EyeOfEnderSignal"),
+                    "the eye of ender isolated by name: " + report);
+
+            // The report's own counter: 6 entities imported (the arrow,
+            // the snowball, the painting, the frame, the orb, the rider).
+            assertTrue(report.contains("6 entities"), "the entity counter: " + report);
         } finally {
             consoleLogger.removeHandler(capture);
             server.shutdown(null);

@@ -65,6 +65,11 @@ public final class ExperienceOrbEntity implements net.zaminmc.torch.entity.Exper
         return amount;
     }
 
+    /** The despawn clock (readCustomNbt's own {@code Age} row resumes it). */
+    public int age() {
+        return age;
+    }
+
     public Position position() {
         return position;
     }
@@ -102,6 +107,16 @@ public final class ExperienceOrbEntity implements net.zaminmc.torch.entity.Exper
         this.velocityX = vx;
         this.velocityY = vy;
         this.velocityZ = vz;
+    }
+
+    /**
+     * The restored age (the Anvil import's exact-value landing — the
+     * reference's readCustomNbt {@code Age} short): the saved orb's
+     * despawn clock resumes where the save left it. Package-private: the
+     * manager's spawnRestored arm is the only caller.
+     */
+    void setAge(int age) {
+        this.age = age;
     }
 
     /**

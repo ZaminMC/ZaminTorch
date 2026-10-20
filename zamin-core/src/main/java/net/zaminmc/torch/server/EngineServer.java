@@ -22440,7 +22440,8 @@ public final class EngineServer implements Server, EngineBridge {
                                         vehicleManager,
                                         () -> hopperSystem::hopperCartTransfer,
                                         this::spawnerCartHost,
-                                        this::commandCartHost)));
+                                        this::commandCartHost),
+                                projectileManager, decorations, experienceOrbs));
         try {
             io.submit(domain, "anvil-import-open", () -> {
                 // The folder inventory + the level bytes, all on the I/O

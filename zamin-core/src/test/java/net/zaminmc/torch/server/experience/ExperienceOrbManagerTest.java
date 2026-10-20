@@ -90,6 +90,34 @@ class ExperienceOrbManagerTest {
     }
 
     @Test
+    void theRestoredOrbLandsTheSavedAmountAndAge() {
+        // The Anvil import's exact-value form (the reference's
+        // readCustomNbt over ExperienceOrbEntity): the saved Value lands
+        // WHOLE (the burst arms' random split never runs), the saved Age
+        // resumes the despawn clock, and no scatter velocity rides the
+        // restored body (the saved Motion applies after, through the
+        // entity's own setter — the spawnRestored pattern).
+        ExperienceOrbManager manager = new ExperienceOrbManager(
+                new FlatGround(), new Random(42), 1);
+        ExperienceOrbEntity orb = manager.spawnRestored(
+                new Position(3.5, 70.0, 7.5), 12, 2400);
+        assertTrue(orb != null, "a positive value lands");
+        assertEquals(12, orb.amount(), "the saved point total lands whole");
+        assertEquals(2400, orb.age(), "the saved age resumes the despawn clock");
+        assertEquals(3.5, orb.position().x(), "the exact position");
+        assertEquals(70.0, orb.position().y());
+        assertEquals(7.5, orb.position().z());
+        assertEquals(0.0, orb.velocityX(), "no random scatter velocity");
+        assertEquals(0.0, orb.velocityY());
+        assertEquals(0.0, orb.velocityZ());
+        assertTrue(orb.pickupAllowed(), "the reference's own load leaves the pickup delay at zero");
+        assertTrue(manager.all().contains(orb), "the restored orb lives in the manager");
+        // The non-positive refusal (the burst arms' own rule).
+        assertTrue(manager.spawnRestored(new Position(0, 65, 0), 0, 0) == null,
+                "a zero value never spawns");
+    }
+
+    @Test
     void orbsFallAndRestOnTheGround() {
         ExperienceOrbManager manager = new ExperienceOrbManager(
                 new FlatGround(), new Random(42), 1);

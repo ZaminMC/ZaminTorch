@@ -308,8 +308,10 @@ class EntityFamilySaveSplitTest {
         assertEquals("Abasing", restored.get(1).owner(), "the owner row survives");
     }
 
-    // ---- the historical vehicle walk (the pre-S5 save body, verbatim for
-    //      the exercised kinds) ---------------------------------------------
+    // ---- the historical vehicle walk (the store's own save body at the
+    //      ZVD v5 shape, verbatim for the exercised kinds — the v4 base
+    //      rows and the v5 cadence rows included, the pin kept current
+    //      with every format bump) --------------------------------------
 
     private static byte[] legacyVehicleBytes(List<VehicleManager.VehicleSnapshot> vehicles)
             throws Exception {
@@ -318,7 +320,7 @@ class EntityFamilySaveSplitTest {
         out.writeByte('Z');
         out.writeByte('V');
         out.writeByte('D');
-        out.writeByte(3);
+        out.writeByte(5);
         writeVarInt(out, vehicles.size());
         for (VehicleManager.VehicleSnapshot vehicle : vehicles) {
             writeString(out, vehicle.kind());
@@ -338,6 +340,24 @@ class EntityFamilySaveSplitTest {
             } else if (vehicle.kind().equals(VehicleEntity.Kind.SPAWNER_MINECART.name())) {
                 writeString(out, vehicle.spawnerType() == null ? "" : vehicle.spawnerType());
                 writeVarInt(out, vehicle.spawnerDelay());
+                // The v5 cadence rows (MobSpawnerBaseLogic.writeNbt's own
+                // six — a null row set writes the reference's defaults).
+                VehicleManager.CadenceRows cadence = vehicle.cadence();
+                if (cadence == null) {
+                    cadence = new VehicleManager.CadenceRows(
+                            net.zaminmc.torch.server.entity.vehicle.SpawnerMinecartEntity.MIN_SPAWN_DELAY,
+                            net.zaminmc.torch.server.entity.vehicle.SpawnerMinecartEntity.MAX_SPAWN_DELAY,
+                            net.zaminmc.torch.server.entity.vehicle.SpawnerMinecartEntity.SPAWN_COUNT,
+                            net.zaminmc.torch.server.entity.vehicle.SpawnerMinecartEntity.MAX_NEARBY_ENTITIES,
+                            net.zaminmc.torch.server.entity.vehicle.SpawnerMinecartEntity.REQUIRED_PLAYER_RANGE,
+                            net.zaminmc.torch.server.entity.vehicle.SpawnerMinecartEntity.SPAWN_RANGE);
+                }
+                writeVarInt(out, cadence.minSpawnDelay());
+                writeVarInt(out, cadence.maxSpawnDelay());
+                writeVarInt(out, cadence.spawnCount());
+                writeVarInt(out, cadence.maxNearbyEntities());
+                writeVarInt(out, cadence.requiredPlayerRange());
+                writeVarInt(out, cadence.spawnRange());
             } else if (vehicle.kind().equals(VehicleEntity.Kind.COMMAND_BLOCK_MINECART.name())) {
                 writeString(out, vehicle.command() == null ? "" : vehicle.command());
                 writeVarInt(out, vehicle.commandSuccessCount());
@@ -346,6 +366,20 @@ class EntityFamilySaveSplitTest {
                         ? "" : vehicle.commandLastOutput());
             }
             out.writeShort(vehicle.fire());
+            // The v4 base rows (the reference's Entity.readNbt base band).
+            VehicleManager.BaseRows base = vehicle.base();
+            out.writeLong(base.uuidMost());
+            out.writeLong(base.uuidLeast());
+            out.writeByte(base.hasUuid() ? 1 : 0);
+            writeString(out, base.customName() == null ? "" : base.customName());
+            out.writeByte(base.customNameVisible() ? 1 : 0);
+            out.writeByte(base.silent() ? 1 : 0);
+            out.writeFloat(base.fallDistance());
+            out.writeShort(base.breath());
+            out.writeByte(base.onGround() ? 1 : 0);
+            out.writeByte(base.invulnerable() ? 1 : 0);
+            out.writeInt(base.dimension());
+            writeVarInt(out, base.portalCooldown());
         }
         out.flush();
         return sink.toByteArray();
@@ -369,7 +403,14 @@ class EntityFamilySaveSplitTest {
                         hopperCargo, false, 77, null, -1, null, 0, true, null, -20),
                 new VehicleManager.VehicleSnapshot(
                         VehicleEntity.Kind.COMMAND_BLOCK_MINECART.name(), 4.5, 43.0, 5.5, 0.0f,
-                        6.0f, null, true, -1, null, -1, "say hi", 3, true, "ran", 7));
+                        6.0f, null, true, -1, null, -1, "say hi", 3, true, "ran", 7),
+                // The spawner cart (the v5 cadence rows' own scene — the
+                // explicit band the acceptance scene imports).
+                new VehicleManager.VehicleSnapshot(
+                        VehicleEntity.Kind.SPAWNER_MINECART.name(), 5.5, 44.0, 6.5, 0.0f, 6.0f,
+                        null, true, -1, "Zombie", 12, null, 0, true, null, 0,
+                        VehicleManager.BaseRows.DEFAULT,
+                        new VehicleManager.CadenceRows(120, 240, 2, 3, 12, 2)));
 
         VehicleDataStore store = new VehicleDataStore(dir.resolve("vehicles.bin"));
 
@@ -381,7 +422,7 @@ class EntityFamilySaveSplitTest {
         assertArrayEquals(split, Files.readAllBytes(dir.resolve("vehicles.bin")),
                 "the sync save's file carries the split path's bytes");
         List<VehicleManager.VehicleSnapshot> restored = store.load();
-        assertEquals(4, restored.size(), "the vehicle rows round-trip");
+        assertEquals(5, restored.size(), "the vehicle rows round-trip");
         assertEquals(VehicleEntity.Kind.MINECART.name(), restored.get(0).kind());
         assertEquals(0, restored.get(0).fire());
         VehicleManager.VehicleSnapshot chest = restored.get(1);
@@ -399,6 +440,15 @@ class EntityFamilySaveSplitTest {
         assertEquals(3, command.commandSuccessCount());
         assertTrue(command.commandTrackOutput());
         assertEquals("ran", command.commandLastOutput());
+        VehicleManager.VehicleSnapshot spawner = restored.get(4);
+        assertEquals("Zombie", spawner.spawnerType(), "the spawner cart's type round-trips");
+        assertEquals(12, spawner.spawnerDelay(), "the spawner cart's delay round-trips");
+        assertEquals(120, spawner.cadence().minSpawnDelay(), "the cadence band's min");
+        assertEquals(240, spawner.cadence().maxSpawnDelay(), "the cadence band's max");
+        assertEquals(2, spawner.cadence().spawnCount(), "the cadence attempts");
+        assertEquals(3, spawner.cadence().maxNearbyEntities(), "the cadence cap");
+        assertEquals(12, spawner.cadence().requiredPlayerRange(), "the cadence gate");
+        assertEquals(2, spawner.cadence().spawnRange(), "the cadence roll range");
     }
 
     @Test

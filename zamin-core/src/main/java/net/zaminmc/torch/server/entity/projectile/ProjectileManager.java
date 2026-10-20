@@ -468,6 +468,38 @@ public final class ProjectileManager {
     }
 
     /**
+     * The restored form (the Anvil import's exact-position landing — the
+     * reference's {@code Entities.create} + the base {@code readCustomNbt}
+     * walk): the saved position and the saved Motion land whole, no
+     * gaussian tilt, no launch force walk. The thrower stays unknown
+     * (the reference's projectile NBT carries no shooter — the base rows
+     * alone). A fireball lands with zero acceleration (the reference's
+     * own load shape — writeNbt never writes the acceleration fields,
+     * so a loaded fireball flies straight at its saved velocity);
+     * a stuck arrow's rows land after through {@code restoreGrounded}.
+     * The gate consult stays (the §27.7 ProjectileSpawnEvent — the
+     * ItemEntityManager.spawnRestored pattern).
+     *
+     * @return the landed projectile, or null when the §27.7 gate
+     *         swallowed the import (the row isolates loudly).
+     */
+    public ProjectileEntity spawnRestored(ProjectileEntity.Kind kind, Position at,
+                                          double vx, double vy, double vz) {
+        Objects.requireNonNull(kind, "kind");
+        Objects.requireNonNull(at, "at");
+        if (!admitLaunch(kind, -1, at)) {
+            return null; // the §27.7 gate withheld the import
+        }
+        ProjectileEntity projectile = new ProjectileEntity(
+                nextEntityId++, kind, -1, at, vx, vy, vz);
+        projectiles.add(projectile);
+        for (Listener listener : listeners) {
+            listener.onProjectileSpawned(projectile);
+        }
+        return projectile;
+    }
+
+    /**
      * Launches a projectile from a position along a RAW direction vector
      * (the dispenser's projectile family — Bootstrap lines 66-84 +
      * ThrownEntity.dispense lines 86-99): the direction is normalized, tilted
