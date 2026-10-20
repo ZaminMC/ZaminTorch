@@ -2627,8 +2627,13 @@ and stale-write rules order the concurrent publications).
 
 ## Standing (demand-named, not scheduled)
 
-- The shared container-open event (the chest family row's "if demand
-  names it" note).
+- (the shared container-open event LANDED 2026-10-21: the
+  ContainerOpenEvent record over the session's own ONE seam — every
+  container family's open fires it (the block containers and the
+  entity forms: the horse, the chest/hopper carts, the villager), the
+  kind naming the family, the position/mount id carrying the anchor,
+  the window id the wire's own counter; the chest's own ChestOpenEvent
+  observation stays beside it; the row RETIRED)
 - (per-command argument completion LANDED: the suggester component + the
   reference's thirteen arms + the protocol's gated consult — the row
   RETIRED)

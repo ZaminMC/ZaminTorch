@@ -818,7 +818,13 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
         return containerPosition;
     }
 
-    /** Marks the container window as open (engine-assigned id &gt; 0). */
+    /**
+     * Marks the container window as open (engine-assigned id &gt; 0). The
+     * shared §27.7 container-open observation fires here — the ONE seam
+     * every container family's open flows through (the block containers
+     * and the entity forms): the listener (the engine's event-bus wiring,
+     * set at construction) receives the committed form, never a veto.
+     */
     public void openContainerWindow(int windowId, ContainerKind kind,
                                     net.zaminmc.torch.block.BlockPosition position) {
         if (windowId <= 0) {
@@ -833,30 +839,63 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
         this.containerPosition = position;
         this.containerMountId = -1;
         this.selectedTrade = -1;
+        if (containerOpenListener != null) {
+            containerOpenListener.accept(new ContainerOpenDescriptor(
+                    windowId, kind, position, -1));
+        }
     }
+
+    /**
+     * The shared container-open observation's own listener seam (the
+     * engine's event-bus wiring — null in the bare session, the
+     * standalone systems' own convention). Tick-thread context.
+     */
+    public void setContainerOpenListener(java.util.function.Consumer<ContainerOpenDescriptor> listener) {
+        this.containerOpenListener = listener;
+    }
+
+    /** The committed open's own descriptor (the listener's payload). */
+    public record ContainerOpenDescriptor(int windowId, ContainerKind kind,
+                                          net.zaminmc.torch.block.BlockPosition position,
+                                          int mountId) {
+    }
+
+    /** The shared open observation's listener (null = unobserved). */
+    private java.util.function.Consumer<ContainerOpenDescriptor> containerOpenListener;
 
     /** Opens the horse inventory window (the mount's engine id rides along). */
     public void openHorseWindow(int windowId, int mountEngineId) {
-        openContainerWindow(windowId, ContainerKind.HORSE, null);
-        this.containerMountId = mountEngineId;
+        openContainerWindowWithMount(windowId, ContainerKind.HORSE, null, mountEngineId);
     }
 
     /** Opens the chest minecart's chest menu (the cart's engine id rides along). */
     public void openChestMinecartWindow(int windowId, int cartEngineId) {
-        openContainerWindow(windowId, ContainerKind.CHEST_MINECART, null);
-        this.containerMountId = cartEngineId;
+        openContainerWindowWithMount(windowId, ContainerKind.CHEST_MINECART, null, cartEngineId);
     }
 
     /** Opens the hopper minecart's hopper menu (the cart's engine id rides along). */
     public void openHopperMinecartWindow(int windowId, int cartEngineId) {
-        openContainerWindow(windowId, ContainerKind.HOPPER_MINECART, null);
-        this.containerMountId = cartEngineId;
+        openContainerWindowWithMount(windowId, ContainerKind.HOPPER_MINECART, null, cartEngineId);
     }
 
     /** Opens the villager trading window (the trader's engine id rides along). */
     public void openVillagerWindow(int windowId, int villagerEngineId) {
-        openContainerWindow(windowId, ContainerKind.VILLAGER, null);
-        this.containerMountId = villagerEngineId;
+        openContainerWindowWithMount(windowId, ContainerKind.VILLAGER, null, villagerEngineId);
+    }
+
+    /** The entity containers' own open (the mount id lands BEFORE the shared observation fires). */
+    private void openContainerWindowWithMount(int windowId, ContainerKind kind,
+                                              net.zaminmc.torch.block.BlockPosition position,
+                                              int mountId) {
+        this.containerWindowId = windowId;
+        this.containerKind = kind;
+        this.containerPosition = position;
+        this.containerMountId = mountId;
+        this.selectedTrade = -1;
+        if (containerOpenListener != null) {
+            containerOpenListener.accept(new ContainerOpenDescriptor(
+                    windowId, kind, position, mountId));
+        }
     }
 
     /** @return the mount id of the open HORSE window, or -1. */

@@ -22789,6 +22789,21 @@ public final class EngineServer implements Server, EngineBridge {
             // The API's give() re-syncs the wire exactly like the engine's own
             // pickup paths (§27.5: the handle resolves to live behavior).
             session.setInventorySyncHook(this::publishInventoryChanged);
+            // The shared §27.7 container-open observation (the standing row's
+            // retirement): every container family's open fires the ONE event
+            // through the session's own seam — the block containers and the
+            // entity forms (the horse, the carts, the villager), the kind
+            // naming the family, the position/mount id carrying the anchor.
+            session.setContainerOpenListener(descriptor -> {
+                net.zaminmc.torch.server.event.EngineEventBus bus = eventBus;
+                if (bus != null) {
+                    bus.fire(new net.zaminmc.torch.event.player.ContainerOpenEvent(
+                            session.uuid(), session.name(),
+                            descriptor.kind().name(),
+                            descriptor.position(), descriptor.mountId(),
+                            descriptor.windowId()));
+                }
+            });
             // The stat observation (Slice 90 — the reference's ServerPlayerStats
             // + ServerPlayerEntity.incrementStat halves): the scoreboard ride on
             // every write, the achievement transition broadcast, and the 0x37
