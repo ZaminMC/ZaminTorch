@@ -352,11 +352,19 @@ public final class LightEngine implements WorldChangeListener, ChunkLoadListener
             Cell cell = queue.pop();
             forEachNeighbor(cell.x(), cell.y(), cell.z(), (nx, ny, nz) -> {
                 int target = cell.level() - stepCost(access, nx, ny, nz);
-                if (target > access.blockLightAt(nx, ny, nz)) {
-                    access.setBlockLight(nx, ny, nz, target);
-                    if (target > 1) {
-                        queue.push(new Cell(nx, ny, nz, target));
-                    }
+                // THE RE-QUEUE GATE (the unbounded-storm fix): only a cell whose
+                // write LANDED may re-queue — a dropped write (unloaded space)
+                // leaves the read answering the channel default forever, and a
+                // re-queued unloaded cell re-satisfies the push condition on
+                // every incoming edge (the traversal explodes with the path
+                // count; the batch lane's measurements caught it — a single
+                // torch at the border of unloaded space hung the compute for
+                // half a minute). The dropped writes were no-ops all along, so
+                // the final state is unchanged.
+                if (target > access.blockLightAt(nx, ny, nz)
+                        && access.setBlockLight(nx, ny, nz, target)
+                        && target > 1) {
+                    queue.push(new Cell(nx, ny, nz, target));
                 }
             });
         }
@@ -442,11 +450,13 @@ public final class LightEngine implements WorldChangeListener, ChunkLoadListener
                 boolean directFall = cell.level() == 15 && ny == cell.y() - 1
                         && access.filterAt(nx, ny, nz) == 0;
                 int target = directFall ? 15 : cell.level() - stepCost(access, nx, ny, nz);
-                if (target > access.skyLightAt(nx, ny, nz)) {
-                    access.setSkyLight(nx, ny, nz, target);
-                    if (target > 1) {
-                        queue.push(new Cell(nx, ny, nz, target));
-                    }
+                // THE RE-QUEUE GATE — the same as addBlock's (the sky channel's
+                // unloaded answer is 15, which already blocks most pushes; the
+                // gate closes the remainder — see addBlock's note).
+                if (target > access.skyLightAt(nx, ny, nz)
+                        && access.setSkyLight(nx, ny, nz, target)
+                        && target > 1) {
+                    queue.push(new Cell(nx, ny, nz, target));
                 }
             });
         }
@@ -660,31 +670,33 @@ public final class LightEngine implements WorldChangeListener, ChunkLoadListener
         }
 
         @Override
-        public void setBlockLight(int x, int y, int z, int level) {
+        public boolean setBlockLight(int x, int y, int z, int level) {
             if (inFresh(x, z)) {
                 unpublishedChunk.setBlockLight(x - unpublishedBaseX, y, z - unpublishedBaseZ, level);
-                return;
+                return true;
             }
             EngineChunk chunk = world.peek(ChunkPosition.ofBlock(x, z));
             if (chunk == null) {
-                return; // light cannot spread into unloaded space
+                return false; // light cannot spread into unloaded space
             }
             chunk.setBlockLight(x & 0xF, y, z & 0xF, level);
             markRelight(x, z);
+            return true;
         }
 
         @Override
-        public void setSkyLight(int x, int y, int z, int level) {
+        public boolean setSkyLight(int x, int y, int z, int level) {
             if (inFresh(x, z)) {
                 unpublishedChunk.setSkyLight(x - unpublishedBaseX, y, z - unpublishedBaseZ, level);
-                return;
+                return true;
             }
             EngineChunk chunk = world.peek(ChunkPosition.ofBlock(x, z));
             if (chunk == null) {
-                return; // light cannot spread into unloaded space
+                return false; // light cannot spread into unloaded space
             }
             chunk.setSkyLight(x & 0xF, y, z & 0xF, level);
             markRelight(x, z);
+            return true;
         }
 
         @Override
