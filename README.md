@@ -11,26 +11,26 @@ being architecturally unlike the historical Bukkit/CraftBukkit/Spigot/Paper line
 
 <!-- LOC_STATS:START -->
 <details>
-<summary>📊 Development Statistics — 234,784 Java lines · 24h +14,574 (click to expand)</summary>
+<summary>📊 Development Statistics — 235,738 Java lines · 24h +14,978 (click to expand)</summary>
 
 ### 📈 Today — 2026-10-20
 
 | Module | Java LOC | ± 24h | ± 7d | ± since start |
 |---|---|---|---|---|
-| zamin-api | 7,036 | +0 | +4,216 | +7,036 |
-| zamin-core | 204,138 | +14,296 | +110,730 | +204,138 |
+| zamin-api | 7,130 | +94 | +4,310 | +7,130 |
+| zamin-core | 204,998 | +14,629 | +110,982 | +204,998 |
 | zamin-launcher | 2,669 | +0 | +2,297 | +2,669 |
-| zamin-protocol-v1_8_8 | 20,941 | +278 | +7,575 | +20,941 |
+| zamin-protocol-v1_8_8 | 20,941 | +255 | +7,538 | +20,941 |
 | tools | 0 | — | — | — |
-| **Total** | **234,784** | **+14,574** | **+124,818** | **+234,784** |
+| **Total** | **235,738** | **+14,978** | **+125,127** | **+235,738** |
 
 ```diff
-+ added 14,574 lines vs 24 hours ago
-+ added 124,818 lines vs 7 days ago
-+ added 234,784 lines vs 30 days ago (since start)
++ added 14,978 lines vs 24 hours ago
++ added 125,127 lines vs 7 days ago
++ added 235,738 lines vs 30 days ago (since start)
 ```
 
-*832 Java files · tracked modules: `zamin-api`, `zamin-core`, `zamin-launcher`, `zamin-protocol-v1_8_8`, `tools` · dates in PKT (UTC+5) · auto-updated on every push to `develop` and every 6 hours · last update 2026-10-20 06:31 PKT. `tools` currently contains no Java code; it is counted automatically once it does.*
+*837 Java files · tracked modules: `zamin-api`, `zamin-core`, `zamin-launcher`, `zamin-protocol-v1_8_8`, `tools` · dates in PKT (UTC+5) · auto-updated on every push to `develop` and every 6 hours · last update 2026-10-20 06:54 PKT. `tools` currently contains no Java code; it is counted automatically once it does.*
 
 <details>
 <summary>📜 Past stats — 13 recorded days</summary>
