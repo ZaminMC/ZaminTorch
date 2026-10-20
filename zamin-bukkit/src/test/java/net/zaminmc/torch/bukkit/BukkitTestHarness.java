@@ -178,15 +178,32 @@ public final class BukkitTestHarness {
 
             import org.bukkit.Bukkit;
             import org.bukkit.Material;
+            import org.bukkit.block.Block;
+            import org.bukkit.command.Command;
+            import org.bukkit.command.CommandSender;
+            import org.bukkit.command.PluginCommand;
+            import org.bukkit.entity.Player;
             import org.bukkit.event.EventHandler;
             import org.bukkit.event.EventPriority;
             import org.bukkit.event.Listener;
             import org.bukkit.event.block.BlockBreakEvent;
+            import org.bukkit.event.block.BlockFromToEvent;
+            import org.bukkit.event.block.BlockPistonExtendEvent;
+            import org.bukkit.event.block.BlockPistonRetractEvent;
             import org.bukkit.event.block.BlockPlaceEvent;
+            import org.bukkit.event.block.SignChangeEvent;
+            import org.bukkit.event.entity.CreatureSpawnEvent;
+            import org.bukkit.event.entity.EntityDamageEvent;
+            import org.bukkit.event.entity.ItemSpawnEvent;
+            import org.bukkit.event.entity.PlayerDeathEvent;
+            import org.bukkit.event.entity.ProjectileLaunchEvent;
+            import org.bukkit.event.inventory.FurnaceBurnEvent;
+            import org.bukkit.event.inventory.FurnaceSmeltEvent;
             import org.bukkit.event.player.AsyncPlayerChatEvent;
             import org.bukkit.event.player.PlayerChatEvent;
             import org.bukkit.event.player.PlayerJoinEvent;
             import org.bukkit.event.player.PlayerQuitEvent;
+            import org.bukkit.event.vehicle.VehicleCreateEvent;
             import org.bukkit.plugin.java.JavaPlugin;
 
             public class ProbePlugin extends JavaPlugin implements Listener {
@@ -212,6 +229,28 @@ public final class BukkitTestHarness {
                 public void onEnable() {
                     log("lifecycle:onEnable");
                     Bukkit.getPluginManager().registerEvents(this, this);
+
+                    // The slice-2 command arms: the gift command's executor +
+                    // tab completer, resolved through the server's own
+                    // getPluginCommand — the registry the command bridge
+                    // filled BEFORE this onEnable ran (the 1.8.8 enable
+                    // walk's own order).
+                    PluginCommand gift = getCommand("gift");
+                    if (gift != null) {
+                        log("cmd:gift-resolved");
+                        gift.setExecutor((sender, command, label, args) -> {
+                            log("cmd:gift by=" + sender.getName() + " label=" + label
+                                    + " color=" + (args.length == 1 ? args[0] : "none"));
+                            return true;
+                        });
+                        gift.setTabCompleter((sender, command, alias, args) -> {
+                            log("cmd:gift-complete by=" + sender.getName()
+                                    + " alias=" + alias);
+                            return java.util.Arrays.asList("red", "green", "blue");
+                        });
+                    } else {
+                        log("cmd:gift-resolve-FAILED");
+                    }
 
                     // The scheduler arms.
                     Bukkit.getScheduler().runTask(this, () ->
@@ -249,6 +288,161 @@ public final class BukkitTestHarness {
                 @Override
                 public void onDisable() {
                     log("lifecycle:onDisable");
+                }
+
+                // ---------------- the plugin.yml commands (the slice-2 surface)
+
+                // The hello command: PluginCommand's own default executor IS
+                // the plugin — onCommand runs without any setExecutor. The
+                // permission gate (probe.hello + the permission-message) and
+                // the usage lines are PluginCommand.execute's own arms.
+                @Override
+                public boolean onCommand(CommandSender sender, Command command, String label,
+                        String[] args) {
+                    if (!command.getName().equals("hello")) {
+                        return false; // not the probe's command
+                    }
+                    if (args.length > 1) {
+                        return false; // the usage arm: the walk delivers "/hello [name]"
+                    }
+                    log("cmd:hello by=" + sender.getName() + " label=" + label
+                            + " name=" + (args.length == 1 ? args[0] : "world")
+                            + " primary=" + Bukkit.isPrimaryThread());
+                    return true;
+                }
+
+                // ---------------- the second event group (the slice-2 bridges)
+
+                @EventHandler(priority = EventPriority.LOWEST)
+                public void onDamage(EntityDamageEvent event) {
+                    if (!(event.getEntity() instanceof Player)) {
+                        // The tripwire: the MOB arm of this event type is one of
+                        // the bridge's recorded unbridged gaps — if this line
+                        // ever fires, a bridge started faking it.
+                        log("UNBRIDGED-FIRED:EntityDamage(non-player)");
+                        return;
+                    }
+                    log("event:damage player=" + event.getEntity().getName()
+                            + " cause=" + event.getCause() + " amount=" + event.getDamage()
+                            + " primary=" + Bukkit.isPrimaryThread());
+                    // The cancel arm skips the death-test players (the
+                    // Keeper family must be able to die).
+                    if (event.getDamage() >= 10.0
+                            && !event.getEntity().getName().startsWith("Keeper")) {
+                        event.setCancelled(true);
+                        log("cancel:damage");
+                    }
+                    if (event.getDamage() == 3.0) {
+                        event.setDamage(1.0);
+                        log("modify:damage-amount");
+                    }
+                }
+
+                @EventHandler(priority = EventPriority.MONITOR)
+                public void onDeath(PlayerDeathEvent event) {
+                    log("event:death player=" + event.getEntity().getName()
+                            + " message=" + event.getDeathMessage()
+                            + " drops=" + event.getDrops().size()
+                            + " primary=" + Bukkit.isPrimaryThread());
+                    // The rewrite arm: the broadcast line maps back through the
+                    // engine's own mutable deathMessage.
+                    event.setDeathMessage(event.getDeathMessage() + " [bridged]");
+                    if (event.getEntity().getName().startsWith("Keeper")) {
+                        // The legacy keepInventory arm → the native cancel arm.
+                        event.setKeepInventory(true);
+                        log("event:death-keep");
+                    }
+                }
+
+                @EventHandler(priority = EventPriority.LOWEST)
+                public void onFlow(BlockFromToEvent event) {
+                    log("event:fromto from=" + loc(event.getBlock())
+                            + " to=" + loc(event.getToBlock())
+                            + " toType=" + event.getToBlock().getType());
+                    // The fluid test's own cell (the harness's fixture law:
+                    // the probe knows the test's cells, the adversarial
+                    // GLOWSTONE arm's own pattern) — the down-pour target
+                    // under the pour at (30,40,30).
+                    if (event.getToBlock().getX() == 30
+                            && event.getToBlock().getY() == 39
+                            && event.getToBlock().getZ() == 30) {
+                        event.setCancelled(true);
+                        log("cancel:flow-below");
+                    }
+                }
+
+                @EventHandler(priority = EventPriority.MONITOR)
+                public void onPistonExtend(BlockPistonExtendEvent event) {
+                    log("event:piston-extend at=" + loc(event.getBlock())
+                            + " face=" + event.getDirection()
+                            + " moved=" + event.getBlocks().size());
+                }
+
+                @EventHandler(priority = EventPriority.MONITOR)
+                public void onPistonRetract(BlockPistonRetractEvent event) {
+                    log("event:piston-retract at=" + loc(event.getBlock())
+                            + " face=" + event.getDirection()
+                            + " moved=" + event.getBlocks().size()
+                            + " t=" + System.currentTimeMillis());
+                }
+
+                @EventHandler(priority = EventPriority.NORMAL)
+                public void onSignChange(SignChangeEvent event) {
+                    log("event:signchange editor=" + event.getPlayer().getName()
+                            + " line0=" + event.getLine(0)
+                            + " primary=" + Bukkit.isPrimaryThread());
+                    if (event.getLine(0).contains("secret")) {
+                        event.setCancelled(true);
+                        log("cancel:sign");
+                        return;
+                    }
+                    event.setLine(0, event.getLine(0).toUpperCase()); // the rewrite arm
+                }
+
+                @EventHandler(priority = EventPriority.LOWEST)
+                public void onFurnaceBurn(FurnaceBurnEvent event) {
+                    log("event:burn at=" + loc(event.getFurnace())
+                            + " fuel=" + event.getFuel().getType()
+                            + " ticks=" + event.getBurnTime());
+                }
+
+                @EventHandler(priority = EventPriority.LOWEST)
+                public void onFurnaceSmelt(FurnaceSmeltEvent event) {
+                    log("event:smelt at=" + loc(event.getFurnace())
+                            + " source=" + event.getSource().getType()
+                            + " result=" + event.getResult().getType());
+                    if (event.getSource().getType() == Material.GOLD_ORE) {
+                        event.setCancelled(true);
+                        log("cancel:smelt-gold");
+                    }
+                }
+
+                // ---------------- the unbridged-family tripwires (§27.9's
+                // honest gaps: these listeners must NEVER fire through the
+                // bridge — the entity-adapter family is the later slice)
+
+                @EventHandler
+                public void onCreatureSpawn(CreatureSpawnEvent event) {
+                    log("UNBRIDGED-FIRED:CreatureSpawn");
+                }
+
+                @EventHandler
+                public void onItemSpawn(ItemSpawnEvent event) {
+                    log("UNBRIDGED-FIRED:ItemSpawn");
+                }
+
+                @EventHandler
+                public void onProjectileLaunch(ProjectileLaunchEvent event) {
+                    log("UNBRIDGED-FIRED:ProjectileLaunch");
+                }
+
+                @EventHandler
+                public void onVehicleCreate(VehicleCreateEvent event) {
+                    log("UNBRIDGED-FIRED:VehicleCreate");
+                }
+
+                private static String loc(Block block) {
+                    return "(" + block.getX() + "," + block.getY() + "," + block.getZ() + ")";
                 }
 
                 // ---------------- join/quit (the observation arms)
@@ -347,6 +541,16 @@ public final class BukkitTestHarness {
             version: 1.0.0
             main: probe.ProbePlugin
             author: Torch
+            commands:
+              hello:
+                description: The slice-2 probe command (the permission gate's own arm)
+                usage: /<command> [name]
+                aliases: [greet]
+                permission: probe.hello
+                permission-message: You lack the greeting permit.
+              gift:
+                description: The slice-2 probe's tab-completion arm
+                usage: /<command> <color>
             """;
 
     /**
