@@ -52,12 +52,12 @@ class SpawnerMinecartTest {
         volatile boolean allowSpawn = true;
 
         @Override
-        public boolean playerNearby(double x, double y, double z) {
+        public boolean playerNearby(double x, double y, double z, double range) {
             return playerNearby;
         }
 
         @Override
-        public int nearbyOfKind(MobType type, int cellX, int cellY, int cellZ) {
+        public int nearbyOfKind(MobType type, int cellX, int cellY, int cellZ, int range) {
             return nearbyCount;
         }
 
@@ -139,6 +139,67 @@ class SpawnerMinecartTest {
     }
 
     @Test
+    void thePerCartCadenceRowsDriveTheWalk() {
+        // The Wave VI per-cart surface (MobSpawnerBaseLogic's own FIELDS —
+        // writeNbt's six rows): the imported/persisted rows override the
+        // reference's defaults PER CART. A narrow band, two attempts, a
+        // two-mob cap, and a 0-range roll — every band observable in one
+        // walk.
+        RecordingHost host = new RecordingHost();
+        host.nearbyCount = 2; // the custom cap's edge: the abort fires
+        SpawnerMinecartEntity cart = new SpawnerMinecartEntity(9905,
+                new Position(10.5, 0.35, 10.5), new Random(96L), host);
+        cart.setMinSpawnDelay(30);
+        cart.setMaxSpawnDelay(31);
+        cart.setSpawnCount(2);
+        cart.setMaxNearbyEntities(2);
+        cart.setRequiredPlayerRange(16);
+        cart.setSpawnRange(4);
+        for (int i = 0; i < SpawnerMinecartEntity.INITIAL_DELAY + 1; i++) {
+            cart.tick(GROUND_WORLD);
+        }
+        // The custom cap (2) aborted the cycle before any attempt — the
+        // reference's own >= band against the cart's OWN row.
+        assertEquals(0, host.spawns.get(), "the cart's own two-mob cap aborted the cycle");
+        assertTrue(cart.delay() == 30, "the cart's own 30..31 band: " + cart.delay());
+        // The wide-open shape: the custom rows let the cycle spawn.
+        host.nearbyCount = 0;
+        cart.setDelay(0);
+        cart.tick(GROUND_WORLD);
+        assertEquals(2, host.spawns.get(), "the cart's own two-attempt cycle spawned both");
+        assertEquals(2, cart.consumeFlameBursts(), "the per-spawn bursts");
+    }
+
+    @Test
+    void thePersistencePayloadCarriesTheCadenceRows() {
+        // The ZVD v5 roundtrip: the spawner's six cadence rows.
+        java.nio.file.Path file = dataDir.resolve("vehicles.bin");
+        net.zaminmc.torch.server.entity.vehicle.VehicleDataStore store =
+                new net.zaminmc.torch.server.entity.vehicle.VehicleDataStore(file);
+        VehicleManager manager = new VehicleManager(GROUND_WORLD,
+                vehicle -> { }, new Random(9), 9700);
+        var spawned = (SpawnerMinecartEntity) manager.spawnSpawnerMinecart(
+                new Position(12.5, 0.35, 12.5), new RecordingHost());
+        spawned.setMinSpawnDelay(11);
+        spawned.setMaxSpawnDelay(22);
+        spawned.setSpawnCount(3);
+        spawned.setMaxNearbyEntities(4);
+        spawned.setRequiredPlayerRange(8);
+        spawned.setSpawnRange(2);
+        store.save(manager.snapshot());
+        VehicleManager restored = new VehicleManager(GROUND_WORLD,
+                vehicle -> { }, new Random(10), 9800);
+        restored.restoreAll(store.load(), null, () -> new RecordingHost());
+        var back = (SpawnerMinecartEntity) restored.byId(restored.all().get(0).entityId());
+        assertEquals(11, back.minSpawnDelay(), "the MinSpawnDelay row");
+        assertEquals(22, back.maxSpawnDelay(), "the MaxSpawnDelay row");
+        assertEquals(3, back.spawnCount(), "the SpawnCount row");
+        assertEquals(4, back.maxNearbyEntities(), "the MaxNearbyEntities row");
+        assertEquals(8, back.requiredPlayerRange(), "the RequiredPlayerRange row");
+        assertEquals(2, back.spawnRange(), "the SpawnRange row");
+    }
+
+    @Test
     void thePersistencePayloadCarriesTheTypeAndDelay() {
         // The ZVD v2 roundtrip: the spawner's EntityId/Delay rows.
         java.nio.file.Path file = dataDir.resolve("vehicles.bin");
@@ -182,12 +243,12 @@ class SpawnerMinecartTest {
                 server.vehicles().spawnSpawnerMinecart(
                         new Position(Math.floor(at.x()) + 2.5, 40.06, 10.5),
                         new SpawnerMinecartEntity.SpawnHost() {
-                            @Override public boolean playerNearby(double x, double y, double z) {
+                            @Override public boolean playerNearby(double x, double y, double z, double range) {
                                 return true; // the session stands beside the cart
                             }
 
                             @Override public int nearbyOfKind(MobType type, int cellX,
-                                    int cellY, int cellZ) {
+                                    int cellY, int cellZ, int range) {
                                 int nearby = 0;
                                 for (var mob : server.mobs().all()) {
                                     if (mob.type() == type) {

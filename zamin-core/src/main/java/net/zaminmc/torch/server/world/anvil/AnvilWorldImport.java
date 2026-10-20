@@ -614,17 +614,36 @@ public final class AnvilWorldImport {
                     if (NbtOps.containsNumeric(rows, "Delay")) {
                         cart.setDelay(NbtOps.getShort(rows, "Delay"));
                     }
-                    // The cadence/potential rows (Min/MaxSpawnDelay's trio,
-                    // MaxNearbyEntities' pair, SpawnRange, SpawnData,
-                    // SpawnPotentials): the engine's cart carries its own
-                    // fixed cadence — one loud note when the rows exist.
-                    if (NbtOps.containsNumeric(rows, "MinSpawnDelay")
-                            || NbtOps.containsNumeric(rows, "MaxNearbyEntities")
-                            || NbtOps.containsNumeric(rows, "SpawnRange")
-                            || NbtOps.contains(rows, "SpawnData", Snbt.Tag.Type.COMPOUND)
+                    // The cadence rows (the Wave VI per-cart surface —
+                    // MobSpawnerBaseLogic.readNbt's own shorts): the
+                    // imported cart carries its OWN band, attempts, cap,
+                    // gate, and roll range — the engine's defaults hold
+                    // only for the absent rows, exactly the reference.
+                    if (NbtOps.containsNumeric(rows, "MinSpawnDelay")) {
+                        cart.setMinSpawnDelay(NbtOps.getShort(rows, "MinSpawnDelay"));
+                    }
+                    if (NbtOps.containsNumeric(rows, "MaxSpawnDelay")) {
+                        cart.setMaxSpawnDelay(NbtOps.getShort(rows, "MaxSpawnDelay"));
+                    }
+                    if (NbtOps.containsNumeric(rows, "SpawnCount")) {
+                        cart.setSpawnCount(NbtOps.getShort(rows, "SpawnCount"));
+                    }
+                    if (NbtOps.containsNumeric(rows, "MaxNearbyEntities")) {
+                        cart.setMaxNearbyEntities(NbtOps.getShort(rows, "MaxNearbyEntities"));
+                    }
+                    if (NbtOps.containsNumeric(rows, "RequiredPlayerRange")) {
+                        cart.setRequiredPlayerRange(NbtOps.getShort(rows, "RequiredPlayerRange"));
+                    }
+                    if (NbtOps.containsNumeric(rows, "SpawnRange")) {
+                        cart.setSpawnRange(NbtOps.getShort(rows, "SpawnRange"));
+                    }
+                    // The potential rows (SpawnData/SpawnPotentials): the
+                    // single-type model's own ledgered refusal — the cart
+                    // carries one EntityId, never the weighted list.
+                    if (NbtOps.contains(rows, "SpawnData", Snbt.Tag.Type.COMPOUND)
                             || NbtOps.contains(rows, "SpawnPotentials", Snbt.Tag.Type.LIST)) {
-                        ledger.isolated("spawner cart's cadence/potential rows have no cart surface "
-                                        + "(the engine's own cadence holds)",
+                        ledger.isolated("spawner cart's SpawnData/SpawnPotentials rows have no cart surface "
+                                        + "(the single-type model — the block family's ledgered row)",
                                 "entity " + id + " at " + at.x() + "," + at.y() + "," + at.z());
                     }
                 }
