@@ -2273,9 +2273,11 @@ public final class EngineServer implements Server, EngineBridge {
                     // inbound cross-owner intents at its own boundary, so an
                     // applied intent is visible to the same tick's systems.
                     // The ambient router drain already ran at the tick edge.
-                    world.drainRegionIntents(crossOwnerRouter);
-                    netherWorld.drainRegionIntents(crossOwnerRouter);
-                    endWorld.drainRegionIntents(crossOwnerRouter);
+                    profiled("regionIntents", () -> {
+                        world.drainRegionIntents(crossOwnerRouter);
+                        netherWorld.drainRegionIntents(crossOwnerRouter);
+                        endWorld.drainRegionIntents(crossOwnerRouter);
+                    });
                     // swap("levels") + the world's own name and tick section
                     // (tickWorlds lines 544-561: jobs closes, the levels
                     // section opens, each world pushes its data name then
@@ -2283,107 +2285,117 @@ public final class EngineServer implements Server, EngineBridge {
                     // three worlds' systems; the reference's per-world loop
                     // is the engine's systems fan, ledgered).
                     tickProfilerLevels();
-                    blockUpdateSystem.tick(); // §466: scheduled updates (falls start here)
-                    redstoneSystem.tick(); // the torch/repeater scheduled reactions
-                    pistonSystem.tick(); // the piston block events + the moving carriers
-                    hopperSystem.tick(); // the hoppers' 8-tick transfer cadence
-                    daylightDetectors.tick(); // the 20-tick sky-light power band (Slice 27c)
-                    dispenserSystem.tick(); // the stale-state sweep (Slice 11a)
-                    tripwireSystem.tick(); // the tripwire occupancy scan
-                    tntSystem.tick(); // the primed TNT fuses + physics
-                    blockInteraction.tickMining(); // the vanilla dig accumulator + 0x28 stages
-                    fluidSystem.tick();       // §472 pattern: pours, streams, contact
-                    falling.tick();           // §470: falling physics + landings
-                    projectileManager.tick(); // ranged combat physics
-                    vehicles.tick();          // the boats and minecarts
-                    tickVehicleRiders(vehicles);
-                    tickMobRiders();          // the horse/pig seats
-                    tickFishing();            // the bobbers' float + bite window (Slice 67)
-                    furnaceManager.tick(world, itemEntities);
-                    chestManager.tick(world);
-                    signManager.tick(world);
-                    if (commandBlocks != null) {
-                        commandBlocks.tick(world); // Slice 72: the orphan sweep
-                    }
-                    if (spawnerManager != null) {
-                        spawnerManager.tick(); // Slice 12g: the spawner walk
-                    }
-                    itemEntities.tick(players.all());
-                    experienceOrbs.tick(players.all()); // the XP bodies pay out
-                    mobs.tick(players.all(), world.timeOfDay());
+                    profiled("blockUpdates", blockUpdateSystem::tick); // §466: scheduled updates (falls start here)
+                    profiled("redstone", redstoneSystem::tick); // the torch/repeater scheduled reactions
+                    profiled("pistons", pistonSystem::tick); // the piston block events + the moving carriers
+                    profiled("hoppers", hopperSystem::tick); // the hoppers' 8-tick transfer cadence
+                    profiled("daylightDetectors", daylightDetectors::tick); // the 20-tick sky-light power band (Slice 27c)
+                    profiled("dispensers", dispenserSystem::tick); // the stale-state sweep (Slice 11a)
+                    profiled("tripwire", tripwireSystem::tick); // the tripwire occupancy scan
+                    profiled("tnt", tntSystem::tick); // the primed TNT fuses + physics
+                    profiled("mining", blockInteraction::tickMining); // the vanilla dig accumulator + 0x28 stages
+                    profiled("fluids", fluidSystem::tick);       // §472 pattern: pours, streams, contact
+                    profiled("fallingBlocks", falling::tick);           // §470: falling physics + landings
+                    profiled("projectiles", projectileManager::tick); // ranged combat physics
+                    profiled("vehicles", vehicles::tick);          // the boats and minecarts
+                    profiled("vehicleRiders", () -> tickVehicleRiders(vehicles));
+                    profiled("mobRiders", this::tickMobRiders);          // the horse/pig seats
+                    profiled("fishing", this::tickFishing);            // the bobbers' float + bite window (Slice 67)
+                    profiled("furnaces", () -> furnaceManager.tick(world, itemEntities));
+                    profiled("chests", () -> chestManager.tick(world));
+                    profiled("signs", () -> signManager.tick(world));
+                    profiled("commandBlocks", () -> {
+                        if (commandBlocks != null) {
+                            commandBlocks.tick(world); // Slice 72: the orphan sweep
+                        }
+                    });
+                    profiled("spawners", () -> {
+                        if (spawnerManager != null) {
+                            spawnerManager.tick(); // Slice 12g: the spawner walk
+                        }
+                    });
+                    profiled("itemEntities", () -> itemEntities.tick(players.all()));
+                    profiled("experienceOrbs", () -> experienceOrbs.tick(players.all())); // the XP bodies pay out
+                    profiled("mobs", () -> mobs.tick(players.all(), world.timeOfDay()));
                     // The weather cycle (Slice 20b — the tick walk before
                     // the spawns: the reference's own tick order, the
                     // gradient shaving the same tick's ambient darkness).
-                    tickWeather();
+                    profiled("weather", this::tickWeather);
                     // The lightning family (Slice 20c — ServerWorld.
                     // tickChunks lines 313-321): the per-chunk strike roll
                     // over the loaded window, then the live bolts' walk.
                     // The ice/snow arm (Slice 21c) runs second in the same
                     // per-chunk loop — the reference's own arm order.
-                    if (lightning != null) {
-                        for (net.zaminmc.torch.server.world.EngineChunk chunk
-                                : world.loadedChunks()) {
-                            lightning.tryStrikeAtChunk(chunk.position().x(),
-                                    chunk.position().z(),
-                                    weather.raining(), weather.thundering());
-                            if (precipitation != null) {
-                                precipitation.tryIceAndSnowAtChunk(chunk.position().x(),
-                                        chunk.position().z(), weather.raining());
+                    profiled("lightning", () -> {
+                        if (lightning != null) {
+                            for (net.zaminmc.torch.server.world.EngineChunk chunk
+                                    : world.loadedChunks()) {
+                                lightning.tryStrikeAtChunk(chunk.position().x(),
+                                        chunk.position().z(),
+                                        weather.raining(), weather.thundering());
+                                if (precipitation != null) {
+                                    precipitation.tryIceAndSnowAtChunk(chunk.position().x(),
+                                            chunk.position().z(), weather.raining());
+                                }
                             }
+                            lightning.tick();
                         }
-                        lightning.tick();
-                    }
+                    });
                     // The natural cycle (Slice 11d — ServerWorld.tick line
                     // 180: the spawner walk every tick, the caps scaled by
                     // the spawning-chunk count). The gradients feed the
                     // ambient-darkness shaves (calculateAmbientDarkness
                     // lines 1013-1015).
-                    naturalSpawns.tick(players.all(), world.timeOfDay(),
-                            weather.rainGradient(), weather.thunderGradient());
+                    profiled("naturalSpawns", () -> naturalSpawns.tick(players.all(), world.timeOfDay(),
+                            weather.rainGradient(), weather.thunderGradient()));
                     // The nether's own cycle (Slice 16d): only the players
                     // standing in the nether feed its spawning-chunk set.
-                    java.util.List<PlayerSession> netherPlayers = new java.util.ArrayList<>();
-                    for (PlayerSession player : players.all()) {
-                        if (player.dimension() == -1
-                                && player.state() == PlayerState.PLAYING) {
-                            netherPlayers.add(player);
+                    profiled("netherSpawns", () -> {
+                        java.util.List<PlayerSession> netherPlayers = new java.util.ArrayList<>();
+                        for (PlayerSession player : players.all()) {
+                            if (player.dimension() == -1
+                                    && player.state() == PlayerState.PLAYING) {
+                                netherPlayers.add(player);
+                            }
                         }
-                    }
-                    naturalSpawnsNether.tick(netherPlayers, netherWorld.timeOfDay());
-                    drainGenerationAttachments(); // the populate-time villagers + loot chests (Slice 12b)
-                    tickMobPotions(); // the mobs' effect stores (Slice 11b)
-                    tickLeashes(); // the leash physics + the knots (Slice 11c)
-                    tickDecorations(); // the frames' + paintings' survival poll (Slice 28a/28b)
-                    randomTicks.tick(players.all()); // §471: grass growth/decay
-                    brewingStands.tick(world);
-                beaconSystem.tick(world.totalTicks()); // the brew cycles (Slice 11e)
-                    tickFurnaceViewers();
-                    tickBrewingViewers();
-                    tickBeaconViewers();
-                    tickEnchantingViewers();
-                    tickChestViewers();
-                    tickHopperViewers();
-                    tickDispenserViewers();
-                    tickPlayerBodies();
+                        naturalSpawnsNether.tick(netherPlayers, netherWorld.timeOfDay());
+                    });
+                    profiled("generationAttachments", this::drainGenerationAttachments); // the populate-time villagers + loot chests (Slice 12b)
+                    profiled("mobPotions", this::tickMobPotions); // the mobs' effect stores (Slice 11b)
+                    profiled("leashes", this::tickLeashes); // the leash physics + the knots (Slice 11c)
+                    profiled("decorations", this::tickDecorations); // the frames' + paintings' survival poll (Slice 28a/28b)
+                    profiled("randomTicks", () -> randomTicks.tick(players.all())); // §471: grass growth/decay
+                    profiled("brewingStands", () -> brewingStands.tick(world));
+                    profiled("beacons", () -> beaconSystem.tick(world.totalTicks())); // the brew cycles (Slice 11e)
+                    profiled("furnaceViewers", this::tickFurnaceViewers);
+                    profiled("brewingViewers", this::tickBrewingViewers);
+                    profiled("beaconViewers", this::tickBeaconViewers);
+                    profiled("enchantingViewers", this::tickEnchantingViewers);
+                    profiled("chestViewers", this::tickChestViewers);
+                    profiled("hopperViewers", this::tickHopperViewers);
+                    profiled("dispenserViewers", this::tickDispenserViewers);
+                    profiled("playerBodies", this::tickPlayerBodies);
                     // The portal caches' eviction walk (the reference's
                     // PortalForcer.tick per world).
-                    worldPortalForcer.tick(world.totalTicks());
-                    netherPortalForcer.tick(netherWorld.totalTicks());
+                    profiled("portalForcers", () -> {
+                        worldPortalForcer.tick(world.totalTicks());
+                        netherPortalForcer.tick(netherWorld.totalTicks());
+                    });
                     // Relight transport (§475): protocol 47 has no light-only
                     // packet, so every chunk column the light touched this tick
                     // re-sends once, deduplicated across the whole cascade.
-                    lightEngine.flushRelight(this::publishChunkRelit);
+                    profiled("relightTransport", () -> lightEngine.flushRelight(this::publishChunkRelit));
                     if (world.totalTicks() % 20 == 0) {
                         // The reference's timeSync cadence (MinecraftServer
                         // lines 551-558: ticks % 20 == 0, per world, the
                         // players in that dimension only).
-                        publishTimeChanged(); // smooth day cycle on every client
+                        profiled("timeSync", this::publishTimeChanged); // smooth day cycle on every client
                     }
                     // The tab-list ping refresh (PlayerManager.tick lines
                     // 504-508: ++counter > 600 → the batched UPDATE_PING —
                     // every 601 ticks, the reference's own off-by-one).
                     if (tabList != null) {
-                        tabList.tick(players);
+                        profiled("tabList", () -> tabList.tick(players));
                     }
                     // The /debug profiler's tail (tickWorlds lines 580-599 +
                     // tick's own pop at 533): the world's tick section and its
@@ -18850,6 +18862,45 @@ public final class EngineServer implements Server, EngineBridge {
         profiler.swap("tickables");
         profiler.pop(); // tickables closes (tickWorlds line 599)
         profiler.pop(); // root closes (tick line 533)
+    }
+
+    /**
+     * The system fan's own measurement arm (the Phase-7 profiling opener —
+     * §22's gate evidence face, "profiling demonstrates a dense-owner
+     * bottleneck"): every gameplay system in the tick handler runs inside
+     * its own profiler section, so the per-system nanos are separable in
+     * {@link net.zaminmc.torch.server.profiler.EngineProfiler#sectionNanosSnapshot()}.
+     * The push/pop pairing is the reference's own per-system sectioning
+     * (MinecraftServer's "entities"/"blockEntities"/"blocks" arms); the
+     * try/finally is the engine's own §126 addition — the reference calls
+     * startSection/endSection bare (a throwing system tears its whole
+     * server down, while this engine's tick must survive one), and the
+     * finally guarantees the section stack stays balanced whatever a
+     * system throws, so the /debug tree and the measurement table stay
+     * honest across a failed tick. Off (a no-op push/pop) when profiling
+     * is not collecting.
+     */
+    private void profiled(String section, Runnable body) {
+        profiler.push(section);
+        try {
+            body.run();
+        } finally {
+            profiler.pop();
+        }
+    }
+
+    /**
+     * The Phase-7 measurement face (§22's gate evidence bar): the
+     * profiler's accumulated section table in ABSOLUTE nanoseconds —
+     * undecayed, unlike the /debug report walk's own smoothing. A
+     * measurement harness differences two snapshots over the tick count
+     * (world total-tick deltas) for any section's per-tick cost. Safe
+     * from any thread.
+     *
+     * @return the frozen section-name → accumulated-nanos table
+     */
+    public java.util.Map<String, Long> profilerSectionNanos() {
+        return profiler.sectionNanosSnapshot();
     }
 
     /**

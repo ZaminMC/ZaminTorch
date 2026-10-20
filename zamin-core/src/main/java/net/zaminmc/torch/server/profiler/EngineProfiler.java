@@ -1,9 +1,9 @@
 package net.zaminmc.torch.server.profiler;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
 /**
@@ -23,7 +23,12 @@ public final class EngineProfiler {
     private final List<Long> times = new ArrayList<>();
     private boolean profiling;
     private String currentLocation = "";
-    private final Map<String, Long> timesByLocation = new HashMap<>();
+    // ConcurrentHashMap (not the reference's HashMap): the Phase-7
+    // measurement face (sectionNanosSnapshot) reads this table from the
+    // measuring thread while the tick thread merges — the weakly-
+    // consistent iteration never throws, and every merge/put stays atomic;
+    // for the single-threaded report walk the behavior is identical.
+    private final Map<String, Long> timesByLocation = new ConcurrentHashMap<>();
 
     /** @return whether the table is collecting (the /debug stop gate). */
     public boolean isProfiling() {
@@ -82,6 +87,27 @@ public final class EngineProfiler {
     public void swap(String location) {
         this.pop();
         this.push(location);
+    }
+
+    /**
+     * The engine's own measurement surface (NOT a reference arm — the
+     * Phase-7 gate's evidence face, §22's "profiling demonstrates a
+     * dense-owner bottleneck" bar): an immutable copy of the accumulated
+     * section table in NANOSECONDS, keyed by the full dotted location —
+     * the same table {@link #getResults} walks, but absolute and
+     * UNDECAYED. The reference's *999/1000 decay belongs to the report
+     * walk alone (it fires inside {@code getResults}, 1:1); this read
+     * never mutates the table, so a measurement harness can sample before
+     * and after a span and difference the two — the per-tick cost of any
+     * section is the delta over the tick count, whatever the report
+     * smoothing would have faded. Safe from any thread while the tick
+     * thread is the only push/pop caller; an empty table answers an empty
+     * map whether collection is on or off.
+     *
+     * @return the frozen section-name → accumulated-nanos table
+     */
+    public java.util.Map<String, Long> sectionNanosSnapshot() {
+        return java.util.Map.copyOf(this.timesByLocation);
     }
 
     /** Profiler.getCurrentLocation 1:1. */
