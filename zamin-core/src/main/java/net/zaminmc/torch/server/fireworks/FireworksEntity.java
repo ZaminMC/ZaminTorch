@@ -89,6 +89,16 @@ public final class FireworksEntity {
         return position;
     }
 
+    /**
+     * The seated rider's plain position set (the riding-follow surface —
+     * the reference's updateRiderPositon writes the rider's position
+     * whatever family it is; the rocket's own flight clock keeps running,
+     * the seat re-anchoring the body each tick after it).
+     */
+    public void teleport(Position to) {
+        this.position = to;
+    }
+
     public double velocityX() {
         return vx;
     }

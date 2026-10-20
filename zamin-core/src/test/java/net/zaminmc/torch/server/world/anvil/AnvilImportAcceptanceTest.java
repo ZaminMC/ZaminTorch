@@ -540,6 +540,24 @@ class AnvilImportAcceptanceTest {
                 "minecraft:diamond", 1, 0, 139.5, 2.0, 139.5, (short) 100);
         exoticRider.put("Riding", itemMount);
 
+        // THE RIDER-SIDE SHAPES (the §31.6 counted refusal's rider side —
+        // this slice's own scene): an XP ORB riding a zombie (an orb
+        // RIDER on a mob mount — the orbs never collide with bodies, the
+        // stable follow shape; a seated snowball would shatter on its own
+        // mount's hull the first tick, the reference's own onCollision)
+        // and a BOAT riding a minecart (a vehicle RIDER on a vehicle
+        // mount) — the reference's startRiding seats any family, the
+        // engine's follow arms now carry every rider family.
+        Map<String, Object> zombieMount = AnvilFixture.entityRow("Zombie", 140.5, 1.0, 140.5);
+        zombieMount.put("CustomName", "Pack Mule");
+        Map<String, Object> orbRider = AnvilFixture.entityRow("XPOrb", 140.5, 1.0, 140.5);
+        orbRider.put("Value", (short) 7);
+        orbRider.put("Age", (short) 0);
+        orbRider.put("Riding", zombieMount);
+        Map<String, Object> cartMount = AnvilFixture.entityRow("MinecartRideable", 141.5, 1.0, 141.5);
+        Map<String, Object> boatRider = AnvilFixture.entityRow("Boat", 141.5, 1.0, 141.5);
+        boatRider.put("Riding", cartMount);
+
         // The eye of ender (the import-families slice — the restored form;
         // the transient rows' counted note names the load quirk) and the
         // leash knot (the Tile row IS the anchor; the survival poll owns the
@@ -553,7 +571,8 @@ class AnvilImportAcceptanceTest {
 
         byte[] chunkNbt = AnvilFixture.nbtDocument(AnvilFixture.chunkNbt(8, 8,
                 List.of(AnvilFixture.section(0, blocks, new byte[2048], null)), null,
-                List.of(stuckArrow, snowball, painting, frame, orb, rider, exoticRider, eye, knot), null));
+                List.of(stuckArrow, snowball, painting, frame, orb, rider, exoticRider,
+                        orbRider, boatRider, eye, knot), null));
         AnvilFixture.writeRegionFile(vault.resolve("region").resolve("r.0.0.mca"),
                 List.of(new AnvilFixture.Entry(8, 8, AnvilRegionFile.SCHEME_ZLIB,
                         AnvilFixture.zlib(chunkNbt))));
@@ -638,12 +657,15 @@ class AnvilImportAcceptanceTest {
             assertEquals(6, landedFrame.rotation(), "the legacy Direction form doubled the rotation");
 
             // The XP orb: the exact value + the resumed age (both keep
-            // walking after the import — the band assertions).
+            // walking after the import — the band assertions; the
+            // rider-side scene's orb rider joins the family — the
+            // amount-12 body is this scene's own).
             var orbs = server.experienceOrbs().all();
-            assertEquals(1, orbs.size(), "the imported orb (report: " + report + ")");
-            assertEquals(12, orbs.get(0).amount(), "the saved Value landed whole");
-            assertTrue(orbs.get(0).age() >= 2400,
-                    "the saved Age resumed the despawn clock: " + orbs.get(0).age());
+            assertTrue(orbs.size() >= 1, "the imported orb (report: " + report + ")");
+            var twelveOrb = orbs.stream().filter(live -> live.amount() == 12)
+                    .findFirst().orElseThrow();
+            assertTrue(twelveOrb.age() >= 2400,
+                    "the saved Age resumed the despawn clock: " + twelveOrb.age());
 
             // The rider imported whole; the chain isolated loudly with
             // the missing surfaces named.
@@ -658,12 +680,17 @@ class AnvilImportAcceptanceTest {
             // passenger (the non-session rider's follow + attach surfaces
             // the §22 demand-named row).
             var chainCarts = server.vehicles().all().stream()
-                    .filter(v -> v instanceof net.zaminmc.torch.server.entity.vehicle.MinecartEntity)
+                    .filter(v -> v instanceof net.zaminmc.torch.server.entity.vehicle.MinecartEntity
+                            && v.hasPassenger())
                     .toList();
-            assertEquals(1, chainCarts.size(), "the chain's mount imported through the vehicle arm");
-            assertTrue(chainCarts.get(0).hasPassenger(),
+            assertEquals(2, chainCarts.size(),
+                    "the chain's cart + the rider-side boat's cart mount (both seated)");
+            var chainCart = chainCarts.stream().filter(cart ->
+                            cart.passengerId() == chainZombies.get(0).entityId())
+                    .findFirst().orElseThrow();
+            assertTrue(chainCart.hasPassenger(),
                     "the chain seated the head on the mount");
-            assertEquals(chainZombies.get(0).entityId(), chainCarts.get(0).passengerId(),
+            assertEquals(chainZombies.get(0).entityId(), chainCart.passengerId(),
                     "the cart's passenger is the chain zombie (the engine id)");
             assertFalse(report.contains("riding chain not imported"),
                     "the chain landed, never isolated: " + report);
@@ -695,19 +722,20 @@ class AnvilImportAcceptanceTest {
             assertTrue(report.contains("knot's Direction row has no per-knot surface"),
                     "the knot's Direction note: " + report);
 
-            // The report's own counter: 9 entities imported (the arrow,
+            // The report's own counter: 15 entities imported (the arrow,
             // the snowball, the painting, the frame, the orb, the rider,
             // the chain's cart, the exotic pair (the surfer zombie + its
-            // dropped-diamond mount), the eye, and the knot — the
-            // import-families slice + the generic-mount seat).
-            assertTrue(report.contains("11 entities"), "the entity counter: " + report);
+            // dropped-diamond mount), the rider-side pair's zombie mount +
+            // orb rider, the boat rider + its cart mount, the eye,
+            // and the knot — the import-families slice + the generic-mount
+            // seat + the rider side's retirement).
+            assertTrue(report.contains("15 entities"), "the entity counter: " + report);
             // THE GENERIC-MOUNT SEAT (the exotic mount-side shape): the
             // zombie landed, the dropped-diamond mount landed, and the
-            // follow anchors the rider at the item's own position (the
-            // base Entity's law — the mount's height 0.0 + the zombie's
-            // own -0.35 ride height never applies here: the generic
-            // families carry no seat height of their own, the rider's
-            // body rides the mount's cell).
+            // follow anchors the rider at the item's own cell (the base
+            // Entity's law — the mount's own getMountHeight band, the
+            // item family's height*0.75 = +0.1875, plus the zombie's own
+            // -0.35 ride height; the x/z band is the mount's cell).
             var surfer = server.mobs().all().stream()
                     .filter(mob -> "Surfer".equals(mob.customName()))
                     .findFirst().orElseThrow();
@@ -720,6 +748,57 @@ class AnvilImportAcceptanceTest {
                             + surfer.position());
             assertFalse(report.contains("entity rides Item"),
                     "the exotic mount-side chain never isolates: " + report);
+
+            // THE RIDER SIDE'S RETIREMENT (this slice's own scene): the
+            // XP-ORB rider on the zombie mount — the seat opened (the
+            // zombie's rider id is the orb's engine id) and the follow
+            // anchors the orb's body at the mob's seat law (the seat
+            // height + the orb rider's base 0.0 ride height, Entity.java
+            // line 1353 for ANY family).
+            var packMule = server.mobs().all().stream()
+                    .filter(mob -> "Pack Mule".equals(mob.customName()))
+                    .findFirst().orElseThrow();
+            assertTrue(packMule.hasRider(), "the zombie mount's seat opened for the orb");
+            assertEquals(packMule.riderId(), server.experienceOrbs().all().stream()
+                            .filter(live -> live.amount() == 7).findFirst()
+                            .map(live -> live.entityId()).orElse(-1),
+                    "the zombie's rider is the imported orb (the engine id)");
+            var seatedOrb = server.experienceOrbs().all().stream()
+                    .filter(live -> live.amount() == 7).findFirst().orElseThrow();
+            assertTrue(Math.abs(seatedOrb.position().x() - packMule.position().x()) < 0.6
+                            && Math.abs(seatedOrb.position().z()
+                                    - packMule.position().z()) < 0.6,
+                    "the orb rider follows the zombie mount's seat: "
+                            + seatedOrb.position() + " vs " + packMule.position());
+            // The BOAT rider on the minecart mount: the cart's passenger
+            // is the boat's engine id, the follow anchoring the hull at
+            // the cart's flush seat (the cart family's 0.0 mount height +
+            // the boat rider's base 0.0 ride height).
+            var riderSideCarts = server.vehicles().all().stream()
+                    .filter(v -> v instanceof net.zaminmc.torch.server.entity.vehicle.MinecartEntity)
+                    .toList();
+            assertEquals(2, riderSideCarts.size(),
+                    "the chain's cart + the rider-side cart both imported");
+            var riderSideBoat = server.vehicles().all().stream()
+                    .filter(v -> v instanceof net.zaminmc.torch.server.entity.vehicle.BoatEntity)
+                    .findFirst().orElseThrow();
+            boolean boatSeated = riderSideCarts.stream().anyMatch(cart ->
+                    cart.hasPassenger() && cart.passengerId() == riderSideBoat.entityId());
+            assertTrue(boatSeated, "the boat rider took the cart mount's seat");
+            assertTrue(Math.abs(riderSideBoat.position().x()
+                            - riderSideCarts.stream().filter(cart ->
+                                    cart.hasPassenger() && cart.passengerId()
+                                            == riderSideBoat.entityId())
+                                    .findFirst().orElseThrow().position().x()) < 0.6,
+                    "the boat rider follows the cart mount's seat");
+            // The rider side never isolates: no "rider family has no
+            // seat surface" note anywhere in the report.
+            assertFalse(report.contains("rider family has no seat surface")
+                            && report.contains("seated-follow surface"),
+                    "the rider-side chains never isolate: " + report);
+            assertFalse(report.contains("entity rides Zombie")
+                            || report.contains("entity rides MinecartRideable"),
+                    "the rider-side chains landed whole: " + report);
 
         } finally {
             consoleLogger.removeHandler(capture);
@@ -1093,26 +1172,28 @@ class AnvilImportAcceptanceTest {
 
             // The report's own rows: the riding chain (the cadence rows
             // LANDED with the Wave VI per-cart surface — no note); the
-            // chain's own note names the CART-as-rider family gap (the
-            // engine's follow arms carry sessions and mobs alone — the
-            // reference would position a seated cart every tick; the
-            // §31.6 counted refusal names it instead).
+            // CART-as-rider chain now LANDS TOO (the rider side's
+            // retirement — a vehicle RIDER on a mob mount: the zombie's
+            // seat opens for the cart's engine id, the follow anchoring
+            // the cart at the mob's seat law every tick; the §31.6
+            // counted refusal's rider side retired).
             assertTrue(report.contains("10 entities"), "the report: " + report);
             assertFalse(report.contains("spawner cart's cadence"),
                     "the cadence rows landed, never isolated: " + report);
-            assertTrue(report.contains("riding chain not imported"),
-                    "the ridden cart's chain isolated loudly: " + report);
-            assertTrue(report.contains("the rider family has no seated-follow surface"),
-                    "the isolation names the missing follow surface: " + report);
-            assertTrue(report.contains("entity rides Zombie"),
-                    "the chain names the pair: " + report);
-            // The chain's mount still landed as its own row (the reference
-            // creates and adds the mount whether or not the seating can
-            // follow): the zombie is in the world.
-            assertEquals(1, server.mobs().all().stream()
-                            .filter(mob -> mob.position().x() == 133.5)
-                            .count(),
-                    "the chain's zombie mount imported");
+            assertFalse(report.contains("riding chain not imported"),
+                    "the ridden cart's chain landed, never isolated: " + report);
+            assertFalse(report.contains("rider family has no seat surface"),
+                    "the rider-side retirement holds: " + report);
+            // The chain's pair both landed (the reference's shape: the
+            // mount lands, then the head takes the seat): the zombie is
+            // in the world AND its seat carries the cart.
+            var chainZombie = server.mobs().all().stream()
+                    .filter(mob -> mob.position().x() == 133.5)
+                    .findFirst().orElseThrow();
+            assertTrue(chainZombie.hasRider(), "the zombie mount's seat opened for the cart");
+            assertTrue(server.vehicles().all().stream().anyMatch(v ->
+                            !v.hasPassenger() && v.entityId() == chainZombie.riderId()),
+                    "the zombie's rider is the imported cart (the engine id)");
         } finally {
             consoleLogger.removeHandler(capture);
             server.shutdown(null);

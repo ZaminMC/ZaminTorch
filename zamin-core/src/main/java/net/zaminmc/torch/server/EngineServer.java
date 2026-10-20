@@ -13992,17 +13992,30 @@ public final class EngineServer implements Server, EngineBridge {
             }
             // The non-session rider follow (the reference's rideTick →
             // updateRiderPositon, the World dispatch at World.java line
-            // 1357): the seated mob's body anchors at the same seat law
-            // each tick — the position moves outright (MobEntity.teleport,
-            // the same plain-set surface spreadplayers' landing uses).
+            // 1357): the seated rider's body — a MOB or any of the exotic
+            // families (a vehicle, a projectile, a dropped item, a
+            // firework rocket, an eye of ender, an XP orb — the rider side
+            // of the §31.6 counted refusal's retirement) — anchors at the
+            // same seat law each tick, the position moving outright
+            // through the family's own plain-set surface.
             net.zaminmc.torch.server.entity.MobEntity mobRider =
                     mobManager.byId(vehicle.passengerId());
-            if (mobRider == null || mobRider.dead()) {
+            if (mobRider != null && !mobRider.dead()) {
+                mobRider.teleport(vehicle.seatAnchor(
+                        net.zaminmc.torch.server.entity.vehicle.RiderSeatLaw.riderRideHeight(
+                                mobRider.type(), mobRider.isBaby())));
                 continue;
             }
-            mobRider.teleport(vehicle.seatAnchor(
-                    net.zaminmc.torch.server.entity.vehicle.RiderSeatLaw.riderRideHeight(
-                            mobRider.type(), mobRider.isBaby())));
+            SeatedRider exoticRider = resolveSeatedRider(vehicle.passengerId());
+            if (exoticRider != null) {
+                // The exotic riders' own ride height is the base 0.0 (no
+                // family overrides getRideHeight — the reference's table).
+                if (!exoticRider.follow(vehicle.seatAnchor(0.0))) {
+                    vehicle.dismount(); // the seat opens (the rider departed)
+                }
+                continue;
+            }
+            vehicle.dismount(); // the stale seat (the rider's family is gone)
         }
     }
 
@@ -14050,18 +14063,32 @@ public final class EngineServer implements Server, EngineBridge {
                 continue;
             }
             // The mob-on-mob follow (the same law as the vehicle seat): a
-            // seated mob's body anchors at the mount's seat height plus
-            // its own per-family offset, the position moving outright.
-            MobEntity mobRider = mobManager.byId(mob.riderId());
-            if (mobRider == null || mobRider.dead()) {
+            // seated rider's body — a MOB or any of the exotic families
+            // (the rider side of the §31.6 counted refusal's retirement)
+            // — anchors at the mount's seat height plus its own
+            // per-family offset (the exotic riders' the base 0.0), the
+            // position moving outright.
+            net.zaminmc.torch.server.entity.MobEntity mobRider = mobManager.byId(mob.riderId());
+            if (mobRider != null && !mobRider.dead()) {
+                Position seat = new Position(mob.position().x(),
+                        mob.position().y() + mob.seatHeight()
+                                + net.zaminmc.torch.server.entity.vehicle.RiderSeatLaw.riderRideHeight(
+                                        mobRider.type(), mobRider.isBaby()),
+                        mob.position().z());
+                mobRider.teleport(seat);
                 continue;
             }
-            Position seat = new Position(mob.position().x(),
-                    mob.position().y() + mob.seatHeight()
-                            + net.zaminmc.torch.server.entity.vehicle.RiderSeatLaw.riderRideHeight(
-                                    mobRider.type(), mobRider.isBaby()),
-                    mob.position().z());
-            mobRider.teleport(seat);
+            SeatedRider exoticRider = resolveSeatedRider(mob.riderId());
+            if (exoticRider != null) {
+                Position seat = new Position(mob.position().x(),
+                        mob.position().y() + mob.seatHeight(),
+                        mob.position().z());
+                if (!exoticRider.follow(seat)) {
+                    mob.clearRider(); // the seat opens (the rider departed)
+                }
+                continue;
+            }
+            mob.clearRider(); // the stale seat (the rider's family is gone)
         }
     }
 
@@ -14086,11 +14113,102 @@ public final class EngineServer implements Server, EngineBridge {
     private record GenericMountSeat(int mountId,
                                     java.util.function.Supplier<Position> mountPosition,
                                     java.util.function.BooleanSupplier mountAlive,
+                                    double mountHeight,
                                     int riderId) {
     }
 
     /** The live generic-mount seatings (tick-thread confined). */
     private final java.util.List<GenericMountSeat> genericMountSeats = new java.util.ArrayList<>();
+
+    /**
+     * One seated rider's follow surface (the reference's rideTick → the
+     * mount's updateRiderPositon, Entity.java lines 1297-1349 — ANY rider
+     * family, never the mobs alone): the family's own plain position-set
+     * arm plus its live-in-manager consult. The exotic riders' own ride
+     * height is the base 0.0 (no vehicle/projectile/item/firework/eye/orb
+     * family overrides getRideHeight — the reference's own table: the
+     * players' -0.35 at PlayerEntity line 937, the adult zombie/skeleton
+     * families' -0.35 with babies flush, and the silverfish's +0.2 are
+     * the riders' table, all inside RiderSeatLaw).
+     */
+    private record SeatedRider(java.util.function.Consumer<Position> anchor,
+                               java.util.function.BooleanSupplier alive) {
+
+        /** Anchors the rider at the seat; false when the rider departed. */
+        boolean follow(Position seat) {
+            if (!alive.getAsBoolean()) {
+                return false;
+            }
+            anchor.accept(seat);
+            return true;
+        }
+    }
+
+    /**
+     * The rider resolution across every non-session family (the session
+     * riders carry their own applyMovement law at the arms' own heads):
+     * the mob's teleport, the vehicle's setPosition, and the five exotic
+     * families' own plain sets. The alive consult re-resolves the manager
+     * each tick — a family body removed from its manager's live list is a
+     * departed rider (the reference's own both-sides-detach law: Entity's
+     * remove walk drops the mount's rider, the rideTick drops the mount).
+     */
+    private SeatedRider resolveSeatedRider(int riderEngineId) {
+        MobEntity mob = mobManager == null ? null : mobManager.byId(riderEngineId);
+        if (mob != null) {
+            return new SeatedRider(mob::teleport,
+                    () -> mobManager.byId(riderEngineId) != null && !mob.dead());
+        }
+        net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle =
+                vehicleManager == null ? null : vehicleManager.byId(riderEngineId);
+        if (vehicle != null) {
+            return new SeatedRider(vehicle::setPosition,
+                    () -> vehicleManager.byId(riderEngineId) != null);
+        }
+        ProjectileEntity projectile =
+                projectileManager == null ? null : projectileManager.byId(riderEngineId);
+        if (projectile != null) {
+            return new SeatedRider(projectile::teleport,
+                    () -> projectileManager.byId(riderEngineId) != null);
+        }
+        ItemEntity item =
+                itemEntities == null ? null : itemEntities.byId(riderEngineId);
+        if (item != null) {
+            return new SeatedRider(item::teleport,
+                    () -> itemEntities.byId(riderEngineId) != null);
+        }
+        net.zaminmc.torch.server.fireworks.FireworksEntity rocket =
+                fireworks == null ? null : fireworks.byId(riderEngineId);
+        if (rocket != null) {
+            return new SeatedRider(rocket::teleport,
+                    () -> fireworks.byId(riderEngineId) != null);
+        }
+        net.zaminmc.torch.server.endereye.EnderEyeEntity eye =
+                eyes == null ? null : eyes.byId(riderEngineId);
+        if (eye != null) {
+            return new SeatedRider(eye::teleport,
+                    () -> eyes.byId(riderEngineId) != null);
+        }
+        net.zaminmc.torch.server.experience.ExperienceOrbEntity orb =
+                experienceOrbs == null ? null : experienceOrbs.byId(riderEngineId);
+        if (orb != null) {
+            return new SeatedRider(orb::teleport,
+                    () -> experienceOrbs.byId(riderEngineId) != null);
+        }
+        return null;
+    }
+
+    /**
+     * The live-entity consult (the protocol's attach gates): whether an
+     * engine id names a live body in ANY family's manager — the mob, the
+     * vehicle, the projectile, the dropped item, the firework rocket, the
+     * eye of ender, the XP orb. Every family's spawn publication carries
+     * the engine id as the wire id (the mobs' own global space), so the
+     * raw-id attach pair publishes for whichever family resolves.
+     */
+    public boolean isLiveEntity(int engineId) {
+        return resolveSeatedRider(engineId) != null;
+    }
 
     /** The generic-mount listener fan (the protocol's attach publication). */
     private final java.util.List<GenericMountListener> genericMountListeners =
@@ -14102,18 +14220,22 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /**
-     * The import seam (the anvil riding chain's exotic form): a MOB rider
-     * takes a non-vehicle/mob mount's seat — the reference's startRiding
-     * at load (AnvilChunkStorage line 335), the plain seat with no
-     * temper flow. The registry holds the mount's live reads (the
-     * position provider + the alive consult); the follow arm anchors the
-     * rider each tick through the base Entity's own law. Returns false
-     * when the mount's seat is already taken (the one-rider law).
-     * Tick-thread context.
+     * The import seam (the anvil riding chain's exotic form): a rider takes
+     * a non-vehicle/mob mount's seat — the reference's startRiding at load
+     * (AnvilChunkStorage line 335), the plain seat with no temper flow.
+     * The registry holds the mount's live reads (the position provider +
+     * the alive consult) and the mount's own seat height — the reference's
+     * base Entity getMountHeight (Entity.java lines 1367-1369, the family's
+     * own height * 0.75: the 0.25 families +0.1875, the arrow's 0.5 +0.375,
+     * the ghast fireball's 1.0 +0.75, the 0.3125 pair +0.234375); the follow
+     * arm anchors the rider each tick through the same law whatever family
+     * the rider is. Returns false when the mount's seat is already taken
+     * (the one-rider law). Tick-thread context.
      */
     public boolean seatImportedRiderOnGenericMount(int mountId,
             java.util.function.Supplier<Position> mountPosition,
             java.util.function.BooleanSupplier mountAlive,
+            double mountHeight,
             int riderEngineId) {
         for (GenericMountSeat seat : genericMountSeats) {
             if (seat.mountId() == mountId) {
@@ -14123,6 +14245,7 @@ public final class EngineServer implements Server, EngineBridge {
         genericMountSeats.add(new GenericMountSeat(mountId,
                 Objects.requireNonNull(mountPosition, "mountPosition"),
                 Objects.requireNonNull(mountAlive, "mountAlive"),
+                mountHeight,
                 riderEngineId));
         for (GenericMountListener listener : genericMountListeners) {
             listener.onGenericRiderSeated(mountId, riderEngineId);
@@ -14131,15 +14254,31 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /**
+     * The generic-mount seat pairs (the join view's walk): every live
+     * seating's mount id + rider id, the newcomer's attach publication.
+     * Tick-thread context (the join walk's own lane).
+     */
+    public java.util.List<int[]> genericMountSeatPairs() {
+        java.util.List<int[]> pairs = new java.util.ArrayList<>(genericMountSeats.size());
+        for (GenericMountSeat seat : genericMountSeats) {
+            pairs.add(new int[] {seat.mountId(), seat.riderId()});
+        }
+        return pairs;
+    }
+
+    /**
      * The generic-mount riders' follow (the exotic shapes' arm — the
      * reference's rideTick → updateRiderPositon over the BASE Entity's
-     * law, Entity.java line 1353): a seated mob's body anchors at the
-     * mount's own position plus the rider's own per-family offset — no
-     * generic family overrides getRideHeight, so the mount's own height
-     * is the base 0.0 (the vehicle families' overrides are the vehicle
-     * arm's own rows, never here). The position moves outright through
-     * MobEntity.teleport (the same plain-set surface the vehicle/mob
-     * arms use); a dead rider or a departed mount opens the seat.
+     * law, Entity.java line 1353): the seated rider's body — a MOB or any
+     * of the exotic families (a vehicle, a projectile, a dropped item, a
+     * firework rocket, an eye of ender, an XP orb — the rider side of the
+     * §31.6 counted refusal's retirement) — anchors at the mount's own
+     * position plus the mount's seat band (the family's own
+     * getMountHeight, the base Entity's height * 0.75) plus the rider's
+     * own per-family offset (the mobs' RiderSeatLaw table; the exotic
+     * riders' own ride height the base 0.0 — no family overrides it). The
+     * position moves outright through the family's own plain set; a
+     * departed rider or mount opens the seat.
      */
     private void tickGenericMountRiders() {
         if (genericMountSeats.isEmpty()) {
@@ -14148,8 +14287,8 @@ public final class EngineServer implements Server, EngineBridge {
         java.util.Iterator<GenericMountSeat> iterator = genericMountSeats.iterator();
         while (iterator.hasNext()) {
             GenericMountSeat seat = iterator.next();
-            MobEntity rider = mobManager.byId(seat.riderId());
-            if (rider == null || rider.dead() || !seat.mountAlive().getAsBoolean()) {
+            SeatedRider rider = resolveSeatedRider(seat.riderId());
+            if (rider == null || !seat.mountAlive().getAsBoolean()) {
                 iterator.remove();
                 for (GenericMountListener listener : genericMountListeners) {
                     listener.onGenericRiderDismounted(seat.mountId(), seat.riderId());
@@ -14157,9 +14296,14 @@ public final class EngineServer implements Server, EngineBridge {
                 continue;
             }
             Position mount = seat.mountPosition().get();
-            rider.teleport(new Position(mount.x(),
-                    mount.y() + net.zaminmc.torch.server.entity.vehicle.RiderSeatLaw
-                            .riderRideHeight(rider.type(), rider.isBaby()),
+            double riderOffset = 0.0;
+            MobEntity mobRider = mobManager == null ? null : mobManager.byId(seat.riderId());
+            if (mobRider != null) {
+                riderOffset = net.zaminmc.torch.server.entity.vehicle.RiderSeatLaw
+                        .riderRideHeight(mobRider.type(), mobRider.isBaby());
+            }
+            rider.follow(new Position(mount.x(),
+                    mount.y() + seat.mountHeight() + riderOffset,
                     mount.z()));
         }
     }

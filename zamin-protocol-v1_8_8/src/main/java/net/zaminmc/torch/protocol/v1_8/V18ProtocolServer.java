@@ -576,16 +576,17 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                     }
                     return;
                 }
-                // The non-session rider (a seated mob — the anvil chain's
-                // shape): the attach publication carries the mob's own
-                // global wire id (the raw-id form, the mobs' spawn space).
-                net.zaminmc.torch.server.entity.MobEntity mobRider =
-                        server.mobs().byId(riderEngineId);
-                if (mobRider == null) {
+                // The non-session rider (a seated body — the anvil chain's
+                // shape: a MOB or any of the exotic families, the rider side
+                // of the §31.6 counted refusal's retirement): the attach
+                // publication carries the rider's own global wire id (the
+                // raw-id form — every family's spawn publication carries the
+                // engine id, the mobs' own global wire space).
+                if (engine == null || !engine.isLiveEntity(riderEngineId)) {
                     return;
                 }
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
-                    connection.sendAttachEntity(mobRider.entityId(), mob.entityId(), true);
+                    connection.sendAttachEntity(riderEngineId, mob.entityId(), true);
                 }
             }
 
@@ -606,6 +607,15 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                 net.zaminmc.torch.server.entity.MobEntity mobRider =
                         server.mobs().byId(riderEngineId);
                 if (mobRider == null) {
+                    // The exotic rider families (the rider side's retirement):
+                    // the detach publishes over the raw engine id whenever
+                    // any family still holds the body.
+                    if (engine == null || !engine.isLiveEntity(riderEngineId)) {
+                        return;
+                    }
+                    for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                        connection.sendAttachEntity(riderEngineId, mob.entityId(), false);
+                    }
                     return;
                 }
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
@@ -1484,19 +1494,16 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                     }
                     return;
                 }
-                // The non-session rider (a seated mob — the §31.6 riding
-                // chain's shape): the attach publication carries the mob's
-                // own global wire id (the raw-id form, the same space the
-                // mob's spawn publication uses).
-                net.zaminmc.torch.server.entity.MobEntity mobRider = null;
-                if (engine != null && engine.mobs() != null) {
-                    mobRider = engine.mobs().byId(vehicle.passengerId());
-                }
-                if (mobRider == null) {
+                // The non-session rider (a seated body — the §31.6 riding
+                // chain's shape: a MOB or any of the exotic families, the
+                // rider side's retirement): the attach publication carries
+                // the rider's own global wire id (the raw-id form, the same
+                // space the rider's spawn publication uses).
+                if (engine == null || !engine.isLiveEntity(vehicle.passengerId())) {
                     return;
                 }
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
-                    connection.sendAttachEntity(mobRider.entityId(), vehicle.entityId(), true);
+                    connection.sendAttachEntity(vehicle.passengerId(), vehicle.entityId(), true);
                 }
             }
 
@@ -1513,20 +1520,16 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                     rider.link().resyncPosition();
                     return;
                 }
-                // The non-session ex-rider (a seated mob): the detach
-                // publication carries the mob's own global wire id — the
+                // The non-session ex-rider (a seated body): the detach
+                // publication carries the rider's own global wire id — the
                 // id arrives in the signature (the seat is already open by
                 // the listener's own convention, the manager captured the
                 // rider before the clear).
-                net.zaminmc.torch.server.entity.MobEntity mobRider = null;
-                if (engine != null && engine.mobs() != null) {
-                    mobRider = engine.mobs().byId(riderEngineId);
-                }
-                if (mobRider == null) {
+                if (engine == null || !engine.isLiveEntity(riderEngineId)) {
                     return;
                 }
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
-                    connection.sendAttachEntity(mobRider.entityId(), vehicle.entityId(), false);
+                    connection.sendAttachEntity(riderEngineId, vehicle.entityId(), false);
                 }
             }
 
@@ -1681,6 +1684,13 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                 if (mob.isLeashed()) {
                     newcomer.sendLeashAttach(mob, mob.leashHolderPlayer(), mob.leashHolderKnot());
                 }
+                // The seated rider (the join view's own attach pair — a
+                // non-session body on the mob's seat: the reference's
+                // startTracking publishes the riding state).
+                if (mob.hasRider() && engine.isLiveEntity(mob.riderId())
+                        && engine.playerByEngineId(mob.riderId()) == null) {
+                    newcomer.sendAttachEntity(mob.riderId(), mob.entityId(), true);
+                }
             }
         }
         // The leash knots already tied (Slice 11c): the same world snapshot.
@@ -1744,6 +1754,12 @@ public final class V18ProtocolServer implements ProtocolAdapter {
         if (vehicles != null) {
             for (net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle : vehicles.all()) {
                 newcomer.sendVehicleSpawn(vehicle);
+                // The seated rider (the join view's own attach pair — a
+                // non-session body on the vehicle's seat).
+                if (vehicle.hasPassenger() && engine.isLiveEntity(vehicle.passengerId())
+                        && engine.playerByEngineId(vehicle.passengerId()) == null) {
+                    newcomer.sendAttachEntity(vehicle.passengerId(), vehicle.entityId(), true);
+                }
             }
         }
         // Firework rockets mid-flight when someone joins (the same world
@@ -1762,6 +1778,15 @@ public final class V18ProtocolServer implements ProtocolAdapter {
         if (eyes != null) {
             for (net.zaminmc.torch.server.endereye.EnderEyeEntity eye : eyes.all()) {
                 newcomer.sendEyeLaunched(eye, false);
+            }
+        }
+        // The generic-mount seats already open when someone joins (the
+        // exotic riding shapes — the rider side's retirement): the 0x1B
+        // attach pair over the raw engine ids, the same pair the live
+        // seating publishes.
+        for (int[] seat : engine.genericMountSeatPairs()) {
+            if (engine.isLiveEntity(seat[1])) {
+                newcomer.sendAttachEntity(seat[1], seat[0], true);
             }
         }
     }

@@ -498,25 +498,30 @@ public final class AnvilWorldImport {
 
     /**
      * The generic-mount seating seam (the exotic shapes' import form): a
-     * MOB rider takes a non-vehicle/mob mount's seat through the engine's
-     * own registry (the reference's startRiding at load).
+     * rider takes a non-vehicle/mob mount's seat through the engine's
+     * own registry (the reference's startRiding at load) — the mount's
+     * own seat height (the base Entity's getMountHeight: the family's
+     * height * 0.75) riding the consult.
      */
     public interface GenericSeatSeam {
         /** @return whether the seat opened (false = the occupied seat). */
         boolean seat(int mountId,
                 java.util.function.Supplier<Position> mountPosition,
                 java.util.function.BooleanSupplier mountAlive,
+                double mountHeight,
                 int riderEngineId);
     }
 
     /**
      * One imported entity row's seatable handle: the mob and vehicle pair
-     * for the seatable families; both null when the family landed but
-     * carries no seat surface (the dropped items, the projectiles, the
-     * decorations, the XP orbs); null never returned for those — the
-     * handle answers the riding chain's walk (the reference's
-     * startRiding seats ANY family; the engine's follow arms carry
-     * sessions and mobs alone).
+     * for the seatable families; the generic handle (the position + alive
+     * reads + the family's own seat height) for the families that carry
+     * no vehicle/mob surface (the dropped items, the projectiles, the
+     * fireworks rockets, the eyes, the XP orbs); null never returned for
+     * those — the handle answers the riding chain's walk (the reference's
+     * startRiding seats ANY family; the engine's follow arms now carry
+     * every family — the rider side of the §31.6 counted refusal
+     * retired).
      */
     private record Imported(MobEntity mob,
             net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle,
@@ -530,7 +535,38 @@ public final class AnvilWorldImport {
     /** A landed generic family's own mount handle (the exotic seating). */
     private record GenericMountHandle(int id,
             java.util.function.Supplier<Position> position,
-            java.util.function.BooleanSupplier alive) {
+            java.util.function.BooleanSupplier alive,
+            double mountHeight) {
+    }
+
+    /**
+     * The reference's base Entity getMountHeight (Entity.java lines
+     * 1367-1369: {@code this.height * 0.75}) for the generic families —
+     * the mount's own seat band, from each family's own registered size:
+     * the 0.25 bodies (the dropped item, the thrown family, the firework
+     * rocket, the eye of ender) seat at +0.1875, the 0.5 pair (the arrow,
+     * the XP orb) at +0.375, the ghast fireball's 1.0 at +0.75, and the
+     * 0.3125 pair (the fire charge, the wither skull) at +0.234375.
+     */
+    private static final double MOUNT_HEIGHT_QUARTER = 0.25F * 0.75F;
+    private static final double MOUNT_HEIGHT_HALF = 0.5F * 0.75F;
+    private static final double MOUNT_HEIGHT_FULL = 1.0F * 0.75F;
+    private static final double MOUNT_HEIGHT_FIRE_CHARGE = 0.3125F * 0.75F;
+
+    /** The thrown family's own band (ThrownEntity's 0.25F size). */
+    private static double thrownMountHeight() {
+        return MOUNT_HEIGHT_QUARTER;
+    }
+
+    /** The projectile's own band from its kind (the reference's sizes). */
+    private static double projectileMountHeight(
+            net.zaminmc.torch.server.entity.projectile.ProjectileEntity.Kind kind) {
+        return switch (kind) {
+            case ARROW -> MOUNT_HEIGHT_HALF;             // ArrowEntity's 0.5F
+            case SMALL_FIREBALL, WITHER_SKULL -> MOUNT_HEIGHT_FIRE_CHARGE; // 0.3125F
+            case LARGE_FIREBALL -> MOUNT_HEIGHT_FULL;    // the base ProjectileEntity's 1.0F
+            default -> MOUNT_HEIGHT_QUARTER;             // ThrownEntity's 0.25F
+        };
     }
 
     /**
@@ -638,7 +674,8 @@ public final class AnvilWorldImport {
         GenericMountHandle generic = new GenericMountHandle(entity.entityId(),
                 entity::position,
                 () -> itemSystem.all().stream().anyMatch(
-                        live -> live.entityId() == entity.entityId()));
+                        live -> live.entityId() == entity.entityId()),
+                MOUNT_HEIGHT_QUARTER); // ItemEntity's 0.25F size
         if (NbtOps.containsNumeric(rows, "Age")) {
             entity.setAge(NbtOps.getShort(rows, "Age"));
         }
@@ -695,13 +732,28 @@ public final class AnvilWorldImport {
                 // importRow's own isolation note fired inside).
                 return;
             }
+            // The head's own seatable handle: every family but the
+            // hanging decorations and the leash knots carries one (the
+            // mob/vehicle/generic records — the reference's startRiding
+            // seats any family; the engine's decorations carry no
+            // position provider to follow with, the loud isolation the
+            // §31.6 convention keeps).
+            if (head.mob == null && head.vehicle == null && head.generic == null) {
+                ledger.isolated("riding chain not imported (the rider family has no "
+                                + "seat surface: the hanging decorations and the leash "
+                                + "knots carry no position provider)",
+                        "entity rides " + mountId);
+                return;
+            }
             if (mount.mob == null && mount.vehicle == null) {
                 // THE GENERIC-MOUNT SEAT (the exotic shapes' mount side —
-                // a MOB rider on a non-vehicle/mob mount: a dropped item,
-                // a projectile, a firework, an eye, an XP orb): the
+                // a rider on a non-vehicle/mob mount: a dropped item, a
+                // projectile, a firework, an eye, an XP orb): the
                 // reference's startRiding seats ANY family, the engine's
-                // generic registry now carries the follow.
-                if (mount.generic == null || head.mob == null) {
+                // generic registry carries the follow whatever family the
+                // rider is (the rider side of the §31.6 counted refusal
+                // retired).
+                if (mount.generic == null) {
                     ledger.isolated("riding chain not imported (the mount family has "
                                     + "no seat surface: the engine's seats carry vehicles, "
                                     + "mobs and the generic families alone)",
@@ -711,6 +763,7 @@ public final class AnvilWorldImport {
                 GenericSeatSeam seats = content == null ? null : content.genericSeats();
                 if (seats == null || !seats.seat(mount.generic.id(),
                         mount.generic.position(), mount.generic.alive(),
+                        mount.generic.mountHeight(),
                         head.engineId())) {
                     ledger.isolated("riding chain's generic seat refused (occupied or dead)",
                             "entity rides " + mountId);
@@ -720,14 +773,11 @@ public final class AnvilWorldImport {
                 rows = mountRows;
                 continue;
             }
-            if (head.mob == null) {
-                ledger.isolated("riding chain not imported (the rider family has no "
-                                + "seated-follow surface: the engine's follow arms carry "
-                                + "sessions and mobs alone)",
-                        "entity rides " + mountId);
-                return;
-            }
-            // The head takes the mount's seat.
+            // The head takes the mount's seat — ANY head family (the
+            // reference's startRiding at load: the mob, the vehicle, the
+            // projectile, the dropped item, the firework rocket, the eye,
+            // the XP orb all seat; the engine's follow arms carry every
+            // family, the exotic riders' own ride height the base 0.0).
             if (mount.vehicle != null) {
                 VehicleSeams seams = content == null ? null : content.vehicles();
                 if (seams == null || !seams.manager().mount(mount.vehicle, head.engineId())) {
@@ -1118,7 +1168,8 @@ public final class AnvilWorldImport {
         return new GenericMountHandle(spawned.entityId(),
                 spawned::position,
                 () -> manager.all().stream().anyMatch(
-                        live -> live.entityId() == spawned.entityId()));
+                        live -> live.entityId() == spawned.entityId()),
+                projectileMountHeight(kind));
     }
 
     // ------------------------------------------------------------------ the hanging-decoration walk
@@ -1293,7 +1344,8 @@ public final class AnvilWorldImport {
         return new GenericMountHandle(landed.entityId(),
                 landed::position,
                 () -> manager.all().stream().anyMatch(
-                        live -> live.entityId() == landed.entityId()));
+                        live -> live.entityId() == landed.entityId()),
+                MOUNT_HEIGHT_HALF); // ExperienceOrbEntity's 0.5F size
     }
 
     /**
@@ -1358,7 +1410,8 @@ public final class AnvilWorldImport {
         return new GenericMountHandle(rocket.entityId(),
                 rocket::position,
                 () -> system.all().stream().anyMatch(
-                        live -> live.entityId() == rocket.entityId()));
+                        live -> live.entityId() == rocket.entityId()),
+                MOUNT_HEIGHT_QUARTER); // FireworksEntity's 0.25F size
     }
 
     /**
@@ -1413,7 +1466,8 @@ public final class AnvilWorldImport {
         return new GenericMountHandle(eye.entityId(),
                 eye::position,
                 () -> system.all().stream().anyMatch(
-                        live -> live.entityId() == eye.entityId()));
+                        live -> live.entityId() == eye.entityId()),
+                MOUNT_HEIGHT_QUARTER); // EnderEyeEntity's 0.25F size
     }
 
     /**

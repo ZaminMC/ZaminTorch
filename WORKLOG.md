@@ -10985,3 +10985,45 @@ fourteen reference-driven rows:
 
 The plan committed as the session's checkpoint; the implementation
 walks the wave in order.
+
+## 2026-10-21 — VIII1: the rider side of the exotic mounts (the §31.6 counted refusal fully retired)
+
+The Wave VIII opener. The mount side landed in VII5 (a11e88dd); this
+slice retires the RIDER side: a vehicle/projectile/item/firework/
+eye/orb RIDER now seats and follows whatever family it is, the
+reference's updateRidden (Entity.java lines 1297-1349) running at the
+rider's own tick family.
+
+**The SeatedRider resolution** (EngineServer): one consult across
+every non-session family — the mob's teleport, the vehicle's
+setPosition, and the five exotic families' own plain position sets
+(each family gaining its own teleport + its manager's byId for the
+alive read). The three follow arms (the vehicle seat, the mob-on-mob,
+the generic-mount registry) all resolve through the same seam; a
+stale seat opens when the rider's family is gone.
+
+**The mount height law**: the base Entity's getMountHeight (the
+family's height * 0.75) — the GenericMountSeat carries its own
+mountHeight row; the anvil import's per-family bands (the 0.25 bodies
++0.1875, the arrow 0.5 +0.375, the ghast fireball 1.0 +0.75, the fire
+charge pair +0.234375).
+
+**The wire**: the protocol's attach gates consult
+EngineServer.isLiveEntity (the raw engine id resolves against ANY
+family — the 0x1B attach/detach pair over it); the JOIN VIEW gains
+the riding state (the mob seat's, the vehicle seat's, and the
+generic-mount seats' attach pairs — the reference's startTracking
+law).
+
+**The isolation retired**: the anvil riding chain seats ANY family
+(the head's seatable handle extends past the mob/vehicle pair to the
+generic families); the cart-on-zombie chain LANDS where it isolated
+before. The hanging decorations and the leash knots still isolate
+loudly — no position provider to follow with (the §31.6 convention's
+own named exception).
+
+**Evidence**: the anvil acceptance scene's rider-side pairs (an XP
+orb riding a zombie, a boat riding a minecart, the cart-on-zombie
+chain landing whole; the entity counter 11 -> 15); the anvil batch
+6/0, the riding sweep 6/0, the entity-family batch 35/0, the protocol
+module 114/0, the full core suite green.

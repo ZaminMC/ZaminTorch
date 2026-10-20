@@ -89,6 +89,16 @@ public final class FireworksSystem {
         return new ArrayList<>(rockets);
     }
 
+    /** @return the live rocket with the engine id, or null (the seated-rider consult). */
+    public FireworksEntity byId(int entityId) {
+        for (FireworksEntity rocket : rockets) {
+            if (rocket.entityId() == entityId) {
+                return rocket;
+            }
+        }
+        return null;
+    }
+
     /** The live count (diagnostics/tests). */
     public int size() {
         return rockets.size();
