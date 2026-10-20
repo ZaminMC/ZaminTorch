@@ -1,14 +1,12 @@
 name: Repository Statistics Card
 
 # The public card lives on main, while all development measurements come from develop.
-# It updates when develop changes and on a daily schedule for GitHub metadata.
+# The workflow itself intentionally lives only on main so the generated artifact stays
+# out of the active development branch. GitHub metadata is refreshed every 6 hours.
 
 on:
-  push:
-    branches:
-      - develop
   schedule:
-    - cron: "17 0 * * *"
+    - cron: "17 */6 * * *"
   workflow_dispatch:
 
 permissions:
