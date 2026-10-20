@@ -1394,8 +1394,25 @@ public final class MobEntity implements LivingEntity {
 
     /** Applies damage; clamps at zero and starts the death timer at zero health. */
     public void hurt(float amount) {
+        hurt(amount, false);
+    }
+
+    /**
+     * The damage walk's armor consult arm (applyDamage line 911 —
+     * {@code getDamageAfterArmor} runs FIRST, before the effects and the
+     * absorption): the wound shrinks through the equipped pieces unless the
+     * source bypasses armor (the reference's {@code setBypassesArmor} family
+     * — ON_FIRE, DROWN, IN_WALL, STARVE, FALL, OUT_OF_WORLD, GENERIC, MAGIC,
+     * WITHER; the melee, the arrows, the explosions, the lightning, the
+     * anvil, the cactus, the lava and the standing-in-fire all pass through
+     * the envelope).
+     */
+    public void hurt(float amount, boolean bypassesArmor) {
         if (amount <= 0 || dead) {
             return;
+        }
+        if (!bypassesArmor) {
+            amount = damageAfterArmor(amount);
         }
         // The vanilla AnimalEntity.takeDamage arm: any hit clears the love
         // (the breeding window is fragile against mobs and players alike).
@@ -1526,7 +1543,9 @@ public final class MobEntity implements LivingEntity {
                     && effectAmplifierPlusOne(
                             net.zaminmc.torch.server.potion.StatusEffects.FIRE_RESISTANCE) == 0) {
                 fireDamageTimer = 0;
-                hurt(FIRE_DAMAGE_PER_SECOND);
+                // ON_FIRE bypasses armor (DamageSource line 16's own
+                // setBypassesArmor) — the burn clock never consults pieces.
+                hurt(FIRE_DAMAGE_PER_SECOND, true);
             }
         }
         // The breath clock (Slice 92 — LivingEntity.baseTick lines
@@ -1552,7 +1571,8 @@ public final class MobEntity implements LivingEntity {
                 air--;
                 if (air == -20) {
                     air = 0;
-                    hurt(2.0f); // DROWN — the reference's own 2.0F
+                    // DROWN bypasses armor (DamageSource line 19).
+                    hurt(2.0f, true); // DROWN — the reference's own 2.0F
                 }
             } else {
                 air = 300;
@@ -1648,7 +1668,9 @@ public final class MobEntity implements LivingEntity {
         if (world.inFluid(position.x(), position.y() + 0.2, position.z())) {
             if (--waterDamageTimer <= 0) {
                 waterDamageTimer = HURT_WINDOW_TICKS;
-                hurt(1.0f);
+                // DROWN bypasses armor — the enderman's water rage never
+                // consults pieces.
+                hurt(1.0f, true);
             }
         } else {
             waterDamageTimer = 1; // re-arms: the first wet tick hurts fast
@@ -3041,9 +3063,11 @@ public final class MobEntity implements LivingEntity {
      */
     private void tickSnowGolemEnvironment() {
         if (world.inFluid(position.x(), position.y() + 0.2, position.z())) {
-            hurt(GOLEM_MELT_DAMAGE); // isInWaterOrRain → DROWN 1.0F
+            // DROWN 1.0 — bypasses armor.
+            hurt(GOLEM_MELT_DAMAGE, true); // isInWaterOrRain → DROWN 1.0F
         } else if (world.biomeHotAt(position.x(), position.y(), position.z())) {
-            hurt(GOLEM_MELT_DAMAGE); // temperature > 1.0 → ON_FIRE 1.0F
+            // ON_FIRE 1.0 — bypasses armor.
+            hurt(GOLEM_MELT_DAMAGE, true); // temperature > 1.0 → ON_FIRE 1.0F
         }
     }
 
@@ -3094,7 +3118,8 @@ public final class MobEntity implements LivingEntity {
                 && !world.inLava(position.x(), position.y() + 0.2, position.z()))
                 || world.isRainingAt(position.x(), position.y(), position.z())
                 || world.isRainingAt(position.x(), position.y() + type.height, position.z())) {
-            hurt(1.0f);
+            // DROWN bypasses armor — the rain never consults pieces.
+            hurt(1.0f, true);
         }
 
         // mobAiTick lines 115-119: the eye-offset re-roll every 100 ticks.
@@ -4283,6 +4308,15 @@ public final class MobEntity implements LivingEntity {
 
     /** The mob's held item (setEquipment slot 0 — the bow, the stone sword). */
     private ItemStack heldEquipment;
+    /**
+     * The four armor slots (MobEntity's {@code equipment} array, line 60 —
+     * the slot-1..4 band over the engine's slot-0 held model): [1] feet,
+     * [2] legs, [3] chest, [4] head, the reference's own order. The spawn
+     * dice (addRandomEquipment), the anvil import's Equipment rows, and the
+     * /summon walk land here; the damage walk reads the points through the
+     * {@link net.zaminmc.torch.server.item.Armor} model.
+     */
+    private final ItemStack[] armorEquipment = new ItemStack[4];
 
     /**
      * The {@code generic.movementSpeed} attribute override (Slice 78b —
@@ -4389,6 +4423,72 @@ public final class MobEntity implements LivingEntity {
     /** @return the held stack, or null for the empty hand. */
     public ItemStack heldEquipment() {
         return heldEquipment;
+    }
+
+    /**
+     * The five-slot equipment read (MobEntity.getEquipment line 549:
+     * {@code this.equipment[slot]}): [0] the held stack, [1] feet, [2] legs,
+     * [3] chest, [4] head. A slot past the band reads the held form (the
+     * reference's array index would throw — the engine's own clamped form,
+     * the {@code inventoryDropChance} family's own convention).
+     */
+    public ItemStack equipment(int slot) {
+        if (slot <= 0) {
+            return heldEquipment;
+        }
+        if (slot > armorEquipment.length) {
+            return heldEquipment;
+        }
+        return armorEquipment[slot - 1];
+    }
+
+    /**
+     * The five-slot equipment write (MobEntity.setEquipment line 559): the
+     * held stack at 0, the armor family at 1..4 — the slot the wire's
+     * EQUIPMENT_SLOT_* band and the NBT Equipment rows share.
+     */
+    public void setEquipment(int slot, ItemStack stack) {
+        if (slot <= 0 || slot > armorEquipment.length) {
+            this.heldEquipment = stack;
+            return;
+        }
+        this.armorEquipment[slot - 1] = stack;
+    }
+
+    /**
+     * The armor-points consult (LivingEntity.getArmorProtection lines
+     * 852-863): the per-piece sum over ALL FIVE equipment slots — the
+     * reference's own quirk that a helmet HELD in the hand contributes its
+     * points too (the loop checks {@code instanceof ArmorItem}, never the
+     * slot). Non-armor stacks (the pumpkin, the skull) contribute nothing.
+     */
+    public int armorProtectionPoints() {
+        int points = 0;
+        for (int slot = 0; slot <= armorEquipment.length; slot++) {
+            ItemStack stack = equipment(slot);
+            if (stack != null && !stack.isEmpty()) {
+                points += net.zaminmc.torch.server.item.Armor
+                        .specOf(stack.type()).map(spec -> spec.armorPoints())
+                        .orElse(0);
+            }
+        }
+        return points;
+    }
+
+    /**
+     * The armor envelope (LivingEntity.getDamageAfterArmor lines 868-877):
+     * {@code damage * (25 - points) / 25.0F} — the 4%-per-point reduction,
+     * the 20-point/80% cap implicit in the reference's own band (a full
+     * diamond set sums 20, the deepest the vanilla pieces reach). The
+     * reference's exact float arithmetic ({@code f = damage * i; f / 25.0F})
+     * — no early return, the 0-point walk answers the incoming damage back.
+     * The {@code damageArmor} wear call rides the PLAYER arm alone in the
+     * reference (LivingEntity's own no-op body — a mob's armor never wears).
+     */
+    public float damageAfterArmor(float damage) {
+        int i = 25 - armorProtectionPoints();
+        float f = damage * i;
+        return f / 25.0F;
     }
 
     /**

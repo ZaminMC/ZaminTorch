@@ -39,7 +39,12 @@ public final class MobDataStore {
     private static final int MAGIC_0 = 'Z';
     private static final int MAGIC_1 = 'M';
     private static final int MAGIC_2 = 'D';
-    private static final int FORMAT_VERSION = 12;
+    private static final int FORMAT_VERSION = 13;
+    /** The v13 shape (VIII4 — the armor tail: the four armor rows + the DropChances rows). */
+    private static final int FORMAT_VERSION_13 = 13;
+    /** The v12 shape (Wave K — the SkullOwner row; the bare-FORMAT_VERSION
+     *  gate the v13 bump's audit renamed, the v8 bump's own lesson). */
+    private static final int FORMAT_VERSION_12 = 12;
 
     /** The v7 store's own version (Slice 94's Wave G tail — the load keeps reading it). */
     private static final int FORMAT_VERSION_7 = 7;
@@ -127,6 +132,12 @@ public final class MobDataStore {
                     // pair, the tamed bit, the family's sitting/angry, the
                     // horse's bred markers.
                     writeTameExtras(out, mob.tame());
+                    // The v13 armor tail (VIII4 — the reference's Equipment
+                    // list's slots 1..4 + the DropChances rows): the
+                    // record's own trailing block, always one presence byte
+                    // so a pre-v13 reader never desyncs (and this reader
+                    // never misparses a v12 file).
+                    writeArmorTail(out, mob.nbt());
                 }
         } catch (IOException e) {
             // The sink is an in-memory buffer; an IOException here is a
@@ -173,7 +184,8 @@ public final class MobDataStore {
                 throw new IOException("Not a ZMD file");
             }
             int version = in.readByte();
-            if (version != FORMAT_VERSION && version != FORMAT_VERSION_11
+            if (version != FORMAT_VERSION && version != FORMAT_VERSION_12
+                    && version != FORMAT_VERSION_11
                     && version != FORMAT_VERSION_10
                     && version != FORMAT_VERSION_9
                     && version != FORMAT_VERSION_8
@@ -213,6 +225,11 @@ public final class MobDataStore {
                 // caught it.
                 MobManager.MobTameExtras tame = version >= FORMAT_VERSION_6
                         ? readTameExtras(in) : null;
+                // The v13 armor tail (VIII4): the four armor rows + the
+                // DropChances rows, riding the record's own trailing block.
+                if (version >= FORMAT_VERSION_13) {
+                    nbt = readArmorTail(in, nbt);
+                }
                 loaded.add(new MobManager.MobSnapshot(type, x, y, z, yaw, health,
                         extras, nbt, commandStats, tame));
             }
@@ -473,81 +490,7 @@ public final class MobDataStore {
             writeString(out, nbt.customName());
         }
         if ((flags & NBT_FLAG_EQUIPMENT) != 0) {
-            writeString(out, nbt.heldEquipment().type().identifier().toString());
-            out.writeByte(nbt.heldEquipment().count());
-            out.writeShort(nbt.heldEquipment().damage());
-            // The v6 tail (Slice 92 — the ItemNbt tag arms' own model):
-            // the display name + the enchant pairs (the nullable-string
-            // pair + the count-prefixed short pairs).
-            String heldName = nbt.heldEquipment().displayName();
-            writeNullableString(out, heldName == null || heldName.isEmpty() ? null : heldName);
-            var heldEnch = nbt.heldEquipment().enchantments();
-            if (heldEnch == null || heldEnch.isEmpty()) {
-                writeVarInt(out, 0);
-            } else {
-                writeVarInt(out, heldEnch.size());
-                for (var pair : heldEnch.entrySet()) {
-                    out.writeShort(pair.getKey());
-                    out.writeShort(pair.getValue());
-                }
-            }
-            // The v7 tail (Slice 94 — the Wave G arms on the stack model):
-            // the Unbreakable byte, the RepairCost varint, the HideFlags
-            // varint, then the Lore list (the count + the strings).
-            out.writeBoolean(nbt.heldEquipment().unbreakable());
-            writeVarInt(out, nbt.heldEquipment().repairCost());
-            writeVarInt(out, nbt.heldEquipment().hideFlags());
-            var heldLore = nbt.heldEquipment().lore();
-            if (heldLore == null || heldLore.isEmpty()) {
-                writeVarInt(out, 0);
-            } else {
-                writeVarInt(out, heldLore.size());
-                for (String line : heldLore) {
-                    writeString(out, line);
-                }
-            }
-            // The v8 tail (Slice 95 — the BlockEntityTag raw compound, the
-            // Wave H2 arm): the whole subtree as ONE SNBT string row
-            // (NbtOps.write over the adapted boxes). Absent arm writes the
-            // null marker.
-            writeNullableString(out, nbt.heldEquipment().blockEntityTag() == null
-                    ? null
-                    : net.zaminmc.torch.server.nbt.NbtOps.writeParseable(
-                            net.zaminmc.torch.server.nbt.NbtOps.fromBoxed(
-                                    nbt.heldEquipment().blockEntityTag())));
-            // The v9 tail (Wave I — the adventure gates' lists): the
-            // count + the strings, the Lore row's own shape.
-            writeVarInt(out, nbt.heldEquipment().canDestroy() == null
-                    ? 0 : nbt.heldEquipment().canDestroy().size());
-            if (nbt.heldEquipment().canDestroy() != null) {
-                for (String key : nbt.heldEquipment().canDestroy()) {
-                    writeString(out, key);
-                }
-            }
-            writeVarInt(out, nbt.heldEquipment().canPlaceOn() == null
-                    ? 0 : nbt.heldEquipment().canPlaceOn().size());
-            if (nbt.heldEquipment().canPlaceOn() != null) {
-                for (String key : nbt.heldEquipment().canPlaceOn()) {
-                    writeString(out, key);
-                }
-            }
-            // The v10 tail (the leather tint): a nullable int row.
-            out.writeBoolean(nbt.heldEquipment().displayColor() != null);
-            if (nbt.heldEquipment().displayColor() != null) {
-                out.writeInt(nbt.heldEquipment().displayColor());
-            }
-            // The v11 tail (Wave J — the attribute modifiers): the whole
-            // list as ONE parseable-SNBT string row (the BlockEntityTag
-            // tail's own pattern — the wrapped compound the parser reads
-            // back). An absent arm writes the null marker.
-            writeNullableString(out, nbt.heldEquipment().attributeModifiers() == null
-                    ? null
-                    : attributeModifiersRow(nbt.heldEquipment().attributeModifiers()));
-            // The v12 tail (Wave K — the player head's SkullOwner): ONE
-            // parseable-SNBT string row, the profile's compound form.
-            writeNullableString(out, nbt.heldEquipment().skullOwner() == null
-                    ? null
-                    : skullOwnerRow(nbt.heldEquipment().skullOwner()));
+            writeEquipmentRows(out, nbt.heldEquipment());
         }
         if ((flags & NBT_FLAG_MOVEMENT_SPEED) != 0) {
             out.writeDouble(nbt.movementSpeed());
@@ -555,6 +498,94 @@ public final class MobDataStore {
         if ((flags & NBT_FLAG_ATTACK_DAMAGE) != 0) {
             out.writeDouble(nbt.attackDamage());
         }
+    }
+
+    /**
+     * The per-stack row family (the v4-v12 tails the held row grew, one
+     * helper since VIII4 — the four armor slots ride the SAME bytes): the
+     * identifier string, the count byte, the damage short, then the tails
+     * — the display name + the enchant pairs (v6), the Unbreakable /
+     * RepairCost / HideFlags / Lore rows (v7), the BlockEntityTag SNBT row
+     * (v8), the canDestroy/canPlaceOn lists (v9), the displayColor (v10),
+     * the AttributeModifiers row (v11), the SkullOwner row (v12).
+     */
+    private static void writeEquipmentRows(DataOutputStream out,
+            net.zaminmc.torch.item.ItemStack stack) throws IOException {
+        writeString(out, stack.type().identifier().toString());
+        out.writeByte(stack.count());
+        out.writeShort(stack.damage());
+        // The v6 tail (Slice 92 — the ItemNbt tag arms' own model):
+        // the display name + the enchant pairs (the nullable-string
+        // pair + the count-prefixed short pairs).
+        String displayName = stack.displayName();
+        writeNullableString(out, displayName == null || displayName.isEmpty() ? null : displayName);
+        var enchantments = stack.enchantments();
+        if (enchantments == null || enchantments.isEmpty()) {
+            writeVarInt(out, 0);
+        } else {
+            writeVarInt(out, enchantments.size());
+            for (var pair : enchantments.entrySet()) {
+                out.writeShort(pair.getKey());
+                out.writeShort(pair.getValue());
+            }
+        }
+        // The v7 tail (Slice 94 — the Wave G arms on the stack model):
+        // the Unbreakable byte, the RepairCost varint, the HideFlags
+        // varint, then the Lore list (the count + the strings).
+        out.writeBoolean(stack.unbreakable());
+        writeVarInt(out, stack.repairCost());
+        writeVarInt(out, stack.hideFlags());
+        var lore = stack.lore();
+        if (lore == null || lore.isEmpty()) {
+            writeVarInt(out, 0);
+        } else {
+            writeVarInt(out, lore.size());
+            for (String line : lore) {
+                writeString(out, line);
+            }
+        }
+        // The v8 tail (Slice 95 — the BlockEntityTag raw compound, the
+        // Wave H2 arm): the whole subtree as ONE SNBT string row
+        // (NbtOps.write over the adapted boxes). Absent arm writes the
+        // null marker.
+        writeNullableString(out, stack.blockEntityTag() == null
+                ? null
+                : net.zaminmc.torch.server.nbt.NbtOps.writeParseable(
+                        net.zaminmc.torch.server.nbt.NbtOps.fromBoxed(
+                                stack.blockEntityTag())));
+        // The v9 tail (Wave I — the adventure gates' lists): the
+        // count + the strings, the Lore row's own shape.
+        writeVarInt(out, stack.canDestroy() == null
+                ? 0 : stack.canDestroy().size());
+        if (stack.canDestroy() != null) {
+            for (String key : stack.canDestroy()) {
+                writeString(out, key);
+            }
+        }
+        writeVarInt(out, stack.canPlaceOn() == null
+                ? 0 : stack.canPlaceOn().size());
+        if (stack.canPlaceOn() != null) {
+            for (String key : stack.canPlaceOn()) {
+                writeString(out, key);
+            }
+        }
+        // The v10 tail (the leather tint): a nullable int row.
+        out.writeBoolean(stack.displayColor() != null);
+        if (stack.displayColor() != null) {
+            out.writeInt(stack.displayColor());
+        }
+        // The v11 tail (Wave J — the attribute modifiers): the whole
+        // list as ONE parseable-SNBT string row (the BlockEntityTag
+        // tail's own pattern — the wrapped compound the parser reads
+        // back). An absent arm writes the null marker.
+        writeNullableString(out, stack.attributeModifiers() == null
+                ? null
+                : attributeModifiersRow(stack.attributeModifiers()));
+        // The v12 tail (Wave K — the player head's SkullOwner): ONE
+        // parseable-SNBT string row, the profile's compound form.
+        writeNullableString(out, stack.skullOwner() == null
+                ? null
+                : skullOwnerRow(stack.skullOwner()));
     }
 
     /**
@@ -581,130 +612,7 @@ public final class MobDataStore {
         }
         net.zaminmc.torch.item.ItemStack held = null;
         if ((flags & NBT_FLAG_EQUIPMENT) != 0) {
-            String identifier = readString(in);
-            int count = in.readUnsignedByte();
-            int damage = in.readUnsignedShort();
-            held = net.zaminmc.torch.server.item.BuiltinItems.lookup(
-                            net.zaminmc.torch.util.Identifier.parse(identifier))
-                    .map(type -> net.zaminmc.torch.item.ItemStack.of(type, count)
-                            .withDamage(damage))
-                    .orElse(null);
-            // The v6 tail (Slice 92): the display name + the enchant
-            // pairs land on the model.
-            if (held != null && version >= FORMAT_VERSION_6) {
-                String heldName = readNullableString(in);
-                if (heldName != null) {
-                    held = held.withName(heldName);
-                }
-                int enchCount = readVarInt(in);
-                if (enchCount > 0) {
-                    java.util.Map<Integer, Integer> pairs = new java.util.LinkedHashMap<>();
-                    for (int i = 0; i < enchCount; i++) {
-                        int id = in.readUnsignedShort();
-                        int lvl = in.readUnsignedShort();
-                        if (lvl >= 1) {
-                            pairs.put(id, lvl);
-                        }
-                    }
-                    held = held.withEnchantments(pairs);
-                }
-                // The v7 tail (Slice 94 — the Wave G rows): absent in a v6
-                // file, the model's defaults then.
-                if (version >= FORMAT_VERSION_7) {
-                    if (in.readBoolean()) {
-                        held = held.withUnbreakable(true);
-                    }
-                    int repairCost = readVarInt(in);
-                    if (repairCost > 0) {
-                        held = held.withRepairCost(repairCost);
-                    }
-                    int hideFlags = readVarInt(in);
-                    if (hideFlags > 0) {
-                        held = held.withHideFlags(hideFlags);
-                    }
-                    int loreCount = readVarInt(in);
-                    if (loreCount > 0) {
-                        java.util.List<String> lines = new java.util.ArrayList<>(loreCount);
-                        for (int i = 0; i < loreCount; i++) {
-                            lines.add(readString(in));
-                        }
-                        held = held.withLore(lines);
-                    }
-                    // The v8 tail (Slice 95 — the BlockEntityTag raw compound,
-                    // the Wave H2 arm): the whole subtree as ONE SNBT string
-                    // row. Absent arm writes the null marker.
-                    String blockEntityTagRow = version >= FORMAT_VERSION_8
-                            ? readNullableString(in) : null;
-                    if (blockEntityTagRow != null) {
-                        java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> parsed =
-                                net.zaminmc.torch.server.nbt.Snbt.parseCompound(blockEntityTagRow);
-                        if (!parsed.isEmpty()) {
-                            held = held.withBlockEntityTag(
-                                    net.zaminmc.torch.server.nbt.NbtOps.toBoxed(parsed));
-                        }
-                    }
-                    // The v9 tail (Wave I): the two lists — the gate names
-                    // its own version (the v10 bump's audit: an unconditional
-                    // read inside the v7 block would misparse v7/v8 files).
-                    int destroyCount = version >= FORMAT_VERSION_9 ? readVarInt(in) : 0;
-                    if (destroyCount > 0) {
-                        java.util.List<String> keys = new java.util.ArrayList<>(destroyCount);
-                        for (int k = 0; k < destroyCount; k++) {
-                            keys.add(readString(in));
-                        }
-                        held = held.withCanDestroy(keys);
-                    }
-                    int placeCount = version >= FORMAT_VERSION_9 ? readVarInt(in) : 0;
-                    if (placeCount > 0) {
-                        java.util.List<String> keys = new java.util.ArrayList<>(placeCount);
-                        for (int k = 0; k < placeCount; k++) {
-                            keys.add(readString(in));
-                        }
-                        held = held.withCanPlaceOn(keys);
-                    }
-                    // The v10 tail (the leather tint): absent in a v9 file
-                    // — the row names its OWN version (the v11 bump's
-                    // audit: the old >= FORMAT_VERSION gate would skip a
-                    // v10 file's color row and misparse the file).
-                    if (version >= FORMAT_VERSION_10 && in.readBoolean()) {
-                        held = held.withDisplayColor(in.readInt());
-                    }
-                    // The v11 tail (Wave J — the attribute modifiers):
-                    // absent in a v10 file — the row names its OWN version
-                    // (the v12 bump's audit).
-                    String attributeModifiersRow = version >= FORMAT_VERSION_11
-                            ? readNullableString(in) : null;
-                    if (attributeModifiersRow != null) {
-                        java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> parsed =
-                                net.zaminmc.torch.server.nbt.Snbt.parseCompound(
-                                        attributeModifiersRow);
-                        if (net.zaminmc.torch.server.nbt.NbtOps.contains(parsed,
-                                "AttributeModifiers",
-                                net.zaminmc.torch.server.nbt.Snbt.Tag.Type.LIST)) {
-                            held = held.withAttributeModifiers(
-                                    net.zaminmc.torch.server.nbt.ItemNbt
-                                            .readAttributeModifiers(parsed));
-                        }
-                    }
-                    // The v12 tail (Wave K — the SkullOwner row): absent in
-                    // a v11 file.
-                    String skullOwnerRow = version >= FORMAT_VERSION
-                            ? readNullableString(in) : null;
-                    if (skullOwnerRow != null) {
-                        java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> parsed =
-                                net.zaminmc.torch.server.nbt.Snbt.parseCompound(
-                                        skullOwnerRow);
-                        java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> owner =
-                                net.zaminmc.torch.server.nbt.NbtOps.getCompound(parsed,
-                                        "SkullOwner");
-                        net.zaminmc.torch.item.SkullProfile profile =
-                                net.zaminmc.torch.server.nbt.TileNbt.readProfile(owner);
-                        if (profile != null) {
-                            held = held.withSkullOwner(profile);
-                        }
-                    }
-                }
-            }
+            held = readEquipmentRows(in, version);
         }
         double movementSpeed = (flags & NBT_FLAG_MOVEMENT_SPEED) != 0
                 ? in.readDouble() : Double.NaN;
@@ -716,6 +624,235 @@ public final class MobDataStore {
                 (flags & NBT_FLAG_INVULNERABLE) != 0,
                 (flags & NBT_FLAG_PERSISTENT) != 0,
                 held, movementSpeed, attackDamage);
+    }
+
+    /**
+     * The read half of the per-stack row family (one helper since VIII4 —
+     * the four armor slots ride the SAME bytes): the identifier/count/
+     * damage triple, then the version-gated tails — each row names its OWN
+     * version constant (the v8/v10/v11 bump audits' own lesson: a bare
+     * {@code >= FORMAT_VERSION} gate skips the just-renamed version's rows
+     * and misparses the file).
+     */
+    private static net.zaminmc.torch.item.ItemStack readEquipmentRows(
+            DataInputStream in, int version) throws IOException {
+        String identifier = readString(in);
+        int count = in.readUnsignedByte();
+        int damage = in.readUnsignedShort();
+        net.zaminmc.torch.item.ItemStack stack =
+                net.zaminmc.torch.server.item.BuiltinItems.lookup(
+                                net.zaminmc.torch.util.Identifier.parse(identifier))
+                        .map(type -> net.zaminmc.torch.item.ItemStack.of(type, count)
+                                .withDamage(damage))
+                        .orElse(null);
+        if (stack == null || version < FORMAT_VERSION_6) {
+            return stack;
+        }
+        // The v6 tail (Slice 92): the display name + the enchant pairs
+        // land on the model.
+        String displayName = readNullableString(in);
+        if (displayName != null) {
+            stack = stack.withName(displayName);
+        }
+        int enchCount = readVarInt(in);
+        if (enchCount > 0) {
+            java.util.Map<Integer, Integer> pairs = new java.util.LinkedHashMap<>();
+            for (int i = 0; i < enchCount; i++) {
+                int id = in.readUnsignedShort();
+                int lvl = in.readUnsignedShort();
+                if (lvl >= 1) {
+                    pairs.put(id, lvl);
+                }
+            }
+            stack = stack.withEnchantments(pairs);
+        }
+        // The v7 tail (Slice 94 — the Wave G rows): absent in a v6 file,
+        // the model's defaults then.
+        if (version < FORMAT_VERSION_7) {
+            return stack;
+        }
+        if (in.readBoolean()) {
+            stack = stack.withUnbreakable(true);
+        }
+        int repairCost = readVarInt(in);
+        if (repairCost > 0) {
+            stack = stack.withRepairCost(repairCost);
+        }
+        int hideFlags = readVarInt(in);
+        if (hideFlags > 0) {
+            stack = stack.withHideFlags(hideFlags);
+        }
+        int loreCount = readVarInt(in);
+        if (loreCount > 0) {
+            java.util.List<String> lines = new java.util.ArrayList<>(loreCount);
+            for (int i = 0; i < loreCount; i++) {
+                lines.add(readString(in));
+            }
+            stack = stack.withLore(lines);
+        }
+        // The v8 tail (Slice 95 — the BlockEntityTag raw compound, the
+        // Wave H2 arm): the whole subtree as ONE SNBT string row. Absent
+        // arm writes the null marker.
+        String blockEntityTagRow = version >= FORMAT_VERSION_8
+                ? readNullableString(in) : null;
+        if (blockEntityTagRow != null) {
+            java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> parsed =
+                    net.zaminmc.torch.server.nbt.Snbt.parseCompound(blockEntityTagRow);
+            if (!parsed.isEmpty()) {
+                stack = stack.withBlockEntityTag(
+                        net.zaminmc.torch.server.nbt.NbtOps.toBoxed(parsed));
+            }
+        }
+        // The v9 tail (Wave I): the two lists — the gate names its own
+        // version (the v10 bump's audit: an unconditional read inside the
+        // v7 block would misparse v7/v8 files).
+        int destroyCount = version >= FORMAT_VERSION_9 ? readVarInt(in) : 0;
+        if (destroyCount > 0) {
+            java.util.List<String> keys = new java.util.ArrayList<>(destroyCount);
+            for (int k = 0; k < destroyCount; k++) {
+                keys.add(readString(in));
+            }
+            stack = stack.withCanDestroy(keys);
+        }
+        int placeCount = version >= FORMAT_VERSION_9 ? readVarInt(in) : 0;
+        if (placeCount > 0) {
+            java.util.List<String> keys = new java.util.ArrayList<>(placeCount);
+            for (int k = 0; k < placeCount; k++) {
+                keys.add(readString(in));
+            }
+            stack = stack.withCanPlaceOn(keys);
+        }
+        // The v10 tail (the leather tint): absent in a v9 file — the row
+        // names its OWN version (the v11 bump's audit: the old >=
+        // FORMAT_VERSION gate would skip a v10 file's color row and
+        // misparse the file).
+        if (version >= FORMAT_VERSION_10 && in.readBoolean()) {
+            stack = stack.withDisplayColor(in.readInt());
+        }
+        // The v11 tail (Wave J — the attribute modifiers): absent in a v10
+        // file — the row names its OWN version (the v12 bump's audit).
+        String attributeModifiersRow = version >= FORMAT_VERSION_11
+                ? readNullableString(in) : null;
+        if (attributeModifiersRow != null) {
+            java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> parsed =
+                    net.zaminmc.torch.server.nbt.Snbt.parseCompound(
+                            attributeModifiersRow);
+            if (net.zaminmc.torch.server.nbt.NbtOps.contains(parsed,
+                    "AttributeModifiers",
+                    net.zaminmc.torch.server.nbt.Snbt.Tag.Type.LIST)) {
+                stack = stack.withAttributeModifiers(
+                        net.zaminmc.torch.server.nbt.ItemNbt
+                                .readAttributeModifiers(parsed));
+            }
+        }
+        // The v12 tail (Wave K — the SkullOwner row): absent in a v11 file —
+        // the gate names its OWN version constant (the v13 bump's audit: the
+        // bare FORMAT_VERSION would skip a v12 file's row and misparse the
+        // file).
+        String skullOwnerRow = version >= FORMAT_VERSION_12
+                ? readNullableString(in) : null;
+        if (skullOwnerRow != null) {
+            java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> parsed =
+                    net.zaminmc.torch.server.nbt.Snbt.parseCompound(
+                            skullOwnerRow);
+            java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> owner =
+                    net.zaminmc.torch.server.nbt.NbtOps.getCompound(parsed,
+                            "SkullOwner");
+            net.zaminmc.torch.item.SkullProfile profile =
+                    net.zaminmc.torch.server.nbt.TileNbt.readProfile(owner);
+            if (profile != null) {
+                stack = stack.withSkullOwner(profile);
+            }
+        }
+        return stack;
+    }
+
+    /**
+     * The v13 armor tail's write (VIII4 — the reference's Equipment list's
+     * slots 1..4 + the DropChances rows): one presence byte (0 = the record
+     * carries no armor rows and every chance at the constructor's own
+     * 0.085 default), else the four per-slot presence bytes (1 + the full
+     * stack-row family per present slot — the SAME bytes the held row
+     * rides) and the chances block (one presence byte, then five floats —
+     * the reference's DropChances list shape, written only when a slot
+     * left the default).
+     */
+    private static void writeArmorTail(DataOutputStream out, MobManager.MobNbtExtras nbt)
+            throws IOException {
+        if (nbt == null) {
+            out.writeByte(0);
+            return;
+        }
+        net.zaminmc.torch.item.ItemStack[] slots = {
+                nbt.feetEquipment(), nbt.legsEquipment(),
+                nbt.chestEquipment(), nbt.headEquipment()};
+        boolean anyArmor = false;
+        for (net.zaminmc.torch.item.ItemStack stack : slots) {
+            if (stack != null && !stack.isEmpty()) {
+                anyArmor = true;
+                break;
+            }
+        }
+        boolean chances = nbt.dropChances() != null;
+        if (!anyArmor && !chances) {
+            out.writeByte(0);
+            return;
+        }
+        out.writeByte(1);
+        for (net.zaminmc.torch.item.ItemStack stack : slots) {
+            if (stack != null && !stack.isEmpty()) {
+                out.writeByte(1);
+                writeEquipmentRows(out, stack);
+            } else {
+                out.writeByte(0);
+            }
+        }
+        if (chances) {
+            out.writeByte(1);
+            for (float chance : nbt.dropChances()) {
+                out.writeFloat(chance);
+            }
+        } else {
+            out.writeByte(0);
+        }
+    }
+
+    /**
+     * The v13 armor tail's read: the presence byte first (0 = no rows), else
+     * the four per-slot stacks (the same stack-row family, the full v13 tail
+     * set) and the chances block, folded back into the record. The tail is
+     * SELF-SUFFICIENT: an armor-only body carries a bare NBT block (the
+     * flags byte holds no armor bits) beside a present tail — the read
+     * builds the record from the tail alone in that shape.
+     */
+    private static MobManager.MobNbtExtras readArmorTail(DataInputStream in,
+            MobManager.MobNbtExtras nbt) throws IOException {
+        if (in.readUnsignedByte() == 0) {
+            return nbt;
+        }
+        net.zaminmc.torch.item.ItemStack[] slots = new net.zaminmc.torch.item.ItemStack[4];
+        for (int i = 0; i < 4; i++) {
+            slots[i] = in.readUnsignedByte() == 1
+                    ? readEquipmentRows(in, FORMAT_VERSION) : null;
+        }
+        float[] chances = null;
+        if (in.readUnsignedByte() == 1) {
+            chances = new float[5];
+            for (int i = 0; i < 5; i++) {
+                chances[i] = in.readFloat();
+            }
+        }
+        if (nbt == null) {
+            // The armor-only body: the bare NBT block beside the present
+            // tail — the record grows from the tail alone.
+            return new MobManager.MobNbtExtras(null, false, false, false, false,
+                    null, Double.NaN, Double.NaN,
+                    slots[0], slots[1], slots[2], slots[3], chances);
+        }
+        return new MobManager.MobNbtExtras(nbt.customName(), nbt.customNameVisible(),
+                nbt.noAi(), nbt.invulnerable(), nbt.persistent(),
+                nbt.heldEquipment(), nbt.movementSpeed(), nbt.attackDamage(),
+                slots[0], slots[1], slots[2], slots[3], chances);
     }
 
     /** Reads the v2 state block back (null for the bare zero-flags shape). */

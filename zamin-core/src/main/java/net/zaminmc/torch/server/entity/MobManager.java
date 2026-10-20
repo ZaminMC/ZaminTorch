@@ -776,6 +776,17 @@ public final class MobManager {
             // multiplier).
             mob.setCanPickUpLoot(random.nextFloat() < 0.55F * localDifficultyMultiplier());
         }
+        if (type == MobType.SKELETON || type == MobType.ZOMBIE) {
+            // The armor family's spawn dice (VIII4 — MobEntity
+            // .addRandomEquipment lines 593-623 through the family's own
+            // overrides: the skeleton's super + bow, the zombie's super +
+            // the iron tool arm; the pigman's override replaces the whole
+            // walk with the golden sword alone, so it never rolls here).
+            // The nether's wither arm REPLACES the walk (initialize's
+            // if/else — the variant strip rides the nether spawn below).
+            rollSpawnEquipment(mob, random, localDifficultyMultiplier(),
+                    difficultyId());
+        }
         if (type == MobType.VILLAGER) {
             // VillagerEntity's own constructor arm (line 322): the
             // villager ALWAYS picks up (the food-in-hand walk).
@@ -1781,20 +1792,39 @@ public final class MobManager {
      * the pre-v3 shape — is a body with none of the rows.
      *
      * <p>Slice 78b grows the family: the Equipment row's held stack (the
-     * reference's slot 0; the armor slots parse but land nowhere — the
-     * engine's no-armor envelope) and the Attributes rows' overrides
+     * reference's slot 0) and the Attributes rows' overrides
      * (generic.movementSpeed + generic.attackDamage; NaN = no override).</p>
+     *
+     * <p>VIII4 completes the Equipment family's shape 1:1: the four armor
+     * rows (slots 1..4 — feet, legs, chest, head, the reference's
+     * five-entry Equipment list) and the DropChances rows (the five
+     * floats; null = every slot at the constructor's own 0.085 default —
+     * the reference saves the list whole, the engine's store carries only
+     * the non-default tails, the same presence convention every other row
+     * rides).</p>
      */
     public record MobNbtExtras(
             String customName, boolean customNameVisible,
             boolean noAi, boolean invulnerable, boolean persistent,
-            ItemStack heldEquipment, double movementSpeed, double attackDamage) {
+            ItemStack heldEquipment, double movementSpeed, double attackDamage,
+            ItemStack feetEquipment, ItemStack legsEquipment, ItemStack chestEquipment,
+            ItemStack headEquipment, float[] dropChances) {
 
         /** The Slice 75 shape (no equipment, no attribute rows). */
         public MobNbtExtras(String customName, boolean customNameVisible,
                 boolean noAi, boolean invulnerable, boolean persistent) {
             this(customName, customNameVisible, noAi, invulnerable, persistent,
-                    null, Double.NaN, Double.NaN);
+                    null, Double.NaN, Double.NaN,
+                    null, null, null, null, null);
+        }
+
+        /** The Slice 78b shape (the held stack + the attribute rows alone). */
+        public MobNbtExtras(String customName, boolean customNameVisible,
+                boolean noAi, boolean invulnerable, boolean persistent,
+                ItemStack heldEquipment, double movementSpeed, double attackDamage) {
+            this(customName, customNameVisible, noAi, invulnerable, persistent,
+                    heldEquipment, movementSpeed, attackDamage,
+                    null, null, null, null, null);
         }
     }
 
@@ -1877,6 +1907,28 @@ public final class MobManager {
                 if (nbt.heldEquipment() != null) {
                     mob.setHeldEquipment(nbt.heldEquipment());
                     equipmentChanged(mob);
+                }
+                // VIII4's rows: the four armor slots (the reference's
+                // Equipment list [1..4]) + the DropChances rows. The wire
+                // re-publish rides the same equipment arm.
+                boolean armorRestored = false;
+                for (int slot = 1; slot <= 4; slot++) {
+                    ItemStack piece = switch (slot) {
+                        case 1 -> nbt.feetEquipment();
+                        case 2 -> nbt.legsEquipment();
+                        case 3 -> nbt.chestEquipment();
+                        default -> nbt.headEquipment();
+                    };
+                    if (piece != null) {
+                        mob.setEquipment(slot, piece);
+                        armorRestored = true;
+                    }
+                }
+                if (armorRestored) {
+                    equipmentChanged(mob);
+                }
+                if (nbt.dropChances() != null) {
+                    mob.setInventoryDropChances(nbt.dropChances());
                 }
                 if (!Double.isNaN(nbt.movementSpeed())) {
                     mob.setMovementSpeedOverride(nbt.movementSpeed());
@@ -2062,17 +2114,37 @@ public final class MobManager {
 
     /** The /summon NBT rows' snapshot (Slice 75): null when none are set. */
     private static MobNbtExtras nbtExtrasOf(MobEntity mob) {
+        // VIII4: the armor rows ride the family — any equipped slot or any
+        // non-default chance keeps the record alive.
+        boolean anyArmor = false;
+        for (int slot = 1; slot <= 4; slot++) {
+            ItemStack stack = mob.equipment(slot);
+            if (stack != null && !stack.isEmpty()) {
+                anyArmor = true;
+                break;
+            }
+        }
+        float[] chances = mob.inventoryDropChances();
+        boolean anyChance = false;
+        for (float chance : chances) {
+            if (chance != 0.085F) {
+                anyChance = true;
+                break;
+            }
+        }
         if (mob.customName() == null && !mob.customNameVisible() && !mob.noAi()
                 && !mob.invulnerable() && !mob.rawPersistent()
                 && mob.heldEquipment() == null && !mob.hasMovementSpeedOverride()
-                && !mob.hasAttackDamageOverride()) {
+                && !mob.hasAttackDamageOverride() && !anyArmor && !anyChance) {
             return null;
         }
         return new MobNbtExtras(mob.customName(), mob.customNameVisible(),
                 mob.noAi(), mob.invulnerable(), mob.rawPersistent(),
                 mob.heldEquipment(),
                 mob.hasMovementSpeedOverride() ? mob.walkSpeed() : Double.NaN,
-                mob.hasAttackDamageOverride() ? mob.attackDamage() : Double.NaN);
+                mob.hasAttackDamageOverride() ? mob.attackDamage() : Double.NaN,
+                mob.equipment(1), mob.equipment(2), mob.equipment(3), mob.equipment(4),
+                anyChance ? chances : null);
     }
 
     /**
@@ -2588,51 +2660,55 @@ public final class MobManager {
 
     /**
      * The equipment drop (Slice 92 — MobEntity.dropEquipment lines
-     * 569-589, the engine's slot-0 model: the armor family carries no
-     * stacks, the no-mob-armor envelope): the held hand drops when the
-     * player-kill window is open (or the slot carries the always-drop
-     * marker — the 2.0 a pickup writes) and the chance roll clears,
-     * widened by the killer's looting ({@code nextFloat() - looting *
-     * 0.01F < chance}); a damageable tool rides the reference's own
-     * durability shave ({@code max(maxDamage - 25, 1)} bound, the
-     * {@code maxDamage - nextInt(nextInt(j) + 1)} cut, clamped 1..j).
+     * 569-591, VIII4's five-slot completion): every slot [0]..[4] walks
+     * the same law — the stack drops when the player-kill window is open
+     * (or the slot carries the always-drop marker — the 2.0 a pickup
+     * writes) and the chance roll clears, widened by the killer's looting
+     * ({@code nextFloat() - looting * 0.01F < chance}); a damageable tool
+     * on a rolled slot (never the 2.0 marker's own) rides the reference's
+     * own durability shave ({@code max(maxDamage - 25, 1)} bound, the
+     * {@code maxDamage - nextInt(nextInt(j) + 1)} cut, clamped 1..j). The
+     * slots land in the reference's own order — held, feet, legs, chest,
+     * head.
      */
     private void dropEquipment(MobEntity mob) {
         if (!mobLootEnabled()) {
             return;
         }
-        ItemStack held = mob.heldEquipment();
-        if (held == null) {
-            return;
-        }
-        float chance = mob.inventoryDropChance(0);
-        boolean always = chance > 1.0F;
         int looting = mob.lootingLevel();
-        if (!(mob.playerHitRecently() || always)
-                || !(random.nextFloat() - looting * 0.01F < chance)) {
-            return;
-        }
-        ItemStack drop = held;
-        if (!always && held.type().maxDurability() > 0 && !held.unbreakable()) {
-            // isDamageable: the durability shave — the dropped tool never
-            // lands pristine (the reference's own cut). The shave rides
-            // withDamage alone: the pre-G1 5-arg reconstruction stripped
-            // every tag arm the stack carried (the Wave G strip-bug
-            // pattern, caught in Wave J's audit — a named lore-carrying
-            // locked sword now drops WITH its whole tag).
-            int max = held.type().maxDurability();
-            int bound = Math.max(max - 25, 1);
-            int k = max - random.nextInt(random.nextInt(bound) + 1);
-            if (k > bound) {
-                k = bound;
+        for (int slot = 0; slot <= 4; slot++) {
+            ItemStack stack = mob.equipment(slot);
+            if (stack == null || stack.isEmpty()) {
+                continue;
             }
-            if (k < 1) {
-                k = 1;
+            float chance = mob.inventoryDropChance(slot);
+            boolean always = chance > 1.0F;
+            if (!(mob.playerHitRecently() || always)
+                    || !(random.nextFloat() - looting * 0.01F < chance)) {
+                continue;
             }
-            drop = held.withDamage(k);
+            ItemStack drop = stack;
+            if (!always && stack.type().maxDurability() > 0 && !stack.unbreakable()) {
+                // isDamageable: the durability shave — the dropped tool never
+                // lands pristine (the reference's own cut). The shave rides
+                // withDamage alone: the pre-G1 5-arg reconstruction stripped
+                // every tag arm the stack carried (the Wave G strip-bug
+                // pattern, caught in Wave J's audit — a named lore-carrying
+                // locked sword now drops WITH its whole tag).
+                int max = stack.type().maxDurability();
+                int bound = Math.max(max - 25, 1);
+                int k = max - random.nextInt(random.nextInt(bound) + 1);
+                if (k > bound) {
+                    k = bound;
+                }
+                if (k < 1) {
+                    k = 1;
+                }
+                drop = stack.withDamage(k);
+            }
+            Position at = mob.position();
+            lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()), drop);
         }
-        Position at = mob.position();
-        lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()), drop);
     }
 
     /** Rolls the kind's loot table into the world at the body. */
@@ -2981,6 +3057,106 @@ public final class MobManager {
         return Math.min((regional - 2.0F) / 2.0F, 1.0F);
     }
 
+    /**
+     * The global difficulty id (the reference's {@code world.getDifficulty()}
+     * reads — 0 peaceful, 1 easy, 2 normal, 3 HARD). The dice's own HARD
+     * bands consult this, never the local multiplier.
+     */
+    private int difficultyId() {
+        java.util.function.IntSupplier difficultyAt = difficultyRead;
+        return difficultyAt != null ? difficultyAt.getAsInt() : 1;
+    }
+
+    /**
+     * The armor family's spawn dice (VIII4 — MobEntity.addRandomEquipment
+     * lines 593-623, 1:1): the 0.15-times-multiplier gate, then the
+     * equipment level roll — {@code nextInt(2)} widened by three 0.095
+     * chances (the 0..4 band) — then the head-to-feet walk ({@code j = 3
+     * .. 0}, the reference's own direction) where every slot past the
+     * first takes the stop roll first ({@code nextFloat() < f}, the HARD
+     * world's own 0.1 against the 0.25 everywhere else) and an EMPTY slot
+     * equips the level's piece of its own column. The zombie's held arm
+     * (ZombieEntity.addRandomEquipment lines 306-316) rides the tail: the
+     * 1%-or-5%-by-HARD iron tool roll, the sword one third of the time.
+     * Package-private static so the equivalence tests drive the dice with
+     * their own seeded random.
+     */
+    static void rollSpawnEquipment(MobEntity mob, Random random,
+                                   float localMultiplier, int globalDifficultyId) {
+        if (random.nextFloat() < 0.15F * localMultiplier) {
+            int level = random.nextInt(2);
+            float stopChance = globalDifficultyId == 3 ? 0.1F : 0.25F;
+            if (random.nextFloat() < 0.095F) {
+                level++;
+            }
+            if (random.nextFloat() < 0.095F) {
+                level++;
+            }
+            if (random.nextFloat() < 0.095F) {
+                level++;
+            }
+            for (int j = 3; j >= 0; j--) {
+                if (j < 3 && random.nextFloat() < stopChance) {
+                    break;
+                }
+                if (mob.equipment(j + 1) == null) {
+                    var piece = equipmentForSlot(j + 1, level);
+                    if (piece != null) {
+                        mob.setEquipment(j + 1, ItemStack.of(piece, 1));
+                    }
+                }
+            }
+        }
+        if (mob.type() == MobType.ZOMBIE
+                && random.nextFloat() < (globalDifficultyId == 3 ? 0.05F : 0.01F)) {
+            mob.setHeldEquipment(ItemStack.of(random.nextInt(3) == 0
+                    ? BuiltinItems.IRON_SWORD : BuiltinItems.IRON_SHOVEL, 1));
+        }
+    }
+
+    /**
+     * The level ladder (MobEntity.getEquipmentForSlot lines 646-698): the
+     * material column per slot — leather, gold, chain, iron, diamond (the
+     * reference's own order) — null past the band.
+     */
+    private static net.zaminmc.torch.item.ItemType equipmentForSlot(int slot, int level) {
+        return switch (slot) {
+            case 4 -> switch (level) {
+                case 0 -> BuiltinItems.LEATHER_HELMET;
+                case 1 -> BuiltinItems.GOLDEN_HELMET;
+                case 2 -> BuiltinItems.CHAINMAIL_HELMET;
+                case 3 -> BuiltinItems.IRON_HELMET;
+                case 4 -> BuiltinItems.DIAMOND_HELMET;
+                default -> null;
+            };
+            case 3 -> switch (level) {
+                case 0 -> BuiltinItems.LEATHER_CHESTPLATE;
+                case 1 -> BuiltinItems.GOLDEN_CHESTPLATE;
+                case 2 -> BuiltinItems.CHAINMAIL_CHESTPLATE;
+                case 3 -> BuiltinItems.IRON_CHESTPLATE;
+                case 4 -> BuiltinItems.DIAMOND_CHESTPLATE;
+                default -> null;
+            };
+            case 2 -> switch (level) {
+                case 0 -> BuiltinItems.LEATHER_LEGGINGS;
+                case 1 -> BuiltinItems.GOLDEN_LEGGINGS;
+                case 2 -> BuiltinItems.CHAINMAIL_LEGGINGS;
+                case 3 -> BuiltinItems.IRON_LEGGINGS;
+                case 4 -> BuiltinItems.DIAMOND_LEGGINGS;
+                default -> null;
+            };
+            case 1 -> switch (level) {
+                case 0 -> BuiltinItems.LEATHER_BOOTS;
+                case 1 -> BuiltinItems.GOLDEN_BOOTS;
+                case 2 -> BuiltinItems.CHAINMAIL_BOOTS;
+                case 3 -> BuiltinItems.IRON_BOOTS;
+                case 4 -> BuiltinItems.DIAMOND_BOOTS;
+                default -> null;
+            };
+            default -> null;
+        };
+    }
+
     /** The witch's live effect-store read (the drink ladder's gates). */
     private boolean witchHasEffect(MobEntity mob, int effectId) {
         net.zaminmc.torch.server.potion.PotionSystem potions = potionSystem;
@@ -3041,17 +3217,22 @@ public final class MobManager {
 
     /**
      * The equip walk (MobEntity.updateInventory lines 349-403, the
-     * engine's slot-0 model — the armor family parses to its own slots
-     * and lands nowhere, the no-mob-armor envelope): the better-item
+     * engine's held-slot shape — VIII4 landed the four armor slots' MODEL,
+     * and this pickup walk still refuses them): the better-item
      * comparison — a sword over a non-sword, the sword family by attack
      * damage (ties by the stack damage), the bow pair by the nbt alone —
      * then the old hand's 0.1-widened chance drop, the equip, the
-     * always-drop marker (2.0), the persistence pin, and the collect.
+     * always-drop marker (2.0), the persistence pin, and the collect. The
+     * ARMOR compare (updateInventory lines 373-385 — an ArmorItem over a
+     * non-armor piece, the protection tie, the metadata tie) is the
+     * family's remaining demand-named arm: a mob never picks armor up
+     * mid-life here (the slots fill through the spawn dice, the /summon
+     * rows, and the anvil import).
      */
     private void updateInventory(MobEntity mob, ItemEntity item, ItemEntityManager items) {
         ItemStack stack = item.stack();
         if (stack == null || equipmentSlotOf(stack) > 0) {
-            return; // the armor family: the engine's no-mob-armor envelope
+            return; // the armor pickup arm: demand-named (see the javadoc)
         }
         ItemStack held = mob.heldEquipment();
         boolean better;
@@ -3348,6 +3529,13 @@ public final class MobManager {
             if (type == MobType.SKELETON && random.nextInt(5) > 0) {
                 mob.setSkeletonWither(true);
                 mob.setHeldEquipment(ItemStack.of(BuiltinItems.STONE_SWORD, 1));
+                // The wither arm REPLACES the dice (initialize's if/else —
+                // the else branch alone calls addRandomEquipment): the
+                // spawn-site roll above never happened for this body, so
+                // the four armor slots strip back to empty 1:1.
+                for (int slot = 1; slot <= 4; slot++) {
+                    mob.setEquipment(slot, null);
+                }
             }
         }
         return mob;
