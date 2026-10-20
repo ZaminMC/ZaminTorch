@@ -356,6 +356,7 @@ public final class EngineServer implements Server, EngineBridge {
     private net.zaminmc.torch.server.endcrystal.EnderCrystalSystem enderCrystals;
     /** The firework rockets (Slice 65 — the right-click launch + the burst). */
     private net.zaminmc.torch.server.fireworks.FireworksSystem fireworks;
+    private net.zaminmc.torch.server.endereye.EnderEyeSystem eyes;
     /** The ender crystals' ZEC persistence (the destroyed-pillar set). */
     private net.zaminmc.torch.server.endcrystal.EnderCrystalDataStore enderCrystalStore;
     /** The dragon fight's ZDR persistence (the defeated mark). */
@@ -475,6 +476,8 @@ public final class EngineServer implements Server, EngineBridge {
     private static final int FIREWORKS_ID_BASE = ENDER_CRYSTAL_ID_BASE + 1_000_000;
     /** The fishing bobbers' own id band (Slice 67). */
     private static final int FISHING_ID_BASE = FIREWORKS_ID_BASE + 1_000_000;
+    /** The eyes of ender get the band above the fishing bobbers (the import-families slice). */
+    private static final int EYE_ID_BASE = FISHING_ID_BASE + 1_000_000;
 
     /** The shared shape-aware physics query (items, falling blocks, projectiles). */
     private final ShapeGround shapeGround = new ShapeGround();
@@ -1589,6 +1592,14 @@ public final class EngineServer implements Server, EngineBridge {
                 // entity family the fireworks item's own useOn arm births.
                 fireworks = new net.zaminmc.torch.server.fireworks.FireworksSystem(
                         new FireworksSurface(), gameplayRandom, FIREWORKS_ID_BASE);
+                // The eyes of ender (the import-families slice — the
+                // reference's EnderEyeEntity + the item's startUsing arm):
+                // the throw spawns at the caller's position, the
+                // stronghold's positions table answers the target, the
+                // 80-tick flight ends in the 4-in-5 item drop or the
+                // block event 2003.
+                eyes = new net.zaminmc.torch.server.endereye.EnderEyeSystem(
+                        new EnderEyeSurface(), gameplayRandom, EYE_ID_BASE);
                 // The dragon fight's defeated mark (Slice 63): the End's
                 // chunks regenerate deterministically — the chunk-(0,0)
                 // decorate would re-spawn the dragon every boot; the ZDR
@@ -6082,6 +6093,16 @@ public final class EngineServer implements Server, EngineBridge {
                 useSpawnEggInAir(session);
                 return;
             }
+            // The eye of ender (the import-families slice —
+            // EnderEyeItem.startUsing lines 118-136): the crosshair's
+            // frame consult first (a frame target never throws — the
+            // frame's own useOn owns it), then the stronghold consult
+            // answers the target, the throw spawns the eye AT the
+            // caller's position, and the stack pays one unit in survival.
+            if (held.type().equals(BuiltinItems.ENDER_EYE)) {
+                useEnderEyeInAir(session);
+                return;
+            }
             // The fishing rod (Slice 67 — FishingRodItem.startUsing):
             // a live bobber retrieves, an empty hand casts.
             if (held.type().equals(BuiltinItems.FISHING_ROD)) {
@@ -9963,6 +9984,46 @@ public final class EngineServer implements Server, EngineBridge {
         }
         mobManager.spawnFromEgg(kind, new Position(
                 liquidCell.x() + 0.5, liquidCell.y() + 0.5, liquidCell.z() + 0.5));
+        if (session.gamemode() != GameMode.CREATIVE) {
+            session.inventory().consumeHeld(1);
+            publishInventoryChanged(session);
+        }
+    }
+
+    /**
+     * The eye of ender's in-air use (the import-families slice —
+     * EnderEyeItem.startUsing lines 118-136, 1:1): the crosshair's
+     * frame consult first (a BLOCK target on an END_PORTAL_FRAME never
+     * throws — the frame's own useOn owns it; the reference's own first
+     * gate), then the stronghold consult answers the target (the
+     * generator's positions table — the start-piece derivation named at
+     * the consult), the throw spawns the eye AT the caller's position
+     * (the eye's launch velocity comes from the steering's first pass,
+     * never a throw vector — the reference's own ctor), the throw sound
+     * and the block event 1002 ride the system's own publications, and
+     * the stack pays one unit in survival (the creative spare).
+     * Tick-thread context.
+     */
+    private void useEnderEyeInAir(PlayerSession session) {
+        BlockPosition crosshair = rayTraceBlocks(session, false);
+        if (crosshair != null) {
+            BlockType at = worldFor(session.dimension()).getBlock(crosshair);
+            if (at.identifier().toString().endsWith("end_portal_frame")) {
+                return; // the frame target: the frame's own useOn owns it
+            }
+        }
+        // The stronghold consult: the overworld's positions table (the
+        // flat/nether gens carry no strongholds — the reference's
+        // not-found no-op, no throw, no payment).
+        var generator = worldFor(session.dimension()).generator();
+        double[] target = generator instanceof
+                net.zaminmc.torch.server.world.NormalWorldGenerator normal
+                ? normal.nearestStrongholdTo(session.position().x(), session.position().z())
+                : null;
+        if (target == null || eyes == null) {
+            return; // the not-found no-op (the reference's no-throw)
+        }
+        eyes.launch(session.position(), target[0], target[1], target[2]);
         if (session.gamemode() != GameMode.CREATIVE) {
             session.inventory().consumeHeld(1);
             publishInventoryChanged(session);
@@ -14843,6 +14904,9 @@ public final class EngineServer implements Server, EngineBridge {
         if (fireworks != null) {
             fireworks.tick(); // the rockets' flight clock + the burst (Slice 65)
         }
+        if (eyes != null) {
+            eyes.tick(); // the eyes' steering + the 80-tick end (the import-families slice)
+        }
     }
 
     /**
@@ -14856,6 +14920,33 @@ public final class EngineServer implements Server, EngineBridge {
             fxManager.sound(at, "fireworks.launch",
                     net.zaminmc.torch.server.fireworks.FireworksEntity.LAUNCH_VOLUME,
                     net.zaminmc.torch.server.fireworks.FireworksEntity.LAUNCH_PITCH);
+        }
+    }
+
+    /**
+     * The eyes' engine surface (the import-families slice — the
+     * reference's EnderEyeItem.startUsing lines 118-136): the throw
+     * sound and the end's item drop through the item manager's own
+     * exact-position spawn (the 2003 event rides the listener's wire
+     * publication, never the engine surface).
+     */
+    private final class EnderEyeSurface
+            implements net.zaminmc.torch.server.endereye.EnderEyeSystem.Surface {
+        @Override
+        public void throwSound(Position at, java.util.Random random) {
+            // The reference's playSound(random.bow, 0.5,
+            // 0.4 / (rand*0.4+0.8)) — the eye's own throw.
+            fxManager.sound(at, "random.bow", 0.5f,
+                    0.4f / (random.nextFloat() * 0.4f + 0.8f));
+        }
+
+        @Override
+        public void dropEyeItem(Position at, net.zaminmc.torch.item.ItemStack stack) {
+            // The reference's new ItemEntity(world, x, y, z, stack) — the
+            // exact-position form, no pop, no velocity.
+            if (itemEntities != null) {
+                itemEntities.spawnRestored(at, stack);
+            }
         }
     }
 
@@ -15296,6 +15387,11 @@ public final class EngineServer implements Server, EngineBridge {
     /** The firework-rocket system (§27.3's surface — the launch + the burst). */
     public net.zaminmc.torch.server.fireworks.FireworksSystem fireworks() {
         return fireworks;
+    }
+
+    /** The eye-of-ender system (§27.3's surface — the throw + the flight + the end). */
+    public net.zaminmc.torch.server.endereye.EnderEyeSystem eyes() {
+        return eyes;
     }
 
     /**
@@ -22501,7 +22597,8 @@ public final class EngineServer implements Server, EngineBridge {
                                         () -> hopperSystem::hopperCartTransfer,
                                         this::spawnerCartHost,
                                         this::commandCartHost),
-                                projectileManager, decorations, experienceOrbs));
+                                projectileManager, decorations, experienceOrbs,
+                                fireworks, eyes, leadSystem));
         try {
             io.submit(domain, "anvil-import-open", () -> {
                 // The folder inventory + the level bytes, all on the I/O

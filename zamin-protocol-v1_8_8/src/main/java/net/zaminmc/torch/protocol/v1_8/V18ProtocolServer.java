@@ -1380,6 +1380,49 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                 }
             });
         }
+        // Eyes of ender (the import-families slice — EnderEyeEntity's own
+        // tracker shape: the Spawn Object 23 + the throw's 1002 event, the
+        // 4-tick velocity re-syncs, the end's 2003 event or the item drop,
+        // the Destroy).
+        if (engine.eyes() != null) {
+            engine.eyes().addListener(new net.zaminmc.torch.server.endereye.EnderEyeSystem.Listener() {
+                @Override
+                public void onEyeLaunched(net.zaminmc.torch.server.endereye.EnderEyeEntity eye) {
+                    for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                        connection.sendEyeLaunched(eye, true);
+                    }
+                }
+
+                @Override
+                public void onEyeVelocity(net.zaminmc.torch.server.endereye.EnderEyeEntity eye) {
+                    for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                        connection.sendEyeVelocity(eye);
+                    }
+                }
+
+                @Override
+                public void onEyeDropped(net.zaminmc.torch.server.endereye.EnderEyeEntity eye) {
+                    // The item manager's own spawn publication carries the
+                    // drop (the exact-position item spawn).
+                }
+
+                @Override
+                public void onEyeSmokeEnded(net.zaminmc.torch.server.endereye.EnderEyeEntity eye) {
+                    // The 1-in-5 end (the reference's world.doEvent(2003,
+                    // pos, 0)): the wire's world event at the eye's rest.
+                    for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                        connection.sendWorldEvent(eye.position(), Protocol18.WORLD_EVENT_ENDER_EYE_END);
+                    }
+                }
+
+                @Override
+                public void onEyeRemoved(net.zaminmc.torch.server.endereye.EnderEyeEntity eye) {
+                    for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                        connection.sendEyeRemoved(eye.entityId());
+                    }
+                }
+            });
+        }
         // Vehicle sync: spawn (Spawn Object), per-tick movement (Entity
         // Teleport + the rider's seat re-anchor), mount/dismount (Attach
         // Entity + the riding flags), hurt (Entity Status) and break.
@@ -1680,6 +1723,24 @@ public final class V18ProtocolServer implements ProtocolAdapter {
         if (vehicles != null) {
             for (net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle : vehicles.all()) {
                 newcomer.sendVehicleSpawn(vehicle);
+            }
+        }
+        // Firework rockets mid-flight when someone joins (the same world
+        // snapshot — the spawn + the slot-8 item + the velocity; no launch
+        // event replays at a join).
+        var rockets = engine.fireworks();
+        if (rockets != null) {
+            for (net.zaminmc.torch.server.fireworks.FireworksEntity rocket : rockets.all()) {
+                newcomer.sendFireworksLaunched(rocket);
+            }
+        }
+        // Eyes of ender mid-flight when someone joins (the same world
+        // snapshot — the spawn + the velocity; the throw's 1002 event
+        // belongs to the throw alone, never the join).
+        var eyes = engine.eyes();
+        if (eyes != null) {
+            for (net.zaminmc.torch.server.endereye.EnderEyeEntity eye : eyes.all()) {
+                newcomer.sendEyeLaunched(eye, false);
             }
         }
     }

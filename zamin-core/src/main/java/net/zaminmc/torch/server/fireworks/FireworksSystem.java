@@ -127,6 +127,34 @@ public final class FireworksSystem {
     }
 
     /**
+     * The restored launch (the anvil load path — the reference's
+     * FireworksEntity.readCustomNbt, lines 151-163): the SAVED Life
+     * resumes the age clock (the loaded rocket bursts after the
+     * REMAINING ticks, never a fresh roll — the reference's readNbt
+     * never re-derives the fuse), the LifeTime row carries the whole
+     * fuse, the loaded Motion lands whole (no fresh gaussian drift), and
+     * the FireworksItem row becomes the payload (an absent row leaves
+     * the empty stack — the reference's null synced slot 8, counted
+     * ledger note). The listeners fire the same launch publications the
+     * live path carries (the Spawn Object 76 + the slot-8 item). The
+     * launch sound's age-0 gate in the tick owns the restored form's
+     * own quirk: a loaded rocket at Life &gt; 0 never sounds — the
+     * reference's own age==0 check, 1:1. Tick-thread context.
+     */
+    public FireworksEntity launchRestored(Position at, double vx, double vy, double vz,
+                                          int restoredAge, int lifeTime, ItemStack payload) {
+        Objects.requireNonNull(at, "at");
+        Objects.requireNonNull(payload, "payload");
+        FireworksEntity rocket = new FireworksEntity(nextId++, at, vx, vy, vz,
+                restoredAge, lifeTime, payload);
+        rockets.add(rocket);
+        for (Listener listener : listeners) {
+            listener.onFireworksLaunched(rocket);
+        }
+        return rocket;
+    }
+
+    /**
      * One flight step over every rocket (tick lines 76-127): the launch
      * sound at age 0, the velocity growth + the move, the tracker's
      * 10-tick velocity re-sync, and the burst (the entity event 17) with
