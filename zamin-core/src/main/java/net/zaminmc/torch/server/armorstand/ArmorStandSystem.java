@@ -62,6 +62,14 @@ public final class ArmorStandSystem {
         /** Whether the cell is solid (the walk's floor/wall consult — WorldSolidity's own family). */
         boolean solidAt(BlockPosition pos);
 
+        /**
+         * The block's slipperiness at a cell (the reference's
+         * Block.slipperiness read — the walk's ground friction consult):
+         * 0.98 for the ice family, 0.8 for the slime block, 0.6 for
+         * everything else (Block.java line 117's default).
+         */
+        float blockSlipperinessAt(BlockPosition pos);
+
         /** An item drop at a position. */
         void dropItem(Position at, ItemStack stack);
 
@@ -319,6 +327,15 @@ public final class ArmorStandSystem {
      */
     public boolean attack(ArmorStand stand, boolean creative) {
         Objects.requireNonNull(stand, "stand");
+        if (stand.marker()) {
+            // The reference's takeDamage gate (lines 376-380, the marker
+            // box quirk): the hitbox-less marker takes no damage — no
+            // wobble, no break, no creative remove. (The reference's same
+            // gate also refuses the invisible and the invulnerable stands;
+            // the engine's stand model carries no invisible flag — named,
+            // the marker arm is the quirk this lands.)
+            return false;
+        }
         if (creative) {
             // The reference's creative arm (lines 416-419): the breaking
             // particles, then the outright remove (no drops).
@@ -362,6 +379,9 @@ public final class ArmorStandSystem {
 
     /** The explosion arm (takeDamage lines 382-386): the equipment drops, the stand item does NOT. */
     public void breakByExplosion(ArmorStand stand) {
+        if (stand.marker()) {
+            return; // the same hitbox-less gate — a marker never breaks
+        }
         remove(stand);
         dropEquipment(stand);
     }
@@ -415,7 +435,7 @@ public final class ArmorStandSystem {
     // The stand walk (the reference's LivingEntity gravity, the named gap)
     // ------------------------------------------------------------------
 
-    /** The ground friction (the reference's block slipperiness 0.6 * 0.91 — the common-case block). */
+    /** The ground friction (the reference's block slipperiness 0.6 * 0.91 — the common-case block; the walk reads the cell below through the surface consult). */
     static final double GROUND_FRICTION = 0.6 * 0.91;
 
     /**
@@ -424,8 +444,10 @@ public final class ArmorStandSystem {
      * model): every unflagged stand falls at the reference's own rhythm
      * (velocityY -= 0.08, then *0.98), lands on the floor below its
      * feet, and slides when pushed — the ground decays the horizontal
-     * velocity by the block slipperiness family (0.6 * 0.91 for the
-     * common case, the ice family's 0.98 is the envelope), the air
+     * velocity by the block slipperiness family — the cell below the
+     * feet through the surface consult (Block.slipperiness: the ice
+     * family's 0.98, the slime block's 0.8, the common case's 0.6, then
+     * * 0.91), the air
      * decay is the reference's 0.91. The NoGravity flag (the synced
      * byte's bit 1) freezes the walk whole; the -64 void window removes
      * the stand (the reference's outOfWorld guard). Every moved stand
@@ -436,26 +458,38 @@ public final class ArmorStandSystem {
             if (stand.noGravity()) {
                 continue; // the synced flag's own gate (the reference's noGravity)
             }
+            double feetX = stand.x();
+            double feetZ = stand.z();
+            // The cell below the feet (the floor-clip and the friction
+            // consult's shared derivation — the reference's
+            // getBlock(floor(y) - 1) read).
+            int belowCell = (int) Math.floor(stand.y() - 0.06);
+            BlockPosition below = new BlockPosition(
+                    (int) Math.floor(feetX), belowCell, (int) Math.floor(feetZ));
+            boolean landed = surface.solidAt(below);
+
             double vy = stand.velocityY() - 0.08;
             vy *= 0.98;
             double vx = stand.velocityX();
             double vz = stand.velocityZ();
             if (stand.onGround()) {
-                vx *= GROUND_FRICTION;
-                vz *= GROUND_FRICTION;
+                // The ground friction: the block below the feet — the
+                // reference's Block.slipperiness read (the ice family's
+                // 0.98, the slime block's 0.8, the common case's 0.6),
+                // then * 0.91. The ice family's envelope named in the
+                // walk's javadoc is retired: the stand slides a marker's
+                // push across the ice nearly as far as the reference's
+                // own stands do.
+                double friction = surface.blockSlipperinessAt(below) * 0.91;
+                vx *= friction;
+                vz *= friction;
             } else {
                 vx *= 0.91;
                 vz *= 0.91;
             }
-            double feetX = stand.x();
-            double feetZ = stand.z();
             // The vertical move with the floor clip: the cell below the
             // feet holds the stand up at its top.
             double targetY = stand.y() + vy;
-            int belowCell = (int) Math.floor(stand.y() - 0.06);
-            BlockPosition below = new BlockPosition(
-                    (int) Math.floor(feetX), belowCell, (int) Math.floor(feetZ));
-            boolean landed = surface.solidAt(below);
             double newY;
             if (landed && targetY < belowCell + 1.0) {
                 newY = belowCell + 1.0;

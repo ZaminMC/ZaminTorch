@@ -144,6 +144,16 @@ public final class ArmorStand {
         return (status & FLAG_NO_GRAVITY) != 0;
     }
 
+    /**
+     * The marker flag (the synced byte's bit 4, ArmorStandEntity line
+     * 657's own bit): the marker stand's hitbox-less quirk — no interact
+     * (interactAt line 274's refusal), no damage (takeDamage line 378's
+     * gate), the updateSize(0, 0) box.
+     */
+    public boolean marker() {
+        return (status & FLAG_MARKER) != 0;
+    }
+
     /** The walk's velocity x (the reference's motionX). */
     public double velocityX() {
         return velocityX;
