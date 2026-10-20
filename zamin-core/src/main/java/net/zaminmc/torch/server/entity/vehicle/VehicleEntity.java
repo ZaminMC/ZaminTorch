@@ -526,6 +526,34 @@ public abstract class VehicleEntity implements net.zaminmc.torch.entity.Vehicle 
         steer = SteerInput.NEUTRAL;
     }
 
+    // ------------------------------------------------------------- the seat law
+
+    /**
+     * The seat's mount height (the reference's getMountHeight — Entity.java
+     * line 1367: the height at which other entities sit when riding this
+     * body). The cart family carries MinecartEntity's own override (line
+     * 123: 0.0 — the rider sits flush on the cart's floor); the boat
+     * overrides both this and the anchor law below.
+     */
+    public double seatMountHeight() {
+        return 0.0; // MinecartEntity.getMountHeight (the cart kinds' table)
+    }
+
+    /**
+     * The seat anchor (the reference's Entity.updateRiderPositon line 1353:
+     * the rider's body lands at (x, y + getMountHeight() +
+     * rider.getRideHeight(), z) every tick the seat is taken — the
+     * position moves outright, the rider never runs its own physics
+     * while seated). The rider's own per-family offset arrives as
+     * {@code riderRideHeight} (RiderSeatLaw's table — the reference's
+     * getRideHeight).
+     */
+    public Position seatAnchor(double riderRideHeight) {
+        return new Position(position.x(),
+                position.y() + seatMountHeight() + riderRideHeight,
+                position.z());
+    }
+
     /**
      * Advances one tick of the kind's motion rules; the subclass writes the
      * new position back through {@link #commit}.

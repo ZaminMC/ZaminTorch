@@ -10622,3 +10622,79 @@ Stage Summary:
 - feature/bukkit-slice-2-commands-events (off develop @ bcd54ee1): the legacy command surface bridged onto the engine's ONE command path (PluginCommandYamlParser's own parse → the engine's own register/dispatch/unregister; aliases + the 1.8.8 fallback prefixes; the permission gate + permission-message + usage lines all the plugin's own arms carried through the API's own walks; the §28.5 scope-owned retirement on disable), and the event bridge's second group (PlayerDamage both-ways-cancellable + both-ways-mutable-amount, PlayerDeath with the message applied + the keepInventory arm onto the native cancel, FluidFlow, Piston extend+retract, SignChange with the rewrite applied, the furnace pair) — the entity-backed and container families recorded as the honest §27.9 gaps with the concrete reason (no entity/Inventory views modeled) and the tripwires proving no fake bridge ever fired
 - The verified Bukkit-1.8.8 shapes against the pinned artifact: EntityDamageEvent(Entity,DamageCause,double), PlayerDeathEvent(Player,List,int,String), BlockFromToEvent(Block,Block), BlockPistonExtendEvent(Block,List,BlockFace), BlockPistonRetractEvent(Block,List,BlockFace), SignChangeEvent(Block,Player,String[]), FurnaceBurnEvent(Block,ItemStack,int), FurnaceSmeltEvent(Block,ItemStack,ItemStack), ItemStack(Material,int,short) — every one constructible from the native event's own data; PluginCommand's default executor IS the owning plugin (the constructor's bytecode pin), Material.matchMaterial over the bare identifier path (the resolver's own \W strip), VehicleCreateEvent living in org.bukkit.event.vehicle not entity
 - Demand-named follow-ups for the adapter family: the entity adapters (org.bukkit.entity views of mobs/items/projectiles/vehicles — unblocks the six entity-backed event families), the inventory family (unblocks the container events), the per-event-type scope ownership for the bridge's native bus registrations, and the engine-side retract-event resolver row (the pull chain hitting the extended head — the native event's own javadoc intent)
+
+## 2026-10-20 — the riding follow surface (the §22 demand-named row, Wave VII's VII2)
+
+PR #3's sharpened note named the two missing surfaces (the non-session
+rider's attach publication + the server-side rider follow, the
+reference's updateRidden); this slice lands both and retires the §31.6
+counted refusal for the riding chains.
+
+**The seat law** (VehicleEntity.seatMountHeight/seatAnchor —
+Entity.updateRiderPositon line 1353 1:1): carts flush 0.0
+(MinecartEntity line 123); the boat overrides both (getMountHeight -0.3
+line 79 + updateRiderPositon's 0.4 forward offset along the heading,
+lines 367-371 — cos/sin of the yaw in degrees). The rider's own
+per-family offset joins through the new RiderSeatLaw (the reference's
+getRideHeight table: players -0.35 PlayerEntity line 937; the adult
+zombie/skeleton families -0.35 with babies flush — ZombieEntity line
+584; the silverfish +0.2 SilverfishEntity line 39; every other family
+the Entity default 0.0).
+
+**The follow arms rewritten** (EngineServer.tickVehicleRiders /
+tickMobRiders): the session rider's body lands at the seat anchor —
+THE ANCHOR REPAIR (the old arms wrote the vehicle's flat origin, a full
+0.35 high on every cart ride and the boat's -0.3 + 0.4-forward law
+missing whole) — and the NON-SESSION RIDER follow lands: a seated mob's
+body anchors at the same law each tick, the position moving outright
+through MobEntity.teleport. The mob-on-mob follow gains the rider
+offset the old arm lacked (the pig's 0.55 + the rider's own).
+
+**The tick order repaired** to the reference's own rideTick (Entity.java
+lines 1297-1349: the rider's own walk first, then the seat re-anchor):
+the follow sections moved AFTER the mobs section — whatever the rider's
+AI walk did that tick, the body ends the tick AT the anchor. The census
+order updated (SystemSectionProfilingTest).
+
+**The attach publication for non-session riders**: the protocol's four
+gates (vehicle mount/dismount + mob mount/dismount) resolve the mob
+rider when the session resolution is null — V18Connection gains the
+raw-id sendAttachEntity overload (the mobs' own global wire space, the
+same ids their spawn packets carry). The engine's
+VehicleListener.onVehicleDismounted now carries the rider engine id
+(the seat is already open when the listener fires; the manager captured
+the id). The dispatch's onVehicleDismounted gains the mob arm (the
+ex-rider lands at the manager's exit-beside position).
+
+**The riding-chain import lands** (AnvilWorldImport): the entity walk
+refactored into importRow (the family dispatch answering a seatable
+Imported handle) + importRidingChain (the reference's
+AnvilChunkStorage lines 327-341 loop 1:1 — the nested Riding compound
+IS the mount, the head rides it, the chain walks down; the mount lands
+with its own Pos whether or not the seating can follow). The vehicle
+seat rides the manager host (the attach publication flows); the mob
+seat rides the new MobManager.seatImportedRider (the plain seat, no
+temper flow — the reference's startRiding at load, never the live
+interact's mount-attempt law). The exotic shapes isolate loudly with
+the missing surface named (a vehicle/projectile/item RIDER and a
+non-vehicle/mob MOUNT — the engine's follow arms carry sessions and
+mobs alone).
+
+**The stale BlockRegistry pin repaired** (a pre-existing develop break,
+the same class as the ZVD v3 and AnvilBlockIds pins): 854 -> 869 (+15 —
+the Wave VI fire migration registered FireBlocks' fifteen AGE states
+without the pin moving).
+
+**The evidence:** RidingFollowTest +6 (the laws as INDEPENDENT delta
+checks against the mount's live position: the cart -0.35, the boat
+-0.65 + 0.4-forward at yaw 90, the pig +0.20, the baby flush, the
+silverfish +0.2, the player anchor repair, the band holding across the
+rider's own AI walk); VehicleIntegrationTest +1 over the real wire (the
+raw-id attach for a seated zombie + the detach + the seated player's Y
+at the anchor; the scene cleaned up for the shared PER_CLASS server —
+the creative test repaired by the cleanup); AnvilImportAcceptanceTest's
+chain scene FLIPPED (the zombie-riding-minecart LANDS: the cart through
+the chain walk, the seating asserted on the engine ids; the vehicle
+scene's cart-rides-zombie isolates with the new note while the zombie
+mount still lands as its own row). The vehicle + entity + anvil +
+horse + protocol sweeps green; the full-suite record running detached.

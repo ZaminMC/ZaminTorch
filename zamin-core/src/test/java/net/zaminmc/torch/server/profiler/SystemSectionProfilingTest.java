@@ -146,10 +146,13 @@ class SystemSectionProfilingTest {
                 // (The fluids' own section retired with the Wave VI fluids
                 // migration: the flow ticks ride the scheduledBlockTicks
                 // pass — the reference's own doScheduledTicks surface.)
-                "fallingBlocks", "projectiles", "vehicles", "vehicleRiders",
-                "mobRiders", "fishing", "furnaces", "chests", "signs",
+                "fallingBlocks", "projectiles", "vehicles",
+                // (The rider-follow arms ride after the mobs section — the
+                // reference's rideTick order: the rider's own tick, then
+                // the seat re-anchor.)
+                "fishing", "furnaces", "chests", "signs",
                 "commandBlocks", "spawners", "itemEntities", "experienceOrbs", "mobs",
-                "weather", "lightning", "naturalSpawns", "netherSpawns",
+                "vehicleRiders", "mobRiders", "weather", "lightning", "naturalSpawns", "netherSpawns",
                 "generationAttachments", "mobPotions", "leashes", "decorations",
                 "randomTicks", "brewingStands", "beacons",
                 "furnaceViewers", "brewingViewers", "beaconViewers", "enchantingViewers",
