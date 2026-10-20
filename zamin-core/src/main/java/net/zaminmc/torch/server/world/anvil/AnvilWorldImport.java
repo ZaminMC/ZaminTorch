@@ -102,6 +102,20 @@ public final class AnvilWorldImport {
     }
 
     /**
+     * The vehicle seams (the engine's own vehicle managers — the same
+     * machinery the live item-use path and the restart restore spawn
+     * through): the manager plus the three variant hosts (the hopper
+     * cart's transfer host, the spawner cart's spawn host, the command
+     * cart's run host).
+     */
+    public record VehicleSeams(
+            net.zaminmc.torch.server.entity.vehicle.VehicleManager manager,
+            java.util.function.Supplier<net.zaminmc.torch.server.entity.vehicle.HopperMinecartEntity.TransferHost> hopperHost,
+            java.util.function.Supplier<net.zaminmc.torch.server.entity.vehicle.SpawnerMinecartEntity.SpawnHost> spawnerHost,
+            java.util.function.Supplier<net.zaminmc.torch.server.entity.vehicle.CommandBlockMinecartEntity.CommandHost> commandHost) {
+    }
+
+    /**
      * The content seams: the engine's own tile + entity surfaces. The
      * seams are the SAME machinery the live commands use — readTile is
      * the /blockdata walk, spawnAt + EntityNbt.readNbt is the /summon
@@ -117,11 +131,14 @@ public final class AnvilWorldImport {
      *                         walk's second half)
      * @param scheduledTicks the scheduled block-tick surface (the
      *                       TileTicks import arm)
+     * @param vehicles the vehicle seams (null = the entities walk counts
+     *                 vehicle rows as not-imported)
      */
     public record ContentSeams(TileNbt tiles, MobManager mobs, ItemEntityManager items,
                                PotionSystem potions,
                                java.util.function.Consumer<MobEntity> equipmentChanged,
-                               net.zaminmc.torch.server.block.ScheduledTickSystem scheduledTicks) {
+                               net.zaminmc.torch.server.block.ScheduledTickSystem scheduledTicks,
+                               VehicleSeams vehicles) {
     }
 
     /** One session over the world (the chunk reader over the world's registry). */
@@ -477,6 +494,13 @@ public final class AnvilWorldImport {
                 ledger.entityImported();
                 continue;
             }
+            // The vehicles (the reference's Entities.create dispatch —
+            // the eight wire ids; the engine's own managers spawn them,
+            // the same hosts the live paths use).
+            if (isVehicleId(id)) {
+                importVehicle(id, at, rows);
+                continue;
+            }
             // The living mobs (the /summon machinery whole).
             MobType type = MobType.byVanillaName(id);
             if (type == null) {
@@ -504,6 +528,218 @@ public final class AnvilWorldImport {
                         "entity " + id + " rides "
                                 + NbtOps.getString(NbtOps.getCompound(rows, "Riding"), "id"));
             }
+        }
+    }
+
+    // ------------------------------------------------------------------ the vehicle walk
+
+    /** The reference's eight vehicle ids (Entities.register's own names). */
+    private static boolean isVehicleId(String id) {
+        return id.equals("MinecartRideable") || id.equals("MinecartChest")
+                || id.equals("MinecartFurnace") || id.equals("MinecartTNT")
+                || id.equals("MinecartHopper") || id.equals("MinecartSpawner")
+                || id.equals("MinecartCommandBlock") || id.equals("Boat");
+    }
+
+    /**
+     * One vehicle row (the reference's Entities.create dispatch + the base
+     * Entity.readNbt walk over the engine's own vehicle surfaces): the
+     * family spawns through the manager (the same hosts the live paths
+     * use — a null return is the §27.7 gate's loud refusal), then the
+     * shared rows land — Rotation (yaw/pitch), Motion (the reference's
+     * own ±10 clamp), the raw signed Fire — and the per-family rows:
+     * the chest cart's {@code Items} list (the reference's
+     * InventoryMinecart.readCustomNbt walk — the Slot byte indexes the
+     * 27-slot cargo), the spawner cart's {@code EntityId}/{@code Delay}
+     * (the reference's MobSpawner.readNbt — the cadence/potential rows
+     * have no per-cart surface, the engine's own cadence holds: one
+     * loud note naming them), and the command cart's four rows (the
+     * reference's CommandExecutor.readNbt). The base rows the vehicle
+     * model does not carry (UUID/CustomName/Silent/FallDistance/Air/
+     * OnGround/Dimension/Invulnerable) do not land — the §31.6
+     * envelope, recorded in the session's ledger note. A {@code Riding}
+     * row isolates the chain loudly (the reference's mount nesting).
+     */
+    private void importVehicle(String id, Position at, Map<String, Snbt.Tag> rows) {
+        VehicleSeams seams = content == null ? null : content.vehicles();
+        if (seams == null) {
+            // No vehicle seams wired: the rows count as not-imported.
+            ledger.ignored("Entities (vehicle rows)", 1);
+            return;
+        }
+        var manager = seams.manager();
+        net.zaminmc.torch.server.entity.vehicle.VehicleEntity spawned;
+        switch (id) {
+            case "Boat" -> spawned = manager.spawnBoat(at);
+            case "MinecartRideable" -> spawned = manager.spawnMinecart(at);
+            case "MinecartChest" -> spawned = manager.spawnChestMinecart(at);
+            case "MinecartFurnace" -> spawned = manager.spawnFurnaceMinecart(at);
+            case "MinecartTNT" -> spawned = manager.spawnTntMinecart(at);
+            case "MinecartHopper" -> {
+                if (seams.hopperHost() == null) {
+                    ledger.isolated("hopper cart has no transfer host (the engine's hopper surface is absent)",
+                            "entity " + id + " at " + at.x() + "," + at.y() + "," + at.z());
+                    return;
+                }
+                spawned = manager.spawnHopperMinecart(at, seams.hopperHost().get());
+                continueVehicleImport(spawned, id, at, rows);
+                if (spawned != null) {
+                    ledger.entityImported();
+                }
+                return;
+            }
+            case "MinecartSpawner" -> {
+                if (seams.spawnerHost() == null) {
+                    ledger.isolated("spawner cart has no spawn host (the engine's spawner surface is absent)",
+                            "entity " + id + " at " + at.x() + "," + at.y() + "," + at.z());
+                    return;
+                }
+                spawned = manager.spawnSpawnerMinecart(at, seams.spawnerHost().get());
+                if (spawned instanceof net.zaminmc.torch.server.entity.vehicle.SpawnerMinecartEntity cart) {
+                    // The reference's MobSpawner.readNbt: EntityId (the
+                    // vanilla name) + the raw Delay.
+                    String entityName = NbtOps.getString(rows, "EntityId");
+                    if (!entityName.isEmpty()) {
+                        MobType type = MobType.byVanillaName(entityName);
+                        if (type == null) {
+                            type = MobType.byName(entityName);
+                        }
+                        if (type != null) {
+                            cart.setType(type);
+                        } else {
+                            ledger.isolated("spawner cart's EntityId row not importable (no engine mob surface)",
+                                    "entity " + id + " EntityId '" + entityName + "'");
+                        }
+                    }
+                    if (NbtOps.containsNumeric(rows, "Delay")) {
+                        cart.setDelay(NbtOps.getShort(rows, "Delay"));
+                    }
+                    // The cadence/potential rows (Min/MaxSpawnDelay's trio,
+                    // MaxNearbyEntities' pair, SpawnRange, SpawnData,
+                    // SpawnPotentials): the engine's cart carries its own
+                    // fixed cadence — one loud note when the rows exist.
+                    if (NbtOps.containsNumeric(rows, "MinSpawnDelay")
+                            || NbtOps.containsNumeric(rows, "MaxNearbyEntities")
+                            || NbtOps.containsNumeric(rows, "SpawnRange")
+                            || NbtOps.contains(rows, "SpawnData", Snbt.Tag.Type.COMPOUND)
+                            || NbtOps.contains(rows, "SpawnPotentials", Snbt.Tag.Type.LIST)) {
+                        ledger.isolated("spawner cart's cadence/potential rows have no cart surface "
+                                        + "(the engine's own cadence holds)",
+                                "entity " + id + " at " + at.x() + "," + at.y() + "," + at.z());
+                    }
+                }
+                continueVehicleImport(spawned, id, at, rows);
+                if (spawned != null) {
+                    ledger.entityImported();
+                }
+                return;
+            }
+            case "MinecartCommandBlock" -> {
+                if (seams.commandHost() == null) {
+                    ledger.isolated("command cart has no run host (the engine's command surface is absent)",
+                            "entity " + id + " at " + at.x() + "," + at.y() + "," + at.z());
+                    return;
+                }
+                spawned = manager.spawnCommandBlockMinecart(at, seams.commandHost().get());
+                if (spawned instanceof net.zaminmc.torch.server.entity.vehicle.CommandBlockMinecartEntity cart) {
+                    // The reference's CommandExecutor.readNbt (lines
+                    // 53-74): the four rows.
+                    String command = NbtOps.getString(rows, "Command");
+                    if (!command.isEmpty()) {
+                        cart.setCommand(command);
+                    }
+                    cart.setSuccessCount(NbtOps.getInt(rows, "SuccessCount"));
+                    cart.setTrackOutput(NbtOps.getBoolean(rows, "TrackOutput"));
+                    String lastOutput = NbtOps.getString(rows, "LastOutput");
+                    if (!lastOutput.isEmpty()) {
+                        cart.setLastOutput(lastOutput);
+                    }
+                }
+                continueVehicleImport(spawned, id, at, rows);
+                if (spawned != null) {
+                    ledger.entityImported();
+                }
+                return;
+            }
+            default -> {
+                spawned = null;
+            }
+        }
+        continueVehicleImport(spawned, id, at, rows);
+        if (spawned != null) {
+            ledger.entityImported();
+        }
+    }
+
+    /**
+     * The shared rows over one spawned vehicle (the base Entity.readNbt
+     * walk at the vehicle surface's granularity): Rotation, Motion with
+     * the reference's ±10 clamp, the raw signed Fire, the chest cart's
+     * Items, and the Riding chain's loud isolation.
+     */
+    private void continueVehicleImport(
+            net.zaminmc.torch.server.entity.vehicle.VehicleEntity spawned,
+            String id, Position at, Map<String, Snbt.Tag> rows) {
+        if (spawned == null) {
+            ledger.isolated("vehicle spawn withheld (the spawn gate)",
+                    "entity " + id + " at " + at.x() + "," + at.y() + "," + at.z());
+            return;
+        }
+        // The shared base rows (the reference's Entity.readNbt, the
+        // surface's own granularity).
+        List<Snbt.Tag> rotation = NbtOps.getList(rows, "Rotation", Snbt.Tag.Type.FLOAT);
+        spawned.setRotation(new net.zaminmc.torch.util.Rotation(
+                NbtOps.listFloat(rotation, 0), NbtOps.listFloat(rotation, 1)));
+        if (NbtOps.contains(rows, "Motion", Snbt.Tag.Type.DOUBLE)) {
+            List<Snbt.Tag> motion = NbtOps.getList(rows, "Motion", Snbt.Tag.Type.DOUBLE);
+            double vx = NbtOps.listDouble(motion, 0);
+            double vy = NbtOps.listDouble(motion, 1);
+            double vz = NbtOps.listDouble(motion, 2);
+            // The reference's own clamp (Entity.readNbt lines 1156-1166):
+            // a component beyond ±10 reads as 0.
+            if (Math.abs(vx) > 10.0) {
+                vx = 0.0;
+            }
+            if (Math.abs(vy) > 10.0) {
+                vy = 0.0;
+            }
+            if (Math.abs(vz) > 10.0) {
+                vz = 0.0;
+            }
+            spawned.setVelocity(vx, vy, vz);
+        }
+        // The burn clock's raw signed row (Entity.writeNbt's Fire short).
+        if (NbtOps.containsNumeric(rows, "Fire")) {
+            spawned.restoreFireTimer(NbtOps.getShort(rows, "Fire"));
+        }
+        // The chest cart's cargo (the reference's
+        // InventoryMinecart.readCustomNbt: the Items list, the Slot byte
+        // indexing the 27 slots).
+        if (spawned instanceof net.zaminmc.torch.server.entity.vehicle.ChestMinecartEntity cart
+                && NbtOps.contains(rows, "Items", Snbt.Tag.Type.LIST)) {
+            List<Snbt.Tag> items = NbtOps.getList(rows, "Items", Snbt.Tag.Type.COMPOUND);
+            for (int i = 0; i < items.size(); i++) {
+                Map<String, Snbt.Tag> slotRows = NbtOps.listCompound(items, i);
+                int slot = NbtOps.getByte(slotRows, "Slot") & 0xFF;
+                if (slot < 0 || slot >= net.zaminmc.torch.server.chest.ChestBlockEntity.SLOT_COUNT) {
+                    ledger.isolated("chest cart's slot row outside the 27-slot cargo",
+                            "entity " + id + " slot " + slot);
+                    continue;
+                }
+                net.zaminmc.torch.item.ItemStack stack = ItemNbt.read(slotRows);
+                if (stack == null || stack.isEmpty()) {
+                    continue; // the reference skips empty stacks the same way
+                }
+                cart.chest().setSlot(slot, stack);
+            }
+        }
+        if (NbtOps.contains(rows, "Riding", Snbt.Tag.Type.COMPOUND)) {
+            // The reference walks the Riding chain creating mounts and
+            // seating riders; the engine has no riding surface — the
+            // vehicle imports, the chain isolates loudly.
+            ledger.isolated("riding chain not imported (no riding surface)",
+                    "entity " + id + " rides "
+                            + NbtOps.getString(NbtOps.getCompound(rows, "Riding"), "id"));
         }
     }
 

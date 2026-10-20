@@ -18,6 +18,7 @@ import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -554,6 +555,183 @@ class AnvilImportAcceptanceTest {
                     "the isolation names the row's own id: " + report);
             assertTrue(report.contains("tick row missing its x/y/z position"),
                     "the positionless row isolated loudly: " + report);
+        } finally {
+            consoleLogger.removeHandler(capture);
+            server.shutdown(null);
+        }
+    }
+
+    @Test
+    void theImportedVehiclesLandOnTheEngineSurfaces() throws Exception {
+        // The vehicle follow-up: the eight wire ids (the reference's
+        // Entities.register names) spawn through the engine's own managers
+        // — the same hosts the live paths use — with the shared base rows
+        // (Rotation, Motion with the reference's +-10 clamp, the raw Fire)
+        // and the per-family rows (the chest cart's Items, the spawner
+        // cart's EntityId/Delay, the command cart's four rows); the
+        // cadence/potential rows and the riding chains isolate LOUDLY.
+        Path vault = dir.resolve("vehicles");
+        Map<String, Object> level = AnvilFixture.compound();
+        level.put("RandomSeed", 111L);
+        level.put("SpawnX", 8);
+        level.put("SpawnY", 70);
+        level.put("SpawnZ", 8);
+        level.put("LevelName", "Rails");
+        level.put("Time", 180_000L);
+        level.put("DayTime", 18_000L);
+        AnvilFixture.writeLevelDat(vault, level);
+
+        // The scene in chunk (8,8): a stone floor with the nine vehicles.
+        byte[] blocks = new byte[4096];
+        for (int z = 0; z < 16; z++) {
+            for (int x = 0; x < 16; x++) {
+                blocks[AnvilFixture.cellIndex(x, 0, z)] = 1; // stone floor
+            }
+        }
+        Map<String, Object> diamond = AnvilFixture.compound();
+        diamond.put("Slot", (byte) 0);
+        diamond.put("id", "minecraft:diamond");
+        diamond.put("Count", (byte) 2);
+        diamond.put("Damage", (short) 0);
+        Map<String, Object> iron = AnvilFixture.compound();
+        iron.put("Slot", (byte) 5);
+        iron.put("id", "minecraft:iron_ingot");
+        iron.put("Count", (byte) 1);
+        iron.put("Damage", (short) 0);
+        Map<String, Object> chestCart = AnvilFixture.entityRow("MinecartChest", 129.5, 1.0, 129.5);
+        chestCart.put("Items", List.of(diamond, iron));
+        chestCart.put("Rotation", List.of(90.0f, 0.0f));
+        chestCart.put("Motion", List.of(0.5, 0.0, -0.25));
+        chestCart.put("Fire", (short) 40);
+        Map<String, Object> spawnerCart = AnvilFixture.entityRow("MinecartSpawner", 130.5, 1.0, 130.5);
+        spawnerCart.put("EntityId", "Zombie");
+        spawnerCart.put("Delay", (short) 55);
+        spawnerCart.put("MinSpawnDelay", (short) 200); // the cadence note
+        spawnerCart.put("Rotation", List.of(180.0f, 10.0f));
+        Map<String, Object> commandCart = AnvilFixture.entityRow("MinecartCommandBlock", 131.5, 1.0, 131.5);
+        commandCart.put("Command", "say hi");
+        commandCart.put("SuccessCount", 3);
+        commandCart.put("TrackOutput", (byte) 0); // booleans are bytes on the wire
+        commandCart.put("LastOutput", "{\"text\":\"hi\"}");
+        commandCart.put("Motion", List.of(12.0, 0.0, 0.0)); // beyond the +-10 clamp
+        Map<String, Object> plainCart = AnvilFixture.entityRow("MinecartRideable", 132.5, 1.0, 132.5);
+        Map<String, Object> riddenCart = AnvilFixture.entityRow("MinecartRideable", 133.5, 1.0, 133.5);
+        Map<String, Object> zombieRider = AnvilFixture.entityRow("Zombie", 133.5, 2.0, 133.5);
+        riddenCart.put("Riding", zombieRider); // the reference nests the rider in the mount
+        Map<String, Object> boat = AnvilFixture.entityRow("Boat", 134.5, 1.0, 134.5);
+        Map<String, Object> furnaceCart = AnvilFixture.entityRow("MinecartFurnace", 135.5, 1.0, 135.5);
+        Map<String, Object> tntCart = AnvilFixture.entityRow("MinecartTNT", 136.5, 1.0, 136.5);
+        Map<String, Object> hopperCart = AnvilFixture.entityRow("MinecartHopper", 137.5, 1.0, 137.5);
+
+        byte[] chunkNbt = AnvilFixture.nbtDocument(AnvilFixture.chunkNbt(8, 8,
+                List.of(AnvilFixture.section(0, blocks, new byte[2048], null)), null,
+                List.of(chestCart, spawnerCart, commandCart, plainCart, riddenCart,
+                        boat, furnaceCart, tntCart, hopperCart), null));
+        AnvilFixture.writeRegionFile(vault.resolve("region").resolve("r.0.0.mca"),
+                List.of(new AnvilFixture.Entry(8, 8, AnvilRegionFile.SCHEME_ZLIB,
+                        AnvilFixture.zlib(chunkNbt))));
+
+        List<String> console = new CopyOnWriteArrayList<>();
+        Handler capture = new Handler() {
+            @Override
+            public void publish(LogRecord record) {
+                console.add(record.getMessage());
+            }
+
+            @Override
+            public void flush() {
+            }
+
+            @Override
+            public void close() {
+            }
+        };
+        Logger consoleLogger = Logger.getLogger(
+                net.zaminmc.torch.server.chat.ConsoleSender.class.getName());
+        consoleLogger.addHandler(capture);
+        consoleLogger.setLevel(Level.INFO);
+        consoleLogger.setUseParentHandlers(false);
+
+        EngineConfig config = new EngineConfig("127.0.0.1", 0, "anvil-vehicles", "it",
+                20, 2, 20, dir.toString());
+        EngineServer server = new EngineServer(config);
+        server.start();
+        try {
+            server.consoleCommand("anvilimport " + vault);
+            long deadline = System.currentTimeMillis() + 20_000;
+            while (System.currentTimeMillis() < deadline
+                    && console.stream().noneMatch(line -> line.startsWith("Anvil import finished"))) {
+                Thread.sleep(50);
+            }
+            String report = console.stream()
+                    .filter(line -> line.startsWith("Anvil import finished"))
+                    .findFirst().orElse(null);
+            assertNotNull(report, "the final report landed (console: " + console + ")");
+
+            // All nine landed through the engine's own managers.
+            var all = server.vehicles().all();
+            assertEquals(9, all.size(), "nine vehicles imported (report: " + report + ")");
+            assertEquals(2, all.stream().filter(v -> v.kind()
+                    == net.zaminmc.torch.server.entity.vehicle.VehicleEntity.Kind.MINECART).count());
+            assertEquals(1, all.stream().filter(v -> v.kind()
+                    == net.zaminmc.torch.server.entity.vehicle.VehicleEntity.Kind.BOAT).count());
+            assertEquals(1, all.stream().filter(v -> v.kind()
+                    == net.zaminmc.torch.server.entity.vehicle.VehicleEntity.Kind.CHEST_MINECART).count());
+            assertEquals(1, all.stream().filter(v -> v.kind()
+                    == net.zaminmc.torch.server.entity.vehicle.VehicleEntity.Kind.HOPPER_MINECART).count());
+
+            // The chest cart: the cargo through the engine's own chest
+            // surface, the shared base rows, the burn clock.
+            var chest = (net.zaminmc.torch.server.entity.vehicle.ChestMinecartEntity)
+                    all.stream().filter(v -> v instanceof net.zaminmc.torch.server.entity.vehicle.ChestMinecartEntity)
+                            .findFirst().orElseThrow();
+            var slots = chest.chest().snapshotSlots();
+            assertEquals("minecraft:diamond", slots[0].type().identifier().toString());
+            assertEquals(2, slots[0].count());
+            assertEquals("minecraft:iron_ingot", slots[5].type().identifier().toString());
+            assertEquals(1, slots[5].count());
+            assertEquals(90.0f, chest.rotation().yaw(), 0.001f);
+            // The Motion row landed at (0.5, 0, -0.25); the engine's own
+            // off-rail friction decays it toward zero between the import
+            // and this assertion (the direction is preserved, never
+            // flipped) — the band pins the landing's sign and bound.
+            assertTrue(chest.velocityX() >= 0.0 && chest.velocityX() <= 0.5,
+                    "the x component decays from 0.5 without flipping: " + chest.velocityX());
+            assertTrue(chest.velocityZ() <= 0.0 && chest.velocityZ() >= -0.25,
+                    "the z component decays from -0.25 without flipping: " + chest.velocityZ());
+            // The Fire row landed at 40 and decays one per tick while
+            // the cart burns — the assertion pins the landing band.
+            assertTrue(chest.onFireTimer() >= 1 && chest.onFireTimer() <= 40,
+                    "the raw signed Fire row landed and is burning: " + chest.onFireTimer());
+
+            // The spawner cart: the type + delay rows, the rotation pair.
+            var spawner = (net.zaminmc.torch.server.entity.vehicle.SpawnerMinecartEntity)
+                    all.stream().filter(v -> v instanceof net.zaminmc.torch.server.entity.vehicle.SpawnerMinecartEntity)
+                            .findFirst().orElseThrow();
+            assertEquals(net.zaminmc.torch.server.entity.MobType.ZOMBIE, spawner.type());
+            assertEquals(55, spawner.delayTicks());
+            assertEquals(180.0f, spawner.rotation().yaw(), 0.001f);
+            assertEquals(10.0f, spawner.rotation().pitch(), 0.001f);
+
+            // The command cart: the four rows, the +-10 clamp on Motion.
+            var command = (net.zaminmc.torch.server.entity.vehicle.CommandBlockMinecartEntity)
+                    all.stream().filter(v -> v instanceof net.zaminmc.torch.server.entity.vehicle.CommandBlockMinecartEntity)
+                            .findFirst().orElseThrow();
+            assertEquals("say hi", command.command());
+            assertEquals(3, command.successCount());
+            assertFalse(command.trackOutput());
+            assertEquals("{\"text\":\"hi\"}", command.lastOutput());
+            assertEquals(0.0, command.velocityX(), 1e-9,
+                    "the 12.0 component read as 0 (the reference's clamp)");
+
+            // The report's own rows: the cadence note, the riding chain.
+            assertTrue(report.contains("9 entities"), "the report: " + report);
+            assertTrue(report.contains("spawner cart's cadence/potential rows"),
+                    "the cadence rows isolated loudly: " + report);
+            assertTrue(report.contains("riding chain not imported"),
+                    "the ridden cart's chain isolated loudly: " + report);
+            assertTrue(report.contains("entity MinecartRideable rides Zombie"),
+                    "the chain names the pair: " + report);
         } finally {
             consoleLogger.removeHandler(capture);
             server.shutdown(null);
