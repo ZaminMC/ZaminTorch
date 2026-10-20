@@ -184,6 +184,18 @@ public final class WeatherSystem {
     }
 
     /**
+     * The flags-only pair (the reference's {@code WorldInfo.setRaining}
+     * lines 383-385 + {@code setThundering} lines 367-369): the flags flip,
+     * EVERY clock stays as it is — the auto-cycle keeps counting the old
+     * countdown and rerolls when it expires. {@code /toggledownfall}'s own
+     * commit shape.
+     */
+    public void setWeatherFlags(boolean rain, boolean thunder) {
+        this.raining = rain;
+        this.thundering = thunder;
+    }
+
+    /**
      * The {@code /weather} commit ({@code WeatherCommand.run} lines 28-52):
      * the five WorldData writes per arm. The duration is already in ticks.
      */

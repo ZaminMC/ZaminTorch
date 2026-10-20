@@ -20496,14 +20496,13 @@ public final class EngineServer implements Server, EngineBridge {
     /**
      * /toggledownfall (ToggleDownfallCommand 1:1, op-2): flips the rain
      * flag on the overworld's data (the reference's worlds[0]
-     * .setRaining(!isRaining())). The engine's setWeather carries the
-     * /weather default duration (WeatherSystem exposes no timer read —
-     * the reference leaves the clocks untouched; ledgered).
+     * .setRaining(!isRaining()) — WorldInfo's flags-only pair, lines
+     * 383-385). The clocks stay untouched (the stale note's ledgered
+     * deferral retired): the auto-cycle keeps counting the old countdown
+     * and rerolls when it expires, exactly the reference's shape.
      */
     private String toggledownfallCommand(CommandSender sender, String[] args) {
-        boolean rainingNow = weather.raining();
-        weather.setWeather(!rainingNow, weather.thundering(),
-                net.zaminmc.torch.server.weather.WeatherSystem.defaultDurationTicks());
+        weather.setWeatherFlags(!weather.raining(), weather.thundering());
         return "Toggled downfall";
     }
 
