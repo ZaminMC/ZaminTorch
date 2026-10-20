@@ -10985,3 +10985,47 @@ fourteen reference-driven rows:
 
 The plan committed as the session's checkpoint; the implementation
 walks the wave in order.
+
+### The tree-growth + leaf-decay slice (Wave VIII rows VIII2+VIII3, 2026-10-21)
+
+The wave's first slice — the audit's biggest vanilla-core gap, landed as
+ONE slice (the tree features place the leaf states that carry the decay
+model). The parallel wave's shape: this slice on `feature/
+tree-growth-leaf-decay`, Instance 2 on the mob armor family (VIII4,
+`feature/mob-armor-family`), Instance 3 on the anvil GUI (VIII5,
+`feature/anvil-gui`) — file-disjoint by construction (the block family
+vs the entity family vs the container family).
+
+- **LeafDecayBlocks** — the DECAYABLE/CHECK_DECAY band (three derived
+  states per wood over the fresh members, the wire nibble variant|
+  persistent-4|check-8), the decay poll (the 9^3 distance BFS with the
+  32^3 scratch array, the four-wave spread, breakLeaves' fortune-0 drop
+  walk through the engine's own DropService leaf branch), the two
+  onRemoved fans (the leaf's 3^3 + the log's 5^3 — the tree-chop
+  trigger), and the block-identity gate (WorldChunk.setBlockState line
+  502's `block1 != block` law: a decay-bit flip within the leaf family
+  never fires the fan — the engine's flattened states gate on the
+  family, restoring the reference's own semantics).
+- **SaplingBlocks** — the STAGE band (the ready state per wood), the
+  light-gated 1-in-7 roll, the two-stage tryGrow, the variant's feature
+  dispatch with the 2x2 cluster scans (the giant spruce/jungle at ANY
+  corner including (0,0) — the cluster clear rides the HIT, never the
+  corner's value — the dark oak's REQUIRED cluster), and the
+  clear-and-restore.
+- **TreeFeatures** — the eight sapling-reachable shapes 1:1 (the oak,
+  the large oak's whole branch machinery with its seeded re-roll, the
+  spruce's ring ladder, the giant spruce, the birch, the jungle pair
+  with the vine arms, the acacia's diagonal canopy with the second
+  branch's x/z continuation, the dark oak's mirrored patches + root
+  arms). Counted notes: the branch logs' axis-Y form (the metadata-
+  direction slice's own ledger), the vine's plain form.
+- **The bone-meal arm** — ItemDye.fertilize's exact law: canGrow always
+  true so the stack ALWAYS pays; the 0.45 roll gates the grow alone;
+  tryGrow bypasses the light gate and the 1-in-7.
+- **The tables** — the light table's 0/1 + 0/0 rows, the behavior
+  table's 0.2 + 0.0 rows, BuiltinBlocks' registration, AnvilBlockIds'
+  twenty-four import rows, LegacyBlockIds' wire-id + metadata rows, the
+  census re-pin 869 -> 893, the derived-table re-pin 1218 -> 1242.
+- **Evidence** — TreeGrowthFamilyTest 11; the block, registry, anvil,
+  interaction, world, and random-tick sweeps green; the protocol module
+  green.
