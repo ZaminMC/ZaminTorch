@@ -10516,3 +10516,88 @@ Stage Summary:
 - develop pushed through 7b6e90d, all commits authored Abasing
 - The Anvil canvas now imports blocks + biomes + level rows + EVERY tile family + living mobs + dropped items, with the §31.6 loud-isolation discipline on every unrepresentable family
 - Next per §22: the demand-named families (the Anvil vehicle/projectile entity imports, TileTicks on a scheduled-tick surface, the Bukkit adapter's next slices, the Phase-7 merge-walk bucketing when operator scenarios demand it); §31.7's migration machinery stays future-gated behind the modern backend
+
+
+## 2026-10-20 — the demand-named retirements (the session's six slices)
+
+**d23a847 — the scheduled block-tick surface.** The reference's
+ServerWorld machinery 1:1 (the tickUpdates/scheduleUpdate family — the
+TileTicks queue every 1.8.8 world carries): ScheduledTickEntry (the
+ScheduledTick/NextTickListEntry — the global static id counter, the
+(position, block) equality with the position-only hash, the compareTo
+triple time/priority/id), ScheduledTickSystem (the three structures;
+scheduleTick's immediate-mode arm ported whole with the never-armed flag;
+the isAreaLoaded-at-radius-0 gate; the material gate around setTime/
+setPriority so an AIR row lands at time zero; the no-merge guard;
+loadScheduledTick's always-priority + non-air-time split;
+doScheduledTicks' sync guard, the 1000-per-pass cap, the cleaning
+horizon, the loaded gate + same-family dispatch gate + the not-loaded
+re-arm at delay 0; willTickThisTick; the grown ±2 chunk box with the
+reference's y-ignored bounds walk). The BlockTicker dispatch seam — no
+family registers yet (the reference's default Block.tick body, the
+no-op); the per-family migration of the engine's existing delayed arms
+onto the surface is demand-named, not a silent rewrite. The §27.3
+ScheduledBlockTicks API family + the fan's profiled section after
+randomTicks (the reference's tickPending position).
+ScheduledTickSystemTest 11.
+
+**c7654e1 — the TileTicks import.** The reader carries the rows raw
+beside the entities/tiles; the seam lands them after the tiles, before
+the entities (the reference's createChunkFromNbt tail — the ticks loop
+sits after the tile-entity adds, loadEntities follows). The row walk:
+the position ints required; the block resolves from the row's own shape
+(the "i" string through the registry, the legacy integer through
+AnvilBlockIds.resolve(id, 0)); the row lands through loadScheduledTick
+with its t delay and p priority. An AIR row lands at time zero and pops
+on the next pass — the acceptance scene documents exactly that life.
+The ledger's tileTickImported + the summary's own row; the skip note
+names the tick rows it carried.
+
+**7e0443d — the vehicle imports.** The eight wire ids (the reference's
+Entities.register names) through the engine's own managers — THE HOST
+HOIST: the spawner cart's SpawnHost extracted from the restore call into
+EngineServer.spawnerCartHost() beside commandCartHost(). The shared rows
+(Rotation, Motion with the ±10 clamp, the raw signed Fire); the chest
+cart's Items (the Slot byte indexing the 27-slot cargo); the spawner
+cart's EntityId/Delay with the cadence/potential rows carrying no
+per-cart surface (one loud note, the engine's own cadence holds); the
+command cart's four rows. The base rows the vehicle model does not carry
+named in the walk's javadoc; riding chains still isolate loudly.
+
+**792d988 — the armor stand's three named small gaps.** The gravity walk
+(the LivingEntity.travel else-branch at the static-entity model: the
+0.08/0.98 fall, the floor/wall clips, the 0.6*0.91 ground friction
+against the air's 0.91, the NoGravity freeze, the -64 void window, the
+onStandMoved wire teleport arm); the minecart push
+(pushAwayCollidingEntities + Entity.push 1:1 — the 0.2 squared band, the
+>= 0.01 dead zone, the 1/d2 cap, the 0.05 scale, the rider gate, both
+sides apart); the breaking particles (the StandShatter BLOCK_DUST family
+over the PLANKS state — count 10, the stand-box offsets, speed 0.05, at
+y + 1.975/1.5 — on both the double-hit break and the creative remove).
+THE CLOCK FIX the test exposed: the double-hit window's now() read the
+wrapping day clock — the reference's base is world.getTime(); now it
+reads the TOTAL clock.
+
+**ec38a61 — the burning-arrow TNT ignite.** The per-block entity
+collision (Entity.checkBlockCollisions walking the arrow's box cells +
+TntBlock.onEntityCollision priming every TNT cell a burning arrow
+overlaps): the BurningTntArm seam wired lazily at boot (the arm reads
+the fields at tick time), the manager's tick ending with the burning
+pass over the 0.5 box — in flight or stuck, the classic
+arrow-lands-on-TNT case. The engine's own TntSystem.useIgnite carries
+the prime; the reference's removeBlock is what stops the pass.
+
+**This commit — the docs pass.** The two stale
+VANILLA_1_8_8_COMPATIBILITY.md notes retired WITH the fix
+(/toggledownfall's flags-only setWeatherFlags — the reference's
+WorldInfo pair, the clocks stay untouched; the four general stat rows
+named as registered in EngineStats); §22 Phase 0's zip paragraph
+corrected (the archive present at b2ef261 — the 1634-file inventory
+identical to the committed tree, the zip is the archive form of the same
+source); the Anvil canvas item, the next-work line, and §29's Wave V
+updated.
+
+**The fresh suites:** anvil 42/0 + the acceptance 5/0, the block package
+green after the wiring, ArmorStandSystemTest 8/0, ProjectileManagerTest
+10/0, the vehicle + fx + tnt + protocol sweeps green. The follow-ups
+these landings demand-name are recorded in §22's next-work line.
