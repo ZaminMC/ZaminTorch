@@ -83,6 +83,12 @@ public class MinecartEntity extends VehicleEntity {
         return 1.0;
     }
 
+    /** The piston push (VIII13): the cart's own solver walk with the cart box. */
+    @Override
+    protected void pushMove(double dx, double dy, double dz) {
+        solverMove(query, HALF_HEIGHT, CART_WIDTH, dx, dy, dz);
+    }
+
     @Override
     protected void tickKind(WorldQuery world) {
         Position at = position();

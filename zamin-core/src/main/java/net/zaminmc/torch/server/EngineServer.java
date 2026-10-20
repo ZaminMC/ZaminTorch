@@ -1532,6 +1532,58 @@ public final class EngineServer implements Server, EngineBridge {
                 pistonSystem = new net.zaminmc.torch.server.piston.PistonSystem(
                         world, redstoneSystem, itemEntities, fxManager, gameplayRandom);
                 pistonSystem.setEventBus(eventBus); // §27.7: the public piston-move gate
+                // The entity displacement (the VIII13 slice — the reference's
+                // MovingBlockEntity.moveEntities): the push surface over the
+                // engine's body families. The three solver families carry the
+                // exact swept-box law (the mobs, the items, the vehicles); the
+                // PLAYERS ARE EXCEPTED (the engine's players are
+                // client-authoritative — the server-side push would be
+                // overwritten by the next movement packet). The remaining
+                // families (the orbs, the stands, the primed TNT, the falling
+                // blocks, the projectiles) ledger as the seam's additive
+                // follow-ups — each a one-adapter wiring once its family grows
+                // a shift arm.
+                pistonSystem.setPushSurface((minX, minY, minZ, maxX, maxY, maxZ) -> {
+                    java.util.List<net.zaminmc.torch.server.piston.PistonSystem.Pushable> bodies =
+                            new java.util.ArrayList<>();
+                    // The mobs (the crush case): the solver walk with the
+                    // body's own step height.
+                    for (net.zaminmc.torch.server.entity.MobEntity mob : mobManager.all()) {
+                        net.zaminmc.torch.util.Position at = mob.position();
+                        if (at.x() + mob.type().width / 2.0 < minX
+                                || at.x() - mob.type().width / 2.0 > maxX
+                                || at.y() + mob.type().height < minY || at.y() > maxY
+                                || at.z() + mob.type().width / 2.0 < minZ
+                                || at.z() - mob.type().width / 2.0 > maxZ) {
+                            continue; // the box's own overlap test
+                        }
+                        bodies.add(new PistonMobPush(mob));
+                    }
+                    // The items: the leading-face clamped shift over the
+                    // manager's own ground consult.
+                    for (net.zaminmc.torch.server.entity.ItemEntity item : itemEntities.all()) {
+                        net.zaminmc.torch.util.Position at = item.position();
+                        if (at.x() + 0.125 < minX || at.x() - 0.125 > maxX
+                                || at.y() + 0.125 < minY || at.y() - 0.125 > maxY
+                                || at.z() + 0.125 < minZ || at.z() - 0.125 > maxZ) {
+                            continue;
+                        }
+                        bodies.add(new PistonItemPush(item, itemEntities));
+                    }
+                    // The vehicles (the carts, the boats): the kind's own
+                    // solver walk with the kind's box.
+                    for (net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle
+                            : vehicleManager.all()) {
+                        net.zaminmc.torch.util.Position at = vehicle.position();
+                        if (at.x() + 0.75 < minX || at.x() - 0.75 > maxX
+                                || at.y() + 0.35 < minY || at.y() - 0.35 > maxY
+                                || at.z() + 0.75 < minZ || at.z() - 0.75 > maxZ) {
+                            continue;
+                        }
+                        bodies.add(new PistonVehiclePush(vehicle));
+                    }
+                    return bodies;
+                });
                 world.addChangeListener(pistonSystem);
                 // The TNT (Slice 9f): the ignition system (the redstone arm,
                 // the flint-and-steel use, the blast chain-reaction) + the
@@ -23586,6 +23638,62 @@ public final class EngineServer implements Server, EngineBridge {
             }
             return world.getBlock(at);
         };
+    }
+
+    /** The VIII13 piston-push adapters (the seam's per-family arms). */
+
+    /** The mob adapter: the solver walk + the velocity's axis set (the fling). */
+    private record PistonMobPush(net.zaminmc.torch.server.entity.MobEntity mob)
+            implements net.zaminmc.torch.server.piston.PistonSystem.Pushable {
+
+        @Override
+        public void pushBy(double dx, double dy, double dz) {
+            mob.pushBy(dx, dy, dz);
+        }
+
+        @Override
+        public void flingAxis(double axisX, double axisY, double axisZ) {
+            mob.setVelocity(axisX != 0.0 ? axisX : mob.velocityX(),
+                    axisY != 0.0 ? axisY : mob.velocityY(),
+                    axisZ != 0.0 ? axisZ : mob.velocityZ());
+        }
+    }
+
+    /** The item adapter: the leading-face clamped shift + the fling. */
+    private record PistonItemPush(
+            net.zaminmc.torch.server.entity.ItemEntity item,
+            net.zaminmc.torch.server.entity.ItemEntityManager items)
+            implements net.zaminmc.torch.server.piston.PistonSystem.Pushable {
+
+        @Override
+        public void pushBy(double dx, double dy, double dz) {
+            item.pushBy(items.ground(), dx, dy, dz);
+        }
+
+        @Override
+        public void flingAxis(double axisX, double axisY, double axisZ) {
+            item.setVelocity(axisX != 0.0 ? axisX : item.velocityX(),
+                    axisY != 0.0 ? axisY : item.velocityY(),
+                    axisZ != 0.0 ? axisZ : item.velocityZ());
+        }
+    }
+
+    /** The vehicle adapter: the kind's own solver walk + the fling. */
+    private record PistonVehiclePush(
+            net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle)
+            implements net.zaminmc.torch.server.piston.PistonSystem.Pushable {
+
+        @Override
+        public void pushBy(double dx, double dy, double dz) {
+            vehicle.pushBy(dx, dy, dz);
+        }
+
+        @Override
+        public void flingAxis(double axisX, double axisY, double axisZ) {
+            vehicle.setVelocity(axisX != 0.0 ? axisX : vehicle.velocityX(),
+                    axisY != 0.0 ? axisY : vehicle.velocityY(),
+                    axisZ != 0.0 ? axisZ : vehicle.velocityZ());
+        }
     }
 
     /**

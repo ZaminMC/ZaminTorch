@@ -11070,3 +11070,37 @@ vs the entity family vs the container family).
 - **Evidence** — TreeGrowthFamilyTest 11; the block, registry, anvil,
   interaction, world, and random-tick sweeps green; the protocol module
   green.
+### The piston's entity displacement (Wave VIII row VIII13, 2026-10-21)
+
+The parallel wave's disjoint second lead slice — the piston family,
+untouched by the three in-flight chunks (the tree growth, the mob
+armor, the anvil GUI), lands beside them on
+`feature/piston-entity-displacement`.
+
+- **PistonSystem.moveEntities** (MovingBlockEntity lines 80-115, 1:1):
+  the interpolated collision box (MovingBlock.getCollisionShape's own
+  law — the cube shrunk along the facing by the flipped progress on the
+  far edge), the bodies intersecting it, and the push — the amount
+  along the facing (the extending steps' progress delta + the 0.0625
+  catch-up; the completion's flat 0.25, both the extending and the
+  retracting carriers; the engine's carrier lands the same tick, the
+  amounts exact, the landing one tick tighter — the named adaptation).
+- **The slime fling**: an extending carrier carrying a slime block sets
+  every body's velocity along the facing axis to the facing offset (the
+  engine's slime id `slime_block` — the consult's own spelling).
+- **The client-authoritative player exemption**: the push surface never
+  includes the players.
+- **The seam**: `PushSurface`/`Pushable` over the three solver families
+  — the mobs' own step-height solver walk (`MobEntity.pushBy`, outside
+  the velocity integration so the NoAI freeze never eats a push), the
+  items' leading-face clamped shift (`ItemEntity.pushBy` over the
+  manager's ground consult), the vehicles' kind-box solver walks
+  (`VehicleEntity.pushBy` + the cart/boat overrides). The remaining
+  families (the orbs, the stands, the primed TNT, the falling blocks,
+  the projectiles) ledger as the seam's additive follow-ups.
+- **The crush** rides the living family's in-wall suffocation row
+  (unported — baseTick's isInWall damage walk; a squeezed body ends
+  inside the block, the damage is a living-family slice).
+- **Evidence**: PistonEntityPushTest 4 (the flight-path push, the wall
+  clamp — the crush setup, the item ride, the slime fling); the piston
+  + region-boundary + entity-family sweeps green.

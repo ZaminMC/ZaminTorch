@@ -89,6 +89,11 @@ public final class ItemEntityManager {
         this.nextEntityId = firstEntityId;
     }
 
+    /** The manager's own ground consult (the VIII13 piston-push adapter reads it). */
+    public ItemEntity.Ground ground() {
+        return ground;
+    }
+
     public void addListener(Listener listener) {
         listeners.add(Objects.requireNonNull(listener, "listener"));
     }

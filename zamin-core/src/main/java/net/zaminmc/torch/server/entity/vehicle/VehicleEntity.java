@@ -563,6 +563,27 @@ public abstract class VehicleEntity implements net.zaminmc.torch.entity.Vehicle 
         tickKind(world);
     }
 
+    /**
+     * The piston push (the VIII13 slice — the reference's
+     * {@code Entity.move(amount * facing)}): the IMMEDIATE,
+     * collision-clamped position shift through the kind's own solver
+     * walk (the same swept-box law the tick drives, outside the velocity
+     * integration). The query field carries the last tick's world
+     * consult — the push between ticks reads it; a never-ticked body
+     * stands down (the spawn-edge window).
+     */
+    public final void pushBy(double dx, double dy, double dz) {
+        if (query == null) {
+            return; // the spawn-edge window: no world consult yet
+        }
+        pushMove(dx, dy, dz);
+    }
+
+    /** The kind's own clamped shift (the subclass's box constants). */
+    protected void pushMove(double dx, double dy, double dz) {
+        setPosition(new Position(position.x() + dx, position.y() + dy, position.z() + dz));
+    }
+
     /** The kind's motion rules (the tick's body). */
     protected abstract void tickKind(WorldQuery world);
 
