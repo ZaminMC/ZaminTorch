@@ -10767,3 +10767,99 @@ no-surface example; the entity scene's eye + knot landed — '9 entities'
 with the transient-rows' counted note); the anvil + leash + vehicle +
 entity + fireworks + protocol sweeps green (one contention flake in the
 protocol batch re-run clean).
+
+## 2026-10-21 — the eye-and-flight slice (Wave VII's VII4: the VII3 follow-ups retired with the audit)
+
+The §22 next-work line's two demand-named rows + the fishing-bobber
+example, retired against the reference.
+
+**The frame-insertion row VERIFIED AND COMPLETED**: the VII3 claim
+"the engine's block-use path lacks it" was STALE — Slice 54's arm
+(EngineServer.useItemArmOnTick's ender-eye family) already carried the
+empty-frame gate, the facing preservation through the flattened pair,
+the sixteen SMOKE_NORMAL particles at the reference's 5/16..11/16
+band, and EndPortalBlocks.tryFillPortal's geometry whole (the row
+scan, the j == l+2 span, the far row at FACING x 4, the two side
+columns at l-1/j+1, the 3x3 fill — every walk diffed against
+EnderEyeItem.useOn lines 46-105 line by line). The audit found
+exactly TWO missing rows and both landed:
+- **The comparator wake** (useOn line 33: updateNeighborComparators(
+  pos, END_PORTAL_FRAME) → World lines 2701-2716): RedstoneSystem
+  .wakeComparators(clicked) after the frame flip — every comparator
+  reading the frame re-runs its neighborChanged, directly or through
+  one solid block.
+- **The frame's own analog band** (EndPortalFrameBlock lines 61-68:
+  isAnalogSignalSource true for EVERY frame state, getAnalogSignal =
+  eye ? 15 : 0): the analogReader's frame arm — an EMPTY frame
+  answers 0 (never -1), so the comparator's getInputSignal consult
+  overrides the diode read at both the input cell and the
+  read-through cell; the eye's insertion flips the signal 0 → 15.
+- The creative arm verified 1:1 already: the reference's useBlock
+  creative branch (ServerPlayerInteractionManager lines 294-300)
+  RESTORES size and damage after useOn — the engine's consumePlaced
+  creative-sparing convention is exactly that.
+
+**The firework item's Flight NBT byte LANDED**: the ItemStack
+record's sixteenth component — the Fireworks compound
+({Flight:b, Explosions:[...]}) in its boxed-tree form, the same
+convention as BlockEntityTag (verbatim, never interpreted at the item
+layer). The fuse roll reads it 1:1 (the FireworksEntity ctor's
+i = 1 + getByte("Flight") — a missing or non-byte row reads 0, the
+bare rocket's plain band; maxAge = 10 * i + rand(6) + rand(7)). THE
+PAYLOAD PASS-THROUGH REPAIRED: the use arm had constructed a FRESH
+plain stack (ItemStack.of(FIREWORKS, 1)) — the reference passes the
+HELD stack itself (ctor line 63's syncedData.update(8, item)), so the
+compound now rides the rocket whole: the Flight names the fuse, the
+Explosions ride the synced slot-8 item to the client's own burst
+render. The wire (SlotNbt's Fireworks compound through the same
+boxed-tree walk as BlockEntityTag, byte-exact, hasPayload extended) +
+the anvil read/write (ItemNbt's tag.Fireworks round trip) + the merge
+identity (two differently-fused rockets never stack — the reference's
+whole-tag comparison) all landed.
+
+**The fishing-bobber import row RETIRED WITH THE EVIDENCE**: the
+reference's own census — Entities.java's registrations (lines 226-290)
+NEVER include FishingBobberEntity (no string id, no numeric id), and
+Entity.writeNbt (line 1087) refuses when getTypeId() answers null —
+so a vanilla 1.8.8 world NEVER saves a bobber row. (The reference's
+loaded form would NPE anyway: the tick reads this.thrower
+.getItemInHand() with thrower null — readCustomNbt reads
+xTile/yTile/zTile/inTile/shake/inGround alone, never a thrower row.)
+A MODDED row named "Fish"/"FishingBobber" isolates loudly through the
+walk's generic no-surface arm — already pinned by the acceptance
+scene — which IS the complete vanilla-grade answer.
+
+**THE SWEEP'S OWN CATCH — TWO PRE-EXISTING develop BREAKS REPAIRED**:
+- **The lily pad's LEVEL-property consult**: PlacementHandlerGates
+  AcceptanceTest's conjunct arm was RED on CLEAN develop (verified via
+  git stash): the VI6 fluids' landing made the still-to-flowing
+  conversion (LiquidSourceBlock.neighborChanged → convertToFlowing)
+  convert every placed water source to its flowing form, and BOTH
+  lily consults — the use arm's gate and LilyPadBlock.canSurvive's
+  support poll — read the STRICT source id (FluidBlocks.isSource, the
+  exact water/lava identifiers) where the reference reads the LEVEL
+  property (LilyPadItem.startUsing line 44 + LilyPadBlock.canSurvive
+  lines 53-55: getMaterial() == WATER && get(LEVEL) == 0). A pad
+  could NEVER land on placed water that had been through the neighbor
+  walk — practically every placed bucket of water. Both gates now
+  read levelOf == 0 (the flowing form at level 0 passing exactly like
+  the reference's LEVEL property).
+- **The nested INT_ARRAY merge identity**: ItemStack
+  .blockEntityTagEqual compared int[] by value at the TOP level of
+  the tree alone — an int[] nested inside a list or a map (a
+  Fireworks Explosions row's Colors array, a tile's nested rows) fell
+  to Objects.equals and its identity compare, so two identical stacks
+  with a nested INT_ARRAY never merged. The compare is now the
+  recursive boxedValueEqual walk, int[] by Arrays.equals at every
+  depth.
+
+**The evidence**: EyeInsertionFamilyTest +2 (the comparator wake +
+the analog flip 0 → 15 + the survival payment; the held compound
+reaching the rocket + the Flight-3 fuse band 40..51); FireworksAnd
+BottleTest +1 (the bare band 10..21, the Flight-2 band 30..41, the
+non-byte row's fall-back to the plain band, the absent Flight row's
+plain band); ItemTagRowsTest +1 (the compound's write rows, the read
+round trip, the raw-rows import form, the merge identity's three
+forms); SlotNbtTest +1 (the byte-exact wire layout + the structural
+skip); PlacementHandlerGatesAcceptanceTest 8/0 — the lily arm GREEN
+again, the pre-existing develop break repaired.

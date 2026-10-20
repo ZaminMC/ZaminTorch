@@ -185,7 +185,7 @@ public final class EndPortalBlocks {
     }
 
     /** @return whether the identifier is any frame state (empty or eyed). */
-    static boolean isFrame(Identifier id) {
+    public static boolean isFrame(Identifier id) {
         return isEmptyFrame(id) || isEyedFrame(id);
     }
 

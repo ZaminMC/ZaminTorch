@@ -52,7 +52,8 @@ final class SlotNbt {
                 || (stack.canPlaceOn() != null && !stack.canPlaceOn().isEmpty())
                 || stack.displayColor() != null
                 || stack.attributeModifiers() != null // present-even-empty (Wave J's wipe)
-                || stack.skullOwner() != null; // the player head's placement row (Wave K)
+                || stack.skullOwner() != null // the player head's placement row (Wave K)
+                || stack.fireworks() != null; // the firework-rocket family's own compound
     }
 
     /**
@@ -243,6 +244,15 @@ final class SlotNbt {
                 out.writeByte(TAG_END);
             }
             out.writeByte(TAG_END);
+        }
+        // The Fireworks compound (the firework-rocket family — the same
+        // raw-tree walk as BlockEntityTag: the Flight byte names the fuse
+        // band, the Explosions list the client's own burst render reads
+        // off the synced slot-8 item).
+        if (stack.fireworks() != null && !stack.fireworks().isEmpty()) {
+            out.writeByte(TAG_COMPOUND); // tag.Fireworks
+            writeShortString(out, "Fireworks");
+            writeBoxedCompound(out, stack.fireworks());
         }
         out.writeByte(TAG_END);        // end of root
     }

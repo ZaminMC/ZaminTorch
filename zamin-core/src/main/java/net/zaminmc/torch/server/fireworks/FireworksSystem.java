@@ -17,10 +17,10 @@ import java.util.Random;
  * <p><b>The launch (the FireworksEntity ctor, lines 55-73):</b> the body
  * starts at the clicked face's own point (the useOn cursor fractions),
  * the velocity is the near-zero drift (gaussian 0.001 horizontal, the
- * 0.05 lift), and the fuse rolls {@code 10 + rand(6) + rand(7)} — the
- * plain i = 1 band (the item's Flight NBT rides the item-NBT slice,
- * ledgered). The launch sound plays at age 0 through the engine's fx
- * lane.</p>
+ * 0.05 lift), and the fuse rolls {@code 10 * i + rand(6) + rand(7)}
+ * where {@code i = 1 + Flight} — the item's own Fireworks compound
+ * (ctor line 39: {@code i += nbtcompound1.getByte("Flight")}, a
+ * missing row reading 0 — the plain i = 1 band for a bare rocket).</p>
  *
  * <p><b>The wire (EntityMap lines 90-91: the fireworks tracker's own
  * (64, 10, syncVelocity) registration):</b> the spawn reaches the
@@ -98,7 +98,8 @@ public final class FireworksSystem {
      * The launch (FireworksItem.useOn lines 28-38 + the ctor lines 55-73):
      * the rocket starts at the clicked face's point, the fuse rolls, and
      * the spawn's near-zero velocity carries the gaussian drift. The item
-     * payload rides the synced slot 8 — the client's own burst reads it.
+     * payload rides the synced slot 8 — the client's own burst reads it
+     * (the Fireworks compound's Explosions list rides the wire whole).
      * Tick-thread context.
      */
     public FireworksEntity launch(Position at, ItemStack payload) {
@@ -108,7 +109,7 @@ public final class FireworksSystem {
                 random.nextGaussian() * FireworksEntity.LAUNCH_DRIFT_SIGMA,
                 FireworksEntity.LAUNCH_LIFT,
                 random.nextGaussian() * FireworksEntity.LAUNCH_DRIFT_SIGMA,
-                rollFuse(), payload);
+                rollFuse(payload), payload);
         rockets.add(rocket);
         for (Listener listener : listeners) {
             listener.onFireworksLaunched(rocket);
@@ -117,12 +118,18 @@ public final class FireworksSystem {
     }
 
     /**
-     * The fuse roll (the ctor line 73): {@code 10 * i + rand(6) +
-     * rand(7)} with the plain i = 1 — the item's Flight NBT byte rides
-     * the item-NBT slice (no engine model yet; ledgered).
+     * The fuse roll (the ctor lines 33-46): {@code i = 1} plus the item's
+     * own Fireworks.Flight byte (line 39's {@code getByte} — a missing or
+     * non-byte row reads 0, the bare rocket's plain band), then
+     * {@code 10 * i + rand(6) + rand(7)}.
      */
-    private int rollFuse() {
-        return FireworksEntity.FUSE_BASE_TICKS
+    private int rollFuse(ItemStack payload) {
+        int flight = 0;
+        var fireworks = payload.fireworks();
+        if (fireworks != null && fireworks.get("Flight") instanceof Byte row) {
+            flight = row;
+        }
+        return FireworksEntity.FUSE_BASE_TICKS * (1 + flight)
                 + random.nextInt(6) + random.nextInt(7);
     }
 

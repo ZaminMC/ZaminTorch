@@ -76,10 +76,11 @@ public final class ItemNbt {
         // an explicitly empty list is the tag's own form (the wipe) and
         // must ride the compound like any other row.
         boolean hasAttributeModifiers = stack.attributeModifiers() != null;
+        boolean hasFireworks = stack.fireworks() != null;
         if (hasName || hasLore || hasEnch || unbreakable || repairCost > 0 || hideFlags > 0
                 || hasBlockEntityTag || hasCanDestroy || hasCanPlaceOn
                 || stack.displayColor() != null || hasAttributeModifiers
-                || stack.skullOwner() != null) {
+                || stack.skullOwner() != null || hasFireworks) {
             Map<String, Snbt.Tag> tag = new java.util.LinkedHashMap<>();
             if (hasName || hasLore || stack.displayColor() != null) {
                 Map<String, Snbt.Tag> display = new java.util.LinkedHashMap<>();
@@ -157,6 +158,16 @@ public final class ItemNbt {
             // writes the row; the engine round-trips what it parsed).
             if (stack.skullOwner() != null) {
                 TileNbt.writeProfile(tag, "SkullOwner", stack.skullOwner());
+            }
+            // The Fireworks compound (the firework-rocket family —
+            // FireworksEntity ctor line 39's own read family: the Flight
+            // byte names the fuse band, the Explosions list rides the
+            // synced slot-8 item to the client's own burst render):
+            // carried VERBATIM in its boxed form, the same convention as
+            // BlockEntityTag (the item layer never interprets it).
+            if (hasFireworks) {
+                NbtOps.putCompound(tag, "Fireworks",
+                        NbtOps.fromBoxed(stack.fireworks()));
             }
             NbtOps.putCompound(rows, "tag", tag);
         }
@@ -291,6 +302,15 @@ public final class ItemNbt {
         Map<String, Snbt.Tag> blockEntityTag = NbtOps.getCompound(tag, "BlockEntityTag");
         if (!blockEntityTag.isEmpty()) {
             stack = stack.withBlockEntityTag(NbtOps.toBoxed(blockEntityTag));
+        }
+        // The Fireworks compound (the firework-rocket family — the
+        // reference's own read: getCompound("Fireworks") in the
+        // FireworksEntity ctor): the whole subtree carried verbatim in
+        // its boxed form (the Flight byte + the Explosions list); the
+        // fuse consult reads the Flight row at the launch.
+        Map<String, Snbt.Tag> fireworksRows = NbtOps.getCompound(tag, "Fireworks");
+        if (!fireworksRows.isEmpty()) {
+            stack = stack.withFireworks(NbtOps.toBoxed(fireworksRows));
         }
         // The adventure gates' lists (Wave I — getList(...,8): an
         // element-family mismatch answers empty, the reference's own gate).

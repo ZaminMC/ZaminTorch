@@ -1494,6 +1494,20 @@ public final class EngineServer implements Server, EngineBridge {
                         return net.zaminmc.torch.server.block.CakeBlocks
                                 .analogSignal(block.identifier());
                     }
+                    if (net.zaminmc.torch.server.block.EndPortalBlocks
+                            .isFrame(block.identifier())) {
+                        // The end portal frame's own analog band
+                        // (EndPortalFrameBlock lines 61-68:
+                        // isAnalogSignalSource true for EVERY frame
+                        // state, getAnalogSignal = eye ? 15 : 0 — the
+                        // eye's insertion flips the signal; an EMPTY
+                        // frame still answers 0, never -1: the reference's
+                        // getInputSignal consult overrides the diode read
+                        // for any analog source at the input cell, and the
+                        // read-through cell consults the same family).
+                        return net.zaminmc.torch.server.block.EndPortalBlocks
+                                .isEyedFrame(block.identifier()) ? 15 : 0;
+                    }
                     return -1;
                 });
                 // The container-content wake (the reference's
@@ -8430,7 +8444,12 @@ public final class EngineServer implements Server, EngineBridge {
         // clicked face's own point (pos + the cursor fractions), one unit
         // leaves the hand, and the use consumed — no placement proposal
         // follows. (The item has no startUsing: a right-click in the air
-        // does nothing — the in-air path never sees it.)
+        // does nothing — the in-air path never sees it.) THE PAYLOAD IS
+        // THE HELD STACK ITSELF (the reference's ctor line 63 —
+        // syncedData.update(8, item)): the Fireworks compound rides it
+        // whole — the Flight byte names the fuse band (the roll's own
+        // consult), the Explosions list rides the synced slot-8 item to
+        // the client's own burst render.
         net.zaminmc.torch.item.ItemStack fireworksHeld = session.inventory().held();
         if (!fireworksHeld.isEmpty()
                 && fireworksHeld.type().equals(BuiltinItems.FIREWORKS)) {
@@ -8438,8 +8457,7 @@ public final class EngineServer implements Server, EngineBridge {
                 fireworks.launch(new Position(
                         clicked.x() + cursorX, clicked.y() + cursorY,
                         clicked.z() + cursorZ),
-                        net.zaminmc.torch.item.ItemStack.of(
-                                BuiltinItems.FIREWORKS, 1));
+                        fireworksHeld);
                 if (session.gamemode() != GameMode.CREATIVE) {
                     session.inventory().consumeHeld(1);
                 }
@@ -8537,8 +8555,13 @@ public final class EngineServer implements Server, EngineBridge {
         // 22-70, 1:1): an empty frame takes the eye (the facing preserved
         // through the engine's flattened pair), the survival hand pays the
         // stack, the sixteen SMOKE_NORMAL particles ride the reference's
-        // own 5/16..11/16 offset band, and the frame-complete walk may
-        // fill the 3x3 interior with the portal block.
+        // own 5/16..11/16 offset band, the comparator wake follows the
+        // frame flip (World.updateNeighborComparators lines 2701-2716 —
+        // every comparator reading this frame re-arms, directly or
+        // through one solid block; the frame IS an analog source, the
+        // eye's insertion flipping its signal 0 to 15), and the
+        // frame-complete walk may fill the 3x3 interior with the portal
+        // block.
         if (heldId.equals("minecraft:ender_eye")
                 || creativeHeld.map(t -> t.identifier().value().equals("ender_eye")).orElse(false)) {
             BlockType clickedBlock = world.getBlock(clicked);
@@ -8551,6 +8574,11 @@ public final class EngineServer implements Server, EngineBridge {
                             net.zaminmc.torch.server.block.EndPortalBlocks
                                     .eyedFrameOf(clickedBlock.identifier()).orElseThrow()));
                     consumePlaced(session, creativeHeld);
+                    // The comparator wake (useOn line 33 — the reference's
+                    // own row after the flip: updateNeighborComparators(
+                    // pos, END_PORTAL_FRAME)): every comparator reading
+                    // the frame re-runs its neighborChanged.
+                    redstoneSystem.wakeComparators(clicked);
                     // The reference's own sixteen-particle band: the
                     // 5/16..11/16 offsets at the frame's 0.8125 height.
                     for (int i = 0; i < 16; i++) {
@@ -8603,13 +8631,18 @@ public final class EngineServer implements Server, EngineBridge {
             return; // the ascending-facing + HALF rule overrides the generic placement
         }
         // The lily pad's own use (Slice 42 — LilyPadItem.startUsing lines
-        // 26-51): the aimed cell must be a WATER SOURCE with air above —
-        // the pad takes the surface cell (blockpos.up()).
+        // 26-51): the aimed cell must be WATER at LEVEL 0 (the reference's
+        // own gate — {@code getMaterial() == WATER && get(LEVEL) == 0},
+        // the LEVEL-property consult, NOT the strict source id: the
+        // still-to-flowing conversion (LiquidSourceBlock.neighborChanged
+        // -> convertToFlowing) keeps a true source at LEVEL 0 in its
+        // flowing form — a pad places on both) with air above — the pad
+        // takes the surface cell (blockpos.up()).
         if (heldId.equals("minecraft:waterlily")
                 || creativeHeld.map(t -> t.identifier().value().equals("waterlily")).orElse(false)) {
             BlockType aimed = world.getBlock(clicked);
             if (FluidBlocks.kindOf(aimed.identifier()) == FluidBlocks.Kind.WATER
-                    && FluidBlocks.isSource(aimed.identifier())
+                    && FluidBlocks.levelOf(aimed.identifier()) == 0
                     && world.getBlock(clicked.offset(0, 1, 0)).equals(world.airType())) {
                 if (creativeHeld.isEmpty() && session.gamemode() != GameMode.CREATIVE
                         && !session.inventory().held().isEmpty()) {

@@ -253,4 +253,64 @@ class FireworksAndBottleTest {
         assertTrue(Math.abs(rocket.velocityZ()) < 0.01, "the horizontal drift is near zero");
         assertFalse(rocket.expired(), "freshly launched");
     }
+
+    /**
+     * THE FLIGHT BYTE NAMES THE FUSE BAND (the ctor lines 33-46, 1:1):
+     * {@code i = 1 + Flight} then {@code 10 * i + rand(6) + rand(7)} — a
+     * bare rocket rolls the plain 10..21 band, a Flight byte shifts the
+     * band by tens, and a NON-BYTE Flight row reads 0 (the reference's
+     * getByte cast failure — the plain band again).
+     */
+    @Test
+    void theFlightByteNamesTheFuseBand() {
+        // The bare rocket: the plain band 10 + rand(6) + rand(7) = 10..21.
+        for (int seed = 0; seed < 40; seed++) {
+            FireworksSystem system = new FireworksSystem(new LaunchSounds(),
+                    new Random(seed * 31L + 7L), 9_000 + seed);
+            net.zaminmc.torch.item.ItemStack bare =
+                    net.zaminmc.torch.item.ItemStack.of(
+                            net.zaminmc.torch.server.item.BuiltinItems.FIREWORKS, 1);
+            FireworksEntity rocket = system.launch(new Position(0, 64, 0), bare);
+            assertTrue(rocket.maxAge() >= 10 && rocket.maxAge() <= 21,
+                    "the bare band 10..21: " + rocket.maxAge());
+        }
+        // Flight 2: the band 10*3 + rand(6) + rand(7) = 30..41.
+        for (int seed = 0; seed < 40; seed++) {
+            FireworksSystem system = new FireworksSystem(new LaunchSounds(),
+                    new Random(seed * 37L + 11L), 9_500 + seed);
+            net.zaminmc.torch.item.ItemStack payload =
+                    net.zaminmc.torch.item.ItemStack.of(
+                            net.zaminmc.torch.server.item.BuiltinItems.FIREWORKS, 1)
+                            .withFireworks(java.util.Map.of("Flight", (byte) 2));
+            FireworksEntity rocket = system.launch(new Position(0, 64, 0), payload);
+            assertTrue(rocket.maxAge() >= 30 && rocket.maxAge() <= 41,
+                    "the Flight 2 band 30..41: " + rocket.maxAge());
+        }
+        // A NON-BYTE Flight row (the reference's getByte reads 0 for the
+        // cast failure): the plain band again.
+        for (int seed = 0; seed < 40; seed++) {
+            FireworksSystem system = new FireworksSystem(new LaunchSounds(),
+                    new Random(seed * 41L + 13L), 9_900 + seed);
+            net.zaminmc.torch.item.ItemStack payload =
+                    net.zaminmc.torch.item.ItemStack.of(
+                            net.zaminmc.torch.server.item.BuiltinItems.FIREWORKS, 1)
+                            .withFireworks(java.util.Map.of("Flight", 2));
+            FireworksEntity rocket = system.launch(new Position(0, 64, 0), payload);
+            assertTrue(rocket.maxAge() >= 10 && rocket.maxAge() <= 21,
+                    "the non-byte Flight row reads 0 — the plain band: " + rocket.maxAge());
+        }
+        // An empty Fireworks compound: the getCompound finds it but the
+        // Flight row is absent — getByte answers 0, the plain band.
+        for (int seed = 0; seed < 20; seed++) {
+            FireworksSystem system = new FireworksSystem(new LaunchSounds(),
+                    new Random(seed * 43L + 17L), 9_950 + seed);
+            net.zaminmc.torch.item.ItemStack payload =
+                    net.zaminmc.torch.item.ItemStack.of(
+                            net.zaminmc.torch.server.item.BuiltinItems.FIREWORKS, 1)
+                            .withFireworks(java.util.Map.of("Explosions", java.util.List.of()));
+            FireworksEntity rocket = system.launch(new Position(0, 64, 0), payload);
+            assertTrue(rocket.maxAge() >= 10 && rocket.maxAge() <= 21,
+                    "the absent Flight row reads 0 — the plain band: " + rocket.maxAge());
+        }
+    }
 }
