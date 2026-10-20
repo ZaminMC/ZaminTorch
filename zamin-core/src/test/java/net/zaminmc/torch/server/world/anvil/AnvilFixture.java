@@ -230,6 +230,21 @@ public final class AnvilFixture {
     public static Map<String, Object> chunkNbt(int xPos, int zPos,
                                                List<Map<String, Object>> sections,
                                                byte[] biomes) {
+        return chunkNbt(xPos, zPos, sections, biomes, null, null);
+    }
+
+    /**
+     * The full form (the content follow-up): the chunk's NBT with the
+     * Entities and TileEntities lists beside the sections — the
+     * reference's own save shape (the entities carry id/Pos/Rotation +
+     * the per-type rows; the tiles carry id/x/y/z + the per-family
+     * rows).
+     */
+    public static Map<String, Object> chunkNbt(int xPos, int zPos,
+                                               List<Map<String, Object>> sections,
+                                               byte[] biomes,
+                                               List<Map<String, Object>> entities,
+                                               List<Map<String, Object>> tileEntities) {
         Map<String, Object> level = compound();
         level.put("V", (byte) 1);
         level.put("xPos", xPos);
@@ -243,9 +258,58 @@ public final class AnvilFixture {
         if (biomes != null) {
             level.put("Biomes", byteArray(biomes));
         }
+        if (entities != null) {
+            level.put("Entities", entities);
+        }
+        if (tileEntities != null) {
+            level.put("TileEntities", tileEntities);
+        }
         Map<String, Object> root = compound();
         root.put("Level", level);
         return root;
+    }
+
+    /**
+     * One entity row (the reference's Entities.create input): the id
+     * string, the Pos double triple, the Rotation float pair, and any
+     * per-type rows the caller adds to the returned compound.
+     */
+    public static Map<String, Object> entityRow(String id, double x, double y, double z) {
+        Map<String, Object> entity = compound();
+        entity.put("id", id);
+        entity.put("Pos", List.of(x, y, z));
+        entity.put("Rotation", List.of(0.0f, 0.0f));
+        return entity;
+    }
+
+    /**
+     * One item-entity row (EntityItem's save shape): the Item compound
+     * (the stack's id/Count/Damage) + the Age/PickupDelay rows.
+     */
+    public static Map<String, Object> itemEntityRow(String itemId, int count, int damage,
+                                                    double x, double y, double z, short age) {
+        Map<String, Object> entity = entityRow("Item", x, y, z);
+        Map<String, Object> stack = compound();
+        stack.put("id", itemId);
+        stack.put("Count", (byte) count);
+        stack.put("Damage", (short) damage);
+        entity.put("Item", stack);
+        entity.put("Age", age);
+        entity.put("PickupDelay", (short) 0);
+        return entity;
+    }
+
+    /**
+     * One tile-entity row (BlockEntities.create's input): the id string,
+     * the x/y/z ints, and the per-family rows the caller adds.
+     */
+    public static Map<String, Object> tileRow(String id, int x, int y, int z) {
+        Map<String, Object> tile = compound();
+        tile.put("id", id);
+        tile.put("x", x);
+        tile.put("y", y);
+        tile.put("z", z);
+        return tile;
     }
 
     /**

@@ -121,6 +121,29 @@ public final class ItemEntityManager {
     }
 
     /**
+     * The restored form (the Anvil import's exact-position spawn): no
+     * random pop offset, no velocity — the saved Pos and Motion rows
+     * apply after through the entity's own setters, exactly like the
+     * reference's {@code Entities.create} path for an EntityItem.
+     *
+     * @return the new entity, or null when the §27.7 gate cancelled the
+     *         spawn (the stack never enters the world; no id is consumed)
+     */
+    public ItemEntity spawnRestored(Position at, ItemStack stack) {
+        Objects.requireNonNull(at, "at");
+        Objects.requireNonNull(stack, "stack");
+        if (!admitSpawn(stack, at)) {
+            return null;
+        }
+        ItemEntity entity = new ItemEntity(nextEntityId++, at, stack, 0);
+        entities.add(entity);
+        for (Listener listener : listeners) {
+            listener.onItemSpawned(entity);
+        }
+        return entity;
+    }
+
+    /**
      * Spawns a dropped item near the given block with the historical pop
      * velocity, returns the new entity. Caller supplies the stack; count and
      * validity are the caller's contract.

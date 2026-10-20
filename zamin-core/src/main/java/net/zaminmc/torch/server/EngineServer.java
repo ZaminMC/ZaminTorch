@@ -22173,12 +22173,25 @@ public final class EngineServer implements Server, EngineBridge {
         if (io == null || domain == null) {
             return "The storage lanes are not booted";
         }
+        // The content seams' own surfaces (checked BEFORE the one-import
+        // gate so a refusal cannot strand it).
+        if (tileNbt == null || mobManager == null || itemEntities == null || potionSystem == null) {
+            return "The engine content surfaces are not booted";
+        }
         if (!anvilImportActive.compareAndSet(false, true)) {
             return "An Anvil import is already running; wait for its report";
         }
         java.nio.file.Path folder = java.nio.file.Path.of(args[0]);
+        // The content seams (the entities/tiles follow-up): the SAME
+        // machinery the live commands use — readTile (/blockdata),
+        // spawnAt + EntityNbt.readNbt (/summon), spawnRestored (the
+        // item's exact-position form) — so an imported chest/mob/spawner
+        // is indistinguishable from an engine-made one.
         net.zaminmc.torch.server.world.anvil.AnvilWorldImport session =
-                net.zaminmc.torch.server.world.anvil.AnvilWorldImport.over(target);
+                net.zaminmc.torch.server.world.anvil.AnvilWorldImport.over(target,
+                        new net.zaminmc.torch.server.world.anvil.AnvilWorldImport.ContentSeams(
+                                tileNbt, mobManager, itemEntities, potionSystem,
+                                mob -> mobManager.equipmentChanged(mob)));
         try {
             io.submit(domain, "anvil-import-open", () -> {
                 // The folder inventory + the level bytes, all on the I/O

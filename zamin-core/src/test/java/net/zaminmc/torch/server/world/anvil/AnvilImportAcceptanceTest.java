@@ -265,4 +265,147 @@ class AnvilImportAcceptanceTest {
             server.shutdown(null);
         }
     }
+
+    @Test
+    void theImportedContentRowsLandOnTheEngineSurfaces() throws Exception {
+        // The entities/tiles follow-up: the chunk's TileEntities rows
+        // apply through the /blockdata machinery (the chest's contents
+        // readable through the engine's own chest manager), the Entities
+        // rows ride the /summon machinery (the zombie's custom name and
+        // rows land through EntityNbt.readNbt) and the restored item
+        // spawn (the stack + the Age row), and every family with no
+        // engine surface isolates LOUDLY with its exact id.
+        Path vault = dir.resolve("vault");
+        Map<String, Object> level = AnvilFixture.compound();
+        level.put("RandomSeed", 77L);
+        level.put("SpawnX", 129);
+        level.put("SpawnY", 70);
+        level.put("SpawnZ", 129);
+        level.put("Time", 180_000L);
+        level.put("DayTime", 18_000L); // midnight: the zombie never burns
+        level.put("LevelName", "Vault");
+        AnvilFixture.writeLevelDat(vault, level);
+
+        // The scene in chunk (8,8): a stone floor, a chest at (129,1,129)
+        // carrying two diamonds (the tile row's Items list — the
+        // reference's own save shape), a NO-family tile row over the
+        // stone floor (the loud isolation), a named zombie, a three-stack
+        // of diamonds on the ground (the item entity with its Age row),
+        // and a Painting — a family with no engine surface.
+        byte[] blocks = new byte[4096];
+        for (int z = 0; z < 16; z++) {
+            for (int x = 0; x < 16; x++) {
+                blocks[AnvilFixture.cellIndex(x, 0, z)] = 1; // stone floor
+            }
+        }
+        blocks[AnvilFixture.cellIndex(1, 1, 1)] = 54; // the chest at (129,1,129)
+
+        Map<String, Object> diamondSlot = AnvilFixture.compound();
+        diamondSlot.put("Slot", (byte) 0);
+        diamondSlot.put("id", "minecraft:diamond");
+        diamondSlot.put("Count", (byte) 2);
+        diamondSlot.put("Damage", (short) 0);
+        Map<String, Object> chestTile = AnvilFixture.tileRow("Chest", 129, 1, 129);
+        chestTile.put("Items", List.of(diamondSlot));
+        Map<String, Object> homelessTile = AnvilFixture.tileRow("Chest", 130, 0, 130);
+
+        Map<String, Object> zombie = AnvilFixture.entityRow("Zombie", 132.5, 1.0, 132.5);
+        zombie.put("CustomName", "Anvil Zombie");
+        Map<String, Object> painting = AnvilFixture.entityRow("Painting", 134.5, 1.0, 134.5);
+        Map<String, Object> dropped = AnvilFixture.itemEntityRow(
+                "minecraft:diamond", 3, 0, 133.5, 1.0, 133.5, (short) 100);
+
+        byte[] chunkNbt = AnvilFixture.nbtDocument(AnvilFixture.chunkNbt(8, 8,
+                List.of(AnvilFixture.section(0, blocks, new byte[2048], null)), null,
+                List.of(zombie, painting, dropped), List.of(chestTile, homelessTile)));
+        AnvilFixture.writeRegionFile(vault.resolve("region").resolve("r.0.0.mca"),
+                List.of(new AnvilFixture.Entry(8, 8, AnvilRegionFile.SCHEME_ZLIB,
+                        AnvilFixture.zlib(chunkNbt))));
+
+        List<String> console = new CopyOnWriteArrayList<>();
+        Handler capture = new Handler() {
+            @Override
+            public void publish(LogRecord record) {
+                console.add(record.getMessage());
+            }
+
+            @Override
+            public void flush() {
+            }
+
+            @Override
+            public void close() {
+            }
+        };
+        Logger consoleLogger = Logger.getLogger(
+                net.zaminmc.torch.server.chat.ConsoleSender.class.getName());
+        consoleLogger.addHandler(capture);
+        consoleLogger.setLevel(Level.INFO);
+        consoleLogger.setUseParentHandlers(false);
+
+        EngineConfig config = new EngineConfig("127.0.0.1", 0, "anvil-content", "it",
+                20, 2, 20, dir.toString());
+        EngineServer server = new EngineServer(config);
+        server.start();
+        try {
+            server.consoleCommand("anvilimport " + vault);
+            long deadline = System.currentTimeMillis() + 20_000;
+            while (System.currentTimeMillis() < deadline
+                    && console.stream().noneMatch(line -> line.startsWith("Anvil import finished"))) {
+                Thread.sleep(50);
+            }
+            String report = console.stream()
+                    .filter(line -> line.startsWith("Anvil import finished"))
+                    .findFirst().orElse(null);
+            assertNotNull(report, "the final report landed (console: " + console + ")");
+
+            // The tile row applied: the chest is readable through the
+            // engine's own chest manager with the diamond stack — the
+            // /blockdata walk's own projection.
+            var chest = server.chests().getOrCreate(
+                    new net.zaminmc.torch.block.BlockPosition(129, 1, 129));
+            var slots = chest.snapshotSlots();
+            assertEquals("minecraft:diamond", slots[0].type().identifier().toString(),
+                    "the chest's first slot holds the imported diamond (report: " + report + ")");
+            assertEquals(2, slots[0].count(), "the stack's count row landed");
+
+            // The zombie imported through the /summon machinery: the type,
+            // the custom name (EntityNbt.readNbt's own row), and the
+            // position band of the saved Pos triple.
+            var zombies = server.mobs().all().stream()
+                    .filter(mob -> mob.customName() != null
+                            && mob.customName().equals("Anvil Zombie"))
+                    .toList();
+            assertEquals(1, zombies.size(), "exactly one imported zombie (report: " + report + ")");
+            assertEquals(net.zaminmc.torch.server.entity.MobType.ZOMBIE, zombies.get(0).type(),
+                    "the zombie's type resolved through the vanilla name");
+            assertEquals(132.5, zombies.get(0).position().x(), 1.0,
+                    "the saved Pos row landed through readNbt's own walk (a wander band)");
+            assertEquals(132.5, zombies.get(0).position().z(), 1.0);
+
+            // The item entity restored: the stack + the Age row (the age
+            // keeps walking after the import — the row landed when it is
+            // >= the saved value, not the fresh default 0).
+            var diamonds = server.itemEntities().all().stream()
+                    .filter(item -> item.stack().type().identifier().value().equals("diamond"))
+                    .toList();
+            assertEquals(1, diamonds.size(), "the imported item entity (report: " + report + ")");
+            assertEquals(3, diamonds.get(0).stack().count(), "the stack's count");
+            assertTrue(diamonds.get(0).age() >= 100,
+                    "the Age row applied (and keeps walking): " + diamonds.get(0).age());
+
+            // The report's own rows: 2 entities + 1 tile imported, the
+            // Painting and the no-family tile isolated by name.
+            assertTrue(report.contains("2 entities"), "the report: " + report);
+            assertTrue(report.contains("1 tile entities"), "the report: " + report);
+            assertTrue(report.contains("entity family not importable"),
+                    "the Painting isolated loudly: " + report);
+            assertTrue(report.contains("entity Painting"), "the isolation names the id: " + report);
+            assertTrue(report.contains("tile row over a block with no tile family"),
+                    "the no-family tile isolated loudly: " + report);
+        } finally {
+            consoleLogger.removeHandler(capture);
+            server.shutdown(null);
+        }
+    }
 }
