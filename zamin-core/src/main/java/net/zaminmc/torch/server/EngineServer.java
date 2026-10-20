@@ -326,6 +326,8 @@ public final class EngineServer implements Server, EngineBridge {
     private BlockUpdateSystem blockUpdateSystem;
     /** The reference's scheduled block-tick queue (the TileTicks surface; the anvil import lands here). */
     private net.zaminmc.torch.server.block.ScheduledTickSystem scheduledTickSystem;
+    /** The surface's own persistence (the ZST store — the pending rows survive a restart). */
+    private net.zaminmc.torch.server.block.ScheduledTickDataStore scheduledTickStore;
     /** The redstone signal engine (Slice 9a): the wire cascade + the family dispatch + the delayed reactions. */
     private net.zaminmc.torch.server.redstone.RedstoneSystem redstoneSystem;
 
@@ -953,6 +955,27 @@ public final class EngineServer implements Server, EngineBridge {
                 blockUpdateSystem.setScheduledTicks(scheduledTickSystem);
                 net.zaminmc.torch.server.block.GravityFalls.registerTicker(
                         scheduledTickSystem, world, falling);
+                // The surface's own persistence (the in-memory envelope
+                // retired): the pending rows from the last shutdown ride
+                // back in through the same load arm the anvil import uses
+                // (c7654e1) — the family resolves through the registry, an
+                // unregistered family drops loudly, the due-relative keeps
+                // the reference's own shape (a negative row fires on the
+                // first pass).
+                scheduledTickStore = new net.zaminmc.torch.server.block.ScheduledTickDataStore(
+                        config.worldDataDir().resolve("scheduledticks.bin"));
+                for (net.zaminmc.torch.server.block.ScheduledTickDataStore.TickRow row
+                        : scheduledTickStore.load()) {
+                    var resolved = blockRegistry.byKey(row.blockId()).orElse(null);
+                    if (resolved == null) {
+                        LOGGER.warning("Saved scheduled tick's family no longer registered, dropped: "
+                                + row.blockId());
+                        continue;
+                    }
+                    scheduledTickSystem.loadScheduledTick(
+                            new BlockPosition(row.x(), row.y(), row.z()),
+                            resolved.identifier(), row.dueRelative(), row.priority());
+                }
                 // The weather cycle (Slice 20b — World.tickWeather 1:1): the
                 // overworld's own system (the nether has no sky). The wire
                 // fan is ServerWorld.tickWeather's own publishes — the
@@ -22044,6 +22067,19 @@ public final class EngineServer implements Server, EngineBridge {
                                 comparatorStore::writeSerialized));
                     } else {
                         comparatorStore.save(redstoneSystem.comparatorSnapshot());
+                    }
+                }
+                // The scheduled block ticks (the surface's own persistence):
+                // the capture here on the tick lane, the serialization and
+                // the file half off it — the ZST store's own rows.
+                if (scheduledTickStore != null && scheduledTickSystem != null) {
+                    if (pipeline != null) {
+                        publications.add(pipeline.submitSave("scheduledticks",
+                                scheduledTickSystem.snapshotRows(),
+                                scheduledTickStore::serialize,
+                                scheduledTickStore::writeSerialized));
+                    } else {
+                        scheduledTickStore.save(scheduledTickSystem.snapshotRows());
                     }
                 }
                 // The scoreboard (Slice 85): the reference saves scoreboard.dat

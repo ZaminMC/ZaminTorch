@@ -383,4 +383,29 @@ public final class ScheduledTickSystem {
     public Set<Identifier> registeredFamilies() {
         return Set.copyOf(tickers.keySet());
     }
+
+    /**
+     * The persistable rows (the surface's own persistence — the capture
+     * half, on the tick lane): every pending entry as (position, family,
+     * due-relative, priority). The due-relative is the reference's own
+     * chunk-save shape {@code time - world time} — a negative row is an
+     * overdue entry, and it fires on the first pass after the restore,
+     * exactly the reference's load.
+     */
+    public java.util.List<ScheduledTickDataStore.TickRow> snapshotRows() {
+        long now = world.totalTicks();
+        java.util.List<ScheduledTickDataStore.TickRow> rows = new ArrayList<>(ordered.size());
+        for (ScheduledTickEntry entry : ordered) {
+            long relative = entry.time() - now;
+            if (relative < Integer.MIN_VALUE) {
+                relative = Integer.MIN_VALUE;
+            } else if (relative > Integer.MAX_VALUE) {
+                relative = Integer.MAX_VALUE;
+            }
+            rows.add(new ScheduledTickDataStore.TickRow(
+                    entry.pos().x(), entry.pos().y(), entry.pos().z(),
+                    entry.block().toString(), (int) relative, entry.priority()));
+        }
+        return rows;
+    }
 }
