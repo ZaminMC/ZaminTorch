@@ -910,15 +910,40 @@ public final class EngineServer implements Server, EngineBridge {
                 // gravity/torch/grass/fire rules. Registered as a world listener before
                 // the adapter, so engine-side rules observe every commit first.
                 blockUpdateSystem = new BlockUpdateSystem(world, itemEntities, falling);
-                blockUpdateSystem.setFireEnvironment(this::raining, gameplayRandom);
                 // The reference's scheduled block-tick queue (the TileTicks
                 // surface): the anvil import lands here, and the families'
                 // delayed arms migrate onto it family by family.
                 scheduledTickSystem = new net.zaminmc.torch.server.block.ScheduledTickSystem(
                         world, new java.util.Random(worldSeed ^ 0x541DCA11L));
-                // The game-rule reads (Slice 24a): the fire's own freeze
-                // gate (doFireTick — FireBlock.tick line 145).
-                blockUpdateSystem.setFireTickRead(() -> gameRules.getBoolean("doFireTick"));
+                // The fire family's migration (FireBlock 1:1 onto the
+                // TileTicks surface — the first family off the block-update
+                // system's own adapted arm): the seams (the doFireTick rule,
+                // the rain flag, the difficulty term, the lazy TNT prime —
+                // the system constructs later in the boot), the sixteen AGE
+                // states' ticker registrations, and the placement listener
+                // on all three dimensions (the overworld's portal arm + the
+                // onAdded schedule).
+                net.zaminmc.torch.server.block.FireBlocks.wire(
+                        this::raining,
+                        () -> gameRules.getBoolean("doFireTick"),
+                        () -> difficulty,
+                        pos -> {
+                            net.zaminmc.torch.server.tnt.TntSystem tnt = tntSystem;
+                            if (tnt != null) {
+                                tnt.spawnPrimedAt(pos.x() + 0.5, pos.y(), pos.z() + 0.5);
+                            }
+                        },
+                        world, endWorld, scheduledTickSystem, gameplayRandom);
+                for (int age = 0; age <= net.zaminmc.torch.server.block.FireBlocks.MAX_AGE; age++) {
+                    scheduledTickSystem.registerTicker(
+                            net.zaminmc.torch.server.block.FireBlocks.stateId(age),
+                            net.zaminmc.torch.server.block.FireBlocks::tick);
+                }
+                net.zaminmc.torch.server.block.FireBlocks.PlacementListener firePlacements =
+                        new net.zaminmc.torch.server.block.FireBlocks.PlacementListener();
+                world.addChangeListener(firePlacements);
+                netherWorld.addChangeListener(firePlacements);
+                endWorld.addChangeListener(firePlacements);
                 // The weather cycle (Slice 20b — World.tickWeather 1:1): the
                 // overworld's own system (the nether has no sky). The wire
                 // fan is ServerWorld.tickWeather's own publishes — the

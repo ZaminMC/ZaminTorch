@@ -782,6 +782,12 @@ final class LegacyBlockIds {
         for (int bites = 1; bites <= 6; bites++) {
             merged.put(Identifier.parse("minecraft:cake_bite" + bites), 92);
         }
+        // The fire AGE band (FireBlocks — Block.java's own fire row 51;
+        // the age rides the metadata nibble through the type's
+        // legacyMetadata, so the ids share the one row).
+        for (int age = 1; age <= 15; age++) {
+            merged.put(Identifier.parse("minecraft:fire_age" + age), 51);
+        }
         // The wall family (Slice 47 — Block.java's own row): the wall 139 —
         // the two VARIANT states (the connections are the client's own
         // virtual reads, never on the wire).

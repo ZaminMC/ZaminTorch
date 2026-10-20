@@ -18,6 +18,8 @@ import java.nio.file.Path;
 import java.util.UUID;
 import java.util.function.BooleanSupplier;
 
+import net.zaminmc.torch.server.block.FireBlocks;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -145,37 +147,23 @@ class FireAcceptanceTest {
     }
 
     @Test
-    void fireEatsThePlankFloorBeneathIt() throws Exception {
+    void theOldFlameOnABareFloorDiesAtItsOwnTick() throws Exception {
         server = boot();
         join("Bystander");
-        // Deterministic fire rolls: every consume/spread check hits, so the
-        // first scheduled update burns the support and the second burns out.
-        server.blockUpdates().setFireEnvironment(() -> false, alwaysZeroRandom());
-        BlockPosition plank = new BlockPosition(0, 64, 0);
-        setBlock(plank, BuiltinBlocks.OAK_PLANKS);
-        BlockPosition flame = plank.offset(0, 1, 0);
-        setBlock(flame, BuiltinBlocks.FIRE);
+        // The 1:1 fire model (FireBlock.tick lines 144-226 on the
+        // scheduled-tick surface): a max-rolling flame on a bare stone
+        // floor — no fuel anywhere, i > 3 — dies at its own first tick
+        // (the re-arm fires first, the dead flame's entry pops and drops
+        // at the dispatch gate). The burn walk itself (the fuel-eating)
+        // is pinned deterministically in FireBlocksTest's scripted scenes.
+        BlockPosition floor = new BlockPosition(0, 64, 0);
+        setBlock(floor, BuiltinBlocks.STONE);
+        BlockPosition flame = floor.offset(0, 1, 0);
+        setBlock(flame, FireBlocks.stateOf(5));
 
-        // The scheduled fire clock consumes the flammable support on the
-        // first update.
-        await(() -> !server.world().getBlock(plank).equals(BuiltinBlocks.OAK_PLANKS),
-                "the fire ate the plank under it");
-
-        // With the fuel gone the flame burns out (the scheduled support
-        // check extinguishes it).
         await(() -> server.world().getBlock(flame).equals(BuiltinBlocks.AIR),
-                "the flame burned out without fuel");
+                "the old flame on a bare floor died at its own tick");
         server.shutdown(null);
-    }
-
-    /** A random source that always rolls the first option (determinism). */
-    private static java.util.Random alwaysZeroRandom() {
-        return new java.util.Random() {
-            @Override
-            public int nextInt(int bound) {
-                return 0;
-            }
-        };
     }
 
     @Test

@@ -56,7 +56,6 @@ public final class BlockUpdateSystem implements WorldChangeListener {
     private static final Identifier GRAVEL = Identifier.parse("minecraft:gravel");
     private static final Identifier TORCH = Identifier.parse("minecraft:torch");
     private static final Identifier GRASS = Identifier.parse("minecraft:grass_block");
-    private static final Identifier FIRE = Identifier.parse("minecraft:fire");
     private static final Identifier NETHER_PORTAL = Identifier.parse("minecraft:nether_portal");
     private static final Identifier NETHER_PORTAL_Z = Identifier.parse("minecraft:nether_portal_z");
 
@@ -73,46 +72,12 @@ public final class BlockUpdateSystem implements WorldChangeListener {
     private static final Identifier SUGAR_CANE = Identifier.parse("minecraft:sugar_cane");
     private static final Identifier CACTUS = Identifier.parse("minecraft:cactus");
 
-    /**
-     * The flammable set (the historical {@code Blocks.fire.getFlammability}
-     * members the engine registers): fire consumes these over time and only
-     * survives near them. Ported from the Glowstone/vanilla fire model as the
-     * engine's own rule set — planks, logs, leaves and the wooden furniture.
-     */
-    private static final java.util.Set<Identifier> FLAMMABLE = java.util.Set.of(
-            Identifier.parse("minecraft:oak_planks"),
-            Identifier.parse("minecraft:oak_log"),
-            Identifier.parse("minecraft:oak_leaves"),
-            Identifier.parse("minecraft:crafting_table"),
-            Identifier.parse("minecraft:chest"),
-            Identifier.parse("minecraft:chest_north"),
-            Identifier.parse("minecraft:chest_south"),
-            Identifier.parse("minecraft:chest_west"),
-            Identifier.parse("minecraft:chest_east"),
-            Identifier.parse("minecraft:oak_fence"),
-            Identifier.parse("minecraft:ladder"),
-            Identifier.parse("minecraft:ladder_south"),
-            Identifier.parse("minecraft:ladder_west"),
-            Identifier.parse("minecraft:ladder_east"),
-            Identifier.parse("minecraft:sign"),
-            Identifier.parse("minecraft:sign_west"),
-            Identifier.parse("minecraft:sign_north"),
-            Identifier.parse("minecraft:sign_east"),
-            Identifier.parse("minecraft:tall_grass"),
-            Identifier.parse("minecraft:dead_bush"));
-
-    /** Fire's own update latency: 15-35 ticks between self-checks. */
-    static final int FIRE_UPDATE_MIN = 15;
-    static final int FIRE_UPDATE_SPREAD = 21;
-
-    /** The rain state (rain extinguishes exposed fire, the historical rule). */
-    private volatile java.util.function.BooleanSupplier rainingSource = () -> false;
-    /** The fire rolls (tick-thread confined like every engine random). */
-    private java.util.Random random = new java.util.Random();
-
     private final EngineWorld world;
     private final ItemEntityManager itemEntities;
     private final FallingBlockEntityManager fallingEntities;
+
+    /** The flora rolls (the 1/8 seed roll, the double-plant drops — tick-thread confined). */
+    private final java.util.Random random = new java.util.Random();
 
     /** One pending scheduled update. */
     private record Scheduled(BlockPosition position, long dueTick) {
@@ -135,26 +100,6 @@ public final class BlockUpdateSystem implements WorldChangeListener {
         this.world = Objects.requireNonNull(world, "world");
         this.itemEntities = Objects.requireNonNull(itemEntities, "itemEntities");
         this.fallingEntities = Objects.requireNonNull(fallingEntities, "fallingEntities");
-    }
-
-    /** Wires the rain state (the engine's weather flag) and the roll source. */
-    public void setFireEnvironment(java.util.function.BooleanSupplier raining,
-                                   java.util.Random random) {
-        this.rainingSource = Objects.requireNonNull(raining, "raining");
-        this.random = Objects.requireNonNull(random, "random");
-    }
-
-    /**
-     * The {@code doFireTick} read (Slice 24a — FireBlock.tick line 145:
-     * the gate sits at the TOP of the fire's own tick — a false rule
-     * freezes the flame entirely, no spread, no self-extinguish, no
-     * re-schedule). Null keeps the historical always-burn behavior.
-     */
-    private volatile java.util.function.BooleanSupplier fireTickRead;
-
-    /** Wires the {@code doFireTick} read (the game-rule table's fire gate). */
-    public void setFireTickRead(java.util.function.BooleanSupplier fireTickRead) {
-        this.fireTickRead = Objects.requireNonNull(fireTickRead, "fireTickRead");
     }
 
     /**
@@ -561,8 +506,14 @@ public final class BlockUpdateSystem implements WorldChangeListener {
             world.setBlock(position, world.airType());
             return;
         }
-        if (identifier.equals(FIRE)) {
-            tickFire(position, world.totalTicks());
+        if (FireBlocks.isFire(identifier)) {
+            // The reference's FireBlock.neighborChanged (lines 311-315,
+            // 1:1): a fire whose support and fuel both vanished dies
+            // immediately on this path — the fire's own scheduled life
+            // (the age/spread/burn walks) rides the ScheduledTickSystem
+            // surface now, FireBlocks.tick (the first family migrated
+            // off this system's own adapted arm).
+            FireBlocks.neighborChanged(world, position);
             return;
         }
         if (identifier.equals(NETHER_PORTAL) || identifier.equals(NETHER_PORTAL_Z)) {
@@ -640,74 +591,6 @@ public final class BlockUpdateSystem implements WorldChangeListener {
                 new Position(at.x(), at.y(), at.z()),
                 ItemStack.of(net.zaminmc.torch.server.item.BuiltinItems.CACTUS, 1),
                 ItemEntity.PICKUP_DELAY_DROP_TICKS);
-    }
-
-    /**
-     * The fire block's scheduled life (the historical BlockFire.updateTick
-     * shape, adapted): rain kills exposed fire; fire without fuel or support
-     * burns out; otherwise it consumes a flammable support below or beside it
-     * (the burning-away) and re-arms its own update 15-35 ticks out. Every
-     * conversion schedules the world's neighbor updates through the ordinary
-     * commit path, so chains run on the same clock everything else uses.
-     * Tick-thread context.
-     */
-    private void tickFire(BlockPosition at, long now) {
-        // doFireTick (Slice 24a — FireBlock.tick line 145): the gate sits
-        // before EVERYTHING the fire does on its own tick — no spread, no
-        // rain douse, no burn-away, and crucially no re-schedule: the
-        // flame freezes inert until the rule returns (a neighbor commit
-        // re-arms it, the reference's own scheduleTick-on-update path).
-        java.util.function.BooleanSupplier fireRead = fireTickRead;
-        if (fireRead != null && !fireRead.getAsBoolean()) {
-            return;
-        }
-        BlockType below = world.getBlock(at.offset(0, -1, 0));
-        boolean belowFlammable = isFlammable(below.identifier());
-        boolean belowSupports = !below.equals(world.airType())
-                && !isFlammable(below.identifier())
-                && !FluidBlocks.isFluid(below.identifier())
-                && !WorldSolidity.isFire(below.identifier());
-        boolean neighborFuel = false;
-        for (int[] dir : new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
-            BlockType side = world.getBlock(at.offset(dir[0], 0, dir[1]));
-            if (isFlammable(side.identifier())) {
-                neighborFuel = true;
-                break;
-            }
-        }
-        boolean exposed = !isOpaque(world.getBlock(at.offset(0, 1, 0)));
-
-        // Rain douses exposed fire; a floating flame with neither support nor
-        // fuel burns itself out.
-        if ((rainingSource.getAsBoolean() && exposed)
-                || (!belowSupports && !belowFlammable && !neighborFuel)) {
-            world.setBlock(at, world.airType());
-            return;
-        }
-
-        // The burn-away: fuel below first (a fire on a plank floor eats
-        // through it), otherwise a sideways flammable neighbor catches.
-        if (belowFlammable && random.nextInt(3) == 0) {
-            world.setBlock(at.offset(0, -1, 0), BuiltinBlocks.FIRE);
-        } else if (neighborFuel && random.nextInt(4) == 0) {
-            for (int attempt = 0; attempt < 4; attempt++) {
-                int[] dir = new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}[
-                        random.nextInt(4)];
-                BlockPosition side = at.offset(dir[0], 0, dir[1]);
-                if (isFlammable(world.getBlock(side).identifier())) {
-                    world.setBlock(side, BuiltinBlocks.FIRE);
-                    break;
-                }
-            }
-        }
-
-        // The flame lives on to try again (the scheduled re-arm).
-        schedule(at, now + FIRE_UPDATE_MIN + random.nextInt(FIRE_UPDATE_SPREAD));
-    }
-
-    /** @return whether the identifier is one of the engine's flammable blocks. */
-    public static boolean isFlammable(Identifier id) {
-        return FLAMMABLE.contains(id);
     }
 
     /** The historical opaque set this slice models (glass and torch are not). */
