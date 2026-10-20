@@ -10910,3 +10910,37 @@ the opens, the use law's 64.0 band respected by the scene's own
 geometry); the container regression green (ContainerApiAcceptance,
 OpenWindowApiAcceptance, InteractionEventAcceptance,
 HopperWindowAcceptance, the brewing ContainerPersistence — 11/0).
+
+## 2026-10-21 — the generic-mount seat (Wave VII's VII5: the exotic riding shapes' MOUNT side)
+
+The §31.6 counted refusal's mount-side retirement: the engine's follow
+arms carried sessions and mobs alone — a mob rider on a
+non-vehicle/mob mount (a dropped item, a projectile, a firework
+rocket, an eye of ender, an XP orb) had NO seat surface, the anvil
+import's riding chain isolating it loudly.
+
+**The landing**: the engine's generic-mount registry (EngineServer
+.seatImportedRiderOnGenericMount — the one-rider law, the mount's
+position provider + the owning system's alive consult) + the follow
+arm (tickGenericMountRiders, the census's own profiled section after
+the mob riders): the seated mob's body anchors at the mount's own
+cell each tick through the base Entity's law (Entity.java line 1353
+— the generic families' getRideHeight the base 0.0, the rider's own
+per-family offset through RiderSeatLaw), the seat opening when
+either side departs. The anvil import's riding chain seats through
+the same seam (the Imported record's new generic handle — the five
+family arms now answer it, each carrying its own position provider +
+the system's alive consult); the mount-side isolation RETIRED (a mob
+riding an Item row lands whole). The 0x1B attach pair publishes over
+the raw engine ids (the GenericMountListener fan — the mobs' global
+wire space carries the rider, the mount family's own spawn id the
+mount).
+
+**The rider side still isolates loudly** (a vehicle/projectile/item
+RIDER): the engine's follow arms position MOB riders alone — the
+§31.6 counted refusal's rider-side row stays demand-named.
+
+**The evidence**: the anvil acceptance scene's exotic pair (the
+Surfer zombie riding a dropped diamond — both land, the follow
+anchors the rider at the item's cell, no isolation fires, the entity
+counter 9 -> 11); the anvil + riding sweeps 107/0.
