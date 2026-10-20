@@ -107,8 +107,14 @@ public final class ItemFrame {
         return new net.zaminmc.torch.util.Position(x, pos.y() + 0.5, z);
     }
 
-    /** The horizontal facing offsets in the engine's byIdHorizontal order. */
-    static final int[][] FACING_OFFSETS = {
+    /**
+     * The horizontal facing offsets (byIdHorizontal 0-3: south +Z, west
+     * -X, north -Z, east +X — the reference Direction's own table): the
+     * cell a body hangs in sits one step INTO the air the facing points
+     * to, away from the wall cell. Public for the anvil import's anchor
+     * decode (the pre-1.4.2 {@code Direction} form's own offset walk).
+     */
+    public static final int[][] FACING_OFFSETS = {
             {0, 1},   // south +Z
             {-1, 0},  // west -X
             {0, -1},  // north -Z
