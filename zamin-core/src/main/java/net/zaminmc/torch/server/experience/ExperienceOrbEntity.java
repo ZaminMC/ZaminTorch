@@ -74,6 +74,16 @@ public final class ExperienceOrbEntity implements net.zaminmc.torch.entity.Exper
         return position;
     }
 
+    /**
+     * The seated rider's plain position set (the riding-follow surface —
+     * the reference's updateRiderPositon writes the rider's position
+     * whatever family it is; the orb's own drift keeps running, the
+     * seat re-anchoring the body each tick after it).
+     */
+    public void teleport(Position to) {
+        this.position = Objects.requireNonNull(to, "to");
+    }
+
     public double velocityX() {
         return velocityX;
     }

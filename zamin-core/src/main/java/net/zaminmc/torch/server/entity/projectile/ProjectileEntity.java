@@ -169,6 +169,17 @@ public final class ProjectileEntity implements net.zaminmc.torch.entity.Projecti
         return position;
     }
 
+    /**
+     * The seated rider's plain position set (the riding-follow surface —
+     * the reference's updateRiderPositon writes the rider's position
+     * whatever family it is; a seated projectile stops being a body in
+     * flight, its saved velocity staying as loaded exactly like the
+     * reference's rideTick zeroes the motion while the tick rides).
+     */
+    public void teleport(Position to) {
+        this.position = Objects.requireNonNull(to, "to");
+    }
+
     public double velocityX() {
         return vx;
     }

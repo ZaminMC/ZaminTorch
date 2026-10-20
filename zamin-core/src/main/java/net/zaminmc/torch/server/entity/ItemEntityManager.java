@@ -198,6 +198,16 @@ public final class ItemEntityManager {
         return List.copyOf(entities);
     }
 
+    /** @return the live entity with the engine id, or null (the seated-rider consult). */
+    public ItemEntity byId(int entityId) {
+        for (ItemEntity entity : entities) {
+            if (entity.entityId() == entityId) {
+                return entity;
+            }
+        }
+        return null;
+    }
+
     public int size() {
         return entities.size();
     }

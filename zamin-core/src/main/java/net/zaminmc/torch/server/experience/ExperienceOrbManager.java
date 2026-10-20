@@ -181,6 +181,16 @@ public final class ExperienceOrbManager {
         return List.copyOf(orbs);
     }
 
+    /** @return the live orb with the engine id, or null (the seated-rider consult). */
+    public ExperienceOrbEntity byId(int entityId) {
+        for (ExperienceOrbEntity orb : orbs) {
+            if (orb.entityId() == entityId) {
+                return orb;
+            }
+        }
+        return null;
+    }
+
     public int size() {
         return orbs.size();
     }

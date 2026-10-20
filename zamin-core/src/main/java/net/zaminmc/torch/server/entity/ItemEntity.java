@@ -130,6 +130,16 @@ public final class ItemEntity implements net.zaminmc.torch.entity.DroppedItem {
         return position;
     }
 
+    /**
+     * The seated rider's plain position set (the riding-follow surface —
+     * the reference's updateRiderPositon writes the rider's position
+     * whatever family it is; the reference's rideTick zeroes the motion
+     * while the tick rides, the item's own drift re-anchoring each tick).
+     */
+    public void teleport(Position to) {
+        this.position = Objects.requireNonNull(to, "to");
+    }
+
     public double velocityX() {
         return velocityX;
     }

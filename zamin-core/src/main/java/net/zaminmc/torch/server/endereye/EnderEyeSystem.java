@@ -80,6 +80,16 @@ public final class EnderEyeSystem {
         return new ArrayList<>(eyes);
     }
 
+    /** @return the live eye with the engine id, or null (the seated-rider consult). */
+    public EnderEyeEntity byId(int entityId) {
+        for (EnderEyeEntity eye : eyes) {
+            if (eye.entityId() == entityId) {
+                return eye;
+            }
+        }
+        return null;
+    }
+
     /**
      * The throw (the item's startUsing arm, EnderEyeItem lines 118-136):
      * the eye spawns AT the caller's position, the target set rides the
