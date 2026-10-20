@@ -897,6 +897,16 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                 }
             }
         });
+        // Anvil windows: the same per-tick view fan-out (the repair-cost
+        // property + the revision-driven slot resync).
+        server.addAnvilViewListener((viewer, menu) -> {
+            for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                if (connection.currentSession() == viewer) {
+                    connection.sendAnvilViewTick(channelOf(connection),
+                            viewer.openContainerWindowId(), menu);
+                }
+            }
+        });
         // The leashes (Slice 11c): the knot's Spawn Object 77 / Destroy, the
         // mob's Attach Entity pair (the holder in each observer's own id
         // space), all broadcast to every connection.

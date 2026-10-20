@@ -97,6 +97,10 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     // revision last seen (slot resync) and the seven property values last sent.
     private long enchantingRevisionSynced = -1;
     private final int[] enchantingPropsSent = new int[Protocol18.ENCHANTING_PROP_COUNT];
+    // Anvil-window sync state (the same shape): the menu revision last seen
+    // and the single repair-cost property last sent.
+    private long anvilRevisionSynced = -1;
+    private int anvilCostSent = Integer.MIN_VALUE;
     // Brewing-window sync state (Slice 11e): the slots serial last seen
     // and the brew timer last sent (the window's property 0).
     private int brewingSlotsSynced = -1;
@@ -485,6 +489,15 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                     int primary = packet.readInt();
                     int secondary = packet.readInt();
                     engine.beaconSelect(player, primary, secondary);
+                }
+                // MC|ItemName (the reference ServerPlayNetworkHandler lines
+                // 1081-1091: the anvil's rename text — the handler validates
+                // the strip + the 30-character cap inside the engine's own
+                // anvilItemName arm; an absent payload is the blank form).
+                if (Protocol18.PLUGIN_CHANNEL_ITEM_NAME.equals(pluginChannel)) {
+                    String name = packet.readableBytes() >= 1
+                            ? ByteBufOps.readString(packet, 32767) : "";
+                    engine.anvilItemName(player, name);
                 }
                 // MC|AdvCdm (Slice 66 — ServerPlayNetworkHandler lines
                 // 1016-1057): the command-block family's edit write. The
@@ -1136,6 +1149,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                     case HOPPER -> sendHopperWindow(channel, player, windowId);
                     case BREWING_STAND -> sendBrewingWindow(channel, player, windowId);
                     case ENCHANTING_TABLE -> sendEnchantingWindow(channel, player, windowId);
+                    case ANVIL -> sendAnvilWindow(channel, player, windowId);
                     default -> sendCraftingTableWindow(channel, player, windowId);
                 }
             });
@@ -1854,6 +1868,88 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         if (menu.revision() != enchantingRevisionSynced) {
             enchantingRevisionSynced = menu.revision();
             sendEnchantingWindowItems(channel, windowId, session);
+        }
+    }
+
+    /**
+     * Open Window (0x2D) for the anvil, followed by the authoritative
+     * 39-slot contents and the single initial Window Property (the repair
+     * cost — the reference {@code addListener} push of data id 0). Size 0 —
+     * the 3-arg packet form the reference's openMenu sends; the client
+     * builds the layout from the type string. Called on the tick thread
+     * by the engine's open dispatch.
+     */
+    private void sendAnvilWindow(Channel channel, PlayerSession player, int windowId) {
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        anvilRevisionSynced = -1;
+        anvilCostSent = Integer.MIN_VALUE;
+        ByteBuf out = Unpooled.buffer(48);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_OPEN_WINDOW);
+        out.writeByte(windowId);
+        ByteBufOps.writeString(out, Protocol18.ANVIL_WINDOW_TYPE);
+        ByteBufOps.writeString(out, Protocol18.ANVIL_WINDOW_TITLE);
+        out.writeByte(0); // the client builds the three-slot layout from the type
+        channel.writeAndFlush(out);
+        sendAnvilWindowItems(channel, windowId, player);
+        var menu = player.anvilMenu();
+        if (menu != null) {
+            int cost = menu.property(Protocol18.ANVIL_PROP_COST);
+            anvilCostSent = cost;
+            sendWindowProperty(channel, windowId, Protocol18.ANVIL_PROP_COST, cost);
+        }
+    }
+
+    /** The authoritative 39-slot Window Items (2 inputs + the output + 36 player). */
+    private void sendAnvilWindowItems(Channel channel, int windowId, PlayerSession player) {
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(96);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_WINDOW_ITEMS);
+        out.writeByte(windowId);
+        out.writeShort(Protocol18.ANVIL_WINDOW_SLOTS);
+        var menu = player.anvilMenu();
+        java.util.List<net.zaminmc.torch.item.ItemStack> inventory =
+                player == null ? java.util.List.of() : player.inventory().snapshot();
+        for (int wireSlot = 0; wireSlot < Protocol18.ANVIL_WINDOW_SLOTS; wireSlot++) {
+            net.zaminmc.torch.item.ItemStack stack;
+            if (wireSlot == 0) {
+                stack = menu == null ? net.zaminmc.torch.item.ItemStack.EMPTY : menu.input();
+            } else if (wireSlot == 1) {
+                stack = menu == null ? net.zaminmc.torch.item.ItemStack.EMPTY : menu.ingredient();
+            } else if (wireSlot == Protocol18.ANVIL_WIRE_SLOT_OUTPUT) {
+                stack = menu == null ? net.zaminmc.torch.item.ItemStack.EMPTY : menu.output();
+            } else if (wireSlot <= Protocol18.ANVIL_WIRE_SLOT_MAIN_LAST) {
+                stack = inventory.get(wireSlot + 6); // main inventory: engine 9-35
+            } else {
+                stack = inventory.get(wireSlot - Protocol18.ANVIL_WIRE_SLOT_HOTBAR_BASE);
+            }
+            writeSlot(out, stack);
+        }
+        channel.writeAndFlush(out);
+    }
+
+    /**
+     * Per-tick anvil view (engine fan-out to the open viewer): sends the
+     * repair-cost property when it moved and a full 39-slot Window Items
+     * resync when the menu's revision changed (any observable slot, cost,
+     * or output mutation bumps it). Tick-thread context.
+     */
+    void sendAnvilViewTick(Channel channel, int windowId,
+                           net.zaminmc.torch.server.enchantment.AnvilMenu menu) {
+        if (channel == null || !channel.isActive() || state != WireState.PLAY || menu == null) {
+            return;
+        }
+        int cost = menu.property(Protocol18.ANVIL_PROP_COST);
+        if (cost != anvilCostSent) {
+            anvilCostSent = cost;
+            sendWindowProperty(channel, windowId, Protocol18.ANVIL_PROP_COST, cost);
+        }
+        if (menu.revision() != anvilRevisionSynced) {
+            anvilRevisionSynced = menu.revision();
+            sendAnvilWindowItems(channel, windowId, session);
         }
     }
 
