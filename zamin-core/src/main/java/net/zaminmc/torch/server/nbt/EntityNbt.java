@@ -207,13 +207,14 @@ public final class EntityNbt {
         NbtOps.putBoolean(nbt, "CanPickUpLoot", mob.canPickUpLoot());
         NbtOps.putBoolean(nbt, "PersistenceRequired", mob.rawPersistent());
         List<Snbt.Tag> equipment = new ArrayList<>();
-        // [0] the held slot; [1..4] the armor family — the engine's
-        // no-mob-armor envelope writes the empty rows.
+        // [0] the held slot; [1..4] the armor family (VIII4 — the
+        // reference's five-entry Equipment list, writeNbt lines 255-262:
+        // every slot writes its compound, an empty slot the air row).
         equipment.add(Snbt.Tag.ofCompound(
                 ItemNbt.slotRows(0, mob.heldEquipment())));
         for (int slot = 1; slot <= 4; slot++) {
             equipment.add(Snbt.Tag.ofCompound(
-                    ItemNbt.slotRows(slot, null)));
+                    ItemNbt.slotRows(slot, mob.equipment(slot))));
         }
         NbtOps.putList(nbt, "Equipment", equipment);
         float[] chances = mob.inventoryDropChances();
@@ -610,20 +611,25 @@ public final class EntityNbt {
         mob.setPersistent(NbtOps.getBoolean(nbt, "PersistenceRequired"));
         List<Snbt.Tag> equipment = NbtOps.getList(nbt, "Equipment", Snbt.Tag.Type.COMPOUND);
         if (!equipment.isEmpty()) {
-            // [0] the held slot lands (the equipment-changed wake is the
-            // caller's); [1..4] the armor family parses but lands nowhere.
-            net.zaminmc.torch.item.ItemStack held =
-                    ItemNbt.read(NbtOps.listCompound(equipment, 0));
-            if (held != null) {
-                mob.setHeldEquipment(held);
-                if (equipmentChanged != null) {
-                    equipmentChanged.run();
+            // MobEntity.readCustomNbt lines 301-307: the list's own index
+            // IS the slot — the reference reads five, an empty row SETTING
+            // its slot back to empty (the strip over the spawn dice's own
+            // roll rides the same arm); a short list leaves the unlisted
+            // slots untouched. The wire's re-publish wake is the caller's
+            // (Slice 78b's convention) — it fires when any row landed or
+            // stripped, never for a null-over-null no-op.
+            boolean equipmentChangedNow = false;
+            for (int slot = 0; slot <= 4 && slot < equipment.size(); slot++) {
+                net.zaminmc.torch.item.ItemStack stack =
+                        ItemNbt.read(NbtOps.listCompound(equipment, slot));
+                if (stack == null && mob.equipment(slot) == null) {
+                    continue; // the empty row over an empty slot: nothing lands
                 }
-            } else {
-                mob.setHeldEquipment(null);
-                if (equipmentChanged != null) {
-                    equipmentChanged.run();
-                }
+                mob.setEquipment(slot, stack);
+                equipmentChangedNow = true;
+            }
+            if (equipmentChangedNow && equipmentChanged != null) {
+                equipmentChanged.run();
             }
         }
         // DropChances (contains("DropChances", 9) + getList(key, 5)):
