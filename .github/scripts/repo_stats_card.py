@@ -7,7 +7,7 @@ main so the public README presents a stable snapshot of development activity.
 
 import json
 import os
-import re
+import subprocess
 import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
@@ -60,6 +60,16 @@ def count_java_loc():
     return total, files
 
 
+def count_commits():
+    result = subprocess.run(
+        ["git", "rev-list", "--count", "HEAD"],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return int(result.stdout.strip())
+
+
 def format_number(value):
     return f"{value:,}"
 
@@ -87,16 +97,6 @@ def latest_release():
         return "No releases"
 
 
-def contributor_count():
-    try:
-        contributors = github_get("/contributors", {"per_page": 1, "anon": "true"})
-        # GitHub returns the pagination total in Link rather than the JSON body.
-        # A first-page count is still more useful than failing the whole card.
-        return len(contributors) if isinstance(contributors, list) else 0
-    except Exception:
-        return 0
-
-
 def text(x, y, value, size, weight="400", cls="body", anchor="start"):
     return (
         f'<text x="{x}" y="{y}" class="{cls}" font-size="{size}px" '
@@ -113,15 +113,14 @@ def metric(x, y, width, label, value, sublabel=""):
     ])
 
 
-def build_svg(loc, files, release, prs_open, prs_closed, issues_open, issues_closed, contributors):
+def build_svg(loc, files, release, commits, prs_open, prs_closed, issues_open, issues_closed):
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     release_display = release if len(release) <= 18 else release[:17] + "…"
-    contributor_display = format_number(contributors) if contributors else "—"
 
     parts = [
         '<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="424" viewBox="0 0 1200 424" role="img" aria-labelledby="title desc">',
         '<title id="title">ZaminTorch repository statistics</title>',
-        '<desc id="desc">Live repository statistics calculated from the develop branch and displayed from main.</desc>',
+        '<desc id="desc">Repository statistics calculated from the develop branch and displayed from main.</desc>',
         '<defs>',
         '  <linearGradient id="surface" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#f3f3f3"/></linearGradient>',
         '  <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#0078d4"/><stop offset="1" stop-color="#5b5fc7"/></linearGradient>',
@@ -142,7 +141,7 @@ def build_svg(loc, files, release, prs_open, prs_closed, issues_open, issues_clo
         metric(40, 126, 266, "Java LOC", format_number(loc), "tracked from develop"),
         metric(318, 126, 266, "Java files", format_number(files), "tracked modules only"),
         metric(596, 126, 266, "Latest release", release_display, "GitHub release"),
-        metric(874, 126, 266, "Contributors", contributor_display, "repository contributors"),
+        metric(874, 126, 266, "Commits", format_number(commits), "develop history"),
         metric(40, 254, 266, "Pull requests", format_number(prs_open), "open"),
         metric(318, 254, 266, "Pull requests", format_number(prs_closed), "closed"),
         metric(596, 254, 266, "Issues", format_number(issues_open), "open"),
@@ -155,22 +154,22 @@ def build_svg(loc, files, release, prs_open, prs_closed, issues_open, issues_clo
 
 def main():
     loc, files = count_java_loc()
+    commits = count_commits()
     prs_open = api_count("is:pr is:open")
     prs_closed = api_count("is:pr is:closed")
     issues_open = api_count("is:issue is:open")
     issues_closed = api_count("is:issue is:closed")
     release = latest_release()
-    contributors = contributor_count()
 
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT.write_text(
-        build_svg(loc, files, release, prs_open, prs_closed, issues_open, issues_closed, contributors),
+        build_svg(loc, files, release, commits, prs_open, prs_closed, issues_open, issues_closed),
         encoding="utf-8",
     )
-    print(f"Generated {OUTPUT}: {loc:,} Java LOC, {files:,} Java files")
+    print(f"Generated {OUTPUT}: {loc:,} Java LOC, {files:,} Java files, {commits:,} commits")
     print(f"PRs: {prs_open} open / {prs_closed} closed")
     print(f"Issues: {issues_open} open / {issues_closed} closed")
-    print(f"Latest release: {release}; contributors: {contributors}")
+    print(f"Latest release: {release}")
 
 
 if __name__ == "__main__":
