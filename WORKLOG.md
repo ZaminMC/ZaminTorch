@@ -10944,3 +10944,44 @@ RIDER): the engine's follow arms position MOB riders alone — the
 Surfer zombie riding a dropped diamond — both land, the follow
 anchors the rider at the item's cell, no isolation fires, the entity
 counter 9 -> 11); the anvil + riding sweeps 107/0.
+
+## 2026-10-21 — the engine-wide vanilla-grade audit + Wave VIII (the todo wave)
+
+The 2026-10-21 session's opening audit: every "rides its own slice"
+deferral in VANILLA_1_8_8_COMPATIBILITY.md re-verified against the
+actual engine code (grep-level proof per family), the stale rows
+retired (trapdoors LANDED Slice 39; mob CustomName + held equipment
+exist; bone meal's crops arm exists; snow/ice precipitation exists;
+pumpkin/melon stems grow) and the REAL gaps named as §29's Wave VIII —
+fourteen reference-driven rows:
+
+- VIII1 the rider side of the exotic mounts (a vehicle/projectile/
+  item RIDER — the follow arms position mob riders alone)
+- VIII2 the tree-growth family (saplings plant but NEVER grow — no
+  random-tick arm, no tree feature family beyond the generator's oaks)
+- VIII3 the leaf-decay family (leaves never decay — no DECAYABLE/
+  DISTANCE walk, no sapling/apple drops)
+- VIII4 the mob armor family (equipment slots 1..4 land nowhere — the
+  held slot alone carries; no armor points in the damage walk, no
+  per-type spawn dice, no armor on the Entity Equipment wire)
+- VIII5 the anvil GUI (no ANVIL ContainerKind — the repair + rename
+  window whole)
+- VIII6 the achievement family (no award sites, no parent chains, no
+  /achievement model, no 0x37 statistics wire for the rows)
+- VIII7 the bone-meal family's remaining arms (grass spread, sapling
+  instant-grow, mushroom giant-grow, stem instant-grow, cocoa)
+- VIII8 the mushroom spread (the random-tick walk — 1-in-25, the
+  light <= 12 gate)
+- VIII9 the zombie's attributes (door-break, reinforcements, leader)
+- VIII10 the village detection (the Village class, the iron-golem
+  spawn, the villager mating/reputation)
+- VIII11 the small persistence rows (the slime's size, the chest
+  minecart's contents)
+- VIII12 the written-book flow (MC|BSign, the written book, the craft)
+- VIII13 the piston's entity displacement (the flight-path push)
+- VIII14+ the demand-named backlog (the biome family — 7 of ~61; the
+  ambient sounds; the local difficulty; the item-frame comparator arm;
+  the arrow pickup flag)
+
+The plan committed as the session's checkpoint; the implementation
+walks the wave in order.
