@@ -11104,3 +11104,82 @@ armor, the anvil GUI), lands beside them on
 - **Evidence**: PistonEntityPushTest 4 (the flight-path push, the wall
   clamp — the crush setup, the item ride, the slime fling); the piston
   + region-boundary + entity-family sweeps green.
+## 2026-10-21 — the anvil GUI (Wave VIII's VIII5: the repair + rename window)
+
+The ledger's L263 row deferred the whole repair + rename window ("the
+AnvilMenu GUI rides its own slice (53b)") — the anvil block opened
+nothing; the reference's AnvilMenu now lands whole 1:1.
+
+**The menu** (server/enchantment/AnvilMenu — the transient-session-slot
+precedent the enchanting table set, per-open on the session):
+updateResult lines 116-279 transcribed whole — the prior-work
+RepairCost sum of BOTH inputs, the material arm (isDamageable &&
+isRepairable: the tool-tier rows wood/planks, stone/cobblestone,
+iron/gold ingots, diamond, the ArmorItem.Tier rows leather/chain-iron/
+iron/gold/diamond; the max/4-per-unit walk charging one level per unit
+with the minRepairItemCount consume band), the tool+tool durability
+merge (the remainders plus 12% of the maximum, clamped at zero, the +2
+surcharge), the enchantment merge (the same-level ++ rule, the
+different-level max, the per-conflict +1 penalties, the rarity-weight
+switch over the reference's own getType() band — 1 answers 8,
+2 answers 4, 5 answers 2, 10 answers 1, the default 0 — the enchanted
+book's max(1, weight/2) halving, the creative/book target bypasses),
+the rename arms (the +1 surcharge, the same-hover-name no-charge, and
+the strip-on-repair quirk: a custom-named input combined without a
+sent name loses the name and pays 1), the pure-rename 39 clamp, the
+too-expensive 40 gate, and the output's RepairCost doubling
+(max(both inputs) * 2 + 1).
+
+**The take** (canPickUp + onItemRemoved lines 62-93): the
+creative/XP/cost>0 gate, the addXp level payment (the session's own
+addXpLevels on the authoritative points model — the progress into the
+level kept, the below-zero zeroing, NO seed reroll: the anvil pays
+through addXp, the enchanting table's applyEnchantmentCosts stays its
+own), the input's wholesale consume, the material arm's shrink, and
+the 0.12 anvil-damage roll reading the player's own random through the
+AnvilSite seam — walking the existing twelve-state DAMAGE band (past 2
+the anvil breaks: air + the 1020 event), every other landing answering
+the 1021 use sound, a creative take never rolling. **The close** (the
+reference's inputs-only drop — the output is a server-side projection,
+never returned) and the per-tick isValid walk (the anvil must stand,
+the squared-64 band — the walk-away close dropping the inputs).
+**The rename channel**: MC|ItemName (the reference handler's shape —
+the invalid-character strip, the 30-char cap, only the open ANVIL
+window answering, the absent payload the blank form). **The wiring**:
+ContainerKind.ANVIL + WindowKind.ANVIL + the session's anvilMenu; the
+use arm over all twelve states (AnvilBlock.use's true-consumed open,
+firing the shared §27.7 container-open observation through the ONE
+seam with the ANVIL kind); the click routing (the inputs through the
+shared WindowClicks walk, the output take to the cursor and the
+quick-move with the XP publish, the player tail at wire 3-38, the
+number-key rejections per the enchanting family's own finding); the
+wire (Open Window minecraft:anvil size 0 — the reference openMenu's
+own 3-arg packet form — the 39-slot Window Items, the property-0
+repair cost on open + the revision-diffed per-tick view, the
+adapter's anvil-view fan).
+
+**The evidence**: AnvilGuiTest 13/0 — the ladder's exact numbers (the
+Sharpness rows 4 and 12, the doubled RepairCost 11), the material unit
+walk 200 -> 138 -> 76 -> 14 -> 0 with the five-ingot shrink, the
+tool+tool merges (100+100 -> 0, 240+240 -> 200), the merge/conflict/
+book-halving rows, the 40 gate + the creative bypass + the pure-rename
+39 clamp, the rename surcharge + the same-name no-charge + the strip
+quirk, the XP payment with the below-zero zeroing, the four roll forms
+pinned with a forced random (the miss's 1021, the progression, the
+past-2 break, the creative never-rolls), the inputs-only close, the
+twelve-state validity gate, the live open firing the shared
+observation with the ANVIL kind, the live repair-rename-take walking
+the whole ladder (cost 6 -> 7 with the rename, the level payment 10
+-> 3, both inputs consumed, the roll's band aftermath), and the
+walk-away close. The regressions: the container suite 15/0
+(ContainerApi/ContainerLock/ContainerOpenEvent/ContainerPersistence/
+ContainerSavePipeline/ContainerSaveSplit), the enchanting/enchantment
+suites 41/0, the window suites 4/0, the interaction suites 13/0, the
+use-law suites 31/0 (TwoStageUseLaw 12, PlacementHandlerGates 8,
+DigHandlerGates 8, SpawnProtection 3), the anvil family 61/0
+(AnvilBlocks/AnvilGui/ChunkReader/ImportAcceptance/LevelData/
+RegionFile), the protocol module FULL 114/0, the server-root batches
+393/0 (one documented load flake: RangedCombatAcceptanceTest's 21s
+arrow window, green 10/0 in isolation — the projectile path this
+slice never touches), the player batch 51/0, the bukkit adapter
+38/0, the api 19/0.
