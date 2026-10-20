@@ -94,6 +94,19 @@ import java.util.Objects;
  *                    (readProfile's shape) both parse here; the engine
  *                    writes the compound form back (the reference never
  *                    writes the row at all — it only reads)
+ * @param fireworks the tag's Fireworks compound (the firework-rocket
+ *                    family — FireworksItem/FireworksEntity's own row:
+ *                    {@code {Flight:b, Explosions:[...]}}): null = absent
+ *                    (the fuse roll's plain i=1 band — the reference's
+ *                    ctor line 39 {@code i += nbtcompound1.getByte(
+ *                    "Flight")} reads 0 for a missing row, so the default
+ *                    fuse is 10*i + rand(6) + rand(7) with i=1), else the
+ *                    whole boxed subtree carried verbatim (the Explosions
+ *                    list rides the synced slot-8 item to the client —
+ *                    the burst's own render reads it) and the Flight byte
+ *                    names the fuse band (each unit +10 ticks). Deeply
+ *                    immutable, the same boxed-tree convention as
+ *                    blockEntityTag
  */
 public record ItemStack(ItemType type, int count, int damage, String displayName,
                         Map<Integer, Integer> enchantments,
@@ -103,7 +116,8 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
                         List<String> canDestroy, List<String> canPlaceOn,
                         Integer displayColor,
                         List<AttributeModifier> attributeModifiers,
-                        SkullProfile skullOwner) {
+                        SkullProfile skullOwner,
+                        Map<String, Object> fireworks) {
 
     /** The wire's i16 damage/metadata ceiling (the historical field width). */
     public static final int MAX_DAMAGE = 0x7FFF;
@@ -130,7 +144,7 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
                     || unbreakable || repairCost != 0 || hideFlags != 0 || lore != null
                     || blockEntityTag != null || canDestroy != null || canPlaceOn != null
                     || displayColor != null || attributeModifiers != null
-                    || skullOwner != null) {
+                    || skullOwner != null || fireworks != null) {
                 throw new IllegalArgumentException("A stack without a type must be empty (count "
                         + count + ", damage " + damage + ")");
             }
@@ -170,6 +184,7 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
             canPlaceOn = sanitizeBlockKeyList(canPlaceOn);
             displayColor = displayColor == null ? null : displayColor;
             attributeModifiers = sanitizeAttributeModifiers(attributeModifiers);
+            fireworks = sanitizeFireworks(fireworks);
         }
     }
 
@@ -228,7 +243,21 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
                      List<AttributeModifier> attributeModifiers) {
         this(type, count, damage, displayName, enchantments, unbreakable,
                 repairCost, hideFlags, lore, blockEntityTag, canDestroy, canPlaceOn,
-                displayColor, attributeModifiers, null);
+                displayColor, attributeModifiers, null, null);
+    }
+
+    /** The pre-fireworks fifteen-arg shape (the compatibility constructor). */
+    public ItemStack(ItemType type, int count, int damage, String displayName,
+                     Map<Integer, Integer> enchantments, boolean unbreakable,
+                     int repairCost, int hideFlags, List<String> lore,
+                     Map<String, Object> blockEntityTag,
+                     List<String> canDestroy, List<String> canPlaceOn,
+                     Integer displayColor,
+                     List<AttributeModifier> attributeModifiers,
+                     SkullProfile skullOwner) {
+        this(type, count, damage, displayName, enchantments, unbreakable,
+                repairCost, hideFlags, lore, blockEntityTag, canDestroy, canPlaceOn,
+                displayColor, attributeModifiers, skullOwner, null);
     }
 
     /** A fresh stack with no damage and no custom name. */
@@ -269,7 +298,7 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         }
         return new ItemStack(type, newCount, damage, displayName, enchantments,
                 unbreakable, repairCost, hideFlags, lore, blockEntityTag, canDestroy, canPlaceOn,
-                displayColor, attributeModifiers, skullOwner);
+                displayColor, attributeModifiers, skullOwner, fireworks);
     }
 
     /**
@@ -285,7 +314,7 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         }
         return new ItemStack(type, count, newDamage, displayName, enchantments,
                 unbreakable, repairCost, hideFlags, lore, blockEntityTag, canDestroy, canPlaceOn,
-                displayColor, attributeModifiers, skullOwner);
+                displayColor, attributeModifiers, skullOwner, fireworks);
     }
 
     /** @return the same stack carrying {@code newName} (null clears the name). */
@@ -295,7 +324,7 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         }
         return new ItemStack(type, count, damage, newName, enchantments,
                 unbreakable, repairCost, hideFlags, lore, blockEntityTag, canDestroy, canPlaceOn,
-                displayColor, attributeModifiers, skullOwner);
+                displayColor, attributeModifiers, skullOwner, fireworks);
     }
 
     /**
@@ -308,7 +337,7 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         }
         return new ItemStack(type, count, damage, displayName, newEnchantments,
                 unbreakable, repairCost, hideFlags, lore, blockEntityTag, canDestroy, canPlaceOn,
-                displayColor, attributeModifiers, skullOwner);
+                displayColor, attributeModifiers, skullOwner, fireworks);
     }
 
     // ---------------------------------------------------------------
@@ -322,7 +351,7 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         }
         return new ItemStack(type, count, damage, displayName, enchantments,
                 flag, repairCost, hideFlags, lore, blockEntityTag,
-                canDestroy, canPlaceOn, displayColor, attributeModifiers, skullOwner);
+                canDestroy, canPlaceOn, displayColor, attributeModifiers, skullOwner, fireworks);
     }
 
     /** @return the same stack carrying the anvil's RepairCost (0 clears). */
@@ -332,7 +361,7 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         }
         return new ItemStack(type, count, damage, displayName, enchantments,
                 unbreakable, Math.max(0, cost), hideFlags, lore, blockEntityTag,
-                canDestroy, canPlaceOn, displayColor, attributeModifiers, skullOwner);
+                canDestroy, canPlaceOn, displayColor, attributeModifiers, skullOwner, fireworks);
     }
 
     /** @return the same stack carrying the tooltip's HideFlags mask (0 clears). */
@@ -342,7 +371,7 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         }
         return new ItemStack(type, count, damage, displayName, enchantments,
                 unbreakable, repairCost, Math.max(0, flags), lore, blockEntityTag,
-                canDestroy, canPlaceOn, displayColor, attributeModifiers, skullOwner);
+                canDestroy, canPlaceOn, displayColor, attributeModifiers, skullOwner, fireworks);
     }
 
     /** @return the same stack carrying the display.Lore lines (null clears). */
@@ -352,7 +381,7 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         }
         return new ItemStack(type, count, damage, displayName, enchantments,
                 unbreakable, repairCost, hideFlags, lines, blockEntityTag,
-                canDestroy, canPlaceOn, displayColor, attributeModifiers, skullOwner);
+                canDestroy, canPlaceOn, displayColor, attributeModifiers, skullOwner, fireworks);
     }
 
     /**
@@ -366,7 +395,7 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         }
         return new ItemStack(type, count, damage, displayName, enchantments,
                 unbreakable, repairCost, hideFlags, lore, rows, canDestroy, canPlaceOn,
-                displayColor, attributeModifiers, skullOwner);
+                displayColor, attributeModifiers, skullOwner, fireworks);
     }
 
     /**
@@ -379,7 +408,7 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         }
         return new ItemStack(type, count, damage, displayName, enchantments,
                 unbreakable, repairCost, hideFlags, lore, blockEntityTag,
-                keys, canPlaceOn, displayColor, attributeModifiers, skullOwner);
+                keys, canPlaceOn, displayColor, attributeModifiers, skullOwner, fireworks);
     }
 
     /**
@@ -392,7 +421,7 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         }
         return new ItemStack(type, count, damage, displayName, enchantments,
                 unbreakable, repairCost, hideFlags, lore, blockEntityTag,
-                canDestroy, keys, displayColor, attributeModifiers, skullOwner);
+                canDestroy, keys, displayColor, attributeModifiers, skullOwner, fireworks);
     }
 
     /**
@@ -422,7 +451,7 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         }
         return new ItemStack(type, count, damage, displayName, enchantments,
                 unbreakable, repairCost, hideFlags, lore, blockEntityTag,
-                canDestroy, canPlaceOn, displayColor, modifiers, skullOwner);
+                canDestroy, canPlaceOn, displayColor, modifiers, skullOwner, fireworks);
     }
 
     /**
@@ -436,7 +465,23 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         }
         return new ItemStack(type, count, damage, displayName, enchantments,
                 unbreakable, repairCost, hideFlags, lore, blockEntityTag,
-                canDestroy, canPlaceOn, displayColor, attributeModifiers, profile);
+                canDestroy, canPlaceOn, displayColor, attributeModifiers, profile, fireworks);
+    }
+
+    /**
+     * @return the same stack carrying the tag's Fireworks compound (the
+     *         firework-rocket family — the fuse band's Flight byte + the
+     *         Explosions list the client's burst reads; null or empty
+     *         clears to the plain i=1 band).
+     */
+    public ItemStack withFireworks(Map<String, Object> compound) {
+        if (isEmpty()) {
+            return this;
+        }
+        return new ItemStack(type, count, damage, displayName, enchantments,
+                unbreakable, repairCost, hideFlags, lore, blockEntityTag,
+                canDestroy, canPlaceOn, displayColor, attributeModifiers, skullOwner,
+                compound);
     }
 
     /**
@@ -514,7 +559,7 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         int taken = Math.min(Math.min(amount, count), type.maxStackSize());
         return new ItemStack(type, taken, damage, displayName, enchantments,
                 unbreakable, repairCost, hideFlags, lore, blockEntityTag, canDestroy, canPlaceOn,
-                displayColor, attributeModifiers, skullOwner);
+                displayColor, attributeModifiers, skullOwner, fireworks);
     }
 
     /**
@@ -545,7 +590,8 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
                 && Objects.equals(a.canPlaceOn, b.canPlaceOn)
                 && Objects.equals(a.displayColor, b.displayColor)
                 && Objects.equals(a.attributeModifiers, b.attributeModifiers)
-                && Objects.equals(a.skullOwner, b.skullOwner);
+                && Objects.equals(a.skullOwner, b.skullOwner)
+                && blockEntityTagEqual(a.fireworks, b.fireworks);
     }
 
     /**
@@ -567,16 +613,51 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
             if (other == null) {
                 return false; // a missing key (null values never exist in a sanitized tree)
             }
-            Object value = row.getValue();
-            if (value instanceof int[] array) {
-                if (!(other instanceof int[] otherArray) || !Arrays.equals(array, otherArray)) {
-                    return false;
-                }
-            } else if (!Objects.equals(value, other)) {
+            if (!boxedValueEqual(row.getValue(), other)) {
                 return false;
             }
         }
         return true;
+    }
+
+    /**
+     * One boxed NBT value's deep equality (the reference's whole-tag
+     * compare): unordered keys, ordered lists, deep values — and the
+     * {@code int[]} NBT INT_ARRAY compares by VALUE at every nesting
+     * depth (Java's array identity never suffices; the sanitizer's deep
+     * copies give every read its own instances).
+     */
+    private static boolean boxedValueEqual(Object a, Object b) {
+        if (a instanceof int[] array) {
+            return b instanceof int[] otherArray && Arrays.equals(array, otherArray);
+        }
+        if (a instanceof Map<?, ?> map) {
+            if (!(b instanceof Map<?, ?> otherMap) || map.size() != otherMap.size()) {
+                return false;
+            }
+            for (Map.Entry<?, ?> row : map.entrySet()) {
+                Object other = otherMap.get(row.getKey());
+                if (other == null) {
+                    return false;
+                }
+                if (!boxedValueEqual(row.getValue(), other)) {
+                    return false;
+                }
+            }
+            return true;
+        }
+        if (a instanceof List<?> list) {
+            if (!(b instanceof List<?> otherList) || list.size() != otherList.size()) {
+                return false;
+            }
+            for (int i = 0; i < list.size(); i++) {
+                if (!boxedValueEqual(list.get(i), otherList.get(i))) {
+                    return false;
+                }
+            }
+            return true;
+        }
+        return Objects.equals(a, b);
     }
 
     /**
@@ -643,6 +724,20 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
             return null;
         }
         return (Map<String, Object>) sanitizeBoxedValue(input, "BlockEntityTag");
+    }
+
+    /**
+     * The Fireworks compound's own sanitize (the firework-rocket family —
+     * {@code {Flight:b, Explosions:[...]}}): the same boxed-tree walk as
+     * BlockEntityTag, the row carried verbatim (the Flight byte names the
+     * fuse band, the Explosions ride the synced slot-8 item to the
+     * client's own burst render).
+     */
+    private static Map<String, Object> sanitizeFireworks(Map<String, Object> input) {
+        if (input == null || input.isEmpty()) {
+            return null;
+        }
+        return (Map<String, Object>) sanitizeBoxedValue(input, "Fireworks");
     }
 
     /**

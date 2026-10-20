@@ -300,4 +300,74 @@ class ItemTagRowsTest {
         // The two forms of the same head never merge with a bare stack.
         assertFalse(ItemStack.mergeable(named, ItemStack.of(head, 1)));
     }
+
+    /**
+     * THE FIREWORKS COMPOUND (the firework-rocket family — the reference's
+     * FireworksEntity ctor line 39 read family): {@code tag.Fireworks}
+     * with the Flight byte (the fuse band) + the Explosions list (the
+     * client's own burst render) round-trips through the model verbatim —
+     * the same boxed-tree convention as BlockEntityTag, the item layer
+     * never interpreting it — and the compound rides the merge identity
+     * (two differently-fused rockets never stack).
+     */
+    @Test
+    void theFireworksCompoundRoundTripsAndRidesTheMergeIdentity() {
+        // The write: the compound lands under tag.Fireworks with its own
+        // rows whole (the Flight byte, the Explosions list).
+        Map<String, Object> explosion = new LinkedHashMap<>();
+        explosion.put("Type", (byte) 1);
+        explosion.put("Colors", new int[] {11743532, 2437522});
+        Map<String, Object> compound = new LinkedHashMap<>();
+        compound.put("Flight", (byte) 2);
+        compound.put("Explosions", List.of(java.util.Collections.unmodifiableMap(explosion)));
+        ItemStack rocket = ItemStack.of(BuiltinItems.FIREWORKS, 3)
+                .withFireworks(java.util.Collections.unmodifiableMap(compound));
+
+        Map<String, Snbt.Tag> rows = new LinkedHashMap<>();
+        ItemNbt.write(rocket, rows);
+        Map<String, Snbt.Tag> tag = NbtOps.getCompound(rows, "tag");
+        assertFalse(tag.isEmpty(), "the tag compound rides the rocket");
+        Map<String, Snbt.Tag> written = NbtOps.getCompound(tag, "Fireworks");
+        assertFalse(written.isEmpty(), "the Fireworks compound rides the tag");
+        assertEquals(2, NbtOps.getByte(written, "Flight"), "the Flight byte rides whole");
+        List<Snbt.Tag> explosions = NbtOps.getList(written, "Explosions", Snbt.Tag.Type.COMPOUND);
+        assertEquals(1, explosions.size());
+        assertEquals(1, NbtOps.getByte(explosions.get(0).asCompound(), "Type"));
+
+        // The read: the compound lands back on the model verbatim.
+        ItemStack loaded = ItemNbt.read(rows);
+        assertNotNull(loaded.fireworks());
+        assertEquals((byte) 2, loaded.fireworks().get("Flight"));
+        assertEquals(1, ((List<?>) loaded.fireworks().get("Explosions")).size());
+
+        // The raw-rows read (the anvil import's own form): a tag carrying
+        // the Fireworks compound parses onto the model.
+        Map<String, Snbt.Tag> raw = new LinkedHashMap<>();
+        NbtOps.putString(raw, "id", "minecraft:fireworks");
+        Map<String, Snbt.Tag> rawTag = new LinkedHashMap<>();
+        NbtOps.putCompound(rawTag, "Fireworks", NbtOps.fromBoxed(compound));
+        NbtOps.putCompound(raw, "tag", rawTag);
+        ItemStack imported = ItemNbt.read(raw);
+        assertNotNull(imported.fireworks(), "the imported compound landed");
+        assertEquals((byte) 2, imported.fireworks().get("Flight"));
+
+        // The merge identity: a Flight-2 rocket never stacks with a bare
+        // one (the reference's whole-tag comparison), nor with a
+        // differently-fused one.
+        assertFalse(ItemStack.mergeable(rocket, ItemStack.of(BuiltinItems.FIREWORKS, 1)),
+                "a fused rocket never merges into a bare one");
+        Map<String, Object> otherCompound = new LinkedHashMap<>();
+        otherCompound.put("Flight", (byte) 3);
+        ItemStack other = ItemStack.of(BuiltinItems.FIREWORKS, 3)
+                .withFireworks(java.util.Collections.unmodifiableMap(otherCompound));
+        assertFalse(ItemStack.mergeable(rocket, other),
+                "two differently-fused rockets never merge");
+        Map<String, Object> sameCompound = new LinkedHashMap<>();
+        sameCompound.put("Flight", (byte) 2);
+        sameCompound.put("Explosions", List.of(java.util.Collections.unmodifiableMap(explosion)));
+        ItemStack same = ItemStack.of(BuiltinItems.FIREWORKS, 3)
+                .withFireworks(java.util.Collections.unmodifiableMap(sameCompound));
+        assertTrue(ItemStack.mergeable(rocket, same),
+                "two identically-fused rockets merge");
+    }
 }

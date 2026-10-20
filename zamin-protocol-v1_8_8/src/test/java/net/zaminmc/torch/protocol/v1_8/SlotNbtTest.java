@@ -275,4 +275,39 @@ class SlotNbtTest {
         SlotNbt.writeFor(out, bareStack());
         assertNull(SlotNbt.readBlockEntityTag(out));
     }
+
+    /**
+     * THE FIREWORKS COMPOUND ON THE WIRE (the firework-rocket family —
+     * the synced slot-8 item's own payload): {@code tag.Fireworks} rides
+     * the slot NBT as a nested compound through the same boxed-tree walk
+     * as BlockEntityTag — byte-exact against the layout the client's NBT
+     * parser walks (the Flight byte names the fuse band, the Explosions
+     * list the client's own burst render reads).
+     */
+    @Test
+    void theFireworksPayloadMatchesTheVanillaByteLayout() {
+        // {Fireworks:{Flight:1b}} alone on a bare stack.
+        ByteBuf out = Unpooled.buffer();
+        net.zaminmc.torch.item.ItemStack rocket = bareStack()
+                .withFireworks(java.util.Map.of("Flight", (byte) 1));
+        assertTrue(SlotNbt.hasPayload(rocket), "the fireworks compound produces NBT");
+        SlotNbt.writeFor(out, rocket);
+        byte[] bytes = new byte[out.readableBytes()];
+        out.readBytes(bytes);
+        // 10 (root) | len 0 (root name) | 10 (Fireworks) | len 9
+        // "Fireworks" | 1 (byte) | len 6 "Flight" | 0x01 (the value)
+        // | 0 (end Fireworks) | 0 (end root)
+        assertArrayEquals(new byte[] {
+                10, 0, 0,
+                10, 0, 9, 'F', 'i', 'r', 'e', 'w', 'o', 'r', 'k', 's',
+                1, 0, 6, 'F', 'l', 'i', 'g', 'h', 't', 1,
+                0,
+                0
+        }, bytes);
+        // The structural skip consumes it whole.
+        ByteBuf again = Unpooled.buffer();
+        SlotNbt.writeFor(again, rocket);
+        SlotNbt.skip(again);
+        assertEquals(0, again.readableBytes(), "the skip consumed the fireworks payload");
+    }
 }

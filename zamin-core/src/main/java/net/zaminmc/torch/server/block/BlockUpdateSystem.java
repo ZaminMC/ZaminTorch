@@ -370,12 +370,14 @@ public final class BlockUpdateSystem implements WorldChangeListener {
             return;
         }
         // The lily pad's support rule (Slice 42 — LilyPadBlock.canSurvive
-        // lines 51-57: the block below must be a WATER SOURCE — flowing
-        // water or a departing source pops the pad with its item).
+        // lines 51-57: the block below must be WATER at LEVEL 0 — the
+        // reference's own LEVEL-property consult, never the strict source
+        // id: the still-to-flowing conversion keeps a true source at
+        // LEVEL 0 in its flowing form, and the pad stays put on both).
         if (identifier.value().equals("waterlily")) {
             BlockType below = world.getBlock(position.offset(0, -1, 0));
-            if (FluidBlocks.isSource(below.identifier())
-                    && FluidBlocks.kindOf(below.identifier()) == FluidBlocks.Kind.WATER) {
+            if (FluidBlocks.kindOf(below.identifier()) == FluidBlocks.Kind.WATER
+                    && FluidBlocks.levelOf(below.identifier()) == 0) {
                 return; // supported
             }
             world.setBlock(position, world.airType());
