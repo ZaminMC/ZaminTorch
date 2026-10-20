@@ -24,6 +24,7 @@ public final class AnvilImportLedger {
     private final AtomicLong regionFilesIsolated = new AtomicLong();
     private final AtomicLong entitiesImported = new AtomicLong();
     private final AtomicLong tilesImported = new AtomicLong();
+    private final AtomicLong tileTicksImported = new AtomicLong();
 
     /** The per-reason isolation counts (the loud report's rows). */
     private final Map<String, AtomicLong> reasons = new TreeMap<>();
@@ -70,6 +71,11 @@ public final class AnvilImportLedger {
     /** One tile entity applied through the per-family read walk. */
     public void tileImported() {
         tilesImported.incrementAndGet();
+    }
+
+    /** One scheduled block tick landed through the import arm (the TileTicks row). */
+    public void tileTickImported() {
+        tileTicksImported.incrementAndGet();
     }
 
     /** One isolation, by its exact reason. */
@@ -129,6 +135,11 @@ public final class AnvilImportLedger {
         return tilesImported.get();
     }
 
+    /** @return how many scheduled block ticks the import arm landed. */
+    public long tileTicksImported() {
+        return tileTicksImported.get();
+    }
+
     /** @return the total of every isolation count across all reasons. */
     public long totalIsolated() {
         return reasons.values().stream().mapToLong(AtomicLong::get).sum();
@@ -147,7 +158,8 @@ public final class AnvilImportLedger {
                 .append(" (already loaded), unoccupied ").append(entriesUnoccupied.get())
                 .append(" entries, ").append(regionFilesOpened.get()).append(" region files")
                 .append(", ").append(entitiesImported.get()).append(" entities")
-                .append(", ").append(tilesImported.get()).append(" tile entities");
+                .append(", ").append(tilesImported.get()).append(" tile entities")
+                .append(", ").append(tileTicksImported.get()).append(" scheduled block ticks");
         if (regionFilesIsolated.get() > 0) {
             out.append(", ").append(regionFilesIsolated.get())
                     .append(" region files isolated");

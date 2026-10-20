@@ -408,4 +408,155 @@ class AnvilImportAcceptanceTest {
             server.shutdown(null);
         }
     }
+
+    @Test
+    void theImportedTileTicksLandOnTheScheduledSurface() throws Exception {
+        // The tile-ticks follow-up: the chunk's TileTicks rows land through
+        // the scheduled block-tick surface's own import arm
+        // (loadScheduledTick — the reference's createChunkFromNbt tail),
+        // each row resolved from its own name (the string form first, the
+        // legacy integer second), the AIR row carrying the surface's
+        // time-zero quirk, and the unresolvable families isolating LOUDLY.
+        Path vault = dir.resolve("ticks");
+        Map<String, Object> level = AnvilFixture.compound();
+        level.put("RandomSeed", 99L);
+        level.put("SpawnX", 8);
+        level.put("SpawnY", 70);
+        level.put("SpawnZ", 8);
+        level.put("LevelName", "Ticks");
+        level.put("Time", 180_000L);
+        level.put("DayTime", 18_000L);
+        AnvilFixture.writeLevelDat(vault, level);
+
+        // The scene in chunk (8,8) (outside the boot pregen): a stone floor, a fire family row (the
+        // string form, t=5 p=1), a lava row (the legacy integer form, id 11 (the lava source —
+        // the bare-id family),
+        // t=7 p=2), an AIR row (the surface's own time-zero quirk, t=9
+        // p=4), an unregistered name (the loud isolation), and a row with
+        // no position (the reference's required ints).
+        byte[] blocks = new byte[4096];
+        for (int z = 0; z < 16; z++) {
+            for (int x = 0; x < 16; x++) {
+                blocks[AnvilFixture.cellIndex(x, 0, z)] = 1; // stone floor
+            }
+        }
+        Map<String, Object> fireRow = AnvilFixture.compound();
+        fireRow.put("i", "minecraft:fire");
+        fireRow.put("x", 129);
+        fireRow.put("y", 2);
+        fireRow.put("z", 129);
+        fireRow.put("t", 5);
+        fireRow.put("p", 1);
+        Map<String, Object> lavaRow = AnvilFixture.compound();
+        lavaRow.put("i", 11); // the legacy integer form (Block.byId): the lava source id
+        lavaRow.put("x", 130);
+        lavaRow.put("y", 2);
+        lavaRow.put("z", 130);
+        lavaRow.put("t", 7);
+        lavaRow.put("p", 2);
+        Map<String, Object> airRow = AnvilFixture.compound();
+        airRow.put("i", "minecraft:air");
+        airRow.put("x", 131);
+        airRow.put("y", 2);
+        airRow.put("z", 131);
+        airRow.put("t", 9);
+        airRow.put("p", 4);
+        Map<String, Object> unknownRow = AnvilFixture.compound();
+        unknownRow.put("i", "minecraft:quantum_oscillator");
+        unknownRow.put("x", 132);
+        unknownRow.put("y", 2);
+        unknownRow.put("z", 132);
+        Map<String, Object> positionlessRow = AnvilFixture.compound();
+        positionlessRow.put("i", "minecraft:fire");
+
+        Map<String, Object> root = AnvilFixture.chunkNbt(8, 8,
+                List.of(AnvilFixture.section(0, blocks, new byte[2048], null)), null,
+                null, null);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> rootLevel = (Map<String, Object>) root.get("Level");
+        rootLevel.put("TileTicks", List.of(fireRow, lavaRow, airRow, unknownRow, positionlessRow));
+        byte[] chunkNbt = AnvilFixture.nbtDocument(root);
+        AnvilFixture.writeRegionFile(vault.resolve("region").resolve("r.0.0.mca"),
+                List.of(new AnvilFixture.Entry(8, 8, AnvilRegionFile.SCHEME_ZLIB,
+                        AnvilFixture.zlib(chunkNbt))));
+
+        List<String> console = new CopyOnWriteArrayList<>();
+        Handler capture = new Handler() {
+            @Override
+            public void publish(LogRecord record) {
+                console.add(record.getMessage());
+            }
+
+            @Override
+            public void flush() {
+            }
+
+            @Override
+            public void close() {
+            }
+        };
+        Logger consoleLogger = Logger.getLogger(
+                net.zaminmc.torch.server.chat.ConsoleSender.class.getName());
+        consoleLogger.addHandler(capture);
+        consoleLogger.setLevel(Level.INFO);
+        consoleLogger.setUseParentHandlers(false);
+
+        EngineConfig config = new EngineConfig("127.0.0.1", 0, "anvil-ticks", "it",
+                20, 2, 20, dir.toString());
+        EngineServer server = new EngineServer(config);
+        server.start();
+        try {
+            long ticksBefore = server.world().totalTicks();
+            server.consoleCommand("anvilimport " + vault);
+            long deadline = System.currentTimeMillis() + 20_000;
+            while (System.currentTimeMillis() < deadline
+                    && console.stream().noneMatch(line -> line.startsWith("Anvil import finished"))) {
+                Thread.sleep(50);
+            }
+            long ticksAfter = server.world().totalTicks();
+            String report = console.stream()
+                    .filter(line -> line.startsWith("Anvil import finished"))
+                    .findFirst().orElse(null);
+            assertNotNull(report, "the final report landed (console: " + console + ")");
+
+            // The three resolvable rows landed on the engine's own surface.
+            var surface = server.scheduledBlockTicks();
+            var fire = surface.pendingAt(
+                    new net.zaminmc.torch.block.BlockPosition(129, 2, 129),
+                    net.zaminmc.torch.util.Identifier.parse("minecraft:fire"));
+            assertTrue(fire != null, "the fire row landed (report: " + report + ")");
+            assertEquals(1, fire.priority());
+            assertTrue(fire.time() >= ticksBefore + 5 && fire.time() <= ticksAfter + 5,
+                    "the t=5 delay counts from the import moment's world time: " + fire.time());
+
+            var lava = surface.pendingAt(
+                    new net.zaminmc.torch.block.BlockPosition(130, 2, 130),
+                    server.world().blockRegistry()
+                            .lookup(AnvilBlockIds.resolve(11, 0).orElseThrow()).orElseThrow()
+                            .identifier());
+            assertTrue(lava != null, "the legacy integer row resolved through the id table (report: " + report + ")");
+            assertEquals(2, lava.priority());
+            assertTrue(lava.time() >= ticksBefore + 7 && lava.time() <= ticksAfter + 7,
+                    "the t=7 delay counts from the import moment's world time");
+
+            // The AIR row landed too (the report counts three) but cannot
+            // survive to this assertion: it carries time zero regardless of
+            // its t=9, so the very next fan pass pops it and the dispatch
+            // gate drops it (the stone floor is not air) — the reference's
+            // own walk. Its landing shape (time zero, the always-priority)
+            // is pinned by the surface's own unit test.
+
+            // The report's own rows: 3 ticks imported, the two loud refusals.
+            assertTrue(report.contains("3 scheduled block ticks"), "the report: " + report);
+            assertTrue(report.contains("tick row's block name not registered"),
+                    "the unregistered name isolated loudly: " + report);
+            assertTrue(report.contains("tick minecraft:quantum_oscillator"),
+                    "the isolation names the row's own id: " + report);
+            assertTrue(report.contains("tick row missing its x/y/z position"),
+                    "the positionless row isolated loudly: " + report);
+        } finally {
+            consoleLogger.removeHandler(capture);
+            server.shutdown(null);
+        }
+    }
 }

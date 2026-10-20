@@ -52,22 +52,25 @@ import java.util.Map;
  * the engine has no block for imports as air with a counted unknown
  * state — never a crash, never a silent substitute.</p>
  *
- * <p><b>The carried content rows (the entities/tiles follow-up):</b>
- * the {@code Entities} and {@code TileEntities} lists ride the result
- * RAW — the reader does not interpret them (the session's content seams
- * apply them after the chunk installs, the reference's own order:
- * blocks, then tiles, then entities); {@code TileTicks} stays a counted
- * not-imported row (no scheduled-tick surface — the loud answer, not a
- * silent drop). The rejection gates and every block-level quirk are
- * unchanged.</p>
+ * <p><b>The carried content rows (the entities/tiles/tile-ticks
+ * follow-up):</b> the {@code Entities}, {@code TileEntities}, and
+ * {@code TileTicks} lists ride the result RAW — the reader does not
+ * interpret them (the session's content seams apply them after the
+ * chunk installs, the reference's own order: blocks, then tiles, then
+ * the tile ticks, then entities); the tile-tick rows land through the
+ * engine's own scheduled block-tick surface ({@code loadScheduledTick}
+ * — the reference's import arm). The rejection gates and every
+ * block-level quirk are unchanged.</p>
  *
  * <p><b>The ignored rows (the used-vs-ignored ledger):</b>
  * {@code BlockLight}/{@code SkyLight} are NOT imported — light is derived
  * state the engine recomputes at publication (the install hook's initial
  * compute), exactly like generated chunks; {@code HeightMap} is derived
- * state the engine walks on demand; {@code Entities}/{@code
- * TileEntities}/{@code TileTicks} are present-but-unimported in this
- * slice (each presence counted in the ledger's not-imported rows). The
+ * state the engine walks on demand. The
+ * {@code Entities}/{@code TileEntities}/{@code TileTicks} lists are
+ * carried for the seams (each counted by the ledger's imported rows);
+ * a blocks-only session (no content seams) counts them as
+ * not-imported — the loud answer, never a silent drop. The
  * level rows ({@code LastUpdate}, {@code TerrainPopulated}, {@code
  * LightPopulated}, {@code InhabitedTime}) are generation bookkeeping with
  * no engine surface yet.</p>
@@ -81,13 +84,15 @@ public final class AnvilChunkReader {
     /**
      * The transformed chunk (detached, ready for installGenerated) plus
      * the RAW content rows the session applies after the install: the
-     * entities and tile entities as compound trees (the reader's own
-     * contract: it never interprets them — the seams do, each with its
-     * own §31.6 isolation).
+     * entities and tile entities as compound trees, the scheduled tile
+     * ticks as compound rows (the reader's own contract: it never
+     * interprets them — the seams do, each with its own §31.6
+     * isolation).
      */
     public record ReadChunk(EngineChunk chunk,
                             List<Map<String, Snbt.Tag>> entities,
-                            List<Map<String, Snbt.Tag>> tileEntities) implements ReadResult {
+                            List<Map<String, Snbt.Tag>> tileEntities,
+                            List<Map<String, Snbt.Tag>> tileTicks) implements ReadResult {
     }
 
     /** The chunk-level refusal (the reference's own two gates). */
@@ -147,9 +152,8 @@ public final class AnvilChunkReader {
         List<PendingUpper> pendingUppers = new ArrayList<>();
 
         // The carried content rows (the reference's own order: the blocks
-        // walk first, the tiles and entities apply after the install —
-        // AnvilWorldImport's seams). TileTicks stays a counted not-imported
-        // row (no scheduled-tick surface).
+        // walk first, the tiles, the tile ticks, and the entities apply
+        // after the install — AnvilWorldImport's seams).
         List<Map<String, Snbt.Tag>> entities = new ArrayList<>();
         if (NbtOps.contains(level, "Entities", Snbt.Tag.Type.LIST)) {
             List<Snbt.Tag> rows = NbtOps.getList(level, "Entities", Snbt.Tag.Type.COMPOUND);
@@ -164,9 +168,12 @@ public final class AnvilChunkReader {
                 tileEntities.add(NbtOps.listCompound(rows, i));
             }
         }
+        List<Map<String, Snbt.Tag>> tileTicks = new ArrayList<>();
         if (NbtOps.contains(level, "TileTicks", Snbt.Tag.Type.LIST)) {
-            ledger.ignored("TileTicks",
-                    NbtOps.getList(level, "TileTicks", Snbt.Tag.Type.COMPOUND).size());
+            List<Snbt.Tag> rows = NbtOps.getList(level, "TileTicks", Snbt.Tag.Type.COMPOUND);
+            for (int i = 0; i < rows.size(); i++) {
+                tileTicks.add(NbtOps.listCompound(rows, i));
+            }
         }
 
         List<Snbt.Tag> sections = NbtOps.getList(level, "Sections", Snbt.Tag.Type.COMPOUND);
@@ -203,7 +210,7 @@ public final class AnvilChunkReader {
             }
         }
 
-        return new ReadChunk(chunk, entities, tileEntities);
+        return new ReadChunk(chunk, entities, tileEntities, tileTicks);
     }
 
     /** One section's walk (the reference's per-section loop, isolated). */
