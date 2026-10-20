@@ -10863,3 +10863,20 @@ round trip, the raw-rows import form, the merge identity's three
 forms); SlotNbtTest +1 (the byte-exact wire layout + the structural
 skip); PlacementHandlerGatesAcceptanceTest 8/0 — the lily arm GREEN
 again, the pre-existing develop break repaired.
+
+**The full-suite record (the package sweeps, all green)**: the
+core module's ten batches (the nbt/fireworks/projectile 147, the
+block family 180, the redstone/interaction/world 207, the entity
+family 410, the root package's three batches 130/123/129, the
+armorstand-through-endereye 257, the event-through-plugin 208, the
+potion-through-weather 114 — 1905 tests, 0 failures) + the protocol
+module (114/0) + the bukkit adapter (38/0) + the launcher (47/0) +
+the api (19/0). THE BATCH'S OWN FLAKE REPAIRED: SpawnEggTest's
+unknown-id arm counted the GLOBAL mob census around its use — the
+natural spawn cycle (NaturalSpawnSystem) moves that count under load
+(the batch saw 8 mobs at the snapshot and 12 more land inside the
+150ms window); the assert now counts the mobs inside the 16-block
+ring around the use point (inside the spawn system's own 24-block
+keep-out law — natural packs never enter it, so the ring's count can
+only move when the EGG's own spawn lands one), the test's own
+intent, 6/0 re-run.
