@@ -607,12 +607,21 @@ class AnvilImportAcceptanceTest {
                             && mob.customName().equals("Chain Zombie"))
                     .toList();
             assertEquals(1, chainZombies.size(), "the rider imported through the /summon walk");
-            assertTrue(report.contains("riding chain not imported"),
-                    "the chain isolated loudly: " + report);
-            assertTrue(report.contains("no mob-rider surface"),
-                    "the isolation names the missing surfaces: " + report);
-            assertTrue(report.contains("rides MinecartRideable"),
-                    "the isolation names the mount: " + report);
+            // THE CHAIN LANDED (the reference's AnvilChunkStorage 327-341
+            // walk): the mount imported through its family's own arm, then
+            // the head took the seat — the cart carries the zombie as its
+            // passenger (the non-session rider's follow + attach surfaces
+            // the §22 demand-named row).
+            var chainCarts = server.vehicles().all().stream()
+                    .filter(v -> v instanceof net.zaminmc.torch.server.entity.vehicle.MinecartEntity)
+                    .toList();
+            assertEquals(1, chainCarts.size(), "the chain's mount imported through the vehicle arm");
+            assertTrue(chainCarts.get(0).hasPassenger(),
+                    "the chain seated the head on the mount");
+            assertEquals(chainZombies.get(0).entityId(), chainCarts.get(0).passengerId(),
+                    "the cart's passenger is the chain zombie (the engine id)");
+            assertFalse(report.contains("riding chain not imported"),
+                    "the chain landed, never isolated: " + report);
 
             // The counted notes: the arrow's unlanded family rows, the
             // frame's ItemDropChance, the orb's Health, and the
@@ -626,9 +635,10 @@ class AnvilImportAcceptanceTest {
             assertTrue(report.contains("entity EyeOfEnderSignal"),
                     "the eye of ender isolated by name: " + report);
 
-            // The report's own counter: 6 entities imported (the arrow,
-            // the snowball, the painting, the frame, the orb, the rider).
-            assertTrue(report.contains("6 entities"), "the entity counter: " + report);
+            // The report's own counter: 7 entities imported (the arrow,
+            // the snowball, the painting, the frame, the orb, the rider,
+            // and the chain's cart — the eye of ender isolates).
+            assertTrue(report.contains("7 entities"), "the entity counter: " + report);
         } finally {
             consoleLogger.removeHandler(capture);
             server.shutdown(null);
@@ -1000,14 +1010,27 @@ class AnvilImportAcceptanceTest {
                     "the 12.0 component read as 0 (the reference's clamp)");
 
             // The report's own rows: the riding chain (the cadence rows
-            // LANDED with the Wave VI per-cart surface — no note).
-            assertTrue(report.contains("9 entities"), "the report: " + report);
+            // LANDED with the Wave VI per-cart surface — no note); the
+            // chain's own note names the CART-as-rider family gap (the
+            // engine's follow arms carry sessions and mobs alone — the
+            // reference would position a seated cart every tick; the
+            // §31.6 counted refusal names it instead).
+            assertTrue(report.contains("10 entities"), "the report: " + report);
             assertFalse(report.contains("spawner cart's cadence"),
                     "the cadence rows landed, never isolated: " + report);
             assertTrue(report.contains("riding chain not imported"),
                     "the ridden cart's chain isolated loudly: " + report);
-            assertTrue(report.contains("entity MinecartRideable rides Zombie"),
+            assertTrue(report.contains("the rider family has no seated-follow surface"),
+                    "the isolation names the missing follow surface: " + report);
+            assertTrue(report.contains("entity rides Zombie"),
                     "the chain names the pair: " + report);
+            // The chain's mount still landed as its own row (the reference
+            // creates and adds the mount whether or not the seating can
+            // follow): the zombie is in the world.
+            assertEquals(1, server.mobs().all().stream()
+                            .filter(mob -> mob.position().x() == 133.5)
+                            .count(),
+                    "the chain's zombie mount imported");
         } finally {
             consoleLogger.removeHandler(capture);
             server.shutdown(null);

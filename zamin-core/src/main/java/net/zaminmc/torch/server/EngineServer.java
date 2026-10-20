@@ -2358,8 +2358,14 @@ public final class EngineServer implements Server, EngineBridge {
                     profiled("fallingBlocks", falling::tick);           // §470: falling physics + landings
                     profiled("projectiles", projectileManager::tick); // ranged combat physics
                     profiled("vehicles", vehicles::tick);          // the boats and minecarts
-                    profiled("vehicleRiders", () -> tickVehicleRiders(vehicles));
-                    profiled("mobRiders", this::tickMobRiders);          // the horse/pig seats
+                    // (The rider-follow arms ride AFTER the mobs section:
+                    // the reference's rideTick (Entity.java lines 1297-1349)
+                    // runs the rider's own tick first — {velocity zeroing;
+                    // this.tick(); vehicle.updateRiderPositon()} — so the
+                    // seat anchor lands AFTER whatever the rider's own walk
+                    // did that tick. The engine's systems fan carries the
+                    // same order: vehicles move, the mobs tick, then the
+                    // seats re-anchor.)
                     profiled("fishing", this::tickFishing);            // the bobbers' float + bite window (Slice 67)
                     profiled("furnaces", () -> furnaceManager.tick(world, itemEntities));
                     profiled("chests", () -> chestManager.tick(world));
@@ -2377,6 +2383,8 @@ public final class EngineServer implements Server, EngineBridge {
                     profiled("itemEntities", () -> itemEntities.tick(players.all()));
                     profiled("experienceOrbs", () -> experienceOrbs.tick(players.all())); // the XP bodies pay out
                     profiled("mobs", () -> mobs.tick(players.all(), world.timeOfDay()));
+                    profiled("vehicleRiders", () -> tickVehicleRiders(vehicles)); // the seat anchor AFTER the mobs' own walk
+                    profiled("mobRiders", this::tickMobRiders);          // the horse/pig seats (the same law)
                     // The weather cycle (Slice 20b — the tick walk before
                     // the spawns: the reference's own tick order, the
                     // gradient shaving the same tick's ambient darkness).
@@ -13612,7 +13620,8 @@ public final class EngineServer implements Server, EngineBridge {
                               PlayerSession rider);
 
         void onVehicleDismounted(net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle,
-                                 PlayerSession rider);
+                                 int riderEngineId, PlayerSession rider,
+                                 net.zaminmc.torch.util.Position riderExit);
 
         void onVehicleBroken(net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle);
 
@@ -13756,9 +13765,20 @@ public final class EngineServer implements Server, EngineBridge {
                 // the wire listener's position-and-look).
                 rider.applyMovement(riderExit, rider.rotation(), true);
                 rider.setGraceTicks(40);
+            } else {
+                // The non-session rider's exit (the reference's startRiding
+                // dismount arm, Entity.java lines 1374-1380: the body lands
+                // at the vehicle-top hop — the engine's own exit-beside
+                // convention the manager computed) — the position moves
+                // outright, the wire re-anchors through the move tracker.
+                net.zaminmc.torch.server.entity.MobEntity mobRider =
+                        mobManager.byId(riderEngineId);
+                if (mobRider != null && !mobRider.dead()) {
+                    mobRider.teleport(riderExit);
+                }
             }
             for (VehicleListener listener : vehicleListeners) {
-                listener.onVehicleDismounted(vehicle, rider);
+                listener.onVehicleDismounted(vehicle, riderEngineId, rider, riderExit);
             }
         }
 
@@ -13860,13 +13880,34 @@ public final class EngineServer implements Server, EngineBridge {
                 continue;
             }
             PlayerSession rider = sessionByEngineId(vehicle.passengerId());
-            if (rider == null || rider.dead()) {
+            if (rider != null && !rider.dead()) {
+                if (vehicle instanceof net.zaminmc.torch.server.entity.vehicle.BoatEntity boat) {
+                    boat.followRiderLook(rider.rotation());
+                }
+                // The seat anchor (the reference's updateRiderPositon line
+                // 1353): the player's body lands at the seat law — the
+                // mount height plus the rider's own -035 (PlayerEntity's
+                // getRideHeight line 937) — never the vehicle's flat
+                // origin (the boat's -0.3 with its 0.4 forward offset, the
+                // cart's flush 0.0).
+                rider.applyMovement(
+                        vehicle.seatAnchor(net.zaminmc.torch.server.entity.vehicle.RiderSeatLaw.PLAYER_RIDE_HEIGHT),
+                        rider.rotation(), vehicle.onGround());
                 continue;
             }
-            if (vehicle instanceof net.zaminmc.torch.server.entity.vehicle.BoatEntity boat) {
-                boat.followRiderLook(rider.rotation());
+            // The non-session rider follow (the reference's rideTick →
+            // updateRiderPositon, the World dispatch at World.java line
+            // 1357): the seated mob's body anchors at the same seat law
+            // each tick — the position moves outright (MobEntity.teleport,
+            // the same plain-set surface spreadplayers' landing uses).
+            net.zaminmc.torch.server.entity.MobEntity mobRider =
+                    mobManager.byId(vehicle.passengerId());
+            if (mobRider == null || mobRider.dead()) {
+                continue;
             }
-            rider.applyMovement(vehicle.position(), rider.rotation(), vehicle.onGround());
+            mobRider.teleport(vehicle.seatAnchor(
+                    net.zaminmc.torch.server.entity.vehicle.RiderSeatLaw.riderRideHeight(
+                            mobRider.type(), mobRider.isBaby())));
         }
     }
 
@@ -13901,12 +13942,31 @@ public final class EngineServer implements Server, EngineBridge {
                 continue;
             }
             PlayerSession rider = sessionByEngineId(mob.riderId());
-            if (rider == null || rider.dead()) {
+            if (rider != null && !rider.dead()) {
+                // The mob seat carries the rider's own offset too (the
+                // reference's updateRiderPositon: mount height + the
+                // rider's getRideHeight — PlayerEntity line 937's -0.35
+                // joins the pig/horse seat height).
+                Position seat = new Position(mob.position().x(),
+                        mob.position().y() + mob.seatHeight()
+                                + net.zaminmc.torch.server.entity.vehicle.RiderSeatLaw.PLAYER_RIDE_HEIGHT,
+                        mob.position().z());
+                rider.applyMovement(seat, rider.rotation(), mob.onGround());
+                continue;
+            }
+            // The mob-on-mob follow (the same law as the vehicle seat): a
+            // seated mob's body anchors at the mount's seat height plus
+            // its own per-family offset, the position moving outright.
+            MobEntity mobRider = mobManager.byId(mob.riderId());
+            if (mobRider == null || mobRider.dead()) {
                 continue;
             }
             Position seat = new Position(mob.position().x(),
-                    mob.position().y() + mob.seatHeight(), mob.position().z());
-            rider.applyMovement(seat, rider.rotation(), mob.onGround());
+                    mob.position().y() + mob.seatHeight()
+                            + net.zaminmc.torch.server.entity.vehicle.RiderSeatLaw.riderRideHeight(
+                                    mobRider.type(), mobRider.isBaby()),
+                    mob.position().z());
+            mobRider.teleport(seat);
         }
     }
 

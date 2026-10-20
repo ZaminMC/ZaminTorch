@@ -569,12 +569,23 @@ public final class V18ProtocolServer implements ProtocolAdapter {
             public void onMobMounted(net.zaminmc.torch.server.entity.MobEntity mob,
                                      int riderEngineId) {
                 net.zaminmc.torch.server.player.PlayerSession rider = server.playerByEngineId(riderEngineId);
-                if (rider == null) {
+                if (rider != null) {
+                    for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                        connection.sendAttachEntity(rider, mob.entityId(), true);
+                        connection.sendPostureMetadata(rider); // the riding flag
+                    }
+                    return;
+                }
+                // The non-session rider (a seated mob — the anvil chain's
+                // shape): the attach publication carries the mob's own
+                // global wire id (the raw-id form, the mobs' spawn space).
+                net.zaminmc.torch.server.entity.MobEntity mobRider =
+                        server.mobs().byId(riderEngineId);
+                if (mobRider == null) {
                     return;
                 }
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
-                    connection.sendAttachEntity(rider, mob.entityId(), true);
-                    connection.sendPostureMetadata(rider); // the riding flag
+                    connection.sendAttachEntity(mobRider.entityId(), mob.entityId(), true);
                 }
             }
 
@@ -583,15 +594,23 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                                         int riderEngineId,
                                         net.zaminmc.torch.util.Position exit, boolean thrown) {
                 net.zaminmc.torch.server.player.PlayerSession rider = server.playerByEngineId(riderEngineId);
-                if (rider == null) {
+                if (rider != null) {
+                    for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                        connection.sendAttachEntity(rider, mob.entityId(), false);
+                        connection.sendPostureMetadata(rider);
+                    }
+                    // The ex-rider's own client re-anchors at the exit point.
+                    rider.link().resyncPosition();
+                    return;
+                }
+                net.zaminmc.torch.server.entity.MobEntity mobRider =
+                        server.mobs().byId(riderEngineId);
+                if (mobRider == null) {
                     return;
                 }
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
-                    connection.sendAttachEntity(rider, mob.entityId(), false);
-                    connection.sendPostureMetadata(rider);
+                    connection.sendAttachEntity(mobRider.entityId(), mob.entityId(), false);
                 }
-                // The ex-rider's own client re-anchors at the exit point.
-                rider.link().resyncPosition();
             }
 
             @Override
@@ -1394,27 +1413,57 @@ public final class V18ProtocolServer implements ProtocolAdapter {
             @Override
             public void onVehicleMounted(net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle,
                                          PlayerSession rider) {
-                if (rider == null) {
+                if (rider != null) {
+                    for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                        connection.sendAttachEntity(rider, vehicle.entityId(), true);
+                        connection.sendPostureMetadata(rider); // the riding flag
+                    }
+                    return;
+                }
+                // The non-session rider (a seated mob — the §31.6 riding
+                // chain's shape): the attach publication carries the mob's
+                // own global wire id (the raw-id form, the same space the
+                // mob's spawn publication uses).
+                net.zaminmc.torch.server.entity.MobEntity mobRider = null;
+                if (engine != null && engine.mobs() != null) {
+                    mobRider = engine.mobs().byId(vehicle.passengerId());
+                }
+                if (mobRider == null) {
                     return;
                 }
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
-                    connection.sendAttachEntity(rider, vehicle.entityId(), true);
-                    connection.sendPostureMetadata(rider); // the riding flag
+                    connection.sendAttachEntity(mobRider.entityId(), vehicle.entityId(), true);
                 }
             }
 
             @Override
             public void onVehicleDismounted(net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle,
-                                            PlayerSession rider) {
-                if (rider == null) {
+                                            int riderEngineId, PlayerSession rider,
+                                            net.zaminmc.torch.util.Position riderExit) {
+                if (rider != null) {
+                    for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                        connection.sendAttachEntity(rider, vehicle.entityId(), false);
+                        connection.sendPostureMetadata(rider);
+                    }
+                    // The ex-rider's own client re-anchors at the exit point.
+                    rider.link().resyncPosition();
+                    return;
+                }
+                // The non-session ex-rider (a seated mob): the detach
+                // publication carries the mob's own global wire id — the
+                // id arrives in the signature (the seat is already open by
+                // the listener's own convention, the manager captured the
+                // rider before the clear).
+                net.zaminmc.torch.server.entity.MobEntity mobRider = null;
+                if (engine != null && engine.mobs() != null) {
+                    mobRider = engine.mobs().byId(riderEngineId);
+                }
+                if (mobRider == null) {
                     return;
                 }
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
-                    connection.sendAttachEntity(rider, vehicle.entityId(), false);
-                    connection.sendPostureMetadata(rider);
+                    connection.sendAttachEntity(mobRider.entityId(), vehicle.entityId(), false);
                 }
-                // The ex-rider's own client re-anchors at the exit point.
-                rider.link().resyncPosition();
             }
 
             @Override
