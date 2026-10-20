@@ -58,11 +58,25 @@ public final class FireworksEntity {
 
     FireworksEntity(int entityId, Position position, double vx, double vy, double vz,
                     int maxAge, ItemStack payload) {
+        this(entityId, position, vx, vy, vz, 0, maxAge, payload);
+    }
+
+    /**
+     * The restored form (the anvil load path — the reference's
+     * readCustomNbt, FireworksEntity lines 151-163): the SAVED Life
+     * resumes the age clock (the loaded rocket bursts after the
+     * REMAINING ticks, never a fresh roll), the LifeTime row carries the
+     * whole fuse, and the loaded Motion lands as-is (the reference's
+     * load never re-derives the launch drift).
+     */
+    FireworksEntity(int entityId, Position position, double vx, double vy, double vz,
+                    int restoredAge, int maxAge, ItemStack payload) {
         this.entityId = entityId;
         this.position = position;
         this.vx = vx;
         this.vy = vy;
         this.vz = vz;
+        this.age = restoredAge;
         this.maxAge = maxAge;
         this.payload = payload;
     }
