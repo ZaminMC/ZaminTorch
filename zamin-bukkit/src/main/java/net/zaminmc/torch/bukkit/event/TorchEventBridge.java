@@ -1,19 +1,30 @@
 package net.zaminmc.torch.bukkit.event;
 
 import net.zaminmc.torch.bukkit.BukkitAdapter;
+import net.zaminmc.torch.bukkit.world.TorchWorld;
 import net.zaminmc.torch.server.player.PlayerSession;
 
+import org.bukkit.Material;
 import org.bukkit.block.Block;
+import org.bukkit.block.BlockFace;
 import org.bukkit.entity.Player;
 import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.block.BlockFromToEvent;
+import org.bukkit.event.block.BlockPistonExtendEvent;
+import org.bukkit.event.block.BlockPistonRetractEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
+import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.event.inventory.FurnaceBurnEvent;
+import org.bukkit.event.inventory.FurnaceSmeltEvent;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerChatEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.ItemStack;
 
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.logging.Level;
 
@@ -59,6 +70,60 @@ import java.util.logging.Level;
  * 1.8.8 server's own recipients-untouched condition is not reproducible
  * from the API artifact — the bridge's documented translation).</p>
  *
+ * <p><b>The second group's cancellation table (this slice, §28.7):</b></p>
+ * <ul>
+ *   <li>PlayerDamage → EntityDamageEvent (the player arm) — cancellation
+ *       SUPPORTED both ways; the mutable amount maps both ways too (the
+ *       legacy {@code setDamage} drives the engine's own mutable
+ *       {@code amount}).</li>
+ *   <li>PlayerDeath → PlayerDeathEvent — the legacy form is NOT cancellable
+ *       (the 1.8.8 shape kept); the death message is mutable and APPLIED
+ *       (the engine-owned native arm), and the legacy form's own
+ *       {@code setKeepInventory(true)} maps onto the native cancel arm
+ *       (the engine's keepInventory gate — the XP also stays, the recorded
+ *       bundle divergence, logged). The {@code getDrops()} list answers an
+ *       UNMODIFIABLE EMPTY view (the adapter models no engine-inventory
+ *       view — the native event fires pre-scatter by the engine's own
+ *       design, so no honest drop list exists; a mutating plugin hits the
+ *       loud refusal); {@code droppedExp} is readable-not-applied (the
+ *       engine's scatter math is authoritative).</li>
+ *   <li>FluidFlow → BlockFromToEvent — pre-commit cancellation SUPPORTED
+ *       both ways (the engine's own per-cell flow gate).</li>
+ *   <li>PistonMove → BlockPistonExtendEvent / BlockPistonRetractEvent —
+ *       pre-movement cancellation SUPPORTED both ways (the whole movement
+ *       cancels, the engine's own contract). The native event's richer
+ *       {@code brokenCells} row has no 1.8.8 form (the §27.9 note: the
+ *       native API keeps the capability, the legacy type carries no row).</li>
+ *   <li>SignChange → SignChangeEvent — pre-commit cancellation SUPPORTED
+ *       both ways; the four lines are mutable and APPLIED (the engine's
+ *       own rewrite arm).</li>
+ *   <li>FurnaceBurn → FurnaceBurnEvent — pre-commit cancellation SUPPORTED
+ *       both ways; {@code setBurnTime} is readable-not-applied (the
+ *       native event carries the fuel's own value read-only — the
+ *       divergence logged when a plugin rewrites it).</li>
+ *   <li>FurnaceSmelt → FurnaceSmeltEvent — pre-commit cancellation SUPPORTED
+ *       both ways; {@code setResult} is readable-not-applied (the native
+ *       event carries the engine's recipe answer — the divergence logged
+ *       when a plugin rewrites it).</li>
+ * </ul>
+ *
+ * <p><b>The unbridged native families (the honest gaps, §27.9 — every one
+ * recorded with its concrete reason, none faked):</b> the entity-backed
+ * families — {@code MobSpawnEvent} → {@code CreatureSpawnEvent},
+ * {@code MobDamageEvent}/{@code MobDeathEvent} →
+ * {@code EntityDamageEvent}/{@code EntityDeathEvent} (the mob arm),
+ * {@code ItemSpawnEvent} → {@code ItemSpawnEvent},
+ * {@code ProjectileSpawnEvent} → {@code ProjectileLaunchEvent},
+ * {@code VehicleSpawnEvent} → {@code VehicleCreateEvent} — need a
+ * {@code org.bukkit.entity} view of the engine body (LivingEntity, Item,
+ * Projectile, Vehicle) the adapter does not model in this slice (the
+ * entity-adapter family is the adapter's own demand-named next slice);
+ * the container family — {@code ChestOpenEvent} → InventoryOpenEvent,
+ * {@code DispenseEvent} → BlockDispenseEvent, {@code HopperTransferEvent}
+ * → InventoryMoveItemEvent — needs a Bukkit Inventory/ItemStack view the
+ * adapter does not model either. Each stays unbridged until its view
+ * lands; honest gaps over fake bridges, always.</p>
+ *
  * <p><b>Reentrancy (§28.8 case 7):</b> a legacy listener may fire further
  * events through the manager's own {@code callEvent} (including of the
  * same type); dispatches nest like method calls on the same owner context
@@ -74,10 +139,16 @@ public final class TorchEventBridge {
     }
 
     /**
-     * The one-time wiring: the five engine-bus subscriptions. Idempotent;
+     * The one-time wiring: the engine-bus subscriptions. Idempotent;
      * called by the adapter's attach walk.
      */
     public void attach() {
+        attachFirstGroup();
+        attachSecondGroup();
+    }
+
+    /** The first group: the five subscriptions the first slice carried. */
+    private void attachFirstGroup() {
         net.zaminmc.torch.event.EventBus bus = adapter.engine().events();
         // PlayerJoin — the §27.7 post-commit observation, message mutable.
         bus.on(net.zaminmc.torch.event.player.PlayerJoinEvent.class,
@@ -197,6 +268,228 @@ public final class TorchEventBridge {
                 + "not cancellable (the engine's own contracts), each dispatch logged");
     }
 
+    // ------------------------------------------------------------------ the second group (this slice)
+
+    /**
+     * The second group's wiring: the seven constructible families — every
+     * one verified against the pinned API's own constructor shapes (the
+     * block/player/furnace views the adapter models; the entity-backed
+     * families stay unbridged, the class javadoc's recorded gaps).
+     */
+    private void attachSecondGroup() {
+        net.zaminmc.torch.event.EventBus bus = adapter.engine().events();
+        // PlayerDamage — the pre-commit damage gate, cancellable both ways,
+        // the mutable amount mapped both ways (§27.7's Cancellable).
+        bus.on(net.zaminmc.torch.event.player.PlayerDamageEvent.class,
+                net.zaminmc.torch.event.EventPriority.FIRST,
+                engineEvent -> {
+                    PlayerSession session = session(engineEvent.player());
+                    if (session == null) {
+                        return;
+                    }
+                    Player player = adapter.player(session);
+                    EntityDamageEvent legacy = new EntityDamageEvent(
+                            player, legacyDamageCause(engineEvent.cause()),
+                            engineEvent.amount());
+                    dispatch(legacy, "EntityDamage(player)");
+                    engineEvent.setCancelled(legacy.isCancelled());
+                    if ((float) legacy.getDamage() != engineEvent.amount()) {
+                        // The legacy setDamage maps onto the engine's own
+                        // mutable amount — the native event's own contract.
+                        engineEvent.amount((float) legacy.getDamage());
+                    }
+                });
+        // PlayerDeath — the §27.7 post-commit death observation: the
+        // message mutable and applied; the legacy form's keepInventory arm
+        // mapped onto the native cancel arm; the honest drops/exp shims.
+        bus.on(net.zaminmc.torch.event.player.PlayerDeathEvent.class,
+                net.zaminmc.torch.event.EventPriority.FIRST,
+                engineEvent -> {
+                    PlayerSession session = session(engineEvent.player());
+                    if (session == null) {
+                        return;
+                    }
+                    Player player = adapter.player(session);
+                    org.bukkit.event.entity.PlayerDeathEvent legacy =
+                            new org.bukkit.event.entity.PlayerDeathEvent(
+                                    player, List.of(), 0, engineEvent.deathMessage());
+                    dispatch(legacy, "PlayerDeath");
+                    // The broadcast line maps back (the engine-owned arm).
+                    engineEvent.deathMessage(legacy.getDeathMessage());
+                    // The legacy keepInventory arm → the native cancel arm
+                    // (the engine's keepInventory gate; the XP also stays —
+                    // the recorded bundle divergence, logged when it bites).
+                    if (legacy.getKeepInventory()) {
+                        engineEvent.setCancelled(true);
+                    } else if (legacy.getKeepLevel()) {
+                        divergence("PlayerDeath.setKeepLevel"
+                                + " (the engine's cancel arm keeps the whole" 
+                                + " inventory+XP bundle — the recorded limitation)");
+                    }
+                    // The readable-but-not-applied rows, logged when they
+                    // diverge (§27.9): the drops view is the unmodifiable
+                    // empty shim (no engine-inventory view modeled — a
+                    // mutating plugin already hit its loud refusal inside
+                    // the dispatch); the engine's scatter math is
+                    // authoritative for both the exp rows.
+                    if (legacy.getDroppedExp() != 0) {
+                        divergence("PlayerDeath.setDroppedExp");
+                    }
+                    if (legacy.getNewExp() != 0 || legacy.getNewLevel() != 0
+                            || legacy.getNewTotalExp() != 0) {
+                        divergence("PlayerDeath.setNew* (the respawn-screen rows)");
+                    }
+                });
+        // FluidFlow — the per-cell pre-commit flow gate, cancellable both ways.
+        bus.on(net.zaminmc.torch.event.block.FluidFlowEvent.class,
+                net.zaminmc.torch.event.EventPriority.FIRST,
+                engineEvent -> {
+                    TorchWorld world = adapter.worldByName(engineEvent.worldName());
+                    if (world == null) {
+                        // A world the adapter does not view (a foreign host's)
+                        // — the loud log, no dispatch, never a fake bridge.
+                        adapter.logger().warning(() -> "FluidFlow: the world '"
+                                + engineEvent.worldName()
+                                + "' has no adapter view — the event was not bridged");
+                        return;
+                    }
+                    Block from = adapter.blockAt(world, engineEvent.from().x(),
+                            engineEvent.from().y(), engineEvent.from().z());
+                    Block to = adapter.blockAt(world, engineEvent.to().x(),
+                            engineEvent.to().y(), engineEvent.to().z());
+                    BlockFromToEvent legacy = new BlockFromToEvent(from, to);
+                    dispatch(legacy, "BlockFromTo(fluid)");
+                    engineEvent.setCancelled(legacy.isCancelled());
+                });
+        // PistonMove — the pre-movement gate, extend/retract split by the
+        // native event's own direction flag, cancellable both ways.
+        bus.on(net.zaminmc.torch.event.block.PistonMoveEvent.class,
+                net.zaminmc.torch.event.EventPriority.FIRST,
+                engineEvent -> {
+                    TorchWorld world = adapter.worldByName(engineEvent.worldName());
+                    if (world == null) {
+                        adapter.logger().warning(() -> "PistonMove: the world '"
+                                + engineEvent.worldName()
+                                + "' has no adapter view — the event was not bridged");
+                        return;
+                    }
+                    Block piston = adapter.blockAt(world, engineEvent.position().x(),
+                            engineEvent.position().y(), engineEvent.position().z());
+                    BlockFace face = legacyFace(engineEvent.facing());
+                    List<Block> moved = new ArrayList<>(engineEvent.movedCells().size());
+                    for (net.zaminmc.torch.block.BlockPosition cell : engineEvent.movedCells()) {
+                        moved.add(adapter.blockAt(world, cell.x(), cell.y(), cell.z()));
+                    }
+                    org.bukkit.event.block.BlockPistonEvent legacy;
+                    if (engineEvent.extending()) {
+                        legacy = new BlockPistonExtendEvent(piston, moved, face);
+                        dispatch(legacy, "BlockPistonExtend");
+                    } else {
+                        legacy = new BlockPistonRetractEvent(piston, moved, face);
+                        dispatch(legacy, "BlockPistonRetract");
+                    }
+                    engineEvent.setCancelled(legacy.isCancelled());
+                });
+        // SignChange — the pre-commit sign-editor gate: cancellable both
+        // ways, the four lines mutable and applied (the engine's own arm).
+        bus.on(net.zaminmc.torch.event.block.SignChangeEvent.class,
+                net.zaminmc.torch.event.EventPriority.FIRST,
+                engineEvent -> {
+                    TorchWorld world = adapter.worldByName(engineEvent.worldName());
+                    Player editor = adapter.playerByUuid(engineEvent.editorId());
+                    if (world == null || editor == null) {
+                        // A foreign world or an editor outside the adapter's
+                        // player view — the loud log, no dispatch.
+                        adapter.logger().warning(() -> "SignChange: the world '" 
+                                + engineEvent.worldName() + "' or the editor '"
+                                + engineEvent.editorName()
+                                + "' has no adapter view — the event was not bridged");
+                        return;
+                    }
+                    Block sign = adapter.blockAt(world, engineEvent.position().x(),
+                            engineEvent.position().y(), engineEvent.position().z());
+                    org.bukkit.event.block.SignChangeEvent legacy =
+                            new org.bukkit.event.block.SignChangeEvent(
+                                    sign, editor, engineEvent.lines().clone());
+                    dispatch(legacy, "SignChange");
+                    engineEvent.setCancelled(legacy.isCancelled());
+                    if (!java.util.Arrays.equals(legacy.getLines(), engineEvent.lines())) {
+                        // The legacy setLine rows map onto the native event's
+                        // own rewrite arm (the walk applies the final array).
+                        engineEvent.setLines(legacy.getLines());
+                    }
+                });
+        // FurnaceBurn — the ignite gate, cancellable both ways.
+        bus.on(net.zaminmc.torch.event.block.FurnaceBurnEvent.class,
+                net.zaminmc.torch.event.EventPriority.FIRST,
+                engineEvent -> {
+                    TorchWorld world = adapter.worldByName(engineEvent.worldName());
+                    if (world == null) {
+                        adapter.logger().warning(() -> "FurnaceBurn: the world '"
+                                + engineEvent.worldName()
+                                + "' has no adapter view — the event was not bridged");
+                        return;
+                    }
+                    ItemStack fuel = legacyItemView(engineEvent.fuel(), "FurnaceBurn.fuel");
+                    if (fuel == null) {
+                        return; // the unmapped item already logged loudly
+                    }
+                    Block furnace = adapter.blockAt(world, engineEvent.position().x(),
+                            engineEvent.position().y(), engineEvent.position().z());
+                    FurnaceBurnEvent legacy =
+                            new FurnaceBurnEvent(furnace, fuel, engineEvent.burnTicks());
+                    dispatch(legacy, "FurnaceBurn");
+                    engineEvent.setCancelled(legacy.isCancelled());
+                    // The readable-but-not-applied rows (§27.9): the native
+                    // event carries the fuel's own burn value and ignite
+                    // state read-only — the engine's own walk is authoritative.
+                    if (legacy.getBurnTime() != engineEvent.burnTicks()) {
+                        divergence("FurnaceBurn.setBurnTime");
+                    }
+                    if (!legacy.isBurning()) {
+                        divergence("FurnaceBurn.setBurning(false)");
+                    }
+                });
+        // FurnaceSmelt — the cook-completion gate, cancellable both ways.
+        bus.on(net.zaminmc.torch.event.block.FurnaceSmeltEvent.class,
+                net.zaminmc.torch.event.EventPriority.FIRST,
+                engineEvent -> {
+                    TorchWorld world = adapter.worldByName(engineEvent.worldName());
+                    if (world == null) {
+                        adapter.logger().warning(() -> "FurnaceSmelt: the world '"
+                                + engineEvent.worldName()
+                                + "' has no adapter view — the event was not bridged");
+                        return;
+                    }
+                    ItemStack input = legacyItemView(engineEvent.input(), "FurnaceSmelt.input");
+                    ItemStack result = legacyItemView(engineEvent.result(),
+                            "FurnaceSmelt.result");
+                    if (input == null || result == null) {
+                        return; // the unmapped item already logged loudly
+                    }
+                    Block furnace = adapter.blockAt(world, engineEvent.position().x(),
+                            engineEvent.position().y(), engineEvent.position().z());
+                    FurnaceSmeltEvent legacy =
+                            new FurnaceSmeltEvent(furnace, input, result);
+                    dispatch(legacy, "FurnaceSmelt");
+                    engineEvent.setCancelled(legacy.isCancelled());
+                    // The readable-but-not-applied row (§27.9): the engine's
+                    // recipe answer is authoritative — a rewritten result
+                    // is logged, not applied.
+                    if (!itemViewEquals(legacy.getResult(), result)) {
+                        divergence("FurnaceSmelt.setResult");
+                    }
+                });
+        adapter.logger().info("The event bridge's second group is wired: PlayerDamage, "
+                + "PlayerDeath, FluidFlow, PistonMove (extend + retract), SignChange, "
+                + "FurnaceBurn, FurnaceSmelt — cancellation: damage/flow/piston/sign/"
+                + "furnace pre-commit SUPPORTED both ways, death not cancellable in the "
+                + "legacy form (the 1.8.8 shape; the keepInventory arm mapped onto the "
+                + "native cancel), each dispatch logged; the entity-backed families "
+                + "(mob/item/projectile/vehicle spawn+damage+death) and the container "
+                + "family stay unbridged — the recorded §27.9 gaps");
+    }
+
     // ------------------------------------------------------------------ the dispatch
 
     private void dispatch(org.bukkit.event.Event legacy, String label) {
@@ -240,5 +533,79 @@ public final class TorchEventBridge {
         adapter.logger().warning(() -> what
                 + " diverged from the engine-owned line — the mutation is "
                 + "readable but not applied (the §27.9 recorded limitation)");
+    }
+
+    // ------------------------------------------------------------------ the second group's translations
+
+    /**
+     * The engine damage classification → the 1.8.8 cause family. The
+     * engine's single EXPLOSION row answers ENTITY_EXPLOSION (the §27.9
+     * recorded approximation: the engine's own classification is one
+     * family, the legacy form splits block/entity explosions and the
+     * native event carries no split row). Every other engine cause has
+     * its own 1.8.8 name.
+     */
+    private EntityDamageEvent.DamageCause legacyDamageCause(
+            net.zaminmc.torch.event.DamageCause cause) {
+        return switch (cause) {
+            case MELEE -> EntityDamageEvent.DamageCause.ENTITY_ATTACK;
+            case PROJECTILE -> EntityDamageEvent.DamageCause.PROJECTILE;
+            case EXPLOSION -> EntityDamageEvent.DamageCause.ENTITY_EXPLOSION;
+            case IN_FIRE -> EntityDamageEvent.DamageCause.FIRE;
+            case ON_FIRE -> EntityDamageEvent.DamageCause.FIRE_TICK;
+            case LAVA -> EntityDamageEvent.DamageCause.LAVA;
+            case FALL -> EntityDamageEvent.DamageCause.FALL;
+            case DROWN -> EntityDamageEvent.DamageCause.DROWNING;
+            case CACTUS -> EntityDamageEvent.DamageCause.CONTACT;
+            case STARVE -> EntityDamageEvent.DamageCause.STARVATION;
+            case OUT_OF_WORLD -> EntityDamageEvent.DamageCause.VOID;
+            case MAGIC -> EntityDamageEvent.DamageCause.MAGIC;
+            case LIGHTNING -> EntityDamageEvent.DamageCause.LIGHTNING;
+            case IN_WALL -> EntityDamageEvent.DamageCause.SUFFOCATION;
+        };
+    }
+
+    /** The engine's six facings are the legacy six faces (identical names). */
+    private BlockFace legacyFace(net.zaminmc.torch.block.Direction facing) {
+        return switch (facing) {
+            case DOWN -> BlockFace.DOWN;
+            case UP -> BlockFace.UP;
+            case NORTH -> BlockFace.NORTH;
+            case SOUTH -> BlockFace.SOUTH;
+            case WEST -> BlockFace.WEST;
+            case EAST -> BlockFace.EAST;
+        };
+    }
+
+    /**
+     * One engine stack's legacy value view (the furnace family's own
+     * translation): the identifier's bare path against the API's own
+     * {@link Material#matchMaterial} resolver (the MaterialMap law — the
+     * engine's lowercase paths ARE the legacy names), the count and the
+     * damage/dual-role variant riding along. A fresh value snapshot (the
+     * event's own copy — never a live view; the native events themselves
+     * declare their stacks immutable reads). An unmapped identity logs
+     * loudly and answers null — the caller's no-dispatch law, never a
+     * wrong item.
+     */
+    private ItemStack legacyItemView(net.zaminmc.torch.item.ItemStack stack, String what) {
+        if (stack == null || stack.isEmpty() || stack.type() == null) {
+            return null;
+        }
+        String path = stack.type().identifier().value();
+        Material material = Material.matchMaterial(path);
+        if (material == null) {
+            adapter.logger().warning(() -> what + ": the engine item minecraft:"
+                    + path + " has no 1.8.8 Material — the event was not bridged");
+            return null;
+        }
+        return new ItemStack(material, stack.count(), (short) stack.damage());
+    }
+
+    /** The value-equality read for the setResult divergence check. */
+    private boolean itemViewEquals(ItemStack one, ItemStack two) {
+        return one.getType() == two.getType()
+                && one.getAmount() == two.getAmount()
+                && one.getDurability() == two.getDurability();
     }
 }

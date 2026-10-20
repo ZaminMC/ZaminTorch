@@ -91,6 +91,23 @@ public final class CommandService {
         }
     }
 
+    /**
+     * Removes a registered command (§28.5's plugin-owned registration law):
+     * the retirement verb for registrations owned through a plugin resource
+     * scope — the compatibility adapter's command bridge registers every
+     * plugin command through {@link #register} and owns its removal through
+     * the owning plugin's scope, so the disable sweep retires that plugin's
+     * commands automatically. A no-op when the name is not registered (the
+     * verb must be idempotent — the scope's own close contract). Case
+     * matches {@link #lookup}: the engine's registry resolves lowercase.
+     */
+    public synchronized void unregister(String name) {
+        if (name == null || name.isEmpty()) {
+            return;
+        }
+        commands.remove(name.toLowerCase(java.util.Locale.ROOT));
+    }
+
     /** @return the registered command, or null when unknown. */
     public Command lookup(String name) {
         return commands.get(name.toLowerCase());
