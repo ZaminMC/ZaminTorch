@@ -14,6 +14,7 @@ import net.zaminmc.torch.server.nbt.Snbt;
 import net.zaminmc.torch.server.nbt.TileNbt;
 import net.zaminmc.torch.server.potion.PotionSystem;
 import net.zaminmc.torch.server.world.EngineWorld;
+import net.zaminmc.torch.util.Identifier;
 import net.zaminmc.torch.util.Position;
 
 import java.io.IOException;
@@ -53,21 +54,25 @@ import java.util.regex.Pattern;
  * COUNTED, never silent; a clean import wants a fresh world whose boot
  * pregen did not touch the imported area.</p>
  *
- * <p><b>THE CONTENT SEAMS (the entities/tiles follow-up — the reference's
- * own load order):</b> after a chunk installs, its carried
- * {@code TileEntities} rows apply through the engine's own per-family
- * read walk ({@code TileNbt.readTile} — the /blockdata machinery, every
- * family's 1:1 projection), then its {@code Entities} rows import
- * through the /summon machinery ({@code MobManager.spawnAt} +
- * {@code EntityNbt.readNbt} for the living mobs — Pos/Rotation/Motion/
- * UUID/custom rows all land — and {@code ItemEntityManager.spawnRestored}
- * + the {@code Item}/{@code Age}/{@code PickupDelay}/{@code Thrower}/
- * {@code Owner} rows for the dropped items). Everything else the
- * reference can save — vehicles, projectiles, paintings, item frames,
- * XP orbs, riding chains — has no engine surface yet and isolates LOUDLY
- * with its exact id (§31.6's counted refusal, never a silent drop). A
- * skipped (already-loaded) chunk's content rows ride the skip whole,
- * with a counted note naming what did not apply.</p>
+ * <p><b>THE CONTENT SEAMS (the entities/tiles/tile-ticks follow-up —
+ * the reference's own load order):</b> after a chunk installs, its
+ * carried {@code TileEntities} rows apply through the engine's own
+ * per-family read walk ({@code TileNbt.readTile} — the /blockdata
+ * machinery, every family's 1:1 projection), then its {@code
+ * TileTicks} rows land through the scheduled block-tick surface's own
+ * import arm ({@code loadScheduledTick} — the reference's
+ * createChunkFromNbt tail: the ticks load AFTER the tiles, BEFORE the
+ * entities), then its {@code Entities} rows import through the /summon
+ * machinery ({@code MobManager.spawnAt} + {@code EntityNbt.readNbt}
+ * for the living mobs — Pos/Rotation/Motion/UUID/custom rows all land
+ * — and {@code ItemEntityManager.spawnRestored} + the {@code Item}/
+ * {@code Age}/{@code PickupDelay}/{@code Thrower}/{@code Owner} rows
+ * for the dropped items). Everything else the reference can save —
+ * vehicles, projectiles, paintings, item frames, XP orbs, riding
+ * chains — has no engine surface yet and isolates LOUDLY with its
+ * exact id (§31.6's counted refusal, never a silent drop). A skipped
+ * (already-loaded) chunk's content rows ride the skip whole, with a
+ * counted note naming what did not apply.</p>
  *
  * <p><b>THE NAMING (the reference's own):</b> region files are
  * {@code r.<regionX>.<regionZ>.mca} ({@code RegionIo.getRegionFile}'s
@@ -110,10 +115,13 @@ public final class AnvilWorldImport {
      * @param potions the entity NBT walk's effect consult
      * @param equipmentChanged the per-mob equipment fan-out (the spawn
      *                         walk's second half)
+     * @param scheduledTicks the scheduled block-tick surface (the
+     *                       TileTicks import arm)
      */
     public record ContentSeams(TileNbt tiles, MobManager mobs, ItemEntityManager items,
                                PotionSystem potions,
-                               java.util.function.Consumer<MobEntity> equipmentChanged) {
+                               java.util.function.Consumer<MobEntity> equipmentChanged,
+                               net.zaminmc.torch.server.block.ScheduledTickSystem scheduledTicks) {
     }
 
     /** One session over the world (the chunk reader over the world's registry). */
@@ -252,11 +260,13 @@ public final class AnvilWorldImport {
         // chunk it already has — entities and tiles included), with a
         // counted note naming what did not apply.
         if (world.peek(imported.position()) != null) {
-            if (!loaded.entities().isEmpty() || !loaded.tileEntities().isEmpty()) {
+            if (!loaded.entities().isEmpty() || !loaded.tileEntities().isEmpty()
+                    || !loaded.tileTicks().isEmpty()) {
                 ledger.isolated("chunk already loaded — content rows not applied",
                         "chunk " + chunkX + "," + chunkZ + " carried "
                                 + loaded.tileEntities().size() + " tile rows, "
-                                + loaded.entities().size() + " entity rows");
+                                + loaded.entities().size() + " entity rows, "
+                                + loaded.tileTicks().size() + " tick rows");
             }
             ledger.chunkSkippedAlreadyLoaded();
             return;
@@ -264,8 +274,10 @@ public final class AnvilWorldImport {
         world.installGenerated(imported.position(), imported);
         ledger.chunkInstalled();
         // The reference's own load order (createChunkFromNbt's tail): the
-        // tiles apply over the installed blocks, then the entities spawn.
+        // tiles apply over the installed blocks, the tile ticks load after
+        // the tiles, then the entities spawn (loadEntities' own position).
         applyTileEntities(loaded.tileEntities());
+        applyTileTicks(loaded.tileTicks());
         applyEntities(loaded.entities());
     }
 
@@ -316,6 +328,88 @@ public final class AnvilWorldImport {
             content.tiles().readTile(world, 0, at, rows);
             ledger.tileImported();
         }
+    }
+
+    /**
+     * One installed chunk's {@code TileTicks} rows — the reference's own
+     * import walk (AnvilChunkStorage's TileTicks loop over
+     * {@code world.loadScheduledTick}): the position ints are REQUIRED
+     * (a corrupt row isolates loudly), the block resolves from the row's
+     * own name — the {@code "i"} string form first (the reference's
+     * {@code Block.byKey(contains("i", 8))}), the legacy integer form
+     * through {@code AnvilBlockIds.resolve(id, 0)} (the reference's
+     * {@code Block.byId(getInt("i"))} — the bare id, the family's base
+     * state) — and the row lands through {@code loadScheduledTick} with
+     * its {@code t} delay and {@code p} priority (the reference's own
+     * time-from-now semantics). An unresolvable name isolates loudly
+     * with the row's own id named; an AIR-family row lands at time zero
+     * (the surface's own quirk, the reference's material gate).
+     */
+    private void applyTileTicks(List<Map<String, Snbt.Tag>> tileTicks) {
+        if (content == null) {
+            if (!tileTicks.isEmpty()) {
+                ledger.ignored("TileTicks", tileTicks.size());
+            }
+            return;
+        }
+        net.zaminmc.torch.server.block.ScheduledTickSystem scheduledTicks =
+                content.scheduledTicks();
+        if (scheduledTicks == null) {
+            if (!tileTicks.isEmpty()) {
+                ledger.ignored("TileTicks", tileTicks.size());
+            }
+            return;
+        }
+        for (Map<String, Snbt.Tag> rows : tileTicks) {
+            if (!NbtOps.containsNumeric(rows, "x") || !NbtOps.containsNumeric(rows, "y")
+                    || !NbtOps.containsNumeric(rows, "z")) {
+                ledger.isolated("tick row missing its x/y/z position",
+                        "tick " + describeTickRow(rows));
+                continue;
+            }
+            BlockPosition at = new BlockPosition(
+                    NbtOps.getInt(rows, "x"), NbtOps.getInt(rows, "y"), NbtOps.getInt(rows, "z"));
+            Identifier family = resolveTickBlock(rows);
+            if (family == null) {
+                continue; // resolveTickBlock already isolated the row loudly
+            }
+            scheduledTicks.loadScheduledTick(at, family,
+                    NbtOps.getInt(rows, "t"), NbtOps.getInt(rows, "p"));
+            ledger.tileTickImported();
+        }
+    }
+
+    /** The row's own identity for the isolation notes (the name if present, the id otherwise). */
+    private static String describeTickRow(Map<String, Snbt.Tag> rows) {
+        if (NbtOps.contains(rows, "i", Snbt.Tag.Type.STRING)) {
+            return NbtOps.getString(rows, "i");
+        }
+        return "id " + NbtOps.getInt(rows, "i");
+    }
+
+    /**
+     * The reference's block resolution for one tick row (the string name
+     * first, the legacy integer second) — null after an isolation.
+     */
+    private Identifier resolveTickBlock(Map<String, Snbt.Tag> rows) {
+        if (NbtOps.contains(rows, "i", Snbt.Tag.Type.STRING)) {
+            String name = NbtOps.getString(rows, "i");
+            Identifier id = Identifier.parse(name);
+            if (world.blockRegistry().lookup(id).isPresent()) {
+                return id;
+            }
+            ledger.isolated("tick row's block name not registered (the engine carries no such family)",
+                    "tick " + name);
+            return null;
+        }
+        int legacyId = NbtOps.getInt(rows, "i");
+        java.util.Optional<Identifier> resolved = AnvilBlockIds.resolve(legacyId, 0);
+        if (resolved.isPresent()) {
+            return resolved.get();
+        }
+        ledger.isolated("tick row's legacy block id not registered (the engine carries no such family)",
+                "tick id " + legacyId);
+        return null;
     }
 
     /**

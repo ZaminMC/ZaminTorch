@@ -353,11 +353,12 @@ class AnvilChunkReaderTest {
     }
 
     @Test
-    void theEntityAndTileRowsRideTheResultRawAndTileTicksCounts() {
+    void theEntityAndTileRowsRideTheResultRawAndTileTicksRideToo() {
         // The content follow-up: the reader CARRIES the Entities and
         // TileEntities compounds (the session's seams apply them after the
-        // install — the reference's own order); TileTicks stays a counted
-        // not-imported row (no scheduled-tick surface).
+        // install — the reference's own order); TileTicks rides the same
+        // way (the scheduled block-tick surface's own import arm lands the
+        // rows after the tiles, before the entities).
         var zombie = AnvilFixture.entityRow("Zombie", 1.5, 1, 1.5);
         zombie.put("CustomName", "Anvil Zombie");
         var chest = AnvilFixture.tileRow("Chest", 1, 1, 1);
@@ -380,8 +381,9 @@ class AnvilChunkReaderTest {
         assertEquals(1, loaded.tileEntities().size(), "the tile row rides the result");
         assertEquals("Chest",
                 net.zaminmc.torch.server.nbt.NbtOps.getString(loaded.tileEntities().get(0), "id"));
-        assertTrue(ledger.summary().contains("TileTicks x2"),
-                "the scheduled ticks stay a counted not-imported row: " + ledger.summary());
+        assertEquals(2, loaded.tileTicks().size(), "the tick rows ride the result raw");
+        assertTrue(ledger.summary().contains("TileTicks") == false,
+                "the ticks are no longer counted-ignored (the seam lands them): " + ledger.summary());
         assertTrue(ledger.summary().contains("Entities x") == false,
                 "the entities are no longer counted-ignored: " + ledger.summary());
     }

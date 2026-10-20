@@ -22214,7 +22214,8 @@ public final class EngineServer implements Server, EngineBridge {
                 net.zaminmc.torch.server.world.anvil.AnvilWorldImport.over(target,
                         new net.zaminmc.torch.server.world.anvil.AnvilWorldImport.ContentSeams(
                                 tileNbt, mobManager, itemEntities, potionSystem,
-                                mob -> mobManager.equipmentChanged(mob)));
+                                mob -> mobManager.equipmentChanged(mob),
+                                scheduledTickSystem));
         try {
             io.submit(domain, "anvil-import-open", () -> {
                 // The folder inventory + the level bytes, all on the I/O
