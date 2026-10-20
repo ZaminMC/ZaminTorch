@@ -712,6 +712,45 @@ public final class AnvilWorldImport {
         if (NbtOps.containsNumeric(rows, "Fire")) {
             spawned.restoreFireTimer(NbtOps.getShort(rows, "Fire"));
         }
+        // The base rows (the reference's Entity.readNbt lines 1155-1196,
+        // 1:1 — the §31.6 counted refusal retired): the UUID (the
+        // UUIDMost/Least long pair, else the string form), the custom
+        // name (a non-empty row lands, the reference's own length gate)
+        // + its visibility flag, the fall accumulator, the breath clock,
+        // the ground state, the dimension id, the invulnerable flag, the
+        // silence flag, the portal cooldown. Absent rows keep the model's
+        // own defaults — the reference's absent-row shape.
+        java.util.UUID uuid = null;
+        if (NbtOps.contains(rows, "UUIDMost", Snbt.Tag.Type.LONG)
+                && NbtOps.contains(rows, "UUIDLeast", Snbt.Tag.Type.LONG)) {
+            uuid = new java.util.UUID(NbtOps.getLong(rows, "UUIDMost"),
+                    NbtOps.getLong(rows, "UUIDLeast"));
+        } else if (NbtOps.contains(rows, "UUID", Snbt.Tag.Type.STRING)) {
+            try {
+                uuid = java.util.UUID.fromString(NbtOps.getString(rows, "UUID"));
+            } catch (IllegalArgumentException malformed) {
+                ledger.isolated("vehicle UUID row malformed",
+                        "entity " + id + " uuid " + NbtOps.getString(rows, "UUID"));
+            }
+        }
+        String customName = null;
+        if (NbtOps.contains(rows, "CustomName", Snbt.Tag.Type.STRING)
+                && NbtOps.getString(rows, "CustomName").length() > 0) {
+            customName = NbtOps.getString(rows, "CustomName");
+        }
+        spawned.restoreBaseRows(
+                uuid,
+                customName,
+                NbtOps.getBoolean(rows, "CustomNameVisible"),
+                NbtOps.getBoolean(rows, "Silent"),
+                NbtOps.contains(rows, "FallDistance", Snbt.Tag.Type.FLOAT)
+                        ? NbtOps.getFloat(rows, "FallDistance") : 0.0f,
+                NbtOps.containsNumeric(rows, "Air") ? NbtOps.getShort(rows, "Air") : 300,
+                NbtOps.getBoolean(rows, "OnGround"),
+                NbtOps.getBoolean(rows, "Invulnerable"),
+                NbtOps.containsNumeric(rows, "Dimension") ? NbtOps.getInt(rows, "Dimension") : 0,
+                NbtOps.containsNumeric(rows, "PortalCooldown")
+                        ? NbtOps.getInt(rows, "PortalCooldown") : 0);
         // The chest cart's cargo (the reference's
         // InventoryMinecart.readCustomNbt: the Items list, the Slot byte
         // indexing the 27 slots).

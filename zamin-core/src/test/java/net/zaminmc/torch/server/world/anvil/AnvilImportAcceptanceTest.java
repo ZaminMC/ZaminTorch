@@ -603,11 +603,30 @@ class AnvilImportAcceptanceTest {
         chestCart.put("Rotation", List.of(90.0f, 0.0f));
         chestCart.put("Motion", List.of(0.5, 0.0, -0.25));
         chestCart.put("Fire", (short) 40);
+        // The base rows (Entity.readNbt lines 1155-1196): the pair form
+        // of the UUID, the custom name + visibility, the fall accumulator,
+        // the breath clock, the ground state, the invulnerable flag, the
+        // silence flag, the dimension id, the portal cooldown.
+        java.util.UUID chestUuid = new java.util.UUID(0x123456789ABCDEFL, 0xFEDCBA9876543210L);
+        chestCart.put("UUIDMost", chestUuid.getMostSignificantBits());
+        chestCart.put("UUIDLeast", chestUuid.getLeastSignificantBits());
+        chestCart.put("CustomName", "Express");
+        chestCart.put("CustomNameVisible", (byte) 1);
+        chestCart.put("FallDistance", 2.5f);
+        chestCart.put("Air", (short) 250);
+        chestCart.put("OnGround", (byte) 0);
+        chestCart.put("Dimension", 0);
+        chestCart.put("Invulnerable", (byte) 1);
+        chestCart.put("Silent", (byte) 0);
+        chestCart.put("PortalCooldown", 12);
         Map<String, Object> spawnerCart = AnvilFixture.entityRow("MinecartSpawner", 130.5, 1.0, 130.5);
         spawnerCart.put("EntityId", "Zombie");
         spawnerCart.put("Delay", (short) 55);
         spawnerCart.put("MinSpawnDelay", (short) 200); // the cadence note
         spawnerCart.put("Rotation", List.of(180.0f, 10.0f));
+        // The UUID's string form (the reference's other arm).
+        java.util.UUID spawnerUuid = java.util.UUID.fromString("e2f5a1b0-1234-4cde-9f8a-0a1b2c3d4e5f");
+        spawnerCart.put("UUID", spawnerUuid.toString());
         Map<String, Object> commandCart = AnvilFixture.entityRow("MinecartCommandBlock", 131.5, 1.0, 131.5);
         commandCart.put("Command", "say hi");
         commandCart.put("SuccessCount", 3);
@@ -703,6 +722,20 @@ class AnvilImportAcceptanceTest {
             // the cart burns — the assertion pins the landing band.
             assertTrue(chest.onFireTimer() >= 1 && chest.onFireTimer() <= 40,
                     "the raw signed Fire row landed and is burning: " + chest.onFireTimer());
+            // The base rows (the §31.6 counted refusal retired).
+            assertEquals(chestUuid, chest.uuid(), "the UUID pair form landed");
+            assertEquals("Express", chest.customName());
+            assertTrue(chest.customNameVisible());
+            assertEquals(2.5f, chest.fallDistance(), 0.0001f);
+            assertEquals(250, chest.breath());
+            // The OnGround row landed false; the engine's own physics
+            // re-derived it since (the cart settled onto the imported
+            // ground) — the live state owns the flag now.
+            assertTrue(chest.onGround(), "the OnGround row landed and the physics owns it since");
+            assertTrue(chest.invulnerable());
+            assertFalse(chest.silent());
+            assertEquals(0, chest.dimension());
+            assertEquals(12, chest.portalCooldown());
 
             // The spawner cart: the type + delay rows, the rotation pair.
             var spawner = (net.zaminmc.torch.server.entity.vehicle.SpawnerMinecartEntity)
@@ -712,6 +745,8 @@ class AnvilImportAcceptanceTest {
             assertEquals(55, spawner.delayTicks());
             assertEquals(180.0f, spawner.rotation().yaw(), 0.001f);
             assertEquals(10.0f, spawner.rotation().pitch(), 0.001f);
+            // The UUID's string form (the reference's other arm).
+            assertEquals(spawnerUuid, spawner.uuid(), "the UUID string form landed");
 
             // The command cart: the four rows, the +-10 clamp on Motion.
             var command = (net.zaminmc.torch.server.entity.vehicle.CommandBlockMinecartEntity)
