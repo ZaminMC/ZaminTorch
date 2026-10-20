@@ -324,6 +324,8 @@ public final class EngineServer implements Server, EngineBridge {
     /** The command dispatcher (tab completion reads it from the wire layer). */
     private volatile CommandService commands;
     private BlockUpdateSystem blockUpdateSystem;
+    /** The reference's scheduled block-tick queue (the TileTicks surface; the anvil import lands here). */
+    private net.zaminmc.torch.server.block.ScheduledTickSystem scheduledTickSystem;
     /** The redstone signal engine (Slice 9a): the wire cascade + the family dispatch + the delayed reactions. */
     private net.zaminmc.torch.server.redstone.RedstoneSystem redstoneSystem;
 
@@ -909,6 +911,11 @@ public final class EngineServer implements Server, EngineBridge {
                 // the adapter, so engine-side rules observe every commit first.
                 blockUpdateSystem = new BlockUpdateSystem(world, itemEntities, falling);
                 blockUpdateSystem.setFireEnvironment(this::raining, gameplayRandom);
+                // The reference's scheduled block-tick queue (the TileTicks
+                // surface): the anvil import lands here, and the families'
+                // delayed arms migrate onto it family by family.
+                scheduledTickSystem = new net.zaminmc.torch.server.block.ScheduledTickSystem(
+                        world, new java.util.Random(worldSeed ^ 0x541DCA11L));
                 // The game-rule reads (Slice 24a): the fire's own freeze
                 // gate (doFireTick — FireBlock.tick line 145).
                 blockUpdateSystem.setFireTickRead(() -> gameRules.getBoolean("doFireTick"));
@@ -2254,6 +2261,12 @@ public final class EngineServer implements Server, EngineBridge {
                 world.attachScheduledUpdateView(
                         new net.zaminmc.torch.server.block.ScheduledUpdateViews(
                                 blockUpdateSystem, world));
+                // The public §27.3 scheduled block-tick views: the reference's
+                // TileTicks queue — the queries copy, the mutation arms assert
+                // the world's own context.
+                world.attachScheduledBlockTickView(
+                        new net.zaminmc.torch.server.block.ScheduledBlockTickViews(
+                                scheduledTickSystem, world));
                 // The public §27.3 redstone views: the engine's own power walks
                 // (owner-context consistent reads).
                 world.attachRedstoneView(
@@ -2365,6 +2378,11 @@ public final class EngineServer implements Server, EngineBridge {
                     profiled("leashes", this::tickLeashes); // the leash physics + the knots (Slice 11c)
                     profiled("decorations", this::tickDecorations); // the frames' + paintings' survival poll (Slice 28a/28b)
                     profiled("randomTicks", () -> randomTicks.tick(players.all())); // §471: grass growth/decay
+                    // The reference's tickPending pass (ServerWorld.tick line
+                    // 196: doScheduledTicks runs BEFORE tickBlocks — the fan
+                    // places it ahead of the random ticks, the engine's own
+                    // tickBlocks stand-in). The TileTicks surface's own walk.
+                    profiled("scheduledBlockTicks", scheduledTickSystem::tick);
                     profiled("brewingStands", () -> brewingStands.tick(world));
                     profiled("beacons", () -> beaconSystem.tick(world.totalTicks())); // the brew cycles (Slice 11e)
                     profiled("furnaceViewers", this::tickFurnaceViewers);
@@ -3532,6 +3550,11 @@ public final class EngineServer implements Server, EngineBridge {
     /** The scheduled block-update system (exposed for behavioral tests). */
     public BlockUpdateSystem blockUpdates() {
         return blockUpdateSystem;
+    }
+
+    /** The reference's scheduled block-tick queue (the TileTicks surface; exposed for the import + tests). */
+    public net.zaminmc.torch.server.block.ScheduledTickSystem scheduledBlockTicks() {
+        return scheduledTickSystem;
     }
 
     /** The redstone signal engine (exposed for behavioral tests). */

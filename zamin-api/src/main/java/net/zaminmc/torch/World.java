@@ -128,6 +128,19 @@ public interface World {
     }
 
     /**
+     * The scheduled block-tick surface (§27.3's family, the reference
+     * 1.8.8's own pending TileTicks queue): the entries carrying a
+     * position, the waking block family, a due time, and a priority —
+     * queryable, cancellable, schedulable. The queries answer
+     * best-effort from any thread; the mutations run on the
+     * authoritative simulation context (§27.6). Worlds without the
+     * family answer nothing pending.
+     */
+    default net.zaminmc.torch.block.ScheduledBlockTicks scheduledBlockTicks() {
+        return net.zaminmc.torch.block.ScheduledBlockTicks.EMPTY;
+    }
+
+    /**
      * The redstone read surface (§27.3's redstone family): the power
      * walks a plugin may consult. Owner-context consistent reads (wrap
      * in {@link #execute} off the lane). Worlds without the family

@@ -109,6 +109,10 @@ public final class EngineWorld implements World {
     private volatile net.zaminmc.torch.block.ScheduledUpdates scheduledUpdateView
             = net.zaminmc.torch.block.ScheduledUpdates.EMPTY;
 
+    /** The public scheduled block-tick view (the reference's TileTicks queue; boot wiring). */
+    private volatile net.zaminmc.torch.block.ScheduledBlockTicks scheduledBlockTickView
+            = net.zaminmc.torch.block.ScheduledBlockTicks.EMPTY;
+
     /** The public redstone view (the power walks; boot wiring). */
     private volatile net.zaminmc.torch.block.RedstoneSignals redstoneView
             = net.zaminmc.torch.block.RedstoneSignals.EMPTY;
@@ -328,6 +332,12 @@ public final class EngineWorld implements World {
         this.scheduledUpdateView = java.util.Objects.requireNonNull(view, "view");
     }
 
+    /** Attaches the public scheduled block-tick view (the reference's
+     *  TileTicks queue's boot wiring; §27.3's family). */
+    public void attachScheduledBlockTickView(net.zaminmc.torch.block.ScheduledBlockTicks view) {
+        this.scheduledBlockTickView = java.util.Objects.requireNonNull(view, "view");
+    }
+
     /** Attaches the public redstone view (the power walks' boot wiring;
      *  §27.3's redstone family). */
     public void attachRedstoneView(net.zaminmc.torch.block.RedstoneSignals view) {
@@ -435,6 +445,11 @@ public final class EngineWorld implements World {
     @Override
     public net.zaminmc.torch.block.ScheduledUpdates scheduledUpdates() {
         return scheduledUpdateView;
+    }
+
+    @Override
+    public net.zaminmc.torch.block.ScheduledBlockTicks scheduledBlockTicks() {
+        return scheduledBlockTickView;
     }
 
     @Override
