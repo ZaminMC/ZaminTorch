@@ -14784,6 +14784,19 @@ public final class EngineServer implements Server, EngineBridge {
         }
 
         @Override
+        public float blockSlipperinessAt(net.zaminmc.torch.block.BlockPosition pos) {
+            // The reference's Block.slipperiness table: Block.java line
+            // 117's 0.6 default, IceBlock line 20 / PackedIceBlock line
+            // 10's 0.98, SlimeBlock line 15's 0.8.
+            String value = world.getBlock(pos).identifier().value();
+            return switch (value) {
+                case "ice", "packed_ice" -> 0.98f;
+                case "slime_block" -> 0.8f;
+                default -> 0.6f;
+            };
+        }
+
+        @Override
         public void standBreakingBurst(Position at) {
             fxManager.standShatter(at);
         }

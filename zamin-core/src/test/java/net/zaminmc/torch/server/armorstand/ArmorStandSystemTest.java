@@ -576,6 +576,96 @@ class ArmorStandSystemTest {
         }
     }
 
+    @Test
+    void theIceFamilySlipperinessCarriesTheSlide() throws Exception {
+        EngineServer server = boot();
+        try {
+            // Two floors: ice under the first stand, stone under the
+            // control. The same 0.05 push, the reference's slipperiness
+            // families — the ice stand (Block.slipperiness 0.98) slides
+            // far past the control (0.6).
+            place(server, 13, 39, 13, BuiltinBlocks.ICE);
+            place(server, 17, 39, 13, BuiltinBlocks.STONE);
+            for (int y = 40; y <= 41; y++) {
+                place(server, 13, y, 13, server.world().airType());
+                place(server, 14, y, 13, server.world().airType());
+                place(server, 17, y, 13, server.world().airType());
+                place(server, 18, y, 13, server.world().airType());
+            }
+            AtomicReference<Boolean> iceLanded = new AtomicReference<>();
+            server.ticker().submit(() -> iceLanded.set(server.armorStands().place(
+                    new BlockPosition(13, 39, 13), 1, 0.0f, new java.util.Random(8))));
+            await(server, () -> iceLanded.get() != null, "the ice stand placed");
+            ArmorStand iceStand = standAt(server, 13, 40, 13);
+            assertNotNull(iceStand, "the ice stand stands");
+
+            AtomicReference<Boolean> controlLanded = new AtomicReference<>();
+            server.ticker().submit(() -> controlLanded.set(server.armorStands().place(
+                    new BlockPosition(17, 39, 13), 1, 0.0f, new java.util.Random(9))));
+            await(server, () -> controlLanded.get() != null, "the control placed");
+            ArmorStand control = standAt(server, 17, 40, 13);
+            assertNotNull(control, "the control stands");
+
+            AtomicReference<Boolean> spawned = new AtomicReference<>();
+            server.ticker().submit(() -> {
+                server.vehicles().spawnMinecart(new net.zaminmc.torch.util.Position(13.7, 40.0, 13.5));
+                server.vehicles().spawnMinecart(new net.zaminmc.torch.util.Position(17.7, 40.0, 13.5));
+                spawned.set(true);
+            });
+            await(server, () -> spawned.get() != null, "the push carts spawned");
+
+            // Both stands get the same -x push; the friction families
+            // differ. The ice stand passes 0.2 out; the control settles
+            // under the common family's reach.
+            double iceStart = 13.5;
+            double controlStart = 17.5;
+            await(server, () -> iceStand.x() < iceStart - 0.2,
+                    "the ice stand slid past 0.2 (the 0.98 family)");
+            assertTrue(control.x() > controlStart - 0.12,
+                    "the control settles under the 0.6 family's reach: "
+                            + (controlStart - control.x()));
+        } finally {
+            server.shutdown(null);
+        }
+    }
+
+    @Test
+    void theMarkerStandRefusesDamageAndBreaks() throws Exception {
+        EngineServer server = boot();
+        try {
+            // The reference's takeDamage gate (lines 376-380): the
+            // hitbox-less marker takes no damage — no wobble, no
+            // double-hit break, no explosion.
+            place(server, 19, 39, 19, BuiltinBlocks.STONE);
+            AtomicReference<Boolean> landed = new AtomicReference<>();
+            server.ticker().submit(() -> landed.set(server.armorStands().place(
+                    new BlockPosition(19, 39, 19), 1, 0.0f, new java.util.Random(10))));
+            await(server, () -> landed.get() != null, "the stand placed");
+            ArmorStand stand = standAt(server, 19, 40, 19);
+            assertNotNull(stand, "the stand stands");
+            server.ticker().submit(() ->
+                    stand.setStatus((byte) (stand.status() | ArmorStand.FLAG_MARKER)));
+            await(server, () -> stand.marker(), "the marker flag set");
+
+            AtomicReference<Boolean> firstHit = new AtomicReference<>();
+            server.ticker().submit(() -> firstHit.set(server.armorStands().attack(stand, false)));
+            await(server, () -> firstHit.get() != null, "the first hit answered");
+            assertFalse(firstHit.get(), "the marker refuses the melee hit");
+            Thread.sleep(120); // past the five-tick window
+            AtomicReference<Boolean> secondHit = new AtomicReference<>();
+            server.ticker().submit(() -> secondHit.set(server.armorStands().attack(stand, false)));
+            await(server, () -> secondHit.get() != null, "the second hit answered");
+            assertFalse(secondHit.get(), "the marker refuses the double-hit break too");
+            assertNotNull(standAt(server, 19, 40, 19), "the marker still stands");
+
+            server.ticker().submit(() -> server.armorStands().breakByExplosion(stand));
+            await(server, () -> true, "the explosion arm ran");
+            assertNotNull(standAt(server, 19, 40, 19), "the marker survives the explosion");
+        } finally {
+            server.shutdown(null);
+        }
+    }
+
     private EngineServer boot() throws Exception {
         EngineConfig config = new EngineConfig("127.0.0.1", 0,
                 "astd" + Math.abs(UUID.randomUUID().hashCode() % 100000),
