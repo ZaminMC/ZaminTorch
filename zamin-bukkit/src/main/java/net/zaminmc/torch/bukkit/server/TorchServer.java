@@ -261,9 +261,13 @@ public final class TorchServer implements Server {
 
     @Override
     public org.bukkit.command.PluginCommand getPluginCommand(String name) {
-        // No legacy command registry in this slice: the engine's ONE command
-        // path (§30.3) is the deliberate alternative — recorded, not faked.
-        return null;
+        // The legacy command-map lookup (§28.7's commands inventory): the
+        // plugin.yml command surface resolves through the command bridge's
+        // own registry — the name, an alias, or a fallback-prefixed form,
+        // case-insensitive — while the engine's ONE command path (§30.3)
+        // stays the only dispatcher (the registry ANSWERS the lookup; the
+        // dispatch never rides it).
+        return adapter.commandBridge().pluginCommand(name);
     }
 
     @Override

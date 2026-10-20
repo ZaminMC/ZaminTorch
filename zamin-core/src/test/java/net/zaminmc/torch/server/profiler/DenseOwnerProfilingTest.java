@@ -210,6 +210,78 @@ class DenseOwnerProfilingTest {
         server.chatService().submitChat(alice, "/debug stop");
     }
 
+    @Test
+    void theBucketedMergeWalkMeasuresItsRelief() throws Exception {
+        server.chatService().submitChat(alice, "/debug start");
+        Window opened = waitForTicks(2, "the profiler opened");
+        Window baselineEnd = waitForTicks(40, "the baseline window");
+        // THE SAME SHAPE as the gate's own item scene (the §22 Phase-7
+        // record's two densities), re-measured on the bucketed merge walk.
+        // The recorded BEFORE numbers this run is measured against:
+        // the §22 Phase-7 record itself (472 settled items ->
+        // itemEntities 3291.7us/tick at 6.97us/item; 1546 settled ->
+        // 16386.2us/tick at 10.60us/item, 92.6% of the tick fan — the
+        // superlinear O(n^2) mergeNearbyItems walk) and this same harness's
+        // own pre-bucketing run on this machine (444 settled -> 2726.4us at
+        // 6.14us/item; 1506 settled -> 16127.3us at 10.71us/item — 3.4x the
+        // bodies cost 5.9x the time, the superlinear signature).
+        server.ticker().submit(() -> dropItems(0, 600, -62, -62, 31));
+        int settled600 = awaitSettledPopulation();
+        System.out.println("P7 POPULATION: the relief wave-1 settled at " + settled600 + " items");
+        Window dense600 = waitForTicks(40, "the 600-item window");
+        server.ticker().submit(() -> dropItems(600, 2000, -62, -22, 31));
+        int settled2000 = awaitSettledPopulation();
+        System.out.println("P7 POPULATION: the relief wave-2 settled at " + settled2000 + " items");
+        Window dense2000 = waitForTicks(40, "the 2000-item window");
+
+        Map<String, Double> baselineDeltas = perTickDeltas(opened, baselineEnd);
+        Map<String, Double> dense600Deltas = perTickDeltas(baselineEnd, dense600);
+        Map<String, Double> dense2000Deltas = perTickDeltas(dense600, dense2000);
+        printEvidence("the bucketed merge walk, 600 dropped items", dense600Deltas);
+        printEvidence("the bucketed merge walk, 2000 dropped items", dense2000Deltas);
+        double baselineItems = perTick(baselineDeltas, "itemEntities");
+        double dense600Items = perTick(dense600Deltas, "itemEntities");
+        double dense2000Items = perTick(dense2000Deltas, "itemEntities");
+        System.out.printf("P7 RELIEF LINE: itemEntities %.1fus -> %.1fus per tick at %d settled items "
+                        + "(%.2fus/item) vs the pre-bucketing 2726.4us at 444 (6.14us/item; "
+                        + "the s22 record: 3291.7us at 472, 6.97us/item)%n",
+                baselineItems / 1000.0, dense600Items / 1000.0, settled600,
+                dense600Items / settled600 / 1000.0);
+        System.out.printf("P7 RELIEF LINE: itemEntities %.1fus per tick at %d settled items "
+                        + "(%.2fus/item) vs the pre-bucketing 16127.3us at 1506 (10.71us/item; "
+                        + "the s22 record: 16386.2us at 1546, 10.60us/item, 92.6%% of the tick)%n",
+                dense2000Items / 1000.0, settled2000,
+                dense2000Items / settled2000 / 1000.0);
+        double perItemGrowth = (dense2000Items / settled2000) / (dense600Items / settled600);
+        System.out.printf("P7 RELIEF LINE: per-item growth %.2fx for %.2fx the bodies "
+                        + "(the pre-bucketing superlinear signature was 1.74x for 3.39x "
+                        + "on this machine; the s22 record 1.52x for 3.28x)%n",
+                perItemGrowth, (double) settled2000 / settled600);
+
+        // The structural pins (the §22 discipline: the verdict is over the
+        // printed evidence; the pins hold the shape only). The dense cost
+        // still lands in the item system's own section...
+        assertTrue(dense600Items > Math.max(baselineItems * 4.0, 5_000.0),
+                "the dense item region still costs the item system real per-tick time ("
+                        + baselineItems / 1000.0 + "us -> " + dense600Items / 1000.0 + "us)");
+        // ...it still grows with the population (the per-item physics and
+        // publication tail is linear)...
+        assertTrue(dense2000Items > dense600Items,
+                "the cost still grows with the population ("
+                        + dense600Items / 1000.0 + "us -> " + dense2000Items / 1000.0 + "us)");
+        // ...and the SUPERLINEAR SIGNATURE IS GONE: the per-item cost at the
+        // high density stays within 1.5x of the low density's. The old walk
+        // measured 1.74x (this machine; the §22 record 1.52x) because the
+        // O(n^2) candidate scan grew with the population; the bucketed walk's
+        // scan is per-keeper constant at these densities, so the ratio is the
+        // linear tail's ~1.0.
+        assertTrue(perItemGrowth < 1.5,
+                "the per-item cost no longer grows superlinearly with the population ("
+                        + dense600Items / settled600 / 1000.0 + "us/item -> "
+                        + dense2000Items / settled2000 / 1000.0 + "us/item)");
+        server.chatService().submitChat(alice, "/debug stop");
+    }
+
     /**
      * Waits for the item population to SETTLE: the run's own finding is
      * that the first ~20 ticks lose a slice of a fresh wave (the fall +
