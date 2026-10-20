@@ -49,7 +49,9 @@ public final class VehicleDataStore {
      * timer every kind carries (negative = the grace band). Version 2
      * and 1 files load with the fresh-body default (-1).
      */
-    private static final int FORMAT_VERSION = 3;
+    private static final int FORMAT_VERSION = 4;
+    private static final int FORMAT_VERSION_4 = 4;
+    private static final int FORMAT_VERSION_3 = 3;
     private static final int FORMAT_VERSION_2 = 2;
     private static final int FORMAT_VERSION_1 = 1;
 
@@ -133,6 +135,22 @@ public final class VehicleDataStore {
                     // timer — a burning cart keeps its burn, a grace-band
                     // cart keeps its grace, across the restart).
                     out.writeShort(vehicle.fire());
+                    // v4: the base rows (the reference's Entity.readNbt base
+                    // band — the import's landing round-trips through the
+                    // restart now).
+                    VehicleManager.BaseRows base = vehicle.base();
+                    out.writeLong(base.uuidMost());
+                    out.writeLong(base.uuidLeast());
+                    out.writeByte(base.hasUuid() ? 1 : 0);
+                    writeString(out, base.customName() == null ? "" : base.customName());
+                    out.writeByte(base.customNameVisible() ? 1 : 0);
+                    out.writeByte(base.silent() ? 1 : 0);
+                    out.writeFloat(base.fallDistance());
+                    out.writeShort(base.breath());
+                    out.writeByte(base.onGround() ? 1 : 0);
+                    out.writeByte(base.invulnerable() ? 1 : 0);
+                    out.writeInt(base.dimension());
+                    writeVarInt(out, base.portalCooldown());
                 }
         } catch (IOException e) {
             // The sink is an in-memory buffer; an IOException here is a
@@ -182,7 +200,8 @@ public final class VehicleDataStore {
                 throw new IOException("Not a ZVD file");
             }
             int version = in.readByte();
-            if (version != FORMAT_VERSION && version != FORMAT_VERSION_2
+            if (version != FORMAT_VERSION && version != FORMAT_VERSION_4
+                    && version != FORMAT_VERSION_3 && version != FORMAT_VERSION_2
                     && version != FORMAT_VERSION_1) {
                 throw new IOException("Unsupported ZVD version: " + version);
             }
@@ -247,11 +266,36 @@ public final class VehicleDataStore {
                     // Slice 78's own row: the raw signed burn clock.
                     fire = in.readShort();
                 }
+                VehicleManager.BaseRows base = VehicleManager.BaseRows.DEFAULT;
+                if (version >= FORMAT_VERSION_4) {
+                    // The base rows (the reference's Entity.readNbt base
+                    // band): the UUID pair + its presence flag, the custom
+                    // name (the empty string reads as none), the visibility
+                    // and silent flags, the fall accumulator, the breath
+                    // clock, the ground state, the invulnerable flag, the
+                    // dimension id, the portal cooldown.
+                    long uuidMost = in.readLong();
+                    long uuidLeast = in.readLong();
+                    boolean hasUuid = in.readUnsignedByte() == 1;
+                    String customName = readString(in);
+                    boolean customNameVisible = in.readUnsignedByte() == 1;
+                    boolean silent = in.readUnsignedByte() == 1;
+                    float fallDistance = in.readFloat();
+                    int breath = in.readShort();
+                    boolean onGround = in.readUnsignedByte() == 1;
+                    boolean invulnerable = in.readUnsignedByte() == 1;
+                    int dimension = in.readInt();
+                    int portalCooldown = readVarInt(in);
+                    base = new VehicleManager.BaseRows(uuidMost, uuidLeast, hasUuid,
+                            customName.isEmpty() ? null : customName, customNameVisible,
+                            silent, fallDistance, breath, onGround, invulnerable,
+                            dimension, portalCooldown);
+                }
                 loaded.add(new VehicleManager.VehicleSnapshot(
                         kind, x, y, z, yaw, health, cargo, hopperEnabled, hopperCooldown,
                         spawnerType, spawnerDelay,
                         command, commandSuccessCount, commandTrackOutput, commandLastOutput,
-                        fire));
+                        fire, base));
             }
             return loaded;
         } catch (IOException | RuntimeException corrupt) {

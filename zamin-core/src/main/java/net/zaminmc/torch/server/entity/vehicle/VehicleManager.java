@@ -311,6 +311,39 @@ public final class VehicleManager {
      * hopper's disable flag + transfer cooldown — Slice 66's variant
      * payload). Broken bodies are not captured.
      */
+    /**
+     * The base rows (the reference's Entity.readNbt base band —
+     * FallDistance, Air, OnGround, Dimension, Invulnerable,
+     * PortalCooldown, the UUID pair, CustomName + Visible, Silent): the
+     * snapshot's own form, the store's v4 rows.
+     */
+    public record BaseRows(long uuidMost, long uuidLeast, boolean hasUuid,
+                           String customName, boolean customNameVisible, boolean silent,
+                           float fallDistance, int breath, boolean onGround,
+                           boolean invulnerable, int dimension, int portalCooldown) {
+
+        /** The fresh-body default (the model's own field defaults). */
+        public static final BaseRows DEFAULT = new BaseRows(0L, 0L, false,
+                null, false, false, 0.0f, 300, false, false, 0, 0);
+
+        /** The live form: the vehicle's own fields. */
+        public static BaseRows of(VehicleEntity vehicle) {
+            java.util.UUID uuid = vehicle.uuid();
+            return new BaseRows(
+                    uuid == null ? 0L : uuid.getMostSignificantBits(),
+                    uuid == null ? 0L : uuid.getLeastSignificantBits(),
+                    uuid != null,
+                    vehicle.customName(), vehicle.customNameVisible(), vehicle.silent(),
+                    vehicle.fallDistance(), vehicle.breath(), vehicle.onGround(),
+                    vehicle.invulnerable(), vehicle.dimension(), vehicle.portalCooldown());
+        }
+
+        /** The UUID reconstruction (null when the row was absent). */
+        public java.util.UUID uuid() {
+            return hasUuid ? new java.util.UUID(uuidMost, uuidLeast) : null;
+        }
+    }
+
     public record VehicleSnapshot(String kind, double x, double y, double z, float yaw,
                                   float health,
                                   net.zaminmc.torch.item.ItemStack[] cargo,
@@ -318,13 +351,13 @@ public final class VehicleManager {
                                   String spawnerType, int spawnerDelay,
                                   String command, int commandSuccessCount,
                                   boolean commandTrackOutput, String commandLastOutput,
-                                  int fire) {
+                                  int fire, BaseRows base) {
 
         /** The pre-Slice-66 shape (the chest cart's own). */
         public VehicleSnapshot(String kind, double x, double y, double z, float yaw,
                                float health, net.zaminmc.torch.item.ItemStack[] cargo) {
             this(kind, x, y, z, yaw, health, cargo, true, -1, null, -1, null, 0, true, null,
-                    -VehicleEntity.FIRE_SAFE_TICKS);
+                    -VehicleEntity.FIRE_SAFE_TICKS, BaseRows.DEFAULT);
         }
 
         /** The part-three shape (the hopper cart's own). */
@@ -332,7 +365,7 @@ public final class VehicleManager {
                                float health, net.zaminmc.torch.item.ItemStack[] cargo,
                                boolean hopperEnabled, int hopperCooldown) {
             this(kind, x, y, z, yaw, health, cargo, hopperEnabled, hopperCooldown, null, -1,
-                    null, 0, true, null, -VehicleEntity.FIRE_SAFE_TICKS);
+                    null, 0, true, null, -VehicleEntity.FIRE_SAFE_TICKS, BaseRows.DEFAULT);
         }
 
         /** The part-four shape (the spawner cart's own). */
@@ -342,7 +375,7 @@ public final class VehicleManager {
                                String spawnerType, int spawnerDelay) {
             this(kind, x, y, z, yaw, health, cargo, hopperEnabled, hopperCooldown,
                     spawnerType, spawnerDelay, null, 0, true, null,
-                    -VehicleEntity.FIRE_SAFE_TICKS);
+                    -VehicleEntity.FIRE_SAFE_TICKS, BaseRows.DEFAULT);
         }
 
         /**
@@ -357,7 +390,24 @@ public final class VehicleManager {
                                boolean commandTrackOutput, String commandLastOutput) {
             this(kind, x, y, z, yaw, health, cargo, hopperEnabled, hopperCooldown,
                     spawnerType, spawnerDelay, command, commandSuccessCount,
-                    commandTrackOutput, commandLastOutput, -VehicleEntity.FIRE_SAFE_TICKS);
+                    commandTrackOutput, commandLastOutput, -VehicleEntity.FIRE_SAFE_TICKS,
+                    BaseRows.DEFAULT);
+        }
+
+        /**
+         * The pre-base-rows shape (the import-era store's own): the base
+         * rows load their fresh-body default.
+         */
+        public VehicleSnapshot(String kind, double x, double y, double z, float yaw,
+                               float health, net.zaminmc.torch.item.ItemStack[] cargo,
+                               boolean hopperEnabled, int hopperCooldown,
+                               String spawnerType, int spawnerDelay,
+                               String command, int commandSuccessCount,
+                               boolean commandTrackOutput, String commandLastOutput,
+                               int fire) {
+            this(kind, x, y, z, yaw, health, cargo, hopperEnabled, hopperCooldown,
+                    spawnerType, spawnerDelay, command, commandSuccessCount,
+                    commandTrackOutput, commandLastOutput, fire, BaseRows.DEFAULT);
         }
     }
 
@@ -393,7 +443,7 @@ public final class VehicleManager {
                             || commandCart.trackOutput(),
                     vehicle instanceof CommandBlockMinecartEntity commandCart
                             ? commandCart.lastOutput() : null,
-                    vehicle.onFireTimer()));
+                    vehicle.onFireTimer(), BaseRows.of(vehicle)));
         }
         return saved;
     }
@@ -507,6 +557,13 @@ public final class VehicleManager {
                 // short: the raw signed value — a burning cart keeps its
                 // burn across the restart).
                 restored.restoreFireTimer(snapshot.fire());
+                // The base rows (Entity.readNbt's base band — the vehicle
+                // store's v4 round trip).
+                VehicleManager.BaseRows base = snapshot.base();
+                restored.restoreBaseRows(base.uuid(), base.customName(),
+                        base.customNameVisible(), base.silent(), base.fallDistance(),
+                        base.breath(), base.onGround(), base.invulnerable(),
+                        base.dimension(), base.portalCooldown());
                 if (snapshot.cargo() != null) {
                     if (restored instanceof ChestMinecartEntity cart) {
                         for (int slot = 0; slot < snapshot.cargo().length

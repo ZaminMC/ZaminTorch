@@ -48,6 +48,15 @@ class VehiclePersistenceTest {
                 cart.chest().setSlot(26, ItemStack.of(
                         net.zaminmc.torch.server.item.BuiltinItems.IRON_INGOT, 3));
             }
+            // The base rows (Entity.readNbt's base band — the ZVD v4's own
+            // round trip): a named, silent, invulnerable cart from another
+            // dimension mid-fall with a portal cooldown.
+            if (chestCart != null) {
+                chestCart.restoreBaseRows(
+                        new java.util.UUID(0x1111222233334444L, 0x5555666677778888L),
+                        "Night Cart", true, true, 3.75f, 190, false,
+                        true, -1, 45);
+            }
             // A wounded cart (the health carry: 4.0 - one hit = 3.0).
             one.vehicles().spawnMinecart(new Position(12.5, ground + 1.0, 12.5));
             one.vehicles().spawnBoat(new Position(16.5, ground + 1.0, 16.5));
@@ -96,6 +105,17 @@ class VehiclePersistenceTest {
             ChestMinecartEntity cart = (ChestMinecartEntity) two.vehicles().all().stream()
                     .filter(v -> v.kind() == VehicleEntity.Kind.CHEST_MINECART)
                     .findFirst().orElseThrow();
+            // The base rows' own round trip (the ZVD v4).
+            assertEquals(new java.util.UUID(0x1111222233334444L, 0x5555666677778888L),
+                    cart.uuid(), "the UUID survived");
+            assertEquals("Night Cart", cart.customName());
+            assertTrue(cart.customNameVisible());
+            assertTrue(cart.silent());
+            assertEquals(3.75f, cart.fallDistance(), 0.0001f);
+            assertEquals(190, cart.breath());
+            assertTrue(cart.invulnerable());
+            assertEquals(-1, cart.dimension());
+            assertEquals(45, cart.portalCooldown());
             assertEquals(8.5, cart.position().x(), 1e-9, "the cart's x survived");
             // The restored body sits at the saved y or just below it (the
             // restored body continues its own physics from the load — a

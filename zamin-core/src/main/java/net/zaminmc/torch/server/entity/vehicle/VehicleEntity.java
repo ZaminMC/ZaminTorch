@@ -164,6 +164,30 @@ public abstract class VehicleEntity implements net.zaminmc.torch.entity.Vehicle 
      */
     private int onFireTimer = -FIRE_SAFE_TICKS;
 
+    // ------------------------------------------------------------------
+    // The base rows (the reference's Entity.readNbt lines 1155-1196 —
+    // the anvil import lands them, the vehicle store round-trips them)
+    // ------------------------------------------------------------------
+
+    /** The entity's UUID (UUIDMost/Least or the string form). */
+    private java.util.UUID uuid;
+    /** The custom name (a non-empty row lands; null = none). */
+    private String customName;
+    /** The name-plate visibility flag. */
+    private boolean customNameVisible;
+    /** The silent flag (no sounds). */
+    private boolean silent;
+    /** The fall-damage accumulator (Entity.fallDistance). */
+    private float fallDistance;
+    /** The breath clock (Entity.setBreath — Air's short, the 300 default). */
+    private int breath = 300;
+    /** The invulnerable flag. */
+    private boolean invulnerable;
+    /** The dimension id row (the entity's home dimension). */
+    private int dimension;
+    /** The portal cooldown row. */
+    private int portalCooldown;
+
     protected VehicleEntity(int entityId, Kind kind, Position position, Random random) {
         this.entityId = entityId;
         this.kind = kind;
@@ -217,6 +241,80 @@ public abstract class VehicleEntity implements net.zaminmc.torch.entity.Vehicle 
 
     public boolean onGround() {
         return onGround;
+    }
+
+    /** The reference's OnGround write (Entity.readNbt line 1166). */
+    public void setOnGround(boolean restored) {
+        this.onGround = restored;
+    }
+
+    /** The entity's UUID row (UUIDMost/Least or the string form). */
+    public java.util.UUID uuid() {
+        return uuid;
+    }
+
+    /** The custom name row (null = none). */
+    public String customName() {
+        return customName;
+    }
+
+    /** The name-plate visibility flag. */
+    public boolean customNameVisible() {
+        return customNameVisible;
+    }
+
+    /** The silent flag. */
+    public boolean silent() {
+        return silent;
+    }
+
+    /** The fall-damage accumulator. */
+    public float fallDistance() {
+        return fallDistance;
+    }
+
+    /** The breath clock (the Air row). */
+    public int breath() {
+        return breath;
+    }
+
+    /** The invulnerable flag. */
+    public boolean invulnerable() {
+        return invulnerable;
+    }
+
+    /** The dimension id row. */
+    public int dimension() {
+        return dimension;
+    }
+
+    /** The portal cooldown row. */
+    public int portalCooldown() {
+        return portalCooldown;
+    }
+
+    /**
+     * The base rows' restore (the reference's Entity.readNbt lines
+     * 1163-1196: FallDistance, Air, OnGround, Dimension, Invulnerable,
+     * PortalCooldown, UUID, CustomName + Visible, Silent) — the anvil
+     * import's landing arm and the vehicle store's restore both ride
+     * here. A null UUID / null name means the row was absent (the
+     * reference's own absent-row shape).
+     */
+    public void restoreBaseRows(java.util.UUID uuid, String customName,
+                                boolean customNameVisible, boolean silent,
+                                float fallDistance, int breath, boolean onGround,
+                                boolean invulnerable, int dimension, int portalCooldown) {
+        this.uuid = uuid;
+        this.customName = customName;
+        this.customNameVisible = customNameVisible;
+        this.silent = silent;
+        this.fallDistance = fallDistance;
+        this.breath = breath;
+        this.onGround = onGround;
+        this.invulnerable = invulnerable;
+        this.dimension = dimension;
+        this.portalCooldown = portalCooldown;
     }
 
     /** @return the rider's steer input for this tick (then reset to neutral). */
