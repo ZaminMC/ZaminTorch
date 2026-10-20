@@ -10985,3 +10985,72 @@ fourteen reference-driven rows:
 
 The plan committed as the session's checkpoint; the implementation
 walks the wave in order.
+
+## 2026-10-21 — the mob armor family (Wave VIII's VIII4: the no-armor mob envelope's retirement)
+
+The §29 Wave VIII row: equipment slots 1..4 (feet, legs, chest, head)
+landed nowhere — the held slot (0) alone carried (the archer's bow);
+no armor points in the mob damage walk, no per-type spawn dice, no
+armor on the Entity Equipment wire, and the vanilla Equipment rows
+parsing to nothing.
+
+**The landing** (2b979363): THE MODEL — MobEntity's four armor slots
+through equipment(int)/setEquipment(int, stack) beside the held
+accessor family. THE DAMAGE CONSULT — MobEntity.hurt grows the
+reference's EXACT getDamageAfterArmor law (LivingEntity lines 868-877:
+`damage * (25 - points) / 25.0F` — 4% per point, the 20-point/80% cap),
+the per-piece sum over ALL FIVE slots through the existing Armor.specOf
+model (the reference's own quirk: a helmet HELD in the hand contributes
+its points), with the bypass split — the reference's setBypassesArmor
+family (ON_FIRE, DROWN, IN_WALL, STARVE, FALL, OUT_OF_WORLD, GENERIC,
+MAGIC, WITHER) takes the new hurt(amount, true) arm while the melee,
+the arrows, the explosions, the lightning, the anvil, the cactus, the
+lava and the standing-in-fire consult the pieces. THE SPAWN DICE —
+MobManager.rollSpawnEquipment, addRandomEquipment lines 593-623 1:1
+(the 0.15-times-multiplier gate, the nextInt(2) level widened by three
+0.095 bumps, the head-to-feet walk, HARD's own 0.1 stop band against
+the 0.25, the leather/gold/chain/iron/diamond ladder) + the zombie's
+1%-or-5% iron tool arm (ZombieEntity lines 306-316); the pigman's
+override never rolls, the nether wither arm REPLACES the whole walk
+and strips the slots back off (initialize's if/else, 1:1). THE DROPS —
+dropEquipment's five-slot loop (the per-slot chance gate, the 2.0
+picked-up marker dropping pristine without the player-kill window,
+the [26, max-25] durability shave, the held-first order) + the XP
+equipment bonus over all five slots. THE WIRE — the mob spawn
+publication and the equipment-change re-send write all five Entity
+Equipment (0x04) slots, held first then feet/legs/chest/head. THE
+PERSISTENCE — EntityNbt's Equipment list lands AND writes all five
+rows (the /summon walk and the anvil import whole — an empty row
+SETTING its slot back to empty like the reference's own read) + the
+ZVD store's v13 armor tail: the four stacks ride the SAME stack-row
+family (writeEquipmentRows/readEquipmentRows extracted from the held
+block), the non-default DropChances ride beside, the tail is
+SELF-SUFFICIENT beside a bare NBT block (the armor-only body's
+flags byte carries no armor bits), and the v12 skullOwner gate is
+renamed to its own constant per the store's own bump-audit lesson
+(the v8 bump's own class of bug).
+
+**Two findings recorded, not silently scoped**: (1) the PLAYER path's
+Armor.reduce carries the 1.9 toughness-shaped envelope
+min(20, max(points/5, points - dmg/2)) — NOT the reference's linear
+law; the mob consult implements the reference exactly and leaves the
+player surface to its owning instance; (2) the loot-pickup walk's
+ARMOR compare (updateInventory lines 373-385 — an ArmorItem over a
+non-armor piece, the protection tie) stays demand-named: mobs never
+pick armor up mid-life; the slots fill through the dice, the /summon
+rows and the import.
+
+**The evidence**: MobArmorFamilyTest 13/0 (the reduction band incl.
+the held-helmet quirk and the bypass arm; the seeded dice against the
+test's own verbatim reference-walk shadow at two difficulties + the
+zero-multiplier gate; the HARD-site wiring + the pigman refusal; the
+nether wither strip; the five-slot drop order + the shave band + the
+2.0 marker; the vanilla Equipment rows + the empty-row strip; the ZVD
+v13 round trip; the anvil import's whole list) + MobEquipmentWireOrder
+Test (the scripted client's two five-frame 0x04 batches, the re-send's
+exact order and items over the real wire). The suites: entity.* 423/0,
+anvil.* 44/0, the protocol module 115/0, the full zamin-core batch
+sweep green (one SchedulerApi timing flake under batch load, green in
+isolation and on the batch's re-run). The EntityFamilySaveSplitTest's
+embedded historical walk grew the v13 tail byte — the byte-identity
+proof rides the new format.
