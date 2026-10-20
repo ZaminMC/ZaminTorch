@@ -530,6 +530,16 @@ class AnvilImportAcceptanceTest {
         Map<String, Object> mount = AnvilFixture.entityRow("MinecartRideable", 136.5, 1.0, 136.5);
         rider.put("Riding", mount);
 
+        // The exotic mount-side shape (the generic-mount seat's own scene):
+        // a zombie riding a DROPPED ITEM — the reference's startRiding
+        // seats any family; the engine's generic registry carries the
+        // follow (the base Entity's own law).
+        Map<String, Object> exoticRider = AnvilFixture.entityRow("Zombie", 139.5, 2.0, 139.5);
+        exoticRider.put("CustomName", "Surfer");
+        Map<String, Object> itemMount = AnvilFixture.itemEntityRow(
+                "minecraft:diamond", 1, 0, 139.5, 2.0, 139.5, (short) 100);
+        exoticRider.put("Riding", itemMount);
+
         // The eye of ender (the import-families slice — the restored form;
         // the transient rows' counted note names the load quirk) and the
         // leash knot (the Tile row IS the anchor; the survival poll owns the
@@ -543,7 +553,7 @@ class AnvilImportAcceptanceTest {
 
         byte[] chunkNbt = AnvilFixture.nbtDocument(AnvilFixture.chunkNbt(8, 8,
                 List.of(AnvilFixture.section(0, blocks, new byte[2048], null)), null,
-                List.of(stuckArrow, snowball, painting, frame, orb, rider, eye, knot), null));
+                List.of(stuckArrow, snowball, painting, frame, orb, rider, exoticRider, eye, knot), null));
         AnvilFixture.writeRegionFile(vault.resolve("region").resolve("r.0.0.mca"),
                 List.of(new AnvilFixture.Entry(8, 8, AnvilRegionFile.SCHEME_ZLIB,
                         AnvilFixture.zlib(chunkNbt))));
@@ -687,9 +697,30 @@ class AnvilImportAcceptanceTest {
 
             // The report's own counter: 9 entities imported (the arrow,
             // the snowball, the painting, the frame, the orb, the rider,
-            // the chain's cart, the eye, and the knot — the
-            // import-families slice).
-            assertTrue(report.contains("9 entities"), "the entity counter: " + report);
+            // the chain's cart, the exotic pair (the surfer zombie + its
+            // dropped-diamond mount), the eye, and the knot — the
+            // import-families slice + the generic-mount seat).
+            assertTrue(report.contains("11 entities"), "the entity counter: " + report);
+            // THE GENERIC-MOUNT SEAT (the exotic mount-side shape): the
+            // zombie landed, the dropped-diamond mount landed, and the
+            // follow anchors the rider at the item's own position (the
+            // base Entity's law — the mount's height 0.0 + the zombie's
+            // own -0.35 ride height never applies here: the generic
+            // families carry no seat height of their own, the rider's
+            // body rides the mount's cell).
+            var surfer = server.mobs().all().stream()
+                    .filter(mob -> "Surfer".equals(mob.customName()))
+                    .findFirst().orElseThrow();
+            assertTrue(server.itemEntities().all().stream().anyMatch(
+                            item -> item.position().x() == 139.5),
+                    "the dropped-diamond mount imported");
+            assertTrue(Math.abs(surfer.position().x() - 139.5) < 0.01
+                            && Math.abs(surfer.position().z() - 139.5) < 0.01,
+                    "the exotic rider anchored at the item mount's cell: "
+                            + surfer.position());
+            assertFalse(report.contains("entity rides Item"),
+                    "the exotic mount-side chain never isolates: " + report);
+
         } finally {
             consoleLogger.removeHandler(capture);
             server.shutdown(null);

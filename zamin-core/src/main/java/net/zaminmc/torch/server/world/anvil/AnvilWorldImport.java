@@ -164,7 +164,8 @@ public final class AnvilWorldImport {
                                net.zaminmc.torch.server.experience.ExperienceOrbManager orbs,
                                net.zaminmc.torch.server.fireworks.FireworksSystem fireworks,
                                net.zaminmc.torch.server.endereye.EnderEyeSystem eyes,
-                               net.zaminmc.torch.server.leash.LeadSystem leads) {
+                               net.zaminmc.torch.server.leash.LeadSystem leads,
+                               GenericSeatSeam genericSeats) {
     }
 
     /** One session over the world (the chunk reader over the world's registry). */
@@ -496,6 +497,19 @@ public final class AnvilWorldImport {
     }
 
     /**
+     * The generic-mount seating seam (the exotic shapes' import form): a
+     * MOB rider takes a non-vehicle/mob mount's seat through the engine's
+     * own registry (the reference's startRiding at load).
+     */
+    public interface GenericSeatSeam {
+        /** @return whether the seat opened (false = the occupied seat). */
+        boolean seat(int mountId,
+                java.util.function.Supplier<Position> mountPosition,
+                java.util.function.BooleanSupplier mountAlive,
+                int riderEngineId);
+    }
+
+    /**
      * One imported entity row's seatable handle: the mob and vehicle pair
      * for the seatable families; both null when the family landed but
      * carries no seat surface (the dropped items, the projectiles, the
@@ -505,10 +519,18 @@ public final class AnvilWorldImport {
      * sessions and mobs alone).
      */
     private record Imported(MobEntity mob,
-            net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle) {
+            net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle,
+            GenericMountHandle generic) {
         int engineId() {
-            return mob != null ? mob.entityId() : vehicle.entityId();
+            return mob != null ? mob.entityId()
+                    : vehicle != null ? vehicle.entityId() : generic.id();
         }
+    }
+
+    /** A landed generic family's own mount handle (the exotic seating). */
+    private record GenericMountHandle(int id,
+            java.util.function.Supplier<Position> position,
+            java.util.function.BooleanSupplier alive) {
     }
 
     /**
@@ -536,43 +558,44 @@ public final class AnvilWorldImport {
         if (isVehicleId(id)) {
             net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle =
                     importVehicle(id, at, rows);
-            return vehicle == null ? null : new Imported(null, vehicle);
+            return vehicle == null ? null : new Imported(null, vehicle, null);
         }
         // The projectiles (the reference's nine wire families — the
-        // engine's own manager, the restored form).
+        // engine's own manager, the restored form; the generic-mount handle
+        // for the exotic riding shapes).
         var projectileKind = projectileKindOf(id);
         if (projectileKind != null) {
-            importProjectile(id, projectileKind, at, rows);
-            return new Imported(null, null);
+            return new Imported(null, null,
+                    importProjectile(id, projectileKind, at, rows));
         }
         // The hanging decorations (the painting + the item frame — the
         // engine's own decoration system, the exact-cell form).
         if (id.equals("Painting") || id.equals("ItemFrame")) {
             importDecoration(id, rows);
-            return new Imported(null, null);
+            return new Imported(null, null, null);
         }
-        // The XP orb (the engine's own orb manager, the exact-value form).
+        // The XP orb (the engine's own orb manager, the exact-value form;
+        // the generic-mount handle for the exotic riding shapes).
         if (id.equals("XPOrb")) {
-            importXpOrb(at, rows);
-            return new Imported(null, null);
+            return new Imported(null, null, importXpOrb(at, rows));
         }
         // The firework rocket (the reference's FireworksRocketEntity — the
-        // engine's own fireworks system, the restored form).
+        // engine's own fireworks system, the restored form; the
+        // generic-mount handle for the exotic riding shapes).
         if (id.equals("FireworksRocketEntity")) {
-            importFirework(at, rows);
-            return new Imported(null, null);
+            return new Imported(null, null, importFirework(at, rows));
         }
         // The eye of ender (the reference's EyeOfEnderSignal — the engine's
-        // own eye system, the restored form).
+        // own eye system, the restored form; the generic-mount handle for
+        // the exotic riding shapes).
         if (id.equals("EyeOfEnderSignal")) {
-            importEye(at, rows);
-            return new Imported(null, null);
+            return new Imported(null, null, importEye(at, rows));
         }
         // The leash knot (the reference's LeashKnot — the engine's own lead
         // system, the restored anchor).
         if (id.equals("LeashKnot")) {
             importKnot(rows);
-            return new Imported(null, null);
+            return new Imported(null, null, null);
         }
         // The living mobs (the /summon machinery whole).
         MobType type = MobType.byVanillaName(id);
@@ -593,7 +616,7 @@ public final class AnvilWorldImport {
         EntityNbt.readNbt(spawned, rows, content.potions(),
                 () -> content.equipmentChanged().accept(spawned));
         ledger.entityImported();
-        return new Imported(spawned, null);
+        return new Imported(spawned, null, null);
     }
 
     /** The dropped item row (EntityItem): landed, never seatable. */
@@ -611,6 +634,11 @@ public final class AnvilWorldImport {
                     "entity Item at " + at.x() + "," + at.y() + "," + at.z());
             return null;
         }
+        var itemSystem = content.items();
+        GenericMountHandle generic = new GenericMountHandle(entity.entityId(),
+                entity::position,
+                () -> itemSystem.all().stream().anyMatch(
+                        live -> live.entityId() == entity.entityId()));
         if (NbtOps.containsNumeric(rows, "Age")) {
             entity.setAge(NbtOps.getShort(rows, "Age"));
         }
@@ -626,7 +654,7 @@ public final class AnvilWorldImport {
             entity.setOwner(owner);
         }
         ledger.entityImported();
-        return new Imported(null, null);
+        return new Imported(null, null, generic);
     }
 
     /**
@@ -668,11 +696,29 @@ public final class AnvilWorldImport {
                 return;
             }
             if (mount.mob == null && mount.vehicle == null) {
-                ledger.isolated("riding chain not imported (the mount family has "
-                                + "no seat surface: the engine's seats carry vehicles "
-                                + "and mobs alone)",
-                        "entity rides " + mountId);
-                return;
+                // THE GENERIC-MOUNT SEAT (the exotic shapes' mount side —
+                // a MOB rider on a non-vehicle/mob mount: a dropped item,
+                // a projectile, a firework, an eye, an XP orb): the
+                // reference's startRiding seats ANY family, the engine's
+                // generic registry now carries the follow.
+                if (mount.generic == null || head.mob == null) {
+                    ledger.isolated("riding chain not imported (the mount family has "
+                                    + "no seat surface: the engine's seats carry vehicles, "
+                                    + "mobs and the generic families alone)",
+                            "entity rides " + mountId);
+                    return;
+                }
+                GenericSeatSeam seats = content == null ? null : content.genericSeats();
+                if (seats == null || !seats.seat(mount.generic.id(),
+                        mount.generic.position(), mount.generic.alive(),
+                        head.engineId())) {
+                    ledger.isolated("riding chain's generic seat refused (occupied or dead)",
+                            "entity rides " + mountId);
+                    return;
+                }
+                head = mount;
+                rows = mountRows;
+                continue;
             }
             if (head.mob == null) {
                 ledger.isolated("riding chain not imported (the rider family has no "
@@ -1002,13 +1048,13 @@ public final class AnvilWorldImport {
      * xTile/yTile/zTile/inTile/inData/shake/pickup/damage/Rotation; the
      * large fireball's ExplosionPower).
      */
-    private void importProjectile(String id, ProjectileEntity.Kind kind,
-                                  Position at, Map<String, Snbt.Tag> rows) {
+    private GenericMountHandle importProjectile(String id, ProjectileEntity.Kind kind,
+                                                  Position at, Map<String, Snbt.Tag> rows) {
         var manager = content == null ? null : content.projectiles();
         if (manager == null) {
             // No projectile surface wired: the rows count as not-imported.
             ledger.ignored("Entities (projectile rows)", 1);
-            return;
+            return null;
         }
         List<Snbt.Tag> motion = NbtOps.getList(rows, "Motion", Snbt.Tag.Type.DOUBLE);
         if (motion.isEmpty()) {
@@ -1021,12 +1067,12 @@ public final class AnvilWorldImport {
         if (motion.isEmpty()) {
             ledger.isolated("projectile row without a Motion/direction row",
                     "entity " + id + " at " + at.x() + "," + at.y() + "," + at.z());
-            return;
+            return null;
         }
         if (motion.size() != 3) {
             ledger.isolated("projectile row with a corrupt Motion row",
                     "entity " + id + " at " + at.x() + "," + at.y() + "," + at.z());
-            return;
+            return null;
         }
         ProjectileEntity spawned = manager.spawnRestored(kind, at,
                 NbtOps.listDouble(motion, 0),
@@ -1035,7 +1081,7 @@ public final class AnvilWorldImport {
         if (spawned == null) {
             ledger.isolated("projectile spawn withheld (the spawn gate)",
                     "entity " + id + " at " + at.x() + "," + at.y() + "," + at.z());
-            return;
+            return null;
         }
         // The stuck rows (the reference's readCustomNbt: inGround + the
         // ArrowEntity-only life clock — the stick clock resumes where
@@ -1069,6 +1115,10 @@ public final class AnvilWorldImport {
                     "entity " + id + " at " + at.x() + "," + at.y() + "," + at.z());
         }
         ledger.entityImported();
+        return new GenericMountHandle(spawned.entityId(),
+                spawned::position,
+                () -> manager.all().stream().anyMatch(
+                        live -> live.entityId() == spawned.entityId()));
     }
 
     // ------------------------------------------------------------------ the hanging-decoration walk
@@ -1213,17 +1263,17 @@ public final class AnvilWorldImport {
      * no engine surface (the orb model carries no wound clock) — the
      * ledger names it.
      */
-    private void importXpOrb(Position at, Map<String, Snbt.Tag> rows) {
+    private GenericMountHandle importXpOrb(Position at, Map<String, Snbt.Tag> rows) {
         var manager = content == null ? null : content.orbs();
         if (manager == null) {
             // No orb surface wired: the rows count as not-imported.
             ledger.ignored("Entities (XP-orb rows)", 1);
-            return;
+            return null;
         }
         if (!NbtOps.containsNumeric(rows, "Value")) {
             ledger.isolated("XP orb row without a Value row",
                     "entity XPOrb at " + at.x() + "," + at.y() + "," + at.z());
-            return;
+            return null;
         }
         int value = NbtOps.getShort(rows, "Value");
         int age = NbtOps.containsNumeric(rows, "Age") ? NbtOps.getShort(rows, "Age") : 0;
@@ -1232,7 +1282,7 @@ public final class AnvilWorldImport {
             ledger.isolated("XP orb spawn withheld (a non-positive Value)",
                     "entity XPOrb at " + at.x() + "," + at.y() + "," + at.z()
                             + " Value " + value);
-            return;
+            return null;
         }
         if (NbtOps.containsNumeric(rows, "Health")) {
             ledger.isolated("XP orb's Health row has no engine surface "
@@ -1240,6 +1290,10 @@ public final class AnvilWorldImport {
                     "entity XPOrb at " + at.x() + "," + at.y() + "," + at.z());
         }
         ledger.entityImported();
+        return new GenericMountHandle(landed.entityId(),
+                landed::position,
+                () -> manager.all().stream().anyMatch(
+                        live -> live.entityId() == landed.entityId()));
     }
 
     /**
@@ -1255,12 +1309,12 @@ public final class AnvilWorldImport {
      * motion (the reference's own tick law — the loaded rotation never
      * survives the first flight step).
      */
-    private void importFirework(Position at, Map<String, Snbt.Tag> rows) {
+    private GenericMountHandle importFirework(Position at, Map<String, Snbt.Tag> rows) {
         var system = content == null ? null : content.fireworks();
         if (system == null) {
             // No fireworks surface wired: the rows count as not-imported.
             ledger.ignored("Entities (firework rows)", 1);
-            return;
+            return null;
         }
         int life = NbtOps.getInt(rows, "Life");
         int lifeTime = NbtOps.getInt(rows, "LifeTime");
@@ -1293,7 +1347,7 @@ public final class AnvilWorldImport {
                 vz = 0.0;
             }
         }
-        system.launchRestored(at, vx, vy, vz, life, lifeTime, payload);
+        var rocket = system.launchRestored(at, vx, vy, vz, life, lifeTime, payload);
         ledger.entityImported();
         if (NbtOps.contains(rows, "Rotation", Snbt.Tag.Type.LIST)) {
             ledger.isolated("firework's Rotation row has no per-rocket surface "
@@ -1301,6 +1355,10 @@ public final class AnvilWorldImport {
                             + "the reference's own tick law)",
                     "entity FireworksRocketEntity at " + at.x() + "," + at.y() + "," + at.z());
         }
+        return new GenericMountHandle(rocket.entityId(),
+                rocket::position,
+                () -> system.all().stream().anyMatch(
+                        live -> live.entityId() == rocket.entityId()));
     }
 
     /**
@@ -1313,12 +1371,12 @@ public final class AnvilWorldImport {
      * eye never drops — the 2003 event always ends it, the counted
      * note).
      */
-    private void importEye(Position at, Map<String, Snbt.Tag> rows) {
+    private GenericMountHandle importEye(Position at, Map<String, Snbt.Tag> rows) {
         var system = content == null ? null : content.eyes();
         if (system == null) {
             // No eye surface wired: the rows count as not-imported.
             ledger.ignored("Entities (eye rows)", 1);
-            return;
+            return null;
         }
         double vx = 0.0;
         double vy = 0.0;
@@ -1339,7 +1397,7 @@ public final class AnvilWorldImport {
                 vz = 0.0;
             }
         }
-        system.launchRestored(at, vx, vy, vz);
+        var eye = system.launchRestored(at, vx, vy, vz);
         ledger.entityImported();
         ledger.isolated("eye's transient target and drops rows have no per-eye surface "
                         + "(the reference's load quirk: a saved eye flies toward the origin "
@@ -1352,6 +1410,10 @@ public final class AnvilWorldImport {
                             + "on the first flight step)",
                     "entity EyeOfEnderSignal at " + at.x() + "," + at.y() + "," + at.z());
         }
+        return new GenericMountHandle(eye.entityId(),
+                eye::position,
+                () -> system.all().stream().anyMatch(
+                        live -> live.entityId() == eye.entityId()));
     }
 
     /**

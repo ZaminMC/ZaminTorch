@@ -1384,6 +1384,27 @@ public final class V18ProtocolServer implements ProtocolAdapter {
         // tracker shape: the Spawn Object 23 + the throw's 1002 event, the
         // 4-tick velocity re-syncs, the end's 2003 event or the item drop,
         // the Destroy).
+        // The generic-mount seats (the exotic riding shapes' import form):
+        // the 0x1B attach pair over the raw engine ids — the mob rider's
+        // wire id and the mount family's own spawn id (the item entities,
+        // the projectiles, the fireworks rockets, the eyes, the XP orbs
+        // all publish the engine id raw, the mobs' own global wire space
+        // carries the rider).
+        engine.addGenericMountListener(new net.zaminmc.torch.server.EngineServer.GenericMountListener() {
+            @Override
+            public void onGenericRiderSeated(int mountId, int riderId) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendAttachEntity(riderId, mountId, true);
+                }
+            }
+
+            @Override
+            public void onGenericRiderDismounted(int mountId, int riderId) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendAttachEntity(riderId, mountId, false);
+                }
+            }
+        });
         if (engine.eyes() != null) {
             engine.eyes().addListener(new net.zaminmc.torch.server.endereye.EnderEyeSystem.Listener() {
                 @Override

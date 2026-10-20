@@ -2410,6 +2410,7 @@ public final class EngineServer implements Server, EngineBridge {
                     profiled("mobs", () -> mobs.tick(players.all(), world.timeOfDay()));
                     profiled("vehicleRiders", () -> tickVehicleRiders(vehicles)); // the seat anchor AFTER the mobs' own walk
                     profiled("mobRiders", this::tickMobRiders);          // the horse/pig seats (the same law)
+                    profiled("genericMountRiders", this::tickGenericMountRiders); // the exotic shapes' follow (the same law, the base Entity's own)
                     // The weather cycle (Slice 20b — the tick walk before
                     // the spawns: the reference's own tick order, the
                     // gradient shaving the same tick's ambient darkness).
@@ -14064,6 +14065,105 @@ public final class EngineServer implements Server, EngineBridge {
         }
     }
 
+    // ------------------------------------------------------------------
+    // The generic-mount seats (the exotic riding shapes — §31.6's counted
+    // refusal's mount-side retirement): a MOB rider seated on a
+    // non-vehicle/mob mount (a dropped item, a projectile, a firework
+    // rocket, an eye of ender, an XP orb), the reference's own
+    // startRiding-at-load shape the anvil import lands.
+    // ------------------------------------------------------------------
+
+    /** The generic-mount seating's protocol fan (the attach publication). */
+    public interface GenericMountListener {
+        /** The seat opened: the 0x1B attach pair over the raw engine ids. */
+        default void onGenericRiderSeated(int mountId, int riderId) { }
+
+        /** The seat opened (the rider or the mount gone): the detach pair. */
+        default void onGenericRiderDismounted(int mountId, int riderId) { }
+    }
+
+    /** One generic-mount seating: the mount's id + its live position/alive reads. */
+    private record GenericMountSeat(int mountId,
+                                    java.util.function.Supplier<Position> mountPosition,
+                                    java.util.function.BooleanSupplier mountAlive,
+                                    int riderId) {
+    }
+
+    /** The live generic-mount seatings (tick-thread confined). */
+    private final java.util.List<GenericMountSeat> genericMountSeats = new java.util.ArrayList<>();
+
+    /** The generic-mount listener fan (the protocol's attach publication). */
+    private final java.util.List<GenericMountListener> genericMountListeners =
+            new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    /** Subscribes the generic-mount attach publication (the protocol's form). */
+    public void addGenericMountListener(GenericMountListener listener) {
+        genericMountListeners.add(Objects.requireNonNull(listener, "listener"));
+    }
+
+    /**
+     * The import seam (the anvil riding chain's exotic form): a MOB rider
+     * takes a non-vehicle/mob mount's seat — the reference's startRiding
+     * at load (AnvilChunkStorage line 335), the plain seat with no
+     * temper flow. The registry holds the mount's live reads (the
+     * position provider + the alive consult); the follow arm anchors the
+     * rider each tick through the base Entity's own law. Returns false
+     * when the mount's seat is already taken (the one-rider law).
+     * Tick-thread context.
+     */
+    public boolean seatImportedRiderOnGenericMount(int mountId,
+            java.util.function.Supplier<Position> mountPosition,
+            java.util.function.BooleanSupplier mountAlive,
+            int riderEngineId) {
+        for (GenericMountSeat seat : genericMountSeats) {
+            if (seat.mountId() == mountId) {
+                return false; // the occupied seat (the one-rider law)
+            }
+        }
+        genericMountSeats.add(new GenericMountSeat(mountId,
+                Objects.requireNonNull(mountPosition, "mountPosition"),
+                Objects.requireNonNull(mountAlive, "mountAlive"),
+                riderEngineId));
+        for (GenericMountListener listener : genericMountListeners) {
+            listener.onGenericRiderSeated(mountId, riderEngineId);
+        }
+        return true;
+    }
+
+    /**
+     * The generic-mount riders' follow (the exotic shapes' arm — the
+     * reference's rideTick → updateRiderPositon over the BASE Entity's
+     * law, Entity.java line 1353): a seated mob's body anchors at the
+     * mount's own position plus the rider's own per-family offset — no
+     * generic family overrides getRideHeight, so the mount's own height
+     * is the base 0.0 (the vehicle families' overrides are the vehicle
+     * arm's own rows, never here). The position moves outright through
+     * MobEntity.teleport (the same plain-set surface the vehicle/mob
+     * arms use); a dead rider or a departed mount opens the seat.
+     */
+    private void tickGenericMountRiders() {
+        if (genericMountSeats.isEmpty()) {
+            return;
+        }
+        java.util.Iterator<GenericMountSeat> iterator = genericMountSeats.iterator();
+        while (iterator.hasNext()) {
+            GenericMountSeat seat = iterator.next();
+            MobEntity rider = mobManager.byId(seat.riderId());
+            if (rider == null || rider.dead() || !seat.mountAlive().getAsBoolean()) {
+                iterator.remove();
+                for (GenericMountListener listener : genericMountListeners) {
+                    listener.onGenericRiderDismounted(seat.mountId(), seat.riderId());
+                }
+                continue;
+            }
+            Position mount = seat.mountPosition().get();
+            rider.teleport(new Position(mount.x(),
+                    mount.y() + net.zaminmc.torch.server.entity.vehicle.RiderSeatLaw
+                            .riderRideHeight(rider.type(), rider.isBaby()),
+                    mount.z()));
+        }
+    }
+
     /** The vehicle world query: the shape-aware solids plus rails. */
     private final class VehicleWorldQuery
             implements net.zaminmc.torch.server.entity.vehicle.VehicleEntity.WorldQuery {
@@ -22631,7 +22731,8 @@ public final class EngineServer implements Server, EngineBridge {
                                         this::spawnerCartHost,
                                         this::commandCartHost),
                                 projectileManager, decorations, experienceOrbs,
-                                fireworks, eyes, leadSystem));
+                                fireworks, eyes, leadSystem,
+                                this::seatImportedRiderOnGenericMount));
         try {
             io.submit(domain, "anvil-import-open", () -> {
                 // The folder inventory + the level bytes, all on the I/O
