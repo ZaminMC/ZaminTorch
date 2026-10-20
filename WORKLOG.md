@@ -10347,3 +10347,16 @@ Stage Summary:
 - feature/anvil-import @ c81eca2f: the Anvil canvas delivered — the binary NBT reader, the region reader, the state table, the chunk transform, the level rows, the import session, the explicit op-4 command, and 52 tests (50 in zamin-core + the protocol drift guard 2); the anvil+nbt target scan green, the world/block adjacent sweeps run in this session
 - The engine can now LOAD an original 1.8.8 world folder through an explicit operator action: imported blocks are ordinary engine blocks (the registry's own types — the wire's existing tested path sends them like generated terrain), the lighting hook lights them at publication, and the level rows land on the surfaces the engine already has
 - Next: the push + the PR (blocked on the credential), the Entities/TileEntities rows (a follow-up slice — the import already counts their presence), and the §31.7 migration contract for any full format conversion
+
+---
+Task ID: anvil-import (epilogue)
+Agent: main (Abasing session)
+Task: The push + the PR — the credential blocker resolved
+
+Work Log:
+- A valid write credential supplied in a follow-up session; the three commits (b9c26230, e9354a46, a2a9d58f) pushed to origin/feature/anvil-import
+- PR #2 opened against develop: "The Anvil canvas — the read-only 1.8.8 world import (§22): the binary NBT reader, the region reader, the state table, the chunk transform, the level rows, and the explicit /anvilimport command" — https://github.com/ZaminMC/ZaminTorch/pull/2
+
+Stage Summary:
+- The Anvil canvas delivered AND proposed: branch pushed, PR #2 open for maintainer review (not merged — the review is theirs)
+- Remaining follow-ups unchanged: the Entities/TileEntities rows, the §31.7 migration contract
