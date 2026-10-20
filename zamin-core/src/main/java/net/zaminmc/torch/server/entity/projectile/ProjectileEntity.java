@@ -206,6 +206,20 @@ public final class ProjectileEntity implements net.zaminmc.torch.entity.Projecti
         this.vz = 0;
     }
 
+    /**
+     * The restored stuck form (the Anvil import's {@code inGround} +
+     * {@code life} rows — the reference's readCustomNbt): the stick clock
+     * resumes at the saved life. The saved velocity stays as loaded
+     * (the reference's own shape — the stuck arm never integrates it, and
+     * {@link #landInGround()}'s zeroing belongs to the live hit alone).
+     * Public like its live twin {@link #landInGround()} (the import walk
+     * in another package is the caller).
+     */
+    public void restoreGrounded(int life) {
+        this.inGround = true;
+        this.ticksInGround = life;
+    }
+
     /** @return whether the full-draw flag rides (the hit's crit roll). */
     public boolean critical() {
         return critical;

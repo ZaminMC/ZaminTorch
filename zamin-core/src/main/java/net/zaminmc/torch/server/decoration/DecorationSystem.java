@@ -215,6 +215,80 @@ public final class DecorationSystem {
     }
 
     // ------------------------------------------------------------------
+    // The restored landings (the Anvil import's exact-cell form)
+    // ------------------------------------------------------------------
+
+    /**
+     * The frame's restored form (the Anvil import's exact-cell landing —
+     * the reference's {@code Entities.create} + {@code readCustomNbt}
+     * walk over ItemFrameEntity/DecorationEntity): the anchor cell, the
+     * facing, the displayed stack and the rotation land whole from the
+     * saved rows. No placement fit roll, no survival gate — the
+     * reference's own load lets the per-100-tick validation poll drop a
+     * body whose wall is gone, and so does the engine. The displayed
+     * stack lands through the same package setter the interact arm uses
+     * (the reference's own setDisplayItem(false) — no comparator wake on
+     * the load path).
+     *
+     * <p>The {@code ItemDropChance} row has no per-frame surface (the
+     * engine's fixed 1.0 drop chance, the reference field's own
+     * initializer) — the import's ledger names it.</p>
+     *
+     * @return the landed frame, or null when the cell already carries a
+     *         frame (the engine keys frames by wall cell — a duplicate
+     *         anchor would silently evict the first, so the second
+     *         refuses and the import isolates it loudly).
+     */
+    public ItemFrame restoreFrame(BlockPosition cell, int facing,
+                                  ItemStack display, int rotation) {
+        Objects.requireNonNull(cell, "cell");
+        if (frames.containsKey(cell)) {
+            return null; // the occupied-anchor refusal, never a silent evict
+        }
+        ItemFrame frame = new ItemFrame(nextId, cell, facing);
+        if (display != null && !display.isEmpty()) {
+            frame.setDisplay(display);
+        }
+        frame.setRotation(rotation); // the setter's own % 8 wrap
+        nextId++;
+        frames.put(cell, frame);
+        validationTicks.put(frame.entityId(), 0);
+        for (Listener listener : listeners) {
+            listener.onFrameSpawned(frame);
+        }
+        return frame;
+    }
+
+    /**
+     * The painting's restored form (the Anvil import's exact-cell
+     * landing — the reference's {@code readCustomNbt} over
+     * PaintingEntity/DecorationEntity): the anchor cell, the facing and
+     * the motive land whole. No fit roll (the saved variant IS the
+     * variant — the reference never re-rolls on load), no survival gate
+     * (the validation poll owns the unsupported-wall drop).
+     *
+     * @return the landed painting, or null when the cell already carries
+     *         a painting (the occupied-anchor refusal, as the frame's
+     *         own restore arm documents).
+     */
+    public Painting restorePainting(BlockPosition cell, int facing,
+                                    Painting.Motive motive) {
+        Objects.requireNonNull(cell, "cell");
+        Objects.requireNonNull(motive, "motive");
+        if (paintings.containsKey(cell)) {
+            return null; // the occupied-anchor refusal, never a silent evict
+        }
+        Painting painting = new Painting(nextId, cell, facing & 3, motive);
+        nextId++;
+        paintings.put(cell, painting);
+        validationTicks.put(painting.entityId(), 0);
+        for (Listener listener : listeners) {
+            listener.onPaintingSpawned(painting);
+        }
+        return painting;
+    }
+
+    // ------------------------------------------------------------------
     // The survival walk (DecorationEntity.canSurvive lines 93-120)
     // ------------------------------------------------------------------
 
