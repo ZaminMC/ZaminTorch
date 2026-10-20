@@ -622,7 +622,14 @@ class AnvilImportAcceptanceTest {
         Map<String, Object> spawnerCart = AnvilFixture.entityRow("MinecartSpawner", 130.5, 1.0, 130.5);
         spawnerCart.put("EntityId", "Zombie");
         spawnerCart.put("Delay", (short) 55);
-        spawnerCart.put("MinSpawnDelay", (short) 200); // the cadence note
+        // The cadence rows (the Wave VI per-cart surface): the imported
+        // cart carries its OWN band.
+        spawnerCart.put("MinSpawnDelay", (short) 120);
+        spawnerCart.put("MaxSpawnDelay", (short) 240);
+        spawnerCart.put("SpawnCount", (short) 2);
+        spawnerCart.put("MaxNearbyEntities", (short) 3);
+        spawnerCart.put("RequiredPlayerRange", (short) 12);
+        spawnerCart.put("SpawnRange", (short) 2);
         spawnerCart.put("Rotation", List.of(180.0f, 10.0f));
         // The UUID's string form (the reference's other arm).
         java.util.UUID spawnerUuid = java.util.UUID.fromString("e2f5a1b0-1234-4cde-9f8a-0a1b2c3d4e5f");
@@ -743,6 +750,14 @@ class AnvilImportAcceptanceTest {
                             .findFirst().orElseThrow();
             assertEquals(net.zaminmc.torch.server.entity.MobType.ZOMBIE, spawner.type());
             assertEquals(55, spawner.delayTicks());
+            // The cadence rows (the Wave VI per-cart surface —
+            // MobSpawnerBaseLogic.readNbt's own shorts land whole).
+            assertEquals(120, spawner.minSpawnDelay(), "the MinSpawnDelay row");
+            assertEquals(240, spawner.maxSpawnDelay(), "the MaxSpawnDelay row");
+            assertEquals(2, spawner.spawnCount(), "the SpawnCount row");
+            assertEquals(3, spawner.maxNearbyEntities(), "the MaxNearbyEntities row");
+            assertEquals(12, spawner.requiredPlayerRange(), "the RequiredPlayerRange row");
+            assertEquals(2, spawner.spawnRange(), "the SpawnRange row");
             assertEquals(180.0f, spawner.rotation().yaw(), 0.001f);
             assertEquals(10.0f, spawner.rotation().pitch(), 0.001f);
             // The UUID's string form (the reference's other arm).
@@ -759,10 +774,11 @@ class AnvilImportAcceptanceTest {
             assertEquals(0.0, command.velocityX(), 1e-9,
                     "the 12.0 component read as 0 (the reference's clamp)");
 
-            // The report's own rows: the cadence note, the riding chain.
+            // The report's own rows: the riding chain (the cadence rows
+            // LANDED with the Wave VI per-cart surface — no note).
             assertTrue(report.contains("9 entities"), "the report: " + report);
-            assertTrue(report.contains("spawner cart's cadence/potential rows"),
-                    "the cadence rows isolated loudly: " + report);
+            assertFalse(report.contains("spawner cart's cadence"),
+                    "the cadence rows landed, never isolated: " + report);
             assertTrue(report.contains("riding chain not imported"),
                     "the ridden cart's chain isolated loudly: " + report);
             assertTrue(report.contains("entity MinecartRideable rides Zombie"),

@@ -49,7 +49,8 @@ public final class VehicleDataStore {
      * timer every kind carries (negative = the grace band). Version 2
      * and 1 files load with the fresh-body default (-1).
      */
-    private static final int FORMAT_VERSION = 4;
+    private static final int FORMAT_VERSION = 5;
+    private static final int FORMAT_VERSION_5 = 5;
     private static final int FORMAT_VERSION_4 = 4;
     private static final int FORMAT_VERSION_3 = 3;
     private static final int FORMAT_VERSION_2 = 2;
@@ -118,6 +119,26 @@ public final class VehicleDataStore {
                         writeString(out, vehicle.spawnerType() == null
                                 ? "" : vehicle.spawnerType());
                         writeVarInt(out, vehicle.spawnerDelay());
+                        // v5: the cadence rows (the Wave VI per-cart surface
+                        // — writeNbt's own six: the band pair, the attempts,
+                        // the cap, the gate, the roll range; a null row set
+                        // writes the reference's own defaults).
+                        VehicleManager.CadenceRows cadence = vehicle.cadence();
+                        if (cadence == null) {
+                            cadence = new VehicleManager.CadenceRows(
+                                    SpawnerMinecartEntity.MIN_SPAWN_DELAY,
+                                    SpawnerMinecartEntity.MAX_SPAWN_DELAY,
+                                    SpawnerMinecartEntity.SPAWN_COUNT,
+                                    SpawnerMinecartEntity.MAX_NEARBY_ENTITIES,
+                                    SpawnerMinecartEntity.REQUIRED_PLAYER_RANGE,
+                                    SpawnerMinecartEntity.SPAWN_RANGE);
+                        }
+                        writeVarInt(out, cadence.minSpawnDelay());
+                        writeVarInt(out, cadence.maxSpawnDelay());
+                        writeVarInt(out, cadence.spawnCount());
+                        writeVarInt(out, cadence.maxNearbyEntities());
+                        writeVarInt(out, cadence.requiredPlayerRange());
+                        writeVarInt(out, cadence.spawnRange());
                     } else if (vehicle.kind().equals(
                             VehicleEntity.Kind.COMMAND_BLOCK_MINECART.name())) {
                         // The command executor's own rows
@@ -200,7 +221,8 @@ public final class VehicleDataStore {
                 throw new IOException("Not a ZVD file");
             }
             int version = in.readByte();
-            if (version != FORMAT_VERSION && version != FORMAT_VERSION_4
+            if (version != FORMAT_VERSION && version != FORMAT_VERSION_5
+                    && version != FORMAT_VERSION_4
                     && version != FORMAT_VERSION_3 && version != FORMAT_VERSION_2
                     && version != FORMAT_VERSION_1) {
                 throw new IOException("Unsupported ZVD version: " + version);
@@ -240,6 +262,7 @@ public final class VehicleDataStore {
                 // The fresh-body default (the reference's absent Fire row
                 // reads back as the -fireResistance grace).
                 int fire = -VehicleEntity.FIRE_SAFE_TICKS;
+                VehicleManager.CadenceRows cadence = null;
                 if (version >= FORMAT_VERSION_2) {
                     if (kind.equals(VehicleEntity.Kind.HOPPER_MINECART.name())) {
                         hopperEnabled = in.readUnsignedByte() != 0;
@@ -251,6 +274,14 @@ public final class VehicleDataStore {
                             spawnerType = null;
                         }
                         spawnerDelay = readVarInt(in);
+                        // v5: the cadence rows (the Wave VI per-cart surface
+                        // — the saved band, attempts, cap, gate, and roll
+                        // range; older files load the reference's defaults).
+                        if (version >= FORMAT_VERSION_5) {
+                            cadence = new VehicleManager.CadenceRows(
+                                    readVarInt(in), readVarInt(in), readVarInt(in),
+                                    readVarInt(in), readVarInt(in), readVarInt(in));
+                        }
                     } else if (kind.equals(
                             VehicleEntity.Kind.COMMAND_BLOCK_MINECART.name())) {
                         command = readString(in);
@@ -295,7 +326,7 @@ public final class VehicleDataStore {
                         kind, x, y, z, yaw, health, cargo, hopperEnabled, hopperCooldown,
                         spawnerType, spawnerDelay,
                         command, commandSuccessCount, commandTrackOutput, commandLastOutput,
-                        fire, base));
+                        fire, base, cadence));
             }
             return loaded;
         } catch (IOException | RuntimeException corrupt) {

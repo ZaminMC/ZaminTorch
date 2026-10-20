@@ -60,11 +60,11 @@ public class SpawnerMinecartEntity extends MinecartEntity
      * the hopper cart's transfer host.
      */
     public interface SpawnHost {
-        /** The player gate (isPlayerWithinRange at the point, 16 blocks). */
-        boolean playerNearby(double x, double y, double z);
+        /** The player gate (isPlayerWithinRange at the point — the cart's own range row). */
+        boolean playerNearby(double x, double y, double z, double range);
 
-        /** The same-kind count inside the spawn-range-grown box at the cell. */
-        int nearbyOfKind(MobType type, int cellX, int cellY, int cellZ);
+        /** The same-kind count inside the given range's box at the cell (the cart's own SpawnRange row). */
+        int nearbyOfKind(MobType type, int cellX, int cellY, int cellZ, int range);
 
         /**
          * The spawn (the canSpawn + isUnobstructed stand-in: the engine's
@@ -76,6 +76,18 @@ public class SpawnerMinecartEntity extends MinecartEntity
     /** The reference's own field default: "Pig" (line 19). */
     private MobType type = MobType.PIG;
     private int delay = INITIAL_DELAY;
+
+    // The per-cart cadence rows (the reference's MobSpawnerBaseLogic's own
+    // FIELDS — writeNbt's six rows, Wave VI's demand-named per-cart
+    // surface; the field initializers ARE the reference's own constants,
+    // the imported/persisted rows override them per cart).
+    private int minSpawnDelay = MIN_SPAWN_DELAY;
+    private int maxSpawnDelay = MAX_SPAWN_DELAY;
+    private int spawnCount = SPAWN_COUNT;
+    private int maxNearbyEntities = MAX_NEARBY_ENTITIES;
+    private int requiredPlayerRange = REQUIRED_PLAYER_RANGE;
+    private int spawnRange = SPAWN_RANGE;
+
     private final SpawnHost host;
     /** The fired-count/spin-reset diff surface (the manager's listener flips). */
     private int flameBursts;
@@ -113,6 +125,66 @@ public class SpawnerMinecartEntity extends MinecartEntity
         this.delay = delay;
     }
 
+    /** @return the reroll band's floor (the MinSpawnDelay row). */
+    public int minSpawnDelay() {
+        return minSpawnDelay;
+    }
+
+    /** The MinSpawnDelay row's landing arm (MobSpawnerBaseLogic.readNbt: the short). */
+    public void setMinSpawnDelay(int minSpawnDelay) {
+        this.minSpawnDelay = minSpawnDelay;
+    }
+
+    /** @return the reroll band's ceiling (the MaxSpawnDelay row). */
+    public int maxSpawnDelay() {
+        return maxSpawnDelay;
+    }
+
+    /** The MaxSpawnDelay row's landing arm. */
+    public void setMaxSpawnDelay(int maxSpawnDelay) {
+        this.maxSpawnDelay = maxSpawnDelay;
+    }
+
+    /** @return the attempts per cycle (the SpawnCount row). */
+    public int spawnCount() {
+        return spawnCount;
+    }
+
+    /** The SpawnCount row's landing arm. */
+    public void setSpawnCount(int spawnCount) {
+        this.spawnCount = spawnCount;
+    }
+
+    /** @return the nearby cap (the MaxNearbyEntities row). */
+    public int maxNearbyEntities() {
+        return maxNearbyEntities;
+    }
+
+    /** The MaxNearbyEntities row's landing arm. */
+    public void setMaxNearbyEntities(int maxNearbyEntities) {
+        this.maxNearbyEntities = maxNearbyEntities;
+    }
+
+    /** @return the player gate's range (the RequiredPlayerRange row). */
+    public int requiredPlayerRange() {
+        return requiredPlayerRange;
+    }
+
+    /** The RequiredPlayerRange row's landing arm. */
+    public void setRequiredPlayerRange(int requiredPlayerRange) {
+        this.requiredPlayerRange = requiredPlayerRange;
+    }
+
+    /** @return the spawn roll's range (the SpawnRange row). */
+    public int spawnRange() {
+        return spawnRange;
+    }
+
+    /** The SpawnRange row's landing arm. */
+    public void setSpawnRange(int spawnRange) {
+        this.spawnRange = spawnRange;
+    }
+
     /**
      * The public variant view (§27.3 — the spawner cart's own state):
      * the engine object IS the handle (§27.5). Simulation context.
@@ -135,29 +207,9 @@ public class SpawnerMinecartEntity extends MinecartEntity
         return delay();
     }
 
-    @Override public int minSpawnDelay() {
-        return MIN_SPAWN_DELAY;
-    }
-
-    @Override public int maxSpawnDelay() {
-        return MAX_SPAWN_DELAY;
-    }
-
-    @Override public int spawnCount() {
-        return SPAWN_COUNT;
-    }
-
-    @Override public int maxNearbyEntities() {
-        return MAX_NEARBY_ENTITIES;
-    }
-
-    @Override public int requiredPlayerRange() {
-        return REQUIRED_PLAYER_RANGE;
-    }
-
-    @Override public int spawnRange() {
-        return SPAWN_RANGE;
-    }
+    // The cadence reads (minSpawnDelay/maxSpawnDelay/spawnCount/
+    // maxNearbyEntities/requiredPlayerRange/spawnRange) ARE the plain
+    // getters above — the §27.3 view rides them through the interface.
 
     /** @return the flame bursts fired since the last consume (per spawn). */
     public int consumeFlameBursts() {
@@ -173,12 +225,12 @@ public class SpawnerMinecartEntity extends MinecartEntity
         return resets;
     }
 
-    /** The delay reroll (delay lines 156-169): the 200..800 band + the event-1. */
+    /** The delay reroll (delay lines 156-169): the cart's OWN band + the event-1. */
     private void rerollDelay() {
-        if (MAX_SPAWN_DELAY <= MIN_SPAWN_DELAY) {
-            delay = MIN_SPAWN_DELAY;
+        if (maxSpawnDelay <= minSpawnDelay) {
+            delay = minSpawnDelay;
         } else {
-            delay = MIN_SPAWN_DELAY + random().nextInt(MAX_SPAWN_DELAY - MIN_SPAWN_DELAY);
+            delay = minSpawnDelay + random().nextInt(maxSpawnDelay - minSpawnDelay);
         }
         spinResets++; // broadcastEvent(1) → doEntityEvent(this, (byte) 1)
     }
@@ -199,8 +251,10 @@ public class SpawnerMinecartEntity extends MinecartEntity
         int cellX = (int) Math.floor(at.x());
         int cellY = (int) Math.floor(at.y());
         int cellZ = (int) Math.floor(at.z());
-        // isNearPlayer (lines 51-54): the 16-block gate at the cell's center.
-        if (!host.playerNearby(cellX + 0.5, cellY + 0.5, cellZ + 0.5)) {
+        // isNearPlayer (lines 51-54): the player gate at the cell's center —
+        // the cart's OWN RequiredPlayerRange row.
+        double gate = requiredPlayerRange;
+        if (!host.playerNearby(cellX + 0.5, cellY + 0.5, cellZ + 0.5, gate)) {
             return;
         }
         if (delay == -1) {
@@ -211,19 +265,21 @@ public class SpawnerMinecartEntity extends MinecartEntity
             return;
         }
         boolean fired = false;
-        for (int i = 0; i < SPAWN_COUNT; i++) {
-            // The nearby cap (lines 77-85): the 6-mob abort re-arms the
-            // delay and ends the WHOLE cycle (the reference's return).
-            if (host.nearbyOfKind(type, cellX, cellY, cellZ) >= MAX_NEARBY_ENTITIES) {
+        for (int i = 0; i < spawnCount; i++) {
+            // The nearby cap (lines 77-85): the cart's OWN MaxNearbyEntities
+            // row — the abort re-arms the delay and ends the WHOLE cycle
+            // (the reference's return).
+            if (host.nearbyOfKind(type, cellX, cellY, cellZ, spawnRange)
+                    >= maxNearbyEntities) {
                 rerollDelay();
                 return;
             }
-            // The position roll (lines 87-89).
+            // The position roll (lines 87-89) — the cart's OWN SpawnRange row.
             double sx = cellX + (random().nextDouble() - random().nextDouble())
-                    * SPAWN_RANGE + 0.5;
+                    * spawnRange + 0.5;
             double sy = cellY + random().nextInt(3) - 1;
             double sz = cellZ + (random().nextDouble() - random().nextDouble())
-                    * SPAWN_RANGE + 0.5;
+                    * spawnRange + 0.5;
             if (host.spawnAt(type, sx, sy, sz)) {
                 // Lines 106-108: the 2004 flame burst fires PER SPAWN
                 // (inside the loop — the block spawner's engine port fires

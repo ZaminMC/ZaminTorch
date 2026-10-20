@@ -11364,8 +11364,9 @@ public final class EngineServer implements Server, EngineBridge {
     private net.zaminmc.torch.server.entity.vehicle.SpawnerMinecartEntity.SpawnHost
             spawnerCartHost() {
         return new net.zaminmc.torch.server.entity.vehicle.SpawnerMinecartEntity.SpawnHost() {
-            /** The 16-block player gate (isNearPlayer's own). */
-            @Override public boolean playerNearby(double x, double y, double z) {
+            /** The player gate (isNearPlayer's own range — the cart's RequiredPlayerRange row). */
+            @Override public boolean playerNearby(double x, double y, double z, double range) {
+                double squared = range * range;
                 for (PlayerSession player : players.all()) {
                     if (player.state() != net.zaminmc.torch.entity.PlayerState.PLAYING) {
                         continue;
@@ -11373,29 +11374,26 @@ public final class EngineServer implements Server, EngineBridge {
                     double dx = player.position().x() - x;
                     double dy = player.position().y() - y;
                     double dz = player.position().z() - z;
-                    if (dx * dx + dy * dy + dz * dz <= 16.0 * 16.0) {
+                    if (dx * dx + dy * dy + dz * dz <= squared) {
                         return true;
                     }
                 }
                 return false;
             }
 
-            /** The nearby cap's same-kind count. */
+            /** The nearby cap's same-kind count over the given range's box. */
             @Override public int nearbyOfKind(
                     net.zaminmc.torch.server.entity.MobType type,
-                    int cellX, int cellY, int cellZ) {
+                    int cellX, int cellY, int cellZ, int range) {
                 int nearby = 0;
                 for (var mob : mobManager.all()) {
                     if (mob.type() != type) {
                         continue;
                     }
                     net.zaminmc.torch.util.Position at = mob.position();
-                    if (Math.abs(at.x() - (cellX + 0.5))
-                            <= net.zaminmc.torch.server.entity.vehicle.SpawnerMinecartEntity.SPAWN_RANGE
-                            && Math.abs(at.y() - (cellY + 0.5))
-                            <= net.zaminmc.torch.server.entity.vehicle.SpawnerMinecartEntity.SPAWN_RANGE
-                            && Math.abs(at.z() - (cellZ + 0.5))
-                            <= net.zaminmc.torch.server.entity.vehicle.SpawnerMinecartEntity.SPAWN_RANGE) {
+                    if (Math.abs(at.x() - (cellX + 0.5)) <= range
+                            && Math.abs(at.y() - (cellY + 0.5)) <= range
+                            && Math.abs(at.z() - (cellZ + 0.5)) <= range) {
                         nearby++;
                     }
                 }

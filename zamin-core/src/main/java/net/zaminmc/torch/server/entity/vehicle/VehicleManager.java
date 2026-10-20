@@ -351,13 +351,13 @@ public final class VehicleManager {
                                   String spawnerType, int spawnerDelay,
                                   String command, int commandSuccessCount,
                                   boolean commandTrackOutput, String commandLastOutput,
-                                  int fire, BaseRows base) {
+                                  int fire, BaseRows base, CadenceRows cadence) {
 
         /** The pre-Slice-66 shape (the chest cart's own). */
         public VehicleSnapshot(String kind, double x, double y, double z, float yaw,
                                float health, net.zaminmc.torch.item.ItemStack[] cargo) {
             this(kind, x, y, z, yaw, health, cargo, true, -1, null, -1, null, 0, true, null,
-                    -VehicleEntity.FIRE_SAFE_TICKS, BaseRows.DEFAULT);
+                    -VehicleEntity.FIRE_SAFE_TICKS, BaseRows.DEFAULT, null);
         }
 
         /** The part-three shape (the hopper cart's own). */
@@ -365,7 +365,7 @@ public final class VehicleManager {
                                float health, net.zaminmc.torch.item.ItemStack[] cargo,
                                boolean hopperEnabled, int hopperCooldown) {
             this(kind, x, y, z, yaw, health, cargo, hopperEnabled, hopperCooldown, null, -1,
-                    null, 0, true, null, -VehicleEntity.FIRE_SAFE_TICKS, BaseRows.DEFAULT);
+                    null, 0, true, null, -VehicleEntity.FIRE_SAFE_TICKS, BaseRows.DEFAULT, null);
         }
 
         /** The part-four shape (the spawner cart's own). */
@@ -375,7 +375,7 @@ public final class VehicleManager {
                                String spawnerType, int spawnerDelay) {
             this(kind, x, y, z, yaw, health, cargo, hopperEnabled, hopperCooldown,
                     spawnerType, spawnerDelay, null, 0, true, null,
-                    -VehicleEntity.FIRE_SAFE_TICKS, BaseRows.DEFAULT);
+                    -VehicleEntity.FIRE_SAFE_TICKS, BaseRows.DEFAULT, null);
         }
 
         /**
@@ -407,7 +407,49 @@ public final class VehicleManager {
                                int fire) {
             this(kind, x, y, z, yaw, health, cargo, hopperEnabled, hopperCooldown,
                     spawnerType, spawnerDelay, command, commandSuccessCount,
-                    commandTrackOutput, commandLastOutput, fire, BaseRows.DEFAULT);
+                    commandTrackOutput, commandLastOutput, fire, BaseRows.DEFAULT, null);
+        }
+
+        /**
+         * The pre-cadence-rows shape (the Wave VI per-cart surface's own
+         * v5 prefix): the cadence rows load the reference's own defaults.
+         */
+        public VehicleSnapshot(String kind, double x, double y, double z, float yaw,
+                               float health, net.zaminmc.torch.item.ItemStack[] cargo,
+                               boolean hopperEnabled, int hopperCooldown,
+                               String spawnerType, int spawnerDelay,
+                               String command, int commandSuccessCount,
+                               boolean commandTrackOutput, String commandLastOutput,
+                               int fire, BaseRows base) {
+            this(kind, x, y, z, yaw, health, cargo, hopperEnabled, hopperCooldown,
+                    spawnerType, spawnerDelay, command, commandSuccessCount,
+                    commandTrackOutput, commandLastOutput, fire, base, null);
+        }
+    }
+
+    /**
+     * The spawner cart's cadence rows (the Wave VI demand-named per-cart
+     * surface — MobSpawnerBaseLogic's own six fields, writeNbt's rows):
+     * null keeps the reference's own defaults (the absent-row shape).
+     */
+    public record CadenceRows(int minSpawnDelay, int maxSpawnDelay, int spawnCount,
+                              int maxNearbyEntities, int requiredPlayerRange, int spawnRange) {
+
+        /** The capture (the live cart's own rows). */
+        public static CadenceRows of(SpawnerMinecartEntity cart) {
+            return new CadenceRows(cart.minSpawnDelay(), cart.maxSpawnDelay(),
+                    cart.spawnCount(), cart.maxNearbyEntities(),
+                    cart.requiredPlayerRange(), cart.spawnRange());
+        }
+
+        /** The landing (readNbt's rows — the restore arm). */
+        public void land(SpawnerMinecartEntity cart) {
+            cart.setMinSpawnDelay(minSpawnDelay);
+            cart.setMaxSpawnDelay(maxSpawnDelay);
+            cart.setSpawnCount(spawnCount);
+            cart.setMaxNearbyEntities(maxNearbyEntities);
+            cart.setRequiredPlayerRange(requiredPlayerRange);
+            cart.setSpawnRange(spawnRange);
         }
     }
 
@@ -443,7 +485,9 @@ public final class VehicleManager {
                             || commandCart.trackOutput(),
                     vehicle instanceof CommandBlockMinecartEntity commandCart
                             ? commandCart.lastOutput() : null,
-                    vehicle.onFireTimer(), BaseRows.of(vehicle)));
+                    vehicle.onFireTimer(), BaseRows.of(vehicle),
+                    vehicle instanceof SpawnerMinecartEntity spawnerCart
+                            ? CadenceRows.of(spawnerCart) : null));
         }
         return saved;
     }
@@ -524,6 +568,12 @@ public final class VehicleManager {
                         }
                         if (snapshot.spawnerDelay() >= 0) {
                             spawnerCart.setDelay(snapshot.spawnerDelay());
+                        }
+                        // The cadence rows (the Wave VI per-cart surface):
+                        // the saved band, attempts, cap, gate, and roll
+                        // range land whole — a null keeps the defaults.
+                        if (snapshot.cadence() != null) {
+                            snapshot.cadence().land(spawnerCart);
                         }
                     }
                     restored = cart;
