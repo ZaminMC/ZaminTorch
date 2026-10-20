@@ -459,9 +459,10 @@ public final class AnvilWorldImport {
      * Pos/Rotation/Motion/UUID/custom walks are the reference's own
      * Entity.readNbt — and the dropped items restore through the exact
      * position spawn with their Age/PickupDelay/Thrower/Owner rows. The
-     * families with no engine surface (vehicles, projectiles, paintings,
-     * item frames, XP orbs, riding chains) isolate with their exact id —
-     * §31.6's counted refusal.
+     * families with no engine surface (the fireworks rocket, the eye of
+     * ender, the leash knot) isolate with their exact id — §31.6's counted
+     * refusal; the riding chains walk the shared importRidingChain (the
+     * mob and vehicle seatings land, the exotic shapes isolate loudly).
      */
     private void applyEntities(List<Map<String, Snbt.Tag>> entities) {
         if (content == null) {
@@ -484,99 +485,194 @@ public final class AnvilWorldImport {
             }
             Position at = new Position(
                     NbtOps.listDouble(pos, 0), NbtOps.listDouble(pos, 1), NbtOps.listDouble(pos, 2));
-            // The dropped item (EntityItem): the stack's own compound +
-            // the cadence rows, the restored spawn.
-            if (id.equals("Item")) {
-                net.zaminmc.torch.item.ItemStack stack = ItemNbt.read(
-                        NbtOps.getCompound(rows, "Item"));
-                if (stack == null) {
-                    ledger.isolated("item entity with an unresolvable Item compound",
-                            "entity Item at " + at.x() + "," + at.y() + "," + at.z());
-                    continue;
+            Imported row = importRow(id, at, rows);
+            if (row != null) {
+                importRidingChain(row, rows);
+            }
+        }
+    }
+
+    /**
+     * One imported entity row's seatable handle: the mob and vehicle pair
+     * for the seatable families; both null when the family landed but
+     * carries no seat surface (the dropped items, the projectiles, the
+     * decorations, the XP orbs); null never returned for those — the
+     * handle answers the riding chain's walk (the reference's
+     * startRiding seats ANY family; the engine's follow arms carry
+     * sessions and mobs alone).
+     */
+    private record Imported(MobEntity mob,
+            net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle) {
+        int engineId() {
+            return mob != null ? mob.entityId() : vehicle.entityId();
+        }
+    }
+
+    /**
+     * One entity row's family dispatch (the reference's Entities.create
+     * dispatch): the row lands through its family's own arm and answers
+     * a seatable handle — {@code null} when the row did not land (the
+     * arm's own isolation note fired inside), {@code Imported(null,
+     * null)} when the family landed but carries no seat surface. The
+     * living mobs ride the /summon machinery whole — {@code spawnAt} then
+     * {@code EntityNbt.readNbt}, whose own Pos/Rotation/Motion/UUID/custom
+     * walks are the reference's own Entity.readNbt — and the dropped
+     * items restore through the exact-position spawn with their
+     * Age/PickupDelay/Thrower/Owner rows. The families with no engine
+     * surface isolate with their exact id — §31.6's counted refusal.
+     */
+    private Imported importRow(String id, Position at, Map<String, Snbt.Tag> rows) {
+        // The dropped item (EntityItem): the stack's own compound + the
+        // cadence rows, the restored spawn.
+        if (id.equals("Item")) {
+            return importItem(at, rows);
+        }
+        // The vehicles (the reference's Entities.create dispatch — the
+        // eight wire ids; the engine's own managers spawn them, the same
+        // hosts the live paths use).
+        if (isVehicleId(id)) {
+            net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle =
+                    importVehicle(id, at, rows);
+            return vehicle == null ? null : new Imported(null, vehicle);
+        }
+        // The projectiles (the reference's nine wire families — the
+        // engine's own manager, the restored form).
+        var projectileKind = projectileKindOf(id);
+        if (projectileKind != null) {
+            importProjectile(id, projectileKind, at, rows);
+            return new Imported(null, null);
+        }
+        // The hanging decorations (the painting + the item frame — the
+        // engine's own decoration system, the exact-cell form).
+        if (id.equals("Painting") || id.equals("ItemFrame")) {
+            importDecoration(id, rows);
+            return new Imported(null, null);
+        }
+        // The XP orb (the engine's own orb manager, the exact-value form).
+        if (id.equals("XPOrb")) {
+            importXpOrb(at, rows);
+            return new Imported(null, null);
+        }
+        // The living mobs (the /summon machinery whole).
+        MobType type = MobType.byVanillaName(id);
+        if (type == null) {
+            type = MobType.byName(id);
+        }
+        if (type == null) {
+            ledger.isolated("entity family not importable (no engine surface)",
+                    "entity " + id + " at " + at.x() + "," + at.y() + "," + at.z());
+            return null;
+        }
+        MobEntity spawned = content.mobs().spawnAt(type, at);
+        if (spawned == null) {
+            ledger.isolated("mob spawn withheld (the spawn gate)",
+                    "entity " + id + " at " + at.x() + "," + at.y() + "," + at.z());
+            return null;
+        }
+        EntityNbt.readNbt(spawned, rows, content.potions(),
+                () -> content.equipmentChanged().accept(spawned));
+        ledger.entityImported();
+        return new Imported(spawned, null);
+    }
+
+    /** The dropped item row (EntityItem): landed, never seatable. */
+    private Imported importItem(Position at, Map<String, Snbt.Tag> rows) {
+        net.zaminmc.torch.item.ItemStack stack = ItemNbt.read(
+                NbtOps.getCompound(rows, "Item"));
+        if (stack == null) {
+            ledger.isolated("item entity with an unresolvable Item compound",
+                    "entity Item at " + at.x() + "," + at.y() + "," + at.z());
+            return null;
+        }
+        var entity = content.items().spawnRestored(at, stack);
+        if (entity == null) {
+            ledger.isolated("item entity spawn withheld (the spawn gate)",
+                    "entity Item at " + at.x() + "," + at.y() + "," + at.z());
+            return null;
+        }
+        if (NbtOps.containsNumeric(rows, "Age")) {
+            entity.setAge(NbtOps.getShort(rows, "Age"));
+        }
+        if (NbtOps.containsNumeric(rows, "PickupDelay")) {
+            entity.setPickupDelayTicks(NbtOps.getShort(rows, "PickupDelay"));
+        }
+        String thrower = NbtOps.getString(rows, "Thrower");
+        if (!thrower.isEmpty()) {
+            entity.setThrower(thrower);
+        }
+        String owner = NbtOps.getString(rows, "Owner");
+        if (!owner.isEmpty()) {
+            entity.setOwner(owner);
+        }
+        ledger.entityImported();
+        return new Imported(null, null);
+    }
+
+    /**
+     * The riding chain walk (the reference's AnvilChunkStorage lines
+     * 327-341, 1:1): the nested {@code Riding} compound IS the mount —
+     * the outer entity rides it, the chain walks down (a mount may
+     * itself carry a Riding row). Each mount lands through its family's
+     * own arm with the mount's own Pos, then the head takes the mount's
+     * seat: the vehicle seat through the manager host (the §27.7
+     * convention — the attach publication flows through the listener)
+     * and the mob seat through the manager's restored-rider arm (the
+     * plain seat, no temper flow — the reference's startRiding at load,
+     * never the live interact's mount-attempt law). The seatings the
+     * engine cannot carry follow-wise isolate loudly with the missing
+     * surface named — §31.6's counted refusal (landing a seated body
+     * with no follow would be a silent behavior deviation, §0 rule 12).
+     */
+    private void importRidingChain(Imported head, Map<String, Snbt.Tag> rows) {
+        while (NbtOps.contains(rows, "Riding", Snbt.Tag.Type.COMPOUND)) {
+            Map<String, Snbt.Tag> mountRows = NbtOps.getCompound(rows, "Riding");
+            String mountId = NbtOps.getString(mountRows, "id");
+            List<Snbt.Tag> mountPos = NbtOps.getList(mountRows, "Pos", Snbt.Tag.Type.DOUBLE);
+            if (mountId.isEmpty() || mountPos.size() != 3) {
+                ledger.isolated("riding chain's mount row corrupt (no id or Pos)",
+                        "entity rides " + mountId);
+                return;
+            }
+            Position mountAt = new Position(
+                    NbtOps.listDouble(mountPos, 0),
+                    NbtOps.listDouble(mountPos, 1),
+                    NbtOps.listDouble(mountPos, 2));
+            // The mount always lands first (the reference's shape: the
+            // nested compound is created and added whether or not the
+            // seating can follow).
+            Imported mount = importRow(mountId, mountAt, mountRows);
+            if (mount == null) {
+                // The mount's family carried no engine surface (the
+                // importRow's own isolation note fired inside).
+                return;
+            }
+            if (mount.mob == null && mount.vehicle == null) {
+                ledger.isolated("riding chain not imported (the mount family has "
+                                + "no seat surface: the engine's seats carry vehicles "
+                                + "and mobs alone)",
+                        "entity rides " + mountId);
+                return;
+            }
+            if (head.mob == null) {
+                ledger.isolated("riding chain not imported (the rider family has no "
+                                + "seated-follow surface: the engine's follow arms carry "
+                                + "sessions and mobs alone)",
+                        "entity rides " + mountId);
+                return;
+            }
+            // The head takes the mount's seat.
+            if (mount.vehicle != null) {
+                VehicleSeams seams = content == null ? null : content.vehicles();
+                if (seams == null || !seams.manager().mount(mount.vehicle, head.engineId())) {
+                    ledger.isolated("riding chain's vehicle seat refused (occupied or dead)",
+                            "entity rides " + mountId);
+                    return;
                 }
-                var entity = content.items().spawnRestored(at, stack);
-                if (entity == null) {
-                    ledger.isolated("item entity spawn withheld (the spawn gate)",
-                            "entity Item at " + at.x() + "," + at.y() + "," + at.z());
-                    continue;
-                }
-                if (NbtOps.containsNumeric(rows, "Age")) {
-                    entity.setAge(NbtOps.getShort(rows, "Age"));
-                }
-                if (NbtOps.containsNumeric(rows, "PickupDelay")) {
-                    entity.setPickupDelayTicks(NbtOps.getShort(rows, "PickupDelay"));
-                }
-                String thrower = NbtOps.getString(rows, "Thrower");
-                if (!thrower.isEmpty()) {
-                    entity.setThrower(thrower);
-                }
-                String owner = NbtOps.getString(rows, "Owner");
-                if (!owner.isEmpty()) {
-                    entity.setOwner(owner);
-                }
-                ledger.entityImported();
-                continue;
+            } else {
+                content.mobs().seatImportedRider(mount.mob, head.engineId());
             }
-            // The vehicles (the reference's Entities.create dispatch —
-            // the eight wire ids; the engine's own managers spawn them,
-            // the same hosts the live paths use).
-            if (isVehicleId(id)) {
-                importVehicle(id, at, rows);
-                continue;
-            }
-            // The projectiles (the reference's nine wire families — the
-            // engine's own manager, the restored form).
-            var projectileKind = projectileKindOf(id);
-            if (projectileKind != null) {
-                importProjectile(id, projectileKind, at, rows);
-                continue;
-            }
-            // The hanging decorations (the painting + the item frame —
-            // the engine's own decoration system, the exact-cell form).
-            if (id.equals("Painting") || id.equals("ItemFrame")) {
-                importDecoration(id, rows);
-                continue;
-            }
-            // The XP orb (the engine's own orb manager, the exact-value
-            // form).
-            if (id.equals("XPOrb")) {
-                importXpOrb(at, rows);
-                continue;
-            }
-            // The living mobs (the /summon machinery whole).
-            MobType type = MobType.byVanillaName(id);
-            if (type == null) {
-                type = MobType.byName(id);
-            }
-            if (type == null) {
-                ledger.isolated("entity family not importable (no engine surface)",
-                        "entity " + id + " at " + at.x() + "," + at.y() + "," + at.z());
-                continue;
-            }
-            MobEntity spawned = content.mobs().spawnAt(type, at);
-            if (spawned == null) {
-                ledger.isolated("mob spawn withheld (the spawn gate)",
-                        "entity " + id + " at " + at.x() + "," + at.y() + "," + at.z());
-                continue;
-            }
-            EntityNbt.readNbt(spawned, rows, content.potions(),
-                    () -> content.equipmentChanged().accept(spawned));
-            ledger.entityImported();
-            if (NbtOps.contains(rows, "Riding", Snbt.Tag.Type.COMPOUND)) {
-                // The reference walks the Riding chain creating mounts and
-                // seating riders (AnvilChunkStorage lines 331-339: the
-                // nested compound IS the mount, the outer entity rides
-                // it, the chain walks down). The engine's vehicle seat
-                // carries player riders alone — the non-session rider's
-                // attach publication and the server-side rider follow
-                // (the reference's updateRidden) have no surface yet:
-                // the rider imports, the chain isolates loudly with the
-                // missing surfaces named.
-                ledger.isolated("riding chain not imported (no mob-rider surface: the "
-                                + "attach publication + the server-side follow)",
-                        "entity " + id + " rides "
-                                + NbtOps.getString(NbtOps.getCompound(rows, "Riding"), "id"));
-            }
+            head = mount;
+            rows = mountRows;
         }
     }
 
@@ -603,18 +699,21 @@ public final class AnvilWorldImport {
      * (the reference's MobSpawner.readNbt — the cadence/potential rows
      * have no per-cart surface, the engine's own cadence holds: one
      * loud note naming them), and the command cart's four rows (the
-     * reference's CommandExecutor.readNbt). The base rows the vehicle
-     * model does not carry (UUID/CustomName/Silent/FallDistance/Air/
-     * OnGround/Dimension/Invulnerable) do not land — the §31.6
-     * envelope, recorded in the session's ledger note. A {@code Riding}
-     * row isolates the chain loudly (the reference's mount nesting).
+     * reference's CommandExecutor.readNbt). The base rows land through
+     * restoreBaseRows (the vehicle slice's Entity.readNbt band: the UUID
+     * pair/string forms, the custom name + visibility, Silent, the fall
+     * accumulator, the breath clock, the ground state, the dimension, the
+     * invulnerable flag, the portal cooldown). A {@code Riding}
+     * row walks the shared chain (importRidingChain — the reference's
+     * mount nesting).
      */
-    private void importVehicle(String id, Position at, Map<String, Snbt.Tag> rows) {
+    private net.zaminmc.torch.server.entity.vehicle.VehicleEntity importVehicle(
+            String id, Position at, Map<String, Snbt.Tag> rows) {
         VehicleSeams seams = content == null ? null : content.vehicles();
         if (seams == null) {
             // No vehicle seams wired: the rows count as not-imported.
             ledger.ignored("Entities (vehicle rows)", 1);
-            return;
+            return null;
         }
         var manager = seams.manager();
         net.zaminmc.torch.server.entity.vehicle.VehicleEntity spawned;
@@ -628,20 +727,20 @@ public final class AnvilWorldImport {
                 if (seams.hopperHost() == null) {
                     ledger.isolated("hopper cart has no transfer host (the engine's hopper surface is absent)",
                             "entity " + id + " at " + at.x() + "," + at.y() + "," + at.z());
-                    return;
+                    return null;
                 }
                 spawned = manager.spawnHopperMinecart(at, seams.hopperHost().get());
                 continueVehicleImport(spawned, id, at, rows);
                 if (spawned != null) {
                     ledger.entityImported();
                 }
-                return;
+                return spawned;
             }
             case "MinecartSpawner" -> {
                 if (seams.spawnerHost() == null) {
                     ledger.isolated("spawner cart has no spawn host (the engine's spawner surface is absent)",
                             "entity " + id + " at " + at.x() + "," + at.y() + "," + at.z());
-                    return;
+                    return null;
                 }
                 spawned = manager.spawnSpawnerMinecart(at, seams.spawnerHost().get());
                 if (spawned instanceof net.zaminmc.torch.server.entity.vehicle.SpawnerMinecartEntity cart) {
@@ -700,13 +799,13 @@ public final class AnvilWorldImport {
                 if (spawned != null) {
                     ledger.entityImported();
                 }
-                return;
+                return spawned;
             }
             case "MinecartCommandBlock" -> {
                 if (seams.commandHost() == null) {
                     ledger.isolated("command cart has no run host (the engine's command surface is absent)",
                             "entity " + id + " at " + at.x() + "," + at.y() + "," + at.z());
-                    return;
+                    return null;
                 }
                 spawned = manager.spawnCommandBlockMinecart(at, seams.commandHost().get());
                 if (spawned instanceof net.zaminmc.torch.server.entity.vehicle.CommandBlockMinecartEntity cart) {
@@ -727,7 +826,7 @@ public final class AnvilWorldImport {
                 if (spawned != null) {
                     ledger.entityImported();
                 }
-                return;
+                return spawned;
             }
             default -> {
                 spawned = null;
@@ -737,6 +836,7 @@ public final class AnvilWorldImport {
         if (spawned != null) {
             ledger.entityImported();
         }
+        return spawned;
     }
 
     /**
@@ -840,17 +940,9 @@ public final class AnvilWorldImport {
                 cart.chest().setSlot(slot, stack);
             }
         }
-        if (NbtOps.contains(rows, "Riding", Snbt.Tag.Type.COMPOUND)) {
-            // The reference walks the Riding chain creating mounts and
-            // seating riders (the nested compound IS the mount); the
-            // engine's seat carries player riders alone — the chain
-            // isolates loudly with the missing surfaces named (the mob
-            // walk's own note carries the full shape).
-            ledger.isolated("riding chain not imported (no mob-rider surface: the "
-                            + "attach publication + the server-side follow)",
-                    "entity " + id + " rides "
-                            + NbtOps.getString(NbtOps.getCompound(rows, "Riding"), "id"));
-        }
+        // (The Riding row's walk lives in the shared importRidingChain — the
+        // reference's AnvilChunkStorage 327-341 loop, one place for every
+        // family's chain, the vehicle walk's old own-note retired with it.)
     }
 
     // ------------------------------------------------------------------ the projectile walk

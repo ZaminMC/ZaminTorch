@@ -125,4 +125,24 @@ public final class BoatEntity extends VehicleEntity {
     public void followRiderLook(Rotation riderLook) {
         setRotation(new Rotation(riderLook.yaw(), 0.0f));
     }
+
+    @Override
+    public double seatMountHeight() {
+        // BoatEntity.getMountHeight line 79: the hull's seat sits 0.3
+        // below the waterline — the rider's legs fold into the hull.
+        return -0.3;
+    }
+
+    @Override
+    public Position seatAnchor(double riderRideHeight) {
+        // BoatEntity.updateRiderPositon lines 367-371: the rider sits 0.4
+        // forward of the hull's center along the heading (cos/sin of the
+        // yaw in degrees), at the boat's own -0.3 mount height plus the
+        // rider's own per-family offset.
+        double yawRad = Math.toRadians(rotation().yaw());
+        return new Position(
+                position().x() + Math.cos(yawRad) * 0.4,
+                position().y() + seatMountHeight() + riderRideHeight,
+                position().z() + Math.sin(yawRad) * 0.4);
+    }
 }

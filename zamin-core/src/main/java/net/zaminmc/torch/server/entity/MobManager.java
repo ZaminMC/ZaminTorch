@@ -1022,6 +1022,25 @@ public final class MobManager {
     }
 
     /**
+     * Seats a restored rider (the anvil load path — the reference's
+     * startRiding at AnvilChunkStorage line 335: the plain seat, NO
+     * temper flow, no buck — the load never consults the live interact's
+     * mount-attempt law). The listener still fires (the attach
+     * publication flows through the manager host, the §27.7-style
+     * convention the import rides). Tick-thread context.
+     */
+    public void seatImportedRider(MobEntity mob, int riderEngineId) {
+        Objects.requireNonNull(mob, "mob");
+        if (mob.hasRider() || mob.dead()) {
+            return;
+        }
+        mob.setRider(riderEngineId);
+        for (Listener listener : listeners) {
+            listener.onMobMounted(mob, riderEngineId);
+        }
+    }
+
+    /**
      * Opens the seat: the rider steps out beside the mount (offset toward
      * the mount's left flank, snapped to the ground) — the vehicle rule.
      * {@code thrown} marks the buck throw (the exit carries a pop).

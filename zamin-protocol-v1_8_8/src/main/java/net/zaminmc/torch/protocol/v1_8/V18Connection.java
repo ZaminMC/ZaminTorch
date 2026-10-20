@@ -5786,10 +5786,6 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
      * id is observer-local (own entity id on the rider's own connection).
      */
     void sendAttachEntity(PlayerSession rider, int vehicleId, boolean riding) {
-        Channel channel = adapter.channelOf(this);
-        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
-            return;
-        }
         PlayerSession current = session;
         Integer riderWireId;
         if (current == rider) {
@@ -5800,9 +5796,28 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 return; // the rider is not visible to this observer
             }
         }
+        writeAttachEntity(riderWireId, vehicleId, riding);
+    }
+
+    /**
+     * Attach Entity (0x1B, protocol 47) for a non-session rider (a mob):
+     * the rider carries the engine's own global wire id — the same space
+     * the mob's spawn publication uses (mob entity ids are global, no
+     * observer-local resolution, the vehicles' own convention).
+     */
+    void sendAttachEntity(int riderId, int vehicleId, boolean riding) {
+        writeAttachEntity(riderId, vehicleId, riding);
+    }
+
+    /** The shared 0x1B write: i32 rider, i32 vehicle, u8 riding. */
+    private void writeAttachEntity(int riderId, int vehicleId, boolean riding) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
         ByteBuf out = Unpooled.buffer(12);
         ByteBufOps.writeVarInt(out, Protocol18.S2C_ATTACH_ENTITY);
-        out.writeInt(riderWireId);
+        out.writeInt(riderId);
         out.writeInt(vehicleId);
         out.writeByte(riding ? 1 : 0);
         channel.writeAndFlush(out);
