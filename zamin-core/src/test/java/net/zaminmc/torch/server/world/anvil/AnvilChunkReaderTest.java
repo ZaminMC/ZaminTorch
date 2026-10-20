@@ -353,22 +353,37 @@ class AnvilChunkReaderTest {
     }
 
     @Test
-    void theEntityAndTileRowsAreCountedAsNotImported() {
-        Map<String, Object> level = AnvilFixture.compound();
-        level.put("xPos", 0);
-        level.put("zPos", 0);
-        level.put("Sections", List.of(AnvilFixture.section(0, new byte[4096],
-                new byte[2048], null)));
-        level.put("Entities", List.of(AnvilFixture.compound()));
-        level.put("TileEntities", List.of(AnvilFixture.compound(), AnvilFixture.compound()));
-        level.put("TileTicks", List.of(AnvilFixture.compound()));
-        Map<String, Object> root = AnvilFixture.compound();
-        root.put("Level", level);
-        read(root);
-        assertTrue(ledger.summary().contains("Entities x1"),
-                "the not-imported rows are counted: " + ledger.summary());
-        assertTrue(ledger.summary().contains("TileEntities x2"));
-        assertTrue(ledger.summary().contains("TileTicks x1"));
+    void theEntityAndTileRowsRideTheResultRawAndTileTicksCounts() {
+        // The content follow-up: the reader CARRIES the Entities and
+        // TileEntities compounds (the session's seams apply them after the
+        // install — the reference's own order); TileTicks stays a counted
+        // not-imported row (no scheduled-tick surface).
+        var zombie = AnvilFixture.entityRow("Zombie", 1.5, 1, 1.5);
+        zombie.put("CustomName", "Anvil Zombie");
+        var chest = AnvilFixture.tileRow("Chest", 1, 1, 1);
+        Map<String, Object> root = AnvilFixture.chunkNbt(0, 0,
+                List.of(AnvilFixture.section(0, new byte[4096], new byte[2048], null)),
+                null, List.of(zombie), List.of(chest));
+        @SuppressWarnings("unchecked")
+        Map<String, Object> level = (Map<String, Object>) root.get("Level");
+        level.put("TileTicks", List.of(AnvilFixture.compound(), AnvilFixture.compound()));
+        AnvilChunkReader.ReadResult result = reader.read(
+                new ChunkPosition(0, 0), AnvilDocument(root), ledger);
+        assertTrue(result instanceof AnvilChunkReader.ReadChunk, "the chunk reads");
+        AnvilChunkReader.ReadChunk loaded = (AnvilChunkReader.ReadChunk) result;
+        assertEquals(1, loaded.entities().size(), "the entity row rides the result");
+        assertEquals("Zombie",
+                net.zaminmc.torch.server.nbt.NbtOps.getString(loaded.entities().get(0), "id"),
+                "the row is the raw compound (the seam's own interpretation)");
+        assertEquals("Anvil Zombie",
+                net.zaminmc.torch.server.nbt.NbtOps.getString(loaded.entities().get(0), "CustomName"));
+        assertEquals(1, loaded.tileEntities().size(), "the tile row rides the result");
+        assertEquals("Chest",
+                net.zaminmc.torch.server.nbt.NbtOps.getString(loaded.tileEntities().get(0), "id"));
+        assertTrue(ledger.summary().contains("TileTicks x2"),
+                "the scheduled ticks stay a counted not-imported row: " + ledger.summary());
+        assertTrue(ledger.summary().contains("Entities x") == false,
+                "the entities are no longer counted-ignored: " + ledger.summary());
     }
 
     @Test

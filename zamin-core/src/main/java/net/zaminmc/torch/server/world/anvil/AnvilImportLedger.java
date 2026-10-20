@@ -22,6 +22,8 @@ public final class AnvilImportLedger {
     private final AtomicLong entriesUnoccupied = new AtomicLong();
     private final AtomicLong regionFilesOpened = new AtomicLong();
     private final AtomicLong regionFilesIsolated = new AtomicLong();
+    private final AtomicLong entitiesImported = new AtomicLong();
+    private final AtomicLong tilesImported = new AtomicLong();
 
     /** The per-reason isolation counts (the loud report's rows). */
     private final Map<String, AtomicLong> reasons = new TreeMap<>();
@@ -58,6 +60,16 @@ public final class AnvilImportLedger {
     public void regionFileIsolated(String reason) {
         regionFilesIsolated.incrementAndGet();
         count(reasons, reason);
+    }
+
+    /** One entity imported through the content seams (mob or item). */
+    public void entityImported() {
+        entitiesImported.incrementAndGet();
+    }
+
+    /** One tile entity applied through the per-family read walk. */
+    public void tileImported() {
+        tilesImported.incrementAndGet();
     }
 
     /** One isolation, by its exact reason. */
@@ -107,6 +119,16 @@ public final class AnvilImportLedger {
         return regionFilesOpened.get();
     }
 
+    /** @return how many entities the content seams imported. */
+    public long entitiesImported() {
+        return entitiesImported.get();
+    }
+
+    /** @return how many tile entities the per-family walk applied. */
+    public long tilesImported() {
+        return tilesImported.get();
+    }
+
     /** @return the total of every isolation count across all reasons. */
     public long totalIsolated() {
         return reasons.values().stream().mapToLong(AtomicLong::get).sum();
@@ -123,7 +145,9 @@ public final class AnvilImportLedger {
         out.append("installed ").append(chunksInstalled.get()).append(" chunks")
                 .append(", skipped ").append(chunksSkippedLoaded.get())
                 .append(" (already loaded), unoccupied ").append(entriesUnoccupied.get())
-                .append(" entries, ").append(regionFilesOpened.get()).append(" region files");
+                .append(" entries, ").append(regionFilesOpened.get()).append(" region files")
+                .append(", ").append(entitiesImported.get()).append(" entities")
+                .append(", ").append(tilesImported.get()).append(" tile entities");
         if (regionFilesIsolated.get() > 0) {
             out.append(", ").append(regionFilesIsolated.get())
                     .append(" region files isolated");
