@@ -130,6 +130,42 @@ public final class ItemEntity implements net.zaminmc.torch.entity.DroppedItem {
         return position;
     }
 
+    /**
+     * The piston push (the VIII13 slice — the reference's
+     * {@code Entity.move(amount * facing)}): the immediate, per-axis
+     * clamped position shift — the same leading-face law the legacy walk
+     * drives (the box's leading face against the ground's solid cells,
+     * the blocked axis refusing its shift), the vertical clamped by the
+     * box's own top/bottom faces. Outside the velocity integration (the
+     * push is direct, the reference's own shape).
+     */
+    public void pushBy(Ground ground, double dx, double dy, double dz) {
+        double newX = position.x();
+        double newY = position.y();
+        double newZ = position.z();
+        if (dx != 0.0) {
+            double leadX = position.x() + dx + Math.signum(dx) * HALF_WIDTH;
+            if (!leadingFaceBlockedX(ground, leadX, position.y(), position.z())) {
+                newX = position.x() + dx;
+            }
+        }
+        if (dz != 0.0) {
+            double leadZ = position.z() + dz + Math.signum(dz) * HALF_WIDTH;
+            if (!leadingFaceBlockedZ(ground, newX, position.y(), leadZ)) {
+                newZ = position.z() + dz;
+            }
+        }
+        if (dy != 0.0) {
+            double probeY = dy > 0
+                    ? position.y() + dy + HALF_HEIGHT - GROUND_EPSILON
+                    : position.y() + dy - HALF_HEIGHT + GROUND_EPSILON;
+            if (!ground.isSolidAt(newX, probeY, newZ)) {
+                newY = position.y() + dy;
+            }
+        }
+        position = new Position(newX, newY, newZ);
+    }
+
     public double velocityX() {
         return velocityX;
     }

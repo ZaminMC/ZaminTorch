@@ -7707,6 +7707,21 @@ public final class MobEntity implements LivingEntity {
         return result;
     }
 
+    /**
+     * The piston push (the VIII13 slice — the reference's
+     * {@code Entity.move(amount * facing)} over the moving carrier's
+     * interpolated box): the IMMEDIATE, collision-clamped position shift
+     * with the body's own step height (the horse's 1.0, the walkers'
+     * 0.5), outside the tick's velocity integration (the NoAI freeze
+     * never eats a push — the reference's move is direct). Returns
+     * whether the world provided the collision surface (the caller's
+     * stand-down window).
+     */
+    public boolean pushBy(double dx, double dy, double dz) {
+        return solverMove(dx, dy, dz,
+                type == MobType.HORSE ? HORSE_STEP_HEIGHT : WALK_STEP_HEIGHT) != null;
+    }
+
     private void tickBody() {
         // The void (1.8.8 EntityLivingBase): past the kill plane the
         // out-of-world damage lands every tick until death; the body keeps

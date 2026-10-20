@@ -32,6 +32,12 @@ public final class BoatEntity extends VehicleEntity {
         super(entityId, Kind.BOAT, position, random);
     }
 
+    /** The piston push (VIII13): the boat's own solver walk with the hull box. */
+    @Override
+    protected void pushMove(double dx, double dy, double dz) {
+        solverMove(query, HALF_HEIGHT, HULL_WIDTH, dx, dy, dz);
+    }
+
     @Override
     protected void tickKind(WorldQuery world) {
         Position at = position();
