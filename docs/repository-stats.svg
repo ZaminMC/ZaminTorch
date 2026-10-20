@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="424" viewBox="0 0 1200 424" role="img" aria-labelledby="title desc">
+<title id="title">ZaminTorch repository statistics</title>
+<desc id="desc">Repository statistics calculated from the develop branch and displayed from main.</desc>
+<defs>
+  <linearGradient id="surface" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#f3f3f3"/></linearGradient>
+  <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#0078d4"/><stop offset="1" stop-color="#5b5fc7"/></linearGradient>
+  <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="8" stdDeviation="14" flood-opacity="0.12"/></filter>
+  <style>
+    .surface{fill:url(#surface);stroke:#dedede}.metric{fill:#ffffff;stroke:#e5e5e5}.title{fill:#1f1f1f}.label{fill:#5f5f5f}.value{fill:#1f1f1f}.muted{fill:#777}.accent{fill:#0078d4}.rule{stroke:#e1e1e1}
+    @media(prefers-color-scheme:dark){.surface{fill:#202020;stroke:#383838}.metric{fill:#292929;stroke:#3b3b3b}.title{fill:#f5f5f5}.label{fill:#b8b8b8}.value{fill:#ffffff}.muted{fill:#999}.rule{stroke:#3a3a3a}}
+  </style>
+</defs>
+<rect x="12" y="12" width="1176" height="400" rx="28" class="surface" filter="url(#shadow)"/>
+<circle cx="56" cy="62" r="18" fill="url(#accent)"/><path d="M48 62h16M56 54v16" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/>
+<text x="88" y="58" class="title" font-size="27px" font-weight="650">ZaminTorch</text>
+<text x="88" y="81" class="muted" font-size="13px">Repository telemetry</text>
+<rect x="1010" y="43" width="130" height="34" rx="17" fill="#e8f3fc"/><text x="1075" y="65" class="accent" font-size="11px" font-weight="650" text-anchor="middle">DEVELOP</text>
+<line x1="40" y1="106" x2="1160" y2="106" class="rule"/>
+<rect x="40" y="126" width="266" height="112" rx="16" class="metric"/><text x="60" y="156" class="label" font-size="11px" font-weight="600">JAVA LOC</text><text x="60" y="195" class="value" font-size="25px" font-weight="650">244,764</text><text x="60" y="220" class="muted" font-size="11px">tracked from develop</text>
+<rect x="318" y="126" width="266" height="112" rx="16" class="metric"/><text x="338" y="156" class="label" font-size="11px" font-weight="600">JAVA FILES</text><text x="338" y="195" class="value" font-size="25px" font-weight="650">850</text><text x="338" y="220" class="muted" font-size="11px">tracked modules only</text>
+<rect x="596" y="126" width="266" height="112" rx="16" class="metric"/><text x="616" y="156" class="label" font-size="11px" font-weight="600">LATEST RELEASE</text><text x="616" y="195" class="value" font-size="25px" font-weight="650">v0.2.0-dev.25</text><text x="616" y="220" class="muted" font-size="11px">GitHub release</text>
+<rect x="874" y="126" width="266" height="112" rx="16" class="metric"/><text x="894" y="156" class="label" font-size="11px" font-weight="600">MODULES</text><text x="894" y="195" class="value" font-size="25px" font-weight="650">5</text><text x="894" y="220" class="muted" font-size="11px">tracked root modules</text>
+<rect x="40" y="254" width="266" height="112" rx="16" class="metric"/><text x="60" y="284" class="label" font-size="11px" font-weight="600">PULL REQUESTS</text><text x="60" y="323" class="value" font-size="25px" font-weight="650">0</text><text x="60" y="348" class="muted" font-size="11px">open</text>
+<rect x="318" y="254" width="266" height="112" rx="16" class="metric"/><text x="338" y="284" class="label" font-size="11px" font-weight="600">PULL REQUESTS</text><text x="338" y="323" class="value" font-size="25px" font-weight="650">8</text><text x="338" y="348" class="muted" font-size="11px">closed</text>
+<rect x="596" y="254" width="266" height="112" rx="16" class="metric"/><text x="616" y="284" class="label" font-size="11px" font-weight="600">ISSUES</text><text x="616" y="323" class="value" font-size="25px" font-weight="650">0</text><text x="616" y="348" class="muted" font-size="11px">open</text>
+<rect x="874" y="254" width="266" height="112" rx="16" class="metric"/><text x="894" y="284" class="label" font-size="11px" font-weight="600">ISSUES</text><text x="894" y="323" class="value" font-size="25px" font-weight="650">0</text><text x="894" y="348" class="muted" font-size="11px">closed</text>
+<text x="40" y="397" class="muted" font-size="10px">Initial snapshot · source: develop · card: main · auto-refreshes on develop pushes</text>
+</svg>
