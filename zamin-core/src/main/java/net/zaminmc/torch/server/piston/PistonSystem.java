@@ -111,6 +111,33 @@ public final class PistonSystem implements WorldChangeListener {
     private record MovingBlock(BlockType movedType, int facing, boolean extending, float progress) {
     }
 
+    /**
+     * The entity-displacement consult (the VIII13 slice — the push of
+     * bodies standing in the flight path): the families' pushable bodies
+     * intersecting a box, the PLAYERS EXCEPTED (the engine's players are
+     * client-authoritative — the server-side push would be overwritten by
+     * the next movement packet, the reference's own client-side
+     * exemption). Null until wired: the push arm stands down.
+     */
+    public interface PushSurface {
+
+        /** The pushable bodies whose boxes intersect the given world box. */
+        List<Pushable> pushablesIn(double minX, double minY, double minZ,
+                                   double maxX, double maxY, double maxZ);
+    }
+
+    /** One pushable body: the collision-clamped direct move + the slime fling. */
+    public interface Pushable {
+
+        /** The reference's {@code Entity.move(amount * facing)} — the
+         *  immediate, collision-clamped position shift. */
+        void pushBy(double dx, double dy, double dz);
+
+        /** The slime-block fling (MovingBlockEntity lines 94-107): the
+         *  velocity SET along the facing axis to the facing offset. */
+        void flingAxis(double axisX, double axisY, double axisZ);
+    }
+
     private final EngineWorld world;
     private final RedstoneSystem redstone;
     private final ItemEntityManager itemEntities;
@@ -119,6 +146,9 @@ public final class PistonSystem implements WorldChangeListener {
 
     /** The public §27.7 piston-move gate (the observe/cancel hook; null = unwired). */
     private volatile net.zaminmc.torch.server.event.EngineEventBus eventBus;
+
+    /** The entity-displacement consult (the VIII13 slice; null = the push arm stands down). */
+    private volatile PushSurface pushSurface;
 
     /** The two-queue block-event swap (ServerWorld lines 96 + 808-840). */
     private final List<BlockEvent>[] blockEvents = new ArrayList[]{new ArrayList<>(), new ArrayList<>()};
@@ -138,6 +168,11 @@ public final class PistonSystem implements WorldChangeListener {
 
     EngineWorld world() {
         return world;
+    }
+
+    /** Wires the entity-displacement consult (the boot wiring — the families' adapters). */
+    public void setPushSurface(PushSurface pushSurface) {
+        this.pushSurface = pushSurface;
     }
 
     /** Wires the public §27.7 piston-move gate (the observe/cancel hook). */
@@ -506,7 +541,22 @@ public final class PistonSystem implements WorldChangeListener {
                     continue;
                 }
                 float progress = Math.min(block.progress() + 0.5f, 1.0f);
+                // The entity displacement (the VIII13 slice — the reference's
+                // tick lines 138-150): every EXTENDING step pushes the bodies
+                // in the interpolated box by the step's own amount (the
+                // progress delta + the 0.0625 catch-up).
+                if (block.extending()) {
+                    moveEntities(entry.getKey(), block, progress,
+                            progress - block.progress() + 0.0625f);
+                }
                 if (progress >= 1.0f) {
+                    // The completion push (tick lines 131-134: the flat 0.25
+                    // over the full box — both the extending and the
+                    // retracting carriers). The engine's carrier lands the
+                    // same tick (the established two-tick shape); the
+                    // reference's amounts are exact, the landing one tick
+                    // tighter — the named adaptation.
+                    moveEntities(entry.getKey(), block, 1.0f, 0.25f);
                     finish(entry.getKey(), new MovingBlock(block.movedType(), block.facing(),
                             block.extending(), progress));
                 } else {
@@ -522,6 +572,62 @@ public final class PistonSystem implements WorldChangeListener {
                 doBlockEvent(event);
             }
             blockEvents[queue].clear();
+        }
+    }
+
+    /**
+     * The entity displacement (MovingBlockEntity.moveEntities lines 80-115,
+     * 1:1): the interpolated collision box (MovingBlock.getCollisionShape's
+     * own law — the full 0-1 cube of the carried state, the partial shapes'
+     * carriers riding the cube approximation, the named carried note), the
+     * bodies it intersects (the players excepted — the seam's own law), and
+     * the push: the amount along the facing, or the SLIME FLING when an
+     * extending carrier carries a slime block (the velocity SET along the
+     * facing axis to the facing offset).
+     */
+    private void moveEntities(BlockPosition pos, MovingBlock block, float progress, float amount) {
+        PushSurface surface = pushSurface;
+        if (surface == null) {
+            return; // the unwired window: the push arm stands down
+        }
+        // The progress flip (lines 82-86): the extending carriers read
+        // 1 - progress, the retracting ones progress - 1 (negative — the
+        // box extends past the carrier's cell into the space the block
+        // retreats from, the reference's own form).
+        float flipped = block.extending() ? 1.0f - progress : progress - 1.0f;
+        int[] off = OFFSETS[block.facing()];
+        // The box (MovingBlock.getCollisionShape lines 165-193): the cube
+        // shrunk along the facing by the flipped progress on the far edge.
+        double d0 = pos.x();
+        double d1 = pos.y();
+        double d2 = pos.z();
+        double d3 = pos.x() + 1.0;
+        double d4 = pos.y() + 1.0;
+        double d5 = pos.z() + 1.0;
+        if (off[0] < 0) {
+            d0 -= off[0] * flipped;
+        } else {
+            d3 -= off[0] * flipped;
+        }
+        if (off[1] < 0) {
+            d1 -= off[1] * flipped;
+        } else {
+            d4 -= off[1] * flipped;
+        }
+        if (off[2] < 0) {
+            d2 -= off[2] * flipped;
+        } else {
+            d5 -= off[2] * flipped;
+        }
+        boolean slime = block.movedType().identifier().value().equals("slime_block");
+        for (Pushable body : surface.pushablesIn(d0, d1, d2, d3, d4, d5)) {
+            if (slime && block.extending()) {
+                // The fling (lines 94-107): the velocity SET along the
+                // facing axis (the switch's own per-axis form).
+                body.flingAxis(off[0], off[1], off[2]);
+            } else {
+                body.pushBy(amount * off[0], amount * off[1], amount * off[2]);
+            }
         }
     }
 
