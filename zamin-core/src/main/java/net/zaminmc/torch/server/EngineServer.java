@@ -1635,6 +1635,23 @@ public final class EngineServer implements Server, EngineBridge {
                         PROJECTILE_ID_BASE);
                 this.projectileManager = projectiles;
                 projectiles.setEventBus(eventBus); // §27.7: the public projectile-spawn gate
+                // The burning arrow's TNT arm (the per-block entity
+                // collision): the arm reads the fields lazily — the TNT
+                // system is constructed later in the boot, and the pass
+                // only fires at tick time.
+                projectiles.setBurningTntArm(
+                        new net.zaminmc.torch.server.entity.projectile.ProjectileManager.BurningTntArm() {
+                            @Override public boolean isTnt(net.zaminmc.torch.block.BlockPosition pos) {
+                                return tntSystem != null
+                                        && tntSystem.isTntBlock(world.getBlock(pos));
+                            }
+
+                            @Override public void ignite(net.zaminmc.torch.block.BlockPosition pos) {
+                                if (tntSystem != null) {
+                                    tntSystem.useIgnite(pos);
+                                }
+                            }
+                        });
                 projectiles.addListener(new ProjectileEventDispatch());
                 // The fireball's landing arm (SmallFireballEntity.onHit): the
                 // fire block at the air cell the fireball crossed before the
