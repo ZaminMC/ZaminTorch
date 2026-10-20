@@ -7,6 +7,7 @@ import net.zaminmc.torch.server.player.PlayerInventory;
 import net.zaminmc.torch.server.player.PlayerSession;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
@@ -302,52 +303,297 @@ public final class ItemEntityManager {
      * deterministic) empties into the older one, capped at the stack limit; a
      * partial remainder keeps the younger entity alive with the rest. Pickup
      * delay does not block combining (freshly dropped items visibly merge,
-     * the historical behavior). Bounded O(n²) per tick: fine at slice scale,
-     * revisit with the entity-system slice when worlds carry many items.
+     * the historical behavior).
+     *
+     * <p><b>The walk's spatial bucketing (§22 Phase 7 — the demand-named
+     * heavy-owner optimization).</b> The candidate scan was a plain O(n²)
+     * double loop over the whole population; at 1546 settled items one owner
+     * spent 16.4ms/tick inside this walk (the §22 Phase-7 record: superlinear
+     * per-item cost, 92.6% of the tick fan). The walk now builds, once per
+     * tick, a spatial bucket index over the live population (a
+     * {@link #MERGE_CELL_SIZE}-edge cell grid — coarse enough that any pair
+     * inside the per-axis merge window sits in cells at most one apart, so a
+     * 3×3×3 neighbor sweep is complete) and consults only the 27 nearby
+     * cells for each keeper. THE LAW IS UNCHANGED — the buckets are a
+     * candidate-index optimization, never a reordering: the outer loop still
+     * walks the live list in order, the inner loop still visits its
+     * candidates in ASCENDING list order (the collected candidates are
+     * sorted back into list order), every check and every merge arm runs
+     * verbatim — so the absorbed set, the final stacks, the partial
+     * remainders and the wire-visible listener publication sequence are
+     * identical to the old walk by construction (pinned per-seed by
+     * ItemMergeBucketingEquivalenceTest against a verbatim copy of the old
+     * law). A dense neighborhood (more than a quarter of the population in
+     * one keeper's 27 cells — the mixed-type pile) falls back to the old
+     * plain full scan for that keeper: sorting a near-full candidate set
+     * would cost more than the scan it replaces, and the scan visits the
+     * same candidates in the same order anyway.</p>
+     *
+     * <p>Bucket granularity: the §22 Phase-7 row's own first shape was
+     * per-chunk buckets (16×16, no cross-owner coordination inside the
+     * window); this walk takes the finer cell grid the window itself names.
+     * The merge window is 0.75 blocks per axis — three orders below a
+     * chunk's edge — and the measured dense scene (settled items on a
+     * 2.0-block grid) leaves a per-chunk 3×3 sweep holding hundreds of
+     * candidates where the 1.0-block cell grid holds one or two; the finer
+     * grid needs no cross-owner coordination either (any pair inside the
+     * window sits inside one 2×2×2 block corner, one owner's region when
+     * the partition lands). Snapshot-friendly: the buckets are rebuilt from
+     * the live list every walk and never outlive it.</p>
+     *
+     * <p>Package-private so the equivalence test can drive the walk in
+     * isolation. The walk assumes listeners do not re-enter the manager —
+     * the registered dispatches are pure wire publications, the same
+     * no-reentrancy the old index walk already required of a mid-walk list
+     * mutation.</p>
      */
-    private void mergeNearbyItems() {
+    void mergeNearbyItems() {
+        int population = entities.size();
+        if (population == 0) {
+            return;
+        }
+        buildMergeBuckets(population);
+        // The dense-neighborhood bail: a keeper whose 27 cells hold more
+        // than a quarter of the population takes the plain full scan —
+        // sorting a near-full candidate set costs more than the scan, and
+        // the scan is the same law in the same visiting order.
+        int bailLimit = population / 4;
         List<ItemEntity> absorbed = null;
-        for (int i = 0; i < entities.size(); i++) {
+        for (int i = 0; i < population; i++) {
             ItemEntity keeper = entities.get(i);
             if (keeper.expired() || (absorbed != null && absorbed.contains(keeper))) {
                 continue;
             }
-            for (int j = 0; j < entities.size(); j++) {
-                if (j == i) {
-                    continue;
+            int count = collectMergeCandidates(i, bailLimit);
+            if (count < 0) {
+                // The plain full scan (the old walk's inner loop, verbatim).
+                for (int j = 0; j < population; j++) {
+                    absorbed = mergeInto(i, keeper, j, absorbed);
                 }
-                ItemEntity other = entities.get(j);
-                if (other.expired() || (absorbed != null && absorbed.contains(other))) {
-                    continue;
-                }
-                if (other.entityId() < keeper.entityId() || !withinMergeRange(keeper, other)
-                        || !stacksMergeable(keeper.stack(), other.stack())) {
-                    continue;
-                }
-                // "other" (younger) empties into "keeper" (older), capped.
-                int capacity = keeper.stack().type().maxStackSize() - keeper.stack().count();
-                int moved = Math.min(capacity, other.stack().count());
-                if (moved <= 0) {
-                    continue; // keeper's stack is full: nothing combines
-                }
-                keeper.setStack(keeper.stack().withCount(keeper.stack().count() + moved));
-                if (absorbed == null) {
-                    absorbed = new ArrayList<>();
-                }
-                if (moved == other.stack().count()) {
-                    absorbed.add(other);
-                    publishStackChanged(keeper);
-                    publishRemoved(other, "merged");
-                } else {
-                    other.setStack(other.stack().withCount(other.stack().count() - moved));
-                    publishStackChanged(keeper);
-                    publishStackChanged(other);
-                }
+                continue;
+            }
+            // The bucketed scan: only the provably-relevant candidates, in
+            // the SAME ascending list order the plain scan would visit them.
+            Arrays.sort(mergeCandidates, 0, count);
+            for (int c = 0; c < count; c++) {
+                absorbed = mergeInto(i, keeper, mergeCandidates[c], absorbed);
             }
         }
         if (absorbed != null) {
             entities.removeAll(absorbed);
         }
+    }
+
+    /**
+     * One candidate visit — the old walk's inner-loop body VERBATIM (the
+     * checks in the old order, the merge arms, the publication sequence).
+     * Returns the absorbed list, created on the first full absorption.
+     */
+    private List<ItemEntity> mergeInto(int keeperIndex, ItemEntity keeper, int otherIndex,
+                                       List<ItemEntity> absorbed) {
+        if (otherIndex == keeperIndex) {
+            return absorbed;
+        }
+        ItemEntity other = entities.get(otherIndex);
+        if (other.expired() || (absorbed != null && absorbed.contains(other))) {
+            return absorbed;
+        }
+        if (other.entityId() < keeper.entityId() || !withinMergeRange(keeper, other)
+                || !stacksMergeable(keeper.stack(), other.stack())) {
+            return absorbed;
+        }
+        // "other" (younger) empties into "keeper" (older), capped.
+        int capacity = keeper.stack().type().maxStackSize() - keeper.stack().count();
+        int moved = Math.min(capacity, other.stack().count());
+        if (moved <= 0) {
+            return absorbed; // keeper's stack is full: nothing combines
+        }
+        keeper.setStack(keeper.stack().withCount(keeper.stack().count() + moved));
+        if (absorbed == null) {
+            absorbed = new ArrayList<>();
+        }
+        if (moved == other.stack().count()) {
+            absorbed.add(other);
+            publishStackChanged(keeper);
+            publishRemoved(other, "merged");
+        } else {
+            other.setStack(other.stack().withCount(other.stack().count() - moved));
+            publishStackChanged(keeper);
+            publishStackChanged(other);
+        }
+        return absorbed;
+    }
+
+    // ------------------------------------------------------------------
+    // The merge walk's spatial buckets (§22 Phase 7): a cell grid over the
+    // live population, built once per walk. Tick-lane confined — the arrays
+    // are reused across walks and touched only inside the walk.
+    // ------------------------------------------------------------------
+
+    /**
+     * The bucket cell edge: the per-axis merge window (the box expansion
+     * plus the item box) rounded up. A cell at least as wide as the window
+     * makes the 3×3×3 neighbor sweep complete — two positions within the
+     * window can never sit in cells two apart on an axis. Derived, not
+     * hardcoded: the window the constants define is the window the sweep
+     * covers.
+     */
+    static final double MERGE_CELL_SIZE = Math.ceil(
+            MERGE_BOX_EXPANSION + 2 * Math.max(ItemEntity.HALF_WIDTH, ItemEntity.HALF_HEIGHT));
+
+    /**
+     * The packed cell key's per-axis limits: 26 bits per horizontal axis
+     * (±33,554,431 cells — the 1.8.8 world border at ±29,999,984 blocks sits
+     * deep inside) and 11 vertical bits (±1023 cells — the void kill plane
+     * at -64 and the build height at 256 both inside). A positive 63-bit
+     * long: horizontal field bits 37-62, vertical 26-36, z 0-25.
+     */
+    private static final int MERGE_CELL_LIMIT_HORIZONTAL = 1 << 25;
+    private static final int MERGE_CELL_LIMIT_VERTICAL = 1 << 10;
+
+    /** The bucket table: the packed cell key per slot (valid iff the slot head is set). */
+    private long[] mergeSlotKeys;
+    /** The head entity index of each slot's cell chain; -1 marks the slot empty. */
+    private int[] mergeSlotHeads;
+    /** The chain links: per entity, the next entity index of the same cell, -1 at the end. */
+    private int[] mergeChainNext;
+    /** The table's mask (its length minus one — a power of two). */
+    private int mergeSlotMask;
+    /** The per-keeper candidate buffer (indices collected from the 27 nearby cells). */
+    private int[] mergeCandidates;
+
+    /**
+     * Builds the walk's bucket index over the CURRENT population: an
+     * open-addressed table (capacity at least twice the population, so the
+     * probe chains always terminate) keyed by the packed cell, each occupied
+     * slot heading a singly-linked chain of its cell's entity indices. A
+     * chain holds its indices in descending insertion order — irrelevant:
+     * the per-keeper collection sorts the candidates back into list order
+     * (the buckets are an index, never a reordering).
+     */
+    private void buildMergeBuckets(int population) {
+        if (mergeSlotHeads == null || mergeSlotHeads.length < population * 2) {
+            int capacity = 16;
+            while (capacity < population * 2) {
+                capacity <<= 1;
+            }
+            mergeSlotKeys = new long[capacity];
+            mergeSlotHeads = new int[capacity];
+        }
+        mergeSlotMask = mergeSlotHeads.length - 1;
+        if (mergeChainNext == null || mergeChainNext.length < population) {
+            mergeChainNext = new int[population];
+        }
+        if (mergeCandidates == null || mergeCandidates.length < population) {
+            mergeCandidates = new int[population];
+        }
+        Arrays.fill(mergeSlotHeads, -1);
+        for (int i = 0; i < population; i++) {
+            long key = mergeCellKey(entities.get(i).position());
+            int slot = claimMergeSlot(key);
+            mergeChainNext[i] = mergeSlotHeads[slot];
+            mergeSlotHeads[slot] = i;
+        }
+    }
+
+    /**
+     * Collects the keeper's merge candidates: every entity but the keeper
+     * itself whose cell sits in the keeper's 3×3×3 cell neighborhood — the
+     * complete candidate set for the per-axis window at the cell edge (an
+     * in-window pair's cells are at most one apart per axis, so the sweep
+     * cannot miss one; the cell key's border clamp is monotone and
+     * 1-Lipschitz, so the property survives the packing limits). Border
+     * folding can enumerate a border cell more than once — a duplicated
+     * candidate is a provable no-op (after any merge the keeper's capacity
+     * is zero or the other is absorbed), and the bail below bounds the
+     * buffer long before it could overflow.
+     *
+     * @return the candidate count, or -1 when the neighborhood holds more
+     *         than {@code bailLimit} candidates — the caller takes the plain
+     *         full scan instead (the same law in the same visiting order)
+     */
+    private int collectMergeCandidates(int keeper, int bailLimit) {
+        ItemEntity entity = entities.get(keeper);
+        Position position = entity.position();
+        int cellX = mergeCellOf(position.x(), MERGE_CELL_LIMIT_HORIZONTAL);
+        int cellY = mergeCellOf(position.y(), MERGE_CELL_LIMIT_VERTICAL);
+        int cellZ = mergeCellOf(position.z(), MERGE_CELL_LIMIT_HORIZONTAL);
+        int[] buffer = mergeCandidates;
+        int size = 0;
+        for (int dy = -1; dy <= 1; dy++) {
+            for (int dz = -1; dz <= 1; dz++) {
+                for (int dx = -1; dx <= 1; dx++) {
+                    int slot = findMergeSlot(mergeCellKey(cellX + dx, cellY + dy, cellZ + dz));
+                    if (slot < 0) {
+                        continue;
+                    }
+                    for (int j = mergeSlotHeads[slot]; j != -1; j = mergeChainNext[j]) {
+                        if (j == keeper) {
+                            continue;
+                        }
+                        buffer[size++] = j;
+                        if (size > bailLimit) {
+                            return -1;
+                        }
+                    }
+                }
+            }
+        }
+        return size;
+    }
+
+    /** Inserts or finds the key's slot (linear probing; the table is never full). */
+    private int claimMergeSlot(long key) {
+        int slot = mergeSlotOf(key);
+        while (mergeSlotHeads[slot] >= 0 && mergeSlotKeys[slot] != key) {
+            slot = (slot + 1) & mergeSlotMask;
+        }
+        mergeSlotKeys[slot] = key;
+        return slot;
+    }
+
+    /** @return the key's slot, or -1 when the cell holds no entity this walk. */
+    private int findMergeSlot(long key) {
+        int slot = mergeSlotOf(key);
+        while (mergeSlotHeads[slot] >= 0) {
+            if (mergeSlotKeys[slot] == key) {
+                return slot;
+            }
+            slot = (slot + 1) & mergeSlotMask;
+        }
+        return -1;
+    }
+
+    /** The golden-ratio spread over the packed key's high bits. */
+    private int mergeSlotOf(long key) {
+        return (int) ((key * 0x9E3779B97F4A7C15L) >>> 32) & mergeSlotMask;
+    }
+
+    /** The packed 63-bit key of one position's (clamped) cell. */
+    private static long mergeCellKey(Position position) {
+        return mergeCellKey(
+                mergeCellOf(position.x(), MERGE_CELL_LIMIT_HORIZONTAL),
+                mergeCellOf(position.y(), MERGE_CELL_LIMIT_VERTICAL),
+                mergeCellOf(position.z(), MERGE_CELL_LIMIT_HORIZONTAL));
+    }
+
+    /** The packed 63-bit key of three (pre- or post-sweep) cell indices. */
+    private static long mergeCellKey(int cellX, int cellY, int cellZ) {
+        long x = mergeCellOf(cellX, MERGE_CELL_LIMIT_HORIZONTAL) + MERGE_CELL_LIMIT_HORIZONTAL;
+        long y = mergeCellOf(cellY, MERGE_CELL_LIMIT_VERTICAL) + MERGE_CELL_LIMIT_VERTICAL;
+        long z = mergeCellOf(cellZ, MERGE_CELL_LIMIT_HORIZONTAL) + MERGE_CELL_LIMIT_HORIZONTAL;
+        return (x << 37) | (y << 26) | z;
+    }
+
+    /** The clamped cell index of one coordinate (the clamp keeps the ±1 sweep complete at the packing borders). */
+    private static int mergeCellOf(double coordinate, int limit) {
+        int cell = (int) Math.floor(coordinate / MERGE_CELL_SIZE);
+        return Math.max(-limit, Math.min(limit - 1, cell));
+    }
+
+    /** The clamp itself: fold out-of-range cells onto the border cell (monotone, 1-Lipschitz). */
+    private static int mergeCellOf(int cell, int limit) {
+        return Math.max(-limit, Math.min(limit - 1, cell));
     }
 
     private static boolean withinMergeRange(ItemEntity a, ItemEntity b) {
