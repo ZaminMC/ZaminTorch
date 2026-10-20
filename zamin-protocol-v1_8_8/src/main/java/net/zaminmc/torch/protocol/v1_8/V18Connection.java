@@ -2639,7 +2639,14 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         channel.writeAndFlush(out);
     }
 
-    /** Sends an absolute-position teleport for a tracked remote player. */
+    /**
+     * The remote-player movement relay over the tracked-move consult (the
+     * reference's TrackedEntity bands — the players carry their angles): a
+     * small move rides Rel Move Look (0x17) with the byte deltas and the
+     * angle bytes, a rotation alone rides Entity Look (0x16), and the
+     * window violation, the onGround flip, or the first publication keeps
+     * the absolute Entity Teleport (0x18). Any thread.
+     */
     void sendRemoteTeleport(PlayerSession other) {
         Channel channel = adapter.channelOf(this);
         Integer entityId = remoteEntityIds.get(other.uuid());
@@ -2647,16 +2654,70 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             return;
         }
         Position pos = other.position();
+        long x = (long) Math.floor(pos.x() * 32.0);
+        long y = (long) Math.floor(pos.y() * 32.0);
+        long z = (long) Math.floor(pos.z() * 32.0);
+        int yaw = (int) (other.rotation().yaw() * 256.0f / 360.0f) & 0xFF;
+        int pitch = (int) (other.rotation().pitch() * 256.0f / 360.0f) & 0xFF;
+        long[] last = trackedMoves.get(entityId);
+        if (last != null) {
+            long dx = x - last[0];
+            long dy = y - last[1];
+            long dz = z - last[2];
+            int dYaw = yaw - (int) last[4];
+            int dPitch = pitch - (int) last[5];
+            boolean groundFlipped = (last[3] != 0) != other.onGround();
+            boolean moved = Math.abs(dx) >= 4 || Math.abs(dy) >= 4 || Math.abs(dz) >= 4;
+            boolean rotated = Math.abs(dYaw) >= 4 || Math.abs(dPitch) >= 4;
+            if (dx >= -128 && dx < 128 && dy >= -128 && dy < 128 && dz >= -128 && dz < 128
+                    && !groundFlipped && (moved || rotated)) {
+                ByteBuf out = Unpooled.buffer(16);
+                if (moved && rotated) {
+                    ByteBufOps.writeVarInt(out, Protocol18.S2C_REL_ENTITY_MOVE_LOOK);
+                    ByteBufOps.writeVarInt(out, entityId);
+                    out.writeByte((int) dx);
+                    out.writeByte((int) dy);
+                    out.writeByte((int) dz);
+                    out.writeByte(yaw);
+                    out.writeByte(pitch);
+                } else if (moved) {
+                    ByteBufOps.writeVarInt(out, Protocol18.S2C_REL_ENTITY_MOVE);
+                    ByteBufOps.writeVarInt(out, entityId);
+                    out.writeByte((int) dx);
+                    out.writeByte((int) dy);
+                    out.writeByte((int) dz);
+                } else {
+                    ByteBufOps.writeVarInt(out, Protocol18.S2C_ENTITY_LOOK);
+                    ByteBufOps.writeVarInt(out, entityId);
+                    out.writeByte(yaw);
+                    out.writeByte(pitch);
+                }
+                out.writeBoolean(other.onGround());
+                channel.writeAndFlush(out);
+                if (moved) {
+                    last[0] = x;
+                    last[1] = y;
+                    last[2] = z;
+                }
+                if (rotated) {
+                    last[4] = yaw;
+                    last[5] = pitch;
+                }
+                last[3] = other.onGround() ? 1 : 0;
+                return;
+            }
+        }
         ByteBuf out = Unpooled.buffer(40);
         ByteBufOps.writeVarInt(out, Protocol18.S2C_ENTITY_TELEPORT);
         ByteBufOps.writeVarInt(out, entityId);
-        out.writeInt((int) Math.floor(pos.x() * 32.0));
-        out.writeInt((int) Math.floor(pos.y() * 32.0));
-        out.writeInt((int) Math.floor(pos.z() * 32.0));
-        out.writeByte((int) (other.rotation().yaw() * 256.0f / 360.0f) & 0xFF);
-        out.writeByte((int) (other.rotation().pitch() * 256.0f / 360.0f) & 0xFF);
+        out.writeInt((int) x);
+        out.writeInt((int) y);
+        out.writeInt((int) z);
+        out.writeByte(yaw);
+        out.writeByte(pitch);
         out.writeBoolean(other.onGround());
         channel.writeAndFlush(out);
+        trackedMoves.put(entityId, new long[] {x, y, z, other.onGround() ? 1 : 0, yaw, pitch});
     }
 
     UUID sessionUuid() {
@@ -3681,22 +3742,62 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         sendEntityTeleport(entity.entityId(), entity.position(), entity.onGround());
     }
 
-    /** Entity Teleport (0x18) shared by every engine-global entity kind. */
+    /**
+     * The tracked-entity move consult (the reference's TrackedEntity lines
+     * 154-224, the Wave VI demand row — the relative-move optimization for
+     * every engine-global kind beyond the mobs' own band): the small-delta
+     * moves ride Rel Entity Move (0x15) with the i8 1/32 deltas — the
+     * client interpolates them, the teleport form never does — while the
+     * byte-window violation, the onGround flip, and the first publication
+     * after a spawn keep Entity Teleport (0x18) with the absolute fixed
+     * point. Deltas below the reference's own 4/32 threshold accumulate
+     * silently (no packet — {@code flag}'s band, line 166). Any thread.
+     */
     void sendEntityTeleport(int entityId, net.zaminmc.torch.util.Position position, boolean onGround) {
         Channel channel = adapter.channelOf(this);
         if (channel == null || !channel.isActive() || state != WireState.PLAY) {
             return;
         }
+        long x = (long) Math.floor(position.x() * 32.0);
+        long y = (long) Math.floor(position.y() * 32.0);
+        long z = (long) Math.floor(position.z() * 32.0);
+        long[] last = trackedMoves.get(entityId);
+        if (last != null) {
+            long dx = x - last[0];
+            long dy = y - last[1];
+            long dz = z - last[2];
+            boolean groundFlipped = (last[3] != 0) != onGround;
+            if (dx >= -128 && dx < 128 && dy >= -128 && dy < 128 && dz >= -128 && dz < 128
+                    && !groundFlipped) {
+                if (Math.abs(dx) < 4 && Math.abs(dy) < 4 && Math.abs(dz) < 4) {
+                    return; // the sub-threshold accumulation — no packet (flag's band)
+                }
+                ByteBuf rel = Unpooled.buffer(12);
+                ByteBufOps.writeVarInt(rel, Protocol18.S2C_REL_ENTITY_MOVE);
+                ByteBufOps.writeVarInt(rel, entityId);
+                rel.writeByte((int) dx);
+                rel.writeByte((int) dy);
+                rel.writeByte((int) dz);
+                rel.writeBoolean(onGround);
+                channel.writeAndFlush(rel);
+                last[0] = x;
+                last[1] = y;
+                last[2] = z;
+                last[3] = onGround ? 1 : 0;
+                return;
+            }
+        }
         ByteBuf out = Unpooled.buffer(40);
         ByteBufOps.writeVarInt(out, Protocol18.S2C_ENTITY_TELEPORT);
         ByteBufOps.writeVarInt(out, entityId);
-        out.writeInt((int) Math.floor(position.x() * 32.0));
-        out.writeInt((int) Math.floor(position.y() * 32.0));
-        out.writeInt((int) Math.floor(position.z() * 32.0));
+        out.writeInt((int) x);
+        out.writeInt((int) y);
+        out.writeInt((int) z);
         out.writeByte(0);
         out.writeByte(0);
         out.writeBoolean(onGround);
         channel.writeAndFlush(out);
+        trackedMoves.put(entityId, new long[] {x, y, z, onGround ? 1 : 0, 0, 0});
     }
 
     /** Updated item stack metadata after a partial pickup. Any thread. */
@@ -3808,21 +3909,17 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         channel.writeAndFlush(out);
     }
 
-    /** Entity Teleport (0x18) for a primed TNT body's tick movement. Any thread. */
+    /**
+     * The primed TNT body's tick movement over the shared tracked-move
+     * consult (the reference's own tracked entity — the small hop deltas
+     * ride Rel Move; the launch pop keeps the teleport). The old
+     * dedicated write was SHORT one field (the 0x18 layout's trailing
+     * onGround boolean — the fixed-point write never sent it); the shared
+     * consult carries the whole layout. Any thread.
+     */
     void sendTntMoved(net.zaminmc.torch.server.tnt.TntSystem.PrimedTnt tnt) {
-        Channel channel = adapter.channelOf(this);
-        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
-            return;
-        }
-        ByteBuf out = Unpooled.buffer(32);
-        ByteBufOps.writeVarInt(out, Protocol18.S2C_ENTITY_TELEPORT);
-        ByteBufOps.writeVarInt(out, tnt.entityId());
-        out.writeInt((int) Math.floor(tnt.x() * 32.0));
-        out.writeInt((int) Math.floor(tnt.y() * 32.0));
-        out.writeInt((int) Math.floor(tnt.z() * 32.0));
-        out.writeByte(0); // yaw
-        out.writeByte(0); // pitch
-        channel.writeAndFlush(out);
+        sendEntityTeleport(tnt.entityId(),
+                new net.zaminmc.torch.util.Position(tnt.x(), tnt.y(), tnt.z()), false);
     }
 
     /** Removes a primed TNT body from this observer. Any thread. */
@@ -3832,6 +3929,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
 
     /** Destroy Entities (0x13) with a single id. Any thread. */
     private void sendDestroyEntities(int entityId) {
+        trackedMoves.remove(entityId); // the tracked-move row retires with the body
         Channel channel = adapter.channelOf(this);
         if (channel == null || !channel.isActive() || state != WireState.PLAY) {
             return;
@@ -3907,6 +4005,25 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
      * (join snapshot), hence concurrent.
      */
     private final java.util.concurrent.ConcurrentHashMap<Integer, long[]> mobSyncState =
+            new java.util.concurrent.ConcurrentHashMap<>();
+
+    /**
+     * The tracked-entity move cache for every OTHER engine-global kind (the
+     * Wave VI demand row — the tracker's relative-move optimization beyond
+     * the mobs' own band): the reference's {@code TrackedEntity} lines
+     * 100-106 (the last-sent fixed-point positions and angles), the
+     * entityId-keyed last publication the shared
+     * {@link #sendEntityTeleport} and the remote-player relay consult.
+     * The row layout: {x32, y32, z32, onGround, yaw256, pitch256}. The
+     * reference's own bands ride the consult: the i8 window [-128, 128)
+     * per axis, the 4/32 sub-threshold accumulation (below it NO packet —
+     * the delta accumulates until it crosses), and the onGround flip that
+     * forces the absolute form (lines 166-193). The first publication
+     * after a spawn seeds through the absolute form (the lazy arm — one
+     * extra 0x18 right after the spawn packet, named); the destroy path
+     * forgets the row.
+     */
+    private final java.util.concurrent.ConcurrentHashMap<Integer, long[]> trackedMoves =
             new java.util.concurrent.ConcurrentHashMap<>();
 
     /**
