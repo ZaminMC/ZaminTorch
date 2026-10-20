@@ -219,6 +219,29 @@ public final class LeadSystem {
     }
 
     /**
+     * The restored knot (the anvil load path — the reference's
+     * LeadKnotEntity.readCustomNbt: the Tile row IS the anchor; the
+     * knot hangs at the anchor's center, the survival poll owns the
+     * unsupported-anchor drop — exactly the decorations' load
+     * convention). The publication fires the same Spawn Object 77 the
+     * live tie carries; an anchor that already carries a knot keeps the
+     * landed body (the occupied-anchor refusal, never a silent evict).
+     */
+    public LeashKnot restoreKnot(BlockPosition anchor) {
+        Objects.requireNonNull(anchor, "anchor");
+        LeashKnot existing = knots.get(anchor);
+        if (existing != null) {
+            return existing; // the occupied anchor keeps its landed body
+        }
+        LeashKnot knot = new LeashKnot(nextKnotId++, anchor);
+        knots.put(anchor, knot);
+        for (Listener listener : listeners) {
+            listener.onKnotSpawned(knot);
+        }
+        return knot;
+    }
+
+    /**
      * The knot's removal: the registry entry drops, the wire destroys it,
      * and the creative hand releases the tied mobs without the lead drop
      * (the reference's own {@code detachLeash(true, false)}).

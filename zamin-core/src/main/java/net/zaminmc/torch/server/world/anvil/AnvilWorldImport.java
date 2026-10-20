@@ -161,7 +161,10 @@ public final class AnvilWorldImport {
                                VehicleSeams vehicles,
                                net.zaminmc.torch.server.entity.projectile.ProjectileManager projectiles,
                                net.zaminmc.torch.server.decoration.DecorationSystem decorations,
-                               net.zaminmc.torch.server.experience.ExperienceOrbManager orbs) {
+                               net.zaminmc.torch.server.experience.ExperienceOrbManager orbs,
+                               net.zaminmc.torch.server.fireworks.FireworksSystem fireworks,
+                               net.zaminmc.torch.server.endereye.EnderEyeSystem eyes,
+                               net.zaminmc.torch.server.leash.LeadSystem leads) {
     }
 
     /** One session over the world (the chunk reader over the world's registry). */
@@ -553,6 +556,24 @@ public final class AnvilWorldImport {
             importXpOrb(at, rows);
             return new Imported(null, null);
         }
+        // The firework rocket (the reference's FireworksRocketEntity — the
+        // engine's own fireworks system, the restored form).
+        if (id.equals("FireworksRocketEntity")) {
+            importFirework(at, rows);
+            return new Imported(null, null);
+        }
+        // The eye of ender (the reference's EyeOfEnderSignal — the engine's
+        // own eye system, the restored form).
+        if (id.equals("EyeOfEnderSignal")) {
+            importEye(at, rows);
+            return new Imported(null, null);
+        }
+        // The leash knot (the reference's LeashKnot — the engine's own lead
+        // system, the restored anchor).
+        if (id.equals("LeashKnot")) {
+            importKnot(rows);
+            return new Imported(null, null);
+        }
         // The living mobs (the /summon machinery whole).
         MobType type = MobType.byVanillaName(id);
         if (type == null) {
@@ -858,7 +879,7 @@ public final class AnvilWorldImport {
         List<Snbt.Tag> rotation = NbtOps.getList(rows, "Rotation", Snbt.Tag.Type.FLOAT);
         spawned.setRotation(new net.zaminmc.torch.util.Rotation(
                 NbtOps.listFloat(rotation, 0), NbtOps.listFloat(rotation, 1)));
-        if (NbtOps.contains(rows, "Motion", Snbt.Tag.Type.DOUBLE)) {
+        if (NbtOps.contains(rows, "Motion", Snbt.Tag.Type.LIST)) {
             List<Snbt.Tag> motion = NbtOps.getList(rows, "Motion", Snbt.Tag.Type.DOUBLE);
             double vx = NbtOps.listDouble(motion, 0);
             double vy = NbtOps.listDouble(motion, 1);
@@ -1219,6 +1240,152 @@ public final class AnvilWorldImport {
                     "entity XPOrb at " + at.x() + "," + at.y() + "," + at.z());
         }
         ledger.entityImported();
+    }
+
+    /**
+     * One firework rocket row (the reference's FireworksEntity.readCustomNbt,
+     * lines 151-163): the SAVED Life resumes the age clock (the loaded
+     * rocket bursts after the REMAINING ticks, never a fresh roll), the
+     * LifeTime row carries the whole fuse (0 default — the reference's
+     * own getInt, a missing row bursts on the first tick), the
+     * FireworksItem row becomes the payload (an absent row leaves the
+     * empty stack — the reference's null synced slot 8), and the Motion
+     * lands with the reference's own ±10 clamp. The Rotation rows carry
+     * one counted note: the point model derives the angles from the
+     * motion (the reference's own tick law — the loaded rotation never
+     * survives the first flight step).
+     */
+    private void importFirework(Position at, Map<String, Snbt.Tag> rows) {
+        var system = content == null ? null : content.fireworks();
+        if (system == null) {
+            // No fireworks surface wired: the rows count as not-imported.
+            ledger.ignored("Entities (firework rows)", 1);
+            return;
+        }
+        int life = NbtOps.getInt(rows, "Life");
+        int lifeTime = NbtOps.getInt(rows, "LifeTime");
+        net.zaminmc.torch.item.ItemStack payload =
+                net.zaminmc.torch.item.ItemStack.EMPTY;
+        if (NbtOps.contains(rows, "FireworksItem", Snbt.Tag.Type.COMPOUND)) {
+            net.zaminmc.torch.item.ItemStack read = ItemNbt.read(
+                    NbtOps.getCompound(rows, "FireworksItem"));
+            if (read != null && !read.isEmpty()) {
+                payload = read;
+            }
+        }
+        double vx = 0.0;
+        double vy = 0.0;
+        double vz = 0.0;
+        if (NbtOps.contains(rows, "Motion", Snbt.Tag.Type.LIST)) {
+            List<Snbt.Tag> motion = NbtOps.getList(rows, "Motion", Snbt.Tag.Type.DOUBLE);
+            vx = NbtOps.listDouble(motion, 0);
+            vy = NbtOps.listDouble(motion, 1);
+            vz = NbtOps.listDouble(motion, 2);
+            // The reference's own clamp (Entity.readNbt lines 1156-1166):
+            // a component beyond ±10 reads as 0.
+            if (Math.abs(vx) > 10.0) {
+                vx = 0.0;
+            }
+            if (Math.abs(vy) > 10.0) {
+                vy = 0.0;
+            }
+            if (Math.abs(vz) > 10.0) {
+                vz = 0.0;
+            }
+        }
+        system.launchRestored(at, vx, vy, vz, life, lifeTime, payload);
+        ledger.entityImported();
+        if (NbtOps.contains(rows, "Rotation", Snbt.Tag.Type.LIST)) {
+            ledger.isolated("firework's Rotation row has no per-rocket surface "
+                            + "(the point model derives the angles from the motion — "
+                            + "the reference's own tick law)",
+                    "entity FireworksRocketEntity at " + at.x() + "," + at.y() + "," + at.z());
+        }
+    }
+
+    /**
+     * One eye-of-ender row (the reference's readCustomNbt is EMPTY,
+     * EnderEyeEntity lines 165-169: the eye carries no rows of its own;
+     * the base Pos/Motion rows are the whole shape): the loaded Motion
+     * lands with the ±10 clamp, the transient target stays the origin
+     * (the reference's load quirk — a saved eye flies toward (0, 0, 0)
+     * until its 80 ticks end), and the drops row is transient (a loaded
+     * eye never drops — the 2003 event always ends it, the counted
+     * note).
+     */
+    private void importEye(Position at, Map<String, Snbt.Tag> rows) {
+        var system = content == null ? null : content.eyes();
+        if (system == null) {
+            // No eye surface wired: the rows count as not-imported.
+            ledger.ignored("Entities (eye rows)", 1);
+            return;
+        }
+        double vx = 0.0;
+        double vy = 0.0;
+        double vz = 0.0;
+        if (NbtOps.contains(rows, "Motion", Snbt.Tag.Type.LIST)) {
+            List<Snbt.Tag> motion = NbtOps.getList(rows, "Motion", Snbt.Tag.Type.DOUBLE);
+            vx = NbtOps.listDouble(motion, 0);
+            vy = NbtOps.listDouble(motion, 1);
+            vz = NbtOps.listDouble(motion, 2);
+            // The reference's own clamp (Entity.readNbt lines 1156-1166).
+            if (Math.abs(vx) > 10.0) {
+                vx = 0.0;
+            }
+            if (Math.abs(vy) > 10.0) {
+                vy = 0.0;
+            }
+            if (Math.abs(vz) > 10.0) {
+                vz = 0.0;
+            }
+        }
+        system.launchRestored(at, vx, vy, vz);
+        ledger.entityImported();
+        ledger.isolated("eye's transient target and drops rows have no per-eye surface "
+                        + "(the reference's load quirk: a saved eye flies toward the origin "
+                        + "until its 80 ticks end, and never drops — the 2003 event "
+                        + "always ends it)",
+                "entity EyeOfEnderSignal at " + at.x() + "," + at.y() + "," + at.z());
+        if (NbtOps.contains(rows, "Rotation", Snbt.Tag.Type.LIST)) {
+            ledger.isolated("eye's Rotation row has no per-eye surface "
+                            + "(the point model re-derives the angles from the motion "
+                            + "on the first flight step)",
+                    "entity EyeOfEnderSignal at " + at.x() + "," + at.y() + "," + at.z());
+        }
+    }
+
+    /**
+     * One leash-knot row (the reference's LeadKnotEntity.readCustomNbt: the
+     * Tile ints ARE the anchor — the knot hangs at the anchor's center
+     * (+0.5), the survival poll owns the unsupported-anchor drop exactly
+     * the decorations' load convention). The Direction row carries one
+     * counted note: the knot's own facing is the down constant (the
+     * reference's knot ignores it too).
+     */
+    private void importKnot(Map<String, Snbt.Tag> rows) {
+        var leads = content == null ? null : content.leads();
+        if (leads == null) {
+            // No lead surface wired: the rows count as not-imported.
+            ledger.ignored("Entities (knot rows)", 1);
+            return;
+        }
+        if (!NbtOps.containsNumeric(rows, "TileX")
+                || !NbtOps.containsNumeric(rows, "TileY")
+                || !NbtOps.containsNumeric(rows, "TileZ")) {
+            ledger.isolated("leash knot row without a Tile row",
+                    "entity LeashKnot (no TileX/Y/Z)");
+            return;
+        }
+        int x = NbtOps.getInt(rows, "TileX");
+        int y = NbtOps.getInt(rows, "TileY");
+        int z = NbtOps.getInt(rows, "TileZ");
+        leads.restoreKnot(new net.zaminmc.torch.block.BlockPosition(x, y, z));
+        ledger.entityImported();
+        if (NbtOps.contains(rows, "Direction", Snbt.Tag.Type.BYTE)) {
+            ledger.isolated("knot's Direction row has no per-knot surface "
+                            + "(the knot's facing is the down constant — the reference's own)",
+                    "entity LeashKnot at " + x + "," + y + "," + z);
+        }
     }
 
     // ------------------------------------------------------------------ the level rows
