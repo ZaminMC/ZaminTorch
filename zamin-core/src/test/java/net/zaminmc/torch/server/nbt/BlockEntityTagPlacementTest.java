@@ -279,6 +279,24 @@ class BlockEntityTagPlacementTest {
                         server.world().getBlock(target))
                         || server.world().getBlock(target).equals(BuiltinBlocks.CHEST),
                 "the chest placed");
+        // THE CONSULT'S OWN RACE (found by the flake): the block becomes
+        // visible in the placement's commit, but the tag rows land in the
+        // SAME tick task's next statement (the consult runs after the
+        // commit, before the consume) — a poll that sees the block can
+        // still read the pre-tag chest. The await must see the consult's
+        // ROWS, not just the placed block.
+        await(() -> {
+            var chest = server.chests().getOrCreate(target);
+            ItemStack[] slots = chest.snapshotSlots();
+            return "Secret".equals(chest.lockKey())
+                    && "Vault".equals(chest.customName())
+                    && slots.length >= 2
+                    && !slots[0].isEmpty() && !slots[1].isEmpty()
+                    && "minecraft:diamond".equals(slots[0].type().identifier().toString())
+                    && slots[0].count() == 2
+                    && "minecraft:emerald".equals(slots[1].type().identifier().toString())
+                    && slots[1].count() == 3;
+        }, "the stack's tag landed on the placed chest");
         var placed = server.chests().getOrCreate(target);
         assertEquals("Secret", placed.lockKey());
         assertEquals("Vault", placed.customName());
@@ -336,6 +354,13 @@ class BlockEntityTagPlacementTest {
         BlockPosition second = new BlockPosition(2, 5, -2);
         await(() -> server.world().getBlock(second).identifier().value().equals("mob_spawner"),
                 "the op's spawner placed");
+        // The consult's rows land after the commit (the same tick task's
+        // next statement) — await the cadence rows themselves, never just
+        // the placed block (the race the flake found).
+        await(() -> server.spawners().getOrCreate(0, second).minSpawnDelay() == 100
+                && server.spawners().getOrCreate(0, second).maxSpawnDelay() == 200
+                && server.spawners().getOrCreate(0, second).spawnCount() == 4,
+                "the op's cadence rows landed");
         var appliedSpawner = server.spawners().getOrCreate(0, second);
         assertEquals(100, appliedSpawner.minSpawnDelay());
         assertEquals(200, appliedSpawner.maxSpawnDelay());
@@ -380,6 +405,13 @@ class BlockEntityTagPlacementTest {
                 id -> tables.incrementAndGet());
         await(() -> server.world().getBlock(second).identifier().value().equals("command_block"),
                 "the op's command block placed");
+        // The consult's rows land after the commit — await the command
+        // rows themselves (the same race the spawner arm found).
+        await(() -> {
+            var block = server.commandBlocks().at(second);
+            return block != null && "say hi".equals(block.command())
+                    && block.successCount() == 5;
+        }, "the op's command rows landed");
         var applied = server.commandBlocks().at(second);
         assertEquals("say hi", applied.command());
         assertEquals(5, applied.successCount());
@@ -443,6 +475,10 @@ class BlockEntityTagPlacementTest {
                         server.world().getBlock(target))
                         || server.world().getBlock(target).equals(BuiltinBlocks.CHEST),
                 "the granted stack placed its chest");
+        // The consult runs after the commit (the same tick task's next
+        // statement) — await the lock row itself, never just the block.
+        await(() -> "Keyed".equals(server.chests().getOrCreate(target).lockKey()),
+                "the granted stack's lock row landed");
         assertEquals("Keyed", server.chests().getOrCreate(target).lockKey());
         // A malformed dataTag is the command's own tag error.
         int replies = chatLog.size();
