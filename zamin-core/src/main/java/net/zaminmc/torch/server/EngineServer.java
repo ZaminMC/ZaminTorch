@@ -949,6 +949,16 @@ public final class EngineServer implements Server, EngineBridge {
                 world.addChangeListener(firePlacements);
                 netherWorld.addChangeListener(firePlacements);
                 endWorld.addChangeListener(firePlacements);
+                // The leaf-decay fans (the VIII2/VIII3 slice — the reference's
+                // onRemoved pair): a departing leaf arms its 3³ box, a
+                // departing log its 5³ box — the tree-chop trigger. The
+                // listener rides all three dimensions like the fire family's
+                // own placement arm.
+                net.zaminmc.torch.server.block.LeafDecayBlocks.RemovalFan leafDecayFan =
+                        new net.zaminmc.torch.server.block.LeafDecayBlocks.RemovalFan();
+                world.addChangeListener(leafDecayFan);
+                netherWorld.addChangeListener(leafDecayFan);
+                endWorld.addChangeListener(leafDecayFan);
                 // The gravity fuse's migration (GravityFalls — the second
                 // family onto the surface): the block-update system's
                 // gravity wake now schedules through the seam, and every
@@ -1726,6 +1736,12 @@ public final class EngineServer implements Server, EngineBridge {
                 // the lava source's fire-start rides the same dispatch.
                 randomTicks.setLiquidTicker((pos, state) ->
                         fluidSystem.dispatchTick(null, pos, state, gameplayRandom));
+                // The leaf-decay drop seams (the VIII3 slice): the decayed
+                // cells' sapling/apple rolls land through the engine's own
+                // drop walk and item bodies — the same one a hand break
+                // rolls, the reference's own breakLeaves shape.
+                randomTicks.setLeafDecayDrops(itemEntities,
+                        new DropService(new java.util.Random(worldSeed ^ 0x1EAFDECAL)));
                 // Projectiles (arrows, shards): the tick-thread physics system,
                 // with damage semantics staying here in the combat callbacks.
                 ProjectileManager projectiles = new ProjectileManager(
@@ -10439,19 +10455,43 @@ public final class EngineServer implements Server, EngineBridge {
             // gate — the wheat, the carrots and the potatoes all grow fully).
             int stage = net.zaminmc.torch.server.block.WorldSolidity.cropStageOf(
                     world.getBlock(clicked).identifier());
-            if (stage < 0 || stage >= 7) {
-                return false; // not a growing crop: the historical no-op
+            if (stage >= 0 && stage < 7) {
+                // WheatBlock.growFully lines 47-53: stage + nextInt(2..5
+                // inclusive) — MathHelper.nextInt(random, 2, 5) = 2 + nextInt(4).
+                int grown = Math.min(7, stage + 2 + gameplayRandom.nextInt(4));
+                world.setBlock(clicked, RandomTickSystem.cropStage(
+                        world.getBlock(clicked).identifier(), grown));
+                session.inventory().consumeHeld(1);
+                fxManager.itemShatter(new Position(clicked.x() + 0.5, clicked.y() + 0.5, clicked.z() + 0.5),
+                        session.inventory().held());
+                publishInventoryChanged(session);
+                return true;
             }
-            // WheatBlock.growFully lines 47-53: stage + nextInt(2..5
-            // inclusive) — MathHelper.nextInt(random, 2, 5) = 2 + nextInt(4).
-            int grown = Math.min(7, stage + 2 + gameplayRandom.nextInt(4));
-            world.setBlock(clicked, RandomTickSystem.cropStage(
-                    world.getBlock(clicked).identifier(), grown));
-            session.inventory().consumeHeld(1);
-            fxManager.itemShatter(new Position(clicked.x() + 0.5, clicked.y() + 0.5, clicked.z() + 0.5),
-                    session.inventory().held());
-            publishInventoryChanged(session);
-            return true;
+            // The sapling family (the VIII2 slice — SaplingBlock's
+            // Fertilizable pair + ItemDye.fertilize's own law): canGrow is
+            // always true (line 178), so the stack ALWAYS pays (fertilize's
+            // stack.size-- rides the canGrow arm, outside the roll — the
+            // wheat's own canBeFertilized is the same shape with no roll),
+            // and canBeFertilized's 0.45 gate (line 182) owns the GROW
+            // alone — tryGrow bypasses the light gate and the 1-in-7
+            // entirely (a fresh sapling stages, a ready one rolls its tree).
+            int saplingVariant = net.zaminmc.torch.server.block.WoodVariantBlocks
+                    .variantOfSapling(world.getBlock(clicked).identifier());
+            if (saplingVariant >= 0) {
+                if (gameplayRandom.nextFloat() < 0.45F) {
+                    net.zaminmc.torch.server.block.SaplingBlocks.tryGrow(
+                            world, clicked, saplingVariant,
+                            net.zaminmc.torch.server.block.SaplingBlocks.isReady(
+                                    world.getBlock(clicked).identifier()),
+                            gameplayRandom);
+                }
+                session.inventory().consumeHeld(1);
+                fxManager.itemShatter(new Position(clicked.x() + 0.5, clicked.y() + 0.5, clicked.z() + 0.5),
+                        session.inventory().held());
+                publishInventoryChanged(session);
+                return true; // a growing canGrow target consumed the use
+            }
+            return false; // not a growing crop: the historical no-op
         }
         return false;
     }

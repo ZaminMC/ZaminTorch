@@ -714,6 +714,16 @@ public final class BlockLightTable {
             }
             merged.put(WoodVariantBlocks.saplingBlock(variant), new LightData(0, 0));
         }
+        // The tree-growth family's derived bands: the leaf decay states
+        // carry the same emission 0 / filter 1 as their fresh form (the
+        // decay bits never change the optics), the ready saplings pass
+        // whole like the fresh form.
+        for (EngineBlockType state : LeafDecayBlocks.familyBlocks()) {
+            merged.put(state.identifier(), new LightData(0, 1));
+        }
+        for (EngineBlockType state : SaplingBlocks.familyBlocks()) {
+            merged.put(state.identifier(), new LightData(0, 0));
+        }
         // The building-shape families (Slice 36): the opaque partial cubes
         // (the stairs, the slabs) filter 15 like their parents.
         for (String family : WoodShapeBlocks.STAIRS.keySet()) {
