@@ -944,6 +944,15 @@ public final class EngineServer implements Server, EngineBridge {
                 world.addChangeListener(firePlacements);
                 netherWorld.addChangeListener(firePlacements);
                 endWorld.addChangeListener(firePlacements);
+                // The gravity fuse's migration (GravityFalls — the second
+                // family onto the surface): the block-update system's
+                // gravity wake now schedules through the seam, and every
+                // gravity family's ticker (the sand three, the anvil band,
+                // the dragon egg) dispatches on the reference's own
+                // scheduleTick surface.
+                blockUpdateSystem.setScheduledTicks(scheduledTickSystem);
+                net.zaminmc.torch.server.block.GravityFalls.registerTicker(
+                        scheduledTickSystem, world, falling);
                 // The weather cycle (Slice 20b — World.tickWeather 1:1): the
                 // overworld's own system (the nether has no sky). The wire
                 // fan is ServerWorld.tickWeather's own publishes — the

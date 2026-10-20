@@ -51,24 +51,11 @@ public final class BlockUpdateSystem implements WorldChangeListener {
     private static final int[][] NEIGHBOR_OFFSETS = {
             {0, 0, 0}, {1, 0, 0}, {-1, 0, 0}, {0, 1, 0}, {0, -1, 0}, {0, 0, 1}, {0, 0, -1}};
 
-    private static final Identifier SAND = Identifier.parse("minecraft:sand");
-    private static final Identifier RED_SAND = Identifier.parse("minecraft:red_sand");
-    private static final Identifier GRAVEL = Identifier.parse("minecraft:gravel");
     private static final Identifier TORCH = Identifier.parse("minecraft:torch");
     private static final Identifier GRASS = Identifier.parse("minecraft:grass_block");
     private static final Identifier NETHER_PORTAL = Identifier.parse("minecraft:nether_portal");
     private static final Identifier NETHER_PORTAL_Z = Identifier.parse("minecraft:nether_portal_z");
 
-    /** The anvil's fall band (Slice 53 — FallingBlock over Material.ANVIL): every state joins the gravity wake exactly like the sand family. */
-    private static boolean isFallFamily(Identifier id) {
-        return id.equals(SAND) || id.equals(RED_SAND) || id.equals(GRAVEL)
-                || net.zaminmc.torch.server.block.AnvilBlocks.isAnvil(id);
-    }
-
-    /** The dragon egg's own fall band (Slice 55 — DragonEggBlock extends Block, not FallingBlock: its own tryFall over the same canFallThrough gate). */
-    private static boolean isDragonEgg(Identifier id) {
-        return net.zaminmc.torch.server.block.DragonEggBlocks.isDragonEgg(id);
-    }
     private static final Identifier SUGAR_CANE = Identifier.parse("minecraft:sugar_cane");
     private static final Identifier CACTUS = Identifier.parse("minecraft:cactus");
 
@@ -90,7 +77,7 @@ public final class BlockUpdateSystem implements WorldChangeListener {
     private final ArrayDeque<Scheduled> queue = new ArrayDeque<>();
     private final Set<Long> pending = new HashSet<>();
 
-    /** The vanilla fuse: {@code FallingBlock.getTickRate} is 2 game ticks. */
+    /** The vanilla fuse kept for the unwired window ({@code FallingBlock.getTickRate} is 2 game ticks); the wired seam reads GravityFalls.DELAY. */
     static final int FALL_CHECK_DELAY = 2;
     private final ArrayDeque<FallCheck> fallChecks = new ArrayDeque<>();
     private final Set<Long> pendingFallChecks = new HashSet<>();
@@ -100,6 +87,21 @@ public final class BlockUpdateSystem implements WorldChangeListener {
         this.world = Objects.requireNonNull(world, "world");
         this.itemEntities = Objects.requireNonNull(itemEntities, "itemEntities");
         this.fallingEntities = Objects.requireNonNull(fallingEntities, "fallingEntities");
+    }
+
+    /**
+     * The scheduled-tick seam (the gravity fuse's migration, GravityFalls):
+     * when wired (the engine's boot always wires it), the fuse rides the
+     * ScheduledTickSystem — the reference's own scheduleTick(pos, this, 2/5).
+     * A standalone-constructed system keeps its own queue with the same
+     * delays and the same tryFall (the unwired window, named in
+     * GravityFalls' javadoc — not a second behavior).
+     */
+    private volatile ScheduledTickSystem scheduledTicks;
+
+    /** Wires the gravity fuse onto the scheduled-tick surface. */
+    public void setScheduledTicks(ScheduledTickSystem scheduledTicks) {
+        this.scheduledTicks = java.util.Objects.requireNonNull(scheduledTicks, "scheduledTicks");
     }
 
     /**
@@ -144,8 +146,18 @@ public final class BlockUpdateSystem implements WorldChangeListener {
         return copy;
     }
 
-    /** @return a copy of the pending gravity fuses in fuse order. */
+    /** @return a copy of the pending gravity fuses — the seam's scheduled entries when wired (the reference's own surface), the unwired window's own queue otherwise. */
     public java.util.List<ScheduledTickView> pendingFallChecksView() {
+        ScheduledTickSystem seam = scheduledTicks;
+        if (seam != null) {
+            java.util.List<ScheduledTickView> copy = new java.util.ArrayList<>();
+            for (ScheduledTickEntry entry : seam.pending()) {
+                if (GravityFalls.isGravityFamily(entry.block())) {
+                    copy.add(new ScheduledTickView(entry.pos(), entry.time()));
+                }
+            }
+            return copy;
+        }
         java.util.List<ScheduledTickView> copy = new java.util.ArrayList<>(fallChecks.size());
         for (FallCheck entry : fallChecks) {
             copy.add(new ScheduledTickView(entry.position(), entry.dueTick()));
@@ -178,11 +190,23 @@ public final class BlockUpdateSystem implements WorldChangeListener {
     }
 
     /**
-     * Cancels the position's pending gravity fuse.
+     * Cancels the position's pending gravity fuse — the seam's scheduled
+     * entries when wired (the reference's own surface), the unwired
+     * window's own queue otherwise.
      *
      * @return whether a pending fuse was cancelled
      */
     public boolean cancelFallCheck(BlockPosition position) {
+        ScheduledTickSystem seam = scheduledTicks;
+        if (seam != null) {
+            boolean removed = false;
+            for (ScheduledTickEntry entry : seam.pending()) {
+                if (entry.pos().equals(position) && GravityFalls.isGravityFamily(entry.block())) {
+                    removed |= seam.cancelAt(position, entry.block());
+                }
+            }
+            return removed;
+        }
         if (pendingFallChecks.remove(key(position))) {
             fallChecks.removeIf(entry -> entry.position().equals(position));
             return true;
@@ -261,27 +285,14 @@ public final class BlockUpdateSystem implements WorldChangeListener {
     }
 
     /**
-     * The vanilla {@code FallingBlock.tryFall} (reference/1.8.8 FallingBlock
-     * lines 40-59): the block converts when the cell below can be fallen
-     * through (air, water, lava, fire — sand stacked over a pond collapses
-     * into it) and the block itself still occupies the cell. Tick-thread
-     * context.
+     * The vanilla {@code FallingBlock.tryFall} (GravityFalls.tryFall — the
+     * reference's lines 37-59, the engine's verified Slice-470 shape): the
+     * block converts when the cell below can be fallen through (air, water,
+     * lava, fire — sand stacked over a pond collapses into it) and the block
+     * itself still occupies the cell. Tick-thread context.
      */
     private void runFallCheck(BlockPosition position) {
-        BlockType type = world.getBlock(position);
-        if (type.equals(world.airType())) {
-            return;
-        }
-        Identifier identifier = type.identifier();
-        if (!isFallFamily(identifier) && !isDragonEgg(identifier)) {
-            return;
-        }
-        if (net.zaminmc.torch.server.entity.FallingBlockEntity.canFallThrough(
-                net.zaminmc.torch.server.entity.FallingBlockEntity.blockOrAir(
-                        world, position.offset(0, -1, 0)))) {
-            world.setBlock(position, world.airType());
-            fallingEntities.startFall(position, type);
-        }
+        GravityFalls.tryFall(world, position, fallingEntities);
     }
 
     /** Applies the rule set to one position. Tick-thread context. */
@@ -291,19 +302,20 @@ public final class BlockUpdateSystem implements WorldChangeListener {
             return;
         }
         Identifier identifier = type.identifier();
-        if (isFallFamily(identifier)) {
-            // The vanilla wake (FallingBlock.onAdded/onNeighborChanged): the
-            // tryFall check schedules two ticks out — the block hovers for
-            // two ticks after its support vanishes before it converts.
-            scheduleFallCheck(position, world.totalTicks() + FALL_CHECK_DELAY);
-            return;
-        }
-        if (isDragonEgg(identifier)) {
-            // The egg's own wake (Slice 55 — DragonEggBlock.getTickRate 5:
-            // the schedule sits five ticks out, the reference's own band —
-            // the egg hovers longer than the sand family).
-            scheduleFallCheck(position, world.totalTicks()
-                    + net.zaminmc.torch.server.block.DragonEggBlocks.FALL_CHECK_DELAY);
+        if (GravityFalls.isGravityFamily(identifier)) {
+            // The vanilla wake (FallingBlock.onAdded/onNeighborChanged →
+            // DragonEggBlock's own): the tryFall check schedules the family's
+            // own delay out — 2 for the sand/anvil families, the egg's own 5.
+            // The seam rides the scheduled-tick surface (the reference's
+            // scheduleTick); the unwired window keeps this system's own
+            // queue with the same delay.
+            int delay = GravityFalls.delayOf(identifier);
+            ScheduledTickSystem seam = scheduledTicks;
+            if (seam != null) {
+                seam.scheduleTick(position, identifier, delay);
+            } else {
+                scheduleFallCheck(position, world.totalTicks() + delay);
+            }
             return;
         }
         if (identifier.equals(TORCH)) {
