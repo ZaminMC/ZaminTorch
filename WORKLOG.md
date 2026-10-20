@@ -10500,3 +10500,19 @@ Work Log:
 Stage Summary:
 - The Anvil canvas delivered AND proposed: branch pushed, PR #2 open for maintainer review (not merged — the review is theirs)
 - Remaining follow-ups unchanged: the Entities/TileEntities rows, the §31.7 migration contract
+
+---
+Task ID: anvil-content-followup
+Agent: main (Abasing session)
+Task: PR #2's review + merge, the branches' cleanup, and the Anvil canvas' named content follow-up — the Entities/TileEntities rows importing through the engine's own machinery
+
+Work Log:
+- PR #2 (the Anvil import, feature/anvil-import) reviewed against the reference (RegionFile's own bounds arms, AnvilChunkStorage's two gates, the NbtIo lattice) and the §22/§31.4/§31.6 contracts: the anvil+nbt batches 50/0, the protocol drift guard green, the world+block adjacent sweeps green — MERGED as 30c5aec (the GitHub merge, the review record in the merge commit); the two feature branches (feature/anvil-import + feature/bukkit-adapter, both fully merged) deleted — only main and develop remain
+- THE FLAKE THE REVIEW SURFACED (pre-existing on develop, reproduced 2-of-3 there): BlockEntityTagPlacementTest awaited the placed BLOCK, but the consult's tag rows land in the SAME tick task's next statement — the op arms' assertions could read the pre-tag tile; the four racy arms (chest, spawner, command block, give-data-tag) now await the consult's own ROWS (89cedba, 5/5 green where the class had failed 3-of-6)
+- THE CONTENT FOLLOW-UP (7b6e90d): the chunk reader CARRIES the Entities/TileEntities compounds raw (TileTicks stays counted — no scheduled-tick surface); the session's new ContentSeams apply them post-install in the reference's own order (tiles over the installed blocks through TileNbt.readTile — every family's 1:1 projection, the block resolving the family, a no-family block isolating the row with its id named; then entities through the /summon machinery WHOLE — MobManager.spawnAt + EntityNbt.readNbt for the living mobs, the new ItemEntityManager.spawnRestored + the Item/Age/PickupDelay/Thrower/Owner rows for dropped items); vehicles/projectiles/paintings/item frames/XP orbs isolate with their exact ids; riding chains import the rider and isolate the chain; a skipped chunk's content rows ride the skip whole with a counted note; the ledger's entity/tile counters in the summary; the command's seam-null check moved BEFORE the one-import gate (a refusal cannot strand it)
+- Evidence: AnvilChunkReaderTest's carried-rows test + AnvilImportAcceptanceTest.theImportedContentRowsLandOnTheEngineSurfaces (the imported chest readable with its diamond stack, the named zombie through the /summon walk, the restored 3-diamond item with its Age row, the Painting + the no-family tile isolated by name in the report) — the anvil batch 42/0, the nbt/entity/world/block sweeps green
+
+Stage Summary:
+- develop pushed through 7b6e90d, all commits authored Abasing
+- The Anvil canvas now imports blocks + biomes + level rows + EVERY tile family + living mobs + dropped items, with the §31.6 loud-isolation discipline on every unrepresentable family
+- Next per §22: the demand-named families (the Anvil vehicle/projectile entity imports, TileTicks on a scheduled-tick surface, the Bukkit adapter's next slices, the Phase-7 merge-walk bucketing when operator scenarios demand it); §31.7's migration machinery stays future-gated behind the modern backend
