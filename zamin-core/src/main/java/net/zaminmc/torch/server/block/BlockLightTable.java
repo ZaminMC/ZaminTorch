@@ -723,6 +723,11 @@ public final class BlockLightTable {
         for (EngineBlockType slice : CakeBlocks.familyBlocks()) {
             merged.put(slice.identifier(), new LightData(0, 0));
         }
+        // The fire AGE band (FireBlocks — the reference's one FIRE block
+        // glows 15 through every age state; CUTOUT passes the rest).
+        for (EngineBlockType flame : FireBlocks.familyBlocks()) {
+            merged.put(flame.identifier(), new LightData(15, 0));
+        }
         // The wall family (Slice 47 — the non-solid-render partial column
         // passes light).
         for (EngineBlockType wall : WallBlocks.familyBlocks()) {

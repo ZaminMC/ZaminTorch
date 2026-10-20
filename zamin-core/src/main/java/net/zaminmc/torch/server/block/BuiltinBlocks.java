@@ -1062,6 +1062,9 @@ public final class BuiltinBlocks {
         for (EngineBlockType shape : WoodShapeBlocks.familyBlocks()) {
             builder = builder.register(shape);
         }
+        // The fire AGE band (FireBlocks — the fifteen derived states over
+        // the plain minecraft:fire age-0 member above).
+        builder = FireBlocks.registerAll(builder);
         // The chest pair's facing states (Slice L2 — the four plain + the
         // four trapped, the Direction-id nibble band 2-5).
         builder = net.zaminmc.torch.server.chest.ChestFacingBlocks.registerAll(builder);

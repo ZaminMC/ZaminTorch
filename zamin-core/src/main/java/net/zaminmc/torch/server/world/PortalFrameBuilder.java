@@ -30,7 +30,6 @@ import java.util.Objects;
 public final class PortalFrameBuilder {
 
     private static final Identifier OBSIDIAN = BuiltinBlocks.OBSIDIAN.identifier();
-    private static final Identifier FIRE = BuiltinBlocks.FIRE.identifier();
 
     /** The axis the builder scans: the reference's Direction.Axis.X / .Z. */
     public enum Axis {
@@ -208,7 +207,7 @@ public final class PortalFrameBuilder {
     /** The reference's {@code canBeReplacedByPortal}: air, fire or a portal cell. */
     private boolean canBeReplacedByPortal(BlockType block) {
         return block.equals(world.airType())
-                || block.identifier().equals(FIRE)
+                || net.zaminmc.torch.server.block.FireBlocks.isFire(block.identifier())
                 || isPortal(block);
     }
 

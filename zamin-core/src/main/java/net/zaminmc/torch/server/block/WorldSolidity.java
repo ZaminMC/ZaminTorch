@@ -33,7 +33,7 @@ public final class WorldSolidity {
         Identifier id = type.identifier();
         return !id.equals(BuiltinBlocks.AIR.identifier())
                 && !id.equals(BuiltinBlocks.TORCH.identifier())
-                && !id.equals(BuiltinBlocks.FIRE.identifier())
+                && !FireBlocks.isFire(id)
                 && !id.equals(BuiltinBlocks.COBWEB.identifier())
                 && !isNetherPortal(id)
                 && !isEndPortal(id)
@@ -354,9 +354,9 @@ public final class WorldSolidity {
         return null;
     }
 
-    /** The fire block (51): walk-through, damages bodies standing in it. */
+    /** The fire family (51): walk-through, damages bodies standing in it — every AGE state (FireBlocks' band). */
     public static boolean isFire(Identifier id) {
-        return id.equals(BuiltinBlocks.FIRE.identifier());
+        return FireBlocks.isFire(id);
     }
 
     /** The sugar cane (83): walk-through reed, grows to three on wet soil. */

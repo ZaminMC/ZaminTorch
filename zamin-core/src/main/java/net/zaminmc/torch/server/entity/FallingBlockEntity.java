@@ -178,7 +178,7 @@ public final class FallingBlockEntity implements net.zaminmc.torch.entity.Fallin
         return id.toString().equals("minecraft:air")
                 || net.zaminmc.torch.server.block.FluidBlocks.isWater(id)
                 || net.zaminmc.torch.server.block.FluidBlocks.isLava(id)
-                || id.equals(net.zaminmc.torch.server.block.BuiltinBlocks.FIRE.identifier());
+                || net.zaminmc.torch.server.block.FireBlocks.isFire(id);
     }
 
     /**

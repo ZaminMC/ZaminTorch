@@ -181,7 +181,13 @@ class VanillaLightAuditTest {
         // emission must be one of the reference's emitters (the census above
         // plus the nine corrected families) — no invented glow survives.
         List<String> referenceEmitters = List.of(
-                "minecraft:torch", "minecraft:fire", "minecraft:lava", "minecraft:falling_lava",
+                "minecraft:torch", "minecraft:fire",
+                "minecraft:fire_age1", "minecraft:fire_age2", "minecraft:fire_age3",
+                "minecraft:fire_age4", "minecraft:fire_age5", "minecraft:fire_age6",
+                "minecraft:fire_age7", "minecraft:fire_age8", "minecraft:fire_age9",
+                "minecraft:fire_age10", "minecraft:fire_age11", "minecraft:fire_age12",
+                "minecraft:fire_age13", "minecraft:fire_age14", "minecraft:fire_age15",
+                "minecraft:lava", "minecraft:falling_lava",
                 "minecraft:flowing_lava_1", "minecraft:flowing_lava_2", "minecraft:flowing_lava_3",
                 "minecraft:flowing_lava_4", "minecraft:flowing_lava_5", "minecraft:flowing_lava_6",
                 "minecraft:flowing_lava_7",
