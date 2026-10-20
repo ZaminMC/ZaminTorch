@@ -45,41 +45,6 @@ jobs:
           python3 ../main/.github/scripts/repo_stats_card.py
           cp docs/repository-stats.svg "$CARD_SNAPSHOT"
 
-      - name: Add interactive links
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          python3 - <<'PY'
-          import json, os, re, urllib.request
-          from pathlib import Path
-
-          svg_path = Path("/tmp/zamintorch-repository-stats.svg")
-          svg = svg_path.read_text(encoding="utf-8")
-          req = urllib.request.Request(
-              "https://api.github.com/repos/ZaminMC/ZaminTorch/releases/latest",
-              headers={"Accept":"application/vnd.github+json", "Authorization":f"Bearer {os.environ['GITHUB_TOKEN']}"})
-          with urllib.request.urlopen(req, timeout=30) as r:
-              release = json.load(r)
-          jar = next((a["browser_download_url"] for a in release.get("assets", []) if a.get("name", "").endswith(".jar")), None)
-          if not jar:
-              raise SystemExit("Latest release has no JAR asset")
-
-          def wrap(pattern, url, text):
-              global svg
-              match = re.search(pattern, svg, re.S)
-              if not match:
-                  raise SystemExit(f"Could not find card region: {text}")
-              svg = svg[:match.start()] + f'<a href="{url}">' + match.group(0) + '</a>' + svg[match.end():]
-
-          wrap(r'<text x="56" y="190".*?</text>', "https://github.com/ZaminMC/ZaminTorch/tree/develop", "LOC")
-          wrap(r'<rect x="690" y="116".*?<text x="720" y="211".*?</text>', jar, "release")
-          wrap(r'<rect x="40" y="254".*?<text x="60" y="348".*?</text>', "https://github.com/ZaminMC/ZaminTorch/pulls", "PR open")
-          wrap(r'<rect x="318" y="254".*?<text x="338" y="348".*?</text>', "https://github.com/ZaminMC/ZaminTorch/pulls?q=is%3Apr+is%3Aclosed", "PR closed")
-          wrap(r'<rect x="596" y="254".*?<text x="616" y="348".*?</text>', "https://github.com/ZaminMC/ZaminTorch/issues?q=is%3Aopen", "issue open")
-          wrap(r'<rect x="874" y="254".*?<text x="894" y="348".*?</text>', "https://github.com/ZaminMC/ZaminTorch/issues?q=is%3Aclosed", "issue closed")
-          svg_path.write_text(svg, encoding="utf-8")
-          PY
-
       - name: Update main card and README
         run: |
           cp "$CARD_SNAPSHOT" main/docs/repository-stats.svg
@@ -87,15 +52,26 @@ jobs:
           from pathlib import Path
           main = Path("main")
           readme = main / "README.md"
-          svg = Path("/tmp/zamintorch-repository-stats.svg").read_text(encoding="utf-8")
           text = readme.read_text(encoding="utf-8")
           start = "<!-- REPOSITORY_STATS:START -->"
           end = "<!-- REPOSITORY_STATS:END -->"
+          card = """<p align="center">
+            <img src="docs/repository-stats.svg" alt="ZaminTorch engineering statistics" width="100%" />
+          </p>
+
+          <p align="center">
+            <a href="https://github.com/ZaminMC/ZaminTorch/tree/develop">Java LOC</a>
+            · <a href="https://github.com/ZaminMC/ZaminTorch/releases/latest">Latest release</a>
+            · <a href="https://github.com/ZaminMC/ZaminTorch/pulls">PRs open</a>
+            · <a href="https://github.com/ZaminMC/ZaminTorch/pulls?q=is%3Apr+is%3Aclosed">PRs closed</a>
+            · <a href="https://github.com/ZaminMC/ZaminTorch/issues?q=is%3Aopen">Issues open</a>
+            · <a href="https://github.com/ZaminMC/ZaminTorch/issues?q=is%3Aclosed">Issues closed</a>
+          </p>"""
           if start not in text or end not in text:
               raise SystemExit("README statistics markers are missing")
-          before = text.split(start, 1)[0]
-          after = text.split(end, 1)[1]
-          readme.write_text(before + start + "\n" + svg + "\n" + end + after, encoding="utf-8")
+          before, remainder = text.split(start, 1)
+          _, after = remainder.split(end, 1)
+          readme.write_text(before + start + "\n" + card + "\n" + end + after, encoding="utf-8")
           PY
 
       - name: Commit and push main
