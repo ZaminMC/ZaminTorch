@@ -499,6 +499,29 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                             ? ByteBufOps.readString(packet, 32767) : "";
                     engine.anvilItemName(player, name);
                 }
+                // MC|BEdit / MC|BSign (VIII12 — the reference
+                // ServerPlayNetworkHandler lines 948-1008, the written-book
+                // flow): each payload is ONE wire item
+                // (PacketByteBuf.readItem — the legacy short id, the count
+                // byte, the damage short, then the slot NBT compound; -1
+                // answers the empty form, the reference's own null arm).
+                // The channel gates (the payload's own isValid consult, the
+                // held-item gate) live in the engine's own arms — the same
+                // seam the anvil's rename rides.
+                if (Protocol18.PLUGIN_CHANNEL_BOOK_EDIT.equals(pluginChannel)
+                        && packet.readableBytes() >= 2) {
+                    net.zaminmc.torch.item.ItemStack payload = readPluginPayloadItem(packet);
+                    if (payload != null) {
+                        engine.bookEdit(player, payload);
+                    }
+                }
+                if (Protocol18.PLUGIN_CHANNEL_BOOK_SIGN.equals(pluginChannel)
+                        && packet.readableBytes() >= 2) {
+                    net.zaminmc.torch.item.ItemStack payload = readPluginPayloadItem(packet);
+                    if (payload != null) {
+                        engine.bookSign(player, payload);
+                    }
+                }
                 // MC|AdvCdm (Slice 66 — ServerPlayNetworkHandler lines
                 // 1016-1057): the command-block family's edit write. The
                 // reference's gate order: areCommandBlocksEnabled first
@@ -814,6 +837,50 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         if (packet.isReadable()) {
             packet.readByte();          // NBT marker: 0 = none
         }
+    }
+
+    /**
+     * Reads the MC|BEdit / MC|BSign payload's wire item (VIII12 — the
+     * reference {@code PacketByteBuf.readItem} lines 178-189 1:1): the
+     * legacy short id (-1 = the empty form, answering null like the
+     * reference's own null arm), the count byte, the damage short, then the
+     * slot NBT compound parsed WHOLE through {@link SlotNbt#readBoxedTag}
+     * into the boxes the engine's {@code ItemNbt.readTagInto} walk reads
+     * (the same arms the anvil import lands — a signed payload's
+     * pages/author/title ride exactly the reference's tag rows). An
+     * unmappable legacy id answers null (the reference would construct a
+     * null-item stack the isValid gates refuse anyway); a malformed NBT
+     * compound throws like the reference's NbtIo.read and the caller's
+     * length-framed transport isolates the remains.
+     */
+    private static net.zaminmc.torch.item.ItemStack readPluginPayloadItem(ByteBuf packet) {
+        short legacyId = packet.readShort();
+        if (legacyId < 0) {
+            return null; // the reference's empty arm: itemstack stays null
+        }
+        int count = packet.readUnsignedByte();
+        int damage = packet.readShort();
+        java.util.Optional<net.zaminmc.torch.util.Identifier> resolved =
+                LegacyBlockIds.identifierOf(legacyId & 0xFFFF, damage)
+                        .filter(id -> net.zaminmc.torch.server.item.BuiltinItems
+                                .lookup(id).isPresent())
+                        .or(() -> LegacyBlockIds.identifierOf(legacyId & 0xFFFF));
+        net.zaminmc.torch.item.ItemType type = resolved
+                .flatMap(net.zaminmc.torch.server.item.BuiltinItems::lookup)
+                .orElse(null);
+        if (type == null) {
+            return null; // unmappable: the gates refuse an unknown item anyway
+        }
+        // The reference reads the compound with NbtIo.read — the same walk
+        // SlotNbt.readBoxedTag owns over the wire's own bytes.
+        java.util.Map<String, Object> boxed = SlotNbt.readBoxedTag(packet);
+        net.zaminmc.torch.item.ItemStack stack = net.zaminmc.torch.item.ItemStack
+                .of(type, Math.max(1, count)).withDamage(Math.max(0, damage));
+        if (boxed != null && !boxed.isEmpty()) {
+            stack = net.zaminmc.torch.server.nbt.ItemNbt.readTagInto(stack,
+                    net.zaminmc.torch.server.nbt.NbtOps.fromBoxed(boxed));
+        }
+        return stack;
     }
 
     /**
