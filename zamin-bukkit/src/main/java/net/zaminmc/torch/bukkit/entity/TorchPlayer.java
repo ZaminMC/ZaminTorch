@@ -62,6 +62,12 @@ public final class TorchPlayer implements Player {
         return session.name();
     }
 
+    /** The diagnostic identity (slice 4 — the inventory holder views' own log lines). */
+    @Override
+    public String toString() {
+        return "TorchPlayer{name=" + session.name() + "}";
+    }
+
     @Override
     public UUID getUniqueId() {
         return session.uuid();
