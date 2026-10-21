@@ -12061,7 +12061,6 @@ superlinear signature was 1.74x): the superlinear term is retired.
   numbers), §29's VIII13 row (the additive families + the retract
   resolver + the P7 record), §22's next-work line's three VIII13
   recaps annotated.
-=======
 ---
 Task ID: bukkit-slice-3-entities
 Agent: main (Abasing session — the parallel split's chunk 3, feature/bukkit-slice-3-entities)
@@ -12081,7 +12080,6 @@ Stage Summary:
 - feature/bukkit-slice-3-entities (off develop @ 24f01968): the entity adapter family whole (EntityTypeMap + the TorchEntityView base + the live TorchMob + the four pending views + the adapter's cache/resolutions) and the six entity-backed families bridged (both-ways where the legacy form is cancellable/mutable, the honest 1.8.8 shapes kept where it is not, every §27.9 divergence recorded in the javadoc with its concrete reason)
 - The verified Bukkit-1.8.8 shapes against the pinned artifact: CreatureSpawnEvent(LivingEntity,SpawnReason), ItemSpawnEvent(Item,Location), ProjectileLaunchEvent(Entity) — extends EntityEvent, NOT EntitySpawnEvent (no getLocation of its own), VehicleCreateEvent(Vehicle) — NOT cancellable (the 1.8.8 shape), EntityDeathEvent(LivingEntity,List,int), EntityType.fromName's misses (egg/minecart/small_fireball → null — the explicit-table law's cause), Entity.getEffectivePermissions/recalculatePermissions/addAttachment×4/removeAttachment (the Permissible tail the javap-first law caught before the compiler did)
 - Demand-named follow-ups for the adapter family: the inventory views (the container family's unblocking — the PARALLEL SLICE 4's own lane, its PR to be unioned with this one), the MaterialMap's modern-name pairs table (beef→RAW_BEEF, porkchop→PORK — the mob-loot drops' ItemSpawnEvents skip loudly today, the honest gap), the per-event-type scope ownership for the bridge's native bus registrations (slice-1's own follow-up, unchanged), the eye-height/i-frame/equipment rows if the engine ever names them public, and the §27.9 note that the spawn families' pending views could gain live-body upgrades if the engine ever fires its gates post-construction (the native API's own choice, never the adapter's to make)
-=======
 ---
 
 Task ID: bukkit-slice-4-inventory
@@ -12105,7 +12103,6 @@ Stage Summary:
 - feature/bukkit-slice-4-inventory (off develop @ 24f01968, pushed through the green test wave): the inventory family whole — the org.bukkit.inventory lane over the engine's own §27.3 surfaces (the ItemStack value view, the six container views + the player inventory view, the InventoryView over the open window, the player's four inventory-family verbs), and the three container event families bridged (InventoryOpen with the cancellation mapped onto the engine's own close walk + the ghost-window translation recorded; BlockDispense cancellable both ways with the zero-vector velocity record and the readable-not-applied setItem/setVelocity; InventoryMoveItem over the PUSH/PULL arms with the initiator law, the SUCK arm the entity lane's recorded gap)
 - The parallel-lane hygiene held: this slice's additions live in the inventory/ package + the bridge's third group + the probe's inventory section + clearly-marked slice-4 arms in TorchPlayer — the entity lane's regions (the org.bukkit.entity views of mobs/items/projectiles/vehicles, the entity-backed event families) untouched and expect the coordinator's union
 - Demand-named follow-ups for the adapter family: the entity container forms' views (the horse inventory, the chest/hopper minecarts — the entity lane's mounts unblock InventoryOpenEvent for them), the SUCK arm's item-entity view (the same lane), the open kinds still without views (the crafting table's session grid, the enchanting/anvil menu state, the beacon payment slot, the villager trades), the container-CLOSE event family (the engine has no close observation — InventoryCloseEvent is unbridgable until it exists; the tripwire pins the current shape), the block-state views (the InventoryHolder answers a position-keyed holder, NOT a CraftChest — the cast-hungry plugins' demand), and the addItem/removeItem merge walks (a native insert/withdraw surface would have to exist first — the §27.9 record names the engine's own walks)
-=======
 ---
 Task ID: completionist-surfaces
 Agent: main (Abasing session — the parallel wave's completionist lane, feature/completionist-surfaces)
@@ -12126,7 +12123,6 @@ Stage Summary:
 - Four §27.3 exposure gaps closed (villages/piston-push/growth/pickup) + the import's stale-javadoc honesty pass + the §27.10 evidence table (NATIVE_API_CAPABILITIES.md §9, 18 rows)
 - The capability tests: VillageApiAcceptanceTest 2, PistonPushApiAcceptanceTest 2, GrowthApiAcceptanceTest 3, ArrowPickupTest 8 (all green); the anvil group 44/0; the api module green
 - The demand-named rows the audit leaves for the next slices are recorded in the §9 table + §29's Wave IX note
-=======
 **1cda651b — the biome family's fifth slice: the feature decorators.**
 The reference's `FeatureDecorator` walk whole
 (`world/gen/feature/decorator/FeatureDecorator.java` 98-298, every
