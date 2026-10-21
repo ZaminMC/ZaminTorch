@@ -4,29 +4,47 @@
 
 <!-- LOC_STATS:START -->
 <details>
-<summary>📊 Development Statistics — 255,697 Java lines · 24h +14,519 (click to expand)</summary>
+<summary>📊 Development Statistics — 256,740 Java lines · 24h +11,428 (click to expand)</summary>
 
-### 📈 Today — 2026-10-21
+### 📈 Today — 2026-10-22
 
 | Module | Java LOC | ± 24h | ± 7d | ± since start |
 |---|---|---|---|---|
-| zamin-api | 7,312 | +182 | +2,251 | +7,312 |
-| zamin-core | 223,833 | +13,602 | +103,061 | +223,833 |
+| zamin-api | 7,312 | +87 | +2,251 | +7,312 |
+| zamin-core | 224,876 | +10,974 | +103,444 | +224,876 |
 | zamin-launcher | 2,669 | +0 | +2,194 | +2,669 |
-| zamin-protocol-v1_8_8 | 21,883 | +735 | +6,545 | +21,883 |
+| zamin-protocol-v1_8_8 | 21,883 | +367 | +6,272 | +21,883 |
 | tools | 0 | — | — | — |
-| **Total** | **255,697** | **+14,519** | **+114,051** | **+255,697** |
+| **Total** | **256,740** | **+11,428** | **+114,161** | **+256,740** |
 
 ```diff
-+ added 14,519 lines vs 24 hours ago
-+ added 114,051 lines vs 7 days ago
-+ added 255,697 lines vs 30 days ago (since start)
++ added 11,428 lines vs 24 hours ago
++ added 114,161 lines vs 7 days ago
++ added 256,740 lines vs 30 days ago (since start)
 ```
 
-*869 Java files · tracked modules: `zamin-api`, `zamin-core`, `zamin-launcher`, `zamin-protocol-v1_8_8`, `tools` · dates in PKT (UTC+5) · auto-updated on every push to `develop` and every 6 hours · last update 2026-10-21 21:42 PKT. `tools` currently contains no Java code; it is counted automatically once it does.*
+*870 Java files · tracked modules: `zamin-api`, `zamin-core`, `zamin-launcher`, `zamin-protocol-v1_8_8`, `tools` · dates in PKT (UTC+5) · auto-updated on every push to `develop` and every 6 hours · last update 2026-10-22 00:27 PKT. `tools` currently contains no Java code; it is counted automatically once it does.*
 
 <details>
-<summary>📜 Past stats — 14 recorded days</summary>
+<summary>📜 Past stats — 15 recorded days</summary>
+
+<details>
+<summary>2026-10-21 — 255,697 Java lines</summary>
+
+| Module | Java LOC |
+|---|---|
+| zamin-api | 7,312 |
+| zamin-core | 223,833 |
+| zamin-launcher | 2,669 |
+| zamin-protocol-v1_8_8 | 21,883 |
+| tools | 0 |
+| **Total** | **255,697** |
+
+```diff
++ added 10,933 lines vs previous recorded day (2026-10-20)
+```
+
+</details>
 
 <details>
 <summary>2026-10-20 — 244,764 Java lines</summary>
