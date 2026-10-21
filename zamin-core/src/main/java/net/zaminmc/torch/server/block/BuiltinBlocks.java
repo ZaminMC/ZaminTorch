@@ -168,6 +168,14 @@ public final class BuiltinBlocks {
             Identifier.parse("minecraft:dandelion"), "Dandelion");
     public static final EngineBlockType POPPY = new EngineBlockType(
             Identifier.parse("minecraft:poppy"), "Poppy");
+    // ------------------------------------------------- the VIII14 decorators
+    // slice's one flora addition (clearly marked, one section — the
+    // populate walk's own row): the fern (block 31's variant 2 — the
+    // tall-grass family's second member, the taiga/jungle pick). The
+    // monster egg the extreme hills' veins place is the registered
+    // infested_stone (97/0) — no new row needed.
+    public static final EngineBlockType FERN = new EngineBlockType(
+            Identifier.parse("minecraft:fern"), "Fern", 2);
     // The desert's stone band (legacy 24): the sandstone skin under the sand.
     public static final EngineBlockType SANDSTONE = new EngineBlockType(
             Identifier.parse("minecraft:sandstone"), "Sandstone");
@@ -847,6 +855,7 @@ public final class BuiltinBlocks {
                 .register(COBBLESTONE)
                 .register(TALL_GRASS)
                 .register(DEAD_BUSH)
+                .register(FERN)
                 .register(DANDELION)
                 .register(POPPY)
                 .register(SANDSTONE)

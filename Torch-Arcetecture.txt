@@ -3384,7 +3384,78 @@ own tests. Order is by vanilla visibility and dependency, not size.
       462/0 + the named packages 385/0 + the root classes 399 (one
       documented await-flake, isolated-green) + the protocol 117 (one
       donkey await-flake, isolated-green) + bukkit 38/0 + launcher 47/0
-      + api 19/0.) Each remaining
+      + api 19/0.) (THE FEATURE DECORATORS LANDED 2026-10-22 — the
+      family's last big slice on feature/biome-decorators (the
+      spawn-tables and surface slices' own landing records ride
+      WORKLOG.md — the coordinator's union): the reference's
+      FeatureDecorator walk whole (every stage in the reference's exact
+      order with the exact dice — the disk patches, the trees with the
+      count roll, the huge mushrooms, the flowers' +32 band, the grass,
+      the dead bushes, the lily pads with the drop-down, the mushroom
+      pair, the reeds' two loops, the pumpkin, the cacti, the fifty
+      water + twenty lava springs), the populate sequence around it
+      (the water lake with the desert pair's refusal, the lava lake
+      with the nested depth roll, the eight dungeon attempts — the
+      reference's own chunk-seed law setSeed(chunkX*k + chunkZ*l ^
+      worldSeed) with the two odd longs drawn once), the per-biome
+      counts + pick laws + flavor passes on the 61 registration rows
+      (the reference's per-class ctor outcomes; the standard mutations
+      carry their original's counts with NO passes, MutatedBiome's own
+      law; the forest family's grass 2, the flower forest's hundred
+      flowers, the plains' band-count swap, the roofed grid, the taiga
+      ferns + mega boulders, the jungle's melon + vine tail, the desert
+      well's 1-in-1000, the ice spikes, the hills' emerald + monster
+      egg veins, the giant spruce's podzol soil), the flora/patch/
+      terrain features 1:1 (the flower/plant pair/tall plant/double
+      plant/dead bush/cactus/reeds/pumpkin/melon/lily pad/vine; the
+      disk patches' underwater gate, the ice patch, the mossy boulder,
+      the vein; the lake's wall gates + dirt cap + lava ring + frozen
+      top, the dungeon's mossy room + eight-roll loot walk + typed
+      spawner, the desert well, the ice spike, the liquid fall/pocket,
+      the bonus chest), and THE ENGINE'S OWN REGION RE-DERIVATION
+      WINDOW: the reference's features root in the +8..+24 band and
+      write across chunk borders into live neighbors; the engine's
+      populate runs on one detached chunk, so every chunk's pass
+      replays the populate sequences of its {self, -x} x {self, -z}
+      quadrant — each sequence seed-pure in its source chunk, every
+      foreign cell's writer exactly one pass, the whole world
+      rebuilding identically from the seed alone (the village slice's
+      own deterministic answer). THE CONSULT SEAMS: TreeFeatures'
+      world parameter generalized to TreeWorld (the nine shapes'
+      whole surface is the getBlock/setBlock/airType triple — the live
+      EngineWorld implements it, every sapling/mushroom call site
+      unchanged) + the four additive tree shapes the walk consults
+      (the taiga's pine with the taper rings, the birch mutation's
+      tall form, the swamp tree with the water-tolerant clearance +
+      vine drape, the jungle bush) + the fern row (block 31's variant
+      2 — registration, wire tables, the walk-through/light/drop
+      consults). THE LEDGERED STAGE: placeVeins stays retired whole —
+      the ores ride the generation-side depth ladder (the documented
+      standing adaptation; the position-pure out-of-chunk reads the
+      populate view REQUIRES cannot see decorate-time vein writes —
+      the architectural law, recorded in the PR). The counted notes:
+      the lakes' village gate drops (the structure pass's boolean is
+      another lane's surface), the flowing liquids ride the source
+      stand-in (the structures' own precedent), the huge mushroom's
+      kind rolls per walk (the reference's per-decorator instance
+      state cannot survive the re-derivation), the mushroom light gate
+      reads the sky column (the chunk is unlit at generation), the
+      animal seeding keeps its own earlier seed. The populate
+      stand-ins RETIRE (plantTrees' oak-only switch + plantFlora's
+      simplified rolls — the walk's own stages answer now). The
+      re-pins: the mineshaft spawner test scopes to the start's own
+      bounds records (the dungeons' typed records ride every chunk
+      now), the anvil integrity pin 1245 (the fern + the surface
+      slice's unpinned podzol/coarse_dirt pair — the stale pin
+      repaired with the evidence), the dirt-variant pair joins the
+      light table. Evidence: BiomeDecoratorTest 13 (the counts table,
+      the per-seed determinism, the forest walk + the birch share, the
+      tulip band + the swamp orchid + the mushroom isle over the
+      walk's own +16-corner selection, the cactus/reed laws, the
+      lake/dungeon/well/spike shapes, the tree shapes through the
+      seam) + the world package whole 221/0 + the structure + block +
+      spawn + entity + light suites green + the protocol suite whole
+      117/0.) Each remaining
       row lands as its own slice when the wave's rows above retire.
 
 ## Wave IX — the 2026-10-22 completionist lane (the §27.3 exposure audit of the recent waves + the import's honesty pass)

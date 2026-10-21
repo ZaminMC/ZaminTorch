@@ -287,6 +287,8 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:golden_boots"), 317),
             // decorations (community blocks.json ids: 1.8 data-value flora)
             Map.entry(Identifier.parse("minecraft:tall_grass"), 31),   // metadata 1
+            // The VIII14 decorators slice: the fern (block 31, variant 2).
+            Map.entry(Identifier.parse("minecraft:fern"), 31),
             Map.entry(Identifier.parse("minecraft:dead_bush"), 32),
             Map.entry(Identifier.parse("minecraft:dandelion"), 37),
             Map.entry(Identifier.parse("minecraft:poppy"), 38),
@@ -1335,6 +1337,9 @@ final class LegacyBlockIds {
      */
     private static final Map<Identifier, Integer> METADATA = withDyeFamilyMetadata(Map.ofEntries(
             Map.entry(Identifier.parse("minecraft:tall_grass"), 1),
+            // The VIII14 decorators slice: the fern (block 31's variant 2
+            // — TallPlantBlock.Type.FERN's own nibble).
+            Map.entry(Identifier.parse("minecraft:fern"), 2),
             Map.entry(Identifier.parse("minecraft:sign_west"), 4),
             Map.entry(Identifier.parse("minecraft:sign_north"), 8),
             Map.entry(Identifier.parse("minecraft:sign_east"), 12),
