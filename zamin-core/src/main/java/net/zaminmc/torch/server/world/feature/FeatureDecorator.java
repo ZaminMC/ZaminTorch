@@ -963,6 +963,11 @@ public final class FeatureDecorator {
         }
     }
 
+    /** The test seam (the same package's probes): one huge-mushroom feature. */
+    static HugeMushroomFeature hugeMushroomOf(BlockRegistry registry) {
+        return new HugeMushroomFeature(resolveMushroomStates(registry));
+    }
+
     /**
      * The two families' sixteen-state bands resolved from the registry
      * (the engine's flat variant states over the 99/100 wire ids —

@@ -107,7 +107,7 @@ class AnvilBlockIdsIntegrityTest {
                         + " AnvilBlockIds):\n" + String.join(",\n", missing)
                         + "\nWrong rows:\n" + String.join(";\n", wrong)
                         + "\nUndocumented collisions:\n" + String.join(";\n", collisions));
-        assertEquals(1242, expected.size(), // The tree-growth family's bands (the VIII2/VIII3 slice): the twelve 18-domain leaf decay rows + the six 161-domain rows + the six sapling ready rows
+        assertEquals(1245, expected.size(), // The VIII14 decorators slice's fern row (block 31's variant 2) + the surface slice's podzol/coarse_dirt pair (registered at 11577c52 without the pin moving)
                 "the derived table's size (the class's own pinned count; a change means the"
                         + " registry grew — regenerate the class and re-pin this number)."
                         + " The Wave VI fluids band added the 46 still/flowing-0/falling-level"

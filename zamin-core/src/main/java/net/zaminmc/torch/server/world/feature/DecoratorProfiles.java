@@ -66,19 +66,19 @@ public final class DecoratorProfiles {
 
     /** The forest (trees 10, grass 2, the double plants, the oak-birch law). */
     public static final DecoratorProfile FOREST = DecoratorProfile.of(
-            10, 2, 1, 0, 0, 0, 0, 1, 3, 1, 0, 0,
+            10, 2, 2, 0, 0, 0, 0, 1, 3, 1, 0, 0,
             TreePick.FOREST_OAK, PlantPick.DEFAULT, FlowerPick.DEFAULT,
             Flavor.FOREST_DOUBLE_PLANTS);
 
     /** The birch forest (the birch always + the double plants). */
     public static final DecoratorProfile BIRCH_FOREST = DecoratorProfile.of(
-            10, 2, 1, 0, 0, 0, 0, 1, 3, 1, 0, 0,
+            10, 2, 2, 0, 0, 0, 0, 1, 3, 1, 0, 0,
             TreePick.FOREST_BIRCH, PlantPick.DEFAULT, FlowerPick.DEFAULT,
             Flavor.FOREST_DOUBLE_PLANTS);
 
     /** The roofed forest (the grid pass, trees -999). */
     public static final DecoratorProfile ROOFED_FOREST = DecoratorProfile.of(
-            -999, 2, 1, 0, 0, 0, 0, 1, 3, 1, 0, 0,
+            -999, 2, 2, 0, 0, 0, 0, 1, 3, 1, 0, 0,
             TreePick.FOREST_ROOFED, PlantPick.DEFAULT, FlowerPick.DEFAULT,
             Flavor.ROOFED_GRID, Flavor.FOREST_DOUBLE_PLANTS);
 
