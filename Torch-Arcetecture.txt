@@ -2936,7 +2936,9 @@ own tests. Order is by vanilla visibility and dependency, not size.
       always-blue-orchid named as the biome family's own VIII14 rows).
       Evidence: BonemealArmsAcceptanceTest 6 (the four use-path arms
       + the mushroom's placement-refusal gate — see VIII8 — + the
-      flake-guarded await pattern).
+      flake-guarded await pattern); the sweep green (the core's three
+      batches 1960/0 + the protocol 115/0 + the bukkit 38/0 + the
+      launcher 47/0 + the api 19/0).
 - [x] VIII8 — THE MUSHROOM SPREAD LANDED (2026-10-21, the grass-mushroom
       slice): the random-tick walk (MushroomBlocks.spreadTick 1:1 with
       MushroomPlantBlock.tick lines 43-68: the 1-in-25 pick, the 9x3x9
@@ -2975,7 +2977,9 @@ own tests. Order is by vanilla visibility and dependency, not size.
       skylight-bleed nook (a 7x7 lid's center reads 11 — a single lid
       reads 14, the horizontal -1-per-step bleed the vanilla law
       itself), the spread's five-cap and the same-family independence,
-      the two giant shapes' exact lattices, the refused-grow restore).
+      the two giant shapes' exact lattices, the refused-grow restore);
+      the sweep green (the same three-batch core run + the module
+      suite).
 - [ ] VIII9 — THE ZOMBIE'S ATTRIBUTES (the ledger's L38 row): the
       door-break goal (the hardness walk, the difficulty gate —
       HARD alone in 1.8.8's default, the mobGriefing consult), the
