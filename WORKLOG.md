@@ -11885,3 +11885,47 @@ patches/lakes/dungeons), assigned to the parallel wave's instance 2
 local-difficulty completion (the inhabited-time and moon-phase terms
 currently zeroed, MobManager 3520's ledger) split between the
 coordinator and instance 9.
+
+**1cda651b — the biome family's fifth slice: the feature decorators.**
+The reference's `FeatureDecorator` walk whole
+(`world/gen/feature/decorator/FeatureDecorator.java` 98-298, every
+stage in the reference's exact order with the exact dice) + the
+populate sequence around it (`OverworldChunkGenerator.populateChunk`
+341-393: the water lake with the desert pair's refusal, the lava lake
+with the nested depth roll, the eight dungeon attempts, then
+`biome.decorate` — the reference's own chunk-seed law). The engine's
+own REGION RE-DERIVATION WINDOW answers the reference's cross-chunk
+writes: every chunk's pass replays the populate sequences of its
+{self, -x} x {self, -z} quadrant (each sequence seed-pure in its
+source chunk), so every foreign cell's writer is exactly one pass and
+the world rebuilds identically from the seed alone — the village
+slice's deterministic answer, grown to the populate band. The 61
+registration rows carry their decorator profiles (the reference's
+per-class ctor outcomes: the twelve counts, the tree/plant/flower
+pick laws, the flavor passes; the standard mutations carry their
+original's counts with NO passes — MutatedBiome's own law). The
+flora/patch/terrain features 1:1 beside them. The consult seams:
+TreeFeatures' world parameter generalized to TreeWorld (the nine
+shapes' whole surface is the getBlock/setBlock/airType triple; the
+live EngineWorld implements it, every sapling/mushroom call site
+unchanged) + the four additive tree shapes the walk consults (the
+pine, the tall birch, the swamp tree, the jungle bush) + the fern row
+(block 31's variant 2). THE LEDGERED STAGE: placeVeins stays retired
+whole — the ores ride the generation-side depth ladder (the documented
+standing adaptation; the populate view's position-pure out-of-chunk
+reads cannot see decorate-time vein writes, the architectural law —
+the choice and its evidence recorded in the PR). The populate
+stand-ins RETIRE (plantTrees + plantFlora). The counted notes: the
+lakes' village gate drops, the flowing liquids ride the source
+stand-in, the huge mushroom's kind rolls per walk, the mushroom light
+gate reads the sky column, the animal seeding keeps its own seed. The
+re-pins: the mineshaft spawner test scopes to the start's bounds, the
+anvil integrity pin 1245 (the fern + the surface slice's unpinned
+dirt-variant pair — the stale pin repaired with the evidence), the
+dirt-variant pair joins the light table.
+
+Evidence: BiomeDecoratorTest 13/0 + the world package whole 221/0 +
+the structure + block + spawn + entity + light suites green + the
+protocol suite whole 117/0. The VIII14+ backlog after this slice: the
+ambient-sound cadence + the local-difficulty completion (the
+coordinator's and instance 9's lanes).
