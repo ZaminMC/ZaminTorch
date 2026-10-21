@@ -285,7 +285,22 @@ class MineshaftStructureTest {
                                             "minecraft:air")));
                             generator.generate(chunk);
                             if (!chunk.pendingMobSpawners().isEmpty()) {
+                                // The VIII14 decorators slice: the populate
+                                // walk's dungeons add their own typed
+                                // spawner records anywhere now — the
+                                // mineshaft's own carry the start's bounds
+                                // (the dungeon's fall outside them).
+                                boolean mineshaftRecord = false;
                                 for (var record : chunk.pendingMobSpawners()) {
+                                    boolean inBounds =
+                                            record.x() >= start.getBounds().minX
+                                            && record.x() <= start.getBounds().maxX
+                                            && record.z() >= start.getBounds().minZ
+                                            && record.z() <= start.getBounds().maxZ;
+                                    if (!inBounds) {
+                                        continue;
+                                    }
+                                    mineshaftRecord = true;
                                     assertEquals(
                                             net.zaminmc.torch.server.entity.MobType.CAVE_SPIDER,
                                             record.mobType(),
@@ -296,7 +311,9 @@ class MineshaftStructureTest {
                                                     .identifier().toString(),
                                             "the spawner block sits at the record's cell");
                                 }
-                                return; // the first typed record proves the pair
+                                if (mineshaftRecord) {
+                                    return; // the first typed record proves the pair
+                                }
                             }
                         }
                     }

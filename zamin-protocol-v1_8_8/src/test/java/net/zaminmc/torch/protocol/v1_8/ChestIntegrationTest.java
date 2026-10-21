@@ -143,7 +143,8 @@ class ChestIntegrationTest extends ProtocolTestBase {
             client.sendDigging(2, 2, 5, 2, 1);
 
             int[] removal = client.readBlockChange(10_000);
-            assertEquals(0, removal[3], "the chest block is gone");
+            assertEquals(0, removal[3], "the chest block is gone "
+                    + java.util.Arrays.toString(removal));
             // The block's own drop comes first (chest drops itself), then the spill.
             int[] chestDrop = client.readSpawnItem(10_000);
             assertEquals(Protocol18.OBJECT_ITEM, chestDrop[1], "the block drop is an item entity");

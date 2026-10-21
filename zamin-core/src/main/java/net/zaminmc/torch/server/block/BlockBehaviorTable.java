@@ -876,6 +876,13 @@ public final class BlockBehaviorTable {
                             // flora slice's self-drop otherwise
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:wheat_seeds"), 1, 0.125),
                                     new BlockBehavior.Drop(Identifier.parse("minecraft:tall_grass"), 1, 1.0)))),
+                        Map.entry(Identifier.parse("minecraft:fern"),
+                    new BlockBehavior(0.0, true, false, "plants", 0,
+                            // the decorators slice: the fern rides the
+                            // tall-grass family's own drop law (both
+                            // variants drop the seed roll first)
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:wheat_seeds"), 1, 0.125),
+                                    new BlockBehavior.Drop(Identifier.parse("minecraft:fern"), 1, 1.0)))),
             Map.entry(Identifier.parse("minecraft:dead_bush"),
                     new BlockBehavior(0.0, true, false, "plants", 0, List.of())),
             Map.entry(Identifier.parse("minecraft:dandelion"),

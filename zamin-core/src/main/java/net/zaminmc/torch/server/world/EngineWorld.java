@@ -26,7 +26,8 @@ import java.util.logging.Logger;
  * TODO(persistence-slice): route all mutation through a write-behind storage layer
  * before the first block-mutating gameplay lands.</p>
  */
-public final class EngineWorld implements World {
+public final class EngineWorld implements World,
+        net.zaminmc.torch.server.block.TreeFeatures.TreeWorld {
 
     private static final Logger LOGGER = Logger.getLogger(EngineWorld.class.getName());
 

@@ -9,6 +9,8 @@ import java.util.Map;
 import java.util.Random;
 import net.zaminmc.torch.server.entity.MobType;
 import net.zaminmc.torch.server.world.noise.PerlinSimplexNoise;
+import net.zaminmc.torch.server.world.feature.DecoratorProfile;
+import net.zaminmc.torch.server.world.feature.DecoratorProfiles;
 
 /**
  * The engine's biome registration table — the reference's {@code Biome.java}
@@ -105,124 +107,124 @@ public enum Biome {
 
     /** Id 0 (OceanBiome): the class-default pair, the ocean height band. */
     OCEAN(0, "Ocean", 0.5f, 0.5f, false, true, 16777215,
-            -1.0f, 0.1f, 2, 3, Family.OCEAN, null, Spawns.NO_CREATURES),
+            -1.0f, 0.1f, 2, 3, Family.OCEAN, null, Spawns.NO_CREATURES, DecoratorProfiles.DEFAULT),
     /** Id 1 (PlainsBiome): sparse oaks, grass and the flower rolls. */
     PLAINS(1, "Plains", 0.8f, 0.4f, false, true, 16777215,
-            0.125f, 0.05f, 2, 3, Family.PLAINS, null, Spawns.PLAINS_LIKE),
+            0.125f, 0.05f, 2, 3, Family.PLAINS, null, Spawns.PLAINS_LIKE, DecoratorProfiles.PLAINS),
     /** Id 2 (DesertBiome): sand skin over sand, the no-rain refusal. */
     DESERT(2, "Desert", 2.0f, 0.0f, false, false, 16777215,
-            0.125f, 0.05f, 12, 12, Family.DESERT, null, Spawns.NO_CREATURES),
+            0.125f, 0.05f, 12, 12, Family.DESERT, null, Spawns.NO_CREATURES, DecoratorProfiles.DESERT),
     /** Id 3 (ExtremeHillsBiome, variant 0): the stone-depth switch's base. */
     EXTREME_HILLS(3, "Extreme Hills", 0.2f, 0.3f, false, true, 16777215,
-            1.0f, 0.5f, 2, 3, Family.EXTREME_HILLS, null, Spawns.BASE),
+            1.0f, 0.5f, 2, 3, Family.EXTREME_HILLS, null, Spawns.BASE, DecoratorProfiles.HILLS),
     /** Id 4 (ForestBiome, variant 0): dense oak forest, grass and flowers. */
     FOREST(4, "Forest", 0.7f, 0.8f, false, true, 16777215,
-            0.1f, 0.2f, 2, 3, Family.FOREST, null, Spawns.FOREST_LIKE),
+            0.1f, 0.2f, 2, 3, Family.FOREST, null, Spawns.FOREST_LIKE, DecoratorProfiles.FOREST),
     /** Id 5 (TaigaBiome, variant 0): the spruce band. */
     TAIGA(5, "Taiga", 0.25f, 0.8f, false, true, 16777215,
-            0.2f, 0.2f, 2, 3, Family.TAIGA, null, Spawns.TAIGA_LIKE),
+            0.2f, 0.2f, 2, 3, Family.TAIGA, null, Spawns.TAIGA_LIKE, DecoratorProfiles.TAIGA),
     /** Id 6 (SwampBiome): the water fog row, the flat height band. */
     SWAMPLAND(6, "Swampland", 0.8f, 0.9f, false, true, 14745518,
-            -0.2f, 0.1f, 2, 3, Family.SWAMP, null, Spawns.SWAMP),
+            -0.2f, 0.1f, 2, 3, Family.SWAMP, null, Spawns.SWAMP, DecoratorProfiles.SWAMP),
     /** Id 7 (RiverBiome): the class-default pair, the river height band. */
     RIVER(7, "River", 0.5f, 0.5f, false, true, 16777215,
-            -0.5f, 0.0f, 2, 3, Family.RIVER, null, Spawns.NO_CREATURES),
+            -0.5f, 0.0f, 2, 3, Family.RIVER, null, Spawns.NO_CREATURES, DecoratorProfiles.DEFAULT),
     /** Id 8 (HellBiome): the nether's FixedBiomeSource — every cell. */
     HELL(8, "Hell", 2.0f, 0.0f, false, false, 16777215,
-            0.1f, 0.2f, 2, 3, Family.HELL, null, Spawns.HELL),
+            0.1f, 0.2f, 2, 3, Family.HELL, null, Spawns.HELL, DecoratorProfiles.DEFAULT),
     /** Id 9 (TheEndBiome): the dirt pair, the end's own decorator. */
     THE_END(9, "The End", 0.5f, 0.5f, false, false, 16777215,
-            0.1f, 0.2f, 3, 3, Family.THE_END, null, Spawns.THE_END),
+            0.1f, 0.2f, 3, 3, Family.THE_END, null, Spawns.THE_END, DecoratorProfiles.DEFAULT),
     /** Id 10 (OceanBiome + setSnowy): the frozen read refuses the rain. */
     FROZEN_OCEAN(10, "FrozenOcean", 0.0f, 0.5f, true, true, 16777215,
-            -1.0f, 0.1f, 2, 3, Family.OCEAN, null, Spawns.NO_CREATURES),
+            -1.0f, 0.1f, 2, 3, Family.OCEAN, null, Spawns.NO_CREATURES, DecoratorProfiles.DEFAULT),
     /** Id 11 (RiverBiome + setSnowy): the frozen river column. */
     FROZEN_RIVER(11, "FrozenRiver", 0.0f, 0.5f, true, true, 16777215,
-            -0.5f, 0.0f, 2, 3, Family.RIVER, null, Spawns.NO_CREATURES),
+            -0.5f, 0.0f, 2, 3, Family.RIVER, null, Spawns.NO_CREATURES, DecoratorProfiles.DEFAULT),
     /** Id 12 (IceBiome, spikes=false): GRASS, not snow — the ctor quirk. */
     ICE_PLAINS(12, "Ice Plains", 0.0f, 0.5f, true, true, 16777215,
-            0.125f, 0.05f, 2, 3, Family.ICE, null, Spawns.NO_CREATURES),
+            0.125f, 0.05f, 2, 3, Family.ICE, null, Spawns.NO_CREATURES, DecoratorProfiles.ICE),
     /** Id 13 (IceBiome, spikes=false): the hills height band. */
     ICE_MOUNTAINS(13, "Ice Mountains", 0.0f, 0.5f, true, true, 16777215,
-            0.45f, 0.3f, 2, 3, Family.ICE, null, Spawns.NO_CREATURES),
+            0.45f, 0.3f, 2, 3, Family.ICE, null, Spawns.NO_CREATURES, DecoratorProfiles.ICE),
     /** Id 14 (MushroomBiome): the mycelium surface, the mooshroom isle. */
     MUSHROOM_ISLAND(14, "MushroomIsland", 0.9f, 1.0f, false, true, 16777215,
-            0.2f, 0.3f, 110, 3, Family.MUSHROOM, null, Spawns.MUSHROOM),
+            0.2f, 0.3f, 110, 3, Family.MUSHROOM, null, Spawns.MUSHROOM, DecoratorProfiles.MUSHROOM),
     /** Id 15 (MushroomBiome): the shore height band. */
     MUSHROOM_ISLAND_SHORE(15, "MushroomIslandShore", 0.9f, 1.0f, false, true,
-            16777215, 0.0f, 0.025f, 110, 3, Family.MUSHROOM, null, Spawns.MUSHROOM),
+            16777215, 0.0f, 0.025f, 110, 3, Family.MUSHROOM, null, Spawns.MUSHROOM, DecoratorProfiles.MUSHROOM),
     /** Id 16 (BeachBiome): the sand pair. */
     BEACH(16, "Beach", 0.8f, 0.4f, false, true, 16777215,
-            0.0f, 0.025f, 12, 12, Family.BEACH, null, Spawns.NO_CREATURES),
+            0.0f, 0.025f, 12, 12, Family.BEACH, null, Spawns.NO_CREATURES, DecoratorProfiles.BEACH),
     /** Id 17 (DesertBiome): the hills height band. */
     DESERT_HILLS(17, "DesertHills", 2.0f, 0.0f, false, false, 16777215,
-            0.45f, 0.3f, 12, 12, Family.DESERT, null, Spawns.NO_CREATURES),
+            0.45f, 0.3f, 12, 12, Family.DESERT, null, Spawns.NO_CREATURES, DecoratorProfiles.DESERT),
     /** Id 18 (ForestBiome, variant 0): the hills height band. */
     FOREST_HILLS(18, "ForestHills", 0.7f, 0.8f, false, true, 16777215,
-            0.45f, 0.3f, 2, 3, Family.FOREST, null, Spawns.FOREST_LIKE),
+            0.45f, 0.3f, 2, 3, Family.FOREST, null, Spawns.FOREST_LIKE, DecoratorProfiles.FOREST),
     /** Id 19 (TaigaBiome, variant 0): the hills height band. */
     TAIGA_HILLS(19, "TaigaHills", 0.25f, 0.8f, false, true, 16777215,
-            0.45f, 0.3f, 2, 3, Family.TAIGA, null, Spawns.TAIGA_LIKE),
+            0.45f, 0.3f, 2, 3, Family.TAIGA, null, Spawns.TAIGA_LIKE, DecoratorProfiles.TAIGA),
     /** Id 20 (ExtremeHillsBiome, variant edge): the diminished heights. */
     EXTREME_HILLS_EDGE(20, "Extreme Hills Edge", 0.2f, 0.3f, false, true,
-            16777215, 0.8f, 0.3f, 2, 3, Family.EXTREME_HILLS, null, Spawns.BASE),
+            16777215, 0.8f, 0.3f, 2, 3, Family.EXTREME_HILLS, null, Spawns.BASE, DecoratorProfiles.HILLS_TREED),
     /** Id 21 (JungleBiome, edge=false): the hot-wet band. */
     JUNGLE(21, "Jungle", 0.95f, 0.9f, false, true, 16777215,
-            0.1f, 0.2f, 2, 3, Family.JUNGLE, null, Spawns.JUNGLE),
+            0.1f, 0.2f, 2, 3, Family.JUNGLE, null, Spawns.JUNGLE, DecoratorProfiles.JUNGLE),
     /** Id 22 (JungleBiome, edge=false): the hills height band. */
     JUNGLE_HILLS(22, "JungleHills", 0.95f, 0.9f, false, true, 16777215,
-            0.45f, 0.3f, 2, 3, Family.JUNGLE, null, Spawns.JUNGLE),
+            0.45f, 0.3f, 2, 3, Family.JUNGLE, null, Spawns.JUNGLE, DecoratorProfiles.JUNGLE),
     /** Id 23 (JungleBiome, edge=true): the drier edge band (0.8). */
     JUNGLE_EDGE(23, "JungleEdge", 0.95f, 0.8f, false, true, 16777215,
-            0.1f, 0.2f, 2, 3, Family.JUNGLE, null, Spawns.JUNGLE_EDGE),
+            0.1f, 0.2f, 2, 3, Family.JUNGLE, null, Spawns.JUNGLE_EDGE, DecoratorProfiles.JUNGLE_EDGE),
     /** Id 24 (OceanBiome): the deep water band (the monument gate). */
     DEEP_OCEAN(24, "Deep Ocean", 0.5f, 0.5f, false, true, 16777215,
-            -1.8f, 0.1f, 2, 3, Family.OCEAN, null, Spawns.NO_CREATURES),
+            -1.8f, 0.1f, 2, 3, Family.OCEAN, null, Spawns.NO_CREATURES, DecoratorProfiles.DEFAULT),
     /** Id 25 (StoneBeachBiome): the stone pair. */
     STONE_BEACH(25, "Stone Beach", 0.2f, 0.3f, false, true, 16777215,
-            0.1f, 0.8f, 1, 1, Family.STONE_BEACH, null, Spawns.NO_CREATURES),
+            0.1f, 0.8f, 1, 1, Family.STONE_BEACH, null, Spawns.NO_CREATURES, DecoratorProfiles.BEACH),
     /** Id 26 (BeachBiome + setSnowy): the cold sand shore. */
     COLD_BEACH(26, "Cold Beach", 0.05f, 0.3f, true, true, 16777215,
-            0.0f, 0.025f, 12, 12, Family.BEACH, null, Spawns.NO_CREATURES),
+            0.0f, 0.025f, 12, 12, Family.BEACH, null, Spawns.NO_CREATURES, DecoratorProfiles.BEACH),
     /** Id 27 (ForestBiome, variant 2): the birch pair (0.6/0.6). */
     BIRCH_FOREST(27, "Birch Forest", 0.6f, 0.6f, false, true, 16777215,
-            0.1f, 0.2f, 2, 3, Family.FOREST, null, Spawns.BASE),
+            0.1f, 0.2f, 2, 3, Family.FOREST, null, Spawns.BASE, DecoratorProfiles.BIRCH_FOREST),
     /** Id 28 (ForestBiome, variant 2): the hills height band. */
     BIRCH_FOREST_HILLS(28, "Birch Forest Hills", 0.6f, 0.6f, false, true,
-            16777215, 0.45f, 0.3f, 2, 3, Family.FOREST, null, Spawns.BASE),
+            16777215, 0.45f, 0.3f, 2, 3, Family.FOREST, null, Spawns.BASE, DecoratorProfiles.BIRCH_FOREST),
     /** Id 29 (ForestBiome, variant 3): the dark oak band. */
     ROOFED_FOREST(29, "Roofed Forest", 0.7f, 0.8f, false, true, 16777215,
-            0.1f, 0.2f, 2, 3, Family.FOREST, null, Spawns.BASE),
+            0.1f, 0.2f, 2, 3, Family.FOREST, null, Spawns.BASE, DecoratorProfiles.ROOFED_FOREST),
     /** Id 30 (TaigaBiome, variant 0 + setSnowy): the negative band. */
     COLD_TAIGA(30, "Cold Taiga", -0.5f, 0.4f, true, true, 16777215,
-            0.2f, 0.2f, 2, 3, Family.TAIGA, null, Spawns.TAIGA_LIKE),
+            0.2f, 0.2f, 2, 3, Family.TAIGA, null, Spawns.TAIGA_LIKE, DecoratorProfiles.TAIGA),
     /** Id 31 (TaigaBiome, variant 0 + setSnowy): the hills band. */
     COLD_TAIGA_HILLS(31, "Cold Taiga Hills", -0.5f, 0.4f, true, true,
-            16777215, 0.45f, 0.3f, 2, 3, Family.TAIGA, null, Spawns.TAIGA_LIKE),
+            16777215, 0.45f, 0.3f, 2, 3, Family.TAIGA, null, Spawns.TAIGA_LIKE, DecoratorProfiles.TAIGA),
     /** Id 32 (TaigaBiome, variant 1): the mega band (0.3/0.8). */
     MEGA_TAIGA(32, "Mega Taiga", 0.3f, 0.8f, false, true, 16777215,
-            0.2f, 0.2f, 2, 3, Family.TAIGA, null, Spawns.TAIGA_LIKE),
+            0.2f, 0.2f, 2, 3, Family.TAIGA, null, Spawns.TAIGA_LIKE, DecoratorProfiles.MEGA_TAIGA),
     /** Id 33 (TaigaBiome, variant 1): the hills height band. */
     MEGA_TAIGA_HILLS(33, "Mega Taiga Hills", 0.3f, 0.8f, false, true,
-            16777215, 0.45f, 0.3f, 2, 3, Family.TAIGA, null, Spawns.TAIGA_LIKE),
+            16777215, 0.45f, 0.3f, 2, 3, Family.TAIGA, null, Spawns.TAIGA_LIKE, DecoratorProfiles.MEGA_TAIGA),
     /** Id 34 (ExtremeHillsBiome, variant plus): the gravel/stone switch. */
     EXTREME_HILLS_PLUS(34, "Extreme Hills+", 0.2f, 0.3f, false, true,
-            16777215, 1.0f, 0.5f, 2, 3, Family.EXTREME_HILLS, null, Spawns.BASE),
+            16777215, 1.0f, 0.5f, 2, 3, Family.EXTREME_HILLS, null, Spawns.BASE, DecoratorProfiles.HILLS_TREED),
     /** Id 35 (SavannaBiome): the no-rain refusal, the acacia band. */
     SAVANNA(35, "Savanna", 1.2f, 0.0f, false, false, 16777215,
-            0.125f, 0.05f, 2, 3, Family.SAVANNA, null, Spawns.SAVANNA_LIKE),
+            0.125f, 0.05f, 2, 3, Family.SAVANNA, null, Spawns.SAVANNA_LIKE, DecoratorProfiles.SAVANNA),
     /** Id 36 (SavannaBiome): the plateau height band. */
     SAVANNA_PLATEAU(36, "Savanna Plateau", 1.0f, 0.0f, false, false,
-            16777215, 1.5f, 0.025f, 2, 3, Family.SAVANNA, null, Spawns.SAVANNA_LIKE),
+            16777215, 1.5f, 0.025f, 2, 3, Family.SAVANNA, null, Spawns.SAVANNA_LIKE, DecoratorProfiles.SAVANNA),
     /** Id 37 (MesaBiome, hasTrees=false): the red sand over clay. */
     MESA(37, "Mesa", 2.0f, 0.0f, false, false, 16777215,
-            0.1f, 0.2f, 179, 159, Family.MESA, null, Spawns.NO_CREATURES),
+            0.1f, 0.2f, 179, 159, Family.MESA, null, Spawns.NO_CREATURES, DecoratorProfiles.MESA),
     /** Id 38 (MesaBiome, hasTrees=true): the plateau band, the trees. */
     MESA_PLATEAU_F(38, "Mesa Plateau F", 2.0f, 0.0f, false, false, 16777215,
-            1.5f, 0.025f, 179, 159, Family.MESA, null, Spawns.NO_CREATURES),
+            1.5f, 0.025f, 179, 159, Family.MESA, null, Spawns.NO_CREATURES, DecoratorProfiles.MESA_TREED),
     /** Id 39 (MesaBiome, hasTrees=false): the plateau band. */
     MESA_PLATEAU(39, "Mesa Plateau", 2.0f, 0.0f, false, false, 16777215,
-            1.5f, 0.025f, 179, 159, Family.MESA, null, Spawns.NO_CREATURES),
+            1.5f, 0.025f, 179, 159, Family.MESA, null, Spawns.NO_CREATURES, DecoratorProfiles.MESA),
 
     // ------------------------------------------------------- the mutated rows
     // (the static block's 21 registrations — see the class javadoc's
@@ -230,74 +232,74 @@ public enum Biome {
 
     /** Id 129 (PlainsBiome's own mutate): the fresh-ctor form — no bump. */
     SUNFLOWER_PLAINS(129, "Sunflower Plains", 0.8f, 0.4f, false, true,
-            16777215, 0.125f, 0.05f, 2, 3, Family.PLAINS, PLAINS, Spawns.PLAINS_LIKE),
+            16777215, 0.125f, 0.05f, 2, 3, Family.PLAINS, PLAINS, Spawns.PLAINS_LIKE, DecoratorProfiles.SUNFLOWER_PLAINS),
     /** Id 130 (the standard copy): the desert's whole pair + the bump. */
     DESERT_M(130, "Desert M", 2.0f, 0.0f, false, false, 16777215,
-            0.225f, 0.25f, 12, 12, Family.DESERT, DESERT, Spawns.NO_CREATURES),
+            0.225f, 0.25f, 12, 12, Family.DESERT, DESERT, Spawns.NO_CREATURES, DecoratorProfiles.DESERT_M),
     /** Id 131 (ExtremeHillsBiome's own mutate): the copied height, no bump. */
     EXTREME_HILLS_M(131, "Extreme Hills M", 0.2f, 0.3f, false, true,
-            16777215, 1.0f, 0.5f, 2, 3, Family.EXTREME_HILLS, EXTREME_HILLS, Spawns.BASE),
+            16777215, 1.0f, 0.5f, 2, 3, Family.EXTREME_HILLS, EXTREME_HILLS, Spawns.BASE, DecoratorProfiles.HILLS),
     /** Id 132 (ForestBiome's own mutate — the fresh variant-1 ctor):
      * "Flower Forest", the forest's own base + the variation bump. */
     FLOWER_FOREST(132, "Flower Forest", 0.7f, 0.8f, false, true,
-            16777215, 0.1f, 0.4f, 2, 3, Family.FOREST, FOREST, Spawns.BASE),
+            16777215, 0.1f, 0.4f, 2, 3, Family.FOREST, FOREST, Spawns.BASE, DecoratorProfiles.FLOWER_FOREST),
     /** Id 133 (the standard copy): the taiga pair + the bump. */
     TAIGA_M(133, "Taiga M", 0.25f, 0.8f, false, true, 16777215,
-            0.3f, 0.4f, 2, 3, Family.TAIGA, TAIGA, Spawns.TAIGA_LIKE),
+            0.3f, 0.4f, 2, 3, Family.TAIGA, TAIGA, Spawns.TAIGA_LIKE, DecoratorProfiles.TAIGA_M),
     /** Id 134 (the standard copy): the water fog row rides along. */
     SWAMPLAND_M(134, "Swampland M", 0.8f, 0.9f, false, true, 14745518,
-            -0.1f, 0.3f, 2, 3, Family.SWAMP, SWAMPLAND, Spawns.SWAMP),
+            -0.1f, 0.3f, 2, 3, Family.SWAMP, SWAMPLAND, Spawns.SWAMP, DecoratorProfiles.SWAMP),
     /** Id 140 (IceBiome's own mutate): snow surface, the +0.3/+0.4 quirk. */
     ICE_PLAINS_SPIKES(140, "Ice Plains Spikes", 0.0f, 0.5f, true, true,
-            16777215, 0.425f, 0.45f, 80, 3, Family.ICE, ICE_PLAINS, Spawns.NO_CREATURES),
+            16777215, 0.425f, 0.45f, 80, 3, Family.ICE, ICE_PLAINS, Spawns.NO_CREATURES, DecoratorProfiles.ICE_SPIKES),
     /** Id 149 (the standard copy): the jungle pair + the bump. */
     JUNGLE_M(149, "Jungle M", 0.95f, 0.9f, false, true, 16777215,
-            0.2f, 0.4f, 2, 3, Family.JUNGLE, JUNGLE, Spawns.JUNGLE),
+            0.2f, 0.4f, 2, 3, Family.JUNGLE, JUNGLE, Spawns.JUNGLE, DecoratorProfiles.JUNGLE_M),
     /** Id 151 (the standard copy): the edge's 0.8 downfall + the bump. */
     JUNGLE_EDGE_M(151, "JungleEdge M", 0.95f, 0.8f, false, true, 16777215,
-            0.2f, 0.4f, 2, 3, Family.JUNGLE, JUNGLE_EDGE, Spawns.JUNGLE_EDGE),
+            0.2f, 0.4f, 2, 3, Family.JUNGLE, JUNGLE_EDGE, Spawns.JUNGLE_EDGE, DecoratorProfiles.JUNGLE_EDGE_M),
     /** Id 155 (the standard copy): the birch pair + the bump. */
     BIRCH_FOREST_M(155, "Birch Forest M", 0.6f, 0.6f, false, true,
-            16777215, 0.2f, 0.4f, 2, 3, Family.FOREST, BIRCH_FOREST, Spawns.BASE),
+            16777215, 0.2f, 0.4f, 2, 3, Family.FOREST, BIRCH_FOREST, Spawns.BASE, DecoratorProfiles.BIRCH_FOREST),
     /** Id 156 (the standard copy): the birch hills' bump over the hills. */
     BIRCH_FOREST_HILLS_M(156, "Birch Forest Hills M", 0.6f, 0.6f, false,
             true, 16777215, 0.55f, 0.5f, 2, 3, Family.FOREST,
-            BIRCH_FOREST_HILLS, Spawns.BASE),
+            BIRCH_FOREST_HILLS, Spawns.BASE, DecoratorProfiles.BIRCH_FOREST),
     /** Id 157 (the standard copy): the roofed pair + the bump. */
     ROOFED_FOREST_M(157, "Roofed Forest M", 0.7f, 0.8f, false, true,
-            16777215, 0.2f, 0.4f, 2, 3, Family.FOREST, ROOFED_FOREST, Spawns.BASE),
+            16777215, 0.2f, 0.4f, 2, 3, Family.FOREST, ROOFED_FOREST, Spawns.BASE, DecoratorProfiles.ROOFED_FOREST_M),
     /** Id 158 (the standard copy): the snowy flag rides along. */
     COLD_TAIGA_M(158, "Cold Taiga M", -0.5f, 0.4f, true, true, 16777215,
-            0.55f, 0.5f, 2, 3, Family.TAIGA, COLD_TAIGA, Spawns.TAIGA_LIKE),
+            0.55f, 0.5f, 2, 3, Family.TAIGA, COLD_TAIGA, Spawns.TAIGA_LIKE, DecoratorProfiles.TAIGA_M),
     /** Id 160 (TaigaBiome's own mutate): variant 2, the 0.25 band, no bump. */
     MEGA_SPRUCE_TAIGA(160, "Mega Spruce Taiga", 0.25f, 0.8f, false, true,
-            16777215, 0.2f, 0.2f, 2, 3, Family.TAIGA, MEGA_TAIGA, Spawns.TAIGA_LIKE),
+            16777215, 0.2f, 0.2f, 2, 3, Family.TAIGA, MEGA_TAIGA, Spawns.TAIGA_LIKE, DecoratorProfiles.MEGA_SPRUCE_TAIGA),
     /** Id 161 (the special second call): the same fresh TaigaBiome(id, 2)
      * shape as 160 — MEGA_TAIGA's own pair, renamed. */
     REDWOOD_TAIGA_HILLS_M(161, "Redwood Taiga Hills M", 0.25f, 0.8f,
             false, true, 16777215, 0.2f, 0.2f, 2, 3, Family.TAIGA,
-            MEGA_TAIGA, Spawns.TAIGA_LIKE),
+            MEGA_TAIGA, Spawns.TAIGA_LIKE, DecoratorProfiles.MEGA_SPRUCE_TAIGA),
     /** Id 162 (ExtremeHillsBiome's own mutate): the plus row's copy. */
     EXTREME_HILLS_PLUS_M(162, "Extreme Hills+ M", 0.2f, 0.3f, false, true,
             16777215, 1.0f, 0.5f, 2, 3, Family.EXTREME_HILLS,
-            EXTREME_HILLS_PLUS, Spawns.BASE),
+            EXTREME_HILLS_PLUS, Spawns.BASE, DecoratorProfiles.HILLS),
     /** Id 163 (SavannaBiome's own mutate): the shattered law — 1.1, the
      *  {@code base * 0.5 + 0.3} / {@code variation * 0.5 + 1.2} heights. */
     SAVANNA_M(163, "Savanna M", 1.1f, 0.0f, false, false, 16777215,
-            0.3625f, 1.225f, 2, 3, Family.SAVANNA, SAVANNA, Spawns.SAVANNA_LIKE),
+            0.3625f, 1.225f, 2, 3, Family.SAVANNA, SAVANNA, Spawns.SAVANNA_LIKE, DecoratorProfiles.SHATTERED_SAVANNA),
     /** Id 164 (SavannaBiome's own mutate): the plateau's shattered form. */
     SAVANNA_PLATEAU_M(164, "Savanna Plateau M", 1.0f, 0.0f, false, false,
-            16777215, 1.05f, 1.2125f, 2, 3, Family.SAVANNA, SAVANNA_PLATEAU, Spawns.SAVANNA_LIKE),
+            16777215, 1.05f, 1.2125f, 2, 3, Family.SAVANNA, SAVANNA_PLATEAU, Spawns.SAVANNA_LIKE, DecoratorProfiles.SHATTERED_SAVANNA),
     /** Id 165 (MesaBiome's own mutate, the flag arm): "Mesa (Bryce)" —
      * the fresh ctor's class-default heights, no bump. */
     MESA_BRYCE(165, "Mesa (Bryce)", 2.0f, 0.0f, false, false, 16777215,
-            0.1f, 0.2f, 179, 159, Family.MESA, MESA, Spawns.NO_CREATURES),
+            0.1f, 0.2f, 179, 159, Family.MESA, MESA, Spawns.NO_CREATURES, DecoratorProfiles.MESA),
     /** Id 166 (the standard copy): the plateau F's bump. */
     MESA_PLATEAU_F_M(166, "Mesa Plateau F M", 2.0f, 0.0f, false, false,
-            16777215, 0.45f, 0.3f, 179, 159, Family.MESA, MESA_PLATEAU_F, Spawns.NO_CREATURES),
+            16777215, 0.45f, 0.3f, 179, 159, Family.MESA, MESA_PLATEAU_F, Spawns.NO_CREATURES, DecoratorProfiles.MESA_TREED),
     /** Id 167 (the standard copy): the plateau's bump. */
     MESA_PLATEAU_M(167, "Mesa Plateau M", 2.0f, 0.0f, false, false,
-            16777215, 0.45f, 0.3f, 179, 159, Family.MESA, MESA_PLATEAU, Spawns.NO_CREATURES);
+            16777215, 0.45f, 0.3f, 179, 159, Family.MESA, MESA_PLATEAU, Spawns.NO_CREATURES, DecoratorProfiles.MESA);
 
     // ------------------------------------------------------------ the datum
     // (the reference ctor's own registration rows, the exact values)
@@ -316,12 +318,19 @@ public enum Biome {
     private final Family family;
     private final Biome mutatedFrom;
     private final SpawnTables spawns;
+    /**
+     * The row's decorator profile (the VIII14 decorators slice): the
+     * twelve placement counts + the pick/flavor laws the populate walk
+     * consults (the reference's per-class ctor outcomes).
+     */
+    private final DecoratorProfile decorator;
 
     Biome(int legacyId, String displayName, float temperature, float downfall,
             boolean snowy, boolean rainField, int waterFogColor,
             float baseHeight, float heightVariation,
             int surfaceLegacyId, int subsurfaceLegacyId,
-            Family family, Biome mutatedFrom, SpawnTables spawns) {
+            Family family, Biome mutatedFrom, SpawnTables spawns,
+            DecoratorProfile decorator) {
         this.legacyId = legacyId;
         this.displayName = displayName;
         this.temperature = temperature;
@@ -336,6 +345,7 @@ public enum Biome {
         this.family = family;
         this.mutatedFrom = mutatedFrom;
         this.spawns = spawns;
+        this.decorator = decorator;
     }
 
     /** @return the 1.8 wire id (the chunk packet's biome array value). */
@@ -468,6 +478,17 @@ public enum Biome {
      */
     public Biome mutatedFrom() {
         return mutatedFrom;
+    }
+
+    /**
+     * @return the row's decorator profile (the VIII14 decorators slice —
+     * the reference's per-class ctor outcome: the placement counts, the
+     * pick laws, the decorate passes; the standard mutated rows carry
+     * their original's counts + delegated picks with NO flavor passes,
+     * the reference's MutatedBiome law).
+     */
+    public DecoratorProfile decorator() {
+        return decorator;
     }
 
     /**

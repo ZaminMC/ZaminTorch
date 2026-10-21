@@ -271,6 +271,7 @@ public final class AnvilBlockIds {
             state(29, 13, "minecraft:sticky_piston_east_extended"),
             state(30, 0, "minecraft:cobweb"),
             state(31, 1, "minecraft:tall_grass"),
+            state(31, 2, "minecraft:fern"),
             state(32, 0, "minecraft:dead_bush"),
             state(33, 0, "minecraft:piston_down"),
             state(33, 1, "minecraft:piston_up"),

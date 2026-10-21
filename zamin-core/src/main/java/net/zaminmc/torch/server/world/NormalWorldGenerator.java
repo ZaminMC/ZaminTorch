@@ -34,6 +34,12 @@ public final class NormalWorldGenerator implements WorldGenerator {
      * family overrides, over the engine's per-cell column model).
      */
     private final BiomeSurfaceBuilder surfaces;
+    /**
+     * The feature decorator (VIII14's decorators slice — the reference's
+     * populate walk whole: the lakes, the dungeons, the biome's decorate,
+     * over the populate-time view).
+     */
+    private final net.zaminmc.torch.server.world.feature.FeatureDecorator featureDecorator;
     /** The village placement layer (Slice 12b): deterministic per chunk. */
     private final net.zaminmc.torch.server.world.structure.VillageStructure villages;
     /** The stronghold placement layer (Slice 12c): deterministic per chunk. */
@@ -112,6 +118,8 @@ public final class NormalWorldGenerator implements WorldGenerator {
         // caches hold the last regions sampled (bounded LRU — the
         // values are pure functions of the seed, eviction transparent).
         this.surfaces = new BiomeSurfaceBuilder(this.seed, registry);
+        this.featureDecorator = new net.zaminmc.torch.server.world.feature.FeatureDecorator(
+                registry, this.seed);
         net.zaminmc.torch.server.world.layer.Layer[] layers =
                 net.zaminmc.torch.server.world.layer.Layer.init(this.seed);
         this.gridLayer = layers[0];
@@ -329,8 +337,7 @@ public final class NormalWorldGenerator implements WorldGenerator {
                 }
             }
         }
-        plantTrees(chunk, baseX, baseZ, heights, biomes);
-        plantFlora(chunk, baseX, baseZ, heights, biomes);
+        plantDecorations(chunk, baseX, baseZ);
         // The structure pass (Slice 12a — the populate hook): the region
         // scan + the clipped piece writes, after the terrain and the
         // flora exactly like the reference's populate step.
@@ -338,6 +345,159 @@ public final class NormalWorldGenerator implements WorldGenerator {
         // The animal seeding (the reference's populate step's LAST pass —
         // OverworldChunkGenerator line 393, after biome.decorate).
         seedAnimals(chunk, baseX, baseZ, heights);
+    }
+
+    /**
+     * The feature decorator's populate (VIII14's decorators slice — the
+     * reference's populateChunk's own populate side, lines 341-393): the
+     * populate-time world view over this chunk (the structures' own
+     * clipped-write + pure-read shape), the region re-derivation window
+     * (the walks of the {self, -x} x {self, -z} quadrant — every foreign
+     * cell's writer exactly one pass), the shared per-chunk random over
+     * the lakes, the dungeons, and the biome's decorate. The old
+     * oak-only tree stand-in and the simplified flora rolls RETIRE (the
+     * plantTrees/plantFlora pair) — the walk's own stages answer now.
+     */
+    private void plantDecorations(EngineChunk chunk, int baseX, int baseZ) {
+        net.zaminmc.torch.server.world.feature.FeatureWorld view =
+                new net.zaminmc.torch.server.world.feature.FeatureWorld() {
+                    @Override
+                    public net.zaminmc.torch.block.BlockType blockAt(int x, int y, int z) {
+                        if (y < 0 || y > 255) {
+                            return air;
+                        }
+                        int localX = x - baseX;
+                        int localZ = z - baseZ;
+                        if (localX >= 0 && localX < 16 && localZ >= 0 && localZ < 16) {
+                            return chunk.getBlock(localX, y, localZ);
+                        }
+                        return surfaceBlockAt(x, y, z);
+                    }
+
+                    @Override
+                    public void setBlockAt(int x, int y, int z,
+                            net.zaminmc.torch.block.BlockType type) {
+                        if (y < 0 || y > 255) {
+                            return;
+                        }
+                        int localX = x - baseX;
+                        int localZ = z - baseZ;
+                        if (localX >= 0 && localX < 16 && localZ >= 0 && localZ < 16) {
+                            chunk.setBlock(localX, y, localZ, type);
+                        }
+                    }
+
+ @Override
+                    public boolean isAirAt(int x, int y, int z) {
+                        return blockAt(x, y, z).equals(air);
+                    }
+
+                    @Override
+                    public boolean isLiquidAt(int x, int y, int z) {
+                        net.zaminmc.torch.util.Identifier id = blockAt(x, y, z).identifier();
+                        return id.namespace().equals("minecraft")
+                                && (id.value().equals("water") || id.value().equals("lava"));
+                    }
+
+                    @Override
+                    public boolean isSolidAt(int x, int y, int z) {
+                        return net.zaminmc.torch.server.block.WorldSolidity.isSolid(blockAt(x, y, z));
+                    }
+
+                    @Override
+                    public boolean isOpaqueAt(int x, int y, int z) {
+                        return net.zaminmc.torch.server.block.BlockLightTable.filter(
+                                blockAt(x, y, z)) >= 15;
+                    }
+
+                    @Override
+                    public int heightAt(int x, int z) {
+                        int localX = x - baseX;
+                        int localZ = z - baseZ;
+                        if (localX >= 0 && localX < 16 && localZ >= 0 && localZ < 16) {
+                            for (int y = 255; y >= 0; y--) {
+                                if (net.zaminmc.torch.server.block.BlockLightTable
+                                        .filter(chunk.getBlock(localX, y, localZ)) > 0) {
+                                    return y + 1;
+                                }
+                            }
+                            return 0;
+                        }
+                        int h = NormalWorldGenerator.this.heightAt(x, z);
+                        return Math.max(h, SEA_LEVEL) + 1;
+                    }
+
+                    @Override
+                    public int surfaceHeightAt(int x, int z) {
+                        int localX = x - baseX;
+                        int localZ = z - baseZ;
+                        if (localX >= 0 && localX < 16 && localZ >= 0 && localZ < 16) {
+                            for (int y = 255; y >= 0; y--) {
+                                net.zaminmc.torch.block.BlockType at =
+                                        chunk.getBlock(localX, y, localZ);
+                                if (net.zaminmc.torch.server.block.WorldSolidity.isSolid(at)
+                                        && !net.zaminmc.torch.server.block.LeafDecayBlocks
+                                                .isLeafState(at.identifier())) {
+                                    return y + 1;
+                                }
+                            }
+                            return 0;
+                        }
+                        return NormalWorldGenerator.this.heightAt(x, z) + 1;
+                    }
+
+                    @Override
+                    public int seaLevel() {
+                        return SEA_LEVEL;
+                    }
+
+                    @Override
+                    public Biome biomeAt(int x, int z) {
+                        return NormalWorldGenerator.this.biomeAt(x, z);
+                    }
+
+                    @Override
+                    public void placeMobSpawner(int x, int y, int z,
+                            net.zaminmc.torch.server.entity.MobType mobType) {
+                        chunk.addPendingMobSpawner(x, y, z, mobType);
+                    }
+
+                    @Override
+                    public void placeGenChest(int x, int y, int z,
+                            java.util.List<net.zaminmc.torch.server.world.structure.StructureWorld.GenLootSlot> slots) {
+                        chunk.addPendingGenChest(x, y, z, slots);
+                    }
+
+                    // The TreeWorld seam's own trio (the tree features'
+                    // whole surface — the live world's triple, over the
+                    // populate view).
+                    @Override
+                    public net.zaminmc.torch.block.BlockType getBlock(
+                            net.zaminmc.torch.block.BlockPosition position) {
+                        return blockAt(position.x(), position.y(), position.z());
+                    }
+
+                    @Override
+                    public boolean setBlock(net.zaminmc.torch.block.BlockPosition position,
+                            net.zaminmc.torch.block.BlockType type) {
+                        int y = position.y();
+                        if (y < 0 || y > 255) {
+                            return false;
+                        }
+                        int localX = position.x() - baseX;
+                        int localZ = position.z() - baseZ;
+                        if (localX >= 0 && localX < 16 && localZ >= 0 && localZ < 16) {
+                            return chunk.setBlock(localX, y, localZ, type);
+                        }
+                        return false;
+                    }
+
+                    @Override
+                    public net.zaminmc.torch.block.BlockType airType() {
+                        return air;
+                    }
+                };
+        featureDecorator.populate(chunk.position().x(), chunk.position().z(), view);
     }
 
     /**
@@ -836,164 +996,4 @@ public final class NormalWorldGenerator implements WorldGenerator {
         return a + (b - a) * t;
     }
 
-    // ------------------------------------------------------------------ trees
-
-    /**
-     * Plants 0-6 oak trees per chunk on grass: the biome decides the density
-     * (forest 2-5, plains 0-2, desert none). Positions stay inside the 2..13
-     * margin so the two-radius canopy never leaks across the chunk border
-     * (the cheap deterministic answer to cross-chunk structures).
-     */
-    private void plantTrees(EngineChunk chunk, int baseX, int baseZ, int[][] heights,
-                            Biome[][] biomes) {
-        net.zaminmc.torch.block.ChunkPosition at = chunk.position();
-        long chunkSeed = seed ^ (at.x() * 0x5DEECE66DL) ^ (at.z() * 0x2545F4914F6CDD1DL);
-        java.util.Random random = new java.util.Random(chunkSeed);
-        Biome chunkBiome = biomes[8][8];
-        int trees;
-        switch (chunkBiome) {
-            case FOREST -> trees = 2 + random.nextInt(4);
-            case PLAINS -> trees = random.nextInt(3);
-            default -> trees = 0; // deserts never grow oaks
-        }
-        for (int i = 0; i < trees; i++) {
-            int lx = 2 + random.nextInt(12);
-            int lz = 2 + random.nextInt(12);
-            int h = heights[lx][lz];
-            if (h <= SEA_LEVEL + 1 || h > 110) {
-                continue; // no trees on beaches or in water or on peaks
-            }
-            if (biomes[lx][lz] == Biome.DESERT || chunk.getBlock(lx, h, lz).equals(sand)) {
-                continue;
-            }
-            int trunk = 4 + random.nextInt(3);
-            for (int y = 1; y <= trunk; y++) {
-                chunk.setBlock(lx, h + y, lz, oakLog);
-            }
-            for (int dy = trunk - 2; dy <= trunk + 1; dy++) {
-                int radius = dy >= trunk ? 1 : 2;
-                for (int dx = -radius; dx <= radius; dx++) {
-                    for (int dz = -radius; dz <= radius; dz++) {
-                        if (dx == 0 && dz == 0 && dy <= trunk) {
-                            continue; // the trunk cell stays wood
-                        }
-                        if (Math.abs(dx) == radius && Math.abs(dz) == radius
-                                && random.nextBoolean()) {
-                            continue; // the historical rounded corners
-                        }
-                        int leafX = lx + dx;
-                        int leafZ = lz + dz;
-                        int leafY = h + dy;
-                        if (leafY > 127 || !chunk.getBlock(leafX, leafY, leafZ).equals(air)) {
-                            continue;
-                        }
-                        chunk.setBlock(leafX, leafY, leafZ, oakLeaves);
-                    }
-                }
-            }
-        }
-    }
-
-    /**
-     * The biome flora rolls: grass and the two flowers on the plains and the
-     * forest floor, dead bushes on the desert sand. All placements target
-     * air cells directly above the surface skin (never underwater), the
-     * historical decoration pass's shape.
-     */
-    private void plantFlora(EngineChunk chunk, int baseX, int baseZ, int[][] heights,
-                            Biome[][] biomes) {
-        net.zaminmc.torch.block.ChunkPosition at = chunk.position();
-        long chunkSeed = seed ^ (at.x() * 0x4FA3F0B1L) ^ (at.z() * 0x9E3779B97F4L);
-        java.util.Random random = new java.util.Random(chunkSeed);
-        Biome chunkBiome = biomes[8][8];
-        if (chunkBiome == Biome.DESERT) {
-            // Dead bushes: four rolls per desert chunk on the sand skin.
-            for (int i = 0; i < 4; i++) {
-                int lx = random.nextInt(16);
-                int lz = random.nextInt(16);
-                int h = heights[lx][lz];
-                if (h <= SEA_LEVEL || !chunk.getBlock(lx, h, lz).equals(sand)) {
-                    continue;
-                }
-                if (chunk.getBlock(lx, h + 1, lz).equals(air)) {
-                    chunk.setBlock(lx, h + 1, lz, deadBush);
-                }
-            }
-            // Cacti: two rolls per desert chunk, 1-3 tall on open sand (the
-            // historical decoration pass's desert pair).
-            for (int i = 0; i < 2; i++) {
-                int lx = random.nextInt(16);
-                int lz = random.nextInt(16);
-                int h = heights[lx][lz];
-                if (h <= SEA_LEVEL || !chunk.getBlock(lx, h, lz).equals(sand)) {
-                    continue;
-                }
-                if (!chunk.getBlock(lx, h + 1, lz).equals(air)) {
-                    continue;
-                }
-                int tall = 1 + random.nextInt(3);
-                for (int y = 1; y <= tall; y++) {
-                    if (!chunk.getBlock(lx, h + y, lz).equals(air)) {
-                        break; // an overhang stops the stack
-                    }
-                    chunk.setBlock(lx, h + y, lz, cactus);
-                }
-            }
-            return;
-        }
-        // Grass: eight rolls, the meadow's main texture.
-        for (int i = 0; i < 8; i++) {
-            int lx = random.nextInt(16);
-            int lz = random.nextInt(16);
-            int h = heights[lx][lz];
-            if (h <= SEA_LEVEL || !chunk.getBlock(lx, h, lz).equals(grass)) {
-                continue;
-            }
-            if (chunk.getBlock(lx, h + 1, lz).equals(air)) {
-                chunk.setBlock(lx, h + 1, lz, tallGrass);
-            }
-        }
-        // Flowers: two rolls, poppy or dandelion (the historical pair).
-        for (int i = 0; i < 2; i++) {
-            int lx = random.nextInt(16);
-            int lz = random.nextInt(16);
-            int h = heights[lx][lz];
-            if (h <= SEA_LEVEL || !chunk.getBlock(lx, h, lz).equals(grass)) {
-                continue;
-            }
-            if (chunk.getBlock(lx, h + 1, lz).equals(air)) {
-                chunk.setBlock(lx, h + 1, lz, random.nextBoolean() ? poppy : dandelion);
-            }
-        }
-        // Sugar cane: three rolls on shore columns — a land column beside a
-        // water column (within this chunk's own grid) grows a 1-3 reed. The
-        // within-chunk scan misses a few chunk-edge shores; the growth clock
-        // spreads the reeds from any planted one.
-        for (int i = 0; i < 3; i++) {
-            int lx = 1 + random.nextInt(14);
-            int lz = 1 + random.nextInt(14);
-            int h = heights[lx][lz];
-            if (h <= SEA_LEVEL || !chunk.getBlock(lx, h, lz).equals(grass)
-                    && !chunk.getBlock(lx, h, lz).equals(sand)) {
-                continue;
-            }
-            if (!chunk.getBlock(lx, h + 1, lz).equals(air)) {
-                continue;
-            }
-            boolean shore = false;
-            for (int[] dir : new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
-                if (heights[lx + dir[0]][lz + dir[1]] <= SEA_LEVEL) {
-                    shore = true;
-                    break;
-                }
-            }
-            if (!shore) {
-                continue;
-            }
-            int tall = 1 + random.nextInt(3);
-            for (int y = 1; y <= tall; y++) {
-                chunk.setBlock(lx, h + y, lz, sugarCane);
-            }
-        }
-    }
 }

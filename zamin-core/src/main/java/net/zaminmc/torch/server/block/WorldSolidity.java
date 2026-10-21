@@ -196,6 +196,7 @@ public final class WorldSolidity {
      */
     private static boolean isFlora(Identifier id) {
         return id.equals(BuiltinBlocks.TALL_GRASS.identifier())
+                || id.equals(BuiltinBlocks.FERN.identifier()) // the 31-family's fern (the decorators slice)
                 || id.equals(BuiltinBlocks.DEAD_BUSH.identifier())
                 || id.equals(BuiltinBlocks.DANDELION.identifier())
                 || id.equals(BuiltinBlocks.POPPY.identifier())
