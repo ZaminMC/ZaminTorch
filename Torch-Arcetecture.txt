@@ -3313,6 +3313,59 @@ own tests. Order is by vanilla visibility and dependency, not size.
       + api 19/0.) Each remaining
       row lands as its own slice when the wave's rows above retire.
 
+## Wave IX — the 2026-10-22 completionist lane (the §27.3 exposure audit of the recent waves + the import's honesty pass)
+
+- [x] IX1 — THE COMPLETIONIST LANE LANDED (the parallel wave's
+      completionist instance, `feature/completionist-surfaces`): (A) THE
+      IMPORT'S HONESTY PASS — the three import families VII3 landed
+      whole (the audit verified the arms against the reference's own
+      readCustomNbt walks: the firework's Life/LifeTime/FireworksItem,
+      the eye's EMPTY custom walk (the base rows alone), the knot's Tile
+      anchor) but THREE javadoc spots still named the
+      firework/eye-of-ender/leash-knot families as the §31.6 counted
+      refusals — the class doc, the applyEntities walk, and the
+      projectile-kind table now name the CURRENT honest isolation set
+      (the fishing-bobber row the reference's own census never writes;
+      the seatless riding sides; the per-family derived-differently
+      rows), and the acceptance scenes extended to the rows the read
+      walk names: the content scene's rocket carries the SAVED
+      FireworksItem compound (the payload's whole boxed tree — the
+      Flight byte + the explosion compound riding the tag, asserted on
+      the landed rocket's payload stack), the families scene's eye
+      carries the base Motion/Rotation rows with the origin-quirk
+      descent band pinned (the transient target (0,0,0), never the
+      live use's +8 lift) and the derived-Rotation counted note
+      asserted. (B) THE §27.3 EXPOSURE AUDIT — every mechanic the
+      recent waves landed WITHOUT any native api surface, verified
+      against the actual zamin-api source (NATIVE_API_CAPABILITIES.md's
+      new §9 table carries the per-row evidence); FOUR gaps closed:
+      `Server.villages()` (the VIII10 census — the Village records'
+      center/radius/doors/population/golems/mating/reputation rows +
+      the reference's getNearestVillage consult, immutable snapshots
+      under a synchronized-snapshot protocol whose monitor the census's
+      own mutation entry points share), the post-commit
+      `PistonPushEvent` (the VIII13 displacement — the pushed body's
+      api handle + the carrier rows + the amount/fling data, one fire
+      per pushed body, deliberately NOT cancellable: the committed
+      physics step; the pre-commit PistonMoveEvent keeps
+      observe/cancel), `World.growth()` (the VIII2/VII7/VIII8 outcome
+      reads — the crop/stem stage bands, the sapling variant/readiness/
+      light gate, the cocoa age band, the mushroom survival law: the
+      same consults the bonemeal arms themselves run), and
+      `Projectile.pickupStatus()` (the pickup slice's 0/1/2 band through
+      the §27.5 handle). THE AUDIT'S OWN FIND: the ledger's fishing row
+      cited a `Server.fishing()` that DOES NOT EXIST on the api Server —
+      the row corrected to the honest state (the engine accessor is
+      diagnostics-only; the exposure demand-named). The demand-named
+      tail the audit leaves for the next slices: the mob equipment read
+      (VIII4), the achievement reads (VIII6), the plugin-facing anvil
+      import verb, the biome registration datums, the generic-mount seat
+      rows, the decorations' read surface. Evidence: VillageApiAcceptance
+      Test 2 + PistonPushApiAcceptanceTest 2 + GrowthApiAcceptanceTest 3
+      + ArrowPickupTest 8 (the new band-read arm) + the anvil group
+      44/0 (the acceptance 6/0) + the piston package 15/0 + the api
+      module's tests green.
+
 ## Standing (demand-named, not scheduled)
 
 - (the shared container-open event LANDED 2026-10-21: the
