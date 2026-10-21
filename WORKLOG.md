@@ -10986,6 +10986,42 @@ fourteen reference-driven rows:
 The plan committed as the session's checkpoint; the implementation
 walks the wave in order.
 
+## 2026-10-21 — the four parallel-PR review merges + the player-path armor law repaired (the VIII4 recorded finding retired)
+
+The lead instance's review session: the four parallel-wave PRs read,
+reference-spot-checked (the leaf BFS's indexing and four-wave spread, the
+piston push amounts and the progress flip, the anvil rarity-weight switch
+and the RepairCost doubling, the mob damage consult), conflict-resolved
+(the docs' same-day sections merged row by row; ItemEntity's same-site
+insertion keeping both the VIII1 teleport and the VIII13 pushBy), and
+merged in creation order:
+
+- PR #9 — the tree-growth + leaf-decay family (VIII2/VIII3, ddd9c12a)
+- PR #10 — the piston entity displacement (VIII13, 60bb2049)
+- PR #11 — the anvil GUI (VIII5, 20b08da1)
+- PR #12 — the mob armor family (VIII4, 2164025a)
+
+THE VIII4 RECORDED FINDING RETIRED: the PR's own body flagged the PLAYER
+path's Armor.reduce as carrying the 1.9 toughness-shaped envelope
+(min(20, max(points/5, points - dmg/2))) against the 1.8.8 reference's
+linear getDamageAfterArmor (LivingEntity lines 868-877:
+damage * (25 - points) / 25 — every point a flat 4%, no
+damage-dependent term). Verified against the reference and repaired:
+Armor.reduce now answers the reference's law, both paths (player and
+mob) agreeing; ArmorTest's pins re-pinned (1.4 at 20 points vs the
+7-damage hit, 5.04 at 7 points, plus the refused 1.9 example — at 20
+points vs 10 damage the old form passed 4.0, the law passes 2.0) and
+EnchantmentEffectAcceptanceTest's control re-pinned (2.38 -> 1.4, the
+Protection IV band 0.28..0.84). The lead's own redundant tree-growth WIP
+(a parallel implementation of VIII2 from before the PR landed) was
+dropped in favor of the reviewed branch.
+
+The wave's remaining rows stay visible: the achievements (VIII6), the
+bone-meal arms' remainder (VIII7), the mushroom spread (VIII8), the
+zombie attributes (VIII9), the village detection (VIII10), the small
+persistence rows (VIII11), the written-book flow (VIII12), the biome
+backlog.
+
 ## 2026-10-21 — VIII1: the rider side of the exotic mounts (the §31.6 counted refusal fully retired)
 
 The Wave VIII opener. The mount side landed in VII5 (a11e88dd); this
