@@ -127,10 +127,13 @@ public final class VillageSystem {
     }
 
     /**
-     * markForUpdate (SavedVillageData lines 42-48): the villager's own
-     * cadence marks its cell — the queue caps at 64 and never double-marks.
+     * The reference's markForUpdate (SavedVillageData lines 42-48): the
+     * villager's own cadence marks its cell — the queue caps at 64 and
+     * never double-marks. Synchronized per the §27.6 snapshot protocol
+     * (the queue mutates from the mob walk while the view may read the
+     * census — the monitor the view shares).
      */
-    public void markForUpdate(int x, int y, int z) {
+    public synchronized void markForUpdate(int x, int y, int z) {
         if (pendingUpdates.size() <= 64 && !isMarkedForUpdate(x, y, z)) {
             pendingUpdates.add(new int[] {x, y, z});
         }
@@ -142,8 +145,12 @@ public final class VillageSystem {
      * pending update per tick (the reference's own throttle), the
      * pending doors' village resolution, and the 400-tick dirty cadence
      * (the engine's save pipeline owns the persistence points).
+     * Synchronized per the §27.6 snapshot protocol: the census mutates
+     * here on the tick lane while the public view may copy from any
+     * thread — the monitor the view shares; the lock is uncontended on
+     * the lane (the view's copy is the only other party).
      */
-    public void tick() {
+    public synchronized void tick() {
         ticks++;
         for (Village village : villages) {
             village.tick(surface, random, ticks);

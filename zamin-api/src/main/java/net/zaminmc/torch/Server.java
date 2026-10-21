@@ -152,6 +152,18 @@ public interface Server {
     net.zaminmc.torch.enchantment.EnchantmentRegistry enchantments();
 
     /**
+     * The village-census query surface (§27.3's world-state family — the
+     * VIII10 exposure): the founded villages with their door rows,
+     * center/radius bands, population and golem counts, reputation
+     * tables, and the mating window, plus the reference's own
+     * nearest-village consult. Every answer is an immutable
+     * point-in-time snapshot — safe from any thread.
+     */
+    default net.zaminmc.torch.village.Villages villages() {
+        return net.zaminmc.torch.village.Villages.EMPTY;
+    }
+
+    /**
      * The validated server configuration (§27.3's server-lifecycle read
      * surface): the frozen boot-time settings as an immutable value
      * snapshot. Safe from any thread; the configuration never changes
