@@ -107,6 +107,28 @@ import java.util.Objects;
  *                    names the fuse band (each unit +10 ticks). Deeply
  *                    immutable, the same boxed-tree convention as
  *                    blockEntityTag
+ * @param bookPages the tag's pages list (the book family — VIII12,
+ *                    BookAndQuillItem.isValid's own row: a TAG_LIST of
+ *                    TAG_STRING, plain text on a book &amp; quill, the
+ *                    JSON text forms on a signed book): null = absent,
+ *                    immutable, each page at most {@link #MAX_BOOK_PAGE_CHARS}
+ *                    characters (the reference's own per-page cap), at most
+ *                    {@link #MAX_BOOK_PAGES} pages kept (the defensive
+ *                    bound — the reference's model caps nothing, the
+ *                    channel gates validate the shape before the model
+ *                    ever sees it)
+ * @param bookAuthor the tag's author row (WrittenBookItem.isValid's STRING
+ *                    row — the signing player's own name, authoritative
+ *                    from the server): null = absent
+ * @param bookTitle the tag's title row (the 32-character cap row of the
+ *                    same isValid law — the client's trimmed title): null =
+ *                    absent, carried verbatim
+ * @param bookResolved the tag's resolved byte (WrittenBookItem.
+ *                    resolvePages' own marker — the read gate's once-only
+ *                    walk): false = absent
+ * @param bookGeneration the tag's generation int (CloneBookRecipe's copy
+ *                    counter, 0 = the reference's absent-row default
+ *                    "Original"); carried verbatim for the round trip
  */
 public record ItemStack(ItemType type, int count, int damage, String displayName,
                         Map<Integer, Integer> enchantments,
@@ -117,7 +139,9 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
                         Integer displayColor,
                         List<AttributeModifier> attributeModifiers,
                         SkullProfile skullOwner,
-                        Map<String, Object> fireworks) {
+                        Map<String, Object> fireworks,
+                        List<String> bookPages, String bookAuthor, String bookTitle,
+                        boolean bookResolved, int bookGeneration) {
 
     /** The wire's i16 damage/metadata ceiling (the historical field width). */
     public static final int MAX_DAMAGE = 0x7FFF;
@@ -138,13 +162,25 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
     /** The lore list's line ceiling (the tooltip's own practical bound). */
     public static final int MAX_LORE_LINES = 16;
 
+    /** The book family's per-page cap (BookAndQuillItem.isValid line 38). */
+    public static final int MAX_BOOK_PAGE_CHARS = 32767;
+
+    /**
+     * The book family's page-count ceiling (the defensive bound — the
+     * reference's model caps nothing; the vanilla client writes at most 50,
+     * the bound holds a modded payload honest without rejecting the stack).
+     */
+    public static final int MAX_BOOK_PAGES = 100;
+
     public ItemStack {
         if (type == null) {
             if (count != 0 || damage != 0 || displayName != null || enchantments != null
                     || unbreakable || repairCost != 0 || hideFlags != 0 || lore != null
                     || blockEntityTag != null || canDestroy != null || canPlaceOn != null
                     || displayColor != null || attributeModifiers != null
-                    || skullOwner != null || fireworks != null) {
+                    || skullOwner != null || fireworks != null
+                    || bookPages != null || bookAuthor != null || bookTitle != null
+                    || bookResolved || bookGeneration != 0) {
                 throw new IllegalArgumentException("A stack without a type must be empty (count "
                         + count + ", damage " + damage + ")");
             }
@@ -185,6 +221,12 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
             displayColor = displayColor == null ? null : displayColor;
             attributeModifiers = sanitizeAttributeModifiers(attributeModifiers);
             fireworks = sanitizeFireworks(fireworks);
+            bookPages = sanitizeBookPages(bookPages);
+            bookAuthor = sanitizeBookText(bookAuthor, "bookAuthor");
+            bookTitle = sanitizeBookText(bookTitle, "bookTitle");
+            if (bookGeneration < 0) {
+                bookGeneration = 0;
+            }
         }
     }
 
@@ -258,6 +300,22 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         this(type, count, damage, displayName, enchantments, unbreakable,
                 repairCost, hideFlags, lore, blockEntityTag, canDestroy, canPlaceOn,
                 displayColor, attributeModifiers, skullOwner, null);
+    }
+
+    /** The pre-book sixteen-arg shape (VIII12's compatibility constructor). */
+    public ItemStack(ItemType type, int count, int damage, String displayName,
+                     Map<Integer, Integer> enchantments, boolean unbreakable,
+                     int repairCost, int hideFlags, List<String> lore,
+                     Map<String, Object> blockEntityTag,
+                     List<String> canDestroy, List<String> canPlaceOn,
+                     Integer displayColor,
+                     List<AttributeModifier> attributeModifiers,
+                     SkullProfile skullOwner,
+                     Map<String, Object> fireworks) {
+        this(type, count, damage, displayName, enchantments, unbreakable,
+                repairCost, hideFlags, lore, blockEntityTag, canDestroy, canPlaceOn,
+                displayColor, attributeModifiers, skullOwner, fireworks,
+                null, null, null, false, 0);
     }
 
     /** A fresh stack with no damage and no custom name. */
@@ -481,7 +539,71 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         return new ItemStack(type, count, damage, displayName, enchantments,
                 unbreakable, repairCost, hideFlags, lore, blockEntityTag,
                 canDestroy, canPlaceOn, displayColor, attributeModifiers, skullOwner,
-                compound);
+                compound, bookPages, bookAuthor, bookTitle, bookResolved, bookGeneration);
+    }
+
+    /**
+     * @return the same stack carrying the tag's pages list (the book
+     *         family — VIII12): null or empty clears to absent.
+     */
+    public ItemStack withBookPages(List<String> pages) {
+        if (isEmpty()) {
+            return this;
+        }
+        return new ItemStack(type, count, damage, displayName, enchantments,
+                unbreakable, repairCost, hideFlags, lore, blockEntityTag,
+                canDestroy, canPlaceOn, displayColor, attributeModifiers, skullOwner,
+                fireworks, pages, bookAuthor, bookTitle, bookResolved, bookGeneration);
+    }
+
+    /**
+     * @return the same stack carrying the tag's author row (the signing
+     *         player's own name — MC|BSign's server-authoritative write).
+     */
+    public ItemStack withBookAuthor(String author) {
+        if (isEmpty()) {
+            return this;
+        }
+        return new ItemStack(type, count, damage, displayName, enchantments,
+                unbreakable, repairCost, hideFlags, lore, blockEntityTag,
+                canDestroy, canPlaceOn, displayColor, attributeModifiers, skullOwner,
+                fireworks, bookPages, author, bookTitle, bookResolved, bookGeneration);
+    }
+
+    /** @return the same stack carrying the tag's title row. */
+    public ItemStack withBookTitle(String title) {
+        if (isEmpty()) {
+            return this;
+        }
+        return new ItemStack(type, count, damage, displayName, enchantments,
+                unbreakable, repairCost, hideFlags, lore, blockEntityTag,
+                canDestroy, canPlaceOn, displayColor, attributeModifiers, skullOwner,
+                fireworks, bookPages, bookAuthor, title, bookResolved, bookGeneration);
+    }
+
+    /**
+     * @return the same stack carrying the tag's resolved byte (the read
+     *         gate's once-only marker — resolvePages line 83).
+     */
+    public ItemStack withBookResolved(boolean resolved) {
+        if (isEmpty()) {
+            return this;
+        }
+        return new ItemStack(type, count, damage, displayName, enchantments,
+                unbreakable, repairCost, hideFlags, lore, blockEntityTag,
+                canDestroy, canPlaceOn, displayColor, attributeModifiers, skullOwner,
+                fireworks, bookPages, bookAuthor, bookTitle, resolved, bookGeneration);
+    }
+
+    /** @return the same stack carrying the tag's generation int (the copy counter). */
+    public ItemStack withBookGeneration(int generation) {
+        if (isEmpty()) {
+            return this;
+        }
+        return new ItemStack(type, count, damage, displayName, enchantments,
+                unbreakable, repairCost, hideFlags, lore, blockEntityTag,
+                canDestroy, canPlaceOn, displayColor, attributeModifiers, skullOwner,
+                fireworks, bookPages, bookAuthor, bookTitle, bookResolved, generation);
     }
 
     /**
@@ -559,7 +681,8 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         int taken = Math.min(Math.min(amount, count), type.maxStackSize());
         return new ItemStack(type, taken, damage, displayName, enchantments,
                 unbreakable, repairCost, hideFlags, lore, blockEntityTag, canDestroy, canPlaceOn,
-                displayColor, attributeModifiers, skullOwner, fireworks);
+                displayColor, attributeModifiers, skullOwner, fireworks,
+                bookPages, bookAuthor, bookTitle, bookResolved, bookGeneration);
     }
 
     /**
@@ -591,7 +714,12 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
                 && Objects.equals(a.displayColor, b.displayColor)
                 && Objects.equals(a.attributeModifiers, b.attributeModifiers)
                 && Objects.equals(a.skullOwner, b.skullOwner)
-                && blockEntityTagEqual(a.fireworks, b.fireworks);
+                && blockEntityTagEqual(a.fireworks, b.fireworks)
+                && Objects.equals(a.bookPages, b.bookPages)
+                && Objects.equals(a.bookAuthor, b.bookAuthor)
+                && Objects.equals(a.bookTitle, b.bookTitle)
+                && a.bookResolved == b.bookResolved
+                && a.bookGeneration == b.bookGeneration;
     }
 
     /**
@@ -706,6 +834,53 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
             }
         }
         return cleaned.isEmpty() ? null : List.copyOf(cleaned);
+    }
+
+    /**
+     * The pages list's own sanitize (the book family — VIII12): null or
+     * empty parses to absent; every page non-null (an empty page IS a page —
+     * the client's trailing-empty strip is its own behavior, never the
+     * model's), the per-page length capped at the reference's own
+     * {@link #MAX_BOOK_PAGE_CHARS} and the count at the defensive
+     * {@link #MAX_BOOK_PAGES} bound, defensively immutable. The channel
+     * gates ({@code BookAndQuillItem.isValid}) validate the real shape
+     * before the model ever sees a payload — the caps here hold a foreign
+     * file honest, they never mask a refused book.
+     */
+    private static List<String> sanitizeBookPages(List<String> input) {
+        if (input == null || input.isEmpty()) {
+            return null;
+        }
+        java.util.List<String> cleaned = new java.util.ArrayList<>(Math.min(input.size(),
+                MAX_BOOK_PAGES));
+        for (String page : input) {
+            if (page == null) {
+                continue; // a null row cannot ride the NBT string list
+            }
+            if (cleaned.size() >= MAX_BOOK_PAGES) {
+                break;
+            }
+            cleaned.add(page.length() <= MAX_BOOK_PAGE_CHARS
+                    ? page : page.substring(0, MAX_BOOK_PAGE_CHARS));
+        }
+        return cleaned.isEmpty() ? null : List.copyOf(cleaned);
+    }
+
+    /**
+     * The author/title text rows' sanitize: null or empty parses to absent,
+     * otherwise carried VERBATIM (the reference stores the signing player's
+     * raw name and the client's raw trimmed title — the 32-character title
+     * cap and the author-presence gate are {@code WrittenBookItem.isValid}'s
+     * channel law, never the model's).
+     */
+    private static String sanitizeBookText(String input, String field) {
+        if (input == null || input.isEmpty()) {
+            return null;
+        }
+        if (input.length() > 256) {
+            throw new IllegalArgumentException(field + " too long: " + input.length());
+        }
+        return input;
     }
 
     /**

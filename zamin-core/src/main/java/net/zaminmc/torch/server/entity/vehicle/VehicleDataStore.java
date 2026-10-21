@@ -48,8 +48,21 @@ public final class VehicleDataStore {
      * {@code Fire} short (Entity.java lines 1115/1176), the raw signed
      * timer every kind carries (negative = the grace band). Version 2
      * and 1 files load with the fresh-body default (-1).
+     *
+     * <p>Version 6 (VIII11 — the chest-cart envelope's stack-row tail): a
+     * present cargo stack now carries the WHOLE ItemStack NBT family the
+     * ZMD/ZID stack rows ride (the display name and the enchant pairs,
+     * the Wave G scalars and the Lore list, the BlockEntityTag SNBT row,
+     * the adventure gates, the leather tint, the AttributeModifiers and
+     * SkullOwner SNBT rows, the Fireworks compound, and the book family's
+     * pages/author/title/resolved/generation rows) — an enchanted sword,
+     * a firework rocket with its fuse row, or a SIGNED BOOK riding a
+     * chest or hopper cart survives the restart whole. Version 1-5
+     * files load with the bare id/count/damage/name form (the cargo the
+     * old walk wrote; the pre-v6 store carried no other arms).</p>
      */
-    private static final int FORMAT_VERSION = 5;
+    private static final int FORMAT_VERSION = 6;
+    private static final int FORMAT_VERSION_6 = 6;
     private static final int FORMAT_VERSION_5 = 5;
     private static final int FORMAT_VERSION_4 = 4;
     private static final int FORMAT_VERSION_3 = 3;
@@ -221,7 +234,8 @@ public final class VehicleDataStore {
                 throw new IOException("Not a ZVD file");
             }
             int version = in.readByte();
-            if (version != FORMAT_VERSION && version != FORMAT_VERSION_5
+            if (version != FORMAT_VERSION && version != FORMAT_VERSION_6
+                    && version != FORMAT_VERSION_5
                     && version != FORMAT_VERSION_4
                     && version != FORMAT_VERSION_3 && version != FORMAT_VERSION_2
                     && version != FORMAT_VERSION_1) {
@@ -243,12 +257,12 @@ public final class VehicleDataStore {
                 if (kind.equals(VehicleEntity.Kind.CHEST_MINECART.name())) {
                     cargo = new ItemStack[net.zaminmc.torch.server.chest.ChestBlockEntity.SLOT_COUNT];
                     for (int slot = 0; slot < cargo.length; slot++) {
-                        cargo[slot] = readStack(in);
+                        cargo[slot] = readStack(in, version);
                     }
                 } else if (kind.equals(VehicleEntity.Kind.HOPPER_MINECART.name())) {
                     cargo = new ItemStack[net.zaminmc.torch.server.hopper.HopperBlockEntity.SLOT_COUNT];
                     for (int slot = 0; slot < cargo.length; slot++) {
-                        cargo[slot] = readStack(in);
+                        cargo[slot] = readStack(in, version);
                     }
                 }
                 boolean hopperEnabled = true;
@@ -345,28 +359,117 @@ public final class VehicleDataStore {
         }
     }
 
-    /** The ZCD item form (present byte + identifier + count + damage + name). */
+    /**
+     * The ZCD item form (present byte + identifier + count + damage + name)
+     * grown by the v6 tail (VIII11 — the whole ItemStack NBT family in the
+     * ZMD/ZID stack-row shape, so a cart's cargo round-trips every arm the
+     * model carries).
+     */
     private static void writeStack(DataOutputStream out, ItemStack stack) throws IOException {
         if (stack == null || stack.isEmpty()) {
             out.writeByte(0);
-        } else {
-            out.writeByte(1);
-            writeString(out, stack.type().identifier().toString());
-            writeVarInt(out, stack.count());
-            writeVarInt(out, stack.damage());
-            String name = stack.displayName();
-            if (name == null) {
-                writeVarInt(out, 0);
-            } else {
-                byte[] bytes = name.getBytes(StandardCharsets.UTF_8);
-                writeVarInt(out, bytes.length);
-                out.write(bytes);
-            }
+            return;
         }
+        out.writeByte(1);
+        writeString(out, stack.type().identifier().toString());
+        writeVarInt(out, stack.count());
+        writeVarInt(out, stack.damage());
+        String name = stack.displayName();
+        if (name == null) {
+            writeVarInt(out, 0);
+        } else {
+            byte[] bytes = name.getBytes(StandardCharsets.UTF_8);
+            writeVarInt(out, bytes.length);
+            out.write(bytes);
+        }
+        writeStackRows(out, stack);
     }
 
-    /** The ZCD item form's read (unknown items drop with a warning). */
-    private static ItemStack readStack(DataInputStream in) throws IOException {
+    /**
+     * The v6 stack-row tail (VIII11 — the ZMD writeEquipmentRows family's
+     * own shape): the enchant pairs, the Wave G scalars + Lore, the
+     * BlockEntityTag SNBT row, the adventure gates, the leather tint, the
+     * AttributeModifiers and SkullOwner SNBT rows, the Fireworks compound,
+     * and the book family's five rows. Each row rides its model default
+     * when the stack carries nothing (the absent-means-default store
+     * convention).
+     */
+    private static void writeStackRows(DataOutputStream out, ItemStack stack) throws IOException {
+        var enchantments = stack.enchantments();
+        if (enchantments == null || enchantments.isEmpty()) {
+            writeVarInt(out, 0);
+        } else {
+            writeVarInt(out, enchantments.size());
+            for (var pair : enchantments.entrySet()) {
+                out.writeShort(pair.getKey());
+                out.writeShort(pair.getValue());
+            }
+        }
+        out.writeBoolean(stack.unbreakable());
+        writeVarInt(out, stack.repairCost());
+        writeVarInt(out, stack.hideFlags());
+        var lore = stack.lore();
+        if (lore == null || lore.isEmpty()) {
+            writeVarInt(out, 0);
+        } else {
+            writeVarInt(out, lore.size());
+            for (String line : lore) {
+                writeString(out, line);
+            }
+        }
+        writeNullableString(out, stack.blockEntityTag() == null
+                ? null
+                : net.zaminmc.torch.server.nbt.NbtOps.writeParseable(
+                        net.zaminmc.torch.server.nbt.NbtOps.fromBoxed(
+                                stack.blockEntityTag())));
+        writeVarInt(out, stack.canDestroy() == null ? 0 : stack.canDestroy().size());
+        if (stack.canDestroy() != null) {
+            for (String key : stack.canDestroy()) {
+                writeString(out, key);
+            }
+        }
+        writeVarInt(out, stack.canPlaceOn() == null ? 0 : stack.canPlaceOn().size());
+        if (stack.canPlaceOn() != null) {
+            for (String key : stack.canPlaceOn()) {
+                writeString(out, key);
+            }
+        }
+        out.writeBoolean(stack.displayColor() != null);
+        if (stack.displayColor() != null) {
+            out.writeInt(stack.displayColor());
+        }
+        writeNullableString(out, stack.attributeModifiers() == null
+                ? null
+                : attributeModifiersRow(stack.attributeModifiers()));
+        writeNullableString(out, stack.skullOwner() == null
+                ? null
+                : skullOwnerRow(stack.skullOwner()));
+        writeNullableString(out, stack.fireworks() == null
+                ? null
+                : net.zaminmc.torch.server.nbt.NbtOps.writeParseable(
+                        net.zaminmc.torch.server.nbt.NbtOps.fromBoxed(
+                                stack.fireworks())));
+        // The book family's rows (VIII12): the count + the strings, then
+        // the nullable author/title, the resolved byte, the generation
+        // varint.
+        var pages = stack.bookPages();
+        if (pages == null || pages.isEmpty()) {
+            writeVarInt(out, 0);
+        } else {
+            writeVarInt(out, pages.size());
+            for (String page : pages) {
+                writeString(out, page);
+            }
+        }
+        writeNullableString(out, stack.bookAuthor());
+        writeNullableString(out, stack.bookTitle());
+        out.writeBoolean(stack.bookResolved());
+        writeVarInt(out, stack.bookGeneration());
+    }
+
+    /** The ZCD item form's read (unknown items drop with a warning; the v6
+     * stack-row tail rides the file's own version). */
+    private static ItemStack readStack(DataInputStream in, int version) throws IOException {
         if (in.readUnsignedByte() != 1) {
             return ItemStack.EMPTY;
         }
@@ -385,10 +488,262 @@ public final class VehicleDataStore {
         }
         Optional<net.zaminmc.torch.item.ItemType> type = BuiltinItems.lookup(identifier);
         if (type.isEmpty()) {
+            if (version >= FORMAT_VERSION_6) {
+                skipStackRows(in); // the dropped stack's tail still rides the file
+            }
             LOGGER.warning("Saved vehicle item no longer registered, dropped: " + identifier);
             return ItemStack.EMPTY;
         }
-        return ItemStack.of(type.get(), count).withDamage(damage).withName(name);
+        ItemStack stack = ItemStack.of(type.get(), count).withDamage(damage).withName(name);
+        if (version >= FORMAT_VERSION_6) {
+            stack = readStackRows(in, stack);
+        }
+        return stack;
+    }
+
+    /**
+     * The v6 stack-row tail's read (VIII11 — the writeStackRows mirror,
+     * row for row). A corrupt SNBT row is the file's own corruption: the
+     * load's IOException quarantine owns it.
+     */
+    private static ItemStack readStackRows(DataInputStream in, ItemStack stack)
+            throws IOException {
+        int enchCount = readVarInt(in);
+        if (enchCount < 0 || enchCount > 256) {
+            throw new IOException("Implausible enchantment count: " + enchCount);
+        }
+        if (enchCount > 0) {
+            java.util.Map<Integer, Integer> pairs = new java.util.LinkedHashMap<>();
+            for (int i = 0; i < enchCount; i++) {
+                pairs.put(in.readUnsignedShort(), in.readUnsignedShort());
+            }
+            stack = stack.withEnchantments(pairs);
+        }
+        boolean unbreakable = in.readBoolean();
+        if (unbreakable) {
+            stack = stack.withUnbreakable(true);
+        }
+        int repairCost = readVarInt(in);
+        if (repairCost > 0) {
+            stack = stack.withRepairCost(repairCost);
+        }
+        int hideFlags = readVarInt(in);
+        if (hideFlags > 0) {
+            stack = stack.withHideFlags(hideFlags);
+        }
+        int loreCount = readVarInt(in);
+        if (loreCount < 0 || loreCount > 256) {
+            throw new IOException("Implausible lore count: " + loreCount);
+        }
+        if (loreCount > 0) {
+            java.util.List<String> lines = new java.util.ArrayList<>(loreCount);
+            for (int i = 0; i < loreCount; i++) {
+                lines.add(readString(in));
+            }
+            stack = stack.withLore(lines);
+        }
+        String blockEntityTagRow = readNullableString(in);
+        if (blockEntityTagRow != null) {
+            java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> parsed =
+                    net.zaminmc.torch.server.nbt.Snbt.parseCompound(blockEntityTagRow);
+            if (!parsed.isEmpty()) {
+                stack = stack.withBlockEntityTag(
+                        net.zaminmc.torch.server.nbt.NbtOps.toBoxed(parsed));
+            }
+        }
+        int canDestroyCount = readVarInt(in);
+        if (canDestroyCount < 0 || canDestroyCount > 256) {
+            throw new IOException("Implausible CanDestroy count: " + canDestroyCount);
+        }
+        if (canDestroyCount > 0) {
+            java.util.List<String> keys = new java.util.ArrayList<>(canDestroyCount);
+            for (int i = 0; i < canDestroyCount; i++) {
+                keys.add(readString(in));
+            }
+            stack = stack.withCanDestroy(keys);
+        }
+        int canPlaceOnCount = readVarInt(in);
+        if (canPlaceOnCount < 0 || canPlaceOnCount > 256) {
+            throw new IOException("Implausible CanPlaceOn count: " + canPlaceOnCount);
+        }
+        if (canPlaceOnCount > 0) {
+            java.util.List<String> keys = new java.util.ArrayList<>(canPlaceOnCount);
+            for (int i = 0; i < canPlaceOnCount; i++) {
+                keys.add(readString(in));
+            }
+            stack = stack.withCanPlaceOn(keys);
+        }
+        if (in.readBoolean()) {
+            stack = stack.withDisplayColor(in.readInt());
+        }
+        String attributeModifiersRow = readNullableString(in);
+        if (attributeModifiersRow != null) {
+            java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> parsed =
+                    net.zaminmc.torch.server.nbt.Snbt.parseCompound(attributeModifiersRow);
+            if (net.zaminmc.torch.server.nbt.NbtOps.contains(parsed, "AttributeModifiers",
+                    net.zaminmc.torch.server.nbt.Snbt.Tag.Type.LIST)) {
+                stack = stack.withAttributeModifiers(
+                        net.zaminmc.torch.server.nbt.ItemNbt.readAttributeModifiers(parsed));
+            }
+        }
+        String skullOwnerRow = readNullableString(in);
+        if (skullOwnerRow != null) {
+            java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> parsed =
+                    net.zaminmc.torch.server.nbt.Snbt.parseCompound(skullOwnerRow);
+            java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> owner =
+                    net.zaminmc.torch.server.nbt.NbtOps.getCompound(parsed, "SkullOwner");
+            net.zaminmc.torch.item.SkullProfile profile =
+                    net.zaminmc.torch.server.nbt.TileNbt.readProfile(owner);
+            if (profile != null) {
+                stack = stack.withSkullOwner(profile);
+            }
+        }
+        String fireworksRow = readNullableString(in);
+        if (fireworksRow != null) {
+            java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> parsed =
+                    net.zaminmc.torch.server.nbt.Snbt.parseCompound(fireworksRow);
+            if (!parsed.isEmpty()) {
+                stack = stack.withFireworks(
+                        net.zaminmc.torch.server.nbt.NbtOps.toBoxed(parsed));
+            }
+        }
+        // The book family's rows (VIII12).
+        int pageCount = readVarInt(in);
+        if (pageCount < 0 || pageCount > net.zaminmc.torch.item.ItemStack.MAX_BOOK_PAGES) {
+            throw new IOException("Implausible book page count: " + pageCount);
+        }
+        if (pageCount > 0) {
+            java.util.List<String> pages = new java.util.ArrayList<>(pageCount);
+            for (int i = 0; i < pageCount; i++) {
+                pages.add(readString(in));
+            }
+            stack = stack.withBookPages(pages);
+        }
+        String author = readNullableString(in);
+        if (author != null) {
+            stack = stack.withBookAuthor(author);
+        }
+        String title = readNullableString(in);
+        if (title != null) {
+            stack = stack.withBookTitle(title);
+        }
+        boolean resolved = in.readBoolean();
+        if (resolved) {
+            stack = stack.withBookResolved(true);
+        }
+        int generation = readVarInt(in);
+        if (generation > 0) {
+            stack = stack.withBookGeneration(generation);
+        }
+        return stack;
+    }
+
+    /** Skips the v6 tail's rows (the unregistered item's dropped stack). */
+    private static void skipStackRows(DataInputStream in) throws IOException {
+        // The mirror of readStackRows with every payload discarded.
+        int enchCount = readVarInt(in);
+        if (enchCount < 0 || enchCount > 256) {
+            throw new IOException("Implausible enchantment count: " + enchCount);
+        }
+        for (int i = 0; i < enchCount; i++) {
+            in.skipBytes(4);
+        }
+        in.readBoolean(); // unbreakable
+        readVarInt(in);   // repairCost
+        readVarInt(in);   // hideFlags
+        int loreCount = readVarInt(in);
+        if (loreCount < 0 || loreCount > 256) {
+            throw new IOException("Implausible lore count: " + loreCount);
+        }
+        for (int i = 0; i < loreCount; i++) {
+            readString(in);
+        }
+        readNullableString(in); // blockEntityTag
+        int canDestroyCount = readVarInt(in);
+        if (canDestroyCount < 0 || canDestroyCount > 256) {
+            throw new IOException("Implausible CanDestroy count: " + canDestroyCount);
+        }
+        for (int i = 0; i < canDestroyCount; i++) {
+            readString(in);
+        }
+        int canPlaceOnCount = readVarInt(in);
+        if (canPlaceOnCount < 0 || canPlaceOnCount > 256) {
+            throw new IOException("Implausible CanPlaceOn count: " + canPlaceOnCount);
+        }
+        for (int i = 0; i < canPlaceOnCount; i++) {
+            readString(in);
+        }
+        if (in.readBoolean()) {
+            in.skipBytes(4); // displayColor
+        }
+        readNullableString(in); // attributeModifiers
+        readNullableString(in); // skullOwner
+        readNullableString(in); // fireworks
+        int pageCount = readVarInt(in);
+        if (pageCount < 0 || pageCount > net.zaminmc.torch.item.ItemStack.MAX_BOOK_PAGES) {
+            throw new IOException("Implausible book page count: " + pageCount);
+        }
+        for (int i = 0; i < pageCount; i++) {
+            readString(in);
+        }
+        readNullableString(in); // author
+        readNullableString(in); // title
+        in.readBoolean();       // resolved
+        readVarInt(in);         // generation
+    }
+
+    /**
+     * The AttributeModifiers SNBT row (the ZMD v11 tail's own form — the
+     * store's local copy, the writeString family's own convention): the
+     * compound wrapping the list the parser reads back.
+     */
+    private static String attributeModifiersRow(
+            java.util.List<net.zaminmc.torch.item.AttributeModifier> modifiers) {
+        java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> tag =
+                new java.util.LinkedHashMap<>();
+        java.util.List<net.zaminmc.torch.server.nbt.Snbt.Tag> elements =
+                new java.util.ArrayList<>(modifiers.size());
+        for (net.zaminmc.torch.item.AttributeModifier modifier : modifiers) {
+            java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> element =
+                    new java.util.LinkedHashMap<>();
+            net.zaminmc.torch.server.nbt.NbtOps.putString(element,
+                    "AttributeName", modifier.attributeName());
+            net.zaminmc.torch.server.nbt.NbtOps.putString(element, "Name", modifier.name());
+            net.zaminmc.torch.server.nbt.NbtOps.putDouble(element, "Amount", modifier.amount());
+            net.zaminmc.torch.server.nbt.NbtOps.putInt(element, "Operation", modifier.operation());
+            net.zaminmc.torch.server.nbt.NbtOps.putLong(element, "UUIDMost",
+                    modifier.uuid().getMostSignificantBits());
+            net.zaminmc.torch.server.nbt.NbtOps.putLong(element, "UUIDLeast",
+                    modifier.uuid().getLeastSignificantBits());
+            elements.add(net.zaminmc.torch.server.nbt.Snbt.Tag.ofCompound(element));
+        }
+        net.zaminmc.torch.server.nbt.NbtOps.putList(tag, "AttributeModifiers", elements);
+        return net.zaminmc.torch.server.nbt.NbtOps.writeParseable(tag);
+    }
+
+    /**
+     * The SkullOwner SNBT row (the ZMD v12 tail's own form — the store's
+     * local copy): the profile's compound wrapped in the one-row compound
+     * the parser reads back.
+     */
+    private static String skullOwnerRow(net.zaminmc.torch.item.SkullProfile profile) {
+        java.util.Map<String, net.zaminmc.torch.server.nbt.Snbt.Tag> tag =
+                new java.util.LinkedHashMap<>();
+        net.zaminmc.torch.server.nbt.TileNbt.writeProfile(tag, "SkullOwner", profile);
+        return net.zaminmc.torch.server.nbt.NbtOps.writeParseable(tag);
+    }
+
+    private static void writeNullableString(DataOutputStream out, String value) throws IOException {
+        if (value == null || value.isEmpty()) {
+            writeVarInt(out, 0);
+        } else {
+            writeString(out, value);
+        }
+    }
+
+    private static String readNullableString(DataInputStream in) throws IOException {
+        String value = readString(in);
+        return value.isEmpty() ? null : value;
     }
 
     private static void writeString(DataOutputStream out, String value) throws IOException {

@@ -53,7 +53,14 @@ final class SlotNbt {
                 || stack.displayColor() != null
                 || stack.attributeModifiers() != null // present-even-empty (Wave J's wipe)
                 || stack.skullOwner() != null // the player head's placement row (Wave K)
-                || stack.fireworks() != null; // the firework-rocket family's own compound
+                || stack.fireworks() != null // the firework-rocket family's own compound
+                // the book family's rows (VIII12 — the pages list, the
+                // author/title strings, the resolved byte, the generation)
+                || (stack.bookPages() != null && !stack.bookPages().isEmpty())
+                || stack.bookAuthor() != null
+                || stack.bookTitle() != null
+                || stack.bookResolved()
+                || stack.bookGeneration() != 0;
     }
 
     /**
@@ -254,6 +261,40 @@ final class SlotNbt {
             writeShortString(out, "Fireworks");
             writeBoxedCompound(out, stack.fireworks());
         }
+        // The book family's rows (VIII12 — the reference's own wire shapes:
+        // pages a TAG_LIST of TAG_STRING, the client's book screens' own
+        // read getList("pages", 8); author/title the STRING rows (the
+        // client's title render and the byAuthor line); resolved the BYTE
+        // and generation the INT, riding verbatim for the round trip).
+        if (stack.bookPages() != null && !stack.bookPages().isEmpty()) {
+            out.writeByte(TAG_LIST); // tag.pages
+            writeShortString(out, "pages");
+            out.writeByte(TAG_STRING); // the element type
+            out.writeInt(stack.bookPages().size());
+            for (String page : stack.bookPages()) {
+                writeShortString(out, page);
+            }
+        }
+        if (stack.bookAuthor() != null) {
+            out.writeByte(TAG_STRING); // tag.author
+            writeShortString(out, "author");
+            writeShortString(out, stack.bookAuthor());
+        }
+        if (stack.bookTitle() != null) {
+            out.writeByte(TAG_STRING); // tag.title
+            writeShortString(out, "title");
+            writeShortString(out, stack.bookTitle());
+        }
+        if (stack.bookResolved()) {
+            out.writeByte(TAG_BYTE); // tag.resolved
+            writeShortString(out, "resolved");
+            out.writeByte(1);
+        }
+        if (stack.bookGeneration() != 0) {
+            out.writeByte(TAG_INT); // tag.generation
+            writeShortString(out, "generation");
+            out.writeInt(stack.bookGeneration());
+        }
         out.writeByte(TAG_END);        // end of root
     }
 
@@ -349,6 +390,28 @@ final class SlotNbt {
                 skipPayload(in, rowType);
             }
         }
+    }
+
+    /**
+     * Reads a WHOLE slot NBT payload into its boxed form (buffer positioned
+     * ON the marker byte — the MC|BEdit/MC|BSign book channel's own reader,
+     * VIII12): the reference's {@code PacketByteBuf.readItem} parses the
+     * compound through {@code NbtIo.read}, and this is the same walk over
+     * the wire's own bytes — every family parsed into the boxes the
+     * engine's {@code NbtOps.fromBoxed} converts. The marker byte 0 answers
+     * null (the reference's own {@code setNbt(null)} arm); a non-compound
+     * marker is the same refusal the reference's reader throws on.
+     */
+    static java.util.Map<String, Object> readBoxedTag(ByteBuf in) {
+        int type = in.readUnsignedByte();
+        if (type == TAG_END) {
+            return null; // no NBT: the empty marker
+        }
+        if (type != TAG_COMPOUND) {
+            throw new IllegalArgumentException("Slot NBT must root at a compound: " + type);
+        }
+        skipShortString(in); // root name
+        return parseCompoundPayload(in);
     }
 
     // ------------------------------------------------------------------
