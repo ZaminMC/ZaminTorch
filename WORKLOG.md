@@ -11504,6 +11504,177 @@ refusal, the distance band); the projectile package 38/0; the affected
 batch (the vehicle/anvil/dispenser/item-pickup/orbs/spawn-event) 137/0;
 the protocol module 115/0.
 
+## The biome registration table (VIII14's first slice, 2026-10-21)
+
+The coordinator's own lane on feature/biome-registration — running in
+parallel with the zombie-village chunk (VIII9/VIII10, instance 3) and the
+written-book-persistence chunk (VIII11/VIII12, instance 2); the file sets
+are disjoint (the zombie/village/breeding/golem surfaces against the book/
+persistence surfaces against the world/Biome table).
+
+**The table** — Biome.java rewritten as the reference's whole
+registration: 61 rows (40 base ids 0-39 + 21 mutated ids 129-167), every
+row carrying the ctor chain's own datum — the display names byte-exact
+("FrozenOcean" without the space, "Extreme Hills+", "Sunflower Plains"
+not "Plains M"), the temperature/downfall pairs, the setSnowy flags, the
+surface/subsurface pairs as 1.8.8 wire ids (the desert/beach sand pair,
+the stone beach's stone, the mushroom mycelium, the end dirt pair, the
+ice spikes' snow, the mesa red sand over stained clay), the height pairs,
+the water fog row (the swamp pair's 14745518), and the type families
+(ForestBiome covers the forest/birch/roofed rows whole — the is()
+consult's own law).
+
+**The slice's finds:**
+1. **The isRainy READ LAW** — the reference's isRainy() answers
+   `!isCold() && this.rainy`: the frozen family's FIELD stays true (the
+   class default) but the READ refuses — the frozen ocean, the frozen
+   river, the ice plains pair, the cold beach and the cold taiga pair
+   never fill a cauldron. The first extraction draft read the field.
+2. **The four custom mutation shapes** — the standard MutatedBiome copy
+   (+0.1/+0.2 height bump, name + " M") covers seventeen rows, but
+   PLAINS mutates to a FRESH PlainsBiome ("Sunflower Plains", no bump),
+   ICE_PLAINS mutates with the +0.3/+0.4 height overwrite (the reference's
+   own dead setHeight write — setHeight(+0.1/+0.1) then the direct field
+   writes replace it), MEGA_TAIGA mutates to a fresh variant-2 taiga
+   ("Mega Spruce Taiga", the 0.25 temperature against the base's 0.3),
+   and the savanna pair mutate through the shattered laws
+   ((t+1)*0.5 temperature, base*0.5+0.3 / variation*0.5+1.2 heights).
+3. **The mega taiga's registration surface is grass/dirt** — the podzol/
+   coarse dirt switch is DEPTH-dependent (prepareAndBuildSurfaces), not a
+   registration datum; the second extraction-draft correction (the first
+   draft carried podzol as the fixed pair). The depth switches ledger
+   with the surface-builder slice.
+4. **The ice plains' ctor keeps GRASS** (IceBiome spikes=false — only
+   the SPIKES mutation carries the snow surface), and the cold taiga's
+   surface is the class default too.
+
+**The consults** — downfall(), snowy(), the rainy() read law, humid(),
+waterFogColor(), baseHeight()/heightVariation(), the surface wire ids,
+family()/is(Biome), temperatureCategory() (the ocean family's own OCEAN
+override + the COLD/MEDIUM/WARM bands, every mutated row's delegate
+agreeing with its own band), temperatureAt(x, y, z) (the altitude shave
+over the fixed-seed 1234L TEMPERATURE_NOISE — the FOLIAGE_NOISE 2345
+sibling GrassBlocks already carries), byLegacyId (the BY_ID gaps null,
+the out-of-band OCEAN default), byDisplayName (the BY_NAME map), and the
+36-row explorable() census (the id<128 band minus HELL, THE_END,
+FROZEN_OCEAN, EXTREME_HILLS_EDGE — the all-biomes achievement's grown
+target set; the ZPD v11 progress rows stay compatible, the set keys on
+the display name).
+
+**The wiring** — EngineWorld.biomeAt consults the static map: an
+imported FrozenOcean column names itself now (the old 7-row loop
+answered the implicit plains for every id it did not know). The
+precipitation test's generated-band pin updated (the generator's own
+shading set stays the warm band until the GenLayer slice; the frozen
+family's registration rows are pinned in the new test).
+
+**The colors** — the color rows never ride the wire: the client derives
+every grass/foliage tint from the biome id itself (BiomeColors is a
+client class), so the server table carries no color datum — the
+vanilla-grade answer for the family's color row.
+
+Evidence: BiomeRegistrationTest 8 (the 61-row census pin, the mutation
+law, the explorable census, the rain read, the altitude shave over the
+fixed seed, the lookups, the families, the categories) + the affected
+packages 125/0 (world, structure, spawn, anvil, weather, achievement
+suites) — the full-module sweep on the branch.
+
+**The follow-up slices ledgered:** the GenLayer layout (which biome
+generates where), the depth-dependent surface builders (the mega taiga,
+the shattered savanna, the extreme hills, the mesa clay layers), the
+feature decorators, the spawn tables, and the per-biome flower overrides
+(the birch blue-orchid band, the swamp's always-blue-orchid).
+
+## 2026-10-21 — the written-book flow + the small persistence rows (Wave VIII's VIII12+VIII11)
+
+The parallel wave's fourth disjoint slice — the book family and the
+vehicle store's cargo envelope, untouched by the three in-flight chunks
+(the plant-growth blocks, the mob-AI/zombie/village lane) — on
+`feature/written-book-persistence`.
+
+- **The model** — ItemStack's five book arms (VIII12): `pages` (the
+  TAG_LIST of TAG_STRING — plain text on a book & quill, the JSON text
+  forms on a signed book), `author`/`title` (the STRING rows),
+  `resolved` (the read gate's once-only BYTE), `generation` (the copy
+  counter INT) — each with its with-accessor, riding the merge
+  identity (two books differing in any row never stack), the pre-book
+  compat constructor, and the pages carried VERBATIM (an over-length
+  book is REFUSED at the channel gate, never silently clamped — the
+  reference's own shape).
+- **The NBT surfaces** — ItemNbt's read/write arms (the anvil round
+  trip: an imported vanilla book lands whole) + SlotNbt's wire rows
+  (byte-exact against the client's book screens' own parser — pinned
+  layout and the whole-payload boxed reader `readBoxedTag`, the exact
+  NbtIo.read walk the MC|BEdit/MC|BSign payload takes).
+- **The channels** — V18Connection's MC|BEdit/MC|BSign dispatch over
+  the payload's wire item (`readPluginPayloadItem`, the reference
+  PacketByteBuf.readItem form: the legacy short id, the count byte,
+  the damage short, then the whole-NBT boxed parse into
+  ItemNbt.readTagInto); EngineServer's `bookEdit`/`bookSign` arms with
+  the reference's isValid gates 1:1 (an over-length page, a missing
+  author row, or an over-32 title lands nothing — the IOException
+  refusal) and the held-item gate (only a held WRITABLE_BOOK takes
+  pages or converts). Both silent like the reference — the sending
+  client predicted its own state.
+- **The signing conversion** — author = the SERVER's own name for the
+  signing player (never the payload's claim — the Mallory pin),
+  title/pages from the payload, the item swap to
+  minecraft:written_book over the held stack's own identity.
+- **The read gate** — useItem's written-book arm: the once-only
+  resolve walk (`Books.resolvePages` — the marker arms even when the
+  isValid consult refuses, a non-JSON page wraps as the reference's
+  bare JSON string literal — the LiteralText serialize arm's exact
+  escapes — an already-JSON page rides verbatim, the named adaptation:
+  the engine carries no text-component model to re-serialize through)
+  + the item-use stat + the resync; the writable book's arm pays the
+  stat alone (the client owns its edit screen). The structural
+  author-only edit refusal: a signed book NEVER re-opens editable, its
+  own author included — the edit channels gate on the held
+  WRITABLE_BOOK alone.
+- **The crafting audit — RETIRED WITH THE EVIDENCE**:
+  BuiltinRecipes' shapeless row (the book + the dye at EXACT damage 0
+  — the ink sac — + the feather) was ALREADY 1:1 with
+  CraftingManager line 58; the exact-0 gate pinned (a cocoa bean's
+  damage 3 never crafts).
+- **The chest-cart envelope (VIII11)** — the ZVD v6 stack-row tail: a
+  present cargo stack now carries the WHOLE ItemStack NBT family in
+  the ZMD/ZID stack-row shape (the name + enchant pairs, the Wave G
+  scalars + Lore, the BlockEntityTag SNBT row, the adventure gates,
+  the leather tint, the AttributeModifiers + SkullOwner + Fireworks
+  SNBT rows, and the book family's five rows) — a signed book, an
+  enchanted named sword, or a fused rocket riding a chest/hopper cart
+  survives the restart whole; v1-v5 files load the bare form
+  unchanged.
+- **The VIII11 slime sub-row — RETIRED WITH THE EVIDENCE**: the rows
+  were already whole (MobDataStore's FLAG_SLIME_SIZE save/load, the
+  restore's setSlimeSize, the initialize dice `1 << nextInt(3)`,
+  pinned by MobDataStoreTest's size-4 round trip and SlimeEntityTest's
+  1/2/4 family). The witch's-hut row stays ledgered (biome-gated,
+  VIII14+).
+- **Two recorded findings (demand-named, not fixed out-of-lane)**:
+  (1) BuiltinItems' WRITTEN_BOOK carries maxStackSize 16 where the
+  reference's WrittenBookItem sets 1 — repairing it would crash the
+  librarian's written-book trade (VillagerTrades constructs the
+  reference's own count-2 offer, legal there because the reference's
+  ItemStack has no max-stack invariant; the engine's record throws);
+  the multi-unit unstackable-offer modeling is the villager-trade
+  family's own surface. (2) The reference's CloneBookRecipe (the
+  book-copying family, generation+1 cap 2) is missing whole — a
+  dynamic-result recipe family the engine's static CraftingService
+  does not model; its own slice.
+- **Evidence**: WrittenBookFlowTest 9 (the isValid gates' refusal
+  band incl. the 33-char title edge, the resolve walk's shapes, the
+  merge identity, the anvil round trip, the crafting pin, the live
+  channels' every arm, the read gate) + SlotNbtTest 16 (the book wire
+  layout + the boxed-reader round trip) + VehiclePersistenceTest 2
+  (the envelope's whole-family restart round trip) +
+  EntityFamilySaveSplitTest 4 (the byte-identity walk grown to the v6
+  shape). The batches green: item/nbt/crafting/vehicle/enchantment/
+  stat 306/0, entity 424/0, the root A-Z batches, the remaining
+  subpackage batches, the protocol suite 117/0 (one ChestIntegration
+  flake under a concurrent-suite CPU race — green in isolation and on
+  the clean re-run), the api suite 19/0.
+
 ## 2026-10-21 — VIII9 + VIII10: the zombie's attributes + the village detection (one slice)
 
 The Wave VIII audit's ninth and tenth rows, landed as one slice on
