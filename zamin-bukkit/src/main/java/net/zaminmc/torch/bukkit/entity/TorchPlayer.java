@@ -62,6 +62,12 @@ public final class TorchPlayer implements Player {
         return session.name();
     }
 
+    /** The diagnostic identity (slice 4 — the inventory holder views' own log lines). */
+    @Override
+    public String toString() {
+        return "TorchPlayer{name=" + session.name() + "}";
+    }
+
     @Override
     public UUID getUniqueId() {
         return session.uuid();
@@ -1133,14 +1139,45 @@ public final class TorchPlayer implements Player {
 
     // ------------------------------------------------------------------ HumanEntity
 
+    // The slice-4 inventory-family verbs (§28.7's inventory family — the
+    // org.bukkit.inventory views live in the adapter's inventory package;
+    // these are the player's own arms over the engine's §27.3 surfaces).
+
+    /**
+     * The player's own inventory view (slice 4): the 36 storage slots +
+     * the armor accessors + the held-item arms over the session's live
+     * §27.3 inventory surface — the §27.5 handle law (every read resolves
+     * to the CURRENT authoritative session state). Cached: one view per
+     * player handle, so the legacy identity comparisons hold.
+     */
     @Override
     public org.bukkit.inventory.PlayerInventory getInventory() {
-        throw adapter.unbridged("Player.getInventory");
+        // One lazy view per player handle (the identity law).
+        org.bukkit.inventory.PlayerInventory view = inventoryView;
+        if (view == null) {
+            synchronized (this) {
+                view = inventoryView;
+                if (view == null) {
+                    view = net.zaminmc.torch.bukkit.inventory.TorchPlayerInventory.of(
+                            adapter, session);
+                    inventoryView = view;
+                }
+            }
+        }
+        return view;
     }
 
+    /** The slice-4 inventory view cache (one per player handle). */
+    private volatile org.bukkit.inventory.PlayerInventory inventoryView;
+
+    /**
+     * The ender chest view (slice 4): the session's own private 27-slot
+     * grid (InventoryType.ENDER_CHEST) — the door block names the window,
+     * the storage rides the player.
+     */
     @Override
     public org.bukkit.inventory.Inventory getEnderChest() {
-        throw adapter.unbridged("Player.getEnderChest");
+        return net.zaminmc.torch.bukkit.inventory.TorchChestInventory.ofEnder(adapter, session);
     }
 
     @Override
@@ -1175,27 +1212,67 @@ public final class TorchPlayer implements Player {
 
     @Override
     public void closeInventory() {
-        throw adapter.unbridged("Player.closeInventory");
+        // The engine's own close walk (slice 4): the open container's id
+        // when one is open, else the player's own inventory window 0 —
+        // the same walk the client-initiated close takes (carried state
+        // returns, the lid closes, the wire re-syncs). Thread-safe by the
+        // engine's own contract (the ticker submission).
+        adapter.engine().closeWindow(session, session.openContainerWindowId() >= 0
+                ? session.openContainerWindowId() : 0);
     }
 
+    /**
+     * The held item read (slice 4): the deprecated HumanEntity arm over
+     * the inventory view's own held-item read.
+     */
     @Override
+    @SuppressWarnings("deprecation")
     public org.bukkit.inventory.ItemStack getItemInHand() {
-        throw adapter.unbridged("Player.getItemInHand");
+        return getInventory().getItemInHand();
     }
 
+    /**
+     * The held item write (slice 4): the deprecated HumanEntity arm over
+     * the inventory view's own held-slot write.
+     */
     @Override
+    @SuppressWarnings("deprecation")
     public void setItemInHand(org.bukkit.inventory.ItemStack item) {
-        throw adapter.unbridged("Player.setItemInHand");
+        getInventory().setItemInHand(item);
     }
 
+    /**
+     * The cursor read (slice 4): the engine's own cursor surface — a
+     * fresh legacy value snapshot, null when the mouse carries nothing.
+     */
     @Override
     public org.bukkit.inventory.ItemStack getItemOnCursor() {
-        throw adapter.unbridged("Player.getItemOnCursor");
+        net.zaminmc.torch.item.ItemStack cursor = session.inventory().cursor();
+        return cursor.isEmpty() ? null
+                : net.zaminmc.torch.bukkit.inventory.TorchItemStacks.toLegacy(cursor,
+                        "Player.cursor", adapter.logger());
     }
 
+    /**
+     * The cursor write (slice 4): the engine's own cursor arms — the old
+     * carried stack is replaced (the 1.8.8 arm's own semantics), the new
+     * one placed through the engine's one-mouse rule. The wire's own
+     * cursor sync rides the engine's window-click paths (the engine has
+     * no standalone cursor-resync surface — the recorded §27.9 note).
+     */
     @Override
     public void setItemOnCursor(org.bukkit.inventory.ItemStack item) {
-        throw adapter.unbridged("Player.setItemOnCursor");
+        net.zaminmc.torch.item.ItemStack engine =
+                net.zaminmc.torch.bukkit.inventory.TorchItemStacks.toEngine(item, adapter);
+        adapter.mutatePosition(session.world() != null ? session.world()
+                        : adapter.engine().world(),
+                session.position().toBlockPosition(), "bukkit-cursor-write",
+                () -> {
+                    session.inventory().takeCursor(); // the 1.8.8 replace semantics
+                    if (!engine.isEmpty()) {
+                        session.inventory().placeOnCursor(engine);
+                    }
+                });
     }
 
     @Override
