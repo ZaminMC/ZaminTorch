@@ -118,11 +118,18 @@ import java.util.logging.Level;
  * {@code org.bukkit.entity} view of the engine body (LivingEntity, Item,
  * Projectile, Vehicle) the adapter does not model in this slice (the
  * entity-adapter family is the adapter's own demand-named next slice);
- * the container family — {@code ChestOpenEvent} → InventoryOpenEvent,
- * {@code DispenseEvent} → BlockDispenseEvent, {@code HopperTransferEvent}
- * → InventoryMoveItemEvent — needs a Bukkit Inventory/ItemStack view the
- * adapter does not model either. Each stays unbridged until its view
- * lands; honest gaps over fake bridges, always.</p>
+ * the container family — {@code ChestOpenEvent}/{@code ContainerOpenEvent}
+ * → InventoryOpenEvent, {@code DispenseEvent} → BlockDispenseEvent,
+ * {@code HopperTransferEvent} → InventoryMoveItemEvent — is BRIDGED as of
+ * the slice-4 inventory lane (the third group below), its own residual
+ * gaps recorded there: the open kinds with no modeled view, the entity
+ * container forms (the horse, the carts — the entity-adapter lane's
+ * family), and the hopper's SUCK arm (the item-entity source — the same
+ * lane's). The chest family's own {@code ChestOpenEvent} stays
+ * native-only (the shared {@code ContainerOpenEvent} is the bridge's one
+ * source — the no-double-dispatch law). Each remaining gap stays
+ * unbridged until its view lands; honest gaps over fake bridges,
+ * always.</p>
  *
  * <p><b>Reentrancy (§28.8 case 7):</b> a legacy listener may fire further
  * events through the manager's own {@code callEvent} (including of the
@@ -145,6 +152,7 @@ public final class TorchEventBridge {
     public void attach() {
         attachFirstGroup();
         attachSecondGroup();
+        attachInventoryGroup();
     }
 
     /** The first group: the five subscriptions the first slice carried. */
@@ -488,6 +496,274 @@ public final class TorchEventBridge {
                 + "native cancel), each dispatch logged; the entity-backed families "
                 + "(mob/item/projectile/vehicle spawn+damage+death) and the container "
                 + "family stay unbridged — the recorded §27.9 gaps");
+    }
+
+    // ------------------------------------------------------------------ the inventory group (slice 4 — this lane's third group)
+
+    /**
+     * The inventory family's wiring (§28.7 — the slice-4 lane): the three
+     * container families the slice-2 record named as the honest gaps —
+     * the shared container-open observation → InventoryOpenEvent, the
+     * dispense gate → BlockDispenseEvent, the hopper-transfer gate →
+     * InventoryMoveItemEvent — every legacy object built over the
+     * adapter's own inventory views (the org.bukkit.inventory family the
+     * slice models), every constructor shape verified against the pinned
+     * API artifact.
+     *
+     * <p><b>The inventory family's cancellation table (§28.7):</b></p>
+     * <ul>
+     *   <li>ContainerOpen → InventoryOpenEvent — the native event is
+     *       POST-COMMIT by the engine's own design (§27.7: handlers
+     *       observe, they do not veto — the window id is already assigned
+     *       and the open walk continues after dispatch). The legacy
+     *       cancellation therefore maps onto the engine's OWN close walk
+     *       ({@code EngineServer.closeWindow} — the same walk the
+     *       client-initiated close takes: carried state returns, the
+     *       chest's lid closes for the other observers, the wire
+     *       re-syncs), submitted to the tick lane and landing at the next
+     *       tick boundary. The reference's pre-open packet suppression is
+     *       a shape the post-commit event cannot express — the Open Window
+     *       packet already left in the same open walk, so a cancelled
+     *       open may leave a client-side ghost window until the player's
+     *       own close (the reference server's own 1.8.8 behavior; the
+     *       recorded §27.9 translation).</li>
+     *   <li>Dispense → BlockDispenseEvent — pre-behavior cancellation
+     *       SUPPORTED both ways (the engine's own gate: the stack stays
+     *       in its slot untouched). {@code setItem} and {@code
+     *       setVelocity} are readable-not-applied (the engine's behavior
+     *       walk owns the launched stack — the reference computes its
+     *       velocity INSIDE the behavior with the per-shot random family;
+     *       the divergence is logged when a plugin rewrites either row).</li>
+     *   <li>HopperTransfer → InventoryMoveItemEvent — pre-commit
+     *       cancellation SUPPORTED both ways (the engine's own per-item
+     *       gate: THIS item stays, the walk's own rules continue around
+     *       it). {@code setItem} is readable-not-applied (the engine
+     *       moves its own one-item stack — the reference's one-item-per-
+     *       transfer law).</li>
+     * </ul>
+     *
+     * <p><b>The honest gaps this slice still carries (§27.9 — every one
+     * recorded with its concrete reason, none faked):</b> the open kinds
+     * with no modeled view (the crafting table's session grid, the
+     * enchanting table's and the anvil's menu state, the beacon's payment
+     * slot, the villager's trade rows) log loudly and do NOT dispatch;
+     * the ENTITY container forms (the horse, the chest minecart, the
+     * hopper minecart) need org.bukkit.entity views — the entity-adapter
+     * lane's own family (the parallel slice's territory); the hopper's
+     * SUCK arm (the item entities in the collection box) needs an
+     * Inventory view of an item ENTITY — the same lane's — so it logs
+     * loudly and does not dispatch either. The chest family's own
+     * ChestOpenEvent stays native-only: the SHARED ContainerOpenEvent is
+     * this bridge's one source (the no-double-dispatch law).</p>
+     */
+    private void attachInventoryGroup() {
+        net.zaminmc.torch.event.EventBus bus = adapter.engine().events();
+
+        // ContainerOpen — the shared §27.7 post-commit observation over
+        // every container family, translated into the legacy open event
+        // through the adapter's own inventory views.
+        bus.on(net.zaminmc.torch.event.player.ContainerOpenEvent.class,
+                net.zaminmc.torch.event.EventPriority.FIRST,
+                engineEvent -> {
+                    PlayerSession session = sessionByUuid(engineEvent.openerId());
+                    if (session == null) {
+                        adapter.logger().warning(() -> "ContainerOpen: the opener '"
+                                + engineEvent.openerName()
+                                + "' has no adapter view — the event was not bridged");
+                        return;
+                    }
+                    PlayerSession.ContainerKind kind = containerKindOf(engineEvent.kind());
+                    if (kind == null) {
+                        // An unknown family name — never faked.
+                        adapter.logger().warning(() -> "ContainerOpen: the kind '"
+                                + engineEvent.kind()
+                                + "' is no engine container kind — the event was not bridged");
+                        return;
+                    }
+                    org.bukkit.inventory.Inventory top =
+                            net.zaminmc.torch.bukkit.inventory.TorchInventories
+                                    .topOfOpenWindow(adapter, session, kind,
+                                            engineEvent.position());
+                    if (top == null) {
+                        // The kinds this slice models no view of (the
+                        // §27.9 gaps): the loud log, no dispatch, never a
+                        // fake view.
+                        adapter.logger().warning(() -> "ContainerOpen: the " + engineEvent.kind()
+                                + " family has no adapter inventory view in this slice —"
+                                + " the event was not bridged (the recorded §27.9 gap)");
+                        return;
+                    }
+                    org.bukkit.event.inventory.InventoryOpenEvent legacy =
+                            new org.bukkit.event.inventory.InventoryOpenEvent(
+                                    net.zaminmc.torch.bukkit.inventory.TorchInventoryView
+                                            .of(adapter, session, top));
+                    dispatch(legacy, "InventoryOpen(" + engineEvent.kind() + ")");
+                    if (legacy.isCancelled()) {
+                        // The legacy cancellation mapped onto the engine's
+                        // OWN close walk (the same surface the client close
+                        // takes) — submitted to the tick lane, landing at
+                        // the next boundary.
+                        adapter.engine().closeWindow(session, engineEvent.windowId());
+                    }
+                });
+
+        // Dispense — the §27.7 pre-behavior gate over the dispense family
+        // (dispenser and dropper alike), cancellable both ways.
+        bus.on(net.zaminmc.torch.event.block.DispenseEvent.class,
+                net.zaminmc.torch.event.EventPriority.FIRST,
+                engineEvent -> {
+                    TorchWorld world = adapter.worldView(engineEvent.world());
+                    if (world == null) {
+                        adapter.logger().warning(() -> "Dispense: the world '"
+                                + engineEvent.world().name()
+                                + "' has no adapter view — the event was not bridged");
+                        return;
+                    }
+                    ItemStack item = net.zaminmc.torch.bukkit.inventory.TorchItemStacks
+                            .toLegacy(engineEvent.stack(), "Dispense.item", adapter.logger());
+                    if (item == null) {
+                        return; // the unmapped item already logged loudly
+                    }
+                    Block block = adapter.blockAt(world, engineEvent.origin().x(),
+                            engineEvent.origin().y(), engineEvent.origin().z());
+                    // The zero-vector record: the engine's native event
+                    // carries no velocity row (the reference computes its
+                    // launch INSIDE the behavior walk, per-shot random
+                    // family) — the legacy constructor demands a Vector, so
+                    // the bridge passes the zero vector and every
+                    // setVelocity divergence is logged, never applied.
+                    org.bukkit.util.Vector velocity = new org.bukkit.util.Vector(0, 0, 0);
+                    org.bukkit.event.block.BlockDispenseEvent legacy =
+                            new org.bukkit.event.block.BlockDispenseEvent(block, item, velocity);
+                    dispatch(legacy, "BlockDispense");
+                    engineEvent.setCancelled(legacy.isCancelled());
+                    // The readable-but-not-applied rows (§27.9): the
+                    // engine's reservoir stack is authoritative (setItem),
+                    // and the behavior walk owns the launch (setVelocity).
+                    if (!net.zaminmc.torch.bukkit.inventory.TorchItemStacks.viewEquals(
+                            legacy.getItem(), item)) {
+                        divergence("BlockDispense.setItem");
+                    }
+                    if (legacy.getVelocity().lengthSquared() != 0.0) {
+                        divergence("BlockDispense.setVelocity"
+                                + " (the engine's behavior walk owns the launch)");
+                    }
+                });
+
+        // HopperTransfer — the §27.7 pre-commit gate over the hopper's
+        // three arms, translated into the legacy move event: the PUSH arm
+        // (the hopper is the source and the initiator), the PULL arm (the
+        // container above is the source, the hopper the destination), and
+        // the SUCK arm (the honest §27.9 gap — an item ENTITY source has
+        // no Inventory view; the entity-adapter lane's family).
+        bus.on(net.zaminmc.torch.event.block.HopperTransferEvent.class,
+                net.zaminmc.torch.event.EventPriority.FIRST,
+                engineEvent -> {
+                    TorchWorld world = adapter.worldByName(engineEvent.worldName());
+                    if (world == null) {
+                        adapter.logger().warning(() -> "HopperTransfer: the world '"
+                                + engineEvent.worldName()
+                                + "' has no adapter view — the event was not bridged");
+                        return;
+                    }
+                    if (engineEvent.direction()
+                            == net.zaminmc.torch.event.block.HopperTransferEvent.Direction.SUCK) {
+                        // The §27.9 honest gap: the suck's source is an
+                        // item entity — the entity-adapter lane's view
+                        // family. Loud, never faked.
+                        adapter.logger().warning(() -> "HopperTransfer: the SUCK arm's"
+                                + " item-entity source has no adapter Inventory view in"
+                                + " this slice — the event was not bridged (the recorded"
+                                + " §27.9 gap, the entity-adapter lane's family)");
+                        return;
+                    }
+                    org.bukkit.inventory.Inventory source;
+                    org.bukkit.inventory.Inventory destination;
+                    boolean didSourceInitiate;
+                    if (engineEvent.direction()
+                            == net.zaminmc.torch.event.block.HopperTransferEvent.Direction.PUSH) {
+                        // The hopper pushes into the container it faces:
+                        // the hopper IS the source and the initiator.
+                        source = net.zaminmc.torch.bukkit.inventory.TorchHopperInventory
+                                .of(adapter, world.engineWorld(), engineEvent.hopper());
+                        destination = net.zaminmc.torch.bukkit.inventory.TorchInventories
+                                .containerAt(adapter, world.engineWorld(),
+                                        engineEvent.counterpart());
+                        didSourceInitiate = true;
+                    } else {
+                        // The pull from the container above: the container
+                        // above is the source, the hopper the destination
+                        // (the hopper remains the initiator — the legacy
+                        // row carries didSourceInitiate=false).
+                        source = net.zaminmc.torch.bukkit.inventory.TorchInventories
+                                .containerAt(adapter, world.engineWorld(),
+                                        engineEvent.counterpart());
+                        destination = net.zaminmc.torch.bukkit.inventory.TorchHopperInventory
+                                .of(adapter, world.engineWorld(), engineEvent.hopper());
+                        didSourceInitiate = false;
+                    }
+                    if (source == null || destination == null) {
+                        // A counterpart the adapter models no view of (the
+                        // entity carts) or a hopper whose state vanished —
+                        // the loud log, no dispatch, never a fake view.
+                        adapter.logger().warning(() -> "HopperTransfer: the "
+                                + engineEvent.direction() + " arm's ends have no adapter"
+                                + " inventory views (source=" + (source == null ? "none" : "yes")
+                                + ", destination=" + (destination == null ? "none" : "yes")
+                                + ") — the event was not bridged");
+                        return;
+                    }
+                    ItemStack item = net.zaminmc.torch.bukkit.inventory.TorchItemStacks
+                            .toLegacy(engineEvent.item(), "HopperTransfer.item",
+                                    adapter.logger());
+                    if (item == null) {
+                        return; // the unmapped item already logged loudly
+                    }
+                    // The 1.8.8 constructor's own parameter order, verified
+                    // against the pinned artifact's bytecode: (source,
+                    // ITEM, destination, didSourceInitiate).
+                    org.bukkit.event.inventory.InventoryMoveItemEvent legacy =
+                            new org.bukkit.event.inventory.InventoryMoveItemEvent(
+                                    source, item, destination, didSourceInitiate);
+                    dispatch(legacy, "InventoryMoveItem(" + engineEvent.direction() + ")");
+                    engineEvent.setCancelled(legacy.isCancelled());
+                    // The readable-but-not-applied row (§27.9): the engine
+                    // moves its own one-item stack (the reference's
+                    // one-item-per-transfer law) — a rewritten item is
+                    // logged, not applied.
+                    if (!net.zaminmc.torch.bukkit.inventory.TorchItemStacks.viewEquals(
+                            legacy.getItem(), item)) {
+                        divergence("InventoryMoveItem.setItem");
+                    }
+                });
+
+        adapter.logger().info("The event bridge's inventory group is wired: ContainerOpen ->"
+                + " InventoryOpen (cancellation mapped onto the engine's own close walk),"
+                + " Dispense -> BlockDispense (cancellable both ways; the velocity row the"
+                + " zero-vector record), HopperTransfer -> InventoryMoveItem (PUSH + PULL"
+                + " cancellable both ways; the SUCK arm the recorded §27.9 gap) — the"
+                + " entity container forms and the unmodeled open kinds stay unbridged,"
+                + " each dispatch logged");
+    }
+
+    /** The opener lookup by uuid (the shared open event's own identity row). */
+    private PlayerSession sessionByUuid(java.util.UUID uuid) {
+        for (net.zaminmc.torch.entity.Player apiPlayer : adapter.engine().players()) {
+            if (apiPlayer instanceof PlayerSession session
+                    && session.uuid().equals(uuid)) {
+                return session;
+            }
+        }
+        return null;
+    }
+
+    /** The engine kind enum of the shared open event's kind name (null when unknown). */
+    private static PlayerSession.ContainerKind containerKindOf(String kind) {
+        try {
+            return PlayerSession.ContainerKind.valueOf(kind);
+        } catch (IllegalArgumentException unknown) {
+            return null;
+        }
     }
 
     // ------------------------------------------------------------------ the dispatch

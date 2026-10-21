@@ -187,6 +187,7 @@ public final class BukkitTestHarness {
             import org.bukkit.event.EventPriority;
             import org.bukkit.event.Listener;
             import org.bukkit.event.block.BlockBreakEvent;
+            import org.bukkit.event.block.BlockDispenseEvent;
             import org.bukkit.event.block.BlockFromToEvent;
             import org.bukkit.event.block.BlockPistonExtendEvent;
             import org.bukkit.event.block.BlockPistonRetractEvent;
@@ -199,6 +200,9 @@ public final class BukkitTestHarness {
             import org.bukkit.event.entity.ProjectileLaunchEvent;
             import org.bukkit.event.inventory.FurnaceBurnEvent;
             import org.bukkit.event.inventory.FurnaceSmeltEvent;
+            import org.bukkit.event.inventory.InventoryCloseEvent;
+            import org.bukkit.event.inventory.InventoryMoveItemEvent;
+            import org.bukkit.event.inventory.InventoryOpenEvent;
             import org.bukkit.event.player.AsyncPlayerChatEvent;
             import org.bukkit.event.player.PlayerChatEvent;
             import org.bukkit.event.player.PlayerJoinEvent;
@@ -415,6 +419,99 @@ public final class BukkitTestHarness {
                         event.setCancelled(true);
                         log("cancel:smelt-gold");
                     }
+                }
+
+                // ---------------- the inventory family (the slice-4 bridges:
+                // the open/move/dispense listeners + this lane's own
+                // tripwires — the probe knows the slice's own fixture
+                // cells, the harness's own fixture law)
+
+                @EventHandler(priority = EventPriority.LOWEST)
+                public void onInventoryOpen(InventoryOpenEvent event) {
+                    org.bukkit.inventory.Inventory top = event.getInventory();
+                    String type = top.getType().toString();
+                    // The unmodeled-kind tripwire (§27.9): the bridge must
+                    // never dispatch an open for a family it models no view
+                    // of — the crafting table, the enchanting table, the
+                    // anvil, the beacon, the merchant, the entity forms.
+                    if (type.equals("WORKBENCH") || type.equals("ENCHANTING")
+                            || type.equals("ANVIL") || type.equals("BEACON")
+                            || type.equals("MERCHANT") || type.equals("HORSE")) {
+                        log("UNBRIDGED-FIRED:InventoryOpen(" + type + ")");
+                    }
+                    org.bukkit.inventory.ItemStack first = top.getItem(0);
+                    log("open:inv player=" + event.getPlayer().getName()
+                            + " type=" + type
+                            + " size=" + top.getSize()
+                            + " title=" + top.getTitle()
+                            + " holder=" + top.getHolder()
+                            + " bottom=" + event.getView().getBottomInventory().getType()
+                            + " bottomSize=" + event.getView().getBottomInventory().getSize()
+                            + " viewers=" + top.getViewers().size()
+                            + " first=" + (first == null ? "null"
+                                    : first.getType() + "x" + first.getAmount())
+                            + " primary=" + Bukkit.isPrimaryThread());
+                    // The cancel arm: the gold-block marker names the cancel
+                    // chest (the fixture's own law — the marker item rides
+                    // the chest's first slot).
+                    if (first != null && first.getType() == Material.GOLD_BLOCK) {
+                        event.setCancelled(true);
+                        log("cancel:open");
+                    }
+                }
+
+                @EventHandler(priority = EventPriority.LOWEST)
+                public void onInventoryMoveItem(InventoryMoveItemEvent event) {
+                    log("move:item source=" + event.getSource().getType()
+                            + "/" + event.getSource().getSize()
+                            + " dest=" + event.getDestination().getType()
+                            + "/" + event.getDestination().getSize()
+                            + " initiator=" + event.getInitiator().getType()
+                            + " item=" + event.getItem().getType()
+                            + "x" + event.getItem().getAmount()
+                            + " primary=" + Bukkit.isPrimaryThread());
+                    // The cancel arm: the emerald marker names the blocked
+                    // transfer (the fixture's own law).
+                    if (event.getItem().getType() == Material.EMERALD) {
+                        event.setCancelled(true);
+                        log("cancel:move-item");
+                    }
+                }
+
+                @EventHandler(priority = EventPriority.LOWEST)
+                public void onBlockDispense(BlockDispenseEvent event) {
+                    log("dispense: at=" + loc(event.getBlock())
+                            + " item=" + event.getItem().getType()
+                            + "x" + event.getItem().getAmount()
+                            + " velocity=" + event.getVelocity().getX()
+                            + "," + event.getVelocity().getY()
+                            + "," + event.getVelocity().getZ()
+                            + " primary=" + Bukkit.isPrimaryThread());
+                    // The cancel arm: the emerald marker names the blocked
+                    // dispense (the same fixture law).
+                    if (event.getItem().getType() == Material.EMERALD) {
+                        event.setCancelled(true);
+                        log("cancel:dispense");
+                        return;
+                    }
+                    // The rewrite arms (the readable-not-applied evidence):
+                    // the rewrite cell's dispense rewrites the item and the
+                    // velocity — the engine's own behavior walk stays
+                    // authoritative (the original item still launches).
+                    if (event.getBlock().getX() == 88 && event.getBlock().getY() == 40
+                            && event.getBlock().getZ() == 88) {
+                        event.setItem(new ItemStack(Material.STONE, 1));
+                        event.setVelocity(new org.bukkit.util.Vector(9, 9, 9));
+                        log("dispense:rewrite");
+                    }
+                }
+
+                @EventHandler
+                public void onInventoryClose(InventoryCloseEvent event) {
+                    // The tripwire: the engine has no container-close event
+                    // — the legacy close form must never fire (a later
+                    // slice's own bridge will re-pin this line).
+                    log("UNBRIDGED-FIRED:InventoryClose");
                 }
 
                 // ---------------- the unbridged-family tripwires (§27.9's
