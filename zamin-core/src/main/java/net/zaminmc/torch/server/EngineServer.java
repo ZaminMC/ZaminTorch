@@ -2481,7 +2481,7 @@ public final class EngineServer implements Server, EngineBridge {
                     // doScheduledTicks surface, the §472-pattern queue
                     // gone. The census list below carries the change.)
                     profiled("fallingBlocks", falling::tick);           // §470: falling physics + landings
-                    profiled("projectiles", projectileManager::tick); // ranged combat physics
+                    profiled("projectiles", () -> projectileManager.tick(players.all())); // ranged combat physics + the grounded arrows' pickup
                     profiled("vehicles", vehicles::tick);          // the boats and minecarts
                     // (The rider-follow arms ride AFTER the mobs section:
                     // the reference's rideTick (Entity.java lines 1297-1349)
@@ -2747,6 +2747,16 @@ public final class EngineServer implements Server, EngineBridge {
                         // block below must have a SOLID TOP.
                         return net.zaminmc.torch.server.block.WorldSolidity.isSolid(
                                 world.getBlock(target.offset(0, -1, 0)));
+                    }
+                    if (name.equals("brown_mushroom") || name.equals("red_mushroom")) {
+                        // The mushroom pair's own gate (VIII8 —
+                        // MushroomPlantBlock.canBePlaced lines 69-73 over
+                        // canSurvive): the mycelium bypass at any light,
+                        // the light-under-13-and-opaque-below law — a
+                        // placement on lit grass refuses, the mushroom
+                        // island's daylight shrooms pass on mycelium.
+                        return net.zaminmc.torch.server.block.MushroomBlocks
+                                .canPlantSurviveAt(world, target);
                     }
                     return true;
                 });
@@ -6462,8 +6472,8 @@ public final class EngineServer implements Server, EngineBridge {
         ItemStack held = session.inventory().held();
         boolean creative = session.gamemode() == GameMode.CREATIVE;
         // Infinity (the reference's flag arm line 22): creative or the
-        // enchantment — no arrow leaves the quiver. The pickup=2 flag has
-        // no arrow-retrieval surface yet (ledgered with that slice).
+        // enchantment — no arrow leaves the quiver (the shot's pickup band
+        // lands at 2 below, the creative-only collect — the pickup slice).
         boolean infinite = creative
                 || EnchantmentHelper.level(held, Enchantments.INFINITY.id) > 0;
         if (!infinite && !session.inventory().consumeOne(BuiltinItems.ARROW)) {
@@ -6471,6 +6481,11 @@ public final class EngineServer implements Server, EngineBridge {
         }
         ProjectileEntity arrow = launchProjectile(session,
                 ProjectileEntity.Kind.ARROW, power * BOW_MAX_SPEED);
+        // The infinite band's own override (BowItem.stopUsing lines 52-56:
+        // {@code if (flag) arrowentity.pickup = 2} — the creative/Infinity
+        // arrow is CREATIVE-ONLY collectable, over the player ctor's own 1
+        // the launch helper set; a survival walker never scoops the
+        // Infinity bow's free arrows).
         // The enchantment arms (the reference lines 36-52): the full draw
         // sets the arrow's crit flag, Power feeds the damage multiplier
         // (j * 0.5 + 0.5), Punch rides the landed hit, Flame ignites the
@@ -6488,6 +6503,9 @@ public final class EngineServer implements Server, EngineBridge {
         }
         if (EnchantmentHelper.level(held, Enchantments.FLAME.id) > 0) {
             arrow.setOnFireFor(FLAME_ARROW_TICKS);
+        }
+        if (infinite) {
+            arrow.setPickupStatus(2); // the creative-only collect band
         }
         // The reference bow release sound (BowItem line 55): volume 1.0, the
         // pitch riding the shaped charge fraction (f * 0.5).
@@ -6685,6 +6703,12 @@ public final class EngineServer implements Server, EngineBridge {
         ProjectileEntity projectile = projectileManager.launch(kind,
                 session.engineEntityId(), spawn,
                 session.rotation().yaw(), session.rotation().pitch(), speed);
+        if (projectile != null && kind == ProjectileEntity.Kind.ARROW) {
+            // The player-shooter ctors' own set (ArrowEntity lines 61/85:
+            // a PLAYER's arrow is collectable — the mob shooters never set
+            // it, the skeleton's arrows stay on the ground).
+            projectile.setPickupStatus(1);
+        }
         LOGGER.fine(() -> session.name() + " launched " + projectile.kind()
                 + " (entity " + projectile.entityId() + ")");
         return projectile;
@@ -11125,6 +11149,62 @@ public final class EngineServer implements Server, EngineBridge {
                 publishInventoryChanged(session);
                 return true; // a growing canGrow target consumed the use
             }
+            // The grass arm (VIII7 — GrassBlock's Fertilizable pair +
+            // ItemDye.fertilize's own law): canGrow is always true (line
+            // 253), so the stack ALWAYS pays; canBeFertilized is always
+            // true too (line 257), so the grow ALWAYS runs — the
+            // 128-attempt walk (GrassBlocks.growGrass, the biome's flower
+            // pick at 1-in-8 against the tall grass's 7-in-8).
+            if (world.getBlock(clicked).equals(BuiltinBlocks.GRASS_BLOCK)) {
+                net.zaminmc.torch.server.block.GrassBlocks.growGrass(
+                        world, clicked, gameplayRandom);
+                session.inventory().consumeHeld(1);
+                fxManager.itemShatter(new Position(clicked.x() + 0.5, clicked.y() + 0.5, clicked.z() + 0.5),
+                        session.inventory().held());
+                publishInventoryChanged(session);
+                return true;
+            }
+            // The mushroom arm (VIII7 — MushroomPlantBlock's Fertilizable
+            // pair): canGrow is always true (line 93), so the stack ALWAYS
+            // pays — even the space-refused restore pays; canBeFertilized's
+            // 0.4 roll (line 97) gates the giant form alone (the
+            // remove-place-restore walk inside growHuge).
+            if (net.zaminmc.torch.server.block.MushroomBlocks
+                    .isMushroomPlant(world.getBlock(clicked))) {
+                if (gameplayRandom.nextFloat() < 0.4F) {
+                    net.zaminmc.torch.server.block.MushroomBlocks.growHuge(
+                            world, clicked, world.getBlock(clicked), gameplayRandom);
+                }
+                session.inventory().consumeHeld(1);
+                fxManager.itemShatter(new Position(clicked.x() + 0.5, clicked.y() + 0.5, clicked.z() + 0.5),
+                        session.inventory().held());
+                publishInventoryChanged(session);
+                return true;
+            }
+            // The cocoa arm (VIII7 — CocoaBlock's Fertilizable pair):
+            // canGrow is the AGE < 2 band (line 198) — the stack pays only
+            // under age 2, the mature pod's use is NOT consumed; grow is
+            // the single AGE + 1 step (line 202).
+            if (net.zaminmc.torch.server.block.CocoaBlocks.isCocoa(world.getBlock(clicked))) {
+                int cocoaAge = net.zaminmc.torch.server.block.CocoaBlocks
+                        .ageOf(world.getBlock(clicked));
+                if (cocoaAge < 2) {
+                    world.setBlock(clicked, net.zaminmc.torch.server.block.CocoaBlocks
+                            .withAge(world.getBlock(clicked), cocoaAge + 1));
+                    session.inventory().consumeHeld(1);
+                    fxManager.itemShatter(new Position(clicked.x() + 0.5, clicked.y() + 0.5, clicked.z() + 0.5),
+                            session.inventory().held());
+                    publishInventoryChanged(session);
+                    return true;
+                }
+                return false; // the mature pod: canGrow false — the use is not consumed
+            }
+            // (The stems ride the crops arm above whole — cropStageOf's
+            // family switch carries the pumpkin/melon stems, and the
+            // reference's two grow laws are the identical shape:
+            // StemBlock.grow line 128's AGE + MathHelper.nextInt(random,
+            // 2, 5) clamp 7 against WheatBlock's own — verified 1:1, the
+            // VIII7 stem sub-row retired with the evidence.)
             return false; // not a growing crop: the historical no-op
         }
         return false;
@@ -14477,6 +14557,14 @@ public final class EngineServer implements Server, EngineBridge {
         void onProjectileRemoved(ProjectileEntity projectile, String reason);
 
         /**
+         * A player collected a grounded arrow (the pickup slice —
+         * ArrowEntity.onPlayerCollision lines 427-440): the Collect Item
+         * pair rides the wire; the pop sound plays at the collector.
+         */
+        default void onProjectileCollected(ProjectileEntity projectile, PlayerSession collector) {
+        }
+
+        /**
          * A player's punch deflected a fireball (Slice 25b — the velocity
          * and the shooter both flip; the wire re-publishes the velocity).
          */
@@ -14527,6 +14615,21 @@ public final class EngineServer implements Server, EngineBridge {
         public void onProjectileRemoved(ProjectileEntity projectile, String reason) {
             for (ProjectileListener listener : projectileListeners) {
                 listener.onProjectileRemoved(projectile, reason);
+            }
+        }
+
+        @Override
+        public void onProjectileCollected(ProjectileEntity projectile, PlayerSession collector) {
+            for (ProjectileListener listener : projectileListeners) {
+                listener.onProjectileCollected(projectile, collector);
+            }
+            // The pop sound (onPlayerCollision line 436, the reference's own
+            // pitch band — the item pickup's own shape at the collector).
+            Position at = collector.position();
+            if (fxManager != null) {
+                float pitchDelta = gameplayRandom.nextFloat() - gameplayRandom.nextFloat();
+                fxManager.sound(new Position(at.x(), at.y(), at.z()), "random.pop",
+                        0.2F, (pitchDelta * 0.7F + 1.0F) * 2.0F);
             }
         }
 

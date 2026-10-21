@@ -234,9 +234,14 @@ class PrecipitationSystemTest {
 
     /**
      * The biome temperatures carry the reference's registration table
-     * (Biome.java lines 70-172): the ocean pair's 0.5 is the engine's
-     * coldest — every generated column refuses both arms, the
-     * vanilla-plains envelope.
+     * (Biome.java lines 70-172): the generated envelope — the ocean pair's
+     * 0.5 is the generator's coldest, every GENERATED column refuses both
+     * arms, the vanilla-plains envelope. The full 61-row table (VIII14's
+     * registration slice) carries the reference's frozen family whole
+     * (the FROZEN_* pair at 0.0, the ICE_* pair, the COLD_TAIGA pair at
+     * -0.5) — those rows' gates fire on imported columns (an anvil
+     * world's own biome array) while the generator's shading set stays
+     * the warm band until the GenLayer layout slice grows it.
      */
     @Test
     void theBiomeTableCarriesTheReferenceTemperatures() {
@@ -247,8 +252,20 @@ class PrecipitationSystemTest {
         assertEquals(0.7f, net.zaminmc.torch.server.world.Biome.FOREST.temperature());
         assertEquals(0.95f, net.zaminmc.torch.server.world.Biome.JUNGLE.temperature());
         assertEquals(2.0f, net.zaminmc.torch.server.world.Biome.HELL.temperature());
+        // The generator's own shading band (NormalWorldGenerator.biomeAt's
+        // six + the nether's fixed HELL) — the rows a generated column can
+        // ever carry. The frozen family joins the generated set only with
+        // the GenLayer slice; its registration rows are pinned in
+        // BiomeRegistrationTest.
         for (net.zaminmc.torch.server.world.Biome biome
-                : net.zaminmc.torch.server.world.Biome.values()) {
+                : new net.zaminmc.torch.server.world.Biome[]{
+                        net.zaminmc.torch.server.world.Biome.OCEAN,
+                        net.zaminmc.torch.server.world.Biome.DEEP_OCEAN,
+                        net.zaminmc.torch.server.world.Biome.PLAINS,
+                        net.zaminmc.torch.server.world.Biome.DESERT,
+                        net.zaminmc.torch.server.world.Biome.FOREST,
+                        net.zaminmc.torch.server.world.Biome.JUNGLE,
+                        net.zaminmc.torch.server.world.Biome.HELL}) {
             assertTrue(biome.temperature() > 0.15f,
                     "every generated biome refuses the frozen arms: " + biome);
         }

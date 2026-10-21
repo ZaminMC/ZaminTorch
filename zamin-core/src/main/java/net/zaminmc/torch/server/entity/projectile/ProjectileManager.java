@@ -241,6 +241,15 @@ public final class ProjectileManager {
         void onProjectileRemoved(ProjectileEntity projectile, String reason);
 
         /**
+         * A player collected a grounded arrow (ArrowEntity.onPlayerCollision
+         * lines 427-440): the Collect Item pair + the pop sound ride the
+         * fan; the manager already removed the body.
+         */
+        default void onProjectileCollected(ProjectileEntity projectile,
+                net.zaminmc.torch.server.player.PlayerSession collector) {
+        }
+
+        /**
          * A player's punch deflected a fireball (Slice 25b — the velocity
          * and the shooter both flip; the wire re-publishes the velocity so
          * the client's own fireball model turns around with it).
@@ -641,7 +650,7 @@ public final class ProjectileManager {
     }
 
     /** One physics pass over every projectile. Tick-thread context. */
-    public void tick() {
+    public void tick(Iterable<net.zaminmc.torch.server.player.PlayerSession> players) {
         // Backward index walk: removals mid-tick (shatter, hit, expiry) shift
         // nothing the loop still needs, and a listener re-entry cannot CME.
         for (int i = projectiles.size() - 1; i >= 0; i--) {
@@ -689,6 +698,90 @@ public final class ProjectileManager {
             }
         }
         burningTntPass();
+        arrowPickupPass(players);
+    }
+
+    /** The player-entity collision box's growth (the item rule the orb
+     *  pickup carries: grown 1.0 horizontal / 0.5 vertical). */
+    static final double PICKUP_GROWTH_HORIZONTAL = 1.0;
+    static final double PICKUP_GROWTH_VERTICAL = 0.5;
+    /** The arrow's own half-size (setSize(0.5F, 0.5F), ArrowEntity line 45). */
+    static final double ARROW_HALF_WIDTH = 0.25;
+    static final double ARROW_HALF_HEIGHT = 0.25;
+
+    /**
+     * The grounded arrows' player pickup (ArrowEntity.onPlayerCollision
+     * lines 427-440, 1:1): a STUCK arrow answers the walk — the flag law
+     * ({@code pickup == 1 || pickup == 2 && creative}, line 430), the
+     * pickup-1 inventory consult (line 431: a full inventory flips the
+     * flag off — the arrow stays for the next walker), and the collect
+     * (the pop sound + the Collect Item pair ride the listener fan; the
+     * body leaves the world). The shake gate ({@code shake <= 0}, line
+     * 428) is structural: the engine's arrow model carries no shake row
+     * (the VII1 counted note — the point model derives it away). The
+     * non-spectator walk continues past a failed consult (the reference's
+     * collision walk calls every overlapping player) and stops at the
+     * first collector.
+     */
+    private void arrowPickupPass(Iterable<net.zaminmc.torch.server.player.PlayerSession> players) {
+        for (int i = projectiles.size() - 1; i >= 0; i--) {
+            ProjectileEntity projectile = projectiles.get(i);
+            if (projectile.kind() != ProjectileEntity.Kind.ARROW
+                    || !projectile.inGround()
+                    || projectile.pickupStatus() == 0) {
+                continue;
+            }
+            for (net.zaminmc.torch.server.player.PlayerSession player : players) {
+                if (player.state() != net.zaminmc.torch.entity.PlayerState.PLAYING
+                        || player.dead()) {
+                    continue;
+                }
+                if (!withinArrowPickupRange(player, projectile)) {
+                    continue;
+                }
+                boolean flag = projectile.pickupStatus() == 1
+                        || projectile.pickupStatus() == 2
+                        && player.gamemode() == net.zaminmc.torch.GameMode.CREATIVE;
+                if (!flag) {
+                    continue; // the creative-only band's non-creative walker never collects
+                }
+                if (projectile.pickupStatus() == 1) {
+                    // Line 431: the survival band must actually FIT — the
+                    // engine's pickUp remainder (a count-1 stack either
+                    // lands whole or stays whole).
+                    net.zaminmc.torch.item.ItemStack remainder =
+                            player.inventory().pickUp(net.zaminmc.torch.item.ItemStack.of(
+                                    net.zaminmc.torch.server.item.BuiltinItems.ARROW, 1));
+                    if (!remainder.isEmpty()) {
+                        continue; // the full inventory: the arrow stays, the walk tries the next player
+                    }
+                }
+                projectiles.remove(i);
+                for (Listener listener : listeners) {
+                    listener.onProjectileCollected(projectile, player);
+                }
+                break; // one collector per arrow
+            }
+        }
+    }
+
+    /** The player box grown 1.0/0.5 against the arrow's own 0.5 box (the
+     *  orb pickup's exact shape over the arrow's half-size). */
+    private boolean withinArrowPickupRange(
+            net.zaminmc.torch.server.player.PlayerSession player, ProjectileEntity projectile) {
+        Position playerPosition = player.position();
+        Position arrowPosition = projectile.position();
+        double dx = Math.abs(arrowPosition.x() - playerPosition.x());
+        double dz = Math.abs(arrowPosition.z() - playerPosition.z());
+        double maxHorizontal = ARROW_HALF_WIDTH + PICKUP_GROWTH_HORIZONTAL;
+        if (dx > maxHorizontal || dz > maxHorizontal) {
+            return false;
+        }
+        double arrowBottom = arrowPosition.y() - ARROW_HALF_HEIGHT;
+        double arrowTop = arrowPosition.y() + ARROW_HALF_HEIGHT;
+        double rangeBottom = playerPosition.y() - PICKUP_GROWTH_VERTICAL;
+        double rangeTop = playerPosition.y() + 1.8 + PICKUP_GROWTH_VERTICAL;
+        return arrowTop > rangeBottom && arrowBottom < rangeTop;
     }
 
     /**
