@@ -121,8 +121,8 @@ class BiomeRegistrationTest {
                 0.225f, 0.25f, 12, 12, Family.DESERT);
         pin(131, "Extreme Hills M", 0.2f, 0.3f, false, true, 16777215,
                 1.0f, 0.5f, 2, 3, Family.EXTREME_HILLS);
-        pin(132, "Forest M", 0.7f, 0.8f, false, true, 16777215,
-                0.2f, 0.4f, 2, 3, Family.FOREST);
+        pin(132, "Flower Forest", 0.7f, 0.8f, false, true, 16777215,
+                0.1f, 0.4f, 2, 3, Family.FOREST);
         pin(133, "Taiga M", 0.25f, 0.8f, false, true, 16777215,
                 0.3f, 0.4f, 2, 3, Family.TAIGA);
         pin(134, "Swampland M", 0.8f, 0.9f, false, true, 14745518,
@@ -143,20 +143,20 @@ class BiomeRegistrationTest {
                 0.55f, 0.5f, 2, 3, Family.TAIGA);
         pin(160, "Mega Spruce Taiga", 0.25f, 0.8f, false, true, 16777215,
                 0.2f, 0.2f, 2, 3, Family.TAIGA);
-        pin(161, "Redwood Taiga Hills M", 0.3f, 0.8f, false, true, 16777215,
-                0.3f, 0.4f, 2, 3, Family.TAIGA);
+        pin(161, "Redwood Taiga Hills M", 0.25f, 0.8f, false, true, 16777215,
+                0.2f, 0.2f, 2, 3, Family.TAIGA);
         pin(162, "Extreme Hills+ M", 0.2f, 0.3f, false, true, 16777215,
                 1.0f, 0.5f, 2, 3, Family.EXTREME_HILLS);
         pin(163, "Savanna M", 1.1f, 0.0f, false, false, 16777215,
                 0.3625f, 1.225f, 2, 3, Family.SAVANNA);
         pin(164, "Savanna Plateau M", 1.0f, 0.0f, false, false, 16777215,
                 1.05f, 1.2125f, 2, 3, Family.SAVANNA);
-        pin(165, "Mesa M", 2.0f, 0.0f, false, false, 16777215,
-                0.2f, 0.4f, 179, 159, Family.MESA);
+        pin(165, "Mesa (Bryce)", 2.0f, 0.0f, false, false, 16777215,
+                0.1f, 0.2f, 179, 159, Family.MESA);
         pin(166, "Mesa Plateau F M", 2.0f, 0.0f, false, false, 16777215,
-                1.6f, 0.225f, 179, 159, Family.MESA);
+                0.45f, 0.3f, 179, 159, Family.MESA);
         pin(167, "Mesa Plateau M", 2.0f, 0.0f, false, false, 16777215,
-                1.6f, 0.225f, 179, 159, Family.MESA);
+                0.45f, 0.3f, 179, 159, Family.MESA);
         // The census itself: 61 rows, the reference's own count.
         assertEquals(61, Biome.values().length, "the reference's 61 rows");
         assertEquals(61, Biome.all().length, "the whole-table census");
@@ -188,7 +188,7 @@ class BiomeRegistrationTest {
         assertEquals(Biome.PLAINS, Biome.SUNFLOWER_PLAINS.mutatedFrom());
         assertEquals(Biome.DESERT, Biome.DESERT_M.mutatedFrom());
         assertEquals(Biome.EXTREME_HILLS, Biome.EXTREME_HILLS_M.mutatedFrom());
-        assertEquals(Biome.FOREST, Biome.FOREST_M.mutatedFrom());
+        assertEquals(Biome.FOREST, Biome.FLOWER_FOREST.mutatedFrom());
         assertEquals(Biome.TAIGA, Biome.TAIGA_M.mutatedFrom());
         assertEquals(Biome.SWAMPLAND, Biome.SWAMPLAND_M.mutatedFrom());
         assertEquals(Biome.ICE_PLAINS, Biome.ICE_PLAINS_SPIKES.mutatedFrom());
@@ -207,7 +207,7 @@ class BiomeRegistrationTest {
         assertEquals(Biome.SAVANNA, Biome.SAVANNA_M.mutatedFrom());
         assertEquals(Biome.SAVANNA_PLATEAU,
                 Biome.SAVANNA_PLATEAU_M.mutatedFrom());
-        assertEquals(Biome.MESA, Biome.MESA_M.mutatedFrom());
+        assertEquals(Biome.MESA, Biome.MESA_BRYCE.mutatedFrom());
         assertEquals(Biome.MESA_PLATEAU_F,
                 Biome.MESA_PLATEAU_F_M.mutatedFrom());
         assertEquals(Biome.MESA_PLATEAU, Biome.MESA_PLATEAU_M.mutatedFrom());
@@ -261,9 +261,9 @@ class BiomeRegistrationTest {
         assertEquals(Biome.COLD_TAIGA.snowy(), Biome.COLD_TAIGA_M.snowy());
         assertEquals(Biome.SWAMPLAND.waterFogColor(),
                 Biome.SWAMPLAND_M.waterFogColor());
-        assertEquals(Biome.MESA.surfaceLegacyId(), Biome.MESA_M.surfaceLegacyId());
+        assertEquals(Biome.MESA.surfaceLegacyId(), Biome.MESA_BRYCE.surfaceLegacyId());
         assertEquals(Biome.MESA.subsurfaceLegacyId(),
-                Biome.MESA_M.subsurfaceLegacyId());
+                Biome.MESA_BRYCE.subsurfaceLegacyId());
     }
 
     // ------------------------------------------------------ the explorable band
@@ -329,7 +329,7 @@ class BiomeRegistrationTest {
                 Biome.HELL, Biome.THE_END, Biome.SAVANNA,
                 Biome.SAVANNA_PLATEAU, Biome.MESA, Biome.MESA_PLATEAU_F,
                 Biome.MESA_PLATEAU, Biome.DESERT_M, Biome.SAVANNA_M,
-                Biome.SAVANNA_PLATEAU_M, Biome.MESA_M, Biome.MESA_PLATEAU_F_M,
+                Biome.SAVANNA_PLATEAU_M, Biome.MESA_BRYCE, Biome.MESA_PLATEAU_F_M,
                 Biome.MESA_PLATEAU_M}) {
             assertFalse(dry.snowy(), "the dry family is never snowy: " + dry);
             assertFalse(dry.rainy(), "the disableRain refusal: " + dry);
@@ -443,7 +443,7 @@ class BiomeRegistrationTest {
     @Test
     void theTypeFamilyConsultCarriesTheReferenceLaw() {
         assertTrue(Biome.FOREST.is(Biome.FOREST));
-        assertTrue(Biome.FOREST.is(Biome.FOREST_M),
+        assertTrue(Biome.FOREST.is(Biome.FLOWER_FOREST),
                 "the mutated forest resolves through its original");
         assertTrue(Biome.FOREST.is(Biome.BIRCH_FOREST),
                 "ForestBiome covers the birch row — the reference's own law");

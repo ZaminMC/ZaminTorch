@@ -621,14 +621,25 @@ public final class EngineWorld implements World {
      */
     @Override
     public String biomeAt(BlockPosition position) {
-        EngineChunk chunk = peek(position.chunkPosition());
+        return biomeValueAt(position.x(), position.z())
+                .name().toLowerCase(java.util.Locale.ROOT);
+    }
+
+    /**
+     * @return the biome row at the column (the chunk's own stored row —
+     * the reference's {@code world.getBiome(pos)} read the natural spawn
+     * cycle's table consult rides): plains outside loaded chunks (the
+     * engine's border gate — the reference would force the generation,
+     * the engine's own named stand-in from the earlier slices).
+     */
+    public Biome biomeValueAt(int x, int z) {
+        EngineChunk chunk = peek(new net.zaminmc.torch.block.ChunkPosition(
+                Math.floorDiv(x, 16), Math.floorDiv(z, 16)));
         if (chunk == null) {
-            return "plains";
+            return Biome.PLAINS;
         }
-        Biome biome = Biome.byLegacyId(
-                chunk.biome(position.localX(), position.localZ()));
-        return biome == null ? "plains"
-                : biome.name().toLowerCase(java.util.Locale.ROOT);
+        Biome biome = Biome.byLegacyId(chunk.biome(x & 15, z & 15));
+        return biome == null ? Biome.PLAINS : biome;
     }
 
     /** Applies a loaded delta snapshot. Owner-thread only, before chunks generate. */
