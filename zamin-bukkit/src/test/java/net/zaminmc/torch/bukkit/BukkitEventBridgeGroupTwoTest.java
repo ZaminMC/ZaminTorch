@@ -298,37 +298,49 @@ class BukkitEventBridgeGroupTwoTest {
 
     @Test
     @Order(7)
-    void theEntityBackedFamiliesStayHonestUnbridgedGaps() throws Exception {
+    void theEntityBackedFamiliesNowBridgeThroughTheViews() throws Exception {
         BukkitTestHarness harness = harness();
-        // The engine's own surfaces all work; the bridge must NOT have fired
-        // any of the unbridged families' legacy forms (§27.9: the entity
-        // views — LivingEntity, Item, Projectile, Vehicle — are the later
-        // slice; honest gaps over fake bridges, always).
-        int damageLinesBefore = countOf(harness.probeLogLines(), "event:damage");
+        // The slice-3 flip: the entity-adapter family landed, and the five
+        // families the slice-2 record demand-named now dispatch their
+        // legacy forms exactly when the engine's own surfaces run (the
+        // tripwire pattern kept, positive form — the probe's listeners
+        // for every family fire, and the engine's own spawn/damage/drop/
+        // launch/boat verdicts all still answer honestly).
         var pig = harness.server.mobs().spawnAt(MobType.PIG, new Position(60, 40, 60));
         assertNotNull(pig, "the pig spawned through the engine's own surface");
+        harness.await(() -> harness.probeLogContains(
+                "event:spawn type=PIG reason=DEFAULT at=(60.0,40.0,60.0)"),
+                "the wrapped pending view carried the spawn facts");
         float full = pig.health();
         assertTrue(harness.server.mobs().hurt(pig, 2.0f, 0.0),
                 "the mob damage landed through the engine's own surface");
+        harness.await(() -> harness.probeLogContains(
+                "event:mobdamage type=PIG cause=ENTITY_ATTACK amount=2.0"),
+                "the wrapped live view carried the damage facts");
         assertEquals(full - 2.0f, pig.health(), 1e-6f);
         harness.server.ticker().submit(() -> harness.server.itemEntities().spawnDropAtBlock(
                 new Position(62, 40, 60),
                 net.zaminmc.torch.item.ItemStack.of(BuiltinItems.DIAMOND, 1), 10));
-        harness.await(() -> !harness.server.itemEntities().all().isEmpty(),
-                "the item dropped through the engine's own surface");
+        harness.await(() -> harness.probeLogContains(
+                "event:itemspawn item=DIAMOND amount=1"),
+                "the wrapped pending item view carried the stack facts");
         assertNotNull(harness.server.projectiles().launch(
                 net.zaminmc.torch.server.entity.projectile.ProjectileEntity.Kind.ARROW,
                 -1, new Position(64, 40, 60), 0.0, 0.0, 1.5),
                 "the arrow launched through the engine's own surface");
+        harness.await(() -> harness.probeLogContains(
+                "event:launch type=ARROW shooter=none"),
+                "the wrapped pending projectile view carried the launch facts");
         assertNotNull(harness.server.vehicles().spawnBoat(new Position(66, 40, 60)),
                 "the boat spawned through the engine's own surface");
-        Thread.sleep(400); // any wrongly-bridged dispatch would have landed
-        for (String line : harness.probeLogLines()) {
-            assertFalse(line.contains("UNBRIDGED-FIRED:"),
-                    "no unbridged family faked a dispatch: " + line);
-        }
-        assertEquals(damageLinesBefore, countOf(harness.probeLogLines(), "event:damage"),
-                "the mob's damage never dispatched the legacy player form either");
+        harness.await(() -> harness.probeLogContains(
+                "event:vehicle type=BOAT at=(66.0,40.0,60.0)"),
+                "the wrapped pending vehicle view carried the spawn facts");
+        // The cancelled twin — the diamond is withheld through the engine's
+        // own gate (the legacy cancel mapped back), so the drop returns
+        // null and no body lands.
+        harness.await(() -> harness.probeLogContains("cancel:itemspawn"),
+                "the legacy listener's cancel arm ran");
     }
 
     // ------------------------------------------------------------------ helpers

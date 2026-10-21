@@ -4,6 +4,7 @@ import net.zaminmc.torch.bukkit.BukkitAdapter;
 import net.zaminmc.torch.bukkit.world.TorchWorld;
 import net.zaminmc.torch.server.player.PlayerSession;
 
+import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
@@ -107,22 +108,51 @@ import java.util.logging.Level;
  *       when a plugin rewrites it).</li>
  * </ul>
  *
+ * <p><b>The third group's cancellation table (slice 3 — the entity
+ * adapters):</b></p>
+ * <ul>
+ *   <li>MobSpawn → CreatureSpawnEvent — pre-spawn cancellation SUPPORTED
+ *       both ways (the engine's own pre-construction gate). The legacy
+ *       form's entity is the PENDING view (the engine fires before the
+ *       body exists — no id consumed; the recorded §27.9 divergence
+ *       from the reference's post-construction fire); the spawn reason
+ *       answers {@code DEFAULT} (the native event carries no reason row
+ *       — the recorded approximation, the slice-2
+ *       EXPLOSION→ENTITY_EXPLOSION precedent).</li>
+ *   <li>MobDamage → EntityDamageEvent (the mob arm) — cancellation
+ *       SUPPORTED both ways; the mutable amount maps both ways (the
+ *       same both-ways law as the player arm). The entity is the LIVE
+ *       mob view (the native event fires over the live body).</li>
+ *   <li>MobDeath → EntityDeathEvent — NOT cancellable (the 1.8.8 shape
+ *       kept; the death is already authoritative); the drops list is
+ *       the honest UNMODIFIABLE EMPTY shim (the native event fires
+ *       pre-scatter — no honest drop list exists, the PlayerDeath
+ *       precedent); {@code droppedExp} is readable-not-applied (the
+ *       engine's scatter math is authoritative), logged on divergence.</li>
+ *   <li>ItemSpawn → ItemSpawnEvent — pre-spawn cancellation SUPPORTED
+ *       both ways; the entity is the pending Item view carrying the
+ *       stack's legacy value view (a snapshot — mutations never reach
+ *       the engine's stack).</li>
+ *   <li>ProjectileSpawn → ProjectileLaunchEvent — pre-launch
+ *       cancellation SUPPORTED both ways; the entity is the pending
+ *       Projectile view with the thrower resolved against the
+ *       adapter's own views (never an invented shooter).</li>
+ *   <li>VehicleSpawn → VehicleCreateEvent — NOT cancellable (the
+ *       1.8.8 shape kept — the reference's own VehicleCreateEvent
+ *       carries no cancel row; the native VehicleSpawnEvent keeps the
+ *       capability, §28.10's law: the compatibility limit stays in the
+ *       adapter).</li>
+ * </ul>
+ *
  * <p><b>The unbridged native families (the honest gaps, §27.9 — every one
- * recorded with its concrete reason, none faked):</b> the entity-backed
- * families — {@code MobSpawnEvent} → {@code CreatureSpawnEvent},
- * {@code MobDamageEvent}/{@code MobDeathEvent} →
- * {@code EntityDamageEvent}/{@code EntityDeathEvent} (the mob arm),
- * {@code ItemSpawnEvent} → {@code ItemSpawnEvent},
- * {@code ProjectileSpawnEvent} → {@code ProjectileLaunchEvent},
- * {@code VehicleSpawnEvent} → {@code VehicleCreateEvent} — need a
- * {@code org.bukkit.entity} view of the engine body (LivingEntity, Item,
- * Projectile, Vehicle) the adapter does not model in this slice (the
- * entity-adapter family is the adapter's own demand-named next slice);
- * the container family — {@code ChestOpenEvent} → InventoryOpenEvent,
+ * recorded with its concrete reason, none faked):</b> the container
+ * family — {@code ChestOpenEvent} → InventoryOpenEvent,
  * {@code DispenseEvent} → BlockDispenseEvent, {@code HopperTransferEvent}
  * → InventoryMoveItemEvent — needs a Bukkit Inventory/ItemStack view the
- * adapter does not model either. Each stays unbridged until its view
- * lands; honest gaps over fake bridges, always.</p>
+ * adapter does not model (the inventory family is the adapter's parallel
+ * slice — the same demand-named law this slice followed for the entity
+ * views). Each stays unbridged until its view lands; honest gaps over
+ * fake bridges, always.</p>
  *
  * <p><b>Reentrancy (§28.8 case 7):</b> a legacy listener may fire further
  * events through the manager's own {@code callEvent} (including of the
@@ -145,6 +175,7 @@ public final class TorchEventBridge {
     public void attach() {
         attachFirstGroup();
         attachSecondGroup();
+        attachThirdGroup();
     }
 
     /** The first group: the five subscriptions the first slice carried. */
@@ -488,6 +519,182 @@ public final class TorchEventBridge {
                 + "native cancel), each dispatch logged; the entity-backed families "
                 + "(mob/item/projectile/vehicle spawn+damage+death) and the container "
                 + "family stay unbridged — the recorded §27.9 gaps");
+    }
+
+    // ------------------------------------------------------------------ the third group (slice 3 — the entity adapters)
+
+    /**
+     * The third group's wiring: the six entity-backed families the
+     * slice-2 record demand-named — the org.bukkit.entity views
+     * ({@link net.zaminmc.torch.bukkit.entity.TorchMob} live over the
+     * damage/death bodies, the four pending views over the spawn
+     * facts) carrying every legacy form. Every constructor shape was
+     * verified against the pinned API artifact first (the slice-2
+     * javap law): CreatureSpawnEvent(LivingEntity,SpawnReason),
+     * ItemSpawnEvent(Item,Location), ProjectileLaunchEvent(Entity),
+     * VehicleCreateEvent(Vehicle), EntityDeathEvent(LivingEntity,List,int).
+     */
+    private void attachThirdGroup() {
+        net.zaminmc.torch.event.EventBus bus = adapter.engine().events();
+        // MobSpawn — the pre-construction spawn gate: cancellable both
+        // ways; the entity is the PENDING view (the class javadoc's
+        // recorded §27.9 divergence); the reason answers DEFAULT (the
+        // native event carries no reason row — the recorded
+        // approximation).
+        bus.on(net.zaminmc.torch.event.entity.MobSpawnEvent.class,
+                net.zaminmc.torch.event.EventPriority.FIRST,
+                engineEvent -> {
+                    org.bukkit.entity.EntityType type =
+                            net.zaminmc.torch.bukkit.entity.EntityTypeMap
+                                    .ofMobIdentifier(engineEvent.mobType());
+                    if (type == null) {
+                        // An engine kind with no 1.8.8 identity cannot be
+                        // named in the legacy event — the loud log, no
+                        // dispatch (never a wrong entity).
+                        return;
+                    }
+                    String bare = engineEvent.mobType().startsWith("minecraft:")
+                            ? engineEvent.mobType().substring("minecraft:".length())
+                            : engineEvent.mobType();
+                    net.zaminmc.torch.server.entity.MobType mobType =
+                            net.zaminmc.torch.server.entity.MobType.byName(bare);
+                    if (mobType == null) {
+                        return; // the EntityTypeMap already logged loudly
+                    }
+                    net.zaminmc.torch.bukkit.entity.TorchPendingMob view =
+                            new net.zaminmc.torch.bukkit.entity.TorchPendingMob(
+                                    adapter, mobType, engineEvent.position());
+                    org.bukkit.event.entity.CreatureSpawnEvent legacy =
+                            new org.bukkit.event.entity.CreatureSpawnEvent(
+                                    view,
+                                    org.bukkit.event.entity.CreatureSpawnEvent
+                                            .SpawnReason.DEFAULT);
+                    dispatch(legacy, "CreatureSpawn");
+                    engineEvent.setCancelled(legacy.isCancelled());
+                });
+        // MobDamage — the pre-commit damage gate over the LIVE body:
+        // cancellable both ways, the mutable amount mapped both ways
+        // (the player arm's own law).
+        bus.on(net.zaminmc.torch.event.entity.MobDamageEvent.class,
+                net.zaminmc.torch.event.EventPriority.FIRST,
+                engineEvent -> {
+                    if (!(engineEvent.entity()
+                            instanceof net.zaminmc.torch.server.entity.MobEntity mob)) {
+                        // A foreign living body: not the adapter's to
+                        // bridge — the loud log, no dispatch.
+                        adapter.logger().warning(() -> "MobDamage: the body '"
+                                + engineEvent.entity().typeIdentifier()
+                                + "' is not an engine mob — the event was not bridged");
+                        return;
+                    }
+                    net.zaminmc.torch.bukkit.entity.TorchMob view =
+                            adapter.mobView(mob);
+                    EntityDamageEvent legacy = new EntityDamageEvent(
+                            view, legacyDamageCause(engineEvent.cause()),
+                            engineEvent.amount());
+                    dispatch(legacy, "EntityDamage(mob)");
+                    engineEvent.setCancelled(legacy.isCancelled());
+                    if ((float) legacy.getDamage() != engineEvent.amount()) {
+                        // The legacy setDamage maps onto the engine's own
+                        // mutable amount — the native event's contract.
+                        engineEvent.amount((float) legacy.getDamage());
+                    }
+                    // The last-damage rows: the adapter-local presentation
+                    // state the view documents (the engine carries no
+                    // row — the native damage family is the observation
+                    // surface).
+                    view.lastDamageCause(legacy);
+                });
+        // MobDeath — the post-commit death observation over the LIVE
+        // body: not cancellable (the 1.8.8 shape); the honest empty
+        // drops shim; the exp rows readable-not-applied.
+        bus.on(net.zaminmc.torch.event.entity.MobDeathEvent.class,
+                net.zaminmc.torch.event.EventPriority.FIRST,
+                engineEvent -> {
+                    if (!(engineEvent.entity()
+                            instanceof net.zaminmc.torch.server.entity.MobEntity mob)) {
+                        adapter.logger().warning(() -> "MobDeath: the body '"
+                                + engineEvent.entity().typeIdentifier()
+                                + "' is not an engine mob — the event was not bridged");
+                        return;
+                    }
+                    net.zaminmc.torch.bukkit.entity.TorchMob view =
+                            adapter.mobView(mob);
+                    org.bukkit.event.entity.EntityDeathEvent legacy =
+                            new org.bukkit.event.entity.EntityDeathEvent(
+                                    view, List.of(), 0);
+                    dispatch(legacy, "EntityDeath(mob)");
+                    // The readable-but-not-applied row (§27.9): the drops
+                    // view is the unmodifiable empty shim (the native
+                    // event fires pre-scatter — no honest drop list
+                    // exists, the PlayerDeath precedent); the engine's
+                    // scatter math is authoritative for the exp rows.
+                    if (legacy.getDroppedExp() != 0) {
+                        divergence("EntityDeath.setDroppedExp");
+                    }
+                });
+        // ItemSpawn — the pre-spawn drop gate: cancellable both ways;
+        // the entity is the pending Item view over the stack's legacy
+        // value view.
+        bus.on(net.zaminmc.torch.event.entity.ItemSpawnEvent.class,
+                net.zaminmc.torch.event.EventPriority.FIRST,
+                engineEvent -> {
+                    ItemStack stack = legacyItemView(engineEvent.stack(),
+                            "ItemSpawn.stack");
+                    if (stack == null) {
+                        return; // the unmapped item already logged loudly
+                    }
+                    net.zaminmc.torch.bukkit.entity.TorchPendingItem view =
+                            new net.zaminmc.torch.bukkit.entity.TorchPendingItem(
+                                    adapter, stack, engineEvent.position());
+                    Location at = view.getLocation();
+                    org.bukkit.event.entity.ItemSpawnEvent legacy =
+                            new org.bukkit.event.entity.ItemSpawnEvent(view, at);
+                    dispatch(legacy, "ItemSpawn");
+                    engineEvent.setCancelled(legacy.isCancelled());
+                });
+        // ProjectileSpawn — the pre-launch gate: cancellable both
+        // ways; the entity is the pending Projectile view with the
+        // thrower resolved against the adapter's own views.
+        bus.on(net.zaminmc.torch.event.entity.ProjectileSpawnEvent.class,
+                net.zaminmc.torch.event.EventPriority.FIRST,
+                engineEvent -> {
+                    net.zaminmc.torch.bukkit.entity.TorchPendingProjectile view =
+                            new net.zaminmc.torch.bukkit.entity.TorchPendingProjectile(
+                                    adapter, engineEvent.kind(),
+                                    engineEvent.throwerEntityId(),
+                                    engineEvent.position());
+                    org.bukkit.event.entity.ProjectileLaunchEvent legacy =
+                            new org.bukkit.event.entity.ProjectileLaunchEvent(view);
+                    dispatch(legacy, "ProjectileLaunch");
+                    engineEvent.setCancelled(legacy.isCancelled());
+                });
+        // VehicleSpawn — the pre-spawn gate: the 1.8.8 form carries NO
+        // cancel row (the reference's own shape — the native gate keeps
+        // the capability, §28.10's law); the entity is the pending
+        // Vehicle view.
+        bus.on(net.zaminmc.torch.event.entity.VehicleSpawnEvent.class,
+                net.zaminmc.torch.event.EventPriority.FIRST,
+                engineEvent -> {
+                    net.zaminmc.torch.bukkit.entity.TorchPendingVehicle view =
+                            new net.zaminmc.torch.bukkit.entity.TorchPendingVehicle(
+                                    adapter, engineEvent.kind(),
+                                    engineEvent.position());
+                    org.bukkit.event.vehicle.VehicleCreateEvent legacy =
+                            new org.bukkit.event.vehicle.VehicleCreateEvent(view);
+                    dispatch(legacy, "VehicleCreate");
+                    // NOT cancellable in the 1.8.8 form — the native
+                    // VehicleSpawnEvent's own cancel arm stays the
+                    // engine-side verb (the class javadoc's table).
+                });
+        adapter.logger().info("The event bridge's third group is wired: MobSpawn, "
+                + "MobDamage, MobDeath, ItemSpawn, ProjectileSpawn, VehicleSpawn "
+                + "(the entity adapters' five families) — cancellation: spawn/damage/"
+                + "launch pre-commit SUPPORTED both ways, death + vehicle-create not "
+                + "cancellable in the legacy forms (the 1.8.8 shapes; the native gates "
+                + "keep their own cancel arms), each dispatch logged; the container "
+                + "family stays unbridged — the recorded §27.9 gap (the parallel "
+                + "inventory slice's own lane)");
     }
 
     // ------------------------------------------------------------------ the dispatch
