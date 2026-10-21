@@ -109,8 +109,12 @@ public final class PistonPushEvent implements Event {
 
     /**
      * The pushed body's public handle (§27.5: the engine object IS the
-     * handle — a mob, a dropped item, or a vehicle; the players are
-     * exempt). Position reads reflect the ALREADY-PUSHED body.
+     * handle — a mob, a dropped item, a vehicle, an XP orb, a primed TNT,
+     * a falling block, or a projectile; the players are exempt). Position
+     * reads reflect the ALREADY-PUSHED body. A family with no api type yet
+     * (the armor stand) carries a NULL row — the family's own §27.5
+     * exposure is the demand-named follow-up; the event still fires (the
+     * observation never silently skips a family).
      */
     public Entity pushed() {
         return pushed;

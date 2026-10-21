@@ -25107,6 +25107,11 @@ public final class EngineServer implements Server, EngineBridge {
             implements net.zaminmc.torch.server.piston.PistonSystem.Pushable {
 
         @Override
+        public net.zaminmc.torch.entity.Entity apiEntity() {
+            return orb; // the engine object IS the handle (§27.5 — ExperienceOrb)
+        }
+
+        @Override
         public void pushBy(double dx, double dy, double dz) {
             orbs.pushOrb(orb, dx, dy, dz);
         }
@@ -25126,6 +25131,16 @@ public final class EngineServer implements Server, EngineBridge {
             implements net.zaminmc.torch.server.piston.PistonSystem.Pushable {
 
         @Override
+        public net.zaminmc.torch.entity.Entity apiEntity() {
+            // The stand family carries NO §27.5 handle yet (no api type
+            // exists — the family's own exposure is the demand-named
+            // follow-up); the null row is the honest answer, the event's
+            // javadoc names it. The push itself lands — the observation
+            // never silently skips a family.
+            return null;
+        }
+
+        @Override
         public void pushBy(double dx, double dy, double dz) {
             stands.pushStand(stand, dx, dy, dz);
         }
@@ -25141,6 +25156,11 @@ public final class EngineServer implements Server, EngineBridge {
             net.zaminmc.torch.server.tnt.TntSystem.PrimedTnt tnt,
             net.zaminmc.torch.server.tnt.TntSystem tnts)
             implements net.zaminmc.torch.server.piston.PistonSystem.Pushable {
+
+        @Override
+        public net.zaminmc.torch.entity.Entity apiEntity() {
+            return tnt; // the engine object IS the handle (§27.5 — PrimedTnt)
+        }
 
         @Override
         public void pushBy(double dx, double dy, double dz) {
@@ -25160,6 +25180,11 @@ public final class EngineServer implements Server, EngineBridge {
             implements net.zaminmc.torch.server.piston.PistonSystem.Pushable {
 
         @Override
+        public net.zaminmc.torch.entity.Entity apiEntity() {
+            return fallingBody; // the engine object IS the handle (§27.5 — FallingBlock)
+        }
+
+        @Override
         public void pushBy(double dx, double dy, double dz) {
             fallings.pushFalling(fallingBody, dx, dy, dz);
         }
@@ -25175,6 +25200,11 @@ public final class EngineServer implements Server, EngineBridge {
             net.zaminmc.torch.server.entity.projectile.ProjectileEntity projectile,
             net.zaminmc.torch.server.entity.projectile.ProjectileManager projectiles)
             implements net.zaminmc.torch.server.piston.PistonSystem.Pushable {
+
+        @Override
+        public net.zaminmc.torch.entity.Entity apiEntity() {
+            return projectile; // the engine object IS the handle (§27.5 — Projectile)
+        }
 
         @Override
         public void pushBy(double dx, double dy, double dz) {
