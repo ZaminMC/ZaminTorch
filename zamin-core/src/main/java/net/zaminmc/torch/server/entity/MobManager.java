@@ -493,6 +493,26 @@ public final class MobManager {
          */
         default void onZombieStateChanged(MobEntity mob) {
         }
+
+        /**
+         * The zombie's door-break stage moved (VIII9 —
+         * BreakDoorGoal.tick's {@code updateBlockMiningProgress} over the
+         * MOB's own wire id: the Block Break Animation (0x28) carrying the
+         * 0-9 crack stage, -1 the clear the goal's stop()/completion
+         * publishes).
+         */
+        default void onZombieDoorBreakProgress(MobEntity mob, int x, int y, int z,
+                                               int stage) {
+        }
+
+        /**
+         * The zombie's door break completed (VIII9 — BreakDoorGoal.tick
+         * lines 53-57, the 240th tick on HARD): the door cell's removal +
+         * the 1012 door-break event + the 2001 block-dust burst land at
+         * the bridge.
+         */
+        default void onZombieDoorBroken(MobEntity mob, int x, int y, int z) {
+        }
     }
 
     private final MobEntity.WorldQuery world;
@@ -515,6 +535,18 @@ public final class MobManager {
     private volatile java.util.function.Consumer<Runnable> goalAdmission;
     /** The difficulty read (0 peaceful .. 3 hard); null until wired. */
     private volatile java.util.function.IntSupplier difficultyRead;
+
+    /**
+     * The village system (VIII10 — the villager's mating gate + scan
+     * cadence, the golem's defense consult, the reputation hooks); null
+     * until the engine wires it.
+     */
+    private volatile net.zaminmc.torch.server.village.VillageSystem villageSystem;
+
+    /** Wires the village surface (the engine's own boot). */
+    public void setVillageSystem(net.zaminmc.torch.server.village.VillageSystem system) {
+        this.villageSystem = java.util.Objects.requireNonNull(system, "system");
+    }
     /**
      * The crafting consult for the sheep's offspring color (Slice 30b —
      * SheepEntity.getColorForOffspring's own
@@ -808,6 +840,13 @@ public final class MobManager {
             // multiplier).
             mob.setCanPickUpLoot(random.nextFloat() < 0.55F * localDifficultyMultiplier());
         }
+        if (type == MobType.ZOMBIE) {
+            // VIII9 — initialize line 430: the door-break arming roll
+            // ({@code nextFloat() < f * 0.1F}, f the local difficulty
+            // multiplier), BEFORE the equipment dice exactly as the
+            // reference orders the initialize walk.
+            rollZombieCanBreakDoors(mob, random, localDifficultyMultiplier());
+        }
         if (type == MobType.SKELETON || type == MobType.ZOMBIE) {
             // The armor family's spawn dice (VIII4 — MobEntity
             // .addRandomEquipment lines 593-623 through the family's own
@@ -819,10 +858,20 @@ public final class MobManager {
             rollSpawnEquipment(mob, random, localDifficultyMultiplier(),
                     difficultyId());
         }
+        if (type == MobType.ZOMBIE) {
+            // VIII9 — initialize lines 447-451: the leader roll, AFTER the
+            // equipment dice (the reference's own order). The leader gains
+            // the reinforcement bonus, the 40..100 health band, and the
+            // forced door-break.
+            rollZombieLeader(mob, random, localDifficultyMultiplier());
+        }
         if (type == MobType.VILLAGER) {
             // VillagerEntity's own constructor arm (line 322): the
             // villager ALWAYS picks up (the food-in-hand walk).
             mob.setCanPickUpLoot(true);
+            // VIII10 — the mating gate consult (the manager's own village
+            // walk over checkVillageValidity's gates).
+            mob.setVillagerMatingGate(() -> villagerMatingGate(mob));
         }
         if (type == MobType.WITCH) {
             // The drink ladder's hasStatusEffect gates (mobTick lines
@@ -1245,6 +1294,34 @@ public final class MobManager {
             // The breeding clocks (the vanilla love/age/breed-goal trio).
             tickBreedingFor(mob);
 
+            // VIII10 — mobAiTick's village scan cadence (VillagerEntity
+            // lines 353-368): the 70 + nextInt(50) window marks the
+            // villager's cell for the door census (the reference's own
+            // markForUpdate call) and pays the converted-zombie's +5
+            // reputation over the villager's own village once (lines
+            // 363-366 — the cured villager's first scan).
+            if (mob.type() == MobType.VILLAGER && villageSystem != null
+                    && mob.tickVillagerScanCooldown(random)) {
+                Position at = mob.position();
+                int scanX = (int) Math.floor(at.x());
+                int scanY = (int) Math.floor(at.y());
+                int scanZ = (int) Math.floor(at.z());
+                villageSystem.markForUpdate(scanX, scanY, scanZ);
+                if (mob.consumeVillagerConvertedZombie()) {
+                    var village = villageSystem.nearestVillage(scanX, scanY, scanZ, 32);
+                    if (village != null) {
+                        village.updateAllReputations(5);
+                    }
+                }
+            }
+            // VIII10 — the golem's village defense (IronGolemEntity
+            // .mobAiTick lines 66-79 + TrackIronGolemTargetGoal): the
+            // target consult runs BEFORE the mind's own walk so the
+            // defense target owns the hunt.
+            if (mob.type() == MobType.IRON_GOLEM) {
+                tickGolemVillageDefense(mob);
+            }
+
             boolean wasPriming = mob.fuseActive();
             boolean wasBurning = mob.burning();
             int wasHorseFlags = mob.horseFlagsRaw();
@@ -1561,8 +1638,26 @@ public final class MobManager {
                         break;
                     }
                 }
-                if (!customerStanding) {
-                    mob.tickVillagerLevelUp();
+                if (!customerStanding && mob.tickVillagerLevelUp()) {
+                    // VIII10 — the level-up's own arms (VillagerEntity
+                    // lines 382-385): the happy burst (doEntityEvent 14)
+                    // and the village's +1 reputation for the last
+                    // successful trade's customer (the ledgered note the
+                    // village surface retires).
+                    for (Listener listener : listeners) {
+                        listener.onMobStatusEvent(mob, 14);
+                    }
+                    net.zaminmc.torch.server.village.VillageSystem villages = villageSystem;
+                    String customer = mob.villagerLastTradeCustomer();
+                    if (villages != null && !customer.isEmpty()) {
+                        Position at = mob.position();
+                        var village = villages.nearestVillage(
+                                (int) Math.floor(at.x()), (int) Math.floor(at.y()),
+                                (int) Math.floor(at.z()), 32);
+                        if (village != null) {
+                            village.updateReputation(customer, 1);
+                        }
+                    }
                 }
             }
             // The pigman's attacker re-acquisition (Slice 21e —
@@ -1717,6 +1812,33 @@ public final class MobManager {
             if (mob.consumeZombieConversionComplete()) {
                 pendingConversions.add(mob);
             }
+            // The zombie's door-break publications (VIII9 — the goal's
+            // per-tick walk): the crack stage on change (the -1 clear at
+            // the goal's stop), the 1-in-20 knock (the doEvent 1010), and
+            // the 240-on-HARD completion (the door cell's removal + the
+            // 1012/2001 pair at the bridge).
+            int doorStage = mob.consumeZombieDoorStage();
+            if (doorStage != -2) {
+                for (Listener listener : listeners) {
+                    listener.onZombieDoorBreakProgress(mob,
+                            mob.zombieBreakDoorX(), mob.zombieBreakDoorY(),
+                            mob.zombieBreakDoorZ(), doorStage);
+                }
+            }
+            if (mob.consumeZombieDoorKnock()) {
+                for (Listener listener : listeners) {
+                    listener.onWorldEventAt(new Position(
+                            mob.zombieBreakDoorX() + 0.5, mob.zombieBreakDoorY() + 0.5,
+                            mob.zombieBreakDoorZ() + 0.5), 1010);
+                }
+            }
+            if (mob.consumeZombieDoorBroken()) {
+                for (Listener listener : listeners) {
+                    listener.onZombieDoorBroken(mob,
+                            mob.zombieBreakDoorX(), mob.zombieBreakDoorY(),
+                            mob.zombieBreakDoorZ());
+                }
+            }
             // The breed polls (the vanilla goal's landing converts into the
             // real spawn after the loop — the manager owns the mob lifecycle).
             MobEntity mate = mob.consumePendingBreed();
@@ -1751,8 +1873,13 @@ public final class MobManager {
         // GoalSelector order: A's breed resets BOTH loves before B's own
         // goal walk runs, so a same-tick double request lands ONE child;
         // the deferred flush re-reads the love gate for the same shape).
+        // VIII10 — the villager's own gate is the WILLING pair
+        // (VillagerMatingGoal.breed line 74's getMating read): the food
+        // model's flag stands where the love clock does.
         for (MobEntity[] pair : pendingBreeds) {
-            if (pair[0].isInLove() && pair[1].isInLove()) {
+            if (pair[0].type() == MobType.VILLAGER
+                    ? pair[0].villagerWilling() && pair[1].villagerWilling()
+                    : pair[0].isInLove() && pair[1].isInLove()) {
                 breed(pair[0], pair[1]);
             }
         }
@@ -2435,6 +2562,10 @@ public final class MobManager {
             if (baby) {
                 villager.setBreedingAge(-24_000);
             }
+            // VIII10 — setConvertedZombie (VillagerEntity line 523): the
+            // marker arms the +5 reputation walk at the villager's next
+            // village-scan cadence (mobAiTick lines 363-366).
+            villager.setVillagerConvertedZombie();
             net.zaminmc.torch.server.potion.PotionSystem potions = potionSystem;
             if (potions != null) {
                 potions.add(villager, new net.zaminmc.torch.server.potion.StatusEffectInstance(
@@ -2554,6 +2685,23 @@ public final class MobManager {
     public boolean hurt(MobEntity mob, float amount, double attackerYaw,
                  net.zaminmc.torch.event.DamageCause cause, boolean endermiteAttacker,
                  boolean arrowSource, MobEntity attacker) {
+        return hurt(mob, amount, attackerYaw, cause, endermiteAttacker,
+                arrowSource, attacker, null);
+    }
+
+    /**
+     * The full walk with the attacking PLAYER's identity (VIII9 — the
+     * reference's {@code DamageSource.getAttacker()} read the zombie's
+     * reinforcement ladder carries: the roll's target resolution answers
+     * the body's own attack target first, then the wound's living
+     * attacker — a player's melee or arrow reaches the callee's
+     * setAttackTarget through this seat). The player paths (the melee
+     * site, the arrow site) are the only callers that carry the session.
+     */
+    public boolean hurt(MobEntity mob, float amount, double attackerYaw,
+                 net.zaminmc.torch.event.DamageCause cause, boolean endermiteAttacker,
+                 boolean arrowSource, MobEntity attacker,
+                 PlayerSession attackingPlayer) {
         Objects.requireNonNull(mob, "mob");
         if (amount <= 0 || mob.dead()) {
             return false;
@@ -2647,11 +2795,143 @@ public final class MobManager {
                 mob.beginDragonDeath();
                 return true;
             }
+            // VIII10 — the villager's death reputation (VillagerEntity.die
+            // lines 532-550) + the golem's own −5 arm (IronGolemEntity.die
+            // lines 239-245): the village's table moves at the death itself.
+            if (mob.type() == MobType.VILLAGER) {
+                villagerDeathHook(mob, attacker, attackingPlayer);
+            } else if (mob.type() == MobType.IRON_GOLEM) {
+                golemDeathHook(mob, attackingPlayer);
+            }
             for (Listener listener : listeners) {
                 listener.onMobDied(mob);
             }
         }
+        // VIII9 — ZombieEntity.takeDamage lines 191-233: the landed wound's
+        // own reinforcement ladder (the reference's whole roll sits inside
+        // the {@code if (super.takeDamage(...))} verdict — even a killing
+        // blow calls). The walk answers true below, the roll rides here.
+        if (mob.type() == MobType.ZOMBIE) {
+            callZombieReinforcements(mob, attacker, attackingPlayer);
+        }
+        // VIII10 — the villager's wound hook (VillagerEntity.setAttacker
+        // lines 512-529): the attacker census + the player reputation arm.
+        if (mob.type() == MobType.VILLAGER) {
+            villagerWoundHook(mob, attacker, attackingPlayer);
+        }
         return true;
+    }
+
+    /**
+     * The zombie's reinforcement caller (VIII9 — ZombieEntity.takeDamage
+     * lines 199-227, 1:1 with the named gates): a landed wound on a HARD
+     * world rolls the body's own spawnReinforcements attribute — the
+     * target is the attack target first, then the wound's living
+     * attacker (a mob's claw or a player's hand) — and the 50-try flank
+     * walk ({@code nextInt(7, 40) * nextInt(-1, 1)} per axis, the
+     * reference's own shape) spawns the callee at the first cell that
+     * passes the whole gate family: the solid top below, the dark band
+     * ({@code getRawBrightness < 10} — the engine's sky-light consult,
+     * the named adaptation: the mob WorldQuery carries no block-light
+     * read), no player within 7, the spawn cell + headroom clear, no
+     * fluid. The callee takes the target (the mob arm through the mob
+     * target, the player arm through the forced hunt — the callee chases
+     * wherever the target stands), its own spawn dice ride the spawnAt
+     * walk (the local-difficulty multiplier the engine's dice read — the
+     * callee lands as a plain adult zombie, never the baby/villager
+     * rolls: the standing shape, named in the PR), and BOTH sides pay
+     * the 0.05 charge (the reference's caller/callee modifier pair).
+     *
+     * <p>The two gates the 1.8.8 reference does not carry — the task's
+     * own named additions, both adapted and documented: the same-family
+     * census cap (more than ten ZOMBIE bodies within 40 blocks of the
+     * caller refuses the call — the pack stays bounded) and the
+     * baby-caller refusal (a child zombie never calls).</p>
+     */
+    private void callZombieReinforcements(MobEntity caller,
+                                          MobEntity mobAttacker,
+                                          PlayerSession playerAttacker) {
+        // The reference's target resolution (lines 194-197): the body's
+        // own attack target first, then the wound's living attacker.
+        MobEntity targetMob = caller.mobAttackTarget();
+        if (targetMob == null) {
+            targetMob = mobAttacker;
+        }
+        if (targetMob == null && playerAttacker == null) {
+            return; // no living target: the ladder never runs
+        }
+        if (difficultyId() != 3) {
+            return; // HARD alone (line 200)
+        }
+        if (caller.isBaby()) {
+            return; // the named baby-caller refusal
+        }
+        // The named census cap: the same-family nearby walk.
+        int census = 0;
+        for (MobEntity kin : mobs) {
+            if (kin == caller || kin.dead() || kin.type() != MobType.ZOMBIE
+                    || kin.dimension() != caller.dimension()) {
+                continue;
+            }
+            double dx = kin.position().x() - caller.position().x();
+            double dy = kin.position().y() - caller.position().y();
+            double dz = kin.position().z() - caller.position().z();
+            if (dx * dx + dy * dy + dz * dz <= 40.0 * 40.0) {
+                census++;
+            }
+        }
+        if (census > 10) {
+            return; // the <=10 pack cap
+        }
+        if (random.nextFloat() >= caller.zombieReinforcementChance()) {
+            return; // the attribute roll (line 201)
+        }
+        int i = (int) Math.floor(caller.position().x());
+        int j = (int) Math.floor(caller.position().y());
+        int k = (int) Math.floor(caller.position().z());
+        for (int l = 0; l < 50; l++) {
+            // MathHelper.nextInt(random, 7, 40) * MathHelper.nextInt(random, -1, 1)
+            // — the reference's own flank shape (lines 208-210): 7..40
+            // blocks out, the axis sign -1..1.
+            int i1 = i + (7 + random.nextInt(34)) * (-1 + random.nextInt(3));
+            int j1 = j + (7 + random.nextInt(34)) * (-1 + random.nextInt(3));
+            int k1 = k + (7 + random.nextInt(34)) * (-1 + random.nextInt(3));
+            // hasSolidTop (line 211): the block below the cell.
+            if (!world.isSolid(i1 + 0.5, j1 - 1 + 0.5, k1 + 0.5)) {
+                continue;
+            }
+            // getRawBrightness < 10 — the dark band (the named adaptation).
+            if (world.skyLight(i1, j1, k1) >= 10) {
+                continue;
+            }
+            // isPlayerWithinRange(i1, j1, k1, 7.0) (line 213).
+            if (world.nearestPlayer(i1 + 0.5, j1, k1 + 0.5, 7.0) != null) {
+                continue;
+            }
+            // isUnobstructed + getCollisions-empty + containsLiquid (lines
+            // 214-216) — the engine's two-cell + fluid gates (the named
+            // adaptation: the box consult folds to the spawn cells).
+            if (world.isSolid(i1 + 0.5, j1 + 0.5, k1 + 0.5)
+                    || world.isSolid(i1 + 0.5, j1 + 1 + 0.5, k1 + 0.5)
+                    || world.inFluid(i1 + 0.5, j1 + 0.5, k1 + 0.5)) {
+                continue;
+            }
+            MobEntity callee = spawnAt(MobType.ZOMBIE, new Position(i1 + 0.5, j1, k1 + 0.5));
+            if (callee == null) {
+                continue; // the public spawn gate refused the body
+            }
+            // setAttackTarget (line 218): the callee chases the caller's
+            // own fight — the mob arm or the forced player hunt.
+            if (targetMob != null && !targetMob.dead()) {
+                callee.setMobAttackTarget(targetMob);
+            } else if (playerAttacker != null) {
+                callee.setForcedHuntPlayer(playerAttacker.engineEntityId());
+            }
+            // The charges (lines 220-222): both sides' chances fall 0.05.
+            caller.addZombieReinforcementModifier(-0.05F);
+            callee.addZombieReinforcementModifier(-0.05F);
+            break;
+        }
     }
 
     /**
@@ -2746,6 +3026,167 @@ public final class MobManager {
             }
             Position at = mob.position();
             lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()), drop);
+        }
+    }
+
+    // ------------------------------------- the village arms (VIII10)
+
+    /**
+     * The golem's village-defense consult (VIII10 — IronGolemEntity
+     * .mobAiTick lines 66-79's own village read over
+     * TrackIronGolemTargetGoal.canStart lines 19-39): the nearest village
+     * within 32, its attacker census first (the creeper excluded — the
+     * goal's own gate), the nearest live attacker becoming the golem's
+     * own target — the mob arm through the mob target, the player arm
+     * through the forced hunt — and the 1-in-20 bad-reputation player
+     * fallback when no attacker stands. The reference caches the village
+     * at the 70-120 cadence and the goal reads it every tick; the engine
+     * resolves the nearest village live (the same village the cadence
+     * would cache — the named adaptation, observably identical).
+     */
+    private void tickGolemVillageDefense(MobEntity golem) {
+        net.zaminmc.torch.server.village.VillageSystem villages = villageSystem;
+        if (villages == null) {
+            return;
+        }
+        Position at = golem.position();
+        int x = (int) Math.floor(at.x());
+        int y = (int) Math.floor(at.y());
+        int z = (int) Math.floor(at.z());
+        var village = villages.nearestVillage(x, y, z, 32);
+        if (village == null) {
+            return; // resetVillageRadius: the stroll stays the engine's own
+        }
+        int attackerId = villages.defenseAttackerId(village, x, y, z);
+        if (attackerId >= 0) {
+            MobEntity attackerMob = byId(attackerId);
+            if (attackerMob != null) {
+                golem.setMobAttackTarget(attackerMob);
+            } else {
+                golem.setForcedHuntPlayer(attackerId); // a player attacker
+            }
+            return;
+        }
+        // The 1-in-20 fallback (lines 30-33): the village's enemy player.
+        if (random.nextInt(20) == 0) {
+            String name = villages.defensePlayerName(village, x, y, z);
+            if (name != null) {
+                int playerId = villages.engineIdOfPlayer(name);
+                if (playerId >= 0) {
+                    golem.setForcedHuntPlayer(playerId);
+                }
+            }
+        }
+    }
+
+    /**
+     * The mating gate consult (VIII10 — VillagerMatingGoal
+     * .checkVillageValidity lines 83-90 over canStart's village read,
+     * lines 32-35): the nearest village within range 0 (the village must
+     * CONTAIN the villager), the canMate window, and the population under
+     * the 0.35-per-door band.
+     */
+    private boolean villagerMatingGate(MobEntity villager) {
+        net.zaminmc.torch.server.village.VillageSystem villages = villageSystem;
+        if (villages == null) {
+            return false;
+        }
+        Position at = villager.position();
+        var village = villages.nearestVillage(
+                (int) Math.floor(at.x()), (int) Math.floor(at.y()),
+                (int) Math.floor(at.z()), 0);
+        if (village == null) {
+            return false;
+        }
+        if (!village.canMate()) {
+            return false;
+        }
+        int allowed = (int) (village.doorCount() * 0.35);
+        return village.populationSize() < allowed;
+    }
+
+    /**
+     * The villager's wound hook (VIII10 — VillagerEntity.setAttacker
+     * lines 512-529): the village registers ANY living attacker in its
+     * census (the golem's defense consult walks it), and a PLAYER
+     * attacker costs reputation — a baby's wound −3, an adult's −1 —
+     * with the angry-particles event 13.
+     */
+    private void villagerWoundHook(MobEntity villager, MobEntity mobAttacker,
+                                   PlayerSession playerAttacker) {
+        net.zaminmc.torch.server.village.VillageSystem villages = villageSystem;
+        if (villages == null) {
+            return;
+        }
+        Position at = villager.position();
+        var village = villages.nearestVillage(
+                (int) Math.floor(at.x()), (int) Math.floor(at.y()),
+                (int) Math.floor(at.z()), 32);
+        if (village == null) {
+            return;
+        }
+        if (mobAttacker != null && !mobAttacker.dead()) {
+            village.addOrUpdateAttacker(mobAttacker.entityId(), false,
+                    mobAttacker.type().name());
+        } else if (playerAttacker != null) {
+            village.addOrUpdateAttacker(playerAttacker.engineEntityId(), true, null);
+            village.updateReputation(playerAttacker.name(), villager.isBaby() ? -3 : -1);
+            for (Listener listener : listeners) {
+                listener.onMobStatusEvent(villager, 13); // the angry particles
+            }
+        }
+    }
+
+    /**
+     * The villager's death hook (VIII10 — VillagerEntity.die lines
+     * 532-550): a player's kill costs −2 reputation; a monster's kill
+     * closes the village's mating window; a stranger's death with a
+     * player watching within 16 blocks closes it too.
+     */
+    private void villagerDeathHook(MobEntity villager, MobEntity mobAttacker,
+                                   PlayerSession playerAttacker) {
+        net.zaminmc.torch.server.village.VillageSystem villages = villageSystem;
+        if (villages == null) {
+            return;
+        }
+        Position at = villager.position();
+        var village = villages.nearestVillage(
+                (int) Math.floor(at.x()), (int) Math.floor(at.y()),
+                (int) Math.floor(at.z()), 32);
+        if (village == null) {
+            return;
+        }
+        if (playerAttacker != null) {
+            village.updateReputation(playerAttacker.name(), -2);
+        } else if (mobAttacker != null && mobAttacker.type().hostile) {
+            village.stopMating();
+        } else if (mobAttacker == null) {
+            // die lines 541-546: a player watching within 16 blocks
+            if (world.nearestPlayer(at.x(), at.y(), at.z(), 16.0) != null) {
+                village.stopMating();
+            }
+        }
+    }
+
+    /**
+     * The golem's death hook (VIII10 — IronGolemEntity.die lines
+     * 239-245): a player killing a VILLAGE golem costs −5 reputation
+     * (the pattern-built golem never turns on its builder's village).
+     */
+    private void golemDeathHook(MobEntity golem, PlayerSession playerAttacker) {
+        if (playerAttacker == null || golem.golemPlayerCreated()) {
+            return;
+        }
+        net.zaminmc.torch.server.village.VillageSystem villages = villageSystem;
+        if (villages == null) {
+            return;
+        }
+        Position at = golem.position();
+        var village = villages.nearestVillage(
+                (int) Math.floor(at.x()), (int) Math.floor(at.y()),
+                (int) Math.floor(at.z()), 32);
+        if (village != null) {
+            village.updateReputation(playerAttacker.name(), -5);
         }
     }
 
@@ -3106,6 +3547,35 @@ public final class MobManager {
     }
 
     /**
+     * The zombie's door-break arming roll (VIII9 — initialize line 430
+     * 1:1): {@code setCanBreakDoors(nextFloat() < f * 0.1F)}, f the local
+     * difficulty multiplier. Package-private static so the seeded dice
+     * tests drive it with their own random.
+     */
+    static void rollZombieCanBreakDoors(MobEntity mob, Random random,
+                                        float localMultiplier) {
+        mob.setZombieCanBreakDoors(random.nextFloat() < localMultiplier * 0.1F);
+    }
+
+    /**
+     * The zombie's leader roll (VIII9 — initialize lines 447-451 1:1): a
+     * {@code nextFloat() < f * 0.05F} roll arms the LEADER — the
+     * reinforcement attribute's own bonus ({@code nextDouble() * 0.25 +
+     * 0.5}, the additive op-0 band), MAX_HEALTH's own op-2 multiply
+     * ({@code nextDouble() * 3.0 + 1.0} over the plain 20 — the 40..100
+     * ceiling the famous leader zombies carry), and the forced
+     * door-break. Package-private static for the seeded dice tests.
+     */
+    static void rollZombieLeader(MobEntity mob, Random random,
+                                 float localMultiplier) {
+        if (random.nextFloat() < localMultiplier * 0.05F) {
+            mob.addZombieReinforcementModifier(random.nextDouble() * 0.25 + 0.5);
+            mob.applyZombieLeaderHealth(random.nextDouble() * 3.0 + 1.0);
+            mob.setZombieCanBreakDoors(true);
+        }
+    }
+
+    /**
      * The armor family's spawn dice (VIII4 — MobEntity.addRandomEquipment
      * lines 593-623, 1:1): the 0.15-times-multiplier gate, then the
      * equipment level roll — {@code nextInt(2)} widened by three 0.095
@@ -3272,6 +3742,22 @@ public final class MobManager {
         if (stack == null || equipmentSlotOf(stack) > 0) {
             return; // the armor pickup arm: demand-named (see the javadoc)
         }
+        // VIII10 — the villager's own updateInventory override
+        // (VillagerEntity lines 821-832): the food family lands in the
+        // 8-slot food stock (the willing model's own inventory), never
+        // the hand — the whole stack lands or the remainder rides the
+        // item back (SimpleInventory.addItem's own shape). The villager
+        // never despawns (its own canDespawn false), so the pickup walk's
+        // persistence pin rides the held arm alone.
+        if (mob.type() == MobType.VILLAGER) {
+            ItemStack remainder = mob.villagerAcceptFood(stack);
+            if (remainder == null) {
+                items.collectByMob(item, mob);
+            } else if (remainder != stack) {
+                item.setStack(remainder);
+            }
+            return;
+        }
         ItemStack held = mob.heldEquipment();
         boolean better;
         if (held == null) {
@@ -3428,6 +3914,13 @@ public final class MobManager {
         parent.resetLove();
         mate.resetLove();
         baby.setBreedingAge(MobEntity.CHILDHOOD_TICKS);
+        if (parent.type() == MobType.VILLAGER) {
+            // VIII10 — VillagerMatingGoal.breed lines 96-97: the villagers'
+            // own willing flag clears at the breed (the food model's
+            // cooldown is the breeding-age pair the engine walk lands).
+            parent.setVillagerWilling(false);
+            mate.setVillagerWilling(false);
+        }
         for (Listener listener : listeners) {
             listener.onMobBred(parent, mate, baby, causePlayerId);
             listener.onMobLoveBurst(parent); // the celebration hearts

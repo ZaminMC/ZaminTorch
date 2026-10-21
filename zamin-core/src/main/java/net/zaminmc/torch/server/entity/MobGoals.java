@@ -46,16 +46,50 @@ final class MobGoals {
     };
 
     /**
+     * Priority 1, exclusive (the band's second seat — a hurt body panics
+     * first, a pressed one breaks): the zombie's door break (VIII9 —
+     * BreakDoorGoal 1:1): a canBreakDoors-armed zombie that clips a
+     * closed wooden door mid-walk claims it — the 240-tick hardness walk
+     * with the 0-9 crack stages, the 1-in-20 knock sound, and the
+     * HARD-alone completion (the door cell's removal + the 1012/2001
+     * pair). The arming happens at the body's own clip site (the
+     * reference's canStart reads collidingHorizontally + the live path —
+     * the named adaptation the detour intercept carries); this goal's
+     * canUse is the sticky walk, the tick the progress clock.
+     */
+    static final MobGoal BREAK_DOOR = new MobGoal() {
+        @Override public String goalId() { return "break_door"; }
+        @Override public int priority() { return 1; }
+        @Override public boolean exclusive() { return true; }
+        @Override public boolean canUse(MobEntity mob, boolean night) {
+            return mob.goalZombieBreakDoorCanUse();
+        }
+        @Override public void tick(MobEntity mob, boolean night) {
+            mob.goalZombieBreakDoorTick();
+        }
+    };
+
+    /**
      * Priority 2, exclusive: the breeding drive (the vanilla AnimalBreedGoal).
      * A loved body scans for the nearest legal partner, walks to it, and
      * after 60 ticks inside the 3-block band the breed lands through the
      * pending flag (the manager executes it — it owns spawning).
+     *
+     * <p>VIII10 — the VILLAGER's own arm (VillagerMatingGoal over the
+     * same breed surface): the 1-in-500 cadence, the village's census
+     * gate, the food/willing model (the 3-bread/12-potato/12-carrot
+     * consume arms the willing at the attempt), and the mate scan over
+     * the willing pair — the walk itself (the proximity window + the
+     * request) rides the shared shape.</p>
      */
     static final MobGoal BREED = new MobGoal() {
         @Override public String goalId() { return "breed"; }
         @Override public int priority() { return 2; }
         @Override public boolean exclusive() { return true; }
         @Override public boolean canUse(MobEntity mob, boolean night) {
+            if (mob.type() == MobType.VILLAGER) {
+                return mob.goalVillagerMatingCanUse();
+            }
             return mob.isInLove() && mob.findMate() != null;
         }
         @Override public void tick(MobEntity mob, boolean night) {
@@ -182,15 +216,18 @@ final class MobGoals {
     };
 
     /**
-     * The selector the mob runs: float + panic + breed + the awareness band
-     * (beg, tempt, flee — the wolf and the ocelot's own, all kind-gated)
-     * + the rabbit's garden raid + stroll, in priority order. The band-3
+     * The selector the mob runs: float + panic + the zombie's door break
+     * + breed + the awareness band (beg, tempt, flee — the wolf and the
+     * ocelot's own, all kind-gated) + the rabbit's garden raid + stroll,
+     * in priority order. The band-1 order matters: the panic claims a
+     * hurt body first, the door break a pressed one (the reference's own
+     * 1-band; a hurt zombie runs, it does not stop to break). The band-3
      * order matters: the beg is additive so it runs first every tick, then
      * the tempt outranks the flee (the reference's own 3-over-4), so a
      * fish-holder holds a tempted cat even with players around.
      */
     static GoalSelector standard() {
-        return new GoalSelector(List.of(FLOAT, PANIC, BREED, BEG, TEMPT, FLEE_PLAYER,
-                RABBIT_RAID_FARM, RANDOM_STROLL));
+        return new GoalSelector(List.of(FLOAT, PANIC, BREAK_DOOR, BREED, BEG, TEMPT,
+                FLEE_PLAYER, RABBIT_RAID_FARM, RANDOM_STROLL));
     }
 }

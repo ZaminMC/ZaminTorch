@@ -2974,6 +2974,31 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         channel.writeAndFlush(out);
     }
 
+    /**
+     * The Block Break Animation over a MOB's breaker id (VIII9 —
+     * BreakDoorGoal.tick's {@code updateBlockMiningProgress(mobId, ...)},
+     * the same packet the reference sends with the zombie's own network
+     * id): the raw-id form over the engine's shared wire space, the
+     * watcher gate the player form carries. The stage -1 clear rides the
+     * same shape.
+     */
+    void sendMobBlockMiningProgress(int breakerEntityId, BlockPosition position, int stage) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        if (breakerEntityId < 0 || chunkTracker == null
+                || !chunkTracker.hasChunk(position.chunkPosition().packed())) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(16);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_BLOCK_MINING_PROGRESS);
+        ByteBufOps.writeVarInt(out, breakerEntityId);
+        ByteBufOps.writePackedBlockPosition(out, position.x(), position.y(), position.z());
+        out.writeByte(stage);
+        channel.writeAndFlush(out);
+    }
+
     // ------------------------------------------------------------------ inventory sync
 
     /**
