@@ -11385,3 +11385,76 @@ rows, the wither's death box, the summon box, the full beacon, the breed
 cause, the pig fall's strict five-block refusal, the cart kilometre, the
 all-biomes cover. The crafting/stat/beacon/breeding/vehicle/furnace/player
 regression suites green (182/0 after the count pin's update).
+
+## The bone-meal remainder + the mushroom spread (VIII7/VIII8 — the
+## grass-mushroom slice, 2026-10-21)
+
+The parallel wave's plant-growth lane (feature/grass-mushroom-growth), the
+three-way split's own chunk: the bone-meal dispatcher's missing arms, the
+mushroom pair's whole plant surface, and the engine's first fixed-seed
+noise field.
+
+**The noise ports** — SimplexNoise/PerlinSimplexNoise 1:1 from the
+reference's gen/noise pair: the permutation shuffle, the three-corner
+skewed-grid walk, the halving-amplitude octave stack. The reader is the
+reference's own FOLIAGE_NOISE (Biome.java line 595: new
+PerlinSimplexNoise(new Random(2345L), 1)) — a FIXED seed,
+world-seed-independent, so every world's tulip patches sit at the same
+coordinates (the scan's own answer: the first band cell (0,1050) reads
+-0.835; ~2.2% of the domain sits under -0.8 — the scattered tulip-field
+rarity vanilla carries).
+
+**The grass arm** (GrassBlocks.growGrass — GrassBlock.grow lines 91-122):
+the 128 attempts, the i/16 radius ladder, the four-roll step form with the
+grass-below/not-solid whole-attempt abort, the 1-in-8 flower against the
+7-in-8 tall grass. The flower pick: the plains' own override (the tulip
+band's four-tulip ladder, the poppy/houstonia/oxeye-daisy ladder, the
+dandelion tail) over the base law (dandelion 2-in-3, poppy 1-in-3) — the
+birch-forest's blue-orchid walk and the swamp's always-blue-orchid named
+as VIII14's biome rows (the engine shades neither today).
+
+**The mushroom surface** — the survival law (the MYCELIUM bypass at any
+light — the mushroom island's law — the PODZOL row named unshipped, the
+light-under-13-and-opaque-below gate), riding the neighbor bus (the
+unsupported pop with the plant item) AND the placement gate (the lit-grass
+refusal); the spread (the 1-in-25 pick, the 9x3x9 same-family five-cap,
+the four-step walk with the triangular y form); the giant forms
+(HugeMushroomFeature lines 27-158 whole: the air-or-leaves fit walk, the
+dirt/grass/mycelium base gate, the brown's single 7x7-minus-corners cap
+against the red's four-row cap — the full 3x3 top over three 5x5 skirt
+rings with the ALL_INSIDE interior never writing — the corner-adjacent
+pore overrides, the stem through the skirt centers, the refused
+placement's plant restore).
+
+**The dispatcher arms** — the grass always-pays/always-grows, the mushroom
+always-pays with the 0.4 roll owning the giant alone, the cocoa AGE-band
+single step (the mature pod's use never consumes), the stems RETIRED with
+the evidence (the crops arm already carries StemBlock.grow's own
+expression).
+
+**The slice's own catches:**
+1. **The red's skirt rows count thirteen, not twelve** — the stem column
+   runs y=5..top-1, so every skirt row's center IS a stem cell: 12 ring +
+   1 stem. The first test draft asserted 12 with an air center; the
+   reference's own loop order (cap band, then the stem column overwriting
+   the centers) is the correct shape.
+2. **A single opaque lid does not darken a cell** — the skylight bleeds
+   horizontally at the historical -1-per-step (a 1-lid nook reads 14,
+   still refusing the < 13 gate); the vanilla nook needs the 7x7 width
+   (its center reads 11). The engine's LightEngine carries the vanilla
+   propagation — the first test draft's setup was wrong, not the law.
+3. **The ledger's VIII8 "mycelium's surface spawn" phrase corrected
+   against the reference** — 1.8.8's MyceliumBlock carries no
+   mushroom-plant arm; the mycelium's mushroom law IS the survival bypass
+   (spreadTick's consult passes on mycelium at any light). The island's
+   own decoration rides the biome family's VIII14 slice.
+
+Evidence: GrassMushroomGrowthTest 10 + BonemealArmsAcceptanceTest 6 (the
+await-based flake guard — the first cold-boot run's 150ms window raced the
+tick thread once; the paid asserts now poll to their counts).
+
+**The sweep:** the core's three batches green (the block families +
+interaction/use path 256/0, the entity/world/spawn 638/0, the remaining
+packages + root 1066/0 — 1960/0 cumulative) + the protocol 115/0 + the
+bukkit 38/0 + the launcher 47/0 + the api 19/0. Every module green on
+feature/grass-mushroom-growth.
