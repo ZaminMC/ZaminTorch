@@ -19,9 +19,11 @@ import java.util.logging.Logger;
  * store grows its arm then.)
  *
  * <p>Writes are atomic (temp file then atomic move), corrupt files load as
- * the fresh {@code false} and are preserved beside the storage path. Save
- * points are the engine's {@code saveAllNow} and the portal event's own
- * write.</p>
+ * the fresh {@code false} and are preserved beside the storage path. The
+ * save point is the dragon-death event's own write (the flag transitions
+ * exactly once and the event persists it immediately — the deterministic
+ * End regenerate would re-spawn the dragon every boot otherwise; the store
+ * is NOT part of the save walk: no state can change between event writes).</p>
  */
 public final class DragonDataStore {
 
