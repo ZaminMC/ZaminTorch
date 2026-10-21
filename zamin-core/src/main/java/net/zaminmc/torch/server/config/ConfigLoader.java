@@ -50,8 +50,21 @@ public final class ConfigLoader {
                 boolOf(properties, "white-list", false),
                 regionSize(properties),
                 boolOf(properties, "enable-command-block", false),
-                intOf(properties, "spawn-protection", 16));
+                intOf(properties, "spawn-protection", 16),
+                boolOf(properties, "enable-rcon", false),
+                string(properties, "rcon.password", ""),
+                intOf(properties, "rcon.port", UNSET_REMOTE_PORT_FALLBACK),
+                boolOf(properties, "enable-query", false),
+                intOf(properties, "query.port", UNSET_REMOTE_PORT_FALLBACK));
     }
+
+    /**
+     * The unset marker for the two remote-admin ports: a missing row (or an
+     * explicit 0) resolves through EngineConfig's compact constructor —
+     * the reference's own default laws (RconServer lines 29-31,
+     * QueryResponseHandler lines 67-69).
+     */
+    private static final int UNSET_REMOTE_PORT_FALLBACK = 0;
 
     /** The bind address: empty means the wildcard (the vanilla convention). */
     private static String host(Properties properties) {
