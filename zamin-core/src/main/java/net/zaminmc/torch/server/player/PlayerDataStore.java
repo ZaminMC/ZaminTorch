@@ -45,6 +45,22 @@ import java.util.logging.Logger;
  * <p>The same durability rules as the world store: writes are atomic (temp file
  * then atomic move), corrupt files load as absent and are preserved beside the
  * storage path instead of being destroyed, and save failures are loud (§54/§286).</p>
+ *
+ * <p><b>THE S6 SPLIT (the save walk's last synchronous store, Slice S6):</b>
+ * the shutdown walk's per-player persist arm rides the save pipeline's named
+ * path — the capture (the fresh {@code snapshotOf} walk) stays on the tick
+ * lane, the pure {@link #serialize} runs on the compute pool, the
+ * {@link #writeSerialized} file half rides the blocking-I/O lane under the
+ * PER-PLAYER named sequence gate (each player's {@code <uuid>.zpd} gates
+ * independently — an older snapshot of one player never overwrites that
+ * player's newer file, and one player's save never drops another's). The
+ * quit path keeps its own law: {@link #save} stays synchronous (the
+ * tick-queue ordering after pending inventory work — unchanged).
+ * <b>THE MEASUREMENT</b> (the S6 harness, a 12-slot worked inventory, 500
+ * rounds): the capture 6.7 us/save stays on the tick lane; the serialization
+ * 97.6 us and the file half 394.8 us leave it — the per-save tick-lane cost
+ * drops 499.0 us -> 6.7 us (98.7% off the lane; the pipeline's
+ * {@code serializeNanos} counter is the standing off-tick hook).</p>
  */
 public final class PlayerDataStore {
 
@@ -60,84 +76,136 @@ public final class PlayerDataStore {
         this.directory = java.util.Objects.requireNonNull(directory, "directory");
     }
 
+    /**
+     * Saves one player's state. Callers snapshot the session on the tick
+     * thread before calling (the quit path's own law: the save ordered after
+     * any queued inventory work; the shutdown walk captures inside its own
+     * tick-lane submit). The synchronous form composes the S6 pipeline's
+     * own two halves — the pure serialization and the file publication —
+     * so the sync save's bytes and the pipeline's bytes are identical by
+     * construction (one serializer, one file half).
+     */
     public void save(PlayerSnapshot snapshot) {
-        Path file = fileOf(snapshot.uuid());
+        writeSerialized(snapshot.uuid(), serialize(snapshot));
+    }
+
+    /**
+     * The pure serialization (the compute pool's own half, Slice S6 — the
+     * Phase-5 serialization lane's own shape): the immutable snapshot IN
+     * (the record's lists and maps are the snapshot walk's own fresh
+     * copies — {@code snapshotOf} builds the slot lists fresh over the
+     * immutable stack values, {@code PlayerStats.snapshot} and
+     * {@code progressSnapshot} the deep map copies, {@code commandStatsOf}
+     * the fresh pair map), the ZPD bytes OUT — no session read, no I/O.
+     * The byte walk is the historical save walk's own (version 11,
+     * byte-identical).
+     */
+    public byte[] serialize(PlayerSnapshot snapshot) {
+        java.util.Objects.requireNonNull(snapshot, "snapshot");
+        java.io.ByteArrayOutputStream sink = new java.io.ByteArrayOutputStream();
+        try (DataOutputStream out = new DataOutputStream(new BufferedOutputStream(
+                sink))) {
+            out.writeByte(MAGIC_0);
+            out.writeByte(MAGIC_1);
+            out.writeByte(MAGIC_2);
+            out.writeByte(FORMAT_VERSION);
+            writeString(out, snapshot.name());
+            out.writeDouble(snapshot.position().x());
+            out.writeDouble(snapshot.position().y());
+            out.writeDouble(snapshot.position().z());
+            out.writeFloat(snapshot.rotation().yaw());
+            out.writeFloat(snapshot.rotation().pitch());
+            writeVarInt(out, snapshot.heldSlot());
+            List<PlayerSnapshot.SlotStack> filled = snapshot.slots();
+            writeVarInt(out, filled.size());
+            for (PlayerSnapshot.SlotStack stack : filled) {
+                writeVarInt(out, stack.slot());
+                writeString(out, stack.item().toString());
+                writeVarInt(out, stack.count());
+                writeVarInt(out, stack.damage());
+                writeOptionalString(out, stack.displayName());
+            }
+            out.writeFloat(snapshot.health());
+            writeVarInt(out, snapshot.food());
+            out.writeFloat(snapshot.saturation());
+            out.writeByte(snapshot.gamemodeId());
+            writeVarLong(out, snapshot.totalXp());
+            // ZPD v7: the bed spawn tail (absent marker first).
+            if (snapshot.bedSpawn() == null) {
+                out.writeBoolean(false);
+            } else {
+                out.writeBoolean(true);
+                out.writeDouble(snapshot.bedSpawn().x());
+                out.writeDouble(snapshot.bedSpawn().y());
+                out.writeDouble(snapshot.bedSpawn().z());
+            }
+            // ZPD v8: the ender chest tail (the reference's EnderItems —
+            // the player's private 27-slot grid, slot 0-26).
+            List<PlayerSnapshot.SlotStack> ender = snapshot.enderSlots();
+            writeVarInt(out, ender.size());
+            for (PlayerSnapshot.SlotStack stack : ender) {
+                writeVarInt(out, stack.slot());
+                writeString(out, stack.item().toString());
+                writeVarInt(out, stack.count());
+                writeVarInt(out, stack.damage());
+                writeOptionalString(out, stack.displayName());
+            }
+            // ZPD v9: the statistics tail (the stats slice — the
+            // counter map over the EngineStats vocabulary).
+            writeVarInt(out, snapshot.stats().size());
+            for (java.util.Map.Entry<String, Integer> stat : snapshot.stats().entrySet()) {
+                writeString(out, stat.getKey());
+                writeVarInt(out, stat.getValue());
+            }
+            // ZPD v10: the command-stat tail (Slice 90 — the reference's
+            // Entity.writeNbt: the player's .dat carries its CommandResults).
+            writeVarInt(out, snapshot.commandStats().size());
+            for (java.util.Map.Entry<String, String> pair : snapshot.commandStats().entrySet()) {
+                writeString(out, pair.getKey());
+                writeString(out, pair.getValue());
+            }
+            // ZPD v11: the achievement-progress tail (VIII6 — the
+            // reference's ServerPlayerStats.serialize progress arm: the
+            // all-biomes row's string set, one row per carrying stat).
+            writeVarInt(out, snapshot.progress().size());
+            for (java.util.Map.Entry<String, java.util.Set<String>> row
+                    : snapshot.progress().entrySet()) {
+                writeString(out, row.getKey());
+                writeVarInt(out, row.getValue().size());
+                for (String value : row.getValue()) {
+                    writeString(out, value);
+                }
+            }
+        } catch (IOException e) {
+            // The sink is an in-memory buffer; an IOException here is a
+            // defect, not a persistence failure — still loud (the store's
+            // own contract).
+            throw new IllegalStateException("Player serialize failed", e);
+        }
+        return sink.toByteArray();
+    }
+
+    /**
+     * Publishes already-serialized ZPD bytes for one player: the temp-file
+     * write + the atomic move — the historical save walk's own file half
+     * with the store's own failure contract 1:1 (the loud
+     * {@link IllegalStateException}, never a silent loss). Safe from any
+     * thread that holds the publication right (the save pipeline's
+     * per-player named gate orders the async publications — each player's
+     * file gates independently under its own name; the synchronous save
+     * is uncontended in time: the quit arm runs after the shutdown walk's
+     * publication landed).
+     */
+    public void writeSerialized(UUID uuid, byte[] data) {
+        java.util.Objects.requireNonNull(uuid, "uuid");
+        java.util.Objects.requireNonNull(data, "data");
+        Path file = fileOf(uuid);
         try {
             Path temp = file.resolveSibling(file.getFileName() + ".tmp");
             Files.createDirectories(directory);
             try (DataOutputStream out = new DataOutputStream(new BufferedOutputStream(
                     Files.newOutputStream(temp)))) {
-                out.writeByte(MAGIC_0);
-                out.writeByte(MAGIC_1);
-                out.writeByte(MAGIC_2);
-                out.writeByte(FORMAT_VERSION);
-                writeString(out, snapshot.name());
-                out.writeDouble(snapshot.position().x());
-                out.writeDouble(snapshot.position().y());
-                out.writeDouble(snapshot.position().z());
-                out.writeFloat(snapshot.rotation().yaw());
-                out.writeFloat(snapshot.rotation().pitch());
-                writeVarInt(out, snapshot.heldSlot());
-                List<PlayerSnapshot.SlotStack> filled = snapshot.slots();
-                writeVarInt(out, filled.size());
-                for (PlayerSnapshot.SlotStack stack : filled) {
-                    writeVarInt(out, stack.slot());
-                    writeString(out, stack.item().toString());
-                    writeVarInt(out, stack.count());
-                    writeVarInt(out, stack.damage());
-                    writeOptionalString(out, stack.displayName());
-                }
-                out.writeFloat(snapshot.health());
-                writeVarInt(out, snapshot.food());
-                out.writeFloat(snapshot.saturation());
-                out.writeByte(snapshot.gamemodeId());
-                writeVarLong(out, snapshot.totalXp());
-                // ZPD v7: the bed spawn tail (absent marker first).
-                if (snapshot.bedSpawn() == null) {
-                    out.writeBoolean(false);
-                } else {
-                    out.writeBoolean(true);
-                    out.writeDouble(snapshot.bedSpawn().x());
-                    out.writeDouble(snapshot.bedSpawn().y());
-                    out.writeDouble(snapshot.bedSpawn().z());
-                }
-                // ZPD v8: the ender chest tail (the reference's EnderItems —
-                // the player's private 27-slot grid, slot 0-26).
-                List<PlayerSnapshot.SlotStack> ender = snapshot.enderSlots();
-                writeVarInt(out, ender.size());
-                for (PlayerSnapshot.SlotStack stack : ender) {
-                    writeVarInt(out, stack.slot());
-                    writeString(out, stack.item().toString());
-                    writeVarInt(out, stack.count());
-                    writeVarInt(out, stack.damage());
-                    writeOptionalString(out, stack.displayName());
-                }
-                // ZPD v9: the statistics tail (the stats slice — the
-                // counter map over the EngineStats vocabulary).
-                writeVarInt(out, snapshot.stats().size());
-                for (java.util.Map.Entry<String, Integer> stat : snapshot.stats().entrySet()) {
-                    writeString(out, stat.getKey());
-                    writeVarInt(out, stat.getValue());
-                }
-                // ZPD v10: the command-stat tail (Slice 90 — the reference's
-                // Entity.writeNbt: the player's .dat carries its CommandResults).
-                writeVarInt(out, snapshot.commandStats().size());
-                for (java.util.Map.Entry<String, String> pair : snapshot.commandStats().entrySet()) {
-                    writeString(out, pair.getKey());
-                    writeString(out, pair.getValue());
-                }
-                // ZPD v11: the achievement-progress tail (VIII6 — the
-                // reference's ServerPlayerStats.serialize progress arm: the
-                // all-biomes row's string set, one row per carrying stat).
-                writeVarInt(out, snapshot.progress().size());
-                for (java.util.Map.Entry<String, java.util.Set<String>> row
-                        : snapshot.progress().entrySet()) {
-                    writeString(out, row.getKey());
-                    writeVarInt(out, row.getValue().size());
-                    for (String value : row.getValue()) {
-                        writeString(out, value);
-                    }
-                }
+                out.write(data);
             }
             Files.move(temp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
         } catch (IOException e) {
