@@ -12166,3 +12166,31 @@ the structure + block + spawn + entity + light suites green + the
 protocol suite whole 117/0. The VIII14+ backlog after this slice: the
 ambient-sound cadence + the local-difficulty completion (the
 coordinator's and instance 9's lanes).
+---
+
+Task ID: map-item (chunk: the map item family)
+Agent: instance-4 (feature/map-item)
+Task: Port the whole map item family 1:1 — EmptyMapItem/FilledMapItem, SavedMapData
+(+MapDecoration), the 0x34 MapDataS2CPacket writer, the clone/upscale/empty-map
+recipes, the MapColor table over the engine's blocks, the per-world store
+(the standalone-store pattern — NOT a WorldSavePipeline restructure), and the
+per-player tracker walk.
+
+Work Log:
+- Oriented: read Torch-Arcetecture §15/§17/§29 (Wave C NBT envelope + Wave S
+  store conventions: capture-on-tick-lane / pure serialize / atomic publish,
+  per-store named rides in saveAllNow), the whole reference family
+  (EmptyMapItem 35L, FilledMapItem 224L, SavedMapData 258L, MapDecoration 60L,
+  MapDataS2CPacket 107L, CloneMapRecipe 95L, UpscaleMapRecipe 73L, MapColor 77L)
+  and the engine surfaces (BuiltinItems/BuiltinRecipes/CraftingService,
+  EngineServer's use dispatch + tickPlayerBodies + saveAllNow, PlayerInventory,
+  DecorationSystem/ItemFrame, WeatherDataStore/VillageDataStore store patterns,
+  V18Connection writer conventions, LegacyBlockIds, EngineStats).
+- Verified the gap: no filled_map item, no MapData, no 0x34 writer, no map
+  recipes anywhere; empty_map exists (395, loot-only); stat table lists
+  filled_map (the row is dishonest until the item exists).
+
+Stage Summary:
+- Orientation complete; implementation begins with the color table + item
+  registration, then the data model + store, the tracker + wire, the use +
+  crafting family, and the test suite.
