@@ -11853,3 +11853,35 @@ isolated-green) + protocol 117 (one donkey await-flake, isolated-green)
 + bukkit 38/0 + launcher 47/0 + api 19/0 + the standalone distribution
 probe (plains 1841 / forest 2988 / desert 53 / ocean 1447 / other 10055
 over a 2048² sweep — the whole table generating).
+
+## 2026-10-21 — VIII14 surface slice (the depth-dependent surface builders, direct on develop)
+
+**11577c52 — the biome family's fourth slice.** The reference's
+`Biome.prepareAndBuildSurfaces` whole over the engine's per-cell column
+model: the core `buildSurfaces` walk (Biome.java 452-508 — the k
+formula, the sea-band pair reset, the subsurface band, the sand
+family's sandstone extension, the deep gravel arm) + the four family
+overrides — the extreme hills' gravel/stone switches (ExtremeHillsBiome
+59-71), the mega taiga's podzol/coarse depth switch (TaigaBiome
+88-101), the shattered savanna's stone switch (SavannaBiome 61-71),
+and the mesa family's whole clay-layer stack (MesaBiome's own walk —
+the 64-row seeded clay table, the cos band, the 64-127 orange band,
+the has-trees 86+2k gate, the Bryce pillars). The generator's
+surface-material stand-ins retired (`surfaceMaterialOf`/`seaFloor`/
+`surfaceIsSandFamily` — the registration-table consults of the first
+two slices) — the builder answers every column through one consult.
+The two named adaptations: the depth noise's four-octave simplex stack
+salted off the world seed (the reference's `perlinNoise3` ctor band),
+and the per-column hash double in place of the chunk's shared
+population random (the k formula's rolls — deterministic per (seed,
+x, z), the ores' own family).
+
+Evidence: BiomeSurfaceBuilderTest 5/0 + BiomeWorldTest 5/0 re-pinned +
+the world package whole 199/0 (34 classes). The VIII14+ backlog after
+this slice: the feature decorators (the family's LAST big slice — the
+FeatureDecorator walk + the per-biome counts + the flora + the
+patches/lakes/dungeons), assigned to the parallel wave's instance 2
+(feature/biome-decorators); the ambient-sound cadence + the
+local-difficulty completion (the inhabited-time and moon-phase terms
+currently zeroed, MobManager 3520's ledger) split between the
+coordinator and instance 9.
