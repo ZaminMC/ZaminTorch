@@ -208,6 +208,7 @@ public final class BukkitTestHarness {
             import org.bukkit.event.player.PlayerJoinEvent;
             import org.bukkit.event.player.PlayerQuitEvent;
             import org.bukkit.event.vehicle.VehicleCreateEvent;
+            import org.bukkit.inventory.ItemStack;
             import org.bukkit.plugin.java.JavaPlugin;
 
             public class ProbePlugin extends JavaPlugin implements Listener {
@@ -450,6 +451,7 @@ public final class BukkitTestHarness {
                             + " viewers=" + top.getViewers().size()
                             + " first=" + (first == null ? "null"
                                     : first.getType() + "x" + first.getAmount())
+                            + " cursor=" + event.getView().getCursor()
                             + " primary=" + Bukkit.isPrimaryThread());
                     // The cancel arm: the gold-block marker names the cancel
                     // chest (the fixture's own law — the marker item rides
@@ -457,6 +459,14 @@ public final class BukkitTestHarness {
                     if (first != null && first.getType() == Material.GOLD_BLOCK) {
                         event.setCancelled(true);
                         log("cancel:open");
+                    }
+                    // The write arm: the wool marker names the write chest —
+                    // the legacy setItem through the view lands in the
+                    // engine's own block entity (the §27.6 direct arm on
+                    // the owner context).
+                    if (first != null && first.getType() == Material.WOOL) {
+                        top.setItem(1, new ItemStack(Material.GOLD_INGOT, 2));
+                        log("open:inv-write");
                     }
                 }
 
