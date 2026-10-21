@@ -24925,6 +24925,11 @@ public final class EngineServer implements Server, EngineBridge {
             implements net.zaminmc.torch.server.piston.PistonSystem.Pushable {
 
         @Override
+        public net.zaminmc.torch.entity.Entity apiEntity() {
+            return mob; // the engine object IS the handle (§27.5)
+        }
+
+        @Override
         public void pushBy(double dx, double dy, double dz) {
             mob.pushBy(dx, dy, dz);
         }
@@ -24944,6 +24949,11 @@ public final class EngineServer implements Server, EngineBridge {
             implements net.zaminmc.torch.server.piston.PistonSystem.Pushable {
 
         @Override
+        public net.zaminmc.torch.entity.Entity apiEntity() {
+            return item; // the engine object IS the handle (§27.5)
+        }
+
+        @Override
         public void pushBy(double dx, double dy, double dz) {
             item.pushBy(items.ground(), dx, dy, dz);
         }
@@ -24960,6 +24970,11 @@ public final class EngineServer implements Server, EngineBridge {
     private record PistonVehiclePush(
             net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle)
             implements net.zaminmc.torch.server.piston.PistonSystem.Pushable {
+
+        @Override
+        public net.zaminmc.torch.entity.Entity apiEntity() {
+            return vehicle; // the engine object IS the handle (§27.5)
+        }
 
         @Override
         public void pushBy(double dx, double dy, double dz) {
