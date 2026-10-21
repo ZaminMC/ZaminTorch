@@ -534,6 +534,11 @@ final class LegacyBlockIds {
             Map.entry(Identifier.parse("minecraft:end_portal_frame_eye_east"), 120),
             Map.entry(Identifier.parse("minecraft:ender_pearl"), 368),
             Map.entry(Identifier.parse("minecraft:empty_map"), 395),
+            // The filled map (the map item family — Item.java line 644's
+            // own id 358): the damage field carries the map id, so every
+            // slot write resolves the variant client-side exactly like the
+            // reference's hasCustomData flag.
+            Map.entry(Identifier.parse("minecraft:filled_map"), 358),
             Map.entry(Identifier.parse("minecraft:compass"), 329),
             Map.entry(Identifier.parse("minecraft:iron_door"), 330),
             // The fortress set (Slice 12d): the nether-brick family — the
