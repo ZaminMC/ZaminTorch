@@ -11503,3 +11503,84 @@ the full-inventory refusal, the creative-only band both ways, the flying
 refusal, the distance band); the projectile package 38/0; the affected
 batch (the vehicle/anvil/dispenser/item-pickup/orbs/spawn-event) 137/0;
 the protocol module 115/0.
+
+## The biome registration table (VIII14's first slice, 2026-10-21)
+
+The coordinator's own lane on feature/biome-registration — running in
+parallel with the zombie-village chunk (VIII9/VIII10, instance 3) and the
+written-book-persistence chunk (VIII11/VIII12, instance 2); the file sets
+are disjoint (the zombie/village/breeding/golem surfaces against the book/
+persistence surfaces against the world/Biome table).
+
+**The table** — Biome.java rewritten as the reference's whole
+registration: 61 rows (40 base ids 0-39 + 21 mutated ids 129-167), every
+row carrying the ctor chain's own datum — the display names byte-exact
+("FrozenOcean" without the space, "Extreme Hills+", "Sunflower Plains"
+not "Plains M"), the temperature/downfall pairs, the setSnowy flags, the
+surface/subsurface pairs as 1.8.8 wire ids (the desert/beach sand pair,
+the stone beach's stone, the mushroom mycelium, the end dirt pair, the
+ice spikes' snow, the mesa red sand over stained clay), the height pairs,
+the water fog row (the swamp pair's 14745518), and the type families
+(ForestBiome covers the forest/birch/roofed rows whole — the is()
+consult's own law).
+
+**The slice's finds:**
+1. **The isRainy READ LAW** — the reference's isRainy() answers
+   `!isCold() && this.rainy`: the frozen family's FIELD stays true (the
+   class default) but the READ refuses — the frozen ocean, the frozen
+   river, the ice plains pair, the cold beach and the cold taiga pair
+   never fill a cauldron. The first extraction draft read the field.
+2. **The four custom mutation shapes** — the standard MutatedBiome copy
+   (+0.1/+0.2 height bump, name + " M") covers seventeen rows, but
+   PLAINS mutates to a FRESH PlainsBiome ("Sunflower Plains", no bump),
+   ICE_PLAINS mutates with the +0.3/+0.4 height overwrite (the reference's
+   own dead setHeight write — setHeight(+0.1/+0.1) then the direct field
+   writes replace it), MEGA_TAIGA mutates to a fresh variant-2 taiga
+   ("Mega Spruce Taiga", the 0.25 temperature against the base's 0.3),
+   and the savanna pair mutate through the shattered laws
+   ((t+1)*0.5 temperature, base*0.5+0.3 / variation*0.5+1.2 heights).
+3. **The mega taiga's registration surface is grass/dirt** — the podzol/
+   coarse dirt switch is DEPTH-dependent (prepareAndBuildSurfaces), not a
+   registration datum; the second extraction-draft correction (the first
+   draft carried podzol as the fixed pair). The depth switches ledger
+   with the surface-builder slice.
+4. **The ice plains' ctor keeps GRASS** (IceBiome spikes=false — only
+   the SPIKES mutation carries the snow surface), and the cold taiga's
+   surface is the class default too.
+
+**The consults** — downfall(), snowy(), the rainy() read law, humid(),
+waterFogColor(), baseHeight()/heightVariation(), the surface wire ids,
+family()/is(Biome), temperatureCategory() (the ocean family's own OCEAN
+override + the COLD/MEDIUM/WARM bands, every mutated row's delegate
+agreeing with its own band), temperatureAt(x, y, z) (the altitude shave
+over the fixed-seed 1234L TEMPERATURE_NOISE — the FOLIAGE_NOISE 2345
+sibling GrassBlocks already carries), byLegacyId (the BY_ID gaps null,
+the out-of-band OCEAN default), byDisplayName (the BY_NAME map), and the
+36-row explorable() census (the id<128 band minus HELL, THE_END,
+FROZEN_OCEAN, EXTREME_HILLS_EDGE — the all-biomes achievement's grown
+target set; the ZPD v11 progress rows stay compatible, the set keys on
+the display name).
+
+**The wiring** — EngineWorld.biomeAt consults the static map: an
+imported FrozenOcean column names itself now (the old 7-row loop
+answered the implicit plains for every id it did not know). The
+precipitation test's generated-band pin updated (the generator's own
+shading set stays the warm band until the GenLayer slice; the frozen
+family's registration rows are pinned in the new test).
+
+**The colors** — the color rows never ride the wire: the client derives
+every grass/foliage tint from the biome id itself (BiomeColors is a
+client class), so the server table carries no color datum — the
+vanilla-grade answer for the family's color row.
+
+Evidence: BiomeRegistrationTest 8 (the 61-row census pin, the mutation
+law, the explorable census, the rain read, the altitude shave over the
+fixed seed, the lookups, the families, the categories) + the affected
+packages 125/0 (world, structure, spawn, anvil, weather, achievement
+suites) — the full-module sweep on the branch.
+
+**The follow-up slices ledgered:** the GenLayer layout (which biome
+generates where), the depth-dependent surface builders (the mega taiga,
+the shattered savanna, the extreme hills, the mesa clay layers), the
+feature decorators, the spawn tables, and the per-biome flower overrides
+(the birch blue-orchid band, the swamp's always-blue-orchid).
