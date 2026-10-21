@@ -543,6 +543,102 @@ public final class ArmorStandSystem {
     }
 
     // ------------------------------------------------------------------
+    // The piston push (the VIII13 additive families — the reference's
+    // MovingBlockEntity.moveEntities lines 80-115)
+    // ------------------------------------------------------------------
+
+    /** The normal stand's box (ArmorStandEntity line 49: setSize(0.5F, 1.975F)). */
+    static final double STAND_HALF_WIDTH = 0.25;
+    static final double STAND_HEIGHT = 1.975;
+    /** The small form's box (ArmorStandEntity line 599: setSize(0.25F, 0.9875F)). */
+    static final double SMALL_STAND_HALF_WIDTH = 0.125;
+    static final double SMALL_STAND_HEIGHT = 0.9875;
+
+    /**
+     * The piston push over one stand (the reference's
+     * {@code Entity.move(amount * facing)}): the IMMEDIATE, per-axis
+     * clamped position shift riding the family's OWN walk law — the
+     * horizontal two-cell clip (the feet cell and the head cell above
+     * it, the walk's own probe pair), the descending floor clip (the
+     * cell below the feet holds the stand at its top), the ascending
+     * axis unclipped (the family's walk carries no ceiling arm — the
+     * named shape). The MARKER stand never moves (the updateSize(0, 0)
+     * box — no body intersects the carrier's box); a shifted stand
+     * rides the walk's own publication and void guard. Tick-thread
+     * context (the push surface's walk runs inside the moving blocks'
+     * own tick).
+     */
+    public void pushStand(ArmorStand stand, double dx, double dy, double dz) {
+        if (stand.marker()) {
+            return; // the zero box (updateSize(0, 0)): never a body in the box walk
+        }
+        double newX = stand.x();
+        double newZ = stand.z();
+        double newY = stand.y();
+        if (dx != 0.0) {
+            double targetX = stand.x() + dx;
+            int cellX = (int) Math.floor(targetX);
+            int feetCell = (int) Math.floor(stand.y());
+            int cellZ = (int) Math.floor(stand.z());
+            if (!surface.solidAt(new BlockPosition(cellX, feetCell, cellZ))
+                    && !surface.solidAt(new BlockPosition(cellX, feetCell + 1, cellZ))) {
+                newX = targetX;
+            }
+        }
+        if (dz != 0.0) {
+            double targetZ = stand.z() + dz;
+            int cellZ = (int) Math.floor(targetZ);
+            int feetCell = (int) Math.floor(newY);
+            int cellX = (int) Math.floor(newX);
+            if (!surface.solidAt(new BlockPosition(cellX, feetCell, cellZ))
+                    && !surface.solidAt(new BlockPosition(cellX, feetCell + 1, cellZ))) {
+                newZ = targetZ;
+            }
+        }
+        if (dy != 0.0) {
+            double targetY = stand.y() + dy;
+            if (dy < 0.0) {
+                // The walk's own floor clip: the cell below the target
+                // feet holds the stand at its top.
+                int belowCell = (int) Math.floor(targetY - 0.06);
+                if (surface.solidAt(new BlockPosition((int) Math.floor(newX), belowCell,
+                        (int) Math.floor(newZ))) && targetY < belowCell + 1.0) {
+                    newY = belowCell + 1.0;
+                } else {
+                    newY = targetY;
+                }
+            } else {
+                newY = targetY; // the family's walk carries no ceiling arm (the named shape)
+            }
+        }
+        if (newX != stand.x() || newY != stand.y() || newZ != stand.z()) {
+            stand.moveTo(newX, newY, newZ);
+            if (newY < -64.0) {
+                remove(stand);
+                return; // the reference's outOfWorld guard
+            }
+            for (Listener listener : listeners) {
+                listener.onStandMoved(stand);
+            }
+        }
+    }
+
+    /**
+     * The slime-block fling over one stand (MovingBlockEntity lines
+     * 94-107): the velocity SET along the facing axis — the walk's own
+     * integration carries the set components out (the ground friction
+     * and the 0.91 air decay the family's tick applies).
+     */
+    public void flingStand(ArmorStand stand, double axisX, double axisY, double axisZ) {
+        if (stand.marker()) {
+            return; // the zero box: never a body in the box walk
+        }
+        stand.setVelocity(axisX != 0.0 ? axisX : stand.velocityX(),
+                axisY != 0.0 ? axisY : stand.velocityY(),
+                axisZ != 0.0 ? axisZ : stand.velocityZ());
+    }
+
+    // ------------------------------------------------------------------
     // The minecart push (pushAwayCollidingEntities, the named gap)
     // ------------------------------------------------------------------
 

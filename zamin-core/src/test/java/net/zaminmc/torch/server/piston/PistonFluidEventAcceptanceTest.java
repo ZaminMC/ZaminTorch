@@ -126,6 +126,101 @@ class PistonFluidEventAcceptanceTest {
     }
 
     @Test
+    void theRetractObservationCarriesThePullChain() throws Exception {
+        EngineServer server = boot();
+        try {
+            int x = 30, z = 30, y = 40;
+            // PART 1 — the sticky retract's pull chain: the piston
+            // extended against AIR, the pull target placed directly
+            // beyond the settled head (no flight storm — the retract
+            // arms only at the lever's own OFF).
+            server.ticker().submit(() -> {
+                server.world().setBlock(new BlockPosition(x, y, z),
+                        PistonBlocks.pistonOf(EAST, false, true));
+                server.world().setBlock(new BlockPosition(x, y + 1, z),
+                        RedstoneBlocks.leverOf(5, false));
+            });
+            await(() -> PistonBlocks.isPiston(typeAt(server, x, y, z)), "the sticky piston placed");
+            server.ticker().submit(() -> server.redstone().useLever(
+                    new BlockPosition(x, y + 1, z)));
+            await(() -> PistonBlocks.pistonExtended(typeAt(server, x, y, z)),
+                    "the sticky piston extended (against air)");
+            await(() -> PistonBlocks.isPistonHead(typeAt(server, x + 1, y, z)),
+                    "the head landed ahead");
+            server.ticker().submit(() -> server.world().setBlock(
+                    new BlockPosition(x + 2, y, z), BuiltinBlocks.STONE));
+            await(() -> typeAt(server, x + 2, y, z).identifier().value().equals("stone"),
+                    "the pull target placed one cell beyond the head");
+
+            CopyOnWriteArrayList<PistonMoveEvent> seen = new CopyOnWriteArrayList<>();
+            EventSubscription sub = server.events().on(PistonMoveEvent.class, seen::add);
+
+            server.ticker().submit(() -> server.redstone().useLever(
+                    new BlockPosition(x, y + 1, z)));
+            await(() -> seen.stream().anyMatch(e -> !e.extending()),
+                    "the retract observation arrived");
+
+            PistonMoveEvent retract = seen.stream()
+                    .filter(e -> !e.extending()).findFirst().orElseThrow();
+            assertTrue(retract.sticky(), "the sticky base");
+            // THE PULL CHAIN RESOLVES (the event javadoc's own intent —
+            // the reference's single-block pull, the recorded engine-side
+            // follow-up the bukkit slice-2 wave pinned): the head departs
+            // first, the gate's fresh resolution reads the post-departure
+            // world, and the stone's cell is the whole moved list.
+            assertEquals(java.util.List.of(new BlockPosition(x + 2, y, z)),
+                    retract.movedCells(),
+                    "the retract observation carries the pull chain");
+            assertTrue(retract.brokenCells().isEmpty(), "the pull breaks nothing");
+            sub.unsubscribe();
+            await(() -> typeAt(server, x + 1, y, z).identifier().value().equals("stone"),
+                    "the sticky pull brought the stone home");
+
+            // PART 2 — the plain retract: nothing follows the head home
+            // (the event javadoc's own row); the same stone beyond the
+            // head stays put.
+            int px = 50, pz = 50;
+            server.ticker().submit(() -> {
+                server.world().setBlock(new BlockPosition(px, y, pz),
+                        PistonBlocks.pistonOf(EAST, false, false));
+                server.world().setBlock(new BlockPosition(px, y + 1, pz),
+                        RedstoneBlocks.leverOf(5, false));
+            });
+            await(() -> PistonBlocks.isPiston(typeAt(server, px, y, pz)),
+                    "the plain piston placed");
+            server.ticker().submit(() -> server.redstone().useLever(
+                    new BlockPosition(px, y + 1, pz)));
+            await(() -> PistonBlocks.pistonExtended(typeAt(server, px, y, pz)),
+                    "the plain piston extended (against air)");
+            await(() -> PistonBlocks.isPistonHead(typeAt(server, px + 1, y, pz)),
+                    "the plain head landed");
+            server.ticker().submit(() -> server.world().setBlock(
+                    new BlockPosition(px + 2, y, pz), BuiltinBlocks.STONE));
+            await(() -> typeAt(server, px + 2, y, pz).identifier().value().equals("stone"),
+                    "the plain piston's stone placed beyond the head");
+
+            CopyOnWriteArrayList<PistonMoveEvent> plainSeen = new CopyOnWriteArrayList<>();
+            EventSubscription plainSub = server.events().on(PistonMoveEvent.class, plainSeen::add);
+            server.ticker().submit(() -> server.redstone().useLever(
+                    new BlockPosition(px, y + 1, pz)));
+            await(() -> plainSeen.stream().anyMatch(e -> !e.extending()),
+                    "the plain retract observation arrived");
+            PistonMoveEvent plainRetract = plainSeen.stream()
+                    .filter(e -> !e.extending()).findFirst().orElseThrow();
+            assertFalse(plainRetract.sticky(), "the plain base");
+            assertTrue(plainRetract.movedCells().isEmpty(),
+                    "the plain retract moves nothing (nothing follows the head home)");
+            assertTrue(plainRetract.brokenCells().isEmpty(),
+                    "the plain retract breaks nothing");
+            plainSub.unsubscribe();
+            await(() -> typeAt(server, px + 2, y, pz).identifier().value().equals("stone"),
+                    "the plain retract's stone stayed put");
+        } finally {
+            server.shutdown(() -> { });
+        }
+    }
+
+    @Test
     void theCancelledRetractKeepsTheHeadAndThePulledBlock() throws Exception {
         EngineServer server = boot();
         try {

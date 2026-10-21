@@ -436,6 +436,123 @@ public final class ProjectileManager {
         return List.copyOf(projectiles);
     }
 
+    // ------------------------------------------------------------------
+    // The piston push (the VIII13 additive families — the reference's
+    // MovingBlockEntity.moveEntities lines 80-115)
+    // ------------------------------------------------------------------
+
+    /** The pushed face's own epsilon (the item family's arm form). */
+    private static final double PUSH_GROUND_EPSILON = 1.0E-7;
+
+    /**
+     * The per-kind push box half-size (the reference family's own
+     * setSize rows): the arrow's 0.5 box (ArrowEntity line 46), the
+     * fireball base's 1.0 (ProjectileEntity line 34), the small
+     * fireball and the wither skull's 0.3125 (SmallFireballEntity line
+     * 14, WitherSkullEntity line 19), the thrown family's 0.25
+     * (ThrownEntity line 36 — the snowball, the egg, the pearl, the
+     * potion, the bottle).
+     */
+    public static double pushHalfSize(ProjectileEntity.Kind kind) {
+        return switch (kind) {
+            case ARROW -> 0.25;
+            case LARGE_FIREBALL -> 0.5;
+            case SMALL_FIREBALL, WITHER_SKULL -> 0.15625;
+            default -> 0.125;
+        };
+    }
+
+    /**
+     * The piston push over one projectile (the reference's
+     * {@code Entity.move(amount * facing)}): the IMMEDIATE, per-axis
+     * clamped position shift over the manager's own solidity consult —
+     * the leading-face law with the kind's own box (the blocked axis
+     * refusing its shift) — then the move publication through the
+     * family's own listener face. The GROUNDED ARROW rides the same
+     * law: the reference displaces every body in the box
+     * (world.getEntities(null, box) — no family exempted) and the
+     * arrow's own revalidation (ProjectileEntity.tick lines 84-92)
+     * reads the STICK CELL, which the push never changes, so the
+     * displaced arrow keeps its stick — the engine's grounded model
+     * carries the same shape (the stick clock running on). The push
+     * never triggers the flight's own hit resolution (the reference's
+     * move is the clamped shift alone). Tick-thread context (the push
+     * surface's walk runs inside the moving blocks' own tick).
+     */
+    public void pushProjectile(ProjectileEntity projectile, double dx, double dy, double dz) {
+        double half = pushHalfSize(projectile.kind());
+        double baseX = projectile.position().x();
+        double baseY = projectile.position().y();
+        double baseZ = projectile.position().z();
+        double newX = baseX;
+        double newY = baseY;
+        double newZ = baseZ;
+        if (dx != 0.0) {
+            double leadX = baseX + dx + Math.signum(dx) * half;
+            if (!faceBlockedX(leadX, baseY, baseZ, half)) {
+                newX = baseX + dx;
+            }
+        }
+        if (dz != 0.0) {
+            double leadZ = baseZ + dz + Math.signum(dz) * half;
+            if (!faceBlockedZ(newX, baseY, leadZ, half)) {
+                newZ = baseZ + dz;
+            }
+        }
+        if (dy != 0.0) {
+            double probeY = dy > 0
+                    ? baseY + dy + half - PUSH_GROUND_EPSILON
+                    : baseY + dy - half + PUSH_GROUND_EPSILON;
+            if (!solid.solidAt(newX, probeY, newZ)) {
+                newY = baseY + dy;
+            }
+        }
+        if (newX != baseX || newY != baseY || newZ != baseZ) {
+            projectile.teleport(new Position(newX, newY, newZ));
+            for (Listener listener : listeners) {
+                listener.onProjectileMoved(projectile);
+            }
+        }
+    }
+
+    /** The X-leading-face test (the item family's three-sample sweep). */
+    private boolean faceBlockedX(double leadX, double centerY, double centerZ, double half) {
+        double bottom = centerY - half + PUSH_GROUND_EPSILON;
+        double top = centerY + half - PUSH_GROUND_EPSILON;
+        for (double y : new double[]{bottom, centerY, top}) {
+            if (solid.solidAt(leadX, y, centerZ - half)
+                    || solid.solidAt(leadX, y, centerZ)
+                    || solid.solidAt(leadX, y, centerZ + half)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** The Z-leading-face test: the face at {@code leadZ} over the x-width. */
+    private boolean faceBlockedZ(double centerX, double centerY, double leadZ, double half) {
+        double bottom = centerY - half + PUSH_GROUND_EPSILON;
+        double top = centerY + half - PUSH_GROUND_EPSILON;
+        for (double y : new double[]{bottom, centerY, top}) {
+            if (solid.solidAt(centerX - half, y, leadZ)
+                    || solid.solidAt(centerX, y, leadZ)
+                    || solid.solidAt(centerX + half, y, leadZ)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * The slime-block fling over one projectile (MovingBlockEntity
+     * lines 94-107): the velocity SET along the facing axis — the
+     * family's own integration carries the set components out.
+     */
+    public void flingProjectile(ProjectileEntity projectile,
+                                double axisX, double axisY, double axisZ) {
+        projectile.flingVelocity(axisX, axisY, axisZ);
+    }
+
     public ProjectileEntity byId(int entityId) {
         for (ProjectileEntity projectile : projectiles) {
             if (projectile.entityId() == entityId) {

@@ -201,20 +201,20 @@ class BukkitEventBridgeGroupTwoTest {
                 "the pull target placed one cell beyond the head");
         harness.server.ticker().submit(() -> harness.server.redstone().useLever(lever2));
         // The retract form carries the engine's own face and the
-        // movedCells AS THE ENGINE ANSWERS THEM — the engine's retract
-        // resolution walks the pull column from the block beyond the head
-        // toward the piston and hits the EXTENDED HEAD itself
-        // (BEHAVIOR_BLOCK, the reference's own table), so the native
-        // event's movedCells answers empty and the legacy form carries
-        // that row through (the bridge never invents rows — the native
-        // event's own javadoc names "the pull chain" as its intent, a
-        // demand-named engine-side follow-up). The sticky PULL itself
-        // still lands: the retract arm's own direct read of the block
-        // beyond the head moves the stone home.
+        // movedCells AS THE ENGINE ANSWERS THEM — the resolver now reads
+        // the post-departure world (the retract arm removes the head
+        // BEFORE its own resolution runs, the reference's move lines
+        // 288-290, so the gate's fresh resolution mirrors it): the pull
+        // chain resolves as the event's javadoc intends, the stone's
+        // cell leading the moved list (the engine-side retract-event
+        // follow-up the bukkit slice-2 wave recorded and pinned — the
+        // legacy form carries that row through 1:1). The sticky PULL
+        // itself lands as before: the retract arm's own direct read of
+        // the block beyond the head moves the stone home.
         harness.await(() -> harness.probeLogContains(
-                "event:piston-retract at=(20,40,23) face=EAST moved=0"),
+                "event:piston-retract at=(20,40,23) face=EAST moved=1"),
                 "the retract form dispatched with the engine's own face"
-                + " and the engine's own movedCells answer");
+                + " and the resolved pull chain");
         harness.await(() -> !PistonBlocks.pistonExtended(blockType(harness, piston2)),
                 "the piston retracted");
         harness.await(() -> "minecraft:stone".equals(blockId(harness,

@@ -181,6 +181,28 @@ public final class ExperienceOrbManager {
         return List.copyOf(orbs);
     }
 
+    /** The manager's own ground consult (the VIII13 piston-push adapter reads it). */
+    public ExperienceOrbEntity.Ground ground() {
+        return ground;
+    }
+
+    /**
+     * The piston push (the VIII13 additive families — the reference's
+     * MovingBlockEntity.moveEntities lines 80-115): the immediate,
+     * per-axis clamped shift through the orb's own item-model law, then
+     * the move publication through the orb's own listener face — the
+     * observers see the pushed orb the same tick, never waiting for
+     * the next physics pass to notice the displacement. Tick-thread
+     * context (the push surface's walk runs inside the moving blocks'
+     * own tick).
+     */
+    public void pushOrb(ExperienceOrbEntity orb, double dx, double dy, double dz) {
+        orb.pushBy(ground, dx, dy, dz);
+        for (Listener listener : listeners) {
+            listener.onOrbMoved(orb);
+        }
+    }
+
     /** @return the live orb with the engine id, or null (the seated-rider consult). */
     public ExperienceOrbEntity byId(int entityId) {
         for (ExperienceOrbEntity orb : orbs) {

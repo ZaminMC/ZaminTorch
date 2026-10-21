@@ -192,6 +192,64 @@ public final class TntSystem implements WorldChangeListener {
         listeners.add(listener);
     }
 
+    /** @return an unmodifiable view of the live primed bodies (the push-surface walk + tests). */
+    public List<PrimedTnt> allPrimed() {
+        return List.copyOf(primed);
+    }
+
+    // ------------------------------------------------------------------
+    // The piston push (the VIII13 additive families — the reference's
+    // MovingBlockEntity.moveEntities lines 80-115)
+    // ------------------------------------------------------------------
+
+    /** The primed body's box (PrimedTntEntity's own setSize(0.98F, 0.98F) family). */
+    public static final double TNT_HALF_WIDTH = 0.49;
+    public static final double TNT_HEIGHT = 0.98;
+
+    /**
+     * The piston push over one primed body (the reference's
+     * {@code Entity.move(amount * facing)}): the IMMEDIATE shift riding
+     * the family's OWN flight law — the horizontal axes integrate
+     * unclipped (the tick's plain integration carries no wall clip, the
+     * family's established shape, named), the descending axis clamped by
+     * the tick's own feet-relative consult (the cell below the target
+     * feet holds the body at its top), the ascending axis unclipped
+     * (the family carries no ceiling arm). The pushed body rides the
+     * tick's own move publication. Tick-thread context (the push
+     * surface's walk runs inside the moving blocks' own tick).
+     */
+    public void pushTnt(PrimedTnt tnt, double dx, double dy, double dz) {
+        double newX = tnt.x + dx;
+        double newZ = tnt.z + dz;
+        double newY = tnt.y + dy;
+        if (dy < 0.0) {
+            // The tick's own feet-relative ground clamp: the block just
+            // below the target y holds the body at its top.
+            if (solidAt.test(new Position(newX, newY - 0.1, newZ))) {
+                newY = (int) Math.floor(newY - 0.1) + 1;
+                tnt.onGround = true;
+            }
+        }
+        tnt.x = newX;
+        tnt.y = newY;
+        tnt.z = newZ;
+        for (Listener listener : listeners) {
+            listener.onTntMoved(tnt);
+        }
+    }
+
+    /**
+     * The slime-block fling over one primed body (MovingBlockEntity
+     * lines 94-107): the velocity SET along the facing axis — the
+     * family's own drag and ground friction carry the set components
+     * out.
+     */
+    public void flingTnt(PrimedTnt tnt, double axisX, double axisY, double axisZ) {
+        tnt.velocityX = axisX != 0.0 ? axisX : tnt.velocityX;
+        tnt.velocityY = axisY != 0.0 ? axisY : tnt.velocityY;
+        tnt.velocityZ = axisZ != 0.0 ? axisZ : tnt.velocityZ;
+    }
+
     // ------------------------------------------------------------------
     // The change listener: the redstone ignition
     // ------------------------------------------------------------------

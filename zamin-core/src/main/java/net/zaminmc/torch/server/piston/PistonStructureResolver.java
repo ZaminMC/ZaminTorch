@@ -25,6 +25,7 @@ final class PistonStructureResolver {
     private final PistonSystem system;
     private final BlockPosition pistonPos;
     private final BlockPosition startPos;
+    private final BlockPosition departedCell;
     private final int moveDir;
     private final List<BlockPosition> toMove = new ArrayList<>();
     private final List<BlockPosition> toBreak = new ArrayList<>();
@@ -34,8 +35,31 @@ final class PistonStructureResolver {
      *               direction), {@code false} pulls toward it.
      */
     PistonStructureResolver(PistonSystem system, BlockPosition pistonPos, int pistonDir, boolean extend) {
+        this(system, pistonPos, pistonDir, extend, null);
+    }
+
+    /**
+     * The prospective form (the §27.7 gate's retract resolution): a
+     * {@code departedCell} answers AIR during the whole walk. The
+     * retract arm removes the extended head BEFORE its own resolver
+     * runs (PistonBaseBlock.move lines 288-290,
+     * {@code world.removeBlock(pos.offset(facing))}), so a fresh
+     * resolution made BEFORE the movement must read the same
+     * post-departure world or the pull column stops at the head
+     * itself — the head is a BEHAVIOR_BLOCK cell, the reference's own
+     * table — and the event answers an empty pull chain on a sticky
+     * retract while the pull itself lands (the recorded shape the
+     * bukkit slice-2 wave pinned).
+     *
+     * @param departedCell the cell the movement's own pre-step empties
+     *                     (the retract's head), or null for the
+     *                     movement-time form.
+     */
+    PistonStructureResolver(PistonSystem system, BlockPosition pistonPos, int pistonDir, boolean extend,
+                            BlockPosition departedCell) {
         this.system = system;
         this.pistonPos = pistonPos;
+        this.departedCell = departedCell;
         if (extend) {
             this.moveDir = pistonDir;
             this.startPos = pistonPos.offset(PistonSystem.OFFSETS[pistonDir][0],
@@ -49,11 +73,19 @@ final class PistonStructureResolver {
         }
     }
 
+    /** The world read the walk sees: the departed cell answers AIR (the movement's own pre-step). */
+    private BlockType blockAt(BlockPosition pos) {
+        if (pos.equals(departedCell)) {
+            return system.world().airType();
+        }
+        return system.world().getBlock(pos);
+    }
+
     /** The resolver entry (lines 33-58). */
     boolean resolve() {
         toMove.clear();
         toBreak.clear();
-        BlockType block = system.world().getBlock(startPos);
+        BlockType block = blockAt(startPos);
         if (!system.canMoveBlock(block, startPos, moveDir, false)) {
             if (system.pistonMoveBehavior(block) != PistonSystem.BEHAVIOR_DESTROY) {
                 return false;
@@ -75,7 +107,7 @@ final class PistonStructureResolver {
 
     /** The column walk (lines 60-144). */
     private boolean addColumn(BlockPosition pos) {
-        BlockType block = system.world().getBlock(pos);
+        BlockType block = blockAt(pos);
         if (system.isAir(block)) {
             return true;
         }
@@ -99,7 +131,7 @@ final class PistonStructureResolver {
                     PistonSystem.OFFSETS[oppositeOf(moveDir)][0] * i,
                     PistonSystem.OFFSETS[oppositeOf(moveDir)][1] * i,
                     PistonSystem.OFFSETS[oppositeOf(moveDir)][2] * i);
-            block = system.world().getBlock(back);
+            block = blockAt(back);
             if (system.isAir(block)
                     || !system.canMoveBlock(block, back, moveDir, false)
                     || back.equals(pistonPos)) {
@@ -137,7 +169,7 @@ final class PistonStructureResolver {
                 return true;
             }
 
-            block = system.world().getBlock(at);
+            block = blockAt(at);
             if (system.isAir(block)) {
                 return true;
             }

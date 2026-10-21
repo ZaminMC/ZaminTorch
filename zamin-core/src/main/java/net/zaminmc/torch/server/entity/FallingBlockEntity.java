@@ -117,6 +117,123 @@ public final class FallingBlockEntity implements net.zaminmc.torch.entity.Fallin
         return velocityY;
     }
 
+    /**
+     * The piston push (the VIII13 additive families — the reference's
+     * {@code Entity.move(amount * facing)} over MovingBlockEntity's
+     * interpolated box, lines 80-115): the IMMEDIATE, per-axis clamped
+     * position shift riding the family's OWN discipline — the swept-box
+     * solver over the ground's collision world when it provides the
+     * surface (the tick's own two-path shape), the plain per-axis point
+     * consults otherwise (the leading-face law over the 0.98 box, the
+     * descending axis clamped at the support's exact top). The landing
+     * itself stays the tick's own business — a pushed body that ends on
+     * a support settles through the manager's next pass exactly as a
+     * falling one does. Outside the velocity integration (the push is
+     * direct, the reference's own shape).
+     */
+    public void pushBy(Ground ground, double dx, double dy, double dz) {
+        net.zaminmc.torch.server.physics.EntityCollisionWorld collisionWorld =
+                ground.collisionWorld();
+        if (collisionWorld != null) {
+            // The tick's own swept-box discipline: the 0.98 box's clip
+            // against every collision box the shift touches.
+            net.zaminmc.torch.server.physics.EntityMoveSolver.Body body =
+                    new net.zaminmc.torch.server.physics.EntityMoveSolver.Body(
+                            position.x(), position.y(), position.z(),
+                            HALF_WIDTH * 2.0, HALF_HEIGHT * 2.0);
+            body.onGround = onGround;
+            net.zaminmc.torch.server.physics.EntityMoveSolver.Result result =
+                    net.zaminmc.torch.server.physics.EntityMoveSolver.move(
+                            collisionWorld, body, dx, dy, dz,
+                            net.zaminmc.torch.server.physics.EntityMoveSolver.MoveLaw.plain());
+            position = new Position(body.x, body.y, body.z);
+            onGround = result.onGround();
+            return;
+        }
+        double newX = position.x();
+        double newY = position.y();
+        double newZ = position.z();
+        if (dx != 0.0) {
+            double leadX = position.x() + dx + Math.signum(dx) * HALF_WIDTH;
+            if (!faceBlockedX(ground, leadX, position.y(), position.z())) {
+                newX = position.x() + dx;
+            }
+        }
+        if (dz != 0.0) {
+            double leadZ = position.z() + dz + Math.signum(dz) * HALF_WIDTH;
+            if (!faceBlockedZ(ground, newX, position.y(), leadZ)) {
+                newZ = position.z() + dz;
+            }
+        }
+        if (dy != 0.0) {
+            if (dy < 0.0) {
+                double newBottom = position.y() + dy;
+                if (ground.isSolidAt(newX, newBottom - GROUND_EPSILON, newZ)) {
+                    double surfaceY = ground.supportY(newX, newBottom - GROUND_EPSILON, newZ);
+                    newY = surfaceY != Double.NEGATIVE_INFINITY ? surfaceY : position.y();
+                } else {
+                    newY = newBottom;
+                }
+            } else {
+                double probeTop = position.y() + dy + HALF_HEIGHT * 2.0 - GROUND_EPSILON;
+                if (!ground.isSolidAt(newX, probeTop, newZ)) {
+                    newY = position.y() + dy;
+                }
+            }
+        }
+        position = new Position(newX, newY, newZ);
+    }
+
+    /**
+     * The X-leading-face test (the item family's three-sample sweep):
+     * the face at {@code leadX} over the box's z-width and y-height —
+     * the bottom sits a hair above the resting surface so the support
+     * the block slides on never blocks its own slide.
+     */
+    private static boolean faceBlockedX(Ground ground, double leadX,
+                                        double bottomY, double centerZ) {
+        double bottom = bottomY + GROUND_EPSILON;
+        double top = bottomY + HALF_HEIGHT * 2.0 - GROUND_EPSILON;
+        for (double y : new double[]{bottom, bottomY + HALF_HEIGHT, top}) {
+            if (ground.isSolidAt(leadX, y, centerZ - HALF_WIDTH)
+                    || ground.isSolidAt(leadX, y, centerZ)
+                    || ground.isSolidAt(leadX, y, centerZ + HALF_WIDTH)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** The Z-leading-face test: the face at {@code leadZ} over the x-width. */
+    private static boolean faceBlockedZ(Ground ground, double centerX,
+                                        double bottomY, double leadZ) {
+        double bottom = bottomY + GROUND_EPSILON;
+        double top = bottomY + HALF_HEIGHT * 2.0 - GROUND_EPSILON;
+        for (double y : new double[]{bottom, bottomY + HALF_HEIGHT, top}) {
+            if (ground.isSolidAt(centerX - HALF_WIDTH, y, leadZ)
+                    || ground.isSolidAt(centerX, y, leadZ)
+                    || ground.isSolidAt(centerX + HALF_WIDTH, y, leadZ)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * The slime-block fling (MovingBlockEntity lines 94-107): the
+     * velocity SET along the facing axis — the falling family's own
+     * carrier is the VERTICAL one alone (the flight integrates velocityY
+     * only, the family's established vertical-only model), so the
+     * vertical axis's set component rides and the horizontal ones have
+     * no carrier to carry them (the named shape — the reference's own
+     * fling lands through the family's own integration law).
+     */
+    public void flingAxis(double axisX, double axisY, double axisZ) {
+        if (axisY != 0.0) {
+            velocityY = axisY;
+        }
+    }
+
     public boolean onGround() {
         return onGround;
     }

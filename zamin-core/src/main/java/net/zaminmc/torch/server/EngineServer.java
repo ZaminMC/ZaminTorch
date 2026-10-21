@@ -1558,11 +1558,11 @@ public final class EngineServer implements Server, EngineBridge {
                 // exact swept-box law (the mobs, the items, the vehicles); the
                 // PLAYERS ARE EXCEPTED (the engine's players are
                 // client-authoritative — the server-side push would be
-                // overwritten by the next movement packet). The remaining
-                // families (the orbs, the stands, the primed TNT, the falling
-                // blocks, the projectiles) ledger as the seam's additive
-                // follow-ups — each a one-adapter wiring once its family grows
-                // a shift arm.
+                // overwritten by the next movement packet). The additive
+                // follow-up families (the VIII13 record's own ledger rows —
+                // the orbs, the stands, the primed TNT, the falling blocks,
+                // the projectiles) each ride the family's own box and shift
+                // law through their managers' push arms.
                 pistonSystem.setPushSurface((minX, minY, minZ, maxX, maxY, maxZ) -> {
                     java.util.List<net.zaminmc.torch.server.piston.PistonSystem.Pushable> bodies =
                             new java.util.ArrayList<>();
@@ -1601,6 +1601,74 @@ public final class EngineServer implements Server, EngineBridge {
                             continue;
                         }
                         bodies.add(new PistonVehiclePush(vehicle));
+                    }
+                    // The XP orbs (the additive families): the item-model
+                    // small body — the 0.25 box around the center, the
+                    // manager's own ground consult behind the clamped shift.
+                    for (net.zaminmc.torch.server.experience.ExperienceOrbEntity orb
+                            : experienceOrbs.all()) {
+                        net.zaminmc.torch.util.Position at = orb.position();
+                        if (at.x() + 0.125 < minX || at.x() - 0.125 > maxX
+                                || at.y() + 0.125 < minY || at.y() - 0.125 > maxY
+                                || at.z() + 0.125 < minZ || at.z() - 0.125 > maxZ) {
+                            continue;
+                        }
+                        bodies.add(new PistonOrbPush(orb, experienceOrbs));
+                    }
+                    // The armor stands: the family's own box rows (the
+                    // normal 0.5 × 1.975, the small 0.25 × 0.9875 — the
+                    // marker's zero box never intersects a carrier).
+                    for (net.zaminmc.torch.server.armorstand.ArmorStand stand
+                            : armorStands.allStands()) {
+                        if (stand.marker()) {
+                            continue; // updateSize(0, 0): no box to intersect
+                        }
+                        double standHalf = stand.small() ? 0.125 : 0.25;
+                        double standHeight = stand.small() ? 0.9875 : 1.975;
+                        if (stand.x() + standHalf < minX || stand.x() - standHalf > maxX
+                                || stand.y() + standHeight < minY || stand.y() > maxY
+                                || stand.z() + standHalf < minZ || stand.z() - standHalf > maxZ) {
+                            continue;
+                        }
+                        bodies.add(new PistonStandPush(stand, armorStands));
+                    }
+                    // The primed TNT: the 0.98 box over the bottom-center
+                    // position (the family's own feet convention).
+                    for (net.zaminmc.torch.server.tnt.TntSystem.PrimedTnt tnt
+                            : tntSystem.allPrimed()) {
+                        if (tnt.x() + 0.49 < minX || tnt.x() - 0.49 > maxX
+                                || tnt.y() + 0.98 < minY || tnt.y() > maxY
+                                || tnt.z() + 0.49 < minZ || tnt.z() - 0.49 > maxZ) {
+                            continue;
+                        }
+                        bodies.add(new PistonTntPush(tnt, tntSystem));
+                    }
+                    // The falling blocks: the 0.98 box over the
+                    // bottom-center position (the family's own convention).
+                    for (net.zaminmc.torch.server.entity.FallingBlockEntity fallingBody
+                            : fallingEntities.all()) {
+                        net.zaminmc.torch.util.Position at = fallingBody.position();
+                        if (at.x() + 0.49 < minX || at.x() - 0.49 > maxX
+                                || at.y() + 0.98 < minY || at.y() > maxY
+                                || at.z() + 0.49 < minZ || at.z() - 0.49 > maxZ) {
+                            continue;
+                        }
+                        bodies.add(new PistonFallingPush(fallingBody, fallingEntities));
+                    }
+                    // The projectiles: the kind's own box (the reference's
+                    // per-kind setSize rows), the manager's push arm behind
+                    // the clamped shift.
+                    for (net.zaminmc.torch.server.entity.projectile.ProjectileEntity projectile
+                            : projectileManager.all()) {
+                        double half = net.zaminmc.torch.server.entity.projectile
+                                .ProjectileManager.pushHalfSize(projectile.kind());
+                        net.zaminmc.torch.util.Position at = projectile.position();
+                        if (at.x() + half < minX || at.x() - half > maxX
+                                || at.y() + half < minY || at.y() - half > maxY
+                                || at.z() + half < minZ || at.z() - half > maxZ) {
+                            continue;
+                        }
+                        bodies.add(new PistonProjectilePush(projectile, projectileManager));
                     }
                     return bodies;
                 });
@@ -24994,6 +25062,93 @@ public final class EngineServer implements Server, EngineBridge {
             vehicle.setVelocity(axisX != 0.0 ? axisX : vehicle.velocityX(),
                     axisY != 0.0 ? axisY : vehicle.velocityY(),
                     axisZ != 0.0 ? axisZ : vehicle.velocityZ());
+        }
+    }
+
+    /** The orb adapter (the VIII13 additive families): the manager's push arm + the fling. */
+    private record PistonOrbPush(
+            net.zaminmc.torch.server.experience.ExperienceOrbEntity orb,
+            net.zaminmc.torch.server.experience.ExperienceOrbManager orbs)
+            implements net.zaminmc.torch.server.piston.PistonSystem.Pushable {
+
+        @Override
+        public void pushBy(double dx, double dy, double dz) {
+            orbs.pushOrb(orb, dx, dy, dz);
+        }
+
+        @Override
+        public void flingAxis(double axisX, double axisY, double axisZ) {
+            orb.setVelocity(axisX != 0.0 ? axisX : orb.velocityX(),
+                    axisY != 0.0 ? axisY : orb.velocityY(),
+                    axisZ != 0.0 ? axisZ : orb.velocityZ());
+        }
+    }
+
+    /** The stand adapter: the system's clamped shift + the fling. */
+    private record PistonStandPush(
+            net.zaminmc.torch.server.armorstand.ArmorStand stand,
+            net.zaminmc.torch.server.armorstand.ArmorStandSystem stands)
+            implements net.zaminmc.torch.server.piston.PistonSystem.Pushable {
+
+        @Override
+        public void pushBy(double dx, double dy, double dz) {
+            stands.pushStand(stand, dx, dy, dz);
+        }
+
+        @Override
+        public void flingAxis(double axisX, double axisY, double axisZ) {
+            stands.flingStand(stand, axisX, axisY, axisZ);
+        }
+    }
+
+    /** The primed-TNT adapter: the system's shift + the fling. */
+    private record PistonTntPush(
+            net.zaminmc.torch.server.tnt.TntSystem.PrimedTnt tnt,
+            net.zaminmc.torch.server.tnt.TntSystem tnts)
+            implements net.zaminmc.torch.server.piston.PistonSystem.Pushable {
+
+        @Override
+        public void pushBy(double dx, double dy, double dz) {
+            tnts.pushTnt(tnt, dx, dy, dz);
+        }
+
+        @Override
+        public void flingAxis(double axisX, double axisY, double axisZ) {
+            tnts.flingTnt(tnt, axisX, axisY, axisZ);
+        }
+    }
+
+    /** The falling-block adapter: the manager's shift + the entity's own fling. */
+    private record PistonFallingPush(
+            net.zaminmc.torch.server.entity.FallingBlockEntity fallingBody,
+            net.zaminmc.torch.server.entity.FallingBlockEntityManager fallings)
+            implements net.zaminmc.torch.server.piston.PistonSystem.Pushable {
+
+        @Override
+        public void pushBy(double dx, double dy, double dz) {
+            fallings.pushFalling(fallingBody, dx, dy, dz);
+        }
+
+        @Override
+        public void flingAxis(double axisX, double axisY, double axisZ) {
+            fallingBody.flingAxis(axisX, axisY, axisZ);
+        }
+    }
+
+    /** The projectile adapter: the manager's push arm + the fling. */
+    private record PistonProjectilePush(
+            net.zaminmc.torch.server.entity.projectile.ProjectileEntity projectile,
+            net.zaminmc.torch.server.entity.projectile.ProjectileManager projectiles)
+            implements net.zaminmc.torch.server.piston.PistonSystem.Pushable {
+
+        @Override
+        public void pushBy(double dx, double dy, double dz) {
+            projectiles.pushProjectile(projectile, dx, dy, dz);
+        }
+
+        @Override
+        public void flingAxis(double axisX, double axisY, double axisZ) {
+            projectiles.flingProjectile(projectile, axisX, axisY, axisZ);
         }
     }
 
