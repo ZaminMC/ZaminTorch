@@ -32,6 +32,14 @@ import java.util.Map;
  * skipped on read, an explicitly-present-but-emptied list stripping the
  * item's default modifiers (the attribute-wipe — never the defaults'
  * fall-back).
+ * <b>The book family (VIII12)</b> lands the written-book flow's own five
+ * rows — {@code tag.pages} (a TAG_LIST of TAG_STRING, plain text on a
+ * book &amp; quill, the JSON text forms on a signed book),
+ * {@code tag.author} and {@code tag.title} (the STRING rows the MC|BSign
+ * conversion writes, the author server-authoritative),
+ * {@code tag.resolved} (the read gate's once-only byte) and
+ * {@code tag.generation} (the copy counter — the reference's
+ * CloneBookRecipe row, round-tripped verbatim).
  */
 public final class ItemNbt {
 
@@ -77,10 +85,15 @@ public final class ItemNbt {
         // must ride the compound like any other row.
         boolean hasAttributeModifiers = stack.attributeModifiers() != null;
         boolean hasFireworks = stack.fireworks() != null;
+        boolean hasBookPages = stack.bookPages() != null && !stack.bookPages().isEmpty();
+        boolean hasBookAuthor = stack.bookAuthor() != null;
+        boolean hasBookTitle = stack.bookTitle() != null;
         if (hasName || hasLore || hasEnch || unbreakable || repairCost > 0 || hideFlags > 0
                 || hasBlockEntityTag || hasCanDestroy || hasCanPlaceOn
                 || stack.displayColor() != null || hasAttributeModifiers
-                || stack.skullOwner() != null || hasFireworks) {
+                || stack.skullOwner() != null || hasFireworks
+                || hasBookPages || hasBookAuthor || hasBookTitle
+                || stack.bookResolved() || stack.bookGeneration() != 0) {
             Map<String, Snbt.Tag> tag = new java.util.LinkedHashMap<>();
             if (hasName || hasLore || stack.displayColor() != null) {
                 Map<String, Snbt.Tag> display = new java.util.LinkedHashMap<>();
@@ -168,6 +181,31 @@ public final class ItemNbt {
             if (hasFireworks) {
                 NbtOps.putCompound(tag, "Fireworks",
                         NbtOps.fromBoxed(stack.fireworks()));
+            }
+            // The book family's rows (VIII12 — the reference's own shapes:
+            // pages a TAG_LIST of TAG_STRING read back by getList("pages", 8),
+            // author/title the STRING rows, resolved the BYTE marker,
+            // generation the INT counter — each riding only when the model
+            // carries it, the absent-means-default convention).
+            if (hasBookPages) {
+                java.util.List<Snbt.Tag> pageRows = new java.util.ArrayList<>(
+                        stack.bookPages().size());
+                for (String page : stack.bookPages()) {
+                    pageRows.add(Snbt.Tag.ofString(page));
+                }
+                NbtOps.putList(tag, "pages", pageRows);
+            }
+            if (hasBookAuthor) {
+                NbtOps.putString(tag, "author", stack.bookAuthor());
+            }
+            if (hasBookTitle) {
+                NbtOps.putString(tag, "title", stack.bookTitle());
+            }
+            if (stack.bookResolved()) {
+                NbtOps.putBoolean(tag, "resolved", true);
+            }
+            if (stack.bookGeneration() != 0) {
+                NbtOps.putInt(tag, "generation", stack.bookGeneration());
             }
             NbtOps.putCompound(rows, "tag", tag);
         }
@@ -311,6 +349,34 @@ public final class ItemNbt {
         Map<String, Snbt.Tag> fireworksRows = NbtOps.getCompound(tag, "Fireworks");
         if (!fireworksRows.isEmpty()) {
             stack = stack.withFireworks(NbtOps.toBoxed(fireworksRows));
+        }
+        // The book family's rows (VIII12 — getList("pages", 8)'s own gate:
+        // an element-family mismatch answers empty, the reference's own
+        // refusal; author/title the STRING rows, resolved the BYTE, the
+        // generation the INT — each landing only when the row carries a
+        // value the reference's reader would accept).
+        java.util.List<Snbt.Tag> pageRows = NbtOps.getList(tag, "pages", Snbt.Tag.Type.STRING);
+        if (!pageRows.isEmpty()) {
+            java.util.List<String> pages = new java.util.ArrayList<>(pageRows.size());
+            for (Snbt.Tag row : pageRows) {
+                pages.add(row != null ? row.asString() : "");
+            }
+            stack = stack.withBookPages(pages);
+        }
+        String author = NbtOps.getString(tag, "author");
+        if (author != null && !author.isEmpty()) {
+            stack = stack.withBookAuthor(author);
+        }
+        String title = NbtOps.getString(tag, "title");
+        if (title != null && !title.isEmpty()) {
+            stack = stack.withBookTitle(title);
+        }
+        if (NbtOps.getBoolean(tag, "resolved")) {
+            stack = stack.withBookResolved(true);
+        }
+        int generation = NbtOps.getInt(tag, "generation");
+        if (generation > 0) {
+            stack = stack.withBookGeneration(generation);
         }
         // The adventure gates' lists (Wave I — getList(...,8): an
         // element-family mismatch answers empty, the reference's own gate).

@@ -163,6 +163,91 @@ class VehiclePersistenceTest {
         return -1;
     }
 
+    /**
+     * THE CHEST-CART ENVELOPE'S STACK-ROW TAIL (VIII11 — the ZVD v6): a
+     * cart's cargo now round-trips the WHOLE ItemStack NBT family, not the
+     * bare id/count/damage/name form — a SIGNED BOOK (the pages, the
+     * server-authoritative author, the title, the resolved byte, the
+     * generation), an enchanted named sword, and a fused firework rocket
+     * all survive the shutdown-restart cycle whole.
+     */
+    @Test
+    void theChestCartEnvelopeCarriesTheWholeStackRowsAcrossTheRestart() throws Exception {
+        String world = "vdpr" + Math.abs(UUID.randomUUID().hashCode() % 100000);
+
+        // --- first life: the rich cargo, the save ---------------------------
+        EngineConfig first = new EngineConfig("127.0.0.1", 0, world, "it", 20, 2, 20,
+                dataDir.toString());
+        EngineServer one = new EngineServer(first);
+        one.start();
+        int ground = groundAt(one, 8, 8);
+        assertTrue(ground > 0, "the flat ground exists");
+        ItemStack signedBook = ItemStack.of(
+                net.zaminmc.torch.server.item.BuiltinItems.WRITTEN_BOOK)
+                .withBookPages(java.util.List.of("\"Page one\"", "\"Page two\""))
+                .withBookAuthor("Abasing")
+                .withBookTitle("Night Cart")
+                .withBookResolved(true)
+                .withBookGeneration(2);
+        ItemStack enchantedSword = ItemStack.of(
+                net.zaminmc.torch.server.item.BuiltinItems.IRON_SWORD)
+                .withDamage(40)
+                .withName("Old Faithful")
+                .withEnchantment(16, 3);
+        ItemStack rocket = ItemStack.of(
+                net.zaminmc.torch.server.item.BuiltinItems.FIREWORKS)
+                .withFireworks(java.util.Map.of("Flight", (byte) 2));
+        one.ticker().submit(() -> {
+            VehicleEntity cart = one.vehicles().spawnChestMinecart(
+                    new Position(8.5, ground + 1.0, 8.5));
+            if (cart instanceof ChestMinecartEntity chest) {
+                chest.chest().setSlot(3, signedBook);
+                chest.chest().setSlot(7, enchantedSword);
+                chest.chest().setSlot(11, rocket);
+            }
+        });
+        await(() -> one.vehicles().all().size() == 1, "the chest cart spawned");
+        Thread.sleep(400); // the settle
+        one.saveAllNow();
+        one.shutdown(null);
+        awaitState(one);
+
+        // --- second life: the cargo lands whole ------------------------------
+        EngineConfig second = new EngineConfig("127.0.0.1", 0, world, "it", 20, 2, 20,
+                dataDir.toString());
+        EngineServer two = new EngineServer(second);
+        two.start();
+        try {
+            await(() -> two.vehicles().all().size() == 1, "the cart restored");
+            ChestMinecartEntity cart = (ChestMinecartEntity) two.vehicles().all().stream()
+                    .filter(v -> v.kind() == VehicleEntity.Kind.CHEST_MINECART)
+                    .findFirst().orElseThrow();
+            ItemStack[] slots = cart.chest().snapshotSlots();
+            // The signed book: every book row survives.
+            ItemStack book = slots[3];
+            assertEquals(net.zaminmc.torch.server.item.BuiltinItems.WRITTEN_BOOK,
+                    book.type(), "the signed book survived");
+            assertEquals(java.util.List.of("\"Page one\"", "\"Page two\""),
+                    book.bookPages(), "the pages survived");
+            assertEquals("Abasing", book.bookAuthor(), "the author survived");
+            assertEquals("Night Cart", book.bookTitle(), "the title survived");
+            assertTrue(book.bookResolved(), "the resolved byte survived");
+            assertEquals(2, book.bookGeneration(), "the generation survived");
+            // The enchanted named sword: the display name and the pair.
+            ItemStack sword = slots[7];
+            assertEquals("Old Faithful", sword.displayName(),
+                    "the display name survived");
+            assertEquals(40, sword.damage(), "the wear survived");
+            assertEquals(3, sword.enchantments().get(16), "the Sharpness III survived");
+            // The firework rocket: the Flight byte names the fuse band.
+            ItemStack restoredRocket = slots[11];
+            assertEquals(java.util.Map.of("Flight", (byte) 2),
+                    restoredRocket.fireworks(), "the Fireworks compound survived");
+        } finally {
+            two.shutdown(null);
+        }
+    }
+
     private static void awaitState(EngineServer server) throws InterruptedException {
         long deadline = System.currentTimeMillis() + 8_000;
         while (System.currentTimeMillis() < deadline) {

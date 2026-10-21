@@ -310,4 +310,101 @@ class SlotNbtTest {
         SlotNbt.skip(again);
         assertEquals(0, again.readableBytes(), "the skip consumed the fireworks payload");
     }
+
+    /**
+     * THE BOOK FAMILY'S ROWS ON THE WIRE (VIII12 — the written-book flow):
+     * a signed book's slot NBT carries {@code pages} (the reference's
+     * getList("pages", 8) — a TAG_LIST of TAG_STRING), {@code author} and
+     * {@code title} (the STRING rows the client's title render and
+     * byAuthor line read), {@code resolved} (the BYTE marker) and
+     * {@code generation} (the INT counter) — byte-exact against the
+     * layout the client's book screens' own NBT parser walks.
+     */
+    @Test
+    void theBookRowsPayloadMatchesTheVanillaByteLayout() {
+        // A signed book: pages + author + title + resolved + generation.
+        net.zaminmc.torch.item.ItemStack book = bareStack()
+                .withBookPages(java.util.List.of("\"Page one\"", "{\"text\":\"hi\"}"))
+                .withBookAuthor("Abasing")
+                .withBookTitle("My Book")
+                .withBookResolved(true)
+                .withBookGeneration(2);
+        assertTrue(SlotNbt.hasPayload(book), "the book rows produce NBT");
+        // Each arm alone signals a payload too.
+        assertTrue(SlotNbt.hasPayload(bareStack()
+                .withBookPages(java.util.List.of("x"))));
+        assertTrue(SlotNbt.hasPayload(bareStack().withBookAuthor("A")));
+        assertTrue(SlotNbt.hasPayload(bareStack().withBookTitle("T")));
+        assertTrue(SlotNbt.hasPayload(bareStack().withBookResolved(true)));
+        assertTrue(SlotNbt.hasPayload(bareStack().withBookGeneration(1)));
+
+        ByteBuf out = Unpooled.buffer();
+        SlotNbt.writeFor(out, book);
+        byte[] bytes = new byte[out.readableBytes()];
+        out.readBytes(bytes);
+        // 10 (root) | len 0 | 9 (list) | len 5 "pages" | 8 (string
+        // elements) | count 2 | len 10 "\"Page one\"" | len 13
+        // "{\"text\":\"hi\"}" | 8 (string) | len 6 "author" | len 6
+        // "Abasing" | 8 (string) | len 5 "title" | len 7 "My Book"
+        // | 1 (byte) | len 8 "resolved" | 1 | 3 (int) | len 10
+        // "generation" | 0 0 0 2 | 0 (end root)
+        assertArrayEquals(new byte[] {
+                10, 0, 0,
+                9, 0, 5, 'p', 'a', 'g', 'e', 's',
+                8,
+                0, 0, 0, 2,
+                0, 10, '"', 'P', 'a', 'g', 'e', ' ', 'o', 'n', 'e', '"',
+                0, 13, '{', '"', 't', 'e', 'x', 't', '"', ':', '"', 'h', 'i', '"', '}',
+                8, 0, 6, 'a', 'u', 't', 'h', 'o', 'r',
+                0, 7, 'A', 'b', 'a', 's', 'i', 'n', 'g',
+                8, 0, 5, 't', 'i', 't', 'l', 'e',
+                0, 7, 'M', 'y', ' ', 'B', 'o', 'o', 'k',
+                1, 0, 8, 'r', 'e', 's', 'o', 'l', 'v', 'e', 'd', 1,
+                3, 0, 10, 'g', 'e', 'n', 'e', 'r', 'a', 't', 'i', 'o', 'n',
+                0, 0, 0, 2,
+                0
+        }, bytes);
+        // The structural skip consumes the book payload whole.
+        ByteBuf again = Unpooled.buffer();
+        SlotNbt.writeFor(again, book);
+        SlotNbt.skip(again);
+        assertEquals(0, again.readableBytes(), "the skip consumed the book payload");
+    }
+
+    /**
+     * THE WHOLE-PAYLOAD BOXED READER (VIII12 — the MC|BEdit/MC|BSign
+     * channel's own read): a stack's complete slot NBT parses back through
+     * {@code readBoxedTag} into the boxes the engine's
+     * {@code ItemNbt.readTagInto} walk reads — the exact round trip a
+     * signing client's payload takes (the pages/author/title rows land on
+     * the engine's model whole). The empty marker answers null (the
+     * reference's own {@code setNbt(null)} arm).
+     */
+    @Test
+    void theBookPayloadReadsBackWholeThroughTheBoxedReader() {
+        net.zaminmc.torch.item.ItemStack signed = bareStack()
+                .withBookPages(java.util.List.of("\"Page one\"", "Page two"))
+                .withBookAuthor("Abasing")
+                .withBookTitle("My Book");
+        ByteBuf out = Unpooled.buffer();
+        SlotNbt.writeFor(out, signed);
+        java.util.Map<String, Object> boxed = SlotNbt.readBoxedTag(out);
+        assertNotNull(boxed, "the whole compound parsed");
+        assertEquals(java.util.List.of("\"Page one\"", "Page two"), boxed.get("pages"));
+        assertEquals("Abasing", boxed.get("author"));
+        assertEquals("My Book", boxed.get("title"));
+        // The engine's own read walk lands the same model arms (the exact
+        // path readPluginPayloadItem drives).
+        net.zaminmc.torch.item.ItemStack read = net.zaminmc.torch.server.nbt.ItemNbt
+                .readTagInto(bareStack(),
+                        net.zaminmc.torch.server.nbt.NbtOps.fromBoxed(boxed));
+        assertEquals(java.util.List.of("\"Page one\"", "Page two"), read.bookPages());
+        assertEquals("Abasing", read.bookAuthor());
+        assertEquals("My Book", read.bookTitle());
+
+        // The bare marker byte answers null.
+        ByteBuf empty = Unpooled.buffer();
+        empty.writeByte(0);
+        assertNull(SlotNbt.readBoxedTag(empty), "the empty marker reads null");
+    }
 }
