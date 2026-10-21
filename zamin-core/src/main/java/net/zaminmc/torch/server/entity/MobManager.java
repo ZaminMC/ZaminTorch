@@ -493,6 +493,26 @@ public final class MobManager {
          */
         default void onZombieStateChanged(MobEntity mob) {
         }
+
+        /**
+         * The zombie's door-break stage moved (VIII9 —
+         * BreakDoorGoal.tick's {@code updateBlockMiningProgress} over the
+         * MOB's own wire id: the Block Break Animation (0x28) carrying the
+         * 0-9 crack stage, -1 the clear the goal's stop()/completion
+         * publishes).
+         */
+        default void onZombieDoorBreakProgress(MobEntity mob, int x, int y, int z,
+                                               int stage) {
+        }
+
+        /**
+         * The zombie's door break completed (VIII9 — BreakDoorGoal.tick
+         * lines 53-57, the 240th tick on HARD): the door cell's removal +
+         * the 1012 door-break event + the 2001 block-dust burst land at
+         * the bridge.
+         */
+        default void onZombieDoorBroken(MobEntity mob, int x, int y, int z) {
+        }
     }
 
     private final MobEntity.WorldQuery world;
@@ -808,6 +828,13 @@ public final class MobManager {
             // multiplier).
             mob.setCanPickUpLoot(random.nextFloat() < 0.55F * localDifficultyMultiplier());
         }
+        if (type == MobType.ZOMBIE) {
+            // VIII9 — initialize line 430: the door-break arming roll
+            // ({@code nextFloat() < f * 0.1F}, f the local difficulty
+            // multiplier), BEFORE the equipment dice exactly as the
+            // reference orders the initialize walk.
+            rollZombieCanBreakDoors(mob, random, localDifficultyMultiplier());
+        }
         if (type == MobType.SKELETON || type == MobType.ZOMBIE) {
             // The armor family's spawn dice (VIII4 — MobEntity
             // .addRandomEquipment lines 593-623 through the family's own
@@ -818,6 +845,13 @@ public final class MobManager {
             // if/else — the variant strip rides the nether spawn below).
             rollSpawnEquipment(mob, random, localDifficultyMultiplier(),
                     difficultyId());
+        }
+        if (type == MobType.ZOMBIE) {
+            // VIII9 — initialize lines 447-451: the leader roll, AFTER the
+            // equipment dice (the reference's own order). The leader gains
+            // the reinforcement bonus, the 40..100 health band, and the
+            // forced door-break.
+            rollZombieLeader(mob, random, localDifficultyMultiplier());
         }
         if (type == MobType.VILLAGER) {
             // VillagerEntity's own constructor arm (line 322): the
@@ -1717,6 +1751,33 @@ public final class MobManager {
             if (mob.consumeZombieConversionComplete()) {
                 pendingConversions.add(mob);
             }
+            // The zombie's door-break publications (VIII9 — the goal's
+            // per-tick walk): the crack stage on change (the -1 clear at
+            // the goal's stop), the 1-in-20 knock (the doEvent 1010), and
+            // the 240-on-HARD completion (the door cell's removal + the
+            // 1012/2001 pair at the bridge).
+            int doorStage = mob.consumeZombieDoorStage();
+            if (doorStage != -2) {
+                for (Listener listener : listeners) {
+                    listener.onZombieDoorBreakProgress(mob,
+                            mob.zombieBreakDoorX(), mob.zombieBreakDoorY(),
+                            mob.zombieBreakDoorZ(), doorStage);
+                }
+            }
+            if (mob.consumeZombieDoorKnock()) {
+                for (Listener listener : listeners) {
+                    listener.onWorldEventAt(new Position(
+                            mob.zombieBreakDoorX() + 0.5, mob.zombieBreakDoorY() + 0.5,
+                            mob.zombieBreakDoorZ() + 0.5), 1010);
+                }
+            }
+            if (mob.consumeZombieDoorBroken()) {
+                for (Listener listener : listeners) {
+                    listener.onZombieDoorBroken(mob,
+                            mob.zombieBreakDoorX(), mob.zombieBreakDoorY(),
+                            mob.zombieBreakDoorZ());
+                }
+            }
             // The breed polls (the vanilla goal's landing converts into the
             // real spawn after the loop — the manager owns the mob lifecycle).
             MobEntity mate = mob.consumePendingBreed();
@@ -2554,6 +2615,23 @@ public final class MobManager {
     public boolean hurt(MobEntity mob, float amount, double attackerYaw,
                  net.zaminmc.torch.event.DamageCause cause, boolean endermiteAttacker,
                  boolean arrowSource, MobEntity attacker) {
+        return hurt(mob, amount, attackerYaw, cause, endermiteAttacker,
+                arrowSource, attacker, null);
+    }
+
+    /**
+     * The full walk with the attacking PLAYER's identity (VIII9 — the
+     * reference's {@code DamageSource.getAttacker()} read the zombie's
+     * reinforcement ladder carries: the roll's target resolution answers
+     * the body's own attack target first, then the wound's living
+     * attacker — a player's melee or arrow reaches the callee's
+     * setAttackTarget through this seat). The player paths (the melee
+     * site, the arrow site) are the only callers that carry the session.
+     */
+    public boolean hurt(MobEntity mob, float amount, double attackerYaw,
+                 net.zaminmc.torch.event.DamageCause cause, boolean endermiteAttacker,
+                 boolean arrowSource, MobEntity attacker,
+                 PlayerSession attackingPlayer) {
         Objects.requireNonNull(mob, "mob");
         if (amount <= 0 || mob.dead()) {
             return false;
@@ -2651,7 +2729,126 @@ public final class MobManager {
                 listener.onMobDied(mob);
             }
         }
+        // VIII9 — ZombieEntity.takeDamage lines 191-233: the landed wound's
+        // own reinforcement ladder (the reference's whole roll sits inside
+        // the {@code if (super.takeDamage(...))} verdict — even a killing
+        // blow calls). The walk answers true below, the roll rides here.
+        if (mob.type() == MobType.ZOMBIE) {
+            callZombieReinforcements(mob, attacker, attackingPlayer);
+        }
         return true;
+    }
+
+    /**
+     * The zombie's reinforcement caller (VIII9 — ZombieEntity.takeDamage
+     * lines 199-227, 1:1 with the named gates): a landed wound on a HARD
+     * world rolls the body's own spawnReinforcements attribute — the
+     * target is the attack target first, then the wound's living
+     * attacker (a mob's claw or a player's hand) — and the 50-try flank
+     * walk ({@code nextInt(7, 40) * nextInt(-1, 1)} per axis, the
+     * reference's own shape) spawns the callee at the first cell that
+     * passes the whole gate family: the solid top below, the dark band
+     * ({@code getRawBrightness < 10} — the engine's sky-light consult,
+     * the named adaptation: the mob WorldQuery carries no block-light
+     * read), no player within 7, the spawn cell + headroom clear, no
+     * fluid. The callee takes the target (the mob arm through the mob
+     * target, the player arm through the forced hunt — the callee chases
+     * wherever the target stands), its own spawn dice ride the spawnAt
+     * walk (the local-difficulty multiplier the engine's dice read — the
+     * callee lands as a plain adult zombie, never the baby/villager
+     * rolls: the standing shape, named in the PR), and BOTH sides pay
+     * the 0.05 charge (the reference's caller/callee modifier pair).
+     *
+     * <p>The two gates the 1.8.8 reference does not carry — the task's
+     * own named additions, both adapted and documented: the same-family
+     * census cap (more than ten ZOMBIE bodies within 40 blocks of the
+     * caller refuses the call — the pack stays bounded) and the
+     * baby-caller refusal (a child zombie never calls).</p>
+     */
+    private void callZombieReinforcements(MobEntity caller,
+                                          MobEntity mobAttacker,
+                                          PlayerSession playerAttacker) {
+        // The reference's target resolution (lines 194-197): the body's
+        // own attack target first, then the wound's living attacker.
+        MobEntity targetMob = caller.mobAttackTarget();
+        if (targetMob == null) {
+            targetMob = mobAttacker;
+        }
+        if (targetMob == null && playerAttacker == null) {
+            return; // no living target: the ladder never runs
+        }
+        if (difficultyId() != 3) {
+            return; // HARD alone (line 200)
+        }
+        if (caller.isBaby()) {
+            return; // the named baby-caller refusal
+        }
+        // The named census cap: the same-family nearby walk.
+        int census = 0;
+        for (MobEntity kin : mobs) {
+            if (kin == caller || kin.dead() || kin.type() != MobType.ZOMBIE
+                    || kin.dimension() != caller.dimension()) {
+                continue;
+            }
+            double dx = kin.position().x() - caller.position().x();
+            double dy = kin.position().y() - caller.position().y();
+            double dz = kin.position().z() - caller.position().z();
+            if (dx * dx + dy * dy + dz * dz <= 40.0 * 40.0) {
+                census++;
+            }
+        }
+        if (census > 10) {
+            return; // the <=10 pack cap
+        }
+        if (random.nextFloat() >= caller.zombieReinforcementChance()) {
+            return; // the attribute roll (line 201)
+        }
+        int i = (int) Math.floor(caller.position().x());
+        int j = (int) Math.floor(caller.position().y());
+        int k = (int) Math.floor(caller.position().z());
+        for (int l = 0; l < 50; l++) {
+            // MathHelper.nextInt(random, 7, 40) * MathHelper.nextInt(random, -1, 1)
+            // — the reference's own flank shape (lines 208-210): 7..40
+            // blocks out, the axis sign -1..1.
+            int i1 = i + (7 + random.nextInt(34)) * (-1 + random.nextInt(3));
+            int j1 = j + (7 + random.nextInt(34)) * (-1 + random.nextInt(3));
+            int k1 = k + (7 + random.nextInt(34)) * (-1 + random.nextInt(3));
+            // hasSolidTop (line 211): the block below the cell.
+            if (!world.isSolid(i1 + 0.5, j1 - 1 + 0.5, k1 + 0.5)) {
+                continue;
+            }
+            // getRawBrightness < 10 — the dark band (the named adaptation).
+            if (world.skyLight(i1, j1, k1) >= 10) {
+                continue;
+            }
+            // isPlayerWithinRange(i1, j1, k1, 7.0) (line 213).
+            if (world.nearestPlayer(i1 + 0.5, j1, k1 + 0.5, 7.0) != null) {
+                continue;
+            }
+            // isUnobstructed + getCollisions-empty + containsLiquid (lines
+            // 214-216) — the engine's two-cell + fluid gates (the named
+            // adaptation: the box consult folds to the spawn cells).
+            if (world.isSolid(i1 + 0.5, j1 + 0.5, k1 + 0.5)
+                    || world.isSolid(i1 + 0.5, j1 + 1 + 0.5, k1 + 0.5)
+                    || world.inFluid(i1 + 0.5, j1 + 0.5, k1 + 0.5)) {
+                continue;
+            }
+            MobEntity callee = spawnAt(MobType.ZOMBIE, new Position(i1 + 0.5, j1, k1 + 0.5));
+            if (callee == null) {
+                continue; // the public spawn gate refused the body
+            }
+            // setAttackTarget (line 218): the callee chases the caller's
+            // own fight — the mob arm or the forced player hunt.
+            if (targetMob != null && !targetMob.dead()) {
+                callee.setMobAttackTarget(targetMob);
+            } else if (playerAttacker != null) {
+                callee.setForcedHuntPlayer(playerAttacker.engineEntityId());
+            }
+            // The charges (lines 220-222): both sides' chances fall 0.05.
+            caller.addZombieReinforcementModifier(-0.05F);
+            callee.addZombieReinforcementModifier(-0.05F);
+            break;
+        }
     }
 
     /**
@@ -3103,6 +3300,35 @@ public final class MobManager {
     private int difficultyId() {
         java.util.function.IntSupplier difficultyAt = difficultyRead;
         return difficultyAt != null ? difficultyAt.getAsInt() : 1;
+    }
+
+    /**
+     * The zombie's door-break arming roll (VIII9 — initialize line 430
+     * 1:1): {@code setCanBreakDoors(nextFloat() < f * 0.1F)}, f the local
+     * difficulty multiplier. Package-private static so the seeded dice
+     * tests drive it with their own random.
+     */
+    static void rollZombieCanBreakDoors(MobEntity mob, Random random,
+                                        float localMultiplier) {
+        mob.setZombieCanBreakDoors(random.nextFloat() < localMultiplier * 0.1F);
+    }
+
+    /**
+     * The zombie's leader roll (VIII9 — initialize lines 447-451 1:1): a
+     * {@code nextFloat() < f * 0.05F} roll arms the LEADER — the
+     * reinforcement attribute's own bonus ({@code nextDouble() * 0.25 +
+     * 0.5}, the additive op-0 band), MAX_HEALTH's own op-2 multiply
+     * ({@code nextDouble() * 3.0 + 1.0} over the plain 20 — the 40..100
+     * ceiling the famous leader zombies carry), and the forced
+     * door-break. Package-private static for the seeded dice tests.
+     */
+    static void rollZombieLeader(MobEntity mob, Random random,
+                                 float localMultiplier) {
+        if (random.nextFloat() < localMultiplier * 0.05F) {
+            mob.addZombieReinforcementModifier(random.nextDouble() * 0.25 + 0.5);
+            mob.applyZombieLeaderHealth(random.nextDouble() * 3.0 + 1.0);
+            mob.setZombieCanBreakDoors(true);
+        }
     }
 
     /**

@@ -404,6 +404,16 @@ public final class MobEntity implements LivingEntity {
         }
 
         /**
+         * The HARD read (VIII9 — BreakDoorGoal.tick line 53's own gate:
+         * the door itself breaks on HARD alone) + ZombieEntity
+         * .takeDamage line 200's reinforcement roll. The stub worlds
+         * answer the plain band (nothing breaks, nothing calls).
+         */
+        default boolean difficultyHard() {
+            return false;
+        }
+
+        /**
          * The eye-to-eye sight ray (Entity.canSee): whether nothing solid
          * blocks the segment between the two eye points. The default
          * bridges to the shooter's line so stub worlds keep their open
@@ -1047,6 +1057,13 @@ public final class MobEntity implements LivingEntity {
         if (type == MobType.VILLAGER) {
             this.profession = random.nextInt(5);
         }
+        // VIII9 — initAttributes line 87: the zombie's own
+        // spawnReinforcements base ({@code nextDouble() * 0.1}) — the
+        // attribute registers at the body's construction, before any
+        // initialize roll touches the stream.
+        if (type == MobType.ZOMBIE) {
+            zombieReinforcementChance = random.nextDouble() * 0.1F;
+        }
         // The dragon's seven parts (ctor lines 64-72): the wire id
         // convention rides the ORDER — the spawn's eight-id block holds
         // dragonId+1..+7 (the client re-aligns its locally-built parts by
@@ -1116,7 +1133,15 @@ public final class MobEntity implements LivingEntity {
 
     /** @return the kind's health ceiling ({@code getMaxHealth} — the tamed wolf's own 20). */
     public float maxHealth() {
-        return type == MobType.WOLF && wolfTamed() ? 20.0f : type.maxHealth;
+        if (type == MobType.WOLF && wolfTamed()) {
+            return 20.0f;
+        }
+        // VIII9 — the leader zombie's own MAX_HEALTH multiply (initialize
+        // line 449, the op-2 band): the 40..100 ceiling over the plain 20.
+        if (zombieLeaderMaxHealth > 0.0f) {
+            return zombieLeaderMaxHealth;
+        }
+        return type.maxHealth;
     }
 
     /** Restores health, clamped at the ceiling ({@code heal}). */
@@ -6429,6 +6454,315 @@ public final class MobEntity implements LivingEntity {
         return false;
     }
 
+    // ------------------------------------- zombie attributes (VIII9 — the door-break goal + the reinforcement chance)
+
+    /**
+     * canBreakDoors (lines 54/108-121): the goal-arming flag initialize
+     * rolls ({@code nextFloat() < f * 0.1F}) and the leader bonus forces
+     * on; the engine's BREAK_DOOR goal reads it as its own gate (the
+     * reference's setCanBreakDoors adds/removes the goal from the
+     * selector — the catalog's kind-gated canUse carries the same law).
+     */
+    private boolean zombieCanBreakDoors;
+
+    /**
+     * BreakDoorGoal's breakProgress (line 9): the 240-tick hardness walk
+     * (12 seconds at the door, the block-damage stages at
+     * {@code progress / 240 * 10}).
+     */
+    private int zombieBreakDoorProgress;
+    /**
+     * BreakDoorGoal's previousBreakProgress (line 10): the last stage the
+     * wire saw ({@code updateBlockMiningProgress} fires on change alone),
+     * -1 before the first publication.
+     */
+    private int zombieBreakDoorLastStage = -1;
+    /** AbstractDoorInteractGoal's doorPosition — the UPPER door half's cell. */
+    private int zombieBreakDoorX;
+    private int zombieBreakDoorY;
+    private int zombieBreakDoorZ;
+    /** Whether the walk owns a door cell this tick (the canStart capture). */
+    private boolean zombieDoorBreakArmed;
+
+    /**
+     * The pending Block Break Animation (0x28) stage: -2 nothing, -1 the
+     * clear (the goal's stop / the completion), 0-9 the walk's own stage.
+     * The manager drains it into the raw-id progress fan.
+     */
+    private int pendingZombieDoorStage = -2;
+    /** The pending 1-in-20 knock sound (the reference's doEvent 1010). */
+    private boolean pendingZombieDoorKnock;
+    /**
+     * The pending completion (BreakDoorGoal.tick line 53: progress 240 on
+     * HARD): the door cell's removal + the 1012/2001 pair land through
+     * the manager's listener bridge.
+     */
+    private boolean pendingZombieDoorBroken;
+
+    /** @return whether the body's door-break goal is armed (canBreakDoors). */
+    public boolean zombieCanBreakDoors() {
+        return zombieCanBreakDoors;
+    }
+
+    /**
+     * setCanBreakDoors (lines 112-121): the flag alone in the engine — the
+     * reference's goal-selector add/remove rides the catalog's own
+     * kind-gated canUse read of the flag (MobGoals.BREAK_DOOR). The flag
+     * never arms on a non-zombie body.
+     */
+    public void setZombieCanBreakDoors(boolean canBreakDoors) {
+        this.zombieCanBreakDoors = canBreakDoors && type == MobType.ZOMBIE;
+    }
+
+    /**
+     * AbstractDoorInteractGoal's getDoorBlock (lines 77-80) +
+     * BreakDoorGoal's own gates (canStart line 18): whether the cell
+     * carries a CLOSED WOODEN door half. The iron family never arms the
+     * goal (isDoor answers the wood families alone); the OPEN bit clears
+     * the goal (the reference's {@code !DoorBlock.isOpen(world, doorPos)}
+     * — the engine's meta band carries the same bit 4 on both halves).
+     */
+    private boolean zombieBreakableDoorAt(int x, int y, int z) {
+        var id = world.blockIdAt(x, y, z);
+        if (id == null) {
+            return false;
+        }
+        int meta = net.zaminmc.torch.server.block.WoodDoorFamily.metaOf(id);
+        if (meta < 0 || (meta & 4) != 0) {
+            return false; // not a door half, or the OPEN bit
+        }
+        // getDoorBlock's own material gate (line 79): the iron family
+        // never arms the walk.
+        String family = net.zaminmc.torch.server.block.WoodDoorFamily.familyOf(id);
+        return family != null
+                && !net.zaminmc.torch.server.block.WoodDoorFamily.isIron(family);
+    }
+
+    /**
+     * AbstractDoorInteractGoal.canStart (lines 28-53) AT THE CLIP SITE —
+     * the named adaptation: the reference's canStart reads
+     * {@code collidingHorizontally} + the live path's node walk inside the
+     * goal selector; the engine's swept-clip detour would clear the path
+     * before the selector ever runs, so the clip site plays the
+     * reference's reads at the moment they are true — the pressed-against
+     * capture, the path nodes [0, currentIndex+2) with the
+     * {@code (node.x, node.y + 1, node.z)} door cell inside the squared
+     * 2.25 XZ band, the fallback cell above the body — and arms the walk.
+     * The mobGriefing gate is BreakDoorGoal.canStart's own (line 18).
+     *
+     * @return whether the door-break owns the body this tick (the detour
+     *         stands down; the path stays live).
+     */
+    private boolean armZombieDoorBreak() {
+        if (type != MobType.ZOMBIE || !zombieCanBreakDoors || !world.mobGriefing()) {
+            return false;
+        }
+        var path = navigation.getPath();
+        if (path != null && !path.isDone()) {
+            int nodes = Math.min(path.getCurrentIndex() + 2, path.length());
+            for (int i = 0; i < nodes; i++) {
+                var node = path.getNode(i);
+                int doorX = node.x;
+                int doorY = node.y + 1; // the reference's doorPosition: node.y + 1
+                int doorZ = node.z;
+                double dx = doorX - position.x();
+                double dz = doorZ - position.z();
+                if (dx * dx + dz * dz <= 2.25
+                        && zombieBreakableDoorAt(doorX, doorY, doorZ)) {
+                    zombieBreakDoorX = doorX;
+                    zombieBreakDoorY = doorY;
+                    zombieBreakDoorZ = doorZ;
+                    zombieDoorBreakArmed = true;
+                    return true;
+                }
+            }
+        }
+        // The reference's fallback (lines 47-49): the cell above the
+        // body's own feet — a body standing inside a door cell.
+        int floorX = (int) Math.floor(position.x());
+        int floorY = (int) Math.floor(position.y());
+        int floorZ = (int) Math.floor(position.z());
+        if (zombieBreakableDoorAt(floorX, floorY + 1, floorZ)) {
+            zombieBreakDoorX = floorX;
+            zombieBreakDoorY = floorY + 1;
+            zombieBreakDoorZ = floorZ;
+            zombieDoorBreakArmed = true;
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * BREAK_DOOR's canUse: the sticky walk (shouldContinue lines 28-31 —
+     * the clock inside 240, the door still a closed wooden half, the body
+     * within the squared-4 band of the cell) over the armed capture. A
+     * live walk that fails any gate ENDS here — the stop() shape (line
+     * 34-37): the {@code updateBlockMiningProgress(-1)} clear.
+     */
+    boolean goalZombieBreakDoorCanUse() {
+        if (!zombieDoorBreakArmed) {
+            return false;
+        }
+        double dx = zombieBreakDoorX - position.x();
+        double dy = zombieBreakDoorY - position.y();
+        double dz = zombieBreakDoorZ - position.z();
+        boolean alive = zombieBreakDoorProgress <= 240
+                && zombieBreakableDoorAt(zombieBreakDoorX, zombieBreakDoorY, zombieBreakDoorZ)
+                && (dx * dx + dy * dy + dz * dz) < 4.0;
+        if (!alive && zombieBreakDoorProgress > 0) {
+            // stop(): the walk ends — the wire's stage clears.
+            zombieBreakDoorProgress = 0;
+            zombieDoorBreakArmed = false;
+            zombieBreakDoorLastStage = -1;
+            pendingZombieDoorStage = -1;
+        }
+        return alive;
+    }
+
+    /**
+     * BREAK_DOOR's tick (lines 40-57 1:1): the 1-in-20 knock (doEvent
+     * 1010 at the door cell), the progress clock, the stage publication
+     * on change ({@code progress / 240 * 10} as the 0-9 band the client
+     * cracks at), and the completion — progress 240 with the world on
+     * HARD alone (line 53) removes the door cell and answers the 1012
+     * (the door's own break sound) + 2001 (the block-dust burst) pair.
+     */
+    void goalZombieBreakDoorTick() {
+        if (random.nextInt(20) == 0) {
+            pendingZombieDoorKnock = true;
+        }
+        zombieBreakDoorProgress++;
+        int stage = (int) (zombieBreakDoorProgress / 240.0F * 10.0F);
+        if (stage != zombieBreakDoorLastStage) {
+            pendingZombieDoorStage = stage;
+            zombieBreakDoorLastStage = stage;
+        }
+        if (zombieBreakDoorProgress == 240 && world.difficultyHard()) {
+            // The completion: the cell's removal lands through the
+            // manager's listener bridge (the world write is the
+            // engine's, never the body's own).
+            pendingZombieDoorBroken = true;
+            pendingZombieDoorStage = -1; // the clear rides the break itself
+            zombieDoorBreakArmed = false;
+        }
+    }
+
+    /** @return and clears the pending 0x28 stage (-1 the clear; -2 none). */
+    int consumeZombieDoorStage() {
+        int stage = pendingZombieDoorStage;
+        pendingZombieDoorStage = -2;
+        return stage;
+    }
+
+    /** @return and clears the pending 1-in-20 knock sound. */
+    boolean consumeZombieDoorKnock() {
+        boolean knock = pendingZombieDoorKnock;
+        pendingZombieDoorKnock = false;
+        return knock;
+    }
+
+    /** @return and clears the pending door completion (the 240-on-HARD tick). */
+    boolean consumeZombieDoorBroken() {
+        boolean broken = pendingZombieDoorBroken;
+        pendingZombieDoorBroken = false;
+        if (broken) {
+            zombieBreakDoorProgress = 0;
+            zombieBreakDoorLastStage = -1;
+        }
+        return broken;
+    }
+
+    /** @return the door cell the walk owns (the completion's write site). */
+    int zombieBreakDoorX() {
+        return zombieBreakDoorX;
+    }
+
+    int zombieBreakDoorY() {
+        return zombieBreakDoorY;
+    }
+
+    int zombieBreakDoorZ() {
+        return zombieBreakDoorZ;
+    }
+
+    /**
+     * The zombie's spawnReinforcements attribute (lines 48-49/87): the
+     * base is the body's own {@code nextDouble() * 0.1} roll at the
+     * attribute registration, the caller/callee charges each subtract
+     * 0.05 (takeDamage lines 220-222), and the leader bonus adds
+     * {@code nextDouble() * 0.25 + 0.5} (initialize line 448) — the
+     * additive op-0 band over the 0..1 range.
+     */
+    private double zombieReinforcementChance;
+
+    /** @return the reinforcement chance attribute's live value (clamped 0..1). */
+    public double zombieReinforcementChance() {
+        return Math.max(0.0, Math.min(zombieReinforcementChance, 1.0));
+    }
+
+    /**
+     * addModifier over the reinforcement attribute (the caller/callee
+     * charges + the leader bonus — all op-0 adds).
+     */
+    public void addZombieReinforcementModifier(double amount) {
+        if (type == MobType.ZOMBIE) {
+            zombieReinforcementChance += amount;
+        }
+    }
+
+    /** initAttributes' own base roll (line 87): {@code nextDouble() * 0.1}. */
+    void rollZombieReinforcementBase(java.util.Random random) {
+        if (type == MobType.ZOMBIE) {
+            zombieReinforcementChance = random.nextDouble() * 0.1F;
+        }
+    }
+
+    /**
+     * The leader's extra-health row (initialize line 449 — MAX_HEALTH's
+     * own op-2 multiply {@code 20 * (1 + nextDouble()*3 + 1)}, the
+     * 40..100 band the famous leader zombies carry) as the per-body
+     * override; the health fills to the new ceiling exactly as the
+     * attribute walk leaves the spawned body.
+     */
+    public void applyZombieLeaderHealth(double multiplierTerm) {
+        if (type != MobType.ZOMBIE) {
+            return;
+        }
+        double max = type.maxHealth * (1.0 + multiplierTerm);
+        zombieLeaderMaxHealth = (float) max;
+        health = (float) max;
+    }
+
+    /** The leader's own health ceiling (0 = the kind's plain row). */
+    private float zombieLeaderMaxHealth;
+
+    /**
+     * A forced player hunt target (the reinforcement callee's own
+     * setAttackTarget — takeDamage line 218: the callee chases the
+     * body the caller was fighting, wherever it stands, past the plain
+     * nearest-player band the unprompted hunt reads). The id rides the
+     * engine's shared wire space; the hunt resolves the position through
+     * the wither's quarry consult.
+     */
+    private int forcedHuntPlayerId = -1;
+
+    /** Sets the forced player hunt (the reinforcement callee's target). */
+    public void setForcedHuntPlayer(int engineId) {
+        this.forcedHuntPlayerId = engineId;
+    }
+
+    /**
+     * @return the forced hunt's live position, or null when none is set
+     *         (or the body is gone) — the hunt's target read.
+     */
+    Position forcedHuntPosition() {
+        if (forcedHuntPlayerId < 0) {
+            return null;
+        }
+        return world.entityPositionById(forcedHuntPlayerId);
+    }
+
+
     /** @return the villager's career (0 until the first open rolls it). */
     public int villagerCareer() {
         return villagerCareer;
@@ -6752,6 +7086,18 @@ public final class MobEntity implements LivingEntity {
 
         Position target = world.nearestPlayer(position.x(), position.y(), position.z(),
                 type.hostile ? AGGRO_RANGE : 8.0);
+        // VIII9 — the forced player hunt (the reinforcement callee's own
+        // setAttackTarget, takeDamage line 218): a body with a forced
+        // target chases it wherever it stands, past the nearest-player
+        // band the unprompted hunt reads; a gone body clears the arm.
+        if (forcedHuntPlayerId >= 0) {
+            Position forced = forcedHuntPosition();
+            if (forced != null) {
+                target = forced;
+            } else {
+                forcedHuntPlayerId = -1; // the target left the world
+            }
+        }
         boolean canHunt = (type.hostile || (type == MobType.RABBIT && rabbitKiller()))
                 && (!type.traits.neutralByDay() || night)
                 && (type != MobType.ZOMBIE_PIGMAN || isAngry()) // the neutral gate (16d)
@@ -8093,15 +8439,24 @@ public final class MobEntity implements LivingEntity {
         if (swept != null) {
             if (swept.collidingHorizontally() && walk > 0 && detourTicks == 0
                     && swept.onGround()) {
-                // Blocked mid-walk: slide along the wall (a 45-90° turn
-                // for a handful of ticks) before the mind re-chooses —
-                // the same detour the legacy walk arms, keyed on the
-                // solver's own horizontal-clip signal.
-                clearPath();
-                repathCooldown = 0;
-                float side = random.nextBoolean() ? 45.0f : -45.0f;
-                detourYaw = yaw + side + (random.nextFloat() * 45.0f - 22.5f);
-                detourTicks = DETOUR_TICKS;
+                // VIII9 — the zombie's door-break intercept
+                // (AbstractDoorInteractGoal.canStart at the clip site: the
+                // engine's detour would clear the path before the goal
+                // selector ever sees the door; the named adaptation).
+                // A door-armed zombie claims the door INSTEAD of the wall
+                // slide — the path stays live, the BREAK_DOOR goal takes
+                // the body from here.
+                if (!armZombieDoorBreak()) {
+                    // Blocked mid-walk: slide along the wall (a 45-90° turn
+                    // for a handful of ticks) before the mind re-chooses —
+                    // the same detour the legacy walk arms, keyed on the
+                    // solver's own horizontal-clip signal.
+                    clearPath();
+                    repathCooldown = 0;
+                    float side = random.nextBoolean() ? 45.0f : -45.0f;
+                    detourYaw = yaw + side + (random.nextFloat() * 45.0f - 22.5f);
+                    detourTicks = DETOUR_TICKS;
+                }
             }
             if (inLava) {
                 fallDistance *= 0.5f;
@@ -8147,15 +8502,20 @@ public final class MobEntity implements LivingEntity {
             newZ = position.z();
             newY = position.y();
             if (walk > 0 && detourTicks == 0 && onGround) {
-                // Blocked mid-walk: slide along the wall (a 45-90° turn for
-                // a handful of ticks) before the mind re-chooses. A hunting
-                // body drops its stale route so the next mind tick repaths
-                // around the obstacle (the A*-light trigger).
-                clearPath();
-                repathCooldown = 0;
-                float side = random.nextBoolean() ? 45.0f : -45.0f;
-                detourYaw = yaw + side + (random.nextFloat() * 45.0f - 22.5f);
-                detourTicks = DETOUR_TICKS;
+                // VIII9 — the zombie's door-break intercept at the legacy
+                // walk's own clip (the same named adaptation as the solver
+                // site above).
+                if (!armZombieDoorBreak()) {
+                    // Blocked mid-walk: slide along the wall (a 45-90° turn for
+                    // a handful of ticks) before the mind re-chooses. A hunting
+                    // body drops its stale route so the next mind tick repaths
+                    // around the obstacle (the A*-light trigger).
+                    clearPath();
+                    repathCooldown = 0;
+                    float side = random.nextBoolean() ? 45.0f : -45.0f;
+                    detourYaw = yaw + side + (random.nextFloat() * 45.0f - 22.5f);
+                    detourTicks = DETOUR_TICKS;
+                }
             }
         }
 

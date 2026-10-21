@@ -479,6 +479,19 @@ public final class V18ProtocolServer implements ProtocolAdapter {
             }
 
             /**
+             * The zombie's door-break crack stage (VIII9 — the 0x28 over
+             * the MOB's own breaker id; -1 clears the overlay).
+             */
+            @Override
+            public void onZombieDoorBreakProgress(net.zaminmc.torch.server.entity.MobEntity mob,
+                                                   int x, int y, int z, int stage) {
+                for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                    connection.sendMobBlockMiningProgress(mob.entityId(),
+                            new net.zaminmc.torch.block.BlockPosition(x, y, z), stage);
+                }
+            }
+
+            /**
              * The enderman's whole state (the carried Short + the screaming
              * byte, Slice 19d).
              */
