@@ -216,12 +216,17 @@ class BukkitInventoryBridgeTest {
         // zero-vector velocity record (the engine's native event carries
         // no velocity row — the reference computes its launch inside the
         // behavior walk).
-        dispenseFixture(harness, new BlockPosition(82, 40, 82), "minecraft:diamond", 3);
+        // The gold fixture (the cross-slice fixture law: the slice-3
+        // diamond-hoarder probe withholds every DIAMOND item spawn — the
+        // engine-side drop fixtures use gold so the hoarder never eats
+        // them; the dispense itself is the family under test, not the
+        // spawn-cancel seam).
+        dispenseFixture(harness, new BlockPosition(82, 40, 82), "minecraft:gold_ingot", 3);
         harness.await(() -> harness.probeLogContains(
-                "dispense: at=(82,40,82) item=DIAMONDx3 velocity=0.0,0.0,0.0"
+                "dispense: at=(82,40,82) item=GOLD_INGOTx3 velocity=0.0,0.0,0.0"
                         + " primary=true"),
                 "the bridged dispense carried the item and the zero velocity");
-        harness.await(() -> itemEntityNear(harness, 82, 41, 82, "diamond"),
+        harness.await(() -> itemEntityNear(harness, 82, 41, 82, "gold_ingot"),
                 "the default drop launched the item entity through the engine's"
                         + " own behavior walk");
         // The cancelled twin: the emerald marker names the blocked dispense
@@ -237,10 +242,10 @@ class BukkitInventoryBridgeTest {
         // The rewrite twin (the readable-not-applied evidence): the probe
         // rewrites the item AND the velocity — the engine's own stack still
         // launches (the original material, never the rewrite).
-        dispenseFixture(harness, new BlockPosition(88, 40, 88), "minecraft:diamond", 1);
+        dispenseFixture(harness, new BlockPosition(88, 40, 88), "minecraft:gold_ingot", 1);
         harness.await(() -> harness.probeLogContains("dispense:rewrite"),
                 "the probe's rewrite arms ran");
-        harness.await(() -> itemEntityNear(harness, 88, 41, 88, "diamond"),
+        harness.await(() -> itemEntityNear(harness, 88, 41, 88, "gold_ingot"),
                 "the engine's own stack launched (the rewrite was not applied)");
         assertFalse(itemEntityNear(harness, 88, 41, 88, "stone"),
                 "the rewritten item never launched (readable-not-applied)");
@@ -367,13 +372,13 @@ class BukkitInventoryBridgeTest {
                 harness.server.itemEntities().spawnDropAtBlock(
                         new net.zaminmc.torch.util.Position(93, 41, 93),
                         net.zaminmc.torch.item.ItemStack.of(
-                                BuiltinItems.lookup(Identifier.parse("minecraft:diamond"))
+                                BuiltinItems.lookup(Identifier.parse("minecraft:gold_ingot"))
                                         .orElseThrow(), 10),
                         net.zaminmc.torch.server.entity.ItemEntity.PICKUP_DELAY_DROP_TICKS));
         harness.await(() -> hopperSlot(harness, hopper, 0).count() == 10,
                 "the engine's own suck surface swallowed the whole stack");
         Thread.sleep(300); // the wrongly-bridged dispatch would have landed
-        assertFalse(harness.probeLogContains("item=DIAMONDx10"),
+        assertFalse(harness.probeLogContains("item=GOLD_INGOTx10"),
                 "the SUCK arm never dispatched the legacy move form (the"
                         + " item-entity source has no Inventory view)");
         // The global tripwire: no unbridged family faked a dispatch
