@@ -24622,19 +24622,47 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /**
-     * Shutdown variant: submits the cursor-return + persist onto the tick thread
-     * and waits, so the tick loop's ordering guarantees hold and the save is
-     * durable before the loop stops.
+     * Shutdown variant (the player store's save-walk arm, Slice S6): submits
+     * the cursor-return + the capture onto the tick thread and waits, so the
+     * tick loop's ordering guarantees hold — then, when the pipeline is
+     * booted, the serialization and the file half leave the tick lane (the
+     * compute pool + the blocking-I/O lane under the per-player named
+     * sequence gate — each player's file gates independently) and the caller
+     * drains the publication latch before the walk proceeds: a shutdown
+     * never loses a submitted save. The tick loop's own compute + I/O drains
+     * (still running until the simulation stop) deliver the latch. The quit
+     * path keeps its own law — {@link #persistPlayer} stays synchronous
+     * (ordered after pending inventory work, durable on the tick lane).
      */
     private void persistPlayerNow(PlayerSession session) {
         if (playerStore == null || ticker == null) {
             return;
         }
+        net.zaminmc.torch.server.world.WorldSavePipeline pipeline = savePipeline;
         java.util.concurrent.CountDownLatch done = new java.util.concurrent.CountDownLatch(1);
+        java.util.concurrent.atomic.AtomicReference<java.util.concurrent.CountDownLatch>
+                publication = new java.util.concurrent.atomic.AtomicReference<>();
         ticker.submit(() -> {
             try {
                 returnWindowCarriedItems(session, true);
-                persistPlayer(session);
+                if (pipeline != null) {
+                    // S6: the capture here on the tick lane (the fresh
+                    // immutable snapshot — the slot lists, the stats maps,
+                    // the command-stat pairs all fresh copies), the pure
+                    // serialization on the compute pool, the temp write +
+                    // atomic move on the I/O lane. A failed serialization
+                    // falls back loudly (the pipeline's own failure
+                    // reporting: the lane's SEVERE + this caller's bounded
+                    // wait); a failed publication releases the latch and
+                    // rethrows to the lane (the release-on-failure arm).
+                    PlayerSnapshot snapshot = snapshotOf(session);
+                    publication.set(pipeline.submitSave("player-" + session.uuid(),
+                            snapshot, playerStore::serialize,
+                            bytes -> playerStore.writeSerialized(session.uuid(), bytes)));
+                } else {
+                    // The un-pipelined fallback keeps the sync form.
+                    persistPlayer(session);
+                }
             } finally {
                 done.countDown();
             }
@@ -24642,6 +24670,16 @@ public final class EngineServer implements Server, EngineBridge {
         try {
             if (!done.await(2, java.util.concurrent.TimeUnit.SECONDS)) {
                 LOGGER.warning("Player save did not complete within 2s for " + session.name());
+                return;
+            }
+            // The publication drain (the other stores' own bound): the
+            // bytes landed, or a newer save superseded them, or the
+            // pipeline failed loudly — never a silent loss.
+            java.util.concurrent.CountDownLatch landed = publication.get();
+            if (landed != null && pipeline != null
+                    && !pipeline.awaitSave(landed, 10_000)) {
+                LOGGER.warning("A player publication did not land within 10s for "
+                        + session.name());
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
