@@ -225,23 +225,27 @@ class TemptBegGoalsTest {
 
     @Test
     void theGoalsRideTheStandardSelector() {
-        // The selector's own band-3 order: beg (additive) before tempt
+        // The selector's own band order: the zombie's door break (VIII9)
+        // at band 1 after the panic, then beg (additive) before tempt
         // before flee, then the rabbit's garden raid (Slice 21d) below the
         // stroll's exclusive claim.
         GoalSelector selector = MobGoals.standard();
         var snapshot = selector.snapshot();
-        assertEquals(8, snapshot.size(),
-                "float, panic, breed, beg, tempt, flee, rabbit_raid_farm, stroll");
-        assertEquals("beg", snapshot.get(3).goalId());
-        assertFalse(snapshot.get(3).exclusive(), "the beg is LOOK-only, additive");
-        assertEquals("tempt", snapshot.get(4).goalId());
-        assertTrue(snapshot.get(4).exclusive());
-        assertEquals("flee_player", snapshot.get(5).goalId());
+        assertEquals(9, snapshot.size(),
+                "float, panic, break_door, breed, beg, tempt, flee, rabbit_raid_farm, stroll");
+        assertEquals("break_door", snapshot.get(2).goalId());
+        assertEquals(1, snapshot.get(2).priority());
+        assertTrue(snapshot.get(2).exclusive());
+        assertEquals("beg", snapshot.get(4).goalId());
+        assertFalse(snapshot.get(4).exclusive(), "the beg is LOOK-only, additive");
+        assertEquals("tempt", snapshot.get(5).goalId());
         assertTrue(snapshot.get(5).exclusive());
-        assertEquals("rabbit_raid_farm", snapshot.get(6).goalId());
+        assertEquals("flee_player", snapshot.get(6).goalId());
         assertTrue(snapshot.get(6).exclusive());
-        assertEquals("stroll", snapshot.get(7).goalId());
-        assertEquals(4, snapshot.get(7).priority());
+        assertEquals("rabbit_raid_farm", snapshot.get(7).goalId());
+        assertTrue(snapshot.get(7).exclusive());
+        assertEquals("stroll", snapshot.get(8).goalId());
+        assertEquals(4, snapshot.get(8).priority());
     }
 
     @Test
