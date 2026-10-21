@@ -177,11 +177,14 @@ public final class BukkitTestHarness {
             package probe;
 
             import org.bukkit.Bukkit;
+            import org.bukkit.Location;
             import org.bukkit.Material;
             import org.bukkit.block.Block;
             import org.bukkit.command.Command;
             import org.bukkit.command.CommandSender;
             import org.bukkit.command.PluginCommand;
+            import org.bukkit.entity.EntityType;
+            import org.bukkit.entity.LivingEntity;
             import org.bukkit.entity.Player;
             import org.bukkit.event.EventHandler;
             import org.bukkit.event.EventPriority;
@@ -194,6 +197,7 @@ public final class BukkitTestHarness {
             import org.bukkit.event.block.SignChangeEvent;
             import org.bukkit.event.entity.CreatureSpawnEvent;
             import org.bukkit.event.entity.EntityDamageEvent;
+            import org.bukkit.event.entity.EntityDeathEvent;
             import org.bukkit.event.entity.ItemSpawnEvent;
             import org.bukkit.event.entity.PlayerDeathEvent;
             import org.bukkit.event.entity.ProjectileLaunchEvent;
@@ -316,10 +320,30 @@ public final class BukkitTestHarness {
                 @EventHandler(priority = EventPriority.LOWEST)
                 public void onDamage(EntityDamageEvent event) {
                     if (!(event.getEntity() instanceof Player)) {
-                        // The tripwire: the MOB arm of this event type is one of
-                        // the bridge's recorded unbridged gaps — if this line
-                        // ever fires, a bridge started faking it.
-                        log("UNBRIDGED-FIRED:EntityDamage(non-player)");
+                        // The MOB arm (slice 3): the wrapped LivingEntity
+                        // view over the live body — the same both-ways
+                        // discipline the player arm carries.
+                        LivingEntity mob = (LivingEntity) event.getEntity();
+                        log("event:mobdamage type=" + event.getEntityType()
+                                + " cause=" + event.getCause()
+                                + " amount=" + event.getDamage()
+                                + " health=" + mob.getHealth()
+                                + " maxHealth=" + mob.getMaxHealth()
+                                + " name=" + mob.getName()
+                                + " uuid=" + (mob.getUniqueId() != null)
+                                + " primary=" + Bukkit.isPrimaryThread());
+                        // The cancel arm skips the cow (the death test's
+                        // body must be able to die).
+                        if (event.getDamage() >= 10.0
+                                && event.getEntityType() != EntityType.COW) {
+                            event.setCancelled(true);
+                            log("cancel:mobdamage");
+                            return;
+                        }
+                        if (event.getDamage() == 3.0) {
+                            event.setDamage(1.0);
+                            log("modify:mobdamage-amount");
+                        }
                         return;
                     }
                     log("event:damage player=" + event.getEntity().getName()
@@ -417,32 +441,99 @@ public final class BukkitTestHarness {
                     }
                 }
 
-                // ---------------- the unbridged-family tripwires (§27.9's
-                // honest gaps: these listeners must NEVER fire through the
-                // bridge — the entity-adapter family is the later slice)
+                // ---------------- the entity-adapter families (the slice-3
+                // bridges — the slice-2 tripwires flipped positive)
 
-                @EventHandler
+                @EventHandler(priority = EventPriority.LOWEST)
                 public void onCreatureSpawn(CreatureSpawnEvent event) {
-                    log("UNBRIDGED-FIRED:CreatureSpawn");
+                    log("event:spawn type=" + event.getEntityType()
+                            + " reason=" + event.getSpawnReason()
+                            + " at=" + loc(event.getLocation())
+                            + " primary=" + Bukkit.isPrimaryThread());
+                    // The pending view's loud-refusal probe (the §27.9
+                    // discipline made visible): the body does not exist
+                    // yet — the id read MUST refuse.
+                    try {
+                        event.getEntity().getEntityId();
+                    } catch (UnsupportedOperationException refused) {
+                        log("view:spawn-pending-id-refused");
+                    }
+                    // The no-sheep plugin (the cancel arm — every sheep
+                    // spawn is withheld through the engine's own gate).
+                    if (event.getEntityType() == EntityType.SHEEP) {
+                        event.setCancelled(true);
+                        log("cancel:spawn");
+                    }
                 }
 
-                @EventHandler
+                @EventHandler(priority = EventPriority.MONITOR)
+                public void onEntityDeath(EntityDeathEvent event) {
+                    if (event instanceof PlayerDeathEvent) {
+                        return; // the player deaths ride their own handler list
+                    }
+                    LivingEntity mob = event.getEntity();
+                    log("event:mobdeath type=" + event.getEntityType()
+                            + " health=" + mob.getHealth()
+                            + " drops=" + event.getDrops().size()
+                            + " exp=" + event.getDroppedExp()
+                            + " primary=" + Bukkit.isPrimaryThread());
+                }
+
+                @EventHandler(priority = EventPriority.LOWEST)
                 public void onItemSpawn(ItemSpawnEvent event) {
-                    log("UNBRIDGED-FIRED:ItemSpawn");
+                    log("event:itemspawn item=" + event.getEntity().getItemStack().getType()
+                            + " amount=" + event.getEntity().getItemStack().getAmount()
+                            + " at=" + loc(event.getLocation())
+                            + " primary=" + Bukkit.isPrimaryThread());
+                    // The pending view's loud-refusal probe: no body
+                    // exists to mutate.
+                    try {
+                        event.getEntity().setPickupDelay(20);
+                    } catch (UnsupportedOperationException refused) {
+                        log("view:item-pending-delay-refused");
+                    }
+                    // The diamond-hoarder plugin (the cancel arm — every
+                    // diamond drop is withheld).
+                    if (event.getEntity().getItemStack().getType() == Material.DIAMOND) {
+                        event.setCancelled(true);
+                        log("cancel:itemspawn");
+                    }
                 }
 
-                @EventHandler
+                @EventHandler(priority = EventPriority.LOWEST)
                 public void onProjectileLaunch(ProjectileLaunchEvent event) {
-                    log("UNBRIDGED-FIRED:ProjectileLaunch");
+                    org.bukkit.projectiles.ProjectileSource shooter =
+                            event.getEntity().getShooter();
+                    String shooterName = shooter == null ? "none"
+                            : shooter instanceof Player player ? player.getName()
+                            : ((LivingEntity) shooter).getName();
+                    log("event:launch type=" + event.getEntityType()
+                            + " shooter=" + shooterName
+                            + " at=" + loc(event.getEntity().getLocation())
+                            + " primary=" + Bukkit.isPrimaryThread());
+                    // The no-snowball plugin (the cancel arm).
+                    if (event.getEntityType() == EntityType.SNOWBALL) {
+                        event.setCancelled(true);
+                        log("cancel:launch");
+                    }
                 }
 
-                @EventHandler
+                @EventHandler(priority = EventPriority.MONITOR)
                 public void onVehicleCreate(VehicleCreateEvent event) {
-                    log("UNBRIDGED-FIRED:VehicleCreate");
+                    // MONITOR — the 1.8.8 form carries no cancel row (the
+                    // observation is the only arm the reference's own type
+                    // owns).
+                    log("event:vehicle type=" + event.getVehicle().getType()
+                            + " at=" + loc(event.getVehicle().getLocation())
+                            + " primary=" + Bukkit.isPrimaryThread());
                 }
 
                 private static String loc(Block block) {
                     return "(" + block.getX() + "," + block.getY() + "," + block.getZ() + ")";
+                }
+
+                private static String loc(Location at) {
+                    return "(" + at.getX() + "," + at.getY() + "," + at.getZ() + ")";
                 }
 
                 // ---------------- join/quit (the observation arms)
