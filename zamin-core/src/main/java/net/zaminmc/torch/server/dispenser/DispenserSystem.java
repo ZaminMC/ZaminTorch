@@ -410,9 +410,15 @@ public final class DispenserSystem implements WorldChangeListener {
     private Behavior projectileBehavior(ProjectileEntity.Kind kind) {
         return (pos, facing, stack) -> {
             Position at = dispensePosition(pos, facing);
-            projectiles.launchVector(kind, -1, at,
+            ProjectileEntity launched = projectiles.launchVector(kind, -1, at,
                     OFFSETS[facing][0], OFFSETS[facing][1] + 0.1, OFFSETS[facing][2],
                     1.1, 6.0);
+            if (launched != null && kind == ProjectileEntity.Kind.ARROW) {
+                // Bootstrap line 70: the dispensed arrow is COLLECTABLE
+                // (the bare positional ctor plus the explicit pickup = 1 —
+                // unlike the mob shooters' arrows).
+                launched.setPickupStatus(1);
+            }
             fx.sound(centerOf(pos), "random.bow", 1.0f, 1.2f);
             return consumeOne(stack);
         };

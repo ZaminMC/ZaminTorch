@@ -11458,3 +11458,48 @@ interaction/use path 256/0, the entity/world/spawn 638/0, the remaining
 packages + root 1066/0 — 1960/0 cumulative) + the protocol 115/0 + the
 bukkit 38/0 + the launcher 47/0 + the api 19/0. Every module green on
 feature/grass-mushroom-growth.
+
+## The arrow pickup flag (the VIII14 backlog's first retired row, 2026-10-21)
+
+The pickup slice on feature/arrow-pickup — the second lane of the
+coordinator's own work while the parallel instances fly.
+
+**The band** — ProjectileEntity's pickup int (ArrowEntity line 35: 0 the
+mob shooters' default, 1 the collectable, 2 the creative-only): the
+player bow's 1 set in the shared launch helper (the player-shooter ctors'
+lines 61/85), the Infinity/creative OVERRIDE to 2 in releaseBow
+(BowItem.stopUsing lines 52-56 — the find of the slice: the reference
+overrides the ctor's own 1 for the free arrows, so a survival walker
+never scoops an Infinity bow's shot), the dispenser's 1 (Bootstrap line
+70 — the second find: the dispensed arrow IS collectable), the mob
+shooters' 0.
+
+**The walk** — the manager's arrowPickupPass (onPlayerCollision lines
+427-440, 1:1): the inGround gate (the shake row structural — the point
+model derives it away), the flag law with the pickup-1 inventory consult
+(a full inventory leaves the arrow — the walk tries the next player, the
+reference's own per-player collision shape), the creative-only band's
+no-inventory collect, the player box grown 1.0/0.5 over the arrow's 0.5
+box (the orb pickup's exact shape), the 0x0D Collect Item + Destroy pair
+(the orb's own wire shape) + the pop sound at the collector (line 436's
+pitch band).
+
+**The import** — the anvil projectile walk's pickup row (readCustomNbt
+lines 420-424: the modern byte whole, the legacy player boolean's 1/0) —
+the VII1 counted note's pickup sub-row RETIRED (the isolation message and
+the hasUnlandedFamilyRows consult both drop the row).
+
+**The stale-row retirement** — the VIII14 item-frame comparator arm was
+already whole (Slice 28a's frameReader seam wired at EngineServer L1647,
+DecorationSystemTest L251-259 pins it): retired with the evidence, no
+code.
+
+**The tick signature** — ProjectileManager.tick() → tick(players): the
+projectile package's tests + the vehicle damage test updated to the new
+shape (the fireworks system's own no-arg tick untouched).
+
+Evidence: ArrowPickupTest 7 (the walk-over collect, the mob arrow's stay,
+the full-inventory refusal, the creative-only band both ways, the flying
+refusal, the distance band); the projectile package 38/0; the affected
+batch (the vehicle/anvil/dispenser/item-pickup/orbs/spawn-event) 137/0;
+the protocol module 115/0.

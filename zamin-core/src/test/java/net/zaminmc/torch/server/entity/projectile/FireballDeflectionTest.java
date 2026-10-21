@@ -182,7 +182,7 @@ class FireballDeflectionTest {
 
         // The first 25 ticks: the shooter is immune to its own fireball.
         for (int i = 0; i < ProjectileManager.FIREBALL_THROWER_IMMUNITY_TICKS; i++) {
-            manager.tick();
+            manager.tick(java.util.List.of());
         }
         assertTrue(combat.events.isEmpty(),
                 "the shooter is immune inside its own window (25 ticks)");
@@ -190,7 +190,7 @@ class FireballDeflectionTest {
 
         // The 26th tick: the fireball strikes its own shooter (the
         // deflected-fireball-kills-the-ghast window).
-        manager.tick();
+        manager.tick(java.util.List.of());
         assertEquals(List.of("mob"), combat.events,
                 "past 25 air ticks the shooter is fair game");
     }
@@ -210,10 +210,10 @@ class FireballDeflectionTest {
         manager.launch(ProjectileEntity.Kind.SNOWBALL, 778,
                 new Position(0, 10, 0), 0, 0, 1.5);
         for (int i = 0; i < 5; i++) {
-            manager.tick();
+            manager.tick(java.util.List.of());
         }
         assertTrue(combat.events.isEmpty(), "the 5-tick window holds");
-        manager.tick();
+        manager.tick(java.util.List.of());
         assertEquals(List.of("mob"), combat.events, "past 5 the shard can land");
     }
 }
