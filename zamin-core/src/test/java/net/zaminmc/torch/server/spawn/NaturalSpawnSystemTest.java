@@ -44,6 +44,11 @@ class NaturalSpawnSystemTest {
         final Map<Long, Integer> blockLight = new HashMap<>();
         final int surface;
         final Position spawn = new Position(0, 4, 0);
+        /** The spawn-table consult's answer (the spawn-tables slice). */
+        net.zaminmc.torch.server.world.Biome biome =
+                net.zaminmc.torch.server.world.Biome.PLAINS;
+        /** The per-column biome override (the revalidation test's seam). */
+        java.util.function.BiPredicate<Integer, Integer> biomeFilter;
 
         FakeWorld(int surface) {
             this.surface = surface;
@@ -94,6 +99,14 @@ class NaturalSpawnSystemTest {
         @Override
         public long worldSeed() {
             return 0L; // the fake world's seed (the slime-chunk derivation)
+        }
+
+        @Override
+        public net.zaminmc.torch.server.world.Biome biomeAt(int x, int z) {
+            if (biomeFilter != null && biomeFilter.test(x, z)) {
+                return net.zaminmc.torch.server.world.Biome.RIVER;
+            }
+            return biome;
         }
     }
 
@@ -437,5 +450,117 @@ class NaturalSpawnSystemTest {
         for (int trial = 0; trial < 500; trial++) {
             assertFalse(NaturalSpawnSystem.shouldDespawn(false, true, 2000.0, 600, rolls));
         }
+    }
+
+    // ------------------------------------------------------------------
+    // The spawn-table consult (the spawn-tables slice — the biome at the
+    // drifted position decides the pick, the reference's own law)
+    // ------------------------------------------------------------------
+
+    /**
+     * The cleared creature tables refuse the pack at the PICK itself
+     * (the reference's pickSpawnEntry null on an empty list — the pack
+     * attempt breaks): a desert/river/beach world never grows animals
+     * however long the rare cadence runs. The monsters (the default
+     * table) still walk the night.
+     */
+    @Test
+    void theClearedBiomeTablesRefuseTheAnimalPacks() {
+        for (net.zaminmc.torch.server.world.Biome cleared
+                : new net.zaminmc.torch.server.world.Biome[] {
+                        net.zaminmc.torch.server.world.Biome.DESERT,
+                        net.zaminmc.torch.server.world.Biome.RIVER,
+                        net.zaminmc.torch.server.world.Biome.BEACH,
+                        net.zaminmc.torch.server.world.Biome.OCEAN,
+                        net.zaminmc.torch.server.world.Biome.MESA,
+                        net.zaminmc.torch.server.world.Biome.ICE_PLAINS}) {
+            FakeWorld world = new FakeWorld(4);
+            world.biome = cleared;
+            for (int x = -30; x <= 30; x++) {
+                for (int z = -30; z <= 30; z++) {
+                    world.ground(x, z,
+                            net.zaminmc.torch.server.block.BuiltinBlocks.GRASS_BLOCK);
+                }
+            }
+            PlayerSession walker = player("Rancher", 0.5, 0.5);
+            Spawned spawned = new Spawned();
+            NaturalSpawnSystem system = new NaturalSpawnSystem(
+                    spawnSink(spawned), world, new Random(3));
+            for (int cycle = 0; cycle < 60; cycle++) {
+                system.tick(List.of(walker), 6000L, true);
+            }
+            assertEquals(0, spawned.countOf(NaturalSpawnSystem.Category.CREATURE),
+                    cleared + " never grows the animals (the cleared table)");
+        }
+    }
+
+    /**
+     * The revalidation (the reference's isValidSpawnEntry contains
+     * check): a pack entry picked on the plains half must never land on
+     * the river half — the drifted position's own table must still
+     * carry the entry. The assertion is the universal invariant: every
+     * creature that lands stands on the plains side of the boundary.
+     */
+    @Test
+    void theDriftedPositionRevalidatesAgainstItsOwnBiome() {
+        // The boundary at x = 6: the plains half x <= 6, the river half
+        // beyond (the drift reaches +6, so packs DO cross).
+        FakeWorld world = new FakeWorld(4);
+        world.biomeFilter = (x, z) -> x > 6;
+        for (int x = -30; x <= 30; x++) {
+            for (int z = -30; z <= 30; z++) {
+                world.ground(x, z,
+                        net.zaminmc.torch.server.block.BuiltinBlocks.GRASS_BLOCK);
+            }
+        }
+        PlayerSession walker = player("Rancher", -10.5, 0.5);
+        Spawned spawned = new Spawned();
+        NaturalSpawnSystem system = new NaturalSpawnSystem(
+                spawnSink(spawned), world, new Random(11));
+        for (int cycle = 0; cycle < 80; cycle++) {
+            system.tick(List.of(walker), 6000L, true);
+        }
+        int creatures = spawned.countOf(NaturalSpawnSystem.Category.CREATURE);
+        assertTrue(creatures > 0, "the plains half grows its animals");
+        for (int i = 0; i < spawned.types.size(); i++) {
+            if (Spawned.categoryOf(spawned.types.get(i))
+                    == NaturalSpawnSystem.Category.CREATURE) {
+                assertTrue(spawned.at.get(i).x() <= 6.5,
+                        "the animal never lands on the river half: "
+                                + spawned.at.get(i));
+            }
+        }
+    }
+
+    /**
+     * The jungle's ocelot rides the MONSTER table (JungleBiome line 48
+     * — weight 2, groups 1-1): the natural cycle's hostile walk picks
+     * it, and the animal cell gates (the grass + the brightness, not
+     * the monster darkness — the ocelot is no MonsterEntity) clear it
+     * even at noon. The engine's own seeding-side stand-in (Slice
+     * 15e's ocelot row at populate) retired with this slice.
+     */
+    @Test
+    void theJungleGrowsTheOcelotsThroughTheMonsterWalk() {
+        boolean anyOcelot = false;
+        for (int seed = 0; seed < 24 && !anyOcelot; seed++) {
+            FakeWorld world = new FakeWorld(4);
+            world.biome = net.zaminmc.torch.server.world.Biome.JUNGLE;
+            for (int x = -30; x <= 30; x++) {
+                for (int z = -30; z <= 30; z++) {
+                    world.ground(x, z,
+                            net.zaminmc.torch.server.block.BuiltinBlocks.GRASS_BLOCK);
+                }
+            }
+            PlayerSession walker = player("CatWalker", 0.5, 0.5);
+            Spawned spawned = new Spawned();
+            NaturalSpawnSystem system = new NaturalSpawnSystem(
+                    spawnSink(spawned), world, new Random(seed));
+            for (int cycle = 0; cycle < 30; cycle++) {
+                system.tick(List.of(walker), 6000L, false);
+            }
+            anyOcelot = spawned.types.contains(MobType.OCELOT);
+        }
+        assertTrue(anyOcelot, "the jungle's monster walk grows the ocelots");
     }
 }

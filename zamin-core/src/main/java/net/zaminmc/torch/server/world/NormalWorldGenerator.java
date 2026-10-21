@@ -624,58 +624,6 @@ public final class NormalWorldGenerator implements WorldGenerator {
     /** Biome.getAnimalSpawnChance (line 401): the flat 10% seeding chance. */
     private static final float ANIMAL_SPAWN_CHANCE = 0.1F;
 
-    /** One creature row of a biome's table (Biome.SpawnEntry). */
-    private record CreatureRow(net.zaminmc.torch.server.entity.MobType type,
-                               int weight, int minGroup, int maxGroup) {
-    }
-
-    /**
-     * The biome's creature table 1:1 (the reference's own rows over the
-     * engine's mob set): the default family (Biome lines 279-283 — the
-     * rabbit row ledgers with the rabbit slice), the desert's clear (its
-     * line 12), the ocean's clear (its line 10), the plains' horse row
-     * (PlainsBiome line 17), the jungle's second chicken (JungleBiome
-     * line 51 — the reference's own duplicate), the forest's wolf (its
-     * line 48, ledgers with the wolf slice).
-     */
-    private List<CreatureRow> creatureRowsFor(Biome biome) {
-        return switch (biome) {
-            case DESERT, OCEAN, DEEP_OCEAN -> List.of(); // the cleared tables
-            case JUNGLE -> List.of(
-                    new CreatureRow(MobType.SHEEP, 12, 4, 4),
-                    new CreatureRow(MobType.RABBIT, 10, 3, 3),
-                    new CreatureRow(MobType.PIG, 10, 4, 4),
-                    new CreatureRow(MobType.CHICKEN, 10, 4, 4),
-                    new CreatureRow(MobType.CHICKEN, 10, 4, 4), // JungleBiome's own second row
-                    new CreatureRow(MobType.COW, 8, 4, 4),
-                    // JungleBiome's ocelot (line 48: weight 2, 1-1 — the
-                    // reference rides its monster list; the populate seeding
-                    // carries it here, the jungle-only row, Slice 15e).
-                    new CreatureRow(MobType.OCELOT, 2, 1, 1));
-            case PLAINS -> List.of(
-                    new CreatureRow(MobType.SHEEP, 12, 4, 4),
-                    new CreatureRow(MobType.RABBIT, 10, 3, 3),
-                    new CreatureRow(MobType.PIG, 10, 4, 4),
-                    new CreatureRow(MobType.CHICKEN, 10, 4, 4),
-                    new CreatureRow(MobType.COW, 8, 4, 4),
-                    new CreatureRow(MobType.HORSE, 5, 2, 6)); // PlainsBiome line 17
-            case FOREST -> List.of( // ForestBiome's own table (line 48: the
-                    // wolf 5/4-4 on the variant-0 forest — Slice 15d)
-                    new CreatureRow(MobType.SHEEP, 12, 4, 4),
-                    new CreatureRow(MobType.RABBIT, 10, 3, 3),
-                    new CreatureRow(MobType.PIG, 10, 4, 4),
-                    new CreatureRow(MobType.CHICKEN, 10, 4, 4),
-                    new CreatureRow(MobType.COW, 8, 4, 4),
-                    new CreatureRow(MobType.WOLF, 5, 4, 4));
-            default -> List.of( // FOREST + the default family
-                    new CreatureRow(MobType.SHEEP, 12, 4, 4),
-                    new CreatureRow(MobType.RABBIT, 10, 3, 3),
-                    new CreatureRow(MobType.PIG, 10, 4, 4),
-                    new CreatureRow(MobType.CHICKEN, 10, 4, 4),
-                    new CreatureRow(MobType.COW, 8, 4, 4));
-        };
-    }
-
     /**
      * The animal seeding walk (NaturalSpawner.populateChunk lines 164-215,
      * 1:1): the {@code while (nextFloat() < 0.1)} group roll, the weighted
@@ -696,7 +644,15 @@ public final class NormalWorldGenerator implements WorldGenerator {
         // The reference reads the biome at the chunk's +16 corner
         // (OverworldChunkGenerator line 336: blockpos.add(16, 0, 16)).
         Biome biome = biomeAt(baseX + 16, baseZ + 16);
-        List<CreatureRow> rows = creatureRowsFor(biome);
+        // The registration table's own creature list (the spawn-tables
+        // slice: the reference's populateChunk reads
+        // biome.getSpawnEntries(CREATURE) — the desert/ocean/river/
+        // beach/ice/mesa/stone families' cleared tables refuse the
+        // seeding here now, the jungle's second chicken carries its
+        // weight twice, and the ocelot NEVER seeds at populate (its row
+        // rides the monster table — the natural cycle's jungle consult,
+        // the engine's own earlier stand-in retired).
+        List<Biome.SpawnEntry> rows = biome.creatureEntries();
         if (rows.isEmpty()) {
             return;
         }
@@ -707,7 +663,7 @@ public final class NormalWorldGenerator implements WorldGenerator {
                 ^ (chunk.position().z() * 0xB5297A4DL);
         java.util.Random random = new java.util.Random(chunkSeed);
         int totalWeight = 0;
-        for (CreatureRow row : rows) {
+        for (Biome.SpawnEntry row : rows) {
             totalWeight += row.weight();
         }
         int centerX = baseX + 8;
@@ -716,9 +672,9 @@ public final class NormalWorldGenerator implements WorldGenerator {
         while (random.nextFloat() < ANIMAL_SPAWN_CHANCE) {
             // WeightedPicker.pick: the cumulative walk over the table.
             int roll = random.nextInt(totalWeight);
-            CreatureRow picked = rows.get(rows.size() - 1);
+            Biome.SpawnEntry picked = rows.get(rows.size() - 1);
             int cumulative = 0;
-            for (CreatureRow row : rows) {
+            for (Biome.SpawnEntry row : rows) {
                 cumulative += row.weight();
                 if (roll < cumulative) {
                     picked = row;

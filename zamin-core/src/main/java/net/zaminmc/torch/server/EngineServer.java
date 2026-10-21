@@ -2102,14 +2102,15 @@ public final class EngineServer implements Server, EngineBridge {
                         new SpawnSurface(mobs, false),
                         new SpawnWorldQuery(world, false),
                         new java.util.Random());
-                // The nether's own cycle (Slice 16d): the HellBiome rows over
-                // the nether's chunks — the ghast, the pigman, the magma cube;
-                // the skeleton's wither conversion rides the nether's own
-                // spawn arm (Slice 18d).
+                // The nether's own cycle (Slice 16d): the world query
+                // answers HELL at every column, and the registration's
+                // hell table carries the three nether monsters — the
+                // ghast, the pigman, the magma cube; the skeleton's wither
+                // conversion rides the nether's own spawn arm (Slice 18d).
                 naturalSpawnsNether = new net.zaminmc.torch.server.spawn.NaturalSpawnSystem(
                         new SpawnSurface(mobs, true),
                         new SpawnWorldQuery(netherWorld, true),
-                        new java.util.Random(), true);
+                        new java.util.Random());
                 // The peaceful spawn gates (both dimensions — the
                 // reference's canSpawn consult).
                 naturalSpawns.setDifficultyRead(() -> difficulty);
@@ -16525,6 +16526,23 @@ public final class EngineServer implements Server, EngineBridge {
                 return false; // the nether carries no monuments
             }
             return monuments.insideBounds(monumentBiomes, x, y, z);
+        }
+
+        /**
+         * The biome at the column (the spawn-tables slice — the
+         * reference's {@code world.getBiome} read behind
+         * pickSpawnEntry): the overworld reads the chunk's own stored
+         * row (the voronoi map the generator wrote — the same answer
+         * the client's biome array carries); the nether answers HELL
+         * at every column (the reference's FixedBiomeSource(Biome.HELL)
+         * — the registration's hell table answers the consult).
+         */
+        @Override
+        public net.zaminmc.torch.server.world.Biome biomeAt(int x, int z) {
+            if (nether) {
+                return net.zaminmc.torch.server.world.Biome.HELL;
+            }
+            return target.biomeValueAt(x, z);
         }
 
         /**

@@ -5,6 +5,8 @@ import net.zaminmc.torch.server.block.BuiltinBlocks;
 import net.zaminmc.torch.server.block.WorldSolidity;
 import net.zaminmc.torch.server.entity.MobType;
 import net.zaminmc.torch.server.player.PlayerSession;
+import net.zaminmc.torch.server.world.Biome;
+import net.zaminmc.torch.server.world.Biome.SpawnEntry;
 import net.zaminmc.torch.util.Position;
 
 import java.util.HashSet;
@@ -24,8 +26,13 @@ import java.util.Set;
  * {@code nextInt(6) - nextInt(6)} (the y never drifts — the reference's
  * own {@code nextInt(1) - nextInt(1)} quirk), the 24-block player and
  * world-spawn keep-out rings, the spawn-cell rule (the full-cube solid
- * below, the air cell, the air above, no bedrock floor), the biome's
- * weighted entry pick with the plains-style tables, the animal grass +
+ * below, the air cell, the air above, no bedrock floor), the BIOME'S
+ * OWN weighted entry pick (the spawn-tables slice: the table at the
+ * DRIFTED position — {@code ServerWorld.pickSpawnEntry} through the
+ * biome registration, the monument/fortress swap first, and the
+ * per-position revalidation {@code isValidSpawnEntry}'s contains
+ * check — a plains pack drifting into the river's cleared table fails
+ * the cell), the animal grass +
  * brightness gate (the raw light — no ambient-darkness shave, the
  * reference's own {@code getActualLight} = {@code chunk.getLight(pos, 0)}),
  * the monster's randomized sky/block light rule read against the
@@ -71,9 +78,6 @@ public final class NaturalSpawnSystem {
         }
     }
 
-    /** One biome spawn entry (Biome.SpawnEntry: the weight + the group size). */
-    public record SpawnEntry(MobType type, int weight, int minGroup, int maxGroup) {
-    }
 
     /**
      * The ocean monument's own monster rows (OceanMonumentStructure's
@@ -164,26 +168,32 @@ public final class NaturalSpawnSystem {
         default boolean insideFortress(int x, int y, int z) {
             return false;
         }
+
+        /**
+         * The biome at the column (the reference's {@code
+         * world.getBiome(pos)} read behind {@code pickSpawnEntry} and
+         * {@code isValidSpawnEntry}): the DRIFTED cell's own row decides
+         * both the pick and the revalidation — the spawn-tables slice's
+         * consult. The default answers plains (the stub worlds' own
+         * view).
+         */
+        default Biome biomeAt(int x, int z) {
+            return Biome.PLAINS;
+        }
     }
 
     private final Mobs mobs;
     private final WorldQuery world;
     private final Random random;
-    /** Whether this cycle serves the nether dimension (the HellBiome rows). */
-    private final boolean nether;
     /** The spawning-chunk set (rebuilt every tick, the reference's own). */
     private final Set<Long> spawningChunks = new HashSet<>();
 
     public NaturalSpawnSystem(Mobs mobs, WorldQuery world, Random random) {
-        this(mobs, world, random, false);
+        this.mobs = Objects.requireNonNull(mobs, "mobs");
+        this.world = Objects.requireNonNull(world, "world");
+        this.random = Objects.requireNonNull(random, "random");
     }
 
-    /**
-     * The dimension-aware cycle: the nether instance walks the HellBiome
-     * rows (Slice 16d — GhastEntity 50/4-4, ZombiePigmanEntity 100/4-4,
-     * MagmaCubeEntity 1/4-4, every category but MONSTER empty — the
-     * reference's own hell table has no creature/ambient/water rows).
-     */
     /** The difficulty read (0 peaceful .. 3 hard); null until wired. */
     private volatile java.util.function.IntSupplier difficultyRead;
 
@@ -212,60 +222,45 @@ public final class NaturalSpawnSystem {
         this.difficultyRead = java.util.Objects.requireNonNull(difficultyRead, "difficultyRead");
     }
 
-    public NaturalSpawnSystem(Mobs mobs, WorldQuery world, Random random, boolean nether) {
-        this.mobs = Objects.requireNonNull(mobs, "mobs");
-        this.world = Objects.requireNonNull(world, "world");
-        this.random = Objects.requireNonNull(random, "random");
-        this.nether = nether;
+    // ------------------------------------------------------------------
+    // The spawn-table consult (the spawn-tables slice: the biome's own
+    // four lists, the monument/fortress swap first)
+    // ------------------------------------------------------------------
+
+    /**
+     * The biome's own table for the category (the reference's
+     * {@code Biome.getSpawnEntries} switch, lines 374-387): the four
+     * lists the registration table carries — the class defaults, the
+     * per-family clears and adds, the mutated rows' copies.
+     */
+    private List<SpawnEntry> biomeEntriesOf(Category category, Biome biome) {
+        return switch (category) {
+            case MONSTER -> biome.monsterEntries();
+            case CREATURE -> biome.creatureEntries();
+            case AMBIENT -> biome.ambientEntries();
+            case WATER_CREATURE -> biome.waterEntries();
+        };
     }
 
-    // ------------------------------------------------------------------
-    // The biome tables (Biome's own defaults + the plains' horse row)
-    // ------------------------------------------------------------------
-
-    private List<SpawnEntry> entriesOf(Category category) {
-        if (nether) {
-            // HellBiome lines 14-16: the nether's own monster table, and
-            // nothing else (no creature/ambient/water rows — the reference's
-            // own hell list).
-            return switch (category) {
-                case MONSTER -> List.of(
-                        new SpawnEntry(MobType.GHAST, 50, 4, 4),
-                        new SpawnEntry(MobType.ZOMBIE_PIGMAN, 100, 4, 4),
-                        new SpawnEntry(MobType.MAGMA_CUBE, 1, 4, 4));
-                default -> List.of();
-            };
+    /**
+     * The position's own table (the reference's consult behind
+     * {@code ServerWorld.pickSpawnEntry} and {@code
+     * isValidSpawnEntry}): the generator's monument/fortress swap first
+     * (the MONSTER-only override), then the biome at the position — the
+     * drifted cell's own registration row decides. The nether needs no
+     * flag anymore: its world answers HELL at every column, and the
+     * registration's hell table carries the three nether monsters.
+     */
+    private List<SpawnEntry> spawnEntriesAt(Category category, int x, int y, int z) {
+        if (category == Category.MONSTER) {
+            if (world.insideMonument(x, y, z)) {
+                return MONUMENT_MONSTER_ENTRIES;
+            }
+            if (world.insideFortress(x, y, z)) {
+                return FORTRESS_MONSTER_ENTRIES;
+            }
         }
-        return switch (category) {
-            case MONSTER -> List.of(
-                    // Biome lines 284-290: the four common hostiles at 100
-                    // each, groups of 4 + the enderman's row (Slice 12i)
-                    // + the witch (12j) + the slime (12k) — the full
-                    // default monster list.
-                    new SpawnEntry(MobType.SPIDER, 100, 4, 4),
-                    new SpawnEntry(MobType.ZOMBIE, 100, 4, 4),
-                    new SpawnEntry(MobType.SKELETON, 100, 4, 4),
-                    new SpawnEntry(MobType.CREEPER, 100, 4, 4),
-                    new SpawnEntry(MobType.SLIME, 100, 4, 4),
-                    new SpawnEntry(MobType.ENDERMAN, 10, 1, 4),
-                    new SpawnEntry(MobType.WITCH, 5, 1, 1));
-            case CREATURE -> List.of(
-                    // Biome lines 279-283 + the plains' horse row
-                    // (PlainsBiome line 20: weight 5, groups 2-6).
-                    new SpawnEntry(MobType.SHEEP, 12, 4, 4),
-                    new SpawnEntry(MobType.RABBIT, 10, 3, 3),
-                    new SpawnEntry(MobType.PIG, 10, 4, 4),
-                    new SpawnEntry(MobType.CHICKEN, 10, 4, 4),
-                    new SpawnEntry(MobType.COW, 8, 4, 4),
-                    new SpawnEntry(MobType.HORSE, 5, 2, 6));
-            case AMBIENT -> List.of(
-                    // Biome line 292: the bat's own ambient row.
-                    new SpawnEntry(MobType.BAT, 10, 8, 8));
-            case WATER_CREATURE -> List.of(
-                    // Biome line 277: the squid's own water row.
-                    new SpawnEntry(MobType.SQUID, 10, 4, 4));
-            default -> List.of();
-        };
+        return biomeEntriesOf(category, world.biomeAt(x, z));
     }
 
     /** @return whether the cell holds water (the squid's gate reads the block). */
@@ -366,11 +361,10 @@ public final class NaturalSpawnSystem {
                     continue;
                 }
             }
-            List<SpawnEntry> entries = entriesOf(category);
-            if (entries.isEmpty()) {
-                continue; // the ambient/water families: no mobs registered
-            }
-            // The cap (lines 59-61): count <= cap * chunks / 289.
+            // The cap (lines 59-61): count <= cap * chunks / 289. The
+            // table itself is NOT pre-picked anymore — the reference
+            // consults the biome at every drifted position (the
+            // spawn-tables slice), so an empty table refuses per cell.
             int count = mobs.countOf(category);
             int allowed = category.cap * countedChunks / CAP_CHUNK_AREA;
             if (count > allowed) {
@@ -431,20 +425,28 @@ public final class NaturalSpawnSystem {
                         // nether's monster table IS the fortress rows
                         // (NetherChunkGenerator.getSpawnEntries lines
                         // 383-392, Slice 18a — the piece bounds, or the
-                        // start bounds over nether bricks).
+                        // start bounds over nether bricks); everywhere
+                        // else the BIOME AT THE POSITION answers (the
+                        // registration table's own four lists — the
+                        // spawn-tables slice: the desert's cleared
+                        // creature table refuses the pack, the taiga's
+                        // wolf row joins, the isle's mooshroom stands
+                        // alone).
                         if (entry == null) {
-                            List<SpawnEntry> candidates = entries;
-                            if (category == Category.MONSTER) {
-                                if (world.insideMonument(x, y, z)) {
-                                    candidates = MONUMENT_MONSTER_ENTRIES;
-                                } else if (world.insideFortress(x, y, z)) {
-                                    candidates = FORTRESS_MONSTER_ENTRIES;
-                                }
-                            }
-                            entry = pickWeighted(candidates);
+                            entry = pickWeighted(spawnEntriesAt(category, x, y, z));
                             if (entry == null) {
                                 break;
                             }
+                        }
+                        // The revalidation (isValidSpawnEntry lines
+                        // 215-218): the drifted position's own table
+                        // must still carry the picked entry — a plains
+                        // pack (the horse) drifting into the river's
+                        // cleared creature table fails THIS cell (the
+                        // pack entry itself survives for the next
+                        // drift).
+                        if (!spawnEntriesAt(category, x, y, z).contains(entry)) {
+                            continue;
                         }
                         BlockPosition cell = new BlockPosition(x, y, z);
                         if (!isValidSpawnCell(entry.type(), cell, ambientDarkness)) {
