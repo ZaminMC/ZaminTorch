@@ -3937,6 +3937,34 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         channel.writeAndFlush(destroy);
     }
 
+    /**
+     * The grounded arrow's collect (ArrowEntity.onPlayerCollision line 438's
+     * sendPickup): the same Collect + Destroy pair over the projectile's own
+     * engine id space (the arrows ride the global wire ids, no
+     * per-observer mapping).
+     */
+    void sendProjectileCollected(int projectileEntityId, PlayerSession collector) {
+        Channel channel = adapter.channelOf(this);
+        if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        Integer collectorWireId = wireEntityIdOf(collector);
+        if (collectorWireId == null) {
+            return;
+        }
+        ByteBuf out = Unpooled.buffer(8);
+        ByteBufOps.writeVarInt(out, Protocol18.S2C_COLLECT_ITEM);
+        ByteBufOps.writeVarInt(out, projectileEntityId);
+        ByteBufOps.writeVarInt(out, collectorWireId);
+        channel.writeAndFlush(out);
+
+        ByteBuf destroy = Unpooled.buffer(8);
+        ByteBufOps.writeVarInt(destroy, Protocol18.S2C_DESTROY_ENTITIES);
+        ByteBufOps.writeVarInt(destroy, 1);
+        ByteBufOps.writeVarInt(destroy, projectileEntityId);
+        channel.writeAndFlush(destroy);
+    }
+
 
     /**
      * A MOB's collect (Slice 92 — the pickup walk's sendPickup): the same
