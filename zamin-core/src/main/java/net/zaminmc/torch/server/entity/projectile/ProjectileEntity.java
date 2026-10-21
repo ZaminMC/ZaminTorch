@@ -112,6 +112,17 @@ public final class ProjectileEntity implements net.zaminmc.torch.entity.Projecti
     private double accelerationX;
     private double accelerationY;
     private double accelerationZ;
+    /**
+     * The arrow's pickup band (ArrowEntity's own field, line 35): 0 = no
+     * pickup (the mob shooters' ctor never sets it — a skeleton's arrow
+     * stays on the ground), 1 = collectable (the PLAYER-shooter ctors'
+     * own set, lines 61/85, and Bootstrap's dispenser arm, line 70 — the
+     * survival walk tries the inventory), 2 = creative-only (the
+     * onPlayerCollision flag walk's own band, line 430 — no vanilla
+     * launch site sets it; the anvil import restores it from the saved
+     * row). Non-arrow kinds never read it.
+     */
+    private int pickup;
 
     public ProjectileEntity(int entityId, Kind kind, int throwerId,
                             Position position, double vx, double vy, double vz) {
@@ -207,6 +218,17 @@ public final class ProjectileEntity implements net.zaminmc.torch.entity.Projecti
 
     public boolean inGround() {
         return inGround;
+    }
+
+    /** @return the arrow's pickup band (0 none, 1 collectable, 2 creative-only). */
+    public int pickupStatus() {
+        return pickup;
+    }
+
+    /** Sets the pickup band (the launch arms' own set — the player bow's 1,
+     *  the dispenser's 1, the import's saved row). */
+    public void setPickupStatus(int pickup) {
+        this.pickup = pickup;
     }
 
     /** Marks the arrow as stuck (it stops moving and starts its removal clock). */
