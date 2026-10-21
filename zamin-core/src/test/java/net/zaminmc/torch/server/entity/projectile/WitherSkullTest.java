@@ -191,7 +191,7 @@ class WitherSkullTest {
         hits.mob = victim;
 
         manager.launchWitherSkull(777, new Position(0.0, 10.0, 0.0), 1.0, 0.0, 0.0, false);
-        manager.tick();
+        manager.tick(java.util.List.of());
         assertTrue(combat.events.contains("mob"), "the skull struck the body");
         assertEquals(8.0f, combat.lastDamage, 1e-6f, "the flat 8.0 hit");
         assertFalse(victim.dead(), "the cow lived");
@@ -214,7 +214,7 @@ class WitherSkullTest {
                 new Position(0.5, 4.0, 0.5), new Random(65L), openWorld());
         hits.mob = victim;
         manager.launchWitherSkull(778, new Position(0.0, 10.0, 0.0), 1.0, 0.0, 0.0, false);
-        manager.tick();
+        manager.tick(java.util.List.of());
         assertTrue(victim.dead(), "the chicken died to the 8.0");
         assertEquals(778, combat.healShooter, "the kill's 5.0 heal credit");
         // The curse only lands on a LIVING victim (the reference's
@@ -248,7 +248,7 @@ class WitherSkullTest {
         // (no gravity term ever joins — the pure tilt is the only bend).
         double plainTilt = Math.abs(plain.accelerationY());
         for (int tick = 0; tick < 5; tick++) {
-            manager.tick();
+            manager.tick(java.util.List.of());
         }
         assertTrue(blue.velocityX() > 0.0, "the blue still accelerates east");
         assertTrue(plain.velocityX() > 0.0, "the plain still accelerates east");

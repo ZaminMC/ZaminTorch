@@ -1142,24 +1142,36 @@ public final class AnvilWorldImport {
                     ? NbtOps.getShort(rows, "life") : 0;
             spawned.restoreGrounded(life);
         }
+        // The pickup band (readCustomNbt lines 420-424, the Arrow family
+        // alone): the modern numeric row lands whole (0/1/2), else the
+        // legacy player boolean's 1/0 — the VII1 counted note's pickup
+        // sub-row RETIRED (the grounded arrow's collect consult reads it).
+        if (kind == ProjectileEntity.Kind.ARROW) {
+            if (NbtOps.containsNumeric(rows, "pickup")) {
+                spawned.setPickupStatus(NbtOps.getByte(rows, "pickup"));
+            } else if (NbtOps.getBoolean(rows, "player")) {
+                spawned.setPickupStatus(1);
+            }
+        }
         // The per-family rows the engine's point model derives
         // differently (the reference's own rows, the §31.6 envelope):
         // the arrow's stuck cell/block (derived from the position at
-        // rest), the shake visual, the pickup gate, the damage override
+        // rest), the shake visual, the damage override
         // (the engine derives it from the speed, the Power bonus rides
         // the launch walk), and the explicit Rotation (the wire derives
         // the angles from the motion, the reference's own ctor walk);
         // the large fireball's ExplosionPower (the engine's fixed 1).
+        // (The pickup row LANDED above — the sub-row retired.)
         boolean hasUnlandedFamilyRows =
                 NbtOps.containsNumeric(rows, "xTile") || NbtOps.containsNumeric(rows, "yTile")
                 || NbtOps.containsNumeric(rows, "zTile") || !NbtOps.getString(rows, "inTile").isEmpty()
                 || NbtOps.containsNumeric(rows, "inData") || NbtOps.containsNumeric(rows, "shake")
-                || NbtOps.containsNumeric(rows, "pickup") || NbtOps.containsNumeric(rows, "damage")
+                || NbtOps.containsNumeric(rows, "damage")
                 || !NbtOps.getList(rows, "Rotation", Snbt.Tag.Type.FLOAT).isEmpty()
                 || NbtOps.containsNumeric(rows, "ExplosionPower");
         if (hasUnlandedFamilyRows) {
             ledger.isolated("projectile rows without an engine surface "
-                            + "(xTile/yTile/zTile, inTile/inData, shake, pickup, damage, "
+                            + "(xTile/yTile/zTile, inTile/inData, shake, damage, "
                             + "Rotation, ExplosionPower — the point model derives the cell, "
                             + "the block and the damage from the motion)",
                     "entity " + id + " at " + at.x() + "," + at.y() + "," + at.z());
