@@ -811,6 +811,13 @@ public final class BlockLightTable {
         // cube like the grass block; the lily pad is the 1/64 surface).
         merged.put(Identifier.parse("minecraft:mycelium"), new LightData(0, 15));
         merged.put(Identifier.parse("minecraft:waterlily"), new LightData(0, 0));
+        // The dirt variants (the VIII14 decorators slice — the surface
+        // slice's register-only pair now rides the populate scans: the
+        // podzol the giant spruce's own soil patch places and the coarse
+        // band the mega taiga's surfaces carry are opaque cubes like the
+        // dirt they stand in for).
+        merged.put(Identifier.parse("minecraft:coarse_dirt"), new LightData(0, 15));
+        merged.put(Identifier.parse("minecraft:podzol"), new LightData(0, 15));
         // The red sandstone family (Slice 52 — 1.8's own four): the red
         // sand and the three TYPE states are full opaque cubes (the sand's
         // own row and the RedSandstoneBlock's Material.STONE); the stairs
