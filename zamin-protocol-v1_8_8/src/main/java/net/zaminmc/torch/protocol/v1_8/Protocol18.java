@@ -85,6 +85,15 @@ final class Protocol18 {
     /** Block Action (0x24, protocol 47): i64 pos, u8 action, u8 param, u32 block. */
     static final int S2C_BLOCK_ACTION = 0x24;
     /**
+     * Map Data (0x34 — the map item family, the reference's
+     * MapDataS2CPacket): the varint MAP id (the stack's damage field,
+     * never an entity id), the scale byte, the varint-counted icon rows
+     * (the packed type/rot byte + the x/y pair), the columns byte, and —
+     * when the columns byte is nonzero — the rows/minX/minY bytes + the
+     * varint-length colors payload.
+     */
+    static final int S2C_MAP_DATA = 0x34;
+    /**
      * Update Block Entity (0x35 — the PLAY registration order's own slot,
      * the reference NetworkProtocol lines 122-195: the fifty-fourth
      * clientbound play packet): position + the tile type byte + the NBT
