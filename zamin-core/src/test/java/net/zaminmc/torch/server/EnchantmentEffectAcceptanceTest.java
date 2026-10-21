@@ -118,27 +118,28 @@ class EnchantmentEffectAcceptanceTest {
         assertEquals(PlayerSession.MAX_HEALTH, victim.health(), "the victim starts whole");
 
         // Full Protection IV diamond vs the 7-damage sword: the armor
-        // envelope passes 7 * (1 - 16.5/25) = 2.38; the 20-EPF roll then
-        // multiplies by (25 - k)/25 with k in 10..20 -> 0.476..1.428.
+        // envelope (getDamageAfterArmor, the flat 4%-per-point law) passes
+        // 7 * 5 / 25 = 1.4; the 20-EPF roll then multiplies by (25 - k)/25
+        // with k in 10..20 -> 0.28..0.84.
         dressIn(victim, 4);
         standNextTo(server, attacker, victim.position());
         grant(attacker, ItemStack.of(BuiltinItems.DIAMOND_SWORD));
         server.attackPlayer(attacker, victim);
         await(() -> victim.health() < PlayerSession.MAX_HEALTH, "the hit landed");
         float enchantedLoss = PlayerSession.MAX_HEALTH - victim.health();
-        assertTrue(enchantedLoss > 0.4f && enchantedLoss < 1.5f,
+        assertTrue(enchantedLoss > 0.2f && enchantedLoss < 0.9f,
                 "the protection roll carried the hit into the vanilla band, saw "
                         + enchantedLoss);
 
         // The control: the same diamond set unenchanted loses exactly the
-        // armor envelope (7 * (1 - 16.5/25) = 2.38), no enchantment step.
+        // armor envelope (7 * (25 - 20) / 25 = 1.4), no enchantment step.
         PlayerSession bare = join(server, "Bare");
         dressIn(bare, 0);
         standNextTo(server, attacker, bare.position());
         server.attackPlayer(attacker, bare);
         await(() -> bare.health() < PlayerSession.MAX_HEALTH, "the control hit landed");
         float bareLoss = PlayerSession.MAX_HEALTH - bare.health();
-        assertEquals(2.38f, bareLoss, 0.01f, "the unenchanted set takes the bare envelope");
+        assertEquals(1.4f, bareLoss, 0.01f, "the unenchanted set takes the bare envelope");
         server.shutdown(null);
     }
 

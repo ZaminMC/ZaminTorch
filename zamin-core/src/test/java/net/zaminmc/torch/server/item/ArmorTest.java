@@ -53,14 +53,18 @@ class ArmorTest {
 
     @Test
     void theReductionEnvelopeMatchesTheHistoricalFormula() {
+        // The reference's getDamageAfterArmor (LivingEntity lines 868-877):
+        // damage * (25 - points) / 25 — every point absorbs a flat 4%.
         // 20 points (diamond full set) vs the 7-damage iron sword hit:
-        // absorbed = min(20, max(4, 20 - 3.5)) = 16.5 -> damage * (1 - 16.5/25).
-        assertEquals(7.0f * (1.0f - 16.5f / 25.0f), Armor.reduce(20, 7.0f), 1e-5);
-        // 7 points (leather full set) vs the same hit:
-        // absorbed = min(20, max(1.4, 7 - 3.5)) = 3.5.
-        assertEquals(7.0f * (1.0f - 3.5f / 25.0f), Armor.reduce(7, 7.0f), 1e-5);
+        // 7.0 * 5 / 25 = 1.4.
+        assertEquals(7.0f * (25.0f - 20.0f) / 25.0f, Armor.reduce(20, 7.0f), 1e-5);
+        // 7 points (leather full set) vs the same hit: 7.0 * 18 / 25 = 5.04.
+        assertEquals(7.0f * (25.0f - 7.0f) / 25.0f, Armor.reduce(7, 7.0f), 1e-5);
         // No armor never reduces.
         assertEquals(5.0f, Armor.reduce(0, 5.0f), 1e-6);
+        // The old 1.9-shaped envelope's own example is now refused: at 20
+        // points vs 10 damage the 1.9 form passes 4.0, the 1.8.8 law 2.0.
+        assertEquals(2.0f, Armor.reduce(20, 10.0f), 1e-5);
     }
 
     @Test

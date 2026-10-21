@@ -2761,11 +2761,13 @@ own tests. Order is by vanilla visibility and dependency, not size.
       family — ON_FIRE, DROWN, IN_WALL, STARVE, FALL, OUT_OF_WORLD,
       GENERIC, MAGIC, WITHER — takes the new hurt(amount, true) arm;
       the melee/arrows/explosions/lightning/anvil/cactus/lava/
-      in-fire walk consults the pieces; NOTE: the PLAYER path's
-      Armor.reduce carries the 1.9 toughness-shaped envelope
-      min(20, max(points/5, points - dmg/2)) — a pre-existing
-      divergence from the reference's linear law, recorded for the
-      owning instance, NOT changed here); THE SPAWN DICE —
+      in-fire walk consults the pieces; the PLAYER path's
+      Armor.reduce briefly carried the 1.9 toughness-shaped envelope
+      min(20, max(points/5, points - dmg/2)) — RETIRED 2026-10-21
+      by the lead instance against the reference: Armor.reduce now
+      answers the same linear damage * (25 - points) / 25 law, both
+      paths agreeing (ArmorTest's 1.4/5.04 pins + the refused 1.9
+      example, EnchantmentEffectAcceptanceTest's 1.4 control)); THE SPAWN DICE —
       MobManager.rollSpawnEquipment, addRandomEquipment lines
       593-623 1:1 (the 0.15-times-multiplier gate, the nextInt(2)
       level + three 0.095 bumps, the head-to-feet walk with HARD's

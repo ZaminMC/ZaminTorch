@@ -72,10 +72,13 @@ public final class Armor {
     }
 
     /**
-     * The 1.8 damage reduction of an armor total against one hit (toughness 0
-     * for every piece we ship): {@code min(20, max(armor/5, armor - dmg/2))}
-     * points absorb, each absorbing 1/25 of the damage. The historical
-     * EntityLivingBase.applyArmor envelope.
+     * The 1.8.8 damage reduction of an armor total against one hit — the
+     * reference's own {@code getDamageAfterArmor} (LivingEntity lines
+     * 868-877): every point absorbs a flat 4% of the incoming damage,
+     * {@code damage * (25 - points) / 25}. No toughness term, no
+     * damage-dependent envelope — that shape is the 1.9 rewrite the engine
+     * briefly carried (retired 2026-10-21 against the reference; the mob
+     * path's VIII4 consult rides this same law now).
      *
      * @param armorPoints the sum of the equipped pieces (0-20 on the bar)
      * @param damage      the raw incoming damage
@@ -85,8 +88,6 @@ public final class Armor {
         if (armorPoints <= 0 || damage <= 0) {
             return damage;
         }
-        float absorbed = Math.min(20.0f,
-                Math.max(armorPoints / 5.0f, armorPoints - damage / 2.0f));
-        return damage * (1.0f - absorbed / 25.0f);
+        return damage * (25.0f - armorPoints) / 25.0f;
     }
 }
