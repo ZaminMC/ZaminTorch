@@ -74,12 +74,22 @@ final class MobGoals {
      * A loved body scans for the nearest legal partner, walks to it, and
      * after 60 ticks inside the 3-block band the breed lands through the
      * pending flag (the manager executes it — it owns spawning).
+     *
+     * <p>VIII10 — the VILLAGER's own arm (VillagerMatingGoal over the
+     * same breed surface): the 1-in-500 cadence, the village's census
+     * gate, the food/willing model (the 3-bread/12-potato/12-carrot
+     * consume arms the willing at the attempt), and the mate scan over
+     * the willing pair — the walk itself (the proximity window + the
+     * request) rides the shared shape.</p>
      */
     static final MobGoal BREED = new MobGoal() {
         @Override public String goalId() { return "breed"; }
         @Override public int priority() { return 2; }
         @Override public boolean exclusive() { return true; }
         @Override public boolean canUse(MobEntity mob, boolean night) {
+            if (mob.type() == MobType.VILLAGER) {
+                return mob.goalVillagerMatingCanUse();
+            }
             return mob.isInLove() && mob.findMate() != null;
         }
         @Override public void tick(MobEntity mob, boolean night) {
