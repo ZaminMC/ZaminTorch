@@ -137,6 +137,15 @@ public class RconServer extends RconBase {
      * (lines 91-92) or an invalid port (lines 93-94) warns and never
      * starts; a bind failure warns and degrades (lines 100-102) — the
      * server keeps running in every refusal arm.
+     *
+     * <p>The one engine-side difference, named: the socket sets
+     * SO_REUSEADDR before the bind (the reference binds directly, line 97;
+     * the engine's own net convention — the protocol adapter's transport
+     * does the same). Without it a restarted server could NOT rebind its
+     * rcon.port while a closed accepted-connection still holds the port in
+     * TIME_WAIT, and the degrade law above would silently disable the
+     * listener — the exact restart hazard the engine's shutdown law
+     * forbids.</p>
      */
     @Override
     public void start() {
@@ -148,7 +157,11 @@ public class RconServer extends RconBase {
                     + this.server.getPropertiesFilePath() + "', rcon disabled!");
         } else if (!this.running) {
             try {
-                this.listener = new ServerSocket(this.port, 0, InetAddress.getByName(this.serverIp));
+                ServerSocket listener = new ServerSocket();
+                listener.setReuseAddress(true);
+                listener.bind(new java.net.InetSocketAddress(
+                        InetAddress.getByName(this.serverIp), this.port), 0);
+                this.listener = listener;
                 this.listener.setSoTimeout(500);
                 super.start();
             } catch (IOException ioexception) {

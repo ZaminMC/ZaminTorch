@@ -52,6 +52,8 @@ final class RconTestHarness {
         String cannedOutput = "";
         String cannedFailure;
         final List<String> executedCommands = new ArrayList<>();
+        /** Every warn() the listener emitted — the refusal laws' evidence. */
+        final List<String> warnings = new ArrayList<>();
 
         FakeAccess(String password, int port) {
             this.password = password;
@@ -154,6 +156,7 @@ final class RconTestHarness {
 
         @Override
         public void warn(String message) {
+            warnings.add(message);
         }
 
         @Override
