@@ -329,7 +329,9 @@ public final class EntityNbt {
                 } else {
                     NbtOps.putInt(nbt, "ConversionTime", -1);
                 }
-                NbtOps.putBoolean(nbt, "CanBreakDoors", false);
+                // writeCustomNbt line 330 (VIII9): the door-break flag's
+                // own row, always written.
+                NbtOps.putBoolean(nbt, "CanBreakDoors", mob.zombieCanBreakDoors());
             }
             case CREEPER -> {
                 // writeCustomNbt lines 73-82: powered only when charged
@@ -442,7 +444,9 @@ public final class EntityNbt {
                         && NbtOps.getInt(nbt, "ConversionTime") > -1) {
                     mob.setZombieConversionTime(NbtOps.getInt(nbt, "ConversionTime"));
                 }
-                // CanBreakDoors: the engine models no door-breaking (ledgered).
+                // readCustomNbt line 348 (VIII9 — the row the ledger's
+                // door-break note deferred): the flag arms the goal.
+                mob.setZombieCanBreakDoors(NbtOps.getBoolean(nbt, "CanBreakDoors"));
             }
             case CREEPER -> {
                 // readCustomNbt lines 85-98: powered reads the boolean

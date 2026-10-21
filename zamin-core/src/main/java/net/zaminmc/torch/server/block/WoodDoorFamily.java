@@ -199,6 +199,12 @@ public final class WoodDoorFamily {
         return index < 0 ? null : FAMILIES.get(index);
     }
 
+    /** The family name of a door identifier, or null (the isDoor overload's own pair — VIII9's door consult). */
+    public static String familyOf(Identifier identifier) {
+        int index = familyIndex(identifier);
+        return index < 0 ? null : FAMILIES.get(index);
+    }
+
     /** The legacy metadata nibble of a door state's identifier (resolved
      *  against the family's own tables — the shipped constants and the
      *  family's states agree byte for byte). */

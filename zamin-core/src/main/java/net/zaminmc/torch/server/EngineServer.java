@@ -5487,7 +5487,11 @@ public final class EngineServer implements Server, EngineBridge {
                     mob.setEndermanAttackedByPlayer(true);
                 }
             }
-            boolean landed = mobManager.hurt(mob, damage, kbYaw);
+            // VIII9: the attacking player rides the walk (the zombie's
+            // reinforcement ladder resolves the wound's living attacker).
+            boolean landed = mobManager.hurt(mob, damage, kbYaw,
+                    net.zaminmc.torch.event.DamageCause.MELEE,
+                    false, false, null, attacker);
             if (landed) {
                 // The wound stats (EntityLivingBase.damageEntity's own rows):
                 // the dealt damage counts in tenths and the body remembers
@@ -16469,7 +16473,12 @@ public final class EngineServer implements Server, EngineBridge {
                 return false;
             }
             boolean landedArrow = mobManager.hurt(mob, damage, kbYaw,
-                    net.zaminmc.torch.event.DamageCause.PROJECTILE);
+                    net.zaminmc.torch.event.DamageCause.PROJECTILE,
+                    false, false, null,
+                    // VIII9: the player shooter rides the walk (the zombie's
+                    // reinforcement ladder resolves the wound's living
+                    // attacker — a modded skeleton's arrow carries null).
+                    playerShooter ? shooter : null);
             if (landedArrow && playerShooter) {
                 // The wound stats (the melee arm's own rows over the arrow):
                 // the dealt tenths and the kill-credit carrier.
@@ -17715,6 +17724,43 @@ public final class EngineServer implements Server, EngineBridge {
         }
 
         /**
+         * The zombie's door-break crack stage (VIII9 — the 0x28 fan rides
+         * the public listener list; the protocol bridge sends it over the
+         * MOB's own breaker id).
+         */
+        @Override
+        public void onZombieDoorBreakProgress(MobEntity mob, int x, int y, int z, int stage) {
+            for (MobManager.Listener listener : mobListeners) {
+                listener.onZombieDoorBreakProgress(mob, x, y, z, stage);
+            }
+        }
+
+        /**
+         * The zombie's door break completed (VIII9 — BreakDoorGoal.tick
+         * lines 53-57): the door cell's removal (the air write + the pair
+         * cleanup the engine's own break path carries — door halves die
+         * as a unit), the 1012 door-break event, and the 2001 block-dust
+         * burst over the door's own state.
+         */
+        @Override
+        public void onZombieDoorBroken(MobEntity mob, int x, int y, int z) {
+            for (MobManager.Listener listener : mobListeners) {
+                listener.onZombieDoorBroken(mob, x, y, z);
+            }
+            BlockPosition at = new BlockPosition(x, y, z);
+            var type = world.getBlock(at);
+            world.setBlock(at, world.airType());
+            // The door halves die as a unit (the engine's own cleanup the
+            // player break path carries — DoorBlock.onRemoved's pair).
+            doorSiblingCleanup(at);
+            Position center = new Position(x + 0.5, y + 0.5, z + 0.5);
+            for (MobManager.Listener listener : mobListeners) {
+                listener.onWorldEventAt(center, 1012);
+            }
+            fxManager.blockShatter(center, type);
+        }
+
+        /**
          * The snow golem's volley (Slice 17d — SnowGolemEntity.
          * doRangedAttack lines 89-96): the snowball launches from the
          * golem's own height, aimed at the target's eye band pulled to the
@@ -18720,6 +18766,13 @@ public final class EngineServer implements Server, EngineBridge {
         public boolean difficultyAtLeastNormal() {
             // The engine's own difficulty id (0 peaceful .. 3 hard).
             return difficulty >= 2;
+        }
+
+        @Override
+        public boolean difficultyHard() {
+            // VIII9: the door's own completion gate + the reinforcement
+            // roll's band (ZombieEntity's takeDamage line 200).
+            return difficulty == 3;
         }
 
         @Override
