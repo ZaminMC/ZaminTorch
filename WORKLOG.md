@@ -11885,3 +11885,130 @@ patches/lakes/dungeons), assigned to the parallel wave's instance 2
 local-difficulty completion (the inhabited-time and moon-phase terms
 currently zeroed, MobManager 3520's ledger) split between the
 coordinator and instance 9.
+## 2026-10-21 — the entity-physics pushes (the VIII13 additive families + the Phase-7 merge bucketing's landing record + the retract-event resolver)
+
+The parallel wave's entity-physics lane on
+`feature/entity-physics-pushes` (off develop at 24f0196): three rows
+the ledger and the worklog name — the piston-push seam's additive
+families, the Phase-7 merge-bucketing record with fresh re-measured
+numbers, and the bukkit slice-2 wave's recorded engine-side
+retract-event bug.
+
+### The additive families (VIII13's own ledger rows)
+
+`MovingBlockEntity.moveEntities` lines 80-115's law is uniform —
+`world.getEntities(null, box)` pushes EVERY body family, none exempted
+— so the seam's five remaining families each gain their own box test,
+shift arm, and fling arm, registered in the EngineServer push-surface
+walk beside the three landed adapters:
+
+- **The XP orbs**: `ExperienceOrbEntity.pushBy` — the item family's
+  own leading-face clamped shift over the orb's Ground (the family's
+  own unify note — the orb reuses the item model), the manager's
+  `pushOrb` publishing the move through the orb's own listener face
+  (the observers see the pushed orb the same tick, never waiting for
+  the next physics pass to notice the displacement), the fling the
+  public `setVelocity` composition.
+- **The armor stands**: `ArmorStandSystem.pushStand` over the family's
+  OWN walk law (the two-cell horizontal clip — the feet cell and the
+  head cell above it — and the descending floor clip; the ascending
+  axis unclipped, the family's walk carrying no ceiling arm, named),
+  the marker stand never a body (updateSize(0, 0)), the new `small()`
+  flag row with the per-form box (0.5 × 1.975 vs 0.25 × 0.9875), the
+  fling the walk's own `setVelocity` (the friction decay carrying it).
+- **The primed TNT**: `TntSystem.pushTnt` — the horizontal axes
+  integrate unclipped (the family's established plain-integration
+  shape, named), the descending axis clamped by the tick's own
+  feet-relative consult, the fling the per-axis velocity set over the
+  private fields.
+- **The falling blocks**: `FallingBlockEntity.pushBy` — the tick's
+  own two-path discipline (the `EntityMoveSolver` swept box over the
+  ground's collision world when it provides the surface, the plain
+  point consults otherwise, the descending clamp at the support's
+  exact top), the manager's `pushFalling` publishing `onFallingMoved`,
+  the fling VERTICAL-only (the family's flight integrates velocityY
+  alone — the horizontal components have no carrier, named).
+- **The projectiles**: `ProjectileManager.pushProjectile` — the
+  leading-face clamped shift over the manager's SolidQuery with the
+  per-kind box (the reference's own setSize rows: the arrow 0.5,
+  the fireball base 1.0, the small fireball and the wither skull
+  0.3125, the thrown family 0.25), the move published through the
+  family's listener face. THE GROUNDED ARROW rides the same law as
+  the reference's own outcome: `world.getEntities` displaces it and
+  `ProjectileEntity.tick` lines 84-92's revalidation reads the STICK
+  CELL, which the push never changes — the displaced arrow keeps its
+  stick (the engine's grounded model carries the same shape), and
+  the fling's set components ride as dead state exactly as the
+  reference's stick branch leaves them.
+
+The wiring: the walk gains the five families' box tests (the orb's
+0.25 center box, the stand's per-form box rows, the TNT and the
+falling block's 0.98 bottom-center box, the projectile's per-kind
+half) + the five adapter records
+(PistonOrbPush/PistonStandPush/PistonTntPush/PistonFallingPush/
+PistonProjectilePush) beside the landed three.
+
+### The retract-event resolver (the bukkit slice-2 wave's recorded bug)
+
+The native PistonMoveEvent's javadoc names "the pull chain on a
+sticky retract" as the movedCells intent, but the gate's fresh
+resolution walked the pull column from the block beyond the head
+toward the piston and hit the EXTENDED HEAD itself — a
+BEHAVIOR_BLOCK cell, the reference's own material table — so every
+sticky retract answered movedCells=[] while the pull itself landed
+(the bukkit test pinned the actual shape with the comment naming the
+follow-up). The fix mirrors the movement's own pre-steps in the
+gate's prospective resolution: (1) the retract arm removes the head
+BEFORE its resolver runs (PistonBaseBlock.move lines 288-290), so
+`PistonStructureResolver` gains the prospective form — a
+`departedCell` that answers AIR through the whole walk (every getBlock
+read routed through the new `blockAt` helper); (2) the arm's own pull
+gate (doEvent lines 141-143, verbatim) — a DESTROY block (the old
+gate even answered brokenCells rows the arm never breaks), an
+immovable one, or a mid-flight carrier leaves the lists empty exactly
+as the movement leaves the world alone; (3) the plain retract answers
+the empty lists the event javadoc itself names (nothing follows the
+head home).
+
+### The Phase-7 merge bucketing's landing record
+
+The optimization itself landed at 16676c9 (the O(n^2) candidate scan
+retired; the equivalence pinned per-seed by
+ItemMergeBucketingEquivalenceTest 12 against a verbatim copy of the
+old law), but the §22 Phase-7 row still named it as the pending
+demand-named fix. This slice records the landing with fresh
+re-measured numbers on this machine (the DenseOwnerProfilingTest
+harness's own methodology): 458 settled items → itemEntities
+1671.7us/tick (3.65us/item) against the pre-bucketing 2726.4us at 444
+(6.14us/item); 1532 settled → 5482.0us/tick (3.58us/item) against the
+pre-bucketing 16127.3us at 1506 (10.71us/item, 91.3% of the tick fan)
+— the relief at the recorded ~1500-item density is 2.94x and the
+per-item growth is 0.98x for 3.34x the bodies (the pre-bucketing
+superlinear signature was 1.74x): the superlinear term is retired.
+
+### Evidence
+
+- PistonEntityPushTest 11/0: the landed four (the mob flight-path
+  push, the wall clamp, the item ride, the slime fling) + the orb ride
+  + the stand ride + the TNT ride + the falling ride + the arrow ride
+  (each with the far-body box control that never moves) + the flings
+  (the four-body slime combo; the UP-axis falling fling over the
+  vertical-only carrier, the lever on its own support block).
+- The piston package whole 23/0 (PistonSystemTest 6 +
+  PistonFluidEventAcceptanceTest 6 with the new
+  theRetractObservationCarriesThePullChain — the sticky retract's
+  movedCells=[the stone's cell] exact, the plain retract's both
+  lists empty — + the push test 11).
+- RegionBoundaryTest 8/0 (the seam-crossing push and sticky pull
+  untouched, vanilla-exact).
+- ItemMergeBucketingEquivalenceTest 12/0 + ItemEntityManagerTest 11/0
+  + DenseOwnerProfilingTest 3/0 (the gate test's own assertions hold
+  under the bucketed walk at the settled densities).
+- The whole zamin-bukkit module green (38/0; BukkitEventBridgeGroupTwo
+  7/0 with the pinned retract expectation updated moved=0 → moved=1,
+  the comment rewritten to name the landed follow-up).
+- `./gradlew :zamin-core:compileJava` green.
+- Docs: §22's Phase-7 verdict (the bucketing LANDED with the fresh
+  numbers), §29's VIII13 row (the additive families + the retract
+  resolver + the P7 record), §22's next-work line's three VIII13
+  recaps annotated.
