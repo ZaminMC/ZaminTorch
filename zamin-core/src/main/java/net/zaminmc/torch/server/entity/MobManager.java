@@ -1297,13 +1297,22 @@ public final class MobManager {
             // VIII10 — mobAiTick's village scan cadence (VillagerEntity
             // lines 353-368): the 70 + nextInt(50) window marks the
             // villager's cell for the door census (the reference's own
-            // markForUpdate call).
+            // markForUpdate call) and pays the converted-zombie's +5
+            // reputation over the villager's own village once (lines
+            // 363-366 — the cured villager's first scan).
             if (mob.type() == MobType.VILLAGER && villageSystem != null
                     && mob.tickVillagerScanCooldown(random)) {
                 Position at = mob.position();
-                villageSystem.markForUpdate(
-                        (int) Math.floor(at.x()), (int) Math.floor(at.y()),
-                        (int) Math.floor(at.z()));
+                int scanX = (int) Math.floor(at.x());
+                int scanY = (int) Math.floor(at.y());
+                int scanZ = (int) Math.floor(at.z());
+                villageSystem.markForUpdate(scanX, scanY, scanZ);
+                if (mob.consumeVillagerConvertedZombie()) {
+                    var village = villageSystem.nearestVillage(scanX, scanY, scanZ, 32);
+                    if (village != null) {
+                        village.updateAllReputations(5);
+                    }
+                }
             }
             // VIII10 — the golem's village defense (IronGolemEntity
             // .mobAiTick lines 66-79 + TrackIronGolemTargetGoal): the
@@ -2553,6 +2562,10 @@ public final class MobManager {
             if (baby) {
                 villager.setBreedingAge(-24_000);
             }
+            // VIII10 — setConvertedZombie (VillagerEntity line 523): the
+            // marker arms the +5 reputation walk at the villager's next
+            // village-scan cadence (mobAiTick lines 363-366).
+            villager.setVillagerConvertedZombie();
             net.zaminmc.torch.server.potion.PotionSystem potions = potionSystem;
             if (potions != null) {
                 potions.add(villager, new net.zaminmc.torch.server.potion.StatusEffectInstance(

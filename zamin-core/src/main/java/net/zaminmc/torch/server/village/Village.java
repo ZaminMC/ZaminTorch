@@ -288,7 +288,7 @@ public final class Village {
         int bestId = -1;
         double bestDistance = Double.MAX_VALUE;
         for (Attacker attacker : attackers) {
-            if (attacker.mobName != null && attacker.mobName.equals("creeper")) {
+            if (attacker.mobName != null && attacker.mobName.equalsIgnoreCase("creeper")) {
                 continue; // the creeper never turns the village's golem
             }
             if (!surface.entityAlive(attacker.engineId)) {
