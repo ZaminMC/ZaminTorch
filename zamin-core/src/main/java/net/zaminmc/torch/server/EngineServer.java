@@ -429,6 +429,17 @@ public final class EngineServer implements Server, EngineBridge {
     private volatile net.zaminmc.torch.server.weather.WeatherSystem weather;
     private net.zaminmc.torch.server.weather.WeatherDataStore weatherStore;
     /**
+     * The map item family (the reference's FilledMapItem/SavedMapData
+     * walks): the per-dimension map tables, the terrain scan, the holder
+     * walk, and the 0x34 sends. The stores follow the standalone pattern
+     * (one ZMP file per dimension, the same shape as the weather/village
+     * pair).
+     */
+    private volatile net.zaminmc.torch.server.map.MapSystem maps;
+    private net.zaminmc.torch.server.map.MapDataStore mapStore;
+    private net.zaminmc.torch.server.map.MapDataStore netherMapStore;
+    private net.zaminmc.torch.server.map.MapDataStore endMapStore;
+    /**
      * The game-rule table (Slice 24a — the 1.8.8 GameRules port): one
      * shared instance per server — every dimension's derived data
      * delegates to the overworld's table (the reference's own
@@ -1089,6 +1100,28 @@ public final class EngineServer implements Server, EngineBridge {
                         onThunderGradientChanged(weather.thunderGradient());
                     }
                 });
+                // The map item family (the reference's FilledMapItem +
+                // SavedMapData over the engine's worlds): the per-dimension
+                // tables with the ZMP persistence (the reference's per-world
+                // map_<id>.dat family — the overworld's data/, the nether's
+                // DIM-1/data/, the End's DIM1/data/), the terrain scan, the
+                // holder walk, and the 0x34 fan through the link.
+                maps = new net.zaminmc.torch.server.map.MapSystem(new MapSurface());
+                mapStore = new net.zaminmc.torch.server.map.MapDataStore(
+                        config.worldDataDir().resolve("maps.bin"));
+                net.zaminmc.torch.server.map.MapDataStore.Loaded loadedMaps =
+                        mapStore.load();
+                maps.restore(0, loadedMaps.rows());
+                if (netherWorld != null) {
+                    netherMapStore = new net.zaminmc.torch.server.map.MapDataStore(
+                            config.worldDataDir().resolve("maps_nether.bin"));
+                    maps.restore(-1, netherMapStore.load().rows());
+                }
+                if (endWorld != null) {
+                    endMapStore = new net.zaminmc.torch.server.map.MapDataStore(
+                            config.worldDataDir().resolve("maps_end.bin"));
+                    maps.restore(1, endMapStore.load().rows());
+                }
                 // The lightning family (Slice 20c — ServerWorld.tickChunks
                 // lines 313-321 + LightningBoltEntity): the strike roll,
                 // the target resolution, and the bolt's own two-tick life.
@@ -4659,6 +4692,33 @@ public final class EngineServer implements Server, EngineBridge {
             tickFireBody(session);
             tickLavaBody(session); // the isInLava arm (Slice 93/D2)
             tickCactusContact(session);
+            // The map item family's held walk (the reference's
+            // PlayerInventory.tick lines 244-247 — the 36 main slots'
+            // FilledMapItem.tick: the damage-row consult with the
+            // reassign write-back, the audience walk, and the selected
+            // slot's terrain scan) + the packet consult
+            // (ServerPlayerEntity.tickPlayer lines 288-297 — the 40-slot
+            // walk answering every held map's 0x34 through the link).
+            if (maps != null) {
+                for (int slot = 0; slot < PlayerInventory.TOTAL_SLOTS; slot++) {
+                    ItemStack at = session.inventory().slotCopy(slot);
+                    if (at.isEmpty() || !at.type().equals(BuiltinItems.FILLED_MAP)) {
+                        continue;
+                    }
+                    ItemStack resolved = maps.tickHeldStack(session, at,
+                            session.inventory().heldSlot() == slot);
+                    if (resolved != at) {
+                        session.inventory().setSlot(slot, resolved);
+                    }
+                }
+                for (net.zaminmc.torch.server.map.MapData.MapUpdatePayload payload
+                        : maps.heldMapPackets(session)) {
+                    session.link().sendMapData(payload.mapId(), payload.scale(),
+                            net.zaminmc.torch.server.map.MapSystem.iconsOf(payload),
+                            payload.minX(), payload.minY(), payload.width(),
+                            payload.height(), payload.colors(), Long.MIN_VALUE);
+                }
+            }
             // The ladder catch: a body on a ladder accumulates no fall
             // distance, so the descent never rounds into landing damage.
             if (ladderAt(session.position().x(), session.position().y(),
@@ -16279,6 +16339,65 @@ public final class EngineServer implements Server, EngineBridge {
         if (eyes != null) {
             eyes.tick(); // the eyes' steering + the 80-tick end (the import-families slice)
         }
+        // The framed maps' audience walk (the map item family — TrackedEntity
+        // lines 134-151: the ten-tick cadence over every frame displaying a
+        // filled map, the holder walk + the 0x34 per player). The frames hang
+        // in the overworld (the decoration system's own world).
+        if (maps != null && world.totalTicks() % 10 == 0) {
+            java.util.List<net.zaminmc.torch.server.map.MapSystem.FrameInfo> framedMaps =
+                    new java.util.ArrayList<>();
+            for (net.zaminmc.torch.server.decoration.ItemFrame frame : decorations.allFrames()) {
+                ItemStack displayed = frame.display();
+                if (!displayed.isEmpty()
+                        && displayed.type().equals(BuiltinItems.FILLED_MAP)) {
+                    framedMaps.add(new FramedMap(frame, displayed));
+                }
+            }
+            if (!framedMaps.isEmpty()) {
+                maps.frameTick(players.all(), framedMaps);
+            }
+        }
+    }
+
+    /** One framed map's adapter (the map walk's frame context). */
+    private record FramedMap(net.zaminmc.torch.server.decoration.ItemFrame frame,
+                             ItemStack displayed)
+            implements net.zaminmc.torch.server.map.MapSystem.FrameInfo {
+
+        @Override
+        public int entityId() {
+            return frame.entityId();
+        }
+
+        @Override
+        public int x() {
+            return frame.pos().x();
+        }
+
+        @Override
+        public int z() {
+            return frame.pos().z();
+        }
+
+        @Override
+        public int facing() {
+            return frame.facing();
+        }
+
+        @Override
+        public int dimension() {
+            return 0; // the decoration system's own world (the overworld)
+        }
+
+        @Override
+        public ItemStack display() {
+            return displayed;
+        }
+
+        @Override
+        public long chunkKey() {
+            return frame.pos().chunkPosition().packed();
+        }
     }
 
     /**
@@ -16505,6 +16624,62 @@ public final class EngineServer implements Server, EngineBridge {
         @Override
         public void wakeComparators(net.zaminmc.torch.block.BlockPosition cell) {
             redstoneSystem.wakeComparators(cell);
+        }
+    }
+
+    /**
+     * The map system's engine surface (the map item family — the reference's
+     * World reads over the engine's per-dimension worlds): the chunk-column
+     * accessor with the derived heightmap consult (the highest
+     * light-filtering block + 1 — the same law the reference's heightmap
+     * arrays maintain, derived from the light-opacity model), the dimension
+     * clocks, and the world spawn.
+     */
+    private final class MapSurface
+            implements net.zaminmc.torch.server.map.MapSystem.Surface {
+
+        @Override
+        public net.zaminmc.torch.server.map.MapSystem.Surface.Column columnAt(
+                int dimension, int x, int z) {
+            EngineWorld at = worldFor(dimension);
+            net.zaminmc.torch.server.world.EngineChunk chunk = at.peek(
+                    net.zaminmc.torch.block.ChunkPosition.ofBlock(x, z));
+            return chunk == null ? null : new Column() {
+                @Override
+                public boolean isEmpty() {
+                    return chunk.isEmpty();
+                }
+
+                @Override
+                public int height(int localX, int localZ) {
+                    // The heightmap consult: the highest light-filtering
+                    // block + 1 (the reference's getHeight over the
+                    // heightmap array — any block whose light opacity is
+                    // nonzero raises the floor).
+                    for (int y = net.zaminmc.torch.block.BlockPosition.MAX_Y; y >= 0; y--) {
+                        if (net.zaminmc.torch.server.block.BlockLightTable.filter(
+                                chunk.getBlock(localX, y, localZ)) > 0) {
+                            return y + 1;
+                        }
+                    }
+                    return 0;
+                }
+
+                @Override
+                public net.zaminmc.torch.block.BlockType block(int localX, int y, int localZ) {
+                    return chunk.getBlock(localX, y, localZ);
+                }
+            };
+        }
+
+        @Override
+        public long timeOfDay(int dimension) {
+            return worldFor(dimension).timeOfDay();
+        }
+
+        @Override
+        public Position spawnPosition() {
+            return world.spawnPosition();
         }
     }
 
@@ -24163,6 +24338,43 @@ public final class EngineServer implements Server, EngineBridge {
                                 weatherStore::writeSerialized));
                     } else {
                         weatherStore.save(weather.snapshot());
+                    }
+                }
+                // The map family's persistence (the reference's per-world
+                // map_<id>.dat rows): the fresh captures on the tick lane
+                // (the colors clones), the serialization and the file
+                // halves off it — one named ride per dimension (the
+                // reference's per-world saved-data files).
+                if (mapStore != null && maps != null) {
+                    net.zaminmc.torch.server.map.MapDataStore.SaveInput mapSaved =
+                            maps.snapshot(0);
+                    if (pipeline != null) {
+                        publications.add(pipeline.submitSave("maps",
+                                mapSaved, mapStore::serialize, mapStore::writeSerialized));
+                    } else {
+                        mapStore.save(mapSaved);
+                    }
+                }
+                if (netherMapStore != null && maps != null) {
+                    net.zaminmc.torch.server.map.MapDataStore.SaveInput netherMapSaved =
+                            maps.snapshot(-1);
+                    if (pipeline != null) {
+                        publications.add(pipeline.submitSave("maps-nether",
+                                netherMapSaved, netherMapStore::serialize,
+                                netherMapStore::writeSerialized));
+                    } else {
+                        netherMapStore.save(netherMapSaved);
+                    }
+                }
+                if (endMapStore != null && maps != null) {
+                    net.zaminmc.torch.server.map.MapDataStore.SaveInput endMapSaved =
+                            maps.snapshot(1);
+                    if (pipeline != null) {
+                        publications.add(pipeline.submitSave("maps-end",
+                                endMapSaved, endMapStore::serialize,
+                                endMapStore::writeSerialized));
+                    } else {
+                        endMapStore.save(endMapSaved);
                     }
                 }
                 if (gameRuleStore != null && gameRules != null) {
