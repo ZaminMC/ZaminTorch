@@ -95,6 +95,34 @@ public final class EngineChunk {
         return position;
     }
 
+    /**
+     * The chunk's inhabited time (VIII14 — the local-difficulty completion):
+     * the count of ticks this chunk has spent inside at least one player's
+     * watch ring, the reference's own {@code Chunk.inhabitedTime}. Accrues on
+     * the tick lane while watched (the engine's per-tick credit — the named
+     * adaptation over the reference's ~8000-tick ChunkMap batches: the same
+     * union-of-watched-spans law, the credit one batch fresher), rides the
+     * ZWD v2 rows + the anvil {@code InhabitedTime} import, and the
+     * local-difficulty consult reads it at the mob's position
+     * ({@code clamp(t / 3600000, 0, 1) * (hard ? 1.0 : 0.75)}).
+     *
+     * <p>Owner-thread after publication (the tick lane's accrual and the
+     * restore walk); the anvil import writes it on the detached chunk before
+     * the publication barrier installs it — the same detached-write shape
+     * the terrain itself carries.</p>
+     */
+    private long inhabitedTime;
+
+    /** The inhabited ticks this chunk has accrued (the local-difficulty consult's own read). */
+    public long inhabitedTime() {
+        return inhabitedTime;
+    }
+
+    /** Sets the inhabited ticks (the accrual's credit, the restore, the anvil import). */
+    public void setInhabitedTime(long inhabitedTime) {
+        this.inhabitedTime = inhabitedTime;
+    }
+
     public BlockType getBlock(int localX, int y, int localZ) {
         int sectionY = y >> 4;
         ChunkSection section = sections[sectionY];
