@@ -11385,3 +11385,93 @@ rows, the wither's death box, the summon box, the full beacon, the breed
 cause, the pig fall's strict five-block refusal, the cart kilometre, the
 all-biomes cover. The crafting/stat/beacon/breeding/vehicle/furnace/player
 regression suites green (182/0 after the count pin's update).
+
+## 2026-10-21 — the written-book flow + the small persistence rows (Wave VIII's VIII12+VIII11)
+
+The parallel wave's fourth disjoint slice — the book family and the
+vehicle store's cargo envelope, untouched by the three in-flight chunks
+(the plant-growth blocks, the mob-AI/zombie/village lane) — on
+`feature/written-book-persistence`.
+
+- **The model** — ItemStack's five book arms (VIII12): `pages` (the
+  TAG_LIST of TAG_STRING — plain text on a book & quill, the JSON text
+  forms on a signed book), `author`/`title` (the STRING rows),
+  `resolved` (the read gate's once-only BYTE), `generation` (the copy
+  counter INT) — each with its with-accessor, riding the merge
+  identity (two books differing in any row never stack), the pre-book
+  compat constructor, and the pages carried VERBATIM (an over-length
+  book is REFUSED at the channel gate, never silently clamped — the
+  reference's own shape).
+- **The NBT surfaces** — ItemNbt's read/write arms (the anvil round
+  trip: an imported vanilla book lands whole) + SlotNbt's wire rows
+  (byte-exact against the client's book screens' own parser — pinned
+  layout and the whole-payload boxed reader `readBoxedTag`, the exact
+  NbtIo.read walk the MC|BEdit/MC|BSign payload takes).
+- **The channels** — V18Connection's MC|BEdit/MC|BSign dispatch over
+  the payload's wire item (`readPluginPayloadItem`, the reference
+  PacketByteBuf.readItem form: the legacy short id, the count byte,
+  the damage short, then the whole-NBT boxed parse into
+  ItemNbt.readTagInto); EngineServer's `bookEdit`/`bookSign` arms with
+  the reference's isValid gates 1:1 (an over-length page, a missing
+  author row, or an over-32 title lands nothing — the IOException
+  refusal) and the held-item gate (only a held WRITABLE_BOOK takes
+  pages or converts). Both silent like the reference — the sending
+  client predicted its own state.
+- **The signing conversion** — author = the SERVER's own name for the
+  signing player (never the payload's claim — the Mallory pin),
+  title/pages from the payload, the item swap to
+  minecraft:written_book over the held stack's own identity.
+- **The read gate** — useItem's written-book arm: the once-only
+  resolve walk (`Books.resolvePages` — the marker arms even when the
+  isValid consult refuses, a non-JSON page wraps as the reference's
+  bare JSON string literal — the LiteralText serialize arm's exact
+  escapes — an already-JSON page rides verbatim, the named adaptation:
+  the engine carries no text-component model to re-serialize through)
+  + the item-use stat + the resync; the writable book's arm pays the
+  stat alone (the client owns its edit screen). The structural
+  author-only edit refusal: a signed book NEVER re-opens editable, its
+  own author included — the edit channels gate on the held
+  WRITABLE_BOOK alone.
+- **The crafting audit — RETIRED WITH THE EVIDENCE**:
+  BuiltinRecipes' shapeless row (the book + the dye at EXACT damage 0
+  — the ink sac — + the feather) was ALREADY 1:1 with
+  CraftingManager line 58; the exact-0 gate pinned (a cocoa bean's
+  damage 3 never crafts).
+- **The chest-cart envelope (VIII11)** — the ZVD v6 stack-row tail: a
+  present cargo stack now carries the WHOLE ItemStack NBT family in
+  the ZMD/ZID stack-row shape (the name + enchant pairs, the Wave G
+  scalars + Lore, the BlockEntityTag SNBT row, the adventure gates,
+  the leather tint, the AttributeModifiers + SkullOwner + Fireworks
+  SNBT rows, and the book family's five rows) — a signed book, an
+  enchanted named sword, or a fused rocket riding a chest/hopper cart
+  survives the restart whole; v1-v5 files load the bare form
+  unchanged.
+- **The VIII11 slime sub-row — RETIRED WITH THE EVIDENCE**: the rows
+  were already whole (MobDataStore's FLAG_SLIME_SIZE save/load, the
+  restore's setSlimeSize, the initialize dice `1 << nextInt(3)`,
+  pinned by MobDataStoreTest's size-4 round trip and SlimeEntityTest's
+  1/2/4 family). The witch's-hut row stays ledgered (biome-gated,
+  VIII14+).
+- **Two recorded findings (demand-named, not fixed out-of-lane)**:
+  (1) BuiltinItems' WRITTEN_BOOK carries maxStackSize 16 where the
+  reference's WrittenBookItem sets 1 — repairing it would crash the
+  librarian's written-book trade (VillagerTrades constructs the
+  reference's own count-2 offer, legal there because the reference's
+  ItemStack has no max-stack invariant; the engine's record throws);
+  the multi-unit unstackable-offer modeling is the villager-trade
+  family's own surface. (2) The reference's CloneBookRecipe (the
+  book-copying family, generation+1 cap 2) is missing whole — a
+  dynamic-result recipe family the engine's static CraftingService
+  does not model; its own slice.
+- **Evidence**: WrittenBookFlowTest 9 (the isValid gates' refusal
+  band incl. the 33-char title edge, the resolve walk's shapes, the
+  merge identity, the anvil round trip, the crafting pin, the live
+  channels' every arm, the read gate) + SlotNbtTest 16 (the book wire
+  layout + the boxed-reader round trip) + VehiclePersistenceTest 2
+  (the envelope's whole-family restart round trip) +
+  EntityFamilySaveSplitTest 4 (the byte-identity walk grown to the v6
+  shape). The batches green: item/nbt/crafting/vehicle/enchantment/
+  stat 306/0, entity 424/0, the root A-Z batches, the remaining
+  subpackage batches, the protocol suite 117/0 (one ChestIntegration
+  flake under a concurrent-suite CPU race — green in isolation and on
+  the clean re-run), the api suite 19/0.
