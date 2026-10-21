@@ -28,6 +28,12 @@ public final class NormalWorldGenerator implements WorldGenerator {
     private final long seed;
     /** The mineshaft placement layer (Slice 12a): deterministic per chunk. */
     private final net.zaminmc.torch.server.world.structure.MineshaftStructure mineshafts;
+    /**
+     * The depth-dependent surface builders (VIII14's surface slice — the
+     * reference's prepareAndBuildSurfaces whole: the core walk + the four
+     * family overrides, over the engine's per-cell column model).
+     */
+    private final BiomeSurfaceBuilder surfaces;
     /** The village placement layer (Slice 12b): deterministic per chunk. */
     private final net.zaminmc.torch.server.world.structure.VillageStructure villages;
     /** The stronghold placement layer (Slice 12c): deterministic per chunk. */
@@ -105,6 +111,7 @@ public final class NormalWorldGenerator implements WorldGenerator {
         // block-level biome map the chunk's wire array carries. The
         // caches hold the last regions sampled (bounded LRU — the
         // values are pure functions of the seed, eviction transparent).
+        this.surfaces = new BiomeSurfaceBuilder(this.seed, registry);
         net.zaminmc.torch.server.world.layer.Layer[] layers =
                 net.zaminmc.torch.server.world.layer.Layer.init(this.seed);
         this.gridLayer = layers[0];
@@ -483,79 +490,27 @@ public final class NormalWorldGenerator implements WorldGenerator {
             return bedrock;
         }
         if (y > h) {
+            // The Bryce pillars first (VIII14's surface slice — the
+            // reference's air-fill arm: stone rises to (int) d4 over the
+            // terrain; every other column answers the caller's own).
+            BlockType pillar = surfaces.blockAt(x, y, z, h, biome);
+            if (pillar != null) {
+                return pillar;
+            }
             return y <= SEA_LEVEL ? water : air;
         }
         // Caves carve the core below the skin; the surface stays intact.
         if (y > 4 && y < h - 3 && isCave(x, y, z)) {
             return air;
         }
-        int skinDepth = h - y;
-        if (surfaceIsSandFamily(biome) && !underwater) {
-            // The sand family's skin (the registration table's own
-            // surface pair — the desert/beach bands): three sand over a
-            // sandstone band, the historical sand-sandstone column shape.
-            if (skinDepth <= 2) {
-                return sand;
-            }
-            if (skinDepth <= 6) {
-                return sandstone;
-            }
-            return oreOrStone(x, y, z);
-        }
-        if (biome == Biome.STONE_BEACH && !underwater && skinDepth <= 3) {
-            // The stone beach's skin (the registration pair: stone/stone).
-            return stone;
-        }
-        if (skinDepth == 0) {
-            if (underwater) {
-                return seaFloor(x, z);
-            }
-            return surfaceMaterialOf(biome, h);
-        }
-        if (skinDepth <= 3) {
-            return underwater ? sand : dirt;
-        }
-        return oreOrStone(x, y, z);
+        // THE SURFACE BUILDERS (VIII14's surface slice — the reference's
+        // buildSurfaces walk + the family overrides over the engine's
+        // column model): null answers the core stone the ore ladder owns
+        // (and the air/water above the terrain, the caller's own).
+        BlockType skin = surfaces.blockAt(x, y, z, h, biome);
+        return skin != null ? skin : oreOrStone(x, y, z);
     }
 
-    /**
-     * The sand-surface family (the registration table's surface pair:
-     * the desert pair, the beach pair, and their mutated forms).
-     */
-    private static boolean surfaceIsSandFamily(Biome biome) {
-        return biome.surfaceLegacyId() == 12;
-    }
-
-    /**
-     * The surface material (the registration table's surfaceLegacyId —
-     * the first slice's own consult): grass on the temperate band, the
-     * mycelium on the mushroom isle, the snow on the spikes, the red
-     * sand on the mesa family; the height band's own beach sand stays
-     * the near-sea fallback.
-     */
-    private BlockType surfaceMaterialOf(Biome biome, int h) {
-        if (h <= SEA_LEVEL + 1) {
-            return sand; // the near-sea band's own beach
-        }
-        return switch (biome.surfaceLegacyId()) {
-            case 1 -> stone;
-            case 12 -> sand;
-            case 80 -> Objects.requireNonNull(
-                    registry.lookup(Identifier.parse("minecraft:snow"))
-                            .orElse(grass), "snow"); // the ice spikes' surface
-            case 110 -> Objects.requireNonNull(
-                    registry.lookup(Identifier.parse("minecraft:mycelium"))
-                            .orElse(grass), "mycelium");
-            case 179 -> Objects.requireNonNull(
-                    registry.lookup(Identifier.parse("minecraft:red_sand"))
-                            .orElse(sand), "red sand");
-            default -> grass; // the grass/dirt temperate default
-        };
-    }
-
-    private BlockType seaFloor(int x, int z) {
-        return hash2(x, z, 0x9E37) % 5 == 0 ? gravel : sand;
-    }
 
     /** The depth-banded ore ladder (community blocks.json distributions). */
     private BlockType oreOrStone(int x, int y, int z) {

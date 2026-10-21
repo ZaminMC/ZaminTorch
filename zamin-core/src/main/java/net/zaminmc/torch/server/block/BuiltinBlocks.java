@@ -758,6 +758,14 @@ public final class BuiltinBlocks {
             Identifier.parse("minecraft:melon_block"), "Melon", 0);
     public static final EngineBlockType MYCELIUM = new EngineBlockType(
             Identifier.parse("minecraft:mycelium"), "Mycelium", 0);
+    // The dirt variants (VIII14's surface slice — the mega taiga's
+    // podzol band and the coarse-dirt switches' material; register-only
+    // at landing, the dirt family's own behaviors ride their slice —
+    // the mycelium's own register-only precedent).
+    public static final EngineBlockType COARSE_DIRT = new EngineBlockType(
+            Identifier.parse("minecraft:coarse_dirt"), "Coarse Dirt");
+    public static final EngineBlockType PODZOL = new EngineBlockType(
+            Identifier.parse("minecraft:podzol"), "Podzol");
     public static final EngineBlockType WATERLILY = new EngineBlockType(
             Identifier.parse("minecraft:waterlily"), "Lily Pad", 0);
     public static final EngineBlockType LIT_PUMPKIN = new EngineBlockType(
@@ -1036,6 +1044,8 @@ public final class BuiltinBlocks {
                 .register(PUMPKIN)
                 .register(MELON_BLOCK)
                 .register(MYCELIUM)
+                .register(COARSE_DIRT)
+                .register(PODZOL)
                 .register(WATERLILY)
                 .register(LIT_PUMPKIN)
                 .register(POTATOES_STAGE0)

@@ -75,6 +75,10 @@ public final class AnvilBlockIds {
             state(1, 0, "minecraft:stone"),
             state(2, 0, "minecraft:grass_block"),
             state(3, 0, "minecraft:dirt"),
+            // The dirt variants (VIII14's surface slice — DirtBlock's
+            // VARIANT nibble: 1 coarse, 2 podzol).
+            state(3, 1, "minecraft:coarse_dirt"),
+            state(3, 2, "minecraft:podzol"),
             state(4, 0, "minecraft:cobblestone"),
             state(5, 0, "minecraft:oak_planks"),
             state(5, 1, "minecraft:spruce_planks"),

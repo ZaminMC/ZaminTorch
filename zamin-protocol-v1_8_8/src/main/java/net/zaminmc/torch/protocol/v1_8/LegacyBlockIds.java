@@ -881,6 +881,11 @@ final class LegacyBlockIds {
         // mycelium 110, the waterlily 111 — both single meta-0 states (the
         // snowy side and the boat pass-through are the client's own reads).
         merged.put(Identifier.parse("minecraft:mycelium"), 110);
+        // The dirt variants (VIII14's surface slice — the reference's
+        // DirtBlock.VARIANT rows: coarse dirt 3:1, podzol 3:2 — the
+        // mega taiga's podzol band and the coarse-dirt switches).
+        merged.put(Identifier.parse("minecraft:coarse_dirt"), 3);
+        merged.put(Identifier.parse("minecraft:podzol"), 3);
         merged.put(Identifier.parse("minecraft:waterlily"), 111);
         // The melon family (Slice 41 — Block.java's own rows): the melon
         // block 103, the pumpkin stem 104 and the melon stem 105 — the
@@ -1481,6 +1486,10 @@ final class LegacyBlockIds {
             // The temple set (Slice 12f): the sandstone variant band + the
             // clay variant band + the vine's attached state.
             Map.entry(Identifier.parse("minecraft:chiseled_sandstone"), 3),
+            // The dirt variants' nibbles (VIII14's surface slice —
+            // DirtBlock.VARIANT: coarse 1, podzol 2).
+            Map.entry(Identifier.parse("minecraft:coarse_dirt"), 1),
+            Map.entry(Identifier.parse("minecraft:podzol"), 2),
             Map.entry(Identifier.parse("minecraft:stained_clay_orange"), 1),
             Map.entry(Identifier.parse("minecraft:stained_clay_yellow"), 4),
             Map.entry(Identifier.parse("minecraft:vine"), 15)));
