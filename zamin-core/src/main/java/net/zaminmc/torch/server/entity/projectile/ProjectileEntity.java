@@ -349,6 +349,22 @@ public final class ProjectileEntity implements net.zaminmc.torch.entity.Projecti
     }
 
     /**
+     * The slime-block fling's velocity set (the VIII13 additive
+     * families — MovingBlockEntity lines 94-107): the velocity SET
+     * along the facing axis, the other components kept. A GROUNDED
+     * arrow carries the set components as dead state exactly as the
+     * reference does (the stick branch returns before any velocity
+     * use; the reference's own damped 0.2 factor applies to them only
+     * if the stick cell's block ever changes). Package-private: the
+     * manager's fling arm is the only caller.
+     */
+    void flingVelocity(double axisX, double axisY, double axisZ) {
+        this.vx = axisX != 0.0 ? axisX : vx;
+        this.vy = axisY != 0.0 ? axisY : vy;
+        this.vz = axisZ != 0.0 ? axisZ : vz;
+    }
+
+    /**
      * One physics step. Returns the position integrated through (for block
      * collision sampling the manager segments the path between).
      */

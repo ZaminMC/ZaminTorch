@@ -102,6 +102,23 @@ public final class FallingBlockEntityManager {
         return List.copyOf(entities);
     }
 
+    /**
+     * The piston push over one falling body (the VIII13 additive
+     * families — the reference's MovingBlockEntity.moveEntities lines
+     * 80-115): the immediate clamped shift through the entity's own
+     * two-path discipline, then the move publication through the
+     * manager's own listener face — the observers see the pushed body
+     * the same tick, never waiting for the next fall pass. The landing
+     * stays the tick's own business. Tick-thread context (the push
+     * surface's walk runs inside the moving blocks' own tick).
+     */
+    public void pushFalling(FallingBlockEntity entity, double dx, double dy, double dz) {
+        entity.pushBy(ground, dx, dy, dz);
+        for (Listener listener : listeners) {
+            listener.onFallingMoved(entity);
+        }
+    }
+
     public int size() {
         return entities.size();
     }
