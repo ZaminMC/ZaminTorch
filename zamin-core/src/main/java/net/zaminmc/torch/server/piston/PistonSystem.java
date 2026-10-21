@@ -183,8 +183,24 @@ public final class PistonSystem implements WorldChangeListener {
     /**
      * The §27.7 pre-commit gate: fires the public PistonMoveEvent with the
      * resolver's own prospective lists (a fresh resolution — the same pure
-     * walk the movement itself runs) and answers whether the movement
+     * walk the movement itself runs, over the same world the movement's
+     * own pre-steps leave behind) and answers whether the movement
      * stands. A null bus (the unwired window) admits everything.
+     *
+     * <p><b>The retract's prospective shape.</b> The retract arm's own
+     * pre-steps happen before its {@code move()} runs: the sticky pull
+     * only goes when the block beyond the head clears the arm's own gate
+     * (doEvent lines 141-143 — movable, PUSH-or-piston), and the head
+     * itself DEPARTS first (PistonBaseBlock.move lines 288-290), so the
+     * movement's resolver never sees it. The gate's fresh resolution
+     * mirrors both: the plain retract answers the empty lists the
+     * javadoc names (nothing follows the head home), and the sticky
+     * retract resolves the pull chain over the post-departure world —
+     * the EXTENDED HEAD is a BEHAVIOR_BLOCK cell (the reference's own
+     * table), the pull column walks into it and stops unless the walk
+     * reads the departed form (the recorded engine-side bug the bukkit
+     * slice-2 wave pinned: the native event answering movedCells=[]
+     * on every sticky retract while the pull itself landed).</p>
      */
     private boolean firePistonMoveGate(BlockPosition base, int facing,
                                        boolean extending, boolean sticky) {
@@ -192,14 +208,52 @@ public final class PistonSystem implements WorldChangeListener {
         if (bus == null) {
             return true;
         }
-        PistonStructureResolver resolver =
-                new PistonStructureResolver(this, base, facing, extending);
         List<BlockPosition> moved;
         List<BlockPosition> broken;
-        if (resolver.resolve()) {
-            moved = resolver.getToMove();
-            broken = resolver.getToBreak();
+        if (extending) {
+            PistonStructureResolver resolver =
+                    new PistonStructureResolver(this, base, facing, true);
+            if (resolver.resolve()) {
+                moved = resolver.getToMove();
+                broken = resolver.getToBreak();
+            } else {
+                moved = List.of();
+                broken = List.of();
+            }
+        } else if (sticky) {
+            // The arm's own pull gate (doEvent lines 141-143, verbatim):
+            // the pull runs only over the movable PUSH-or-piston block
+            // beyond the head — a DESTROY block, an immovable one, or a
+            // mid-flight carrier leaves the lists empty exactly as the
+            // movement leaves the world alone.
+            BlockPosition beyond = base.offset(OFFSETS[facing][0] * 2,
+                    OFFSETS[facing][1] * 2, OFFSETS[facing][2] * 2);
+            BlockType beyondType = world.getBlock(beyond);
+            if (!isAir(beyondType)
+                    && canMoveBlock(beyondType, beyond, opposite(facing), false)
+                    && (pistonMoveBehavior(beyondType) == BEHAVIOR_PUSH
+                        || PistonBlocks.isPiston(beyondType))) {
+                // The head departs first (move lines 288-290): the
+                // prospective resolution reads the post-departure world,
+                // the pull chain resolving as the event's javadoc
+                // intends — the reference's single-block pull.
+                PistonStructureResolver resolver = new PistonStructureResolver(this, base,
+                        facing, false, base.offset(OFFSETS[facing][0],
+                                OFFSETS[facing][1], OFFSETS[facing][2]));
+                if (resolver.resolve()) {
+                    moved = resolver.getToMove();
+                    broken = resolver.getToBreak();
+                } else {
+                    moved = List.of();
+                    broken = List.of();
+                }
+            } else {
+                moved = List.of();
+                broken = List.of();
+            }
         } else {
+            // The plain retract: nothing follows the head home (the
+            // event javadoc's own row — the arm removes the head alone).
             moved = List.of();
             broken = List.of();
         }
