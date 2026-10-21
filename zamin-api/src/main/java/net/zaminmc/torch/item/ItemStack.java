@@ -111,12 +111,11 @@ import java.util.Objects;
  *                    BookAndQuillItem.isValid's own row: a TAG_LIST of
  *                    TAG_STRING, plain text on a book &amp; quill, the
  *                    JSON text forms on a signed book): null = absent,
- *                    immutable, each page at most {@link #MAX_BOOK_PAGE_CHARS}
- *                    characters (the reference's own per-page cap), at most
- *                    {@link #MAX_BOOK_PAGES} pages kept (the defensive
- *                    bound — the reference's model caps nothing, the
- *                    channel gates validate the shape before the model
- *                    ever sees it)
+ *                    immutable, every page carried VERBATIM (the
+ *                    per-page length is the channel gate's own law, the
+ *                    count at most {@link #MAX_BOOK_PAGES} — the
+ *                    defensive bound over a foreign payload, the
+ *                    reference's model caps nothing)
  * @param bookAuthor the tag's author row (WrittenBookItem.isValid's STRING
  *                    row — the signing player's own name, authoritative
  *                    from the server): null = absent
@@ -838,14 +837,14 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
 
     /**
      * The pages list's own sanitize (the book family — VIII12): null or
-     * empty parses to absent; every page non-null (an empty page IS a page —
-     * the client's trailing-empty strip is its own behavior, never the
-     * model's), the per-page length capped at the reference's own
-     * {@link #MAX_BOOK_PAGE_CHARS} and the count at the defensive
-     * {@link #MAX_BOOK_PAGES} bound, defensively immutable. The channel
-     * gates ({@code BookAndQuillItem.isValid}) validate the real shape
-     * before the model ever sees a payload — the caps here hold a foreign
-     * file honest, they never mask a refused book.
+     * empty parses to absent; every page non-null and carried VERBATIM
+     * (the reference's own model — a page's length is
+     * {@code BookAndQuillItem.isValid}'s channel law, never the model's;
+     * the over-length book is REFUSED at the gate, never silently
+     * clamped), the count at the defensive {@link #MAX_BOOK_PAGES}
+     * bound (a foreign file's honest bound — the reference's model caps
+     * nothing, the vanilla client writes at most 50), defensively
+     * immutable.
      */
     private static List<String> sanitizeBookPages(List<String> input) {
         if (input == null || input.isEmpty()) {
@@ -854,14 +853,11 @@ public record ItemStack(ItemType type, int count, int damage, String displayName
         java.util.List<String> cleaned = new java.util.ArrayList<>(Math.min(input.size(),
                 MAX_BOOK_PAGES));
         for (String page : input) {
-            if (page == null) {
-                continue; // a null row cannot ride the NBT string list
+            if (page == null || cleaned.size() >= MAX_BOOK_PAGES) {
+                continue; // a null row cannot ride the NBT string list; the
+                          // count bound holds a foreign payload honest
             }
-            if (cleaned.size() >= MAX_BOOK_PAGES) {
-                break;
-            }
-            cleaned.add(page.length() <= MAX_BOOK_PAGE_CHARS
-                    ? page : page.substring(0, MAX_BOOK_PAGE_CHARS));
+            cleaned.add(page);
         }
         return cleaned.isEmpty() ? null : List.copyOf(cleaned);
     }
