@@ -103,6 +103,89 @@ class EntityFamilySaveSplitTest {
             writeVarInt(out, bytes.length);
             out.write(bytes);
         }
+        // The v6 stack-row tail (VIII11 — the store's writeStackRows mirror:
+        // the enchant pairs, the Wave G scalars, the Lore list, the SNBT
+        // null markers, the lists, the tint, the two SNBT rows, the
+        // Fireworks compound, and the book family's five rows).
+        var enchantments = stack.enchantments();
+        if (enchantments == null || enchantments.isEmpty()) {
+            writeVarInt(out, 0);
+        } else {
+            writeVarInt(out, enchantments.size());
+            for (var pair : enchantments.entrySet()) {
+                out.writeShort(pair.getKey());
+                out.writeShort(pair.getValue());
+            }
+        }
+        out.writeBoolean(stack.unbreakable());
+        writeVarInt(out, stack.repairCost());
+        writeVarInt(out, stack.hideFlags());
+        var lore = stack.lore();
+        if (lore == null || lore.isEmpty()) {
+            writeVarInt(out, 0);
+        } else {
+            writeVarInt(out, lore.size());
+            for (String line : lore) {
+                writeString(out, line);
+            }
+        }
+        writeNullableString(out, stack.blockEntityTag() == null
+                ? null
+                : net.zaminmc.torch.server.nbt.NbtOps.writeParseable(
+                        net.zaminmc.torch.server.nbt.NbtOps.fromBoxed(
+                                stack.blockEntityTag())));
+        writeVarInt(out, stack.canDestroy() == null ? 0 : stack.canDestroy().size());
+        if (stack.canDestroy() != null) {
+            for (String key : stack.canDestroy()) {
+                writeString(out, key);
+            }
+        }
+        writeVarInt(out, stack.canPlaceOn() == null ? 0 : stack.canPlaceOn().size());
+        if (stack.canPlaceOn() != null) {
+            for (String key : stack.canPlaceOn()) {
+                writeString(out, key);
+            }
+        }
+        out.writeBoolean(stack.displayColor() != null);
+        if (stack.displayColor() != null) {
+            out.writeInt(stack.displayColor());
+        }
+        if (stack.attributeModifiers() != null || stack.skullOwner() != null) {
+            // Unexercised arms (the walk is verbatim for the exercised
+            // arms — the store's own convention): refuse loudly rather
+            // than write a wrong form.
+            throw new IllegalStateException("unexercised vehicle stack arm");
+        }
+        writeNullableString(out, null); // attributeModifiers
+        writeNullableString(out, null); // skullOwner
+        writeNullableString(out, stack.fireworks() == null
+                ? null
+                : net.zaminmc.torch.server.nbt.NbtOps.writeParseable(
+                        net.zaminmc.torch.server.nbt.NbtOps.fromBoxed(
+                                stack.fireworks())));
+        var pages = stack.bookPages();
+        if (pages == null || pages.isEmpty()) {
+            writeVarInt(out, 0);
+        } else {
+            writeVarInt(out, pages.size());
+            for (String page : pages) {
+                writeString(out, page);
+            }
+        }
+        writeNullableString(out, stack.bookAuthor());
+        writeNullableString(out, stack.bookTitle());
+        out.writeBoolean(stack.bookResolved());
+        writeVarInt(out, stack.bookGeneration());
+    }
+
+    /** The store's own nullable-string row (the empty length = the null marker). */
+    private static void writeNullableString(DataOutputStream out, String value)
+            throws Exception {
+        if (value == null || value.isEmpty()) {
+            writeVarInt(out, 0);
+        } else {
+            writeString(out, value);
+        }
     }
 
     // ---- the historical mob walk (the pre-S5 save body, verbatim for
@@ -319,9 +402,9 @@ class EntityFamilySaveSplitTest {
     }
 
     // ---- the historical vehicle walk (the store's own save body at the
-    //      ZVD v5 shape, verbatim for the exercised kinds — the v4 base
-    //      rows and the v5 cadence rows included, the pin kept current
-    //      with every format bump) --------------------------------------
+    //      ZVD v6 shape, verbatim for the exercised kinds — the v4 base
+    //      rows, the v5 cadence rows, and the v6 stack-row tail included,
+    //      the pin kept current with every format bump) ----------------------
 
     private static byte[] legacyVehicleBytes(List<VehicleManager.VehicleSnapshot> vehicles)
             throws Exception {
@@ -330,7 +413,7 @@ class EntityFamilySaveSplitTest {
         out.writeByte('Z');
         out.writeByte('V');
         out.writeByte('D');
-        out.writeByte(5);
+        out.writeByte(6);
         writeVarInt(out, vehicles.size());
         for (VehicleManager.VehicleSnapshot vehicle : vehicles) {
             writeString(out, vehicle.kind());
@@ -399,6 +482,14 @@ class EntityFamilySaveSplitTest {
     void vehicleSplitIsByteIdenticalToTheHistoricalWalkAndRoundTrips() throws Exception {
         ItemStack[] chestCargo = new ItemStack[27];
         chestCargo[3] = ItemStack.of(BuiltinItems.DIAMOND, 5).withName("Shiny");
+        // The v6 tail's own scene (VIII11 — the signed book: every book row
+        // rides the byte-identity proof).
+        chestCargo[5] = ItemStack.of(BuiltinItems.WRITTEN_BOOK)
+                .withBookPages(java.util.List.of("\"Page one\""))
+                .withBookAuthor("Abasing")
+                .withBookTitle("Split Proof")
+                .withBookResolved(true)
+                .withBookGeneration(1);
         ItemStack[] hopperCargo = new ItemStack[5];
         hopperCargo[0] = ItemStack.of(BuiltinItems.COAL, 12);
         List<VehicleManager.VehicleSnapshot> vehicles = List.of(
