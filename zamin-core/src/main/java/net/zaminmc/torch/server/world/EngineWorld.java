@@ -615,7 +615,9 @@ public final class EngineWorld implements World {
     /**
      * @return the biome's stable name at the column (the API read over the
      * chunk's generation-derived biome row; plains outside loaded chunks —
-     * the implicit default).
+     * the implicit default). The full 61-row registration table answers
+     * every id the anvil import can carry (a "FrozenOcean" column names
+     * itself; the old 7-row loop answered the implicit plains).
      */
     @Override
     public String biomeAt(BlockPosition position) {
@@ -623,13 +625,10 @@ public final class EngineWorld implements World {
         if (chunk == null) {
             return "plains";
         }
-        int legacyId = chunk.biome(position.localX(), position.localZ());
-        for (Biome biome : Biome.values()) {
-            if (biome.legacyId() == legacyId) {
-                return biome.name().toLowerCase(java.util.Locale.ROOT);
-            }
-        }
-        return "plains";
+        Biome biome = Biome.byLegacyId(
+                chunk.biome(position.localX(), position.localZ()));
+        return biome == null ? "plains"
+                : biome.name().toLowerCase(java.util.Locale.ROOT);
     }
 
     /** Applies a loaded delta snapshot. Owner-thread only, before chunks generate. */
