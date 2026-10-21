@@ -328,6 +328,10 @@ public final class EngineServer implements Server, EngineBridge {
     private net.zaminmc.torch.server.block.ScheduledTickSystem scheduledTickSystem;
     /** The surface's own persistence (the ZST store — the pending rows survive a restart). */
     private net.zaminmc.torch.server.block.ScheduledTickDataStore scheduledTickStore;
+    /** The village surface (VIII10 — SavedVillageData over the engine's per-system shape). */
+    private net.zaminmc.torch.server.village.VillageSystem villageSystem;
+    /** The village census's own persistence (the ZVI store). */
+    private net.zaminmc.torch.server.village.VillageDataStore villageStore;
     /** The redstone signal engine (Slice 9a): the wire cascade + the family dispatch + the delayed reactions. */
     private net.zaminmc.torch.server.redstone.RedstoneSystem redstoneSystem;
 
@@ -989,6 +993,22 @@ public final class EngineServer implements Server, EngineBridge {
                             new BlockPosition(row.x(), row.y(), row.z()),
                             resolved.identifier(), row.dueRelative(), row.priority());
                 }
+                // The village surface (VIII10 — the reference's
+                // SavedVillageData over the engine's per-system shape):
+                // the boot restores the census whole — the villages with
+                // their centers, their door rows, and their per-player
+                // reputations survive the restart, the same rows the
+                // reference's villages.dat carries.
+                villageStore = new net.zaminmc.torch.server.village.VillageDataStore(
+                        config.worldDataDir().resolve("villages.bin"));
+                villageSystem = new net.zaminmc.torch.server.village.VillageSystem(
+                        new VillageSurface(), new java.util.Random(worldSeed ^ 0x56534947L));
+                var loadedVillages = villageStore.load();
+                villageSystem.restore(loadedVillages.rows(), loadedVillages.ticks());
+                // The manager's own consults ride the same system (the
+                // villager's markForUpdate cadence, the mating gate, the
+                // golem's defense consult, the reputation hooks).
+                mobs.setVillageSystem(villageSystem);
                 // The weather cycle (Slice 20b — World.tickWeather 1:1): the
                 // overworld's own system (the nether has no sky). The wire
                 // fan is ServerWorld.tickWeather's own publishes — the
@@ -2555,6 +2575,11 @@ public final class EngineServer implements Server, EngineBridge {
                         naturalSpawnsNether.tick(netherPlayers, netherWorld.timeOfDay());
                     });
                     profiled("generationAttachments", this::drainGenerationAttachments); // the populate-time villagers + loot chests (Slice 12b)
+                    // The village surface (VIII10 — SavedVillageData.tick's
+                    // own cadence: every village's walk, the empty removal,
+                    // ONE pending door-census update per tick, the pending
+                    // doors' resolution).
+                    profiled("villages", () -> villageSystem.tick());
                     profiled("mobPotions", this::tickMobPotions); // the mobs' effect stores (Slice 11b)
                     profiled("leashes", this::tickLeashes); // the leash physics + the knots (Slice 11c)
                     profiled("decorations", this::tickDecorations); // the frames' + paintings' survival poll (Slice 28a/28b)
@@ -9636,7 +9661,11 @@ public final class EngineServer implements Server, EngineBridge {
                     net.zaminmc.torch.server.entity.MobType.IRON_GOLEM,
                     new Position(base.x() + 0.5, base.y() + 0.05, base.z() + 0.5));
             if (golem != null) {
-                golem.setPersistent(true); // setPlayerCreated: never despawns
+                // setPlayerCreated (IronGolemEntity lines 229-236): the
+                // pattern-built golem never despawns AND never turns on
+                // its builder's village (VIII10's −5 reputation arm
+                // refuses) — the engine's flag + persistence pair.
+                golem.setGolemPlayerCreated(true);
             }
             return;
         }
@@ -13310,8 +13339,10 @@ public final class EngineServer implements Server, EngineBridge {
         }
         // VillagerEntity.trade (lines 604-633): the use charges with the
         // level-up arm's own bookkeeping, the yes sound at the body, and
-        // the XP orb the reference spawns beside it.
-        int xp = villager.villagerTrade(index);
+        // the XP orb the reference spawns beside it. VIII10: the
+        // customer's NAME rides the trade (the level-up's +1 reputation
+        // arm reads it).
+        int xp = villager.villagerTrade(index, session.name());
         fxManager.sound(villager.position(), "mob.villager.yes", 1.0f,
                 1.0f / (gameplayRandom.nextFloat() * 0.4f + 0.8f));
         experienceOrbs.spawnOrb(new Position(villager.position().x(),
@@ -16425,6 +16456,14 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /**
+     * The village surface (VIII10 — the door census, the golem spawn, the
+     * reputation table, the mating window): the public consult.
+     */
+    public net.zaminmc.torch.server.village.VillageSystem villages() {
+        return villageSystem;
+    }
+
+    /**
      * Registers the ender-crystal observer (the protocol adapter's Spawn
      * Object 200 + the slot-8 Int metadata + the Destroy fan-out).
      */
@@ -18781,6 +18820,162 @@ public final class EngineServer implements Server, EngineBridge {
             // Entity.canSee's eye-to-eye ray — the same half-block march
             // the shooter's line rides.
             return clearLine(new Position(x1, y1, z1), new Position(x2, y2, z2));
+        }
+    }
+
+    /**
+     * The village system's world surface (VIII10 — the reference's
+     * {@code World} field over the engine's per-system seam): the door
+     * census's own reads (the wooden-door consult, the facing decode,
+     * the sky walk), the mob censuses in the box, the golem spawn, and
+     * the defense consult's entity reads.
+     */
+    private final class VillageSurface implements
+            net.zaminmc.torch.server.village.VillageSystem.Surface {
+
+        @Override
+        public boolean isWoodenDoor(int x, int y, int z) {
+            var id = world.getBlock(new BlockPosition(x, y, z)).identifier();
+            int meta = net.zaminmc.torch.server.block.WoodDoorFamily.metaOf(id);
+            if (meta < 0) {
+                return false;
+            }
+            String family = net.zaminmc.torch.server.block.WoodDoorFamily.familyOf(id);
+            return family != null && !net.zaminmc.torch.server.block.WoodDoorFamily.isIron(family);
+        }
+
+        @Override
+        public net.zaminmc.torch.block.Direction doorFacing(int x, int y, int z) {
+            // DoorBlock.getFacing's decode (lines 347-349):
+            // byIdHorizontal(metadata & 3).counterClockwiseY() — the
+            // engine's own meta band carries the same historical nibble
+            // (the placement's lowerMetaBand maps it byte for byte): band
+            // 0 answers EAST, 1 SOUTH, 2 WEST, 3 NORTH.
+            int meta = net.zaminmc.torch.server.block.WoodDoorFamily.metaOf(
+                    world.getBlock(new BlockPosition(x, y, z)).identifier());
+            return switch (meta & 3) {
+                case 0 -> net.zaminmc.torch.block.Direction.EAST;
+                case 1 -> net.zaminmc.torch.block.Direction.SOUTH;
+                case 2 -> net.zaminmc.torch.block.Direction.WEST;
+                default -> net.zaminmc.torch.block.Direction.NORTH;
+            };
+        }
+
+        @Override
+        public boolean hasSkyAccess(int x, int y, int z) {
+            // The same sky read the fishing surface carries: any solid
+            // block above closes the sky.
+            for (int above = y + 1;
+                    above <= net.zaminmc.torch.block.BlockPosition.MAX_Y; above++) {
+                if (net.zaminmc.torch.server.block.WorldSolidity.isSolid(
+                        world.getBlock(new BlockPosition(x, above, z)))) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        @Override
+        public int countVillagersIn(double minX, double minY, double minZ,
+                                     double maxX, double maxY, double maxZ) {
+            return countMobsOfKindIn(MobType.VILLAGER,
+                    minX, minY, minZ, maxX, maxY, maxZ);
+        }
+
+        @Override
+        public int countGolemsIn(double minX, double minY, double minZ,
+                                 double maxX, double maxY, double maxZ) {
+            return countMobsOfKindIn(MobType.IRON_GOLEM,
+                    minX, minY, minZ, maxX, maxY, maxZ);
+        }
+
+        private int countMobsOfKindIn(MobType kind,
+                                      double minX, double minY, double minZ,
+                                      double maxX, double maxY, double maxZ) {
+            int count = 0;
+            for (MobEntity mob : mobManager.all()) {
+                if (mob.dead() || mob.type() != kind || mob.dimension() != 0) {
+                    continue; // the overworld's own census (the villages' world)
+                }
+                Position at = mob.position();
+                if (at.x() >= minX && at.x() <= maxX
+                        && at.y() >= minY && at.y() <= maxY
+                        && at.z() >= minZ && at.z() <= maxZ) {
+                    count++;
+                }
+            }
+            return count;
+        }
+
+        @Override
+        public void spawnGolem(Position at) {
+            // The village's own roll lands through the manager's spawn
+            // (the wire fan + the spawn event + the dice ride it).
+            mobManager.spawnAt(MobType.IRON_GOLEM, at);
+        }
+
+        @Override
+        public boolean solidAt(int x, int y, int z) {
+            return net.zaminmc.torch.server.block.WorldSolidity.isSolid(
+                    world.getBlock(new BlockPosition(x, y, z)));
+        }
+
+        @Override
+        public boolean entityAlive(int engineId) {
+            PlayerSession player = playerByEngineId(engineId);
+            if (player != null) {
+                return player.state() == PlayerState.PLAYING && !player.dead();
+            }
+            MobEntity mob = mobManager.byId(engineId);
+            return mob != null && !mob.dead();
+        }
+
+        @Override
+        public double[] entityPosition(int engineId) {
+            PlayerSession player = playerByEngineId(engineId);
+            if (player != null && player.state() == PlayerState.PLAYING && !player.dead()) {
+                Position at = player.position();
+                return new double[] {at.x(), at.y(), at.z()};
+            }
+            MobEntity mob = mobManager.byId(engineId);
+            if (mob == null || mob.dead()) {
+                return null;
+            }
+            Position at = mob.position();
+            return new double[] {at.x(), at.y(), at.z()};
+        }
+
+        /** World.getEntity's player half: the shared id band over the sessions. */
+        private PlayerSession playerByEngineId(int engineId) {
+            for (PlayerSession player : players.all()) {
+                if (player.engineEntityId() == engineId) {
+                    return player;
+                }
+            }
+            return null;
+        }
+
+        @Override
+        public double[] playerPosition(String name) {
+            var found = playerRegistry().byName(name);
+            if (found.isEmpty()
+                    || found.get().state() != PlayerState.PLAYING
+                    || found.get().dead()) {
+                return null;
+            }
+            Position at = found.get().position();
+            return new double[] {at.x(), at.y(), at.z()};
+        }
+
+        @Override
+        public int engineIdOfPlayer(String name) {
+            var found = playerRegistry().byName(name);
+            if (found.isEmpty()
+                    || found.get().state() != PlayerState.PLAYING
+                    || found.get().dead()) {
+                return -1;
+            }
+            return found.get().engineEntityId();
         }
     }
 
@@ -23466,6 +23661,19 @@ public final class EngineServer implements Server, EngineBridge {
                                 scheduledTickStore::writeSerialized));
                     } else {
                         scheduledTickStore.save(scheduledTickSystem.snapshotRows());
+                    }
+                }
+                // The village census (VIII10 — SavedVillageData's own
+                // save): the capture here on the tick lane, the
+                // serialization and the file half off it — the ZVI rows.
+                if (villageStore != null && villageSystem != null) {
+                    if (pipeline != null) {
+                        publications.add(pipeline.submitSave("villages",
+                                villageSystem.snapshot(),
+                                villageStore::serialize,
+                                villageStore::writeSerialized));
+                    } else {
+                        villageStore.save(villageSystem.snapshot());
                     }
                 }
                 // The scoreboard (Slice 85): the reference saves scoreboard.dat

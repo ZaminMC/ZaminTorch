@@ -535,6 +535,18 @@ public final class MobManager {
     private volatile java.util.function.Consumer<Runnable> goalAdmission;
     /** The difficulty read (0 peaceful .. 3 hard); null until wired. */
     private volatile java.util.function.IntSupplier difficultyRead;
+
+    /**
+     * The village system (VIII10 — the villager's mating gate + scan
+     * cadence, the golem's defense consult, the reputation hooks); null
+     * until the engine wires it.
+     */
+    private volatile net.zaminmc.torch.server.village.VillageSystem villageSystem;
+
+    /** Wires the village surface (the engine's own boot). */
+    public void setVillageSystem(net.zaminmc.torch.server.village.VillageSystem system) {
+        this.villageSystem = java.util.Objects.requireNonNull(system, "system");
+    }
     /**
      * The crafting consult for the sheep's offspring color (Slice 30b —
      * SheepEntity.getColorForOffspring's own
@@ -857,6 +869,9 @@ public final class MobManager {
             // VillagerEntity's own constructor arm (line 322): the
             // villager ALWAYS picks up (the food-in-hand walk).
             mob.setCanPickUpLoot(true);
+            // VIII10 — the mating gate consult (the manager's own village
+            // walk over checkVillageValidity's gates).
+            mob.setVillagerMatingGate(() -> villagerMatingGate(mob));
         }
         if (type == MobType.WITCH) {
             // The drink ladder's hasStatusEffect gates (mobTick lines
@@ -1279,6 +1294,25 @@ public final class MobManager {
             // The breeding clocks (the vanilla love/age/breed-goal trio).
             tickBreedingFor(mob);
 
+            // VIII10 — mobAiTick's village scan cadence (VillagerEntity
+            // lines 353-368): the 70 + nextInt(50) window marks the
+            // villager's cell for the door census (the reference's own
+            // markForUpdate call).
+            if (mob.type() == MobType.VILLAGER && villageSystem != null
+                    && mob.tickVillagerScanCooldown(random)) {
+                Position at = mob.position();
+                villageSystem.markForUpdate(
+                        (int) Math.floor(at.x()), (int) Math.floor(at.y()),
+                        (int) Math.floor(at.z()));
+            }
+            // VIII10 — the golem's village defense (IronGolemEntity
+            // .mobAiTick lines 66-79 + TrackIronGolemTargetGoal): the
+            // target consult runs BEFORE the mind's own walk so the
+            // defense target owns the hunt.
+            if (mob.type() == MobType.IRON_GOLEM) {
+                tickGolemVillageDefense(mob);
+            }
+
             boolean wasPriming = mob.fuseActive();
             boolean wasBurning = mob.burning();
             int wasHorseFlags = mob.horseFlagsRaw();
@@ -1595,8 +1629,26 @@ public final class MobManager {
                         break;
                     }
                 }
-                if (!customerStanding) {
-                    mob.tickVillagerLevelUp();
+                if (!customerStanding && mob.tickVillagerLevelUp()) {
+                    // VIII10 — the level-up's own arms (VillagerEntity
+                    // lines 382-385): the happy burst (doEntityEvent 14)
+                    // and the village's +1 reputation for the last
+                    // successful trade's customer (the ledgered note the
+                    // village surface retires).
+                    for (Listener listener : listeners) {
+                        listener.onMobStatusEvent(mob, 14);
+                    }
+                    net.zaminmc.torch.server.village.VillageSystem villages = villageSystem;
+                    String customer = mob.villagerLastTradeCustomer();
+                    if (villages != null && !customer.isEmpty()) {
+                        Position at = mob.position();
+                        var village = villages.nearestVillage(
+                                (int) Math.floor(at.x()), (int) Math.floor(at.y()),
+                                (int) Math.floor(at.z()), 32);
+                        if (village != null) {
+                            village.updateReputation(customer, 1);
+                        }
+                    }
                 }
             }
             // The pigman's attacker re-acquisition (Slice 21e —
@@ -1812,8 +1864,13 @@ public final class MobManager {
         // GoalSelector order: A's breed resets BOTH loves before B's own
         // goal walk runs, so a same-tick double request lands ONE child;
         // the deferred flush re-reads the love gate for the same shape).
+        // VIII10 — the villager's own gate is the WILLING pair
+        // (VillagerMatingGoal.breed line 74's getMating read): the food
+        // model's flag stands where the love clock does.
         for (MobEntity[] pair : pendingBreeds) {
-            if (pair[0].isInLove() && pair[1].isInLove()) {
+            if (pair[0].type() == MobType.VILLAGER
+                    ? pair[0].villagerWilling() && pair[1].villagerWilling()
+                    : pair[0].isInLove() && pair[1].isInLove()) {
                 breed(pair[0], pair[1]);
             }
         }
@@ -2725,6 +2782,14 @@ public final class MobManager {
                 mob.beginDragonDeath();
                 return true;
             }
+            // VIII10 — the villager's death reputation (VillagerEntity.die
+            // lines 532-550) + the golem's own −5 arm (IronGolemEntity.die
+            // lines 239-245): the village's table moves at the death itself.
+            if (mob.type() == MobType.VILLAGER) {
+                villagerDeathHook(mob, attacker, attackingPlayer);
+            } else if (mob.type() == MobType.IRON_GOLEM) {
+                golemDeathHook(mob, attackingPlayer);
+            }
             for (Listener listener : listeners) {
                 listener.onMobDied(mob);
             }
@@ -2735,6 +2800,11 @@ public final class MobManager {
         // blow calls). The walk answers true below, the roll rides here.
         if (mob.type() == MobType.ZOMBIE) {
             callZombieReinforcements(mob, attacker, attackingPlayer);
+        }
+        // VIII10 — the villager's wound hook (VillagerEntity.setAttacker
+        // lines 512-529): the attacker census + the player reputation arm.
+        if (mob.type() == MobType.VILLAGER) {
+            villagerWoundHook(mob, attacker, attackingPlayer);
         }
         return true;
     }
@@ -2943,6 +3013,167 @@ public final class MobManager {
             }
             Position at = mob.position();
             lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()), drop);
+        }
+    }
+
+    // ------------------------------------- the village arms (VIII10)
+
+    /**
+     * The golem's village-defense consult (VIII10 — IronGolemEntity
+     * .mobAiTick lines 66-79's own village read over
+     * TrackIronGolemTargetGoal.canStart lines 19-39): the nearest village
+     * within 32, its attacker census first (the creeper excluded — the
+     * goal's own gate), the nearest live attacker becoming the golem's
+     * own target — the mob arm through the mob target, the player arm
+     * through the forced hunt — and the 1-in-20 bad-reputation player
+     * fallback when no attacker stands. The reference caches the village
+     * at the 70-120 cadence and the goal reads it every tick; the engine
+     * resolves the nearest village live (the same village the cadence
+     * would cache — the named adaptation, observably identical).
+     */
+    private void tickGolemVillageDefense(MobEntity golem) {
+        net.zaminmc.torch.server.village.VillageSystem villages = villageSystem;
+        if (villages == null) {
+            return;
+        }
+        Position at = golem.position();
+        int x = (int) Math.floor(at.x());
+        int y = (int) Math.floor(at.y());
+        int z = (int) Math.floor(at.z());
+        var village = villages.nearestVillage(x, y, z, 32);
+        if (village == null) {
+            return; // resetVillageRadius: the stroll stays the engine's own
+        }
+        int attackerId = villages.defenseAttackerId(village, x, y, z);
+        if (attackerId >= 0) {
+            MobEntity attackerMob = byId(attackerId);
+            if (attackerMob != null) {
+                golem.setMobAttackTarget(attackerMob);
+            } else {
+                golem.setForcedHuntPlayer(attackerId); // a player attacker
+            }
+            return;
+        }
+        // The 1-in-20 fallback (lines 30-33): the village's enemy player.
+        if (random.nextInt(20) == 0) {
+            String name = villages.defensePlayerName(village, x, y, z);
+            if (name != null) {
+                int playerId = villages.engineIdOfPlayer(name);
+                if (playerId >= 0) {
+                    golem.setForcedHuntPlayer(playerId);
+                }
+            }
+        }
+    }
+
+    /**
+     * The mating gate consult (VIII10 — VillagerMatingGoal
+     * .checkVillageValidity lines 83-90 over canStart's village read,
+     * lines 32-35): the nearest village within range 0 (the village must
+     * CONTAIN the villager), the canMate window, and the population under
+     * the 0.35-per-door band.
+     */
+    private boolean villagerMatingGate(MobEntity villager) {
+        net.zaminmc.torch.server.village.VillageSystem villages = villageSystem;
+        if (villages == null) {
+            return false;
+        }
+        Position at = villager.position();
+        var village = villages.nearestVillage(
+                (int) Math.floor(at.x()), (int) Math.floor(at.y()),
+                (int) Math.floor(at.z()), 0);
+        if (village == null) {
+            return false;
+        }
+        if (!village.canMate()) {
+            return false;
+        }
+        int allowed = (int) (village.doorCount() * 0.35);
+        return village.populationSize() < allowed;
+    }
+
+    /**
+     * The villager's wound hook (VIII10 — VillagerEntity.setAttacker
+     * lines 512-529): the village registers ANY living attacker in its
+     * census (the golem's defense consult walks it), and a PLAYER
+     * attacker costs reputation — a baby's wound −3, an adult's −1 —
+     * with the angry-particles event 13.
+     */
+    private void villagerWoundHook(MobEntity villager, MobEntity mobAttacker,
+                                   PlayerSession playerAttacker) {
+        net.zaminmc.torch.server.village.VillageSystem villages = villageSystem;
+        if (villages == null) {
+            return;
+        }
+        Position at = villager.position();
+        var village = villages.nearestVillage(
+                (int) Math.floor(at.x()), (int) Math.floor(at.y()),
+                (int) Math.floor(at.z()), 32);
+        if (village == null) {
+            return;
+        }
+        if (mobAttacker != null && !mobAttacker.dead()) {
+            village.addOrUpdateAttacker(mobAttacker.entityId(), false,
+                    mobAttacker.type().name());
+        } else if (playerAttacker != null) {
+            village.addOrUpdateAttacker(playerAttacker.engineEntityId(), true, null);
+            village.updateReputation(playerAttacker.name(), villager.isBaby() ? -3 : -1);
+            for (Listener listener : listeners) {
+                listener.onMobStatusEvent(villager, 13); // the angry particles
+            }
+        }
+    }
+
+    /**
+     * The villager's death hook (VIII10 — VillagerEntity.die lines
+     * 532-550): a player's kill costs −2 reputation; a monster's kill
+     * closes the village's mating window; a stranger's death with a
+     * player watching within 16 blocks closes it too.
+     */
+    private void villagerDeathHook(MobEntity villager, MobEntity mobAttacker,
+                                   PlayerSession playerAttacker) {
+        net.zaminmc.torch.server.village.VillageSystem villages = villageSystem;
+        if (villages == null) {
+            return;
+        }
+        Position at = villager.position();
+        var village = villages.nearestVillage(
+                (int) Math.floor(at.x()), (int) Math.floor(at.y()),
+                (int) Math.floor(at.z()), 32);
+        if (village == null) {
+            return;
+        }
+        if (playerAttacker != null) {
+            village.updateReputation(playerAttacker.name(), -2);
+        } else if (mobAttacker != null && mobAttacker.type().hostile) {
+            village.stopMating();
+        } else if (mobAttacker == null) {
+            // die lines 541-546: a player watching within 16 blocks
+            if (world.nearestPlayer(at.x(), at.y(), at.z(), 16.0) != null) {
+                village.stopMating();
+            }
+        }
+    }
+
+    /**
+     * The golem's death hook (VIII10 — IronGolemEntity.die lines
+     * 239-245): a player killing a VILLAGE golem costs −5 reputation
+     * (the pattern-built golem never turns on its builder's village).
+     */
+    private void golemDeathHook(MobEntity golem, PlayerSession playerAttacker) {
+        if (playerAttacker == null || golem.golemPlayerCreated()) {
+            return;
+        }
+        net.zaminmc.torch.server.village.VillageSystem villages = villageSystem;
+        if (villages == null) {
+            return;
+        }
+        Position at = golem.position();
+        var village = villages.nearestVillage(
+                (int) Math.floor(at.x()), (int) Math.floor(at.y()),
+                (int) Math.floor(at.z()), 32);
+        if (village != null) {
+            village.updateReputation(playerAttacker.name(), -5);
         }
     }
 
@@ -3498,6 +3729,22 @@ public final class MobManager {
         if (stack == null || equipmentSlotOf(stack) > 0) {
             return; // the armor pickup arm: demand-named (see the javadoc)
         }
+        // VIII10 — the villager's own updateInventory override
+        // (VillagerEntity lines 821-832): the food family lands in the
+        // 8-slot food stock (the willing model's own inventory), never
+        // the hand — the whole stack lands or the remainder rides the
+        // item back (SimpleInventory.addItem's own shape). The villager
+        // never despawns (its own canDespawn false), so the pickup walk's
+        // persistence pin rides the held arm alone.
+        if (mob.type() == MobType.VILLAGER) {
+            ItemStack remainder = mob.villagerAcceptFood(stack);
+            if (remainder == null) {
+                items.collectByMob(item, mob);
+            } else if (remainder != stack) {
+                item.setStack(remainder);
+            }
+            return;
+        }
         ItemStack held = mob.heldEquipment();
         boolean better;
         if (held == null) {
@@ -3654,6 +3901,13 @@ public final class MobManager {
         parent.resetLove();
         mate.resetLove();
         baby.setBreedingAge(MobEntity.CHILDHOOD_TICKS);
+        if (parent.type() == MobType.VILLAGER) {
+            // VIII10 — VillagerMatingGoal.breed lines 96-97: the villagers'
+            // own willing flag clears at the breed (the food model's
+            // cooldown is the breeding-age pair the engine walk lands).
+            parent.setVillagerWilling(false);
+            mate.setVillagerWilling(false);
+        }
         for (Listener listener : listeners) {
             listener.onMobBred(parent, mate, baby, causePlayerId);
             listener.onMobLoveBurst(parent); // the celebration hearts

@@ -303,7 +303,22 @@ public final class EntityNbt {
                     NbtOps.putCompound(nbt, "SaddleItem", saddle);
                 }
             }
-            case VILLAGER -> NbtOps.putInt(nbt, "Profession", mob.profession());
+            case VILLAGER -> {
+                NbtOps.putInt(nbt, "Profession", mob.profession());
+                // VIII10 — writeCustomNbt lines 425 + 430-439: the willing
+                // flag (the food/trade model's own row) + the 8-slot food
+                // inventory (the non-empty stacks, each its own compound).
+                NbtOps.putBoolean(nbt, "Willing", mob.villagerWilling());
+                List<Snbt.Tag> inventory = new ArrayList<>();
+                for (net.zaminmc.torch.item.ItemStack stack : mob.villagerFoodSlots()) {
+                    if (stack != null && !stack.isEmpty()) {
+                        Map<String, Snbt.Tag> rows = new java.util.LinkedHashMap<>();
+                        ItemNbt.write(stack, rows);
+                        inventory.add(Snbt.Tag.ofCompound(rows));
+                    }
+                }
+                NbtOps.putList(nbt, "Inventory", inventory);
+            }
             case WOLF -> {
                 // The reference's wolf write (WolfEntity 122-126 +
                 // TameableEntity 30-38): OwnerUUID + Sitting + Angry +
@@ -408,7 +423,29 @@ public final class EntityNbt {
                     });
                 }
             }
-            case VILLAGER -> mob.setVillagerProfession(NbtOps.getInt(nbt, "Profession"));
+            case VILLAGER -> {
+                mob.setVillagerProfession(NbtOps.getInt(nbt, "Profession"));
+                // VIII10 — readCustomNbt lines 449 + 455-462: the willing
+                // flag + the food inventory land exactly as saved; the
+                // reference's own belt-and-suspenders setCanPickupLoot arm
+                // rides the spawn walk.
+                mob.setVillagerWilling(NbtOps.getBoolean(nbt, "Willing"));
+                for (int i = 0; i < 8; i++) {
+                    mob.villagerFoodSlots()[i] = null;
+                }
+                List<Snbt.Tag> foodRows = NbtOps.getList(nbt, "Inventory",
+                        Snbt.Tag.Type.COMPOUND);
+                int slot = 0;
+                for (Snbt.Tag row : foodRows) {
+                    if (slot >= 8) {
+                        break;
+                    }
+                    net.zaminmc.torch.item.ItemStack stack =
+                            ItemNbt.read(NbtOps.listCompound(foodRows, slot));
+                    mob.villagerFoodSlots()[slot] = stack;
+                    slot++;
+                }
+            }
             case WOLF -> {
                 // The TameableEntity read (lines 43-58): a non-empty owner
                 // row TAMES the body — the reference's own load gate; the

@@ -3040,19 +3040,32 @@ public final class MobEntity implements LivingEntity {
     private void tickIronGolemMind(boolean night) {
         golemTarget = world.nearestHostileMob(position.x(), position.y(), position.z(),
                 GOLEM_HUNT_RANGE);
-        if (golemTarget == null || golemTarget.dead()) {
+        if (golemTarget != null && golemTarget.dead()) {
             golemTarget = null;
+        }
+        // VIII10 — the village-defense target (TrackIronGolemTargetGoal
+        // over the manager's consult): a FORCED player target owns the
+        // walk wherever it stands (the mob arm rode setMobAttackTarget
+        // — the mob-vs-mob chase reads it through the standing walk
+        // below); a gone body clears the arm.
+        Position forced = forcedHuntPosition();
+        Position chaseTarget;
+        if (forced != null) {
+            chaseTarget = forced;
+        } else if (golemTarget != null) {
+            chaseTarget = golemTarget.position();
+        } else {
             return; // the stroll cycle (the goal layer's default)
         }
-        double dx = golemTarget.position().x() - position.x();
-        double dy = golemTarget.position().y() - position.y();
-        double dz = golemTarget.position().z() - position.z();
+        double dx = chaseTarget.x() - position.x();
+        double dy = chaseTarget.y() - position.y();
+        double dz = chaseTarget.z() - position.z();
         double horizontal = Math.sqrt(dx * dx + dz * dz);
         yaw = angleTo(dx, dz);
         headYaw = yaw;
         if (horizontal > GOLEM_MELEE_RANGE) {
             mode = Mode.CHASE;
-            tickPathFollowing(golemTarget.position());
+            tickPathFollowing(chaseTarget);
         } else {
             mode = Mode.IDLE;
             clearPath();
@@ -6169,6 +6182,14 @@ public final class MobEntity implements LivingEntity {
         if (other == null || other == this || other.type() != this.type()) {
             return false;
         }
+        // VIII10 — the villager's own pair (VillagerMatingGoal.canStart
+        // line 44 over VillagerEntity's willing model): the FOOD flag
+        // stands where the love clock does for every animal; the
+        // village's own gate rode the goal's canUse (the mating consult).
+        if (type == MobType.VILLAGER) {
+            return villagerWilling && other.villagerWilling
+                    && breedingAge == 0 && other.breedingAge == 0;
+        }
         if (!isInLove() || !other.isInLove()) {
             return false;
         }
@@ -6841,6 +6862,15 @@ public final class MobEntity implements LivingEntity {
      * level-up arm's +5 included) — the caller spawns the orb.
      */
     public int villagerTrade(int index) {
+        return villagerTrade(index, null);
+    }
+
+    /**
+     * The trade with the customer's NAME (VIII10 — trade lines 607-611:
+     * the level-up arm records the last successful customer for the
+     * village's +1 reputation when the level-up walk lands).
+     */
+    public int villagerTrade(int index, String customerName) {
         if (index < 0 || index >= offerUses.length) {
             throw new IllegalArgumentException("Offer index out of range: " + index);
         }
@@ -6851,12 +6881,22 @@ public final class MobEntity implements LivingEntity {
             villagerLevelUpCountdown = 40;
             villagerLevelUp = true;
             villagerWilling = true;
+            // trade lines 607-611: the level-up remembers the customer.
+            villagerLastTradeCustomer = customerName != null ? customerName : "";
             xp += 5;
         }
         if (offer.buy1().type() == net.zaminmc.torch.server.item.BuiltinItems.EMERALD) {
             villagerRiches += offer.buy1().count();
         }
         return xp;
+    }
+
+    /** The reference's lastSuccessfulTradeCustomer (the level-up's +1 read). */
+    private String villagerLastTradeCustomer;
+
+    /** @return the last successful trade's customer ("" when none named). */
+    public String villagerLastTradeCustomer() {
+        return villagerLastTradeCustomer != null ? villagerLastTradeCustomer : "";
     }
 
     /** Charges one use off the offer (the execution's bookkeeping). */
@@ -6889,6 +6929,246 @@ public final class MobEntity implements LivingEntity {
         return villagerWilling;
     }
 
+    // ------------------------------------- the villager's mating gates (VIII10)
+
+    /**
+     * The villager's own food inventory (VillagerEntity line 82 — the
+     * 8-slot SimpleInventory the pickup walk fills): the willing model's
+     * whole stock.
+     */
+    private final net.zaminmc.torch.item.ItemStack[] villagerFood =
+            new net.zaminmc.torch.item.ItemStack[8];
+
+    /**
+     * The mating gate consult (the manager wires it — the nearest
+     * village's canMate + the pop/doors band, VillagerMatingGoal
+     * .checkVillageValidity lines 83-90). Null until wired: a stub world
+     * carries no village, the gate never opens.
+     */
+    private java.util.function.BooleanSupplier villagerMatingGate;
+
+    /** Sets the mating gate consult (the manager's own wiring). */
+    public void setVillagerMatingGate(java.util.function.BooleanSupplier gate) {
+        this.villagerMatingGate = gate;
+    }
+
+    /**
+     * isFood (VillagerEntity lines 834-836): the five-item family the
+     * villager stocks — bread, potatoes, carrots, wheat, wheat seeds.
+     */
+    public static boolean villagerFoodItem(net.zaminmc.torch.item.ItemType item) {
+        String value = item.identifier().value();
+        return value.equals("bread") || value.equals("potato")
+                || value.equals("carrot") || value.equals("wheat")
+                || value.equals("wheat_seeds");
+    }
+
+    /**
+     * hasFoodPoints (lines 851-870 1:1): whether any slot carries a
+     * breeding unit's multiple — 3 bread, 12 potatoes or carrots, the
+     * farmer's own 9 wheat — times the minimum.
+     */
+    private boolean villagerHasFoodPoints(int min) {
+        boolean farmer = profession == 0;
+        for (net.zaminmc.torch.item.ItemStack stack : villagerFood) {
+            if (stack == null || stack.isEmpty()) {
+                continue;
+            }
+            String value = stack.type().identifier().value();
+            if (value.equals("bread") && stack.count() >= 3 * min
+                    || value.equals("potato") && stack.count() >= 12 * min
+                    || value.equals("carrot") && stack.count() >= 12 * min) {
+                return true;
+            }
+            if (farmer && value.equals("wheat") && stack.count() >= 9 * min) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** hasExcessFood (lines 838-840): the 1-unit band. */
+    public boolean villagerHasExcessFood() {
+        return villagerHasFoodPoints(1);
+    }
+
+    /**
+     * The pickup's villager arm (updateInventory lines 821-832): the food
+     * family lands in the food slots — a matching stack grows first
+     * (SimpleInventory's addItem merge), an empty slot takes the stack
+     * whole, and a full inventory leaves the item standing.
+     *
+     * @return the remainder stack (null when the whole stack landed).
+     */
+    net.zaminmc.torch.item.ItemStack villagerAcceptFood(
+            net.zaminmc.torch.item.ItemStack stack) {
+        if (!villagerFoodItem(stack.type())) {
+            return stack;
+        }
+        // The merge pass: a same-kind stack with room.
+        for (int i = 0; i < villagerFood.length; i++) {
+            net.zaminmc.torch.item.ItemStack slot = villagerFood[i];
+            if (slot != null && !slot.isEmpty()
+                    && slot.type().equals(stack.type())
+                    && slot.count() < 64) {
+                int room = 64 - slot.count();
+                int move = Math.min(room, stack.count());
+                villagerFood[i] = slot.withCount(slot.count() + move);
+                int left = stack.count() - move;
+                return left > 0 ? stack.withCount(left) : null;
+            }
+        }
+        // The empty-slot pass.
+        for (int i = 0; i < villagerFood.length; i++) {
+            if (villagerFood[i] == null || villagerFood[i].isEmpty()) {
+                villagerFood[i] = stack;
+                return null;
+            }
+        }
+        return stack; // no room: the item stays
+    }
+
+    /**
+     * consumeAvailableFood (VillagerEntity lines 566-591 1:1): the mating
+     * attempt's own walk — a not-yet-willing body with excess food eats
+     * the breeding unit (3 bread or 12 potatoes/carrots), the willing
+     * arms, and the heart burst (doEntityEvent 18) fires. The
+     * {@code updateFirst} false form is the shouldContinue read: the
+     * plain willing answer, no consume.
+     *
+     * @return the willing flag.
+     */
+    public boolean villagerConsumeAvailableFood(boolean updateFirst) {
+        if (!villagerWilling && updateFirst && villagerHasExcessFood()) {
+            for (int i = 0; i < villagerFood.length; i++) {
+                net.zaminmc.torch.item.ItemStack stack = villagerFood[i];
+                if (stack == null || stack.isEmpty()) {
+                    continue;
+                }
+                String value = stack.type().identifier().value();
+                int eat = 0;
+                if (value.equals("bread") && stack.count() >= 3) {
+                    eat = 3;
+                } else if ((value.equals("potato") || value.equals("carrot"))
+                        && stack.count() >= 12) {
+                    eat = 12;
+                }
+                if (eat > 0) {
+                    int left = stack.count() - eat;
+                    villagerFood[i] = left > 0 ? stack.withCount(left) : null;
+                    pendingLoveBurst = true; // doEntityEvent(18) — the heart burst
+                    villagerWilling = true;
+                    break;
+                }
+            }
+        }
+        return villagerWilling;
+    }
+
+    /** setWilling (line 593): the breed's own clear + the trade's arm. */
+    public void setVillagerWilling(boolean willing) {
+        this.villagerWilling = willing;
+    }
+
+    /**
+     * The villager's food slots (the persistence read + the tests' own
+     * inspect).
+     */
+    public net.zaminmc.torch.item.ItemStack[] villagerFoodSlots() {
+        return villagerFood;
+    }
+
+    /**
+     * The BREED goal's villager arm (VillagerMatingGoal.canStart lines
+     * 23-48 1:1): the 1-in-500 cadence, the adult gate, the village
+     * consult (the manager's mating gate — the nearest village within
+     * range 0 + the canMate/pop-doors validity), the food consume (the
+     * willing arms HERE, exactly the reference's own walk), and the
+     * mate scan (the nearest willing villager inside the grown-8 box).
+     */
+    boolean goalVillagerMatingCanUse() {
+        if (type != MobType.VILLAGER || breedingAge() != 0) {
+            return false;
+        }
+        if (random.nextInt(500) != 0) {
+            return false;
+        }
+        java.util.function.BooleanSupplier gate = villagerMatingGate;
+        if (gate == null || !gate.getAsBoolean()) {
+            return false; // no village, or the census gate refuses
+        }
+        if (!villagerConsumeAvailableFood(true)) {
+            return false;
+        }
+        return findMate() != null;
+    }
+
+    /**
+     * The mating walk's own cadence (mobAiTick lines 353-368): the
+     * 70 + nextInt(50) window — at zero the villager marks its cell for
+     * the door census (the manager's village scan consults answer).
+     *
+     * @return whether the scan tick arrived.
+     */
+    boolean tickVillagerScanCooldown(java.util.Random random) {
+        if (--villagerScanCooldown <= 0) {
+            villagerScanCooldown = 70 + random.nextInt(50);
+            return true;
+        }
+        return false;
+    }
+
+    private int villagerScanCooldown;
+
+    // ------------------------------------- the golem's village consult (VIII10)
+
+    /**
+     * The golem's village-defense consult (TrackIronGolemTargetGoal 1:1
+     * over the manager's wiring): the village's attacker census first
+     * (the creeper excluded), the 1-in-20 bad-reputation player fallback
+     * — the answers land as the engine's shared ids.
+     */
+    private java.util.function.IntSupplier golemDefensePlayerQuery;
+
+    /** The manager's own wiring for the defense consult's player arm. */
+    public void setGolemDefensePlayerQuery(java.util.function.IntSupplier query) {
+        this.golemDefensePlayerQuery = query;
+    }
+
+    /**
+     * The defense consult's player arm (the 1-in-20 fallback when no
+     * attacker stands): the nearest bad-reputation player's engine id,
+     * -1 when none.
+     */
+    int golemVillageDefensePlayer() {
+        java.util.function.IntSupplier query = golemDefensePlayerQuery;
+        return query != null ? query.getAsInt() : -1;
+    }
+
+    /**
+     * setPlayerCreated (IronGolemEntity lines 229-236): the pattern-built
+     * golem never turns on its builder's village (-5 reputation arm
+     * refuses) and never despawns (the engine's persistence pair rides
+     * the same set).
+     */
+    private boolean golemPlayerCreated;
+
+    /** @return whether the golem was pattern-built by a player (PlayerCreated). */
+    public boolean golemPlayerCreated() {
+        return golemPlayerCreated;
+    }
+
+    /**
+     * setPlayerCreated (lines 229-236): the pattern's own arm — the flag
+     * + the persistence (a built golem never despawns).
+     */
+    public void setGolemPlayerCreated(boolean playerCreated) {
+        this.golemPlayerCreated = playerCreated && type == MobType.IRON_GOLEM;
+        if (this.golemPlayerCreated) {
+            persistent = true;
+        }
+    }
+
     /**
      * mobAiTick's level-up walk (VillagerEntity lines 377-405): with no
      * customer standing, the countdown burns down; at zero the armed
@@ -6897,15 +7177,20 @@ public final class MobEntity implements LivingEntity {
      * next level appends — then the regeneration effect window (the
      * engine's mob-side effects ledger with the potion-on-mob family).
      * Called from the manager's tick (the villager branch).
+     *
+     * @return VIII10 — whether the armed LEVEL-UP landed this call (the
+     *         event-14 happy burst + the village's +1 reputation arm ride
+     *         the manager's site).
      */
-    public void tickVillagerLevelUp() {
+    public boolean tickVillagerLevelUp() {
         if (villagerLevelUpCountdown <= 0) {
-            return;
+            return false;
         }
         villagerLevelUpCountdown--;
         if (villagerLevelUpCountdown > 0) {
-            return;
+            return false;
         }
+        boolean landed = false;
         if (villagerLevelUp) {
             for (int i = 0; i < offerUses.length; i++) {
                 if (offerUses[i] >= offerMaxUses[i]) {
@@ -6914,11 +7199,13 @@ public final class MobEntity implements LivingEntity {
             }
             villagerLevelUp();
             villagerLevelUp = false;
-            // The event-14 happy burst + the village reputation ride the
-            // village system the engine does not carry (ledgered).
+            landed = true;
+            // The event-14 happy burst + the village's +1 reputation ride
+            // the manager's site (VIII10 — the ledgered note retired).
         }
         // The 200-tick Regeneration window rides the mob-side effect
         // family (the witch's own model) — ledgered.
+        return landed;
     }
 
     /** @return whether this kind trades (the villager). */
