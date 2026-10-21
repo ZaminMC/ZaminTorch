@@ -26,6 +26,8 @@ public final class ExperienceOrbEntity implements net.zaminmc.torch.entity.Exper
     public static final double HALF_WIDTH = 0.125;
     /** Historical orb lifespan: 5 minutes, then it fades (the item rule). */
     public static final int DESPAWN_TICKS = 6_000;
+    /** Position epsilon so a pushed bottom queries the block *below* the surface (the item arm's own form). */
+    private static final double PUSH_GROUND_EPSILON = 1.0E-7;
     /** Fresh orbs wait a beat before pickup (the item-drop rhythm). */
     public static final int PICKUP_DELAY_TICKS = 10;
     /** The vanilla kill plane: an orb below it is gone without payout. */
@@ -117,6 +119,79 @@ public final class ExperienceOrbEntity implements net.zaminmc.torch.entity.Exper
         this.velocityX = vx;
         this.velocityY = vy;
         this.velocityZ = vz;
+    }
+
+    /**
+     * The piston push (the VIII13 additive families — the reference's
+     * {@code Entity.move(amount * facing)} over MovingBlockEntity's
+     * interpolated box, lines 80-115): the IMMEDIATE, per-axis clamped
+     * position shift — the same leading-face law the item family's own
+     * arm carries (the orb's physics reuses the item model whole, this
+     * class's own unify note; the box's leading face against the world's
+     * solid cells, the blocked axis refusing its shift), the vertical
+     * clamped by the box's own top/bottom faces. Outside the velocity
+     * integration (the push is direct, the reference's own shape).
+     */
+    public void pushBy(Ground ground, double dx, double dy, double dz) {
+        double newX = position.x();
+        double newY = position.y();
+        double newZ = position.z();
+        if (dx != 0.0) {
+            double leadX = position.x() + dx + Math.signum(dx) * HALF_WIDTH;
+            if (!faceBlockedX(ground, leadX, position.y(), position.z())) {
+                newX = position.x() + dx;
+            }
+        }
+        if (dz != 0.0) {
+            double leadZ = position.z() + dz + Math.signum(dz) * HALF_WIDTH;
+            if (!faceBlockedZ(ground, newX, position.y(), leadZ)) {
+                newZ = position.z() + dz;
+            }
+        }
+        if (dy != 0.0) {
+            double probeY = dy > 0
+                    ? position.y() + dy + HALF_HEIGHT - PUSH_GROUND_EPSILON
+                    : position.y() + dy - HALF_HEIGHT + PUSH_GROUND_EPSILON;
+            if (!ground.isSolid(newX, probeY, newZ)) {
+                newY = position.y() + dy;
+            }
+        }
+        position = new Position(newX, newY, newZ);
+    }
+
+    /**
+     * The X-leading-face test (the item family's own three-sample sweep):
+     * the face at {@code leadX} over the box's z-width and y-height — the
+     * bottom sits a hair above the resting surface so the ground the orb
+     * slides on never blocks its own slide.
+     */
+    private static boolean faceBlockedX(Ground ground, double leadX,
+                                        double centerY, double centerZ) {
+        double bottom = centerY - HALF_HEIGHT + PUSH_GROUND_EPSILON;
+        double top = centerY + HALF_HEIGHT - PUSH_GROUND_EPSILON;
+        for (double y : new double[]{bottom, centerY, top}) {
+            if (ground.isSolid(leadX, y, centerZ - HALF_WIDTH)
+                    || ground.isSolid(leadX, y, centerZ)
+                    || ground.isSolid(leadX, y, centerZ + HALF_WIDTH)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** The Z-leading-face test: the face at {@code leadZ} over the x-width. */
+    private static boolean faceBlockedZ(Ground ground, double centerX,
+                                        double centerY, double leadZ) {
+        double bottom = centerY - HALF_HEIGHT + PUSH_GROUND_EPSILON;
+        double top = centerY + HALF_HEIGHT - PUSH_GROUND_EPSILON;
+        for (double y : new double[]{bottom, centerY, top}) {
+            if (ground.isSolid(centerX - HALF_WIDTH, y, leadZ)
+                    || ground.isSolid(centerX, y, leadZ)
+                    || ground.isSolid(centerX + HALF_WIDTH, y, leadZ)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

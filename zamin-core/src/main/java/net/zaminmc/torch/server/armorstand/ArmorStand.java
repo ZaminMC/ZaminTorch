@@ -154,6 +154,16 @@ public final class ArmorStand {
         return (status & FLAG_MARKER) != 0;
     }
 
+    /**
+     * The small flag (the synced byte's bit 0, ArmorStandEntity line
+     * 597's own bit): the small form's own box rows (updateSize(0.25,
+     * 0.9875) against the normal (0.5, 1.975) — the piston-push family's
+     * box test reads them).
+     */
+    public boolean small() {
+        return (status & FLAG_SMALL) != 0;
+    }
+
     /** The walk's velocity x (the reference's motionX). */
     public double velocityX() {
         return velocityX;
