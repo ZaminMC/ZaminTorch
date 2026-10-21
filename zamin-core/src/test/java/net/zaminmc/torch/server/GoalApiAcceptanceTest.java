@@ -133,12 +133,12 @@ class GoalApiAcceptanceTest {
                 "the goal body ran on the simulation owner's thread");
 
         // The snapshot: the plugin's own instance by identity, beside the
-        // eight built-in views (float, panic, breed, beg, tempt, flee_player,
-        // rabbit_raid_farm, stroll — the awareness band is kind-gated and
-        // inert on a pig).
+        // nine built-in views (float, panic, break_door, breed, beg, tempt,
+        // flee_player, rabbit_raid_farm, stroll — the awareness band and the
+        // zombie's door break are kind-gated and inert on a pig).
         List<Goal> live = pig.goals().goals();
         assertTrue(live.contains(goal), "the registered instance is in the snapshot by identity");
-        assertEquals(9, live.size(), "eight built-ins plus the registered goal");
+        assertEquals(10, live.size(), "nine built-ins plus the registered goal");
         server.shutdown(null);
     }
 

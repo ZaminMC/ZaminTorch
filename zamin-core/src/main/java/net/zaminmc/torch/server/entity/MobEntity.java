@@ -6574,7 +6574,7 @@ public final class MobEntity implements LivingEntity {
      * @return whether the door-break owns the body this tick (the detour
      *         stands down; the path stays live).
      */
-    private boolean armZombieDoorBreak() {
+    boolean armZombieDoorBreak() {
         if (type != MobType.ZOMBIE || !zombieCanBreakDoors || !world.mobGriefing()) {
             return false;
         }
@@ -6659,11 +6659,12 @@ public final class MobEntity implements LivingEntity {
             zombieBreakDoorLastStage = stage;
         }
         if (zombieBreakDoorProgress == 240 && world.difficultyHard()) {
-            // The completion: the cell's removal lands through the
-            // manager's listener bridge (the world write is the
-            // engine's, never the body's own).
+            // The completion (lines 53-57): the removal + the 1012/2001
+            // pair land through the manager's listener bridge (the world
+            // write is the engine's, never the body's own). The stage-10
+            // publication above stands as the wire's last word — the
+            // reference's own order (the break sends no extra clear).
             pendingZombieDoorBroken = true;
-            pendingZombieDoorStage = -1; // the clear rides the break itself
             zombieDoorBreakArmed = false;
         }
     }
@@ -7000,7 +7001,7 @@ public final class MobEntity implements LivingEntity {
      *
      * @return the remainder stack (null when the whole stack landed).
      */
-    net.zaminmc.torch.item.ItemStack villagerAcceptFood(
+    public net.zaminmc.torch.item.ItemStack villagerAcceptFood(
             net.zaminmc.torch.item.ItemStack stack) {
         if (!villagerFoodItem(stack.type())) {
             return stack;
@@ -7119,6 +7120,29 @@ public final class MobEntity implements LivingEntity {
     }
 
     private int villagerScanCooldown;
+
+    /**
+     * setConvertedZombie (VillagerEntity lines 784-786 + the mobAiTick read
+     * lines 363-366): the cured-villager marker — the next village-scan
+     * cadence pays the WHOLE village +5 reputation once (the reference's
+     * updateAllReputations(5) over the villager's own village).
+     */
+    private boolean villagerConvertedZombie;
+
+    /**
+     * setConvertedZombie (line 784): the conversion walk's own marker —
+     * the manager arms it when the cured villager lands.
+     */
+    public void setVillagerConvertedZombie() {
+        this.villagerConvertedZombie = type == MobType.VILLAGER;
+    }
+
+    /** @return and clears the converted-zombie marker (the cadence arm reads). */
+    public boolean consumeVillagerConvertedZombie() {
+        boolean value = villagerConvertedZombie;
+        villagerConvertedZombie = false;
+        return value;
+    }
 
     // ------------------------------------- the golem's village consult (VIII10)
 

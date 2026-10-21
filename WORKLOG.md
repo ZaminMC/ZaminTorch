@@ -11385,3 +11385,118 @@ rows, the wither's death box, the summon box, the full beacon, the breed
 cause, the pig fall's strict five-block refusal, the cart kilometre, the
 all-biomes cover. The crafting/stat/beacon/breeding/vehicle/furnace/player
 regression suites green (182/0 after the count pin's update).
+
+## 2026-10-21 — VIII9 + VIII10: the zombie's attributes + the village detection (one slice)
+
+The Wave VIII audit's ninth and tenth rows, landed as one slice on
+feature/zombie-village (the zombie's door-break and the villager's
+village are one mechanic's two faces — the census the door-break
+defends). VIII4's landed spawn-dice machinery audited first: the
+zombie's iron tool arm is LIVE in rollSpawnEquipment's tail (kept, not
+duplicated); the leader dice land AFTER the equipment dice as the
+reference's own initialize order (lines 447-451).
+
+- **The door-break goal** (BreakDoorGoal + AbstractDoorInteractGoal 1:1):
+  MobEntity's zombie state (the canBreakDoors flag, the 240-tick clock,
+  the stage row, the door cell) + BREAK_DOOR in MobGoals at band 1 — the
+  standard selector grew 8 -> 9 (the hurt body panics first, the pressed
+  one breaks, the reference's own 1-band) + the sticky shouldContinue
+  walk + the tick (the 1-in-20 knock 1010, the progress/240*10 stage
+  publication through the raw-id 0x28 Block Break Animation over the
+  MOB's own breaker id, the 240-on-HARD completion: the removal + the
+  doorSiblingCleanup + the 1012 world event + the blockShatter 2001).
+  The ARMING rides the clip sites — the named adaptation: the engine's
+  swept-detour would clear the path before the selector ever sees the
+  door, so BOTH detour sites consult armZombieDoorBreak first (the live
+  path's node walk [0, currentIndex+2), the squared-2.25 band, the
+  fallback cell above the body, the mobGriefing gate through
+  WorldQuery.difficultyHard()'s HARD-only 1.8.8 default).
+- **The reinforcement caller** (ZombieEntity.takeDamage lines 199-227
+  1:1): the hurt walk's attackingPlayer seat (the melee + arrow sites
+  carry the session), the roll over the spawnReinforcements attribute
+  base (the ctor's own nextDouble()*0.1 — initAttributes line 87), the
+  HARD gate, the target resolution (the attack target first, then the
+  wound's living attacker), the 50-try flank walk
+  (nextInt(7,40)*nextInt(-1,1) per axis), the gate family (the solid
+  top below, the skyLight-<10 dark band, no player within 7, the
+  two-cell + fluid clears), the callee's plain-adult spawn (its own
+  dice ride the local-difficulty multiplier) + the FORCED PLAYER HUNT,
+  and BOTH -0.05 charges. The task's two named additions: the
+  same-family census cap (<=10 ZOMBIEs within 40) + the baby-caller
+  refusal.
+- **The leader rolls** (initialize lines 447-451 1:1):
+  rollZombieCanBreakDoors (f*0.1, before the equipment dice) +
+  rollZombieLeader (f*0.05 after them: the reinforcement bonus
+  nextDouble()*0.25+0.5, the MAX_HEALTH op-2 multiply
+  nextDouble()*3+1 as the 40..100 band through applyZombieLeaderHealth,
+  the forced door-break). The CanBreakDoors NBT row both directions
+  (EntityNbt's placeholder false retired).
+- **The Village surface** (the new server/village package — the
+  endereye/decoration precedents' shape): VillageDoor 1:1 (the
+  reference's own famous isIndoors Y-read quirk kept verbatim, named in
+  the javadoc); Village 1:1 (the door census with the combined-positions
+  center average + the 32-minimum radius over the farthest door, the
+  per-player reputation TreeMap BY NAME with the -30..10 clamp + the
+  -15 bad band, the population + golem censuses, the iron-golem spawn —
+  golems < pop/10 + doors > 20 + nextInt(7000) with the 10-try
+  ±8/±3/±8 position walk, the mating window's 3600-tick cooldown, the
+  attacker registry with the 300-tick clean-up + the defense consult —
+  the creeper excluded case-insensitively); VillageSystem over
+  SavedVillageData (the ONE-per-tick pending-update queue, the
+  ±16/±4/±16 door-census scan, the sky-walk facing with the
+  equal-sky refusal — an unsheltered door never lands, the %400 dirty
+  cadence); VillageDataStore (the ZVI format, atomic writes).
+  Wired: EngineServer's boot restore + the profiled("villages") tick
+  section + the saveAllNow arm + the VillageSurface bridge (the
+  wooden-door consult, the facing decode band 0=EAST/1=SOUTH/2=WEST/
+  3=NORTH verified against DoorBlock.getFacing).
+- **The manager arms**: the villager's markForUpdate cadence
+  (70+nextInt(50)) + the converted-zombie's +5 reputation once
+  (setConvertedZombie — VillagerEntity lines 784-786, the marker armed
+  at the manager's conversion site, paid at the villager's next scan —
+  the reference's updateAllReputations(5)); the golem's village defense
+  every tick (the attacker census first, the mob arm + the player's
+  forced hunt, the 1-in-20 bad-reputation fallback — the named
+  adaptation: the engine resolves the village live where the reference
+  caches at the cadence, observably identical); the villager's mating
+  gate (nearestVillage range 0 + pop < doors*0.35); the wound hook
+  (the attacker census + the player's -1/-3-by-baby reputation + the
+  event-13 angry burst); the death hooks (the villager's -2 +
+  stopMating-by-family + the 16-block watcher window; the golem's -5
+  with the PlayerCreated refusal — setGolemPlayerCreated lands at the
+  iron pattern site); the level-up's +1 reputation + the event-14 happy
+  burst (the ledgered note retired).
+- **The villager mating gates on the existing breed surface**: the
+  8-slot food inventory + hasFoodPoints (3-bread/12-potato/12-carrot/
+  9-farmer-wheat) + consumeAvailableFood 1:1 (the 3/12 arms the willing
+  + the heart burst), the pickup walk's villager override (the food
+  lands in the slots, never the hand), canBreedWith's villager WILLING
+  pair, the BREED goal's villager canUse (the 1-in-500 cadence + the
+  village gate + the food consume + the mate scan —
+  VillagerMatingGoal.canStart 1:1), the breed flush's willing
+  re-verification + breed()'s setWilling(false) pair; the Willing +
+  Inventory NBT rows both directions. The village's 5-villager golem
+  gate lands as the reference's own census band (golems < pop/10 + the
+  21-door walk) — the row's "panic/5-villager" gloss named in the PR.
+- **The siege** (VillageSiege) demand-named as the counted §31.6 note —
+  the zombie-siege's own spawn walk does not fit this slice's census
+  shape (the row's named deliverables all landed).
+
+Evidence: ZombieAttributesTest 7 — the seeded dice vs the verbatim
+reference shadows at 6 seeds x 3 multipliers, the leader health band,
+the arming matrix (the closed-wooden family + the iron refusal), the
+240-tick stage walk (the eleven publications + the HARD break + the
+NORMAL walk-then-stop), the flank spawn + both charges + the target
+carry, the NORMAL/baby/census refusals, the VIII4 audit row.
+VillageDetectionTest 8 — the door census + the inside facing + the
+1200-staleness, the equal-sky refusal, the center/radius walks, the
+1/7000 golem gate + the refusals, the mating window + the census band,
+the reputation clamp + the defense consult + the creeper exclusion, the
+food model, the ZVI round trip. The TemptBegGoalsTest +
+GoalApiAcceptanceTest selector pins updated for the new band-1 seat
+(8 -> 9; the pig's snapshot 9 -> 10 — the flat standard catalog, the
+kind-gating at canUse). The whole-module sweep green:
+:zamin-core:test 1959/0 over 331 classes (entity 430/0, block 197/0,
+world 179/0, the mid packages 414/0, the server-root batches 393/0, the
+small packages 346/0); :zamin-protocol-v1_8_8:test 115/0;
+:zamin-bukkit:compileJava + :zamin-api:compileJava green.
